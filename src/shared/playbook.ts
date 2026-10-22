@@ -70,6 +70,34 @@ export function defaultPlaybookSettings(teamId: string): PlaybookSettings {
   })
 }
 
+/** D214: the journal's settings for a team: defaults, then the last settings
+record that team wrote. The policy's refresh and the report orderer share
+this replay, so reports gate on the settings the policy enforces. */
+export function replayPlaybookSettings(
+  records: readonly PlaybookRecord[],
+  teamId: string,
+): PlaybookSettings {
+  let settings = defaultPlaybookSettings(teamId)
+  for (const record of records)
+    if (record.kind === 'settings' && record.value.teamId === teamId) settings = record.value
+  return settings
+}
+
+/** D214: the note an ordering carries: owner-first while loudFailures is on,
+the recorded opt-out (actor and reason) once it is off. The policy's
+orderReport and the report orderer share this builder; the note is returned
+for the caller to show, never stored. */
+export function playbookOrderReportNote(settings: PlaybookSettings, at: number): PlaybookWhyNote {
+  const setting = settings.rules.loudFailures
+  return playbookWhyNoteSchema.parse({
+    ...(!setting.enabled && { actor: setting.actor, reason: setting.reason }),
+    rule: 'loudFailures',
+    code: setting.enabled ? 'ownerFirst' : 'ruleDisabled',
+    at,
+    needsUser: false,
+  })
+}
+
 /** Unknown model classes survive parsing but do not create a new policy class. */
 export function knownFindingClass(value: string | undefined): PlaybookFindingClass | undefined {
   return PLAYBOOK_FINDING_CLASSES.find((entry) => entry === value?.toLowerCase())
@@ -423,10 +451,25 @@ export function comparePlaybookReportItems(
   )
 }
 
+/** D214: flags as a severity bucket for key order: owner rows 0, failures 1,
+the rest 2. The report wrap prefixes keys with this bucket so the canonical
+key sort keeps the severity order. */
+function failingBucket(isFailing: boolean): 1 | 2 {
+  return isFailing ? 1 : 2
+}
+
+export function playbookReportBucket(
+  flags: Pick<PlaybookReportItem, 'needsUser' | 'failing'>,
+): 0 | 1 | 2 {
+  return flags.needsUser ? 0 : failingBucket(flags.failing)
+}
+
 /** D214: journal records as report items. Unresolved designs and notes that
-need the person sort first; rounds with findings and refusal/failure notes
-next; everything else keeps journal order. This reproduces the CLI's buckets
-exactly (note codes outside PLAYBOOK_INFORMATIONAL_NOTE_CODES fail). */
+need the person sort first; rounds with findings, failed verifications and
+refusal/failure notes next; everything else keeps journal order. This
+reproduces the CLI's buckets exactly (note codes outside
+PLAYBOOK_INFORMATIONAL_NOTE_CODES fail), except that a failed verification
+now surfaces as a failure instead of sitting with the informational notes. */
 export function playbookRecordReportFlags(
   record: PlaybookRecord,
 ): Pick<PlaybookReportItem, 'needsUser' | 'failing'> {
@@ -440,7 +483,9 @@ export function playbookRecordReportFlags(
     return { needsUser: true, failing: false }
   return {
     needsUser: false,
-    failing: record.kind === 'round' && record.value.findings.length > 0,
+    failing:
+      (record.kind === 'round' && record.value.findings.length > 0) ||
+      (record.kind === 'verification' && record.value.result === 'fail'),
   }
 }
 

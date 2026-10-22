@@ -238,6 +238,20 @@ export function createReportingWindow(
                 )
                 .read(context),
           },
+          // D214: the playbook, milestone and fleet kinds order through
+          // the same journal the reader reads. The orderer replays fresh
+          // on every section; the note names its rule for the log.
+          playbookOrder: loadPlaybookSchedules().createPlaybookReportOrder(
+            {
+              agentDataFolder: deps.reportUsageDataFolder,
+              workspaceRoot: deps.workspaceRoot ?? process.cwd(),
+            },
+            table,
+            locale,
+          ),
+          playbookNote: (note) => {
+            deps.context.log.info(`playbook report order: ${note.rule}/${note.code}`)
+          },
           schedules: {
             read: (context) =>
               loadPlaybookSchedules()

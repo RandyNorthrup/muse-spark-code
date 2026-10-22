@@ -1,27 +1,28 @@
 // D214: the one report ordering. The shared comparator and the record flags
 // below are the only ordering criteria: the policy's orderReport and every
 // record/text presentation (CLI, ACP, the panel's rows) derive from them.
+import { existsSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { PLAYBOOK_INFORMATIONAL_NOTE_CODES } from '../../src/shared/constants'
 import {
   comparePlaybookReportItems,
   defaultPlaybookSettings,
-  playbookModuleSchema,
+  playbookOrderReportNote,
   playbookRecordReportFlags,
   playbookRecordSchema,
+  playbookReportBucket,
+  playbookSettingsSchema,
+  replayPlaybookSettings,
   type PlaybookRecord,
 } from '../../src/shared/playbook'
 import { createFileJournalPolicy } from '../../src/core/orchestration/playbook/policy'
+import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
 import { createPlaybookSurface } from '../../src/runtime/playbook/surface'
 import { orderedPlaybookRecords } from '../../src/runtime/playbook/text'
 import { scratchFolders } from './helpers/playbook/scratchFolders'
+import { orderDesign, orderModule, orderVerification } from './helpers/playbook/journalRecords'
 
-const module = playbookModuleSchema.parse({
-  id: 'store-17',
-  key: 'src/core/schedules/store',
-  files: ['src/core/schedules/store.ts'],
-  source: 'lane',
-})
+const module = orderModule
 
 function record(value: unknown): PlaybookRecord {
   return playbookRecordSchema.parse(value)
@@ -48,20 +49,7 @@ const ownerNote = record({
   value: { rule: 'neverAround', code: 'classifierBlocked', at: 3, needsUser: true },
 })
 function design(outcome: 'pending' | 'impossible'): PlaybookRecord {
-  return record({
-    kind: 'design',
-    value: {
-      id: 'design-1',
-      module,
-      failureClass: 'Racy claim.',
-      whyPatchesFailed: 'Two rounds failed.',
-      structuralChange: 'Split the module.',
-      planLocation: 'src/core/schedules/store.ts',
-      redesignLane: 'lane-1',
-      outcome,
-      at: 4,
-    },
-  })
+  return orderDesign(outcome)
 }
 function round(hasFindings: boolean): PlaybookRecord {
   return record({
@@ -86,6 +74,9 @@ const settingsRecord = record({
   kind: 'settings',
   value: defaultPlaybookSettings('panel'),
 })
+function verification(result: 'pass' | 'fail'): PlaybookRecord {
+  return orderVerification(result)
+}
 
 describe('D214 one report ordering', () => {
   it('pins the informational note codes the ordering shares', () => {
@@ -119,6 +110,13 @@ describe('D214 one report ordering', () => {
     ])
   })
 
+  it('buckets flags owner 0, failure 1, rest 2', () => {
+    expect(playbookReportBucket({ needsUser: true, failing: false })).toBe(0)
+    expect(playbookReportBucket({ needsUser: true, failing: true })).toBe(0)
+    expect(playbookReportBucket({ needsUser: false, failing: true })).toBe(1)
+    expect(playbookReportBucket({ needsUser: false, failing: false })).toBe(2)
+  })
+
   it('flags notes by needsUser first, then by refusal codes', () => {
     expect(playbookRecordReportFlags(ownerNote)).toEqual({ needsUser: true, failing: false })
     expect(playbookRecordReportFlags(refusalNote)).toEqual({ needsUser: false, failing: true })
@@ -141,10 +139,67 @@ describe('D214 one report ordering', () => {
     expect(playbookRecordReportFlags(round(false))).toEqual({ needsUser: false, failing: false })
   })
 
+  it('flags failed verifications as failing and passed ones as informational', () => {
+    expect(playbookRecordReportFlags(verification('fail'))).toEqual({
+      needsUser: false,
+      failing: true,
+    })
+    expect(playbookRecordReportFlags(verification('pass'))).toEqual({
+      needsUser: false,
+      failing: false,
+    })
+  })
+
   it('flags every other record kind as informational', () => {
     expect(playbookRecordReportFlags(settingsRecord)).toEqual({
       needsUser: false,
       failing: false,
+    })
+  })
+
+  it('replays the last settings record the team wrote over defaults', () => {
+    const team = defaultPlaybookSettings('panel')
+    const off = playbookSettingsSchema.parse({
+      ...team,
+      rules: {
+        ...team.rules,
+        loudFailures: { enabled: false, reason: 'Quiet.', actor: 'owner', at: 7 },
+      },
+    })
+    const records = [
+      record({ kind: 'settings', value: defaultPlaybookSettings('team') }),
+      record({ kind: 'settings', value: off }),
+    ]
+    const replayed = replayPlaybookSettings(records, 'panel')
+    expect(replayed.rules.loudFailures).toMatchObject({ enabled: false, actor: 'owner' })
+    expect(replayPlaybookSettings(records, 'team').rules.loudFailures).toMatchObject({
+      enabled: true,
+    })
+    expect(replayPlaybookSettings([], 'panel')).toEqual(defaultPlaybookSettings('panel'))
+  })
+
+  it('builds the ordering note from the replayed switch', () => {
+    const on = defaultPlaybookSettings('panel')
+    expect(playbookOrderReportNote(on, 9)).toEqual({
+      rule: 'loudFailures',
+      code: 'ownerFirst',
+      at: 9,
+      needsUser: false,
+    })
+    const off = playbookSettingsSchema.parse({
+      ...on,
+      rules: {
+        ...on.rules,
+        loudFailures: { enabled: false, reason: 'Quiet.', actor: 'owner', at: 7 },
+      },
+    })
+    expect(playbookOrderReportNote(off, 10)).toEqual({
+      rule: 'loudFailures',
+      code: 'ruleDisabled',
+      actor: 'owner',
+      reason: 'Quiet.',
+      at: 10,
+      needsUser: false,
     })
   })
 
@@ -210,5 +265,31 @@ describe('D214 one report ordering', () => {
     const passed = policy.orderReport(items)
     expect(passed.items.map((item) => item.id)).toEqual(['info', 'failure', 'owner'])
     expect(passed.note).toMatchObject({ rule: 'loudFailures', code: 'ruleDisabled' })
+  })
+
+  it('stores nothing when ordering: reads never touch the journal file', () => {
+    const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-report-nojournal-')
+    const journalFile = new FilePlaybookJournal(agentDataFolder, workspaceFolder).file
+    expect(existsSync(journalFile)).toBe(false)
+    const policy = createFileJournalPolicy(
+      { agentDataFolder, workspaceFolder, teamId: 'panel', laneId: 'surface' },
+      {
+        authorizeOverride: () => false,
+        drillRequirements: { guards: () => [] },
+        checkAdmission: { admit: () => false },
+        hookAdmission: { admit: () => false },
+      },
+    )
+    const items = [
+      { id: 'info', needsUser: false, failing: false },
+      { id: 'failure', needsUser: false, failing: true },
+    ]
+    const first = policy.orderReport(items)
+    const second = policy.orderReport(items)
+    expect(first.items.map((item) => item.id)).toEqual(['failure', 'info'])
+    expect(second.items.map((item) => item.id)).toEqual(['failure', 'info'])
+    expect(first.note).toMatchObject({ rule: 'loudFailures', code: 'ownerFirst' })
+    expect(existsSync(journalFile)).toBe(false)
+    expect(policy.getRecord()).toEqual([])
   })
 })

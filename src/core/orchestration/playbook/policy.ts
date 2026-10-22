@@ -10,6 +10,8 @@ import {
   defaultPlaybookSettings,
   playbookDesignDecisionSchema,
   isPatchRoundsExceeded,
+  playbookOrderReportNote,
+  replayPlaybookSettings,
   playbookRecordSchema,
   playbookRoundSchema,
   playbookSettingsSchema,
@@ -131,10 +133,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     this.expected = this.options.journal.read()
     this.records = validatedRecords(this.expected)
     this.states = moduleStates(this.records)
-    this.settings = defaultPlaybookSettings(this.options.teamId)
-    for (const record of this.records)
-      if (record.kind === 'settings' && record.value.teamId === this.options.teamId)
-        this.settings = record.value
+    this.settings = replayPlaybookSettings(this.records, this.options.teamId)
   }
 
   private publish(records: readonly PlaybookRecord[]): void {
@@ -1230,10 +1229,14 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     const ordered = [...items]
     // D214: the sort is the one shared ordering, never a local copy of it.
     if (this.on('loudFailures')) ordered.sort((a, b) => comparePlaybookReportItems(a, b))
-    const decision = this.on('loudFailures')
-      ? this.decide('allow', 'loudFailures', 'ownerFirst')
-      : this.passed('loudFailures')
-    return { items: structuredClone(ordered), note: decision.note }
+    // D214: ordering is presentation, not an effect: the note is returned
+    // for the caller to show, never stored. Storing it would rewrite the
+    // shared journal on every report and view, and a CAS conflict there
+    // would fail a read; the retention already evicts these notes first.
+    return {
+      items: structuredClone(ordered),
+      note: playbookOrderReportNote(this.settings, this.options.now()),
+    }
   }
 }
 

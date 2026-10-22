@@ -743,6 +743,17 @@ function runtimeReports(
                   )
                   .read(context),
             },
+            // D214: the playbook, milestone and fleet kinds order through
+            // the same journal the reader reads. The orderer replays fresh
+            // on every section; the note names its rule for the log.
+            playbookOrder: playbookSchedules().createPlaybookReportOrder(
+              { agentDataFolder: dataFolder, workspaceRoot: cwd },
+              l10n.table,
+              l10n.locale,
+            ),
+            playbookNote: (note) => {
+              log.info(`playbook report order: ${note.rule}/${note.code}`)
+            },
             schedules: {
               read: (context) =>
                 playbookSchedules()

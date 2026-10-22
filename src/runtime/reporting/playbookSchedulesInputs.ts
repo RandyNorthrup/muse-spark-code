@@ -10,8 +10,16 @@
 import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
+  validatedRecords,
 } from '../../core/orchestration/playbook/journal'
-import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
+import { PLAYBOOK_PANEL_TEAM, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
+import {
+  comparePlaybookReportItems,
+  playbookOrderReportNote,
+  replayPlaybookSettings,
+} from '../../shared/playbook'
+import { UI_TEXT } from '../../shared/l10n/text'
+import type { PlaybookReportOrderer } from '../../core/reporting/collect/playbookOrder'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
@@ -42,6 +50,44 @@ export function createPlaybookReportReader(input: {
       }
       return Promise.resolve({ records, observedAt: context.asOf })
     },
+  }
+}
+
+/**
+D214: the report ordering over the same journal the reader reads, for the
+person's panel team. Every call replays the journal fresh (like the policy's
+refresh), gates on the replayed loudFailures switch, and sorts through the
+one shared ordering; nothing is stored, so reads never contend. A lost
+journal throws lost; anything else unreadable throws unavailable.
+*/
+export function createPlaybookReportOrder(input: {
+  readonly agentDataFolder: string
+  readonly workspaceRoot: string
+}): PlaybookReportOrderer {
+  const journal = new FilePlaybookJournal(input.agentDataFolder, input.workspaceRoot)
+  const readRecords = () => {
+    // The journal's own failures travel as they are (lost stays lost);
+    // validation quotes record content, so it never carries outward.
+    const raw = journal.read()
+    try {
+      return validatedRecords(raw)
+    } catch {
+      throw new Error(UI_TEXT.playbookUnavailable)
+    }
+  }
+  return {
+    orderReport: (items) => {
+      const records = readRecords()
+      const settings = replayPlaybookSettings(records, PLAYBOOK_PANEL_TEAM)
+      const ordered = [...items]
+      if (settings.rules.loudFailures.enabled)
+        ordered.sort((a, b) => comparePlaybookReportItems(a, b))
+      return {
+        items: structuredClone(ordered),
+        note: playbookOrderReportNote(settings, Date.now()),
+      }
+    },
+    getRecord: () => structuredClone(readRecords()),
   }
 }
 
