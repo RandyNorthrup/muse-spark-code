@@ -24979,6 +24979,13 @@ owner binding (M95 review question, M108 account surface, lead's
 installed four-device qualification, D212 physical executors and
 simulators). D212 renumbered from D140 (Linux dictation owns D140; M103 makers owns D83).
 
+**Status 2026-10-22: building.** First slice on rec/rlm100 (lane
+RLM100): `src/RLM100/01-ms-msm100` merged; all eight first-slice lanes
+carry both invitation paths; two-process pinned-TLS drill and lane-K
+refusal proof green. Awaiting lead integration; two-machine check-only
+and four-device qualification stay lead-side. Record:
+`docs/certification/rlm100.md`.
+
 **PORTM100 release-base port (2026-10-11, before follow-up repairs).** Merge
 0.17.1 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4` into accepted phase 2
 `1630f022d`, retaining both behaviours and every existing cap. Preserve the
