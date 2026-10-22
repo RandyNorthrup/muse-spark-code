@@ -4373,6 +4373,10 @@
   "judgeStatusSlow": "默认关闭：审核员作出决定时就绪的结果太少",
   "judgeStatusSubscription": "订阅",
   "judgeStatusPaid": "付费",
+  "judgeFastOff": "快速路径已关闭",
+  "judgeNotSetUp": "评判器：未设置 — 设置",
+  "judgeInstalling": "评判器：正在安装 ({percent})",
+  "referenceJudgeSetup": "扫描本机并安装本地评判器模型。",
   "judgePanel": {
     "source": "来源",
     "model": "模型",

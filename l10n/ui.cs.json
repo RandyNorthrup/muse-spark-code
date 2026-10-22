@@ -4706,6 +4706,10 @@
   "judgeStatusSlow": "Ve výchozím nastavení vypnuto: příliš málo výsledků připravených při rozhodnutí kontrolora",
   "judgeStatusSubscription": "Předplatné",
   "judgeStatusPaid": "Placené",
+  "judgeFastOff": "Rychlá cesta vypnuta",
+  "judgeNotSetUp": "Posuzovatel: Nenastaveno — Nastavit",
+  "judgeInstalling": "Posuzovatel: Instaluje se ({percent})",
+  "referenceJudgeSetup": "Naskenuje tento počítač a nainstaluje místní model posuzovatele.",
   "judgePanel": {
     "source": "Zdroj",
     "model": "Model posouzení",

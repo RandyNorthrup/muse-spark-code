@@ -4484,6 +4484,10 @@
   "judgeStatusSlow": "Standardmäßig aus: zu wenige Ergebnisse beim Urteil des Prüfers bereit",
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Kostenpflichtig",
+  "judgeFastOff": "Schneller Pfad aus",
+  "judgeNotSetUp": "Beurteiler: Nicht eingerichtet — Einrichten",
+  "judgeInstalling": "Beurteiler: Wird installiert ({percent})",
+  "referenceJudgeSetup": "Diesen Rechner prüfen und ein lokales Beurteilermodell installieren.",
   "judgePanel": {
     "source": "Quelle",
     "model": "Modell",

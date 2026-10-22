@@ -4373,6 +4373,10 @@
   "judgeStatusSlow": "기본으로 꺼짐: 검토자 판정 시 준비된 결과가 너무 적음",
   "judgeStatusSubscription": "구독",
   "judgeStatusPaid": "유료",
+  "judgeFastOff": "고속 경로 꺼짐",
+  "judgeNotSetUp": "판단자: 설정되지 않음 — 설정",
+  "judgeInstalling": "판단자: 설치 중 ({percent})",
+  "referenceJudgeSetup": "이 기기를 검사하고 로컬 판단자 모델을 설치합니다.",
   "judgePanel": {
     "source": "출처",
     "model": "모델",

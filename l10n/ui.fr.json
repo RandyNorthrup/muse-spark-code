@@ -4595,6 +4595,10 @@
   "judgeStatusSlow": "Désactivé par défaut : trop peu de résultats prêts au verdict du réviseur",
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Payant",
+  "judgeFastOff": "Chemin rapide désactivé",
+  "judgeNotSetUp": "Évaluateur : non configuré — Configurer",
+  "judgeInstalling": "Évaluateur : installation ({percent})",
+  "referenceJudgeSetup": "Analyse cette machine et installe un modèle local.",
   "judgePanel": {
     "source": "Origine",
     "model": "Modèle",

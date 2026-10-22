@@ -4595,6 +4595,10 @@
   "judgeStatusSlow": "Disattivato per impostazione predefinita: pochi risultati pronti al verdetto del revisore",
   "judgeStatusSubscription": "Abbonamento",
   "judgeStatusPaid": "A pagamento",
+  "judgeFastOff": "Percorso rapido disattivato",
+  "judgeNotSetUp": "Valutatore: non configurato — Configura",
+  "judgeInstalling": "Valutatore: installazione ({percent})",
+  "referenceJudgeSetup": "Analizza questo computer e installa un modello di valutazione locale.",
   "judgePanel": {
     "source": "Origine",
     "model": "Modello",

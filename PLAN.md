@@ -36362,6 +36362,14 @@ remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
 
 ## 8. Escape hatches register
 
+RLM125 lane 0, 2026-10-22: `// eslint-disable-next-line
+unicorn/consistent-boolean-name` on `eligible` in
+`src/core/judge/fast/classes.ts`. M125 lane 0 names this function
+`eligible(class, p95, window)` in PLAN §6, and the resolver, the
+recommender, the Done screen and the Judge section share the one name;
+renaming it `isEligible` would fork the contract. Removal guard: none
+while the M125 contract stands; the lint stays on everywhere else.
+
 TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
 @typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
 (`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`

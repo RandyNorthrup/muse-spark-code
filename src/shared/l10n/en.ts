@@ -5701,6 +5701,11 @@ export const EN = {
   judgeStatusSlow: 'Off by default: too few results ready at the reviewer fence',
   judgeStatusSubscription: 'Subscription',
   judgeStatusPaid: 'Paid',
+  // M125 lane 0 (D107): the fast judge's status line and setup command.
+  judgeFastOff: 'Fast path off',
+  judgeNotSetUp: 'Judge: Not Set Up — Set Up',
+  judgeInstalling: 'Judge: Installing ({percent})',
+  referenceJudgeSetup: 'Scan this machine and install a local judge model.',
   // The Models panel's Judge section (M98 phase 2, lane FP). Amounts are filled
   // with the display language's money format; an unknown amount is not shown as zero.
   judgePanel: {

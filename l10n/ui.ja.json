@@ -4373,6 +4373,10 @@
   "judgeStatusSlow": "既定でオフ：レビュー担当の判定時に準備できる結果が少なすぎます",
   "judgeStatusSubscription": "サブスクリプション",
   "judgeStatusPaid": "有料",
+  "judgeFastOff": "高速パスオフ",
+  "judgeNotSetUp": "ジャッジ：未セットアップ — セットアップ",
+  "judgeInstalling": "ジャッジ：インストール中 ({percent})",
+  "referenceJudgeSetup": "このマシンをスキャンしてローカルジャッジモデルをインストールします。",
   "judgePanel": {
     "source": "出典",
     "model": "モデル",

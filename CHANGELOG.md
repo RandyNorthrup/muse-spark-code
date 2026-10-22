@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge contract: `auto` now means the fast judge (deterministic
+  checks first, then the fastest ready engine per decision), with one
+  `museSpark.judge.fastPathOff` switch for the whole fast path and a
+  **Set Up Local Judge** command that opens the Judge settings until the
+  setup wizard lands.
+
 - Judge fast path: the confinement helper answers `stat` itself instead of
   starting the system `stat`, so the report cannot depend on which
   coreutils a machine ships. The report comes from the walked files, prints

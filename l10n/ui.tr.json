@@ -4484,6 +4484,10 @@
   "judgeStatusSlow": "Varsayılan olarak kapalı: inceleyici kararında çok az sonuç hazır",
   "judgeStatusSubscription": "Abonelik",
   "judgeStatusPaid": "Ücretli",
+  "judgeFastOff": "Hızlı yol kapalı",
+  "judgeNotSetUp": "Değerlendirici: Kurulmadı — Kur",
+  "judgeInstalling": "Değerlendirici: Kuruluyor ({percent})",
+  "referenceJudgeSetup": "Bu makineyi tarar ve yerel bir değerlendirici modeli kurar.",
   "judgePanel": {
     "source": "Kaynak",
     "model": "Model adı",

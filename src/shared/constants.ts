@@ -194,6 +194,7 @@ export const COMMAND_IDS = {
   toggleFocusView: 'museSpark.toggleFocusView',
   toggleThinking: 'museSpark.toggleThinking',
   setUpSandbox: 'museSpark.setUpSandbox',
+  setUpLocalJudge: 'museSpark.setUpLocalJudge',
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
   reportProblem: 'museSpark.reportProblem',
@@ -871,6 +872,11 @@ export const SETTING_DEFAULTS = {
   // Phase-2 source selection is inert until the source and cascade lanes
   // certify it. Empty preserves the single-model setup; no discovery here.
   'judge.separate': '',
+  // M125 lane 0 (D107): one switch for the whole fast path, not one per
+  // decision. Off (default) runs deterministic checks first, then the
+  // fastest ready engine per decision; on keeps the M98 same-model
+  // caution judge only. Machine scoped: it chooses what runs.
+  'judge.fastPathOff': false,
 } as const
 export const PAID_DAILY_BUDGET = {
   // One machine-wide folder, independent of the selected key and workspace.
@@ -1008,6 +1014,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'estimator.optimize',
   'estimator.priceLookup',
   'judge.separate',
+  'judge.fastPathOff',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -4686,6 +4693,54 @@ export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// M125 lane 0 (D107): the fast judge's shared numbers. Deadlines select a
+// fallback, never stop work: a missed deadline runs today's behaviour, and
+// the approval reviewer starts beside the fast path as today. Bars and
+// label floors are calibration-validity rules in D77's line (like the
+// 200-label isotonic floor above), not caps on the person's work.
+export const JUDGE_FAST_INLINE_DEADLINE_MS = 300
+export const JUDGE_FAST_SLACK_DEADLINE_MS = 5000
+export const JUDGE_FAST_BOUNDARY_DEADLINE_MS = 2000
+// Q-D107-VETO (owner, 2026-10-10): up to 5 s from the hold for both
+// approval classes; no answer by then is a veto.
+export const JUDGE_FAST_VETO_WINDOW_MS = 5000
+// The resolver's rolling complete-call p95 covers this many attempts; a
+// timeout, error or no-answer counts as a miss with infinite latency.
+export const JUDGE_FAST_LATENCY_WINDOW = 50
+// A suspended or skipped local engine requalifies only after this many
+// consecutive in-budget background probes, then its window restarts.
+export const JUDGE_FAST_REQUALIFY_PROBES = 3
+// Lane-0 choice: the minimum delay between background reprobe attempts,
+// so a suspended engine is rechecked without steady load.
+export const JUDGE_FAST_REPROBE_MS = 60_000
+// Lane-0 choice: hosted latency samples older than this stop counting,
+// and the engine requalifies by sample expiry with a consented warm-up.
+export const JUDGE_FAST_SAMPLE_TTL_MS = 3_600_000
+// Lane-0 choice: the bound on the consented synthetic preload that
+// recovers an unloaded model; it cancels cleanly at any point.
+export const JUDGE_FAST_PRELOAD_MS = 120_000
+// Unsafe approves tolerated before a veto engine is refused: none
+// (JEVBENCH2: local veto waits for ~0 unsafe-approves).
+export const JUDGE_FAST_HARM_MAX = 0
+// A check shows a hint or note only above this precision, from a lane L
+// profile fitted for that engine identity and family; below it, log only.
+export const JUDGE_FAST_HINT_MIN_PRECISION = 0.9
+// A model-backed family is used only with a profile fitted on at least
+// this many independent labels for that engine identity (D107).
+export const JUDGE_FAST_ACCURACY_MIN_LABELS = 400
+export const JUDGE_FAST_APPROVAL_MIN_LABELS = 400
+// D107: the setup scan's micro-benchmark runs within 5 s, inside a 5 s
+// total scan benchmark budget.
+export const JUDGE_SCAN_BENCH_MS = 5000
+export const JUDGE_BENCH_BUDGET_MS = 5000
+// Lane-0 choice: RAM kept free past the loaded model before a local
+// judge size is recommended.
+export const JUDGE_MEMORY_HEADROOM_GIB = 2
+// Lane-0 choice: a setup-smoke question slower than the veto window
+// fails the smoke; the smoke is health and latency, never calibration.
+export const JUDGE_STATE_LATENCY_MAX_MS = 5000
+// Lane-0 choice: the ten-question setup smoke needs this many correct.
+export const JUDGE_SETUP_SMOKE_MIN_CORRECT = 8
 // The longest a backstop wait may run (check commands derive their own
 // ceiling from it): the shell tool itself no longer clamps (owner
 // 2026-10-16).
