@@ -2530,7 +2530,7 @@ export const EN = {
     missing: 'The source file or repository is missing.',
     invalid: 'The source has an unsupported format or invalid data.',
     limit: 'The source exceeds the report read limit.',
-    cancelled: 'The source read was cancelled or timed out.',
+    cancelled: 'The source read was cancelled.',
     failed: 'The source could not be read completely.',
     refused: 'The source path is private or outside its allowed folder.',
     disabled: 'This agent usage source is not enabled.',

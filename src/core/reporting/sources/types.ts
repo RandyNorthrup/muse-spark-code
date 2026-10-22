@@ -322,10 +322,10 @@ export interface SourceReadContext {
   readonly signal: AbortSignal
 
   /**
-  Last instant (epoch milliseconds) a source may start new work. The
-  engine sets it from the source timeout; a wait that outlasts it with a
-  live holder retires as busy, and no new read, write or publish starts
-  past it. Absent in older fakes, which keep the source timeout.
+  Last instant (epoch milliseconds) a source may start new work, only when
+  the caller hands one in: the read's signal aborts at it and no new read,
+  write or publish starts past it. There is no default of ours (D121/D208):
+  absent, a read runs until it settles or `signal` aborts.
   */
   readonly deadline?: number
 }

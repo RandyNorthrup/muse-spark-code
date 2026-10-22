@@ -5,7 +5,6 @@ import {
   REPORT_EMPTY_HASH,
   REPORT_NEXT_STEP_LIMIT,
   REPORT_FORMAT_VERSION,
-  REPORT_SOURCE_TIMEOUT_MS,
   type REPORT_FAIL_ON,
 } from '../../shared/constants'
 import { setUiText } from '../../shared/l10n/text'
@@ -152,9 +151,10 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               ...(context.schedules !== undefined && { schedules: context.schedules }),
               ...(context.estimate !== undefined && { estimate: context.estimate }),
             }).sources
-      // One signal and one deadline for the whole generation: every source
-      // observes the same abort and the same last instant for new work, and
-      // the engine awaits each read's own settlement, never racing it.
+      // One signal for the whole generation, the caller's: every source
+      // observes the same abort (the person's cancel), no deadline of ours
+      // ends a read (D121/D208), and the engine awaits each read's own
+      // settlement, never racing it.
       const readContext = {
         reportText,
         locale,
@@ -163,7 +163,6 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         asOf: options.asOf,
         workspaceKey: key,
         signal,
-        deadline: Date.now() + REPORT_SOURCE_TIMEOUT_MS,
       }
       let planText: string | undefined
       const sources: ReportSourcePorts = {
@@ -204,7 +203,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
         }),
         ...context.sources,
       }
-      // All reads share the request stamp; source ports bound time and cancellation.
+      // All reads share the request stamp; source ports observe cancellation.
       const [
         initialPlan,
         pkg,
@@ -512,10 +511,11 @@ export function createReportingCheckJournal(
     scrub: reportScrubber({ workspaceRoot: root, localRoots: [homedir()] }),
   })
   return {
-    async commit(): Promise<string> {
+    /** HEAD at the check's start; the caller's signal (the turn's Stop) is its only end. */
+    async commit(signal: AbortSignal): Promise<string> {
       const result = await reportGitIo(root, process.platform, process.env).run(
         ['rev-parse', '--verify', 'HEAD'],
-        AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS),
+        signal,
       )
       if (result.code !== 0 || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(result.stdout.trim()))
         throw new Error(context.l10n.table.reportUi.generationFailed)

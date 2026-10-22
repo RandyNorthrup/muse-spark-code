@@ -12856,8 +12856,13 @@ Needs: <items>.`).
      rate-limited until {time}". Requests are conditional (ETags) into a
      cache under `<agentDataFolder>/reports/v1/cache/`, whose age is the
      source's freshness. Pages are bounded.
-   - **Timeouts** per source (`REPORT_SOURCE_TIMEOUT_MS`); the network
-     sources sit outside the local time budget (decision 14).
+   - **No timeout of ours** (D121/D208, 2026-10-21): a source read runs
+     until it settles or the caller's signal (the person's cancel) aborts;
+     the former `REPORT_SOURCE_TIMEOUT_MS` is gone, and its 5-second figure
+     survives only as `REPORT_SOURCE_FRESH_MS`, which labels a source
+     `fresh` or `stale` and stops nothing. A rate-limited origin is held
+     only until the server's own Retry-After or reset. The network sources
+     sit outside the local time budget (decision 14).
 
 7. **Four formats.**
    - **Markdown:** GitHub-flavoured tables, LF, one trailing newline.

@@ -1,10 +1,6 @@
 import type { UiText } from '../../shared/l10n/en'
 import * as z from 'zod/mini'
-import {
-  GIT_METADATA_OPTIONS,
-  REPORT_GIT_MAX_COMMITS,
-  REPORT_SOURCE_TIMEOUT_MS,
-} from '../../shared/constants'
+import { GIT_METADATA_OPTIONS, REPORT_GIT_MAX_COMMITS } from '../../shared/constants'
 import type { ReportOptions } from '../../shared/reportSchema'
 import type { ReportSelectionPorts } from '../../core/reporting/collect/repository'
 import type {
@@ -52,15 +48,18 @@ function unavailable(id: string, reportText: UiText): SourceResult<never> {
   }
 }
 
-/** Bounded ancestry proves ranges and lane membership; timestamps never stand in for a graph. */
+/**
+Bounded ancestry proves ranges and lane membership; timestamps never stand
+in for a graph. The caller's signal (the person's cancel) is the only end of
+these git reads: no deadline of ours abandons them (D121/D208).
+*/
 export async function readReportSelections(
   snapshot: SourceSnapshot,
   options: ReportOptions,
   io: ReportGitIo,
-  outerSignal: AbortSignal,
+  signal: AbortSignal,
   reportText: UiText,
 ): Promise<ReportSelectionPorts> {
-  const signal = AbortSignal.any([outerSignal, AbortSignal.timeout(REPORT_SOURCE_TIMEOUT_MS)])
   const git = snapshot.sources.git.data
   const latestTag = git?.tags.toSorted(
     (a, b) => Date.parse(b.at) - Date.parse(a.at) || (a.name < b.name ? -1 : 1),
@@ -133,7 +132,7 @@ export async function readReportSelections(
         isPartial,
       )
     } catch {
-      /* A missing ref, bounded graph or exhausted deadline remains unavailable evidence. */
+      /* A missing ref, bounded graph or cancelled read remains unavailable evidence. */
     }
   }
   if (
