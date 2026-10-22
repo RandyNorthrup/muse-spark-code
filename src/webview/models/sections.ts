@@ -30,9 +30,10 @@ export interface SectionProps {
   readonly highlightedItem: string | undefined
   /**
   The vault section's own channel (C-M109-1 P1): the host's latest vault
-  envelope and the vault post port. Both stay undefined until the host
-  offers the vault (`vaultOffered`); other sections never read them. The
-  mount validates the envelope before use, inside the lazy surface.
+  envelope and the vault post port. The envelope stays undefined until
+  the host's first answer (bound state or unbound reason); other sections
+  never read them. The mount validates the envelope before use, inside
+  the lazy surface.
   */
   readonly vaultRaw?: unknown
   readonly vaultPost?: ((message: VaultClientMessage) => void) | undefined
@@ -45,9 +46,9 @@ export interface PanelSectionDef {
   readonly icon: ComponentType<object>
   /**
   Whether the host offers this section in the given state. Absent means
-  always offered; the vault (C-M109-1 P1) is offered only while
-  `vaultOffered` is true, so its navigation stays hidden until the
-  broker binds.
+  always offered; no section gates on it any more (RLTESTDRIVE 10 keeps
+  the vault tab always present, with its state or its reason, instead of
+  hiding it until the broker binds).
   */
   readonly isOffered?: ((panelState: ModelsPanelState | undefined) => boolean) | undefined
   readonly Component: ComponentType<SectionProps>
@@ -116,7 +117,6 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     id: 'vault',
     getTitle: () => UI_TEXT.vaultSectionTitle,
     icon: LockIcon,
-    isOffered: (panelState) => panelState?.vaultOffered === true,
     Component: VaultSectionMount,
     reduceSection: reduceVault,
   },

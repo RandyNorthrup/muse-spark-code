@@ -33,6 +33,9 @@ export function tierWarning(status: VaultStatus): string {
   // failure never borrows the repair message (only `brokerBlocked` shows it).
   if (status.state === 'unavailable' || status.reason === 'vaultLost') {
     switch (status.reason) {
+      case 'switchedOff': {
+        return UI_TEXT.vault.switchedOff
+      }
       case 'brokerBlocked': {
         return UI_TEXT.vault.brokerBlocked
       }
