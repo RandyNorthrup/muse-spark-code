@@ -34754,6 +34754,22 @@ remains. Receipts: `docs/certification/rlm108.md`.
 
 **C-M108-2 build overage resolved (2026-10-11, continuation).** Deferring the optional provider import editor reduces the original Models body from 77,698 to 76,274 B under its unchanged 76,800 B cap. Its new lazy closure measures 2,128 B under an independent 25 KiB cap; loading, failure, retry and dismissal retain the section label. Account chunk failures now use the same section boundary. Production build passes without adding Model API bytes. Availability stays false pending complete dependents and external visual/editor/review receipts. See `docs/certification/cm1082.md`.
 
+**RLM108 modelApi.js build overage (2026-10-22, macmini, open, justified
+deferral).** `dist/modelApi.js` measures 543,965 B (531.2 KiB) against its
+unchanged 525 KiB cap: 6,365 B over. Main at 0.19.0 builds 533,481 B
+(521.0 KiB), so the recovery stack adds 10,444 B, all per-turn hot path by
+esbuild metafile: `ModelApiHost.ts` +12,682 B (request leases, attempt
+billing routes, retry budgets), `client.ts` +1,189 B, new `billingRoute.ts`
+982 B, `accountUsd.ts` 624 B, `tokenRatePrice.ts` 132 B, minus shrunk
+modules. The account pool, owner, journal, writer and policy modules
+already live outside this bundle (extension side, 433.1/600 KiB); what
+remains in `modelApi.js` is call sites every turn executes, so no honest
+deferrable slice of 6,365 B exists in this lane's scope — a lazy split
+would only move hot bytes to a new budget. No cap, threshold or assertion
+changed. Owner decision pending: raise the 525 KiB cap or schedule a
+VERIFYCHUNK-style split of a lead-chosen conditional bundle part.
+Receipts: `docs/certification/rlm108.md`, `dist/meta/modelApi.json`.
+
 **M114PANEL hosted macOS timeout (open).** Run 38311021688, attempt 1,
 job 115017063279: "loads the real lazy menu independently of the secret
 modal focus owner" (`test/unit/m114Panel.test.mjs:241`) exceeded Vitest's
