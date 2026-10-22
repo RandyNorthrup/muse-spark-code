@@ -1813,6 +1813,41 @@
     "deviceFlow": "a Muse Spark GitHub-bejelentkezése",
     "ghLogin": "a GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Hibafigyelő",
+    "ack": {
+      "body": "Köszönjük a bejelentést. Most osztályozás alatt áll, és minden további fejlemény itt lesz közzétéve.",
+      "automatedNote": "Ezt az üzenetet automatikusan tette közzé a tároló karbantartójának hibafigyelője."
+    },
+    "reply": {
+      "needsInfo": "Köszönjük. A folytatáshoz még egy kis információra van szükség:\n\n{questions}\n\nKérjük, válaszoljon itt; ha megteszi, a probléma újra meg lesz vizsgálva.",
+      "duplicate": "Ez a(z) #{duplicate} ismétlődésének tűnik. Ha az a probléma nem fedi le azt, amit bejelentett, jelezze itt, és újra meg lesz vizsgálva.",
+      "alreadyFixed": "Ezt a(z) {fixedIn} verzióban javítottuk. Kérjük, frissítsen, és ha továbbra is fennáll, nyissa meg újra a problémát.",
+      "invalid": "Ebben a formában nem intézhető: {reason}. Kérjük, nyisson új problémát a hiányzó részlettel.",
+      "fixed": "Ezt a(z) {pullRequest} javítja, és a(z) {version} verzióban jelent meg. Köszönjük a bejelentést."
+    },
+    "states": {
+      "seen": "Látva",
+      "acknowledged": "Nyugtázva",
+      "triaged": "Osztályozva",
+      "awaitingInfo": "Információra vár",
+      "planned": "Tervezve",
+      "replied": "Megválaszolva",
+      "closed": "Lezárva"
+    },
+    "cli": {
+      "empty": "A figyelő még egyetlen tárolót sem figyel.",
+      "notWatched": "Ez a tároló nincs figyelve.",
+      "paused": "Figyelő szüneteltetve: {repository}.",
+      "resumed": "Figyelő folytatva: {repository}.",
+      "alreadyPaused": "A(z) {repository} figyelője már szünetel.",
+      "notPaused": "A(z) {repository} figyelője nincs szüneteltetve."
+    },
+    "refusal": {
+      "spamHeld": "Gyanított levélszemétként visszatartva: semmi sem lett közzétéve.",
+      "approvalRequired": "Ehhez a bejegyzéshez előbb az ön jóváhagyása kell."
+    }
+  },
   "gitHubSignOut": "Kijelentkezés",
   "gitHubSignOutFailed": "A GitHubról való kijelentkezés nem fejeződött be. Próbálja újra.",
   "gitRefresh": "Frissítés",

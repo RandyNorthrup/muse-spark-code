@@ -1842,6 +1842,41 @@
     "deviceFlow": "la connexion GitHub de Muse Spark",
     "ghLogin": "la CLI GitHub (gh)"
   },
+  "watchdog": {
+    "title": "Veille des problèmes",
+    "ack": {
+      "body": "Merci pour le signalement. Il est en cours de tri, et tout suivi sera publié ici.",
+      "automatedNote": "Ce message a été publié automatiquement par la veille des problèmes du responsable du dépôt."
+    },
+    "reply": {
+      "needsInfo": "Merci. Avant de continuer, un peu plus d’informations est nécessaire :\n\n{questions}\n\nVeuillez répondre ici ; le problème sera réexaminé dès lors.",
+      "duplicate": "Ceci ressemble à un doublon de #{duplicate}. Si ce problème ne couvre pas ce que vous avez signalé, dites-le ici et il sera réexaminé.",
+      "alreadyFixed": "Ceci a été corrigé dans {fixedIn}. Veuillez mettre à jour, et rouvrez ce problème si vous le constatez encore.",
+      "invalid": "Ceci ne peut pas être traité en l’état : {reason}. Veuillez ouvrir un nouveau problème avec le détail manquant.",
+      "fixed": "Ceci est corrigé par {pullRequest} et livré dans {version}. Merci pour le signalement."
+    },
+    "states": {
+      "seen": "Vu",
+      "acknowledged": "Accusé de réception",
+      "triaged": "Trié",
+      "awaitingInfo": "En attente d’informations",
+      "planned": "Planifié",
+      "replied": "Répondu",
+      "closed": "Fermé"
+    },
+    "cli": {
+      "empty": "La veille ne surveille encore aucun dépôt.",
+      "notWatched": "Ce dépôt n’est pas surveillé.",
+      "paused": "Veille en pause pour {repository}.",
+      "resumed": "Veille reprise pour {repository}.",
+      "alreadyPaused": "La veille pour {repository} est déjà en pause.",
+      "notPaused": "La veille pour {repository} n’est pas en pause."
+    },
+    "refusal": {
+      "spamHeld": "Retenu comme spam suspect : rien n’a été publié.",
+      "approvalRequired": "Cette publication nécessite d’abord votre approbation."
+    }
+  },
   "gitHubSignOut": "Se déconnecter",
   "gitHubSignOutFailed": "La déconnexion de GitHub n’a pas pu aboutir. Réessayez.",
   "gitRefresh": "Actualiser",

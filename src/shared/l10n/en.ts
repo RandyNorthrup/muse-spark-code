@@ -2238,6 +2238,46 @@ export const EN = {
     deviceFlow: 'Muse Spark’s GitHub sign-in',
     ghLogin: 'the GitHub CLI (gh)',
   },
+  watchdog: {
+    title: 'Issue watchdog',
+    ack: {
+      body: 'Thank you for the report. It is now being triaged, and any follow-up will be posted here.',
+      automatedNote:
+        'This message was posted automatically by the repository maintainer’s issue watchdog.',
+    },
+    reply: {
+      needsInfo:
+        'Thank you. Before this can move forward, a little more information is needed:\n\n{questions}\n\nPlease reply here; this issue will be looked at again when you do.',
+      duplicate:
+        'This looks like a duplicate of #{duplicate}. If that issue does not cover what you reported, please say so here and this will be looked at again.',
+      alreadyFixed:
+        'This was fixed in {fixedIn}. Please update, and reopen this issue if you still see it.',
+      invalid:
+        'This cannot be acted on as written: {reason}. Please open a new issue with the missing detail.',
+      fixed: 'This is fixed by {pullRequest} and shipped in {version}. Thank you for the report.',
+    },
+    states: {
+      seen: 'Seen',
+      acknowledged: 'Acknowledged',
+      triaged: 'Triaged',
+      awaitingInfo: 'Waiting for information',
+      planned: 'Planned',
+      replied: 'Replied',
+      closed: 'Closed',
+    },
+    cli: {
+      empty: 'The watchdog is not watching any repository yet.',
+      notWatched: 'This repository is not watched.',
+      paused: 'Watchdog paused for {repository}.',
+      resumed: 'Watchdog resumed for {repository}.',
+      alreadyPaused: 'The watchdog is already paused for {repository}.',
+      notPaused: 'The watchdog is not paused for {repository}.',
+    },
+    refusal: {
+      spamHeld: 'Held as suspected spam: nothing was posted.',
+      approvalRequired: 'This post needs your approval first.',
+    },
+  },
   gitHubSignOut: 'Sign Out',
   gitHubSignOutFailed: 'GitHub sign-out could not finish. Try again.',
   gitRefresh: 'Refresh',

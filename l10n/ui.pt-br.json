@@ -1842,6 +1842,41 @@
     "deviceFlow": "a entrada no GitHub do Muse Spark",
     "ghLogin": "a CLI do GitHub (gh)"
   },
+  "watchdog": {
+    "title": "Vigia de problemas",
+    "ack": {
+      "body": "Obrigado pelo relato. Ele agora está em triagem, e qualquer acompanhamento será publicado aqui.",
+      "automatedNote": "Esta mensagem foi publicada automaticamente pelo vigia de problemas do responsável pelo repositório."
+    },
+    "reply": {
+      "needsInfo": "Obrigado. Antes de prosseguir, são necessárias mais algumas informações:\n\n{questions}\n\nResponda aqui; quando o fizer, o problema será examinado novamente.",
+      "duplicate": "Isto parece uma duplicata de #{duplicate}. Se aquele problema não cobre o que você relatou, diga aqui e ele será examinado novamente.",
+      "alreadyFixed": "Isto foi corrigido em {fixedIn}. Atualize e, se o problema persistir, reabra este problema.",
+      "invalid": "Isto não pode ser tratado como está redigido: {reason}. Abra um novo problema com o detalhe que falta.",
+      "fixed": "Isto foi corrigido por {pullRequest} e lançado em {version}. Obrigado pelo relato."
+    },
+    "states": {
+      "seen": "Visto",
+      "acknowledged": "Confirmado",
+      "triaged": "Triado",
+      "awaitingInfo": "Aguardando informações",
+      "planned": "Planejado",
+      "replied": "Respondido",
+      "closed": "Fechado"
+    },
+    "cli": {
+      "empty": "O vigia ainda não está vigiando nenhum repositório.",
+      "notWatched": "Este repositório não está sendo vigiado.",
+      "paused": "Vigia pausado para {repository}.",
+      "resumed": "Vigia retomado para {repository}.",
+      "alreadyPaused": "O vigia de {repository} já está pausado.",
+      "notPaused": "O vigia de {repository} não está pausado."
+    },
+    "refusal": {
+      "spamHeld": "Retido como possível spam: nada foi publicado.",
+      "approvalRequired": "Esta publicação precisa primeiro da sua aprovação."
+    }
+  },
   "gitHubSignOut": "Sair",
   "gitHubSignOutFailed": "Não foi possível concluir a saída do GitHub. Tente novamente.",
   "gitRefresh": "Atualizar",

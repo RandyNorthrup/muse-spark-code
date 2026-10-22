@@ -1871,6 +1871,41 @@
     "deviceFlow": "přihlášení Muse Spark ke GitHubu",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Hlídací pes problémů",
+    "ack": {
+      "body": "Děkujeme za hlášení. Nyní je tříděno a každá další reakce bude zveřejněna zde.",
+      "automatedNote": "Tuto zprávu automaticky zveřejnil hlídací pes problémů správce repozitáře."
+    },
+    "reply": {
+      "needsInfo": "Děkujeme. Než bude možné pokračovat, je potřeba trochu více informací:\n\n{questions}\n\nOdpovězte prosím zde; až tak učiníte, bude se problémem znovu zabývat.",
+      "duplicate": "Vypadá to jako duplikát #{duplicate}. Pokud uvedený problém nepokrývá to, co jste nahlásili, napište to sem a bude se jím znovu zabývat.",
+      "alreadyFixed": "Toto bylo opraveno ve verzi {fixedIn}. Aktualizujte prosím, a pokud problém přetrvává, znovu jej otevřete.",
+      "invalid": "V této podobě nelze jednat: {reason}. Otevřete prosím nový problém s chybějícím detailem.",
+      "fixed": "Toto opravuje {pullRequest} a je vydáno ve verzi {version}. Děkujeme za hlášení."
+    },
+    "states": {
+      "seen": "Viděno",
+      "acknowledged": "Potvrzeno",
+      "triaged": "Roztříděno",
+      "awaitingInfo": "Čeká se na informace",
+      "planned": "Naplánováno",
+      "replied": "Odpovězeno",
+      "closed": "Zavřeno"
+    },
+    "cli": {
+      "empty": "Hlídací pes zatím nesleduje žádný repozitář.",
+      "notWatched": "Tento repozitář není sledován.",
+      "paused": "Hlídací pes pro {repository} pozastaven.",
+      "resumed": "Hlídací pes pro {repository} obnoven.",
+      "alreadyPaused": "Hlídací pes pro {repository} je již pozastaven.",
+      "notPaused": "Hlídací pes pro {repository} není pozastaven."
+    },
+    "refusal": {
+      "spamHeld": "Zadrženo jako podezřelý spam: nic nebylo zveřejněno.",
+      "approvalRequired": "Tento příspěvek nejprve potřebuje vaše schválení."
+    }
+  },
   "gitHubSignOut": "Odhlásit se",
   "gitHubSignOutFailed": "Odhlášení z GitHubu se nepodařilo dokončit. Zkuste to znovu.",
   "gitRefresh": "Obnovit",

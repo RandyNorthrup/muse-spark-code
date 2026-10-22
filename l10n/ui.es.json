@@ -1842,6 +1842,41 @@
     "deviceFlow": "el inicio de sesión de GitHub de Muse Spark",
     "ghLogin": "la CLI de GitHub (gh)"
   },
+  "watchdog": {
+    "title": "Vigilante de problemas",
+    "ack": {
+      "body": "Gracias por el informe. Ahora está en triaje, y cualquier seguimiento se publicará aquí.",
+      "automatedNote": "Este mensaje fue publicado automáticamente por el vigilante de problemas del responsable del repositorio."
+    },
+    "reply": {
+      "needsInfo": "Gracias. Antes de continuar, se necesita un poco más de información:\n\n{questions}\n\nResponda aquí; cuando lo haga, el problema se revisará de nuevo.",
+      "duplicate": "Esto parece un duplicado de #{duplicate}. Si ese problema no cubre lo que informó, dígalo aquí y se revisará de nuevo.",
+      "alreadyFixed": "Esto se corrigió en {fixedIn}. Actualice, y vuelva a abrir este problema si persiste.",
+      "invalid": "Esto no puede tramitarse tal como está redactado: {reason}. Abra un nuevo problema con el detalle que falta.",
+      "fixed": "Esto lo corrige {pullRequest} y está incluido en {version}. Gracias por el informe."
+    },
+    "states": {
+      "seen": "Visto",
+      "acknowledged": "Confirmado",
+      "triaged": "Clasificado",
+      "awaitingInfo": "En espera de información",
+      "planned": "Planificado",
+      "replied": "Respondido",
+      "closed": "Cerrado"
+    },
+    "cli": {
+      "empty": "El vigilante aún no vigila ningún repositorio.",
+      "notWatched": "Este repositorio no está vigilado.",
+      "paused": "Vigilante en pausa para {repository}.",
+      "resumed": "Vigilante reanudado para {repository}.",
+      "alreadyPaused": "El vigilante de {repository} ya está en pausa.",
+      "notPaused": "El vigilante de {repository} no está en pausa."
+    },
+    "refusal": {
+      "spamHeld": "Retenido como posible spam: no se publicó nada.",
+      "approvalRequired": "Esta publicación necesita primero su aprobación."
+    }
+  },
   "gitHubSignOut": "Cerrar sesión",
   "gitHubSignOutFailed": "No se pudo completar el cierre de sesión de GitHub. Inténtalo de nuevo.",
   "gitRefresh": "Actualizar",

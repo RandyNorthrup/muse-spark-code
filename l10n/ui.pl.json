@@ -1871,6 +1871,41 @@
     "deviceFlow": "logowanie Muse Spark do GitHub",
     "ghLogin": "GitHub CLI (gh)"
   },
+  "watchdog": {
+    "title": "Strażnik zgłoszeń",
+    "ack": {
+      "body": "Dziękujemy za zgłoszenie. Jest ono teraz segregowane, a dalsze działania będą publikowane tutaj.",
+      "automatedNote": "Ta wiadomość została opublikowana automatycznie przez strażnika zgłoszeń opiekuna repozytorium."
+    },
+    "reply": {
+      "needsInfo": "Dziękujemy. Zanim przejdziemy dalej, potrzeba nieco więcej informacji:\n\n{questions}\n\nProsimy o odpowiedź tutaj; gdy to nastąpi, zgłoszenie zostanie ponownie rozpatrzone.",
+      "duplicate": "Wygląda to na duplikat #{duplicate}. Jeśli tamto zgłoszenie nie obejmuje tego, co zgłoszono, prosimy napisać tutaj, a zostanie ponownie rozpatrzone.",
+      "alreadyFixed": "Zostało to naprawione w {fixedIn}. Prosimy zaktualizować, a jeśli problem nadal występuje, ponownie otworzyć zgłoszenie.",
+      "invalid": "W tej postaci nie można tego rozpatrzyć: {reason}. Prosimy otworzyć nowe zgłoszenie z brakującym szczegółem.",
+      "fixed": "Naprawia to {pullRequest}, wydane w {version}. Dziękujemy za zgłoszenie."
+    },
+    "states": {
+      "seen": "Zauważone",
+      "acknowledged": "Potwierdzone",
+      "triaged": "Posegregowane",
+      "awaitingInfo": "Oczekuje na informacje",
+      "planned": "Zaplanowane",
+      "replied": "Z odpowiedzią",
+      "closed": "Zamknięte"
+    },
+    "cli": {
+      "empty": "Strażnik nie obserwuje jeszcze żadnego repozytorium.",
+      "notWatched": "To repozytorium nie jest obserwowane.",
+      "paused": "Strażnik dla {repository} wstrzymany.",
+      "resumed": "Strażnik dla {repository} wznowiony.",
+      "alreadyPaused": "Strażnik dla {repository} jest już wstrzymany.",
+      "notPaused": "Strażnik dla {repository} nie jest wstrzymany."
+    },
+    "refusal": {
+      "spamHeld": "Wstrzymano jako podejrzany spam: nic nie opublikowano.",
+      "approvalRequired": "Ten wpis wymaga najpierw Twojej zgody."
+    }
+  },
   "gitHubSignOut": "Wyloguj",
   "gitHubSignOutFailed": "Nie udało się dokończyć wylogowania z GitHub. Spróbuj ponownie.",
   "gitRefresh": "Odśwież",

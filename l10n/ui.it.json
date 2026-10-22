@@ -1842,6 +1842,41 @@
     "deviceFlow": "l’accesso a GitHub di Muse Spark",
     "ghLogin": "la CLI di GitHub (gh)"
   },
+  "watchdog": {
+    "title": "Guardiano delle segnalazioni",
+    "ack": {
+      "body": "Grazie per la segnalazione. Ora è in fase di smistamento e ogni seguito sarà pubblicato qui.",
+      "automatedNote": "Questo messaggio è stato pubblicato automaticamente dal guardiano delle segnalazioni del manutentore del repository."
+    },
+    "reply": {
+      "needsInfo": "Grazie. Prima di procedere servono ancora alcune informazioni:\n\n{questions}\n\nRispondi qui; quando lo farai, la segnalazione sarà riesaminata.",
+      "duplicate": "Sembra un duplicato di #{duplicate}. Se quella segnalazione non copre quanto hai segnalato, dillo qui e sarà riesaminata.",
+      "alreadyFixed": "È stato corretto in {fixedIn}. Aggiorna e, se il problema persiste, riapri questa segnalazione.",
+      "invalid": "Così com’è non è possibile intervenire: {reason}. Apri una nuova segnalazione con il dettaglio mancante.",
+      "fixed": "È corretto da {pullRequest} e distribuito in {version}. Grazie per la segnalazione."
+    },
+    "states": {
+      "seen": "Visto",
+      "acknowledged": "Confermato",
+      "triaged": "Smistato",
+      "awaitingInfo": "In attesa di informazioni",
+      "planned": "Pianificato",
+      "replied": "Risposto",
+      "closed": "Chiuso"
+    },
+    "cli": {
+      "empty": "Il guardiano non sta ancora osservando alcun repository.",
+      "notWatched": "Questo repository non è osservato.",
+      "paused": "Guardiano in pausa per {repository}.",
+      "resumed": "Guardiano ripreso per {repository}.",
+      "alreadyPaused": "Il guardiano per {repository} è già in pausa.",
+      "notPaused": "Il guardiano per {repository} non è in pausa."
+    },
+    "refusal": {
+      "spamHeld": "Trattenuto come possibile spam: non è stato pubblicato nulla.",
+      "approvalRequired": "Questo messaggio richiede prima la tua approvazione."
+    }
+  },
   "gitHubSignOut": "Disconnetti",
   "gitHubSignOutFailed": "Non è stato possibile completare la disconnessione da GitHub. Riprova.",
   "gitRefresh": "Aggiorna",

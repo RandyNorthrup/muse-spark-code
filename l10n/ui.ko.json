@@ -1784,6 +1784,41 @@
     "deviceFlow": "Muse Spark의 GitHub 로그인",
     "ghLogin": "GitHub CLI(gh)"
   },
+  "watchdog": {
+    "title": "이슈 와치독",
+    "ack": {
+      "body": "신고해 주셔서 감사합니다. 현재 트리아지 중이며, 후속 조치는 여기에 게시됩니다.",
+      "automatedNote": "이 메시지는 리포지토리 관리자의 이슈 와치독이 자동으로 게시했습니다."
+    },
+    "reply": {
+      "needsInfo": "감사합니다. 계속 진행하려면 추가 정보가 조금 더 필요합니다:\n\n{questions}\n\n여기에 답글을 남겨 주세요. 답글이 달리면 이 이슈를 다시 검토하겠습니다.",
+      "duplicate": "#{duplicate}와(과) 중복된 것으로 보입니다. 해당 이슈가 신고하신 내용을 다루지 않는다면 여기에 알려 주세요. 다시 검토하겠습니다.",
+      "alreadyFixed": "{fixedIn}에서 수정되었습니다. 업데이트하신 뒤에도 문제가 계속되면 이 이슈를 다시 열어 주세요.",
+      "invalid": "현재 내용으로는 조치할 수 없습니다: {reason}. 누락된 세부 내용을 포함해 새 이슈를 열어 주세요.",
+      "fixed": "{pullRequest}에서 수정되었으며 {version}에 포함되었습니다. 신고해 주셔서 감사합니다."
+    },
+    "states": {
+      "seen": "확인됨",
+      "acknowledged": "접수됨",
+      "triaged": "트리아지됨",
+      "awaitingInfo": "정보 대기 중",
+      "planned": "계획됨",
+      "replied": "답변됨",
+      "closed": "종료됨"
+    },
+    "cli": {
+      "empty": "와치독이 아직 어떤 리포지토리도 감시하지 않습니다.",
+      "notWatched": "이 리포지토리는 감시 대상이 아닙니다.",
+      "paused": "{repository}의 와치독을 일시 중지했습니다.",
+      "resumed": "{repository}의 와치독을 다시 시작했습니다.",
+      "alreadyPaused": "{repository}의 와치독은 이미 일시 중지되어 있습니다.",
+      "notPaused": "{repository}의 와치독은 일시 중지되어 있지 않습니다."
+    },
+    "refusal": {
+      "spamHeld": "스팸 의심으로 보류되었습니다. 게시된 내용이 없습니다.",
+      "approvalRequired": "이 게시물은 먼저 승인이 필요합니다."
+    }
+  },
   "gitHubSignOut": "로그아웃",
   "gitHubSignOutFailed": "GitHub 로그아웃을 완료하지 못했습니다. 다시 시도하세요.",
   "gitRefresh": "새로 고침",
