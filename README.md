@@ -1797,8 +1797,9 @@ hooks from `.muse/hooks.json`. `MCP servers…` and `Hooks…` show configuratio
     the transcript. Their results reach the model as text and pictures;
     audio and files are described instead. MCP servers may request a form:
     review its fields and choose **Send**, **Decline** or **Cancel**, including
-    in Bypass. Only flat primitive forms from MCP 2025-06-18 are supported;
-    unsupported schemas and URL flows are refused. The panel closing, Stop,
+    in Bypass. Only flat primitive forms are supported, on MCP 2025-06-18
+    and 2026-07-28 alike; unsupported schemas and URL flows are refused.
+    The panel closing, Stop,
     or a timeout cancels. Typed values go only to the requesting server,
     never as form answers in logs or saved transcripts. The server’s own
     tool output may repeat submitted values. ACP clients use their form UI;

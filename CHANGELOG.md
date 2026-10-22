@@ -7,6 +7,13 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP servers on the new protocol connect.** The Model API backend's MCP
+  client works with servers on MCP 2026-07-28 as well as older ones: it
+  probes the new revision first and falls back to the handshake, on stdio
+  and streamable HTTP, including the form a server may request mid-call.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
