@@ -31,8 +31,8 @@ export {
   withWorkerFile,
   WORKER_NATIVE_IO,
 } from '../../core/team/workers/workerFence'
-// Headless installs its lifecycle/merge policy around these same engine ports.
+// Headless installs its lifecycle/merge policy around the same engine ports
+// (dist/teamEngine.js, loaded through teamEngineEntry as the editor loads it).
 export { createTeamHostService } from '../../core/team/teamHost'
-export { createEngineTeamPorts } from './teamEnginePorts'
 export { setUiText } from '../../shared/l10n/text'
 export { teamProgramFreeGit } from '../../core/team/teamWorkspaces'

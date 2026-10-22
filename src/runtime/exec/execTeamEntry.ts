@@ -436,7 +436,6 @@ export async function createExecTeam(
             return
           const {
             createTeamHostService,
-            createEngineTeamPorts,
             teamProgramFreeGit,
             setUiText: install,
           } = await import('../../host/team/teamHostEntry')
@@ -462,7 +461,10 @@ export async function createExecTeam(
             await rm(folder, { recursive: true, force: true })
             throw error
           }
-          const ports = createEngineTeamPorts({
+          // The engine ports ride dist/teamEngine.js, the chunk the editor's
+          // team host loads on first use, so dist/teamHost.js stays engine-free.
+          const { engineTeamPorts } = await import('../../host/team/teamEngineEntry')
+          const ports = engineTeamPorts(table, locale, {
             repositoryRoot: () => deps.cwd,
             storageRoot: folder,
             platform: deps.platform,

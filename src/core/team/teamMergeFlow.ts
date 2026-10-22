@@ -9,21 +9,10 @@
 // other editors' panels drive the same code. Must not import `vscode`.
 
 import { UI_TEXT } from '../../shared/constants'
-import { isErrno } from '../fs/errno'
 import type { TeamRoleConfig } from '../../shared/team'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
 import { isProtectedPath } from '../protectedPaths'
-import { isTeamGitError } from './teamGit'
 import { isSameTeamModel } from './sameModel'
-
-/**
-Failures the merge flow answers with a retryable refusal: a failed git
-read or filesystem write. Anything else (storage, protocol, a bug) is
-loud instead of a polite refusal that would hide it.
-*/
-function isToleratedMergeFailure(error: unknown): boolean {
-  return isTeamGitError(error) || isErrno(error)
-}
 import type {
   TeamCardPort,
   TeamMergeDecision,
@@ -246,7 +235,6 @@ export const runMergeFlow = async (
       merged.status === 'merged' ? UI_TEXT.teamWorkerMerged : UI_TEXT.teamMergeRework,
     )
   } catch (error: unknown) {
-    if (!isToleratedMergeFailure(error)) throw error
     task.mergePhase = 'failed'
     task.failure = api.describeError(error)
     if (task.outcome !== undefined)

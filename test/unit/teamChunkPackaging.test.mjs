@@ -23,6 +23,7 @@ const TEAM_ENTRIES = {
   'dist/teamScheduler.js': 'src/core/team/teamSchedulerEntry.ts',
   'dist/teamWorkerOps.js': 'src/core/team/workers/workerOpsEntry.ts',
   'dist/teamEngine.js': 'src/host/team/teamEngineEntry.ts',
+  'dist/execTeam.js': 'src/runtime/exec/execTeamEntry.ts',
 }
 // The VSIX and the ACP package ship these team entries; their lazy chunks
 // must follow from reachability, never from a list kept here.
@@ -33,7 +34,14 @@ const VSIX_TEAM_ENTRIES = [
   'dist/teamPanel.js',
   'dist/teamScheduler.js',
 ]
-const ACP_TEAM_ENTRIES = ['dist/team.js', 'dist/teamRunners.js', 'dist/teamScheduler.js']
+// M96b: headless --team enters through dist/execTeam.js, which reaches the
+// team host and its engine, create, file and merge chunks.
+const ACP_TEAM_ENTRIES = [
+  'dist/team.js',
+  'dist/teamRunners.js',
+  'dist/teamScheduler.js',
+  'dist/execTeam.js',
+]
 // Six separate production-shaped builds, once: each entry on its own, so a
 // shared chunk cannot hide which entry loads it.
 const BUILD_TIMEOUT_MS = 60_000

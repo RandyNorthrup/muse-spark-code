@@ -114,6 +114,11 @@ it('names the helpers bundle by the method that loads it', () => {
         symbol: 'ModelApiSession.toolAssist',
         side: ['acp', 'vscode'],
       },
+      {
+        importer: 'src/core/backends/modelapi/tools.ts',
+        symbol: 'loadSearchCalls',
+        side: ['acp', 'vscode'],
+      },
     ],
   })
 })
