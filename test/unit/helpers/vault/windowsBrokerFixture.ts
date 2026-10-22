@@ -14,6 +14,7 @@ import path from 'node:path'
 import { build } from 'esbuild'
 import { vaultClientPlatform } from '../../../../src/runtime/vault/clientPlatform'
 import type { VaultClientPlatform } from '../../../../src/runtime/vault/clientPlatform'
+import { VaultManageSession } from '../../../../src/core/vault/broker/manageClient'
 import { VaultBrokerProcess } from '../../../../src/host/vault/brokerProcess'
 import { configureResources } from '../../../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../../../src/runtime/resources/jobs'
@@ -107,6 +108,24 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
     throw error
   }
   const broker = new VaultBrokerProcess(platform.discovery, platform.process)
+  const connect = (): ReturnType<VaultBrokerProcess['connect']> =>
+    broker.connect(hostId, hostSession, platform.peers, platform.dial)
+  // One-time cold costs belong in the hook, never in a case: the first
+  // broker launch (the C# serve spawn on a loaded runner) can exceed the
+  // launch budget, and the flow's first open would then report the slow
+  // start as failure toasts (RLVAULTCI: capacity run 39703535342, Windows
+  // shard 6 — `uncreated` with two `operationFailed` toasts). Connect
+  // until the broker answers; the hook has no time limit of ours (owner
+  // 2026-10-16), and each attempt stays inside the product's own budget.
+  const warm = new VaultManageSession(connect)
+  for (;;) {
+    try {
+      await warm.snapshot()
+      break
+    } catch {
+      // Cold broker still starting; retry until it answers.
+    }
+  }
   return {
     root,
     dataDir,
@@ -114,7 +133,7 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
     hostSession,
     platform,
     broker,
-    connect: () => broker.connect(hostId, hostSession, platform.peers, platform.dial),
+    connect,
     dispose: async () => {
       platform.dispose?.()
       disposeAdmission()
