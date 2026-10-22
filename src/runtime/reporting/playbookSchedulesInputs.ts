@@ -16,6 +16,7 @@ import { PLAYBOOK_PANEL_TEAM, SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/co
 import {
   comparePlaybookReportItems,
   playbookOrderReportNote,
+  type PlaybookRecord,
   replayPlaybookSettings,
 } from '../../shared/playbook'
 import { UI_TEXT } from '../../shared/l10n/text'
@@ -54,6 +55,22 @@ export function createPlaybookReportReader(input: {
 }
 
 /**
+`validatedRecords`, but a validation failure — which quotes record
+content — answers unavailability instead of throwing it outward. Any
+other failure (a defect above the records) is rethrown as it is.
+*/
+function validRecordsOrUnavailable(
+  raw: readonly unknown[],
+): { ok: true; records: PlaybookRecord[] } | { ok: false } {
+  try {
+    return { ok: true, records: validatedRecords(raw) }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === '$ZodError') return { ok: false }
+    throw error
+  }
+}
+
+/**
 D214: the report ordering over the same journal the reader reads, for the
 person's panel team. Every call replays the journal fresh (like the policy's
 refresh), gates on the replayed loudFailures switch, and sorts through the
@@ -66,14 +83,11 @@ export function createPlaybookReportOrder(input: {
 }): PlaybookReportOrderer {
   const journal = new FilePlaybookJournal(input.agentDataFolder, input.workspaceRoot)
   const readRecords = () => {
-    // The journal's own failures travel as they are (lost stays lost);
-    // validation quotes record content, so it never carries outward.
+    // The journal's own failures travel as they are (lost stays lost).
     const raw = journal.read()
-    try {
-      return validatedRecords(raw)
-    } catch {
-      throw new Error(UI_TEXT.playbookUnavailable)
-    }
+    const parsed = validRecordsOrUnavailable(raw)
+    if (!parsed.ok) throw new Error(UI_TEXT.playbookUnavailable)
+    return parsed.records
   }
   return {
     orderReport: (items) => {
