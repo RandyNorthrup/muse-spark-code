@@ -6,7 +6,6 @@
 import * as z from 'zod/mini'
 
 export const frameSequenceSchema = z.int().check(z.gte(0))
-export type FrameSequence = z.infer<typeof frameSequenceSchema>
 
 export type SequenceVerdict = 'ok' | 'duplicate' | 'too-old'
 

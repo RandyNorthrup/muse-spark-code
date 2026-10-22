@@ -29863,6 +29863,17 @@ or helper-only-access certification.
 
 **Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
+**Status 2026-10-22: recovery (RLM110C).** Phases c-h landed as ready
+cores with real tests: orchestrator and model relay (F2/R2/U3), remote
+reach (X1/X2/F3/G), sign-in (A2/A3), rented servers and operations
+(S/O), local models (L) and team mode (M). Threat model per phase and an
+independent review of X, A and F are in `docs/certification/rlm110c-*`.
+Nothing is wired to a command: the node server (lane N), pair transport
+(M100), sign-in lifetimes (A1) and CLIs switch it on. Remote reach waits
+on the owner's server and domain, team mode on the terms decision
+(Q-M110, enforced by the admit gate), updates on the owner's key
+ceremony, and qualification on real hosts.
+
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned, documentation only. Nothing is implemented,

@@ -9,7 +9,11 @@ import {
   encodeRelayFrame,
   relayServerFrameSchema,
 } from '../../src/runtime/node/relay/protocol'
-import { startNodeRelay, type StartedNodeRelay } from '../../src/runtime/node/relay/server'
+import {
+  startNodeRelay,
+  type NodeRelayCeilings,
+  type StartedNodeRelay,
+} from '../../src/runtime/node/relay/server'
 
 const FRAME_CEILING = 1_000_000
 
@@ -21,11 +25,12 @@ afterEach(async () => {
   for (const relay of relays.splice(0)) await relay.close()
 })
 
-async function startedRelay(ceilings?: {
-  maxConnections?: number
-  maxBytesPerConnection?: number
-}) {
-  const relay = await startNodeRelay({ maxFrameBytes: FRAME_CEILING, ceilings })
+async function startedRelay(ceilings?: NodeRelayCeilings) {
+  const relay = await startNodeRelay(
+    ceilings === undefined
+      ? { maxFrameBytes: FRAME_CEILING }
+      : { maxFrameBytes: FRAME_CEILING, ceilings },
+  )
   relays.push(relay)
   return relay
 }

@@ -3,7 +3,13 @@
 // authorization is a signed unseal statement the node checks against the
 // approver's identity key; the KEK's own slot (M109's paired slot) is the
 // leg that waits, so wrapping takes the KEK as a parameter.
-import { createDecipheriv, createCipheriv, createPublicKey, randomBytes } from 'node:crypto'
+import {
+  createCipheriv,
+  createDecipheriv,
+  createPrivateKey,
+  createPublicKey,
+  randomBytes,
+} from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   identityPublicKeySchema,
@@ -40,11 +46,12 @@ export function authorizeUnseal(
   approverPrivateKey: Uint8Array,
 ): UnsealAuthorization {
   if (nodeId.length === 0) throw new Error('an unseal names its node')
-  const approver = createPublicKey({
+  const privateKey = createPrivateKey({
     key: Buffer.from(approverPrivateKey),
     format: 'der',
     type: 'pkcs8',
   })
+  const approver = createPublicKey(privateKey)
     .export({ type: 'spki', format: 'der' })
     .toString('base64')
   const signature = signIdentityChallenge(
@@ -87,6 +94,11 @@ export function wrapDataKey(dataKey: Uint8Array, kek: Uint8Array): string {
   return `${iv.toString('base64')}.${sealed.toString('base64')}`
 }
 
+/* A GCM authentication failure as OpenSSL 3 reports it; anything else rethrows. */
+function isGcmAuthFailure(error: unknown): boolean {
+  return error instanceof Error && error.message.includes('authenticate')
+}
+
 /** Unwrap, or undefined when the key or the bytes are wrong. Never throws. */
 export function unwrapDataKey(wrapped: string, kek: Uint8Array): Uint8Array | undefined {
   if (kek.length !== KEK_BYTES) return undefined
@@ -97,7 +109,7 @@ export function unwrapDataKey(wrapped: string, kek: Uint8Array): Uint8Array | un
   if (iv.length !== GCM_IV_BYTES || sealed.length !== DATA_KEY_BYTES + GCM_TAG_BYTES)
     return undefined
   try {
-    const decipher = createDecipheriv('aes-256-gcm', kek, iv)
+    const decipher = createDecipheriv('aes-256-gcm', kek, iv, { authTagLength: GCM_TAG_BYTES })
     decipher.setAuthTag(sealed.subarray(sealed.length - GCM_TAG_BYTES))
     const dataKey = Buffer.concat([
       decipher.update(sealed.subarray(0, sealed.length - GCM_TAG_BYTES)),
@@ -105,7 +117,7 @@ export function unwrapDataKey(wrapped: string, kek: Uint8Array): Uint8Array | un
     ])
     return dataKey.length === DATA_KEY_BYTES ? dataKey : undefined
   } catch (error) {
-    if (error instanceof Error) return undefined
+    if (isGcmAuthFailure(error)) return undefined
     throw error
   }
 }

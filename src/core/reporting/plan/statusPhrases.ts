@@ -76,4 +76,5 @@ export const STATUS_PHRASES: Readonly<Record<string, PlanMilestone['status'] | u
   'planned, documentation only': 'planned',
   'planned, as soon as possible': 'planned',
   'lane MSM95 complete on ms/msm95; lead certification pending': 'built',
+  'recovery (RLM110C)': 'building',
 }

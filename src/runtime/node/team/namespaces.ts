@@ -9,7 +9,6 @@ import * as z from 'zod/mini'
 const PERSON_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/
 
 export const personIdSchema = z.string().check(z.regex(PERSON_ID))
-export type PersonId = z.infer<typeof personIdSchema>
 
 /** The vault namespace id for this person: derived, never stored. */
 export function derivePersonNamespace(person: string, nodeSecret: Uint8Array): string {

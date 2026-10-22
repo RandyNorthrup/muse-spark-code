@@ -8,7 +8,6 @@ export const pwaIconSchema = z.strictObject({
   sizes: z.string().check(z.minLength(1)),
   type: z.optional(z.string()),
 })
-export type PwaIcon = z.infer<typeof pwaIconSchema>
 
 export const pwaManifestSchema = z.strictObject({
   name: z.string().check(z.minLength(1)),
