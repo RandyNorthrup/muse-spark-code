@@ -158,11 +158,16 @@
   "sequenceScope": "Kullanılabilir",
   "sequenceStep": "{index}. adım",
   "sequenceSteps": "Adımlar",
+  "sequenceStepCount": {
+    "one": "{count} adım",
+    "other": "{count} adım"
+  },
   "sequenceAddStep": "Adım ekle",
   "sequenceRemoveStep": "Adımı kaldır",
   "sequenceRun": "Çalıştır",
   "sequenceStop": "Durdur",
   "sequenceStartTitle": "“{name}” çalıştırılsın mı?",
+  "sequenceStartConversation": "Konuşma",
   "sequenceStartDetail": {
     "one": "{count} ileti, her biri önceki turun tamamlanmasından sonra bu konuşmaya gönderilir.",
     "other": "{count} ileti, her biri önceki turun tamamlanmasından sonra bu konuşmaya gönderilir."
@@ -179,7 +184,7 @@
   "sequenceStepRequired": "Her adımda metin olmalı.",
   "sequenceNeedsStep": "Bir dizide en az bir adım olmalı.",
   "sequenceAlreadyRunning": "Bu konuşmada zaten bir istem dizisi çalışıyor.",
-  "sequenceConversationBusy": "Bir tur çalışıyor: bitmesini bekleyip diziyi çalıştırın.",
+  "sequenceNoSession": "Diziyi çalıştırmadan önce bir konuşma açın.",
   "referenceSequences": "Paletten kayıtlı istemleri sırayla çalıştırır: her adım önceki tur tamamlandıktan sonra gönderilir. Başarısız tur, durdurma veya konuşma değişikliği çalıştırmayı bitirir.",
   "shareChat": "Sohbeti paylaş…",
   "sharePrompt": "İstemi paylaş…",

@@ -85,6 +85,8 @@ export type PaletteAction =
   /** M118-P-REACT-BRIDGE: supplied only after the host binds these actions. */
   | { readonly type: 'shareChat' }
   | { readonly type: 'promptCommand'; readonly command: 'library' | 'use' | 'share' }
+  /** "Prompt Sequences…" (M88, lane A): the sequence library dialog. */
+  | { readonly type: 'openSequences' }
   | { readonly type: 'openLog' }
   /** "Report an Issue…" (M93, PLAN.md D72): the scrubbed report's preview, never a bare link. */
   | { readonly type: 'openReport' }

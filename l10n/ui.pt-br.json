@@ -158,11 +158,17 @@
   "sequenceScope": "Disponível em",
   "sequenceStep": "Etapa {index}",
   "sequenceSteps": "Etapas",
+  "sequenceStepCount": {
+    "one": "{count} etapa",
+    "other": "{count} etapas",
+    "many": "{count} etapas"
+  },
   "sequenceAddStep": "Adicionar etapa",
   "sequenceRemoveStep": "Remover etapa",
   "sequenceRun": "Executar",
   "sequenceStop": "Parar",
   "sequenceStartTitle": "Executar “{name}”?",
+  "sequenceStartConversation": "Conversa",
   "sequenceStartDetail": {
     "one": "{count} mensagem é enviada para esta conversa, cada uma após a conclusão do turno anterior.",
     "other": "{count} mensagens são enviadas para esta conversa, cada uma após a conclusão do turno anterior.",
@@ -180,7 +186,7 @@
   "sequenceStepRequired": "Cada etapa precisa de texto.",
   "sequenceNeedsStep": "Uma sequência precisa de pelo menos uma etapa.",
   "sequenceAlreadyRunning": "Já há uma sequência de prompts em execução nesta conversa.",
-  "sequenceConversationBusy": "Um turno está em andamento: aguarde o fim e execute a sequência.",
+  "sequenceNoSession": "Abra uma conversa antes de executar uma sequência.",
   "referenceSequences": "Executa prompts salvos em ordem a partir da paleta: cada etapa é enviada após a conclusão do turno anterior. Um turno com falha, Parar ou uma troca de conversa encerra a execução.",
   "shareChat": "Compartilhar chat…",
   "sharePrompt": "Compartilhar prompt…",

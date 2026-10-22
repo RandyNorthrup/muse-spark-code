@@ -158,11 +158,17 @@
   "sequenceScope": "Disponible dans",
   "sequenceStep": "Étape {index}",
   "sequenceSteps": "Étapes",
+  "sequenceStepCount": {
+    "one": "{count} étape",
+    "other": "{count} étapes",
+    "many": "{count} étapes"
+  },
   "sequenceAddStep": "Ajouter une étape",
   "sequenceRemoveStep": "Retirer l’étape",
   "sequenceRun": "Exécuter",
   "sequenceStop": "Arrêter",
   "sequenceStartTitle": "Exécuter « {name} » ?",
+  "sequenceStartConversation": "Conversation",
   "sequenceStartDetail": {
     "one": "{count} message est envoyé à cette conversation, chacun après la fin du tour précédent.",
     "other": "{count} messages sont envoyés à cette conversation, chacun après la fin du tour précédent.",
@@ -180,7 +186,7 @@
   "sequenceStepRequired": "Chaque étape doit contenir du texte.",
   "sequenceNeedsStep": "Une séquence exige au moins une étape.",
   "sequenceAlreadyRunning": "Une séquence de prompts est déjà en cours dans cette conversation.",
-  "sequenceConversationBusy": "Un tour est en cours : attendez sa fin, puis exécutez la séquence.",
+  "sequenceNoSession": "Ouvrez une conversation avant d’exécuter une séquence.",
   "referenceSequences": "Exécute dans l’ordre des prompts enregistrés depuis la palette : chaque étape est envoyée après la fin du tour précédent. Un tour en échec, Arrêter ou un changement de conversation met fin à l’exécution.",
   "shareChat": "Partager le chat…",
   "sharePrompt": "Partager le prompt…",

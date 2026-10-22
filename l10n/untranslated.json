@@ -258,6 +258,7 @@
       "paletteLabel",
       "hooksItem",
       "agentUntitled",
+      "sequenceStartConversation",
       "subagentRowLabel",
       "toolLabels.request_user_input",
       "toolLabels.mcp__ide__getDiagnostics",

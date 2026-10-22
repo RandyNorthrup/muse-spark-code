@@ -1,0 +1,133 @@
+.sequences,
+.sequences-start {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sequences label,
+.sequences form,
+.sequences li {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sequences input,
+.sequences textarea,
+.sequences select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+}
+
+.sequences textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.sequences h3,
+.sequences p,
+.sequences-start h3,
+.sequences-start p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sequences-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+
+.sequences fieldset {
+  border: 1px solid var(--vscode-panel-border);
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 8px;
+  min-width: 0;
+}
+
+.sequences fieldset ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.sequences li {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-block: 12px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.sequences fieldset li {
+  grid-template-columns: minmax(0, 1fr);
+  padding-block: 0;
+  border-top: none;
+}
+
+.sequences li h3,
+.sequences li p {
+  grid-column: 1 / -1;
+}
+
+.sequences-actions,
+.sequences-start-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sequences button,
+.sequences-start button {
+  padding: 4px 8px;
+  border: 1px solid var(--vscode-panel-border);
+  min-height: var(--ms-button-height);
+  border-radius: var(--ms-radius);
+  color: var(--vscode-button-secondaryForeground);
+  font: inherit;
+  background: var(--vscode-button-secondaryBackground);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.sequences button:focus-visible,
+.sequences-start button:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 2px;
+}
+
+.sequences-start dl {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+}
+
+.sequences-start dt {
+  color: var(--vscode-descriptionForeground);
+}
+
+.sequences-start dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sequences-start ol {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-inline-start: 20px;
+}
+
+.sequences-start li p {
+  white-space: pre-wrap;
+}

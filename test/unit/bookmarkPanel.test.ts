@@ -7,7 +7,7 @@
 import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { BookmarkPort } from '../../src/host/conversation/featurePorts'
 import { DEFAULT_MODEL_ID } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
@@ -73,10 +73,10 @@ function shownState(posted: readonly HostToWebviewMessage[]) {
 describe('bookmark messages through the panel', () => {
   let directory = ''
 
-  beforeAll(async () => {
+  beforeEach(async () => {
     directory = await mkdtemp(path.join(tmpdir(), 'muse-bookmark-panel-'))
   })
-  afterAll(async () => {
+  afterEach(async () => {
     await removeFolder(directory)
   })
 

@@ -158,11 +158,18 @@
   "sequenceScope": "Dostępne w",
   "sequenceStep": "Krok {index}",
   "sequenceSteps": "Kroki",
+  "sequenceStepCount": {
+    "one": "{count} krok",
+    "other": "{count} kroków",
+    "few": "{count} kroki",
+    "many": "{count} kroków"
+  },
   "sequenceAddStep": "Dodaj krok",
   "sequenceRemoveStep": "Usuń krok",
   "sequenceRun": "Uruchom",
   "sequenceStop": "Zatrzymaj",
   "sequenceStartTitle": "Uruchomić „{name}“?",
+  "sequenceStartConversation": "Konwersacja",
   "sequenceStartDetail": {
     "one": "{count} wiadomość zostanie wysłana do tej konwersacji po zakończeniu poprzedniej tury.",
     "other": "{count} wiadomości zostanie wysłanych do tej konwersacji po zakończeniu poprzedniej tury.",
@@ -181,7 +188,7 @@
   "sequenceStepRequired": "Każdy krok wymaga tekstu.",
   "sequenceNeedsStep": "Sekwencja wymaga co najmniej jednego kroku.",
   "sequenceAlreadyRunning": "W tej konwersacji działa już sekwencja promptów.",
-  "sequenceConversationBusy": "Tura jest w toku: poczekaj na jej koniec, a potem uruchom sekwencję.",
+  "sequenceNoSession": "Przed uruchomieniem sekwencji otwórz konwersację.",
   "referenceSequences": "Uruchamia zapisane prompty po kolei z palety: każdy krok jest wysyłany po zakończeniu poprzedniej tury. Nieudana tura, zatrzymanie lub zmiana konwersacji kończy przebieg.",
   "shareChat": "Udostępnij czat…",
   "sharePrompt": "Udostępnij prompt…",

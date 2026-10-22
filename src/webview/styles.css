@@ -510,6 +510,22 @@ body {
   font-family: var(--ms-font-code);
 }
 
+/* --- sequence run row (M88): above the composer while a run goes --- */
+.sequence-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border-top: 1px solid var(--vscode-panel-border);
+}
+
+.sequence-run p {
+  margin: 0;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
 /* --- composer --- */
 
 /* Positioning context for the palette, which sits above the composer. In the

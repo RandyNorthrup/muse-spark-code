@@ -158,11 +158,18 @@
   "sequenceScope": "K dispozici v",
   "sequenceStep": "Krok {index}",
   "sequenceSteps": "Kroky",
+  "sequenceStepCount": {
+    "one": "{count} krok",
+    "other": "{count} kroků",
+    "few": "{count} kroky",
+    "many": "{count} kroků"
+  },
   "sequenceAddStep": "Přidat krok",
   "sequenceRemoveStep": "Odebrat krok",
   "sequenceRun": "Spustit",
   "sequenceStop": "Zastavit",
   "sequenceStartTitle": "Spustit „{name}“?",
+  "sequenceStartConversation": "Konverzace",
   "sequenceStartDetail": {
     "one": "{count} zpráva se po dokončení předchozího tahu odešle do této konverzace.",
     "other": "{count} zpráv se po dokončení předchozího tahu odešle do této konverzace.",
@@ -181,7 +188,7 @@
   "sequenceStepRequired": "Každý krok potřebuje text.",
   "sequenceNeedsStep": "Sekvence potřebuje alespoň jeden krok.",
   "sequenceAlreadyRunning": "V této konverzaci již běží sekvence promptů.",
-  "sequenceConversationBusy": "Tah právě běží: počkejte na jeho konec a pak sekvenci spusťte.",
+  "sequenceNoSession": "Před spuštěním sekvence otevřete konverzaci.",
   "referenceSequences": "Spouští uložené prompty popořadě z palety: každý krok se odešle po dokončení předchozího tahu. Nezdařený tah, zastavení nebo změna konverzace běh ukončí.",
   "shareChat": "Sdílet chat…",
   "sharePrompt": "Sdílet prompt…",

@@ -158,11 +158,15 @@
   "sequenceScope": "可用範圍",
   "sequenceStep": "步驟 {index}",
   "sequenceSteps": "步驟",
+  "sequenceStepCount": {
+    "other": "{count} 個步驟"
+  },
   "sequenceAddStep": "新增步驟",
   "sequenceRemoveStep": "移除步驟",
   "sequenceRun": "執行",
   "sequenceStop": "停止",
   "sequenceStartTitle": "執行「{name}」？",
+  "sequenceStartConversation": "對話",
   "sequenceStartDetail": {
     "other": "將向此對話傳送 {count} 則訊息，每則都在上一輪完成後傳送。"
   },
@@ -178,7 +182,7 @@
   "sequenceStepRequired": "每個步驟都需要文字。",
   "sequenceNeedsStep": "序列至少需要一個步驟。",
   "sequenceAlreadyRunning": "此對話中已有提示詞序列在執行。",
-  "sequenceConversationBusy": "回合正在執行：請等待其結束後再執行序列。",
+  "sequenceNoSession": "請先開啟一個對話，再執行序列。",
   "referenceSequences": "從面板按順序執行已儲存的提示詞：每一步都在上一輪完成後傳送。回合失敗、停止或切換對話都會結束執行。",
   "shareChat": "分享聊天…",
   "sharePrompt": "分享提示詞…",
