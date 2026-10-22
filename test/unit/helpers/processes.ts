@@ -1,6 +1,7 @@
 // Real child processes in tests: whether one still runs, the id a test
-// process recorded, and waiting for one to end.
+// process recorded, waiting for one to end, and reading one's output.
 
+import type { ChildProcess } from 'node:child_process'
 import { readFileSync } from 'node:fs'
 import { expect, vi } from 'vitest'
 
@@ -42,4 +43,19 @@ export async function expectEnded(pid: number, timeout = 5000): Promise<void> {
     },
     { timeout },
   )
+}
+
+/** A real child's exit code and standard output text, once it exits. */
+export async function childExitText(child: ChildProcess): Promise<{
+  exit: number | null
+  text: string
+}> {
+  const chunks: Buffer[] = []
+  child.stdout?.on('data', (chunk: Buffer) => {
+    chunks.push(chunk)
+  })
+  const exit = await new Promise<number | null>((resolve) => {
+    child.once('exit', resolve)
+  })
+  return { exit, text: Buffer.concat(chunks).toString('utf8') }
 }

@@ -327,20 +327,14 @@ function isReadOnlyGitArgs(args: readonly string[]): boolean {
   )
 }
 
-/** Only absent admission, as in the shared Git runner, permits the legacy route. */
-async function isUnconfiguredAdmission(error: unknown, signal: AbortSignal): Promise<boolean> {
-  if (!(
+/** The launcher's typed admission-unavailable failure, nothing else. */
+function isAdmissionUnavailable(error: unknown): boolean {
+  return (
     error instanceof Error &&
     error.name === 'ResourceUnavailableError' &&
     'code' in error &&
     error.code === 'admissionUnavailable'
-  ))
-    return false
-  // A configured governor's refusal is not an unconfigured embedding. In
-  // particular, a caller gate throwing this code must never select a retry.
-  const window = await loadResourceWindow()
-  signal.throwIfAborted()
-  return window === undefined
+  )
 }
 
 function gitProcessFailure(error: unknown): Error {
@@ -357,6 +351,12 @@ function gitProcessFailure(error: unknown): Error {
   return error instanceof Error ? error : new PullRequestServiceError(failureText(error))
 }
 
+/** The mapped failure with git's own redacted diagnostics for the run command. */
+function withCommandDiagnostics(failure: Error, file: string, args: readonly string[]): Error {
+  failure.message = failureText(failure, [file, ...args].join(' '))
+  return failure
+}
+
 /** Node's processes are admitted before the synchronous gate and process start. */
 export const nodeGitProcesses: GitProcessPort = {
   run: async (file, args, options) => {
@@ -368,11 +368,15 @@ export const nodeGitProcesses: GitProcessPort = {
       return launched.stdout
     } catch (error: unknown) {
       options.signal.throwIfAborted()
-      if (await isUnconfiguredAdmission(error, options.signal))
+      // Only absent admission, as in the shared git runner, permits the
+      // direct route: a configured governor's refusal is not an
+      // unconfigured embedding, and a caller gate throwing this code must
+      // never select a retry.
+      if (isAdmissionUnavailable(error) && (await loadResourceWindow()) === undefined) {
+        options.signal.throwIfAborted()
         return await unconfiguredGitProcesses.run(file, args, options)
-      const failure = gitProcessFailure(error)
-      failure.message = failureText(failure, [file, ...args].join(' '))
-      throw failure
+      }
+      throw withCommandDiagnostics(gitProcessFailure(error), file, args)
     }
   },
   start: async (file, args, options) => {
@@ -407,8 +411,14 @@ export const nodeGitProcesses: GitProcessPort = {
       })
     } catch (error: unknown) {
       options.signal.throwIfAborted()
-      if (await isUnconfiguredAdmission(error, options.signal))
+      // Only absent admission, as in the shared git runner, permits the
+      // direct route: a configured governor's refusal is not an
+      // unconfigured embedding, and a caller gate throwing this code must
+      // never select a retry.
+      if (isAdmissionUnavailable(error) && (await loadResourceWindow()) === undefined) {
+        options.signal.throwIfAborted()
         return await unconfiguredGitProcesses.start(file, args, options)
+      }
       throw gitProcessFailure(error)
     }
   },
@@ -858,6 +868,23 @@ keeps the checkout pending past both its deadline and Cancel, and no
 writer outlives the cleanup. Exported so the tests can stand a
 scripted root with a helper where git would be.
 */
+/**
+The launcher settlement's rejection as a value: a refused Windows GO or
+an enforced cap fails the batch, while a settled outcome resolves
+undefined. The cause is carried verbatim, including a non-Error
+rejection, so nothing thrown is hidden.
+*/
+async function outcomeRejection(
+  outcome: ResourcePipedProcess['outcome'] | undefined,
+): Promise<{ readonly cause: unknown } | undefined> {
+  try {
+    await outcome?.()
+  } catch (error: unknown) {
+    return { cause: error }
+  }
+  return undefined
+}
+
 export function runBatchChild(
   child: ChildProcess,
   answers: BlobAnswers,
@@ -925,10 +952,10 @@ export function runBatchChild(
         return
       }
       const code = await closed
-      try {
-        await options.outcome?.()
-      } catch (error: unknown) {
-        fail(error instanceof Error ? error : unreadable())
+      const rejection = await outcomeRejection(options.outcome)
+      if (rejection !== undefined) {
+        const reason: unknown = rejection.cause
+        fail(reason instanceof Error ? reason : unreadable())
         return
       }
       if (code !== 0) {

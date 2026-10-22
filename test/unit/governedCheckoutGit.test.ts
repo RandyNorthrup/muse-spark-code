@@ -15,6 +15,7 @@ import { configureResources, loadResourceWindow } from '../../src/core/resources
 import { nodeGitProcesses } from '../../src/runtime/panel/pullRequests/checkout'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import { GIT_OUTPUT_MAX_BYTES, GIT_WORKTREE_TIMEOUT_MS } from '../../src/shared/constants'
+import { childExitText } from './helpers/processes'
 import { removeFolder } from './helpers/temporaryFolders'
 
 /** The host's git, resolved absolutely: the only git this test runs. */
@@ -110,15 +111,9 @@ describe('governed checkout git', () => {
       }),
       detached: false,
     })
-    const chunks: Buffer[] = []
-    child.stdout.on('data', (chunk: Buffer) => {
-      chunks.push(chunk)
-    })
-    const exit = await new Promise<number | null>((resolve) => {
-      child.once('exit', resolve)
-    })
-    expect(exit).toBe(0)
-    expect(Buffer.concat(chunks).toString('utf8')).toContain('git version')
+    const finished = await childExitText(child)
+    expect(finished.exit).toBe(0)
+    expect(finished.text).toContain('git version')
     expect(await loadResourceWindow()).not.toBeUndefined()
     expect(gateRuns).toBeGreaterThanOrEqual(1)
   })

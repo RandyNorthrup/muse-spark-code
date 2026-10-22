@@ -331,6 +331,17 @@ describe('runBatchChild', () => {
     abort.abort()
     await expect(pending).rejects.toThrow()
   })
+
+  it('fails with the launcher refusal instead of an unreadable batch', async () => {
+    const child = spawn(process.execPath, ['-e', ''], { stdio: 'pipe' })
+    const refusal = new Error('refused at Windows GO for the test batch')
+    await expect(
+      runBatchChild(child, batchAnswers(), {
+        ...batchOptions(),
+        outcome: () => Promise.reject(refusal),
+      }),
+    ).rejects.toThrow('refused at Windows GO for the test batch')
+  })
 })
 
 describe('worktree record claims', () => {
