@@ -26,6 +26,14 @@ import {
 /** The anchor also names the one vault this user owns (lead decision 3). */
 export interface VaultAnchorPort extends VaultGenerationPort {
   vaultId(): Promise<string | null>
+  /**
+  Binds this root's files' vault id (the startup peek, null where no vault
+  files name one) so a scoped anchor can adopt its pre-scoping record: the
+  record is consulted only when it names this vault. No store IO; the
+  adoption resolves on the first anchor read. Absent on anchors without a
+  legacy record to adopt.
+  */
+  adoptLegacyScope?(filesVaultId: string | null): void
   /** Reset Vault only: removes this vault's record (compare-and-delete). */
   reset(
     vaultId: string,

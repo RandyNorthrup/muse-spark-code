@@ -16575,6 +16575,26 @@ person set. The original scope follows. Replace directory-per-claim budgeting wi
 
 - **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
+### RLVAULTANCHOR — The vault's rollback anchor isolated per vault (2026-10-21)
+
+**Status 2026-10-22: built.** Every record a vault
+writes under the product's OS-store service is keyed to its canonical
+broker root, with the pre-scoping names kept as adopted fallbacks, so an
+existing vault keeps its records exactly where they were while a vault
+anywhere else can never read or write them; every vault fixture removes
+its own records on disposal. Status evidence:
+`docs/certification/rlvaultanchor.md`. The real-store scope cases are
+written and run in the hosts job on every platform; this lane's container
+cannot start D-Bus, so the Secret Service proof runs outside it.
+
+- **Goal.** The rollback anchor, the audit checkpoint and pending intent,
+  and the OS-store slot keys live under per-root accounts; a vault in a
+  test's folder never touches the person's real anchor, and `vault status`
+  no longer reports a never-set-up vault as lost.
+- **Compatibility.** A vault that wrote its records before scoping adopts
+  them by vault id and keeps reading and writing them; nothing migrates
+  and no reset is needed.
+
 ### M127 — Muse Code at its latest release (2026-10-17)
 
 **Status 2026-10-17: building.** Lane `feat/muse-code-latest`. The owner's
