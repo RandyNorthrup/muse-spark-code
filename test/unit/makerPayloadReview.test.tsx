@@ -3,7 +3,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { Blob as NodeBlob } from 'node:buffer'
 import { runInNewContext } from 'node:vm'
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it } from 'vitest'
 import { MAKER_REVIEW_SMALL_ROWS, UI_TEXT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
@@ -26,61 +26,61 @@ import {
 const browser = { visible: installMakerBrowser() }
 const searchWorkers: {
   deliver: (data: unknown) => void
-  terminate: ReturnType<typeof vi.fn>
+  terminate: (this: { terminations: number }) => void
+  terminations: number
 }[] = []
 
 beforeEach(() => {
   browser.visible = installMakerBrowser()
   searchWorkers.length = 0
   const blobs = new Map<string, NodeBlob>()
-  vi.stubGlobal('Blob', NodeBlob)
-  vi.stubGlobal(
-    'URL',
-    class extends URL {
-      static override createObjectURL(blob: Blob | MediaSource) {
-        if (!(blob instanceof NodeBlob)) throw new Error('Unexpected worker blob')
-        const url = `blob:simulator-${String(blobs.size)}`
-        blobs.set(url, blob)
-        return url
-      }
-      static override revokeObjectURL(url: string) {
-        blobs.delete(url)
-      }
-    },
-  )
-  vi.stubGlobal(
-    'Worker',
-    class {
-      listeners = new Map<string, (event: { data: unknown }) => void>()
-      terminate = vi.fn()
-      constructor(url: string) {
-        searchWorkers.push(this)
-        const blob = blobs.get(url)
-        if (blob === undefined) throw new Error('Missing worker blob')
-        void blob.text().then((source) => {
-          setTimeout(() => {
-            if (this.terminate.mock.calls.length > 0) return
-            runInNewContext(source, {
-              postMessage: (data: unknown) => {
-                this.deliver(data)
-              },
-            })
-          }, 0)
-        })
-      }
-      addEventListener(type: string, callback: (event: { data: unknown }) => void) {
-        this.listeners.set(type, callback)
-      }
-      deliver(data: unknown) {
-        this.listeners.get('message')?.({ data })
-      }
-    },
-  )
+  const urlClass = class extends URL {
+    static override createObjectURL(blob: Blob | MediaSource) {
+      if (!(blob instanceof NodeBlob)) throw new TypeError('Unexpected worker blob')
+      const url = `blob:simulator-${String(blobs.size)}`
+      blobs.set(url, blob)
+      return url
+    }
+    static override revokeObjectURL(url: string) {
+      blobs.delete(url)
+    }
+  }
+  const workerClass = class {
+    listeners = new Map<string, (event: { data: unknown }) => void>()
+    terminations = 0
+    terminate = () => {
+      this.terminations += 1
+    }
+    constructor(url: string) {
+      searchWorkers.push(this)
+      const blob = blobs.get(url)
+      if (blob === undefined) throw new Error('Missing worker blob')
+      void blob.text().then((source) => {
+        setTimeout(() => {
+          if (this.terminations > 0) return
+          runInNewContext(source, {
+            postMessage: (data: unknown) => {
+              this.deliver(data)
+            },
+          })
+        }, 0)
+      })
+    }
+    addEventListener(type: string, callback: (event: { data: unknown }) => void) {
+      this.listeners.set(type, callback)
+    }
+    deliver(data: unknown) {
+      this.listeners.get('message')?.({ data })
+    }
+  }
+  Object.defineProperties(globalThis, {
+    Blob: { value: NodeBlob, configurable: true },
+    URL: { value: urlClass, configurable: true },
+    Worker: { value: workerClass, configurable: true },
+  })
 })
 afterEach(() => {
   cleanup()
-  vi.restoreAllMocks()
-  vi.unstubAllGlobals()
   setUiText(EN, 'en')
 })
 const hash = (content: string | Uint8Array) => createHash('sha256').update(content).digest('hex')
@@ -247,9 +247,18 @@ async function approval(content = 'M104 S190', serialEncoding?: 'text' | 'hex') 
           warnsAboutReset: true,
           flashIdentity: { status: 'unknown' },
         }
-  const answer = vi.fn()
-  const review = vi.fn()
-  const rendered = vi.fn()
+  const answers: string[] = []
+  const answer = (decision: string) => {
+    answers.push(decision)
+  }
+  const reviews: string[] = []
+  const review = (digest: string) => {
+    reviews.push(digest)
+  }
+  const rendereds: string[] = []
+  const rendered = (digest: string) => {
+    rendereds.push(digest)
+  }
   render(
     <ApprovalDialog
       request={request}
@@ -261,17 +270,17 @@ async function approval(content = 'M104 S190', serialEncoding?: 'text' | 'hex') 
     />,
   )
   await waitFor(() => {
-    expect(rendered).toHaveBeenCalledWith(request.digest)
+    expect(rendereds).toContain(request.digest)
   })
   return {
     request,
-    answer,
-    review,
+    answers,
+    reviews,
     send: screen.getByRole('button', { name: UI_TEXT.makerSendOnce }),
   }
 }
 it('a clipped initial view completes after the real outer scroll reveals the payload end', async () => {
-  const { send, review, request } = await approval()
+  const { send, reviews, request } = await approval()
   expect(send).toBeDisabled()
   fireEvent.focus(screen.getByRole('region', { name: UI_TEXT.makerReadPayload }))
   expect(send).toBeDisabled()
@@ -279,7 +288,7 @@ it('a clipped initial view completes after the real outer scroll reveals the pay
     browser.visible()
   })
   expect(send).toBeEnabled()
-  expect(review).toHaveBeenLastCalledWith(request.digest)
+  expect(reviews.at(-1)).toBe(request.digest)
 })
 it('small payloads require the real payload container to reach its end', async () => {
   const { send } = await approval(Array.from({ length: 100 }, () => 'M104 S190').join('\n'))
@@ -308,7 +317,7 @@ it('a width change revokes review until the newly wrapped payload reaches its en
   expect(send).toBeDisabled()
 })
 it('large payloads require summary and digest confirmation without per-byte visibility proof', async () => {
-  const { send, answer } = await approval(
+  const { send, answers } = await approval(
     Array.from({ length: MAKER_REVIEW_SMALL_ROWS + 1 }, () => 'M104 S190').join('\n'),
   )
   act(() => {
@@ -318,7 +327,7 @@ it('large payloads require summary and digest confirmation without per-byte visi
   fireEvent.click(screen.getByLabelText(UI_TEXT.makerConfirmSummaryDigest))
   expect(send).toBeEnabled()
   fireEvent.click(send)
-  expect(answer).toHaveBeenCalledExactlyOnceWith('allow_once')
+  expect(answers).toEqual(['allow_once'])
   expect(document.querySelectorAll('.maker-payload-rows > span').length).toBeLessThan(20)
 })
 it('dangerous temperature, bounds and disabled safety need extra acknowledgement and have jumps', async () => {
@@ -336,8 +345,8 @@ it('dangerous temperature, bounds and disabled safety need extra acknowledgement
         extruder: 200,
         travel: { min: { x: 0, y: 0, z: 0 }, max: { x: 100, y: 100, z: 100 } },
       }}
-      onAnswer={vi.fn()}
-      onRendered={vi.fn()}
+      onAnswer={() => undefined}
+      onRendered={() => undefined}
       stop={null}
     />,
   )
@@ -420,10 +429,20 @@ it('MicroPython flash review shows its frozen target and explicitly unknown file
     digest: hash(payload),
     expiresAt: Date.now() + 60_000,
   }
-  const rendered = vi.fn()
-  render(<ApprovalDialog request={request} onAnswer={vi.fn()} onRendered={rendered} stop={null} />)
+  const rendereds: string[] = []
+  const rendered = (digest: string) => {
+    rendereds.push(digest)
+  }
+  render(
+    <ApprovalDialog
+      request={request}
+      onAnswer={() => undefined}
+      onRendered={rendered}
+      stop={null}
+    />,
+  )
   await waitFor(() => {
-    expect(rendered).toHaveBeenCalledWith(request.digest)
+    expect(rendereds).toContain(request.digest)
   })
   expect(screen.getByText(UI_TEXT.makerFirmwareSizeNotice)).toBeInTheDocument()
   expect(screen.getByRole('dialog')).toHaveTextContent(
@@ -439,24 +458,30 @@ it('MicroPython flash review shows its frozen target and explicitly unknown file
   expect(send).toBeEnabled()
 })
 it('replacement payload resets consent and recomputes its digest', async () => {
-  const receipt = vi.fn()
-  const reviewed = vi.fn()
+  const receipts: string[] = []
+  const receipt = (digest: string) => {
+    receipts.push(digest)
+  }
+  const revieweds: boolean[] = []
+  const reviewed = (isComplete: boolean) => {
+    revieweds.push(isComplete)
+  }
   const view = render(<PayloadReview content="hello" onRendered={receipt} onReviewed={reviewed} />)
   await waitFor(() => {
-    expect(receipt).toHaveBeenLastCalledWith(hash('hello'))
+    expect(receipts.at(-1)).toBe(hash('hello'))
   })
   act(() => {
     browser.visible()
   })
-  expect(reviewed).toHaveBeenLastCalledWith(true)
+  expect(revieweds.at(-1)).toBe(true)
   view.rerender(<PayloadReview content={'hello\r'} onRendered={receipt} onReviewed={reviewed} />)
   await waitFor(() => {
-    expect(receipt).toHaveBeenLastCalledWith(hash('hello\r'))
+    expect(receipts.at(-1)).toBe(hash('hello\r'))
   })
   expect(screen.getByRole('region', { name: UI_TEXT.makerReadPayload })).toHaveTextContent('hello␍')
 })
 it('a 100,000-line rendering stays virtual and Stop responds below 100 ms during preparation', async () => {
-  const { store, post } = uiBridge()
+  const { store, posted } = uiBridge()
   store.receive(MAKER_UI_STATE)
   render(<MakerSurface store={store} />)
   const stop = screen.getByRole('button', { name: UI_TEXT.makerStopAll })
@@ -479,7 +504,7 @@ it('a 100,000-line rendering stays virtual and Stop responds below 100 ms during
     })
   })
   expect(await responded).toBeLessThan(100)
-  expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+  expect(posted.at(-1)).toEqual({ v: 1, type: 'makerStop' })
   await waitFor(
     () => expect(screen.getByText(UI_TEXT.makerConfirmSummaryDigest)).toBeInTheDocument(),
     { timeout: 4000 },
@@ -501,7 +526,7 @@ it('search reaches an unmounted row in the complete canonical rendering', async 
   )
 })
 it('Stop cancels search on its own event path before any search work resumes', async () => {
-  const { store, post } = uiBridge()
+  const { store, posted } = uiBridge()
   store.receive(MAKER_UI_STATE)
   store.receive({
     v: 1,
@@ -521,13 +546,13 @@ it('Stop cancels search on its own event path before any search work resumes', a
   fireEvent.click(
     screen.getAllByRole('button', { name: UI_TEXT.makerStopAll }).at(-1) ?? document.body,
   )
-  expect(post).toHaveBeenLastCalledWith({ v: 1, type: 'makerStop' })
+  expect(posted.at(-1)).toEqual({ v: 1, type: 'makerStop' })
   expect(find).toHaveAttribute('aria-busy', 'false')
-  expect(active?.terminate).toHaveBeenCalledOnce()
+  expect(active?.terminations).toBe(1)
   store.dispose()
 })
 it('a changed reviewed digest irrevocably rejects a pending approval', () => {
-  const { store, post } = uiBridge()
+  const { store, posted } = uiBridge()
   store.receive(MAKER_UI_STATE)
   const request = uiApproval()
   store.receive({ v: 1, type: 'makerApproval', request })
@@ -535,7 +560,7 @@ it('a changed reviewed digest irrevocably rejects a pending approval', () => {
   store.previewRendered(request.id, hash('different'))
   store.previewRendered(request.id, request.digest)
   expect(store.answer(request.id, 'allow_once')).toBe(false)
-  expect(post).toHaveBeenCalledWith(
+  expect(posted).toContainEqual(
     expect.objectContaining({
       type: 'makerAnswer',
       answer: expect.objectContaining({ decision: 'reject_once' }),
@@ -544,7 +569,7 @@ it('a changed reviewed digest irrevocably rejects a pending approval', () => {
   store.dispose()
 })
 it('read-only native preview rendering supplies no approval authority', async () => {
-  const { store, post } = uiBridge()
+  const { store, posted } = uiBridge()
   store.receive(MAKER_UI_STATE)
   store.receive({
     v: 1,
@@ -556,12 +581,12 @@ it('read-only native preview rendering supplies no approval authority', async ()
   act(() => {
     browser.visible()
   })
-  expect(post).not.toHaveBeenCalled()
+  expect(posted).toEqual([])
   store.dispose()
 })
 
 async function expectDangerReview(content: string, encoding?: 'text' | 'hex') {
-  const { send, answer, request } = await approval(content, encoding)
+  const { send, answers, request } = await approval(content, encoding)
   if (encoding !== undefined) expect(request).not.toHaveProperty('analysis')
   const ack = screen.getByLabelText(UI_TEXT.makerAcknowledgeDangers)
   act(() => {
@@ -569,7 +594,7 @@ async function expectDangerReview(content: string, encoding?: 'text' | 'hex') {
   })
   expect(send).toBeDisabled()
   fireEvent.click(send)
-  expect(answer).not.toHaveBeenCalled()
+  expect(answers).toEqual([])
   fireEvent.click(ack)
   expect(send).toBeEnabled()
 }
@@ -631,7 +656,7 @@ it('query changes terminate the worker and reject late messages and malformed re
   fireEvent.click(screen.getByRole('button', { name: UI_TEXT.makerFindNext }))
   const stale = searchWorkers[0]
   fireEvent.change(input, { target: { value: 'absent' } })
-  expect(stale?.terminate).toHaveBeenCalledOnce()
+  expect(stale?.terminations).toBe(1)
   act(() => {
     stale?.deliver({ match: 250, jump: 250 })
   })
@@ -643,7 +668,7 @@ it('query changes terminate the worker and reject late messages and malformed re
     searchWorkers[1]?.deliver({ match: '250', jump: 250 })
   })
   expect(screen.getByRole('alert')).toHaveTextContent(UI_TEXT.makerLoadFailed)
-  expect(searchWorkers[1]?.terminate).toHaveBeenCalledOnce()
+  expect(searchWorkers[1]?.terminations).toBe(1)
 })
 
 it('long query display stays bounded while the worker searches the entire original query', async () => {
