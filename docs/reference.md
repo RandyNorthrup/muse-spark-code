@@ -133,6 +133,11 @@ Optional Model API explanation: {price}. Each use asks for consent and shares th
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -229,6 +234,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -379,6 +389,11 @@ conversationStart&modelPricing: On by default. Compacts long Model API conversat
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1077,6 +1092,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1137,6 +1157,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1196,6 +1221,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1274,6 +1304,11 @@ Attach files by selecting or dropping them, and paste images into the composer. 
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1337,6 +1372,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1390,6 +1430,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1441,6 +1486,11 @@ Turn paid model hooks on or off.
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1502,6 +1552,11 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "paidFeature": "tab",
@@ -1528,6 +1583,11 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1603,6 +1663,11 @@ The structured answer could not be validated. Using the text fallback.
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",

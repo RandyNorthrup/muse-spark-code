@@ -123,7 +123,7 @@ import {
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
   MODEL_API_MEDIA_PER_REQUEST,
-  MODEL_API_MODEL_PREFIX,
+  isModelApiModelId,
   MODEL_API_MODEL_TEXT,
   MCP_POOL_MODEL_TEXT,
   MODEL_API_OUTPUT_ENCODING,
@@ -16555,7 +16555,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         MODEL_API_CONTEXT_WINDOW
       const canReplayReasoning =
         model === undefined
-          ? modelId.startsWith(MODEL_API_MODEL_PREFIX)
+          ? isModelApiModelId(modelId)
           : model.quirks.reasoningReplay === 'same-model'
       tail = this.compactionTail(windowTokens).filter(
         (entry) => canReplayReasoning || !isReasoningItem(entry.item),
@@ -16574,7 +16574,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const shouldKeepTools =
         resolved.policy.tools.calling.state === 'yes' &&
         (model === undefined
-          ? modelId.startsWith(MODEL_API_MODEL_PREFIX)
+          ? isModelApiModelId(modelId)
           : model.quirks.keepToolsWithHistory && model.capabilities.toolCalling)
       const canReuse =
         canUseTools &&
@@ -19525,7 +19525,7 @@ export class ModelApiHost implements AgentHost {
       (this.deps.models?.defaultModel !== undefined && providers.length > 0)
     const active = sessionId === undefined ? undefined : this.sessions.get(sessionId)?.modelId
     const direct = ids.filter(
-      (id) => id.startsWith(MODEL_API_MODEL_PREFIX) || this.deps.client.isPlanModel?.(id) === true,
+      (id) => isModelApiModelId(id) || this.deps.client.isPlanModel?.(id) === true,
     )
     // A plan model carries its catalogue facts (effort levels, default,
     // Fast tier) so every picker offers what the model serves.

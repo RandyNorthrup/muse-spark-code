@@ -1,7 +1,7 @@
 import { teamTreeSchema as teamViewTreeSchema } from './teamView'
 import {
   MODEL_API_MIN_OUTPUT_TOKENS,
-  MODEL_API_MODEL_PREFIX,
+  isModelApiModelId,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_EXHAUSTED_POLICIES,
   TEAM_ROLE_IDS,
@@ -77,8 +77,7 @@ function teamOutputMinimum(agent: TeamAgentRef | undefined, selectedModel = agen
   const model = selectedModel?.startsWith('meta/')
     ? selectedModel.slice('meta/'.length)
     : selectedModel
-  return (agent?.provider === undefined || agent.provider === 'meta') &&
-    model?.startsWith(MODEL_API_MODEL_PREFIX)
+  return (agent?.provider === undefined || agent.provider === 'meta') && isModelApiModelId(model)
     ? MODEL_API_MIN_OUTPUT_TOKENS
     : 1
 }

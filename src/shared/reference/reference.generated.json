@@ -203,7 +203,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -311,7 +312,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -558,7 +560,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1538,7 +1541,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1583,7 +1587,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1627,7 +1632,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1705,7 +1711,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1767,7 +1774,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1805,7 +1813,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1843,7 +1852,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1920,7 +1930,8 @@
         "budgetUsd": 0,
         "rates": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "paidFeature": "tab",
         "paidSettings": ["museSpark.modelApiTab"],
@@ -1933,7 +1944,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
@@ -1996,7 +2008,8 @@
         },
         "tokenRatesPerMillion": {
           "standard": { "input": "1.25", "cachedInput": "0.15", "output": "4.25" },
-          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" }
+          "contributor": { "input": "0.1", "cachedInput": "0.002", "output": "0.2" },
+          "wonder": { "input": "4", "cachedInput": "0.2", "output": "20" }
         },
         "billing": "storedModelApiKey",
         "effectiveAvailability": {
