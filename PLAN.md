@@ -33058,10 +33058,10 @@ provider codecs and the credential-owning M109 transport are injected;
 no external wire shape or credential is invented.
 
 **Slice 1 is implemented:** provider adapter and serialized audited first-wave
-owner, certified with fakes. **Slice 2 is not implemented:** the portable
-provisioning lifecycle and its liability/teardown tests remain
-`M117-P-Slice2-lifecycle`, separate from external milestone bindings. The
-following paragraph describes the planned Slice 2 behavior.
+owner, certified with fakes. **Slice 2 is implemented (C-M117-6, 2026-10-11):**
+the portable provisioning lifecycle and its liability/teardown tests,
+certified with fakes; receipts in `docs/certification/m117-p-spin-it-up.md`.
+The following paragraph describes the Slice 2 behavior.
 
 Provisioning requires all installer/pairing bindings and an explicit run
 budget, with no default. Quotes retain exact nano-USD fractions for each
