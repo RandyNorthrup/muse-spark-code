@@ -34,7 +34,10 @@ const BUDGETS = [
   // local source, estimate included.
   { path: 'dist/reportingNetwork.js', budgetKiB: 100 },
   // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
-  { path: 'dist/reportInputs.js', budgetKiB: 100 },
+  // RLM95: 100.2 KiB measured +15% = 115.2 KiB, rounded up. The landed
+  // provider lanes' usage/spend/files text and the lane's status phrase
+  // ride the reporting inputs; no lighter placement exists.
+  { path: 'dist/reportInputs.js', budgetKiB: 116 },
   // C-M113-4: playbook and schedules inputs, 52090 bytes (50.9 KiB)
   // measured +15% = 58.5 KiB, rounded up to the next whole KiB.
   { path: 'dist/playbookSchedulesInputs.js', budgetKiB: 59 },

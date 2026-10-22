@@ -16,7 +16,7 @@ import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import { parseModelRef } from './modelRef'
+import { parseModelRef } from '../../shared/modelRef'
 
 /** What the name servers answer when a name does not resolve (c-ares codes). */
 const UNRESOLVED_ADDRESS_CODES: ReadonlySet<string> = new Set([

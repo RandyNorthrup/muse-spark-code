@@ -3,12 +3,12 @@
 // difference. Display and reconciliation only: nothing here feeds a cap.
 // This module stays out of the headless preflight bundle: only the usage
 // dispatch loads it, so routine runs never carry the report parsers.
-import {
-  type ProviderSpendReport,
-  type SpendEstimate,
-  type SpendFetcher,
-  type SpendHttpRequest,
-  type SpendPage,
+import type {
+  ProviderSpendReport,
+  SpendEstimate,
+  SpendFetcher,
+  SpendHttpRequest,
+  SpendPage,
 } from '../core/providers/providerSpend'
 import type { SpendFailure } from '../core/providers/providerSpendKeyUsage'
 import {

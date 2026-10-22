@@ -1167,7 +1167,7 @@ export function checkDeferredBundles(inputsOf) {
         !(source === 'src/core/providers/configured.ts' && bundle === BUNDLES.configured) &&
         !(
           bundle.output === 'dist/providerPolicy.js' &&
-          ['credentialRecord.ts', 'modelRef.ts', 'endpointPolicy.ts'].some(
+          ['credentialRecord.ts', 'endpointPolicy.ts'].some(
             (file) => source === `src/core/providers/${file}`,
           )
         ) &&

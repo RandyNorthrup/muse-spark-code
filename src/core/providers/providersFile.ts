@@ -25,7 +25,7 @@ import {
   openRouterRoutingSchema,
   pruneModelLimits,
 } from '../../shared/providerRouting'
-import { isProviderId, isStorableModelId, parseModelRef } from './modelRef'
+import { isProviderId, isStorableModelId, parseModelRef } from '../../shared/modelRef'
 import type { PriceCard } from './priceCard'
 import { capabilityOverridesSchema, userCapabilityOverrides } from './capabilityRecord'
 

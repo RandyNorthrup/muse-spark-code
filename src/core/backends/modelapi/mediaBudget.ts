@@ -16,7 +16,7 @@
 import { Buffer } from 'node:buffer'
 import {
   MODEL_API_MEDIA_PER_REQUEST,
-  MODEL_API_MODEL_TEXT,
+  MEDIA_MODEL_TEXT,
   MODEL_API_PDF_PAGE_IMAGES,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -81,9 +81,9 @@ function assertRequiredFitsRecord(
 
 function leftOut(part: InputContentPart, reason: OmissionReason) {
   const reasons = {
-    support: MODEL_API_MODEL_TEXT.mediaSupportRefused,
-    mime: MODEL_API_MODEL_TEXT.mediaMimeRefused,
-    limit: MODEL_API_MODEL_TEXT.mediaLimitExceeded,
+    support: MEDIA_MODEL_TEXT.mediaSupportRefused,
+    mime: MEDIA_MODEL_TEXT.mediaMimeRefused,
+    limit: MEDIA_MODEL_TEXT.mediaLimitExceeded,
   }
   let text: string
   if (reason === 'budget') {
@@ -91,16 +91,16 @@ function leftOut(part: InputContentPart, reason: OmissionReason) {
     // it. The current request's own projected parts are protected from
     // elision, so this is defensive.
     if (part.type === 'input_file') {
-      text = fill(MODEL_API_MODEL_TEXT.pdfLeftOut, {
+      text = fill(MEDIA_MODEL_TEXT.pdfLeftOut, {
         name: 'filename' in part ? part.filename : part.file_id,
       })
     } else if (part.type === 'input_image') {
-      text = MODEL_API_MODEL_TEXT.imageLeftOut
+      text = MEDIA_MODEL_TEXT.imageLeftOut
     } else {
-      text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons.limit })
+      text = fill(MEDIA_MODEL_TEXT.mediaLeftOut, { reason: reasons.limit })
     }
   } else {
-    text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
+    text = fill(MEDIA_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
   }
   return { type: 'input_text' as const, text }
 }
