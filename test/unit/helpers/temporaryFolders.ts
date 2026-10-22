@@ -4,10 +4,12 @@
 // suite: that is how a process a test leaves behind shows (the tree kill's
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
-import { readdirSync } from 'node:fs'
+import { readdirSync, realpathSync } from 'node:fs'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
+import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../../src/core/execGuard'
+import { runProgram } from '../../../src/host/processTree'
 
 const REMOVE_RETRIES = 5
 const REMOVE_RETRY_DELAY_MS = 200
@@ -61,6 +63,38 @@ macOS's `/var` symlink never leaks into hashed paths).
 */
 export async function temporaryDir(prefix: string): Promise<string> {
   return await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
+}
+
+/**
+A Windows storage folder the trusted-path check accepts: inheritance cut,
+then full control to this user, SYSTEM and Administrators only. A
+temporary folder may inherit other accounts' write access (it does on some
+rigs), and the trust check rightly refuses a helper built there. Suites
+share it instead of repeating the lockdown, so the duplication gate stays
+silent and every storage dir still locks down the same way.
+*/
+export async function lockWindowsStorageDir(storageDir: string, systemRoot: string): Promise<void> {
+  const powershell = windowsPowerShell(systemRoot)
+  const user = await runProgram(
+    powershell.file,
+    [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      '[Security.Principal.WindowsIdentity]::GetCurrent().User.Value',
+    ],
+    powershell.env,
+  )
+  await runProgram(
+    path.win32.join(systemRoot, 'System32', 'icacls.exe'),
+    [
+      storageDir,
+      '/inheritance:r',
+      '/grant:r',
+      ...[user.trim(), 'S-1-5-18', 'S-1-5-32-544'].map((sid) => `*${sid}:(OI)(CI)F`),
+    ],
+    noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync),
+  )
 }
 
 /** Every file under a folder, as absolute paths: what a key scan reads. */

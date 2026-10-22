@@ -25,7 +25,7 @@ import { execFileGuarded } from '../../src/core/guardedChildProcess'
 import { tmpdir } from 'node:os'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { screenRecordExecutable } from '../../src/host/backend/jobBuild'
-import { removeFolder } from './helpers/temporaryFolders'
+import { lockWindowsStorageDir, removeFolder } from './helpers/temporaryFolders'
 
 const paths = { root: '', executable: '', source: '' }
 const systemRoot = process.env['SystemRoot'] ?? ''
@@ -132,26 +132,7 @@ describe.skipIf(process.platform !== 'win32')(
       // trust check refuses a helper there.
       const storageDir = path.join(paths.root, 'storage')
       await mkdir(storageDir)
-      const user = await runProgram(
-        powershell.file,
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          '[Security.Principal.WindowsIdentity]::GetCurrent().User.Value',
-        ],
-        powershell.env,
-      )
-      await runProgram(
-        icacls,
-        [
-          storageDir,
-          '/inheritance:r',
-          '/grant:r',
-          ...[user.trim(), 'S-1-5-18', 'S-1-5-32-544'].map((sid) => `*${sid}:(OI)(CI)F`),
-        ],
-        env,
-      )
+      await lockWindowsStorageDir(storageDir, systemRoot)
       const executable = await helperIn(storageDir)
       if (executable === undefined)
         throw new Error('inbox recorder/check fixture failed to compile or self-test')

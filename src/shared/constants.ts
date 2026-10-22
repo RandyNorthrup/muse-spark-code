@@ -1715,6 +1715,11 @@ export const WINDOWS_SCREEN_RECORDINGS_FOLDER = 'Screen Recordings'
 export const WINDOWS_CAPTURES_FOLDER = 'Captures'
 export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
+// The recorder launch port's per-line bound (M105 R2): the helper's frames
+// are short JSON lines, and a line past this is corruption — the port stops
+// delivering rather than feed it to the driver. A bound on untrusted child
+// bytes, not on a person's value (HOOK_OUTPUT_MAX_BYTES' precedent).
+export const SCREEN_RECORDING_LINE_MAX_BYTES = 16 * 1024
 
 // PDFs as input (M54, PLAN.md D47): the one document type Meta's Responses
 // API reads for inference, sent inline as `input_file`, never uploaded.
