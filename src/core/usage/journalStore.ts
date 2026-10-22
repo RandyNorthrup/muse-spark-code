@@ -1,8 +1,6 @@
 // One file per process/day; snapshots and maintenance share a generation lock.
 import * as z from 'zod/mini'
 import {
-  RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS,
-  RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS,
   USAGE_DAYS_FOLDER,
   USAGE_DETAIL_DAYS,
   USAGE_FOLDER,
@@ -40,6 +38,7 @@ import {
   type UsageLimitSnapshot,
 } from '../../shared/usageJournal'
 import { createUsageRecord, usageLocalDay, type UsageRecordContext } from './journalRecord'
+import { acquireJournalLock } from './journalLock'
 import type { Usage } from '../backends/modelapi/schemas'
 import { emptyUsageMeasurements, type UsageAggregateRow } from './aggregate'
 import { Usd } from '../../shared/usd'
@@ -447,33 +446,6 @@ read retries once with cold caches instead of returning it. Caught by
 identity in `read` only; it never surfaces to a caller.
 */
 class UsageLockRacedError extends Error {}
-
-/**
-A cross-process journal lock, waiting its turn: a momentarily held lock
-(another window's snapshot or retention) waits instead of failing the
-call. Attempts and spacing are the one lock discipline both journals
-share (RESOURCE_JOURNAL_WRITE_LOCK_*); a lock still held after them
-returns undefined and the caller names its own failure.
-*/
-export async function acquireJournalLock(
-  fs: UsageFs,
-  file: string,
-  staleMs: number,
-  sleep?: (ms: number) => Promise<void>,
-): Promise<UsageLock | undefined> {
-  const wait =
-    sleep ??
-    ((ms: number) =>
-      new Promise<void>((resolve) => {
-        setTimeout(resolve, ms)
-      }))
-  for (let attempt = 0; attempt < RESOURCE_JOURNAL_WRITE_LOCK_ATTEMPTS; attempt++) {
-    const lock = await fs.acquireLock(file, staleMs)
-    if (lock !== undefined) return lock
-    await wait(RESOURCE_JOURNAL_WRITE_LOCK_WAIT_MS)
-  }
-  return undefined
-}
 
 export class UsageJournalStore {
   private readonly cache = new Map<string, FileCache>()
