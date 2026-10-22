@@ -123,7 +123,12 @@ describe.runIf(process.platform === 'darwin')('Darwin memory helper transport', 
     expect(value).toBeTypeOf('number')
     expect(value).toBeGreaterThanOrEqual(0)
     expect(value).toBeLessThanOrEqual(totalmem())
-    expect(await sample.read()).toBe(value)
+    // A later read runs live memory again, so it is only bounded, never
+    // equal: the assertion below it proves the same idle child answered.
+    const second = await sample.read()
+    expect(second).toBeTypeOf('number')
+    expect(second).toBeGreaterThanOrEqual(0)
+    expect(second).toBeLessThanOrEqual(totalmem())
     expect(await helperPids()).toHaveLength(1)
   })
 
