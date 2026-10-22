@@ -17,6 +17,7 @@ import { isBrokerLockGone, launchSessionBroker, vaultInstallRoot } from './clien
 import { vaultPeerExecutable, vaultProcessIdentity, vaultSocketDescriptors } from './posixNative'
 import { registerPosixVaultHost } from './posixHost'
 import { holdVaultStartupLock } from './posixNative'
+import { vaultBrokerDataDir } from './vaultStoreScope'
 
 /** Installed POSIX binding; the public dispatcher owns the availability switch. */
 export async function posixVaultClientPlatform(
@@ -45,7 +46,7 @@ export async function posixVaultClientPlatform(
           // The broker record carries the socket path: speak only to a
           // socket inside this data folder's own bounded location, owned by
           // this user. A foreign record never directs this client elsewhere.
-          const expected = expectedVaultSocketLocations(path.join(context.dataDir, 'vault'), {
+          const expected = expectedVaultSocketLocations(vaultBrokerDataDir(context.dataDir), {
             platform: process.platform,
             env: process.env,
             tmpdir: os.tmpdir(),
@@ -146,7 +147,7 @@ export async function posixVaultClientPlatform(
             await launchSessionBroker({
               script: path.join(context.distDir, 'vaultBroker.js'),
               payload: {
-                dataDir: path.join(context.dataDir, 'vault'),
+                dataDir: vaultBrokerDataDir(context.dataDir),
                 runDirectory,
                 installRoot,
                 userSession,

@@ -12,6 +12,7 @@ import {
 } from '../../../shared/vault'
 import { areVaultBytesEqual, ownedBytes, VaultError } from '../../../core/vault/crypto'
 import { VaultStoreUnavailableError } from '../../../core/vault/broker/ports'
+import { legacyVaultSlotReference, vaultSlotReference } from '../vaultStoreScope'
 
 type SlotContext = Pick<
   VaultSlotRecord,
@@ -59,10 +60,14 @@ export class OsStoreVaultSlot implements VaultSlotPort {
     context: SlotContext,
     platform: NodeJS.Platform = process.platform,
     private readonly open?: OpenEntry,
+    scope?: string,
   ) {
     if (platform !== 'linux' && platform !== 'darwin') throw new VaultError('invalid')
+    if (scope === undefined || scope === '') throw new VaultError('invalid')
     const provider = platform === 'linux' ? 'secretService' : 'loginKeychain'
-    const reference = `vault.${context.vaultId}.${context.id}`
+    // Scoped to this root: a vault anywhere else can never name this slot's
+    // key. Pre-scoping records keep their own reference and keep opening.
+    const reference = vaultSlotReference(scope, context.vaultId, context.id)
     this.record = vaultSlotRecordSchema.parse({
       ...context,
       v: VAULT_FORMAT_VERSION,
@@ -77,9 +82,11 @@ export class OsStoreVaultSlot implements VaultSlotPort {
       backend: null,
     })
   }
-  private async operation<T>(work: (entry: SecretEntry) => Promise<T>): Promise<T> {
+  private async operation<T>(
+    account: string,
+    work: (entry: SecretEntry) => Promise<T>,
+  ): Promise<T> {
     try {
-      const account = this.record.keyReference ?? ''
       let entry: SecretEntry
       if (this.open) entry = this.open(KEYRING_SERVICE, account)
       else {
@@ -100,7 +107,7 @@ export class OsStoreVaultSlot implements VaultSlotPort {
     const owned = ownedBytes(key)
     this.isWriting = true
     try {
-      await this.operation(async (entry) => {
+      await this.operation(this.record.keyReference ?? '', async (entry) => {
         const previous = await secretBytes(entry)
         if (previous != null) {
           previous.fill(0)
@@ -136,8 +143,6 @@ export class OsStoreVaultSlot implements VaultSlotPort {
       'vaultId',
       'tier',
       'provider',
-      'keyReference',
-      'wrappedKey',
       'createdAt',
       'nonce',
       'tag',
@@ -145,7 +150,18 @@ export class OsStoreVaultSlot implements VaultSlotPort {
       'backend',
     ] as const)
       if (slot[field] !== this.record[field]) throw new VaultError('invalid')
-    return await this.operation(async (entry) => {
+    // The stored reference names the entry: this root's scoped reference,
+    // or the pre-scoping one for records written before scoping. Anything
+    // else is refused, and the wrapped pair must describe the entry opened.
+    const reference = slot.keyReference
+    if (reference === null) throw new VaultError('invalid')
+    const legacy = legacyVaultSlotReference(this.record.vaultId, this.record.id)
+    const isScoped = reference === this.record.keyReference
+    const isLegacy = reference === legacy
+    if (!isScoped && !isLegacy) throw new VaultError('invalid')
+    if (slot.wrappedKey !== Buffer.from(reference, 'ascii').toString('base64'))
+      throw new VaultError('invalid')
+    return await this.operation(reference, async (entry) => {
       const key = await secretBytes(entry)
       if (key == null) throw new VaultError('locked')
       return key
@@ -156,9 +172,11 @@ export class OsStoreVaultSlot implements VaultSlotPort {
     if (this.isWriting) throw new VaultError('busy')
     this.isWriting = true
     try {
-      await this.operation(async (entry) => {
+      const remove = async (entry: SecretEntry): Promise<void> => {
         await entry.deleteCredential()
-      })
+      }
+      await this.operation(this.record.keyReference ?? '', remove)
+      await this.operation(legacyVaultSlotReference(this.record.vaultId, this.record.id), remove)
     } finally {
       this.isWriting = false
     }

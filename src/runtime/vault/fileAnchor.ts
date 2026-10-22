@@ -44,7 +44,7 @@ export class FileVaultAnchor extends KeyringVaultAnchor {
     })
   }
 
-  protected override async readRaw(): Promise<string | null> {
+  protected override async readRaw(_account: string): Promise<string | null> {
     let raw: Buffer
     try {
       raw = await readFile(this.file)
@@ -61,7 +61,7 @@ export class FileVaultAnchor extends KeyringVaultAnchor {
     return raw.toString('utf8')
   }
 
-  protected override async writeRaw(raw: string): Promise<void> {
+  protected override async writeRaw(_account: string, raw: string): Promise<void> {
     try {
       await mkdir(path.dirname(this.file), { recursive: true, mode: 0o700 })
       // Modes are POSIX only: on Windows the caller supplies the
@@ -78,7 +78,7 @@ export class FileVaultAnchor extends KeyringVaultAnchor {
     }
   }
 
-  protected override async deleteRaw(): Promise<void> {
+  protected override async deleteRaw(_account: string): Promise<void> {
     try {
       await unlink(this.file)
     } catch (error: unknown) {
@@ -100,16 +100,17 @@ function vaultRecordFile(dataDir: string, service: string, account: string): str
 
 /** One such record, stored exactly as the file anchor stores its own. */
 class FileVaultRecord extends FileVaultAnchor {
+  // The file anchor ignores the account: this record's identity is its file.
   async load(): Promise<string | null> {
-    return await this.readRaw()
+    return await this.readRaw('')
   }
   async save(raw: string): Promise<void> {
-    await this.writeRaw(raw)
+    await this.writeRaw('', raw)
   }
   /** True when a record was there to delete; a missing one is already gone. */
   async erase(): Promise<boolean> {
-    const isPresent = (await this.readRaw()) !== null
-    await this.deleteRaw()
+    const isPresent = (await this.readRaw('')) !== null
+    await this.deleteRaw('')
     return isPresent
   }
 }

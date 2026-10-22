@@ -25,8 +25,9 @@ import { VaultLockEpoch } from '../../core/vault/broker/epoch'
 import { UnixVaultPrivateFiles, type VaultPrivateFilesPort } from '../../core/vault/broker/files'
 import { UnixVaultPeerVerifier, type VaultPeerVerifier } from '../../core/vault/broker/peer'
 import { type VaultBrokerDeps, type VaultSecuredListenerPort } from '../../core/vault/broker/ports'
-import { NodeVaultFiles } from '../../core/vault/store'
+import { NodeVaultFiles, VaultStore } from '../../core/vault/store'
 import { KeyringVaultAnchor } from './keyringAnchor'
+import { VAULT_ANCHOR_ACCOUNT, vaultAnchorAccount } from './vaultStoreScope'
 import { type KeyringEntryFactory } from '../keyStore'
 import { LinuxVaultSlots } from './slots/linuxVaultSlots'
 import { MacVaultSlots } from './slots/macVaultSlots'
@@ -147,7 +148,7 @@ Secure Enclave on macOS, Secret Service plus the TPM2 sealed object on
 Linux. The same selection serves every editor on the machine.
 */
 export function defaultBrokerSlots(
-  context: Pick<VaultBrokerContext, 'installRoot'> & {
+  context: Pick<VaultBrokerContext, 'dataDir' | 'installRoot'> & {
     readonly windowsHelper?: z.infer<typeof windowsHelperSchema> | undefined
   },
   presenceRecords: () => Promise<readonly VaultSlotRecord[]>,
@@ -172,11 +173,12 @@ export function defaultBrokerSlots(
     }
     case 'darwin': {
       return new MacVaultSlots(macVaultTransport(macVaultSlotExecutable(context.installRoot)), {
+        dataDir: context.dataDir,
         presenceRecords,
       })
     }
     case 'linux': {
-      return new LinuxVaultSlots()
+      return new LinuxVaultSlots({ dataDir: context.dataDir })
     }
     default: {
       throw new Error(UI_TEXT.vault.noAccess)
@@ -226,7 +228,16 @@ export async function buildBrokerChannel(
     readonly listener: VaultSecuredListenerPort
   },
 ) {
-  const anchor = bindings.anchor ?? new KeyringVaultAnchor(parts.keyring)
+  const anchor =
+    bindings.anchor ??
+    new KeyringVaultAnchor(parts.keyring, {
+      account: vaultAnchorAccount(context.dataDir),
+      legacyAccount: VAULT_ANCHOR_ACCOUNT,
+    })
+  // The startup peek binds this root's files' vault id for the pre-scoping
+  // anchor's adoption; the adoption itself resolves on the first anchor
+  // read, so an unavailable store still starts the broker.
+  anchor.adoptLegacyScope?.(await VaultStore.peekVaultId(parts.files))
   const repository = new VaultStoreRepository(parts.files, anchor)
   // Presence proofs resolve this vault's own presence-tier records: the
   // supplier is bound after unlock exists, and fails closed before that.

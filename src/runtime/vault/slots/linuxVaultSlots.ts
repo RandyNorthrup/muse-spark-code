@@ -22,25 +22,27 @@ use by the host (a later lane owns that round-trip).
 export class LinuxVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly deps: {
+      readonly dataDir: string
       readonly runner?: LinuxTpm2Runner
       readonly open?: OpenOsStoreEntry
       readonly platform?: NodeJS.Platform
-    } = {},
+    },
   ) {
     if ((deps.platform ?? process.platform) !== 'linux') throw new VaultError('invalid')
+    if (deps.dataDir === '') throw new VaultError('invalid')
   }
   private get platform(): NodeJS.Platform {
     return this.deps.platform ?? process.platform
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | LinuxTpm2Slot | null {
     if (record.tier === 'osStore' && record.provider === 'secretService')
-      return openOsStoreSlot(record, this.platform, this.deps.open)
+      return openOsStoreSlot(record, this.platform, this.deps.open, this.deps.dataDir)
     return record.tier === 'hardware' && record.provider === 'linuxTpm2'
       ? new LinuxTpm2Slot(slotEntryFromRecord(record), this.deps.runner, this.platform)
       : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open)
+    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open, this.deps.dataDir)
   }
   hardware(vaultId: string, slotId: string): LinuxTpm2Slot {
     return new LinuxTpm2Slot(freshSlotEntry(vaultId, slotId), this.deps.runner, this.platform)

@@ -20,14 +20,20 @@ await build({
 })
 const { OsStoreVaultSlot } = createRequire(import.meta.url)(output)
 const key = randomBytes(32)
-const slot = new OsStoreVaultSlot({
-  id: randomBytes(16).toString('hex'),
-  vaultId: randomBytes(16).toString('hex'),
-  lastGeneration: 0,
-  auditGeneration: 0,
-  auditHead: '0'.repeat(64),
-  createdAt: Date.now(),
-})
+const slot = new OsStoreVaultSlot(
+  {
+    id: randomBytes(16).toString('hex'),
+    vaultId: randomBytes(16).toString('hex'),
+    lastGeneration: 0,
+    auditGeneration: 0,
+    auditHead: '0'.repeat(64),
+    createdAt: Date.now(),
+  },
+  process.platform,
+  undefined,
+  // The receipt's own root: its key lives under this root's scoped reference.
+  path.resolve('temp/cm109-os-store-root'),
+)
 let hasWritten = false
 try {
   if (process.argv.includes('--unavailable')) {

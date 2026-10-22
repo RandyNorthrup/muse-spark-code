@@ -37,26 +37,28 @@ export class MacVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly transport: MacVaultTransport,
     private readonly deps: {
+      readonly dataDir: string
       readonly open?: OpenOsStoreEntry
       readonly presenceRecords?: PresenceRecords
       readonly platform?: NodeJS.Platform
-    } = {},
+    },
   ) {
     if ((deps.platform ?? process.platform) !== 'darwin') throw new VaultError('invalid')
+    if (deps.dataDir === '') throw new VaultError('invalid')
   }
   private get platform(): NodeJS.Platform {
     return this.deps.platform ?? process.platform
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | MacVaultSlot | null {
     if (record.tier === 'osStore' && record.provider === 'loginKeychain')
-      return openOsStoreSlot(record, this.platform, this.deps.open)
+      return openOsStoreSlot(record, this.platform, this.deps.open, this.deps.dataDir)
     return (record.tier === 'hardware' || record.tier === 'presence') &&
       record.provider === 'secureEnclave'
       ? new MacVaultSlot(record.tier, slotEntryFromRecord(record), this.transport)
       : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open)
+    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open, this.deps.dataDir)
   }
   /** The Secure Enclave slot where the helper reports it, else null. */
   async hardwareIfAvailable(vaultId: string, slotId: string): Promise<MacVaultSlot | null> {

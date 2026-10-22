@@ -952,7 +952,76 @@ function validateSnapshot(
 }
 
 /** Owns only the key; ciphertext snapshots are reloaded under the cross-process writer lock on every operation. */
+/** What the slots file names without opening: the vault id and every stored slot-key reference. */
+export interface PeekedVaultSlots {
+  readonly vaultId: string
+  readonly keyReferences: readonly string[]
+}
+
+/**
+Reads the slots file's names without opening: `slots.v1` first, the pending
+intent's snapshot when no slots file is there yet (the same order the reader
+uses). A hint only — startup anchor adoption and test teardown read this —
+so malformed files read as absent; the anchor and the MACs still authenticate
+every open. File errors propagate like every other store read.
+*/
+export function peekVaultSlotFiles(
+  slots: Buffer | null,
+  pending: Buffer | null,
+): PeekedVaultSlots | null {
+  try {
+    if (slots) {
+      const parsed = slotsSchema.safeParse(parseJson(slots))
+      if (parsed.success)
+        return { vaultId: parsed.data.vaultId, keyReferences: slotReferences(parsed.data) }
+    }
+    if (pending) {
+      const parsed = intentSchema.safeParse(parseJson(pending))
+      if (parsed.success)
+        return {
+          vaultId: parsed.data.snapshot.slots.vaultId,
+          keyReferences: slotReferences(parsed.data.snapshot.slots),
+        }
+    }
+    return null
+  } catch (error: unknown) {
+    // Only the documents are parsed here, so only their malformed shape
+    // reads as absent; anything else keeps its failure.
+    if (!(error instanceof VaultError)) throw error
+    return null
+  }
+}
+
+function slotReferences(slots: Pick<Slots, 'records'>): readonly string[] {
+  return slots.records
+    .map((record) => record.keyReference)
+    .filter((reference): reference is string => reference !== null)
+}
+
 export class VaultStore implements VaultStorePort {
+  /**
+  This root's files' vault id without opening, for the anchor's startup
+  adoption of its pre-scoping record: null where no vault files name one.
+  */
+  static async peekVaultId(files: VaultFilePort): Promise<string | null> {
+    return await files.withWriter(async () => {
+      const slots = await files.read('slots.v1')
+      try {
+        if (slots) {
+          const peeked = peekVaultSlotFiles(slots, null)
+          if (peeked) return peeked.vaultId
+        }
+        const pending = await files.read('pending.v1')
+        try {
+          return peekVaultSlotFiles(null, pending)?.vaultId ?? null
+        } finally {
+          pending?.fill(0)
+        }
+      } finally {
+        slots?.fill(0)
+      }
+    })
+  }
   /** Unauthenticated unlock hints. Opening with the unwrapped key must authenticate the document and anchor. */
   static async slotRecords(
     files: VaultFilePort,
