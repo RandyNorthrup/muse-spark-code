@@ -34521,50 +34521,11 @@ remain with the lead under the shared lane rules. Follow-up receipts are in
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**M121A rounds 3–4 gate ownership (2026-10-09, kubuntu).** The rig brief and
-shared lane rules forbid aggregate quality in this worktree; the lead owns
-that gate before integration. This lane runs the owning usage/money/schedule
-files at repository timeouts, typecheck, changed-file lint/format, localization
-and the remaining scoped static checks. Full production build retains the
-inherited What's New content-budget refusal; measure current production
-options/plugins in memory without editing the build or raising a cap. Byte
-counts and exact failure receipts are in `docs/certification/m121.md`.
-The unchanged zero-clone duplication gate also retains one six-line clone in
-`test/unit/windowsTrustedPath.test.ts`; that file matches `1494fbf87` byte for
-byte and is outside this lane's money scope. The touched migration test's
-duplicate setup is consolidated without dropping assertions. The lead owns
-the remaining Windows-test repair and the full artifact size/split replay:
-the refused build removes stale browser chunks before stopping, so those
-artifact checks cannot certify a complete current build. No gate is weakened.
-Round 4 replays the owning usage/money files, one unit-project typecheck and
-the scoped static checks and production measurements at the unchanged caps.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**CIFIXV hosted visual repair (2026-10-09, linuxlt).** Own only the three
-visual failures at `f5e0760c3`: reconstruct schedules under the served source
-root, review any intended pixel changes before regenerating goldens, and
-refresh current-source classification hashes without changing coverage.
-Keep all thresholds and repository deadlines. Full quality remains the lead's
-gate under the shared lane rules; no merge, push or live/paid calls.
-
-- [x] Prove historical schedule loading fails before the repair and passes after.
-- [x] Resolve visual comparisons and identify the aggregate's actual failure.
-- [x] Refresh source receipts and pass the owning audit suite.
-- [x] Pass full visual, six-theme accessibility and default-timeout stability gates.
-- [x] Record evidence and local hooks-on commits in `docs/certification/cifixv.md`.
-
-Reviewed full baseline: `CIFIXV-integrated-accessibility-review-2026-10-09`,
-9,792 images / 447,310,229 bytes; all 884 distinct changed images reviewed,
-27 named scenes. Full pixel gate passed; six-theme scoped axe passed on
-1,632 pages with zero violations, retaining all 315 incomplete findings.
-All 43 owning tests passed at repository defaults; production build passed.
-The artifact action's `digest-mismatch: error` is an input;
-the aggregate requires successful schedule shards and complete receipts.
-Bounded external gate deferral: full `jscpd` still reports the inherited
-51-token clone in `test/unit/modelApiLoopGuarantees.test.ts:741` and `:890`.
-That suite is another lane's scope; leave code and duplication limits intact
-for the lead's integration gate. Receipt: `docs/certification/cifixv.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -39925,6 +39886,30 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   Platform/live release receipts remain separate requirements.
 
 ## 10. Definition of done and release records
+
+**0.19.0 released (2026-10-21, tag `v0.19.0` on main's release merge `4e09cab6ea`, PR #257, release run 39720213044).**
+PR #257 (`release/0.19.2`, head `915f409fe4`) merged after first-attempt
+green CI (39716712837) and Hosts (39716712802) runs; the merge commit's Hosts
+run (39719522423) was green and `rule2-gate.mjs release --sha 4e09cab6ea`
+read three green first runs; the annotated tag was pushed at 9:04 PM PT. The
+release run reused the CI run's verified packages (its lookup found
+39716712837 for the tag tree `f77cd9d93f`). Tag checks, reuse, the GitHub
+Release (46 assets: seven VSIX packages, the agent tarball, both
+inventories, `SHA256SUMS` and the Linux helper assets), Marketplace and npm
+succeeded. Open VSX failed at its own check, not at publishing: once a
+version has targeted packages, Open VSX's untargeted `/<version>` answer
+names whichever package it picks (`win32-arm64` to the script), so the
+universal package was compared with another target's bytes. Every package
+was uploaded; Open VSX activated the last ones by 04:15 UTC. Checked after
+the run, each of the seven packages on the Marketplace and on Open VSX
+(through each target's own address) is byte-identical to the release asset,
+npm's `muse-spark-code-acp@0.19.0` integrity equals the release tarball's,
+and every downloaded asset passes `SHA256SUMS`. The summary job is red for
+the Open VSX job; the badge refresh it skipped was run locally (exit 0). The
+check now reads `/universal/<version>` (`scripts/publish-registry.mjs`;
+`docs/certification/cifinal0190.md` §21). Real use before the tag:
+`docs/real-life/release-0.19.0-limits-W.md` (Windows, 5 model calls, every
+one `muse-spark-1.3-contributor`, $0.00).
 
 **0.19.0 preparation (2026-10-17; tagged again 2026-10-21).** `release/0.19.0` cut from `main-now` at
 `81dacaf5a7`, merging in order PR #185 (`fix/sandbox-say`: the Linux sandbox

@@ -784,3 +784,30 @@ docs/plan-archive/milestones.md`: clean.
   `sharingArtifacts` + `estimatorPlanSnapshot` (79 passed),
   `estimatorPlanSnapshotRealPlan` + `estimatorPlanSnapshotSource` +
   `estimatorSnapshotStrict` (73 passed), `planDocument` (19 passed).
+
+## 2026-10-21: room for the 0.19.0 release record
+
+The 0.19.0 release record put `PLAN.md` at 3,566,310 bytes, 1,152 over the
+`check:plan` gate (85% of the 4 MiB bound, 3,565,158). Two §7 gate records
+of closed lanes moved to `docs/plan-archive/gates.md` with a pointer each;
+no test, script or open branch cites or touches them (PR #252 changes §3 and
+§6 only), and both milestones shipped:
+
+| Block                                        | Lines (at `4e09cab6e`) | Bytes | SHA-256     |
+| -------------------------------------------- | ---------------------- | ----- | ----------- |
+| CIFIXV hosted visual repair (2026-10-09)     | 34544–34567            | 1,646 | `3b0e0461…` |
+| M121A rounds 3–4 gate ownership (2026-10-09) | 34524–34540            | 1,287 | `66f4036a…` |
+
+After: 3,563,591 bytes, 1,567 bytes under the gate.
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` before each write,
+  SHA-256 `8bc0b6ef…` and `6719195b…`.
+- Parsed facts: identical; format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/gates.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 222 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` unchanged.
+- `npm run check:reference`: exit 0.
+- `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure`: 135
+  passed.
