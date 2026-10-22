@@ -2715,6 +2715,8 @@
   "sessionBranchChanged": "Der Versionsverwaltungszweig der Sitzung hat sich geändert.",
   "sessionViewHealthChanged": "Der Ansichtsstatus der Sitzung hat sich geändert.",
   "turnForegroundCompleted": "Der Durchgang hat seine sichtbare Arbeit beendet; Hintergrundprüfungen laufen noch.",
+  "sessionClosed": "Die Sitzung wurde von diesem Host entladen.",
+  "sessionLeaveCompleted": "Die Sitzungsübergabe ist abgeschlossen.",
   "modelRouteUnserved": "Das angemeldete Konto kann das Modell dieser Unterhaltung nicht bereitstellen; wählen Sie im Modellmenü ein anderes Modell.",
   "viewGapReloaded": "Einige Aktualisierungen von Muse Code wurden verpasst, daher wurde die Unterhaltung neu geladen.",
   "viewGapReloadFailed": "Einige Aktualisierungen von Muse Code wurden verpasst, und die Unterhaltung konnte nicht neu geladen werden",

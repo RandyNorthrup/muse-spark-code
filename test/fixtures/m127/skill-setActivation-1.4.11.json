@@ -1,0 +1,18 @@
+{
+  "method": "skill/setActivation",
+  "params": {
+    "activation": "off",
+    "commandId": "01a1631c-4ca3-7000-b1af-22b1a022f099",
+    "scope": "bundled",
+    "selector": "grill",
+    "sessionId": "01a1631c-4b8b-7111-8d3e-d0d8d4a09aac"
+  },
+  "result": {
+    "commandId": "01a1631c-4ca3-7000-b1af-22b1a022f099",
+    "status": "accepted",
+    "selector": "grill",
+    "scope": "bundled",
+    "activation": "off",
+    "previous": "on"
+  }
+}

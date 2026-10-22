@@ -183,6 +183,18 @@ const schemas = {
     turnId: z.string(),
     blockingAgents: z.array(z.string()),
   }),
+  // A loaded session was unloaded from this host (1.4.11): the log stays
+  // on disk and `session/resume` reloads it. The reason is open (`leave`
+  // for a released handoff, also idle unload and host shutdown).
+  'session/closed': z.object({ ...sessionScoped, reason: z.string() }),
+  // A handoff nobody asked for (requested ones resolve the waiter in
+  // dispatchHostEvent and never reach here): outcome and reason are open.
+  'session/leaveCompleted': z.object({
+    ...sessionScoped,
+    commandId: z.string(),
+    outcome: z.string(),
+    reason: z.optional(z.string()),
+  }),
   // The session's running totals (D26): `cumulative` counts prompt tokens once
   // under the provider's cache convention. Since 1.4 the frame also carries
   // one completion's own counters (`usage`, counted-once `promptTokens`, the
@@ -488,6 +500,33 @@ function rawNotification(notification: WireNotification): MapOutcome {
       return {
         sessionId: params.sessionId,
         event: { type: 'backendNotice', level: 'info', text: UI_TEXT.turnForegroundCompleted },
+      }
+    }
+    case 'session/closed': {
+      const { sessionId, reason } = params as z.infer<(typeof schemas)['session/closed']>
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.sessionClosed} (${reason})`,
+        },
+      }
+    }
+    case 'session/leaveCompleted': {
+      const { sessionId, outcome, reason } = params as z.infer<
+        (typeof schemas)['session/leaveCompleted']
+      >
+      return {
+        sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text:
+            reason === undefined
+              ? `${UI_TEXT.sessionLeaveCompleted} (${outcome})`
+              : `${UI_TEXT.sessionLeaveCompleted} (${outcome}: ${reason})`,
+        },
       }
     }
     case 'session/tokenUsage': {

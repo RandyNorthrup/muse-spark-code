@@ -16,5 +16,24 @@
     "model/list rows on this host carry variants 'unknown' with no reasoningEffortVariants/defaultReasoningEffort",
     "recap/request was accepted and settled providerFailed on the echo provider",
     "hook/list row recorded with a scratch workspace .muse/hooks.json (SessionStart command hook; served disabled/untrusted); plugin list empty: no plugin installed in the scratch home"
-  ]
+  ],
+  "round2": {
+    "capturedAt": "2026-10-22T10:05:00Z",
+    "cli": "Muse Code 1.4.11 (1.4.11-R6667.1)",
+    "sdk": "@muse-code/sdk 1.4.11",
+    "provider": "echo (the CLI's own local provider; no model call, no sign-in)",
+    "commands": [
+      "muse schema generate-json-schema --out temp/muse-captures/schema-1.4.11",
+      "muse schema generate-json-schema --out temp/muse-captures/schema-1.4.11-exp --experimental",
+      "muse-bin-1.4.11-R6667.1.exe serve --provider echo --no-session-log (child process; session/start, task/list, hook/list, plugin/list, computerUseSettings/read, computerUseSetup/read, computerUseSetup/check, workflow/pause, workflow/cancel, workflow/childControl, skill/setActivation, session/leave over stdio)",
+      "muse-bin-1.4.11-R6667.1.exe serve --provider echo --no-session-log (skill/list, skill/setActivation off/on for the bundled grill skill over stdio)"
+    ],
+    "isolation": "XDG_CONFIG_HOME, HOME and USERPROFILE pointed at scratch dirs (museHome verified inside scratch); --no-session-log so nothing persisted; the Windows PATH shim is a .cmd file, so the capture spawned the versioned binary directly",
+    "notes": [
+      "session/leave is admitted accepted, then session/closed (reason leave), session/statusChanged (notLoaded) and session/leaveCompleted (released) arrive",
+      "the bundled grill skill toggled off (previous on) and back on; skill/list rows carry no activation field",
+      "an unknown skill selector is refused -32032 skillNotFound; unknown workflow runs are refused -32030 commandRejected (missing_run)",
+      "computerUseSettings/read and computerUseSetup/read are refused -32033 computerUseUnavailable on this Windows host, like the check"
+    ]
+  }
 }

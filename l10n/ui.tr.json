@@ -2715,6 +2715,8 @@
   "sessionBranchChanged": "Oturumun sürüm denetim dalı değişti.",
   "sessionViewHealthChanged": "Oturum görünüm durumu değişti.",
   "turnForegroundCompleted": "Tur, görünen işini bitirdi; arka plan denetimleri hâlâ çalışıyor.",
+  "sessionClosed": "Oturum bu hosttan kaldırıldı.",
+  "sessionLeaveCompleted": "Oturum devri tamamlandı.",
   "modelRouteUnserved": "Oturum açılan hesap bu konuşmanın modeline hizmet veremiyor; model menüsünden başka bir model seçin.",
   "viewGapReloaded": "Muse Code'dan gelen bazı güncellemeler kaçırıldı, bu nedenle konuşma yeniden yüklendi.",
   "viewGapReloadFailed": "Muse Code'dan gelen bazı güncellemeler kaçırıldı ve konuşma yeniden yüklenemedi",

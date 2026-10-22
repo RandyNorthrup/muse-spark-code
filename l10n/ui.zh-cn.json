@@ -2659,6 +2659,8 @@
   "sessionBranchChanged": "会话的版本控制分支已更改。",
   "sessionViewHealthChanged": "会话视图状态已更改。",
   "turnForegroundCompleted": "本轮已完成其可见工作，后台检查仍在运行。",
+  "sessionClosed": "会话已从此主机卸载。",
+  "sessionLeaveCompleted": "会话交接已完成。",
   "modelRouteUnserved": "已登录的账户无法为此对话的模型提供服务；请从模型菜单中选择其他模型。",
   "viewGapReloaded": "遗漏了来自 Muse Code 的部分更新，因此已重新加载对话。",
   "viewGapReloadFailed": "遗漏了来自 Muse Code 的部分更新，且无法重新加载对话",

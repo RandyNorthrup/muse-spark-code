@@ -1,0 +1,20 @@
+{
+  "method": "skill/setActivation",
+  "params": {
+    "activation": "off",
+    "commandId": "01a1631b-5728-7001-ba6c-e43f74ee923e",
+    "scope": "user",
+    "selector": "no-such-skill",
+    "sessionId": "01a1631b-563d-7691-a84b-b48adf3444ec"
+  },
+  "error": {
+    "message": "MspError: skill selector `no-such-skill` names no skill in session 01a1631b-563d-7691-a84b-b48adf3444ec",
+    "code": -32032,
+    "data": {
+      "kind": "skillNotFound",
+      "retryable": false,
+      "sessionId": "01a1631b-563d-7691-a84b-b48adf3444ec",
+      "selector": "no-such-skill"
+    }
+  }
+}

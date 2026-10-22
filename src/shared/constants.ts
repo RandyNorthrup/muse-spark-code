@@ -5143,10 +5143,11 @@ export const MODEL_API_SUBAGENT_TOOLS = {
 // (NOLIMITSSET: the removed 1–64 range was ours, M127). The 8-at-once queue
 // is C6, owned by the integration branch.
 export const SUBAGENT_CAPACITY = 0
-// A `recap/request` settles exactly once on `recap/completed` with a
+// An MSP admission settles exactly once on its `*Completed` notice with a
 // host-enforced 45 s timeout (ADR 45447): waiting past it keeps the late
-// settlement a notice instead of a hang.
-export const RECAP_SETTLE_TIMEOUT_MS = 60_000
+// settlement a notice instead of a hang. Shared by `recap/request` and
+// `session/leave` (M127, RLFINISH).
+export const MSP_SETTLE_TIMEOUT_MS = 60_000
 export const SUBAGENT_DEPTH = 1
 export const SUBAGENT_ID_PREFIX = 'subagent-'
 export const SUBAGENT_WAIT_DEFAULT_MS = 60_000

@@ -1,0 +1,18 @@
+{
+  "method": "workflow/cancel",
+  "params": {
+    "commandId": "01a1631b-5727-7000-9af4-672d9be82398",
+    "sessionId": "01a1631b-563d-7691-a84b-b48adf3444ec",
+    "workflowRunId": "no-such-run"
+  },
+  "error": {
+    "message": "MspError: workflow/cancel command 01a1631b-5727-7000-9af4-672d9be82398 rejected: missing_run",
+    "code": -32030,
+    "data": {
+      "kind": "commandRejected",
+      "retryable": false,
+      "commandId": "01a1631b-5727-7000-9af4-672d9be82398",
+      "reason": "missing_run"
+    }
+  }
+}
