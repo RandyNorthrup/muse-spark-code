@@ -99,7 +99,9 @@ export async function createResources(
       timeoutMs: RESOURCE_SAMPLE_MS,
       maxOutputBytes: BOUNDED_FILE_READ_CHUNK_BYTES,
     }),
-    // Missing T occupancy is explicitly unknown: throttle admits no background work.
+    // Missing T occupancy is explicitly unknown, which never holds work:
+    // throttle still admits background work, one per kind, on this queue's
+    // own held permits.
     running: options.running ?? { backgroundCount: () => null },
     onError: () => {
       // Settings/OS failures carry no free-text diagnostic across a resource surface.

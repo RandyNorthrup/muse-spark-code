@@ -1355,6 +1355,12 @@ export const JUDGE_MIN_CACHED_PREFIX_TOKENS = 1024
 export const JUDGE_RESULT_CACHE_MAX = 64
 export const JUDGE_BUNDLE_FILE = 'judge.js'
 export const JUDGE_TEMP_PREFIX = 'muse-spark-judge-'
+// A judged batch's folder is removed right after its side session stops:
+// Windows can hold a file a moment longer (a scanner, the session still
+// exiting), so the removal retries the held-file failures, like the
+// checkpoint and screen-recording removals.
+export const JUDGE_TEMP_REMOVE_ATTEMPTS = 3
+export const JUDGE_TEMP_REMOVE_RETRY_MS = 200
 
 // --- Sessions (M6, PLAN.md §6 M6) ---
 

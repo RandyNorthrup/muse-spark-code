@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -23,6 +23,7 @@ import {
 import type { TokenUsage } from '../../shared/agentEvents'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
+import { removeJudgeTempRoot } from './tempRoot'
 import { createJudgeUse } from './judgeUse'
 import { JudgeUsageRows } from './judgeUsage'
 import { MuseCodeSameJudge } from './museCodeSameJudge'
@@ -208,7 +209,7 @@ export function createWindowJudge(
               readSettingsText: deps.readSettingsText,
               startSession: deps.startSession,
               makeTempRoot: () => mkdtemp(path.join(tmpdir(), JUDGE_TEMP_PREFIX)),
-              removeTempRoot: (root) => rm(root, { recursive: true, force: true }),
+              removeTempRoot: (root) => removeJudgeTempRoot(root),
               onSideSession: (id) => sideSessions.add(id),
               logInfo: (text) => {
                 deps.log.info(text)

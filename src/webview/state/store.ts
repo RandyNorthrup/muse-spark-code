@@ -7,6 +7,7 @@
 
 import { WEBVIEW_STATE_SAVE_MS } from '../../shared/constants'
 import { isEstimatorHostMessage, parseHostToWebviewMessage } from '../../shared/protocol'
+import { wireWordForLog } from '../../core/logging'
 import type { ErrorReporter } from '../errorReport'
 import type { MessageSource } from '../hostBridge'
 import { webviewStateOf, type WebviewState } from './snapshot'
@@ -52,6 +53,19 @@ export function createUiStore(initial: UiState): UiStore {
     },
     hasRendered: () => isRendered,
   }
+}
+
+/**
+What was dropped: the message's `type` when it names one, else its shape.
+Never content: only the protocol word (a non-word becomes the fixed phrase)
+or the top-level key names (RLWINFIX).
+*/
+function describeDroppedMessage(input: unknown): string {
+  if (input === null || typeof input !== 'object') return `a ${typeof input} body`
+  const type = 'type' in input && typeof input.type === 'string' ? input.type : undefined
+  return type === undefined
+    ? `keys ${Object.keys(input).join(',')}`
+    : `type ${wireWordForLog(type)}`
 }
 
 /**
@@ -106,7 +120,7 @@ export function listenToHost(
     }
     const parsed = parseHostToWebviewMessage(event.data)
     if (!parsed.ok) {
-      const reason = `Dropped malformed host message: ${parsed.error}`
+      const reason = `Dropped malformed host message (${describeDroppedMessage(event.data)}): ${parsed.error}`
       console.warn(reason)
       report('hostMessage', reason)
       // M107: a refused resource status replaces the shown one with "unavailable".

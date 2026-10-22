@@ -13,7 +13,8 @@ import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { runProgram } from '../processTree'
 import { realpathSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
-import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
+import { compileJob, nativeJobPath } from './jobBuild'
+import { type JobBuild, jobFileName, removeStaleJobs } from './staleJobs'
 import { describeStoreError, isStoreErrorCode } from './storeErrors'
 import { isResourceHelperChanged, sealHelper, wasHelperChanged } from './helperIntegrity'
 
@@ -43,7 +44,7 @@ async function isPresent(file: string): Promise<boolean> {
   }
 }
 
-const EXECUTABLE: JobBuild = {
+export const MCP_JOB_BUILD: JobBuild = {
   stem: 'MuseSparkMcpJob-',
   extension: '.exe',
   outputType: 'exe',
@@ -54,7 +55,7 @@ const EXECUTABLE: JobBuild = {
 
 /** The executable's file name for this source (the whole C#, the shared half included). */
 export function mcpJobExecutableName(csharp: string): string {
-  return jobFileName(EXECUTABLE, csharp)
+  return jobFileName(MCP_JOB_BUILD, csharp)
 }
 
 async function verify(executable: string, deps: McpJobExecutableDeps): Promise<void> {
@@ -86,14 +87,17 @@ export function sealedMcpJobExecutable(
     try {
       const csharp = await deps.readJobSource('mcpLauncher')
       let executable = path.join(deps.storageDir, SHELL_JOB_FOLDER, mcpJobExecutableName(csharp))
-      let didCompile = false
       if (wasHelperChanged(executable) || !(await isPresent(executable))) {
-        await compileJob(EXECUTABLE, executable, csharp, deps.systemRoot, deps.run)
-        didCompile = true
+        await compileJob(MCP_JOB_BUILD, executable, csharp, deps.systemRoot, deps.run)
       }
       executable = await nativeJobPath(executable)
       const check = await sealHelper(executable, () => verify(executable, deps))
-      if (didCompile) await removeStaleJobs(EXECUTABLE, executable, deps.log)
+      // Every preparation, not just after a compile: a file freed since the
+      // last window retires here, and a held one waits silently for its
+      // process's exit instead of warning on every start.
+      await removeStaleJobs(MCP_JOB_BUILD, executable, deps.log, () =>
+        deps.readJobSource('mcpLauncher'),
+      )
       return {
         path: executable,
         verify: async () => {

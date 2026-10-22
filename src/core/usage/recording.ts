@@ -5,6 +5,7 @@ import type { ModelPricing } from '../providers/priceCard'
 import type { CoreLogger } from '../logging'
 import type { UsageJournalEntry, UsageRecord, UsageLimitSnapshot } from '../../shared/usageJournal'
 import { MODEL_API_CLOSE_SETTLE_MS, USAGE_JOURNAL_VERSION } from '../../shared/constants'
+import { usageFailureForLog } from './failures'
 import { usageLocalDay as localUsageDay } from './localDay'
 
 export type RecordedCall = Omit<
@@ -51,7 +52,7 @@ export interface UsageRecordingOptions {
   readonly now: () => number
   readonly newId: () => string
   readonly isEnabled: () => boolean
-  readonly writer: (onWriteError: () => void) => Promise<UsageWriter>
+  readonly writer: (onWriteError: (error: unknown) => void) => Promise<UsageWriter>
   readonly log: CoreLogger
 }
 
@@ -63,10 +64,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
   const lastHeaders = new Map<string, string>()
   const liveLimits = new Map<string, UsageLimitSnapshot>()
   const client = () => (typeof options.client === 'function' ? options.client() : options.client)
-  const report = () => {
+  const report = (error?: unknown) => {
     if (hasLogged) return
     hasLogged = true
-    options.log.warn('Usage history could not be recorded')
+    options.log.warn(`Usage history could not be recorded (${usageFailureForLog(error)})`)
   }
   const getWriter = () => (writer ??= options.writer(report))
   const queue = (write: (journal: UsageWriter) => void) => {
@@ -79,10 +80,10 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
           const journal = await getWriter()
           if (options.isEnabled()) write(journal)
         }
-      } catch {
+      } catch (error) {
         // A failed journal write is reported once and dropped: the queue
         // stays alive for the next note.
-        report()
+        report(error)
       }
     })()
   }
@@ -142,7 +143,7 @@ export function createUsageRecording(options: UsageRecordingOptions): UsageRecor
         return records.filter((record) => record.day === day)
       } catch (error) {
         // The read failed after the report: fixed words carry the failure.
-        report()
+        report(error)
         throw new Error('Usage history unavailable', { cause: error })
       }
     },
@@ -184,7 +185,7 @@ export interface UsageWriterBundle {
     readonly writerId: string
     readonly isEnabled: () => boolean
     readonly now: () => number
-    readonly onWriteError: () => void
+    readonly onWriteError: (error: unknown) => void
     /** Reported once when the settings file is invalid and history pauses (EXECPROV E). */
     readonly onInvalidSettings?: () => void
   }): Promise<UsageWriter>

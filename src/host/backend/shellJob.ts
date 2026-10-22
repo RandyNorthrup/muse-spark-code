@@ -27,7 +27,8 @@ import { windowsPowerShell } from '../../core/execGuard'
 import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
 import { powerShellQuoted } from '../../core/shellQuote'
-import { compileJob, type JobBuild, jobFileName, nativeJobPath, removeStaleJobs } from './jobBuild'
+import { compileJob, nativeJobPath } from './jobBuild'
+import { type JobBuild, jobFileName, removeStaleJobs } from './staleJobs'
 import { isResourcePaused } from '../../core/resources/launch'
 
 // The C# (C# 5, which Windows PowerShell 5.1's `Add-Type` compiles) is the
@@ -81,7 +82,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
     let assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
     if (!(await isPresent(assembly))) {
       await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, deps.run)
-      await removeStaleJobs(ASSEMBLY, assembly, deps.log)
+      await removeStaleJobs(ASSEMBLY, assembly, deps.log, () => deps.readJobSource('shellJob'))
     }
     assembly = await nativeJobPath(assembly)
     // Loading the type and joining a job, as a command does, proves both
