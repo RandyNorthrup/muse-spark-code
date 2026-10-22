@@ -2020,6 +2020,7 @@
     "signInRequired": "이 출처를 읽으려면 GitHub에 로그인하세요.",
     "noPlan": "이 프로젝트에는 구조화된 계획이 없습니다.",
     "noCustomKeybindings": "사용자 지정 키보드 단축키가 없습니다.",
+    "noCheckRuns": "아직 기록된 검사 실행이 없습니다.",
     "planDrift": "{line}행의 계획 형식: {detail}",
     "automatedNote": "이 보고서는 자동으로 생성되었습니다.",
     "post": "게시",
@@ -2085,6 +2086,9 @@
   },
   "reportProblemsMore": {
     "other": "외 {count}개 문제"
+  },
+  "checkRunsUnreadable": {
+    "other": "{count}개의 검사 실행을 읽을 수 없습니다."
   },
   "reportCliUsage": "모델을 호출하지 않고 명시된 출처에서 결정론적 보고서를 생성합니다.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "종류: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

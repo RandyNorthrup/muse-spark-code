@@ -2078,6 +2078,7 @@
     "signInRequired": "Inicia sesión en GitHub para leer esta fuente.",
     "noPlan": "Este proyecto no tiene un plan estructurado.",
     "noCustomKeybindings": "No hay atajos de teclado personalizados.",
+    "noCheckRuns": "Aún no se ha registrado ninguna ejecución de comprobaciones.",
     "planDrift": "Formato del plan en la línea {line}: {detail}",
     "automatedNote": "Este informe se generó automáticamente.",
     "post": "Publicar",
@@ -2147,6 +2148,11 @@
     "one": "{count} problema más",
     "other": "{count} problemas más",
     "many": "{count} problemas más"
+  },
+  "checkRunsUnreadable": {
+    "one": "No se pudo leer {count} ejecución de comprobación.",
+    "other": "No se pudieron leer {count} ejecuciones de comprobación.",
+    "many": "No se pudieron leer {count} ejecuciones de comprobación."
   },
   "reportCliUsage": "Generar un informe determinista a partir de fuentes identificadas, sin llamar a un modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Tipos: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

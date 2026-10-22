@@ -24,6 +24,7 @@ import {
 import type { SourceReadContext } from '../../src/core/reporting/sources/types'
 import { EN } from '../../src/shared/l10n/en'
 import { CheckRunJournal } from '../../src/core/reporting/checkRuns'
+import { plural } from '../../src/shared/l10n/text'
 import { ReportHistory, ReportStorage } from '../../src/core/reporting/history'
 import { createSamplerIo } from '../../src/core/resources/sampler/system'
 import { QUALITY_LEDGER_FIXTURE } from './helpers/reporting/plans'
@@ -216,8 +217,47 @@ describe('checkRuns journal recovery', () => {
       )
       const result = await journal.source().read(context())
       expect(result.record.status).toBe('partial')
+      expect(result.record.reason).toBe(plural(EN.checkRunsUnreadable, 2))
       expect(result.data).toHaveLength(1)
       expect(result.data?.[0]?.check).toBe('fixture-check')
+    })
+  })
+
+  it('reads a missing journal as not applicable, never a generation failure (RLTESTDRIVE2 13)', async () => {
+    await withTempDir('checks', async (root) => {
+      // Fresh storage: no checks have run, so no journal exists.
+      const storage = new ReportStorage(root)
+      const journal = new CheckRunJournal({ storage, scrub: identityScrub })
+      const result = await journal.source().read(context())
+      expect(result.record.status).toBe('notApplicable')
+      expect(result.record.reason).toBe(EN.reportUi.noCheckRuns)
+      expect(result.data).toBeNull()
+    })
+  })
+
+  it('reads cancellation as cancelled, never a generation failure (RLTESTDRIVE2 13)', async () => {
+    await withTempDir('checks', async (root) => {
+      const storage = new ReportStorage(root)
+      const journal = new CheckRunJournal({ storage, scrub: identityScrub })
+      await journal.append('testkey1', record)
+      const result = await journal.source().read(context(AbortSignal.abort()))
+      expect(result.record.status).toBe('unavailable')
+      expect(result.record.reason).toBe(sourceReason('cancelled', EN))
+      expect(result.data).toBeNull()
+    })
+  })
+
+  it('reads a storage failure as failed, never a generation failure (RLTESTDRIVE2 13)', async () => {
+    await withTempDir('checks', async (root) => {
+      // A directory where the journal file should be: the kernel refuses
+      // the read with a real errno on every platform.
+      mkdirSync(path.join(root, 'reports', 'v1', 'checks', 'testkey1.jsonl'), { recursive: true })
+      const storage = new ReportStorage(root)
+      const journal = new CheckRunJournal({ storage, scrub: identityScrub })
+      const result = await journal.source().read(context())
+      expect(result.record.status).toBe('unavailable')
+      expect(result.record.reason).toBe(sourceReason('failed', EN))
+      expect(result.data).toBeNull()
     })
   })
 

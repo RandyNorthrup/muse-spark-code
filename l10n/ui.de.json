@@ -2049,6 +2049,7 @@
     "signInRequired": "Melden Sie sich bei GitHub an, um diese Quelle zu lesen.",
     "noPlan": "Dieses Projekt hat keinen strukturierten Plan.",
     "noCustomKeybindings": "Es gibt keine benutzerdefinierten Tastenkombinationen.",
+    "noCheckRuns": "Es wurden noch keine Prüfläufe aufgezeichnet.",
     "planDrift": "Planformat in Zeile {line}: {detail}",
     "automatedNote": "Dieser Bericht wurde automatisch erstellt.",
     "post": "Veröffentlichen",
@@ -2116,6 +2117,10 @@
   "reportProblemsMore": {
     "one": "{count} weiteres Problem",
     "other": "{count} weitere Probleme"
+  },
+  "checkRunsUnreadable": {
+    "one": "{count} Prüflauf konnte nicht gelesen werden.",
+    "other": "{count} Prüfläufe konnten nicht gelesen werden."
   },
   "reportCliUsage": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Arten: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

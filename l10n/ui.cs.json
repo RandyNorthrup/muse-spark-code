@@ -2107,6 +2107,7 @@
     "signInRequired": "Pro čtení tohoto zdroje se přihlaste ke GitHubu.",
     "noPlan": "Projekt nemá strukturovaný plán.",
     "noCustomKeybindings": "Neexistují žádné vlastní klávesové zkratky.",
+    "noCheckRuns": "Zatím nebyly zaznamenány žádné běhy kontrol.",
     "planDrift": "Formát plánu na řádku {line}: {detail}",
     "automatedNote": "Tato zpráva byla vytvořena automaticky.",
     "post": "Zveřejnit",
@@ -2178,6 +2179,12 @@
     "other": "Dalších {count} problémů",
     "few": "Další {count} problémy",
     "many": "Dalších {count} problému"
+  },
+  "checkRunsUnreadable": {
+    "one": "{count} běh kontroly se nepodařilo přečíst.",
+    "other": "{count} běhů kontroly se nepodařilo přečíst.",
+    "few": "{count} běhy kontroly se nepodařilo přečíst.",
+    "many": "{count} běhu kontroly se nepodařilo přečíst."
   },
   "reportCliUsage": "Vytvořit deterministickou zprávu z pojmenovaných zdrojů bez volání modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Druhy: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
