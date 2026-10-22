@@ -4094,6 +4094,7 @@
   "removeAttachmentNamed": "Quitar {name}",
   "announceApprovalFor": "Se necesita aprobación para {tool}",
   "turnFailed": "El turno falló.",
+  "turnTransientFailed": "El servicio de Muse no pudo terminar el turno. El turno conservó su trabajo; envía el mensaje de nuevo para continuar.",
   "turnRetrying": "El intento {attempt}/{maxAttempts} falló ({reason}); se reintentará en {seconds} s.",
   "turnRetryingUncapped": "El intento {attempt} falló ({reason}); se reintentará en {seconds} s (sin límite de reintentos).",
   "modelApiProviderRetryWait": "{reason}; el proveedor pidió esperar hasta {time}. Puedes detener el turno en cualquier momento.",

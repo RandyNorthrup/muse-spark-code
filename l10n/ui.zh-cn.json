@@ -3920,6 +3920,7 @@
   "removeAttachmentNamed": "移除 {name}",
   "announceApprovalFor": "{tool} 需要批准",
   "turnFailed": "本轮失败。",
+  "turnTransientFailed": "Muse 服务未能完成本轮。本轮保留了已完成的工作；请重新发送消息以继续。",
   "turnRetrying": "第 {attempt}/{maxAttempts} 次尝试失败（{reason}）；{seconds} 秒后重试。",
   "turnRetryingUncapped": "第 {attempt} 次尝试失败（{reason}）；{seconds} 秒后重试（未设置重试上限）。",
   "modelApiProviderRetryWait": "{reason}；提供方要求等到{time}再重试。您可以随时停止本轮。",

@@ -11,6 +11,7 @@ import { workflowChildSchema } from '../../shared/workflowChild'
 import * as z from 'zod/mini'
 import { reportCommandArguments } from '../../shared/reportCommand'
 import { redactSecrets } from '../../shared/redact'
+import { transientTurnFailureText } from '../../shared/turnFailure'
 import {
   type AgentEvent,
   type ItemSnapshot,
@@ -1959,7 +1960,11 @@ function completeTurn(
           {
             kind: 'error',
             id: `error:${event.turnId}`,
-            text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
+            text:
+              transientTurnFailureText(event) ??
+              event.reason ??
+              event.errorKind ??
+              UI_TEXT.turnFailed,
             ...(reportRef !== undefined && { reportRef }),
             ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
           },

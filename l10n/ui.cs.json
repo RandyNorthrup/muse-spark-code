@@ -4181,6 +4181,7 @@
   "removeAttachmentNamed": "Odebrat {name}",
   "announceApprovalFor": "Je vyžadováno schválení pro {tool}",
   "turnFailed": "Kolo selhalo.",
+  "turnTransientFailed": "Služba Muse kolo nedokončila. Kolo si zachovalo svou práci; zprávu odešlete znovu a pokračujte.",
   "turnRetrying": "Pokus {attempt}/{maxAttempts} selhal ({reason}); nový pokus za {seconds} s.",
   "turnRetryingUncapped": "Pokus {attempt} selhal ({reason}); nový pokus za {seconds} s (bez omezení počtu pokusů).",
   "modelApiProviderRetryWait": "{reason}; poskytovatel požádal o čekání do {time}. Tah můžete kdykoli zastavit.",

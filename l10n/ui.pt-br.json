@@ -4094,6 +4094,7 @@
   "removeAttachmentNamed": "Remover {name}",
   "announceApprovalFor": "Aprovação necessária para {tool}",
   "turnFailed": "O turno falhou.",
+  "turnTransientFailed": "O serviço do Muse não conseguiu concluir o turno. O turno manteve seu trabalho; envie a mensagem novamente para continuar.",
   "turnRetrying": "A tentativa {attempt}/{maxAttempts} falhou ({reason}); tentando novamente em {seconds} s.",
   "turnRetryingUncapped": "A tentativa {attempt} falhou ({reason}); tentando novamente em {seconds} s (sem limite de tentativas definido).",
   "modelApiProviderRetryWait": "{reason}; o provedor pediu para aguardar até {time}. Você pode interromper a vez a qualquer momento.",
