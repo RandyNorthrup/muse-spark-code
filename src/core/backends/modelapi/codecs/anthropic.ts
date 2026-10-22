@@ -183,11 +183,16 @@ export interface AnthropicTextBlock {
 
 export interface AnthropicImageBlock {
   readonly type: 'image'
-  readonly source: {
-    readonly type: 'base64'
-    readonly media_type: string
-    readonly data: string
-  }
+  readonly source:
+    | {
+        readonly type: 'base64'
+        readonly media_type: string
+        readonly data: string
+      }
+    | {
+        readonly type: 'file'
+        readonly file_id: string
+      }
   readonly cache_control?: AnthropicCacheControl
 }
 
@@ -221,11 +226,16 @@ export interface AnthropicToolResultBlock {
 /** M101 lane P1 (BYO item 1): a PDF sent inline, as the Messages API's `document` block. */
 export interface AnthropicDocumentBlock {
   readonly type: 'document'
-  readonly source: {
-    readonly type: 'base64'
-    readonly media_type: string
-    readonly data: string
-  }
+  readonly source:
+    | {
+        readonly type: 'base64'
+        readonly media_type: string
+        readonly data: string
+      }
+    | {
+        readonly type: 'file'
+        readonly file_id: string
+      }
   readonly cache_control?: AnthropicCacheControl
 }
 
@@ -347,14 +357,31 @@ function imageBlock(imageUrl: string): AnthropicImageBlock {
   return { type: 'image', source: { type: 'base64', media_type: mediaType, data: match[2] } }
 }
 
-/** A canonical message's parts as this codec stages them: text, an image URL, or a parsed document. */
+/** A canonical message's parts as this codec stages them: text, an image URL, a parsed document, or an uploaded file id (GAPANTH-G16: the Files API's file source, so bytes are sent once, never with every request). */
 type StagedMessagePart =
-  | { readonly text: string; readonly imageUrl?: undefined; readonly document?: undefined }
-  | { readonly text?: undefined; readonly imageUrl: string; readonly document?: undefined }
+  | {
+      readonly text: string
+      readonly imageUrl?: undefined
+      readonly document?: undefined
+      readonly file?: undefined
+    }
+  | {
+      readonly text?: undefined
+      readonly imageUrl: string
+      readonly document?: undefined
+      readonly file?: undefined
+    }
   | {
       readonly text?: undefined
       readonly imageUrl?: undefined
       readonly document: AnthropicDocumentBlock
+      readonly file?: undefined
+    }
+  | {
+      readonly text?: undefined
+      readonly imageUrl?: undefined
+      readonly document?: undefined
+      readonly file: { readonly kind: 'image' | 'document'; readonly fileId: string }
     }
 
 /**
@@ -363,6 +390,14 @@ and image parts with a URL, so a user message built from these never
 comes out empty (text-only stays a string, capture 03).
 */
 function stagedBlock(part: StagedMessagePart, vision: boolean | undefined): AnthropicMessageBlock {
+  if (part.file !== undefined) {
+    return part.file.kind === 'image'
+      ? imageFileOrPlaceholder(part.file.fileId, vision)
+      : {
+          type: 'document',
+          source: { type: 'file', file_id: part.file.fileId },
+        }
+  }
   // Image and document parts never read `text` (their branch wins below).
   const text: AnthropicTextBlock = { type: 'text', text: part.text ?? '' }
   const withoutImage = part.document ?? text
@@ -407,6 +442,20 @@ function imageOrPlaceholder(
   return vision === false
     ? { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
     : imageBlock(imageUrl)
+}
+
+/**
+GAPANTH-G16: an uploaded image as the Messages API's file source
+(platform.claude.com file guide, read 2026-10-13), or the image-omitted
+placeholder where the model takes no image input.
+*/
+function imageFileOrPlaceholder(
+  fileId: string,
+  vision: boolean | undefined,
+): AnthropicTextBlock | AnthropicImageBlock {
+  return vision === false
+    ? { type: 'text', text: CODEC_IMAGE_WITHOUT_VISION }
+    : { type: 'image', source: { type: 'file', file_id: fileId } }
 }
 
 /** M101 lane P1 (BYO item 1): a PDF sent inline, as a `document` block. */
@@ -578,11 +627,17 @@ export function encodeAnthropicRequest(
               return isBlankWireText(part.text) ? [] : [{ text: cleanWireText(part.text) }]
             }
             case 'input_image': {
-              // Another provider's held file is meaningless here; the replay
-              // names it through the omitted line on a model switch instead.
+              // GAPANTH-G16: an uploaded image is referenced by id, never
+              // re-sent as bytes with every request. Another provider's
+              // held file is meaningless here; the replay names it through
+              // the omitted line on a model switch instead.
+              if ('file_id' in part)
+                return [{ file: { kind: 'image' as const, fileId: part.file_id } }]
               return 'image_url' in part ? [{ imageUrl: part.image_url }] : []
             }
             case 'input_file': {
+              if ('file_id' in part)
+                return [{ file: { kind: 'document' as const, fileId: part.file_id } }]
               return 'file_data' in part ? [{ document: documentBlock(part.file_data) }] : []
             }
             case 'input_video': {

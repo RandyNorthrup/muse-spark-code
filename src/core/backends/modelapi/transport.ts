@@ -906,7 +906,7 @@ export class RequestTransport {
     multipart?: { readonly body: ReadableStream<Uint8Array>; readonly contentType: string },
     expectedAccountId?: string,
   ): Promise<Response> {
-    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file-[A-Za-z0-9_-]+)?$/u.test(route))
+    if (!/^\/files(?:\?after=file-[A-Za-z0-9_-]+|\/file[-_][A-Za-z0-9_-]+)?$/u.test(route))
       throw new Error('Invalid Files route')
     const sent = await this.sendDirect(route, method, signal, multipart, expectedAccountId)
     if (!sent.response.ok)
@@ -1194,10 +1194,10 @@ export class RequestTransport {
       */
       readonly headers?: Readonly<Record<string, string>>
       /**
-       * An explicit credential for this request (a paid image on the
-       * stored key while chat bills the subscription): exact redaction and
-       * the digest follow the override, never the default key.
-       */
+      An explicit credential for this request (a paid image on the
+      stored key while chat bills the subscription): exact redaction and
+      the digest follow the override, never the default key.
+      */
       readonly authKey?: string
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {

@@ -456,9 +456,11 @@ export class UploadLedger implements SessionUploadLifecycle {
       if (pinCountOf(state, entry.file.fileId) > 0) continue
       if (scope === 'release' && releaseIds !== undefined && !releaseIds.has(entry.file.fileId))
         continue
+      // A file that lives until deleted carries no expiry and is never swept.
       if (
         scope === 'sweep' &&
-        Math.floor(this.deps.now() / MILLISECONDS_PER_SECOND) < entry.file.expiresAt
+        (entry.file.expiresAt === undefined ||
+          Math.floor(this.deps.now() / MILLISECONDS_PER_SECOND) < entry.file.expiresAt)
       )
         continue
       await this.requireAccount()
@@ -955,7 +957,7 @@ export class UploadLedger implements SessionUploadLifecycle {
               fileId: file.fileId,
               name: file.name,
               bytes: file.bytes,
-              expiresAt: file.expiresAt,
+              ...(file.expiresAt !== undefined && { expiresAt: file.expiresAt }),
             })
         }
       }

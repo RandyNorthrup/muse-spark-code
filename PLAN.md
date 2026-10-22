@@ -8003,6 +8003,17 @@ the not-billed branch for Files storage: uploads ask nothing beyond decision 7
 screen recording is a user action only. Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+Lane FILESAPI closed three scan gaps against D85 on 2026-10-13 (record:
+`docs/certification/FILESAPI.md`, captures in
+`docs/certification/FILESAPI-capture-plan.json`). XAI-G11: xAI image input
+is PNG/JPEG up to 20 MiB by the capability record, and anything else is
+refused before sending. OPENAI-G15: the Files client speaks the Meta,
+OpenAI and Anthropic upload dialects by the record's new `files`
+capability, and references ride as `file_id` parts. GAPANTH-G16: the
+Anthropic codec stages file sources for images and documents. Uploads stay
+off in production (`files: 'unknown'`) until live captures confirm every
+shape; enabling them is lead-owned.
+
 | Editor                                                                             | Attach (pick, drop, paste)                                                                                                                                                  | Screen recording                                                                  | Runs in               | When                                                   |
 | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------ |
 | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia                         | the picker with a media filter, drop and paste; the webview sends a path or URI token and the host streams the file                                                         | **Attach screen recording…** and **Attach latest recording** (the native helpers) | extension host        | M105                                                   |

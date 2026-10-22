@@ -3031,9 +3031,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
   /**
-   * The in-flight attempt's frozen credential/pricing snapshot. Cleared at
-   * completion; journal availability never depends on this sending state.
-   */
+  The in-flight attempt's frozen credential/pricing snapshot. Cleared at
+  completion; journal availability never depends on this sending state.
+  */
   private sendingRoute: BillingRoute | undefined
   /** Persist verified plan-only history as an explicit zero, never unknown legacy spend. */
   private hasSubscriptionUsage = false
@@ -19151,6 +19151,10 @@ export class ModelApiHost implements AgentHost {
     if (accountId === undefined) {
       throw new Error(UI_TEXT.notSignedInReason)
     }
+    // Ownership is established at the first owned save: a session opens
+    // with no identity of its own, so the live session lists under the
+    // identity resolved at that moment.
+    this.sessionOwners.set(snapshot.sessionId, accountId)
     return {
       ...snapshot,
       accountId,
