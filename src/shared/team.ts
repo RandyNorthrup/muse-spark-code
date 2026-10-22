@@ -703,6 +703,13 @@ export const teamBoardTaskSchema = /* @__PURE__ */ z
         )
         .check(z.maxLength(TEAM_BOARD_MAX)),
     ),
+    // The integration head this task's branch was last based on; a moved
+    // head refreshes the waiting branch at its next attempt boundary,
+    // with review carry-over on exact deltas (M96d). Unrecorded tasks
+    // keep M96c's behaviour: no refresh is ever due.
+    integrationBase: z.optional(
+      z.string().check(z.minLength(1), z.maxLength(TEAM_SCHED_ID_MAX_CHARS)),
+    ),
   })
   .check(
     z.refine(

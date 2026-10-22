@@ -32,6 +32,13 @@ export interface BoardContext {
   with stacked edges; tasks without them never call it.
   */
   head?(taskId: string): string
+  /**
+  The integration head, as an opaque token: an own-branch task whose
+  recorded base differs refreshes its waiting branch before its next
+  attempt. Required only once a base is recorded; unrecorded tasks
+  and other workspace modes never call it.
+  */
+  integrationHead?(): string
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
   /** The team ledger keeps terminal rows beside the board; journal both before dispatch. */
   archive(tasks: readonly TeamBoardTask[]): void
@@ -111,6 +118,12 @@ export class TaskBoard {
 
   private requireHead(taskId: string): string {
     const head = this.context.head?.(taskId)
+    if (head === undefined) throw new BoardRefusal('dependencies', [taskId])
+    return head
+  }
+
+  private requireIntegrationHead(taskId: string): string {
+    const head = this.context.integrationHead?.()
     if (head === undefined) throw new BoardRefusal('dependencies', [taskId])
     return head
   }
@@ -379,6 +392,39 @@ export class TaskBoard {
     return true
   }
 
+  /**
+  The integration head the launcher must refresh this task's waiting
+  branch onto before its next begin, or undefined when no refresh is
+  due. Only own-branch tasks with a recorded base consult the
+  integration provider; everyone else keeps M96c's behaviour.
+  */
+  integrationRefreshDue(id: string): { base: string } | undefined {
+    const task = this.requireTask(id)
+    if (task.integrationBase === undefined) return undefined
+    if (this.context.workspaceMode(task.id) !== 'own-branch') return undefined
+    const current = this.requireIntegrationHead(task.id)
+    return task.integrationBase === current ? undefined : { base: current }
+  }
+
+  /**
+  Record the integration head the launcher based the branch on after
+  creating or refreshing it. The base must still equal the current
+  head: an integration that moved again fails the acknowledgement,
+  and the launcher refreshes once more. Never records a base the
+  branch does not have.
+  */
+  acknowledgeIntegrationRefresh(id: string, base: string): boolean {
+    const task = this.requireTask(id)
+    // Short-circuit: other modes never touch the integration provider.
+    if (
+      this.context.workspaceMode(task.id) !== 'own-branch' ||
+      base !== this.requireIntegrationHead(task.id)
+    )
+      return false
+    task.integrationBase = base
+    return true
+  }
+
   begin(id: string, attempt: TeamAttempt, isReplacementQuarantined = false): boolean {
     const task = this.requireTask(id)
     if (this.paused || task.held || task.state !== 'ready') return false
@@ -387,6 +433,9 @@ export class TaskBoard {
     // acknowledges before this attempt. Throws when a stacked task has
     // no head provider: a wiring bug, never a stall.
     if (this.stackRefreshDue(id).length > 0) return false
+    // A waiting branch whose integration moved waits for its refresh
+    // the same way, with review carry-over on exact deltas after it.
+    if (this.integrationRefreshDue(id) !== undefined) return false
     const prior = task.attempts.at(-1)
     if (
       prior &&
