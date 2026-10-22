@@ -191,6 +191,7 @@
   "command.modelsAndAgents.title": "モデルとエージェント",
   "command.addModelProvider.title": "モデルプロバイダーを追加…",
   "config.suggestedProvider.description": "ワークスペースはモデルプロバイダーのプリセットを ID で 1 件だけ提案できます。パネルはそのプリセットで「モデルとエージェント」を開くことを提案します。空の場合は何も提案しません。ワークスペースはアドレスや資格情報を設定できません。",
+  "config.grokClientId.description": "Grokサブスクリプションのサインイン（Continue With Grok）用の、このアプリ固有のxAI OAuthクライアントID。xAIが発行するまでは空。設定されるまでサインインは拒否される。クライアントIDは公開識別子であり、シークレットではない。",
   "walkthrough.gettingStarted.step.ownModel.title": "自分のモデルで始める",
   "walkthrough.gettingStarted.step.ownModel.description": "Muse サブスクリプションも Meta API キーもありませんか？自分のモデルプロバイダー (OpenRouter、Anthropic、OpenAI、ローカルサーバー) を追加してモデルを選んでください。\n[自分のモデルで始める](command:museSpark.startWithOwnModel)",
   "config.modelApiAutoCompaction.description": "既定でオン。長い Model API の会話を安定したツール境界で圧縮します。各要約は有料のモデル呼び出しです。有料利用の同意通知には、初回請求の前に価格と日次予算が示されます。ACPエージェントはエディターの許可リクエストで一度だけ確認し、クライアントが確認できない場合は無効のままになります。ヘッドレスexecは --auto-compaction と --max-budget-usd の下でのみ実行します。",
