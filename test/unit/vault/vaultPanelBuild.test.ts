@@ -17,6 +17,9 @@ const built: {
   actions?: Metafile
   migration?: Metafile
 } = {}
+// The native helper builds and broker starts take as long as the machine
+// needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
+// no time limit of ours on this setup (owner 2026-10-16).
 beforeAll(async () => {
   await mkdir(path.join(process.cwd(), 'temp'), { recursive: true })
   built.dir = await mkdtemp(path.join(process.cwd(), 'temp', 'vault-build-'))
@@ -32,7 +35,7 @@ beforeAll(async () => {
   built.host = result.host
   built.actions = result.actions
   built.migration = result.migration
-})
+}, 0)
 afterAll(async () => {
   if (built.dir !== undefined) await rm(built.dir, { recursive: true, force: true })
 })

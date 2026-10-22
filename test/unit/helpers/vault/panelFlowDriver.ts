@@ -99,7 +99,12 @@ export async function drivePanelFlow(
       () => {
         const frame = frames.at(-1)
         // A step that never settles says what the panel showed instead.
-        const shown = `${label}: reason ${String(frame?.status.reason)}, toasts ${JSON.stringify(toasts)}, log ${JSON.stringify(logged)}`
+        // The states the panel went through (newest last) tell a step that
+        // never ran from one that ran and fell back.
+        const states = frames
+          .slice(-12)
+          .map((one) => `${one.status.state}${one.retrying ? '(retrying)' : ''}`)
+        const shown = `${label}: reason ${String(frame?.status.reason)}, toasts ${JSON.stringify(toasts)}, log ${JSON.stringify(logged)}, ${String(frames.length)} frames, last states ${states.join(' > ')}`
         expect(frame?.retrying ?? false, shown).toBe(false)
         expect(frame?.status.state, shown).toBe(state)
       },

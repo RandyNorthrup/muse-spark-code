@@ -765,3 +765,56 @@ function (title) { context.test(title); }`), and `.timeout(0)` was
     refused by this PC's account), and no vault path reaches the process
     helpers whose deadlines changed. The toast check printed no log; it now
     prints the panel's log with the toasts, so a repeat names its cause.
+
+## 21. The 0.19.0 release run: Open VSX's check read another package
+
+Release run 39720213044 (`v0.19.0` on `4e09cab6ea`): tag checks, reuse of
+CI run 39716712837, GitHub Release, Marketplace and npm succeeded; the Open
+VSX job ended "openvsx: the published artifact does not match the release".
+
+- Cause: `verifyPublished` read `/api/RandyNorthrup/muse-spark-code/0.19.0`
+  for the untargeted package. With targeted packages present, that answer
+  named `win32-arm64` (three of three reads from Node; curl got
+  `universal`), so the universal VSIX was compared with the win32-arm64
+  bytes. `/api/RandyNorthrup/muse-spark-code/universal/0.19.0` names the
+  universal package for 0.19.0 and for 0.18.2 (universal only).
+- Open VSX state: all seven packages uploaded. `darwin-arm64`,
+  `linux-arm64` and `linux-x64` answered "Extension not found" for a few
+  minutes after the job (activated by 04:15 UTC), the other four at once.
+- After the run, with the fixed check, each of the seven VSIX packages on
+  the Marketplace and on Open VSX matches the release asset (14 of 14), npm's
+  integrity for `muse-spark-code-acp@0.19.0` equals the release tarball's
+  sha512, and the downloaded assets pass `SHA256SUMS` (8 of 8).
+- Drill, against the real Open VSX: the tag's `verifyPublished` on the
+  universal VSIX failed three of three ("openvsx published SHA-256 differs
+  from the release VSIX"), exit 1; the fixed one matched three of three,
+  exit 0, and still matches the win32-x64 package three of three.
+
+## 22. PR #258's first run: the macOS vault panel flow never unlocked
+
+PR #258 head `c7bdd3e943` (CI run 39722505089, capacity run 39722575285):
+macOS shard 15 only, `posixVaultPanelFlow`: after Unlock the panel still
+read `locked` when the step's 60 s wait ended, with no toast and no log. The
+product code is PR #257's final head's, green on every macOS shard there,
+and no path the macOS unlock takes reaches the process helpers whose
+deadlines changed (`runTreeSync` serves the playbook only; the identity
+probe passes its own timeout). With PR #257's third run (Windows, first
+open, two failure toasts) it is the second hosted-runner vault flow failure
+with an empty log. The step message now also names how many frames the
+panel published and its last states, so the next one shows whether the
+step ever ran; the defect is a recovery lane's to find and fix.
+
+PR #258's second run, head `d0a39a70ed` (CI run 39724540034, capacity run
+39724610207): macOS shard 8 ended "The runner has received a shutdown
+signal. This can happen when the runner service is stopped, or a manually
+started runner is canceled." and "The operation was canceled." No test
+failed; every other job passed. A rerun on the same commit is refused
+(AGENTS.md rule 2), so this record is the new commit.
+
+PR #258's third run, head `a6f4767c97` (CI run 39725758843, capacity run
+39725813062): Windows shard 9 only, `windowsBrokerClient.test.ts`: "Hook
+timed out in 30000ms" in the `beforeAll` that builds the native helpers with
+the person's own C# compiler, another time limit of ours on a slow hosted
+Windows runner. The seven vault suites whose setup builds or stages native
+helpers or starts a broker now run that setup with no time limit (owner
+2026-10-16); here the five Windows ones pass (14 tests, 59.7 s).
