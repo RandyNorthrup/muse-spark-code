@@ -1,0 +1,15 @@
+# Ollama as a node model sidecar, CPU only (M110g lane L, D90.7). Bound to
+# loopback: the node dials it, nothing else can. Models persist in the
+# named volume; the container keeps no other state.
+services:
+  ollama:
+    image: ollama/ollama:0.40.8
+    container_name: muse-node-ollama-cpu
+    restart: unless-stopped
+    ports:
+      - 127.0.0.1:11434:11434
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  ollama-models:

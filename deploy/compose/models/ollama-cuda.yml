@@ -1,0 +1,19 @@
+# Ollama as a node model sidecar on NVIDIA GPUs (M110g lane L, D90.7):
+# the container takes all GPUs through the NVIDIA container runtime, and
+# still answers on loopback only. Needs the NVIDIA Container Toolkit on
+# the host and `runtime: nvidia` honoured by the engine.
+services:
+  ollama:
+    image: ollama/ollama:0.40.8
+    container_name: muse-node-ollama-cuda
+    restart: unless-stopped
+    runtime: nvidia
+    environment:
+      NVIDIA_VISIBLE_DEVICES: all
+    ports:
+      - 127.0.0.1:11434:11434
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  ollama-models:
