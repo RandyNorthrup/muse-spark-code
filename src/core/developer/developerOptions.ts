@@ -2,7 +2,6 @@ import {
   DEVELOPER_CLICK_WINDOW_MS,
   DEVELOPER_UNLOCK_MS,
   DEVELOPER_VERSION_CLICKS,
-  UI_TEXT,
 } from '../../shared/constants'
 import {
   developerAuditSchema,
@@ -13,6 +12,7 @@ import {
   type DeveloperState,
 } from '../../shared/developerOptions'
 import type { DeveloperProfileResources } from './localProfiles'
+import { DeveloperOptionsError } from './developerOptionsError'
 
 export interface DeveloperStore {
   /** Restore must apply durable revocations even when state publication failed. */
@@ -46,15 +46,7 @@ export interface DeveloperOptionsDeps {
   readonly changed: (snapshot: DeveloperSnapshot) => void
 }
 
-export class DeveloperOptionsError extends Error {
-  public constructor(
-    public readonly code: 'locked' | 'unavailable' | 'invalidRequest' | 'differentMachine',
-    options?: { cause?: unknown },
-  ) {
-    super(UI_TEXT.developer[code], options)
-    this.name = 'DeveloperOptionsError'
-  }
-}
+export { DeveloperOptionsError } from './developerOptionsError'
 
 function isPreviousMachine(stored: string, previous: readonly string[] | undefined): boolean {
   // Hostnames compare case-insensitively; digests are already lowercase.

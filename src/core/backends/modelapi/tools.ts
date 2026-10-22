@@ -1654,7 +1654,7 @@ async function located(
     }
   | { readonly ok: false; readonly outcome: ToolOutcome }
 > {
-  const head = await locateHead(given, context)
+  const head = await locateHead(given, context, MODEL_API_MODEL_TEXT.pathDeniedByPolicy)
   if (!head.ok) {
     return head
   }
@@ -1832,6 +1832,7 @@ async function editFile(
         `${prefix}${fill(visible, { path: relative })}`,
       )
     },
+    MODEL_API_MODEL_TEXT.editOverlap,
   )
   if (!resolved.ok) return resolved.outcome
   const ordered = resolved.ranges
