@@ -2827,6 +2827,8 @@
   "sessionBranchChanged": "Verzovací větev relace se změnila.",
   "sessionViewHealthChanged": "Stav zobrazení relace se změnil.",
   "turnForegroundCompleted": "Tah dokončil svou viditelnou práci; kontroly na pozadí stále běží.",
+  "sessionClosed": "Relace byla z tohoto hostitele uvolněna.",
+  "sessionLeaveCompleted": "Předání relace bylo dokončeno.",
   "modelRouteUnserved": "Přihlášený účet nemůže obsluhovat model této konverzace; vyberte jiný model z nabídky modelů.",
   "viewGapReloaded": "Některé aktualizace z Muse Code byly zmeškány, proto byla konverzace znovu načtena.",
   "viewGapReloadFailed": "Některé aktualizace z Muse Code byly zmeškány a konverzaci se nepodařilo znovu načíst",

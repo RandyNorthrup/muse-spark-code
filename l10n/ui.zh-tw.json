@@ -2659,6 +2659,8 @@
   "sessionBranchChanged": "工作階段的版本控制分支已變更。",
   "sessionViewHealthChanged": "工作階段檢視狀態已變更。",
   "turnForegroundCompleted": "本輪已完成其可見工作，背景檢查仍在執行中。",
+  "sessionClosed": "工作階段已從此主機卸載。",
+  "sessionLeaveCompleted": "工作階段交接已完成。",
   "modelRouteUnserved": "已登入的帳戶無法為此對話的模型提供服務；請從模型功能表選擇其他模型。",
   "viewGapReloaded": "漏掉了部分來自 Muse Code 的更新，因此已重新載入對話。",
   "viewGapReloadFailed": "漏掉了部分來自 Muse Code 的更新，且無法重新載入對話",

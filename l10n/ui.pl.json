@@ -2827,6 +2827,8 @@
   "sessionBranchChanged": "Gałąź kontroli wersji sesji uległa zmianie.",
   "sessionViewHealthChanged": "Stan widoku sesji uległ zmianie.",
   "turnForegroundCompleted": "Tura zakończyła swoją widoczną pracę; kontrole w tle nadal trwają.",
+  "sessionClosed": "Sesja została zwolniona z tego hosta.",
+  "sessionLeaveCompleted": "Przekazanie sesji zakończone.",
   "modelRouteUnserved": "Zalogowane konto nie może obsłużyć modelu tej rozmowy; wybierz inny model z menu modeli.",
   "viewGapReloaded": "Część aktualizacji z Muse Code została pominięta, więc rozmowa została załadowana ponownie.",
   "viewGapReloadFailed": "Część aktualizacji z Muse Code została pominięta i nie można ponownie załadować rozmowy",

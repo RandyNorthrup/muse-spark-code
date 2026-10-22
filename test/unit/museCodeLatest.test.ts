@@ -11,18 +11,23 @@ import { describe, expect, it } from 'vitest'
 import type { TurnModelRetryScheduledParams } from '@muse-code/sdk/dist/src/msp.js'
 import {
   backgroundTaskListResultSchema,
+  claimLeaveSettlement,
   claimRecapSettlement,
+  computerUseSettingsResultSchema,
   hookListResultSchema,
   modelListResultSchema,
   pluginListResultSchema,
+  sessionLeaveResultSchema,
   skillImportResultSchema,
   skillListResultSchema,
+  skillSetActivationResultSchema,
   toBackgroundTaskSummary,
   toForeignSkillImport,
   toModelSummary,
   toSessionHookRow,
   toSessionPluginRow,
   toSkillSummary,
+  workflowControlResultSchema,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import { mapNotification, UNKNOWN_METHOD } from '../../src/core/backends/musecode/mapNotification'
 import {
@@ -726,6 +731,158 @@ describe('recap, computer-use and workflow shapes', () => {
       error: { code: number; data: { kind: string } }
     }
     expect(frame.error).toMatchObject({ code: -32_033, data: { kind: 'computerUseUnavailable' } })
+  })
+})
+
+describe('session leave, skill activation, workflow controls (1.4.11)', () => {
+  it('pairs the recorded leave ack with its released settlement by commandId', () => {
+    const ack = fixture('session-leave-1.4.11.json') as {
+      result: { commandId: string; status: string }
+    }
+    expect(sessionLeaveResultSchema.parse(ack.result)).toMatchObject({ status: 'accepted' })
+    const settlements = fixture('note-session-leaveCompleted-1.4.11.json') as {
+      commandId: string
+      outcome: string
+      sessionId: string
+    }[]
+    expect(settlements).toHaveLength(1)
+    expect(settlements[0]!.commandId).toBe(ack.result.commandId)
+    expect(settlements[0]!).toMatchObject({ outcome: 'released' })
+  })
+
+  it('settles a requested handoff by commandId and leaves the rest unclaimed', () => {
+    const settlements = fixture('note-session-leaveCompleted-1.4.11.json') as {
+      commandId: string
+      outcome: string
+      sessionId: string
+    }[]
+    const pending = new Map<
+      string,
+      { readonly sessionId: string; readonly settle: (leave: unknown) => void }
+    >()
+    let settled: unknown
+    pending.set(settlements[0]!.commandId, {
+      sessionId: settlements[0]!.sessionId,
+      settle: (leave) => {
+        settled = leave
+      },
+    })
+    expect(claimLeaveSettlement(pending, settlements[0]!)).toEqual({ outcome: 'released' })
+    expect(settled).toEqual({ outcome: 'released' })
+    expect(pending.size).toBe(0)
+    // A late settlement past the wait, or one nobody asked for, stays
+    // unclaimed for the notice mapping.
+    expect(claimLeaveSettlement(pending, settlements[0]!)).toBeUndefined()
+  })
+
+  it('shows the recorded unload with its served reason', () => {
+    for (const params of fixture('note-session-closed-1.4.11.json') as Record<string, unknown>[]) {
+      expect(mapNotification({ method: 'session/closed', params })).toEqual({
+        sessionId: (params as { sessionId: string }).sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.sessionClosed} (leave)`,
+        },
+      })
+    }
+  })
+
+  it('shows an unrequested handoff settlement as it came', () => {
+    // Requested handoffs resolve the waiter in dispatchHostEvent and never
+    // reach here; the recorded released echo settlement does.
+    for (const params of fixture('note-session-leaveCompleted-1.4.11.json') as Record<
+      string,
+      unknown
+    >[]) {
+      expect(mapNotification({ method: 'session/leaveCompleted', params })).toEqual({
+        sessionId: (params as { sessionId: string }).sessionId,
+        event: {
+          type: 'backendNotice',
+          level: 'info',
+          text: `${UI_TEXT.sessionLeaveCompleted} (released)`,
+        },
+      })
+    }
+  })
+
+  it('reads the recorded activation receipt with what it replaced', () => {
+    const frame = fixture('skill-setActivation-1.4.11.json') as { result: unknown }
+    expect(skillSetActivationResultSchema.parse(frame.result)).toEqual({
+      activation: 'off',
+      commandId: (frame.result as { commandId: string }).commandId,
+      previous: 'on',
+      scope: 'bundled',
+      selector: 'grill',
+      status: 'accepted',
+    })
+  })
+
+  it('refuses an unknown skill selector with the documented kind', () => {
+    const frame = fixture('skill-setActivation-unknown-1.4.11.json') as {
+      error: { code: number; data: { kind: string; selector: string } }
+    }
+    expect(frame.error).toMatchObject({
+      code: -32_032,
+      data: { kind: 'skillNotFound', selector: 'no-such-skill' },
+    })
+  })
+
+  it.each(['workflow-pause-1.4.11.json', 'workflow-cancel-1.4.11.json'] as const)(
+    'refuses an unknown run in %s with the documented kind',
+    (name) => {
+      const frame = fixture(name) as {
+        error: { code: number; data: { kind: string; reason: string } }
+      }
+      expect(frame.error).toMatchObject({
+        code: -32_030,
+        data: { kind: 'commandRejected', reason: 'missing_run' },
+      })
+    },
+  )
+
+  it('refuses a child control on an unknown run with the documented kind', () => {
+    const frame = fixture('workflow-childControl-1.4.11.json') as {
+      error: { code: number; data: { kind: string; reason: string } }
+    }
+    expect(frame.error).toMatchObject({
+      code: -32_030,
+      data: { kind: 'commandRejected', reason: 'missing_run' },
+    })
+  })
+
+  it('reads the shared control ack per the CLI schema', () => {
+    // No workflow runs on the echo provider without a model turn; the
+    // shape below is the binary's own WorkflowControlResult contract
+    // from the same-day schema export: a bare {commandId, status} ack.
+    expect(workflowControlResultSchema.parse({ commandId: 'c1', status: 'accepted' })).toEqual({
+      commandId: 'c1',
+      status: 'accepted',
+    })
+  })
+
+  it.each(['computerUseSettings-read-1.4.11.json', 'computerUseSetup-read-1.4.11.json'] as const)(
+    'refuses the computer-use read in %s on a host without it',
+    (name) => {
+      const frame = fixture(name) as { error: { code: number; data: { kind: string } } }
+      expect(frame.error).toMatchObject({
+        code: -32_033,
+        data: { kind: 'computerUseUnavailable' },
+      })
+    },
+  )
+
+  it('reads the settings answer per the CLI schema', () => {
+    // Unobservable on this Windows host (the read is refused above); the
+    // shape below is the binary's own ComputerUseSettings contract from
+    // the same-day schema export.
+    expect(
+      computerUseSettingsResultSchema.parse({
+        blockedApps: [{ bundleId: 'com.example', locked: false }],
+        computerControl: 'ask',
+        screenshots: 'ask',
+      }),
+    ).toMatchObject({ computerControl: 'ask', screenshots: 'ask' })
   })
 })
 

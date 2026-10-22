@@ -2771,6 +2771,8 @@
   "sessionBranchChanged": "O ramo de controle de versão da sessão mudou.",
   "sessionViewHealthChanged": "O estado da visualização da sessão mudou.",
   "turnForegroundCompleted": "O turno terminou seu trabalho visível; as verificações em segundo plano continuam em execução.",
+  "sessionClosed": "A sessão foi descarregada deste host.",
+  "sessionLeaveCompleted": "A transferência da sessão terminou.",
   "modelRouteUnserved": "A conta conectada não pode atender ao modelo desta conversa; escolha outro modelo no menu de modelos.",
   "viewGapReloaded": "Algumas atualizações do Muse Code foram perdidas, então a conversa foi recarregada.",
   "viewGapReloadFailed": "Algumas atualizações do Muse Code foram perdidas e não foi possível recarregar a conversa",

@@ -1,0 +1,18 @@
+{
+  "method": "workflow/pause",
+  "params": {
+    "commandId": "01a1631b-5726-7001-8759-ee73b77a037a",
+    "sessionId": "01a1631b-563d-7691-a84b-b48adf3444ec",
+    "workflowRunId": "no-such-run"
+  },
+  "error": {
+    "message": "MspError: workflow/pause command 01a1631b-5726-7001-8759-ee73b77a037a rejected: missing_run",
+    "code": -32030,
+    "data": {
+      "kind": "commandRejected",
+      "retryable": false,
+      "commandId": "01a1631b-5726-7001-8759-ee73b77a037a",
+      "reason": "missing_run"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "method": "computerUseSetup/read",
+  "params": {},
+  "error": {
+    "message": "MspError: computerUseSetup: computer use is unavailable on this host",
+    "code": -32033,
+    "data": {
+      "kind": "computerUseUnavailable",
+      "retryable": false
+    }
+  }
+}

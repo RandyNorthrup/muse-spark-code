@@ -3332,6 +3332,8 @@ export const EN = {
   sessionViewHealthChanged: 'The session view health changed.',
   turnForegroundCompleted:
     'The turn finished its visible work; background checks are still running.',
+  sessionClosed: 'The session was unloaded from this host.',
+  sessionLeaveCompleted: 'The session handoff finished.',
   modelRouteUnserved:
     'The signed-in account cannot serve this conversation’s model; choose another model from the model menu.',
   viewGapReloaded: 'Some updates from Muse Code were missed, so the conversation was reloaded.',

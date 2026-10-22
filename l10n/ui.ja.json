@@ -2659,6 +2659,8 @@
   "sessionBranchChanged": "セッションのバージョン管理ブランチが変更されました。",
   "sessionViewHealthChanged": "セッションのビュー状態が変更されました。",
   "turnForegroundCompleted": "ターンは表示上の作業を終えました。バックグラウンドのチェックはまだ実行中です。",
+  "sessionClosed": "セッションはこのホストからアンロードされました。",
+  "sessionLeaveCompleted": "セッションの引き継ぎが完了しました。",
   "modelRouteUnserved": "サインインしているアカウントでは、この会話のモデルを利用できません。モデル メニューから別のモデルを選択してください。",
   "viewGapReloaded": "Muse Code からの更新の一部を受信できなかったため、会話を再読み込みしました。",
   "viewGapReloadFailed": "Muse Code からの更新の一部を受信できず、会話を再読み込みできませんでした",

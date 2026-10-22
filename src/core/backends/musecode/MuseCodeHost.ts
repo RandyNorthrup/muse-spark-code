@@ -74,7 +74,7 @@ import {
   MUSE_EVENT_LOG_FAULT,
   MUSE_EXIT_PERSISTENT_CODES,
   type EffortLevel,
-  RECAP_SETTLE_TIMEOUT_MS,
+  MSP_SETTLE_TIMEOUT_MS,
   type SubagentAction,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -91,6 +91,7 @@ import {
   type AgentHost,
   type ApprovalDecision,
   type CompactOutcome,
+  type ComputerUseSettingsInfo,
   type ComputerUseSetup,
   type ForeignSkillImport,
   type GoalCommand,
@@ -113,12 +114,16 @@ import {
   type SessionMcpServer,
   type SessionPage,
   type SessionPluginRow,
+  type SessionLeave,
   type SessionRecap,
+  type SkillActivation,
+  type SkillActivationChange,
   type SkillSummary,
   type StartSessionOptions,
   type TurnPart,
   type TurnSubmission,
   type WithdrawOutcome,
+  type WorkflowChildControl,
   DecisionNotAppliedError,
   GoalRefusedError,
   isPromptSettledError,
@@ -635,6 +640,32 @@ export function claimRecapSettlement(
   return recap
 }
 
+/**
+Claims a `session/leaveCompleted` settlement for its waiter by the
+request's commandId (M127, 1.4.11): removes the waiter and answers the
+handoff, or answers undefined when nobody asked (a late settlement past
+the wait). Exported for the capture tests.
+*/
+export function claimLeaveSettlement(
+  pending: Map<
+    string,
+    { readonly sessionId: string; readonly settle: (leave: SessionLeave) => void }
+  >,
+  params: z.infer<typeof leaveCompletedSchema>,
+): SessionLeave | undefined {
+  const waiting = pending.get(params.commandId)
+  if (waiting === undefined) {
+    return undefined
+  }
+  pending.delete(params.commandId)
+  const leave: SessionLeave = {
+    outcome: params.outcome,
+    ...(params.reason !== undefined && { reason: params.reason }),
+  }
+  waiting.settle(leave)
+  return leave
+}
+
 const recapCompletedSchema = z.object({
   commandId: z.string(),
   // Open vocabularies: later splits stay additive (tdd SS3.28.2).
@@ -658,6 +689,65 @@ const workflowResumeResultSchema = z.object({
   commandId: z.string(),
   status: z.string(),
   turnId: z.string(),
+})
+
+/** Exported for the M127 capture tests: parses the recorded `session/leave` ack. */
+export const sessionLeaveResultSchema = z.object({
+  commandId: z.string(),
+  status: z.string(),
+})
+
+/** A `session/leaveCompleted` settlement (1.4.11): outcome and reason are open. */
+export const leaveCompletedSchema = z.object({
+  commandId: z.string(),
+  sessionId: z.string(),
+  outcome: z.string(),
+  reason: z.optional(z.string()),
+})
+
+/**
+Exported for the M127 capture tests: the shared pause/cancel/child-control
+ack (SDK `WorkflowControlResult`) — settlement arrives as the workflow
+item's view events, never through the ack.
+*/
+export const workflowControlResultSchema = z.object({
+  commandId: z.string(),
+  status: z.string(),
+})
+
+/** Exported for the M127 capture tests: parses the `skill/setActivation` receipt. */
+export const skillSetActivationResultSchema = z.object({
+  activation: z.string(),
+  commandId: z.string(),
+  previous: z.string(),
+  scope: z.string(),
+  selector: z.string(),
+  status: z.string(),
+})
+
+/** Exported for the M127 capture tests: parses the `computerUseSettings/read` answer. */
+export const computerUseSettingsResultSchema = z.object({
+  blockedApps: z.array(
+    z.object({
+      bundleId: z.string(),
+      locked: z.boolean(),
+      prefix: z.optional(z.boolean()),
+    }),
+  ),
+  computerControl: z.string(),
+  screenshots: z.string(),
+  apps: z.optional(
+    z.array(
+      z.object({
+        bundleId: z.string(),
+        choice: z.string(),
+        lastAskedAt: z.optional(z.string()),
+        locked: z.optional(z.boolean()),
+        lockedBy: z.optional(z.string()),
+        name: z.optional(z.string()),
+      }),
+    ),
+  ),
 })
 
 /** Exported for the M127 capture tests: parses the recorded `skill/list` result. */
@@ -2504,6 +2594,91 @@ export class MuseSession implements ScheduledAgentSession {
     return { status: parsed.status, turnId: parsed.turnId }
   }
 
+  /**
+  Pause a live workflow run (M127, `workflow/pause`): admission-only, the
+  run's view events carry the settlement. The read-only Tasks surface
+  shows runs; driving one from it is an owner UI decision.
+  */
+  public async pauseWorkflowRun(workflowRunId: string): Promise<string> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command('workflow/pause', { workflowRunId }, commandId)
+    return workflowControlResultSchema.parse(result).status
+  }
+
+  /**
+  Cancel a workflow run (M127, `workflow/cancel`): admission-only, like
+  the pause above.
+  */
+  public async cancelWorkflowRun(workflowRunId: string): Promise<string> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command('workflow/cancel', { workflowRunId }, commandId)
+    return workflowControlResultSchema.parse(result).status
+  }
+
+  /**
+  Skip or retry one workflow child (M127, `workflow/childControl`):
+  admission-only, keyed by the `(childId, attempt)` pair the run's
+  `children[]` carries. A stale attempt rejects `stale_attempt`: re-read
+  the item and re-key, never guess.
+  */
+  public async controlWorkflowChild(control: WorkflowChildControl): Promise<string> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command(
+      'workflow/childControl',
+      {
+        action: control.action,
+        attempt: control.attempt,
+        childId: control.childId,
+        workflowRunId: control.workflowRunId,
+      },
+      commandId,
+    )
+    return workflowControlResultSchema.parse(result).status
+  }
+
+  /**
+  Apply a skill activation (M127, `skill/setActivation`): the selector
+  names a skill from the session's full catalog, the scope its source.
+  Answers the activation in force plus what it replaced.
+  */
+  public async setSkillActivation(change: SkillActivationChange): Promise<SkillActivation> {
+    const commandId = this.channel.connection.mintCommandId()
+    const result = await this.command(
+      'skill/setActivation',
+      {
+        activation: change.activation,
+        scope: change.scope,
+        selector: change.selector,
+      },
+      commandId,
+    )
+    const parsed = skillSetActivationResultSchema.parse(result)
+    return {
+      selector: parsed.selector,
+      scope: parsed.scope,
+      activation: parsed.activation,
+      previous: parsed.previous,
+      status: parsed.status,
+    }
+  }
+
+  /**
+  The session's computer-use setup state (M127, `computerUseSetup/read`):
+  the same grants-and-phase answer as the check, for this session.
+  */
+  public async readComputerUseSetup(): Promise<ComputerUseSetup> {
+    const result = await this.command('computerUseSetup/read', {})
+    const parsed = computerUseSetupSchema.parse(result)
+    return {
+      accessibility: parsed.accessibility,
+      inputMonitoring: parsed.inputMonitoring,
+      screenRecording: parsed.screenRecording,
+      setup: parsed.setup,
+      ...(parsed.message !== undefined && { message: parsed.message }),
+      ...(parsed.refused !== undefined && { refused: parsed.refused }),
+    }
+  }
+
   /** Releases this surface's hold; the last one forgets the session (D25). */
   public dispose(): void {
     if (this.isDisposed) {
@@ -2553,6 +2728,11 @@ export class MuseCodeHost implements AgentHost {
   private readonly pendingRecaps = new Map<
     string,
     { readonly sessionId: string; readonly settle: (recap: SessionRecap) => void }
+  >()
+  /** In-flight `session/leave` settlements by request commandId (M127, 1.4.11). */
+  private readonly pendingLeaves = new Map<
+    string,
+    { readonly sessionId: string; readonly settle: (leave: SessionLeave) => void }
   >()
   private readonly usageListeners = new Set<(usage: SubscriptionUsage) => void>()
   /** Set by `close()`: the exit that follows is the extension's, not a crash (D25). */
@@ -2822,6 +3002,16 @@ export class MuseCodeHost implements AgentHost {
         return true
       }
       return claimRecapSettlement(this.pendingRecaps, parsed.data) !== undefined
+    }
+    // A requested handoff's settlement never reaches the conversation: it
+    // resolves the waiter by the request's commandId, like the recap above.
+    if (method === 'session/leaveCompleted') {
+      const parsed = leaveCompletedSchema.safeParse(params)
+      if (!parsed.success) {
+        this.warnShape(method)
+        return true
+      }
+      return claimLeaveSettlement(this.pendingLeaves, parsed.data) !== undefined
     }
     if (
       this.features.lifecycle !== undefined &&
@@ -3137,7 +3327,7 @@ export class MuseCodeHost implements AgentHost {
   /**
   A "while you were away" recap (M127): the ack admits, then the request
   settles exactly once on `recap/completed` matched by commandId. Past
-  `RECAP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
+  `MSP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes
   a notice instead of a hang. One in flight per session, host-enforced.
   */
   public async requestSessionRecap(sessionId: string): Promise<SessionRecap> {
@@ -3170,11 +3360,57 @@ export class MuseCodeHost implements AgentHost {
       }
       return await withDeadline(
         settled,
-        RECAP_SETTLE_TIMEOUT_MS,
+        MSP_SETTLE_TIMEOUT_MS,
         `recap for session ${sessionId} did not settle in time`,
       )
     } finally {
       this.pendingRecaps.delete(commandId)
+    }
+  }
+
+  /**
+  Hand a loaded session to another host (M127, `session/leave`, 1.4.11):
+  the ack admits, then the handoff settles exactly once on
+  `session/leaveCompleted` matched by commandId. Past
+  `MSP_SETTLE_TIMEOUT_MS` the wait ends and a late settlement becomes a
+  notice instead of a hang. `stop` cancels unfinished work first.
+  */
+  public async leaveSession(
+    sessionId: string,
+    options?: { readonly stop?: boolean },
+  ): Promise<SessionLeave> {
+    // Arm before dispatch: the settlement can be in the same read as admission.
+    const commandId = this.channel.connection.mintCommandId()
+    let settle!: (leave: SessionLeave) => void
+    // eslint-disable-next-line unicorn/prefer-promise-with-resolvers -- Node 20 (VS Code 1.99's host) lacks Promise.withResolvers (PLAN.md §8); the executor assigns the resolver synchronously, so the settlement always has one.
+    const settled = new Promise<SessionLeave>((resolve) => {
+      settle = resolve
+    })
+    this.pendingLeaves.set(commandId, { sessionId, settle })
+    try {
+      const ack = sessionLeaveResultSchema.parse(
+        await commandWithin(
+          this.channel,
+          this.channel.generation,
+          'session/leave',
+          {
+            sessionId,
+            ...(options?.stop === true && { stop: true }),
+          },
+          undefined,
+          commandId,
+        ),
+      )
+      if (ack.commandId !== commandId) {
+        throw new Error(`session/leave ack did not echo its commandId ${commandId}`)
+      }
+      return await withDeadline(
+        settled,
+        MSP_SETTLE_TIMEOUT_MS,
+        `leave for session ${sessionId} did not settle in time`,
+      )
+    } finally {
+      this.pendingLeaves.delete(commandId)
     }
   }
 
@@ -3212,6 +3448,28 @@ export class MuseCodeHost implements AgentHost {
       setup: parsed.setup,
       ...(parsed.message !== undefined && { message: parsed.message }),
       ...(parsed.refused !== undefined && { refused: parsed.refused }),
+    }
+  }
+
+  /**
+  The host's computer-use settings (M127, `computerUseSettings/read`).
+  Refusals (a host without computer use answers `computerUseUnavailable`)
+  flow as the MSP error.
+  */
+  public async readComputerUseSettings(options?: {
+    readonly installed?: boolean
+    readonly showBuiltIns?: boolean
+  }): Promise<ComputerUseSettingsInfo> {
+    const result = await this.command('computerUseSettings/read', {
+      ...(options?.installed === true && { installed: true }),
+      ...(options?.showBuiltIns === true && { showBuiltIns: true }),
+    })
+    const parsed = computerUseSettingsResultSchema.parse(result)
+    return {
+      blockedApps: parsed.blockedApps,
+      computerControl: parsed.computerControl,
+      screenshots: parsed.screenshots,
+      ...(parsed.apps !== undefined && { apps: parsed.apps }),
     }
   }
 
