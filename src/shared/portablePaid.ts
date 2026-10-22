@@ -4,13 +4,14 @@ import { UI_TEXT, MODEL_API_PRICE_DECIMALS, ACP_PAID_OPTIONS } from './constants
 import { fill } from './l10n/text'
 import { formatUsd } from './l10n/exactUsd'
 import { Usd, type UsdAmount } from './usd'
+import { usdAmountSchema } from './usdSchema'
 
 /** The catalog's complete worst-case quote, including hosted fees, for this exact selected dispatch. */
 export interface VerifiedPaidQuote {
   readonly providerId: string
   readonly providerName: string
   readonly modelId: string
-  readonly maximumUsd: number
+  readonly maximumUsd: UsdAmount
   readonly isCurrent: () => boolean
 }
 export function verifiedPaidQuestion(
@@ -24,8 +25,8 @@ export function verifiedPaidQuestion(
     quote.providerId === '' ||
     quote.providerName === '' ||
     quote.modelId === '' ||
-    !Number.isFinite(quote.maximumUsd) ||
-    quote.maximumUsd < 0 ||
+    !usdAmountSchema.safeParse(quote.maximumUsd).success ||
+    Usd.from(quote.maximumUsd).compare(Usd.from(0)) < 0 ||
     Usd.from(budgetUsd).compare(Usd.from(quote.maximumUsd)) < 0
   )
     return

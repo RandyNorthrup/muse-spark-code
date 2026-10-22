@@ -557,7 +557,8 @@ describe('packaging (M26)', () => {
     expect(reuse).toContain('actions: read')
     // Rule 2 adds two: the verify job reads other runs, and the build
     // caller grants what build.yml's first-attempt job asks.
-    expect(count(release, /^ {6}actions: read$/gm)).toBe(7)
+    // M104 adds two: native-sign and native-publish download native artifacts.
+    expect(count(release, /^ {6}actions: read$/gm)).toBe(9)
     expect(reuse).toContain('FORCE_REBUILD: ${{ vars.RELEASE_FORCE_REBUILD }}')
     // D140: the reuse job also downloads the two Linux helper builds, so
     // every per-download count moves from four to six.
@@ -576,9 +577,9 @@ describe('packaging (M26)', () => {
     expect(build).toContain('needs: [verify, reuse]')
     expect(build).toContain("github.event_name == 'push' && needs.reuse.outputs.reused != 'true'")
     expect(build).toContain('uses: ./.github/workflows/build.yml')
-    expect(publish).toContain('needs: [verify, reuse, build]')
+    expect(publish).toContain('needs: [verify, reuse, build, native-sign]')
     expect(publish).toContain(
-      "if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}",
+      "if: ${{ !cancelled() && needs.verify.result == 'success' && needs.reuse.result == 'success' && needs.native-sign.result == 'success' && (needs.reuse.outputs.reused == 'true' || needs.build.result == 'success') }}",
     )
     const ci = read('.github', 'workflows', 'build.yml')
     expect(ci).toContain('run: node scripts/release-reuse.mjs record')
@@ -605,9 +606,15 @@ describe('packaging (M26)', () => {
     )
     // D140: the release job stages the two Linux helper builds, so both
     // per-download counts move from six to eight.
-    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(8)
-    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(8)
-    expect(publishers).not.toContain('inputs.artifacts_run_id')
+    // M104: the release job also stages each host's native receipt, so the
+    // current-run count moves to nine; native-sign's recovery-aware download
+    // takes a tenth token without joining that count.
+    expect(count(publishers, /run-id: \$\{\{ github.run_id \}\}/g)).toBe(9)
+    expect(count(publishers, /github-token: \$\{\{ github.token \}\}/g)).toBe(10)
+    expect(publishers).toContain('run-id: ${{ inputs.artifacts_run_id || github.run_id }}')
+    // M104: native-sign is the single publishers-slice reader of the recovery
+    // input, and only through the recovery-aware run id above.
+    expect(count(publishers, /inputs\.artifacts_run_id/g)).toBe(1)
   })
   it('blocks every release publisher and tag mover after cancellation (RELFAST2)', () => {
     const release = read('.github', 'workflows', 'release.yml')

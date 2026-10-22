@@ -1,6 +1,6 @@
 /** Authenticated browser transport; the launch page's private fetch closure owns the bearer. */
 export async function companionPost(message: unknown, signal: AbortSignal): Promise<void> {
-  const response = await window.fetch('/post', {
+  const response = await window.fetch('/panel/message', {
     method: 'POST',
     credentials: 'omit',
     signal,
@@ -16,7 +16,7 @@ export async function companionEvents(options: {
   readonly ready: () => void
   readonly event: (input: unknown) => Promise<void>
 }): Promise<void> {
-  const response = await window.fetch('/events', {
+  const response = await window.fetch('/panel/events', {
     method: 'POST',
     credentials: 'omit',
     signal: options.signal,

@@ -275,7 +275,9 @@ export function paidGrantFile(deps: PaidGrantFileDeps): RuntimePaidGrantStore {
           const file = generationFile(feature)
           const before = read(file, generationSchema)
           const localFile = workspaceGenerationFile(workspaceRoot, feature)
-          const local = read(localFile, generationSchema, true)
+          // The read path has no change in flight: a damaged workspace lane
+          // reads as no grant with its warning, like the global generation.
+          const local = read(localFile, generationSchema)
           if (
             before === undefined ||
             (!(feature === 'webSearch' && readQuotes(workspaceRoot, before.id).length > 0) &&
@@ -287,7 +289,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): RuntimePaidGrantStore {
           // Another process may revoke while the grant is read.
           return (
             read(file, generationSchema)?.id === before.id &&
-            read(localFile, generationSchema, true)?.id === local?.id
+            read(localFile, generationSchema)?.id === local?.id
           )
         }),
       ),
