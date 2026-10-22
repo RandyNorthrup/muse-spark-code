@@ -112,3 +112,81 @@ describe('auth status stored-secret verdicts', () => {
     expect(said.out.join('\n')).toContain('testprovider')
   })
 })
+
+const CHATGPT_ENTRY: ProviderEntry = {
+  id: 'chatgpt',
+  preset: 'chatgpt',
+  auth: 'subscription',
+  models: [],
+}
+const grant = (expiresAt: number): string =>
+  JSON.stringify({
+    v: CREDENTIAL_RECORD_VERSION,
+    auth: 'subscription',
+    origin: 'https://api.openai.com',
+    issuer: 'https://auth.openai.com',
+    clientId: 'test-client',
+    hostId: 'test-host',
+    accessToken: 'test-access',
+    refreshToken: 'test-refresh',
+    expiresAt,
+    scope: 'test-scope',
+    nonce: 'test-nonce',
+  })
+const chatgptFile = (): Promise<ProvidersFileRead> =>
+  Promise.resolve({ ok: true, file: { v: 1, providers: [CHATGPT_ENTRY] } })
+
+// RLTESTDRIVE item 7: one truth from both. `providers status chatgpt`
+// reads the subscription grant; `auth status` read every stored value
+// as an API-key envelope, so a valid ChatGPT sign-in read "cannot be
+// read; enter the key again" here while "signed in" there.
+describe('auth status chatgpt grant verdicts', () => {
+  it('reads a valid grant as signed in, as providers status does', async () => {
+    const said = lines()
+    const exit = await authStatusAll(
+      deps(mapSecrets({ 'museSpark.provider.chatgpt': grant(Date.now() + 3_600_000) }), said),
+      chatgptFile,
+    )
+    expect(exit).toBe(0)
+    expect(said.out).toContain('ChatGPT is signed in.')
+    expect(said.err.join('\n')).not.toContain('cannot be read')
+  })
+
+  it('reads an expired grant as expired, refreshing on use', async () => {
+    const said = lines()
+    const exit = await authStatusAll(
+      deps(mapSecrets({ 'museSpark.provider.chatgpt': grant(Date.now() - 1) }), said),
+      chatgptFile,
+    )
+    expect(exit).toBe(0)
+    expect(said.out.join('\n')).toContain('has expired')
+  })
+
+  it('reads a missing grant as not signed in', async () => {
+    const said = lines()
+    const exit = await authStatusAll(deps(mapSecrets({}), said), chatgptFile)
+    expect(exit).toBe(1)
+    expect(said.out).toContain('ChatGPT is not signed in.')
+  })
+
+  it('reads a malformed grant with the sign-in remedy, not the key remedy', async () => {
+    const said = lines()
+    const exit = await authStatusAll(
+      deps(mapSecrets({ 'museSpark.provider.chatgpt': '{oops' }), said),
+      chatgptFile,
+    )
+    expect(exit).toBe(1)
+    expect(said.err.join('\n')).toContain('Remove ChatGPT and sign in again.')
+    expect(said.err.join('\n')).not.toContain('enter the key again')
+  })
+
+  it('agrees for one provider: signed in, not unreadable', async () => {
+    const said = lines()
+    const exit = await authStatusProvider(
+      deps(mapSecrets({ 'museSpark.provider.chatgpt': grant(Date.now() + 3_600_000) }), said),
+      'chatgpt',
+    )
+    expect(exit).toBe(0)
+    expect(said.out).toContain('ChatGPT is signed in.')
+  })
+})
