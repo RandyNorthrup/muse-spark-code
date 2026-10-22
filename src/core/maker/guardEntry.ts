@@ -22,6 +22,8 @@ export {
   allowOnceChoice,
   isReviewableApproval,
   editAutomaticallyChoice,
+  isSideChatClickRefused,
+  sideChatRefusalChoice,
 } from '../agent/approvalRules'
 export {
   shellSecretText,
