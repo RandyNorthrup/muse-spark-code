@@ -1719,15 +1719,13 @@
           "type": "boolean",
           "default": true,
           "description": "%config.accountSwap.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.accountSwap.description%"
+          "scope": "machine"
         },
         "museSpark.accountParallel": {
           "type": "boolean",
           "default": true,
           "description": "%config.accountParallel.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.accountParallel.description%"
+          "scope": "machine"
         },
         "museSpark.accounts.severalOnThisDevice": {
           "type": "boolean",

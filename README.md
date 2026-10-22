@@ -991,16 +991,13 @@ question open, even when interactive deferral is disabled.
 ## Several accounts per provider
 
 Accounts keep separate credentials, labels, order, limit groups and thresholds.
-Native Meta request pooling and mid-chat selection are wired behind a closed
-certification switch. They remain unavailable in this build: dependent-suite,
-graphical and independent-review receipts remain open. The Models body now
-passes its unchanged size budget. [The completion record](docs/certification/cm1082.md)
-lists the exact enablement and release-branch restore steps.
-
-The terminal can manage their metadata and choose a fixed account for a
-headless run. Automatic swapping, parallel admission, device placement and
-the editor panel/usage mounts await the provider, journal and shared-owner
-integration listed in [M108's certification](docs/certification/m108.md).
+Native Meta Model API requests in VS Code and ACP choose accounts at request
+boundaries. A choice made mid-request queues for the next request; the current
+request keeps its original payer. Automatic swaps and background admission
+respect each account's thresholds, provider terms and the shared budgets.
+`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
+and on by default. Device placement, isolated local profiles, foreign-provider
+billing joins and account usage mounts retain their separate pending owners.
 
 The installed CLI, ACP agent and headless runs share one account service
 over the runtime's providers file and the OS credential store. Meta's Model
@@ -1018,13 +1015,13 @@ never an argument or a file):
 - `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
-ACP's `/accounts` (list, current, thresholds) and the `account` picker read
-the same live metadata on the Model API backend; the Muse Code backend runs
-on its subscription with no account picker. Choosing another account stays
-refused: moving a session credential needs the pooled owner, so the session
-keeps its current account and says so. A vendor limit stops only its own account,
-and the stop names the blocked account and its reset even with no usage
-page bundled.
+ACP's `/accounts` and the `account` picker read the same live metadata on
+the Model API backend. Choosing another native Meta account queues it at the
+next request boundary. `exec --account-pool` explicitly opts a stored-key
+headless run into that pool; CI's `--key-stdin` never pools. The Muse Code
+backend stays on its subscription without a Meta account picker. A vendor
+limit stops its account or shared limit group, and the stop names the blocked
+account and reset even without a usage page.
 Second Muse Code accounts and cross-account native replay/cache evidence
 wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
 it must keep outstanding reservations and uncertain charges across resets.
@@ -1043,9 +1040,9 @@ before the next first charge. The VS Code setting is machine-scoped, so a
 normal repository setting cannot change it; the agent's own setting is
 user-owned. The account adapter also checks workspace/folder and language
 override provenance for hosts that expose a repository budget.
-Only headless `exec
---account` bills another account today, and it keeps its explicit paid flags
-and hard budget.
+Native Meta VS Code and ACP requests can bill another account after that
+account's own first-charge consent. Headless `exec --account` retains its
+explicit paid flags and hard budget.
 
 ## Developer options
 

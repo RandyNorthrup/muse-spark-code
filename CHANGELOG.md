@@ -30,10 +30,10 @@ happened, not what was planned; superseded entries are kept.
   Keychain-only sign-in cannot be read, so use a key there.
 - PROVUSAGE (provider-reported spend): each preset declares one spend
   capability (`none`, `key-usage`, `balance`, `admin-report`). `providers
-  usage <id> [--days n] [--output json]` shows the provider's own figures
+usage <id> [--days n] [--output json]` shows the provider's own figures
   for the period (tokens by model, dollars by day) next to the journal
   estimate with the difference, over the pinned transport; `auth
-  set|status|clear --provider <id> --admin` stores the separate admin
+set|status|clear --provider <id> --admin` stores the separate admin
   report key after saying what it can read. The OpenRouter read is the
   first shared-shape report. Admin wire shapes are documented, not live
   captured (UNVERIFIED until the lead's capture); a provider with no spend
@@ -114,11 +114,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
-- Native Meta account request ownership is composed with the VS Code Models
-  panel, CLI and ACP. In-flight selections queue for the next request, while
-  the original account keeps its reservation and cost. Account UI and request
-  bindings remain behind the default-off certification switch pending the
-  named graphical, dependent-suite and independent-review receipts.
+- **Native Meta accounts at request boundaries.** Manage labelled accounts with
+  `providers accounts`, pin headless runs with `exec --account`, or explicitly
+  opt into `--account-pool`. VS Code and ACP selections made mid-request queue
+  for the next request; the original payer keeps its reservation and cost.
+  `accountSwap` and `accountParallel` default on; `accounts.severalOnThisDevice`
+  stays off and awaits its isolated-profile owner. Paid uses ask per account
+  before its first charge and keep the shared budget. Muse Code and foreign
+  provider joins remain held. <!-- try: command museSpark.modelsAndAgents -->
 
 - **Paid consent per account** (M108 lane P). In VS Code and in every ACP
   editor, a paid use billed to the provider's default account keeps this
@@ -127,10 +130,9 @@ happened, not what was planned; superseded entries are kept.
   the account, its price and the shared daily budget; **Allow always** is kept
   per account and tariff, and lapses with **Ask again** or the feature's
   price. The account consent and its store load on that first use
-  (`dist/accountPaid.js`), never at activation. No editor bills another
-  account interactively yet (headless `exec --account` keeps its explicit
-  paid flags and hard budget), so nothing changes until per-request account
-  selection lands. Help says so in all fourteen languages.
+  (`dist/accountPaid.js`), never at activation. Native Meta VS Code and ACP bind this consent at request boundaries;
+  headless keeps its explicit paid flags and hard budget. Other-provider billing
+  joins remain pending. Help states the native Meta scope in all fourteen languages.
 
 ### Changed
 
@@ -193,7 +195,7 @@ happened, not what was planned; superseded entries are kept.
   key) says the file was refused and left unchanged instead of the
   connection sentence — on the terminal, through ACP list/current/thresholds
   and picker selection, as the Models panel's own error, from `exec
-  --account` readiness instead of a keyring-outage message, from developer
+--account` readiness instead of a keyring-outage message, from developer
   multiple-accounts open instead of a raw stack, and on the terminal crash
   line as the sentence itself.
 
@@ -1206,11 +1208,11 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
 - **Catch inventory and ratchet (tooling).** `scripts/catch-inventory.mjs`
   walks every `try/catch` and promise `.catch(` under `src` and classifies
   each as NARROW, REPORTED, SWALLOW, GENERIC or CLEANUP; `npm run
-  check:catches` (wired into `npm run quality`) fails when any SWALLOW or
+check:catches` (wired into `npm run quality`) fails when any SWALLOW or
   GENERIC count rises against `scripts/catch-baseline.json`. Every
   SWALLOW and GENERIC in `src/acp` and `src/webview` is now NARROW or
   REPORTED with per-handler tests, and `docs/certification/
-  catch-inventory.md` ranks the 40 worst remaining handlers in core, host
+catch-inventory.md` ranks the 40 worst remaining handlers in core, host
   and runtime for the per-area fix lanes.
 
 - **Several accounts per provider, in the terminal and in ACP** (M108,
@@ -1568,7 +1570,7 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   key) says the file was refused and left unchanged instead of the
   connection sentence — on the terminal, through ACP list/current/thresholds
   and picker selection, as the Models panel's own error, from `exec
-  --account` readiness instead of a keyring-outage message, from developer
+--account` readiness instead of a keyring-outage message, from developer
   multiple-accounts open instead of a raw stack, and on the terminal crash
   line as the sentence itself.
 
@@ -1725,7 +1727,7 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   capital. A follow-up pass cases sixty labels the first pass missed (count
   and state labels such as **1 Background Task** and **Running**) and keeps
   error text that shares a key with a label in sentence case (`Duration
-  unknown`, `Stop upload`, `All slots busy`), with separate label keys for
+unknown`, `Stop upload`, `All slots busy`), with separate label keys for
   the chips and buttons that show those words. A later pass splits two more
   shared keys the same way: the missing-key failure stays `needs a key`
   while its labels read **Needs a Key**, and the unconfirmed private-network
@@ -1927,7 +1929,7 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   shared function instead of dropping the value.
 
 - DeepSeek Thinking off now sends the documented `thinking: {type:
-  "disabled"}` switch and omits `reasoning_effort` instead of sending the
+"disabled"}` switch and omits `reasoning_effort` instead of sending the
   unlisted value `"none"`. Any other effort a model's declared list cannot
   express is refused with a typed codec error rather than reaching the wire;
   every other preset's request bytes are unchanged.
@@ -2017,7 +2019,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   from 348 to 48 KB; the ACP engine from 915 to 639 KB. The provisional
   universal VSIX cap is 3700 KiB pending hosted measurement.
   <!-- whats-new: historical -->
-
 
 ### Fixed
 
@@ -2116,7 +2117,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   behavior alongside playbook fixes.
   <!-- whats-new: historical -->
 
-
 ### Fixed
 
 - Preserve reports, provider/team workflows and playbook during integration;
@@ -2163,7 +2163,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   and capability inventories cover all four editor/backend surfaces; full
   panel enforcement still awaits the planner.
   <!-- whats-new: historical -->
-
 
 ### Fixed
 
@@ -2256,7 +2255,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   its surfaces. Exact cap checks avoid startup arithmetic. The first-paint
   baseline is 760,059 B plus the prior 1.4 KB margin.
   <!-- whats-new: historical -->
-
 
 ### Changed
 
@@ -2474,7 +2472,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   reporting and schedule readers use admission/containment; missing native
   launch services refuse before spawning.
   <!-- whats-new: historical -->
-
 
 - **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
   first governed launch, a **Resources** chip sits beside the heartbeat, or
@@ -2835,7 +2832,6 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   polling. Shared orchestration, resource, vault and support policy and the
   placement playbook adopt these rules across models.
   <!-- whats-new: historical -->
-
 
 ## [0.16.0] - 2026-10-07
 
@@ -3965,6 +3961,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+
 - **The extension loads less at startup**: `dist/extension.js` is
   436.7 KiB after the integrated startup repair, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -4296,6 +4293,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
   required check names and the release artifacts are unchanged. In a merge
   group, gitleaks runs its pinned, checksum-checked CLI, because the gitleaks
   action refuses that event.
+
 - **The extension loads less at startup**: `dist/extension.js` is
   552.6 KiB, down from 590.6 KiB, under its unchanged 600 KiB budget
   (PLAN.md D6, 2026-10-03 and 2026-10-04). Model text that only a lazily
@@ -4380,7 +4378,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
   other files, and the menu now says that.
 - **A first command after the Windows sandbox setup that fails while Muse
   Code is still preparing the sandbox** (`ACL publication lock … timed
-  out`) now says to wait and try again, instead of offering the setup that
+out`) now says to wait and try again, instead of offering the setup that
   has already run.
 - **The browser check's live suite on Windows CI (M81).** CI names the
   runtime's storage `D:\a\_temp/muse-browser-storage`, and the check's
@@ -4642,7 +4640,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
   - **Results and schemas:** the result and events are versioned (v1) and
     validated, and their JSON Schemas ship in the package's `schemas/`;
     `npm run schema:exec` regenerates them. `muse-spark-code-acp
-    scan-secrets <file>` counts likely secrets in one file and prints only
+scan-secrets <file>` counts likely secrets in one file and prints only
     the number.
   - **The Action:** `action/` reviews, or proposes a fix for, a
     same-repository pull request on GitHub-hosted runners (a private
@@ -4713,7 +4711,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
   shows the generic failure card. A
   command covered by an always-allow rule could run in the empty folder
   before cancellation lands. On
-  ALLOW the approval is answered *Allow once* (never an "always" choice) for
+  ALLOW the approval is answered _Allow once_ (never an "always" choice) for
   each stage while subject and user request stay the same, and the tool row says "Decided: approved (Auto
   reviewer)" with its reason; on ASK, an unreadable answer, no answer
   within 45 seconds, an error, a busy side session or a tripped breaker,
@@ -5129,6 +5127,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
     Muse Code refused the decision and still waits on that very step.
   - The log names the step each answer was for: a multi-step command
     decided step by step had read as repeated answers.
+
 - **A step Muse Code moved without saying so no longer strands its
   card.** After **Always allow in this workspace**, Muse Code 1.4.2 can
   show a step its new rule already allows, refuse the decision for it as
@@ -5751,6 +5750,7 @@ Correction (2026-10-10): Teams and automatic compaction did not work for users i
   presence rather than enabling restore. Native/old/unknown uncertainty
   survives window close, PID death and age. Explicit confirmed recovery removes
   only the exact stale presence marker, preserving checkpoints and history.
+
 - **Checkpoints never touch the workspace's `.git`.** They live in a shadow
   repository under the extension profile's canonical-root global storage, run with hooks,
   fsmonitor, your git configuration and the workspace's filters all off,
@@ -7078,7 +7078,7 @@ The first community fix, and the README brought up to date with the panel.
   drill's budget and measurements are current, and the three upstream Muse
   Code issues are linked from Troubleshooting. Its eleven screenshots are
   rendered from the shipped panel by the UI harness (`npm run
-  harness:shots`) and say so; the 0.1.1 captures are gone.
+harness:shots`) and say so; the 0.1.1 captures are gone.
 
 ## [0.5.1] - 2026-09-23
 
@@ -7511,7 +7511,7 @@ certified per milestone under `docs/certification/`.
   a chat opens, `muse sandbox windows check` runs once per extension host and
   a `setup_required` result raises a notification with _Set up now_ / _Not
   now_ / _Don't ask again_; _Set up now_ relaunches `muse sandbox windows
-  setup` through the UAC prompt, re-checks, and reports. The new command
+setup` through the UAC prompt, re-checks, and reports. The new command
   **Muse Spark: Set Up Shell Sandbox** runs the same flow on demand, and a
   shell tool failing with `sandbox enforcement unavailable` re-offers it. The
   transcript notice now names that command instead of a terminal recipe.

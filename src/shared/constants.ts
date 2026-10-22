@@ -138,7 +138,7 @@ export const PRODUCT_NAME = 'Muse Spark'
 export const ACCOUNT_PANEL_REQUEST_TIMEOUT_MS = 10_000
 export const ACCOUNT_DEFAULT_ID = 'default'
 // Owner gate: C-M108-2 stays hidden until its remaining certification passes.
-export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: false }
+export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: true }
 export const ACCOUNT_HEADROOM_ZERO = 0n
 export const ACCOUNT_HEADROOM_ONE = 1n
 export const ACCOUNT_HEADROOM_SCALE = 1_000_000
