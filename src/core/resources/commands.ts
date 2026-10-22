@@ -17,6 +17,7 @@ import { environmentValue } from '../execGuard'
 import { existsSync, realpathSync } from 'node:fs'
 import { CLI_OUTPUT_MAX_BYTES } from '../../shared/constants'
 import { callerStop } from '../timeouts'
+import type { CoreLogger } from '../logging'
 import { spawnResourceProcess } from './process'
 
 /**
@@ -243,5 +244,96 @@ export async function execResourceFile(
           )
       })().catch(reject)
     })
+  })
+}
+
+/**
+Binary-safe bounded helper commands through the same governed boundary:
+stdout stays a Buffer (git reads blobs and arbitrary filenames), stderr is
+text for the typed failure. Same admission, deadline and combined cap.
+*/
+export async function execResourceFileBytes(
+  profile: 'contained' | 'probe',
+  command: string,
+  args: readonly string[],
+  options: ExecFileOptionsWithStringEncoding & {
+    readonly input?: string | undefined
+    /** Fixed-vocabulary stop notes; absent the stop stays silent. */
+    readonly log?: CoreLogger | undefined
+  },
+): Promise<{ stdout: Buffer; stderr: string }> {
+  const env = options.env ?? process.env
+  const workspace = defaultGovernedWorkspace(
+    typeof options.cwd === 'string' ? options.cwd : process.cwd(),
+  )
+  const file = resolveCommand(command, env, workspace)
+  const childEnv = childEnvironment(env, workspace)
+  // Only the caller's own cancel or `timeout` stops the command, as with
+  // execFile: no deadline of ours (a cold Windows PowerShell can take longer).
+  const signal = callerStop(options.signal, options.timeout)
+  return await new Promise((resolve, reject) => {
+    void (async () => {
+      const launched = await spawnResourceProcess(profile, file, args, {
+        env: childEnv,
+        ...(options.cwd !== undefined && { cwd: options.cwd }),
+        ...(signal !== undefined && { signal }),
+      })
+      const { child, stop } = launched
+      child.stdin.end(options.input)
+      const out: Buffer[] = []
+      const err: Buffer[] = []
+      const cap = options.maxBuffer ?? CLI_OUTPUT_MAX_BYTES
+      let bytes = 0
+      let isFailed = false
+      let stopping: Promise<void> | undefined
+      const abort = (): void => {
+        if (isFailed) return
+        isFailed = true
+        stopping ??= stop()
+        void stopping.catch((error: unknown) => {
+          // The abort already reached the waiter; the stop failure keeps its
+          // cause so the record names the cleanup that failed.
+          const failure = error instanceof Error ? error.message : String(error)
+          options.log?.warn(`Governed command tree stop failed: ${failure}`)
+          reject(new Error('Governed command tree stop failed', { cause: error }))
+        })
+      }
+      const push = (chunk: Buffer, to: Buffer[]): void => {
+        bytes += chunk.length
+        if (bytes > cap) abort()
+        else to.push(chunk)
+      }
+      child.stdout.on('data', (chunk: Buffer) => {
+        push(chunk, out)
+      })
+      child.stderr.on('data', (chunk: Buffer) => {
+        push(chunk, err)
+      })
+      child.once('error', abort)
+      child.once('close', (code) => {
+        void (async () => {
+          await stopping
+          // The outcome never throws (an unreadable settlement takes the
+          // uncertain path inside); a defect rejects through the waiter.
+          const report = await launched.outcome()
+          const memory = report?.limits.find((limit) => limit !== 'activeProcess')
+          if (memory !== undefined) throw new ResourceMemoryLimitError(memory)
+          if (report !== undefined && report.capRefusals > 0)
+            throw new ResourceCapRefusedError(report.capRefusals)
+          const result = {
+            stdout: Buffer.concat(out),
+            stderr: Buffer.concat(err).toString('utf8'),
+          }
+          if (code === 0 && !isFailed) resolve(result)
+          else
+            reject(
+              Object.assign(new Error('Governed command failed'), {
+                ...result,
+                code,
+              }),
+            )
+        })().catch(reject)
+      })
+    })().catch(reject)
   })
 }

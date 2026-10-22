@@ -762,6 +762,15 @@ export interface AgentSession {
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
+  /** The effort the session currently holds, where the host tracks one. */
+  readonly currentEffort?: string
+  /**
+  Whether the session's model serves this effort tier. A default is sent
+  only where this says so; an explicit setting the model cannot serve is
+  refused by setReasoningEffort instead. Absent keeps today's send.
+  */
+  readonly servesReasoningEffort?: (reasoningEffort: string) => boolean
+  readonly setOutputCap?: (cap: number) => Promise<void>
   /**
   The conversation's Fast tier: the plan catalogue's priority tier id
   while on, undefined while off. Plan sessions only; sessions without it

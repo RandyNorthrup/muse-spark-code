@@ -1,0 +1,22 @@
+{
+  "review": "RVCM962C",
+  "rig": "kubuntu",
+  "date": "2026-10-11",
+  "repositoryTimeout": true,
+  "drills": [
+    {
+      "drill": "r4-reorder",
+      "finding": "RVCM962C P2",
+      "source": "src/webview/models/sections/roles/propDraft.ts",
+      "mutation": "removed the key sort in normalize (const keys = Object.keys(value))",
+      "command": "npx vitest run test/unit/teamRolesSection.test.tsx --maxWorkers=3",
+      "exit": 1,
+      "failures": [
+        "M96 U1 Roles UI retires schema-reordered acknowledgements so a later Re-apply Level sticks"
+      ],
+      "passing": 51,
+      "sha256Before": "c0b5099b8b4cbcb527417a8db4c24266777c6562bb7abbd3a212ab08ffdfb705",
+      "sha256Restored": "c0b5099b8b4cbcb527417a8db4c24266777c6562bb7abbd3a212ab08ffdfb705"
+    }
+  ]
+}

@@ -117,6 +117,13 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'core/team/preview.ts:usdPerMTokInput': RATE,
   'core/team/preview.ts:usdPerMTokOutput': RATE,
   'core/team/preview.ts:usdPerMTokCachedInput': RATE,
+  'core/team/teamModelRegistry.ts:inputUsdPerMTokens': RATE,
+  'core/team/teamModelRegistry.ts:outputUsdPerMTokens': RATE,
+  'core/team/teamPanelViews.ts:cachedUsdPerMTok': RATE,
+  'core/team/teamPanelViews.ts:usdPerMTok': RATE,
+  'core/team/teamPanelViews.ts:usdPerMTokCachedInput': RATE,
+  'core/team/teamPanelViews.ts:usdPerMTokInput': RATE,
+  'core/team/teamPanelViews.ts:usdPerMTokOutput': RATE,
   'shared/estimate.ts:hourlyUsd': RATE,
   'shared/estimate.ts:CatalogPrice': {
     category: 'sanctioned',

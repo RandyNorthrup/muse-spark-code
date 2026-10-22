@@ -216,6 +216,18 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: 'execResourceFile',
     reason: 'digest-pinned native peer identity probe with an empty env through the governed exec',
   },
+  'src/core/team/workers/workerFence.ts': {
+    kind: 'reviewed',
+    anchor: '/usr/sbin/lsof',
+    reason:
+      'fixed absolute /usr/sbin/lsof on darwin only (own pid and fd, -Fn) + scrubbed env + bounded output through the governed probe run',
+  },
+  'src/core/team/workers/workerOps.ts': {
+    kind: 'reviewed',
+    anchor: 'scrubWorkerEnv',
+    reason:
+      'packaged native helper beside the bundle (PowerShell/muse-dictate/muse-created) + scrubbed env + bounded output through the governed contained run',
+  },
 }
 
 const KNOWN_SCRIPT: Record<string, KnownSpawn> = {

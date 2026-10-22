@@ -116,7 +116,10 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "teamToolGroups.shell",
+      "teamToolGroups.skills",
+      "teamReportShapes.qa"
     ],
     "cs": [
       "groupModel",
@@ -281,7 +284,9 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "reportLabels.total"
+      "reportLabels.total",
+      "teamToolGroups.diagnostics",
+      "teamToolGroups.images"
     ],
     "it": [
       "usageAccount",

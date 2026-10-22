@@ -43,6 +43,16 @@ export function effortLevelsFor(
   return family === undefined ? EFFORT_LEVELS : (MODEL_EFFORT_LEVELS[family] ?? EFFORT_LEVELS)
 }
 
+/**
+The tiers a listed model family is verified to serve; undefined where the
+family is unknown, so dispatch refuses only what it knows is unsupported.
+*/
+export function knownEffortTiers(modelId: string): readonly EffortLevel[] | undefined {
+  if (modelId.includes('/')) return undefined
+  const family = Object.keys(MODEL_EFFORT_LEVELS).find((prefix) => modelId.startsWith(prefix))
+  return family === undefined ? undefined : MODEL_EFFORT_LEVELS[family]
+}
+
 /** Slider position (0-based) for a tier; -1 when the model does not serve it. */
 export function effortIndex(levels: readonly EffortLevel[], effort: EffortLevel): number {
   return levels.indexOf(effort)

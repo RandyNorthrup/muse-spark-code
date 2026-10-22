@@ -27,6 +27,7 @@ import { legacyUsdSchema } from './usdSchema'
 // import from `vscode`, Node, or the DOM.
 
 import * as z from 'zod/mini'
+import { teamPanelSliceSchema, teamAgentsSliceSchema, teamPanelMessageSchema } from './teamPanel'
 
 /** Positive safe whole-token counts shared by manual entry and the strict panel wire. */
 const contextWindowSchema = z.int().check(z.positive())
@@ -39,7 +40,7 @@ The panel's sections; M96 registers `roles` and `agents` beside these.
 `vault` (C-M109-1 P1) is offered only while the host holds a vault
 binding (`vaultOffered`); the webview hides its navigation otherwise.
 */
-export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'vault'])
+export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'roles', 'agents', 'vault'])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
 
 /** The add-provider wizard's steps, in order (mirrors lane P's `WizardStep`). */
@@ -386,6 +387,8 @@ export type ImportPreview = z.infer<typeof importPreviewSchema>
 
 /** The host-owned state the panel renders. */
 export const modelsPanelStateSchema = z.strictObject({
+  roles: z.optional(teamPanelSliceSchema),
+  agents: z.optional(teamAgentsSliceSchema),
   presets: z.array(presetCardSchema),
   providers: z.array(providerStateSchema),
   /** The Models rows after the host applied `filter` and `sort`. */
@@ -466,7 +469,7 @@ export const tickScopeSchema = z.strictObject({
 export type TickScope = z.infer<typeof tickScopeSchema>
 
 /** What the panel posts to the host. */
-export const panelToHostMessageSchema = z.discriminatedUnion('type', [
+const providerPanelMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('models/contextWindow'),
     scope: tickScopeSchema,
@@ -575,6 +578,10 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
     usd: z.optional(legacyUsdSchema),
     expectedUsd: z.optional(legacyUsdSchema),
   }),
+])
+export const panelToHostMessageSchema = z.union([
+  providerPanelMessageSchema,
+  teamPanelMessageSchema,
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>
 

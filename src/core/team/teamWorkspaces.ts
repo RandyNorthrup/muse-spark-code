@@ -11,6 +11,7 @@ import {
 } from '../../shared/constants'
 import { pathModule } from '../workspaceRoot'
 import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
+import { isTeamGitError, type TeamGit } from './teamGit'
 // Team workspaces (M96 lane I, PLAN.md D75): the base commit, shared clones
 // under the extension's storage with no remote, the `agents/<role>/<task-id>`
 // branches and the extension's own `agents/` refs in the user's repository,
@@ -24,42 +25,6 @@ import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
 // these functions. No `vscode` here.
 
 import path from 'node:path'
-
-/** git ended non-zero: the code and what it said. */
-export class TeamGitError extends Error {
-  public constructor(
-    public readonly exitCode: number,
-    public readonly stderr: string,
-    command: string,
-  ) {
-    super(`git ${command} exited with code ${String(exitCode)}: ${stderr.trim()}`)
-    this.name = 'TeamGitError'
-  }
-}
-
-export function isTeamGitError(value: unknown): value is TeamGitError {
-  return (
-    value instanceof Error &&
-    value.name === 'TeamGitError' &&
-    'exitCode' in value &&
-    typeof value.exitCode === 'number' &&
-    Number.isSafeInteger(value.exitCode)
-  )
-}
-
-/**
-One git command's stdout as bytes (binary-safe for blobs); rejects with
-`TeamGitError` on a non-zero exit. The host adapts its git process to
-this; tests run real git through `execFile`. The adapter MUST honour an
-explicit environment: automatic worker-copy calls supply credential-free
-`workerEnvironment`, never the host's inherited environment.
-*/
-export type TeamGit = (
-  args: readonly string[],
-  cwd: string,
-  input?: string,
-  env?: NodeJS.ProcessEnv,
-) => Promise<Uint8Array>
 
 /** One shared policy for every extension-owned Git call in a worker copy. */
 export function teamProgramFreeGit(runGit: TeamGit): TeamGit {
@@ -248,7 +213,7 @@ clean, else a commit made from the current tree with `HEAD` as its
 parent (`git commit-tree` through a private index, which writes no user ref), so the
 worker sees the uncommitted work. Nothing is committed to the user's
 branch either way.
-@unwired M96 team base commit resolver
+Team base commit resolver
 */
 export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string): Promise<string> {
   const status = await runGit(
@@ -356,7 +321,7 @@ same ref into the user's repository so Review diff and git tools see it.
 Every `read-only` worker gets a scratch copy instead (detached, no
 `agents/` ref: there is nothing to merge). `in-place` runs in the user's
 tree; its lock is lane T's.
-@unwired M96 team workspace starter
+Team workspace starter
 */
 export async function startTeamWorkspace(
   runGit: TeamGit,
@@ -413,7 +378,7 @@ The end-of-task commit: the working copy's state on the clone's branch,
 as one commit naming the role, the entry and the task. The worker never
 commits; the extension does. Returns the branch head (the base when
 nothing changed, without an empty commit).
-@unwired M96 task branch committer
+Task branch committer
 */
 export async function commitTaskBranch(
   runGit: TeamGit,
@@ -464,7 +429,7 @@ async function readAgentsRef(
 }
 
 /** Import objects without updating a ref, then publish with Git's atomic CAS.
-@unwired M96 task ref publisher
+Task ref publisher
 */
 export async function publishTaskRef(
   runGit: TeamGit,
@@ -638,7 +603,7 @@ export function parseScratchStatus(porcelain: Uint8Array): readonly string[] {
 /**
 A read-only worker's change found in its scratch copy fails the task:
 any change or new file there is a breach of its role.
-@unwired M96 scratch-copy breach scanner
+Scratch-copy breach scanner
 */
 export async function scratchBreach(runGit: TeamGit, folder: string): Promise<readonly string[]> {
   runGit = teamProgramFreeGit(runGit)

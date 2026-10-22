@@ -190,6 +190,7 @@ import {
   LEGAL_MARKDOWN_EXPORT_FILE,
   UI_TEXT,
   QUESTION_DEFER_DEFAULT_SECONDS,
+  THINKING_OFF_EFFORT,
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
@@ -258,6 +259,9 @@ import type { ReviewCollection } from '../review/reviewCollector'
 import type { ReviewTurnFeatures } from '../review/reviewBundle'
 import type { Logger } from '../logger'
 import type { ChatSurface, ConversationMessage } from '../views/chatSurface'
+import type { TeamSurfacePort } from '../teamHostBinding'
+import type { TeamCardItem } from '../../core/team/teamHostService'
+import type { TeamTreeData } from '../../shared/teamView'
 import type { TasksTabPort, TasksTabView } from '../views/tasksTabPort'
 
 /** The controller's Git adapter contract, portable to hosts without VS Code. */
@@ -593,6 +597,11 @@ export interface ConversationDeps {
       }
     | undefined
   /**
+  M96 lane X: the window's team host service, as the tree and the cards
+  reach it. Absent, the team's messages are refused and no tree is shown.
+  */
+  readonly team?: TeamSurfacePort | undefined
+  /**
   M96 lane T: the orchestrator slot. A new conversation starts on the
   workspace override, or the picker's model; the pill then shows the
   resolved model (lanes R/U1 own the Roles section; M95's lane U owns the
@@ -600,7 +609,20 @@ export interface ConversationDeps {
   */
   readonly orchestratorSlot?:
     | {
-        readonly modelForNewConversation: (pickerModelId: string) => string
+        readonly modelForNewConversation?: (pickerModelId: string) => string
+        readonly resolveForNewConversation?: (
+          pickerModelId: string,
+          host: AgentHost,
+        ) => Promise<
+          | {
+              readonly host: AgentHost
+              readonly modelId: string
+              readonly settings?:
+                | { readonly effort?: string | undefined; readonly outputCap?: number | undefined }
+                | undefined
+            }
+          | undefined
+        >
       }
     | undefined
   readonly newAttachmentId: () => string
@@ -1266,6 +1288,12 @@ export class ConversationController {
   private gitDraftSubmission:
     { readonly session: AgentSession; readonly port: GitDraftOutputPort } | undefined
   private session: AgentSession | undefined
+  /**
+  The host the attached session runs on (F94): the first turn that
+  fails for a sign-in its restarted backend lost names that restart.
+  Set beside the session, cleared with it.
+  */
+  private sessionHost: AgentHost | undefined
   private readonly questionApprovals = new Set<string>()
   private unsubscribe: (() => void) | undefined
   private models: readonly ModelOption[] | undefined
@@ -1436,12 +1464,6 @@ export class ConversationController {
   private readonly effortSyncs = new WeakMap<AgentSession, EffortSync>()
   /** The backend kind of the attached session (a resume only goes to the same kind). */
   private sessionKind: BackendKind | undefined
-  /**
-  The host the attached session runs on (F94): the first turn that
-  fails for a sign-in its restarted backend lost names that restart.
-  Set beside the session, cleared with it.
-  */
-  private attachedHost: AgentHost | undefined
   /** An older Muse Code can fix #29 by updating; actual faults still surface on every version. */
   private needsApprovalLedgerUpdate = false
   /** Best-of-N runs (M77): one manager per surface, posting to it. */
@@ -2302,7 +2324,7 @@ export class ConversationController {
     this.sideRefused.clear()
     session?.dispose()
     this.session = undefined
-    this.attachedHost = undefined
+    this.sessionHost = undefined
     this.activeTurnId = undefined
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
@@ -2504,7 +2526,7 @@ export class ConversationController {
     }
     this.reviews.hold(event, {
       session,
-      host: () => this.deps.ensureHost(),
+      host: () => this.ensureHost(),
       modelId: this.modelId,
       request: {
         userRequest: this.reviewUserText,
@@ -2651,7 +2673,7 @@ export class ConversationController {
       }
       const goalEventsAtStart = this.goalEventCount
       try {
-        const host = await this.deps.ensureHost()
+        const host = await this.ensureHost()
         if (generation !== this.sendInvalidationEpoch || this.session !== session) {
           break
         }
@@ -3181,7 +3203,7 @@ export class ConversationController {
           // A restarted backend whose replacement lost the sign-in says so
           // loudly (F94): the panel names the restart and the way back,
           // instead of failing as just another turn.
-          const restartCause = this.attachedHost?.peekRestartCause?.()
+          const restartCause = this.sessionHost?.peekRestartCause?.()
           const loud =
             restartCause === undefined
               ? undefined
@@ -3194,7 +3216,7 @@ export class ConversationController {
         } else if (event.terminal === 'completed') {
           // A turn that ran to completion proves the host: no later
           // failure blames the restart this host replaced.
-          this.attachedHost?.clearRestartCause?.()
+          this.sessionHost?.clearRestartCause?.()
         }
         // This session's own event log failed (a child's turn is the child's).
         if (
@@ -3802,7 +3824,7 @@ export class ConversationController {
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
@@ -4368,17 +4390,22 @@ export class ConversationController {
       const sent = sync.wanted
       const sentState = sync.wantedState
       let isApplied = true
-      try {
-        await session.setReasoningEffort(sent)
+      // A default the model does not serve is simply not sent, never refused
+      // into a warning: the session keeps its host default.
+      if (session.servesReasoningEffort?.(sent) === false) {
         sync.kept = sentState
-      } catch (error: unknown) {
-        isApplied = false
-        this.deps.log.warn(`session/setReasoningEffort failed: ${failureForLog(error)}`)
-        if (!hasWarned) {
-          hasWarned = true
-          this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+      } else
+        try {
+          await session.setReasoningEffort(sent)
+          sync.kept = sentState
+        } catch (error: unknown) {
+          isApplied = false
+          this.deps.log.warn(`session/setReasoningEffort failed: ${failureForLog(error)}`)
+          if (!hasWarned) {
+            hasWarned = true
+            this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+          }
         }
-      }
       // Ended in the same step that saw nothing newer: a change after this
       // starts a burst of its own.
       if (sync.wanted === sent) {
@@ -4521,7 +4548,7 @@ export class ConversationController {
     // A conversation is open here again: an earlier failed opening no longer refuses.
     this.unopenedReason = undefined
     this.sessionKind = host.info.kind
-    this.attachedHost = host
+    this.sessionHost = host
     // MSP serves 1.4.3; installed build labels such as 1.4.3-R5018.1 name
     // the same release, not a semver prerelease. Unknown versions stay defensive.
     const version = host.info.serverVersion.replace(/-R\d+\.\d+$/, '')
@@ -4636,6 +4663,11 @@ export class ConversationController {
     }
   }
 
+  private async ensureHost(): Promise<AgentHost> {
+    const selected = await this.deps.ensureHost()
+    return this.sessionHost ?? selected
+  }
+
   private async openSession(workspaceRoot: string, generation: number): Promise<AgentSession> {
     // The conversation this panel was asked to show could not be opened:
     // the message is refused with that failure's own words (its card keeps
@@ -4644,7 +4676,7 @@ export class ConversationController {
     if (this.unopenedReason !== undefined) {
       throw new Error(this.unopenedReason)
     }
-    const host = await this.deps.ensureHost()
+    let host = await this.ensureHost()
     this.requireCurrentOpening(generation)
     await this.ensureModels(host)
     this.requireCurrentOpening(generation)
@@ -4653,15 +4685,29 @@ export class ConversationController {
     if (resumed !== undefined) {
       return resumed
     }
-    const mcpServers = await this.mcpServersFor(host)
+    const initialHost = host
+    const resolved = await this.deps.orchestratorSlot?.resolveForNewConversation?.(
+      this.modelId,
+      host,
+    )
     this.requireCurrentOpening(generation)
+    if (resolved !== undefined) host = resolved.host
     // M96 lane T: the orchestrator slot. A new conversation starts on the
     // workspace override, or the picker's model; the pill then shows the
     // resolved model through postSessionInfo.
-    let modelId = this.deps.orchestratorSlot?.modelForNewConversation(this.modelId) ?? this.modelId
-    if (modelId !== this.modelId && !(await this.allowsModel(modelId))) {
+    let modelId =
+      resolved?.modelId ??
+      this.deps.orchestratorSlot?.modelForNewConversation?.(this.modelId) ??
+      this.modelId
+    if (modelId !== this.modelId && !(await this.allowsModel(modelId, host))) {
       modelId = this.modelId
+      host = initialHost
     }
+    if (host !== initialHost) {
+      this.forgetModels()
+      await this.ensureModels(host)
+    }
+    const mcpServers = await this.mcpServersFor(host)
     this.requireCurrentOpening(generation)
     this.requireNonConfidentialModel(modelId)
     const approvalMode = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
@@ -4669,6 +4715,15 @@ export class ConversationController {
     // instead of Muse Code's judge (Muse Code 1.4.7); Auto keeps the judge
     // its words describe. Omitted profiles keep the host default.
     const permissionProfile = mspPermissionProfile(approvalMode)
+    // The complete saved settings are checked against the selected model's
+    // current capabilities before the session exists: unsupported values
+    // refuse with their reason instead of starting a session that silently
+    // changes or ignores them.
+    if (resolved?.modelId === modelId) {
+      const { validateOrchestratorSettings } = await import('../../core/team/teamEntry')
+      const unsupported = validateOrchestratorSettings(resolved.settings, modelId)
+      if (unsupported !== undefined) throw new Error(unsupported)
+    }
     const session = await host.startSession({
       workspaceRoot,
       modelId,
@@ -4677,6 +4732,14 @@ export class ConversationController {
       ...(this.isSideChat && { sideChat: true }),
       ...(mcpServers !== undefined && { mcpServers }),
     })
+    // A saved setting is applied last and stays: a valid saved effort becomes
+    // the composer's before attach, so the attach sync carries the saved value
+    // instead of overwriting it with the default, and the pill shows it.
+    const savedEffort = resolved?.modelId === modelId ? resolved.settings?.effort : undefined
+    if (savedEffort !== undefined && isEffortLevel(savedEffort)) {
+      this.effort = savedEffort
+      this.postComposerState()
+    }
     if (mcpServers !== undefined) {
       this.ideSessions.add(session)
     }
@@ -4707,6 +4770,22 @@ export class ConversationController {
     } else {
       this.noteShellSandbox()
       void this.offerBundledSkills()
+    }
+    if (resolved?.modelId === modelId) {
+      try {
+        // What the composer sync does not carry is applied last: an exotic
+        // provider tier, and the session's output cap. A failure after the
+        // session exists disposes it instead of leaking it to the host.
+        if (savedEffort !== undefined && !isEffortLevel(savedEffort))
+          await session.setReasoningEffort(savedEffort)
+        if (resolved.settings?.outputCap !== undefined) {
+          if (session.setOutputCap === undefined) throw new Error(UI_TEXT.teamEditor.invalid)
+          await session.setOutputCap(resolved.settings.outputCap)
+        }
+      } catch (error: unknown) {
+        session.dispose()
+        throw error
+      }
     }
     return session
   }
@@ -4856,11 +4935,17 @@ export class ConversationController {
       this.importedSessionIds.add(loaded.session.sessionId)
     }
     this.activeTurnId = loaded.activeTurnId
+    // A resumed conversation keeps its stored effort, Thinking switch and
+    // provider tier: the composer takes the session's own settings before
+    // attach, so the attach sync does not overwrite them with the default
+    // (the cap rides the session snapshot).
+    const restoredTier = this.restoreSessionEffort(loaded.session)
     await this.attach(host, loaded.session, 'continued after a restart')
     this.requireCurrentOpening(generation)
     // A conversation continued after a restart never passed the new-session
     // path: it gets the shell-sandbox notice here instead.
     this.noteShellSandbox()
+    await this.applyRestoredTier(loaded.session, restoredTier)
     try {
       await loaded.session.setApprovalMode(
         approvalModeFor(this.permissionMode, this.deps.hasApprovalUi),
@@ -5057,7 +5142,7 @@ export class ConversationController {
     }
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -5268,7 +5353,7 @@ export class ConversationController {
       if (!isCurrent()) return
       const rows = await readSessionBoard(
         {
-          ensureHost: () => this.deps.ensureHost(),
+          ensureHost: () => this.ensureHost(),
           backendOf: (host) => host.info.kind,
           workspaceRoot: this.deps.workspaceRoot,
           isWorkspaceTrusted: () => this.isProjectTrusted(),
@@ -5303,7 +5388,7 @@ export class ConversationController {
   ): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
         return
       }
@@ -5420,6 +5505,53 @@ export class ConversationController {
   that standing model applied and read back, and a mismatch refuses
   instead of sending on the wrong model.
   */
+  /**
+  The session's own effort, Thinking switch and provider tier become the
+  composer's before attach, on every path that adopts a stored session
+  (restart reconnect, History resume, fork): the attach sync then carries
+  the stored values instead of overwriting them with the panel default.
+  Thinking off restores as off, and a stored level brings Thinking back
+  on: restoring it while Thinking stays off would send `none` at attach
+  and lose the level. A provider tier the slider never offers cannot ride
+  the composer, so it is returned pending: the caller re-applies it to
+  the session after attach. A tier the model does not serve is simply not
+  sent, and the session keeps what it holds. One function, called by
+  every path that adopts a stored session.
+  */
+  private restoreSessionEffort(session: AgentSession): string | undefined {
+    const resumedEffort = session.currentEffort
+    if (resumedEffort === undefined || resumedEffort === '') return undefined
+    if (resumedEffort === THINKING_OFF_EFFORT) {
+      this.isThinkingEnabled = false
+      this.postComposerState()
+      return undefined
+    }
+    this.isThinkingEnabled = true
+    if (isEffortLevel(resumedEffort)) {
+      this.effort = resumedEffort
+      this.postComposerState()
+      return undefined
+    }
+    this.postComposerState()
+    return resumedEffort
+  }
+
+  /**
+  Re-apply a restored provider tier after attach: the attach sync carries
+  the composer's level, so the stored tier goes back on the session last.
+  A refusal warns like any unapplied effort instead of failing the
+  adoption: the session keeps what the sync carried.
+  */
+  private async applyRestoredTier(session: AgentSession, tier: string | undefined): Promise<void> {
+    if (tier === undefined) return
+    try {
+      await session.setReasoningEffort(tier)
+    } catch (error: unknown) {
+      this.deps.log.warn(`Reasoning effort restoration refused: ${errorKind(error)}`)
+      this.say('warning', `${UI_TEXT.effortNotApplied}: ${describe(error)}`)
+    }
+  }
+
   private async adopt(
     host: AgentHost,
     loaded: LoadedSession,
@@ -5526,6 +5658,11 @@ export class ConversationController {
     }
     // Before attaching: the events held for this surface may end that turn (D26).
     this.activeTurnId = loaded.activeTurnId
+    // History resume and fork restore the session's own effort, Thinking
+    // switch and provider tier before attach, the same restoration a
+    // restart reconnect uses. An imported file never sets the effort: the
+    // panel default stays, as before the restoration (P3-5).
+    const restoredTier = isImported ? undefined : this.restoreSessionEffort(loaded.session)
     await this.attach(host, loaded.session, origin)
     if (generation !== this.sendInvalidationEpoch) {
       return false
@@ -5533,6 +5670,7 @@ export class ConversationController {
     // A resumed, forked or imported session is a new conversation here too:
     // it gets the shell-sandbox notice a brand-new one would have shown.
     this.noteShellSandbox()
+    await this.applyRestoredTier(loaded.session, restoredTier)
     const target = approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
     try {
       await loaded.session.setApprovalMode(target)
@@ -5579,7 +5717,7 @@ export class ConversationController {
       }
     }
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       requireCurrent()
       await this.ensureModels(host)
       requireCurrent()
@@ -5616,7 +5754,7 @@ export class ConversationController {
     session: AgentSession,
     generation: number,
   ): Promise<AgentHost | undefined> {
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (generation !== this.sendInvalidationEpoch || this.session !== session) {
       return undefined
     }
@@ -5664,7 +5802,7 @@ export class ConversationController {
     if (!this.isCurrentSessionAction(source, generation) || source.sessionId !== sourceSessionId) {
       return undefined
     }
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (!this.isCurrentSessionAction(source, generation)) {
       return undefined
     }
@@ -5944,7 +6082,7 @@ export class ConversationController {
     if (session === undefined) {
       return undefined
     }
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (!this.isCurrentSessionAction(session, generation)) {
       return undefined
     }
@@ -6200,7 +6338,7 @@ export class ConversationController {
     if (this.refuseAction() !== undefined) {
       return { status: 'refused' }
     }
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     if (generation !== this.sendInvalidationEpoch || this.isDisposed || !canStart()) {
       return { status: 'changed' }
     }
@@ -6523,7 +6661,7 @@ export class ConversationController {
     // This operation owns the slot before host/session/history preparation can yield.
     this.pendingHandoff = pending
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!this.canDistilHandoff(pending)) {
         return false
       }
@@ -6619,7 +6757,7 @@ export class ConversationController {
       if (!this.isStillCurrent(pending)) {
         return
       }
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       const hasConversationToResume = this.session !== undefined || this.resumeTarget !== undefined
       let session = pending.session
       if (hasConversationToResume && session === undefined) {
@@ -7019,7 +7157,7 @@ export class ConversationController {
     let turnIds: readonly string[] | undefined
     try {
       turnIds = await this.transcriptTurnIds(
-        await this.deps.ensureHost(),
+        await this.ensureHost(),
         session.sessionId,
         message.turnId,
       )
@@ -7083,7 +7221,7 @@ export class ConversationController {
     await this.checkpoints.redo(restoreId, sourceSessionId, async (fromTurnId) => {
       try {
         const ids = await this.transcriptTurnIds(
-          await this.deps.ensureHost(),
+          await this.ensureHost(),
           sourceSessionId,
           fromTurnId,
         )
@@ -7421,7 +7559,7 @@ export class ConversationController {
       requireCurrent(session)
       // The CLI backend also gets the choice-steering note (M14); the Model
       // API backend carries it in its system prompt.
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       requireCurrent(session)
       if (this.sessionKind !== host.info.kind) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
@@ -7932,7 +8070,7 @@ export class ConversationController {
       if (isMaterialCurrent?.() === false) {
         throw new Error(UI_TEXT.turnStoppedByRestart)
       }
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (
         !this.isCurrentSessionAction(session, generation) ||
         this.sessionKind !== host.info.kind ||
@@ -7994,6 +8132,7 @@ export class ConversationController {
       }
       this.acceptRestrictedSubmission(localId, text, checkpoint, submission)
     } catch (error: unknown) {
+      this.deps.log.trace(`Review start refused: ${errorKind(error)}`)
       this.refuseRestrictedStart(localId, checkpoint, error, 'startReview')
     }
   }
@@ -8907,7 +9046,7 @@ export class ConversationController {
         return
       }
       targetSessionId = session.sessionId
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (this.accountStopEpoch > generation || this.accountStopsInFlight > 0) {
         // The conversation ended with the account: nothing to say in it.
         result(false)
@@ -9007,7 +9146,7 @@ export class ConversationController {
   private async refreshGoal(session: AgentSession, generation: number): Promise<void> {
     const goalEventsAtStart = this.goalEventCount
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!this.isCurrentSessionAction(session, generation)) {
         return
       }
@@ -9094,7 +9233,7 @@ export class ConversationController {
   Confidential BYO selection resolves current host privacy facts, even
   before the wizard's first save or after a saved route changes.
   */
-  private async allowsModel(modelId: string): Promise<boolean> {
+  private async allowsModel(modelId: string, selectedHost?: AgentHost): Promise<boolean> {
     if (this.deps.isConfidentialWorkspace() && isContributorModel(modelId)) {
       this.notice('warning', UI_TEXT.contributorBlocked)
       return false
@@ -9103,7 +9242,7 @@ export class ConversationController {
       const generation = this.modelGeneration
       const actionGeneration = this.sendInvalidationEpoch
       try {
-        const host = await this.deps.ensureHost()
+        const host = selectedHost ?? (await this.ensureHost())
         const listed = await host.listModels()
         if (
           this.isDisposed ||
@@ -9590,7 +9729,7 @@ export class ConversationController {
     }
     let host: AgentHost
     try {
-      host = await this.deps.ensureHost()
+      host = await this.ensureHost()
     } catch (error: unknown) {
       this.deps.log.warn(`An attachment could not be admitted: ${failureForLog(error)}`)
       if (
@@ -9894,7 +10033,7 @@ export class ConversationController {
     }
     if (!isCurrent()) return undefined
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (!isCurrent()) return undefined
       if (host.info.kind !== 'modelApi') {
         rejected(UI_TEXT.media.museCodeRefusal)
@@ -9954,6 +10093,7 @@ export class ConversationController {
     } catch (error: unknown) {
       // An unbound pipeline keeps its own words; only a genuine read
       // failure is unreadable (M105 E1 review).
+      this.deps.log.warn(`Attachment read failed: ${errorKind(error)}`)
       rejected(
         error instanceof Error && error.message === UI_TEXT.media.uploadUnavailable
           ? UI_TEXT.media.uploadUnavailable
@@ -10169,7 +10309,7 @@ export class ConversationController {
   */
   private async readUsage(): Promise<void> {
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (this.usageHost !== host) {
         this.usageHost = host
         this.latestUsage = undefined
@@ -10311,7 +10451,7 @@ export class ConversationController {
     }
     try {
       if (action === 'continue' || action === 'retry') {
-        const host = await this.deps.ensureHost()
+        const host = await this.ensureHost()
         const history = await host.readSession(session.sessionId)
         if (!this.isCurrentSessionAction(session, generation)) return
         const agent = history.items.findLast((item) => item.subagentId === subagentId)
@@ -10420,7 +10560,7 @@ export class ConversationController {
       return
     }
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       const outcome = await transfer.exportConversationFlow(
         host,
         session,
@@ -10678,7 +10818,7 @@ export class ConversationController {
     // imported conversation, and its failure is said as an opening's.
     let choice: number | undefined
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
@@ -10775,7 +10915,7 @@ export class ConversationController {
   private async readChildSession(sessionId: string): Promise<void> {
     const generation = this.sendInvalidationEpoch
     try {
-      const host = await this.deps.ensureHost()
+      const host = await this.ensureHost()
       if (generation !== this.sendInvalidationEpoch) {
         return
       }
@@ -11085,7 +11225,7 @@ export class ConversationController {
     }
     try {
       if (this.models === undefined) {
-        const host = await this.deps.ensureHost()
+        const host = await this.ensureHost()
         await this.ensureModels(host)
       }
       // The pill reads the session's model; before any session it reads the
@@ -11337,6 +11477,20 @@ export class ConversationController {
       }
       case 'stopAllTasks': {
         await this.stopAllTasks()
+        break
+      }
+      // The team tree's and cards' actions (M96 lane X): the window's team
+      // host service answers them; without one nothing team-related runs.
+      case 'openTeamTaskTranscript':
+      case 'stopTeamTask':
+      case 'reviewTeamDiff':
+      case 'decideTeamMerge':
+      case 'answerTeamWaiting':
+      case 'openTeamRoles':
+      case 'resetTeamEntry':
+      case 'stopAllTeamTasks': {
+        if (this.deps.team === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+        await this.deps.team.handle(message)
         break
       }
       case 'runUserShell': {
@@ -11649,7 +11803,7 @@ export class ConversationController {
           )
             break
           if (this.deps.focusBoardSession?.(message.sessionId, message.backend) === true) break
-          const host = await this.deps.ensureHost()
+          const host = await this.ensureHost()
           if (generation !== this.sendInvalidationEpoch || this.isDisposed) break
           if (host.info.kind !== message.backend) {
             this.notice('warning', `${UI_TEXT.resumeFailed}: ${message.backend}`)
@@ -11797,7 +11951,7 @@ export class ConversationController {
     const id = sessionId ?? current?.sessionId
     if (id === undefined) throw new Error(UI_TEXT.exportNothing)
     if (this.activeTurnId !== undefined) throw new Error(UI_TEXT.exportWaitForTurn)
-    const host = await this.deps.ensureHost()
+    const host = await this.ensureHost()
     const history = await host.readSession(id)
     if (this.isDisposed || current !== this.session) throw new Error(UI_TEXT.sharePreviewExpired)
     if (history.mode === 'none') throw new Error(UI_TEXT.exportHistoryUnavailable)
@@ -12131,6 +12285,13 @@ export class ConversationController {
     return this.foregroundShells.size > 0
   }
 
+  /** The team's live composer selection, without opening a host or session. */
+  public teamComposerModel():
+    { readonly modelId: string; readonly backend: BackendKind | undefined } | undefined {
+    if (this.isDisposed) return
+    return { modelId: this.modelId, backend: this.sessionKind ?? this.deps.auth.backend }
+  }
+
   /** The Judge reads the attached action's current model and loaded context window. */
   public judgeContext(
     sessionId: string,
@@ -12293,6 +12454,27 @@ export class ConversationController {
   /** Whether a turn of this conversation runs on that backend (the watchdog's choice, CLI recovery). */
   public isTurnRunningOn(kind: BackendKind): boolean {
     return this.activeTurnId !== undefined && this.sessionKind === kind
+  }
+
+  /** The Agent map's team tree, or today's map when the workspace runs no team (M96). */
+  public showTeamTree(tree: TeamTreeData | undefined): void {
+    this.post(tree === undefined ? { type: 'clearTeamTree' } : { type: 'teamTree', tree })
+  }
+
+  /** This panel's wire approval mode when it holds that conversation; a tree Merge is gated by it. */
+  public teamApprovalMode(sessionId: string): string | undefined {
+    return this.session?.sessionId === sessionId
+      ? approvalModeFor(this.permissionMode, this.deps.hasApprovalUi)
+      : undefined
+  }
+
+  /** A team card (waiting, merge) in this panel's conversation only (M96 lane U2's cards). */
+  public showTeamCard(sessionId: string, item: TeamCardItem): void {
+    if (this.session?.sessionId !== sessionId) return
+    this.post({
+      type: 'agentEvent',
+      event: { type: item.status === 'completed' ? 'itemCompleted' : 'itemStarted', item },
+    })
   }
 
   /**

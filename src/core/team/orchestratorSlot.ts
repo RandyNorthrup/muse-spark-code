@@ -7,18 +7,18 @@
 // started on. Pure: workspace state arrives structurally (core never imports
 // `vscode`), and the backend switch itself stays with M95's lane U.
 
-import * as z from 'zod/mini'
+import { teamSnapshotSchema, type TeamModelSettings } from '../../shared/team'
+import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+import { refuseUnservedSetting, type TeamSettingCapabilities } from './modelSettings'
 
 /** A workspace's orchestrator override: a model on either backend. */
 export interface OrchestratorOverride {
+  readonly settings?: TeamModelSettings | undefined
   readonly modelId: string
   readonly backend: 'modelApi' | 'musecode'
 }
-
-const overrideSchema = z.object({
-  modelId: z.string().check(z.minLength(1)),
-  backend: z.enum(['modelApi', 'musecode']),
-})
 
 /** The narrowest workspace-state shape this module touches. */
 export interface OrchestratorSlotState {
@@ -26,27 +26,29 @@ export interface OrchestratorSlotState {
   update(key: string, value: unknown): unknown
 }
 
-const OVERRIDE_KEY = 'museSpark.team.orchestrator'
-
-/** The workspace's override, if the user set one; anything else stored reads as none.
-@unwired M96 orchestrator slot owner wiring: no production caller passes
-workspace state yet, so the store cases have no executable real-store path.
-*/
+/** The workspace's override, if the user set one; anything else stored reads as none. */
 export function readOrchestratorOverride(
   state: Pick<OrchestratorSlotState, 'get'>,
 ): OrchestratorOverride | undefined {
-  const result = overrideSchema.safeParse(state.get(OVERRIDE_KEY))
-  return result.success ? { modelId: result.data.modelId, backend: result.data.backend } : undefined
+  const result = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
+  const agent = result.success ? result.data.orchestrator?.agent : undefined
+  if (agent === undefined || agent.kind === 'external') return
+  return {
+    modelId: agent.model,
+    backend: agent.kind === 'engine' ? 'modelApi' : 'musecode',
+    ...(result.success &&
+      result.data.orchestrator?.settings !== undefined && {
+        settings: result.data.orchestrator.settings,
+      }),
+  }
 }
 
-/** Reset to Default: forget the stored override, so the picker decides again.
-@unwired M96 orchestrator slot owner wiring: no production caller passes
-workspace state yet, so the store cases have no executable real-store path.
-*/
-export async function resetOrchestratorSlot(
-  state: Pick<OrchestratorSlotState, 'update'>,
-): Promise<void> {
-  await state.update(OVERRIDE_KEY, undefined)
+/** Reset to Default: forget the stored override, so the picker decides again. */
+export async function resetOrchestratorSlot(state: OrchestratorSlotState): Promise<void> {
+  const result = teamSnapshotSchema.safeParse(state.get(TEAM_WORKSPACE_KEYS.team))
+  if (!result.success) return
+  const { orchestrator: _orchestrator, orchestratorModel: _model, ...team } = result.data
+  await state.update(TEAM_WORKSPACE_KEYS.team, team)
 }
 
 /** What a new conversation in the workspace starts on: the override, or the picker's model. */
@@ -84,4 +86,34 @@ export function requiresBackendSwitch(
   resolved: OrchestratorOverride['backend'],
 ): boolean {
   return current !== resolved
+}
+
+/** The override settings a new conversation actually carries (effort, output cap). */
+const CARRIED_OVERRIDE_SETTINGS = ['effort', 'outputCap'] as const
+
+/**
+The complete saved settings against the resolved model's current
+capabilities, before any session exists. A setting this path does not
+carry (temperature and friends) is refused, never ignored; an effort the
+model does not serve and a malformed cap are refused, never silently
+changed or clamped. Returns the specific translated reason, if any.
+*/
+export function validateOrchestratorSettings(
+  settings: TeamModelSettings | undefined,
+  modelId: string,
+  capabilities?: TeamSettingCapabilities,
+): string | undefined {
+  const entries = Object.entries(settings ?? {})
+  for (const [key, value] of entries) {
+    if (CARRIED_OVERRIDE_SETTINGS.every((carried) => carried !== key))
+      return fill(UI_TEXT.teamSettingUnsupported, {
+        setting: key,
+        value: String(value),
+        model: modelId,
+      })
+  }
+  // A setting this path does not carry is refused above, never ignored; an
+  // effort the model does not serve and a cap above its maximum are refused
+  // here too, never silently changed or clamped.
+  return refuseUnservedSetting(settings, modelId, capabilities)
 }

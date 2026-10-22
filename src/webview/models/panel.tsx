@@ -3,6 +3,7 @@
 // comes from the registry too: the panel root is a container, and the
 // table reflows to cards under 340 px (models.css).
 
+import { loadTeamPanelSchemas } from './teamPanelBrowser'
 import { MODELS_SECTION_PENDING_MS, UI_TEXT } from '../../shared/constants'
 import {
   useCallback,
@@ -23,7 +24,7 @@ import type { ErrorReporter } from '../errorReport'
 import type { HostBridge } from '../hostBridge'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
-import { MODEL_SECTIONS } from './sections'
+import { MODEL_SECTIONS, loadTeamEnglish } from './sections'
 import { SectionNavigation } from './SectionNavigation'
 import { MoneyUnavailable } from '../money'
 import { rememberedSectionHeight, SectionFrame, SectionLoading } from './DeferredSections'
@@ -63,12 +64,21 @@ export function ModelsApp({
   const [hostDestination, setHostDestination] = useState<ModelsPanelSection>('providers')
   const [panelState, setPanelState] = useState<ModelsPanelState | undefined>(undefined)
   const [vaultRaw, setVaultRaw] = useState<unknown>(undefined)
+  const [hasLoadFailure, setLoadFailure] = useState(false)
   useEffect(() => {
-    const onMessage = (event: MessageEvent): void => {
+    let isClosed = false
+    const isDocumentOpen = () => !isClosed
+    const receive = async (event: MessageEvent): Promise<void> => {
+      await loadTeamPanelSchemas(event.data)
+      if (!isDocumentOpen()) return
       const parsed = parseHostToPanelMessage(event.data)
       if (parsed.ok) {
         const message = parsed.message
         if (message.type === 'modelsPanel/state') {
+          // Navigation reads the team labels too, before a deferred section
+          // opens. Install them only for a validated enabled-team state.
+          if (message.state.roles !== undefined) await loadTeamEnglish()
+          if (!isDocumentOpen()) return
           setPanelState(message.state)
           dispatch({ type: 'host-state', state: message.state })
         } else {
@@ -86,10 +96,25 @@ export function ModelsApp({
       }
       report('hostMessage', new Error(parsed.error))
     }
+    let pending = Promise.resolve()
+    const enqueue = async (previous: Promise<void>, event: MessageEvent): Promise<void> => {
+      await previous
+      if (!isDocumentOpen()) return
+      try {
+        await receive(event)
+      } catch (error) {
+        report('hostMessage', error)
+        if (isDocumentOpen()) setLoadFailure(true)
+      }
+    }
+    const onMessage = (event: MessageEvent): void => {
+      pending = enqueue(pending, event)
+    }
     host.messages.addEventListener('message', onMessage)
     // Subscribe before ready: the host may reply in the same task.
     host.post({ type: 'modelsPanel/ready' })
     return () => {
+      isClosed = true
       host.messages.removeEventListener('message', onMessage)
     }
   }, [host, report, startHostTransition])
@@ -103,6 +128,15 @@ export function ModelsApp({
     },
     [host],
   )
+  if (hasLoadFailure)
+    return (
+      <div role="alert">
+        <p>{UI_TEXT.surfaceLoadFailed}</p>
+        <button type="button" onClick={reloadPanel}>
+          {UI_TEXT.surfaceLoadRetry}
+        </button>
+      </div>
+    )
   return (
     <>
       {panelState === undefined && rememberedSectionHeight(host, ui.section) === undefined && (
@@ -188,9 +222,10 @@ export function ModelsPanel({
     })
   }
   const wizardLife = useWizardLife(ui)
-  // The vault's navigation stays hidden until the host offers it
-  // (C-M109-1 P1): a hidden section is never rendered and never navigable,
-  // so the panel reads exactly as before while the gate is off.
+  // A section's navigation stays hidden until the host offers it
+  // (C-M109-1 P1, M96 roles/agents): a hidden section is never rendered
+  // and never navigable, so the panel reads exactly as before while a
+  // gate is off.
   const visible = MODEL_SECTIONS.filter((section) => section.isOffered?.(panelState) ?? true)
   const active = visible.find((section) => section.id === ui.section) ?? visible[0]
   if (active === undefined) {

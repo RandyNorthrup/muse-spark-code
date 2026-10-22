@@ -7,6 +7,7 @@
 
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
+import type { CoreLogger } from '../../core/logging'
 import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
 
@@ -136,6 +137,76 @@ export async function storedCredentialId(
   if (!record.success) return undefined
   const identity = createHash('sha256').update(record.data.secret).digest('hex')
   return identity
+}
+
+/**
+Hash-only identity of a BYO apiKey record's secret (RVCM963JB P2-4): quota
+rows are stamped with the credential a response actually used, and offers
+compare against this. Undefined for anything but an apiKey record
+(including a damaged one, which keeps legacy unattributed matching so a
+broken credential cannot hide every offer). The secret itself never leaves
+this call: only its digest is returned, never logged or shown.
+*/
+export async function providerKeyDigest(
+  secrets: RecordStore,
+  id: string,
+  log?: CoreLogger,
+): Promise<string | undefined> {
+  let record
+  try {
+    record = await readProviderCredential(secrets, id)
+  } catch {
+    // A damaged record keeps legacy unattributed matching; the note names
+    // no provider and never the secret.
+    log?.warn('A provider credential record could not be read; continuing unattributed.')
+    return undefined
+  }
+  return record?.auth === 'apiKey'
+    ? createHash('sha256').update(record.secret).digest('hex')
+    : undefined
+}
+
+/**
+The credential identity spending today, by provider (P2-4): Meta keeps
+the generic account; a BYO apiKey record contributes its secret digest;
+anything else keeps legacy unattributed matching (no entry here). The
+secrets themselves never leave these calls.
+*/
+export async function providerIdentities(
+  secrets: RecordStore,
+  providers: Iterable<string>,
+  metaAccount: string | undefined,
+  log?: CoreLogger,
+): Promise<Map<string, string>> {
+  const identities = new Map<string, string>()
+  if (metaAccount !== undefined) identities.set('meta', metaAccount)
+  for (const provider of providers) {
+    if (provider === 'meta') continue
+    const digest = await providerKeyDigest(secrets, provider, log)
+    if (digest !== undefined) identities.set(provider, digest)
+  }
+  return identities
+}
+
+/**
+Hash-only identity of the account a model bills (P2-A): a
+bring-your-own model's own provider credential, Meta's account otherwise.
+The preview's quote, its per-attempt admission and its final transport
+admission compare this one value, so replacing the provider key during
+consent or startup voids the approval instead of spending the new key.
+The secret itself never leaves this call.
+*/
+export async function payingKeyDigest(
+  secrets: RecordStore,
+  modelId: string,
+  metaAccount: () => Promise<string | undefined>,
+  log?: CoreLogger,
+): Promise<string | undefined> {
+  const slash = modelId.indexOf('/')
+  const provider = slash === -1 ? 'meta' : modelId.slice(0, slash)
+  return await (provider === '' || provider === 'meta'
+    ? metaAccount()
+    : providerKeyDigest(secrets, provider, log))
 }
 
 /**

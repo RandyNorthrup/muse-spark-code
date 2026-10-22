@@ -302,6 +302,8 @@ async function requestReviewer(
                 observedAt: context.deps.now(),
                 windows: [],
                 raw: next.headers,
+                // The account that paid for this response (RVCM963J 7).
+                observedAccount: budgetScope?.accountId,
               },
               next.rateLimited === true,
             )

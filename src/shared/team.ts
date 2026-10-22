@@ -1,12 +1,15 @@
 import { teamTreeSchema as teamViewTreeSchema } from './teamView'
 import {
+  AGENT_FILE_MAX_BYTES,
+  AGENT_ID_PATTERN,
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_MODEL_PREFIX,
   TEAM_BRIEF_MAX_CHARS,
   TEAM_EXHAUSTED_POLICIES,
+  TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
   TEAM_ROLE_IDS,
-  TEAM_RUBRIC_REASON_CODES,
   TEAM_TOOL_GROUPS,
+  TEAM_RUBRIC_REASON_CODES,
   EXEC_CHILD_ENV_DROP,
   GIT_PATH_MAX_DEFAULT,
   HOOK_FORBIDDEN_ENV_NAMES,
@@ -40,6 +43,7 @@ import { isCredentialVariable } from './credentialEnvironment'
 // data they carry is here, so both surfaces read one shape.
 
 import * as z from 'zod/mini'
+import { reviewFindingSchema } from './reviewFindings'
 import { legacyUsdSchema } from './usdSchema'
 
 // Schema builders below are pure construction (no global writes, no I/O),
@@ -165,7 +169,10 @@ export type TeamReportShape = z.infer<typeof teamReportShapeSchema>
 
 /** One role of the workspace's team: its pool, policy and role keys. */
 export const teamRoleConfigSchema = /* @__PURE__ */ z.object({
-  role: z.string().check(z.minLength(1)),
+  role: z.string().check(z.minLength(1), z.regex(AGENT_ID_PATTERN)),
+  purpose: z.optional(z.string().check(z.maxLength(TEAM_ROLE_WHEN_TO_USE_MAX_CHARS))),
+  done: z.optional(z.string().check(z.maxLength(TEAM_ROLE_WHEN_TO_USE_MAX_CHARS))),
+  guidance: z.optional(z.string().check(z.maxLength(AGENT_FILE_MAX_BYTES))),
   workspace: z.optional(teamWorkspaceModeSchema),
   tools: z.optional(z.array(z.enum(TEAM_TOOL_GROUPS))),
   writePaths: z.optional(z.array(z.string())),
@@ -212,6 +219,7 @@ export const teamReportSchema = /* @__PURE__ */ z.object({
   sources: z.optional(z.array(z.string())),
   questions: z.optional(z.array(z.string())),
   next: z.optional(z.string()),
+  findings: z.optional(z.array(reviewFindingSchema)),
 })
 export type TeamReport = z.infer<typeof teamReportSchema>
 
@@ -824,3 +832,6 @@ export const runnersSchema = /* @__PURE__ */ z.array(runnerSchema).check(
   z.refine((runners) => new Set(runners.map((runner) => runner.id)).size === runners.length),
 )
 // --- End Team scheduler region. ---
+
+/* M96 Roles configuration schemas live here directly: `teamConfig.ts` was
+   folded back in when main's self-contained `team.ts` won the merge. */
