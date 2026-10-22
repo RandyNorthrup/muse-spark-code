@@ -3253,6 +3253,13 @@
   "backgroundTasksLabel": "Tâches en arrière-plan",
   "backgroundBadge": "Arrière-plan",
   "subagentRowLabel": "Agent",
+  "nodeTeam": {
+    "live": "Actif",
+    "quiet": "Silencieux",
+    "gone": "Parti",
+    "capabilities": "Capacités",
+    "noNodes": "Aucun nœud pour le moment"
+  },
   "teamTreeLabel": "Équipe",
   "teamWorkerMerged": "fusionné",
   "teamWorkerDiscarded": "abandonné",

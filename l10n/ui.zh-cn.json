@@ -3129,6 +3129,13 @@
   "backgroundTasksLabel": "后台任务",
   "backgroundBadge": "后台",
   "subagentRowLabel": "代理",
+  "nodeTeam": {
+    "live": "在线",
+    "quiet": "静默",
+    "gone": "离线",
+    "capabilities": "能力",
+    "noNodes": "暂无节点加入"
+  },
   "teamTreeLabel": "团队",
   "teamWorkerMerged": "已合并",
   "teamWorkerDiscarded": "已丢弃",

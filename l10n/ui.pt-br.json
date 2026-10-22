@@ -3253,6 +3253,13 @@
   "backgroundTasksLabel": "Tarefas em segundo plano",
   "backgroundBadge": "Segundo plano",
   "subagentRowLabel": "Agente",
+  "nodeTeam": {
+    "live": "Ativo",
+    "quiet": "Silencioso",
+    "gone": "Saiu",
+    "capabilities": "Capacidades",
+    "noNodes": "Nenhum nó entrou ainda"
+  },
   "teamTreeLabel": "Equipe",
   "teamWorkerMerged": "mesclado",
   "teamWorkerDiscarded": "descartado",

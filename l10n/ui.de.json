@@ -3191,6 +3191,13 @@
   "backgroundTasksLabel": "Hintergrundaufgaben",
   "backgroundBadge": "Hintergrund",
   "subagentRowLabel": "Agent",
+  "nodeTeam": {
+    "live": "Aktiv",
+    "quiet": "Still",
+    "gone": "Weg",
+    "capabilities": "Fähigkeiten",
+    "noNodes": "Noch keine Knoten beigetreten"
+  },
   "teamTreeLabel": "Team",
   "teamWorkerMerged": "zusammengeführt",
   "teamWorkerDiscarded": "verworfen",

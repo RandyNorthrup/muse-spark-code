@@ -3191,6 +3191,13 @@
   "backgroundTasksLabel": "Arka plan görevleri",
   "backgroundBadge": "Arka plan",
   "subagentRowLabel": "Aracı",
+  "nodeTeam": {
+    "live": "Canlı",
+    "quiet": "Sessiz",
+    "gone": "Ayrıldı",
+    "capabilities": "Yetenekler",
+    "noNodes": "Henüz katılan düğüm yok"
+  },
   "teamTreeLabel": "Ekip",
   "teamWorkerMerged": "birleştirildi",
   "teamWorkerDiscarded": "atıldı",
