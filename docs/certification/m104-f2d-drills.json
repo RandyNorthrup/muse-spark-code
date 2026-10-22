@@ -1,0 +1,19 @@
+{
+  "platform": "kubuntu Linux x86_64 / Java 21.0.12.1",
+  "baseline": "a2be695a8",
+  "name": "remove-shim-prefix-directory-confinement",
+  "source": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+  "beforeSha256": "0340eb94b802fa1490921a927be8f1657a49db211414c744a0424da09d4ef9dd",
+  "mutatedSha256": "8b5614f01f6863851da29150b505c0db3eabbcad4bc365c057c460ab44225af0",
+  "restoredSha256": "0340eb94b802fa1490921a927be8f1657a49db211414c744a0424da09d4ef9dd",
+  "testSourceSha256": "404227c2346a47f1dd178d58a74b0ae94f336c9c573bab938d538d5de01ae115",
+  "command": ["python3", "temp/m104f2c-jvm.py"],
+  "exit": 1,
+  "seconds": 2.24,
+  "log": "temp/f2d-red-confinement.log",
+  "logSha256": "890921d040dc019b7adee20eab61fde22f7f863cae24145d4dbe39ad4a67b7d9",
+  "failures": [
+    "1) windowsShimRefusesLinkedPackageDirectory(io.musespark.eclipse.tests.RuntimeLaunchTest)",
+    "2) windowsShimRefusesLinkedNodeModulesAncestor(io.musespark.eclipse.tests.RuntimeLaunchTest)"
+  ]
+}

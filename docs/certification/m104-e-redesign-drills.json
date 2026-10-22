@@ -1,0 +1,256 @@
+[
+  {
+    "drill": "cancel-correlation",
+    "file": "MhpConnection.kt",
+    "exit": 1,
+    "expected": ["cancelledTabLateSuccessAndFailureLeaveOtherRequestsAndPanelsAlive"],
+    "failedTests": [
+      "cancelledTabLateSuccessAndFailureLeaveOtherRequestsAndPanelsAlive",
+      "testR1LateCancelledTabReplyKeepsTheNativeSessionAndReplacementAlive"
+    ],
+    "observed": true,
+    "sha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "restoredSha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "suiteTests": 60,
+    "log": "temp/red-cancel-correlation.log"
+  },
+  {
+    "drill": "metadata-monitor",
+    "file": "MhpConnection.kt",
+    "exit": 1,
+    "expected": ["metadataHandoffDoesNotHoldTheMonitorAndShutdownWins"],
+    "failedTests": [
+      "metadataHandoffDoesNotHoldTheMonitorAndShutdownWins",
+      "metadataHandoffHasADeadlineAndRejectsLateInitialization",
+      "testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "restoredSha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "suiteTests": 60,
+    "log": "temp/red-metadata-monitor.log"
+  },
+  {
+    "drill": "metadata-deadline",
+    "file": "MhpConnection.kt",
+    "exit": 1,
+    "expected": ["metadataHandoffHasADeadlineAndRejectsLateInitialization"],
+    "failedTests": [
+      "metadataHandoffHasADeadlineAndRejectsLateInitialization",
+      "testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "restoredSha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "suiteTests": 60,
+    "log": "temp/red-metadata-deadline.log"
+  },
+  {
+    "drill": "metadata-owner",
+    "file": "MhpConnection.kt",
+    "exit": 1,
+    "expected": ["testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects"],
+    "failedTests": ["testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects"],
+    "observed": true,
+    "sha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "restoredSha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "suiteTests": 60,
+    "log": "temp/red-metadata-owner.log"
+  },
+  {
+    "drill": "closed-epoch",
+    "file": "MhpConnection.kt",
+    "exit": 1,
+    "expected": ["closedEpochDropsQueuedInboundReplyInsteadOfSendingIntoReplacement"],
+    "failedTests": ["closedEpochDropsQueuedInboundReplyInsteadOfSendingIntoReplacement"],
+    "observed": true,
+    "sha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "restoredSha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "suiteTests": 60,
+    "log": "temp/red-closed-epoch.log"
+  },
+  {
+    "drill": "raw-tab-error",
+    "file": "MhpConnection.kt",
+    "exit": 1,
+    "expected": [
+      "runtimeFailureTextCannotBecomeAnIdeLoggerException",
+      "testR2RawTabFailureExposesOnlyFixedTextAndReconnects"
+    ],
+    "failedTests": [
+      "runtimeFailureTextCannotBecomeAnIdeLoggerException",
+      "testR2RawTabFailureExposesOnlyFixedTextAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "restoredSha256": "3d62de5cd25839144e6bd3a17caa715cc955225628d43fb0136e96b8ec95328b",
+    "suiteTests": 60,
+    "log": "temp/red-raw-tab-error.log"
+  },
+  {
+    "drill": "coordinate-wrap",
+    "file": "DocumentServices.kt",
+    "exit": 1,
+    "expected": [
+      "testWireIntegersCannotWrapIntoValidEditCoordinates",
+      "testR2OutOfRangeWireEditCannotChangeTheNativeDocumentAndReconnects"
+    ],
+    "failedTests": [
+      "testR2OutOfRangeWireEditCannotChangeTheNativeDocumentAndReconnects",
+      "testWireIntegersCannotWrapIntoValidEditCoordinates"
+    ],
+    "observed": true,
+    "sha256": "215131b0450e9c34931cf2b3d61f47a9a83bd297807e78d957aa46619b761a6c",
+    "restoredSha256": "215131b0450e9c34931cf2b3d61f47a9a83bd297807e78d957aa46619b761a6c",
+    "suiteTests": 60,
+    "log": "temp/red-coordinate-wrap.log"
+  },
+  {
+    "drill": "write-deadline",
+    "file": "MhpPipe.kt",
+    "exit": 1,
+    "expected": ["testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects"],
+    "failedTests": ["testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects"],
+    "observed": true,
+    "sha256": "b274279ceb1fe1e4f686714fed0dadc28e1ba19d51ee37081df6efba5be3ce0d",
+    "restoredSha256": "b274279ceb1fe1e4f686714fed0dadc28e1ba19d51ee37081df6efba5be3ce0d",
+    "suiteTests": 60,
+    "log": "temp/red-write-deadline.log"
+  },
+  {
+    "drill": "queue-failure",
+    "file": "MhpPipe.kt",
+    "exit": 1,
+    "expected": [
+      "countsInFlightFramesAndReleasesAllReservationsWhenClosed",
+      "boundsWriterQueueAndDropsOnlyTheClosingSurface"
+    ],
+    "failedTests": [
+      "testOutputFloodFailsBoundedAdmissionAndReconnects",
+      "countsInFlightFramesAndReleasesAllReservationsWhenClosed",
+      "boundsWriterQueueAndDropsOnlyTheClosingSurface"
+    ],
+    "observed": true,
+    "sha256": "b274279ceb1fe1e4f686714fed0dadc28e1ba19d51ee37081df6efba5be3ce0d",
+    "restoredSha256": "b274279ceb1fe1e4f686714fed0dadc28e1ba19d51ee37081df6efba5be3ce0d",
+    "suiteTests": 60,
+    "log": "temp/red-queue-failure.log"
+  },
+  {
+    "drill": "process-group",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "expected": ["testR2ParentFirstDeathKillsReparentedWorkerAndReconnects"],
+    "failedTests": [
+      "testShutdownHangCannotFreezeProjectCloseAndReconnects",
+      "testR2BlockedStdinCannotFreezeProjectDisposal",
+      "testAggregateMailboxBytesFailBeforeTheActorCanDrainThem",
+      "testR2OutOfRangeWireEditCannotChangeTheNativeDocumentAndReconnects",
+      "testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects",
+      "testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects",
+      "testR2RawTabFailureExposesOnlyFixedTextAndReconnects",
+      "testR2ParentFirstDeathKillsReparentedWorkerAndReconnects",
+      "testR1LateCancelledTabReplyKeepsTheNativeSessionAndReplacementAlive",
+      "testR1MetadataEdtHandoffCannotDeadlockDisposal",
+      "testOutputFloodFailsBoundedAdmissionAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "4a718691c938c6c991464155731cca10167e76a21d5862aa5effc9561a93ec1b",
+    "restoredSha256": "4a718691c938c6c991464155731cca10167e76a21d5862aa5effc9561a93ec1b",
+    "suiteTests": 60,
+    "log": "temp/red-process-group.log"
+  },
+  {
+    "drill": "parent-exit",
+    "file": "RuntimeConnection.kt",
+    "exit": 1,
+    "expected": ["testR2ParentFirstDeathKillsReparentedWorkerAndReconnects"],
+    "failedTests": ["testR2ParentFirstDeathKillsReparentedWorkerAndReconnects"],
+    "observed": true,
+    "sha256": "b3e4db6b7d2ff374e4e9ef5709e3116ce09f350c37d2c1d9ff365c45afbab785",
+    "restoredSha256": "b3e4db6b7d2ff374e4e9ef5709e3116ce09f350c37d2c1d9ff365c45afbab785",
+    "suiteTests": 60,
+    "log": "temp/red-parent-exit.log"
+  },
+  {
+    "drill": "mailbox-bytes",
+    "file": "RuntimeConnection.kt",
+    "exit": 1,
+    "expected": ["testAggregateMailboxBytesFailBeforeTheActorCanDrainThem"],
+    "failedTests": [
+      "testAggregateMailboxBytesFailBeforeTheActorCanDrainThem",
+      "testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "b3e4db6b7d2ff374e4e9ef5709e3116ce09f350c37d2c1d9ff365c45afbab785",
+    "restoredSha256": "b3e4db6b7d2ff374e4e9ef5709e3116ce09f350c37d2c1d9ff365c45afbab785",
+    "suiteTests": 60,
+    "log": "temp/red-mailbox-bytes.log"
+  },
+  {
+    "drill": "blocking-close",
+    "file": "MhpPipe.kt",
+    "exit": 1,
+    "expected": [
+      "testR2BlockedStdinCannotFreezeProjectDisposal",
+      "testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects"
+    ],
+    "failedTests": [
+      "testShutdownHangCannotFreezeProjectCloseAndReconnects",
+      "testR2BlockedStdinCannotFreezeProjectDisposal",
+      "testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "b274279ceb1fe1e4f686714fed0dadc28e1ba19d51ee37081df6efba5be3ce0d",
+    "restoredSha256": "b274279ceb1fe1e4f686714fed0dadc28e1ba19d51ee37081df6efba5be3ce0d",
+    "suiteTests": 60,
+    "log": "temp/red-blocking-close.log"
+  },
+  {
+    "drill": "jvm-shutdown-hook",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "expected": [
+      "testIdeJvmExitKillsAnAttachedRuntimeAndItsWorker",
+      "testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited"
+    ],
+    "failedTests": [
+      "testIdeJvmExitKillsAnAttachedRuntimeAndItsWorker",
+      "testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited"
+    ],
+    "observed": true,
+    "sha256": "9625d0df9cc86cf5ccdfd622fea3481cadf5d3b36b4db7482f1bd7fb5a1673ac",
+    "restoredSha256": "9625d0df9cc86cf5ccdfd622fea3481cadf5d3b36b4db7482f1bd7fb5a1673ac",
+    "suiteTests": 62,
+    "log": "temp/red-jvm-shutdown-hook.log"
+  },
+  {
+    "drill": "final-process-group",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "expected": [
+      "testR2ParentFirstDeathKillsReparentedWorkerAndReconnects",
+      "testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited"
+    ],
+    "failedTests": [
+      "testIdeJvmExitKillsAnAttachedRuntimeAndItsWorker",
+      "testShutdownHangCannotFreezeProjectCloseAndReconnects",
+      "testIdeJvmExitKillsAWorkerWhoseRuntimeParentAlreadyExited",
+      "testR2BlockedStdinCannotFreezeProjectDisposal",
+      "testAggregateMailboxBytesFailBeforeTheActorCanDrainThem",
+      "testR2OutOfRangeWireEditCannotChangeTheNativeDocumentAndReconnects",
+      "testR2MetadataDeadlineTearsDownTheWholeConnectingAttemptAndReconnects",
+      "testR2BlockedStdinFailsWithAWriteDeadlineAndReconnects",
+      "testR2RawTabFailureExposesOnlyFixedTextAndReconnects",
+      "testR2ParentFirstDeathKillsReparentedWorkerAndReconnects",
+      "testR1LateCancelledTabReplyKeepsTheNativeSessionAndReplacementAlive",
+      "testR1MetadataEdtHandoffCannotDeadlockDisposal",
+      "testOutputFloodFailsBoundedAdmissionAndReconnects"
+    ],
+    "observed": true,
+    "sha256": "9625d0df9cc86cf5ccdfd622fea3481cadf5d3b36b4db7482f1bd7fb5a1673ac",
+    "restoredSha256": "9625d0df9cc86cf5ccdfd622fea3481cadf5d3b36b4db7482f1bd7fb5a1673ac",
+    "suiteTests": 62,
+    "log": "temp/red-final-process-group.log"
+  }
+]

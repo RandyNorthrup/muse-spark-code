@@ -6,10 +6,14 @@
 
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
-import { createPaidFeatures, type PaidFeatures, type PaidFeaturesDeps } from './paidHost'
+import {
+  createPaidFeatures,
+  type PaidFeatures,
+  type PaidFeaturesDeps,
+} from '../vscode/paid/paidHost'
 
 /** The paid-use popup, for hosts that reach it past the activation split. */
-export { askPaidUse } from './paidHost'
+export { askPaidUse } from '../vscode/paid/paidHost'
 
 /** Paid features in the calling deps' display language. */
 export function createPaid(

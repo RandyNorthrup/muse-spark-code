@@ -13,12 +13,13 @@ import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import type { ConversationGitPort, GitSurface } from '../conversation/conversationController'
 import { ConversationGit, type ConversationGitErrorTypes, type GitWindow } from './conversationGit'
-import { isGitExtensionInstalled } from './gitExtension'
+import { isGitExtensionInstalled } from '../vscode/git/gitExtension'
+
 import {
   createGitFeatures as gitFeaturesFrom,
   type GitFeaturesDeps,
   type GitWindowFeatures,
-} from './gitWindow'
+} from '../vscode/git/gitWindow'
 
 /** `errorTypes` only for a test's window from another module copy; the bundle's own otherwise. */
 export function createConversationGit(

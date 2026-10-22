@@ -19,7 +19,7 @@ export {
   type DictationHostNames,
   createMuseVoiceSetup,
   type MuseVoiceSetupDeps,
-} from './dictationHost'
+} from '../vscode/voice/dictationHost'
 export { voiceLinuxLoader, voiceLoader, type VoiceLoaderDeps } from './voiceBundle'
 
 /**

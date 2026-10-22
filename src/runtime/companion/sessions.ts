@@ -5,11 +5,15 @@ import { isSameSecret } from './guard'
 export interface CompanionSession {
   readonly id: string
   readonly expiresAt: number
+  readonly context?: string
 }
 
 /** Per-start memory only. Codes expire, burn before dispatch, and mint independent bearers. */
 export class CompanionSessions {
-  private readonly codes = new Map<string, number>()
+  private readonly codes = new Map<
+    string,
+    { readonly expiresAt: number; readonly context?: string }
+  >()
   private readonly sessions = new Map<string, CompanionSession>()
 
   public constructor(
@@ -20,16 +24,19 @@ export class CompanionSessions {
 
   private prune(): void {
     const now = Date.now()
-    for (const [code, expiresAt] of this.codes) if (now >= expiresAt) this.codes.delete(code)
+    for (const [code, entry] of this.codes) if (now >= entry.expiresAt) this.codes.delete(code)
     for (const [id, session] of this.sessions)
       if (now >= session.expiresAt) this.sessions.delete(id)
   }
 
-  public issue(): string {
+  public issue(context?: string): string {
     this.prune()
     if (this.codes.size + this.sessions.size >= this.maxSessions) throw new Error('EPANEL_SESSIONS')
     const code = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
-    this.codes.set(code, Date.now() + this.codeTtlMs)
+    this.codes.set(code, {
+      expiresAt: Date.now() + this.codeTtlMs,
+      ...(context !== undefined && { context }),
+    })
     return code
   }
 
@@ -43,9 +50,14 @@ export class CompanionSessions {
       }
     }
     if (found === undefined) return undefined
+    const context = this.codes.get(found)?.context
     this.codes.delete(found)
     const id = randomBytes(IDE_MCP_TOKEN_BYTES).toString('hex')
-    const session = { id, expiresAt: Date.now() + this.sessionTtlMs }
+    const session = {
+      id,
+      expiresAt: Date.now() + this.sessionTtlMs,
+      ...(context !== undefined && { context }),
+    }
     this.sessions.set(id, session)
     return session
   }
@@ -55,6 +67,16 @@ export class CompanionSessions {
     return id === undefined ? undefined : this.sessions.get(id)
   }
 
+  public retireContext(context: string): readonly string[] {
+    for (const [code, entry] of this.codes) if (entry.context === context) this.codes.delete(code)
+    const retired: string[] = []
+    for (const [id, session] of this.sessions) {
+      if (session.context !== context) continue
+      this.sessions.delete(id)
+      retired.push(id)
+    }
+    return retired
+  }
   public clear(): void {
     this.codes.clear()
     this.sessions.clear()

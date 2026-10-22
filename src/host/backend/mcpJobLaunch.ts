@@ -188,6 +188,11 @@ export interface McpJobLaunch {
   readonly jobMemoryLimit?: number | undefined
   /** SPAWN017C portable launches: an unnamed job that attests its own tree. */
   readonly attestation?: JobAttestationLimits | undefined
+  /** LSP: hold named-job admission until exact launcher registration completes. */
+  readonly jobName?: string
+  /** Workspace owner survives the frontend after authenticated launch admission. */
+  readonly independent?: boolean
+  readonly registered?: (pid: number) => Promise<void>
   /**
   The payload's own last check (M123, RVM123G2 R1): run synchronously
   when the helper is READY, before GO lets it create the payload process.
@@ -201,6 +206,7 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
   const controlPipe = `muse-spark-mcp-${randomUUID()}`
   const controlNonce = randomBytes(MCP_JOB_NONCE_BYTES).toString('hex')
   const attested = launch.attestation === undefined ? undefined : attestedChannel()
+  let launcherPid: number | undefined
   let isClosed = false
   let stop: (() => void) | undefined
   const control = createServer((socket) => {
@@ -235,12 +241,25 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
         return
       }
       isAuthorized = true
-      if (attested === undefined) socket.end(`GO ${controlNonce}\n`)
-      else {
-        socket.write(`GO ${controlNonce}\n`)
-        attested.bind(socket)
-      }
-      closeControl()
+      void (async () => {
+        if (launch.registered !== undefined) {
+          if (launcherPid === undefined) throw new Error('ESTOP_JOB')
+          await launch.registered(launcherPid)
+        }
+        if (isClosed) {
+          socket.destroy()
+          return
+        }
+        if (attested === undefined) socket.end(`GO ${controlNonce}\n`)
+        else {
+          socket.write(`GO ${controlNonce}\n`)
+          attested.bind(socket)
+        }
+        closeControl()
+      })().catch(() => {
+        socket.destroy()
+        closeControl()
+      })
     })
   })
   const closeControl = () => {
@@ -276,6 +295,8 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
       isVerbatim: launch.isVerbatim,
       controlPipe,
       controlNonce,
+      ...(launch.independent === true && { independent: true }),
+      ...(launch.jobName !== undefined && { jobName: launch.jobName }),
       ...(launch.jobMemoryLimit !== undefined && { jobMemoryLimit: launch.jobMemoryLimit }),
       ...(launch.debugPipes === true && { debugPipes: true }),
       ...(launch.attestation !== undefined && { attestation: launch.attestation }),
@@ -296,7 +317,8 @@ export function prepareMcpJobLaunch(launch: McpJobLaunch) {
     stopWith: (action: () => void) => {
       stop = action
     },
-    register: () => {
+    register: (pid?: number) => {
+      launcherPid = pid
       launch.resource?.register({
         job:
           launch.resourceAssembly === undefined
@@ -337,7 +359,7 @@ export function spawnMcpJob(launch: McpJobLaunch): ChildProcessWithoutNullStream
     })
     child.once('exit', prepared.closeControl)
     child.once('error', prepared.closeControl)
-    prepared.register()
+    prepared.register(child.pid)
     child.once('exit', (code) => {
       if (code !== 0) launch.resource?.failed?.()
       launch.resource?.complete(false)

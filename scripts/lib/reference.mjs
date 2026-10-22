@@ -147,6 +147,7 @@ export async function referenceSources(root) {
     'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
+    'src/host/compose/conversationDeps.ts',
     'src/acp/agent.ts',
     ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
       .filter((name) => /\.tsx?$/.test(name))
@@ -461,16 +462,18 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
   // host wiring changes. These are semantic source guards, not wire guesses.
   const witnesses = {
     'src/runtime/backends.ts': [
-      'webFetch: createWebFetcher',
+      'createWebFetcher(log, pageConverter(',
       'isPaidFeatureOn: (feature) => paid.isOn(feature)',
     ],
     'src/extension.ts': [
       "isModelApi: () => paidBackend === 'modelApi'",
       "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
-      "!paid.gate.isOn('voice')",
-      "!usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')",
-      "currentSettings().dictationEngine === 'system'",
       'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
+    ],
+    'src/host/compose/conversationDeps.ts': [
+      "!paid.gate.isOn('voice')",
+      "!usablePaidFeatures(auth.current.backend, isKeyStored()).includes('voice')",
+      "auth.current.backend === 'modelApi' &&\n        currentSettings().dictationEngine === 'system'",
       'return museVoiceSetup',
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],

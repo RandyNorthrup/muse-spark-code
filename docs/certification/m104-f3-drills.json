@@ -1,0 +1,53 @@
+[
+  {
+    "name": "daily-limit-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/m104/engines/paidBudget.test.ts", "--maxWorkers=3"],
+    "restored": {
+      "src/host/backend/sessionBudgetJournal.ts": "f99e507d9e507202a24ecb506af73555c96de491ecdcfd877ca0f23eb9a474e2"
+    }
+  },
+  {
+    "name": "duplication-red",
+    "exitCode": 1,
+    "command": ["npm", "run", "duplication"],
+    "restored": {
+      "src/host/vscode/paid/paidDailyBudget.ts": "2631b99bce908ef460419aef5b05bd60735298f153cad9f0e757b7ecc6713435",
+      "src/runtime/features/paidBudget.ts": "bd4913de322a7abb01c3fb489a177f14e9812698316274c03626649c9f698b20",
+      "test/e2e/panelProcess.ts": "273a57a8dd7d5ced28dc6b546e70bfe7184de0fb9b18a173cb4004605fc59a6e",
+      "test/unit/companionUpload.test.ts": "22893a8ed8b0abd18a3342354b4cf48e20710b8318f6d859b188eceb8b5a6a91",
+      "test/m104/engines/paidUse.test.ts": "18ecd42202b65b8ae680a8c850b30aed026a9815998aa5d56d8cef12304a61f5",
+      "test/unit/acpAccounts.test.ts": "5e77df3387bff4ba7fa89e725b79fbd0723f97cdfa812335872987ae49716e94",
+      "test/unit/acpSharing.test.ts": "ac67b97e48ab9a56d0c4e4b5aab941fbac7587852b8530e7553c026fec1cfe08",
+      "test/unit/acpPaid.test.ts": "ac5faeb93b2eb06594fd0b08a43f193597d89a931bbe170da5115c2d8661021d",
+      "test/unit/conversationComposition.test.ts": "652de64065615a3824e75f6e97f544c571a39ef487a5550a1be85f34eaba0e70",
+      "test/unit/promptMenus.test.ts": "745f4152d6634777c6776290dc951c023ac6063709b949c7fa0133454775a81b",
+      "test/unit/paidConsent.test.ts": "43242c6a6cfa4b071457dc9d02f188dbd9535ee783e99303820751fc1853ef12",
+      "test/unit/windowsTrustedPath.test.ts": "ab18f85aae4f3b918a66fbed5fb6a73f3011cd38c9e126248436fcb58b948726"
+    }
+  },
+  {
+    "name": "portable-parser-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundle.test.mjs", "--maxWorkers=3"],
+    "restored": {
+      "scripts/build.mjs": "48db4512f0e49801378fc5f82f63d42895072e4736f04579c4b52028bd5fd77f"
+    }
+  },
+  {
+    "name": "portable-pacing-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundles.test.mjs", "--maxWorkers=3"],
+    "restored": {
+      "scripts/lib/webviewBundles.mjs": "d22cb3d0ed19ae721ec57822146c6ed1cf60a47485cb7c3258b90d0284109017"
+    }
+  },
+  {
+    "name": "portable-team-red",
+    "exitCode": 1,
+    "command": ["npx", "vitest", "run", "test/unit/webviewBundles.test.mjs", "--maxWorkers=3"],
+    "restored": {
+      "scripts/lib/webviewBundles.mjs": "d22cb3d0ed19ae721ec57822146c6ed1cf60a47485cb7c3258b90d0284109017"
+    }
+  }
+]

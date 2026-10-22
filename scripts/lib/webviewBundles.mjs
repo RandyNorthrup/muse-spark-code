@@ -74,6 +74,30 @@ export function webviewStartupOutputs(meta, entry = 'dist/webview/main.js') {
   return staticOutputs(meta, [entry])
 }
 
+// M104 F4, lead decision (2026-10-09): startup keeps 1,100 KiB; the
+// complete graph at 036b42ec4 measured 1,323,336 bytes. Measured +15%,
+// rounded down to a whole KiB: floor(1,323,336 * 1.15 / 1024) = 1,486.
+// Evidence: docs/certification/m104-f4-portable-size.json.
+const PORTABLE_STARTUP_BUDGET_KIB = 1100
+const PORTABLE_TOTAL_BUDGET_KIB = 1486
+
+// Enforcing the same cap for each variant enforces the worst boot, without
+// charging mutually exclusive native/companion closures together.
+export function portableWebviewBudgetGroups(meta, variants) {
+  return [
+    ...variants.map(({ variant, outputs }) => ({
+      name: `${variant} startup resources`,
+      budgetKiB: PORTABLE_STARTUP_BUDGET_KIB,
+      outputs,
+    })),
+    {
+      name: 'total JS',
+      budgetKiB: PORTABLE_TOTAL_BUDGET_KIB,
+      outputs: Object.keys(normalOutputs(meta)).filter((file) => file.endsWith('.js')),
+    },
+  ]
+}
+
 // Optional panel bodies charge all static dependencies outside their page's bootstrap.
 export function webviewPanelOutputs(meta, entry, source) {
   const eager = new Set(webviewStartupOutputs(meta, entry))
@@ -460,9 +484,18 @@ export function checkResourceWebview(meta) {
   return problems
 }
 
-export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
+export const PORTABLE_PRESENTATION_BUDGETS = [
+  ['Walkthrough', 'src/webview/fallbacks/Walkthrough.tsx'],
+  ['DiffPage', 'src/webview/fallbacks/DiffPage.tsx'],
+  ['ManagerPage', 'src/webview/fallbacks/ManagerPage.tsx'],
+  ['PlanPage', 'src/webview/presentation/PlanPage.tsx'],
+  ['RoleTrafficPage', 'src/webview/presentation/RoleTrafficPage.tsx'],
+].map(([name, entry]) => ({ name, entries: [entry], budgetKiB: 5 }))
+
+export function webviewDeferredBudgetGroups(meta, questionBudgetKiB, isPortable = false) {
   meta = { ...meta, outputs: normalOutputs(meta) }
-  const eager = new Set(webviewStartupOutputs(meta))
+  const main = isPortable ? 'dist/webview/portable/main.js' : 'dist/webview/main.js'
+  const eager = new Set(webviewStartupOutputs(meta, main))
   const reachable = new Set()
   const visit = (file) => {
     if (reachable.has(file)) return
@@ -471,7 +504,7 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
     if (output === undefined) throw new Error(`Missing webview output: ${file}`)
     for (const imported of output.imports) if (!imported.external) visit(imported.path)
   }
-  visit('dist/webview/main.js')
+  visit(main)
   const separate = new Set()
   for (const root of ['dist/webview/models.js', 'dist/webview/usage.js']) {
     if (!Object.hasOwn(meta.outputs, root)) continue
@@ -494,7 +527,10 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
     ),
   )
   const assigned = new Set()
-  const groups = ADDITIONAL_WEBVIEW_BUDGETS.map((budget) => {
+  const groups = [
+    ...ADDITIONAL_WEBVIEW_BUDGETS,
+    ...(isPortable ? PORTABLE_PRESENTATION_BUDGETS : []),
+  ].map((budget) => {
     const roots = entries(budget.entries)
     const outputs = staticOutputs(meta, roots).filter((file) => !eager.has(file))
     // Entry-specific CSS is part of the lazy closure's cost too.
@@ -514,13 +550,13 @@ export function webviewDeferredBudgetGroups(meta, questionBudgetKiB) {
   const preview = webviewPreviewOutputs(meta).map((file) => normalPath(file))
   for (const file of preview) assigned.add(file)
   groups.push({ name: 'argument preview JS', budgetKiB: 25, outputs: preview })
-  const pacing = webviewPacingOutputs(meta).map((file) => normalPath(file))
+  const pacing = webviewPacingOutputs(meta, main).map((file) => normalPath(file))
   for (const file of pacing) assigned.add(file)
   groups.push({ name: 'pacing/status JS', budgetKiB: 25, outputs: pacing })
   const teamOutputs = Object.values(meta.outputs).some(
     (output) => output.entryPoint === 'src/webview/components/TeamUi.tsx',
   )
-    ? webviewTeamOutputs(meta)
+    ? webviewTeamOutputs(meta, main)
     : []
   for (const file of teamOutputs) assigned.add(file)
   groups.push({ name: 'team UI', budgetKiB: 25, outputs: teamOutputs })
@@ -564,7 +600,8 @@ function normalize(file) {
   return file.replaceAll('\\', '/')
 }
 
-export function webviewPacingOutputs(meta) {
+export function webviewPacingOutputs(meta, main = 'dist/webview/main.js') {
+  meta = { ...meta, outputs: normalOutputs(meta) }
   const source = 'src/webview/components/ServiceStatusRow.tsx'
   const entries = Object.entries(meta.outputs)
   const pacing = entries.find(([, output]) => normalize(output.entryPoint ?? '') === source)
@@ -584,7 +621,7 @@ export function webviewPacingOutputs(meta) {
     return files
   }
   const exclusive = closure(pacing[0])
-  for (const file of webviewStartupOutputs(meta)) exclusive.delete(file)
+  for (const file of webviewStartupOutputs(meta, main)) exclusive.delete(file)
   for (const [file, output] of entries) {
     if (!output.entryPoint || normalize(output.entryPoint) === source) continue
     for (const shared of closure(file)) exclusive.delete(shared)
@@ -594,10 +631,10 @@ export function webviewPacingOutputs(meta) {
 
 // Team-only static dependencies have their own cap. Dependencies shared with
 // startup or another deferred surface stay charged to those existing budgets.
-export function webviewTeamOutputs(meta) {
+export function webviewTeamOutputs(meta, main = 'dist/webview/main.js') {
   meta = { ...meta, outputs: normalOutputs(meta) }
   const team = new Set()
-  const other = new Set(webviewStartupOutputs(meta))
+  const other = new Set(webviewStartupOutputs(meta, main))
   const visit = (file, outputs) => {
     if (outputs.has(file)) return
     const output = meta.outputs[file]
@@ -610,7 +647,7 @@ export function webviewTeamOutputs(meta) {
   for (const [file, output] of Object.entries(meta.outputs)) {
     if (!file.endsWith('.js') || output.entryPoint === undefined) continue
     if (output.entryPoint === 'src/webview/components/TeamUi.tsx') visit(file, team)
-    else if (file !== 'dist/webview/main.js') visit(file, other)
+    else if (file !== normalPath(main)) visit(file, other)
   }
   if (team.size === 0) throw new Error('Missing deferred team UI chunk')
   return [...team.difference(other)]

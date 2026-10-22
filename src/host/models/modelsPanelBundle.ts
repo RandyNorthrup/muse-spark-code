@@ -12,7 +12,7 @@ import { failureForLog } from '../../core/backends/musecode/logText'
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type * as ModelsPanelEntry from './modelsPanelEntry'
+import type * as ModelsPanelEntry from '../vscode/models/modelsPanelEntry'
 import { CredentialStore, type SecretStore } from '../auth/credentialStore'
 import type { ProviderEntry } from '../providers/providerPorts'
 

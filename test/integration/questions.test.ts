@@ -14,9 +14,9 @@ import {
   SETTINGS_SECTION,
 } from '../../src/shared/constants'
 import { readSettings, toSettingsSnapshot } from '../../src/host/settings'
-import { openChatPanel } from '../../src/host/views/chatPanel'
-import { SurfaceRegistry } from '../../src/host/views/surfaceRegistry'
-import type { WebviewHostContext } from '../../src/host/views/webviewSetup'
+import { openChatPanel } from '../../src/host/vscode/views/chatPanel'
+import { SurfaceRegistry } from '../../src/host/vscode/views/surfaceRegistry'
+import type { WebviewHostContext } from '../../src/host/vscode/views/webviewSetup'
 import { questionFixture } from '../unit/helpers/questions/fixtures'
 
 suite('M112 real panel', () => {

@@ -106,7 +106,7 @@ if (shipping) {
   }
 } else {
   const nodeBundle = await build({
-    entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+    entryPoints: ['src/host/vscode/reporting/reportPanelEntry.ts'],
     outfile: 'temp/m113-v/reportingPanel.cjs',
     bundle: true,
     platform: 'node',

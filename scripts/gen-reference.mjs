@@ -27,13 +27,22 @@ try {
     format: 'cjs',
     logLevel: 'silent',
   })
-  const { sharingFeatures } = createRequire(import.meta.url)(modulePath)
+  const { sharingFeatures, FEATURE_CATALOG } = createRequire(import.meta.url)(modulePath)
   const features = sharingFeatures()
   const escape = (value) => value.replaceAll('|', String.raw`\|`).replaceAll('\n', ' ')
   const content = await format(
     `# Sharing command reference\n\nGenerated from \`src/shared/featureCatalog.ts\`; see README and docs/acp.md for privacy, confirmation and current editor availability.\n\n| Surface | Command or setting | Description |\n| --- | --- | --- |\n${features.map((feature) => `| ${feature.surface} | \`${escape(feature.syntax)}\` | ${escape(feature.label)}. ${escape(feature.detail)} |`).join('\n')}\n`,
     { parser: 'markdown' },
   )
+  const runtimeContent = await format(
+    `# Runtime and shim reference\n\nGenerated from \`src/shared/featureCatalog.ts\` by \`node scripts/gen-reference.mjs\`.\n\n| Command or editor route | Behavior and qualification |\n| --- | --- |\n${FEATURE_CATALOG.map(({ command, behavior }) => `| ${escape(command)} | ${escape(behavior)} |`).join('\n')}\n`,
+    { parser: 'markdown' },
+  )
+  const runtimeDestination = 'docs/runtime-reference.md'
+  if (isCheck) {
+    if (readFileSync(runtimeDestination, 'utf8') !== runtimeContent)
+      throw new Error('Runtime reference is stale: node scripts/gen-reference.mjs')
+  } else writeFileSync(runtimeDestination, runtimeContent)
   const destination = 'docs/sharing-reference.md'
   if (process.argv.includes('--check')) {
     if (readFileSync(destination, 'utf8') !== content)

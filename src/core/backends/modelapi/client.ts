@@ -166,7 +166,13 @@ export interface ModelApiClientDeps {
   readonly isRetryableFailure?: (failure: ModelApiError) => boolean
   /** The host presents a 5xx banner with this public link; no response text crosses this port. */
   readonly onServiceFailure?: (status: number, statusUrl: string) => void
-  /** Interactive VS Code extras only; ACP/headless clients omit this port. */
+  /** Verified historical request tariff; an absent receipt retains the original claim's liability. */
+  readonly paidResponseCost?: (
+    body: CreateResponseBody,
+    feature: PaidFeature,
+    usage: BillableUsage,
+  ) => number | undefined
+  /** Interactive paid services; ACP/headless clients omit this port. */
   readonly reservePaidRequest?: (
     body: CreateResponseBody | CreateImageBody,
     feature: PaidFeature,

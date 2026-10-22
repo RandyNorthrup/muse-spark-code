@@ -1,0 +1,18 @@
+{
+  "nativeEagerImport": {
+    "buildExit": 0,
+    "splitExit": 1,
+    "expectedDiagnostic": "src/webview/bridges/native.ts must occur in exactly one deferred portable webview chunk",
+    "beforeSha256": "f54746be3640f4135a193e8f05da74bd266ec386131cd74d6c735dd1565ad8a9",
+    "restoredSha256": "f54746be3640f4135a193e8f05da74bd266ec386131cd74d6c735dd1565ad8a9",
+    "byteExact": true
+  },
+  "estimatorEagerImport": {
+    "buildExit": 0,
+    "splitExit": 1,
+    "expectedDiagnostic": "src/webview/estimator/EstimatorPanel.tsx must occur in exactly one deferred portable webview chunk",
+    "beforeSha256": "f54746be3640f4135a193e8f05da74bd266ec386131cd74d6c735dd1565ad8a9",
+    "restoredSha256": "f54746be3640f4135a193e8f05da74bd266ec386131cd74d6c735dd1565ad8a9",
+    "byteExact": true
+  }
+}

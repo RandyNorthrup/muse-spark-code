@@ -158,6 +158,8 @@ describe('Muse Code session titles, end to end', () => {
     const folder = mkdtempSync(path.join(tmpdir(), 'session-titles-'))
     folders.push(folder)
     const agent = createAcpAgent({
+      createConversation: () =>
+        Promise.reject(new Error('sessionTitles never prepares a conversation')),
       backend: {
         kind: 'museCode',
         readiness: () => Promise.resolve({ state: 'ready' }),

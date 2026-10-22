@@ -1,0 +1,1379 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-07",
+  "base": "9ae7c6c34205a04fce1d2a3f43e7be476c0b79a6",
+  "code_revision": "8c2a30843",
+  "CI_clone": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+  "toolchain": {
+    "java": "21.0.12.1",
+    "maven": "3.9.11",
+    "gradle": "9.1.0",
+    "IDEA": "2025.3.3",
+    "node": "24.18.0",
+    "npm": "12.0.1"
+  },
+  "records": [
+    {
+      "label": "eclipse-exact-base",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=SessionTest"
+      ],
+      "exit": 1,
+      "seconds": 40.439,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "23",
+          "failures": "4",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.885",
+          "failed": [
+            "userMenuReplacesANotYetCreatedPlaceholderWithoutCreatingIt",
+            "userMenuScansPlaceholdersBeforeAndAfterTheOwnedView",
+            "cleanupFailureStillKillsRuntimeTreeAndContinuesOtherSteps",
+            "nonUiCloseDuringSettledMutationLeavesCleanupOnTheDisplay"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "eclipse-gate",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": ["xvfb-run", "-a", "/tmp/apache-maven-3.9.11/bin/mvn", "-B", "verify"],
+      "exit": 0,
+      "seconds": 54.736,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.BrowserTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "3.325",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.ContractTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.06",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.Mhp13Test",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.028",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.173",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.087",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.843",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "24",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "13.605",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.WorkbenchTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.153",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-gate",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--rerun-tasks"
+      ],
+      "exit": 0,
+      "seconds": 103.776,
+      "suites": [
+        {
+          "name": "io.github.randynorthrup.musespark.DocumentServicesTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "22.072",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.FirstFrameDescendantsTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.153",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.MetadataProposalTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.035",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.Mhp13Test",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.055",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.MhpBoundaryTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.102",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.MhpConnectionTest",
+          "tests": "10",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.305",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeBrowserTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.345",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeDialogsTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.384",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeHostServicesTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.94",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeJcefSmokeTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.091",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeLifecycleTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.608",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeNoticeIdentityTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.155",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeSurfaceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.277",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeTabTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "1.084",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeThemeTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.08",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeWidgetsTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.089",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.PanelSurfaceTest",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.089",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.PipeTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.046",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.RuntimeProcessTest",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.275",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.RuntimeStressTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "28.177",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-base-observation-and-owner",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=SessionTest#descendantObservationTreatsAVanishedProcEntryAsExited+nonUiNativeRequestsAreRefusedBeforeTouchingState"
+      ],
+      "exit": 1,
+      "seconds": 26.577,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "2",
+          "failures": "2",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.988",
+          "failed": [
+            "nonUiNativeRequestsAreRefusedBeforeTouchingState",
+            "descendantObservationTreatsAVanishedProcEntryAsExited"
+          ]
+        }
+      ]
+    },
+    {
+      "label": "fresh-npm-ci",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "ci"],
+      "exit": 0,
+      "seconds": 10.824,
+      "note": "Exploratory mistake: clone checkout was incomplete; npm discovered the parent manifest and reinstalled the parent pinned dependencies. This is not the fresh-clone receipt."
+    },
+    {
+      "label": "eclipse-descendant-kill-removed",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=SessionTest#closeKillsCapturedDescendantsAfterTheParentExits"
+      ],
+      "exit": 1,
+      "seconds": 26.556,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "1",
+          "failures": "1",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.979",
+          "failed": ["closeKillsCapturedDescendantsAfterTheParentExits"]
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-exact-base-detekt",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "./gradlew",
+        "detekt",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--rerun-tasks"
+      ],
+      "exit": 1,
+      "seconds": 3.926
+    },
+    {
+      "label": "fresh-clone-npm-ci",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "--prefix", "/home/randy/lanes/FIXM104PE3/temp/pe3/clone", "ci"],
+      "exit": 0,
+      "seconds": 9.565
+    },
+    {
+      "label": "eclipse-descendant-repeat-20",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=DescendantRepeatTest"
+      ],
+      "exit": 0,
+      "seconds": 31.272,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.DescendantRepeatTest",
+          "tests": "20",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "6.075",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-repeat-1",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest"
+      ],
+      "exit": 0,
+      "seconds": 38.497,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.299",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.891",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "24",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "13.599",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-repeat-2",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest"
+      ],
+      "exit": 0,
+      "seconds": 38.661,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.345",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.784",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "24",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "13.631",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-repeat-3",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest"
+      ],
+      "exit": 0,
+      "seconds": 38.938,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.312",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.79",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "24",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.044",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-repeat-1",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "./gradlew",
+        "test",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--tests",
+        "*NativeHostServicesTest",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--rerun-tasks"
+      ],
+      "exit": 0,
+      "seconds": 21.734,
+      "suites": [
+        {
+          "name": "io.github.randynorthrup.musespark.NativeDialogsTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "6.826",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeHostServicesTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "5.107",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeSurfaceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.385",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-repeat-2",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "./gradlew",
+        "test",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--tests",
+        "*NativeHostServicesTest",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--rerun-tasks"
+      ],
+      "exit": 0,
+      "seconds": 21.773,
+      "suites": [
+        {
+          "name": "io.github.randynorthrup.musespark.NativeDialogsTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "7.668",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeHostServicesTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "5.128",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeSurfaceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.463",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-repeat-3",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "./gradlew",
+        "test",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--tests",
+        "*NativeHostServicesTest",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--rerun-tasks"
+      ],
+      "exit": 0,
+      "seconds": 22.012,
+      "suites": [
+        {
+          "name": "io.github.randynorthrup.musespark.NativeDialogsTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "7.675",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeHostServicesTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "5.182",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeSurfaceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.448",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-display",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--tests",
+        "*NativeBrowserTest",
+        "--rerun-tasks"
+      ],
+      "exit": 1,
+      "seconds": 1.086
+    },
+    {
+      "label": "eclipse-deferred-cleanup-green",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=SessionTest,PanelTest"
+      ],
+      "exit": 0,
+      "seconds": 41.921,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.21",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "25",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "16.23",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-deferred-cleanup-exact-base",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PanelTest#transportFailureStillRetiresTheSurfaceAndRefusesReuse,SessionTest#nonUiCloseDisposesLiveViewsAfterThePluginStops"
+      ],
+      "exit": 1,
+      "seconds": 25.874,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "1",
+          "failures": "1",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.101",
+          "failed": ["transportFailureStillRetiresTheSurfaceAndRefusesReuse"]
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "1",
+          "skipped": "0",
+          "time": "1.62",
+          "failed": ["nonUiCloseDisposesLiveViewsAfterThePluginStops"]
+        }
+      ]
+    },
+    {
+      "label": "eclipse-final-gate",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": ["xvfb-run", "-a", "/tmp/apache-maven-3.9.11/bin/mvn", "-B", "verify"],
+      "exit": 0,
+      "seconds": 46.377,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.BrowserTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.278",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.ContractTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.055",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.Mhp13Test",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.029",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.092",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.11",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.99",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "25",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.152",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.WorkbenchTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "1.967",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-final-repeat-1",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest,PanelTest"
+      ],
+      "exit": 0,
+      "seconds": 40.887,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.248",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.22",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.698",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "26",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.439",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-final-repeat-2",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest,PanelTest"
+      ],
+      "exit": 0,
+      "seconds": 38.822,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.236",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.232",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.791",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "26",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.347",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-final-repeat-3",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest,PanelTest"
+      ],
+      "exit": 0,
+      "seconds": 39.324,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.259",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.292",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.84",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "26",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.356",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "eclipse-stop-admission-removed",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "verify",
+        "-Dtest=SessionTest#pluginStopAdmissionRefusesSessionAcquisition"
+      ],
+      "exit": 1,
+      "seconds": 22.254,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "1",
+          "failures": "1",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.727",
+          "failed": ["pluginStopAdmissionRefusesSessionAcquisition"]
+        }
+      ]
+    },
+    {
+      "label": "eclipse-complete-final-gate",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/eclipse",
+      "command": ["xvfb-run", "-a", "/tmp/apache-maven-3.9.11/bin/mvn", "-B", "verify"],
+      "exit": 0,
+      "seconds": 46.409,
+      "suites": [
+        {
+          "name": "io.musespark.eclipse.tests.BrowserTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.192",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.ContractTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.059",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.Mhp13Test",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.029",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.NativeUiTest",
+          "tests": "9",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.268",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PanelTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.109",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.PeerTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.914",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.SessionTest",
+          "tests": "26",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "14.04",
+          "failed": []
+        },
+        {
+          "name": "io.musespark.eclipse.tests.WorkbenchTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "2.071",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "jetbrains-display-final",
+      "cwd": "/home/randy/lanes/FIXM104PE3/hosts/jetbrains",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--tests",
+        "*NativeBrowserTest",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--rerun-tasks",
+        "detekt",
+        "ktlintCheck"
+      ],
+      "exit": 0,
+      "seconds": 26.765,
+      "suites": [
+        {
+          "name": "io.github.randynorthrup.musespark.NativeBrowserTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "10.482",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeDialogsTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.861",
+          "failed": []
+        },
+        {
+          "name": "io.github.randynorthrup.musespark.NativeSurfaceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0",
+          "time": "0.351",
+          "failed": []
+        }
+      ]
+    },
+    {
+      "label": "fresh-final-npm-ci",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "--prefix", "/home/randy/lanes/FIXM104PE3/temp/pe3/clone", "ci"],
+      "exit": 0,
+      "seconds": 9.898
+    },
+    {
+      "label": "typescript-repeat-1",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": [
+        "npx",
+        "--no-install",
+        "vitest",
+        "run",
+        "test/m104/engines/verify.test.ts",
+        "test/m104/ui/whatsNew.test.ts",
+        "test/unit/judgeSameSession.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 2.127
+    },
+    {
+      "label": "typescript-repeat-2",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": [
+        "npx",
+        "--no-install",
+        "vitest",
+        "run",
+        "test/m104/engines/verify.test.ts",
+        "test/m104/ui/whatsNew.test.ts",
+        "test/unit/judgeSameSession.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 2.118
+    },
+    {
+      "label": "typescript-repeat-3",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": [
+        "npx",
+        "--no-install",
+        "vitest",
+        "run",
+        "test/m104/engines/verify.test.ts",
+        "test/m104/ui/whatsNew.test.ts",
+        "test/unit/judgeSameSession.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 2.125
+    },
+    {
+      "label": "typecheck-host",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "typecheck:host"],
+      "exit": 0,
+      "seconds": 12.751
+    },
+    {
+      "label": "typecheck-webview",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "typecheck:webview"],
+      "exit": 0,
+      "seconds": 7.316
+    },
+    {
+      "label": "typecheck-unit",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "typecheck:unit"],
+      "exit": 0,
+      "seconds": 38.996
+    },
+    {
+      "label": "typecheck-e2e",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "typecheck:e2e"],
+      "exit": 0,
+      "seconds": 17.96
+    },
+    {
+      "label": "typecheck-integration",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "typecheck:integration"],
+      "exit": 0,
+      "seconds": 7.148
+    },
+    {
+      "label": "typecheck-m104",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "typecheck:m104"],
+      "exit": 0,
+      "seconds": 54.712
+    },
+    {
+      "label": "fresh-lint",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "lint"],
+      "exit": 0,
+      "seconds": 265.813
+    },
+    {
+      "label": "fresh-prettier",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": [
+        "npx",
+        "--no-install",
+        "prettier",
+        "--check",
+        "--ignore-unknown",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "docs/certification/m104.md",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MusePlugin.java",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MuseView.java",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/OpenHandler.java",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/PanelSurface.java",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/PanelTest.java",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/SessionTest.java",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/MuseToolWindowFactory.kt",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeHostServices.kt",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeUiServices.kt",
+        "hosts/jetbrains/src/test/kotlin/io/github/randynorthrup/musespark/NativeDialogsTest.kt",
+        "hosts/jetbrains/src/test/kotlin/io/github/randynorthrup/musespark/NativeHostServicesTest.kt"
+      ],
+      "exit": 0,
+      "seconds": 6.044
+    },
+    {
+      "label": "fresh-knip",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npx", "--no-install", "knip"],
+      "exit": 0,
+      "seconds": 4.004
+    },
+    {
+      "label": "fresh-duplication",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.057
+    },
+    {
+      "label": "fresh-l10n",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["node", "scripts/check-l10n.mjs"],
+      "exit": 0,
+      "seconds": 2.526
+    },
+    {
+      "label": "fresh-host-api",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 17.801
+    },
+    {
+      "label": "fresh-mhp",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "check:mhp"],
+      "exit": 0,
+      "seconds": 1.441
+    },
+    {
+      "label": "fresh-build",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 9.144
+    },
+    {
+      "label": "native-node-tests",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": [
+        "node",
+        "--test",
+        "test/m104/linux/nativeModules.test.mjs",
+        "hosts/jetbrains/test/embedded.test.mjs",
+        "hosts/jetbrains/test/bundle-size.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 1.162
+    },
+    {
+      "label": "fresh-cycles",
+      "cwd": "/home/randy/lanes/FIXM104PE3/temp/pe3/clone",
+      "command": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 6.676
+    }
+  ]
+}

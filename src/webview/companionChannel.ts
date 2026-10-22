@@ -37,8 +37,10 @@ export async function companionEvents(options: {
       while (boundary !== -1) {
         const frame = pending.slice(0, boundary)
         pending = pending.slice(boundary + 2)
-        if (frame.startsWith('data: ')) {
-          const raw: unknown = JSON.parse(frame.slice('data: '.length))
+        // MHP frames carry `event: mhp` and an optional `id:` line before the data.
+        const data = frame.split('\n').find((line) => line.startsWith('data: '))
+        if (data !== undefined) {
+          const raw: unknown = JSON.parse(data.slice('data: '.length))
           await options.event(raw)
         }
         boundary = pending.indexOf('\n\n')

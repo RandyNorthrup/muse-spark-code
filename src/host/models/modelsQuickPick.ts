@@ -11,7 +11,7 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import { modelLimitsSchema } from '../../shared/providerRouting'
 import type { PickItem } from '../commands/pickItem'
 import type { PresetInfo, ProviderEntry, ProviderModelRow } from '../providers/providerPorts'
-import type { ProvidersHost } from '../providers/providersHost'
+import type { ProvidersHost } from '../vscode/providers/providersHost'
 import { scannedLocalModelLimits, type WizardDraft } from '../providers/wizardSave'
 import { type SessionBudgetConfig } from './sessionBudget'
 

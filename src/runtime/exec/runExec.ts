@@ -19,6 +19,8 @@ import {
   type FileIdentity,
 } from '../../core/fs/fileIdentity'
 import type { AcpMediaFactory } from '../../acp/media'
+import type { AcpController } from '../../acp/agent'
+import type { ExecPanelPort } from '../panel/panelLoader'
 import { isValidModelApiKey, type SecretStore } from '../../host/auth/credentialStore'
 import type { Logger } from '../../host/logger'
 import type { AgentEvent } from '../../shared/agentEvents'
@@ -178,7 +180,11 @@ export function budgetFinalMessage(input: {
   ].join(' ')
 }
 
-export interface ExecDeps {
+// The runtime panel bundle (a headless run holds its conversation on the
+// controller registry, M104 lane B) reaches this module through ExecPanelPort:
+// the process entry binds it, so the guarded bundle loader stays in
+// dist/acp.js and out of dist/headless.js (PLAN.md D6).
+export interface ExecDeps extends ExecPanelPort {
   readonly usageRecording?: UsageRecording | undefined
   readonly isUsageHistoryEnabled?: (() => boolean) | undefined
   readonly accounts?: ExecAccountsPort
@@ -1016,9 +1022,31 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         throw new Error(UI_TEXT.media.uploadUnavailable)
       const { createAcpAgent, createExecClient } = engine
       const initialModelId = providerRun?.modelRef ?? options.model
+      const panel = deps.panel(log)
+      const controllers = new panel.ControllerRegistry<AcpController>(log, (id) =>
+        engine.RequestError.resourceNotFound(id),
+      )
       const agent = createAcpAgent({
         questions: 'decline',
         ...(accounts !== undefined && { accounts }),
+        controllers,
+        createConversation: panel.createAcpConversations(
+          {
+            runtime: { ...runtime, backend: tap.backend },
+            options: serveOptionsFor(options),
+            dataRoot: agentDataFolder({
+              platform: deps.platform,
+              env: deps.env,
+              homeDir: deps.homeDir,
+            }),
+            conversationBundle: deps.conversationBundle,
+            runGit: deps.runGit,
+            log,
+            controllers,
+          },
+          UI_TEXT,
+          uiLocale(),
+        ),
         backend: tap.backend,
         version: deps.version,
         options: {
@@ -1092,314 +1120,327 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
       })
       await lifecycle.race(
-        client.connectWith(agent, async (connection) => {
+        (async () => {
           try {
-            await lifecycle.race(
-              connection.request('initialize', {
-                protocolVersion: engine.PROTOCOL_VERSION,
-                clientCapabilities: {},
-              }),
-            )
-            const created = await lifecycle.race(
-              connection.request('session/new', { cwd, mcpServers: [] }),
-            )
-            setup.sessionId = created.sessionId
-            closeSession = () =>
-              connection.request('session/close', { sessionId: created.sessionId })
-            cancelSession = () => {
-              void connection
-                .notify('session/cancel', { sessionId: created.sessionId })
-                .catch(() => {
-                  /* Session already stopped or closed; cancellation is best effort. */
-                })
-            }
-            if (
-              requiresAccounts &&
-              created.configOptions?.find((option) => option.id === ACP_CONFIG_IDS.account)
-                ?.currentValue !== selection.account
-            ) {
-              setup.isUsageError = true
-              error = UI_TEXT.accounts.invalidAccount
-              return
-            }
-            if (options.vault && deps.vault !== undefined) {
+            await client.connectWith(agent, async (connection) => {
               try {
-                const vault = deps.vault
-                const opening = (async () => {
-                  const session = await vault.open({
-                    cwd,
-                    sessionId: created.sessionId,
-                    signal: lifecycle.signal,
-                    source: 'headless',
-                    unattended: true,
-                    onDenied: denyVault,
-                  })
-                  if (isFinishing || lifecycle.signal.aborted) {
-                    await session.close()
-                    throw new Error(UI_TEXT.vault.noAccess)
-                  }
-                  return session
-                })()
-                vaultSession = await lifecycle.race(opening)
-              } catch {
-                denyVault(UI_TEXT.vault.brokerBlocked)
-                return
-              }
-            }
-            const modelConfig = created.configOptions?.find(
-              (option) => option.id === ACP_CONFIG_IDS.model,
-            )
-            model = typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
-            // The effort and Fast options belong to the model they were listed
-            // for: after a model change the agent's answer replaces the first
-            // listing, whose levels are the initial model's.
-            let configOptions = created.configOptions
-            const requestedModel = providerRun?.modelRef ?? options.model
-            if (requestedModel !== undefined) {
-              if (
-                modelConfig?.type !== 'select' ||
-                modelConfig.options.every(
-                  (entry) => !('value' in entry && entry.value === requestedModel),
-                )
-              ) {
-                setup.isUsageError = true
-                error = UI_TEXT.execUnknownModel
-                return
-              }
-              const changed = await lifecycle.race(
-                connection.request('session/set_config_option', {
-                  sessionId: created.sessionId,
-                  configId: ACP_CONFIG_IDS.model,
-                  value: requestedModel,
-                }),
-              )
-              configOptions = changed.configOptions
-              model = requestedModel
-            }
-            if (!isPlanRun && isPlanModelRef(model ?? '')) {
-              // No `--model`: the session's default resolved to a plan
-              // model after transport selection. Drop the Meta-only
-              // transport so the subscription request rides the plain
-              // fetch, like an explicit `--model` plan run; later
-              // requests read the late-bound fetch above (Codex on PR
-              // #213).
-              isPlanRun = true
-              transport = undefined
-            }
-            // A plan model offers its catalogue levels through the
-            // option; the shared range only covers agents without one.
-            const config = configOptions?.find((option) => option.id === ACP_CONFIG_IDS.effort)
-            if (options.effort === undefined) {
-              effort = typeof config?.currentValue === 'string' ? config.currentValue : null
-            } else {
-              // A configured-provider id carries no static tiers (lane
-              // REASONSHAPESR2, XAI-G01): the record governs, so the value
-              // rides and the wire omits or refuses from the record. The
-              // static table (or the plan catalogue's own levels above)
-              // still guards bare (Meta) ids, where `none` is not a tier
-              // either; Thinking off always rides.
-              const levels =
-                config?.type === 'select'
-                  ? config.options.flatMap((option) =>
-                      'value' in option ? option.value : option.options.map((entry) => entry.value),
-                    )
-                  : [...effortLevelsFor(model ?? undefined)]
-              if (
-                !(model ?? '').includes('/') &&
-                options.effort !== THINKING_OFF_EFFORT &&
-                !levels.includes(options.effort)
-              ) {
-                setup.isUsageError = true
-                error = `${UI_TEXT.execEffortUnavailable} --effort: ${levels.join(', ')}`
-                return
-              }
-              await lifecycle.race(
-                connection.request('session/set_config_option', {
-                  sessionId: created.sessionId,
-                  configId: ACP_CONFIG_IDS.effort,
-                  value: options.effort,
-                }),
-              )
-              effort = options.effort
-            }
-            if (options.fast) {
-              // The switch rides only where the model lists a priority
-              // tier; off by default, refused anywhere else.
-              const fastConfig = configOptions?.find((option) => option.id === ACP_CONFIG_IDS.fast)
-              if (fastConfig?.type !== 'boolean') {
-                setup.isUsageError = true
-                error = UI_TEXT.execFastUnavailable
-                return
-              }
-              await lifecycle.race(
-                connection.request('session/set_config_option', {
-                  sessionId: created.sessionId,
-                  configId: ACP_CONFIG_IDS.fast,
-                  value: true,
-                }),
-              )
-            }
-            const tier = modelApiPaidTier(model ?? '')
-            if (outputSchema !== undefined) {
-              setup.isUsageError = true
-              const port = deps.outputSchema
-              if (port === undefined || runtime === undefined || model === null)
-                throw new Error(fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }))
-              const formats = await lifecycle.race(port.formatsFor(model))
-              const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
-                (candidate) => formats.includes(candidate),
-              )
-              if (mode === undefined) {
-                outputValidation = 'local'
-                blocks.push({
-                  type: 'text',
-                  text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
-                    schema: JSON.stringify(outputSchema.schema),
-                  }),
-                })
-              } else
                 await lifecycle.race(
-                  port.configure({
-                    runtime,
-                    sessionId: created.sessionId,
-                    model,
-                    mode,
-                    schema: outputSchema.schema,
-                    signal: lifecycle.signal,
+                  connection.request('initialize', {
+                    protocolVersion: engine.PROTOCOL_VERSION,
+                    clientCapabilities: {},
                   }),
                 )
-              setup.isUsageError = false
-            }
-            if (ledger !== undefined) {
-              const totals = ledger.totals()
-              if (providerRun === undefined) {
-                // A plan model reserves nothing: its zero-price preview still
-                // consumes the preview ledger's one request, so an exhausted
-                // run is refused before dispatch like a priced one.
-                let price: TierPrice | undefined
-                if (tier !== undefined) price = MODEL_API_PRICES_PER_MILLION[tier]
-                else if (isPlanModelRef(model ?? '')) {
-                  const zero = Usd.from(0).toAmount()
-                  price = { input: zero, cachedInput: zero, output: zero }
+                const created = await lifecycle.race(
+                  connection.request('session/new', { cwd, mcpServers: [] }),
+                )
+                setup.sessionId = created.sessionId
+                closeSession = () =>
+                  connection.request('session/close', { sessionId: created.sessionId })
+                cancelSession = () => {
+                  void connection
+                    .notify('session/cancel', { sessionId: created.sessionId })
+                    .catch(() => {
+                      /* Session already stopped or closed; cancellation is best effort. */
+                    })
                 }
-                if (price === undefined) {
+                if (
+                  requiresAccounts &&
+                  created.configOptions?.find((option) => option.id === ACP_CONFIG_IDS.account)
+                    ?.currentValue !== selection.account
+                ) {
                   setup.isUsageError = true
-                  error = UI_TEXT.execModelUnpriced
+                  error = UI_TEXT.accounts.invalidAccount
                   return
                 }
-                // Ask the ledger's exact arithmetic for the start reservation, in a
-                // separate un-dispatched ledger. No request belongs to this run yet.
-                const preview = previewResponseReservation(ledger, model ?? '', price)
-                const minimum =
-                  microUsd(preview.reserveUsd) +
-                  (options.paidFeatures.includes('imageGeneration')
-                    ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
-                    : ZERO_MICRO_USD)
-                if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
-                  error = fill(UI_TEXT.execBudgetMinimum, {
-                    minimum: formatUsd(
-                      Usd.fromUnits(minimum, EXEC_USD_DECIMALS),
-                      EXEC_USD_DECIMALS,
-                    ),
-                  })
-                  latch({ kind: 'budget' })
-                  return
+                if (options.vault && deps.vault !== undefined) {
+                  try {
+                    const vault = deps.vault
+                    const opening = (async () => {
+                      const session = await vault.open({
+                        cwd,
+                        sessionId: created.sessionId,
+                        signal: lifecycle.signal,
+                        source: 'headless',
+                        unattended: true,
+                        onDenied: denyVault,
+                      })
+                      if (isFinishing || lifecycle.signal.aborted) {
+                        await session.close()
+                        throw new Error(UI_TEXT.vault.noAccess)
+                      }
+                      return session
+                    })()
+                    vaultSession = await lifecycle.race(opening)
+                  } catch {
+                    denyVault(UI_TEXT.vault.brokerBlocked)
+                    return
+                  }
                 }
-                // The actual body is not available yet. Admission prices that body,
-                // including the output cap it sends, before any provider request.
-                log.info(
-                  fill(UI_TEXT.execBudgetStartBytes, {
-                    cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
-                    remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
-                    output: formatNumber(outputCap()),
-                  }),
+                const modelConfig = created.configOptions?.find(
+                  (option) => option.id === ACP_CONFIG_IDS.model,
                 )
-              } else {
-                // A provider run's first body is not built yet, so the start
-                // line states the reservation rule with the numbers known: the
-                // cap, what is left, and the output cap every request reserves.
-                // EXECPROV round 7 (R2): a wire with no counter reserves the
-                // byte bound, and the start line says so — never "counted".
-                // Through the externalized providers entry (never a static
-                // edge: the split gate forbids carrying provider modules).
-                const { tokenCount } = await import('../../host/backend/providersEntry')
-                const inputCountKind = tokenCount.exactCountKindFor(
-                  providerRun.provider.entry,
-                  providerRun.provider.preset,
-                )
-                log.info(
-                  fill(
-                    inputCountKind === 'responses-input-tokens'
-                      ? UI_TEXT.execBudgetStartRule
-                      : UI_TEXT.execBudgetStartBytes,
-                    {
-                      cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
-                      remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
-                      output: formatNumber(outputCap()),
-                    },
-                  ),
-                )
-                if (inputCountKind === 'anthropic-count-tokens')
-                  log.info(
-                    fill(UI_TEXT.execEstimateBound, {
-                      margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
+                model =
+                  typeof modelConfig?.currentValue === 'string' ? modelConfig.currentValue : null
+                // The effort and Fast options belong to the model they were listed
+                // for: after a model change the agent's answer replaces the first
+                // listing, whose levels are the initial model's.
+                let configOptions = created.configOptions
+                const requestedModel = providerRun?.modelRef ?? options.model
+                if (requestedModel !== undefined) {
+                  if (
+                    modelConfig?.type !== 'select' ||
+                    modelConfig.options.every(
+                      (entry) => !('value' in entry && entry.value === requestedModel),
+                    )
+                  ) {
+                    setup.isUsageError = true
+                    error = UI_TEXT.execUnknownModel
+                    return
+                  }
+                  const changed = await lifecycle.race(
+                    connection.request('session/set_config_option', {
+                      sessionId: created.sessionId,
+                      configId: ACP_CONFIG_IDS.model,
+                      value: requestedModel,
                     }),
                   )
-              }
-            }
-            tap?.beginResponse(1)
-            unsubscribe = tap?.subscribe(created.sessionId, observe)
-            sink.emit({
-              type: 'start',
-              agent: { name: ACP_AGENT_NAME, version: deps.version },
-              backend: options.backend,
-              mode: options.mode,
-              model,
-              effort,
-              sessionId: created.sessionId,
-              ephemeral: options.ephemeral,
-              paidFeatures: options.paidFeatures,
-              limits,
-            })
-            try {
-              // ACP dispatches an exact /compact through AgentSession.compact,
-              // sharing editor guards and the same bounded exec transport ledger.
-              const answer = await lifecycle.race(
-                connection.request('session/prompt', {
+                  configOptions = changed.configOptions
+                  model = requestedModel
+                }
+                if (!isPlanRun && isPlanModelRef(model ?? '')) {
+                  // No `--model`: the session's default resolved to a plan
+                  // model after transport selection. Drop the Meta-only
+                  // transport so the subscription request rides the plain
+                  // fetch, like an explicit `--model` plan run; later
+                  // requests read the late-bound fetch above (Codex on PR
+                  // #213).
+                  isPlanRun = true
+                  transport = undefined
+                }
+                // A plan model offers its catalogue levels through the
+                // option; the shared range only covers agents without one.
+                const config = configOptions?.find((option) => option.id === ACP_CONFIG_IDS.effort)
+                if (options.effort === undefined) {
+                  effort = typeof config?.currentValue === 'string' ? config.currentValue : null
+                } else {
+                  // A configured-provider id carries no static tiers (lane
+                  // REASONSHAPESR2, XAI-G01): the record governs, so the value
+                  // rides and the wire omits or refuses from the record. The
+                  // static table (or the plan catalogue's own levels above)
+                  // still guards bare (Meta) ids, where `none` is not a tier
+                  // either; Thinking off always rides.
+                  const levels =
+                    config?.type === 'select'
+                      ? config.options.flatMap((option) =>
+                          'value' in option
+                            ? option.value
+                            : option.options.map((entry) => entry.value),
+                        )
+                      : [...effortLevelsFor(model ?? undefined)]
+                  if (
+                    !(model ?? '').includes('/') &&
+                    options.effort !== THINKING_OFF_EFFORT &&
+                    !levels.includes(options.effort)
+                  ) {
+                    setup.isUsageError = true
+                    error = `${UI_TEXT.execEffortUnavailable} --effort: ${levels.join(', ')}`
+                    return
+                  }
+                  await lifecycle.race(
+                    connection.request('session/set_config_option', {
+                      sessionId: created.sessionId,
+                      configId: ACP_CONFIG_IDS.effort,
+                      value: options.effort,
+                    }),
+                  )
+                  effort = options.effort
+                }
+                if (options.fast) {
+                  // The switch rides only where the model lists a priority
+                  // tier; off by default, refused anywhere else.
+                  const fastConfig = configOptions?.find(
+                    (option) => option.id === ACP_CONFIG_IDS.fast,
+                  )
+                  if (fastConfig?.type !== 'boolean') {
+                    setup.isUsageError = true
+                    error = UI_TEXT.execFastUnavailable
+                    return
+                  }
+                  await lifecycle.race(
+                    connection.request('session/set_config_option', {
+                      sessionId: created.sessionId,
+                      configId: ACP_CONFIG_IDS.fast,
+                      value: true,
+                    }),
+                  )
+                }
+                const tier = modelApiPaidTier(model ?? '')
+                if (outputSchema !== undefined) {
+                  setup.isUsageError = true
+                  const port = deps.outputSchema
+                  if (port === undefined || runtime === undefined || model === null)
+                    throw new Error(
+                      fill(UI_TEXT.outputSchemaInvalid, { detail: 'backend binding' }),
+                    )
+                  const formats = await lifecycle.race(port.formatsFor(model))
+                  const mode = (['strict_schema', 'json_schema', 'forced_tool'] as const).find(
+                    (candidate) => formats.includes(candidate),
+                  )
+                  if (mode === undefined) {
+                    outputValidation = 'local'
+                    blocks.push({
+                      type: 'text',
+                      text: fill(EXEC_MODEL_TEXT.execOutputSchema, {
+                        schema: JSON.stringify(outputSchema.schema),
+                      }),
+                    })
+                  } else
+                    await lifecycle.race(
+                      port.configure({
+                        runtime,
+                        sessionId: created.sessionId,
+                        model,
+                        mode,
+                        schema: outputSchema.schema,
+                        signal: lifecycle.signal,
+                      }),
+                    )
+                  setup.isUsageError = false
+                }
+                if (ledger !== undefined) {
+                  const totals = ledger.totals()
+                  if (providerRun === undefined) {
+                    // A plan model reserves nothing: its zero-price preview still
+                    // consumes the preview ledger's one request, so an exhausted
+                    // run is refused before dispatch like a priced one.
+                    let price: TierPrice | undefined
+                    if (tier !== undefined) price = MODEL_API_PRICES_PER_MILLION[tier]
+                    else if (isPlanModelRef(model ?? '')) {
+                      const zero = Usd.from(0).toAmount()
+                      price = { input: zero, cachedInput: zero, output: zero }
+                    }
+                    if (price === undefined) {
+                      setup.isUsageError = true
+                      error = UI_TEXT.execModelUnpriced
+                      return
+                    }
+                    // Ask the ledger's exact arithmetic for the start reservation, in a
+                    // separate un-dispatched ledger. No request belongs to this run yet.
+                    const preview = previewResponseReservation(ledger, model ?? '', price)
+                    const minimum =
+                      microUsd(preview.reserveUsd) +
+                      (options.paidFeatures.includes('imageGeneration')
+                        ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
+                        : ZERO_MICRO_USD)
+                    if (microUsd(options.budgetUsd ?? Usd.from(0).toAmount()) < minimum) {
+                      error = fill(UI_TEXT.execBudgetMinimum, {
+                        minimum: formatUsd(
+                          Usd.fromUnits(minimum, EXEC_USD_DECIMALS),
+                          EXEC_USD_DECIMALS,
+                        ),
+                      })
+                      latch({ kind: 'budget' })
+                      return
+                    }
+                    // The actual body is not available yet. Admission prices that body,
+                    // including the output cap it sends, before any provider request.
+                    log.info(
+                      fill(UI_TEXT.execBudgetStartBytes, {
+                        cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
+                        remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
+                        output: formatNumber(outputCap()),
+                      }),
+                    )
+                  } else {
+                    // A provider run's first body is not built yet, so the start
+                    // line states the reservation rule with the numbers known: the
+                    // cap, what is left, and the output cap every request reserves.
+                    // EXECPROV round 7 (R2): a wire with no counter reserves the
+                    // byte bound, and the start line says so — never "counted".
+                    // Through the externalized providers entry (never a static
+                    // edge: the split gate forbids carrying provider modules).
+                    const { tokenCount } = await import('../../host/backend/providersEntry')
+                    const inputCountKind = tokenCount.exactCountKindFor(
+                      providerRun.provider.entry,
+                      providerRun.provider.preset,
+                    )
+                    log.info(
+                      fill(
+                        inputCountKind === 'responses-input-tokens'
+                          ? UI_TEXT.execBudgetStartRule
+                          : UI_TEXT.execBudgetStartBytes,
+                        {
+                          cap: formatUsd(totals.capUsd, EXEC_USD_DECIMALS),
+                          remaining: formatUsd(totals.remainingUsd, EXEC_USD_DECIMALS),
+                          output: formatNumber(outputCap()),
+                        },
+                      ),
+                    )
+                    if (inputCountKind === 'anthropic-count-tokens')
+                      log.info(
+                        fill(UI_TEXT.execEstimateBound, {
+                          margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
+                        }),
+                      )
+                  }
+                }
+                tap?.beginResponse(1)
+                unsubscribe = tap?.subscribe(created.sessionId, observe)
+                sink.emit({
+                  type: 'start',
+                  agent: { name: ACP_AGENT_NAME, version: deps.version },
+                  backend: options.backend,
+                  mode: options.mode,
+                  model,
+                  effort,
                   sessionId: created.sessionId,
-                  prompt: blocks,
-                }),
-              )
-              stopReason = answer.stopReason
-            } catch (error_: unknown) {
-              error = error_ instanceof Error ? error_.message : String(error_)
-              if (
-                error_ instanceof engine.RequestError &&
-                error_.code === JSON_RPC_ERRORS.invalidParams &&
-                ((options.attachFiles?.length ?? 0) > 0 ||
-                  prompt.trim() === '/record' ||
-                  /^\/attach(?:\s|$)/u.test(prompt.trim()))
-              )
-                setup.isUsageError = true
-            }
-            await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
-          } finally {
-            const close = closeSession
-            closeSession = undefined
-            if (close !== undefined) {
-              try {
-                await lifecycle.race(close())
-              } catch (error_: unknown) {
-                // A close failure is recorded even when the run already
-                // latched its cause; only the latch stays first-cause-wins.
-                log.error(failureForLog(error_))
-                if (lifecycle.cause === null) {
-                  lifecycle.latch({ kind: 'internal' })
+                  ephemeral: options.ephemeral,
+                  paidFeatures: options.paidFeatures,
+                  limits,
+                })
+                try {
+                  // ACP dispatches an exact /compact through AgentSession.compact,
+                  // sharing editor guards and the same bounded exec transport ledger.
+                  const answer = await lifecycle.race(
+                    connection.request('session/prompt', {
+                      sessionId: created.sessionId,
+                      prompt: blocks,
+                    }),
+                  )
+                  stopReason = answer.stopReason
+                } catch (error_: unknown) {
+                  error = error_ instanceof Error ? error_.message : String(error_)
+                  if (
+                    error_ instanceof engine.RequestError &&
+                    error_.code === JSON_RPC_ERRORS.invalidParams &&
+                    ((options.attachFiles?.length ?? 0) > 0 ||
+                      prompt.trim() === '/record' ||
+                      /^\/attach(?:\s|$)/u.test(prompt.trim()))
+                  )
+                    setup.isUsageError = true
+                }
+                await lifecycle.race(transport?.whenSettled() ?? Promise.resolve())
+              } finally {
+                const close = closeSession
+                closeSession = undefined
+                if (close !== undefined) {
+                  try {
+                    await lifecycle.race(close())
+                  } catch (error_: unknown) {
+                    // A close failure is recorded even when the run already
+                    // latched its cause; only the latch stays first-cause-wins.
+                    log.error(failureForLog(error_))
+                    if (lifecycle.cause === null) {
+                      lifecycle.latch({ kind: 'internal' })
+                    }
+                  }
                 }
               }
-            }
+            })
+          } finally {
+            await controllers.close()
           }
-        }),
+        })(),
       )
     } catch (error_: unknown) {
       if (runtime === undefined && status === 'failed' && lifecycle.cause === null)

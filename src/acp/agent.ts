@@ -13,6 +13,7 @@ import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // its flag, and each use asks in the editor first, naming its price (M58,
 // paid.ts). Every update of a turn goes out before the turn's response.
 
+import type { ControllerRegistry } from '../runtime/panel/controllerRegistry'
 import { randomUUID } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import type { UsageAdapter } from '../runtime/usage/usageAdapter'
@@ -157,6 +158,16 @@ import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
 import type { AcpEstimatePort } from './estimate'
+import type { ConversationController } from '../host/conversation/conversationController'
+
+/** The composed controller an ACP session submits through (M104). */
+export interface AcpConversation {
+  readonly controller: ConversationController | undefined
+  submit(parts: readonly TurnPart[], displayText: string): Promise<TurnSubmission>
+  permissionModeChanged(mode: PermissionMode): void
+  hostExited(description: string): void
+  release(): Promise<void>
+}
 
 // Muse Code runs a session's MCP servers only with this grant (M63c).
 const [SESSION_MCP_CAPABILITY] = MSP_REQUESTED_CAPABILITIES
@@ -224,6 +235,14 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly createConversation: (
+    session: AgentSession,
+    host: AgentHost,
+    cwd: string,
+    mode: PermissionMode,
+  ) => Promise<AcpConversation>
+  /** An embedding runtime supplies its registry so other views can find the same sessions. */
+  readonly controllers?: ControllerRegistry<AcpController>
   readonly legalScan?:
     | ((
         cwd: string,
@@ -479,6 +498,7 @@ export function dedupeSkillSelectors(skills: readonly SkillSummary[]): readonly 
 
 /** One ACP session over one AgentSession. */
 class AcpSession {
+  private conversation: AcpConversation | undefined
   private readonly questionRegistry: AcpQuestionRegistry | undefined
   private questions: AcpQuestionDeferral | undefined
   private readonly questionBundle: () => AcpQuestionBundle
@@ -1996,6 +2016,23 @@ class AcpSession {
     return answer
   }
 
+  public get controller(): ConversationController | undefined {
+    return this.conversation?.controller
+  }
+
+  /** The composed controller this view submits through; released if the view already was. */
+  public async prepareConversation(): Promise<void> {
+    // Closed during adoption (a late schedule lease): release() already let the session go.
+    if (this.isReleased) return
+    this.conversation = await this.deps.createConversation(
+      this.session,
+      this.host,
+      this.cwd,
+      this.mode,
+    )
+    if (this.isDisposed) await this.conversation.release()
+  }
+
   public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
@@ -2272,6 +2309,7 @@ class AcpSession {
         throw error
       }
       this.mode = mode
+      this.conversation?.permissionModeChanged(mode)
     })
     // The set took: tell the editor, which otherwise keeps showing the old
     // mode (it learns it only from new/load responses and this notice).
@@ -2821,6 +2859,9 @@ class AcpSession {
         const outcome = await this.session.compact()
         this.finishCompaction(outcome.status)
       } else {
+        // Every turn goes through the composed controller (M104), as the panel's do.
+        if (this.conversation === undefined)
+          throw RequestError.internalError(undefined, 'ACP_CONTROLLER_UNAVAILABLE')
         // No answer lease is peeked for a playback: a queued answer stays
         // queued. No media rides one either: it answers from memory only.
         // The sandbox note rides an ordinary turn's tail only (F91), as on
@@ -2829,7 +2870,7 @@ class AcpSession {
         const sandboxNote = this.sandboxModelNote()
         const starting = isPlayback
           ? this.startPlaybackTurn()
-          : this.session.sendTurn(
+          : this.conversation.submit(
               [
                 ...(pending.answerLease?.parts ?? []),
                 ...this.withSkill([
@@ -2939,6 +2980,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
+    this.conversation?.hostExited(description)
     const error = RequestError.internalError(undefined, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
@@ -3034,7 +3076,8 @@ class AcpSession {
         await this.cancelTurn()
       }
       await releasingAnswers
-      this.session.dispose()
+      if (this.conversation === undefined) this.session.dispose()
+      else await this.conversation.release()
     })()
     let deadline: ReturnType<typeof setTimeout> | undefined
     const cleanup = (async () => {
@@ -3167,6 +3210,8 @@ class AgentState {
   once `prepare` has set what the editor is shown: until then no request
   finds it, and if anything fails the backend session is let go and the
   request fails, so no session outlives a request that returned no id.
+  The shared registry (M104) owns the claim, the release barrier and the
+  host watch; a session loaded again replaces the one held.
   */
   private async adopt(
     host: AgentHost,
@@ -3217,6 +3262,9 @@ class AgentState {
       this.adopting.set(sessionId, acp)
       await acp.loadQuestions()
       await acp.holdSchedules()
+      // M104 (D84): the ACP session joins the shared controller, so the
+      // panel in every editor shows the same session.
+      await acp.prepareConversation()
       await prepare(acp)
       await acp.startAccounts()
       this.ensureClaim(claim, host)
@@ -3589,7 +3637,7 @@ class AgentState {
     request: PaidUseRequest,
     canRemember: boolean,
   ): Promise<PaidUseAnswer> {
-    const acp = this.sessions.get(sessionId)
+    const acp = this.held(sessionId)
     if (acp === undefined) {
       this.deps.log.warn(
         `Paid use of ${request.feature}: no editor session ${sessionId} to ask in, so it is denied`,
@@ -3615,12 +3663,15 @@ class AgentState {
     sessionId: string,
     request: VaultApprovalRequest,
   ): Promise<VaultApprovalAnswer> {
-    const session = this.sessions.get(sessionId)
+    const session = this.held(sessionId)
     return session === undefined
       ? { requestId: request.id, digest: request.digest, decision: 'deny' }
       : await session.askVaultUse(request)
   }
 }
+
+/** The ACP view held by an embedding runtime's shared registry. */
+export type AcpController = AcpSession
 
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {

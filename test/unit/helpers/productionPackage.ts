@@ -33,6 +33,7 @@ export function buildProductionPackage(root: string, folder: string, shared?: un
     'design',
     'first-party-skills',
     'native',
+    'hosts/xcode/Scripts',
     'l10n',
     'docs',
     'media',

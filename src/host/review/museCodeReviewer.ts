@@ -87,6 +87,8 @@ export interface MuseCodeReviewerDeps {
   readonly describeFailure: (error: unknown) => string
   /** MUSE_CODE_REVIEW_TIMEOUT_MS, unless a test shortens it. */
   readonly timeoutMs?: number
+  /** Portable catalog/trust/owner admission, re-read across every side-session await. */
+  readonly isCurrent?: (modelId: string) => boolean
 }
 
 /** The side session and what its turns said. */
@@ -144,12 +146,29 @@ export class MuseCodeReviewer {
   private readonly timeoutMs: number
   private isDisposed = false
   private hasNoticed = false
+  private readonly pending = new Set<Promise<unknown>>()
 
   public constructor(private readonly deps: MuseCodeReviewerDeps) {
     this.timeoutMs = deps.timeoutMs ?? MUSE_CODE_REVIEW_TIMEOUT_MS
   }
 
   private async review(
+    job: MuseCodeReviewJob,
+    breaker: ReviewBreaker,
+  ): Promise<MuseCodeReviewOutcome> {
+    const operation = this.reviewOne(job, breaker)
+    this.pending.add(operation)
+    try {
+      const outcome = await operation
+      return !this.isDisposed && this.deps.isCurrent?.(job.modelId) !== false
+        ? outcome
+        : { decision: 'ask', cause: 'failed', reason: undefined, hasTripped: false }
+    } finally {
+      this.pending.delete(operation)
+    }
+  }
+
+  private async reviewOne(
     job: MuseCodeReviewJob,
     breaker: ReviewBreaker,
   ): Promise<MuseCodeReviewOutcome> {
@@ -179,7 +198,8 @@ export class MuseCodeReviewer {
               breaker.record(typeof result !== 'string' && result.decision === 'allow'),
           }
         },
-        () => !job.signal.aborted && !this.isDisposed,
+        () =>
+          !job.signal.aborted && !this.isDisposed && this.deps.isCurrent?.(job.modelId) !== false,
         () => new Error('the approval no longer waits on its review'),
       )
     } catch (error: unknown) {
@@ -215,7 +235,12 @@ export class MuseCodeReviewer {
 
   /** Re-read mutable cancellation/window state after every startup await. */
   private isWanted(job: MuseCodeReviewJob, deadline: number): boolean {
-    return !job.signal.aborted && !this.isDisposed && remaining(deadline) > 0
+    return (
+      !job.signal.aborted &&
+      !this.isDisposed &&
+      this.deps.isCurrent?.(job.modelId) !== false &&
+      remaining(deadline) > 0
+    )
   }
 
   /** One review in its slot: the side session, the turn and its reply's first line. */
@@ -364,15 +389,17 @@ export class MuseCodeReviewer {
       )
     } catch (error: unknown) {
       // One that starts late is let go at once.
-      void starting
-        .then((late) => {
+      const cleanup = (async () => {
+        try {
+          const late = await starting
           late.dispose()
-        })
-        .catch((error: unknown) => {
+        } catch (error: unknown) {
           this.deps.log.info(
             `The Auto reviewer's side session did not start: ${failureForLog(error)}`,
           )
-        })
+        }
+      })()
+      this.trackCleanup(cleanup)
       throw error
     }
     this.deps.onSideSession(session.sessionId)
@@ -531,14 +558,33 @@ export class MuseCodeReviewer {
       side.session.dispose()
       return
     }
-    void side.session
-      .cancel()
-      .catch((error: unknown) => {
-        this.deps.log.warn(`Stopping the Auto reviewer's side turn failed: ${failureForLog(error)}`)
-      })
-      .finally(() => {
+    const cleanup = (async () => {
+      try {
+        await side.session.cancel()
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `Stopping the Auto reviewer's side turn failed: ${this.deps.describeFailure(error)}`,
+        )
+      } finally {
         side.session.dispose()
-      })
+      }
+    })()
+    this.trackCleanup(cleanup)
+  }
+
+  private trackCleanup(operation: Promise<void>): void {
+    this.pending.add(operation)
+    void (async () => {
+      try {
+        await operation
+      } catch (error: unknown) {
+        this.deps.log.warn(
+          `The Auto reviewer's cleanup failed: ${this.deps.describeFailure(error)}`,
+        )
+      } finally {
+        this.pending.delete(operation)
+      }
+    })()
   }
 
   /**
@@ -561,8 +607,15 @@ export class MuseCodeReviewer {
   /** The window closed: the side session goes with it. */
   public dispose(): void {
     this.isDisposed = true
-    if (this.side !== undefined) {
-      this.drop(this.side, 'the window closed')
-    }
+    if (this.side === undefined) return
+    const side = this.side
+    this.drop(side, 'the window closed')
+    side.isGone = true
+    for (const wake of side.wakers) wake()
+  }
+
+  /** The portable profile cannot drain storage until side-session work has ended. */
+  public async settled(): Promise<void> {
+    while (this.pending.size > 0) await Promise.allSettled(this.pending)
   }
 }

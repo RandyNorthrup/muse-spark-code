@@ -1,0 +1,121 @@
+[
+  {
+    "label": "snapshot version",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testSnapshotVersionIsPinnedBeforeLaunching",
+    "exit": 65,
+    "sha256": "268a60e3751b95b472e8a80b7deddb78cc78e186f90cb9d72cc87abc65e819a3"
+  },
+  {
+    "label": "native admission bound",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testDuplicateIdsInvalidCallsAndQueueOverflowCancelNativeWork",
+    "exit": 65,
+    "sha256": "b4ba1a5c242e1727538aa596f3bb76fd178cc009aefec4a0d41af8ce3a8d92e1"
+  },
+  {
+    "label": "fresh same-origin link",
+    "file": "hosts/xcode/App/PanelWebView.swift",
+    "test": "testSameOriginFreshLaunchReloadsAndOldClearCannotEraseNewLink",
+    "exit": 65,
+    "sha256": "5489dc17eb4f2c66463b53b0a831594dc933123cfa65fd77c9d35d7f5cd14519"
+  },
+  {
+    "label": "cancelled correlation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testCancelledServiceLateReplyCannotAffectAnotherRequest",
+    "exit": 65,
+    "sha256": "b4ba1a5c242e1727538aa596f3bb76fd178cc009aefec4a0d41af8ce3a8d92e1"
+  },
+  {
+    "label": "connection end notification",
+    "file": "hosts/xcode/Shared/RuntimeLauncher.swift",
+    "test": "testRuntimeEOFEndsTheOwningConnectionAfterLaunch",
+    "exit": 65,
+    "sha256": "26417b92265087b3e22dac677e96e642016621ca7c16df5093a02ec9eafc3f46"
+  },
+  {
+    "label": "opaque picker answer",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testSinglePickerReturnsTheSelectedOpaqueNumericId",
+    "exit": 65,
+    "sha256": "8108733278284504928aca8da042dcd2ae2095e47c8b93684b9fdfb2d23259ed"
+  },
+  {
+    "label": "four native appearance kinds",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testNativeAppearanceIncludesBothHighContrastKinds",
+    "exit": 65,
+    "sha256": "624b0c7706455b7cbf60301761c0f312cb4e4c26506ff9b001918abe7214703c"
+  },
+  {
+    "label": "pending trust metadata",
+    "file": "hosts/xcode/App/PanelModel.swift",
+    "test": "testTrustCannotDivergeWhileInitializationIsPending",
+    "exit": 65,
+    "sha256": "624b0c7706455b7cbf60301761c0f312cb4e4c26506ff9b001918abe7214703c"
+  },
+  {
+    "label": "owning fake CLI entry",
+    "file": "test/hosts/xcode/fake-runtime.ts",
+    "test": "testAuthenticatedPanelRendersAndStopRemainsAvailable",
+    "exit": 65,
+    "sha256": "e49b482619d562a601fb907b6a23c52fd74473602fb30352c03d8ebd4ef72c7c"
+  },
+  {
+    "label": "negotiated result",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testLegacyVersionAndRuntimeInitiationAreRefused",
+    "exit": 65,
+    "sha256": "b4ba1a5c242e1727538aa596f3bb76fd178cc009aefec4a0d41af8ce3a8d92e1"
+  },
+  {
+    "label": "native package star description",
+    "file": "hosts/xcode/description.html",
+    "test": "testAppAndEditorExtensionPackageTheLinkedStarDescription",
+    "exit": 65,
+    "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
+  },
+  {
+    "label": "file response cancellation",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testCancelledFileDialogCannotWriteOrReplyFromALateChoice",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file response ownership",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testClosedFileChoiceCannotWriteOverAReplacementDialog",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file cancellation ownership",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testClosedFileChoiceCannotWriteOverAReplacementDialog",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "permission sheet file admission",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFileDialogRejectsOverlappingFileAndPermissionSheets",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file sheet admission",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFileDialogRejectsOverlappingFileAndPermissionSheets",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  },
+  {
+    "label": "file export actually writes",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFileServicesChooseOpaqueUrisAndWriteTheApprovedExport",
+    "exit": 65,
+    "sha256": "def8ec2092db8e6450d8c7a56f9dcf61a87d1a5acdc899615841679e5f130fb8"
+  }
+]

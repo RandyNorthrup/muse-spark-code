@@ -10,7 +10,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as vscode from 'vscode'
 import { canonicalPath } from '../../src/host/canonicalPath'
-import { createVerifyEditor, type VerifyEditor } from '../../src/host/editor/verifyEditor'
+import { createVerifyEditor, type VerifyEditor } from '../../src/host/vscode/editor/verifyEditor'
 import { createLogger } from '../../src/host/logger'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 

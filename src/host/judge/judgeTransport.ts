@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import {
   admitJudgeCall,
+  judgePriceOf,
+  type JudgeTokenPrices,
   rebindJudgeClaim,
   verifyJudgeDispatch,
   type JudgeAdmissionBinding,
@@ -22,6 +24,7 @@ export function admittedModelApiJudge(deps: {
   readonly turnId: string
   readonly signal: AbortSignal
   readonly contextLimit: number
+  readonly priceOf?: ((modelId: string) => JudgeTokenPrices | undefined) | undefined
 }): ModelApiJudgeTransport {
   return {
     send: async (body, timeout) => {
@@ -30,7 +33,10 @@ export function admittedModelApiJudge(deps: {
       const inputTokens = Buffer.byteLength(JSON.stringify(body))
       if (inputTokens + body.max_output_tokens > deps.contextLimit)
         throw new Error('Judge request exceeds the loaded context limit')
+      const quoted = (deps.priceOf ?? judgePriceOf)(body.model)
+      const price = quoted === undefined ? undefined : { ...quoted }
       const admitted = await admitJudgeCall({
+        priceOf: () => price,
         binding: deps.binding(),
         currentBinding: deps.binding,
         billing: { kind: 'metered', ledger: deps.ledger },
@@ -65,9 +71,9 @@ export function admittedModelApiJudge(deps: {
         )
         check()
         const response = await deps.connection.transport.send(body, signal, guard)
-        deps.rows.finished(itemId, response.usage)
         const settledCostUsd =
           response.usage === undefined ? undefined : await claim.settleKnown(response.usage)
+        deps.rows.finished(itemId, response.usage, settledCostUsd)
         return { ...response, reservedCostUsd: claim.reservedUsd, settledCostUsd }
       } catch (error: unknown) {
         if (dispatch.hasSent) deps.rows.failed(itemId)

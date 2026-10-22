@@ -5410,3 +5410,765 @@ Round 4 replays the owning usage/money files, one unit-project typecheck and
 the scoped static checks and production measurements at the unchanged caps.
 
 <!-- plan-archive:end id="gates-4e09cab6e-34524" -->
+
+## M104 and scoped gate records (2026-10-05 to 2026-10-11)
+
+<!-- plan-archive:begin id="gates-49b2ee654-34534" lines="34534-34991" at="49b2ee654" bytes="31662" sha256="b8605aa8ebf1e7a5edf4a75a1654eed9a9197ed52ad3cea8d54c186e97302d68" -->
+
+**M104 F4 round-8 scoped qualification (2026-10-10, RVM104F4H).**
+Native Request-brand regressions cover page/worker constructor and URL-getter
+wrappers, cross-frame fetches in both directions, native string conversion and
+non-built refusals before dispatch. Worker dispatch is also observed without CSP,
+so its native-brand guard must independently fire. Production qualification uses
+one incremental build context with invariant reader surveys prepared once, one
+active browser context, and small real-loader negative graphs; all existing
+production/accounting assertions and the five-second boot/120-second setup
+limits remain. Captured profiling observes 54.8-second preparation on Kubuntu.
+Byte-exact red drills and final scoped results are in
+`docs/certification/m104.md`. The reviewed MacBook is unavailable to this lane:
+its unchanged-deadline replay remains an external hardware qualification
+requirement, not a claimed pass. Aggregate quality and installed-editor/native
+qualification remain lead-owned; M104 is still waiting/experimental/untested.
+
+**M104 F4 round-6 scoped qualification (2026-10-10).** All review-class
+regressions use the real authenticated loader and browser at repository body
+deadlines. Three earlier expanded production-preparation attempts hit the
+unchanged 120-second hook deadline; after two setup fixes that path was stopped
+under the shared lane rule. The final full production-suite rerun remains
+lead-owned, separately from the repaired transport finding. No timeout, cap,
+assertion or guard is weakened; aggregate quality is not claimed. See
+`docs/certification/m104.md`, F4 round 6, for assertions, deliberate failures,
+byte-exact restorations and the scoped final checks.
+
+**M104 F4 round-7 scoped qualification (2026-10-10).** Round 7 answers the
+round-6 deferral with a bounded-pool fixture (pools of three, baseline boot
+sequential, every assertion and the 120-second hook unchanged), but this
+lane's shell sandbox denies the `socketpair` syscall so headless Chrome cannot
+start here and no browser-dependent step could execute in the lane. Run here:
+the browser-free guard regressions (22 tests), their two red drills with
+byte-exact restoration, changed-file lint/format, full typecheck, deadcode,
+duplication, localization and host API. The production build compiles and
+emits here (extension 571.1 KiB) and fails only at the size gate's browser
+measurement. Lead-owned outside the sandbox: the three new browser behavioral
+regressions, the restructured production fixture run, their red drills, and
+the size/split measurement. No timeout, cap, assertion or guard is weakened;
+aggregate quality is not claimed. See `docs/certification/m104.md`, F4 round 7.
+
+**M104 F4 round-7 outside-sandbox verification (2026-10-10, Kubuntu).**
+The deferred browser runs executed here at repository deadlines, one file or
+build at a time. Transport suite **47 / 47** (30.24 s). Production fixture
+**77 / 77** (104.07 s), inside the unchanged 120-second hook. Sender, fragment
+and HTTP-inventory drills fail the named assertions and restore byte-exact.
+One-at-a-time preparation does not exceed the hook (**77 / 77**, file duration
+120.48 s) and is not claimed as a red hook. `npm run build` exits 0; all 210
+KiB budget lines stay within their unchanged caps. See
+`docs/certification/m104.md`, round-7 outside-sandbox verification.
+
+**M104 F4 round 6 (2026-10-10, RVM104F4F; lead transport boundary).**
+Before the synchronous render mark, deny every non-HTTP transport and every
+non-built fetch/import, independently of application error handling. Cover
+WebSockets at context scope and all attached targets; explicitly refuse
+EventSource, WebTransport and WebRTC data channels. Data/blob activity is
+permitted only for authenticated-loader module blobs made from already-counted
+built bytes, with precise identity validation. Sweep page, frame and worker
+boot activity, add caught-error regressions, and record byte-exact red drills.
+Worker scripts and module dependencies receive a measurement-only constructor
+probe; worker refusals and queued CSP violations flush before termination.
+Nested-worker creation is explicitly refused as an unroutable target. Probe bytes are excluded like frame init scripts; output identities
+remain the original immutable built files.
+Startup remains 1,100 KiB and total JavaScript 1,486 KiB. No dependency,
+production module, support status or unrelated guard changes. Full quality
+remains lead-owned; scoped verification runs directly on Kubuntu.
+
+**M104 F4 round 5 (2026-10-10, RVM104F4E; lead measurement boundary).**
+Count at the source: context-level routes record every built resource answered
+for any supported target whose request started before the render marker,
+independent of suffix or resource type, once by path/byte-length/SHA-256 identity.
+Non-built requests outside the explicit measurement document/origin contract
+fail with a named diagnostic; unroutable worker activity is explicitly refused.
+Regress awaited Blob-worker deferred fetches, the real built Inter WOFF2,
+an extensionless built resource and a non-built URL. Prove worker coverage and
+non-JavaScript accounting fail under deliberate mutations and restore byte-exact.
+Startup stays 1,100 KiB and total JavaScript 1,486 KiB; retain the current
+887,044 / 908,902-byte production counts unless source accounting finds real bytes.
+Full quality remains lead-owned; scoped checks run directly on Kubuntu.
+
+**M104 F4 round-5 shared-rig qualification (2026-10-10).** The complete
+unchanged fallback accessibility file runs at repository deadlines: 2,555
+passing cases across its three-file batch and one five-second timeout in
+`vscode fallback WCAG 2.2 AA > light/zh-cn/confirm at 320px` (1,613.96 seconds
+for the batch). That renderer and its matrix code are unchanged by this lane;
+the matrix does not use the modified transport fake. Retain the failure for
+lead-owned qualification on an available rig; no assertion, timeout or gate
+waiver, and no claim of aggregate quality. Both RVM104F4E source-boundary
+findings are repaired; this external qualification result is recorded separately
+in `docs/certification/m104.md` and the round-five receipt.
+
+**M104 F4 round-4 qualification (2026-10-10).** Both bundle gates charge
+production JS/CSS requested before the first-render marker, using headless
+Chrome and the shared native/companion fakes. No AST boot walk or `bootImport`
+guard remains; optional placement checks use the measured startup union. Both
+reviewer scenarios rebuild the production graph in memory, while post-marker
+idle imports retain deferral. The early-marker drill demonstrates the marker's
+ownership contract; receipts and measured chunks are in `docs/certification/m104.md`.
+Startup and total caps stay unchanged; prior static receipts are historical.
+
+**M104 F4 round-3 qualification (2026-10-10).** The shared startup helper
+derives marked boot imports and guards unmarked pre-mount imports in `mount`
+and `selectBridge`, including `Promise.all`. Native and companion closures
+are measured separately; both gates enforce the unchanged startup cap for
+each variant, equivalent to enforcing their maximum. Optional placement
+checks use their union; mandatory bridges are boot dependencies, not optional
+surfaces. Round-two static-only measurements are superseded. Gate-fire and
+byte-exact restoration receipts: `docs/certification/m104.md`, F4 round 3.
+
+**JBDIAG scope (2026-10-09).** The rig/common brief reserves aggregate
+quality/coverage for the lead; this lane runs the complete offline native
+Gradle matrix and scoped repository gates. Production remains unchanged.
+The portable-webview build budget (1,321.5/1,100 KiB) and twelve source/test
+duplication findings were lead integration blockers on that lane's base; F4
+(separate startup and total caps) and F3 (shared fixtures) address them, and
+`docs/certification/m104-join.md` records what the joined tree measures.
+No size cap, duplication threshold or assertion is weakened.
+
+**M104INT final-verification fixture repairs (2026-10-09).** Keep every
+changed lane file and bridge/companion suite in the default-deadline inventory.
+Private packages carry all joined factory/native/JSON members; fake crash
+injection lives inside the test-owned CLI because production strips unknown
+child variables. Cross-process settings writers use a private script file,
+not a bundle-sized argument. Paid/contract expectations follow 0.17 exact
+amounts and verified quotes. Accessibility checks all original bridge/theme/
+language/kind combinations after finite entrance motion, split by language and fallback kind
+so each test fits the unchanged deadline. Preserve every locale-specific
+plural form when ordering source tables. No assertions, contrasts, caps or
+platform guards are relaxed; failing receipts remain blockers until corrected.
+
+**M104 F4 round-2 qualification (2026-10-09, lead decision).** The startup
+and complete-delivery graphs now have separate D6 caps in both gates, with
+one shared definition. The original payload-diet question is resolved by the
+lead's measured total plus 15% rule. Round-one composition and boundary receipts
+below remain historical evidence; all full-quality and native/editor blockers
+remain lead-owned. Final round-two measurements, regressions and byte-exact
+red drills are recorded in `docs/certification/m104.md`.
+
+**M104 F4 bounded split audit (2026-10-09, kubuntu; round-one record).** The production
+metafile audit records the forty largest contributors by feature and every
+portable output's measured bytes/hash. Chat startup is 757,722 B (58 outputs);
+the other 119 JavaScript outputs cost 565,614 B. Named optional UI and editor
+bridges already load on first use, with existing closure guards and budgets.
+The only source copies are the authenticated classic loader's ten parser
+modules: even eliminating all 17,014 repeated bytes without overhead leaves
+179,922 B above the unchanged complete-graph cap. Replays and eager-import
+drills qualify the current boundaries, not an aggregate size pass. No source,
+feature, dependency, counter, exclusion or cap is changed; before/after totals
+remain 1,323,336 B. A broader implementation diet is an explicit owner question
+in section 3. Full quality and other integration blockers remain lead-owned.
+
+**M104 F3 repair scope (2026-10-09, kubuntu).** The dedicated follow-up
+brief authorizes root-cause repair of the twelve recorded clones, the complete
+portable JavaScript graph overage and the four ACP startup fixtures. Keep
+all zero-clone/size/security guards and assertions unchanged. Give process
+fixtures their own private resource namespace; consolidate equivalent paid
+record/setup and test fixtures under their existing owners. Measure browser
+contributors before removing repeated code/data from the graph. Run complete
+touched suites at repository deadlines, byte-exact red drills, changed-file
+lint/format and all compiler projects. Aggregate quality, native contract/SAST
+repair and installed qualification remain lead/other-lane work.
+
+**M104 F3 portable counter compatibility (2026-10-09).** The complete
+portable inventory exposes two optional-closure counters still rooted at VS
+Code's entry. Pass the already-selected startup entry through pacing and team
+accounting, including Windows paths; keep shared dependencies charged to their
+original group and every cap unchanged. Preserve the original static-file
+stat refusal while the new complete portable inventory retains its explicit
+missing-chunk refusal. Owned gate fixtures must supply the portable metafile
+and Xcode table reader so every existing assertion reaches its guard.
+
+**M104 F3 portable graph bounded repair (2026-10-09).** The complete
+177-output JavaScript graph measures 1,353,195 bytes before the repair and
+1,323,336 after it, against the unchanged 1,126,400-byte cap. The portable
+build inherited VS Code's resource-only Zod namespace, which isolates startup
+but duplicates a parser already counted in this complete graph. Share it only
+in the portable build; preserve VS Code's deferred copy and all resource
+validation/UI. Savings: 29,859 bytes. Both optional-closure counters now use
+the selected entry; all portable closure caps pass independently. Existing
+static and portable missing-file refusal tests retain every assertion.
+All three full bundle suites pass (134 tests). Restoring the copied parser
+fails its real-production assertion; independently restoring each wrong
+counter entry fails both slash-style cases, with byte-exact restoration.
+The aggregate still exceeds its cap by 196,936 bytes. A measured read-only
+GFM candidate saves only 15,647 more bytes and does not fit; it is not adopted.
+The remaining 192.3 KiB would require a broader renderer/dependency or shared
+application diet, beyond a bounded fixture/build-owner repair. Apply the
+brief's stop-and-report rule; keep the cap and every feature, with build exit
+1 and main integration blocked. The lead must authorize/own that broader diet
+before qualification. No release, complete-build or visual qualification is
+claimed by these scoped repairs.
+
+**M104INT ACP fixture stop (2026-10-09).** Four real-stdio session
+startup cases still fail after the private Linux-helper and joined-factory
+fixture repairs. The creation-registry guard rejects a real directory with
+mode `0775`, matching uid 1000 and no symlink; do not chmod it, weaken the guard
+or rewrite the fixture repeatedly to obtain green. The shared two-fix stop
+rule applies. Temporary permission diagnostics are restored byte-exact.
+The four failures remain a main-integration blocker until the lead fixes the
+fixture's resource ownership/isolation and reruns the whole file.
+
+**M104 F3 ACP resource fixture qualification (2026-10-09).** The dedicated
+repair brief supersedes the prior integration lane's bounded fixture stop.
+The fixture owned its data-home wrapper but let initial state publication
+create the machine-data parent with default permissions (0775 on this rig).
+Creation-registry publication correctly refuses that parent. Create the
+platform-specific machine-data directory with the existing private mode,
+inside the fixture's fresh mkdtemp root, before starting an agent. No chmod,
+ambient profile read or registry/security change. All thirteen real-stdio
+cases pass; removing only the private namespace setup reproduces the four
+startup failures, then the fixed file is restored byte-exact. This removes
+the ACP fixture blocker, while other integration blockers remain.
+
+**M104INT presentation browser fixture repair (2026-10-09).** Compile
+What's New CSS through esbuild like production, including its generated host
+roles; raw concatenation left imports behind already-emitted CSS rules and
+produced false link contrast failures. Audit report surfaces after finite
+entrance motion. Warm each browser's first real page in shared setup so cold
+WebKit work is outside a five-second case. Keep every scene, assertion,
+contrast rule, viewport, browser and repository deadline unchanged.
+
+**M104INT authority ownership repair (2026-10-09).** The new supervision
+bundle must load M107 tree readers and registry from their existing lazy
+governor owner, through its explicit exports. Keep every policy exclusion
+unchanged; remove their duplicate copy from process authority and measure both
+bundles against their original caps. This implements the brief's required
+lazy budget repair without adding a new output, cap, dependency or allowance.
+
+**M104INT verified search settlement forwarding (2026-10-09).** Preserve
+0.17's quoted tariff through the portable paid-use wrapper and each backend/
+composition adapter. Search tallying still refuses a missing tariff; pass the
+returned settlement or exact amount into `PaidUsage.add`, rather than dropping
+its third argument. Cover direct and composition tallying with frozen quotes.
+
+**M104INT installed watchdog import repair (2026-10-09).** The shared
+watchdog is both a direct guardian and a private Node launch preload. Native
+module inventory imports must have no launch-pipe side effect: enter the gate
+only when the actual installed file is explicitly named by Node's `--require`
+argument. Keep exact registration-before-GO, EOF refusal and guardian execution
+unchanged; verify real launches and archive native import/require parity.
+
+**M104INT native input-schema refusal blocker — repaired by M104 F1
+(2026-10-09).** Export accepted inputs before exact-money normalization while
+explicitly closing named objects that Zod would strip. Declared records,
+catchalls and arbitrary JSON state retain their existing policy. Adopt MHP 1.5
+through the guarded generator and update actual peers, native build inputs and
+fixtures; the frozen 1.4 snapshot is not silently rewritten at the same version.
+The existing API-key refusal assertion and added token/unrelated-member probes
+pass. Native validators accept the readOnly annotation and enforce exclusive
+numeric endpoints; unknown vocabulary still refuses. Certification and exact
+restoration hashes are in `docs/certification/m104.md`, M104 F1. F3 clears
+the ACP fixtures separately.
+
+**M104INT native matrix qualification blockers — M104 F1 residual
+(2026-10-09).** The native theme now supplies every joined CSS role. The JCEF
+fixture includes the current schedules and estimator settings, so the actual
+browser's Send, Allow once, Deny and Stop controls pass. Two settled-diagnostic
+version tests still receive a pending/null result: draining the daemon's status
+queue and selecting the editor's analysis context both failed to repair them.
+The rig's two-fix stop rule applies; ineffective changes were restored and the
+settlement, committed-document, version and scope checks remain intact. Eclipse's
+contract vocabulary repair removes its setup/teardown errors; both target
+matrices and native red drills are recorded in M104 F1's certification.
+JBDIAG now clears these two diagnostic-test blockers: the visible-editor
+real-daemon harness passes all 86 native tests with production unchanged. Installed VS Code
+on Win11, real Visual Studio/Xcode qualification and resource-chip parity stay
+open. The C# endpoint change has a portable .NET 10 probe only; the Swift
+endpoint change awaits a native macOS run because this Linux rig has no Swift
+compiler. Portable fixtures, SDK compilation and the Linux native matrices do
+not promote those hosts to supported. The full visual gate also stops while
+reconstructing reviewed source `484964c46`: agents-details/dark/690/en never
+renders `.agent-node-clickable` after 2,448 captures. Candidate comparison does
+not run; visual qualification remains with the lead, with no baseline update.
+
+**M104INT final static-gate cleanup (2026-10-09).** Plain Knip identifies
+the Windows receipt/config and esbuild fixture as real path-invoked entries,
+plus two unused compatibility re-exports after the portable leaf extraction.
+Register those actual entries without adding ignores, and remove only the
+unused exports. No runtime behavior or public command changes. Recheck plain
+Knip, scoped lint/format and compiler gates before the final quality attempt.
+Run the installed-language bundle checker with its required private package
+root installed from a real test tarball; an invocation without that argument
+is an operator error, not evidence of an English-fallback defect.
+
+**M104INT duplication gate deferral (2026-10-09).** The full source/test
+union reports twelve clones (93 lines, 707 tokens) against its unchanged zero
+threshold. They span the host/runtime paid-ledger schema/setup and six test
+owners, including newer production consent and Windows trusted-path receipts.
+A separate shared-owner/test-fixture cleanup must preserve their independent
+guards and assertions; do not make cosmetic token changes or add excludes to
+hide equivalent implementations during this blocked integration join. Record
+the exact clone locations and retain duplication as a main-integration blocker.
+
+**M104 F3 duplication qualification (2026-10-09).** The recorded twelve
+clones are removed by sharing daily limit fields and empty-journal setup in
+the existing journal owner, and equivalent fake/consent/process fixtures in
+their test owners. Host limits retain stripping objects; runtime limits retain
+strict objects, exact decimal bounds and all independent admission/settlement
+guards. Parameterized paid-use cases retain both answers and every assertion.
+The joined Windows vector reader explicitly validates the existing ancestry
+field with the same strict schema as the portable reader; no native assertion
+or OS guard changes. The source/test gate reports zero clones without config
+changes. Replaying the original twelve owners produces fourteen clones (the
+original twelve plus the now-shared fixtures); removing decimal bounds fails
+the two new boundary cases. Both drills restore every file byte-exact. Full
+touched suites pass at repository deadlines, including process/companion
+fixtures. Duplication is no longer a main-integration blocker.
+
+**M104INT SAST review deferral (2026-10-09; F2 repair below).** The original
+unchanged auto-rule scan reports sixteen blocking findings in six joined owners:
+Eclipse's launcher, JetBrains script placeholders and dynamic schema RegExp,
+Xcode generated XML and shared/portable page entity escaping. M104 F2 replaces
+the reported sites with validated executable argument lists, native-owned bridge
+insertion, reviewed literal patterns and the existing contextual serializers.
+Regressions and byte-exact red drills cover all sixteen; an offline four-pattern
+Semgrep reproduction reports the original 1/2/1/3/4/5 counts and zero after repair.
+This supplemental scan does not certify the registry's complete auto rule set.
+The shared lane rules prohibit registry network reads, so the unchanged full
+SAST rescan remains a main-integration requirement, including resolution or
+qualification of the original ModelApiHost express-SSRF rule timeout. No rule,
+exclude, deadline, dependency or suppression is changed. The portable cap
+remains with its owner; F1 and JBDIAG repair the native contract and diagnostic
+failures, and F3 clears duplication and the ACP fixtures separately.
+
+**M104 F2 SAST boundary repair (2026-10-09, before implementation).** Repair
+the sixteen findings in those six owners with explicit executable argument
+lists, the existing contextual HTML/JSON serializers, XML-safe generated
+labels, fixed nonce-bearing bridge markup and a finite reviewed schema-pattern
+allowlist. No suppression, dependency, rule, exclusion or deadline changes.
+Add hostile-input regressions for every finding and byte-exact red drills in
+`docs/certification/m104.md`; run only the touched suites, scoped format/lint
+and all compiler projects on this rig. The lane brief substitutes these checks
+for aggregate quality; native contracts, ACP fixtures, portable budgets and
+duplication remain with their separate owners. No merge, push or live call.
+
+**M104 F2 completed boundaries (2026-10-09, kubuntu).** Eclipse resolves a
+regular executable from an absolute override or absolute PATH directory;
+the fixed `panel`/`--stdio` arguments stay separate. The RVM104F2C follow-up
+also resolves Windows npm shims to verified native Node and the installed ACP
+script, retaining `.exe` installs and refusing shell-command strings. All sixteen plugin Java
+sources compile against cached target jars, and the portable launcher JUnit
+regressions pass. RVM104F2D additionally confines discovered npm packages to
+the canonical shim prefix without links or junctions below it; explicit JSON
+pairs retain their canonical package semantics. JetBrains page generation emits no executable bridge
+placeholder; the existing native insertion path supplies its reviewed script
+and nonce. Its seven frozen panel/state patterns are literal-only, with unknown
+source refused and contract-inventory/acceptance/refusal tests. Keep the existing
+embedded unknown-member assertion unchanged: its failure remains the separate
+native-input contract blocker. Scope/gate receipts and fifteen byte-exact red
+drills are in `docs/certification/m104.md` and `m104-f2-drills.json`.
+
+**M104INT aggregate formatting cleanup (2026-10-09).** The single final
+quality attempt stops at formatting because native test runs left ignored
+Gradle/Tycho/private IDE outputs under the checkout, including truncated
+telemetry and generated HTML that Prettier cannot parse. Preserve the actual
+exit/tail, save native report hashes/case summaries and remove only owned
+untracked output directories. The sole tracked warning is Sublime's LSP
+sample configuration: format it and prove the parsed object is unchanged.
+Do not add ignores or repeat the full quality command; run clean-source
+format/lint/compiler gates separately and retain every other blocker.
+
+**M104INT guardian fixture preload repair (2026-10-09).** Delayed and
+refusing test guardians must retain the actual compiled launch gate in their
+own explicitly preloaded file. A transitive ordinary import is now correctly
+side-effect free, so it cannot stand in for Node's preload contract. Keep the
+native marker assertions, failed-handoff refusal and all default deadlines;
+verify the complete supervisor, watchdog and process-launch files.
+
+**M104INT LSP paid-policy ownership repair (2026-10-09).** Reuse the
+existing lazy runtime engine's paid gate, usage and consent implementations
+for the broker worker, and its Model API client from the existing lazy backend
+factory, installing the caller's language table in each owner before use.
+The frontend stays independent of paid-policy code and no native key is read
+until consented Tab dispatch. Keep the original LSP and runtime-engine caps
+and measure both outputs; no feature or paid-use guard is removed.
+
+**M104INT bundle blockers (2026-10-09).** The PD/0.17 union initially
+measured the complete portable JavaScript graph at 1321.0 KiB; the L join
+measures 1321.5 KiB against its unchanged 1100 KiB cap. LSP measures
+136.8/106 KiB before reusing the existing paid/client owners, then 88.7/106;
+process authority measures 67.8/50 before sharing the governor's tree owner,
+then 40.4/50. Its added Linux containment remains required production behavior.
+Portable engines were reduced from 155.6 to 131.7
+KiB against 150 by isolating account-state facts, but that does not cure the
+browser aggregate. The brief requires stopping budget repair without a lead
+size decision when it cannot fit; no cap or gate is raised. Continue the
+independently authorized joins and record final measurements/quality refusal;
+this blocker must be cleared before main integration or shipment.
+
+**FIXM104PB bounded review repair (2026-10-06, Kubuntu).** The lane brief
+overrides the aggregate quality/merge instructions: no full quality, full
+suite, merge, push or rebase. Use the repository's unchanged test deadlines,
+at most three named files and three workers per run, all compiler projects,
+scoped lint/format, plain Knip, duplication, localization, host API and the
+production build. B's test namespace still needs A's central discovery/lazy
+wiring; its supplemental test config adds discovery only. The existing
+generated host inventory remains F's integration responsibility. These gate
+deferrals apply only to the unshipped component lane; the lead must clear
+them and run aggregate quality before integration/support certification.
+Actual exits and unchanged size caps are recorded in `m104-pb.md`.
+**FIXM104PE4 scope (2026-10-07).** The rig/common brief substitutes scoped
+sequential fresh-clone TypeScript checks for aggregate quality/coverage and
+requires full JVM gates plus three repeated owning native suites. All existing
+caps, lint rules and test deadlines remain unchanged. The MHP gate also checks
+the generated Java/Kotlin error tables; controls must prove both drift guards.
+
+**FIXM104PE3 scope (2026-10-07).** The rig/common rules reserve aggregate
+`npm run quality` and coverage for the lead. This lane requires native Maven
+verify, Gradle test/Detekt, repeated owning JVM suites, and sequential
+fresh-clone TypeScript gates. The previous NativeHostServices Detekt deferral
+is removed: all three remaining findings are in scope and must be green with
+unchanged rules and thresholds.
+
+**FIXM104PA3 packaging correction (2026-10-06).** Lane A repairs the existing
+VSIX allowlist and its actual package-member/production activation tests for
+`dist/hostProtocol.js`. Build and package run end to end locally with the
+existing named offline badge option, as required by the no-network rig brief.
+F retains the exact CI VSIX/ACP inventories and native/distribution receipts;
+the handoff now explicitly names this existing VS Code startup dependency and
+the required `extension/dist/hostProtocol.js` workflow member. Scoped default-
+deadline regressions and eight byte-exact red controls are recorded in
+`docs/certification/m104-pa-integration.md`. Aggregate quality remains lead-owned.
+
+**M104PA continuation 3 scope and ownership (2026-10-06).** The rig brief
+forbids full quality/full-suite runs; certify scoped sequential runs at default
+Vitest deadlines. F alone owns the generated host-API inventory and packaging
+scripts: regenerate/review its inventory and add the five new Node artifacts
+plus the complete portable presentation graph to the exact ACP/test-package
+inventory before release. A records their exact paths and native prerequisites
+in `docs/certification/m104-pa-integration.md`; these are handoffs, not gate waivers.
+The earlier 1.2 no-HTML ruling describes the retired proposal. This continuation
+adopts 1.3 for C's awaited same-build What's New publication while retaining
+editor-initiated initialization, authenticated assets and immutable bindings.
+No legacy 1.2 carrier is accepted, and no support row is promoted.
+
+The scoped engine suite has one owner-fixture failure: the paid image test's
+one-second `vi.waitFor` expires during real checkpoint preparation. A temporary
+fake-only probe of the same flow, waiting for its actual consent question,
+passes at the repository's five-second test deadline; B must repair its fixture
+before claiming its namespace green. C's 962-case browser matrix cannot start
+without Playwright 1.63.0's WebKit build 2359 (and installed Chrome). No tests,
+caps or timeouts are weakened. F prepares qualification tools and regenerates
+the host inventory. Missing Model API workflow orchestration and F53/F55/F56
+engines/contracts remain bounded scope stops, with prerequisites in A's record.
+
+**M104INT bounded integration (2026-10-06, macmini).** The explicit rig
+brief forbids aggregate quality and full test runs; commits use the owning
+three-file/three-worker suites, scoped lint/format, all compiler projects,
+localization, regenerated host inventory, cycles, plain knip, duplication
+and unchanged production budgets. The lead retains full integrated quality,
+coverage and installed-editor qualification. `check:mhp` exits 1 at the
+frozen 1.1 wire lock: the current shared chat payloads differ from the old
+snapshot. An isolated unchanged `35ce56f8` source archive produces the same
+failure and digest (`ffe801752a24baa897efbd819fc289fe1ea6b7a21e765e18924bb5d45d49fa93`).
+The four frozen snapshots/locks and C's guard remain byte-identical. Do not
+rewrite the lock or silently activate a 1.2 proposal; the protocol owner must
+resolve this inherited versioning blocker before integrated quality can pass.
+Native bootstrap ownership, signing and unavailable platform/editor matrices
+are recorded with the 56-feature inventory in `docs/certification/m104-int.md`.
+No parity, aggregate-green or supported M110a0 claim is made.
+
+<!-- plan-archive:end id="gates-49b2ee654-34534" -->
+
+<!-- plan-archive:begin id="gates-49b2ee654-35033" lines="35033-35324" at="49b2ee654" bytes="21375" sha256="161b2dd9469b7f80f1464b029fb7975f3741ff5c6c2c12e581470142bbec4b43" -->
+
+**TRAINACT scoped qualification.** The explicit rig/common brief reserves
+aggregate `npm run quality` for the lead and forbids it in this lane.
+Run production build and all unchanged caps/split checks; complete owning
+suites at repository timeouts (at most three files per run); host, unit and
+e2e typechecks; changed-file lint/format; knip, cycles, duplication, host API
+and localization. Drill both regressions and restore source byte for byte.
+Record receipts in `docs/certification/train-activation.md`.
+
+**MODELSPLIT4 scoped rig qualification (2026-10-11, kubuntu).** The
+explicit lane/common brief forbids aggregate `npm run quality` and reserves
+it for the lead's integrated tree. This lane runs complete owning test files
+at repository deadlines, all five type projects, changed-file lint/format,
+plain knip, duplication, localization, reference, host API, token, plan and
+roadmap checks, production budgets, real held/failed-chunk browser cases and
+all Models panel visual comparisons. No gate, cap, coverage threshold or
+timeout is relaxed. Nine byte-restored red drills and the documented
+first-ever estimate are in `docs/certification/models-split.md`.
+
+**REL0171B final 0.17.1 branch (2026-10-10, linuxlt + Kubuntu).** Merge
+MENUFAN and VIS0171 onto `release/0.17.1` by meaning, regenerate every
+generated file with its script, and repair what the merged gates found:
+the pressed menu pill's inset ring (M114 P2), the menu browser cases' setup
+cost, the open-menu capture race and the 21 inherited jscpd clones. One
+reviewed full visual update explains every changed scene (the two menu
+scenes and What's New's 0.17.1 notes); the full unsharded `check:visual`
+on the final head is the receipt that closes VIS0171's stopped replay. No
+deadline, threshold, assertion or cap changes. Evidence:
+`docs/certification/rel0171b.md`.
+
+**VIS0171 0.17.1 visual refresh (2026-10-10, linuxlt).** Compare the full
+9,792-frame matrix on `4acb7015f`; classify every changed scene as Title Case,
+question-field spacing, provider-picker repair, or an unrelated hold. Inspect
+every changed frame before the repository's reviewed update; stop on unrelated
+changes. Regenerate all curated README shots, refresh their existing input
+fingerprint and current audit hashes, and certify a full zero-changed-scene
+replay, complete owning suites at repository deadlines, and an old-baseline
+failure with SHA-256 byte-exact restoration in `docs/certification/cifix017.md`.
+Aggregate quality remains lead-owned under the shared rig brief. No merge,
+push, subagents, paid calls, timeout changes or gate weakening.
+The initial reconstruction fails at `paid-always/light/320`: the current
+driver waits for Title Case `Auth Method` in the historical sentence-case
+source. Make the exact account-label and vault-action selectors accept both
+capitalizations, with browser regressions; preserve their readiness checks.
+The compatibility repair is committed as `7c8338ac5`; the new regressions
+first fail on both historical labels and then all seven readiness tests pass
+at repository deadlines. Five typechecks, changed-file lint/format, plain
+knip, localization, host API, reference, tokens, plan and roadmap pass.
+The unchanged duplication gate reports 21 inherited provider-wizard/test
+clones, none in lane-edited files; leave their repair with the lead rather
+than weakening the zero-clone threshold or expanding this visual lane.
+The complete historical capture succeeds, but two candidate attempts reject
+the fake Models state at `models-configure`: its required `sessionBudget`
+is absent. PROVWIZ9 already documents this stale harness contract. Add the
+canonical `modelsPanelFixtures.makeState().sessionBudget` to the fake host
+and a strict production-schema regression; never relax the message schema.
+
+- [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
+- [x] Reconstruct all 9,792 historical frames; compare all 1,632 light-theme candidate frames.
+- [x] Classify 120 observed changed scenes; stop on three class-(d) release-note scenes.
+- [x] Complete all themes/shards and per-frame approval review under the resolved round-2 authorization.
+- [x] Regenerate all 19 README shots, update their input fingerprint and refresh 20 current audit source hashes.
+- [x] Refresh approved baselines and perform the old-baseline drill.
+- [ ] Complete the full unsharded zero-changed-scene replay.
+- [x] Run owning suites and scoped gates; record the blocked outcome, source restoration drill and hooks-on repairs.
+
+**Round 1 historical stopped outcome.** The complete light matrix has 1,440 over-allowance frames
+in 120 scenes: 116 label-only scenes, `models-errors` with labels and the
+provider repair's error/blocker list, and three What's New content scenes.
+Question spacing is already in the recorded source. No observed control-state
+coverage changes occur. The full zero-changed-scene gate remains unqualified;
+no baseline, README image, input fingerprint or audit hash is approved or
+updated. The original manifest remains SHA-256
+`e314783f2e7bcd2d95ecd83327e9e9142fe3fe66ae71a0418524fb118c4fed50`.
+Owning suites pass 136 of 138 cases; the two retained failures correctly name
+stale audit source hashes and the README input fingerprint. Q-VIS0171-RELEASE-NOTES
+and the inherited 21 duplication clones remain release holds.
+
+**Round 2 reviewed baseline and drill complete; full replay unqualified.** The lead accepts both harness repairs and approves
+the 120 observed scenes, including 0.17.1's release-note content. The earlier
+stop is historical; Q-VIS0171-RELEASE-NOTES is resolved. Finish the complete
+six-theme comparison and per-frame inspection before the named reviewed
+update, then regenerate every README shot and freshness record. Require the
+full official replay and owning suites at repository timeouts, plus an
+old-baseline failure and byte-exact restoration. Aggregate quality and the
+inherited duplication repair remain lead-owned; no merge or push.
+All 19 curated README captures are regenerated and inspected; 18 change and
+`languages.png` is byte-identical. The 20 stale current audit rows are refreshed
+without changing historical grades or evidence. All nine complete owning suites
+pass 138 cases at repository deadlines; five-project typecheck also passes.
+All six themes are captured and reviewed: 8,640 over-allowance frames in the
+120 approved scenes, plus 90 byte-different frames within the unchanged pixel
+allowance. No observed control-state coverage changes occur; question spacing
+and 0.17.1 release highlights are intact. The official baseline update
+and restoration drill pass. The repository update records all 9,792 PNGs /
+450,604,546 bytes / 512 MiB at source `f8db72798`, with every historical
+components/target/applied-state row preserved. The additional 1,255 within-policy
+frames are inspected through 830 native regions on 26 sheets; no defect is
+observed. Manifest owners pass 24/24 after update. Baseline commit: `f7243df25`.
+The old-baseline drill exits 1 at 2,075 changed pixels against allowance 12,
+then restores manifest and PNG byte-exact by SHA-256. The full unsharded replay
+is intentionally stopped to respect the 90-minute rig time box, after 1,152
+reported captures without an observed visual regression. Its terminal-close
+error is interruption evidence, not a new visual failure. No full result is
+written; zero-changed-scene qualification remains pending. Next: run the full
+`npm run check:visual` in terminal mode with enough time for all 9,792 frames,
+then append its actual receipt. Aggregate quality and inherited duplication
+repair remain lead-owned; retained ignored browser profiles need lead cleanup.
+
+**PROVWIZ10 scoped qualification (2026-10-09, complete).** Both RVPROVWIZ9C
+P2 repairs pass production/shared-form regressions, including genuine concurrent
+credential changes and retry notices in all 14 translations. All 46 owning
+files pass 833 tests; request goldens pass 152; Help/browser-English files pass 141. Both deliberate reversions fail and restore source SHA-256 bytes exactly;
+the final restored focused run passes 108. One unit tsc, changed-file ESLint/
+Prettier, localization/reference/host API, plain Knip and production build pass.
+The inherited surface-English hold is closed at 25595 / 25600 bytes by shortening
+existing `referenceQuestionsDeferral` in all tables; no cap or gate changes.
+Production English/German visual checks pass at 690/320 px. A new repeated test
+expectation was shared without losing assertions; plain jscpd remains only the
+inherited 21 clones / 287 lines / 1970 tokens at its unchanged zero threshold.
+Aggregate quality/coverage/release/editor/hosted/live gates remain lead-owned
+under the explicit rig brief; no full quality claim. Next slice is lead review
+and cross-rig release gates, including the inherited duplication hold, then
+PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`, PROVWIZ10.
+
+**PROVWIZ9 scoped qualification (2026-10-09).** Ordered provider saves remove
+rollback after RVPROVWIZ8C's three P2 findings. All 46 complete owning files
+pass 816 tests at repository deadlines, including the final lazy-store preflight
+move. Request goldens pass 152; deliberate byte-exact source drills prove guards
+fire. Every partial outcome keeps completed writes and refresh warnings append.
+New-origin rows require an origin-bound usable key. Budget-only drafts retain
+fresh retry baselines; quick-pick conflict retries preserve intervening edits.
+English/German production rendering passes at 690/320 px without document
+overflow. Full quality, coverage, packages, hosted/editor and live qualification
+remain lead-owned under the explicit rig/common brief. Plain jscpd retains the
+same inherited 21 clones / 287 lines / 1970 tokens, with no new clone. Full
+production build is held by surface English at 25651 / 25600 bytes: the unchanged
+base built on this same macbook has exactly the same size/failure, and this lane
+adds no surface bytes. Do not raise the cap or claim full quality green. The
+initial schema split failure is fixed by preflight through the existing lazy
+provider-store port; individual final split/global/notices receipts are recorded
+in `docs/certification/provcat.md`. Next slice: lead review and cross-rig release
+gates, including inherited size/duplication holds; then PROVSTORE-LOCKLIB after
+M123 lands on main for the accepted cross-window residual.
+
+**PROVWIZ8 scoped qualification and retained duplication hold (2026-10-09).**
+Repair RVPROVWIZ7C P2-3/P2-4 with a per-field inverse in the existing provider
+mutation and an honest saved-provider notice on refresh failure in all 14
+languages. Complete provider/models/capability suites pass 802 tests; Meta
+request goldens pass 152. All qualifying guard drills fail and restore bytes
+exactly; the final focused run passes 63 tests. The rig/common brief delegates
+aggregate quality, coverage, packages, hosted/editor and live qualification to
+the lead. Plain jscpd remains exit 1 at the unchanged threshold with the same
+21 clones / 287 lines / 1970 tokens as the reviewed base. A new repeated Test/wait
+interaction is shared without dropping assertions; no new clone remains. The
+lead's broader duplication cleanup remains open, and quality is not claimed
+green. P2-1/P2-2 are the explicit 0.17.1 cross-window residual at M95 and §8,
+awaiting PROVSTORE-LOCKLIB after M123. Receipts: `docs/certification/provcat.md`,
+PROVWIZ8 section.
+
+**PROVWIZ7 scoped qualification and retained duplication hold (2026-10-09).**
+Repair both RVPROVWIZ6C P2 findings with host-only edit/credential snapshots,
+changed-field comparisons inside the provider mutation, expected-default
+comparison and a validated Reload action. All 45 complete provider/models files
+pass 788 tests at repository deadlines; 15 deliberate guard failures restore
+source SHA-256 exactly. Changed-file lint/format, compiler, localization/reference,
+host API, plain Knip and production size/split/global/notices checks pass. Keep
+the inherited zero-clone gate's 21 clones / 287 lines / 1970 tokens; this round's
+one repeated assertion sequence is shared, leaving no new clone. The initial
+English surface overflow is repaired by keeping the host sentence off the
+browser's text comparison path, restoring its exact 25597-byte baseline under
+the unchanged 25600-byte cap. Aggregate quality, coverage and hosted/editor/live
+qualification remain lead-owned under the rig brief; do not claim full quality
+green. Receipts: `docs/certification/provcat.md`, PROVWIZ7 section.
+
+**PROVWIZ6 scoped qualification and inherited duplication hold (2026-10-09).**
+The rig/shared brief reserves aggregate quality, coverage and hosted/editor
+qualification for the lead. All 45 complete provider/models files pass 774
+cases at repository deadlines; 18 deliberate failures restore source SHA-256
+exactly. Five typechecks, changed-file lint/format, localization/reference,
+host API, plain Knip and production build pass with unchanged caps. The
+one newly introduced repeated test block is shared without removing assertions.
+A temporary source archive of the exact merge base `40fdfe2fe` and the repaired
+worktree both fail the unchanged zero-clone gate with **21 clones / 287 lines /
+1970 tokens**. None is introduced by this lane. Retain the prior wizard lane's
+lead-owned broader duplication cleanup below; do not claim aggregate quality
+green. The owned temporary baseline is removed. Evidence and per-batch/drill
+receipts: `docs/certification/provcat.md`, PROVWIZ6 section.
+
+**PROVWIZ2 round 5 scoped qualification (2026-10-09).** The rig brief
+reserves aggregate quality for the lead. All 28 owned files pass 511 tests at
+repository deadlines; five typechecks and individual lint, format, deadcode,
+localization, reference, host API and production build checks pass. Ten
+purposeful breaks fail and restore source bytes exactly. Duplication remains
+the inherited 24 clones / 312 lines / 2206 tokens below; no new clone or gate
+change is introduced. Final compiler/lint/format checks include the added
+failed-retest regression. Receipts: `docs/certification/provcat.md`.
+
+**PROVWIZ2 round 4 scoped qualification (2026-10-09).** The explicit lane
+brief and shared rules prohibit aggregate `npm run quality` and reserve it
+for the lead. Run complete owned suites at the repository's default timeout
+and all prescribed individual gates here; do not weaken any gate. Full
+quality, coverage and installed-editor qualification remain with the lead.
+Evidence and deliberate byte-exact drills: `docs/certification/provcat.md`.
+Duplication is an inherited lane hold: a read-only source snapshot of
+`bfbdf3c35` fails the unchanged zero-clone gate with 25 clones (321 lines,
+2,275 tokens). Round 4 removes all newly introduced clones; its scoped
+cleanup reduces the inherited set to 24 (312 lines, 2,206 tokens). The
+remaining prior-round test setup/interaction and wizard-footer duplication
+is deferred to the lead's broader quality cleanup, outside these five fixes.
+No ignore, threshold, assertion or check is changed; do not claim quality
+green. G94 (G66 on the branch, renumbered at the 0.17.1 merge) records
+freezing worktree edits during hook execution.
+
+PROVWIRE (2026-10-09): the lane brief/common rules reserve aggregate
+`npm run quality` for the lead and prohibit running it in the lane. Scoped
+provider/models tests and all requested static checks, plain knip, duplication,
+host API and production build pass; no threshold, ignore or deadline changes.
+This is a qualification handoff, not a full-quality or installed-editor claim.
+
+**MENUFAN scoped verification (2026-10-10, Kubuntu).** Run the brief's
+focused UI and visual suites at repository timeouts, scoped static gates,
+production budgets and the reviewed full visual matrix. The shared rig brief
+prohibits aggregate `quality`; the lead retains full qualification. An extra
+`node test/e2e/webviewDiet.mjs` smoke remains open: its global loading-count
+assertion raced two deferred renderers after GoalPanel appeared. Reusing the
+harness readiness wait passed that point, then its unchanged legacy schedules
+scene timed out waiting for `.local-schedules` at 5 s. The exploratory wait
+was reverted; only the smoke's English opener labels change in this lane.
+No timeout, assertion, scenario, hook or gate is weakened. Evidence:
+`docs/certification/menufan.md` and `temp/menufan/webview-diet.log`.
+
+**MINOUT round 2 scoped qualification (2026-10-10, macmini).** The explicit
+rig/common brief prohibits aggregate quality and full-suite runs; the lead
+owns those gates. Complete owning suites use repository deadlines and at most
+three files per invocation. Run all five type projects, changed-file lint and
+formatting, plain knip, duplication, localization, host API, reference, plan,
+roadmap and production build without weakening any limit. Record per-path
+SHA-256 restoration drills and the full configured-provider loopback receipt
+in `docs/certification/min-output-cap.md`. Hooks stay installed and enabled;
+local commits only, no merge, push or paid/live request.
+
+**CIR4MAC scoped hosted-CI repair (2026-10-09, macmini).** Reproduce
+round 4's macOS target-size deadline and palette failure-render ordering
+under bounded CPU/memory pressure before repairing their causes. Keep all
+themes, targets, assertions, repository deadlines and gate limits. Profile
+scene setup and lazy rejection delivery; run the complete owning files,
+five type projects, changed-file lint/format, plain knip, duplication,
+localization, host API and production build. Record byte-exact red/restored
+drills and load receipts in `docs/certification/cifix017.md`, Round 4,
+macOS. The explicit rig/common brief prohibits aggregate quality and
+delegates full hosted qualification to the lead. Requested hosted log
+downloads return HTTP 403; no merge, push, rebase or paid/live model call.
+
+**CIFIX017 round 5 (2026-10-09, lead + CIR5WIN + CIR5MAC).** Run 38022741513
+left four single-test failures, each on one OS. Lead: the M108 two-account case
+read usage on `turnCompleted`, but the fake CLI sends `usage/changed` after it
+and the frames can arrive in separate reads, so it now also waits for
+`onUsageChanged`; the estimator harness pays the browser's first-navigation
+work once in `beforeAll` (only the first matrix case ever missed, at
+navigation in round 3 and readiness in round 4), keeping every case's
+two-second bound. The lead then took the other two over from CIR5WIN and
+CIR5MAC (owner, 2026-10-09). Windows sshRunner exit-75 reached its unchanged
+10 s job budget: Git Bash maps the helper's `nice -n 10` to the BelowNormal
+class, which Windows' strict priority starves behind normal work, so the
+Git Bash fake remote runs the job unniced, as it already stubs `getconf` and
+`uptime`. macOS lifecycle read no members right after the root exits, while
+launchd reaps the root's unreaped `detached` child; the case now waits out
+that reap and reports the raw `ps`/helper reads if it recurs. Neither hosted
+failure reproduced on the rigs (macOS 15 x86_64 rigs against hosted macOS 26
+arm64), so hosted loops on a probe branch supply the evidence. A sweep of recent CI history added Windows cleanup holds (three suites now use `removeFolder`), the m114Panel first case (the same first-page warm-up) and Windows pageConverter (its fourth page gets the normal converter limits). Hosted macOS, failing only on deadlines in browser/process suites, now runs files one at a time over six shards, as Windows does. The hosted probe (150 rounds on macos-26-arm64) then caught the lifecycle cause itself: macOS 26 prints `?<` as the state of a process mid-transition, and the Mac table parser refused the whole table, so membership read empty; the parser accepts `?` (helper identity still proves membership). Its two outputSchema "promptly" probes measure the child's CPU time against the same 50 ms instead of wall time.
+
+**ACPM118 scoped rig qualification (2026-10-09, macmini).** The explicit
+rig/common brief prohibits aggregate quality and delegates hosted replay to
+the lead. All five type projects, changed-file lint/format, plain knip,
+duplication, localization, host API, reference, tokens, plan, roadmap, cycles
+and production build pass with unchanged limits. Complete sampler/runtime,
+reference and ACP stdio owners certify the shared Darwin libuv boundary;
+the matching Node 22 memory/CPU-loaded timeout and restored guard drill are
+recorded in `docs/certification/cifix017.md`, Round 3. Hosted log downloads
+return HTTP 403; local receipts do not claim a green hosted release.
+
+**CIFIX017L2 scoped rig qualification (2026-10-09, Kubuntu).** The lane's
+explicit rig/common brief prohibits aggregate `npm run quality` and full-suite
+runs; the lead owns those gates. Run the complete owning files, at most three
+per invocation, at repository deadlines, plus five type projects, changed-file
+lint/format, plain knip, duplication, localization, host API and the production
+build. Preserve every assertion and cap. The approved `macmini` SSH route
+refuses host-key verification; no trust setting is changed. Linux receipts
+alone cannot close the macOS-only outline/image failure or M118 ACP timeout.
+Record the missing platform receipts and failure-stage diagnostics in
+`docs/certification/cifix017.md`; this is a qualification deferral, not a
+release-green claim.
+
+<!-- plan-archive:end id="gates-49b2ee654-35033" -->

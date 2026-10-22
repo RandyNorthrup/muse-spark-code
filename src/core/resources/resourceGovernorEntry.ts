@@ -26,6 +26,10 @@ import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
 import { WindowsResourceTreeReader } from './trees/windows'
+// Supervision shares the governor's verified tree machinery on first use (M104INT).
+
+export { MacResourceTreeReader } from './trees/mac'
+export { ResourceTreeRegistry } from './trees/registry'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 // POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
 export { createResources } from '../../runtime/resources/entry'
@@ -328,3 +332,6 @@ export function resourceGovernorHost(options: ResourceHostSettings): ResourceLau
   }
   return state.host
 }
+
+export { LinuxResourceTreeReader } from './trees/linux'
+export { WindowsResourceTreeReader } from './trees/windows'

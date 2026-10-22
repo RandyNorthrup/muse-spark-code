@@ -87,6 +87,12 @@ export const COMPUTED_SOURCE_LOADS = Object.freeze([
     reason:
       'The page worker: the caller passes the path, built from the PAGE_WORKER_FILE constant the scan reads.',
   }),
+  Object.freeze({
+    importer: 'src/webview/bridges/moduleLoader.ts',
+    call: 'import(awaitload(path))',
+    reason:
+      'The authenticated browser module loader: every path comes from the built portable manifest, is fetched with credentials omitted, and must match the manifest byte length and SHA-256 before import (moduleLoader.ts materialize). The portable graph is measured by its own budget gates, not by file name here.',
+  }),
 ])
 
 /**
