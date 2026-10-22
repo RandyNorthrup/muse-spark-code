@@ -453,6 +453,34 @@ describe('M96d release and fallback obligations', () => {
     expect(recovered.outcomeOf(grant)).toEqual({ epoch, token: retiredReference.token })
   })
 
+  it('a settled tombstone stands until acknowledged, then collects exactly once', () => {
+    const engine = fixture()
+    engine.persistIntent(grant)
+    engine.spawn(grant)
+    engine.register(grant, reference, 'complete')
+    expect(engine.acknowledgeSettled(grant)).toBe(false)
+    expect(engine.collectAcknowledged()).toEqual([])
+    expect(
+      engine.settle({
+        grant,
+        epoch: engine.epoch,
+        reference: retiredReference,
+        treeEmpty: true,
+        effectsDrained: true,
+      }),
+    ).toBe('released')
+    // Unacknowledged, the tombstone stands: collection keeps it, and the
+    // outcome stays readable for the lost acknowledgement's retry.
+    expect(engine.collectAcknowledged()).toEqual([])
+    expect(engine.outcomeOf(grant)).toEqual({ epoch: engine.epoch, token: retiredReference.token })
+    expect(engine.acknowledgeSettled(grant)).toBe(true)
+    expect(engine.acknowledgeSettled(grant)).toBe(false)
+    expect(engine.collectAcknowledged()).toEqual([grant])
+    expect(engine.collectAcknowledged()).toEqual([])
+    expect(engine.outcomeOf(grant)).toBeUndefined()
+    expect(engine.acknowledgeSettled('missing')).toBe(false)
+  })
+
   it('leader exit, a process group and missing confirmation cannot prove descendant retirement', () => {
     for (const kind of ['pidfd', 'processGroup', 'psSeconds'] as const) {
       const engine = fixture()
