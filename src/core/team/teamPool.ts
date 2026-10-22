@@ -1,4 +1,3 @@
-export { selectTeamEntry } from './selection'
 import type {
   TeamPreferenceList,
   TeamAvailabilityProbe,
@@ -48,11 +47,6 @@ export function teamCapKey(cap: Pick<TeamCap, 'measure' | 'window'>): string {
   return `${cap.measure}/${cap.window}`
 }
 
-/** Whether the cap is well formed: a finite positive amount. */
-export function isTeamCapValid(cap: TeamCap): boolean {
-  return Number.isFinite(cap.amount) && cap.amount > 0
-}
-
 /** What runs the tools: the extension, a `muse serve` session, or an ACP agent. */
 export type TeamAgentKind = 'engine' | 'museCode' | 'external'
 
@@ -85,10 +79,6 @@ export interface TeamPoolEntry {
   /** Running at once on this entry (D75's `concurrent`). */
   readonly concurrent: number
   readonly caps: readonly TeamCap[]
-}
-
-export function isDefaultEntry(agent: TeamPoolEntry['agent']): agent is TeamDefaultMarker {
-  return 'defaultEntry' in agent
 }
 
 /**
