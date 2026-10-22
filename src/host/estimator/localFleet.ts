@@ -124,6 +124,11 @@ export function estimatorSourcePorts(
   priceLookup: EstimatorSourcePorts['priceLookup'],
   snapshot: EstimatorSourcePorts['snapshot'],
   fleetIo?: FleetBindingIo,
+  prices: EstimatorSourcePorts['prices'] = () => ({
+    cached: () => missingEstimateBinding('M117-W-M113-catalog'),
+    store: () => missingEstimateBinding('M117-W-M113-catalog'),
+    fetchPublic: () => missingEstimateBinding('M117-W-M113-catalog'),
+  }),
 ): EstimatorSourcePorts {
   const read = (lanes: readonly EstimateLane[], asOf: string) =>
     bindEstimatorFleet(localFleet(lanes, asOf), fleetIo ?? {})
@@ -162,11 +167,7 @@ export function estimatorSourcePorts(
       audit: () => missingEstimateBinding('M117-W-M96-board'),
       start: () => missingEstimateBinding('M117-W-M96-board'),
     }),
-    prices: () => ({
-      cached: () => missingEstimateBinding('M117-W-M113-catalog'),
-      store: () => missingEstimateBinding('M117-W-M113-catalog'),
-      fetchPublic: () => missingEstimateBinding('M117-W-M113-catalog'),
-    }),
+    prices,
     priceLookup,
   }
 }

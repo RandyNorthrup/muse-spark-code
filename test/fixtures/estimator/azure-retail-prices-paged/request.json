@@ -1,0 +1,13 @@
+{
+  "method": "GET",
+  "url": "https://prices.azure.com/api/retail/prices?$filter=serviceName%20eq%20'Virtual%20Machines'%20and%20armRegionName%20eq%20'eastus'%20and%20priceType%20eq%20'Consumption'",
+  "headers": {
+    "User-Agent": "muse-spark-code-capture/1 (+repository owner's capture run)",
+    "Accept": "*/*",
+    "Connection": "close"
+  },
+  "body": null,
+  "wireRequestHead": "GET /api/retail/prices?$filter=serviceName%20eq%20%27Virtual%20Machines%27%20and%20armRegionName%20eq%20%27eastus%27%20and%20priceType%20eq%20%27Consumption%27 HTTP/1.1\r\nUser-Agent: muse-spark-code-capture/1 (+repository owner's capture run)\r\nAccept: */*\r\nConnection: close\r\nHost: prices.azure.com\r\n\r\n",
+  "credentials": "none (no Authorization, Cookie, key or token header)",
+  "redirects": "not followed"
+}

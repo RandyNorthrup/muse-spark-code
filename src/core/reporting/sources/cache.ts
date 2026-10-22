@@ -141,6 +141,11 @@ const PUBLIC_HOSTS = new Set([
   'marketplace.visualstudio.com',
   'open-vsx.org',
   'registry.npmjs.org',
+  // M117 C-M117-4: the estimator's pinned Azure retail-prices catalog is
+  // read through this reader (no second transport), so its host is allowed
+  // here. Reads stay pinned-URL-only: the catalog port refuses anything but
+  // ESTIMATE_PRICE_CATALOG_URLS before dispatch.
+  'prices.azure.com',
 ])
 
 export class ReportNetworkFailure extends Error {}
