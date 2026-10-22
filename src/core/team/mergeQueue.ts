@@ -9,7 +9,10 @@ import type { TeamSchedulerFields } from '../../shared/team'
 
 export interface MergeCandidate {
   readonly id: string
-  /** Only `merged` edges belong here; `done` edges do not order landings. */
+  /**
+  Only `merged` and stacked edges belong here, mapped with
+  landingOrderEdges; `done` edges do not order landings.
+  */
   readonly dependsOn: readonly string[]
   readonly priority: TeamSchedulerFields['priority']
   readonly inheritedPriority?: TeamSchedulerFields['priority']
@@ -18,6 +21,19 @@ export interface MergeCandidate {
   readonly files: readonly { readonly shared: boolean; readonly protected: boolean }[]
   readonly finishedAt: number
   readonly onConflict: 'rework' | 'markers'
+}
+
+/**
+The landing-order edges of a task: `merged` edges and stacked ones,
+whose dependency the queue lands first. `done` edges carry reports,
+not code, and never order landings.
+*/
+export function landingOrderEdges(task: {
+  depends_on?: readonly { task: string; on?: 'merged' | 'done' | 'stacked' }[]
+}): readonly string[] {
+  return (task.depends_on ?? [])
+    .filter((edge) => edge.on === 'merged' || edge.on === 'stacked')
+    .map((edge) => edge.task)
 }
 
 /** Numeric decision material for the Traffic view to explain each queue position. */

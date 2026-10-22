@@ -1,4 +1,5 @@
 import { isResourceSlotAvailable, type TeamCapacityPort } from './slots'
+import { isDependencySatisfied } from './dependencies'
 
 /** Input is M96c's already eligible, fairly ordered local work; keep that order.
 @unwired M96c scheduler ready-work picker
@@ -81,12 +82,7 @@ export function inheritedPriorities(
       (task.depends_on ?? [])
         .filter((edge) => {
           const dependency = tasks.find((item) => item.id === edge.task)
-          return (
-            dependency &&
-            (edge.on === 'merged'
-              ? dependency.state !== 'merged'
-              : !['done', 'merged'].includes(dependency.state))
-          )
+          return dependency && !isDependencySatisfied(edge.on, dependency.state)
         })
         .map((edge) => ({ waiter: task.id, holder: edge.task })),
     ),
