@@ -34147,6 +34147,20 @@ lane A's first step.
         count first, use an empty workspace, count from the trace log.
   - [ ] Codex review in one pass per lane class before push.
 
+### RLTESTDRIVE2 — The owner's 0.19.0 test drive, items 11-15 (2026-10-22)
+
+**Status 2026-10-22: built.** Fixed on rig `linuxlt`, branch
+`rec/rltestdrive2`, base 0.19.0, never merged: Lock Vault Now and Open
+Estimator back in the palette with runnable Help entries; absent
+keybindings input reads not applicable (commented manifests parse, only
+a truly broken file stays invalid); checkRuns names its cause (no runs
+recorded, the unreadable count, cancelled, failed read); bare
+`providers usage` names the missing id and lists the configured ids;
+`providers accounts` names a provider with no accounts entry (the
+binding is intact on packed 0.18.0 and 0.19.0 alike; the stored-row
+bridge stays with RLM108). Evidence:
+`docs/certification/rltestdrive2.md`.
+
 ---
 
 ## 7. Gates

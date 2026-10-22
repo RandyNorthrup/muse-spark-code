@@ -1247,6 +1247,11 @@
       "note": "release preparation (0.16.0)"
     },
     {
+      "id": "RLTESTDRIVE2",
+      "public": false,
+      "note": "recovery: the owner's 0.19.0 test-drive items 11-15, fixed"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
