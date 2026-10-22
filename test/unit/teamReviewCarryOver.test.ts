@@ -6,7 +6,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
-import { type TaskBoard } from '../../src/core/team/scheduler/board'
+import { TaskBoard } from '../../src/core/team/scheduler/board'
 import {
   decideReviewCarryOver,
   selectChangedByPatchId,
@@ -25,6 +25,7 @@ import {
   submitTasks,
   taskSubmission,
   testBoard,
+  testBoardContext,
 } from './helpers/teamBoard'
 
 const workingGit: Promise<string> = resolveWorkingGit()
@@ -240,10 +241,10 @@ function parseRawDiff(raw: string): CarryFileDelta[] {
 
 function readDeltasFor(
   repo: CarryRepo,
-  base: string,
+  baseOf: () => string,
 ): (taskId: string, head: string) => CarryFileDelta[] {
   return (_taskId, head) =>
-    parseRawDiff(git(['diff-tree', '--no-commit-id', '--raw', base, head], repo.root))
+    parseRawDiff(git(['diff-tree', '--no-commit-id', '--raw', baseOf(), head], repo.root))
 }
 
 interface CarryHarness {
@@ -267,9 +268,18 @@ function carryHarness(
     integrationChanged?: readonly string[]
     readSets?: ReadonlyMap<string, readonly string[]>
     patchHints?: (priorHead: string, head: string) => CarryHarnessHints | undefined
+    /** The moving integration head: drives the board provider and the delta base. */
+    integration?: { current: string }
   },
 ): CarryHarness {
-  const board = testBoard()
+  const integration = options?.integration
+  const board =
+    integration === undefined
+      ? testBoard()
+      : new TaskBoard('workspace', 'window', {
+          ...testBoardContext(),
+          integrationHead: () => integration.current,
+        })
   submitTasks(board, [taskSubmission('task', {})])
   let head = base
   let reply: readonly { file: string; title: string; severity?: string }[] = []
@@ -319,7 +329,9 @@ function carryHarness(
     redesign: () => {
       throw new Error('unexpected redesign: no blocker finding was reviewed')
     },
-    ...(options?.readDeltas !== false && { readDeltas: readDeltasFor(repo, base) }),
+    ...(options?.readDeltas !== false && {
+      readDeltas: readDeltasFor(repo, () => integration?.current ?? base),
+    }),
     ...(options?.patchHints !== undefined && {
       patchHints: (_taskId: string, priorHead: string, at: string) =>
         options.patchHints?.(priorHead, at),
@@ -508,5 +520,54 @@ describe('M96d review carry-over on real worktrees', () => {
     expect(await retireAndReview(harness, 2)).toBe('reviewed')
     expect(harness.requests).toHaveLength(6)
     expect(harness.requests[3]?.files).toEqual(['a.ts'])
+  })
+
+  it('refreshes the waiting branch on a moved integration and carries exact deltas', async () => {
+    const repo = scratchRepo()
+    const integration = { current: repo.base }
+    const harness = carryHarness(repo, repo.base, {
+      integrationChanged: [],
+      readSets: new Map([
+        ['a.ts', ['lib.ts']],
+        ['b.ts', []],
+      ]),
+      integration,
+    })
+    // The task branches from the integration head and is reviewed clean.
+    git(['checkout', '-b', 'task'], repo.root)
+    const branch1 = commitChange(repo, {
+      'a.ts': 'export const a = 2\n',
+      'b.ts': 'export const b = 2\n',
+    })
+    harness.setHead(branch1)
+    const board = harness.board
+    expect(board.acknowledgeIntegrationRefresh('task', integration.current)).toBe(true)
+    expect(await retireAndReview(harness, 1)).toBe('reviewed')
+    expect(harness.requests).toHaveLength(3)
+    // Another task lands on the integration branch, touching lib.ts.
+    git(['checkout', 'main'], repo.root)
+    const landed = commitChange(repo, { 'lib.ts': 'export const lib = 2\n' })
+    integration.current = landed
+    // The waiting branch refreshes onto the moved head: a real rebase.
+    git(['checkout', 'task'], repo.root)
+    git(['rebase', 'main'], repo.root)
+    const branch2 = git(['rev-parse', 'HEAD'], repo.root).trim()
+    expect(branch2).not.toBe(branch1)
+    harness.setHead(branch2)
+    harness.setIntegrationChanged(['lib.ts'])
+    // The next attempt waits for the refresh acknowledgement.
+    expect(board.transition('task', 1, 'review', 2)).toBe(true)
+    expect(board.transition('task', 1, 'ready', 2)).toBe(true)
+    expect(board.begin('task', boardAttempt(2))).toBe(false)
+    expect(board.integrationRefreshDue('task')).toEqual({ base: landed })
+    expect(board.acknowledgeIntegrationRefresh('task', landed)).toBe(true)
+    expect(board.begin('task', boardAttempt(2))).toBe(true)
+    retireAttempt(board, 'task', 2)
+    expect(await harness.flow.afterRetirement(board.task('task'), true)).toBe('reviewed')
+    // Same task bytes, new branch head: b.ts carries its clean verdict
+    // while a.ts re-reviews, because it reads the moved lib.ts.
+    expect(harness.requests).toHaveLength(6)
+    expect(harness.requests[3]?.files).toEqual(['a.ts'])
+    expect(harness.rounds).toHaveLength(2)
   })
 })
