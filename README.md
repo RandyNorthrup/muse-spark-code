@@ -5675,13 +5675,17 @@ the integration record names the remaining native delivery and storage qualifica
 
 The CLI accepts `muse-spark-code-acp resources status --json` and
 `muse-spark-code-acp resources resume --json`. Status describes that command
-process, rather than another running session's queue. Resume writes the
+process, rather than another running session's queue. Each
+`muse-spark-code-acp` process has one governor, which the ACP agent, a
+headless run and terminal commands share; the processes it starts are that
+governor's work, so at throttle one background item per kind runs. Resume writes the
 machine's bounded marker, read by loaded runtime hosts on their next refresh.
 `resources history` and `usage resources` print the machine's resource
 history, the same summary the usage page's **Resources** section shows
 (`--json` gives the validated aggregate). The VS Code window's governor and
-the ACP agent record minute readings, level and override events and the
-harness's own CPU time into a local journal under the usage folder, with the
+the ACP agent record minute readings, level and override events and the CPU
+time and peak memory of the processes each started (not yet on macOS) into a
+local journal under the usage folder, with the
 usage-history setting as consent, checked when each reading is collected. It
 keeps seven recorded days of detail (at most 10,080 minute readings and 1,000
 events), shows the open minute as "This minute so far", and keeps one row per
@@ -5729,9 +5733,9 @@ native status widget and embedded chip) and the companion page can reuse the
 same shared chip, status adapter and controls once their host bridges bind
 them (M104); none does yet. The usage page (VS Code, the companion page and
 native hosts' embedded page) mounts the usage-history section lazily from the
-usage service's validated state. The actuator lifecycle, runtime spawn
-binding, M96/M96c slots and M100 paired-device dispatch remain explicit
-integration handoffs. Once those routes join, relocation will move only eligible queued
+usage service's validated state. An ACP conversation gets the resource notice
+when its own turn's work waits. The actuator lifecycle, M96/M96c slots and
+M100 paired-device dispatch remain explicit integration handoffs. Once those routes join, relocation will move only eligible queued
 tasks/checks, or a running check after explicit **Move to** and proven
 retirement. Pairing, offers,
 repository mapping, receiver permissions and paid consent remain required;
