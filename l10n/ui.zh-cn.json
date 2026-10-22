@@ -3618,6 +3618,15 @@
   },
   "acpNoModels": "后端没有提供此代理可用的模型。",
   "acpPromptBusy": "此会话中已有一个提示正在运行。",
+  "acpSessionStartFailed": "会话无法启动（{detail}）。详细信息见 Muse Spark 日志。",
+  "acpTurnStartFailed": "本轮无法启动（{detail}）。详细信息见 Muse Spark 日志。",
+  "createdRegistrySave": {
+    "failed": "已创建资源注册表无法保存（{reason}）。详细信息见 Muse Spark 日志。",
+    "refused": "系统助手拒绝了此次保存",
+    "unsafe": "已保存注册表的安全检查失败",
+    "invalid": "已保存的注册表无效",
+    "io": "保存内容无法写入"
+  },
   "acpQuestionFormMessage": "Muse 有一个问题要问你。",
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",
   "acpUnknownArgument": "未知参数：{argument}",

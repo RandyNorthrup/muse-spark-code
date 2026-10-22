@@ -4546,6 +4546,21 @@ export const EN = {
   },
   acpNoModels: 'The backend offers no model this agent may use.',
   acpPromptBusy: 'A prompt is already running in this session.',
+  // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
+  acpSessionStartFailed:
+    'The session could not be started ({detail}). The Muse Spark log has the details.',
+  // {detail}: the failure's fixed-vocabulary cause (an error name, code or kind).
+  acpTurnStartFailed:
+    'The turn could not be started ({detail}). The Muse Spark log has the details.',
+  createdRegistrySave: {
+    // {reason}: why the save failed, one of the clauses below.
+    failed:
+      'The created-resources registry could not be saved ({reason}). The Muse Spark log has the details.',
+    refused: 'the system helper refused the save',
+    unsafe: 'a safety check on the saved registry failed',
+    invalid: 'the saved registry was invalid',
+    io: 'the save could not be written',
+  },
   acpQuestionFormMessage: 'Muse has a question for you.',
   acpQuestionAsked:
     'Muse has a question; this editor cannot show it as a form, so answer in your next message:',

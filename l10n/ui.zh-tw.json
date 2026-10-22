@@ -3618,6 +3618,15 @@
   },
   "acpNoModels": "後端未提供此代理程式可使用的模型。",
   "acpPromptBusy": "此工作階段已有提示正在執行。",
+  "acpSessionStartFailed": "工作階段無法啟動（{detail}）。詳細資料請見 Muse Spark 記錄。",
+  "acpTurnStartFailed": "此回合無法啟動（{detail}）。詳細資料請見 Muse Spark 記錄。",
+  "createdRegistrySave": {
+    "failed": "已建立資源登錄無法儲存（{reason}）。詳細資料請見 Muse Spark 記錄。",
+    "refused": "系統小幫手拒絕了此次儲存",
+    "unsafe": "已儲存登錄的安全性檢查失敗",
+    "invalid": "已儲存的登錄無效",
+    "io": "儲存內容無法寫入"
+  },
   "acpQuestionFormMessage": "Muse 有個問題要問你。",
   "acpQuestionAsked": "Muse 有個問題；此編輯器無法以表單顯示，請在下一則訊息中回答：",
   "acpUnknownArgument": "未知的引數：{argument}",

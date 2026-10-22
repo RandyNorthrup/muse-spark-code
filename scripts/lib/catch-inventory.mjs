@@ -42,7 +42,14 @@ import ts from 'typescript'
 export const CLASSES = ['NARROW', 'REPORTED', 'SWALLOW', 'GENERIC', 'CLEANUP']
 
 /** A call that carries the error's kind into the record, redacted. */
-const REDACTING_FNS = new Set(['failureForLog', 'stderrForLog', 'wireWordForLog'])
+const REDACTING_FNS = new Set([
+  'failureForLog',
+  'stderrForLog',
+  'wireWordForLog',
+  // causeForLog (logText.ts), verified by reading: failureForLog plus only
+  // the error's token-shaped machine code word.
+  'causeForLog',
+])
 /** A call that records the failure under a fixed-vocabulary code. */
 const CODE_RECORD_FNS = new Set(['observeError', 'recordError', 'reportError'])
 /** A `report(x, error)`-shaped call posts the failure to the host's record. */

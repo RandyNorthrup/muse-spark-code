@@ -3618,6 +3618,15 @@
   },
   "acpNoModels": "バックエンドには、このエージェントが使用できるモデルがありません。",
   "acpPromptBusy": "このセッションでは既にプロンプトを実行中です。",
+  "acpSessionStartFailed": "セッションを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
+  "acpTurnStartFailed": "ターンを開始できませんでした ({detail})。詳細は Muse Spark のログを参照してください。",
+  "createdRegistrySave": {
+    "failed": "作成済みリソースのレジストリを保存できませんでした ({reason})。詳細は Muse Spark のログを参照してください。",
+    "refused": "システム ヘルパーが保存を拒否しました",
+    "unsafe": "保存済みレジストリの安全性チェックが失敗しました",
+    "invalid": "保存済みレジストリが無効です",
+    "io": "保存内容を書き込めませんでした"
+  },
   "acpQuestionFormMessage": "Muse から質問があります。",
   "acpQuestionAsked": "Muse から質問があります。このエディターではフォームとして表示できないため、次のメッセージで回答してください:",
   "acpUnknownArgument": "不明な引数: {argument}",
