@@ -3231,6 +3231,8 @@
   "usageInsightNone": "この期間に記録された CLI アクティビティはありません。",
   "usageInsightUnavailable": "このバックエンドでは利用できません: Model API にはローカルのトレース ログがありません。",
   "usageInsightNoLogs": "このマシンではまだ Muse Code のトレース ログが見つかりません。",
+  "usageInsightsBehindNote": "これらの数値は古い可能性があります: トレースログを読み取れなかったため、以前の件数を表示しています。",
+  "usageInsightsUnavailableNote": "トレースログを読み取れなかったため、CLIアクティビティは表示されません。",
   "usageInsightTotals": "{sessions}で {attempts}",
   "modelAttemptsCount": {
     "other": "{count} 回のモデル試行"

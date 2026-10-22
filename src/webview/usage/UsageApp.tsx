@@ -194,6 +194,9 @@ export function UsageApp({
       {state === undefined ? null : (
         <>
           <p>{fill(USAGE_TEXT.journalHost, { host: state.history.host })}</p>
+          {state.journalNotice === undefined ? null : (
+            <p role="status">{USAGE_TEXT.journalUnavailableNote}</p>
+          )}
           {state.capabilities !== undefined &&
           (!state.capabilities.settings ||
             !state.capabilities.folder ||
@@ -232,7 +235,7 @@ export function UsageApp({
           ) : null}
           <LimitsSection state={state} post={post} now={now} />
           <FeaturesTable features={state.features} />
-          <AttemptsSection attempts={state.attempts} />
+          <AttemptsSection attempts={state.attempts} traceNotice={state.traceNotice} />
           <SavingsSection savings={state.savings} />
           {state.resources === undefined ? null : (
             <LazyResourcesSection history={state.resources} now={state.generatedAt} />

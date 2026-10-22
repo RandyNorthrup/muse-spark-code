@@ -141,6 +141,9 @@ const BUDGETS = [
   { path: 'dist/modelsSubscriptions.js', budgetKiB: 50 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
+  // RLUSAGE: the service's export encoders, required on the first export;
+  // 31,720 B measured +15%, rounded up to the next whole KiB (PLAN.md D6).
+  { path: 'dist/usageExport.js', budgetKiB: 36 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
   // CMICCOMP: independent first-use voice page, no chat startup imports.
   { path: 'dist/voiceCompanion.js', budgetKiB: 125 },

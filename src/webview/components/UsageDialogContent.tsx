@@ -344,6 +344,21 @@ function InsightLine({ share, template }: { readonly share: number; readonly tem
   )
 }
 
+/**
+The no-insights sentence: the "no trace logs" words are reachable only
+through `empty` (the listing succeeded and found no file), never from a
+read error, which carries `unavailable` instead.
+*/
+function ChatInsightsNotice({ report }: { readonly report: UsageReport }) {
+  if (report.backend === 'modelApi')
+    return <p className={ROW_META_CLASS}>{UI_TEXT.usageInsightUnavailable}</p>
+  if (report.insightsState === 'empty')
+    return <p className={ROW_META_CLASS}>{UI_TEXT.usageInsightNoLogs}</p>
+  return report.insightsState === 'unavailable' ? (
+    <p className={ROW_META_CLASS}>{UI_TEXT.usageInsightsUnavailableNote}</p>
+  ) : null
+}
+
 function InsightsSection({
   insights,
 }: {
@@ -539,13 +554,14 @@ export function UsageDialogContent({
         )}
         <h3 className="usage-heading">{UI_TEXT.usageContributing}</h3>
         {report.insights === undefined ? (
-          <p className={ROW_META_CLASS}>
-            {report.backend === 'modelApi'
-              ? UI_TEXT.usageInsightUnavailable
-              : UI_TEXT.usageInsightNoLogs}
-          </p>
+          <ChatInsightsNotice report={report} />
         ) : (
-          <InsightsSection insights={report.insights} />
+          <>
+            <InsightsSection insights={report.insights} />
+            {report.insightsState === 'behind' ? (
+              <p className={ROW_META_CLASS}>{UI_TEXT.usageInsightsBehindNote}</p>
+            ) : null}
+          </>
         )}
         <button
           type="button"

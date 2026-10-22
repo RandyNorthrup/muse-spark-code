@@ -71,6 +71,7 @@
     "src/core/legal/entry.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
+    "src/core/usage/usageExportEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
     "src/host/backend/subscriptionsEntry.ts",

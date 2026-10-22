@@ -62,6 +62,7 @@
 !dist/paid.js
 !dist/modelsSubscriptions.js
 !dist/usageService.js
+!dist/usageExport.js
 !dist/usageCompanion.js
 !dist/usagePanel.js
 !dist/uiText.js

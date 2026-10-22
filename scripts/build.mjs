@@ -291,6 +291,7 @@ const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 const COMMANDS_ENTRY = 'src/host/commands/commandsEntry.ts'
 const COMMANDS_OUTFILE = 'dist/commands.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
+const USAGE_EXPORT_ENTRY = 'src/core/usage/usageExportEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
@@ -911,6 +912,13 @@ const usageServiceOptions = {
   ...modelApiOptions,
   entryPoints: [USAGE_SERVICE_ENTRY],
   outfile: 'dist/usageService.js',
+}
+// RLUSAGE: the usage export encoders (CSV, JSON), required by the service
+// on the first export, off its 100 KiB budget (PLAN.md D6).
+const usageExportOptions = {
+  ...modelApiOptions,
+  entryPoints: [USAGE_EXPORT_ENTRY],
+  outfile: 'dist/usageExport.js',
 }
 const usageCompanionOptions = {
   ...modelApiOptions,
@@ -1784,6 +1792,7 @@ if (isWatch) {
     esbuild.context(modelsSubscriptionsOptions),
     esbuild.context(commandsOptions),
     esbuild.context(usageServiceOptions),
+    esbuild.context(usageExportOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
     esbuild.context(voiceCompanionOptions),
@@ -1941,6 +1950,7 @@ if (isWatch) {
     modelsSubscriptions: recorded('modelsSubscriptions', modelsSubscriptionsOptions),
     commands: recorded('commands', commandsOptions),
     usageService: recorded('usageService', usageServiceOptions),
+    usageExport: recorded('usageExport', usageExportOptions),
     usageCompanion: recorded('usageCompanion', usageCompanionOptions),
     usagePanel: recorded('usagePanel', usagePanelOptions),
     extensionHooks: recorded('extensionHooks', extensionHooksOptions),
@@ -2141,6 +2151,7 @@ if (isWatch) {
   reportSize(AUTH_OUTFILE)
   reportSize(PAID_OUTFILE)
   reportSize('dist/usageService.js')
+  reportSize('dist/usageExport.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)

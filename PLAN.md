@@ -25980,7 +25980,17 @@ platform receipt remains lead-owned; no gate or Meta fixture was changed.
 
 ### M102 — Usage & cost in every editor (D82)
 
-**Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+**Status 2026-10-22: waiting.** RLUSAGE landed source 01 (the
+usage-trace read) onto 0.19.0: trace snapshots stream complete lines
+through a held descriptor with unchanged-file reuse, no app-owned count,
+byte, age or retry ceiling, and journal and trace reads settle
+independently with their own notices. The export encoders ride new
+`dist/usageExport.js` (36 KiB budget, D6 measured +15%), required on the
+first export; `dist/usageService.js` is 97.9 KiB against its unchanged 100
+KiB. Proven by real-code suites, red/green drills, the production build
+chain and a dist-level export proof. Exec usage, headless BYO accounting,
+packed use and checklist reconciliation remain. Receipts:
+`docs/certification/rlusage.md`.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff
 merge of M95 round 5 (`5ab3eb2c`), moving usage observations onto its

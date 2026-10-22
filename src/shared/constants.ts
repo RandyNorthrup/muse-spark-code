@@ -5198,8 +5198,8 @@ export const MUSE_TRACE_LOG_SEGMENTS = [
   'bootstrap',
 ] as const
 export const TRACE_LOG_FILE_SUFFIX = '.log'
-export const TRACE_LOG_MAX_BYTES = 8 * 1024 * 1024
-export const TRACE_LOG_MAX_FILES = 200
+// A fingerprint is an identity probe, not a limit: the snapshot reads every byte.
+export const TRACE_LOG_HEAD_BYTES = 1024
 // A reminder agent's run registers one tool (its decision); a subagent's run
 // registers the toolset (verified 2026-09-22: 1 versus 30).
 export const REMINDER_RUN_TOOL_COUNT_MAX = 2
@@ -6842,6 +6842,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/modelsPanel.js',
   'dist/modelsSubscriptions.js',
   'dist/usageService.js',
+  'dist/usageExport.js',
   'dist/usageCompanion.js',
   'dist/usagePanel.js',
   'dist/sessionBoard.js',

@@ -1084,6 +1084,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'usageExport.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/usage/usageServiceEntry.ts',
+        symbol: 'service',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'usagePanel.js',
     side: 'vscode',
     requestedBy: [

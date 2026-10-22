@@ -242,7 +242,7 @@ import type {
   WebviewToHostMessage,
 } from '../../shared/protocol'
 
-import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
+import type { TraceInsights } from '../../runtime/usage/traceLogs'
 import type { EstimateInputs } from '../../shared/estimate'
 import type { EstimatorRun } from '../estimator/estimatorBundle'
 import { uploadedFilesReportSchema } from '../../shared/media'
@@ -589,7 +589,7 @@ export interface ConversationDeps {
   /** Lazy media account bridge, also bound by the runtime/companion integration. */
   readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
-  readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
+  readonly usageInsights: () => Promise<TraceInsights>
   readonly readProviderKeyUsage?: () => Promise<readonly ProviderUsageRow[]>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
@@ -10062,7 +10062,11 @@ export class ConversationController {
           if (this.usageHost === watched) {
             this.usageEventRevision += 1
           }
-          void this.postUsage(watched, usage)
+          // Owned: a refresh failure goes to the log, never an unhandled
+          // rejection in the extension host.
+          void this.postUsage(watched, usage).catch(() => {
+            this.deps.log.warn('Usage refresh could not be read')
+          })
         }),
       )
       const subscription = await host.readUsage()
@@ -10142,7 +10146,6 @@ export class ConversationController {
         // The recording port logs its fixed diagnostic once; live sources still render.
       }
     }
-    const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     if (this.deps.readProviderKeyUsage !== undefined) {
       try {
         const observations = await this.deps.readProviderKeyUsage()
@@ -10161,10 +10164,29 @@ export class ConversationController {
         this.deps.log.warn('Provider key usage could not be read')
       }
     }
+    // Trace failure is disclosed without hiding subscription or provider usage.
+    let chatInsights: TraceInsights | undefined
+    if (host.info.kind === 'museCode') {
+      try {
+        chatInsights = await this.deps.usageInsights()
+      } catch {
+        this.deps.log.warn('Usage insights could not be read')
+      }
+    }
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
       return
     }
+    // The "no trace logs" sentence is reachable only through `empty` (the
+    // listing succeeded and found no file): never from an error, which
+    // reads `unavailable`, and never from a stale stand-in.
+    const insightsState =
+      chatInsights === undefined
+        ? ('unavailable' as const)
+        : (chatInsights.notice ??
+          (chatInsights.report === undefined && chatInsights.empty
+            ? ('empty' as const)
+            : undefined))
     this.post({
       type: 'usageReport',
       ...(serviceStatus !== undefined && { serviceStatus }),
@@ -10172,7 +10194,8 @@ export class ConversationController {
       account,
       ...(providers.length > 0 && { providers }),
       ...(shown !== undefined && { subscription: shown }),
-      ...(insights !== undefined && { insights }),
+      ...(chatInsights?.report !== undefined && { insights: chatInsights.report }),
+      ...(host.info.kind === 'museCode' && insightsState !== undefined && { insightsState }),
       ...(host.readPlanUsage !== undefined && { plans: [...host.readPlanUsage()] }),
     })
   }

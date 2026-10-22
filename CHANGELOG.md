@@ -7,6 +7,18 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- The usage page no longer re-reads every trace log on each refresh:
+  unchanged logs are recognised and re-used, so a refresh re-reads only
+  what changed. Numbers for a conversation in progress are complete: a
+  log that is still being written is counted as it stood when the refresh
+  started, and a log that keeps changing keeps its last good numbers with
+  a note saying they may be behind. A trace folder that cannot be read no
+  longer fails the whole page: the cost history still shows, with its own
+  note in the attempts section; and when the cost history itself cannot be
+  read, the attempts still show with their own note.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

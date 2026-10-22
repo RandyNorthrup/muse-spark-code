@@ -140,6 +140,7 @@ export const ACP_BUNDLES = [
   'pageWorker.js',
   'imageResizeWorker.js',
   'usageService.js',
+  'usageExport.js',
   'usageCompanion.js',
   'voiceCompanion.js',
   'webFetch.js',

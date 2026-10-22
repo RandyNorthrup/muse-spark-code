@@ -3426,6 +3426,8 @@
   "usageInsightNone": "W tym oknie nie zarejestrowano aktywności CLI.",
   "usageInsightUnavailable": "Niedostępne w tym backendzie: Model API nie ma lokalnych dzienników śledzenia.",
   "usageInsightNoLogs": "Na tej maszynie nie znaleziono jeszcze dzienników śledzenia Muse Code.",
+  "usageInsightsBehindNote": "Te liczby mogą być nieaktualne: nie udało się odczytać dziennika śledzenia, więc widnieje wcześniejsza liczba.",
+  "usageInsightsUnavailableNote": "Nie udało się odczytać dzienników śledzenia, więc nie pokazano aktywności CLI.",
   "usageInsightTotals": "{sessions}: {attempts}",
   "modelAttemptsCount": {
     "one": "{count} próba modelu",
