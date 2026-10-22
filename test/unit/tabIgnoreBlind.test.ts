@@ -3,48 +3,14 @@ import { existsSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { describe, expect, it } from 'vitest'
-import { GitExitError } from '../../src/host/git'
 import { TabIgnoreCache, type TabIgnoreDeps } from '../../src/host/tab/tabIgnore'
+import { realGit, resolveGitBinary } from './helpers/realGit'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 const runExecFile = promisify(execFile)
-/**
-A git that can actually answer on this machine: the PATH git where it
-works, the Command Line Tools git where Apple's shim is broken (this
-rig: `git init` through /usr/bin/git dies spawning a missing xcodebuild).
-Each candidate is asked its real version; the first that answers wins.
-*/
-const resolvedGit: Promise<string> = (async (): Promise<string> => {
-  const candidates =
-    process.platform === 'darwin'
-      ? ['/Library/Developer/CommandLineTools/usr/bin/git', 'git']
-      : ['git']
-  for (const candidate of candidates) {
-    try {
-      await runExecFile(candidate, ['--version'], { env: process.env })
-      return candidate
-    } catch {
-      continue
-    }
-  }
-  throw new Error('no working git on PATH for the ignore drill')
-})()
-
-/** Real git: answers and failures come from the git binary itself. */
-const realRunGit = async (args: readonly string[], cwd: string): Promise<string> => {
-  try {
-    const { stdout } = await runExecFile(await resolvedGit, [...args], { cwd })
-    return stdout
-  } catch (error: unknown) {
-    const code = (error as { code?: unknown }).code
-    const stderr = String((error as { stderr?: unknown }).stderr ?? error)
-    if (typeof code === 'number') throw new GitExitError(code, stderr, args.join(' '))
-    throw error
-  }
-}
 const depsFor = (
   root: string,
-  runGit: TabIgnoreDeps['runGit'] = realRunGit,
+  runGit: TabIgnoreDeps['runGit'] = realGit,
   traces: string[] = [],
 ): TabIgnoreDeps => ({
   runGit,
@@ -60,7 +26,7 @@ const depsFor = (
 })
 
 const realGitRepo = async (root: string) => {
-  await runExecFile(await resolvedGit, ['init', '-q'], { cwd: root })
+  await runExecFile(await resolveGitBinary(), ['init', '-q'], { cwd: root })
   writeFileSync(path.join(root, '.gitignore'), '*.log\n', 'utf8')
 }
 
