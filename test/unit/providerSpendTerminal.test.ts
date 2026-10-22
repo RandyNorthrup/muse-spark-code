@@ -135,6 +135,7 @@ function authDepsWith(
     secrets: fakeSecretStore(secrets),
     storeName: 'test store',
     readSecret: () => Promise.resolve(secret),
+    confirmKeyUse: () => Promise.reject(new Error('provider-spend-terminal asks no key question')),
     print: (line) => {
       printed.push(line)
     },

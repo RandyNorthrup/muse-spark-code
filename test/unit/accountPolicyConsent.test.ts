@@ -1,13 +1,14 @@
 // M108 policy consent: the real gate and confirmations over the real
 // bundled policy rows, with grants in real files. No fakes.
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
+import { fileConfirmationStore, scriptedAsker } from './helpers/accountConfirmationStore'
 import { AccountPolicyGate } from '../../src/core/accounts/policyGate'
 import { AccountConfirmations } from '../../src/core/accounts/confirmations'
 import { accountPolicyFor } from '../../src/core/providers/accountPolicy'
-import { ACCOUNT_REQUEST_STORE } from '../../src/shared/constants'
+import { usdAmountSchema } from '../../src/shared/usd'
 import type { AccountTrigger } from '../../src/shared/accounts'
 
 const NOW = Date.parse('2026-10-22T12:00:00.000Z')
@@ -16,8 +17,8 @@ const USER_CAP: AccountTrigger = {
   kind: 'userCap',
   metric: 'spendUsd',
   period: 'day',
-  value: '20',
-  threshold: '20',
+  value: usdAmountSchema.parse('20'),
+  threshold: usdAmountSchema.parse('20'),
   resetAt: RESET,
 }
 const VENDOR_LIMIT: AccountTrigger = { kind: 'vendorLimit', reason: 'rateLimited', resetAt: RESET }
@@ -32,46 +33,12 @@ async function setup() {
   const dir = await mkdtemp(path.join(tmpdir(), 'account-consent-'))
   folders.push(dir)
   const asked = { count: 0, answers: [] as unknown[] }
-  const store = {
-    read: async (provider: string, product: string): Promise<unknown> => {
-      try {
-        return JSON.parse(
-          await readFile(path.join(dir, `confirmation-${provider}-${product}.json`), 'utf8'),
-        ) as unknown
-      } catch (error: unknown) {
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          'code' in error &&
-          error.code === 'ENOENT'
-        )
-          return undefined
-        throw error
-      }
-    },
-    write: async (provider: string, product: string, value: never): Promise<void> => {
-      await mkdir(dir, { recursive: true, mode: ACCOUNT_REQUEST_STORE.directoryMode })
-      await writeFile(
-        path.join(dir, `confirmation-${provider}-${product}.json`),
-        JSON.stringify(value),
-        { mode: ACCOUNT_REQUEST_STORE.fileMode },
-      )
-    },
-    remove: async (provider: string, product: string): Promise<void> => {
-      await rm(path.join(dir, `confirmation-${provider}-${product}.json`), { force: true })
-    },
-  }
+  const store = fileConfirmationStore(dir)
   const confirmations = (id: string) =>
     new AccountConfirmations({
       machineId: id,
       now: () => NOW,
-      ask: () => {
-        asked.count += 1
-        const answer = asked.answers.shift()
-        return answer === undefined
-          ? Promise.reject(new Error('unexpected policy question'))
-          : Promise.resolve(answer)
-      },
+      ask: scriptedAsker(asked),
       store,
     })
   return { dir, asked, confirmations: confirmations(machineId), confirmationsAs: confirmations }

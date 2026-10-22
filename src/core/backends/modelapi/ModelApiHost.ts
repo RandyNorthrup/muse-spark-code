@@ -1737,6 +1737,34 @@ class RetryableStreamError extends Error {
   }
 }
 
+// A vendor-limit failure on a leased attempt drops the payer pin, so the
+// retry re-admits and the pool fails over to a healthy account: the
+// transport already recorded the durable block that fences the dead
+// account. Without a lease or pooling the 429 keeps its existing path,
+// and the Judge keeps its deliberate pin. A helper, not inline: the retry
+// catch enumerates paths per branch, and this decision must not multiply
+// them. Reporting true drops the pin and implies the vendor check passed,
+// hence the error.
+function shouldFailOverAccount(
+  error: unknown,
+  hasPooling: boolean,
+  payer: { account?: string | undefined },
+): error is ModelApiError {
+  const shouldFailOver =
+    hasPooling &&
+    payer.account !== undefined &&
+    error instanceof ModelApiError &&
+    error.status === HTTP_TOO_MANY_REQUESTS
+  if (shouldFailOver) delete payer.account
+  return shouldFailOver
+}
+
+// A failed-over vendor limit names its status: the 429 reached the host
+// only after the transport refused or exhausted its own budget.
+function retryFailureName(error: RetryableStreamError | ModelApiError): string {
+  return error instanceof ModelApiError ? `HTTP ${String(error.status)}` : error.code
+}
+
 export class ContextOverflowError extends Error {
   public constructor(
     public readonly kind: ContextOverflowKind,
@@ -7123,17 +7151,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           await this.refreshSearchConsent(signal)
           continue
         }
-        // A vendor-limit failure on a leased attempt drops the payer pin,
-        // so the retry below re-admits and the pool fails over to a healthy
-        // account: the transport already recorded the durable block that
-        // fences the dead account. Without a lease or pooling the 429 keeps
-        // its existing path, and the Judge keeps its deliberate pin.
-        const canFailOverAccount =
-          this.deps.accountRequests !== undefined &&
-          payer.account !== undefined &&
-          error instanceof ModelApiError &&
-          error.status === HTTP_TOO_MANY_REQUESTS
-        if (canFailOverAccount) delete payer.account
+        const canFailOverAccount = shouldFailOverAccount(
+          error,
+          this.deps.accountRequests !== undefined,
+          payer,
+        )
         // Lane RETRYLIMITS: the selected model's own retry limit (the
         // provider's documented maximum, or the person's setting when set;
         // unbounded when neither sets one, so the provider governs). A
@@ -7179,10 +7201,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
         const delayMs = client.retryDelayMs(attempt)
-        // A failed-over vendor limit names its status: the 429 reached the
-        // host only after the transport refused or exhausted its own budget.
-        const failureCode =
-          error instanceof ModelApiError ? `HTTP ${String(error.status)}` : error.code
+        const failureCode = retryFailureName(error)
         this.emit({
           type: 'turnRetry',
           turnId,
