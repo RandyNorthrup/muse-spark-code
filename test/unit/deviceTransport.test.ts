@@ -1,13 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { createDeviceInvitation } from '../../src/core/devices/pairing'
 import { DeviceTransport, type DeviceTransportPair } from '../../src/host/devices/deviceTransport'
 import type { DeviceChannel, DeviceChannelPort } from '../../src/host/devices/deviceChannel'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
+import { deviceTlsIdentity, type DeviceTlsIdentity } from './helpers/deviceTls'
 import type { DeviceFrame } from '../../src/shared/devices'
 
-const NOW = Date.now()
-const EXPIRES_AT = NOW + 24 * 3600 * 1000
 const PAIR_ID = 'a'.repeat(32)
 const INCARNATION = 'b'.repeat(32)
 const PORT_BASE = 18_443
@@ -16,32 +14,11 @@ function hexId(value: number): string {
   return value.toString(16).padStart(32, '0')
 }
 
-function certificatePem(derBase64: string): string {
-  const lines = derBase64.match(/.{1,64}/g) ?? []
-  return `-----BEGIN CERTIFICATE-----\n${lines.join('\n')}\n-----END CERTIFICATE-----\n`
+function testIdentity(deviceId: string): DeviceTlsIdentity {
+  return deviceTlsIdentity(deviceId, PORT_BASE)
 }
 
-interface TestIdentity {
-  readonly pem: string
-  readonly keyPem: string
-  readonly fingerprint: string
-}
-
-function testIdentity(deviceId: string): TestIdentity {
-  const made = createDeviceInvitation(
-    { address: '127.0.0.1', port: PORT_BASE },
-    deviceId,
-    NOW,
-    EXPIRES_AT,
-  )
-  return {
-    pem: certificatePem(made.invitation.certificateDerBase64),
-    keyPem: made.privateKeyPem,
-    fingerprint: made.invitation.fingerprint,
-  }
-}
-
-function pair(local: TestIdentity, peer: TestIdentity): DeviceTransportPair {
+function pair(local: DeviceTlsIdentity, peer: DeviceTlsIdentity): DeviceTransportPair {
   return {
     pairId: PAIR_ID,
     receiverIncarnationId: INCARNATION,
