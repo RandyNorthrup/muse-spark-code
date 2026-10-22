@@ -1833,6 +1833,12 @@
       "invalid": "无效",
       "spam": "垃圾信息"
     },
+    "planDraft": {
+      "intro": "针对 {repository}#{number} 的看护计划草案（结论：{verdict}）。",
+      "issue": "问题",
+      "findings": "调查结果",
+      "questions": "待答问题"
+    },
     "refusal": {
       "spamHeld": "因疑似垃圾信息已被扣留：未发布任何内容。",
       "approvalRequired": "此帖子需要先获得您的批准。"

@@ -2292,6 +2292,12 @@ export const EN = {
       invalid: 'Invalid',
       spam: 'Spam',
     },
+    planDraft: {
+      intro: 'Watchdog plan draft for {repository}#{number} (verdict: {verdict}).',
+      issue: 'Issue',
+      findings: 'Findings',
+      questions: 'Open questions',
+    },
     refusal: {
       spamHeld: 'Held as suspected spam: nothing was posted.',
       approvalRequired: 'This post needs your approval first.',

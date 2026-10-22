@@ -1891,6 +1891,12 @@
       "invalid": "Non valida",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Bozza di piano del guardiano per {repository}#{number} (verdetto: {verdict}).",
+      "issue": "Segnalazione",
+      "findings": "Risultati",
+      "questions": "Domande aperte"
+    },
     "refusal": {
       "spamHeld": "Trattenuto come possibile spam: non è stato pubblicato nulla.",
       "approvalRequired": "Questo messaggio richiede prima la tua approvazione."

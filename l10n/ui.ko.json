@@ -1833,6 +1833,12 @@
       "invalid": "무효",
       "spam": "스팸"
     },
+    "planDraft": {
+      "intro": "{repository}#{number}에 대한 와치독 계획 초안(판정: {verdict}).",
+      "issue": "이슈",
+      "findings": "조사 결과",
+      "questions": "미결 질문"
+    },
     "refusal": {
       "spamHeld": "스팸 의심으로 보류되었습니다. 게시된 내용이 없습니다.",
       "approvalRequired": "이 게시물은 먼저 승인이 필요합니다."

@@ -3,19 +3,28 @@
 // goes first: a crash between the two retries the label (GitHub dedupes
 // it) instead of posting twice. Anything already carrying the marker —
 // posted by this watchdog on any machine — is adopted, never repeated.
-import { WATCHDOG_POST_MARKER } from '../../shared/constants'
+import { WATCHDOG_ACK_MARKER, WATCHDOG_REPLY_MARKER } from '../../shared/constants'
 import { UI_TEXT } from '../../shared/l10n/text'
 import type { GitHubClient, GitHubIssue, GitHubIssueComment } from '../git/github'
 import type { GitHubRepository } from '../git/githubRemote'
 import type { WatchdogIssue, WatchdogPolicy } from '../../shared/watchdog'
 
+/** The shared post footer: the kind's marker plus the automated note. */
+export function signWatchdogPost(body: string, marker: string): string {
+  return `${body}\n\n${marker}\n\n_${UI_TEXT.watchdog.ack.automatedNote}_`
+}
+
 export function composeAckBody(policy: WatchdogPolicy): string {
   const template = policy.ackTemplate ?? UI_TEXT.watchdog.ack.body
-  return `${template}\n\n${WATCHDOG_POST_MARKER}\n\n_${UI_TEXT.watchdog.ack.automatedNote}_`
+  return signWatchdogPost(template, WATCHDOG_ACK_MARKER)
 }
 
 export function isWatchdogPost(body: string): boolean {
-  return body.includes(WATCHDOG_POST_MARKER)
+  return body.includes(WATCHDOG_ACK_MARKER) || body.includes(WATCHDOG_REPLY_MARKER)
+}
+
+export function isWatchdogReply(body: string): boolean {
+  return body.includes(WATCHDOG_REPLY_MARKER)
 }
 
 export type AckSkipNote =

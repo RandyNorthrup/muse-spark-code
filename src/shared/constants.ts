@@ -4997,9 +4997,11 @@ export const WATCHDOG_STORE_SUBFOLDER = 'watchdog'
 // The label the acknowledgement applies when the repository's policy names
 // none. Repository data, not UI text: the person's policy overrides it.
 export const WATCHDOG_DEFAULT_ACK_LABEL = 'triage'
-// The invisible marker every watchdog post carries, so a later poll finds
-// its own posts and never repeats one (PLAN acceptance 5).
-export const WATCHDOG_POST_MARKER = '<!-- muse-spark-code-watchdog v1 -->'
+// The invisible markers every watchdog post carries, one kind each, so a
+// later poll finds its own posts and never repeats one (PLAN acceptance
+// 5). Acknowledgements always precede replies: any marker proves the ack.
+export const WATCHDOG_ACK_MARKER = '<!-- muse-spark-code-watchdog:ack v1 -->'
+export const WATCHDOG_REPLY_MARKER = '<!-- muse-spark-code-watchdog:reply v1 -->'
 export const SCHEDULE_TIMELINE_HOURS = [24, 168] as const
 export const AGENT_SCHEDULES_MAX_ACTIVE = 10
 export const AGENT_SCHEDULE_MIN_INTERVAL_MS = 15 * SCHEDULE_MIN_INTERVAL_MS

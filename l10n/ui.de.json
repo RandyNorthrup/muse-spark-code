@@ -1862,6 +1862,12 @@
       "invalid": "Ungültig",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Watchdog-Planentwurf für {repository}#{number} (Ergebnis: {verdict}).",
+      "issue": "Problem",
+      "findings": "Ergebnisse",
+      "questions": "Offene Fragen"
+    },
     "refusal": {
       "spamHeld": "Als möglicher Spam zurückgehalten: nichts wurde veröffentlicht.",
       "approvalRequired": "Dieser Beitrag braucht zuerst Ihre Freigabe."

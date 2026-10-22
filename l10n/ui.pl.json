@@ -1920,6 +1920,12 @@
       "invalid": "Nieprawidłowe",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Szkic planu strażnika dla {repository}#{number} (werdykt: {verdict}).",
+      "issue": "Zgłoszenie",
+      "findings": "Ustalenia",
+      "questions": "Otwarte pytania"
+    },
     "refusal": {
       "spamHeld": "Wstrzymano jako podejrzany spam: nic nie opublikowano.",
       "approvalRequired": "Ten wpis wymaga najpierw Twojej zgody."

@@ -12,6 +12,35 @@ export function watchdogCaptured(caseId: string): unknown {
   return JSON.parse(readFileSync(path.join(FIXTURES, caseId, 'response.body.json'), 'utf8'))
 }
 
+export interface CapturedObject {
+  readonly number?: unknown
+  readonly [key: string]: unknown
+}
+
+function objectsOfList(value: unknown): CapturedObject[] {
+  if (!Array.isArray(value)) throw new TypeError('the capture holds a list')
+  const list: unknown[] = value
+  return list.map((item) => {
+    if (typeof item !== 'object' || item === null) throw new TypeError('the capture holds objects')
+    return Object.fromEntries(
+      Object.entries(item).map(([key, entry]): [string, unknown] => [key, entry]),
+    )
+  })
+}
+
+/** A captured list as plain objects, for the tests that re-serve it. */
+export function capturedObjects(caseId: string): CapturedObject[] {
+  return objectsOfList(watchdogCaptured(caseId))
+}
+
+/** The search capture's real issues, served as an issue list. */
+export function capturedSearchIssues(): CapturedObject[] {
+  const search = watchdogCaptured('github-search-issues')
+  if (typeof search !== 'object' || search === null || !('items' in search))
+    throw new TypeError('the capture holds a search')
+  return objectsOfList(search.items)
+}
+
 export interface ServedGithubCall {
   readonly method: string
   readonly url: string

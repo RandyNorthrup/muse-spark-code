@@ -1833,6 +1833,12 @@
       "invalid": "無効",
       "spam": "スパム"
     },
+    "planDraft": {
+      "intro": "{repository}#{number} のウォッチドッグ計画案（判定: {verdict}）。",
+      "issue": "課題",
+      "findings": "調査結果",
+      "questions": "未解決の質問"
+    },
     "refusal": {
       "spamHeld": "スパムの疑いで保留されました: 何も投稿されていません。",
       "approvalRequired": "この投稿には事前の承認が必要です。"

@@ -1891,6 +1891,12 @@
       "invalid": "Non valide",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Brouillon de plan de la veille pour {repository}#{number} (verdict : {verdict}).",
+      "issue": "Problème",
+      "findings": "Constats",
+      "questions": "Questions ouvertes"
+    },
     "refusal": {
       "spamHeld": "Retenu comme spam suspect : rien n’a été publié.",
       "approvalRequired": "Cette publication nécessite d’abord votre approbation."

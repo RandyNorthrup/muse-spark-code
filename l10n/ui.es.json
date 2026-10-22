@@ -1891,6 +1891,12 @@
       "invalid": "No válido",
       "spam": "Spam"
     },
+    "planDraft": {
+      "intro": "Borrador de plan del vigilante para {repository}#{number} (veredicto: {verdict}).",
+      "issue": "Problema",
+      "findings": "Hallazgos",
+      "questions": "Preguntas abiertas"
+    },
     "refusal": {
       "spamHeld": "Retenido como posible spam: no se publicó nada.",
       "approvalRequired": "Esta publicación necesita primero su aprobación."
