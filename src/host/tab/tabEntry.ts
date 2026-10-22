@@ -17,9 +17,9 @@ import {
   type TabProviderHandle,
   type TabServices,
   type TabServicesDeps,
-  type TabSnooze,
   type TabStatusDeps,
 } from './tabBundle'
+import type { TabSnooze } from './tabSnooze'
 import { createTabLedger } from './tabLedger'
 import { createTabProvider as createProvider } from './tabProvider'
 import { createTabSpendGate } from './tabSpendGate'

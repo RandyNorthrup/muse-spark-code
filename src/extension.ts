@@ -194,9 +194,6 @@ import {
   TAB_SNOOZE_STATE_KEY,
   type TabFilesExclude,
   createTabActivation,
-  createTabConsent,
-  tabPriceFingerprint,
-  tabTextChangeEvent,
   deferredRefresh,
 } from './host/tab/tabBundle'
 import {
@@ -342,6 +339,8 @@ import { codeIntelLoader } from './host/ide/codeIntelBundle'
 import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTool'
 
 import { fill as fillLegalNotice, fill, formatBytes, plural, uiLocale } from './shared/l10n/text'
+import { formatUsd } from './shared/l10n/exactUsd'
+import { createTabStatusItem } from './host/tab/tabStatusItem'
 import { legalFixLoader, legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
 import { usablePaidFeatures, paidFeaturePrice } from './shared/paid'
@@ -1623,10 +1622,7 @@ async function activateWindow(
       for (const edit of tabRecentEdits.values()) edits.unshift(edit)
       return edits
     },
-    onDidChangeTextDocument: (listener) =>
-      vscode.workspace.onDidChangeTextDocument((event) => {
-        listener(tabTextChangeEvent(event))
-      }),
+    onDidChangeTextDocument: (listener) => vscode.workspace.onDidChangeTextDocument(listener),
     activeLanguageId: () => vscode.window.activeTextEditor?.document.languageId,
     knownLanguages: async () => await vscode.languages.getLanguages(),
     confirmCopilotDisable: async (languageId) => {
@@ -1702,11 +1698,31 @@ async function activateWindow(
     onTodayTotalChanged: () => {
       broadcastPaidState()
     },
+    createStatus: (deps, showMenu) => createTabStatusItem(deps, showMenu),
+    notifyBudgetReached: (spent, budget) => {
+      void (async () => {
+        const table = UI_TEXT
+        const answer = await vscode.window.showWarningMessage(
+          fill(table.tabBudgetReachedDetail, {
+            spent: formatUsd(spent),
+            budget: formatUsd(budget),
+          }),
+          table.openSettings,
+        )
+        if (answer === table.openSettings) {
+          await vscode.commands.executeCommand(
+            VSCODE_COMMANDS.openSettings,
+            'museSpark.tabDailyBudgetUsd',
+          )
+        }
+      })()
+    },
     // D48's question (Q-M94a), keyed by model and price (RVM94KR2): the
     // first request for a key asks with its rates and today's budget; Deny
     // snoozes the window. A kept or window grant counts only for its key.
-    consent: createTabConsent({
-      priceOf: tabPriceFingerprint,
+    // The provider builds it inside the lazy bundle; activation only hands
+    // these deps over, so the question costs activation nothing.
+    consentDeps: {
       ask: async (model) =>
         await paid.consent.askScope({
           feature: 'tab',
@@ -1722,7 +1738,7 @@ async function activateWindow(
         await context.workspaceState.update(TAB_CONSENT_STATE_KEY, record)
       },
       log,
-    }),
+    },
   })
   tabDisposables.push({
     dispose: () => {

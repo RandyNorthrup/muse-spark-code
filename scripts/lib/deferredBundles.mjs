@@ -878,6 +878,8 @@ export const ON_FIRST_USE = [
     files: [
       'src/host/tab/tabEntry.ts',
       'src/host/tab/tabProvider.ts',
+      'src/host/tab/tabConsent.ts',
+      'src/host/tab/tabEligibility.ts',
       'src/host/tab/tabStatus.ts',
       'src/host/tab/tabLedger.ts',
       'src/host/tab/tabSpendGate.ts',

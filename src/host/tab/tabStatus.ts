@@ -9,14 +9,9 @@
 import * as vscode from 'vscode'
 import { TAB_SNOOZE_LONG_MINUTES, TAB_SNOOZE_SHORT_MINUTES, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
-import {
-  TAB_COMMAND_IDS,
-  readCopilotPosture,
-  shouldYieldToCopilot,
-  type TabLanguagesCommandDeps,
-  type TabSnooze,
-  type TabStatusDeps,
-} from './tabBundle'
+import { TAB_COMMAND_IDS, type TabLanguagesCommandDeps, type TabStatusDeps } from './tabBundle'
+import type { TabSnooze } from './tabSnooze'
+import { readCopilotPosture, shouldYieldToCopilot } from './tabYield'
 
 interface TabMenuRow {
   readonly label: string
