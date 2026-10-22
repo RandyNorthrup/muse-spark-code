@@ -20,7 +20,13 @@ import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 
 import * as vscode from 'vscode'
 import * as z from 'zod/mini'
-import { PaidUseConsent, type PaidUseAnswer, paidUseQuestion } from '../../core/paid/paidConsent'
+import {
+  PaidUseConsent,
+  type PaidUseAnswer,
+  type PaidUseConsentDeps,
+  paidUseQuestion,
+} from '../../core/paid/paidConsent'
+import { accountPaidRoute, type PaidBilling } from '../../core/paid/accountPaidRoute'
 import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../core/paid/paidFeatures'
 import {
   IS_AUTO_COMPACTION_EVALUATED,
@@ -34,7 +40,7 @@ import {
   UI_TEXT,
   WORKSPACE_STATE_KEYS,
 } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+import { fill, uiLocale } from '../../shared/l10n/text'
 import { formatDailyBudget } from '../../shared/l10n/exactUsd'
 
 import type { Logger } from '../logger'
@@ -89,6 +95,18 @@ export interface PaidFeaturesDeps {
   readonly tabDay?: () => {
     readonly budgetUsd: UsdAmount
     readonly todayUsd: UsdAmount | undefined
+  }
+  /**
+  M108 lane P (D88.7): the account each paid use bills, and where this
+  workspace keeps account consent. The provider's default account keeps
+  this workspace's consent unchanged; another account's first paid use
+  asks again for that account, naming its tariff and the shared daily
+  budget, through dist/accountPaid.js, loaded on that first use.
+  */
+  readonly accountPaid?: {
+    readonly billing: () => PaidBilling | undefined
+    /** This workspace's owner-only folder of account consent. */
+    readonly folder: string
   }
   readonly log: Logger
 }
@@ -156,6 +174,8 @@ export async function askPaidUse(
   request: PaidUseRequest,
   canRemember: boolean,
   dailyBudgetUsd?: UsdAmount,
+  /** M108 lane P: the account this use bills, its tariff and the shared budget. */
+  accountLine?: string,
 ): Promise<PaidUseAnswer> {
   // No verified price, nothing to accept (M48, M78): refused before any popup.
   if (
@@ -195,15 +215,16 @@ export async function askPaidUse(
         : UI_TEXT.paidAllowAlways,
   }
   const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
+  const lines = [
+    detail,
+    ...(dailyBudgetUsd === undefined
+      ? []
+      : [fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) })]),
+    ...(accountLine === undefined ? [] : [accountLine]),
+  ]
   const answer = await vscode.window.showWarningMessage(
     title,
-    {
-      modal: true,
-      detail:
-        dailyBudgetUsd === undefined
-          ? detail
-          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) })}`,
-    },
+    { modal: true, detail: lines.join('\n\n') },
     ...(canRemember ? [once, always, deny] : [once, deny]),
   )
   if (answer === once) {
@@ -301,7 +322,33 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
           : []
       })
   }
-  const consent = new PaidUseConsent({
+  /** The shared daily budget a question names: the setting, or its configured value. */
+  const sharedDailyBudget = (feature?: PaidFeature): UsdAmount => {
+    const budget = dailyBudgetSchema.safeParse(
+      deps.dailyBudgetUsd?.(feature) ??
+        vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+    )
+    return budget.success ? budget.data : Usd.from(0).toAmount()
+  }
+  // Another account's consent (M108 lane P): dist/accountPaid.js, loaded on
+  // the first use it bills, never for the default account. It shares this
+  // consent's gate, authority and generations.
+  const { accountPaid } = deps
+  const consentDeps: PaidUseConsentDeps = {
+    ...(accountPaid !== undefined && {
+      accounts: accountPaidRoute(accountPaid.billing, async () => {
+        const entry = await import('./accountPaidEntry')
+        return entry.vsCodeAccountPaid(UI_TEXT, uiLocale(), {
+          base: consentDeps,
+          billing: accountPaid.billing,
+          folder: accountPaid.folder,
+          globalState: deps.globalState,
+          configuration: vscode.workspace.getConfiguration(SETTINGS_SECTION),
+          dailyBudgetUsd: sharedDailyBudget,
+          ask: askPaidUse,
+        })
+      }),
+    }),
     isOn: (feature) => gate.isOn(feature),
     // Tab's "Allow Once" covers this window until it closes (M94 Q-M94a):
     // memory only, so it never persists past the window. "Allow always"
@@ -398,7 +445,8 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
       )
     },
     log: deps.log,
-  })
+  }
+  const consent = new PaidUseConsent(consentDeps)
   const usage = new PaidUsage(deps.log, deps.usageRecording)
   const openedAt = Date.now()
   if (deps.usageRecording !== undefined) {
@@ -431,14 +479,10 @@ export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
     },
     allowsJudgeUse: async (modelId) => {
       if (autoReviewPrice(modelId) === undefined) return false
-      const budget = dailyBudgetSchema.safeParse(
-        deps.dailyBudgetUsd?.() ??
-          vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
-      )
       return await consent.allows({
         feature: 'judge',
         modelId,
-        dailyBudgetUsd: budget.success ? budget.data : Usd.from(0).toAmount(),
+        dailyBudgetUsd: sharedDailyBudget(),
       })
     },
     affects: (event) =>

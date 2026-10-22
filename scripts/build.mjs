@@ -181,6 +181,9 @@ const MCP_VAULT_OUTFILE = 'dist/mcpVault.js'
 // model catalogue read (the manager preloads it; lane K budget).
 const MODEL_EFFORTS_ENTRY = 'src/core/backends/musecode/modelEffortsEntry.ts'
 const MODEL_EFFORTS_OUTFILE = 'dist/modelEfforts.js'
+// M108 lane P: account-bound paid consent, on the first use billed to another account.
+const ACCOUNT_PAID_ENTRY = 'src/host/paid/accountPaidEntry.ts'
+const ACCOUNT_PAID_OUTFILE = 'dist/accountPaid.js'
 const RESOURCE_ADMISSION_ENTRY = 'src/core/resources/admissionEntry.ts'
 const RESOURCE_ADMISSION_OUTFILE = 'dist/resourceAdmission.js'
 const PROVIDERS_ENTRY = 'src/host/backend/providersEntry.ts'
@@ -879,6 +882,14 @@ const mcpVaultOptions = {
   ...planMarkdownOptions,
   entryPoints: [MCP_VAULT_ENTRY],
   outfile: MCP_VAULT_OUTFILE,
+}
+
+// No `vscode`: the extension and the ACP agent load the same account consent.
+/** @type {import('esbuild').BuildOptions} */
+const accountPaidOptions = {
+  ...planMarkdownOptions,
+  entryPoints: [ACCOUNT_PAID_ENTRY],
+  outfile: ACCOUNT_PAID_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1789,6 +1800,7 @@ if (isWatch) {
     esbuild.context(webFetchOptions),
     esbuild.context(mcpVaultOptions),
     esbuild.context(modelEffortsOptions),
+    esbuild.context(accountPaidOptions),
     esbuild.context(museCodeReviewerOptions),
     esbuild.context(modelsPanelOptions),
     esbuild.context(authOptions),
@@ -1946,6 +1958,7 @@ if (isWatch) {
     voice: recorded('voice', voiceOptions),
     webFetch: recorded('webFetch', webFetchOptions),
     mcpVault: recorded('mcpVault', mcpVaultOptions),
+    accountPaid: recorded('accountPaid', accountPaidOptions),
     modelEfforts: recorded('modelEfforts', modelEffortsOptions),
     museCodeReviewer: recorded('museCodeReviewer', museCodeReviewerOptions),
     modelsPanel: recorded('modelsPanel', modelsPanelOptions),

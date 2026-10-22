@@ -112,6 +112,108 @@ happened, not what was planned; superseded entries are kept.
   bound in the VS Code window and the CLI/ACP runtime, while
   record-attached feedback and permanent deletion refuse before dispatch.
 
+### Added
+
+- Native Meta account request ownership is composed with the VS Code Models
+  panel, CLI and ACP. In-flight selections queue for the next request, while
+  the original account keeps its reservation and cost. Account UI and request
+  bindings remain behind the default-off certification switch pending the
+  named graphical, dependent-suite and independent-review receipts.
+
+- **Paid consent per account** (M108 lane P). In VS Code and in every ACP
+  editor, a paid use billed to the provider's default account keeps this
+  workspace's consent exactly as before. A use billed to another account asks
+  once before that account's first charge, with the use's own question plus
+  the account, its price and the shared daily budget; **Allow always** is kept
+  per account and tariff, and lapses with **Ask again** or the feature's
+  price. The account consent and its store load on that first use
+  (`dist/accountPaid.js`), never at activation. No editor bills another
+  account interactively yet (headless `exec --account` keeps its explicit
+  paid flags and hard budget), so nothing changes until per-request account
+  selection lands. Help says so in all fourteen languages.
+
+### Changed
+
+- Held account requests retain their payer through retries, restore conversation choice, scope uncertain liability to its original period, and prune day-indexed admission history. Paid image/reviewer/hook calls ask after choosing their payer. Models account bootstrap stays hidden and typed; policy questions no longer block unrelated eligible chats. Certification remains off.
+
+- Held account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
+
+- Held paid requests run on one lease from choice to settlement: retries survive the lease's own rate-limit block, image spending questions keep Stop and per-request consent, Judge sends leave no per-send residue and stay on the turn's payer, negative waits map to the shared default, and stop messages name the earliest recovery. Certification stays off.
+
+- The held Accounts section states that the chosen account serves the chat's own requests while background work spreads by headroom, in all fourteen languages.
+
+- Account availability now restores its registered release text, setting
+  descriptions and Help pooling row together during reference generation.
+  Certification stays off; local profiles and Muse Code accounts remain held.
+
+- Resource CLI certification shares its compiled setup and runs independent
+  reads together; repository test deadlines and product behavior stay unchanged.
+
+- Models provider import editor loads only when opened, with its own loading,
+  failure and retry states; the original first-paint cap stays unchanged.
+
+- Account request certification fixtures share their metadata, runtime hosts and
+  journal readers; the zero-duplication gate passes without changing behavior.
+
+### Fixed
+
+- Choosing an account in a session whose current account was removed now
+  answers that accounts are unavailable, instead of saying the session stays
+  on the removed account (RVMSM108).
+
+- One default-off account certification switch also refuses direct request
+  admission and fences a held lease after closure. It controls the native
+  account UI, backend bindings and request-ownership Help detail together.
+
+- Account usage keeps a durable receipt once after a crash before reservation
+  closure; uncertain cleanup cannot discard that known settlement.
+
+- Retain the C-M108-2 request owner, durable account claims, payer fences and
+  consent revision code behind a disabled certification gate. Runtime account
+  switching and pooling keep their prior refusals until the remaining owning
+  suites, red drills and reviews pass. No incomplete binding is enabled.
+
+- The installed CLI, ACP agent and headless runs share the account service
+  instead of answering "Accounts are unavailable": Meta's Model API entry is
+  built in, so `providers accounts` (list, add, remove, order, thresholds),
+  `auth set --provider meta --account <id>`, `exec --account <id>` and
+  ACP's `/accounts` (list, current, thresholds) work with no pre-existing
+  file. The `account` picker serves the Model API backend only; the Muse
+  Code backend runs on its subscription, and an accounts failure leaves the
+  session working without accounts. Choosing another account in a session
+  stays refused until the pooled owner lands, and says which account the
+  session keeps instead of reporting unavailable — including across the
+  runtime/ACP bundle boundary. A malformed user row refuses and is left
+  untouched (the built-in entry applies only with no file); a vendor-limit
+  stop names the blocked account and its reset even with no usage page
+  bundled; `exec --account-pool` names the missing pool owner instead of
+  the connection text. The Models panel stop notice names the blocked
+  account too, and a refused providers file (a malformed row, unparsable
+  JSON, duplicate account ids, or a provider id that does not match its
+  key) says the file was refused and left unchanged instead of the
+  connection sentence — on the terminal, through ACP list/current/thresholds
+  and picker selection, as the Models panel's own error, from `exec
+  --account` readiness instead of a keyring-outage message, from developer
+  multiple-accounts open instead of a raw stack, and on the terminal crash
+  line as the sentence itself.
+
+- Account-bound paid consent checks shared revocation and price generations
+  on every use. **Ask again** from another window ends an account's **Allow
+  once** even when that window never loaded account consent; delayed **Allow
+  always** answers after revocation are refused and never saved. ACP's
+  unflagged-feature revocation follows the same rule.
+- Account consent uses the same budget rule in memory and on disk:
+  user/machine ceiling changes keep **Allow always**, while a
+  repository-supplied ceiling re-asks with the new budget before spending.
+- Account-bound paid consent closes the 0.17 consent review's three
+  prerequisites (RVCONSENT017D) before any caller binds it. Each question keeps
+  the revocation epoch it was asked under, so a forced or concurrent question
+  can no longer lend a revoked answer its epoch, and a lost capture is refused
+  rather than saved under the current epoch. An older revocation's clears
+  remove only grants approved before it, never one approved after its advance.
+  A revocation from any window ends "Allow once" for the window, and an answer
+  given under a revoked epoch is never cached for later uses.
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights

@@ -41,6 +41,11 @@ import {
 } from '../shared/paid'
 import { compareUsdAmounts, nonnegativeUsdSchema, type UsdAmount } from '../shared/usdSchema'
 import { fill } from '../shared/l10n/text'
+import {
+  accountPaidRoute,
+  type AccountPaidService,
+  type PaidBilling,
+} from '../core/paid/accountPaidRoute'
 
 /** Where "Allow Always in This Workspace" is kept, per folder. */
 export interface PaidGrantStore {
@@ -56,6 +61,8 @@ export interface PaidGrantStore {
   readonly quoteNotice?: () => PaidQuoteNotice | undefined
   readonly readQuote?: (workspaceRoot: string, quote: PaidQuote) => PaidGrant | undefined
   readonly writeQuote?: (workspaceRoot: string, grant: PaidGrant) => Promise<void>
+  /** The feature's revocation generation: an account's Always lapses with it (M108 lane P). */
+  readonly generation?: (feature: PaidFeature) => string
 }
 
 /** The question in one of the client's sessions; the agent attaches it (agent.ts). */
@@ -63,6 +70,8 @@ export type PaidUseAsker = (
   sessionId: string,
   request: PaidUseRequest,
   canRemember: boolean,
+  /** M108 lane P: the account this use bills, its tariff and the shared budget. */
+  accountLine?: string,
 ) => Promise<PaidUseAnswer>
 
 export interface AcpPaidUseDeps {
@@ -86,6 +95,19 @@ export interface AcpPaidUseDeps {
   reaches the session's person instead, where there is one.
   */
   readonly notify?: (text: string) => void
+  /**
+  M108 lane P (D88.7): the account this agent's Model API backend bills.
+  The provider's default account keeps the folder's consent below,
+  unchanged; another account's first paid use asks for that account
+  (dist/accountPaid.js, loaded on that first use).
+  */
+  readonly billing?: () => PaidBilling | undefined
+  /** Where a folder keeps account consent, in the agent's own data folder. */
+  readonly accountFolder?: (workspaceRoot: string) => string
+  /** The shared daily budget an account's question names. */
+  readonly dailyBudgetUsd?: () => UsdAmount
+  /** Waits between rename attempts; injectable so tests do not sleep. */
+  readonly sleep?: (ms: number) => Promise<void>
 }
 
 export type HeadlessPaidPolicy = (
@@ -127,6 +149,7 @@ export function paidUseAnswer(
 
 export class AcpPaidUse {
   private readonly consents = new Map<string, PaidUseConsent>()
+  private readonly accountRoutes = new Map<string, ReturnType<typeof accountPaidRoute>>()
   private readonly authority: PaidAuthority
   private asker: PaidUseAsker | undefined
   private sessionNotifier: ((sessionId: string, text: string) => void) | undefined
@@ -149,6 +172,7 @@ export class AcpPaidUse {
     sessionId: string,
     request: PaidUseRequest,
     canRemember: boolean,
+    accountLine?: string,
   ): Promise<PaidUseAnswer> {
     const { asker } = this
     if (asker === undefined) {
@@ -156,7 +180,10 @@ export class AcpPaidUse {
       return 'deny'
     }
     try {
-      return await asker(sessionId, request, canRemember)
+      // A default-account use asks exactly as before; another account's names it.
+      return accountLine === undefined
+        ? await asker(sessionId, request, canRemember)
+        : await asker(sessionId, request, canRemember, accountLine)
     } catch (error: unknown) {
       this.deps.log.warn(
         `Paid use of ${request.feature}: the editor could not be asked, so it is denied: ${failureForLog(error)}`,
@@ -178,24 +205,70 @@ export class AcpPaidUse {
     )
   }
 
+  /**
+  The ports a folder's workspace consent and its account consents share:
+  the flags, trust, this agent's paid authority and the grant generations.
+  */
+  private sharedPorts() {
+    return {
+      authority: this.authorityFor(),
+      ...(this.deps.grants.nextQuoteOrder !== undefined && {
+        nextQuoteOrder: this.deps.grants.nextQuoteOrder,
+      }),
+      isOn: (feature: PaidFeature) => this.isOn(feature),
+      windowOnceFeatures: new Set<PaidFeature>(['autoCompaction']),
+      canRemember: this.deps.canRemember,
+      ...(this.deps.grants.prepareQuoteGeneration !== undefined && {
+        prepareQuoteGeneration: this.deps.grants.prepareQuoteGeneration,
+      }),
+      ...(this.deps.grants.quoteGeneration !== undefined && {
+        quoteGeneration: this.deps.grants.quoteGeneration,
+      }),
+      readQuoteNotice: () => this.deps.grants.quoteNotice?.(),
+      log: this.deps.log,
+    }
+  }
+  /**
+  The folder's account consent (M108 lane P), loaded on the first use
+  billed to another account. Every account question is the editor's
+  permission prompt in the use's own session, with the account's line.
+  */
+  private async loadAccountService(workspaceRoot: string): Promise<AccountPaidService> {
+    const { accountFolder, dailyBudgetUsd } = this.deps
+    const entry = await import('../host/paid/accountPaidEntry')
+    if (accountFolder === undefined || dailyBudgetUsd === undefined)
+      throw new Error(UI_TEXT.accounts.unavailable)
+    return entry.createAccountPaidService(UI_TEXT, uiLocale(), {
+      // The folder consent's own ports: its flags, trust, authority and generations.
+      base: this.sharedPorts(),
+      billing: () => this.deps.billing?.(),
+      folder: accountFolder(workspaceRoot),
+      featureGeneration: (feature) => this.deps.grants.generation?.(feature) ?? 'initial',
+      dailyBudgetUsd: () => dailyBudgetUsd(),
+      // Every flagged use passes its own session's prompt; nothing else asks.
+      ask: () => Promise.resolve('deny'),
+      ...(this.deps.sleep !== undefined && { sleep: this.deps.sleep }),
+    })
+  }
+
+  /** The folder's account route, loading its service on the first use billed to another account. */
+  private accountRoute(workspaceRoot: string): ReturnType<typeof accountPaidRoute> {
+    let route = this.accountRoutes.get(workspaceRoot)
+    if (route === undefined) {
+      route = accountPaidRoute(
+        () => this.deps.billing?.(),
+        () => this.loadAccountService(workspaceRoot),
+      )
+      this.accountRoutes.set(workspaceRoot, route)
+    }
+    return route
+  }
+
   private consentFor(workspaceRoot: string, sessionId: string): PaidUseConsent {
     let consent = this.consents.get(workspaceRoot)
     if (consent === undefined) {
       consent = new PaidUseConsent({
-        authority: this.authorityFor(),
-        ...(this.deps.grants.nextQuoteOrder !== undefined && {
-          nextQuoteOrder: this.deps.grants.nextQuoteOrder,
-        }),
-        isOn: (feature) => this.isOn(feature),
-        windowOnceFeatures: new Set<PaidFeature>(['autoCompaction']),
-        canRemember: this.deps.canRemember,
-        ...(this.deps.grants.prepareQuoteGeneration !== undefined && {
-          prepareQuoteGeneration: this.deps.grants.prepareQuoteGeneration,
-        }),
-        ...(this.deps.grants.quoteGeneration !== undefined && {
-          quoteGeneration: this.deps.grants.quoteGeneration,
-        }),
-        readQuoteNotice: () => this.deps.grants.quoteNotice?.(),
+        ...this.sharedPorts(),
         ...(this.deps.grants.readQuote !== undefined && {
           readQuoteGrant: (quote) => this.deps.grants.readQuote?.(workspaceRoot, quote),
         }),
@@ -218,7 +291,6 @@ export class AcpPaidUse {
           }
           this.deps.notify?.(text)
         },
-        log: this.deps.log,
       })
       this.consents.set(workspaceRoot, consent)
     }
@@ -290,7 +362,16 @@ export class AcpPaidUse {
     this.notifySessions.set(workspaceRoot, sessionId)
     if (request.feature === 'scheduledPrompts' && request.schedule !== undefined)
       return (await this.askScheduleUse(sessionId, request)) !== 'deny'
-    return this.deps.headless === undefined
+    if (this.deps.headless !== undefined) {
+      return this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
+    }
+    // Another account's use asks that account's own consent, in this session (D88.7).
+    const routed = this.accountRoute(workspaceRoot).route(
+      request,
+      requiresAsking,
+      (asked, canRemember, line) => this.ask(sessionId, asked, canRemember, line),
+    )
+    return routed === undefined
       ? await this.consentFor(workspaceRoot, sessionId).allows(
           request,
           requiresAsking,
@@ -300,7 +381,7 @@ export class AcpPaidUse {
           // question in another session cannot steal its notice (P2-3).
           sessionId,
         )
-      : this.isOn(request.feature) && (await this.deps.headless(request, requiresAsking))
+      : await routed
   }
 
   /** A live fence for an admitted use in the folder's conversation. */

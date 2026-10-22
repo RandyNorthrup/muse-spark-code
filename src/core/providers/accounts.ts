@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 // Shared account operations for the panel, native bridges, ACP and headless.
 // M95 owns providers.json's envelope/atomic I/O. Only its accounts field is
 // written here; secrets and vendor responses have separate injected ports.
@@ -32,6 +33,7 @@ export interface AccountProvider {
 }
 export interface AccountsMetadataPort {
   read(provider: string): Promise<AccountProvider | undefined>
+  readNow?(provider: string): AccountProvider | undefined
   /** Atomically replace only accounts, preserving the rest of providers.json. */
   writeAccounts(provider: string, accounts: readonly Account[]): Promise<void>
 }
@@ -121,9 +123,11 @@ export class AccountStore {
 
   public async update(provider: string, value: Account): Promise<void> {
     await this.mutate(async () => {
-      const account = accountSchema.parse(value)
+      const parsed = accountSchema.parse(value)
       const pool = this.pool(await this.provider(provider))
-      if (pool.every((row) => row.id !== account.id)) throw new AccountStoreError('invalidAccount')
+      const previous = pool.find((row) => row.id === parsed.id)
+      if (previous === undefined) throw new AccountStoreError('invalidAccount')
+      const account = { ...parsed, credentialRevision: previous.credentialRevision }
       await this.metadata.writeAccounts(
         provider,
         pool.map((row) => (row.id === account.id ? account : row)),
@@ -172,7 +176,17 @@ export class AccountStore {
       const entry = await this.provider(provider)
       this.assertCredentialsOffered(entry)
       const binding = this.binding(entry, account)
-      await this.credentials.write(binding, boundCredential(record, binding))
+      const validated =
+        this.credentials.validate?.(binding, record) ?? boundCredential(record, binding)
+      const key = accountSecretKey(provider, account)
+      AccountStore.generations.set(key, (AccountStore.generations.get(key) ?? 0) + 1)
+      await this.metadata.writeAccounts(
+        provider,
+        this.pool(entry).map((row) =>
+          row.id === account ? { ...row, credentialRevision: randomUUID() } : row,
+        ),
+      )
+      await this.credentials.write(binding, validated)
     })
   }
 
@@ -230,7 +244,11 @@ export class AccountStore {
     provider: string,
     account: string,
     requestUrl: string,
-    use: (binding: AccountBinding, credential: AccountCredential | undefined) => Promise<T>,
+    use: (
+      binding: AccountBinding,
+      credential: AccountCredential | undefined,
+      isCurrent: (() => boolean) & { readonly revision: string | undefined },
+    ) => Promise<T>,
   ): Promise<T> {
     if (
       !accountIdSchema.safeParse(provider).success ||
@@ -244,6 +262,7 @@ export class AccountStore {
     if (entry.auth !== 'none') this.assertCredentialsOffered(entry)
     const binding = this.binding(entry, account)
     if (new URL(requestUrl).origin !== binding.origin) throw new AccountStoreError('originMismatch')
+    const revision = this.pool(entry).find((row) => row.id === account)?.credentialRevision
     const stored = entry.auth === 'none' ? undefined : await this.credentials.read(binding)
     if (stored === undefined && entry.auth !== 'none') throw new AccountStoreError('unavailable')
     const credential = stored === undefined ? undefined : boundCredential(stored, binding)
@@ -253,11 +272,37 @@ export class AccountStore {
     }
     if (current.auth !== 'none') this.assertCredentialsOffered(current)
     const currentBinding = this.binding(current, account)
-    if (currentBinding.origin !== binding.origin || current.auth !== entry.auth) {
+    if (
+      currentBinding.origin !== binding.origin ||
+      current.auth !== entry.auth ||
+      this.pool(current).find((row) => row.id === account)?.credentialRevision !== revision
+    ) {
       throw new AccountStoreError('originMismatch')
     }
     // No await between the final fence and dispatch: removal linearizes here.
-    return await use(binding, credential)
+    return await use(
+      binding,
+      credential,
+      Object.assign(
+        () => {
+          if (
+            generation !== (AccountStore.generations.get(key) ?? 0) ||
+            AccountStore.removing.has(key)
+          )
+            return false
+          if (this.metadata.readNow === undefined) return true
+          const live = this.metadata.readNow(provider)
+          return (
+            live?.auth === entry.auth &&
+            live.origin === binding.origin &&
+            live.policyProvider === entry.policyProvider &&
+            live.product === entry.product &&
+            this.pool(live).some((row) => row.id === account && row.credentialRevision === revision)
+          )
+        },
+        { revision },
+      ),
+    )
   }
 }
 

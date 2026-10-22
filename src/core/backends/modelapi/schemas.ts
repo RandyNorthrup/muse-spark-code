@@ -250,6 +250,19 @@ export const streamEventSchema = z.discriminatedUnion('type', [
 ])
 export type StreamEvent = z.infer<typeof streamEventSchema>
 
+/** Terminal response events: whichever carries usage settles the paying lease. */
+const TERMINAL_RESPONSE_TYPES: ReadonlySet<string> = new Set([
+  'response.completed',
+  'response.incomplete',
+  'response.failed',
+])
+
+export function isTerminalResponseEvent(
+  event: StreamEvent,
+): event is Extract<StreamEvent, { readonly response: ResponseObject }> {
+  return TERMINAL_RESPONSE_TYPES.has(event.type)
+}
+
 /** Just the discriminator, to tell an unknown event type from a malformed one. */
 export const eventTypeSchema = z.object({ type: z.string() })
 

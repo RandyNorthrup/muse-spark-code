@@ -4,6 +4,7 @@ import {
   type ConversationOwner,
   type BillingRoute,
 } from '../../core/backends/modelapi/billingRoute'
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../../shared/constants'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
@@ -74,14 +75,15 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
+  readonly createAccountRequests?: ModelApiBundleDeps['createAccountRequests']
   readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
   readonly getProviderAccountId?: () => Promise<string | undefined>
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
   /**
-   * C-M95-SUB: the stored pay-as-you-go key for paid extras. While the
-   * subscription pays for chat, billed images authenticate as this key.
-   */
+  C-M95-SUB: the stored pay-as-you-go key for paid extras. While the
+  subscription pays for chat, billed images authenticate as this key.
+  */
   readonly getPaidApiKey?: (() => Promise<string | undefined>) | undefined
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
@@ -374,6 +376,10 @@ export class ModelApiBackendManager {
       ...(this.deps.createProviderClient !== undefined && {
         createProviderClient: this.deps.createProviderClient,
       }),
+      ...(ACCOUNT_REQUEST_CERTIFICATION.isComplete &&
+        this.deps.createAccountRequests !== undefined && {
+          createAccountRequests: this.deps.createAccountRequests,
+        }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
         ...(this.deps.reservePaidRequest !== undefined && {
@@ -558,6 +564,7 @@ export class ModelApiBackendManager {
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
+        allowsAccountPaidUse: this.deps.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: variant.isHooksEnabled,
@@ -714,6 +721,9 @@ export class ModelApiBackendManager {
           },
           {
             paidFeature: 'bestOfN' as const,
+            ...(admitRequest.paidRequest !== undefined && {
+              paidRequest: admitRequest.paidRequest,
+            }),
             onRequestStarted: () => {
               admitRequest.onRequestStarted?.()
             },

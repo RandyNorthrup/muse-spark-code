@@ -1,3 +1,4 @@
+import { modelAccountsRouteSchema } from '../../shared/modelAccountsRoute'
 // The Models & Agents panel's app (M95, PLAN.md D74): the section
 // navigation from the registry and the active section. Narrow layout
 // comes from the registry too: the panel root is a container, and the
@@ -26,8 +27,14 @@ import { INITIAL_PANEL_UI, panelUiReducer } from './reducer'
 import { MODEL_SECTIONS } from './sections'
 import { SectionNavigation } from './SectionNavigation'
 import { MoneyUnavailable } from '../money'
+import { deferred } from '../components/DeferredSurface'
 import { rememberedSectionHeight, SectionFrame, SectionLoading } from './DeferredSections'
 import type { ModelsPanelSection } from '../../shared/modelsPanel'
+
+const ModelAccounts = deferred(async () => {
+  const chunk = await import('./ModelAccounts')
+  return { default: chunk.ModelAccounts }
+})
 
 /** The panel's document retry, as its crash screen's Reload. */
 function reloadPanel(): void {
@@ -58,6 +65,7 @@ export function ModelsApp({
   readonly host: HostBridge
   readonly report: ErrorReporter
 }) {
+  const [hasAccounts, setHasAccounts] = useState(false)
   const [ui, dispatch] = useReducer(panelUiReducer, INITIAL_PANEL_UI)
   const [hostPending, startHostTransition] = useTransition()
   const [hostDestination, setHostDestination] = useState<ModelsPanelSection>('providers')
@@ -65,6 +73,11 @@ export function ModelsApp({
   const [vaultRaw, setVaultRaw] = useState<unknown>(undefined)
   useEffect(() => {
     const onMessage = (event: MessageEvent): void => {
+      const account = modelAccountsRouteSchema.safeParse(event.data)
+      if (account.success) {
+        if (account.data.type === 'modelAccounts/available') setHasAccounts(true)
+        return
+      }
       const parsed = parseHostToPanelMessage(event.data)
       if (parsed.ok) {
         const message = parsed.message
@@ -120,6 +133,9 @@ export function ModelsApp({
         vaultRaw={vaultRaw}
         vaultPost={vaultPost}
       />
+      {hasAccounts ? (
+        <ModelAccounts host={host} label={UI_TEXT.accounts.title} className="accounts-section" />
+      ) : null}
     </>
   )
 }

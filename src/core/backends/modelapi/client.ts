@@ -101,6 +101,7 @@ export type ProviderClient = Pick<
     | 'inheritSearchQuote'
     | 'releaseSearchQuotes'
     | 'readServiceStatus'
+    | 'withAccountKey'
     | 'withScheduleAuthority'
     | 'requestFile'
     | 'requestTranscription'
@@ -111,6 +112,10 @@ export type ProviderClient = Pick<
   readonly inheritSearchQuote?: ModelApiClient['inheritSearchQuote']
   readonly releaseSearchQuotes?: ModelApiClient['releaseSearchQuotes']
   readonly readServiceStatus?: ModelApiClient['readServiceStatus']
+  readonly withAccountKey?: (
+    apiKey: () => Promise<string>,
+    isCurrent?: () => boolean,
+  ) => ProviderClient
   readonly withScheduleAuthority?: (run: () => UnattendedRun | undefined) => ProviderClient
   readonly provider?: TransportProviderClient['provider']
   /** The Files transport rides along only when the wrapped client carries it. */
@@ -155,6 +160,7 @@ import type { SecretScrubPort } from '../../../shared/redact'
 import type { UnattendedRun } from '../../schedules/unattended'
 
 export interface ModelApiClientDeps {
+  readonly isCredentialCurrent?: () => boolean
   /** M109 T: broker-backed exact-value scrub, immediately before every send. */
   readonly vaultScrub?: SecretScrubPort
   readonly paidAuthority?: PaidAuthority
@@ -193,11 +199,11 @@ export interface ModelApiClientDeps {
   */
   readonly personCap?: (() => number | undefined) | undefined
   /**
-   * The stored pay-as-you-go key for paid extras (C-M95-SUB): while chat
-   * bills the subscription, a billed image POST still authenticates as the
-   * stored key. Undefined while no key is stored; image requests then
-   * refuse instead of charging the subscription.
-   */
+  The stored pay-as-you-go key for paid extras (C-M95-SUB): while chat
+  bills the subscription, a billed image POST still authenticates as the
+  stored key. Undefined while no key is stored; image requests then
+  refuse instead of charging the subscription.
+  */
   readonly paidApiKey?: () => Promise<string | undefined>
   readonly getBillingRoute?: ((isPaid: boolean) => Promise<BillingRoute | undefined>) | undefined
   /** Absent, the transport waits with `abortableSleep` (see `TransportDeps.sleep`). */
@@ -392,6 +398,15 @@ export class ModelApiClient implements TransportProviderClient {
     price?: ModelPricePolicy,
   ): ModelApiClient {
     return new ModelApiClient(this.deps, run, price)
+  }
+
+  /** Request-owned credential source; every attempt still uses the shared transport gates. */
+  public withAccountKey(apiKey: () => Promise<string>, isCurrent?: () => boolean): ModelApiClient {
+    return new ModelApiClient(
+      { ...this.deps, apiKey, ...(isCurrent !== undefined && { isCredentialCurrent: isCurrent }) },
+      this.scheduledRun,
+      this.scheduledPrice,
+    )
   }
 
   /** Whether interactive extras have a finite daily admission port (D78). */

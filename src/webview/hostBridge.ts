@@ -1,3 +1,4 @@
+import type { ModelAccountsRequest } from '../shared/modelAccountsProtocol'
 // The webview's one way to its host (M61, PLAN.md D60): posting to it, the
 // state a reload comes back with, and where its messages arrive. VS Code's
 // bridge wraps `acquireVsCodeApi()`, which a webview may call only once, and
@@ -23,7 +24,11 @@ export interface HostBridge {
   */
   post(
     message:
-      WebviewToHostMessage | PanelToHostMessage | UsagePageToServiceMessage | VaultClientMessage,
+      | WebviewToHostMessage
+      | PanelToHostMessage
+      | UsagePageToServiceMessage
+      | VaultClientMessage
+      | ModelAccountsRequest,
   ): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown

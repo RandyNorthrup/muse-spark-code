@@ -991,11 +991,16 @@ question open, even when interactive deferral is disabled.
 ## Several accounts per provider
 
 Accounts keep separate credentials, labels, order, limit groups and thresholds.
-The terminal manages their metadata and pins a headless run to one account,
-and an ACP session on the Model API backend lists them. Automatic swapping,
-pooled runs, placement on other devices and the editor's Accounts and usage
-pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
-them.
+Native Meta request pooling and mid-chat selection are wired behind a closed
+certification switch. They remain unavailable in this build: dependent-suite,
+graphical and independent-review receipts remain open. The Models body now
+passes its unchanged size budget. [The completion record](docs/certification/cm1082.md)
+lists the exact enablement and release-branch restore steps.
+
+The terminal can manage their metadata and choose a fixed account for a
+headless run. Automatic swapping, parallel admission, device placement and
+the editor panel/usage mounts await the provider, journal and shared-owner
+integration listed in [M108's certification](docs/certification/m108.md).
 
 The installed CLI, ACP agent and headless runs share one account service
 over the runtime's providers file and the OS credential store. Meta's Model
@@ -1017,10 +1022,30 @@ ACP's `/accounts` (list, current, thresholds) and the `account` picker read
 the same live metadata on the Model API backend; the Muse Code backend runs
 on its subscription with no account picker. Choosing another account stays
 refused: moving a session credential needs the pooled owner, so the session
-keeps its current account and says so. A pooled headless run stays refused
-until that owner lands too. A vendor limit stops only its own account, and
-the stop names the blocked account and its reset even with no usage page
-bundled.
+keeps its current account and says so. A vendor limit stops only its own account,
+and the stop names the blocked account and its reset even with no usage
+page bundled.
+Second Muse Code accounts and cross-account native replay/cache evidence
+wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
+it must keep outstanding reservations and uncertain charges across resets.
+The shared paid gate, daily budget and conversation cap never reset on a
+swap, and a different account needs its own first-charge consent. In VS Code
+and in ACP editors, a paid use billed to the default account keeps this
+workspace's consent, unchanged; another account's first paid use asks for
+that account, naming its price and the shared daily budget
+(`museSpark.paidDailyBudgetUsd`, or the agent's own), and its **Allow always**
+lapses with **Ask again** or the feature's price. Revocation in another
+window also ends **Allow once** and refuses an open question's old answer;
+ACP revokes account approval when another agent drops the feature's flag.
+User/machine budget changes keep **Allow always**; the user's daily cap
+still binds. A budget supplied by the repository re-asks with the new amount
+before the next first charge. The VS Code setting is machine-scoped, so a
+normal repository setting cannot change it; the agent's own setting is
+user-owned. The account adapter also checks workspace/folder and language
+override provenance for hosts that expose a repository budget.
+Only headless `exec
+--account` bills another account today, and it keeps its explicit paid flags
+and hard budget.
 
 ## Developer options
 
@@ -1033,6 +1058,14 @@ Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
 
 ## Permission modes
 

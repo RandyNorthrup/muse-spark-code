@@ -3,12 +3,14 @@ import type { CoreLogger } from '../../core/logging'
 import { UI_TEXT } from '../../shared/constants'
 import type {
   createRuntimeAccountServicesForLocale,
+  createEditorAccountServicesForLocale,
   runTerminalDeveloperCommand,
   runAccountsCommand,
   runAccountAuthSet,
 } from './accountsEntry'
 
 export interface RuntimeAccountsBundle {
+  readonly createEditorAccountServicesForLocale?: typeof createEditorAccountServicesForLocale
   readonly runAccountsCommand: typeof runAccountsCommand
   readonly runAccountAuthSet: typeof runAccountAuthSet
   readonly createRuntimeAccountServicesForLocale: typeof createRuntimeAccountServicesForLocale

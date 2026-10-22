@@ -516,7 +516,7 @@ export const EN = {
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
     'account-pool':
-      '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
+      '--account-pool                  Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
@@ -583,9 +583,11 @@ export const EN = {
     'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
   referenceAuthGitHub:
     'Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.',
+  referenceAccountRequests:
+    'ACP native Meta requests select accounts at request boundaries. Headless --account-pool opts into pooling; account caps and shared budgets still bind.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts:
-    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
+    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid uses billed to the default account keep this workspace’s consent; another account’s first paid use asks for that account, naming its price and the shared daily budget.',
   referenceDeveloper:
     'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -7061,9 +7063,12 @@ export const EN = {
   legalScanAgain: 'Scan Again',
   // M108: shared by the Models panel, usage page, ACP and runtime.
   accounts: {
+    certificationPending: 'Account switching and pooling await certification.',
     none: 'No Account Selected',
     id: 'Account ID',
     use: 'Use Account',
+    useScope:
+      "The chosen account serves this chat's own requests; background work spreads by headroom.",
     earlier: 'Move Earlier',
     later: 'Move Later',
     keyPrompt: '{provider} · {account} API key (not shown as you type): ',
@@ -7158,6 +7163,8 @@ export const EN = {
     spreadEvent: 'Work Spread',
     stopEvent: 'Work Stopped',
     sourceUndated: 'No source date shown',
+    selectedRemoved:
+      'The chosen account no longer exists. This chat will use the default account on its next request.',
     invalidAccount: 'Check the account id, label, order, limit group and thresholds.',
     removeConfirm:
       'Remove {account}? Its stored credential will be deleted and its sign-in revoked.',

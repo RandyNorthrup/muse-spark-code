@@ -11,7 +11,12 @@ import type { StartSessionOptions } from './core/agent/agentBackend'
 import type { ScheduleV2 } from './shared/scheduleV2'
 import { isChildTurn } from './shared/agentEvents'
 import { unlessAborted } from './core/timeouts'
+import { formatDate } from './shared/l10n/text'
+import { runtimeAccountsLoader } from './runtime/providers/accountsBundle'
+import { ACCOUNT_REQUEST_CERTIFICATION, RUNTIME_ACCOUNTS_BUNDLE_FILE } from './shared/constants'
 import {
+  ACCOUNT_DEFAULT_ID,
+  ACCOUNT_PAID_STORE,
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
   REFERENCE_BUNDLE_FILE,
@@ -1259,6 +1264,77 @@ async function activateWindow(
     xdgConfigHome: process.env['XDG_CONFIG_HOME'],
     source: subscriptionSource,
   })
+  let editorAccounts:
+    | ReturnType<
+        NonNullable<
+          ReturnType<
+            ReturnType<typeof runtimeAccountsLoader>
+          >['createEditorAccountServicesForLocale']
+        >
+      >
+    | undefined
+  const accountServices = () => {
+    if (editorAccounts !== undefined) return editorAccounts
+    const create = runtimeAccountsLoader({
+      bundlePath: path.join(context.extensionPath, 'dist', RUNTIME_ACCOUNTS_BUNDLE_FILE),
+      log,
+    })().createEditorAccountServicesForLocale
+    if (create === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+    editorAccounts = create(l10n.table, l10n.locale, {
+      dataDir: path.join(context.globalStorageUri.fsPath, 'accounts'),
+      secrets: context.secrets,
+      session: () => {
+        const active = registry.active
+        const selected =
+          active === undefined ? undefined : controllers.get(active.id)?.boardSession()
+        return selected?.backend === 'modelApi' ? selected.sessionId : undefined
+      },
+      settings: () => ({
+        isSwapOn: currentSettings().accountSwap,
+        isParallelOn: currentSettings().accountParallel,
+      }),
+      promptForApiKey,
+      askPolicy: async (row) => {
+        const answer = await vscode.window.showWarningMessage(
+          fill(UI_TEXT.accounts.confirmWarning, { provider: row.provider }),
+          {
+            modal: true,
+            detail: [
+              UI_TEXT.accounts.legitimate,
+              fill(UI_TEXT.accounts.checked, {
+                date: formatDate(Date.parse(`${row.checkedAt}T12:00:00`)),
+              }),
+              ...row.sources.map((source) => `${source.quote}\n${source.url}`),
+            ].join('\n\n'),
+          },
+          UI_TEXT.accounts.confirm,
+          UI_TEXT.accounts.ownCapsOnly,
+          UI_TEXT.accounts.cancel,
+        )
+        switch (answer) {
+          case UI_TEXT.accounts.confirm: {
+            return 'confirm'
+          }
+          case UI_TEXT.accounts.ownCapsOnly: {
+            return 'ownCapsOnly'
+          }
+          default: {
+            return 'cancel'
+          }
+        }
+      },
+      notice: (sessionId, text) => {
+        for (const controller of controllers.values()) {
+          if (controller.boardSession()?.sessionId !== sessionId) continue
+          void vscode.window.showInformationMessage(text)
+          break
+        }
+        modelsFeatures?.accountsChanged()
+      },
+    })
+    return editorAccounts
+  }
+  context.subscriptions.push({ dispose: () => editorAccounts?.dispose() })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -1348,6 +1424,18 @@ async function activateWindow(
         budgetUsd: currentSettings().tabDailyBudgetUsd,
         todayUsd: tab.todayTotalUsd(),
       }),
+      // M108 lane P (D88.7): the stored Model API key is Meta's default account
+      // (D88.2), so every use here keeps this workspace's consent; a use billed
+      // to another account asks for that account, kept in this workspace's
+      // storage. Per-request selection binds this port when it lands (M95/M109).
+      accountPaid: {
+        billing: () =>
+          editorAccounts?.billing() ?? { provider: 'meta', account: ACCOUNT_DEFAULT_ID },
+        folder: path.join(
+          (context.storageUri ?? context.globalStorageUri).fsPath,
+          ACCOUNT_PAID_STORE.folder,
+        ),
+      },
       log,
       l10n: { table: UI_TEXT, locale: uiLocale() },
     }))
@@ -3077,6 +3165,9 @@ async function activateWindow(
     ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
     // Each conversion's owner-only folder sits in this private root (VB).
     mediaPrivateRoot: path.join(storageRoot, MEDIA_PRIVATE_ROOT_DIR),
+    ...(ACCOUNT_REQUEST_CERTIFICATION.isComplete && {
+      createAccountRequests: (client) => accountServices().requests(client),
+    }),
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -5098,6 +5189,9 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
+          ...(ACCOUNT_REQUEST_CERTIFICATION.isComplete && {
+            accounts: { request: (value: unknown) => accountServices().request(value) },
+          }),
           connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),

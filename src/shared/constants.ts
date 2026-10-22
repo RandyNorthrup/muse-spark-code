@@ -135,7 +135,21 @@ export const RESOURCE_EXEC_EVENT_VERSION = 2
 export const PRODUCT_NAME = 'Muse Spark'
 
 // M108: local account configuration and policy. Credentials are never fields.
+export const ACCOUNT_PANEL_REQUEST_TIMEOUT_MS = 10_000
 export const ACCOUNT_DEFAULT_ID = 'default'
+// Owner gate: C-M108-2 stays hidden until its remaining certification passes.
+export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: false }
+export const ACCOUNT_HEADROOM_ZERO = 0n
+export const ACCOUNT_HEADROOM_ONE = 1n
+export const ACCOUNT_HEADROOM_SCALE = 1_000_000
+export const ACCOUNT_REQUEST_STORE = {
+  directory: 'account-requests',
+  // Covers current local month/week, including UTC bucket boundaries.
+  retentionDays: 62,
+  maxRowBytes: 16_384,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+} as const
 export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
 export const ACCOUNT_LABEL_MAX_LENGTH = 128
 // D121: a provider holds any number of accounts — the removed 64-per-provider
@@ -150,6 +164,15 @@ export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 // `[counter, hostGeneration]` array, so an instance-counter-era grant can
 // never match a durable revocation epoch.
 export const ACCOUNT_QUOTE_GRANT_VERSION = 2
+// M108 lane P: account-bound paid consent's store, one owner-only folder per
+// workspace (host/paid/accountPaidFiles.ts). Bindings and quote keys are named
+// by the start of their SHA-256, never by an account's label or a credential.
+export const ACCOUNT_PAID_STORE = {
+  folder: 'paid-accounts',
+  digestChars: 32,
+  folderMode: 0o700,
+  fileMode: 0o600,
+} as const
 
 // Must match package.json `publisher` and `name`.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'

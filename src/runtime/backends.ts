@@ -5,6 +5,8 @@ import { runtimeConverterPath } from './runtimeConverterPath'
 import { sumUsd } from '../shared/usd'
 import { providersFilePath } from './providerPaths'
 import { ModelApiClient } from '../core/backends/modelapi/client'
+import type { AccountRequestPort } from '../core/accounts/requestWriter'
+import type { PaidBilling } from '../core/paid/accountPaidRoute'
 import type { ModelPolicy } from '../core/backends/modelapi/modelPolicy'
 import type * as RuntimeAccountingEntry from './runtimeAccountingEntry'
 import type { ProviderClient } from '../core/backends/modelapi/client'
@@ -43,6 +45,8 @@ import {
 } from '../core/backends/modelapi/subscriptionKey'
 import type { Logger } from '../host/logger'
 import {
+  ACCOUNT_DEFAULT_ID,
+  ACCOUNT_PAID_STORE,
   FILE_REFUSAL_MODEL_TEXT,
   MENTION_INDEX_LIMIT,
   MODEL_API_BASE_URL,
@@ -67,8 +71,10 @@ import {
   agentDataFolder,
   type DataFolderInput,
   paidGrantsFile,
+  workspaceKey,
   workspaceSessionsFolder,
 } from './dataFolder'
+import { runtimeDailyBudgetUsd } from './dailyBudgetSetting'
 import {
   museCodeEnvironment,
   withoutCredentials,
@@ -155,6 +161,13 @@ export interface RuntimeBackendDeps {
   /** Waits between retries and rename attempts; injectable so tests do not sleep. */
   readonly sleep: (ms: number) => Promise<void>
   readonly log: Logger
+  /**
+  M108: the Meta account the Model API key reads through (the fixed
+  account of a keyed headless run); the default account otherwise.
+  */
+  readonly accountRequests?: (client: ProviderClient) => Promise<AccountRequestPort>
+  readonly accountBilling?: () => PaidBilling | undefined
+  readonly billingAccount?: string
 }
 
 export interface RuntimeBackend {
@@ -578,6 +591,7 @@ function modelApiManager(
       signal.throwIfAborted()
       return handle.result
     },
+    ...(deps.accountRequests !== undefined && { createAccountRequests: deps.accountRequests }),
     createProviderClient: async (meta: ProviderClient) => {
       let client = meta
       const run = deps.exec?.providerRun
@@ -885,6 +899,18 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       deps.log.warn(text)
     },
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
+    // M108 lane P (D88.7): the account the key bills. A use billed to another
+    // account than Meta's default asks for that account, kept in the agent's
+    // data folder per workspace, naming the runtime's shared daily budget.
+    billing: () =>
+      deps.accountBilling?.() ?? {
+        provider: 'meta',
+        account: deps.billingAccount ?? ACCOUNT_DEFAULT_ID,
+      },
+    accountFolder: (workspaceRoot) =>
+      path.join(agentDataFolder(deps), ACCOUNT_PAID_STORE.folder, workspaceKey(workspaceRoot)),
+    dailyBudgetUsd: () => Usd.from(runtimeDailyBudgetUsd(agentDataFolder(deps))).toAmount(),
+    sleep: deps.sleep,
   })
   const metaKeyProbe: MetaKeyProbe = { state: undefined }
   const museEnvironment = museCode.childEnvironment()
