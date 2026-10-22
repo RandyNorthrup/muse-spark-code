@@ -38,6 +38,7 @@ import {
   OPTIONAL_RUNTIME_AVAILABILITY,
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
+  CONTRIBUTOR_MODEL_SUFFIX,
   EXTENSION_NAME,
   EXTENSION_QUALIFIED_ID,
   DICTATION_HELPER_DIR,
@@ -121,6 +122,7 @@ import {
   REPORT_ERROR_CODES,
   REPORT_EXIT_CODE,
   UI_TEXT,
+  TEAM_SWITCH_SETTING,
   VSCODE_COMMANDS,
   WALKTHROUGH_QUALIFIED_ID,
   WINDOWS_POWERSHELL_TERMINAL_PATH,
@@ -129,6 +131,7 @@ import {
 } from './shared/constants'
 import { Usd, sumUsd, type UsdAmount } from './shared/usd'
 
+import { teamLatchRefusal } from './shared/teamConversation'
 import {
   createUsageRecording,
   isUsageWriterBundle,
@@ -143,6 +146,7 @@ import type { ReportPanel } from './host/reporting/reportPanel'
 // behaviour lives in src/host (VS Code adapters) and src/core (pure logic).
 
 import { createHash } from 'node:crypto'
+import { TeamHostBinding, isTeamSwitchOn } from './host/teamHostBinding'
 import type { UsagePanel } from './host/usage/usagePanel'
 import path from 'node:path'
 import * as vscode from 'vscode'
@@ -166,6 +170,8 @@ import {
   rootRelativePath,
 } from './core/workspaceRoot'
 import type { QuestionStore } from './shared/questions'
+import type { TeamSettingCapabilities } from './core/team/modelSettings'
+import type { KeyUsageSnapshot } from './host/providers/providerPorts'
 import {
   museSettingsPath,
   readDelegationMode,
@@ -265,7 +271,7 @@ import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
 import { reportingCheckJournal } from './host/reporting/reportCheckBundle'
 import { reportPanelLoader } from './host/reporting/reportPanelBundle'
 import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { homedir, hostname, userInfo } from 'node:os'
+import { availableParallelism, homedir, hostname, userInfo } from 'node:os'
 import { usagePanelLoader, isUsageBudgetBundle } from './host/usage/usagePanelBundle'
 import { confineWorkspacePath, resolveWorkspacePath } from './core/workspacePath'
 import { isProtectedPath } from './core/protectedPaths'
@@ -336,7 +342,7 @@ import { ideLegalScanTools, isIdeLegalScanOffered } from './host/ide/legalScanTo
 import { fill as fillLegalNotice, fill, formatBytes, plural, uiLocale } from './shared/l10n/text'
 import { legalFixLoader, legalScanLoader, legalExplanationLoader } from './host/ide/legalScanBundle'
 import { vscodeLanguageServices } from './host/codeIntel/languageServices'
-import { usablePaidFeatures } from './shared/paid'
+import { usablePaidFeatures, paidFeaturePrice } from './shared/paid'
 import { agentImportLoader } from './host/agentImportBundle'
 import { createCliFeatures } from './host/cliFeatures'
 import { hasIgnoreFile } from './host/tab/tabIgnoreFile'
@@ -2951,6 +2957,204 @@ async function activateWindow(
       log,
       context: { workspaceRoot: root, storageRoot, l10n },
     })
+  // M96 lane X: the window's team host service. A workspace that stores no
+  // team never loads dist/team.js. Engine entries run as Model API
+  // conversations in the task's own copy; other agent kinds are unavailable.
+  const teamComposerModel = () => {
+    const surface = registry.active
+    return surface === undefined ? undefined : controllers.get(surface.id)?.teamComposerModel()
+  }
+  const teamModelRates = new Map<string, { input: number; output: number }>()
+  // An entry model's current capability record for pre-dispatch and
+  // new-conversation validation (P2-5), qualified provider ids included:
+  // Meta's known families resolve locally, anything else from today's
+  // discovery match. Unknown stays unknown (legacy leniency; the session
+  // re-checks live tiers at apply).
+  const teamCapabilitiesForModel = async (
+    modelId: string,
+  ): Promise<TeamSettingCapabilities | undefined> => {
+    const { knownEffortTiers } = await import('./shared/effort')
+    const { capabilitiesForModelId } = await import('./core/team/teamPanelEntry')
+    const metaRecord = () => subscriptionFeatures().teamMetaRecord(modelId)
+    if (modelId.includes('/')) {
+      const configured = await subscriptionFeatures().teamDiscovery()
+      const match = configured.models.find((entry) => entry.model.modelId === modelId)
+      return capabilitiesForModelId({
+        modelId,
+        discoveryMatch: match?.record,
+        isKnownMetaFamily: false,
+        metaRecord,
+      })
+    }
+    return capabilitiesForModelId({
+      modelId,
+      discoveryMatch: undefined,
+      isKnownMetaFamily: knownEffortTiers(modelId) !== undefined,
+      metaRecord,
+    })
+  }
+  const teamHost: TeamHostBinding = new TeamHostBinding({
+    ports: {
+      hooks: {
+        relativePath: (folder) =>
+          workspaceRoot === undefined
+            ? undefined
+            : path.relative(workspaceRoot, folder).replaceAll('\\', '/'),
+        fire: async (sessionId, event, fields, matcher, signal) => {
+          const runner = areHooksArmed() ? await hookRunnerFor(false) : undefined
+          return (
+            (await runner?.teamEvent(sessionId, event, fields, matcher, signal)) ?? {
+              keepWorking: false,
+            }
+          )
+        },
+      },
+      state: {
+        get: (key) => context.workspaceState.get(key),
+        update: async (key, value) => {
+          await context.workspaceState.update(key, value)
+        },
+      },
+      settings: {
+        // Hidden means hidden: the team stays off until an explicit `true`
+        // flips it on (withheld public activation, PLAN.md D33/qualification).
+        // An absent setting counts as off, never as on.
+        isTeamOn: () =>
+          isTeamSwitchOn(
+            vscode.workspace.getConfiguration(SETTINGS_SECTION).get<unknown>(TEAM_SWITCH_SETTING),
+          ),
+        isTeamWorkersOn: () => currentSettings().modelApiTeamWorkers,
+        // The machine side (D121): the machine's own parallelism,
+        // never a ceiling of ours. Engines are further bound by the
+        // provider's documented limits and live throttling.
+        maxWorkers: () => availableParallelism(),
+        isTrusted: () => vscode.workspace.isTrusted,
+        maxStopContinuations: () => currentSettings().hooksMaxStopContinuations,
+      },
+      orchestrator: {
+        modelId: () => teamComposerModel()?.modelId ?? DEFAULT_MODEL_ID,
+        backend: () => teamComposerModel()?.backend ?? auth.backend ?? currentSettings().backend,
+        // Default runs on the conversation's own model; on the Model API it bills the key.
+        defaultAgent: (modelId) =>
+          (teamComposerModel()?.backend ?? auth.backend) === 'modelApi'
+            ? { kind: 'engine', agentId: 'default', model: modelId, pays: 'key' }
+            : undefined,
+        approvalMode: (sessionId) =>
+          Array.from(controllers.values(), (controller) =>
+            controller.teamApprovalMode(sessionId),
+          ).find((mode) => mode !== undefined),
+      },
+      engine: {
+        repositoryRoot: () => workspaceRoot,
+        storageRoot: path.join(context.storageUri?.fsPath ?? storageRoot, 'team'),
+        platform: process.platform,
+        isTrusted: () => vscode.workspace.isTrusted,
+        rates: (agent) => teamModelRates.get(agent.model),
+        listModels: async () => {
+          const host = await modelApi.ensureHost()
+          const models = await host.listModels()
+          for (const model of models) {
+            if (model.inputUsdPerMTokens !== undefined && model.outputUsdPerMTokens !== undefined)
+              teamModelRates.set(model.modelId, {
+                input: model.inputUsdPerMTokens,
+                output: model.outputUsdPerMTokens,
+              })
+          }
+          return models.map((model) => model.modelId)
+        },
+        capabilitiesForModel: teamCapabilitiesForModel,
+        startWorker: async ({
+          folder,
+          modelId,
+          approvalMode,
+          admit,
+          noteUsage,
+          parentSessionId,
+          fenceIo,
+          settings,
+        }) => {
+          // Dispatch asks the one availability function too: a worker never
+          // starts while the latch is closed, even with a true setting. A
+          // dispatch the latch refuses says the latch, not the budget.
+          const latchRefusal = teamLatchRefusal()
+          if (latchRefusal !== undefined) throw new Error(latchRefusal)
+          if (!teamHost.canConfigure()) throw new Error(UI_TEXT.teamBudgetUnavailable)
+          let budgetScope
+          try {
+            budgetScope = await modelApi.bestOfNBudgetScope(parentSessionId)
+          } catch {
+            throw new Error(UI_TEXT.teamBudgetUnavailable)
+          }
+          const host = await modelApi.buildTeamWorkerHost(
+            folder,
+            admit,
+            noteUsage,
+            budgetScope,
+            fenceIo,
+            settings?.outputCap,
+          )
+          try {
+            const session = await host.startSession({
+              workspaceRoot: folder,
+              modelId,
+              approvalMode,
+            })
+            if (settings?.effort !== undefined) await session.setReasoningEffort(settings.effort)
+            return {
+              session,
+              toolNames: host.sessionToolNames(session.sessionId) ?? [],
+              close: () => host.close(),
+            }
+          } catch (error: unknown) {
+            await host.close()
+            throw error
+          }
+        },
+        now: () => Date.now(),
+        log,
+      },
+      cards: {
+        show: (sessionId, item) => {
+          for (const controller of controllers.values()) controller.showTeamCard(sessionId, item)
+        },
+      },
+      paid: {
+        // Not forced to ask: a scoped "Always" for these models answers without a popup.
+        allowKeyTasks: async (tasks, dailyBudgetUsd) =>
+          await paid.consent.allows(
+            { feature: 'teamWorkers', tasks, dailyBudgetUsd: dailyBudgetUsd ?? dailyPaid.capUsd() },
+            false,
+          ),
+      },
+      newId: () => crypto.randomUUID(),
+      now: () => Date.now(),
+      log,
+    },
+    // VS Code runs engine workers; Muse Code and external agents come with C-M96-4 and lane W.
+    canRunKind: (kind) => kind === 'engine',
+    loadFactory: async () => {
+      const { createTeamHost } = await import('./host/team/teamHostEntry')
+      return createTeamHost
+    },
+    uiText: () => UI_TEXT,
+    uiLocale,
+    showTree: (tree) => {
+      for (const controller of controllers.values()) controller.showTeamTree(tree)
+    },
+    openRoles: (roleId) => {
+      ensureModelsFeatures().openPanel({ section: 'roles', itemId: roleId })
+      return Promise.resolve()
+    },
+    showDiff: async (_taskId, diff) => {
+      const document = await vscode.workspace.openTextDocument({ content: diff, language: 'diff' })
+      await vscode.window.showTextDocument(document, { preview: true })
+    },
+  })
+  context.subscriptions.push({
+    dispose: () => {
+      void teamHost.dispose()
+    },
+  })
   const modelApiStore =
     context.storageUri === undefined
       ? undefined
@@ -3041,6 +3245,7 @@ async function activateWindow(
     log,
   })
   const modelApi: ModelApiBackendManager = new ModelApiBackendManager({
+    team: teamHost.seams,
     attachedMedia,
     // Machine scope only (lane V seam 3B): a repository never picks the converter.
     mediaConverterPath: () => currentSettings().mediaConverterPath,
@@ -4280,6 +4485,47 @@ async function activateWindow(
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,
+          orchestratorSlot: {
+            resolveForNewConversation: async (_pickerModelId, host) => {
+              if (!teamHost.canConfigure()) return
+              const { readOrchestratorOverride, validateOrchestratorSettings } =
+                await import('./core/team/teamPanelEntry')
+              const override = readOrchestratorOverride({
+                get: (key) => context.workspaceState.get(key),
+              })
+              if (override === undefined) return
+              // The complete saved settings are checked against the resolved
+              // model's current capabilities before any session exists: an
+              // unsupported value refuses with its reason, never silently
+              // changed or left unapplied.
+              const unsupported = validateOrchestratorSettings(
+                override.settings,
+                override.modelId,
+                override.backend === 'modelApi'
+                  ? await teamCapabilitiesForModel(override.modelId)
+                  : undefined,
+              )
+              if (unsupported !== undefined) throw new Error(unsupported)
+              const kind = override.backend === 'modelApi' ? 'modelApi' : 'museCode'
+              if (
+                host.info.kind !== kind &&
+                (await vscode.window.showWarningMessage(
+                  kind === 'modelApi' ? UI_TEXT.modelApiBackendNotice : UI_TEXT.backendMuseCode,
+                  { modal: true },
+                  UI_TEXT.wizardContinue,
+                  UI_TEXT.wizardCancel,
+                )) !== UI_TEXT.wizardContinue
+              )
+                return
+              return {
+                host:
+                  kind === 'modelApi' ? await modelApi.ensureHost() : await backend.ensureHost(),
+                modelId: override.modelId,
+                settings: override.settings,
+              }
+            },
+          },
+          team: teamHost,
           workspaceRoot,
           modelId: DEFAULT_MODEL_ID,
           initialPermissionMode: currentSettings().initialPermissionMode,
@@ -4714,6 +4960,13 @@ async function activateWindow(
         uiLocale(),
       )
       controllers.set(surface.id, controller)
+      // A surface that shows the team opened: the declared setup probes run
+      // here, never on a conversation's path (M96 acceptance 47).
+      const opened = controller
+      void teamHost.open().then(() => {
+        const tree = teamHost.tree()
+        if (tree !== undefined) opened.showTeamTree(tree)
+      })
     }
     return controller
   }
@@ -5085,6 +5338,169 @@ async function activateWindow(
           l10n,
           log,
           globalState: context.globalState,
+          team: {
+            configuration: {
+              offers: async () => {
+                const { buildTeamModelOffers } = await import('./core/team/teamPanelEntry')
+                const engineHost = await modelApi.ensureHost()
+                const models = await engineHost.listModels()
+                const configured = await subscriptionFeatures().teamDiscovery()
+                const museHost =
+                  auth.backend === 'museCode' ? await backend.ensureHost() : undefined
+                const museCode = museHost === undefined ? [] : await museHost.listModels()
+                // Quota rows stamped for another account are dropped, so a
+                // replaced key stops using the old quota (RVCM963J 7,
+                // RVCM963JB P2-4: per provider, not one generic account).
+                const currentAccount = await modelApi.accountId()
+                const engine = [
+                  ...models
+                    .filter(
+                      (model) => model.providerId === undefined || model.providerId === 'meta',
+                    )
+                    .map((model) => ({
+                      model,
+                      record: subscriptionFeatures().teamMetaRecord(model.modelId),
+                      preset: 'meta',
+                    })),
+                  ...configured.models,
+                ]
+                const limits = usageRecording.limits?.() ?? []
+                // The paying identity per provider (P2-4): Meta keeps the
+                // generic account; a BYO apiKey record contributes its
+                // secret digest; anything else keeps legacy matching.
+                const { providerIdentities } = await import('./host/providers/credentialRecords')
+                const providers = new Set<string>()
+                for (const entry of engine) providers.add(entry.record.identity.provider)
+                for (const row of limits) providers.add(row.provider)
+                const identities = await providerIdentities(
+                  context.secrets,
+                  providers,
+                  currentAccount,
+                )
+                const discovered = buildTeamModelOffers({
+                  currentAccountOf: (provider) => identities.get(provider),
+                  engine,
+                  museCode,
+                  limits,
+                  // The machine side (D121): the machine's own parallelism,
+                  // never a ceiling of ours. Engines are further bound by
+                  // the provider's documented limits and live throttling.
+                  maxWorkers: availableParallelism(),
+                  canRunKind: (kind) => kind === 'engine',
+                })
+                return discovered.offers
+              },
+              defaultRef: () => `engine:${teamComposerModel()?.modelId ?? DEFAULT_MODEL_ID}`,
+              maxWorkers: () => availableParallelism(),
+              confirmOrchestrator: async (ref) => {
+                if (ref === undefined) return
+                if (!ref.startsWith('engine:')) throw new Error(UI_TEXT.teamEditor.invalid)
+                if (
+                  (teamComposerModel()?.backend ?? auth.backend) !== 'modelApi' &&
+                  (await vscode.window.showWarningMessage(
+                    UI_TEXT.modelApiBackendNotice,
+                    { modal: true },
+                    UI_TEXT.wizardContinue,
+                    UI_TEXT.wizardCancel,
+                  )) !== UI_TEXT.wizardContinue
+                )
+                  throw new Error(UI_TEXT.teamTryDenied)
+                const modelId = ref.slice('engine:'.length)
+                if (
+                  modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX) &&
+                  !(await isContributorModelAllowed(modelId))
+                )
+                  throw new Error(UI_TEXT.teamTryDenied)
+              },
+            },
+            dryRun: {
+              cost: () => paidFeaturePrice('teamWorkers'),
+              run: async (document, sample, signal) => {
+                // A preview the latch refuses says the latch, not the budget.
+                const latchRefusal = teamLatchRefusal()
+                if (latchRefusal !== undefined) throw new Error(latchRefusal)
+                if (
+                  workspaceRoot === undefined ||
+                  !teamHost.canConfigure() ||
+                  !paid.gate.isOn('teamWorkers')
+                )
+                  throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const modelId =
+                  document.orchestrator?.agent?.model ??
+                  teamComposerModel()?.modelId ??
+                  DEFAULT_MODEL_ID
+                if (
+                  document.orchestrator?.agent !== undefined &&
+                  document.orchestrator.agent.kind !== 'engine'
+                )
+                  throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const previewHost = await modelApi.ensureHost()
+                const models = await previewHost.listModels()
+                const model = models.find((row) => row.modelId === modelId)
+                if (model === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                const { tryTeam, teamTryConfirmation } = await import('./core/team/teamPanelEntry')
+                const { payingKeyDigest } = await import('./host/providers/credentialRecords')
+                const task = teamTryConfirmation(model)
+                return await tryTeam(
+                  {
+                    isAllowed: () => teamHost.canConfigure() && paid.gate.isOn('teamWorkers'),
+                    modelId,
+                    workspaceRoot,
+                    // The quote bills the account that pays: a
+                    // bring-your-own model's provider credential, not the
+                    // generic Meta account (P2-A).
+                    keyDigest: () =>
+                      payingKeyDigest(context.secrets, modelId, () => modelApi.accountId()),
+                    consent: () =>
+                      paid.consent.allows(
+                        {
+                          feature: 'teamWorkers',
+                          tasks: [task],
+                          dailyBudgetUsd: dailyPaid.capUsd(),
+                        },
+                        true,
+                      ),
+                    noteDispatched: () => {
+                      paid.usage.add('teamWorkers', 1)
+                    },
+                    noteUsage: (usage) => {
+                      paid.usage.addTeamWorkerUsage(modelId, usage)
+                    },
+                    reserve: async (maximum) => {
+                      const claim = await dailyPaid.judgeLedger.reserve(maximum)
+                      if (claim === undefined) throw new Error(UI_TEXT.teamBudgetUnavailable)
+                      return claim
+                    },
+                    start: (guard) => modelApi.buildTeamTryHost(workspaceRoot, guard),
+                  },
+                  document,
+                  sample,
+                  signal,
+                )
+              },
+            },
+            snapshots: {
+              remainingDailyBudgetUsd: () => dailyPaid.judgeLedger.remainingUsd(),
+              records: async () => {
+                const { readTeamRoleRecords } = await import('./core/team/teamPanelEntry')
+                return readTeamRoleRecords({ get: (key) => context.workspaceState.get(key) })
+              },
+            },
+            // Setup has no saved-entry prerequisite; the configuration registry gates U1.
+            isEnabled: () => teamHost.canConfigure(),
+            state: {
+              get: (key) => context.workspaceState.get(key),
+              update: async (key, value) => {
+                await context.workspaceState.update(key, value)
+              },
+            },
+            reload: () => {
+              teamHost.reload()
+            },
+            tree: () => teamHost.tree(),
+            onTreeChange: (listener) => teamHost.onTreeChange(listener),
+            handle: (message) => teamHost.handle(message),
+          },
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
@@ -5095,7 +5511,17 @@ async function activateWindow(
           // panel without the section too.
           vault,
           vaultDir,
-          onKeyUsage: (snapshot) => {
+          onKeyUsage: (
+            snapshot: KeyUsageSnapshot & {
+              readonly providerId: string
+              readonly credentialId: string
+              readonly observationId: string
+            },
+            observedAccount?: string,
+          ) => {
+            // The identity that fetched this usage travels with it: never
+            // re-read "current" after the response, or a rotated key inherits
+            // old quota (RVCM963JB P2-4).
             usageRecording.limit({
               backend: 'modelApi',
               provider: snapshot.providerId,
@@ -5104,6 +5530,7 @@ async function activateWindow(
               observationId: snapshot.observationId,
               observedAt: Date.now(),
               windows: [],
+              ...(observedAccount !== undefined && { observedAccount }),
               // OpenRouter's `/key` numbers become exact decimals here (M121).
               account: {
                 usedUsd: Usd.from(snapshot.usedThisMonth).toAmount(),

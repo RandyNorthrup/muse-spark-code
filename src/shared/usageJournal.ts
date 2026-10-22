@@ -237,6 +237,10 @@ export function limitSchemaWith<
       ),
       // No arbitrary JSON: account/key responses must be normalised first.
       raw: z.optional(usageHeadersSchema),
+      // The credential identity the observation arrived under (a key digest,
+      // never the secret): selection drops a row stamped for a different
+      // account, so a replaced key stops using the old quota.
+      observedAccount: z.optional(z.string()),
     })
     .check(z.refine(isWithinRecordCap))
 }

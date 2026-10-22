@@ -618,11 +618,21 @@ export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 // The panel reads the M115 schedules default the same way.
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
 // Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
-export const OPTIONAL_RUNTIME_AVAILABILITY: Readonly<{ schedules: boolean; estimator: boolean }> = {
+// Optional runtimes withheld from public activation share one release-latch
+// record (schedules and the estimator ride the release train; teams here, so
+// opening one adds its key beside `team`). Availability is the latch AND the
+// setting: a true setting with a closed latch opens nothing. The latch stays
+// false until the join passes review.
+export const OPTIONAL_RUNTIME_AVAILABILITY: {
+  readonly schedules: boolean
+  estimator: boolean
+  team: boolean
+} = {
   get schedules() {
     return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
   },
   estimator: false,
+  team: false,
 }
 
 export const SETTING_DEFAULTS = {
@@ -883,7 +893,6 @@ export const RUNTIME_SETTINGS_FILE = 'settings.json'
 // D208: each process's running total for a day lives in this folder of the day's scope.
 export const DAILY_SPEND_FOLDER = 'spent'
 export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const ARCHIVE_DAY_CHOICES = [1, 2, 7, 14, 0] as const
 // Settings a repository's `.vscode/settings.json` must never set (PLAN.md
 // D15): they choose what executes, what is billed and how much is approved,
@@ -1214,6 +1223,9 @@ export const EXTENSION_HOOK_EVENTS = [
   'Elicitation',
   'ElicitationResult',
   'TeammateIdle',
+  // M96 lane H (PLAN.md D75): fired once per pool-entry switch, with D75's
+  // payload; a hook's refusal marks the role exhausted, never another entry.
+  'TeamAgentSwitch',
   'MessageDisplay',
   'BeforeToolSelection',
   'AfterAgentThought',
@@ -6879,6 +6891,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/reviewer.js',
   'dist/team.js',
   'dist/teamRunners.js',
+  'dist/teamHost.js',
   'dist/teamScheduler.js',
   'dist/schedules.js',
   'dist/planMarkdown.js',
@@ -7033,6 +7046,8 @@ export const MODEL_TEXT = {
   // M77: a working folder is not a confinement, so a best-of-N attempt runs no process.
   shellBestOfNAttempt:
     'shell commands do not run in a best-of-N attempt: nothing confines a process to its worktree; use the file tools',
+  shellTeamWorker:
+    'shell commands do not run for this team worker: nothing confines a process to its working copy; use the file tools and name in your report any command that still needs running',
   toolFileTooLarge: 'The file tools read and edit files up to',
   toolFileTooLargeHint:
     'read part of it with a shell command instead (the search tool skips files over 1 MiB)',
@@ -7908,6 +7923,41 @@ export const TEAM_MODEL_TEXT = {
     'Only one model is ready: the team applies from a new conversation. Do the work yourself or ask the user.',
   toolErrorIsUnavailableTheTeamRunner:
     'Error: {value1} is unavailable: the team runner is not loaded in this window.',
+  // The team host service's answers (M96 lane X, C-M96-3).
+  hostInvalidArguments: 'invalid arguments for this team tool',
+  hostRoleNotOffered: 'role {role} is not offered in this workspace',
+  hostContinueNotReady:
+    'continue reopens a finished, unmerged task of the same role from this conversation, on its own branch',
+  hostInPlaceNotOffered:
+    'this team runs in-place roles only after the user confirms them; give the role own-branch or read-only',
+  hostQueueTimedOut: 'the task waited its longest for headroom and did not start; ask the user',
+  hostQueueFull: 'at most {max} tasks wait for headroom at once',
+  hostWaitingSelf: 'the user asks you to do this work yourself',
+  hostWaitingCancelled: 'the user cancelled this task',
+  hostNoRepository: 'team workers need the workspace folder to be a git repository',
+  hostReadOnlyBreach: 'a read-only worker changed files in its scratch copy, so its task failed:',
+  hostNoReport: 'the worker ended without a report',
+  hostStopped: 'the task was stopped or the team service closed, so nothing more was sent',
+  hostPaidOff: 'paid team use is off, so this key-billed task sends nothing more',
+  hostCapReached: 'the task met its {cap} cap, so its next request was not sent',
+  hostMergeNoConversation: 'merge needs the conversation that started the task to be open',
+  hostTaskBusy: 'this task is already being merged or discarded',
+  hostReviewRunning:
+    'a reviewer is checking this branch as task {task}; collect it, then merge again',
+  hostReviewStarted:
+    'a reviewer started checking this branch as task {task}; collect it, then merge again',
+  hostReviewBrief:
+    'Review the changes of team task {task} ({role}) on its branch, checked out at its head. The task was: {brief}',
+  hostReviewReason: 'review before merge by a model that did not write the branch',
+  hostNotStaffed: 'role {role} is not staffed',
+  hostExhausted: 'every entry of role {role} is at a limit or unavailable; do the work yourself',
+  hostUntrusted: 'the workspace is in Restricted Mode, so no worker starts',
+  hostMaxWorkers: 'at most {max} workers run at once in this window',
+  hostPaidDeclined: 'the user declined paid team use for these tasks',
+  hostUnknownTask: 'no such task in this conversation',
+  hostMergePlanMode: 'merge is refused in Plan mode',
+  hostMergeNotReady: 'only a finished task with changes on its own branch can be merged, once',
+  hostMergeCancelled: 'the merge was not decided; nothing was written',
   rosterNoCaps: 'no caps',
   rosterNotStaffedPolicy: '  not staffed (policy {value1})',
   rosterUse: '  use: {value1}',
@@ -8367,10 +8417,13 @@ export const WORKER_MAX_DEPTH = 2
 /** Bounded grace for a flushed ACP cancellation before the child is killed. */
 export const WORKER_CANCEL_GRACE_MS = 100
 export const WORKER_FILE_PATH_TIMEOUT_MS = 5000
+export const WORKER_NATIVE_REPLY_MAX_BYTES = 4096
 /** Model-only task data labels; kept with the lazy worker code's tunables. */
 export const WORKER_MODEL_TEXT = {
   // M96 worker scaffolding stays out of shipped bundles until lane X wires it.
   boundedExcerpt: 'bounded excerpt; may be truncated',
+  fileOperationUnavailable:
+    'this worker file operation requires a handle-relative native port; nothing was created or replaced',
 } as const
 // M117 / D97: deterministic capacity estimation; no model or paid request.
 // M117 W: the local fleet reads RAM to one decimal with this floor (a smaller
@@ -8573,6 +8626,7 @@ export type TeamIntensityLevel = keyof typeof TEAM_INTENSITY_LEVELS
 // A workspace that never picked a level runs here (D75).
 export const TEAM_INTENSITY_ORDER = ['minimal', 'light', 'balanced', 'heavy', 'max'] as const
 export const TEAM_LEARNED_MIN_TASKS = 5
+export const TEAM_LEARNED_RECENT_TASKS = 12
 export const TEAM_MINUTES_PER_HOUR = 60
 export const TEAM_TOKENS_PER_MTOK = 1_000_000
 // The output share of a preview step's tokens, in whole percent (exact money, M121).
@@ -8626,6 +8680,11 @@ export function museCodeLoadedSessionCeiling(serverVersion = ''): number {
     ? MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5
     : MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
 }
+// `museSpark.team` (D75's switch, off unless explicitly set true). Not
+// contributed to the manifest until a user can save a team in the Roles
+// section (C-M96-2, lead 2026-10-10): until then it would do nothing a user
+// can see. Hidden means hidden: an absent setting counts as off.
+export const TEAM_SWITCH_SETTING = 'team'
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2
 // A 429, or a remaining-requests or remaining-tokens header under this
@@ -8647,6 +8706,9 @@ export const TEAM_MCP_SERVER_NAME = 'team'
 export const TEAM_MCP_TOKEN_BYTES = 32
 // No positive collect wait until the Muse Code timeout capture lands (M96 P).
 export const TEAM_COLLECT_WAIT_MAX_SECONDS = 0
+// The Model API's own bound: its tools run in the extension host, so a
+// `collect` there has no MCP call timeout to stay under (C-M96-3).
+export const TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE = 60
 export const TEAM_TOOL_NAMES = ['roster', 'delegate', 'collect', 'cancel', 'merge'] as const
 export { TEAM_RUBRIC_REASON_CODES as TEAM_REASON_CODES }
 export type TeamReasonCode = (typeof TEAM_RUBRIC_REASON_CODES)[number]
@@ -8793,6 +8855,32 @@ export const TEAM_BOOTSTRAP_MODEL_TEXT = {
 // drift from what the tools enforce. Templates hold no task-varying bytes:
 // no branch, folder, task id or date, so every task of one role and entry
 // starts with the same bytes.
+
+/** Native discovery shapes committed under docs/certification/m95-captures. */
+export const TEAM_BOUND_SETTING_KEYS: readonly string[] = ['effort', 'outputCap']
+export const TEAM_TRY_MAX_INPUT_TOKENS = 4096
+export const TEAM_TRY_MAX_REQUESTS = 3
+export const TEAM_TRY_MAX_OUTPUT_TOKENS = 2048
+export const TEAM_TRY_TIMEOUT_MS = 120_000
+export const TEAM_TRY_MODEL_TEXT = {
+  teamTryPlanningInstructions:
+    'Plan only. Explain how this exact team would handle the sample: role, model, brief, expected checks and integration order. Respect every saved charter, tool and path restriction and budget. Do not execute work, invent available agents or request tools. This is a paid planning preview, not a worker run.',
+}
+export const TEAM_CAPTURED_PROVIDER_PRESETS: readonly string[] = [
+  'openai',
+  'anthropic',
+  'gemini',
+  'xai',
+  'openrouter',
+  'groq',
+  'mistral',
+  'together',
+  'fireworks',
+  'deepseek',
+  'huggingface',
+  'zai',
+  'ollama',
+]
 
 export const TEAM_MODEL_SETTINGS = [
   'effort',
@@ -9278,7 +9366,6 @@ export const VAULT_SIGN_P95_MS = 20
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_FEEDER_START_MS = 200
 export const VAULT_SCRUB_MIN_MBPS = 50
-/** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const VAULT_IDLE_MINUTES = 240
 export const VAULT_BYTE_MAX = 255
 export const VAULT_KEY_BYTES = 32
@@ -9499,3 +9586,5 @@ export const CONNECTOR_MODEL_TEXT = {
   reasonPoll: 'poll at most every 2 seconds',
   reasonKind: 'report kind {kind} is not offered over the connector',
 } as const
+/** U1 exports preserve charter text, model settings and intensity without setup secrets. */
+export const TEAM_PANEL_EXPORT_VERSION = 2

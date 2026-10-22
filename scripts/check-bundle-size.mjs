@@ -10,6 +10,7 @@ import {
   webviewPacingOutputs,
   webviewStartupOutputs,
   webviewPanelOutputs,
+  webviewTeamPanelOutputs,
 } from './lib/webviewBundles.mjs'
 
 const BYTES_PER_KIB = 1024
@@ -187,11 +188,35 @@ const BUDGETS = [
   { path: 'dist/reviewer.js', budgetKiB: 75 },
   // M96INT: tools and roster, loaded only for a team conversation. 44.6 KiB
   // measured; plus 15%, rounded up to 25 KiB (the approved D6 rule).
+  // U1: new standalone editor, 74.9 KiB measured +15%, rounded to 100 KiB.
+  { path: 'dist/teamPanel.js', budgetKiB: 100 },
   { path: 'dist/team.js', budgetKiB: 75 },
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
   // RLM107: 75.3 KiB with the M107 relocation/brand wiring landed; 75.3 x
   // 1.15 = 86.6 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
   { path: 'dist/teamRunners.js', budgetKiB: 100 },
+  // C-M96-3: the team host service with its engine worker and merge ports,
+  // loaded only for a workspace that stores a team. Measured 114,909 bytes
+  // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
+  // bytes (129.05 KiB), rounded up to the KiB (lead, 2026-10-10).
+  { path: 'dist/teamHost.js', budgetKiB: 130 },
+  { path: 'dist/teamEngine.js', budgetKiB: 100 },
+  // R4: first-use file adapter, 8.5 KiB measured +15%, rounded up.
+  { path: 'dist/teamFileIo.js', budgetKiB: 10 },
+  // CM963NF: native creation is its own first-use file-operation chunk.
+  // Measured 9,299 bytes (9.1 KiB, production build on Kubuntu, 2026-10-11)
+  // x 1.15 = 10,694 bytes (10.5 KiB), rounded up to the KiB (lead,
+  // 2026-10-10); the 13 KiB cap predates the sweep/cleanup split below and
+  // still covers it with room for the create path to grow.
+  { path: 'dist/teamCreate.js', budgetKiB: 13 },
+  // RVCM963NF P3-9: the reservation sweep, creation cleanup, typed create
+  // refusals and governed worktree git runner beside the create chunk, so
+  // dist/teamHost.js keeps its budget. Measured 14,438 bytes (14.1 KiB,
+  // production build on Kubuntu, 2026-10-11) x 1.15 = 16,604 bytes
+  // (16.3 KiB), rounded up to the KiB (lead, 2026-10-10).
+  { path: 'dist/teamWorkerOps.js', budgetKiB: 17 },
+  // R4 follow-up: first-merge flow, 9.6 KiB measured +15%, rounded up.
+  { path: 'dist/teamMerge.js', budgetKiB: 12 },
   // M96c X2: board/scheduler/tools 57.8 KiB; D6's 15%, rounded to 25 KiB.
   { path: 'dist/teamScheduler.js', budgetKiB: 75 },
   // M91 lane W: the imported hooks' adapters (lane P's contracts and engine),
@@ -587,6 +612,22 @@ for (const { entry, budgetKiB } of WEBVIEW_SURFACE_BUDGETS) {
       `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} ${file} (${entry}): ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
     )
   }
+}
+for (const [name, source] of [
+  ['Roles section', 'src/webview/models/sections/roles/RolesSection.tsx'],
+  ['Role editor', 'src/webview/models/sections/roles/RoleEditor.tsx'],
+  ['Agents section', 'src/webview/models/sections/agents/AgentsSection.tsx'],
+  ['team validators', 'src/shared/teamPanelDefinition.ts'],
+]) {
+  const meta = JSON.parse(readFileSync('dist/meta/modelsWebview.json', 'utf8'))
+  const files = webviewTeamPanelOutputs(meta, source)
+  const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
+  // U1: 17.4 / 35.5 / 3.4 KiB, +15%, rounded to the 25 KiB scale.
+  const budgetKiB = name === 'Agents section' ? 50 : 25
+  if (sizeKiB > budgetKiB) hasFailure = true
+  console.log(
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
 }
 for (const { name, budgetKiB, outputs } of webviewDeferredBudgetGroups(
   webview,

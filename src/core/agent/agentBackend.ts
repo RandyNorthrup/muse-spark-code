@@ -787,6 +787,16 @@ export interface AgentSession {
   reviewer agrees with it: the session is not quarantined, and `actualMode`
   is the running mode the surface must show instead (empty when unknown).
   */
+  /** The effort the session currently holds, where the host tracks one. */
+  readonly currentEffort?: string
+  /**
+  Whether the session's model serves this effort tier. A default is sent
+  only where this says so; an explicit setting the model cannot serve is
+  refused by setReasoningEffort instead. Absent keeps today's send.
+  */
+  readonly servesReasoningEffort?: (reasoningEffort: string) => boolean
+  readonly setOutputCap?: (cap: number) => Promise<void>
+  /** One of the four MSP approval modes (shared/permissionModes.ts). */
   setApprovalMode(mode: string): Promise<void>
   compact(): Promise<CompactOutcome>
   decideApproval(decision: ApprovalDecision): Promise<void>

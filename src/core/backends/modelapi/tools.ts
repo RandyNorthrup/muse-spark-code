@@ -136,7 +136,11 @@ export interface SearchJob {
   readonly pattern: string
   /** The workspace root: a file whose canonical path leaves it is skipped (D24). */
   readonly root: string
-  readonly files: readonly { readonly relative: string; readonly absolute: string }[]
+  readonly files: readonly {
+    readonly relative: string
+    readonly absolute: string
+    readonly content?: string | undefined
+  }[]
   /** The canonical limits travel with the job so the worker stays small. */
   readonly maxFileBytes: number
   readonly maxHits: number

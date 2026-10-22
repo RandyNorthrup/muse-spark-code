@@ -25,7 +25,9 @@ const LINE_BREAK = /\r?\n/
 const SEARCH_JOB = z.object({
   pattern: z.string(),
   root: z.string(),
-  files: z.array(z.object({ relative: z.string(), absolute: z.string() })),
+  files: z.array(
+    z.object({ relative: z.string(), absolute: z.string(), content: z.optional(z.string()) }),
+  ),
   maxFileBytes: z.number(),
   maxHits: z.number(),
   maxHitChars: z.number(),
@@ -138,7 +140,18 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     if (found >= job.maxHits) {
       break
     }
-    const text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
+    let text: string | undefined
+    if (file.content === undefined) {
+      text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
+    } else if (
+      isDenied([file.relative]) ||
+      Buffer.byteLength(file.content) > job.maxFileBytes ||
+      isBinary(file.content)
+    ) {
+      text = undefined
+    } else {
+      text = file.content
+    }
     if (text === undefined) {
       continue
     }
