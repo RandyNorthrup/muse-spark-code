@@ -2,7 +2,6 @@ import type { UiText } from '../../../shared/l10n/en'
 import { createHash } from 'node:crypto'
 import {
   ACP_WORKSPACE_HASH_CHARS,
-  REPORT_SOURCE_SETTLE_MS,
   REPORT_MAX_TEXT_CHARS,
   REPORT_SOURCE_FRESH_MS,
 } from '../../../shared/constants'
@@ -195,18 +194,17 @@ export interface LocalObservation<T> {
 
 /**
 A read raced against the deadline its caller handed in. The race is against
-that deadline only, never the abort: a cancelled cooperative read still
-settles through its own shutdown instead of being abandoned mid-flight.
-When the deadline fires the abort is already on the read's signal, so its
-settlement is awaited, bounded by the settle grace, before the cancellation
-returns (RVREPORTJOIN P2-3).
+that deadline only, never the abort. When the deadline fires the abort is
+already on the read's signal and the cancellation returns at once: no
+settle grace of ours waits the reader out (RLTESTDRIVE item 9, D121). A
+settlement that lands after the return stays silent below, never an
+unhandled rejection.
 */
 async function readBeforeDeadline<T>(pending: Promise<T>, timeout: AbortSignal): Promise<T> {
-  // A settlement that lands after the bounded wait below has moved on
-  // must never surface as an unhandled rejection.
+  // The read keeps whatever shutdown it runs after the abort; its late
+  // settlement must never surface as an unhandled rejection.
   void pending.then(ignoreSettlement).catch(ignoreSettlement)
   let stopTimeout: (() => void) | undefined
-  let stopGrace: (() => void) | undefined
   try {
     const expired = new Promise<never>((_resolve, reject) => {
       const fire = () => {
@@ -220,45 +218,9 @@ async function readBeforeDeadline<T>(pending: Promise<T>, timeout: AbortSignal):
         }
       }
     })
-    try {
-      return await Promise.race([pending, expired])
-    } catch (error) {
-      if (!timeout.aborted) throw error
-      // The handed deadline fired while the read was in flight: the
-      // abort is already on the read's signal, so a cooperative reader
-      // settles promptly. Wait for that settlement, bounded by the
-      // settle grace, instead of returning while it still runs.
-      const grace = AbortSignal.timeout(REPORT_SOURCE_SETTLE_MS)
-      const settled = new Promise<void>((resolve, reject) => {
-        const fire = (): void => {
-          reject(new LocalSourceError('cancelled'))
-        }
-        if (grace.aborted) fire()
-        else {
-          grace.addEventListener('abort', fire, { once: true })
-          stopGrace = () => {
-            grace.removeEventListener('abort', fire)
-          }
-        }
-        void pending
-          .then(function readSettled(): void {
-            resolve()
-          })
-          .catch(function readFailed(): void {
-            resolve()
-          })
-      })
-      try {
-        await settled
-      } catch {
-        // The grace expired while a wedged reader still runs: the outcome
-        // stays cancellation, and the late settlement stays silent above.
-      }
-      throw error
-    }
+    return await Promise.race([pending, expired])
   } finally {
     stopTimeout?.()
-    stopGrace?.()
   }
 }
 

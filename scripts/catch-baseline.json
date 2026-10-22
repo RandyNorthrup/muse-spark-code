@@ -7,9 +7,9 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 72,
+      "SWALLOW": 71,
       "GENERIC": 267,
-      "CLEANUP": 235
+      "CLEANUP": 234
     },
     "host": {
       "SWALLOW": 19,
@@ -1971,16 +1971,6 @@
     {
       "file": "src/core/reporting/sources/local.ts",
       "identity": "934057e6f039c92f885c48d39e9ef98ede7fca4d2af12f2985a9d27d20b469a9",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/reporting/sources/local.ts",
-      "identity": "c99b116868cd93c12568ee1fedff4d4069383c03c1bab203685a9442ffb0aae0",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/reporting/sources/local.ts",
-      "identity": "0a8574e48de5320c3db87fd566bad925b63f478b85c4a4d8040e4567be0187cd",
       "class": "CLEANUP"
     },
     {
