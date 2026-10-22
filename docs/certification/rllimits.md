@@ -113,3 +113,15 @@ migration tests, one in another lane's move-snapshot ref; the lane
 touches no vault or voice file, and the pre-commit hook's scan of the
 lane's staged patch found no leaks. The vault suites were not run (no
 vault change).
+
+## Integration on Windows (int/recovery, 2026-10-22)
+
+`fileRange` "edits inside the window the model read" failed on the
+owner's Windows 11 PC after the merge (`EPERM: operation not permitted,
+rename`, 2 of 2 runs): `spliceFileRange` renamed the staged file over
+the target while its own read handle was still open, which Linux allows
+and Windows refuses. The read handle now closes before the rename, and
+each rename attempt re-checks by path that the target is the file that
+was read (same native file ID) with the planned size and mtime; a gone
+file reads as changed. The same case is green after the change (12/12
+in the file), commit `19ec96a431`.
