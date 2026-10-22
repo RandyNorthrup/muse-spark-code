@@ -104,23 +104,17 @@ it('keeps the production media entry in its bundle and its outfile row', () => {
   expect(media?.files).toContain(entry)
 })
 
-it('names the helpers bundle by the method that loads it', () => {
-  expect(LAZY_BUNDLES.find((entry) => entry.file === 'modelApiTools.js')).toEqual({
-    file: 'modelApiTools.js',
-    side: 'both',
-    requestedBy: [
-      {
-        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
-        symbol: 'ModelApiSession.toolAssist',
-        side: ['acp', 'vscode'],
-      },
-      {
-        importer: 'src/core/backends/modelapi/tools.ts',
-        symbol: 'loadSearchCalls',
-        side: ['acp', 'vscode'],
-      },
-    ],
-  })
+it('names the helpers bundle by the methods that load it', () => {
+  const row = LAZY_BUNDLES.find((entry) => entry.file === 'modelApiTools.js')
+  expect(row?.side).toBe('both')
+  // Every loader, with its sides: the turn's tool assist and RLLIMITS'
+  // paged search and listing calls.
+  expect(
+    row?.requestedBy.map(({ importer, symbol, side }) => [importer, symbol, side.join(' ')]),
+  ).toEqual([
+    ['src/core/backends/modelapi/ModelApiHost.ts', 'ModelApiSession.toolAssist', 'acp vscode'],
+    ['src/core/backends/modelapi/tools.ts', 'loadSearchCalls', 'acp vscode'],
+  ])
 })
 
 it('names the effort catalogue bundle by the spawn that preloads it', () => {

@@ -123,6 +123,15 @@ async function runEntry(
   return { exit, out, err }
 }
 
+/** A fresh connector root the guard has secured, as each link refusal starts. */
+async function securedRoot(data: string) {
+  const root = path.join(data, CONNECTOR_FOLDER)
+  await mkdir(root, { recursive: true })
+  const guard = connectorStorageGuard(root)
+  await guard.secure(root, 'directory')
+  return { root, guard }
+}
+
 async function refusalOf(work: () => Promise<unknown>): Promise<{ reason: string }> {
   try {
     await work()
@@ -167,10 +176,7 @@ describe('M124 connector storage guard', () => {
 
   it('refuses a link below the root', async () => {
     await usingTempDir('m124-guard-link-', async (data) => {
-      const root = path.join(data, CONNECTOR_FOLDER)
-      await mkdir(root, { recursive: true })
-      const guard = connectorStorageGuard(root)
-      await guard.secure(root, 'directory')
+      const { root, guard } = await securedRoot(data)
       const target = path.join(data, 'outside')
       await mkdir(target)
       // A junction reads as a directory to lstat: only the descriptor scan
@@ -187,10 +193,7 @@ describe('M124 connector storage guard', () => {
 
   it('refuses a hard link below the root', async () => {
     await usingTempDir('m124-guard-hardlink-', async (data) => {
-      const root = path.join(data, CONNECTOR_FOLDER)
-      await mkdir(root, { recursive: true })
-      const guard = connectorStorageGuard(root)
-      await guard.secure(root, 'directory')
+      const { root, guard } = await securedRoot(data)
       const target = path.join(root, 'target.json')
       await writeFile(target, '{}\n')
       await guard.secure(target, 'file')
