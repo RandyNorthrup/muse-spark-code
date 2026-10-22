@@ -56,7 +56,7 @@ function input(observedAt: number, usedPercent: number): OwnedLimitInput {
 
 // 0.1 * 3 is 0.30000000000000004 as doubles: the three-hour lane at USD
 // 0.1/hour with USD 0.3 remaining must still be admitted.
-async function admitBoundary(ratePerHour: number, hours: number, remainingUsd: number) {
+async function admitBoundary(ratePerHour: number, hours: number, remainingUsd: UsdAmount) {
   const journal = silentRecording()
   journal.scopeLimits?.({ accountId: 'work', generation: '1', backend: 'modelApi' }).limit({
     account: { remainingUsd, period: 'month' },
@@ -116,7 +116,7 @@ describe('RVCM1173E owned observations', () => {
   })
   it('admits the exact-decimal boundary binary arithmetic refuses (finding 2)', async () => {
     expect(0.1 * 3 === 0.3).toBe(false)
-    const { spending, owned } = await admitBoundary(0.1, 3, 0.3)
+    const { spending, owned } = await admitBoundary(0.1, 3, usd(0.3))
     expect(owned.context.facts.find((fact) => fact.unit === 'usd')).toMatchObject({
       remaining: '0.3',
     })

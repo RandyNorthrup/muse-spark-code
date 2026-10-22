@@ -63,10 +63,10 @@ describe('M117 provisioning lifecycle without a provider', () => {
     expect(compareUsdNanos(preview.quotes[0]!.cost, usdNanos(0.21))).toBe(0)
     expect(compareUsdNanos(preview.quotes[1]!.cost, usdNanos(0.035))).toBe(0)
     expect(compareUsdNanos(preview.total, usdNanos(0.245))).toBe(0)
-    expect(preview.totalUsd).toBe(0.245)
+    expect(preview.totalUsd).toBe('0.245')
     for (const quote of preview.quotes) {
       expect(isNanos(quote.cost)).toBe(true)
-      expect(quote.costUsd).toBeGreaterThan(0)
+      expect(compareUsdNanos(quote.cost, usdNanos(0))).toBe(1)
     }
   })
 

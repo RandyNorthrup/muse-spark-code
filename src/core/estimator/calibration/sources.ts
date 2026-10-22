@@ -13,7 +13,7 @@ import { existsSync, realpathSync } from 'node:fs'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../credentialEnvironment'
-import { resolveExecutable } from '../../execGuard'
+import { noWorkspaceChildEnvironment, resolveExecutable } from '../../execGuard'
 import { NO_WORKSPACE } from '../../executables'
 import {
   ESTIMATE_MAX_ITEMS,
@@ -53,10 +53,16 @@ export function historyGitIo(root: string): {
         scope: { noWorkspace: NO_WORKSPACE, realpath: realpathSync },
       })
       if (git === undefined) throw calibrationFailure('historySourceUnavailable')
+      // Guarded scope and credential-free environment: the resolved git
+      // binary runs with a branded child env, like every process src/ starts.
+      // The raw probe error keeps its exit code for the missing-ref checks below.
+      const env = withoutCredentials(
+        noWorkspaceChildEnvironment(process.platform, process.env, realpathSync),
+      )
       const { stdout } = await runFile(git, [...args], {
         cwd: root,
         encoding: 'utf8',
-        env: withoutCredentials(process.env),
+        env,
         timeout: ESTIMATE_SOURCE_TIMEOUT_MS,
         maxBuffer: GIT_OUTPUT_MAX_BYTES,
         windowsHide: true,

@@ -48,8 +48,8 @@ export interface OwnedUsageLimitSnapshot {
 The snapshot fields a producer supplies. The owner and sequence are bound
 by the producer's scope (`scopeLimits`), or supplied explicitly to the one
 owned constructor below; an observation without an owner cannot exist.
-Money arrives as exact decimal strings or legacy numbers, normalized once
-by the constructor.
+Money arrives as exact decimal strings; the constructor re-normalizes
+through `legacyUsdSchema`, so a legacy number never reaches the journal.
 */
 export type OwnedLimitInput = Omit<
   UsageLimitSnapshot,
@@ -57,9 +57,9 @@ export type OwnedLimitInput = Omit<
 > & {
   readonly account?:
     | {
-        readonly usedUsd?: number | UsdAmount | undefined
-        readonly limitUsd?: number | UsdAmount | undefined
-        readonly remainingUsd?: number | UsdAmount | undefined
+        readonly usedUsd?: UsdAmount | undefined
+        readonly limitUsd?: UsdAmount | undefined
+        readonly remainingUsd?: UsdAmount | undefined
         readonly period: string
       }
     | undefined
