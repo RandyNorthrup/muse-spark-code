@@ -232,6 +232,7 @@
   "estimateRunning": "Tahmin ediliyor…",
   "referenceEstimateFacts": "Tahminler gözlemlenen hesap engellerini korur, okunmayan kapasiteyi belirtir ve varsayılan eşikleri yapılandırılmış eşiklerden ayırır. Gelecekteki yenileme hızları bildirilmedikçe bilinmez. Gözlemler kendi hesaplarına ve oturum açma nesillerine aittir; bilinen bakiyeler ve yüzdelik kotalar, yenilenme bilinmese bile mevcut çalışmayı sınırlar.",
   "estimateFailed": "Tahmin başarısız: {detail}",
+  "estimateCredentialChanged": "Sağlayıcı kimlik bilgisi değişti: yeniden tahmin edin.",
   "estimateMissingMore": {
     "one": "ve {count} tane daha",
     "other": "ve {count} tane daha"

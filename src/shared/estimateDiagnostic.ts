@@ -13,7 +13,7 @@ export const ESTIMATE_DIAGNOSTIC_CODES = /* @__PURE__ */ (() =>
   [
     'account-selection-limit advice-only catalog-options conflictingCiHistory conflictingEngineHistory conflictingHistory conflictingLaneIdentity conflictingReviewHistory cost-overflow coupled-resources',
     'cycle dispatch-uncertain duplicate-lane duplicate-price duplicateHistoryLane duration-class duration-coverage duration-model-overflow duration-overflow endpoint-refused',
-    'estimate-unavailable fleet-account-blocked fleet-account-invalid fleet-binding-invalid fleet-caps-invalid fleet-ci-invalid forecast-quantiles help historyCleanupFailed historyIdentityMismatch historyReadFailed historyRecordTooLarge historySourceUnavailable historyWriteFailed invalid-distribution',
+    'estimate-credential-changed estimate-unavailable fleet-account-blocked fleet-account-invalid fleet-binding-invalid fleet-caps-invalid fleet-ci-invalid forecast-quantiles help historyCleanupFailed historyIdentityMismatch historyReadFailed historyRecordTooLarge historySourceUnavailable historyWriteFailed invalid-distribution',
     'invalid-duration invalid-duration-evidence invalid-duration-model invalid-input invalid-lane invalid-lane-finished invalid-snapshot invalid-model-evidence invalidBaseAge invalidCalibrationQuery invalidEngine invalidHistory',
     'invalidHistoryFile invalidHistoryLane invalidHistorySource invalidReviewState invalidSnapshot lane-limit malformed-starts merged-duration minimum-duration missing-associations',
     'missing-boundary missing-dependency missing-estimate missing-fit missing-infeasibility-reason missing-lane missing-machine missing-node missing-plan missing-selection missing-slot',

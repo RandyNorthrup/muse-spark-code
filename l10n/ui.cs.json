@@ -232,6 +232,7 @@
   "estimateRunning": "Probíhá odhad…",
   "referenceEstimateFacts": "Prognózy zachovávají zjištěná blokování účtů, označují nenačtenou kapacitu a rozlišují výchozí a nastavené prahy. Budoucí rychlosti doplňování zůstávají neznámé, dokud nejsou oznámeny. Pozorování patří svému účtu a generaci přihlášení; známé zůstatky a procentní limity omezují aktuální práci i při neznámém obnovení.",
   "estimateFailed": "Odhad selhal: {detail}",
+  "estimateCredentialChanged": "Přihlašovací údaje poskytovatele se změnily: proveďte odhad znovu.",
   "estimateMissingMore": {
     "one": "a {count} další",
     "few": "a {count} další",

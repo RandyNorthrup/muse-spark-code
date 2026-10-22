@@ -232,6 +232,7 @@
   "estimateRunning": "Szacowanie…",
   "referenceEstimateFacts": "Prognozy zachowują zaobserwowane blokady kont, wskazują nieodczytaną pojemność i rozróżniają progi domyślne od skonfigurowanych. Przyszłe tempo uzupełniania pozostaje nieznane, dopóki nie zostanie zgłoszone. Obserwacje należą do swojego konta i generacji logowania; znane salda i limity procentowe ograniczają bieżącą pracę także przy nieznanym odnowieniu.",
   "estimateFailed": "Oszacowanie nie powiodło się: {detail}",
+  "estimateCredentialChanged": "Poświadczenia dostawcy uległy zmianie: wykonaj wycenę ponownie.",
   "estimateMissingMore": {
     "one": "i {count} kolejny",
     "few": "i {count} kolejne",

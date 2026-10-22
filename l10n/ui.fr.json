@@ -232,6 +232,7 @@
   "estimateRunning": "Estimation en cours…",
   "referenceEstimateFacts": "Les prévisions conservent les blocages de comptes observés, nomment la capacité non lue et distinguent les seuils par défaut des seuils configurés. Les débits futurs de renouvellement restent inconnus tant qu’ils ne sont pas signalés. Les observations appartiennent à leur compte et à leur génération de connexion ; les soldes et quotas en pourcentage connus limitent le travail actuel même si leur renouvellement est inconnu.",
   "estimateFailed": "Échec de l’estimation : {detail}",
+  "estimateCredentialChanged": "Les identifiants du fournisseur ont changé : estimez à nouveau.",
   "estimateMissingMore": {
     "one": "et {count} autre",
     "many": "et {count} autres",

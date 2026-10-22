@@ -211,6 +211,7 @@
   "rateLimits": "Limity liczby żądań i tokenów",
   "asReported": "Zgodnie ze zgłoszeniem",
   "noLimitReported": "{provider} nie zgłasza tutaj limitu.",
+  "limitNotReadYet": "Jeszcze nieodczytane dla tego konta.",
   "providerConsole": "Otwórz konsolę dostawcy",
   "retries": "Ponowienia",
   "rateLimited": "Wywołania ograniczone",

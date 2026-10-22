@@ -232,6 +232,7 @@
   "estimateRunning": "Schätzung läuft…",
   "referenceEstimateFacts": "Prognosen behalten beobachtete Kontosperren bei, benennen ungelesene Kapazität und unterscheiden Standardwerte von konfigurierten Schwellen. Künftige Auffüllraten bleiben unbekannt, sofern nicht gemeldet. Beobachtungen gehören zum jeweiligen Konto und Anmeldestand; bekannte Guthaben und prozentuale Kontingente begrenzen die aktuelle Arbeit auch bei unbekannter Erneuerung.",
   "estimateFailed": "Schätzung fehlgeschlagen: {detail}",
+  "estimateCredentialChanged": "Die Anbieteranmeldedaten haben sich geändert: Bitte erneut schätzen.",
   "estimateMissingMore": {
     "one": "und {count} weitere",
     "other": "und {count} weitere"

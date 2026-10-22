@@ -232,6 +232,7 @@
   "estimateRunning": "Becslés folyamatban…",
   "referenceEstimateFacts": "Az előrejelzések megőrzik a megfigyelt fiókblokkolásokat, megnevezik a be nem olvasott kapacitást és megkülönböztetik az alapértelmezett és konfigurált küszöböket. A jövőbeli feltöltési sebességek jelentés hiányában ismeretlenek maradnak. A megfigyelések a saját fiókjukhoz és bejelentkezési generációjukhoz tartoznak; az ismert egyenlegek és százalékos keretek ismeretlen megújulás esetén is korlátozzák az aktuális munkát.",
   "estimateFailed": "A becslés sikertelen: {detail}",
+  "estimateCredentialChanged": "A szolgáltató hitelesítő adatai megváltoztak: készítsen új becslést.",
   "estimateMissingMore": {
     "one": "és további {count}",
     "other": "és további {count}"

@@ -232,6 +232,7 @@
   "estimateRunning": "Estimando…",
   "referenceEstimateFacts": "As previsões mantêm os bloqueios de contas observados, indicam a capacidade não lida e distinguem os limites padrão dos configurados. As taxas futuras de reposição permanecem desconhecidas até serem informadas. As observações pertencem à sua conta e geração de login; os saldos e cotas percentuais conhecidos limitam o trabalho atual mesmo quando a renovação é desconhecida.",
   "estimateFailed": "A estimativa falhou: {detail}",
+  "estimateCredentialChanged": "A credencial do provedor mudou: estime novamente.",
   "estimateMissingMore": {
     "one": "e {count} outro",
     "many": "e {count} outros",

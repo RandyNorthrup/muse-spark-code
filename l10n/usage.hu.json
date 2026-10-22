@@ -185,6 +185,7 @@
   "rateLimits": "Kérés- és token-sebességkorlátok",
   "asReported": "Jelentés szerint",
   "noLimitReported": "{provider} itt nem jelent limitet.",
+  "limitNotReadYet": "Ehhez a fiókhoz még nincs beolvasva.",
   "providerConsole": "Szolgáltatói konzol megnyitása",
   "retries": "Újrapróbálkozások",
   "rateLimited": "Korlátozott hívások",

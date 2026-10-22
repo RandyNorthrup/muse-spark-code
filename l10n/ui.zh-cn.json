@@ -232,6 +232,7 @@
   "estimateRunning": "正在估算…",
   "referenceEstimateFacts": "预测保留已观察到的账户阻止状态，注明未读取的容量，并区分默认阈值与已配置阈值。未来的补充速率在报告前仍为未知。 观测值属于其账户和登录代次；即使续期未知，已知余额和百分比额度仍会约束当前工作。",
   "estimateFailed": "估算失败：{detail}",
+  "estimateCredentialChanged": "提供商凭据已更改：请重新估算。",
   "estimateMissingMore": {
     "other": "还有 {count} 个"
   },

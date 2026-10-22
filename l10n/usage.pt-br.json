@@ -198,6 +198,7 @@
   "rateLimits": "Limites de frequência de solicitações e tokens",
   "asReported": "Como informado",
   "noLimitReported": "{provider} não informa nenhum limite aqui.",
+  "limitNotReadYet": "Ainda não lido para esta conta.",
   "providerConsole": "Abrir o console do provedor",
   "retries": "Novas tentativas",
   "rateLimited": "Chamadas limitadas",
