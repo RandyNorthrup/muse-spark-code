@@ -269,7 +269,15 @@ describe('responsesCodec encodeRequest', () => {
         .parse(codec.encodeRequest(body)['tools'])
       expect(tools.every((tool) => tool.strict)).toBe(shouldUseStrictTools)
       if (shouldUseStrictTools) {
-        expect(tools[0]?.parameters['required']).toEqual(['path', 'offset', 'limit'])
+        // Strict mode requires every property; read_file's byte-range fields
+        // (RLLIMITS) ride beside its line window.
+        expect(tools[0]?.parameters['required']).toEqual([
+          'path',
+          'offset',
+          'limit',
+          'byteOffset',
+          'byteLength',
+        ])
       } else {
         expect(JSON.stringify(codec.encodeRequest(body))).toBe(
           JSON.stringify(createResponsesCodec(withRetention).encodeRequest(body)),
