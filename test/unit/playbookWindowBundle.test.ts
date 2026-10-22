@@ -33,6 +33,7 @@ import {
 } from '../../src/runtime/playbook/panelWire'
 import { createPlaybookSurface } from '../../src/runtime/playbook/surface'
 import { OFFLOAD_REASON, offloadOffRequest, PANEL_BRIDGE } from './helpers/playbook/panelRequests'
+import { errorLogger } from './helpers/collectingLogger'
 import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -42,17 +43,7 @@ const built = { folder: '', file: '' }
 /** The errors the loader logged, in order. */
 function testLog(): { log: Logger; errors: string[] } {
   const errors: string[] = []
-  return {
-    errors,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: (message: string) => {
-        errors.push(message)
-      },
-    },
-  }
+  return { errors, log: errorLogger(errors) }
 }
 
 beforeAll(async () => {

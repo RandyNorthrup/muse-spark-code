@@ -14,7 +14,6 @@ import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
-import { AcpPaidUse } from '../../src/acp/paid'
 import type { SubagentAdmission } from '../../src/core/backends/modelapi/subagentTools'
 import type {
   AgentHost,
@@ -23,7 +22,6 @@ import type {
 } from '../../src/core/agent/agentBackend'
 import { createReadingHolder } from '../../src/core/orchestration/playbook/readingHolder'
 import { createSubagentAdmission } from '../../src/runtime/playbook/admission'
-import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { ItemSnapshot } from '../../src/shared/agentEvents'
 import {
@@ -31,6 +29,7 @@ import {
   type ResourceLevel,
   type ResourceStatus,
 } from '../../src/shared/resources'
+import { agentDriveDeps } from './helpers/acpAgentDeps'
 import { collectingLogger } from './helpers/collectingLogger'
 
 const CHILD: ItemSnapshot = {
@@ -167,36 +166,18 @@ async function drive(
       return real(kind, sessionId, targetId, effect, isOver, refused)
     }
   }
-  const agent = createAcpAgent({
-    backend: {
-      kind: 'modelApi',
-      readiness: () => Promise.resolve({ state: 'ready' }),
-      hostFor: () => Promise.resolve(host),
-    },
-    version: '0.19.0',
-    options: { canBypass: false, allowsContributorModels: false, initialMode: 'manual' },
-    signIn: {
-      id: 'login',
-      name: 'Muse Code',
-      description: 'Muse Code',
-      args: [],
-      command: 'muse login',
-    },
-    defaultCwd: folder,
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: paidGrantFile({
-        file: path.join(folder, 'paid-grants.json'),
-        log,
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      }),
+  const agent = createAcpAgent(
+    agentDriveDeps(
+      folder,
       log,
-    }),
-    log,
-    questions: 'decline',
-    ...(subagentAdmission !== undefined && { subagentAdmission }),
-  })
+      {
+        kind: 'modelApi',
+        readiness: () => Promise.resolve({ state: 'ready' }),
+        hostFor: () => Promise.resolve(host),
+      },
+      { ...(subagentAdmission !== undefined && { subagentAdmission }) },
+    ),
+  )
   const chunks: string[] = []
   const editor = acp
     .client({ name: 'agent-admission' })

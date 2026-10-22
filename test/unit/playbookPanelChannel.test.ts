@@ -1,20 +1,7 @@
 // The VS Code panel's channel to its window's playbook (M116, C-M116-6): what
 // the Agent map's page and rows are answered, and what is never answered.
 import { describe, expect, it } from 'vitest'
-
-/** A function that runs `impl` and keeps the calls it saw, in order. */
-function keepCalls<T extends unknown[], R>(
-  impl: (...args: T) => R,
-): ((...args: T) => R) & {
-  calls: T[]
-} {
-  const calls: T[] = []
-  const fn = (...args: T): R => {
-    calls.push(args)
-    return impl(...args)
-  }
-  return Object.assign(fn, { calls })
-}
+import { keepCalls } from './helpers/playbook/keepCalls'
 import { createPlaybookPanel, type PlaybookPanelGap } from '../../src/host/playbook/playbookPanel'
 import type { PlaybookWindow } from '../../src/host/playbook/playbookWindow'
 import {

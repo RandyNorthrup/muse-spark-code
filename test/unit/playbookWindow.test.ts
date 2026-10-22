@@ -1,17 +1,3 @@
-/** A function that runs `impl` and keeps the calls it saw, in order. */
-function keepCalls<T extends unknown[], R>(
-  impl: (...args: T) => R,
-): ((...args: T) => R) & {
-  calls: T[]
-} {
-  const calls: T[] = []
-  const fn = (...args: T): R => {
-    calls.push(args)
-    return impl(...args)
-  }
-  return Object.assign(fn, { calls })
-}
-
 // A window's playbook and its worker (M116, C-M116-6). The real worker code
 // runs behind a thread boundary that copies every message, over a real
 // journal and a real git repository (and, on Windows, the real job helper),
@@ -39,6 +25,7 @@ import type { FromPlaybookWorker, ToPlaybookWorker } from '../../src/host/playbo
 import { playbookSnapshotSchema } from '../../src/runtime/playbook/command'
 import type { PanelModuleSummary } from '../../src/runtime/playbook/governor'
 import { compiledJobAssembly, SYSTEM_ROOT } from './helpers/playbook/jobAssembly'
+import { keepCalls } from './helpers/playbook/keepCalls'
 import {
   coveredReview,
   GOVERNED_ROUND_TIMEOUT_MS,

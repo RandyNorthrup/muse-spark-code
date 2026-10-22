@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest'
 import { reportInputsLoader } from '../../src/runtime/reporting/reportInputsLoader'
 import { reportingNetworkLoader } from '../../src/runtime/reporting/networkLoader'
+import { errorLogger } from './helpers/collectingLogger'
 
 const CANARY = '/home/owner-canary/extensions'
 
@@ -12,17 +13,7 @@ function capturingLog(): {
   log: Parameters<typeof reportInputsLoader>[0]['log']
 } {
   const errors: string[] = []
-  return {
-    errors,
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: (message: string) => {
-        errors.push(message)
-      },
-    },
-  }
+  return { errors, log: errorLogger(errors) }
 }
 
 describe('report bundle loaders keep paths out of the log', () => {
