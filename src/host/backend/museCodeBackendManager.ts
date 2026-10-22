@@ -55,7 +55,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { isContributorModeEnabled } from './museSettings'
-import type { UsageRecording } from '../../core/usage/recording'
+import type { UsageRecording, UsageScopeReader } from '../../core/usage/recording'
 import type { Logger } from '../logger'
 import { requireFile } from '../lazyBundle'
 import { isUsageNotesBundle, museCodeBundleLoader, type MuseCodeBundle } from './museCodeBundle'
@@ -110,6 +110,8 @@ export interface BackendManagerDeps {
   readonly loadBundle?: ((file: string) => unknown) | undefined
   /** This manager's usage recorder, put on the bundle's host class at every bundle load. */
   readonly usageRecording?: UsageRecording | undefined
+  /** This manager's usage owner, put on the bundle's host class at every bundle load. */
+  readonly usageScope?: UsageScopeReader | undefined
   /** One manager per capture-gated CLI account. Absent preserves today's single account. */
   readonly accountHome?: MuseCodeAccountHome
   /** Awaited before any agent host process can edit this workspace. */
@@ -201,6 +203,11 @@ export class MuseCodeBackendManager {
   carries its own copy of that class and its static.
   */
   public static usageRecording: UsageRecording | undefined
+  /**
+  The window's usage owner when no manager carries its own: forwarded onto
+  the bundle's host class at every bundle load, like the journal above.
+  */
+  public static usageScope: UsageScopeReader | undefined
   private hostPromise: Promise<MuseCodeHost> | undefined
   /** The Linux capability probe of the last started host (F91); one probe per start. */
   private linuxSandboxReadiness: LinuxSandboxReadiness | undefined
@@ -237,6 +244,7 @@ export class MuseCodeBackendManager {
       const bundle = load()
       bundle.MuseCodeHost.usageRecording =
         deps.usageRecording ?? MuseCodeBackendManager.usageRecording
+      bundle.MuseCodeHost.usageScope = deps.usageScope ?? MuseCodeBackendManager.usageScope
       // The live journal writers ride with the usage service bundle (PLAN.md
       // D6): sessions construct them on first use instead of carrying them
       // at startup.

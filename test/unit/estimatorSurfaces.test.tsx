@@ -216,6 +216,10 @@ describe('M117 diagnostic × real surface replacement table', () => {
         // the report's language (its factory snapshot, or the installed
         // table for factory-less readers).
         'src/core/reporting/sources/estimate.ts',
+        // M117's price loader fallback renders the installed failure
+        // template when dist/estimatePrices.js cannot load; every surface
+        // shows that sentence through its own adapter (matrix columns).
+        'src/host/estimator/priceCatalogBundle.ts',
         'src/host/views/webviewSetup.ts',
       ].toSorted(byText),
     )

@@ -359,9 +359,9 @@ const BUDGETS = [
   // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
   // first estimate: goal and DAG, calibration, schedule and simulation,
   // recommendations, dated prices and the first-wave starter with their
-  // shared contracts. 60.7 KiB when split out, plus 15%, rounded up to
-  // 25 KiB (PLAN.md D6).
-  { path: 'dist/estimator.js', budgetKiB: 75 },
+  // shared contracts, plus M117's provision run and price catalogues.
+  // 77.1 KiB measured with the run; budget 80 KiB (PLAN.md D6).
+  { path: 'dist/estimator.js', budgetKiB: 80 },
   // CIFIX161B: the sign-in gate (AuthService and the three-valued
   // credential read), loaded on the first credential, money or consent
   // read. 64.8 KiB when split out, plus 15%, rounded up to 25 KiB
