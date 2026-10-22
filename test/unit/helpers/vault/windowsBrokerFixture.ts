@@ -22,6 +22,7 @@ import { expect, vi } from 'vitest'
 import { processesNaming } from '../browserProcesses'
 import { expectEnded, isRunning } from '../processes'
 import { removeFolder } from '../temporaryFolders'
+import { removeVaultStoreRecords } from './storeCleanup'
 
 /** How long the fixture's own processes may take to end once stopped (a process table read is slow). */
 const TEARDOWN_TIMEOUT_MS = 20_000
@@ -137,6 +138,10 @@ export async function startWindowsBrokerFixture(prefix: string): Promise<Windows
         },
         { timeout: TEARDOWN_TIMEOUT_MS },
       )
+      // Every helper is dead: this vault's store records go before its
+      // files do, so a rerun starts clean and the person's store keeps no
+      // fixture vault behind.
+      await removeVaultStoreRecords(dataDir)
       await removeFolder(root)
     },
   }

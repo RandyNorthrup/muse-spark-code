@@ -23,6 +23,7 @@ import {
 } from '../../host/vault/slots/windowsVaultBuild'
 import { inspectWindowsPipeServer, startWindowsPipeFiles, type PipeRelay } from './windowsPipeRelay'
 import { registerWindowsVaultHost, windowsProcessIdentity } from './windowsHost'
+import { vaultBrokerDataDir } from './vaultStoreScope'
 
 /** The pipe and slot sources every Windows package ships; the slot helper compiles as one unit. */
 const SLOT_SOURCES = [
@@ -201,7 +202,7 @@ export async function windowsVaultClientPlatform(
         const ready = launchSessionBroker({
           script: path.join(context.distDir, 'vaultBroker.js'),
           payload: {
-            dataDir: path.join(context.dataDir, 'vault'),
+            dataDir: vaultBrokerDataDir(context.dataDir),
             runDirectory,
             installRoot,
             userSession,

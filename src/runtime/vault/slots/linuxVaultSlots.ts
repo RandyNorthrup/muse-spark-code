@@ -4,9 +4,10 @@ import type { VaultSlotRecord } from '../../../shared/vault'
 import { type OsStoreVaultSlot } from './osStoreVaultSlot'
 import { LinuxTpm2Slot, linuxTpm2Capabilities, type LinuxTpm2Runner } from './linuxTpm2Slot'
 import {
+  checkOsStoreProviderDeps,
   freshOsStoreSlot,
   freshSlotEntry,
-  openOsStoreSlot,
+  openPlatformOsStoreSlot,
   slotEntryFromRecord,
   type OpenOsStoreEntry,
 } from './slotEntries'
@@ -22,25 +23,32 @@ use by the host (a later lane owns that round-trip).
 export class LinuxVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly deps: {
+      readonly dataDir: string
       readonly runner?: LinuxTpm2Runner
       readonly open?: OpenOsStoreEntry
       readonly platform?: NodeJS.Platform
-    } = {},
+    },
   ) {
-    if ((deps.platform ?? process.platform) !== 'linux') throw new VaultError('invalid')
+    checkOsStoreProviderDeps(deps, 'linux')
   }
   private get platform(): NodeJS.Platform {
     return this.deps.platform ?? process.platform
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | LinuxTpm2Slot | null {
-    if (record.tier === 'osStore' && record.provider === 'secretService')
-      return openOsStoreSlot(record, this.platform, this.deps.open)
+    const osStore = openPlatformOsStoreSlot(
+      record,
+      this.platform,
+      'secretService',
+      this.deps.open,
+      this.deps.dataDir,
+    )
+    if (osStore !== null) return osStore
     return record.tier === 'hardware' && record.provider === 'linuxTpm2'
       ? new LinuxTpm2Slot(slotEntryFromRecord(record), this.deps.runner, this.platform)
       : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open)
+    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open, this.deps.dataDir)
   }
   hardware(vaultId: string, slotId: string): LinuxTpm2Slot {
     return new LinuxTpm2Slot(freshSlotEntry(vaultId, slotId), this.deps.runner, this.platform)

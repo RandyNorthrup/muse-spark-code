@@ -23,6 +23,7 @@ import { darwinVaultSlotFile } from '../../../../src/shared/constants'
 import { expectEnded, isRunning } from '../processes'
 import { removeFolder } from '../temporaryFolders'
 import { buildBrokerChildren } from './sessionBrokerBuild'
+import { removeVaultStoreRecords } from './storeCleanup'
 // The product's own bundle sharing (scripts/build.mjs): one process-wide
 // admission state in dist/resourceAdmission.js and one core store in
 // dist/vaultStore.js, required by every sibling instead of copied. A vault
@@ -177,9 +178,13 @@ export async function startPosixPanelFixture(prefix: string): Promise<PosixPanel
           // Best-effort teardown: a broker that never started has no process to stop.
           location = null
         }
-        if (location === null || !isRunning(location.lock.processId)) return
-        process.kill(location.lock.processId)
-        await expectEnded(location.lock.processId)
+        if (location !== null && isRunning(location.lock.processId)) {
+          process.kill(location.lock.processId)
+          await expectEnded(location.lock.processId)
+        }
+        // The broker is dead: its vault's store records go too, so a rerun
+        // starts clean and the person's store keeps no fixture vault behind.
+        await removeVaultStoreRecords(dataDir)
       }
       clients.push(dispose)
       return {

@@ -6,10 +6,11 @@ import { MacVaultSlot, macVaultProtectionFacts } from './macVaultSlot'
 import type { MacVaultTransport } from './macVaultProtocol'
 import type { PresenceRecords } from './slotIdentity'
 import {
+  checkOsStoreProviderDeps,
   freshOsStoreSlot,
   freshSlotEntry,
   hardwareSlotIfAvailable,
-  openOsStoreSlot,
+  openPlatformOsStoreSlot,
   presenceGate,
   slotEntryFromRecord,
   type OpenOsStoreEntry,
@@ -37,26 +38,33 @@ export class MacVaultSlots implements VaultSlotProvider {
   constructor(
     private readonly transport: MacVaultTransport,
     private readonly deps: {
+      readonly dataDir: string
       readonly open?: OpenOsStoreEntry
       readonly presenceRecords?: PresenceRecords
       readonly platform?: NodeJS.Platform
-    } = {},
+    },
   ) {
-    if ((deps.platform ?? process.platform) !== 'darwin') throw new VaultError('invalid')
+    checkOsStoreProviderDeps(deps, 'darwin')
   }
   private get platform(): NodeJS.Platform {
     return this.deps.platform ?? process.platform
   }
   slotFor(record: VaultSlotRecord): OsStoreVaultSlot | MacVaultSlot | null {
-    if (record.tier === 'osStore' && record.provider === 'loginKeychain')
-      return openOsStoreSlot(record, this.platform, this.deps.open)
+    const osStore = openPlatformOsStoreSlot(
+      record,
+      this.platform,
+      'loginKeychain',
+      this.deps.open,
+      this.deps.dataDir,
+    )
+    if (osStore !== null) return osStore
     return (record.tier === 'hardware' || record.tier === 'presence') &&
       record.provider === 'secureEnclave'
       ? new MacVaultSlot(record.tier, slotEntryFromRecord(record), this.transport)
       : null
   }
   osStore(vaultId: string, slotId: string): OsStoreVaultSlot {
-    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open)
+    return freshOsStoreSlot(vaultId, slotId, this.platform, this.deps.open, this.deps.dataDir)
   }
   /** The Secure Enclave slot where the helper reports it, else null. */
   async hardwareIfAvailable(vaultId: string, slotId: string): Promise<MacVaultSlot | null> {

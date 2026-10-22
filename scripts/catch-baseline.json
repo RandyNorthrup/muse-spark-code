@@ -5470,12 +5470,12 @@
     },
     {
       "file": "src/runtime/vault/brokerBindings.ts",
-      "identity": "5a82c0fd2e406963a9492b9ac81000cf63eee2a3edfddc1fc7c068bf228a6389",
+      "identity": "2d05ae45eda1d5a403990be14e9e0f59ae15b3d5956ec12d564c7ab17b6a963b",
       "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/brokerBindings.ts",
-      "identity": "57a29c9dd8c17b9b6612f6e205abb7934cb5119e54290b463c0fd2eef5395c07",
+      "identity": "69489dd80e2cd02cc8b71adb21671111967bad02876f1cda810bfaa4cfaf1110",
       "class": "GENERIC"
     },
     {
@@ -5545,27 +5545,27 @@
     },
     {
       "file": "src/runtime/vault/keyringAnchor.ts",
-      "identity": "43dbd585a08097ae24c500f04aba2a24ab07af36e67c2b3921f8013b713d7edf",
+      "identity": "26e6f88b7070688981d7213ba75580f51c75f916d5092dd66b99bc74c2ca92cc",
       "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/keyringAnchor.ts",
-      "identity": "a60de9140039e084239044532bf0e9609f6ee6dc12a58c20e407697a94c3a07a",
+      "identity": "ea2ba08d2de9c88b3c9552583dd7e59e7de6e0c091f65621be32b716ada9e2ab",
       "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/keyringAnchor.ts",
-      "identity": "25696480056a20500509137d1030373685174681c26653a4b8914667eb354e79",
+      "identity": "b1cc4bc65937d9cce30d1e0f76edc9e9e24030ca22a21c2781c66c82da121843",
       "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/keyringAnchor.ts",
-      "identity": "0fad7d157e13fc56d6baf3d4d09a02472dff6c78ce44d4f026760a6dfbb68321",
+      "identity": "e771bcf63b8177df07d1be59a6b9b0ae2e167ec5736b98553580749381485b3b",
       "class": "GENERIC"
     },
     {
       "file": "src/runtime/vault/posixClientPlatform.ts",
-      "identity": "c48b01eeac8ef266eebbd7166b09fe0bc52d4e9d437f5f65c57932d83a463be5",
+      "identity": "821395d03ee457b2f6678c8fcf15cda07d3d2d2e835448ea46059015ec9b8668",
       "class": "GENERIC"
     },
     {
@@ -5635,7 +5635,7 @@
     },
     {
       "file": "src/runtime/vault/slots/osStoreVaultSlot.ts",
-      "identity": "e3271437572306644123263cd9a5685452facd11a5b631d72380c939060c94f3",
+      "identity": "99c9efb1b16833c36433a80fcd39fdad7f1ab3a1c09e2c4b998a06bc0e39a16a",
       "class": "GENERIC"
     },
     {

@@ -22,6 +22,14 @@ import {
 import type { KeyringEntryFactory } from '../keyStore'
 import type { VaultProcessIdentity } from '../../core/vault/broker/peer'
 import { KeyringVaultAnchor } from './keyringAnchor'
+import {
+  VAULT_ANCHOR_ACCOUNT,
+  legacyVaultAuditAccount,
+  legacyVaultAuditPendingAccount,
+  vaultAuditAccount,
+  vaultAuditPendingAccount,
+  vaultAnchorAccount,
+} from './vaultStoreScope'
 import { FileVaultAnchor, fileRecordEntries, vaultAnchorFile } from './fileAnchor'
 import type { VaultAnchorPort } from '../../core/vault/broker/repository'
 import type { VaultBrokerBindings, VaultBrokerContext } from './vaultBrokerEntry'
@@ -71,8 +79,13 @@ function auditLog(
       }
     })
   const vaultId = repository.current().vaultId
-  const account = `vault-audit-v1:${vaultId}`
-  const pendingAccount = `vault-audit-pending-v1:${vaultId}`
+  // Scoped to this root, with the pre-scoping names as the fallback: a
+  // vault that wrote its checkpoint before scoping reads it once, then its
+  // next write publishes the scoped record and retires the legacy one.
+  const account = vaultAuditAccount(context.dataDir, vaultId)
+  const pendingAccount = vaultAuditPendingAccount(context.dataDir, vaultId)
+  const legacyAccount = legacyVaultAuditAccount(vaultId)
+  const legacyPendingAccount = legacyVaultAuditPendingAccount(vaultId)
   const directory = path.join(context.dataDir, 'audit', vaultId)
   let tail: Promise<unknown> = Promise.resolve()
   const readProtected = async (name: string): Promise<string | null | undefined> => {
@@ -96,6 +109,10 @@ function auditLog(
     try {
       await keyring(KEYRING_SERVICE, account).setPassword(JSON.stringify(record))
       await keyring(KEYRING_SERVICE, pendingAccount).deletePassword()
+      // The first scoped publish retires the pre-scoping records; later
+      // publishes delete what is already gone.
+      await keyring(KEYRING_SERVICE, legacyAccount).deletePassword()
+      await keyring(KEYRING_SERVICE, legacyPendingAccount).deletePassword()
     } catch {
       throw new VaultStoreUnavailableError()
     }
@@ -105,8 +122,16 @@ function auditLog(
     .check(z.refine((value) => value.next.generation === value.previous.generation + 1))
   const anchors: VaultAuditAnchorPort = {
     read: async () => {
-      let record = checkpoint(await readProtected(account))
-      const pendingValue = await readProtected(pendingAccount)
+      const checkpointValue = await readProtected(account)
+      // The scoped checkpoint, once published, is the whole lineage: a
+      // pre-scoping pending intent beside it was already resolved before
+      // the publish. Before that, the pre-scoping records are the base and
+      // either pending intent may be live.
+      const isMigrated = checkpointValue != null
+      let record = checkpoint(checkpointValue ?? (await readProtected(legacyAccount)))
+      let pendingValue = await readProtected(pendingAccount)
+      if (pendingValue == null && !isMigrated)
+        pendingValue = await readProtected(legacyPendingAccount)
       const snapshot = await repository.current().exportSnapshot()
       if (pendingValue != null) {
         const pending = pendingSchema.parse(JSON.parse(pendingValue))
@@ -140,7 +165,9 @@ function auditLog(
             if (physical !== null && physical.hash !== pending.previous.hash)
               throw new VaultError('rollback')
             try {
+              // The discarded intent may live on either account.
               await keyring(KEYRING_SERVICE, pendingAccount).deletePassword()
+              await keyring(KEYRING_SERVICE, legacyPendingAccount).deletePassword()
             } catch {
               throw new VaultStoreUnavailableError()
             }
@@ -244,25 +271,33 @@ async function resolveBrokerKeyring(
   }
 }
 
+/** This root's rollback anchor: its scoped account, adopting the pre-scoping one. */
+function scopedVaultAnchor(created: KeyringEntryFactory, dataDir: string): KeyringVaultAnchor {
+  return new KeyringVaultAnchor(created, {
+    account: vaultAnchorAccount(dataDir),
+    legacyAccount: VAULT_ANCHOR_ACCOUNT,
+  })
+}
+
 /** Secret Service, the Linux store, with its anchor. */
-async function createSecretServiceKeyring(): Promise<{
+async function createSecretServiceKeyring(dataDir: string): Promise<{
   readonly keyring: KeyringEntryFactory
   readonly anchor: VaultAnchorPort
 }> {
   const { AsyncEntry } = await import('@napi-rs/keyring')
   const created: KeyringEntryFactory = (service, account) =>
     new AsyncEntry(service, account, { linux: { store: 'secret-service' } })
-  return { keyring: created, anchor: new KeyringVaultAnchor(created) }
+  return { keyring: created, anchor: scopedVaultAnchor(created, dataDir) }
 }
 
 /** Credential Manager, the Windows store D61 uses today, with its anchor. */
-async function createCredentialManagerKeyring(): Promise<{
+async function createCredentialManagerKeyring(dataDir: string): Promise<{
   readonly keyring: KeyringEntryFactory
   readonly anchor: VaultAnchorPort
 }> {
   const { AsyncEntry } = await import('@napi-rs/keyring')
   const created: KeyringEntryFactory = (service, account) => new AsyncEntry(service, account)
-  return { keyring: created, anchor: new KeyringVaultAnchor(created) }
+  return { keyring: created, anchor: scopedVaultAnchor(created, dataDir) }
 }
 
 /**
@@ -394,10 +429,8 @@ export async function createVaultBrokerBindings(
     return await createWindowsVaultBrokerBindings(context, overrides, platform)
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error(UI_TEXT.vault.noAccess)
-  const { keyring, anchor } = await resolveBrokerKeyring(
-    context,
-    overrides,
-    createSecretServiceKeyring,
+  const { keyring, anchor } = await resolveBrokerKeyring(context, overrides, () =>
+    createSecretServiceKeyring(context.dataDir),
   )
   const helper = vaultPeerExecutable(context.installRoot)
   const isHost = async (pid: number, hostId: string, hostSession?: string) => {
@@ -428,7 +461,7 @@ async function createWindowsVaultBrokerBindings(
   const { keyring, anchor } = await resolveBrokerKeyring(
     context,
     overrides,
-    createCredentialManagerKeyring,
+    () => createCredentialManagerKeyring(context.dataDir),
     // Modes set no DACL on Windows: the pipe-helper guard protects the
     // anchor directory and file after each write, like the vault files.
     (file, kind) => platform.guard.protect(file, kind),

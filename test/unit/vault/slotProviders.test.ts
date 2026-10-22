@@ -101,22 +101,29 @@ function windowsHelper(): WindowsVaultExecutable {
 }
 
 describe('platform slot providers', () => {
+  // The providers scope their OS-store references to this root; these cases
+  // never reach the store (construction and the TPM2 probe only).
+  const scopeRoot = '/opt/muse-spark-test/vault'
   it("the broker entry selects this platform's slots", () => {
     if (process.platform === 'win32') {
       // The Windows provider needs its built helper; without one the entry refuses.
       expect(() =>
-        defaultBrokerSlots({ installRoot: '/opt/test' }, () => Promise.resolve([])),
+        defaultBrokerSlots({ dataDir: scopeRoot, installRoot: '/opt/test' }, () =>
+          Promise.resolve([]),
+        ),
       ).toThrow()
       return
     }
-    const slots = defaultBrokerSlots({ installRoot: '/opt/test' }, () => Promise.resolve([]))
+    const slots = defaultBrokerSlots({ dataDir: scopeRoot, installRoot: '/opt/test' }, () =>
+      Promise.resolve([]),
+    )
     if (process.platform === 'linux') expect(slots).toBeInstanceOf(LinuxVaultSlots)
     else expect(slots).toBeInstanceOf(MacVaultSlots)
   })
 
   it('Linux resolves the OS-store and TPM2 records, nothing else', () => {
     const { vaultId, slotId } = ids()
-    const slots = new LinuxVaultSlots({ platform: 'linux' })
+    const slots = new LinuxVaultSlots({ dataDir: scopeRoot, platform: 'linux' })
     const osStore = slots.slotFor(osStoreRecord(vaultId, slotId))
     expect(osStore).toBeInstanceOf(OsStoreVaultSlot)
     const sealed = slots.slotFor(sealedRecord(vaultId, slotId))
@@ -133,12 +140,17 @@ describe('platform slot providers', () => {
     const capabilities = await linuxTpm2Capabilities()
     // The probe's contract, on any machine: sealing implies a device.
     expect(!capabilities.canSeal || capabilities.hasDevice).toBe(true)
-    expect(await new LinuxVaultSlots({ platform: 'linux' }).presence()).toBe(false)
+    expect(await new LinuxVaultSlots({ dataDir: scopeRoot, platform: 'linux' }).presence()).toBe(
+      false,
+    )
   })
 
   it('the TPM2 slot seals where the machine seals and refuses where it cannot', async () => {
     const { vaultId, slotId } = ids()
-    const slot = new LinuxVaultSlots({ platform: 'linux' }).hardware(vaultId, slotId)
+    const slot = new LinuxVaultSlots({ dataDir: scopeRoot, platform: 'linux' }).hardware(
+      vaultId,
+      slotId,
+    )
     const capabilities = await linuxTpm2Capabilities()
     if (!capabilities.canSeal) {
       await expect(slot.wrap(randomBytes(VAULT_KEY_BYTES))).rejects.toBeInstanceOf(
@@ -165,10 +177,10 @@ describe('platform slot providers', () => {
   it('Linux offers its hardware slot exactly where the machine seals', async () => {
     const { vaultId, slotId } = ids()
     const capabilities = await linuxTpm2Capabilities()
-    const slot = await new LinuxVaultSlots({ platform: 'linux' }).hardwareIfAvailable(
-      vaultId,
-      slotId,
-    )
+    const slot = await new LinuxVaultSlots({
+      dataDir: scopeRoot,
+      platform: 'linux',
+    }).hardwareIfAvailable(vaultId, slotId)
     if (capabilities.canSeal) {
       expect(slot?.tier).toBe('hardware')
       expect(slot).toBeInstanceOf(LinuxTpm2Slot)
@@ -180,10 +192,10 @@ describe('platform slot providers', () => {
     // The helper is absent, so the probe fails and no slot is offered.
     // (Off-OS construction refuses before any probe; covered separately.)
     expect(
-      await new MacVaultSlots(macTransport(), { platform: 'darwin' }).hardwareIfAvailable(
-        vaultId,
-        slotId,
-      ),
+      await new MacVaultSlots(macTransport(), {
+        dataDir: scopeRoot,
+        platform: 'darwin',
+      }).hardwareIfAvailable(vaultId, slotId),
     ).toBeNull()
   })
 
@@ -201,7 +213,10 @@ describe('platform slot providers', () => {
 
   it('the TPM2 slot rejects records that are not its own sealed object', async () => {
     const { vaultId, slotId } = ids()
-    const slot = new LinuxVaultSlots({ platform: 'linux' }).hardware(vaultId, slotId)
+    const slot = new LinuxVaultSlots({ dataDir: scopeRoot, platform: 'linux' }).hardware(
+      vaultId,
+      slotId,
+    )
     const other = ids()
     await expect(slot.unwrap(sealedRecord(other.vaultId, other.slotId), 'use')).rejects.toThrow(
       VaultError,
@@ -211,13 +226,17 @@ describe('platform slot providers', () => {
   })
 
   it('every provider refuses construction off its OS', () => {
-    expect(() => new LinuxVaultSlots({ platform: 'darwin' })).toThrow(VaultError)
-    expect(() => new MacVaultSlots(macTransport(), { platform: 'linux' })).toThrow(VaultError)
+    expect(() => new LinuxVaultSlots({ dataDir: scopeRoot, platform: 'darwin' })).toThrow(
+      VaultError,
+    )
+    expect(
+      () => new MacVaultSlots(macTransport(), { dataDir: scopeRoot, platform: 'linux' }),
+    ).toThrow(VaultError)
     expect(() => new WindowsVaultSlots(windowsHelper(), { platform: 'linux' })).toThrow(VaultError)
   })
 
   it('macOS resolves Keychain and Secure Enclave records, nothing else', () => {
-    const slots = new MacVaultSlots(macTransport(), { platform: 'darwin' })
+    const slots = new MacVaultSlots(macTransport(), { dataDir: scopeRoot, platform: 'darwin' })
     const { vaultId, slotId } = ids()
     const keychain = slots.slotFor({
       ...osStoreRecord(vaultId, slotId),
@@ -242,6 +261,7 @@ describe('platform slot providers', () => {
       provider: 'secureEnclave',
     } as const
     const slots = new MacVaultSlots(macTransport(), {
+      dataDir: scopeRoot,
       platform: 'darwin',
       presenceRecords: () => Promise.resolve([presenceRecord]),
     })
@@ -253,6 +273,7 @@ describe('platform slot providers', () => {
     // The helper is absent, so the fresh unwrap fails and presence refuses.
     expect(await slots.presence('item', 'challenge', use)).toBe(false)
     const none = new MacVaultSlots(macTransport(), {
+      dataDir: scopeRoot,
       platform: 'darwin',
       presenceRecords: () => Promise.resolve([]),
     })
