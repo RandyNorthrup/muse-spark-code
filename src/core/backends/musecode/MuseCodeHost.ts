@@ -3490,7 +3490,9 @@ export class MuseCodeHost implements AgentHost {
         // catalogue (C-M106-3R3): the row's identity is logged, its
         // content stays out of the log. Anything else is a reader bug
         // and fails the listing instead of hiding behind tierless rows.
-        if (!(error instanceof z.core.$ZodError)) throw error
+        // The zod failure is matched by name (registry.ts): minification
+        // must not decide which rows keep their tiers.
+        if (!(error instanceof Error && error.name === '$ZodError')) throw error
         this.log.warn(
           `model/list row for ${model.modelId} has malformed effort extras; reading it without tiers`,
         )
