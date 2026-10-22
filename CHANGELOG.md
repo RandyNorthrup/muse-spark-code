@@ -7,6 +7,26 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Prepared home-node labels, messages and errors in all 14 display languages;
+  this groundwork enables no node command or listener.
+- Home-node contract groundwork (M110a0 lane 0): validated config, state,
+  session, audit and event records with versioned JSON Schemas; 32 scoped
+  file, terminal, git, dashboard, maker and sign-in method contracts; injected
+  authentication, tool-host and clock ports; test-only fakes; the LAN threat
+  model, platform capture checklist and explicit integration bindings.
+  The node service and browser sign-in are not yet available.
+
+- Home-node service listener (M110-N, integration groundwork): explicitly
+  selected LAN/loopback HTTPS with a pinned certificate and full console/TUI
+  fingerprint; strict browser-origin guards, header-only memory authentication,
+  bounded requests and first-frame WebSocket authentication. Shared method
+  dispatch requires A1's verifier and binds every maker action to a fresh,
+  single-use payload proof; authenticated Stop remains available without step-up.
+  Production authentication, issuance and deployment still require their lane
+  bindings and platform receipts.
+
 ### Fixed
 
 - The internal M110 terminal surface now requires freshly focused approval
@@ -15,6 +35,32 @@ happened, not what was planned; superseded entries are kept.
   Terminal escape sequences, setup-time EOF, failed output and numeric chat
   are handled correctly; socket tests now use real Windows named pipes.
   The node/TUI launcher and Ink integration remain unshipped.
+- Home-node authentication groundwork uses stateless HMAC challenges, with
+  replay records only after successful passkey proofs. A paced 25-address
+  issuance flood cannot prevent owner sign-in or console-code recovery;
+  proof-work limits and backoff apply per source. Healthy-owner recovery
+  refusal preserves sessions, and expired proofs require verified and denied
+  audit records.
+- Home-node TLS issuance publishes the key and certificate in one atomic
+  commit; retries recover abandoned staging or the unchanged committed pair.
+- Home-node auth audit distinguishes verification from issued access, so a
+  proof that expires during persistence is recorded as refused. Certificate
+  fixtures explicitly request new leaves on OpenSSL/LibreSSL, and the
+  cross-origin regression uses a correctly signed negative proof.
+- Home-node WebSocket upgrades accept the browser's `websocket` Fetch
+  Metadata destination while HTTP requests keep `empty`; both transports
+  continue to reject foreign origins and sites.
+- Home-node attendance uses monotonic time from verification and activity
+  for the 30-minute idle and 12-hour absolute limits. Reverification preserves
+  the absolute limit; future, expired and over-long session metadata is refused.
+- Home-node tool requests preserve empty arguments after a nonempty executable,
+  including through the scripted tool-host contract.
+- The home-node tool-host contract now supplies ordered terminal output and
+  spontaneous exit delivery, bounded buffering and disconnect disposal.
+- Home-node Git contracts require a closed configuration and safe Git policy;
+  network approvals bind the resolved SSH destination and verified host key.
+  Runtime isolation and repository-program canary qualification remain required
+  before the node service is supported.
 
 ### Release infrastructure
 

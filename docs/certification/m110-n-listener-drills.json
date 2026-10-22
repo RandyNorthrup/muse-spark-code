@@ -1,0 +1,503 @@
+[
+  {
+    "drill": "H01-private-address-matrix",
+    "source": "src/shared/node.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 0.0.0.0",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects ::",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 0:0:0:0:0:0:0:0",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 8.8.8.8",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 224.1.1.1",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects ff02::1",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 169.254.169.254",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 169.254.170.2",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects fd00:ec2::254",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects fd00:0ec2:0:0:0:0:0:254",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects fd20:ce::254",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects ::ffff:127.0.0.1",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects ::ffff:192.168.1.2",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 2001:4860:4860::8888",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H01 rejects 100.64.1.2"
+    ],
+    "sha256Before": "f64efc8234c37d081617357bfd718cb3abc17e0f5898a02670f2daf3815dd145",
+    "sha256After": "f64efc8234c37d081617357bfd718cb3abc17e0f5898a02670f2daf3815dd145"
+  },
+  {
+    "drill": "H01-opt-in-null",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H01 null configuration binds no port; each service starts one listener"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H02-pinned-certificate",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H02 shows the full pin and rejects wrong pin, SAN, CA, expired leaf and private key access"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H02-non-CA-leaf",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H02 shows the full pin and rejects wrong pin, SAN, CA, expired leaf and private key access"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H02-SAN",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H02 shows the full pin and rejects wrong pin, SAN, CA, expired leaf and private key access"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H02-expired-certificate",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H02 shows the full pin and rejects wrong pin, SAN, CA, expired leaf and private key access"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H02-console-full-fingerprint",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H02 shows the full pin and rejects wrong pin, SAN, CA, expired leaf and private key access"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H07-exact-Host",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 a coherent forged Host and Origin still cannot escape the configured names"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H07-exact-Origin",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin https://evil.local",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin null",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin https://home.local:7443/",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Origin"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H07-Fetch-Metadata-site",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site same-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site none",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Site"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H07-Fetch-Metadata-mode",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Mode navigate",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Mode no-cors",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Mode"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H07-Fetch-Metadata-destination",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Dest document",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Dest"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H07-duplicate-header",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Host",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Origin",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Mode",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Dest"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H06-no-cookies",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H06/H07 accepts same-origin transports and refuses every cookie"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H06-auth-before-body",
+    "source": "src/runtime/node/listener.ts",
+    "command": "npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H06 authentication precedes params parsing, every privileged route refuses without A1 and tokens never enter URLs or replies"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H08-owner-binding",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H06/H08 unbound verifier, invalid token, rejected session and wrong owner never grant access"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-source-account-backoff",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-account-concurrency",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-transport-request-count",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-source-request-count",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-source-table",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-challenge-does-not-clear-failures",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H09 backs off source AND account before work, caps concurrent/source tables, and expires transport backoff"
+    ],
+    "sha256Before": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1",
+    "sha256After": "378b2a6a824607660fb6e39506ca9fb090934a16d9cf218b0540d9ec1f56b4f1"
+  },
+  {
+    "drill": "H09-declared-body-size",
+    "source": "src/runtime/node/listener.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H09 body/header limits and invalid params/results refuse through the live server"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H09-streaming-body-size",
+    "source": "src/runtime/node/listener.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H09 body/header limits and invalid params/results refuse through the live server"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H09-header-size",
+    "source": "src/runtime/node/listener.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H09 body/header limits and invalid params/results refuse through the live server"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  },
+  {
+    "drill": "H07-WebSocket-first-frame-deadline",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H07 closes at the actual five-second first-frame deadline without dispatch",
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H07 an unfinished verifier cannot outrun the first-frame deadline"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H07-WebSocket-auth-first-layered",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H06/H07 refuses first frame {\"type\":\"input\",\"data\":\"canary\"}"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H06-WebSocket-header-bearer",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H06/H07 refuses non-protocol or header bearer Authorization"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H07-WebSocket-key-version",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H06/H07 refuses non-protocol or header bearer Sec-WebSocket-Version"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H08-WebSocket-session-revocation",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H08 authenticates fragmented network chunks, scopes attach/input/resize/close to the shared port, and disposes on lock"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H08-WebSocket-session-recheck",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H08 ownership rejection and expired/revoked session never open or write a PTY"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H09-WebSocket-mask",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H09 refuses unmasked, fragmented, binary, huge or malformed control frame {\"type\":\"Buffer\",\"data\":[129,0]}"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H09-WebSocket-large-frame",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H09 refuses unmasked, fragmented, binary, huge or malformed control frame {\"type\":\"Buffer\",\"data\":[129,255]}"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H09-WebSocket-rate",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H09 bounds UTF8 input, queued bytes and terminal frame rate before dispatch"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H09-WebSocket-queue-size",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H09 a slow consumer cannot accumulate unlimited valid frames across rate windows"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H19-payload-digest",
+    "source": "src/runtime/node/listenerMethods.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated"
+    ],
+    "sha256Before": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0",
+    "sha256After": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0"
+  },
+  {
+    "drill": "H19-proof-binding",
+    "source": "src/runtime/node/listenerMethods.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated"
+    ],
+    "sha256Before": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0",
+    "sha256After": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0"
+  },
+  {
+    "drill": "H19-proof-freshness",
+    "source": "src/runtime/node/listenerMethods.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated"
+    ],
+    "sha256Before": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0",
+    "sha256After": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0"
+  },
+  {
+    "drill": "H19-ungated-Stop",
+    "source": "src/shared/hostApi/nodeMethods.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated"
+    ],
+    "sha256Before": "7f65e6f44a3373f152660d1fa78b9e324a919f758fbc5243855dc7e2066fd670",
+    "sha256After": "7f65e6f44a3373f152660d1fa78b9e324a919f758fbc5243855dc7e2066fd670"
+  },
+  {
+    "drill": "parsed-method-results",
+    "source": "src/runtime/node/listenerMethods.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated"
+    ],
+    "sha256Before": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0",
+    "sha256After": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0"
+  },
+  {
+    "drill": "H13-authorized-terminal-events",
+    "source": "src/runtime/node/listenerSocket.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerSocket.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerSocket.test.ts > M110-N WebSocket first-frame boundary > H13 parses/scopes outbound events and disconnect aborts the authorized subscription"
+    ],
+    "sha256Before": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a",
+    "sha256After": "db5e283aef007c32fac63ab1d1e079ed8359b0d1d375cc79759a885a6d86e35a"
+  },
+  {
+    "drill": "H06-unbound-dispatch-verifier",
+    "source": "src/runtime/node/listenerMethods.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H19 exact payload, action, session, freshness and single use bind each fake physical action; Stop stays ungated"
+    ],
+    "sha256Before": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0",
+    "sha256After": "9cf36c8e773008d76af57a07a9a21a5f12f9b802fe6a3f95a4604c5ec6c957c0"
+  },
+  {
+    "drill": "H09-source-pre-TLS-connection-limit",
+    "source": "src/runtime/node/listener.ts",
+    "command": "TMPDIR=/home/randy/lanes/M110N/temp/verification npx vitest run test/unit/nodeListener.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListener.test.ts > M110-N real selected-interface HTTPS listener > H09 raw connections are bounded before TLS work"
+    ],
+    "sha256Before": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+    "sha256After": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f"
+  }
+]

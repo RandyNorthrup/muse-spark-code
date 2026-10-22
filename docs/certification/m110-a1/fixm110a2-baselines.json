@@ -1,0 +1,104 @@
+[
+  {
+    "name": "auth-core",
+    "base": "7ad52905d",
+    "testFile": "test/unit/nodePasskeyAuth.test.ts",
+    "exit": 1,
+    "expectedFindings": [
+      "successful begins cannot hold the table",
+      "refused console recovery preserves sessions",
+      "mints no session when enrollment audit outlasts",
+      "keeps UV freshness anchored",
+      "mints no sign-in session when audit outlasts"
+    ],
+    "sources": [
+      {
+        "file": "src/runtime/node/auth/service.ts",
+        "originalSha256": "2f5522639f5e416faff747056075db8d4a46c80d3129e145f6c2b7d72347c2da",
+        "baseOrMutationSha256": "9c6cc7711723de4bed42b9335a2fc2540544bb9e1d50f37e8eda84968160d49b",
+        "restoredSha256": "2f5522639f5e416faff747056075db8d4a46c80d3129e145f6c2b7d72347c2da"
+      },
+      {
+        "file": "src/runtime/node/auth/challenges.ts",
+        "originalSha256": "786de7e7f435303d791e53ef53664f94f5f6b44c57dca0d97ed8f4b948157149",
+        "baseOrMutationSha256": "d887beef4fddb4577ed71225732703d74a5242121554a9181dc3af41ee5c22d0",
+        "restoredSha256": "786de7e7f435303d791e53ef53664f94f5f6b44c57dca0d97ed8f4b948157149"
+      }
+    ]
+  },
+  {
+    "name": "tls-pair",
+    "base": "7ad52905d",
+    "testFile": "test/unit/nodeCertificate.test.ts",
+    "exit": 1,
+    "expectedFindings": [
+      "certificate-write failure leaves no partial commit",
+      "restart discards an uncommitted key"
+    ],
+    "sources": [
+      {
+        "file": "src/runtime/node/tls/certificate.ts",
+        "originalSha256": "0010c7587a625c7d41dac2d8f253ad0058a30a6c1d2da5b0a0ffdde12442f5c3",
+        "baseOrMutationSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+        "restoredSha256": "0010c7587a625c7d41dac2d8f253ad0058a30a6c1d2da5b0a0ffdde12442f5c3"
+      }
+    ]
+  },
+  {
+    "name": "listener-backoff",
+    "base": "7ad52905d",
+    "testFile": "test/unit/nodeListener.test.ts",
+    "exit": 1,
+    "expectedFindings": ["challenge 429s cannot keep console enrollment"],
+    "sources": [
+      {
+        "file": "src/runtime/node/listener.ts",
+        "originalSha256": "8ab309944c5d1f85233684d7e142e7ccaa1a165575f79d6260ed63c8fa2d7700",
+        "baseOrMutationSha256": "7ba2a723f3a21bd255c33d620927316af6f037e0f4f5d30986fb4189db6d882f",
+        "restoredSha256": "8ab309944c5d1f85233684d7e142e7ccaa1a165575f79d6260ed63c8fa2d7700"
+      }
+    ]
+  },
+  {
+    "name": "old-cross-origin-gap",
+    "base": "7ad52905d",
+    "testFile": "test/unit/nodePasskeyVerifier.test.ts",
+    "exit": 0,
+    "expectedFindings": ["10 passed"],
+    "sources": [
+      {
+        "file": "src/runtime/node/auth/passkeys.ts",
+        "originalSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a",
+        "baseOrMutationSha256": "563083fa50c1d7347b1afd5146b7fb291012cc261c3f3ab4ef702e586f48d131",
+        "restoredSha256": "801d7e372c364365abcd32c3bdc6d1ebb6e66416ea1fa472eb106ec73c4f976a"
+      },
+      {
+        "file": "test/unit/nodePasskeyVerifier.test.ts",
+        "originalSha256": "e9f2c2293137332ad44cc1db4109ab284ea4e1db3ef93e4bf2ac527dcf87a466",
+        "baseOrMutationSha256": "31a2c87e5cd3eca5ca907d53aee4c4b40a9421a66ab0f768ae1f166e3f306dd9",
+        "restoredSha256": "e9f2c2293137332ad44cc1db4109ab284ea4e1db3ef93e4bf2ac527dcf87a466"
+      }
+    ]
+  },
+  {
+    "name": "old-linux-openssl-fixture",
+    "base": "7ad52905d",
+    "testFile": "test/unit/nodeCertificate.test.ts",
+    "exit": 0,
+    "expectedFindings": ["6 passed"],
+    "sources": [
+      {
+        "file": "src/runtime/node/tls/certificate.ts",
+        "originalSha256": "0010c7587a625c7d41dac2d8f253ad0058a30a6c1d2da5b0a0ffdde12442f5c3",
+        "baseOrMutationSha256": "6cc9ce13fc914681aa6ade1965ebe50ba22ddd0845b9a62b98ada1ff13169304",
+        "restoredSha256": "0010c7587a625c7d41dac2d8f253ad0058a30a6c1d2da5b0a0ffdde12442f5c3"
+      },
+      {
+        "file": "test/unit/nodeCertificate.test.ts",
+        "originalSha256": "8a8fee84de2100598e5eac3a139e58b2867c1cc1323304e26c12a57bed51d82c",
+        "baseOrMutationSha256": "876919deb4393970980471e74d133752782c6777037791baf33572f69385a7bd",
+        "restoredSha256": "8a8fee84de2100598e5eac3a139e58b2867c1cc1323304e26c12a57bed51d82c"
+      }
+    ]
+  }
+]

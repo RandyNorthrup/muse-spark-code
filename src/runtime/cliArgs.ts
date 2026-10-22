@@ -155,6 +155,7 @@ export type RuntimeCommand =
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
   | { readonly command: 'vault'; readonly options: VaultCommandOptions }
+  | { readonly command: 'node'; readonly argv: readonly string[] }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | {
       readonly command: 'exec'
@@ -471,6 +472,8 @@ export function parseCommandLine<T>(
   const argv = hoistLeadingCommand(args)
   const divider = argv.indexOf('--')
   const flags = divider === -1 ? argv : argv.slice(0, divider)
+  // The node command answers its own --help through its dispatcher (A3).
+  if (argv[0] === 'node') return { command: 'node', argv: argv.slice(1) }
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
     // Bare `report --help` is the report command's own help, not the help

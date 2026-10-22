@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "v": {
+      "type": "number",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "ownerId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "surface": {
+      "type": "string",
+      "enum": ["web", "tui", "editor"]
+    },
+    "createdAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "lastSeenAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "idleExpiresAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "absoluteExpiresAt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "v",
+    "id",
+    "ownerId",
+    "surface",
+    "createdAt",
+    "lastSeenAt",
+    "idleExpiresAt",
+    "absoluteExpiresAt"
+  ],
+  "additionalProperties": false,
+  "$id": "https://raw.githubusercontent.com/RandyNorthrup/muse-spark-code/main/docs/schemas/node-session-v1.schema.json",
+  "x-node-runtime-validation": "Parse with the canonical src/shared/node.ts or nodeAuth.ts schema: private addresses, ownership, time ordering, unique IDs, attendance, UTF8 byte caps, nonempty executable and NUL-free arguments require runtime checks. Digest, hash-chain, session expiry and cryptographic proof verification require their runtime bindings."
+}

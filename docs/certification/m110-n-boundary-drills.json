@@ -1,0 +1,79 @@
+[
+  {
+    "drill": "tools-workspace-containment",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H10 refuses unknown, untrusted and symlink-escaping workspaces before spawn 23ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H10 refuses unknown, untrusted and symlink-escaping workspaces before spawn"
+    ],
+    "sha256Before": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4",
+    "sha256After": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4"
+  },
+  {
+    "drill": "terminal-layered-byte-bound",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 oversized PTY output is never forwarded and disposes the terminal 5007ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H09 oversized PTY output is never forwarded and disposes the terminal"
+    ],
+    "sha256Before": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4",
+    "sha256After": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4"
+  },
+  {
+    "drill": "child-layered-output-bound",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 real child output has a combined stdout and stderr cap 73ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H09 real child output has a combined stdout and stderr cap"
+    ],
+    "sha256Before": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4",
+    "sha256After": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4"
+  },
+  {
+    "drill": "terminal-late-cancellation",
+    "source": "src/runtime/node/toolHost.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H13 cancellation during PTY creation disposes a late PTY before returning 12ms",
+      "FAIL  test/unit/nodeToolHost.test.ts > M110-N tools process and terminal lifecycle > H13 cancellation during PTY creation disposes a late PTY before returning"
+    ],
+    "sha256Before": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4",
+    "sha256After": "8a2538e4b93efb4a6d1523a137a7834a466fe50269fcc28cccea6483a61b72d4"
+  },
+  {
+    "drill": "transaction-serialization",
+    "source": "src/runtime/node/transactions.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 serializes concurrent updates and rejects stale generation 18ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H15 serializes concurrent updates and rejects stale generation"
+    ],
+    "sha256Before": "5a3f6376a79d92878f039bca9ca35bf8e182c8a5ef14150e63466dccb4ed1dff",
+    "sha256After": "5a3f6376a79d92878f039bca9ca35bf8e182c8a5ef14150e63466dccb4ed1dff"
+  },
+  {
+    "drill": "command-single-writer",
+    "source": "src/runtime/node/main.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 commands use the authenticated binding, stdin-only unlock and singleton supervision 5007ms",
+      "FAIL  test/unit/nodeCommands.test.ts > M110-N node commands and isolated dispatch > H08 commands use the authenticated binding, stdin-only unlock and singleton supervision"
+    ],
+    "sha256Before": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d",
+    "sha256After": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d"
+  },
+  {
+    "drill": "command-status-does-not-invent-running-state",
+    "source": "src/runtime/node/main.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 commands use the authenticated binding, stdin-only unlock and singleton supervision 25ms",
+      "FAIL  test/unit/nodeCommands.test.ts > M110-N node commands and isolated dispatch > H08 commands use the authenticated binding, stdin-only unlock and singleton supervision"
+    ],
+    "sha256Before": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d",
+    "sha256After": "ddb267677e9c9c0c6034cc7d8937365d09906051163aa47641250d7a774af43d"
+  }
+]

@@ -171,6 +171,216 @@ export const TUI_LIMITS = {
   permissionMask: 0o077,
   currencyDigits: 2,
 } as const
+// M110a0 lane 0: standalone home-node bounds. No node module is loaded by
+// the extension; the service/companion bindings are separate runtime entries.
+export const NODE_PROTOCOL_VERSION = 1
+// M110-A1: random capabilities, private leaf issuance and lazy sign-in assets.
+export const NODE_AUTH_RANDOM_BYTES = 32
+export const NODE_TLS_VALID_DAYS = 365
+export const NODE_TLS_SERIAL_BYTES = 16
+export const NODE_TLS_CERT_FILE = 'node-certificate.pem'
+export const NODE_TLS_KEY_FILE = 'node-tls-key.pem'
+export const NODE_TLS_DIRECTORY = 'node-tls'
+export const NODE_TLS_PENDING_DIRECTORY = '.node-tls-pending'
+export const NODE_TLS_ISSUE_TIMEOUT_MS = 10_000
+export const NODE_AUTH_USER_HANDLE = 'b3duZXI'
+export const NODE_AUTH_ALGORITHMS = [-7, -257] as const
+export const NODE_AUTH_TERMINAL_STREAM = '/node/terminal/stream'
+// M110-N: owner-only durable service files and bounded lifecycle.
+export const NODE_DIRECTORY_MODE = 0o700
+export const NODE_FILE_MODE = 0o600
+export const NODE_PRIVATE_MODE_MASK = 0o077
+export const NODE_BIGINT_ZERO = 0n
+export const NODE_SINGLE_LINK = 1n
+export const NODE_VAULT_KEY_BYTES = 32
+export const NODE_VAULT_NONCE_BYTES = 12
+export const NODE_VAULT_TAG_BYTES = 16
+export const NODE_KEYS_FILE = 'keys.v1'
+export const NODE_DEPLOY_KEY_NAME = 'node.sshDeployKey'
+export const NODE_STATE_MAX_BYTES = 12 * 1024 * 1024
+export const NODE_STATE_FILE = 'state.v1.json'
+export const NODE_LOCK_FILE = 'service.lock'
+export const NODE_COMMAND_TIMEOUT_MS = 5000
+export const NODE_STOP_TIMEOUT_MS = 5000
+export const NODE_FORCE_KILL_MS = 1000
+export const NODE_HEALTH_OK = 200
+export const NODE_HEALTH_UNREADY = 503
+export const NODE_TOOLS_PATH = '/usr/local/bin:/usr/bin:/bin'
+export const NODE_GIT_IMPORT_MAX_BYTES = 64 * 1024 * 1024
+export const NODE_GIT_IMPORT_MAX_FILES = 10_000
+export const NODE_GIT_IMPORT_FILE_BYTES = 32 * 1024 * 1024
+export const NODE_GIT_SNAPSHOT_CONFIG =
+  '[core]\nrepositoryformatversion=0\nfilemode=true\nbare=false\n'
+export const NODE_PROC_FD_ROOT = '/proc/self/fd'
+export const NODE_EXECUTABLE_WRITE_MASK = 0o022
+export const NODE_RESTART_DELAY_MS = 1000
+export const NODE_RESTART_MAX_MS = 30_000
+export const NODE_APPROVAL_TTL_MS = 5 * 60 * 1000
+export const NODE_BUNDLE_FILE = 'node.js'
+export const NODE_DATA_SUBFOLDER = 'node'
+export const NODE_DAYS_TO_MS = 24 * 60 * 60 * 1000
+export const NODE_ZERO_DIGEST = /* @__PURE__ */ '0'.repeat(64)
+export const NODE_DEFAULT_PORT = 7443
+export const NODE_MAX_PORT = 65_535
+export const NODE_SERVICE_USER = 'muse-node'
+export const NODE_TOOLS_USER = 'muse-tools'
+export const NODE_SETUP_TTL_MS = 15 * 60 * 1000
+export const NODE_CHALLENGE_TTL_MS = 5 * 60 * 1000
+export const NODE_SESSION_IDLE_MS = 30 * 60 * 1000
+export const NODE_SESSION_MAX_MS = 12 * 60 * 60 * 1000
+export const NODE_STEP_UP_TTL_MS = 5 * 60 * 1000
+export const NODE_WS_AUTH_MS = 5000
+export const NODE_HTTP_BODY_BYTES = 2 * 1024 * 1024
+export const NODE_HTTP_HEADER_BYTES = 8 * 1024
+export const NODE_HTTP_MAX_HEADERS = 32
+export const NODE_HTTP_TIMEOUT_MS = 5000
+export const NODE_LISTENER_MAX_CONNECTIONS = 100
+export const NODE_LISTENER_SOURCE_CONNECTIONS = 16
+export const NODE_LISTENER_MAX_REQUESTS = 100
+export const NODE_LISTENER_MAX_SOURCES = 1000
+export const NODE_WS_FRAME_BYTES = 64 * 1024
+export const NODE_WS_QUEUE_BYTES = 2 * 1024 * 1024
+export const NODE_WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11'
+export const NODE_WS_MASK_BYTES = 4
+export const NODE_WS_MASK_FLAG = 0x80
+export const NODE_WS_SHORT_MAX = 125
+export const NODE_WS_LENGTH_16 = 126
+export const NODE_WS_LENGTH_64 = 127
+export const NODE_WS_TEXT = 0x81
+export const NODE_WS_CLOSE = 0x88
+export const NODE_WS_PING = 0x89
+export const NODE_WS_PONG = 0x8a
+export const NODE_HTTP_STATUS = {
+  ok: 200,
+  invalidRequest: 400,
+  unauthenticated: 401,
+  forbidden: 403,
+  notFound: 404,
+  tooLarge: 413,
+  rateLimited: 429,
+  unavailable: 503,
+} as const
+export const NODE_SIGNIN_MAX_FAILURES = 100
+export const NODE_SIGNIN_BACKOFF_MS = 1000
+export const NODE_SIGNIN_BACKOFF_MAX_MS = 60 * 1000
+export const NODE_MAX_SESSIONS = 100
+export const NODE_MAX_CHALLENGES = 100
+export const NODE_CHALLENGE_NONCE_BYTES = 16
+export const NODE_CHALLENGE_KEY_BYTES = 32
+export const NODE_CHALLENGE_MAX_CHARS = 4096
+export const NODE_CHALLENGE_KEY_CONTEXT = 'muse-node-auth-challenges-v1'
+export const NODE_PROOF_MAX_ATTEMPTS = 100
+export const NODE_PROOF_WINDOW_MS = 60 * 1000
+export const NODE_MAX_WORKSPACES = 64
+export const NODE_MAX_PAGE_ITEMS = 1000
+export const NODE_MAX_NAMES = 16
+export const NODE_MAX_LABEL_CHARS = 64
+export const NODE_MAX_ID_CHARS = 128
+export const NODE_MAX_PATH_CHARS = 4096
+export const NODE_MAX_NAME_CHARS = 253
+export const NODE_DNS_LABEL_CHARS = 63
+export const NODE_MAX_ORIGIN_CHARS = 272
+export const NODE_MAX_PASSKEYS = 20
+export const NODE_MAX_AUTH_BYTES = 64 * 1024
+export const NODE_MIN_RANDOM_TOKEN_CHARS = 43
+export const NODE_MAX_RANDOM_TOKEN_CHARS = 128
+export const NODE_MAX_FILE_BYTES = 1024 * 1024
+export const NODE_BASE64_CHARS_PER_BLOCK = 4
+export const NODE_BASE64_BYTES_PER_BLOCK = 3
+export const NODE_MAX_FILE_BASE64_CHARS =
+  NODE_BASE64_CHARS_PER_BLOCK *
+  /* @__PURE__ */ Math.ceil(NODE_MAX_FILE_BYTES / NODE_BASE64_BYTES_PER_BLOCK)
+export const NODE_TERMINAL_INPUT_BYTES = 16 * 1024
+export const NODE_TERMINAL_OUTPUT_BYTES = 1024 * 1024
+export const NODE_TERMINAL_FRAMES_PER_S = 64
+export const NODE_MAX_TERMINAL_DIMENSION = 1000
+export const NODE_MAX_ARGV_ITEMS = 128
+export const NODE_MAX_ARG_CHARS = 4096
+export const NODE_MAX_COMMIT_CHARS = 4096
+export const NODE_AUDIT_MAX_BYTES = 10 * 1024 * 1024
+export const NODE_AUDIT_RETENTION_DAYS = 30
+// N applies these to every node-initiated Git command (D90.23). Credentialed
+// Git additionally uses a service-owned, closed gitdir, never the live repo's
+// executable configuration. User-enabled hooks run separately as muse-tools.
+export const NODE_GIT_OPTIONS = [
+  '--no-replace-objects',
+  '-c',
+  'core.fsmonitor=false',
+  '-c',
+  'core.hooksPath=/dev/null',
+  '-c',
+  'core.sshCommand=',
+  '-c',
+  'core.askPass=',
+  '-c',
+  'credential.helper=',
+  '-c',
+  'diff.external=',
+  '-c',
+  'interactive.diffFilter=',
+  '-c',
+  'core.pager=',
+  '-c',
+  'core.attributesFile=/dev/null',
+  '-c',
+  'core.excludesFile=/dev/null',
+  '-c',
+  'commit.gpgsign=false',
+  '-c',
+  'tag.gpgsign=false',
+  '-c',
+  'log.showSignature=false',
+  '-c',
+  'submodule.recurse=false',
+  '-c',
+  'protocol.allow=never',
+  '-c',
+  'protocol.ssh.allow=always',
+  '-c',
+  'maintenance.auto=false',
+  '-c',
+  'gc.auto=0',
+] as const
+// Start with an allow-list environment, remove all inherited GIT_* and
+// loader/shell/credential variables, then add these and N's trusted paths.
+// For network Git, N supplies GIT_SSH_COMMAND as the trusted absolute wrapper
+// (no client text). It overrides the deliberately empty core.sshCommand;
+// without that binding SSH must fail rather than select a repository program.
+export const NODE_GIT_ENVIRONMENT = {
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_SYSTEM: '/dev/null',
+  GIT_CONFIG_GLOBAL: '/dev/null',
+  GIT_CONFIG_COUNT: '0',
+  GIT_ATTR_NOSYSTEM: '1',
+  GIT_TERMINAL_PROMPT: '0',
+  GIT_ALLOW_PROTOCOL: 'ssh',
+} as const
+// Same inert metadata names as action/lib/git.mjs; includes, remotes, helpers,
+// filters and current/future program-selecting settings cannot enter a snapshot.
+export const NODE_GIT_INERT_CONFIG_NAMES = [
+  'core.repositoryformatversion',
+  'core.filemode',
+  'core.bare',
+  'core.logallrefupdates',
+  'core.symlinks',
+  'core.ignorecase',
+  'core.precomposeunicode',
+  'extensions.objectformat',
+  'extensions.refstorage',
+] as const
+// Declarative regexes are also carried into the versioned JSON Schemas.
+export const NODE_ID_PATTERN = '^[A-Za-z0-9_-]+$'
+export const NODE_DIGEST_PATTERN = '^[a-f0-9]{64}$'
+export const NODE_TOKEN_PATTERN = '^[A-Za-z0-9_-]+$'
+// esbuild honors purity on calls, not tagged templates. These pure built-ins
+// need an annotated call so unused node initialization stays out of other bundles.
+export const NODE_NAME_PATTERN = /* @__PURE__ */ (() =>
+  String.raw`^(?=.{1,253}$)(?![0-9.]+$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)*$`)()
+export const NODE_PATH_PATTERN = /* @__PURE__ */ (() =>
+  String.raw`^(?!/)(?!.*[\\\x00-\x1f\x7f])(?!(?:.*/)?\.\.?(?:/|$))[^/]+(?:/[^/]+)*$`)()
+export const NODE_REF_PATTERN = /* @__PURE__ */ (() =>
+  String.raw`^(?!-)(?!@$)(?!.*(?:\.\.|//|@\{|[\x00-\x20\x7f~^:?*\[\\]))(?!.*(?:^|/)\.)(?!.*\.lock(?:/|$))(?!.*[/.]$)[^/]+(?:/[^/]+)*$`)()
+export const NODE_REVISION_PATTERN = '^[a-f0-9]{40}(?:[a-f0-9]{24})?$'
 
 // Must match package.json `publisher` and `name`; test/unit/manifest.test.ts
 // fails if they drift.

@@ -1,0 +1,188 @@
+[
+  {
+    "drill": "H07-review-browser-destination",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H06/H07 accepts same-origin transports and refuses every cookie",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 uses browser Fetch Metadata for WebSocket=true"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H07-review-destination-separation",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Dest document",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Dest",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 uses browser Fetch Metadata for WebSocket=false",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 uses browser Fetch Metadata for WebSocket=true"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H07-review-cross-site-both-transports",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site same-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Sec-Fetch-Site none",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Sec-Fetch-Site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=false Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=true Sec-Fetch-Site cross-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=false Sec-Fetch-Site same-site",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=true Sec-Fetch-Site same-site"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H07-review-cross-origin-both-transports",
+    "source": "src/runtime/node/listenerGuard.ts",
+    "command": "npx vitest run test/unit/nodeListenerGuard.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin https://evil.local",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin null",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses wrong Origin https://home.local:7443/",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses missing/duplicated Origin",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=false Origin https://evil.local:7443",
+      "FAIL  test/unit/nodeListenerGuard.test.ts > M110-N listener guards > H07 refuses foreign HTTP/WebSocket=true Origin https://evil.local:7443"
+    ],
+    "sha256Before": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+    "sha256After": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24"
+  },
+  {
+    "drill": "H08-review-original-regression",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 a backward wall-clock step cannot extend idle attendance or bypass the unattended floor",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 idle time starts at verification and never comes from wall-clock expiry distances",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 repeated verified activity refreshes idle time without restarting the absolute limit",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 refuses future verifier timestamps and a rollback before first attachment"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-wall-distance-regression",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 idle time starts at verification and never comes from wall-clock expiry distances"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-idle-monotonic-limit",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H12 names attendance only while an authenticated owner session is attached",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 a backward wall-clock step cannot extend idle attendance or bypass the unattended floor",
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 idle time starts at verification and never comes from wall-clock expiry distances"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-absolute-monotonic-limit",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 repeated verified activity refreshes idle time without restarting the absolute limit"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-first-verification-anchor",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 repeated verified activity refreshes idle time without restarting the absolute limit"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-idle-activity-refresh",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 repeated verified activity refreshes idle time without restarting the absolute limit"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-future-timestamp-floor",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 refuses future verifier timestamps and a rollback before first attachment"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-expired-wall-metadata",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 refuses an already expired verifier session at first attachment"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-expired-identity-refusal",
+    "source": "src/runtime/node/attendance.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 repeated verified activity refreshes idle time without restarting the absolute limit"
+    ],
+    "sha256Before": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5",
+    "sha256After": "17f5ea443b6bba87a7c9c48f11f54eafa341512af5c2f462c15e1f1568cd2ca5"
+  },
+  {
+    "drill": "H08-review-idle-metadata-max",
+    "source": "src/shared/nodeAuth.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 refuses an over-long verifier idleExpiresAt"
+    ],
+    "sha256Before": "40193fc6b2163c25464e5f9101cbd416452f077e28badedc21721139ae176330",
+    "sha256After": "40193fc6b2163c25464e5f9101cbd416452f077e28badedc21721139ae176330"
+  },
+  {
+    "drill": "H08-review-absolute-metadata-max",
+    "source": "src/shared/nodeAuth.ts",
+    "command": "npx vitest run test/unit/nodeLifecycle.test.ts --maxWorkers=3",
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/nodeLifecycle.test.ts > M110-N attendance and headless floor > H08 refuses an over-long verifier absoluteExpiresAt"
+    ],
+    "sha256Before": "40193fc6b2163c25464e5f9101cbd416452f077e28badedc21721139ae176330",
+    "sha256After": "40193fc6b2163c25464e5f9101cbd416452f077e28badedc21721139ae176330"
+  }
+]

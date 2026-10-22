@@ -34,12 +34,14 @@ const BUDGETS = [
   // local source, estimate included.
   { path: 'dist/reportingNetwork.js', budgetKiB: 100 },
   // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
-  { path: 'dist/reportInputs.js', budgetKiB: 100 },
+  // RLM110A0 (A3): +1 KiB for the node auth English strings in the shared table.
+  { path: 'dist/reportInputs.js', budgetKiB: 101 },
   // C-M113-4: playbook and schedules inputs, 52090 bytes (50.9 KiB)
   // measured +15% = 58.5 KiB, rounded up to the next whole KiB.
   { path: 'dist/playbookSchedulesInputs.js', budgetKiB: 59 },
   { path: 'dist/reportingDestinations.js', budgetKiB: 75 },
-  { path: 'dist/reportingPanel.js', budgetKiB: 50 },
+  // RLM110A0 (A3): +1 KiB for the node auth English strings in the shared table.
+  { path: 'dist/reportingPanel.js', budgetKiB: 51 },
   // M112 A: question forms, commands and late-answer admission, loaded on first use.
   { path: 'dist/acpQuestions.js', budgetKiB: 25 },
   // FIXM116I: /playbook's journal-backed surface (70.9 KiB when split out;
@@ -323,7 +325,8 @@ const BUDGETS = [
   { path: 'dist/vault.js', budgetKiB: 50 },
   // RVAPP-CM1091D5 BYTES: the vault's explicit-action code; measured below,
   // plus D6 headroom.
-  { path: 'dist/vaultActions.js', budgetKiB: 25 },
+  // RLM110A0 (A3): +1 KiB for the node auth English strings in the shared table.
+  { path: 'dist/vaultActions.js', budgetKiB: 26 },
   // The key-store migration's own chunk (D89.14 lane M); 36.75 KiB measured
   // in the harness build, plus headroom (production splitting only shrinks
   // it); a new cap, no existing cap moves.
@@ -372,7 +375,8 @@ const BUDGETS = [
   // out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/paid.js', budgetKiB: 75 },
   // INT0180: estimator application contracts, measured with D6 headroom.
-  { path: 'dist/estimateContracts.js', budgetKiB: 25 },
+  // RLM110A0 (A3): +1 KiB for the node auth English strings in the shared table.
+  { path: 'dist/estimateContracts.js', budgetKiB: 26 },
   // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded
   // on the first estimate needing a plan snapshot: the shared core adapter
   // over M113's plan reader with the host's git and `gh` reads. 61.5 KiB
@@ -449,6 +453,8 @@ const BUDGETS = [
   // headless runs, loaded on the first vault need. Measured 19.8 KiB;
   // plus 15%, rounded up to 25 KiB.
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
+  // M110-N: explicit node commands only; measured +15%, rounded to 25 KiB.
+  { path: 'dist/node.js', budgetKiB: 75 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

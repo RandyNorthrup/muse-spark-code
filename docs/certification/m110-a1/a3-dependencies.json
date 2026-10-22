@@ -1,0 +1,32 @@
+{
+  "method": "Exact lockfile npm ci in private TMPDIR; only absent package directories copied, never existing entries or npm bookkeeping.",
+  "beforeEntries": 31224,
+  "snapshotSha256": "46b8cc1192c507c01b2950ab5ad06a7b3dc41428f618bc98f756401c5570bc0a",
+  "copiedDirectories": [
+    "@peculiar/asn1-android",
+    "@peculiar/asn1-schema",
+    "@peculiar/asn1-x509-attr",
+    "@peculiar/asn1-rsa",
+    "@peculiar/asn1-x509",
+    "@peculiar/asn1-asym-key",
+    "@peculiar/asn1-pkcs8",
+    "@peculiar/asn1-pkcs9",
+    "@peculiar/asn1-pfx",
+    "@peculiar/utils",
+    "@peculiar/asn1-x509-post-quantum",
+    "@peculiar/asn1-cms",
+    "@peculiar/asn1-ecc",
+    "@peculiar/x509",
+    "@peculiar/asn1-csr",
+    "tsyringe",
+    "@levischuck/tiny-cbor",
+    "reflect-metadata",
+    "asn1js",
+    "pvtsutils",
+    "@hexagon/base64",
+    "pvutils",
+    "@simplewebauthn/server",
+    "@simplewebauthn/browser"
+  ],
+  "changedExistingEntries": []
+}

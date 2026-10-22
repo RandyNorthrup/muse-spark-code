@@ -1,0 +1,46 @@
+{
+  "base": "e5f11498b",
+  "command": "npx vitest run test/unit/nodePasskeyAuth.test.ts --maxWorkers=1 --cache=false --reporter=json --outputFile=temp/a3-baseline-tests.json",
+  "exitCode": 1,
+  "files": [
+    {
+      "file": "src/runtime/node/auth/service.ts",
+      "baseSha256": "2f5522639f5e416faff747056075db8d4a46c80d3129e145f6c2b7d72347c2da",
+      "originalSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc",
+      "restoredSha256": "0676ef5db9f6144d90a204234b7dceade5be686e3a0c0ae814b969991674f8dc"
+    },
+    {
+      "file": "src/runtime/node/auth/challenges.ts",
+      "baseSha256": "786de7e7f435303d791e53ef53664f94f5f6b44c57dca0d97ed8f4b948157149",
+      "originalSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6",
+      "restoredSha256": "fcde1d742e2cd58a229f1b3e270c4ee14e49733fd0190f2bd4b9b9a4a7282fc6"
+    },
+    {
+      "file": "src/runtime/node/listenerGuard.ts",
+      "baseSha256": "ef2e8dc3c6867bbd8293174e22d014188b047dd0bb359b5b5304239279decb24",
+      "originalSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843",
+      "restoredSha256": "59a01e11618672f01843d5b6598702c7cbeefb20f965b459910109f613315843"
+    },
+    {
+      "file": "src/shared/constants.ts",
+      "baseSha256": "fa466eac23344873c4c2ac0b49adf465952dd99f96f21aa4496509e6a0570463",
+      "originalSha256": "b73a99086e50e11010c36428b63a7d78e8dcc7baf6c540009913025d5696c83a",
+      "restoredSha256": "b73a99086e50e11010c36428b63a7d78e8dcc7baf6c540009913025d5696c83a"
+    },
+    {
+      "file": "src/shared/nodeAuth.ts",
+      "baseSha256": "40193fc6b2163c25464e5f9101cbd416452f077e28badedc21721139ae176330",
+      "originalSha256": "5f24ac826e5c947b40a23f91fa9b84d78f3ccb7e28a0af9212b868ae3036acbc",
+      "restoredSha256": "5f24ac826e5c947b40a23f91fa9b84d78f3ccb7e28a0af9212b868ae3036acbc"
+    }
+  ],
+  "helperNote": "The new injected test-only challenge key stays random but uses literal byte count 32 while the old constants are installed; the old service ignores it. Helper restored byte-exact.",
+  "failed": 4,
+  "passed": 22,
+  "failures": [
+    "H05/H08/H09/H19/H20 sign-in controls H09/H20 the 25-address rotation flood cannot deny owner sign-in or console recovery",
+    "H05/H08/H09/H19/H20 sign-in controls H09 abandoned and failed issues cannot consume an owner challenge",
+    "H05/H08/H09/H19/H20 sign-in controls H05 refuses replay after a successful proof and retains nothing after a failed proof",
+    "H05/H08/H09/H19/H20 sign-in controls H09 proof backoff for one source never blocks another source"
+  ]
+}
