@@ -120,16 +120,16 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
     try {
       files = await readdir(this.directory)
     } catch (error) {
-      if (hasCode(error, 'ENOENT')) return
-      throw calibrationFailure('historyReadFailed')
+      if (isHistoryErrorCode(error, 'ENOENT')) return
+      throw calibrationFailure('historyReadFailed', error)
     }
     try {
       for (const file of files.toSorted(compareIds)) {
         if (file.endsWith('.json') || file.endsWith('.identity') || file.endsWith('.tmp'))
           await rm(path.join(this.directory, file), { force: true })
       }
-    } catch {
-      throw calibrationFailure('historyCleanupFailed')
+    } catch (error) {
+      throw calibrationFailure('historyCleanupFailed', error)
     }
   }
 

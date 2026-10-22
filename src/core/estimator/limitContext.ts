@@ -43,8 +43,10 @@ export function resolveLimitContext(
     const encoded = records.values().next().value
     if (encoded === undefined) throw new Error('missing-context')
     value = JSON.parse(encoded.slice(CONTEXT_PREFIX.length))
-  } catch {
-    throw new EstimateDiagnosticError('invalid-input: invalid-limit-context')
+  } catch (error) {
+    throw new EstimateDiagnosticError('invalid-input: invalid-limit-context', undefined, {
+      cause: error,
+    })
   }
   const parsed = estimateLimitContextSchema.safeParse(value)
   if (!parsed.success) throw new EstimateDiagnosticError('invalid-input: invalid-limit-context')

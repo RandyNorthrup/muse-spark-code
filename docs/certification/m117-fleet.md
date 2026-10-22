@@ -142,8 +142,9 @@ Post-drill suite: 20/20 green at repository timeouts.
   reader, active selector) is not instantiated in the extension host, and
   headless estimator ports have no providers path or keyring in their deps.
   The selection (`selectFleetAccount`) and translation
-  (`fleetAccountFromLimits`) run against the real store/reader shapes and
-  are proven with fakes; the accounts owner plugs in a constructed store.
+  (`fleetAccountFromLimits`) run against the real store/reader shapes with
+  schema-valid fixtures through the committed suites; the live registry
+  plugs in at M108.
 - Production carries no CI row: no captured wire shape names a concurrency
   limit or occupied count (rule 14); the port, the named refusal and the
   over-commit test are ready for the milestone that captures one.

@@ -117,6 +117,36 @@ function fail(detail: string): never {
   throw new Error(fill(UI_TEXT.estimateFailed, { detail }))
 }
 
+/** A failure that carries the step's own error for the catch gate. */
+function failWith(detail: string, cause: unknown): Error {
+  return new Error(fill(UI_TEXT.estimateFailed, { detail }), { cause })
+}
+
+/** A create/install/pair step that failed with the step's own error: the
+loop ends the server uncertain or failed naming the step instead of
+dropping the error. */
+export class ProvisionStepFailed extends Error {
+  readonly step: 'create' | 'install' | 'pair'
+  readonly server?: ProvisionedServer
+  constructor(step: 'create' | 'install' | 'pair', cause: unknown, server?: ProvisionedServer) {
+    super(`provision ${step} failed`, { cause })
+    this.step = step
+    if (server !== undefined) this.server = server
+  }
+}
+
+export function isProvisionStepFailed(error: unknown): error is ProvisionStepFailed {
+  return error instanceof ProvisionStepFailed
+}
+
+function provisionStepFailed(
+  step: 'create' | 'install' | 'pair',
+  cause: unknown,
+  server?: ProvisionedServer,
+): ProvisionStepFailed {
+  return new ProvisionStepFailed(step, cause, server)
+}
+
 function sumCosts(costs: Iterable<UsdNanos>, initial = usdNanos(0)): UsdNanos {
   let total = initial
   for (const cost of costs) total = addUsdNanos(total, cost)
@@ -160,6 +190,64 @@ export class EstimateProvisionRun {
     return sumCosts(this.reservations.values())
   }
 
+  /** Create and register one server; a rejected step throws branded. */
+  private async createServer(
+    provider: EstimateProviderPort,
+    serverQuote: EstimateServerQuote,
+    cloudInit: string,
+    expiresAt: string,
+    nodes: EstimateProvisionNodeBindings,
+  ): Promise<ProvisionedServer> {
+    let server: ProvisionedServer | undefined
+    try {
+      server = provisionedServerSchema.parse(
+        await provider.create(
+          structuredClone(serverQuote.size),
+          structuredClone(serverQuote.image),
+          cloudInit,
+        ),
+      )
+      if (server.sizeId !== serverQuote.size.id || server.imageId !== serverQuote.image.id)
+        fail('created-server-identity')
+      // The mandatory lifecycle validates the created state before
+      // registration or installation.
+      nodes.lifecycle.track(provider, server, expiresAt)
+      return server
+    } catch (error) {
+      throw provisionStepFailed('create', error, server)
+    }
+  }
+
+  /** Install and pair one created server; a rejected step throws branded. */
+  private async installServer(
+    provider: EstimateProviderPort,
+    created: ProvisionedServer,
+    expiresAt: string,
+    nodes: EstimateProvisionNodeBindings,
+  ): Promise<ProvisionedServer> {
+    let phase: 'install' | 'pair' = 'install'
+    try {
+      if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
+      await nodes.node.install(structuredClone(created))
+      const status = provisionedServerSchema.parse(await provider.status(created.id))
+      if (
+        status.id !== created.id ||
+        status.sizeId !== created.sizeId ||
+        status.imageId !== created.imageId ||
+        status.state !== 'running'
+      )
+        fail('node-not-ready')
+      if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
+      phase = 'pair'
+      await nodes.node.pair(structuredClone(status))
+      if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
+      nodes.lifecycle.activity(provider.id, created.id, false)
+      return status
+    } catch (error) {
+      throw provisionStepFailed(phase, error)
+    }
+  }
+
   availability(): 'connected' | 'adviceOnly' {
     return this.bindings.nodes === undefined || this.providers.size === 0
       ? 'adviceOnly'
@@ -195,8 +283,8 @@ export class EstimateProvisionRun {
               sizes: z.array(providerSizeSchema).parse(await provider.sizes()),
               images: z.array(providerImageSchema).parse(await provider.images()),
             }
-          } catch {
-            fail('provider-catalog')
+          } catch (error) {
+            throw failWith('provider-catalog', error)
           }
           if (
             new Set(selection.sizes.map((size) => size.id)).size !== selection.sizes.length ||
@@ -252,8 +340,8 @@ export class EstimateProvisionRun {
       prepared.consumed = true
       try {
         await this.bindings.showPrices(structuredClone(quote))
-      } catch {
-        fail('price-preview')
+      } catch (error) {
+        throw failWith('price-preview', error)
       }
       const outcomes: EstimateProvisionOutcome[] = []
       // The whole quote's nonnegative liabilities were admitted atomically.
@@ -269,8 +357,8 @@ export class EstimateProvisionRun {
                 structuredClone(quote),
               ),
             )
-        } catch {
-          fail('server-confirmation')
+        } catch (error) {
+          throw failWith('server-confirmation', error)
         }
         if (!isAllowed) {
           const denied: EstimateProvisionOutcome = {
@@ -298,66 +386,34 @@ export class EstimateProvisionRun {
                 expiresAt,
               ),
             )
-        } catch {
-          fail('cloud-init')
+        } catch (error) {
+          throw failWith('cloud-init', error)
         }
         if (cloudInit.trim().length === 0 || this.clock.now() >= Date.parse(expiresAt))
           fail('expired-cloud-init')
         // Claim before create; the broker may create even if its reply is lost.
         this.reservations.set(`${quote.id}:${serverQuote.id}`, cost)
-        let server: ProvisionedServer | undefined
+        let created: ProvisionedServer
         try {
-          server = provisionedServerSchema.parse(
-            await provider.create(
-              structuredClone(serverQuote.size),
-              structuredClone(serverQuote.image),
-              cloudInit,
-            ),
-          )
-          if (server.sizeId !== serverQuote.size.id || server.imageId !== serverQuote.image.id)
-            fail('created-server-identity')
-          // The mandatory lifecycle validates the created state before
-          // registration or installation.
-          nodes.lifecycle.track(provider, server, expiresAt)
-        } catch {
+          created = await this.createServer(provider, serverQuote, cloudInit, expiresAt, nodes)
+        } catch (error) {
+          if (!isProvisionStepFailed(error)) throw error
           const uncertain: EstimateProvisionOutcome = {
             id: serverQuote.id,
             providerId: provider.id,
             state: 'uncertain',
             failure: 'create',
-            ...(server !== undefined && { server }),
+            ...(error.server !== undefined && { server: error.server }),
           }
           this.outcomes.push(uncertain)
           outcomes.push(uncertain)
           break
         }
-        const created = server
-        let phase: 'install' | 'pair' = 'install'
+        let status: ProvisionedServer
         try {
-          if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
-          await nodes.node.install(structuredClone(created))
-          const status = provisionedServerSchema.parse(await provider.status(created.id))
-          if (
-            status.id !== created.id ||
-            status.sizeId !== created.sizeId ||
-            status.imageId !== created.imageId ||
-            status.state !== 'running'
-          )
-            fail('node-not-ready')
-          if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
-          phase = 'pair'
-          await nodes.node.pair(structuredClone(status))
-          if (this.clock.now() >= Date.parse(expiresAt)) fail('funded-lifetime-expired')
-          nodes.lifecycle.activity(provider.id, created.id, false)
-          const ready: EstimateProvisionOutcome = {
-            id: serverQuote.id,
-            providerId: provider.id,
-            state: 'ready',
-            server: status,
-          }
-          this.outcomes.push(ready)
-          outcomes.push(ready)
-        } catch {
+          status = await this.installServer(provider, created, expiresAt, nodes)
+        } catch (error) {
+          if (!isProvisionStepFailed(error)) throw error
           await nodes.lifecycle.retire(provider.id, created.id)
           const isCleaned = nodes.lifecycle
             .snapshots()
@@ -372,12 +428,20 @@ export class EstimateProvisionRun {
             providerId: provider.id,
             state: 'failed',
             server: created,
-            failure: isCleaned ? phase : 'cleanup',
+            failure: isCleaned ? error.step : 'cleanup',
           }
           this.outcomes.push(failed)
           outcomes.push(failed)
           break
         }
+        const ready: EstimateProvisionOutcome = {
+          id: serverQuote.id,
+          providerId: provider.id,
+          state: 'ready',
+          server: status,
+        }
+        this.outcomes.push(ready)
+        outcomes.push(ready)
       }
       return structuredClone(outcomes)
     })
