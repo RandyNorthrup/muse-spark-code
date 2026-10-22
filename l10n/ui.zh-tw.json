@@ -3721,6 +3721,8 @@
   "execBudgetStartBytes": "限額執行：上限 {cap}，剩餘 {remaining}。每個請求預留其位元組上限的輸入，外加最多 {output} 個輸出 token。",
   "execBudgetStillReading": "預算在執行仍在讀取時將其停止，因此尚無答案。",
   "execCountBytesFallback": "提供者輸入計數失敗，因此此請求改按位元組上限預留。",
+  "execCountBytesFailed": "提供者輸入計數失敗（HTTP {status}，{type}），因此此請求改按位元組上限預留。",
+  "execCountBytesOverLength": "提供者輸入計數超出請求大小，因此此請求改按位元組上限預留。",
   "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 個 token 的輸出上限。",
   "execUnpricedProvider": "此模型沒有已知費率，因此限額執行無法為 {model} 預留費用。請在 {file} 中為此模型新增價格，或選擇有價格的模型。",
   "execUnpricedModel": "此模型沒有已知費率，因此限額執行無涅法預留費用。請選擇有價格的模型。",

@@ -89,7 +89,11 @@ import type { SseEvent } from '../sse'
 /** This codec's wire format name, for the registry's `WireCodec.format`. */
 export const ANTHROPIC_FORMAT = 'anthropic' as const
 
-const ANTHROPIC_VERSION = '2023-06-01'
+// API version 2026-10-21 (platform.claude.com/docs/en/api/versioning,
+// read 2026-10-22): temperature/top_p/top_k, document blocks in
+// assistant turns and citations on user text are gone (400). This codec
+// sends none of them (the version-gate test proves it from the builder).
+const ANTHROPIC_VERSION = '2026-10-21'
 const ANTHROPIC_BETA_DROP_BLOCK = 'thinking-binding-controls-2026-08-01'
 const ANTHROPIC_BETA_INTERLEAVED_THINKING = 'interleaved-thinking-2025-05-14'
 const ANTHROPIC_PATH = '/v1/messages'

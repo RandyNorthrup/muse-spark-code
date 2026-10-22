@@ -3721,6 +3721,8 @@
   "execBudgetStartBytes": "限额运行：上限 {cap}，剩余 {remaining}。每个请求预留其字节上限的输入，外加最多 {output} 个输出 token。",
   "execBudgetStillReading": "预算在运行仍在读取时将其停止，因此尚无答案。",
   "execCountBytesFallback": "提供方输入计数失败，因此此请求改为按字节上限预留。",
+  "execCountBytesFailed": "提供方输入计数失败（HTTP {status}，{type}），因此此请求改为按字节上限预留。",
+  "execCountBytesOverLength": "提供方输入计数超出请求大小，因此此请求改为按字节上限预留。",
   "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 个 token 的输出上限。",
   "execUnpricedProvider": "此模型没有已知费率，因此限额运行无法为 {model} 预留费用。请在 {file} 中为此模型添加价格，或选择有价格的模型。",
   "execUnpricedModel": "此模型没有已知费率，因此限额运行无法预留费用。请选择有价格的模型。",

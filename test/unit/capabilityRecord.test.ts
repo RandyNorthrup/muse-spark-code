@@ -276,6 +276,93 @@ describe('RVM95N joined regressions', () => {
   )
 })
 
+describe('Anthropic Models API thinking toggles and lifecycle', () => {
+  it('takes the thinking off-switch from the live list over preset facts', () => {
+    // The Models API reports both Thinking-off toggles per model
+    // (`capabilities.thinking.types.disabled` since 2026-10-05,
+    // `between_tools` since 2026-10-15;
+    // platform.claude.com/docs/en/api/models/list): the live row below
+    // follows that documented shape. Where the live list speaks it wins
+    // over the preset facts, so Sonnet 5.5's live `between_tools` rides
+    // the request even against a preset fact claiming otherwise.
+    const live = nativeCapabilityEvidence(
+      'anthropic',
+      {
+        id: 'claude-sonnet-5-5',
+        lifecycle: 'active',
+        deprecated_at: null,
+        retires_at: null,
+        capabilities: {
+          thinking: {
+            supported: true,
+            types: {
+              disabled: { supported: false },
+              between_tools: { supported: true },
+            },
+          },
+        },
+      },
+      { kind: 'models-list', ref: 'test' },
+    )
+    const resolved = resolveModelCapabilities(
+      { provider: 'anthropic', nativeModel: 'claude-sonnet-5-5', format: 'anthropic' },
+      [
+        {
+          source: { kind: 'preset', ref: 'test' },
+          fields: {
+            reasoning: {
+              canDisable: { state: 'yes', value: true },
+              offSwitch: 'disabled',
+            },
+          },
+        },
+        live,
+      ],
+    )
+    expect(resolved.reasoning.canDisable).toMatchObject({ state: 'no' })
+    expect(resolved.reasoning.offSwitch).toBe('between_tools')
+    expect(
+      encodeAnthropicRequest(body, {
+        model: 'claude-sonnet-5-5',
+        maxTokens: 4096,
+        effort: 'none',
+        capabilityRecord: resolved,
+      }).body,
+    ).toMatchObject({ thinking: { type: 'between_tools' } })
+  })
+
+  it("carries a deprecated model's retirement date on the record identity", () => {
+    // Sonnet 4.5: deprecated 2026-09-30, retires 2026-11-30
+    // (platform.claude.com release notes; research AC3). The live row
+    // follows the Models API shape; the record keeps the lifecycle
+    // beside the served version.
+    const resolved = resolveModelCapabilities(
+      {
+        provider: 'anthropic',
+        nativeModel: 'claude-sonnet-4-5-20250929',
+        format: 'anthropic',
+      },
+      [
+        nativeCapabilityEvidence(
+          'anthropic',
+          {
+            id: 'claude-sonnet-4-5-20250929',
+            lifecycle: 'deprecated',
+            deprecated_at: '2026-09-30T00:00:00Z',
+            retires_at: '2026-11-30T00:00:00Z',
+          },
+          { kind: 'models-list', ref: 'test' },
+        ),
+      ],
+    )
+    expect(resolved.identity).toMatchObject({
+      lifecycle: 'deprecated',
+      deprecatedAt: '2026-09-30T00:00:00Z',
+      retiresAt: '2026-11-30T00:00:00Z',
+    })
+  })
+})
+
 describe('normalized capability record', () => {
   it('unknown never proves tools, reasoning, images or parallel calls', () => {
     const unknown = resolveModelCapabilities(identity)

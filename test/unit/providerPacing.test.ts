@@ -5,6 +5,7 @@
 // reset needs a live timestamp, since the captured resets are past and a
 // past reset keeps the default window by design.
 
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -17,10 +18,15 @@ import {
 } from '../../src/core/backends/modelapi/pacing'
 import {
   isPacingGoverned,
+  pacingAccountFor,
   providerWaitMs,
   RequestTransport,
 } from '../../src/core/backends/modelapi/transport'
+import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/anthropic'
+import { buildExactCountRequest } from '../../src/core/providers/tokenCount'
+import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_RETRY_MAX_MS } from '../../src/shared/constants'
+import { transportTestDeps } from './helpers/modelApiTransport'
 
 const CAPTURE_FILES = {
   groq: '02-tool-call-stream.json',
@@ -272,6 +278,100 @@ describe('provider waits are honoured whole', () => {
     expect(waits).toEqual([99_999_999_999_999])
     await pacing.acquire('rogue', 'foreground', 0, AbortSignal.timeout(5000))
     expect(waits).toEqual([99_999_999_999_999])
+  })
+  it('paces count answers under their own account and leaves the message bucket untouched', async () => {
+    // Token counting and message creation have separate and independent
+    // rate limits (platform.claude.com/docs/en/build-with-claude/
+    // token-counting): a count answer must never shape the message
+    // bucket. The answer replayed here is the recorded 2026-10-04
+    // Anthropic stream answer — status, headers and body all come from
+    // the capture (`docs/certification/m95-captures/anthropic/
+    // 03-tool-call-stream.json`, made as docs/certification/
+    // m95-captures.md says). The native request is built by the real
+    // codec and the count sibling by the real count builder, the same
+    // two steps the client takes.
+    const frame = JSON.parse(
+      readFileSync(
+        new URL(
+          '../../docs/certification/m95-captures/anthropic/03-tool-call-stream.json',
+          import.meta.url,
+        ),
+        'utf8',
+      ),
+    ) as { response: { status: number; headers: Record<string, string>; events: unknown[] } }
+    const { pacing } = recordingPacer()
+    const transport = new RequestTransport(
+      transportTestDeps({
+        fetch: () =>
+          Promise.resolve(
+            Response.json(frame.response.events, {
+              status: frame.response.status,
+              headers: frame.response.headers,
+            }),
+          ),
+        sleep: () => Promise.resolve(),
+        random: () => 0,
+        baseUrl: 'https://api.anthropic.com',
+        apiKey: () => Promise.resolve('test-key'),
+        pacing,
+        pacingProvider: () => ({
+          identity: { provider: 'anthropic' },
+          readLimits: anthropicPacingLimits,
+        }),
+      }),
+    )
+    const sent: CreateResponseBody = {
+      model: 'anthropic/claude-haiku-4-5',
+      instructions: 'Workspace: test',
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [{ type: 'input_text', text: 'Explain this repository.' }],
+        },
+      ],
+      tools: [],
+      tool_choice: 'auto',
+      reasoning: { effort: 'none' },
+      stream: true,
+      store: false,
+      include: [],
+      prompt_cache_key: '',
+      prompt_cache_retention: 'in_memory',
+      max_output_tokens: 1024,
+    }
+    const encoded = encodeAnthropicRequest(sent, {
+      model: 'claude-haiku-4-5',
+      maxTokens: sent.max_output_tokens,
+      effort: 'none',
+    })
+    const count = buildExactCountRequest('anthropic-count-tokens', {
+      path: encoded.path,
+      body: encoded.body,
+      headers: encoded.headers,
+    })
+    if (count === undefined) throw new Error('count request not built')
+    await transport.request(
+      count.path,
+      {
+        method: 'POST',
+        body: count.body,
+        headers: encoded.headers,
+        accept: 'application/json',
+        countRequest: true,
+        retries: 'rateLimitOnly',
+      },
+      undefined,
+    )
+    const digest = createHash('sha256').update('test-key').digest('hex')
+    const messageAccount = pacingAccountFor('anthropic', 'https://api.anthropic.com', digest, false)
+    const countAccount = pacingAccountFor('anthropic', 'https://api.anthropic.com', digest, true)
+    expect(pacing.headroom(messageAccount).observed).toBe(false)
+    // The captured answer carried a 10,000-request limit; it landed in
+    // the count bucket only.
+    const countBucket = pacing.headroom(countAccount)
+    expect(countBucket.observed).toBe(true)
+    expect(countBucket.requests).toBe(10_000)
   })
   it('sleeps the whole named wait per retry try; only our own fallback keeps a ceiling', () => {
     // The foreground retry loop sleeps what backoffMs returns: a header

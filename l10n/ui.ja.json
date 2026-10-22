@@ -3721,6 +3721,8 @@
   "execBudgetStartBytes": "上限付き実行: 上限 {cap}、残り {remaining}。各リクエストはバイト上限の入力に加え、最大 {output} 出力トークンを確保します。",
   "execBudgetStillReading": "予算により実行は読み取り中に停止したため、まだ回答は存在しません。",
   "execCountBytesFallback": "プロバイダーの入力カウントに失敗したため、このリクエストはバイト上限で確保します。",
+  "execCountBytesFailed": "プロバイダーの入力カウントに失敗したため (HTTP {status}、{type})、このリクエストはバイト上限で確保します。",
+  "execCountBytesOverLength": "プロバイダーの入力カウントがリクエストサイズを超えたため、このリクエストはバイト上限で確保します。",
   "execOutputCapExceeded": "--max-output-tokens が出力上限 {cap} トークンを超えています。",
   "execUnpricedProvider": "このモデルの料金は不明なため、上限付きの実行では {model} の予約ができません。{file} にこのモデルの料金を追加するか、料金のあるモデルを選んでください。",
   "execUnpricedModel": "このモデルの料金は不明なため、上限付きの実行では予約ができません。料金のあるモデルを選んでください。",

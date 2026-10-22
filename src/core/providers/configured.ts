@@ -908,7 +908,7 @@ export function createConfiguredProviderServices(
       isRetryableFailure: (failure) => isRefusalRetryable(failure, presets.quirksOf(preset).retry),
     })
     const headers: Record<string, string> = {}
-    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'
+    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2026-10-21'
     if (preset.id === 'openrouter') {
       const attribution = presets.OPENROUTER_ATTRIBUTION
       headers[attribution.refererHeader] = attribution.referer
@@ -1499,6 +1499,7 @@ export function createConfiguredProviderServices(
                 body: count.body,
                 ...(encoded.headers !== undefined && { headers: encoded.headers }),
                 accept: 'application/json',
+                countRequest: true,
                 retries: 'rateLimitOnly',
               },
               signal,

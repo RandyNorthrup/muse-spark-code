@@ -3875,6 +3875,8 @@
   "execBudgetStartBytes": "Exécution plafonnée : plafond {cap}, {remaining} restants. Chaque requête réserve son entrée limitée par les octets plus jusqu’à {output} tokens de sortie.",
   "execBudgetStillReading": "Le budget a arrêté l’exécution pendant qu’elle lisait encore, donc il n’y a pas encore de réponse.",
   "execCountBytesFallback": "Le comptage d’entrée du fournisseur a échoué, cette requête réserve donc la borne en octets.",
+  "execCountBytesFailed": "Le comptage d’entrée du fournisseur a échoué (HTTP {status}, {type}), cette requête réserve donc la borne en octets.",
+  "execCountBytesOverLength": "Le comptage d’entrée du fournisseur a dépassé la taille de la requête, cette requête réserve donc la borne en octets.",
   "execOutputCapExceeded": "--max-output-tokens dépasse le plafond de sortie de {cap} jetons.",
   "execUnpricedProvider": "Aucun tarif connu pour ce modèle : une exécution plafonnée ne peut rien réserver pour {model}. Ajoutez un prix pour ce modèle dans {file} ou choisissez un modèle tarifé.",
   "execUnpricedModel": "Aucun tarif connu pour ce modèle : une exécution plafonnée ne peut rien réserver. Choisissez un modèle tarifé.",
