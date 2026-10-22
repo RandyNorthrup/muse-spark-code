@@ -50,7 +50,7 @@ function isNetworkFailure(error) {
 
 function pause(milliseconds) {
   return new Promise((resolve) => {
-    globalThis.setTimeout(resolve, milliseconds)
+    setTimeout(resolve, milliseconds)
   })
 }
 

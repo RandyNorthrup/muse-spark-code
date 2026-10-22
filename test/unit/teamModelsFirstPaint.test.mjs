@@ -78,7 +78,7 @@ async function openPanel(table) {
           postMessage: (message) => {
             panelMessages.push(message)
             if (message.type === 'modelsPanel/ready')
-              globalThis.setTimeout(
+              setTimeout(
                 () =>
                   globalThis.dispatchEvent(
                     new globalThis.MessageEvent('message', {
