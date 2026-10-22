@@ -387,6 +387,21 @@
     "reason": "gh auth token --hostname github.com for D104 source (c), only while museSpark.github.useGhLogin is on in user or machine settings: fixed arguments, credential-stripped environment, capped output; contained tree, no temp root."
   },
   {
+    "site": "src/host/playbook/containedJob.ts#call:spawn:1",
+    "profile": "contained",
+    "reason": "The playbook’s job helper (fixed Windows PowerShell text, the compiled MuseSparkJob type): containment for the policy’s git and hook calls, never a payload; it ends each call’s tree, and its whole job when the decision’s pipe closes."
+  },
+  {
+    "site": "src/host/playbook/containedJob.ts#call:spawnSync:1",
+    "profile": "contained",
+    "reason": "Ends a playbook job by its name (fixed Windows PowerShell text, the compiled MuseSparkJob type) when its helper cannot be asked, and returns once the job was seen empty: containment’s own cleanup, never a payload."
+  },
+  {
+    "site": "src/host/playbook/containedJob.ts#import:1",
+    "profile": "contained",
+    "reason": "The helper start above and its option types; every git and hook call of the playbook runs inside that helper’s job."
+  },
+  {
     "site": "src/host/processTree.ts#call:execFile:1",
     "profile": "bootstrap",
     "reason": "runProgram: fixed bounded runner for containment-helper self-tests, OS identity probes and emergency termination; it cannot be admitted through the helpers it verifies."

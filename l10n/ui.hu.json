@@ -458,7 +458,7 @@
   "referenceCustomAgents": "Egyéni ügynököket projektbeli vagy személyes AGENT.md fájlokban adhat meg. Válasszon ügynököt, vagy kérjen explore vagy second-opinion feladatot; az eszközlisták szűkítik a képességeket. A Model API gyermekfeladatai fizetős alügynöki jóváhagyást igényelnek.",
   "referenceCodeOutput": "A Másolás másolja a kódot; a Beszúrás a kurzornál ír; az Alkalmazás a szerkesztő kijelölését cseréli. Nyissa meg a teljes eszközkimenetet; a levágott kimenet lapozható. Jelöljön ki szöveget a beszélgetésben, hogy idézze az üzenetmezőben, kérdezzen róla, megjegyzést fűzzön hozzá vagy másolja.",
   "referencePaidContexts": "Az interaktív Model API-extrák költés előtt kérdeznek, és megosztják a napi keretet. A Muse Code képeihez tárolt Model API-kulcs és kifejezett bekapcsolás kell; költségük kívül esik ezen a napi naplón. A Muse Voice mindkét háttérrendszeren lefoglalja a közös napi keretet. A fizetős ACP-funkciók alapból ki vannak kapcsolva, Model API-jelzőket és szerkesztői engedélyt igényelnek. Az ACP és a felület nélküli Model API-kérések lefoglalják a futtatókörnyezet napi keretét; felület nélkül futásonként szigorú keret is szükséges. A felület nélküli képekhez acceptEdits és a képjelző kell. A Fiók és használat elfelejtheti a munkaterület fizetős engedélyeit.",
-  "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents és a telepített készségek parancsait kezeli; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
+  "referenceAcp": "A telepített készségek dinamikus parancsokat adnak hozzá, amelyeket ez a statikus referencia nem sorol fel. Az ACP csak a helyi /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents és a telepített készségek parancsait kezeli; a /playbook minden szerkesztőben helyben válaszol; a hivatkozott panelparancsok, beállítások és párbeszédablakok a bővítmény folyamatai.",
   "referenceCiOtherTitle": "Egyéb CI-rendszerek",
   "referenceCiOther": "Csomaglenyomattal ellenőrzött, felület nélküli áttekintési/javítási sablonok GitLabhoz, Azure-hoz, Jenkinshez és Bitbuckethez. A kulcsot a Node olvassa be, és a munkapéldányon kívül teszi közzé az eredményt; minden sablon feltölti ezeket a fájlokat. A GitLab/Bitbucket külső ideiglenes másolatai és a Bitbucket folyamatelszigetelése még nincs igazolva. A további kulcsváltozók neveit a MUSE_CI_KEY_ALIASES értékében adja meg. Csak szimulált tesztek; lásd docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Weboldalak lekérése",
@@ -539,6 +539,13 @@
   "playbookCommandUsage": "Használat: `playbook status|record|settings`.",
   "playbookSave": "Beállítások mentése",
   "playbookSaved": "A kézikönyv beállításai mentve.",
+  "playbookAnswerReason": "Indok",
+  "playbookAnswerWhySafe": "Miért biztonságos egyelőre",
+  "playbookAnswerFollowUp": "Követő lépés",
+  "playbookNotCertified": "Kézikönyv: ezt a kört nem sikerült igazolni, ezért nem számít sikeresnek.",
+  "playbookEvidenceUnreadable": "Kézikönyv: egy felülvizsgált fájlt vagy egy alügynök módosításait nem sikerült beolvasni, ezért a kézikönyv nem tudja megállapítani, hogy ez a felülvizsgálat hozzá tartozik-e. A felülvizsgálat nem lett elküldve.",
+  "playbookRecordStale": "A kézikönyv naplóját nem sikerült beolvasni. A megjelenített adatok elavultak lehetnek.",
+  "playbookMuseCodeStarts": "A Muse Code kérdés nélkül indít alügynököket. A playbook számolja a köreiket és ellenőrzi a munkájukat, de az indítást nem tudja megakadályozni.",
   "playbookStrikeBadge": {
     "one": "{count} felülvizsgálati kör",
     "other": "{count} felülvizsgálati kör"
@@ -611,8 +618,13 @@
     "briefRecorded": "Útmutató: a {module} feladatkijelölése rögzítve ({reason}).",
     "configDrift": "Döntés kell: a megosztott tárolóbeállítás megváltozott ennél: {module} ({reason}).",
     "fallbackReviewer": "Útmutató: {actor} vizsgálja felül a következőt: {module}, mint rögzített tartalék felülvizsgáló ({reason}).",
-    "residualOpen": "Döntés kell: {lane} nyitott maradványpontokat tartalmaz: {missing}."
+    "residualOpen": "Döntés kell: {lane} nyitott maradványpontokat tartalmaz: {missing}.",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "Playbook-megállapítás ehhez: {child}: egy elrejtett nevű fájl titkos adatnak tűnik. Az alügynök köre beleszámított.",
+  "playbookBlockedLarge": "Playbook-megállapítás ehhez: {child}: a javítás mérete {size}, a korlát {bound}. Az alügynök köre beleszámított.",
+  "playbookBlockedUnreadable": "Playbook-megállapítás ehhez: {child}: a hozzájárulás nem olvasható. Az alügynök köre beleszámított.",
+  "playbookBlockedMany": "Playbook-megállapítás ehhez: {child}: módosított fájlok száma: {count}; korlát: {bound}. Az alügynök köre beleszámított.",
   "scheduleSettlement": {
     "sent": "Ütemezés szerint elküldve",
     "outcomes": {
@@ -4428,6 +4440,7 @@
   "approvalAskRuleWhy": "A parancsszabálya minden alkalommal rákérdez erre a parancsra: {why}",
   "approvalSecretNote": "Ez a parancs felismert titkot tartalmaz, kitakarva jelenik meg. Mindig rákérdez: egyetlen szabály sem hagyja jóvá önmagában.",
   "autoReviewerResolver": "Automatikus ellenőrző",
+  "cliReviewerDecision": "Muse Code-ellenőr ehhez: {child}",
   "commandRuleResolver": "Parancsszabály",
   "autoReviewAllowed": "Engedélyezve: {reason}",
   "autoReviewAsked": "Önt kérdezi: {reason}",

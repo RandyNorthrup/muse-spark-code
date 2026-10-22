@@ -457,7 +457,7 @@
   "referenceCustomAgents": "在项目或个人 AGENT.md 文件中定义自定义代理。选择代理或请求 explore、second-opinion；工具允许列表限制其能力。Model API 子任务需要付费子代理同意。",
   "referenceCodeOutput": "复制会复制代码；插入在编辑器光标处写入；应用替换编辑器选区。打开工具输出可阅读完整结果；截断的输出可分页读取。 选择对话文本，可在输入框中引用、提问、添加评论或复制。",
   "referencePaidContexts": "交互式 Model API 附加功能在消费前询问，并共用每日预算。Muse Code 图像需要已保存的 Model API 密钥及明确启用；其支出不计入此每日账本。Muse Voice 在两个后端上预留共用每日预算。ACP 付费功能默认关闭，需要 Model API 标志和编辑器许可。ACP 和无界面的 Model API 请求会预留运行时每日预算；无界面运行还需要严格的单次运行预算。无界面图像需要 acceptEdits 和图像标志。账户与用量可以忘记工作区的付费使用许可。",
-  "referenceAcp": "已安装技能会添加动态斜杠命令，此静态参考不列出它们。ACP 仅处理本地 /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /whatsnew, /agents 和已安装技能；链接参考中的面板命令、设置和编辑器对话框属于扩展流程。",
+  "referenceAcp": "已安装技能会添加动态斜杠命令，此静态参考不列出它们。ACP 仅处理本地 /help、/compact、/legal、/playback、/usage、/resources, /resources resume, /usage resources, /questions、/answer, /prompt, /share, /whatsnew, /agents 和已安装技能；/playbook 在每个编辑器中都在本地作答；链接参考中的面板命令、设置和编辑器对话框属于扩展流程。",
   "referenceCiOtherTitle": "其他 CI 系统",
   "referenceCiOther": "为 GitLab、Azure、Jenkins 和 Bitbucket 固定包摘要的无界面审查/修复模板。Node 读取密钥并在工作副本外发布结果；每个模板都会上传这些文件。GitLab/Bitbucket 的外部临时副本和 Bitbucket 的进程隔离尚未验证。请在 MUSE_CI_KEY_ALIASES 中声明额外的密钥变量名称。仅运行模拟测试；参见 docs/ci-other-systems.md。",
   "referenceWebFetchTitle": "网页获取",
@@ -538,6 +538,13 @@
   "playbookCommandUsage": "请使用 `playbook status|record|settings`。",
   "playbookSave": "保存设置",
   "playbookSaved": "操作手册设置已保存。",
+  "playbookAnswerReason": "原因",
+  "playbookAnswerWhySafe": "目前为何安全",
+  "playbookAnswerFollowUp": "后续跟进",
+  "playbookNotCertified": "工作准则：本轮无法得到确认，因此不计为通过。",
+  "playbookEvidenceUnreadable": "工作准则：无法读取受审查的文件或子代理所做的更改，因此工作准则无法判断此次审查是否归它管。审查未发送。",
+  "playbookRecordStale": "无法读取工作准则记录。显示的内容可能已过时。",
+  "playbookMuseCodeStarts": "Muse Code 无需询问便会启动子代理。行动手册会统计其轮次并审查其工作，但无法阻止启动。",
   "playbookStrikeBadge": {
     "other": "{count} 轮审查"
   },
@@ -609,8 +616,13 @@
     "briefRecorded": " playbook：已记录 {module} 的任务简报 ({reason})。",
     "configDrift": "需要您处理：{module} 的共享仓库配置已更改 ({reason})。",
     "fallbackReviewer": " playbook：{actor} 作为已记录的备选评审人复查 {module} ({reason})。",
-    "residualOpen": "需要您处理：{lane} 存在未关闭的遗留事项：{missing}。"
+    "residualOpen": "需要您处理：{lane} 存在未关闭的遗留事项：{missing}。",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "行动手册对 {child} 的发现：一个名称已隐藏的文件看起来包含秘密信息。已统计此子代理的轮次。",
+  "playbookBlockedLarge": "行动手册对 {child} 的发现：补丁大小为 {size}，超过上限 {bound}。已统计此子代理的轮次。",
+  "playbookBlockedUnreadable": "行动手册对 {child} 的发现：无法读取贡献内容。已统计此子代理的轮次。",
+  "playbookBlockedMany": "行动手册对 {child} 的发现：更改文件数量：{count}；上限：{bound}。已统计此子代理的轮次。",
   "scheduleSettlement": {
     "sent": "按计划发送",
     "outcomes": {
@@ -4319,6 +4331,7 @@
   "approvalAskRuleWhy": "您的命令规则每次都会就此命令询问：{why}",
   "approvalSecretNote": "此命令包含检测到的机密，已隐去显示。它始终会询问：任何规则都不会自行批准。",
   "autoReviewerResolver": "自动审查器",
+  "cliReviewerDecision": "对 {child} 的 Muse Code 审查器",
   "commandRuleResolver": "命令规则",
   "autoReviewAllowed": "已允许：{reason}",
   "autoReviewAsked": "请您决定：{reason}",

@@ -7,7 +7,7 @@ import { webviewKey } from '../../shared/keybindings'
 // settings file says about delegation and workflows is noted, with the file
 // a click away; the extension never edits it.
 
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useMemo, useState } from 'react'
 import { useAgentClock } from '../useAgentClock'
 import {
   agentActivity,
@@ -54,6 +54,7 @@ import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
 import {
   DeferredPlaybookBadge,
   DeferredPlaybookDetails,
+  DeferredPlaybookLink,
   DeferredPlaybookMap,
 } from '../playbook/DeferredPlaybook'
 
@@ -66,6 +67,12 @@ export interface AgentMapProps {
   readonly playbookPort?: PlaybookSurfacePort
   /** Trusted lane-to-module association; never match a lane's display name. */
   readonly playbookRecords?: Readonly<Record<string, readonly PlaybookRecord[]>>
+  /**
+  VS Code: posts on the playbook's own channel. The window's playbook then
+  supplies the port and the rows' records; a host that passes neither this
+  nor a port has no playbook in its map.
+  */
+  readonly onPlaybook?: ((message: unknown) => void) | undefined
   readonly backend: BackendKind | undefined
   readonly title: string
   readonly modelId: string | undefined
@@ -595,8 +602,9 @@ function BackgroundTasks({
 }
 
 export default function AgentMapContent({
-  playbookPort,
-  playbookRecords,
+  playbookPort: givenPort,
+  playbookRecords: givenRecords,
+  onPlaybook,
   backend,
   title,
   modelId,
@@ -621,6 +629,20 @@ export default function AgentMapContent({
   teamActions,
   onOpenFile,
 }: AgentMapProps) {
+  const [linkedPort, setLinkedPort] = useState<PlaybookSurfacePort>()
+  const [linkedRecords, setLinkedRecords] =
+    useState<Readonly<Record<string, readonly PlaybookRecord[]>>>()
+  const playbookPort = givenPort ?? linkedPort
+  const playbookRecords = givenRecords ?? linkedRecords
+  // The rows the host recorded as child agents, by the ids it recorded them under.
+  const playbookRows = useMemo(() => {
+    const rows: { itemId: string; agentId: string; sessionId: string }[] = []
+    for (const agent of agents) {
+      if (agent.subagentId === undefined || agent.childSessionId === undefined) continue
+      rows.push({ itemId: agent.id, agentId: agent.subagentId, sessionId: agent.childSessionId })
+    }
+    return rows
+  }, [agents])
   const selected = agents.find((agent) => agent.id === selectedAgentId)
   const transcript =
     selected?.childSessionId === undefined ? undefined : childTranscripts[selected.childSessionId]
@@ -734,6 +756,14 @@ export default function AgentMapContent({
     )
   return (
     <Modal title={UI_TEXT.agentMapTitle} titleId="agent-map-title" isWide onClose={onClose}>
+      {onPlaybook === undefined || givenPort !== undefined ? null : (
+        <DeferredPlaybookLink
+          post={onPlaybook}
+          agents={playbookRows}
+          onPort={setLinkedPort}
+          onRecords={setLinkedRecords}
+        />
+      )}
       {playbookPort === undefined ? (
         map
       ) : (

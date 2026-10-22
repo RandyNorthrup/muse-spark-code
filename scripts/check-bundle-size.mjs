@@ -45,6 +45,11 @@ const BUDGETS = [
   // FIXM116I: /playbook's journal-backed surface (70.9 KiB when split out;
   // +15% rounded up to 100 KiB), loaded by the agent and the CLI on first use.
   { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
+  // M116 lane C-M116-6: the VS Code window's playbook (the window's client
+  // and, as its worker thread, the governor: policy, journal, outcomes and
+  // the Windows job runner), loaded on the first playbook request: 111.5 KiB
+  // measured, +15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/playbook.js', budgetKiB: 150 },
   // Exact media money no longer enters the registry through locale helpers.
   // Keep M112's original cap; M105's inherited temporary increase is removed.
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },
