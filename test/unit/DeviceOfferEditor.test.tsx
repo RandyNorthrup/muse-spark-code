@@ -47,43 +47,41 @@ function setup(): DeviceHostMessage['setup'] {
   return undefined
 }
 
+function renderCard(): { sent: DeviceAction[] } {
+  const sent: DeviceAction[] = []
+  render(
+    <DeviceCard
+      device={row()}
+      setup={setup()}
+      boards={[]}
+      busy={false}
+      send={(action: DeviceAction): Promise<DeviceActionResult> => {
+        sent.push(action)
+        return Promise.resolve({ ok: false, reason: 'stale' })
+      }}
+    />,
+  )
+  return { sent }
+}
+
+function offerForm(): HTMLFormElement {
+  const save = screen.getByRole('button', { name: 'Review and save local offer' })
+  const form = save.closest('form')
+  if (form === null) throw new Error('missing offer form')
+  return form
+}
+
 describe('M100 offer editor', () => {
   it('renders cap inputs with no maximum of ours', () => {
-    const sent: DeviceAction[] = []
-    render(
-      <DeviceCard
-        device={row()}
-        setup={setup()}
-        boards={[]}
-        busy={false}
-        send={(action: DeviceAction): Promise<DeviceActionResult> => {
-          sent.push(action)
-          return Promise.resolve({ ok: false, reason: 'stale' })
-        }}
-      />,
-    )
-    const save = screen.getByRole('button', { name: 'Review and save local offer' })
-    const form = save.closest('form')
-    if (form === null) throw new Error('missing offer form')
+    renderCard()
+    const form = offerForm()
     const inputs = [...form.querySelectorAll('input[type="number"]')]
     expect(inputs).toHaveLength(6)
     for (const input of inputs) expect(input).not.toHaveAttribute('max')
   })
 
   it('sends the person’s huge caps exactly as typed', () => {
-    const sent: DeviceAction[] = []
-    render(
-      <DeviceCard
-        device={row()}
-        setup={setup()}
-        boards={[]}
-        busy={false}
-        send={(action: DeviceAction): Promise<DeviceActionResult> => {
-          sent.push(action)
-          return Promise.resolve({ ok: false, reason: 'stale' })
-        }}
-      />,
-    )
+    const { sent } = renderCard()
     const values: Record<string, string> = {
       'Worker limit': '1000000',
       'Process limit': '1000000',
@@ -95,10 +93,7 @@ describe('M100 offer editor', () => {
     for (const [label, value] of Object.entries(values))
       fireEvent.change(screen.getByLabelText(label), { target: { value } })
     fireEvent.click(screen.getByLabelText('Offer lanes'))
-    const save = screen.getByRole('button', { name: 'Review and save local offer' })
-    const form = save.closest('form')
-    if (form === null) throw new Error('missing offer form')
-    fireEvent.submit(form)
+    fireEvent.submit(offerForm())
     expect(sent).toEqual([
       {
         kind: 'offer',
@@ -118,23 +113,8 @@ describe('M100 offer editor', () => {
   })
 
   it('refuses an offer with neither lanes nor checks and sends nothing', () => {
-    const sent: DeviceAction[] = []
-    render(
-      <DeviceCard
-        device={row()}
-        setup={setup()}
-        boards={[]}
-        busy={false}
-        send={(action: DeviceAction): Promise<DeviceActionResult> => {
-          sent.push(action)
-          return Promise.resolve({ ok: false, reason: 'stale' })
-        }}
-      />,
-    )
-    const save = screen.getByRole('button', { name: 'Review and save local offer' })
-    const form = save.closest('form')
-    if (form === null) throw new Error('missing offer form')
-    fireEvent.submit(form)
+    const { sent } = renderCard()
+    fireEvent.submit(offerForm())
     expect(screen.getByRole('alert')).toBeVisible()
     expect(sent).toEqual([])
   })
