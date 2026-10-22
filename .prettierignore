@@ -35,3 +35,7 @@ test/fixtures/m121/
 # SHA-256 hashes cover the bodies (test/unit/storeCaptures.test.ts). Prettier
 # would rewrite the bodies and break the receipt hashes.
 test/fixtures/m113/stores/
+# M110f Helm templates: Go-templated by Helm's own convention, which is not
+# YAML prettier can parse ({{- if }} blocks). Values and the chart stay
+# formatted; only the templates are out of its reach.
+deploy/helm/muse-node/templates/
