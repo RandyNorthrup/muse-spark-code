@@ -59,7 +59,7 @@ const TYPE_SRV = 33
 const TYPE_TXT = 16
 const ANNOUNCE_ANSWER_COUNT = 3
 
-/** Narrow dgram surface this binding needs; fakes implement it in tests. */
+/** Narrow dgram surface this binding needs; production passes the real socket. */
 export interface DeviceMdnsUdpSocket {
   bind(port: number, callback: () => void): void
   send(message: Buffer, port: number, address: string): void
@@ -222,7 +222,8 @@ function writeRecord(name: string, type: number, data: Buffer, isCacheFlush: boo
   ])
 }
 
-function responsePacket(serviceId: string, port: number): Buffer {
+/** The three-record announcement the decoder reads: PTR, SRV and TXT. */
+export function encodeDeviceMdnsPacket(serviceId: string, port: number): Buffer {
   const instance = instanceName(serviceId)
   const srv = Buffer.concat([writeU16(0), writeU16(0), writeU16(port), writeName(instance)])
   const txt = Buffer.concat(
@@ -362,8 +363,9 @@ function defaultSocket(): DeviceMdnsUdpSocket {
 
 /**
 The production mDNS port: a UDP socket on the chosen interface answering
-our service queries and announcing our advertisements. Tests inject a fake
-socket; no test in this lane opens a real one.
+our service queries and announcing our advertisements. Tests open the real
+socket (a held or invalid interface reports blocked-or-unreachable); live
+multicast stays lead-side on qualified machines.
 */
 export function createDeviceMdnsPort(
   log: Logger,
@@ -455,7 +457,11 @@ export function createDeviceMdnsPort(
         if (hasFailed) throw new Error('blocked-or-unreachable')
         if (current === undefined) return
         try {
-          socket.send(responsePacket(current.serviceId, current.port), MDNS_PORT, MDNS_ADDRESS)
+          socket.send(
+            encodeDeviceMdnsPacket(current.serviceId, current.port),
+            MDNS_PORT,
+            MDNS_ADDRESS,
+          )
         } catch (error) {
           throw fail(error)
         }
