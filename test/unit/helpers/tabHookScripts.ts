@@ -12,10 +12,15 @@ import {
 /** The fixture's answer: allow, deny (exit 2), crash, or garbage output. */
 export type TabHookFixtureMode = 'allow' | 'deny' | 'crash' | 'garbage'
 
-/** A `run` that answers through the fixture for `mode`, keeping each request in `seen`. */
+/**
+A `run` that answers through the fixture for `mode`, keeping each request
+in `seen`. Unit suites run with the checkout as their working folder; the
+integration suite passes its absolute fixture folder instead.
+*/
 export function fixtureHookRun(
   mode: TabHookFixtureMode,
   seen: TabHookRun[] = [],
+  fixturesDir = 'test/fixtures/tabHooks',
 ): TabHooksDeps['run'] {
   return (request: TabHookRun) => {
     seen.push(request)
@@ -26,14 +31,15 @@ export function fixtureHookRun(
     const program = isWindows
       ? path.win32.join(systemRoot ?? '', WINDOWS_POWERSHELL_RELATIVE_PATH)
       : '/bin/sh'
+    const script = path.join(fixturesDir, isWindows ? 'read.ps1' : 'read.sh')
     const args = isWindows
       ? [
           ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
           '-File',
-          'test/fixtures/tabHooks/read.ps1',
+          script,
           mode,
         ]
-      : ['test/fixtures/tabHooks/read.sh', mode]
+      : [script, mode]
     const child = spawnSync(program, args, {
       input: request.stdin,
       encoding: 'utf8',
