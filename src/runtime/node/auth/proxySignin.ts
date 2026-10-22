@@ -15,7 +15,8 @@ export type ProxySigninVerdict =
   | { readonly accepted: true; readonly user: string }
   | { readonly accepted: false; readonly reason: string }
 
-/* Accept only the configured socket's word for the configured header. */
+/* Accept only the configured socket's word for the configured header
+ * (matched case-insensitively: the HTTP layer lowercases header names). */
 export function acceptProxySignin(
   settings: ProxySignin,
   peer: { readonly socketPath: string | undefined; readonly headers: ReadonlyMap<string, string> },

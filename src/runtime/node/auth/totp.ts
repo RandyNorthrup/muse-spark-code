@@ -44,7 +44,7 @@ export function decodeTotpSecret(secret: string): Uint8Array | undefined {
       out.push((bits >>> width) & BYTE_MASK)
     }
   }
-  return Uint8Array.from(out)
+  return out.length === 0 ? undefined : Uint8Array.from(out)
 }
 
 function hotp(secret: Uint8Array, counter: bigint, digits: number): string {

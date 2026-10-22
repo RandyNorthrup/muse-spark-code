@@ -48,9 +48,12 @@ export type RelayReaderResult =
   | { readonly ok: true; readonly frames: readonly unknown[] }
   | { readonly ok: false; readonly problem: 'oversize' | 'unparseable' }
 
-/** Pulls length-prefixed frames out of socket chunks; bad bytes are a verdict. */
+/* Pulls length-prefixed frames out of socket chunks; bad bytes are a
+ * verdict, and the first bad verdict latches: a poisoned reader never
+ * answers again, so no caller can continue past a failure. */
 export class RelayFrameReader {
   private pending: Buffer = Buffer.alloc(0)
+  private failed: RelayReaderResult | undefined
 
   public constructor(private readonly maxFrameBytes: number) {
     if (!Number.isSafeInteger(maxFrameBytes) || maxFrameBytes < 1)
@@ -58,12 +61,16 @@ export class RelayFrameReader {
   }
 
   public push(chunk: Buffer): RelayReaderResult {
+    if (this.failed !== undefined) return this.failed
     this.pending = Buffer.concat([this.pending, chunk])
     const frames: unknown[] = []
     for (;;) {
       if (this.pending.length < FRAME_LENGTH_BYTES) return { ok: true, frames }
       const length = this.pending.readUInt32BE(0)
-      if (length > this.maxFrameBytes) return { ok: false, problem: 'oversize' }
+      if (length > this.maxFrameBytes) {
+        this.failed = { ok: false, problem: 'oversize' }
+        return this.failed
+      }
       if (this.pending.length < FRAME_LENGTH_BYTES + length) return { ok: true, frames }
       const body = this.pending
         .subarray(FRAME_LENGTH_BYTES, FRAME_LENGTH_BYTES + length)
@@ -73,7 +80,10 @@ export class RelayFrameReader {
         const parsed: unknown = JSON.parse(body)
         frames.push(parsed)
       } catch (error) {
-        if (error instanceof SyntaxError) return { ok: false, problem: 'unparseable' }
+        if (error instanceof SyntaxError) {
+          this.failed = { ok: false, problem: 'unparseable' }
+          return this.failed
+        }
         throw error
       }
     }

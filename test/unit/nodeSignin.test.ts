@@ -34,6 +34,8 @@ describe('node passwords', () => {
     expect(isNodePasswordValid('correct horse battery staple', stored)).toBe(true)
     expect(isNodePasswordValid('wrong password', stored)).toBe(false)
     expect(isNodePasswordValid('correct horse battery staple', 'scrypt$broken')).toBe(false)
+    expect(isNodePasswordValid('anything', 'scrypt$32768$8$1$c2FsdA$')).toBe(false)
+    expect(isNodePasswordValid('anything', 'scrypt$32768$8$1$$aGFzaA==')).toBe(false)
     expect(() => hashNodePassword('')).toThrow('a password is not empty')
   })
 })
@@ -54,6 +56,8 @@ describe('node TOTP', () => {
     }
     expect(isTotpCodeValid(RFC6238_SECRET, '94287082', 89, TOTP_SETTINGS)).toBe(false)
     expect(isTotpCodeValid('!!!!', '94287082', 59, TOTP_SETTINGS)).toBe(false)
+    expect(decodeTotpSecret('A')).toBeUndefined()
+    expect(isTotpCodeValid('A', '94287082', 59, TOTP_SETTINGS)).toBe(false)
   })
 
   it('honours the caller window and refuses its neighbours past it', () => {

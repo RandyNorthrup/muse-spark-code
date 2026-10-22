@@ -14,6 +14,7 @@ import { beginSas, finishSas } from '../../src/core/devices/sas'
 import { createSequenceGuard } from '../../src/core/devices/sequence'
 import {
   emptyRevocationList,
+  isRevocationListExtension,
   isKeyRevoked,
   mergeRevocationLists,
   revokeKey,
@@ -60,6 +61,9 @@ describe('committed SAS', () => {
     expect(() => finishSas(a, b.localCommitment, beginSas().localNonce, randomBytes(32))).toThrow(
       'SAS nonce does not match its commitment',
     )
+    expect(() => finishSas(a, b.localCommitment, b.localNonce, new Uint8Array(0))).toThrow(
+      'SAS stretches a pair secret',
+    )
   })
 })
 
@@ -84,8 +88,8 @@ describe('subtract-only revocation', () => {
       pairKey,
       'old-key',
     )
-    expect(isKeyRevoked(revoked, 'lost-phone')).toBe(true)
-    expect(isKeyRevoked(revoked, 'kept-key')).toBe(false)
+    expect(isKeyRevoked(revoked, pairKey, 'lost-phone')).toBe(true)
+    expect(isKeyRevoked(revoked, pairKey, 'kept-key')).toBe(false)
     expect(revokeKey(revoked, pairKey, 'lost-phone').entries).toHaveLength(2)
     const dropped = { entries: revoked.entries.slice(1) }
     expect(isRevocationListValid(dropped, pairKey)).toBe(false)
@@ -96,14 +100,27 @@ describe('subtract-only revocation', () => {
     }
     expect(isRevocationListValid(forged, pairKey)).toBe(false)
     expect(isRevocationListValid(revoked, randomBytes(32))).toBe(false)
+    expect(() => isKeyRevoked(forged, pairKey, 'forged')).toThrow(
+      'revocation list fails verification',
+    )
+  })
+
+  it('takes an update only when it extends what the device accepted', () => {
+    const one = revokeKey(emptyRevocationList(pairKey), pairKey, 'a')
+    const two = revokeKey(one, pairKey, 'b')
+    expect(isRevocationListExtension(one, two, pairKey)).toBe(true)
+    expect(isRevocationListExtension(two, one, pairKey)).toBe(false)
+    expect(isRevocationListExtension(one, one, pairKey)).toBe(true)
+    const other = revokeKey(emptyRevocationList(pairKey), pairKey, 'b')
+    expect(isRevocationListExtension(one, other, pairKey)).toBe(false)
   })
 
   it('merges two lists into their union and refuses a tampered side', () => {
     const first = revokeKey(emptyRevocationList(pairKey), pairKey, 'a')
     const second = revokeKey(emptyRevocationList(pairKey), pairKey, 'b')
     const merged = mergeRevocationLists(first, second, pairKey)
-    expect(isKeyRevoked(merged, 'a')).toBe(true)
-    expect(isKeyRevoked(merged, 'b')).toBe(true)
+    expect(isKeyRevoked(merged, pairKey, 'a')).toBe(true)
+    expect(isKeyRevoked(merged, pairKey, 'b')).toBe(true)
     const only = second.entries[0]
     if (only === undefined) throw new Error('the test revokes one key')
     const tampered = { entries: [{ ...only, keyId: 'c' }] }

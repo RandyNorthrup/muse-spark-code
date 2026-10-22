@@ -40,6 +40,7 @@ export function finishSas(
   remoteNonce: string,
   pairSecret: Uint8Array,
 ): readonly [string, string, string, string] {
+  if (pairSecret.length === 0) throw new Error('SAS stretches a pair secret')
   const commitment = sasCommitmentSchema.parse(remoteCommitment)
   if (sha256Hex(remoteNonce) !== commitment)
     throw new Error('SAS nonce does not match its commitment')

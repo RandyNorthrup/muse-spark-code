@@ -1,8 +1,8 @@
 // Subtract-only revocation (M110d lane X2, D90.9): a revocation is an
 // append to a hash-chained list, each entry MACed under the pair key, so a
-// dropped or reordered entry breaks the chain. There is no removal: the
-// list's own verification refuses a chain that is not a super-sequence of
-// what a device has already accepted. Merging two lists unions them.
+// dropped or reordered entry breaks the chain. There is no removal, and a
+// device takes an update only when it extends what it accepted.
+// Merging two lists unions them.
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto'
 import * as z from 'zod/mini'
 
@@ -90,8 +90,29 @@ export function revokeKey(
   return { entries: [...list.entries, entry] }
 }
 
-export function isKeyRevoked(list: RevocationList, keyId: string): boolean {
+/** Membership on a verified list; an unverified list throws, never answers. */
+export function isKeyRevoked(list: RevocationList, pairKey: Uint8Array, keyId: string): boolean {
+  if (!isRevocationListValid(list, pairKey)) throw new Error('revocation list fails verification')
   return revocationListSchema.parse(list).entries.some((entry) => entry.keyId === keyId)
+}
+
+/* True when the candidate extends what this device accepted: both verify,
+ * and every accepted entry stands first, in order. A shorter or reordered
+ * candidate is not an update and fails closed. */
+export function isRevocationListExtension(
+  accepted: RevocationList,
+  candidate: RevocationList,
+  pairKey: Uint8Array,
+): boolean {
+  return (
+    isRevocationListValid(accepted, pairKey) &&
+    isRevocationListValid(candidate, pairKey) &&
+    candidate.entries.length >= accepted.entries.length &&
+    accepted.entries.every((entry, index) => {
+      const other = candidate.entries[index]
+      return other?.keyId === entry.keyId && other.chain === entry.chain
+    })
+  )
 }
 
 /** Union by key id; either side's tampering refuses the whole merge. */

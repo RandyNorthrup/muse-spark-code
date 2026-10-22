@@ -71,7 +71,7 @@ describe('node relay', () => {
     const receiver = await linkedNode(relay, 'node-b')
     const incoming = frameQueue(receiver)
     const sealed = Buffer.from('sealed-by-the-pair-not-the-relay').toString('base64')
-    sender.send({ t: 'forward', to: 'node-b', sealed, sequence: 7 })
+    expect(sender.send({ t: 'forward', to: 'node-b', sealed, sequence: 7 })).toBe(true)
     const delivered = relayServerFrameSchema.parse(await incoming.next())
     expect(delivered).toEqual({ t: 'deliver', from: 'node-a', sealed, sequence: 7 })
     expect(relay.stats().forwarded).toBe(1)
@@ -142,13 +142,20 @@ describe('node relay', () => {
     frame.writeUInt32BE(body.length, 0)
     body.copy(frame, 4)
     expect(garbled.push(frame)).toEqual({ ok: false, problem: 'unparseable' })
+    expect(garbled.push(frame)).toEqual({ ok: false, problem: 'unparseable' })
+    expect(reader.push(encodeRelayFrame({ t: 'close' }))).toEqual({
+      ok: false,
+      problem: 'oversize',
+    })
   })
 
   it('enforces only the ceilings the operator sets', async () => {
     const relay = await startedRelay({ maxConnections: 1, maxBytesPerConnection: FRAME_CEILING })
-    await linkedNode(relay, 'node-a')
-    await expect(linkedNode(relay, 'node-b')).rejects.toThrow()
+    const first = await linkedNode(relay, 'node-a')
+    await expect(linkedNode(relay, 'node-b')).rejects.toThrow('relay is full')
     expect(relay.stats().rejectedConnections).toBe(1)
+    await first.close()
+    expect(first.send({ t: 'close' })).toBe(false)
     const open = await startedRelay()
     await linkedNode(open, 'node-a')
     await linkedNode(open, 'node-b')

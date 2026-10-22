@@ -96,6 +96,16 @@ describe('model relay', () => {
       inputTokens: 0,
       outputTokens: 0,
     })
+    const retried = settleModelRelayUsage(ledger, {
+      payer: 'owner',
+      provider: 'meta',
+      model: 'm',
+      attemptKey: 'a1',
+      at: 300,
+      usage: { inputTokens: 99, outputTokens: 99 },
+    })
+    expect(retried).toBe(ledger)
+    expect(modelRelayTotalsFor(retried, 'owner').calls).toBe(2)
   })
 })
 
