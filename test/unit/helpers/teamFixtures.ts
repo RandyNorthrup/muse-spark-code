@@ -12,6 +12,10 @@ import {
   type BoardContext,
   type BoardSubmission,
 } from '../../../src/core/team/scheduler/board'
+import {
+  teamPreferenceListSchema,
+  type TeamPreferenceList,
+} from '../../../src/shared/teamPreference'
 import type { PickContext, SchedulerEntry } from '../../../src/core/team/scheduler/pick'
 import type { SlotRequest } from '../../../src/core/team/scheduler/slots'
 import type { TeamAttempt, TeamBoardTask } from '../../../src/shared/team'
@@ -73,6 +77,21 @@ export function rolePool(
   overrides: Partial<TeamRolePool> = {},
 ): TeamRolePool {
   return { roleId, entries, policy: 'ask', continueOnNext: false, ...overrides }
+}
+
+/** One preference pool with engine candidates, for selector and scheduler tests. */
+export function preferencePoolList(role: string, ids: readonly string[]): TeamPreferenceList {
+  return teamPreferenceListSchema.parse({
+    role,
+    minutesPerTask: 30,
+    pool: ids.map((id) => ({
+      id,
+      concurrent: 1,
+      caps: [],
+      agent: { kind: 'engine', agentId: id, model: `engine-${id}`, pays: 'local' },
+      conditions: { platforms: ['windows'], features: ['tools.write'] },
+    })),
+  })
 }
 
 export interface SnapshotOptions {

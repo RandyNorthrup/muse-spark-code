@@ -47,7 +47,26 @@ export function captureWork(stopped: StoppedWork): TeamCapturedWork {
   })
 }
 
-/** Appends one move link to the task's chain, oldest first. */
+/**
+Appends one chain link, oldest first. A link older than the chain's end
+refuses: the chain is the task's history, and history does not reorder.
+*/
+function appendChainEntry(
+  record: TeamHandoffRecord | undefined,
+  taskId: string,
+  roleId: string,
+  entry: TeamChainEntry,
+): TeamHandoffRecord {
+  const chain: TeamChainEntry[] = [...(record?.chain ?? [])]
+  const last = chain.at(-1)
+  if (last !== undefined && entry.atMs < last.atMs) {
+    throw new Error('team:chainOrder')
+  }
+  chain.push(entry)
+  return teamHandoffRecordSchema.parse({ taskId, roleId, chain })
+}
+
+/** Appends one move link to the task's chain. */
 export function chainMove(
   record: TeamHandoffRecord | undefined,
   taskId: string,
@@ -58,21 +77,14 @@ export function chainMove(
   toCandidateId: string,
   work: TeamCapturedWork,
 ): TeamHandoffRecord {
-  const chain: TeamChainEntry[] = [...(record?.chain ?? [])]
-  const entry: TeamChainEntry = {
+  return appendChainEntry(record, taskId, roleId, {
     kind: 'move',
     atMs,
     trigger,
     fromCandidateId,
     toCandidateId,
     work,
-  }
-  const last = chain.at(-1)
-  if (last !== undefined && entry.atMs < last.atMs) {
-    throw new Error('team:chainOrder')
-  }
-  chain.push(entry)
-  return teamHandoffRecordSchema.parse({ taskId, roleId, chain })
+  })
 }
 
 /** Appends one recall link to the task's chain. */
@@ -86,21 +98,14 @@ export function chainRecall(
   ending: TeamRecallEnding,
   work?: TeamCapturedWork,
 ): TeamHandoffRecord {
-  const chain: TeamChainEntry[] = [...(record?.chain ?? [])]
-  const entry: TeamChainEntry = {
+  return appendChainEntry(record, taskId, roleId, {
     kind: 'recall',
     atMs,
     candidateId,
     mainRole,
     ending,
     ...(work !== undefined && { work }),
-  }
-  const last = chain.at(-1)
-  if (last !== undefined && entry.atMs < last.atMs) {
-    throw new Error('team:chainOrder')
-  }
-  chain.push(entry)
-  return teamHandoffRecordSchema.parse({ taskId, roleId, chain })
+  })
 }
 
 /** The resume brief the next candidate reads: what moved, why, and where the work is. */

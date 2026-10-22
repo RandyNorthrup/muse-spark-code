@@ -17,11 +17,7 @@ import type {
 } from '../../src/core/team/scheduler/borrowing'
 import { LOAN_FACTS, SchedulerBorrowing } from '../../src/core/team/scheduler/borrowing'
 import { TaskPicker } from '../../src/core/team/scheduler/pick'
-import {
-  teamPreferenceListSchema,
-  type TeamPreferenceList,
-  type TeamTaskConditions,
-} from '../../src/shared/teamPreference'
+import type { TeamTaskConditions } from '../../src/shared/teamPreference'
 import { teamBoardSchema, type TeamBoardTask } from '../../src/shared/team'
 import type { TeamBoard } from '../../src/shared/team'
 import {
@@ -45,6 +41,7 @@ import {
   keyAgent,
   makeBoard,
   pickContext,
+  preferencePoolList,
   rolePool,
   schedulerEntry,
   selectionSnapshot,
@@ -52,19 +49,6 @@ import {
   tapped,
 } from './helpers/teamFixtures'
 
-function list(role: string, ids: string[]): TeamPreferenceList {
-  return teamPreferenceListSchema.parse({
-    role,
-    minutesPerTask: 30,
-    pool: ids.map((id) => ({
-      id,
-      concurrent: 1,
-      caps: [],
-      agent: { kind: 'engine', agentId: id, model: `engine-${id}`, pays: 'local' },
-      conditions: { platforms: ['windows'], features: ['tools.write'] },
-    })),
-  })
-}
 interface FixtureOptions {
   /** The borrowing role's tasks per turn, read back from the real meter. */
   readonly tasksPerTurn?: number
@@ -113,8 +97,8 @@ function fixture(options: FixtureOptions = {}) {
   })
   const leases = { taken: 0, released: 0 }
   const scheduled: { callback: () => void; ms: number }[] = []
-  const engineering = list('engineering', ['coder'])
-  const review = list('review', ['reviewer'])
+  const engineering = preferencePoolList('engineering', ['coder'])
+  const review = preferencePoolList('review', ['reviewer'])
   if (options.tasksPerTurn !== undefined) engineering.tasksPerTurn = options.tasksPerTurn
   const lender = review.pool[0]
   if (lender !== undefined && options.reviewerCaps !== undefined)
@@ -673,7 +657,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
 
   it('preserves two authorized lenders and launches both loans in one drain', async () => {
     const f = fixture()
-    f.lists[1]?.pool.push(...list('review', ['reviewer-two']).pool)
+    f.lists[1]?.pool.push(...preferencePoolList('review', ['reviewer-two']).pool)
     f.assignments.push({
       candidateId: 'reviewer-two',
       mainRole: 'review',
@@ -893,7 +877,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
         const recoverable = ['busy', 'notAdmitted', 'coolingDown', 'rateLimited', 'capped'] as const
         const reason = recoverable[choose(recoverable.length)]
         if (reason === undefined) throw new Error('test:skip')
-        const preference = list('review', ['queued-reviewer'])
+        const preference = preferencePoolList('review', ['queued-reviewer'])
         preference.exhausted = 'queue'
         const snapshot = {
           ...selectionSnapshot({ nowMs: f.clock.now }),
@@ -1354,7 +1338,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     await f.scheduler.wake()
     expect(f.events.at(-1)?.decision).toMatchObject({ kind: 'keep', reason: 'noMainWork' })
     expect(f.board.task('coding').recallAskedAtMs).toBeUndefined()
-    const peers = list('review', ['same-engine', 'independent']).pool
+    const peers = preferencePoolList('review', ['same-engine', 'independent']).pool
     const same = peers[0]
     if (same?.agent) same.agent.model = ' engine-reviewer '
     f.lists[1]?.pool.push(...peers)
@@ -1431,7 +1415,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     const f = fixture()
     await borrowCoding(f)
     await requestReview(f)
-    f.lists[1]?.pool.push(...list('review', ['other']).pool)
+    f.lists[1]?.pool.push(...preferencePoolList('review', ['other']).pool)
     await f.scheduler.wake()
     expect(
       f.events.some(
@@ -1447,7 +1431,7 @@ describe('M120 borrowing through the real scheduler and pool', () => {
     await borrowCoding(f)
     await requestReview(f)
     f.deps.authorize = () => Promise.resolve(false)
-    f.lists[1]?.pool.push(...list('review', ['other']).pool)
+    f.lists[1]?.pool.push(...preferencePoolList('review', ['other']).pool)
     await f.scheduler.wake()
     f.unavailable.add('other')
     await f.scheduler.wake()

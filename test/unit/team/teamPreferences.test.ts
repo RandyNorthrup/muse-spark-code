@@ -7,26 +7,12 @@ import {
   setBorrowTimers,
   setSecondaryRoles,
 } from '../../../src/core/team/preferences'
-import { boardAttempt, makeBoard, submission } from '../helpers/teamFixtures'
-import { teamPreferenceListSchema } from '../../../src/shared/teamPreference'
-
-function staffedList(role: string, ids: string[]) {
-  return teamPreferenceListSchema.parse({
-    role,
-    pool: ids.map((id) => ({
-      id,
-      concurrent: 1,
-      caps: [],
-      agent: { kind: 'engine', agentId: id, model: `engine-${id}`, pays: 'local' },
-      conditions: { platforms: ['windows'], features: ['tools.write'] },
-    })),
-  })
-}
+import { boardAttempt, makeBoard, preferencePoolList, submission } from '../helpers/teamFixtures'
 
 describe('M120 lane P preferences', () => {
   it('starts a blank list and validates every writer', () => {
     expect(blankPreferenceList('frontend')).toMatchObject({ role: 'frontend', pool: [] })
-    const list = staffedList('engineering', ['a', 'b'])
+    const list = preferencePoolList('engineering', ['a', 'b'])
     expect(reorderCandidates(list, ['b', 'a']).pool.map((item) => item.id)).toEqual(['b', 'a'])
     expect(() => reorderCandidates(list, ['a'])).toThrow('team:preferenceOrder')
     expect(() => reorderCandidates(list, ['a', 'a'])).toThrow('team:preferenceOrder')
@@ -60,7 +46,7 @@ describe('M120 lane P preferences', () => {
     board.submit([submission('coding')], 0)
     const record = moveTaskToRole(
       board,
-      [staffedList('engineering', ['coder']), staffedList('review', ['reviewer'])],
+      [preferencePoolList('engineering', ['coder']), preferencePoolList('review', ['reviewer'])],
       undefined,
       'coding',
       'review',
@@ -83,7 +69,7 @@ describe('M120 lane P preferences', () => {
     expect(() =>
       moveTaskToRole(
         board,
-        [staffedList('engineering', ['coder']), staffedList('review', ['reviewer'])],
+        [preferencePoolList('engineering', ['coder']), preferencePoolList('review', ['reviewer'])],
         undefined,
         'coding',
         'review',
@@ -95,7 +81,7 @@ describe('M120 lane P preferences', () => {
     expect(() =>
       moveTaskToRole(
         waiting,
-        [staffedList('engineering', ['coder'])],
+        [preferencePoolList('engineering', ['coder'])],
         undefined,
         'coding',
         'review',
@@ -105,7 +91,7 @@ describe('M120 lane P preferences', () => {
     expect(() =>
       moveTaskToRole(
         waiting,
-        [staffedList('engineering', ['coder']), staffedList('review', [])],
+        [preferencePoolList('engineering', ['coder']), preferencePoolList('review', [])],
         undefined,
         'coding',
         'review',
