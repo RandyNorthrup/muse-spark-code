@@ -1407,7 +1407,7 @@ const REFERENCE_DETAILS: Readonly<
   ],
   acp: ['referenceBriefHelp'],
   // The estimator also exposes the exclusive whole-plan check in ESTIMATE_OPTIONS.
-  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp'],
+  estimator: ['estimateDiagnosticHelp', 'estimateCliHelp', 'referenceEstimateFacts'],
   // Includes Muse Code's permission-rule exceptions, shared with localized settings.
   permissions: ['referencePermissionLimits'],
   'native-agents': ['referenceAgentControls', 'referenceNativeAgentsConditions'],

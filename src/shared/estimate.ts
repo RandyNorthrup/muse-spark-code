@@ -25,7 +25,16 @@ const goalName = /* @__PURE__ */ z
   .check(z.minLength(1), z.maxLength(ESTIMATE_ID_MAX_CHARS), z.regex(/^[\w.-]+$/))
 const os = /* @__PURE__ */ z.enum(['windows', 'macos', 'linux'])
 const architecture = /* @__PURE__ */ z.enum(['x64', 'arm64'])
+const percentage = /* @__PURE__ */ z.number().check(z.nonnegative(), z.maximum(100))
+const positiveNumber = /* @__PURE__ */ z.number().check(z.positive())
+const settingOrigin = /* @__PURE__ */ z.enum(['default', 'configured'])
+const nonemptyText = /* @__PURE__ */ z.string().check(z.minLength(1))
+const boolean = /* @__PURE__ */ z.boolean()
+const unknownLiteral = /* @__PURE__ */ z.literal('unknown')
+const unknownUncertainty = /* @__PURE__ */ z.strictObject({ kind: unknownLiteral })
 const areUnique = (values: readonly string[]): boolean => new Set(values).size === values.length
+const areUniqueBy = <K extends string>(entries: readonly Record<K, unknown>[], key: K): boolean =>
+  new Set(entries.map((entry) => entry[key])).size === entries.length
 
 export const estimateGoalSchema = /* @__PURE__ */ z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('milestone'), milestoneId }),
@@ -35,7 +44,7 @@ export const estimateGoalSchema = /* @__PURE__ */ z.discriminatedUnion('kind', [
     numbers: z.array(positiveCount).check(
       z.minLength(1),
       z.maxLength(ESTIMATE_MAX_ITEMS),
-      z.refine((numbers) => new Set(numbers).size === numbers.length),
+      z.refine((candidates) => new Set(candidates).size === candidates.length),
     ),
   }),
   z.strictObject({
@@ -113,11 +122,11 @@ const hasSamplesForBasis = (evidence: { basis: string; samples: number }): boole
 function resourceQuantity(valueSchema: typeof hours) {
   return z.discriminatedUnion('status', [
     z.strictObject({
-      status: z.literal('unknown'),
+      status: unknownLiteral,
       value: z.null(),
-      basis: z.literal('unknown'),
+      basis: unknownLiteral,
       samples: z.literal(0),
-      uncertainty: z.strictObject({ kind: z.literal('unknown') }),
+      uncertainty: unknownUncertainty,
     }),
     z
       .strictObject({
@@ -191,6 +200,8 @@ const windowFields = {
 const usageWindowSchema = /* @__PURE__ */ z
   .discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('rolling'), periodSeconds: positiveCount, ...windowFields }),
+    // Current allowance only; its owner supplied no renewal period or future rate.
+    z.strictObject({ kind: z.literal('current'), ...windowFields }),
     // Repeat the reset's local time/day; clamp month-end to the last local day.
     z.strictObject({
       kind: z.literal('calendar'),
@@ -243,11 +254,11 @@ const reviewSchema = /* @__PURE__ */ z.discriminatedUnion('status', [
     .check(
       z.refine(
         (review) =>
-          areUnique(review.modules.map((module) => module.familyId)) &&
+          areUniqueBy(review.modules, 'familyId') &&
           review.modules.every(
             (module) =>
               module.strikes <= review.rounds &&
-              areUnique(module.classes.map((entry) => entry.class)) &&
+              areUniqueBy(module.classes, 'class') &&
               module.classes.every((entry) => entry.strikes <= module.strikes),
           ) &&
           areUnique(
@@ -267,7 +278,7 @@ export const machineClassSchema = /* @__PURE__ */ (() =>
   z.strictObject({
     id,
     vcpu: positiveCount,
-    ramGiB: z.number().check(z.positive()),
+    ramGiB: positiveNumber,
     os,
     architecture,
     gpu: z.optional(z.strictObject({ count: positiveCount, memoryGiB: hours })),
@@ -276,7 +287,7 @@ export const machineClassesSchema = /* @__PURE__ */ (() =>
   z.array(machineClassSchema).check(
     z.minLength(1),
     z.maxLength(ESTIMATE_MAX_ITEMS),
-    z.refine((classes) => areUnique(classes.map((entry) => entry.id))),
+    z.refine((classes) => areUniqueBy(classes, 'id')),
   ))()
 export type MachineClass = z.infer<typeof machineClassSchema>
 
@@ -287,37 +298,51 @@ const machineSchema = /* @__PURE__ */ z.strictObject({
   os,
   architecture,
   cores: positiveCount,
-  ramGiB: z.number().check(z.positive()),
+  ramGiB: positiveNumber,
   gpu: z.optional(z.strictObject({ count: positiveCount, memoryGiB: hours })),
   disks: z.array(diskHeadroomSchema).check(
     z.minLength(1),
     z.refine(
-      (disks) =>
-        areUnique(disks.map((disk) => disk.volumeId)) &&
-        areUnique(disks.flatMap((disk) => disk.roles)),
+      (disks) => areUniqueBy(disks, 'volumeId') && areUnique(disks.flatMap((disk) => disk.roles)),
     ),
   ),
   governorSlots: count,
   capacityByKind: z.array(z.strictObject({ kind: id, slots: count })),
   caps: z.strictObject({
     slots: count,
-    cpuPercent: z.number().check(z.nonnegative(), z.maximum(100)),
-    memoryPercent: z.number().check(z.nonnegative(), z.maximum(100)),
+    cpuPercent: percentage,
+    memoryPercent: percentage,
+    origin: z.optional(
+      z.strictObject({
+        source: id,
+        cpuPercent: settingOrigin,
+        memoryPercent: settingOrigin,
+      }),
+    ),
   }),
 })
 const accountSchema = /* @__PURE__ */ z.strictObject({
   // Opaque snapshot alias: never an e-mail address or provider credential.
   id,
   providerId: id,
-  requestsPerMinute: hours,
+  // Absent when no limit was read: the schedule records the requests check
+  // as unknown instead of passing it against a demand-derived number (M117
+  // C-M117-3R3). The local row has no rate until the account owner supplies one.
+  requestsPerMinute: z.optional(hours),
   tokensPerMinute: z.optional(hours),
+  // Initial admission is independent of whether lane percent demand is known.
+  availableAt: z.optional(instant),
   // Multiple hard windows may apply at once (for example daily and weekly).
   usageLimits: z.optional(
     z.array(usageWindowSchema).check(
       z.maxLength(ESTIMATE_MAX_ITEMS),
-      z.refine((limits) => areUnique(limits.map((limit) => limit.id))),
+      z.refine((limits) => areUniqueBy(limits, 'id')),
     ),
   ),
+  // Limits the owner stated but the schedule cannot convert (a percent window
+  // with unknown lane demand, a window without a captured period): shown
+  // verbatim in the forecast's unknown limits, never enforced, never dropped.
+  statedLimits: z.optional(z.array(nonemptyText).check(z.maxLength(ESTIMATE_MAX_ITEMS))),
 })
 
 export const fleetSnapshotSchema = /* @__PURE__ */ z
@@ -344,7 +369,7 @@ export const fleetSnapshotSchema = /* @__PURE__ */ z
     z.refine((fleet) => {
       const collections = [fleet.machines, fleet.roles, fleet.accounts, fleet.slots, fleet.ci]
       return (
-        collections.every((entries) => areUnique(entries.map((entry) => entry.id))) &&
+        collections.every((entries) => areUniqueBy(entries, 'id')) &&
         fleet.slots.every(
           (slot) =>
             fleet.machines.some((machine) => machine.id === slot.machineId) &&
@@ -353,7 +378,7 @@ export const fleetSnapshotSchema = /* @__PURE__ */ z
         ) &&
         fleet.machines.every(
           (machine) =>
-            areUnique(machine.capacityByKind.map((capacity) => capacity.kind)) &&
+            areUniqueBy(machine.capacityByKind, 'kind') &&
             machine.capacityByKind.every((capacity) => capacity.slots <= machine.governorSlots) &&
             fleet.slots.filter((slot) => slot.machineId === machine.id).length <=
               Math.min(machine.governorSlots, machine.caps.slots),
@@ -373,12 +398,12 @@ export const estimateLaneSchema = /* @__PURE__ */ z
     state: z.enum(['planned', 'running', 'merged']),
     dependencies: boundedIds.check(z.refine(areUnique)),
     // Workspace-relative, scrubbed file globs. Goal resolution owns affinity.
-    files: z.array(z.string().check(z.minLength(1))),
+    files: z.array(nonemptyText),
     affinity: z.strictObject({
       os: z.array(os),
       architectures: z.array(architecture),
       machineClassIds: boundedIds,
-      gpuRequired: z.boolean(),
+      gpuRequired: boolean,
     }),
     resources: z.strictObject({
       slots: resourceQuantity(positiveCount),
@@ -407,7 +432,7 @@ export const estimateLaneSchema = /* @__PURE__ */ z
         )
         .check(
           z.minLength(1),
-          z.refine((disks) => areUnique(disks.map((disk) => disk.role))),
+          z.refine((disks) => areUniqueBy(disks, 'role')),
         ),
       ciId: z.optional(id),
     }),
@@ -425,7 +450,7 @@ export const historyRecordSchema = /* @__PURE__ */ z
     laneId: id,
     kind: id,
     machineClassId: id,
-    estimatedHours: z.number().check(z.positive()),
+    estimatedHours: positiveNumber,
     actualHours: hours,
     review: reviewSchema,
     ciHours: z.optional(hours),
@@ -482,7 +507,7 @@ export const estimateInputsSchema = /* @__PURE__ */ z
     z.refine(
       (input) =>
         input.request.asOf === input.fleet.asOf &&
-        areUnique(input.lanes.map((lane) => lane.id)) &&
+        areUniqueBy(input.lanes, 'id') &&
         input.lanes.every(
           (lane) =>
             !lane.dependencies.includes(lane.id) &&
@@ -503,7 +528,7 @@ const scheduleEntrySchema = /* @__PURE__ */ z
     start: instant,
     end: instant,
     slackHours: hours,
-    critical: z.boolean(),
+    critical: boolean,
   })
   .check(z.refine((entry) => Date.parse(entry.end) >= Date.parse(entry.start)))
 const catalogPriceSchema = /* @__PURE__ */ z.strictObject({
@@ -532,7 +557,7 @@ const setupSchema = /* @__PURE__ */ z
     ),
     p50: instant,
     p90: instant,
-    meetsDeadline: z.boolean(),
+    meetsDeadline: boolean,
     provisioning: z.enum(['existing', 'adviceOnly', 'connected']),
   })
   .check(z.refine((setup) => Date.parse(setup.p90) >= Date.parse(setup.p50)))
@@ -564,18 +589,18 @@ to avoid infinite self-description. JSON Pointer makes coverage unambiguous.
 Shared with the lazy estimator entry so the walk cannot drift between them.
 */
 export function disclosureTargets(value: unknown, pointer = ''): Map<string, number | string> {
-  if (typeof value === 'number') return new Map([[pointer, value]])
-  if (typeof value === 'string' && /\/(?:p50|p90)$/.test(pointer))
-    return new Map([[pointer, value]])
   const targets = new Map<string, number | string>()
-  if (value !== null && typeof value === 'object') {
-    for (const [key, child] of Object.entries(value)) {
-      if (pointer === '' && key === 'disclosures') continue
-      const segment = key.replaceAll('~', '~0').replaceAll('/', '~1')
-      for (const [path, target] of disclosureTargets(child, `${pointer}/${segment}`))
-        targets.set(path, target)
+  function visit(child: unknown, path: string): void {
+    if (typeof child === 'number' || (typeof child === 'string' && /\/(?:p50|p90)$/.test(path))) {
+      targets.set(path, child)
+    } else if (child !== null && typeof child === 'object') {
+      for (const [key, nested] of Object.entries(child)) {
+        if (path === '' && key === 'disclosures') continue
+        visit(nested, `${path}/${key.replaceAll('~', '~0').replaceAll('/', '~1')}`)
+      }
     }
   }
+  visit(value, pointer)
   return targets
 }
 
@@ -587,7 +612,7 @@ export const estimateSectionSchema = /* @__PURE__ */ z
     asOf: instant,
     p50: instant,
     p90: instant,
-    seed: z.string().check(z.minLength(1)),
+    seed: nonemptyText,
     runs: positiveCount,
     schedule: z.array(scheduleEntrySchema),
     criticalPath: boundedIds,
@@ -596,7 +621,7 @@ export const estimateSectionSchema = /* @__PURE__ */ z
         kind: z.enum(['machines', 'slots', 'accountRate', 'ci', 'disk', 'criticalPath']),
         resourceId: z.optional(id),
         hoursSavedIfUnbounded: hours,
-        moreAgentsHelp: z.boolean(),
+        moreAgentsHelp: boolean,
       })
       .check(
         z.refine(
@@ -607,7 +632,7 @@ export const estimateSectionSchema = /* @__PURE__ */ z
       ),
     setups: z.array(setupSchema),
     // A requested setup can be feasible while the current fleet is refused.
-    currentRefusal: z.optional(z.string().check(z.minLength(1))),
+    currentRefusal: z.optional(nonemptyText),
     forecastFleet: z.optional(fleetSnapshotSchema),
     setupFleets: z.optional(
       z.array(z.strictObject({ kind: setupSchema.shape.kind, fleet: fleetSnapshotSchema })),
@@ -616,7 +641,7 @@ export const estimateSectionSchema = /* @__PURE__ */ z
       z.array(
         z.strictObject({
           setup: setupSchema.shape.kind,
-          unknownLimits: z.array(z.string().check(z.minLength(1))),
+          unknownLimits: z.array(nonemptyText),
         }),
       ),
     ),
@@ -634,7 +659,7 @@ export const estimateSectionSchema = /* @__PURE__ */ z
           samples: count,
           basis: z.enum(['uncalibratedPrior', 'fitted']),
           mu: z.number(),
-          sigma: z.number().check(z.positive()),
+          sigma: positiveNumber,
           reviewRoundRate: z.number().check(z.nonnegative(), z.maximum(1)),
           redesignRisk: z.number().check(z.nonnegative(), z.maximum(1)),
           firstPassFindingRate: z.optional(demand),
@@ -666,44 +691,48 @@ export const estimateSectionSchema = /* @__PURE__ */ z
     ),
   })
   .check(
-    z.refine(
-      (estimate) =>
+    z.refine((estimate) => {
+      const lanes = new Map(estimate.inputs.lanes.map((lane) => [lane.id, lane]))
+      const machines = new Map(
+        (estimate.forecastFleet ?? estimate.inputs.fleet).machines.map((machine) => [
+          machine.id,
+          machine,
+        ]),
+      )
+
+      return (
         Date.parse(estimate.p90) >= Date.parse(estimate.p50) &&
         Date.parse(estimate.p50) >= Date.parse(estimate.asOf) &&
         estimate.asOf === estimate.inputs.request.asOf &&
-        areUnique(estimate.schedule.map((entry) => entry.laneId)) &&
-        estimate.schedule.every((entry) =>
-          estimate.inputs.lanes.some((lane) => lane.id === entry.laneId),
-        ) &&
-        estimate.criticalPath.every((laneId) =>
-          estimate.inputs.lanes.some((lane) => lane.id === laneId),
-        ) &&
+        areUniqueBy(estimate.schedule, 'laneId') &&
+        estimate.criticalPath.every((laneId) => lanes.has(laneId)) &&
         areUnique(
           estimate.calibration.map(
             (row) => `${row.kind}:${row.machineClassId}:${row.engine ?? ''}`,
           ),
         ) &&
-        (estimate.risks ?? []).every((risk) =>
-          estimate.inputs.lanes.some((lane) => lane.id === risk.laneId),
-        ) &&
+        (estimate.risks ?? []).every((risk) => lanes.has(risk.laneId)) &&
         estimate.inputs.lanes.every((lane) =>
           estimate.calibration.some((row) => row.kind === lane.kind),
         ) &&
         estimate.schedule.every((entry) => {
-          const lane = estimate.inputs.lanes.find((lane) => lane.id === entry.laneId)
-          const machine = (estimate.forecastFleet ?? estimate.inputs.fleet).machines.find(
-            (machine) => machine.id === entry.machineId,
+          const lane = lanes.get(entry.laneId)
+          const machine = machines.get(entry.machineId)
+          return (
+            lane !== undefined &&
+            machine !== undefined &&
+            estimate.calibration.some(
+              (row) => row.kind === lane.kind && row.machineClassId === machine.classId,
+            )
           )
-          return estimate.calibration.some(
-            (row) => row.kind === lane?.kind && row.machineClassId === machine?.classId,
-          )
-        }),
-    ),
+        })
+      )
+    }),
     z.refine((estimate) => {
       if (estimate.inputs.lanes.length === 0) return true
       const targets = disclosureTargets(estimate)
       return (
-        areUnique(estimate.disclosures.map((disclosure) => disclosure.path)) &&
+        areUniqueBy(estimate.disclosures, 'path') &&
         estimate.disclosures.length === targets.size &&
         estimate.disclosures.every((disclosure) => {
           const value = targets.get(disclosure.path)

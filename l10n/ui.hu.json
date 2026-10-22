@@ -5920,5 +5920,15 @@
       "one": "{count} engedély",
       "other": "{count} engedély"
     }
-  }
+  },
+  "estimateNoAccountReader": "Ismeretlen fiókkorlátok itt: {source}.",
+  "estimateLimitsUnread": "Ismeretlen: a(z) {source} korlátai nincsenek beolvasva.",
+  "estimateRefillUnknown": "A jövőbeli feltöltési időszak és sebesség ismeretlen: {source}.",
+  "estimatePlanWindowUnknown": "{source}: {percent} felhasználva; {reset}; az időablak és a feladatok igénye ismeretlen.",
+  "estimatePercentDemandUnknown": "Ezen feladatok százalékos igénye ismeretlen: {source}; visszaállítás {reset}.",
+  "estimateResetUnknown": "visszaállítás ideje ismeretlen",
+  "estimateCiUnread": "A CI-kapacitás ismeretlen: nincs olvasó.",
+  "estimateSettingsDefault": "Alapértelmezett beállítások: {source}.",
+  "estimateSettingsConfigured": "Konfigurált beállítások: {source}.",
+  "referenceEstimateFacts": "Az előrejelzések megőrzik a megfigyelt fiókblokkolásokat, megnevezik a be nem olvasott kapacitást és megkülönböztetik az alapértelmezett és konfigurált küszöböket. A jövőbeli feltöltési sebességek jelentés hiányában ismeretlenek maradnak."
 }
