@@ -1,12 +1,19 @@
 // Durable replay evidence lives outside runtime folders and pairing/logout state.
-import { createHash, randomBytes } from 'node:crypto'
-import { mkdir, open, realpath, readdir, rename } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { open, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { handleIdentity, lstatIdentity, sameFile, type FileIdentity } from '../fs/fileIdentity'
+import { sameFile, type FileIdentity } from '../fs/fileIdentity'
 import { readProtectedJson } from '../fs/protectedJson'
+import {
+  checkPrivatePath,
+  provisionStoreDirectory,
+  replaceStoreFile,
+  syncStoreDirectory,
+  type ProtectedStoreStorage,
+} from '../fs/protectedStore'
 import type { DeviceStorageProtection } from './storageProtection'
-import { DEVICE_LIMITS, WORKSPACE_IDENTITY_ZERO } from '../../shared/constants'
+import { DEVICE_LIMITS } from '../../shared/constants'
 import {
   deviceDispatchSchema,
   deviceAttemptIdentitySchema,
@@ -26,9 +33,9 @@ export interface AttemptJournalOwner {
 }
 /** Windows requires an owner-only ACL and durable replacement binding; no fallback. */
 export type AttemptJournalProtection = DeviceStorageProtection
-interface JournalStorage {
-  readonly protection: AttemptJournalProtection | undefined
-  readonly platform: NodeJS.Platform
+
+function refuseJournal(): DeviceJournalError {
+  return new DeviceJournalError('storage')
 }
 export class DeviceJournalError extends Error {
   public constructor(
@@ -128,26 +135,10 @@ export class AttemptJournal {
     protection?: AttemptJournalProtection,
     platform: NodeJS.Platform = process.platform,
   ): Promise<AttemptJournal> {
-    const storage: JournalStorage = { protection, platform }
+    const storage: ProtectedStoreStorage = { protection, platform }
     try {
       await owner.assertOwner()
-      await checkPrivate(path.dirname(directory), true, storage)
-      const markerFile = path.join(
-        path.dirname(directory),
-        `.${path.basename(directory)}.initialized`,
-      )
-      const marker = await open(markerFile, 'wx', Number('0o600'))
-      try {
-        await protection?.secureFresh(markerFile, false)
-        await marker.writeFile(String(DEVICE_LIMITS.protocolVersion))
-        await marker.sync()
-      } finally {
-        await marker.close()
-      }
-      await syncDirectory(path.dirname(directory), storage)
-      await mkdir(directory, { mode: Number('0o700') })
-      await protection?.secureFresh(directory, true)
-      await checkPrivate(directory, true, storage)
+      await provisionStoreDirectory(directory, storage, refuseJournal)
       const file = path.join(directory, 'attempts.json')
       const handle = await open(file, 'wx', Number('0o600'))
       try {
@@ -160,11 +151,11 @@ export class AttemptJournal {
           }),
         )
         await handle.sync()
-        await syncDirectory(directory, storage)
+        await syncStoreDirectory(directory, storage, refuseJournal)
       } finally {
         await handle.close()
       }
-      await syncDirectory(path.dirname(directory), storage)
+      await syncStoreDirectory(path.dirname(directory), storage, refuseJournal)
       return await this.open(directory, owner, protection, platform)
     } catch (error) {
       throw new DeviceJournalError('storage', { cause: error })
@@ -176,11 +167,16 @@ export class AttemptJournal {
     protection?: AttemptJournalProtection,
     platform: NodeJS.Platform = process.platform,
   ): Promise<AttemptJournal> {
-    const storage: JournalStorage = { protection, platform }
+    const storage: ProtectedStoreStorage = { protection, platform }
     try {
       await owner.assertOwner()
-      const directoryIdentity = await checkPrivate(directory, true, storage)
-      const fileIdentity = await checkPrivate(path.join(directory, 'attempts.json'), false, storage)
+      const directoryIdentity = await checkPrivatePath(directory, true, storage, refuseJournal)
+      const fileIdentity = await checkPrivatePath(
+        path.join(directory, 'attempts.json'),
+        false,
+        storage,
+        refuseJournal,
+      )
       const journal = new AttemptJournal(directory, owner, directoryIdentity, fileIdentity, storage)
       const names = await readdir(directory)
       if (names.some((name) => name.endsWith('.stage'))) throw new DeviceJournalError('storage')
@@ -197,26 +193,31 @@ export class AttemptJournal {
     private readonly owner: AttemptJournalOwner,
     private readonly directoryIdentity: FileIdentity,
     private fileIdentity: FileIdentity,
-    private readonly storage: JournalStorage,
+    private readonly storage: ProtectedStoreStorage,
   ) {}
   private async assertStorage(): Promise<void> {
     if (this.hasFailed) throw new DeviceJournalError('storage')
     await this.owner.assertOwner()
-    if (!sameFile(this.directoryIdentity, await checkPrivate(this.directory, true, this.storage)))
+    if (
+      !sameFile(
+        this.directoryIdentity,
+        await checkPrivatePath(this.directory, true, this.storage, refuseJournal),
+      )
+    )
       throw new DeviceJournalError('storage')
   }
   private async readNow(): Promise<JournalState> {
     try {
       await this.assertStorage()
       const file = path.join(this.directory, 'attempts.json')
-      const sample = await checkPrivate(file, false, this.storage)
+      const sample = await checkPrivatePath(file, false, this.storage, refuseJournal)
       if (!sameFile(this.fileIdentity, sample)) throw new DeviceJournalError('storage')
       return await readProtectedJson({
         file,
         sample,
         parse: (raw: unknown) => stateSchema.parse(raw),
         validate: validateState,
-        refuse: () => new DeviceJournalError('storage'),
+        refuse: refuseJournal,
       })
     } catch (error) {
       this.hasFailed = true
@@ -229,33 +230,15 @@ export class AttemptJournal {
       validateState(parsed)
       const bytes = Buffer.from(JSON.stringify(parsed))
       await this.assertStorage()
-      const stage = path.join(
-        this.directory,
-        `.${randomBytes(DEVICE_LIMITS.idChars / 2).toString('hex')}.stage`,
-      )
-      const handle = await open(stage, 'wx', Number('0o600'))
-      try {
-        const { protection } = this.storage
-        await protection?.secureFresh(stage, false)
-        const stageIdentity = await checkPrivate(stage, false, this.storage)
-        if (!sameFile(stageIdentity, await handleIdentity(handle)))
-          throw new DeviceJournalError('storage')
-        await handle.writeFile(bytes)
-        await handle.sync()
-        await this.assertStorage()
-        const target = path.join(this.directory, 'attempts.json')
-        if (
-          !sameFile(stageIdentity, await checkPrivate(stage, false, this.storage)) ||
-          !sameFile(this.fileIdentity, await checkPrivate(target, false, this.storage))
-        )
-          throw new DeviceJournalError('storage')
-        if (protection === undefined) await rename(stage, target)
-        else await protection.replace(stage, target)
-        await syncDirectory(this.directory, this.storage)
-        this.fileIdentity = await handleIdentity(handle)
-      } finally {
-        await handle.close()
-      }
+      this.fileIdentity = await replaceStoreFile({
+        directory: this.directory,
+        name: 'attempts.json',
+        bytes,
+        storage: this.storage,
+        known: this.fileIdentity,
+        refuse: refuseJournal,
+        reassert: () => this.assertStorage(),
+      })
     } catch (error) {
       this.hasFailed = true
       throw new DeviceJournalError('storage', { cause: error })
@@ -474,67 +457,6 @@ export class AttemptJournal {
       // The atomic replacement includes the permanent tombstone before discarding full data.
       await this.writeNow(state)
     })
-  }
-}
-
-async function checkPrivate(file: string, isDirectory: boolean, storage: JournalStorage) {
-  const { protection, platform } = storage
-  const sample = await lstatIdentity(file)
-  if (
-    sample.isSymbolicLink() ||
-    (isDirectory ? !sample.isDirectory() : !sample.isFile()) ||
-    (!isDirectory && sample.nlink.toString() !== '1')
-  )
-    throw new DeviceJournalError('storage')
-  if (platform === 'win32') {
-    if (protection === undefined) throw new DeviceJournalError('storage')
-  } else if (
-    sample.uid !== BigInt(typeof process.getuid === 'function' ? process.getuid() : -1) ||
-    Boolean(sample.mode & BigInt(Number('0o077')))
-  ) {
-    throw new DeviceJournalError('storage')
-  }
-  if (isDirectory) {
-    const resolved = await realpath(file)
-    if (resolved.replaceAll('\\', '/') !== path.resolve(file).replaceAll('\\', '/'))
-      throw new DeviceJournalError('storage')
-    let ancestor = path.dirname(file)
-    let isRoot = false
-    while (!isRoot) {
-      const parent = await lstatIdentity(ancestor)
-      if (!parent.isDirectory() || parent.isSymbolicLink()) throw new DeviceJournalError('storage')
-      if (
-        platform !== 'win32' &&
-        ((parent.uid !== WORKSPACE_IDENTITY_ZERO &&
-          parent.uid !== BigInt(typeof process.getuid === 'function' ? process.getuid() : -1)) ||
-          (Boolean(parent.mode & BigInt(Number('0o022'))) &&
-            !(
-              parent.uid === WORKSPACE_IDENTITY_ZERO &&
-              Boolean(parent.mode & BigInt(Number('0o1000')))
-            )))
-      )
-        throw new DeviceJournalError('storage')
-      const next = path.dirname(ancestor)
-      isRoot = next === ancestor
-      ancestor = next
-    }
-    // One binding call reads the whole chain's DACLs (Windows has no mode bits).
-    await protection?.assertSafeAncestor(path.dirname(file))
-  }
-  await protection?.assertPrivate(file, isDirectory)
-  return sample
-}
-async function syncDirectory(directory: string, storage: JournalStorage): Promise<void> {
-  if (storage.protection !== undefined) {
-    await storage.protection.syncDirectory(directory)
-    return
-  }
-  if (storage.platform === 'win32') throw new DeviceJournalError('storage')
-  const handle = await open(directory, 'r')
-  try {
-    await handle.sync()
-  } finally {
-    await handle.close()
   }
 }
 

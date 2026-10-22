@@ -9,7 +9,7 @@ export interface ProtectedJsonRead<T> {
   readonly file: string
   readonly sample: FileIdentity
   parse(raw: unknown): T
-  validate(state: T): void
+  validate?(state: T): void
   refuse(): Error
 }
 
@@ -22,7 +22,7 @@ export async function readProtectedJson<T>(read: ProtectedJsonRead<T>): Promise<
     const raw: unknown = JSON.parse(text)
     const state = read.parse(raw)
     if (JSON.stringify(state) !== text) throw read.refuse()
-    read.validate(state)
+    read.validate?.(state)
     return state
   } finally {
     await handle.close()
