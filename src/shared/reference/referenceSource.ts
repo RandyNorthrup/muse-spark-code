@@ -77,6 +77,10 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   // documented per-provider bounds apply on every surface.
   ['retry-limits', ['vscode:modelApi']],
   ['native-deletion', ['vscode:museCode']],
+  // C-M106-3: the note-only feedback dialog and the served effort tiers,
+  // bound in the VS Code window (Muse Code backend).
+  ['native-feedback', ['vscode:museCode']],
+  ['effort', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['voice', ['vscode:museCode', 'vscode:modelApi']],
   ['output-schema', ['acp:modelApi']],
   ['fast-tier', ['vscode:modelApi', 'acp:modelApi']],
@@ -115,7 +119,6 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ),
   ...[
     'attachments',
-    'effort',
     'conversation-actions',
     'code-output',
     'code-intelligence',
@@ -264,6 +267,8 @@ export const REFERENCE_ACTION_FEATURES = {
   setEffort: 'chat',
   setThinking: 'chat',
   setFast: 'chat',
+  previewFeedback: 'native-feedback',
+  submitFeedback: 'native-feedback',
   setPermissionMode: 'chat',
   clearConversation: 'conversation-actions',
   compact: 'chat',

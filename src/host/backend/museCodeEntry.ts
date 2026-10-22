@@ -11,6 +11,7 @@ import { setUiText } from '../../shared/l10n/text'
 export {
   MuseCodeHost,
   museCodeEffortPort,
+  NATIVE_MUSE_CODE_FEATURE_PORTS,
   spawnAccountMspConnection,
 } from '../../core/backends/musecode/MuseCodeHost'
 // Deep SDK import, never the barrel (see MuseCodeHost.ts): the barrel's

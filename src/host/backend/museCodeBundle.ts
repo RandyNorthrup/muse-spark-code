@@ -17,6 +17,7 @@ export interface MuseCodeBundle {
   readonly installMuseCodeUiText: typeof MuseCodeEntry.installMuseCodeUiText
   readonly MuseCodeHost: typeof MuseCodeEntry.MuseCodeHost
   readonly museCodeEffortPort: typeof MuseCodeEntry.museCodeEffortPort
+  readonly NATIVE_MUSE_CODE_FEATURE_PORTS: typeof MuseCodeEntry.NATIVE_MUSE_CODE_FEATURE_PORTS
   readonly spawnAccountMspConnection: typeof MuseCodeEntry.spawnAccountMspConnection
   readonly spawnMspConnection: typeof MuseCodeEntry.spawnMspConnection
 }

@@ -307,10 +307,12 @@ export function processGitRunner(
 
 /**
 A failed git call's exit code, however the runner reported it: a
-`GitExitError` carries it in `exitCode`, which is -1 when a signal ended
-git (the runner's own sentinel, never a real exit code); a Node
+`GitExitError` carries it in `exitCode` (the runner records the -1
+sentinel, `GitExitError(code ?? -1, ...)`, when the call closes without an
+exit code, e.g. a signal kill — never a real exit code); a Node
 child-process error carries a numeric `code`. Undefined when the call
-produced no exit at all (git missing, a timeout, a capped buffer): never a
+produced no exit at all (git missing, never started, a spawn error, a
+timeout or abort recorded as its own refusal, a capped buffer): never a
 guess. A caller that acts on one specific code compares for that code and
 treats every other value, -1 included, as a failure.
 */

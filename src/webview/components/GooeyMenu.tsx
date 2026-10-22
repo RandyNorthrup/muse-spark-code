@@ -67,6 +67,7 @@ export function useRowMenu(
     open(undefined)
   }
   return {
+    opener: button,
     rowProps: { onContextMenu, onKeyDown },
     isOpen: origin !== undefined || quoteMenu !== null,
     close,

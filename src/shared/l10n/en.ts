@@ -173,6 +173,50 @@ export const EN = {
       'Muse Code subscription covers chat. This paid extra needs a stored Model API key: store one and try again.',
   },
   feedbackFailed: 'Could not submit feedback.',
+  feedbackUploaded: 'Feedback uploaded.',
+  // C-M106-3R2: the restored feedback dialog offers exactly what the 1.4.4
+  // capture certifies: a note with its classification. Files and the session
+  // record are never offered (record-attached receipts keep refusing), so
+  // the privacy line promises a note-only upload. Read only by the lazy
+  // dialog chunk, except the title, which also labels the turn-menu entry.
+  feedbackTitle: 'Send feedback to Muse Code',
+  feedbackClassification: 'Classification',
+  feedbackNote: 'Note',
+  feedbackPrivacy:
+    'Muse Code uploads your classification and note. No files or session record are attached.',
+  feedbackSend: 'Send feedback',
+  feedbackSending: 'Sending feedback…',
+  feedbackClassificationBug: 'Bug',
+  feedbackClassificationBadResult: 'Bad result',
+  feedbackClassificationGoodResult: 'Good result',
+  feedbackClassificationOther: 'Other',
+  // C-M106-3: the 1.4.4 capture certifies the note-only receipt only; a
+  // record-attached receipt refuses with this upstream request instead of
+  // reporting an uncertified outcome.
+  feedbackRecordUnsupported:
+    'This Muse Code version cannot verify a session-record feedback upload (upstream SDK request pending). The outcome is unknown.',
+  // C-M106-3R3 (RVCM1063 #1/#8): every outcome the receipt type can carry
+  // (the SDK's FeedbackSubmitOutcome taxonomy) gets its own sentence. Only
+  // `uploaded` reads as success; anything else settles the dialog as a
+  // failure with the sentence for what actually happened.
+  feedbackRecorded:
+    'Feedback was recorded without an upload receipt, so the upload is unconfirmed.',
+  feedbackAcceptedWithoutReceipt:
+    'Feedback was accepted but no receipt was returned, so the upload is unconfirmed.',
+  feedbackTrackingFailed: 'Feedback was sent but its delivery could not be tracked.',
+  feedbackTrackingUncertain: 'Feedback was sent but its delivery is uncertain.',
+  feedbackDark: 'Feedback is switched off in this version of Muse Code, so nothing was sent.',
+  feedbackDisabled: 'Feedback is disabled, so nothing was sent.',
+  feedbackNoCredential:
+    'No credential is stored, so the feedback was not sent. Sign in and try again.',
+  feedbackAuthRejected:
+    'The sign-in was rejected, so the feedback was not sent. Sign in again and retry.',
+  feedbackRateLimited: 'The feedback service is rate limited. Try again later.',
+  feedbackUnknownOutcome: 'The feedback upload ended with an unrecognized outcome ({outcome}).',
+  // C-M106-3R3 (RVCM1063 #2): the note stops at the protocol maximum, with
+  // a counter; a refused preview or submit settles the dialog with why.
+  feedbackNoteTooLong: 'The note is over the {max}-character limit. Shorten it and try again.',
+  feedbackNoteCounter: '{used} of {max}',
   // M102: the shared usage page; its full table is a separate lazy family.
   usagePageTitle: 'Usage & Cost',
   uploadsName: 'Uploaded Files',
@@ -4743,6 +4787,9 @@ export const EN = {
   execUnknownModel: 'This model is not available for this run.',
   execEffortUnavailable: 'This effort is not available for this model.',
   execFastUnavailable: 'Fast is not available for this model.',
+  // {tier}: a served effort tier outside the extension's vocabulary, by its catalogue name or description.
+  effortTierUnsupported:
+    '{tier} cannot be selected: the extension does not support this effort tier.',
   execTimedOut: 'The run reached its deadline.',
   execBudgetRefused: 'The next request exceeds the remaining budget.',
   // EXECPROV round 5: a budget refusal names both remedies with numbers. The

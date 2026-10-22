@@ -293,21 +293,21 @@ export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
 /**
- * Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
- * (PROVSPEND): an admin key can read a whole organisation, so it is never
- * stored where an inference read looks, and removing the provider removes it.
- */
+Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
+(PROVSPEND): an admin key can read a whole organisation, so it is never
+stored where an inference read looks, and removing the provider removes it.
+*/
 export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
 /** `providers usage` reports this many days back unless `--days n` says otherwise. */
 export const PROVIDER_SPEND_DAYS_DEFAULT = 30
 /** A spend report never spans more than a year plus a day. */
 export const PROVIDER_SPEND_DAYS_MAX = 366
 /**
- * The vendored models.dev price snapshot's date (PROVSPEND): the spend
- * reconciliation names it as the catalogue our estimate's prices come
- * from. Pinned by test against `vendor/models-dev/VENDOR.json`
- * (`fetchedAt`); bump both together when the snapshot refreshes.
- */
+The vendored models.dev price snapshot's date (PROVSPEND): the spend
+reconciliation names it as the catalogue our estimate's prices come
+from. Pinned by test against `vendor/models-dev/VENDOR.json`
+(`fetchedAt`); bump both together when the snapshot refreshes.
+*/
 export const MODELS_DEV_CATALOGUE_DATE = '2026-10-05'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
@@ -5090,6 +5090,9 @@ export type TaskRequest = (typeof TASK_REQUESTS)[number]
 export const CLARIFICATION_FORMAT = 'text'
 export const CLARIFICATION_MAX_CHARS = 500
 export const QUESTION_OUTCOME_CLARIFIED = 'clarified'
+// A feedback note (C-M106-3R2): free text with its classification, at most
+// this many characters, inside the MSP frame budget with room to spare.
+export const FEEDBACK_NOTE_MAX_CHARS = 2000
 
 // Questions that never block (M112, PLAN.md D92). These limits apply in
 // the process holding the session, on every interactive editor surface.
@@ -5446,11 +5449,15 @@ export const OUTPUT_DOCUMENT_SCHEME = 'muse-output'
 // first: the IDE server's warning names it.
 // `sessionRename` (1.4.8) lets the host say rename is unavailable (Windows)
 // up front; older hosts ignore unknown entries, so this stays safe there.
+// `feedback` is last: the 1.4.4 capture grants exactly what its client asks
+// for (sessionListStream, feedback), and the feedback dialog sends only
+// while it is granted.
 export const MSP_REQUESTED_CAPABILITIES = [
   'sessionMcp',
   'sessionListStream',
   'userShell',
   'sessionRename',
+  'feedback',
 ] as const
 export const MSP_USER_SHELL_CAPABILITY = 'userShell'
 // How the extension waits on `muse serve` (PLAN.md D25; the SDK has no
