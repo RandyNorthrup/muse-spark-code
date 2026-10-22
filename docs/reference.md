@@ -801,7 +801,9 @@ Manage the accounts of one provider: list, add, remove, order and thresholds. Cr
 
 Show or unlock machine-local developer options. Profile operations require a connected resource owner.
 
-Surfaces: acp:modelApi. Paid: no extra feature charge; model usage still applies.
+ACP native Meta requests select accounts at request boundaries. Headless --account-pool opts into pooling; account caps and shared budgets still bind.
+
+Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider)
 
@@ -4030,6 +4032,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --permission-mode <value>`: Choose how Muse asks before it acts. `{"type":"string","repeatable":false,"enum":["plan","acceptEdits"],"default":"plan","purpose":"permission-mode"}`
 - `exec: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false,"purpose":"model"}`
 - `exec: --account <value>`: --account &lt;id&gt; The account to use (auth set, exec). `{"type":"string","repeatable":false,"purpose":"account"}`
+- `exec: --account-pool`: --account-pool Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI. `{"type":"boolean","repeatable":false,"default":false,"purpose":"account-pool"}`
 - `exec: --effort <value>`: Choose how much effort Muse puts into each reply. `{"type":"string","repeatable":false,"enum":["minimal","low","medium","high","xhigh","max","ultra","none"],"purpose":"effort"}`
 - `exec: --fast`: --fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance. `{"type":"boolean","repeatable":false,"default":false,"purpose":"fast"}`
 - `exec: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text","purpose":"output"}`

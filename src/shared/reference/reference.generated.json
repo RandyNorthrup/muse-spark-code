@@ -1141,10 +1141,10 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#several-accounts-per-provider",
       "backends": ["modelApi"],
       "paid": false,
-      "surfaces": ["acp:modelApi"],
-      "details": [{ "ui": "referenceDeveloper" }],
+      "surfaces": ["vscode:modelApi", "acp:modelApi"],
+      "details": [{ "ui": "referenceDeveloper" }, { "ui": "referenceAccountRequests" }],
       "facts": {},
-      "editors": ["acp"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "permissions",
@@ -7500,6 +7500,18 @@
       "description": "--account <id>                    The account to use (auth set, exec).",
       "text": { "cli": "account" },
       "contract": { "type": "string", "repeatable": false, "purpose": "account" }
+    },
+    {
+      "route": "exec",
+      "name": "exec: --account-pool",
+      "description": "--account-pool                  Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI.",
+      "text": { "cli": "account-pool" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "default": false,
+        "purpose": "account-pool"
+      }
     },
     {
       "route": "exec",

@@ -84,17 +84,17 @@ const acpContext = {
   signal: new AbortController().signal,
 }
 
-// CM108ACC bound accounts in the terminal and in ACP on the Model API backend:
-// list, current, thresholds and per-account keys. Pooling, in-session
-// switching, the three settings and the editor's page stay unpublished.
+// RLM108 opened the account request certification: pooling rides the
+// explicit exec opt-in. In-session switching and the editor's page serve
+// through the same certified pool; isolated profiles stay unpublished.
 describe('CX1R4 F1 after CM108ACC: accounts are published where the code serves them', () => {
-  it('compact help prints the accounts usage line and offers no pooling', () => {
+  it('compact help prints the accounts usage line and the pooling opt-in', () => {
     const usage = formatAcpUsage(EN, 'muse-spark-code-acp')
     expect(usage).toContain(
       'Accounts: muse-spark-code-acp providers accounts list|add|remove|order|thresholds',
     )
     expect(usage).toContain('muse-spark-code-acp auth set --provider <id> --account <id>')
-    expect(usage).not.toMatch(/account-pool/)
+    expect(usage).toMatch(/--account-pool/)
   })
 
   it('released history archives the 0.17.0 accounts highlight', () => {

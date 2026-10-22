@@ -36,10 +36,13 @@ describe('feature catalogue details merge', () => {
   })
 
   it('publishes accounts with the developer detail beside the developer CLI route', () => {
-    expect(detailKeys('accounts')).toEqual(['referenceDeveloper'])
+    // RLM108 opened the account request certification, so the accounts
+    // feature carries the request-boundary detail beside the developer one.
+    expect(detailKeys('accounts')).toEqual(['referenceDeveloper', 'referenceAccountRequests'])
     const published = referenceModel()
     expect(published.features.find((feature) => feature.id === 'accounts')?.details).toEqual([
       { ui: 'referenceDeveloper' },
+      { ui: 'referenceAccountRequests' },
     ])
     expect(published.cli.some((command) => command.route === 'developer')).toBe(true)
   })
