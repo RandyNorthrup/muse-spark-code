@@ -2394,8 +2394,14 @@ still uses its verified family table; consuming catalog effort metadata
 is separate feature work. Lane REASONSHAPES (2026-10-12) consumes the
 `model/list` rows: the host reads each row's tiers and default through
 the `modelEfforts` port, the controller posts them per model, and the
-slider offers the model's own steps (UNVERIFIED row shape until a 1.4.x
-live capture lands). The original probe
+slider offers the model's own steps. Verified 2026-10-18 on Muse Code
+1.4.10 (`test/fixtures/muse-contributor/model-list-1.4.10.json`,
+RLTESTDRIVE item 8): `muse-spark-1.3` lists default `max`,
+`muse-spark-1.2` and the wonder models list `high`, and a new
+conversation starts on the row's own default (the owner's 0.19.0 drive
+saw the 1.3 session start at Max from actor `muse_spark_code`, which is
+the row's default, not a product choice); `DEFAULT_EFFORT` (`high`)
+stays the standing default where a row lists none. The original probe
 (`scratchpad/live-effort.ts`, one "Reply with OK" turn per tier per Standard
 model, contributor tiers skipped) is recorded in `docs/certification/m3.md`.
 Outcome: `muse-spark-1.3` completes turns at every wire tier (`none` …

@@ -1,12 +1,17 @@
 // Lane REASONSHAPES (META-G05): Muse Code's per-model effort metadata is
-// pure data in, pure data out. The row shape is UNVERIFIED until a 1.4.x
-// live capture lands (capture plan META-LIST); these tests pin the
-// conservative reading, not the wire.
+// pure data in, pure data out. The row shape was UNVERIFIED until the
+// 1.4.10 live capture landed (capture plan META-LIST,
+// test/fixtures/muse-contributor/model-list-1.4.10.json); the last case
+// pins the recorded rows, not the conservative reading.
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { defaultEffortFor } from '../../src/acp/agent'
 import {
+  modelListResultSchema,
   museCodeEffortPort,
   museModelEffortTiers,
   parseMuseCodeEffortInfo,
+  toModelSummary,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 
 describe('Muse Code per-model effort metadata', () => {
@@ -62,5 +67,21 @@ describe('Muse Code per-model effort metadata', () => {
     expect(museCodeEffortPort.modelEfforts.parseModel({ variants: ['high'] })).toEqual({
       variants: ['high'],
     })
+  })
+
+  it('a new session starts on the recorded row default: max for 1.3, high for 1.2 (RLTESTDRIVE item 8)', () => {
+    const raw: unknown = JSON.parse(
+      readFileSync(
+        new URL('../fixtures/muse-contributor/model-list-1.4.10.json', import.meta.url),
+        'utf8',
+      ),
+    )
+    const rows = modelListResultSchema.parse(raw).models
+    const models = rows.map((row) => toModelSummary(row, museCodeEffortPort.modelEfforts))
+    expect(models.find((model) => model.modelId === 'muse-spark-1.3')?.defaultEffort).toBe('max')
+    expect(models.find((model) => model.modelId === 'muse-spark-1.2')?.defaultEffort).toBe('high')
+    expect(defaultEffortFor(models, 'muse-spark-1.3')).toBe('max')
+    expect(defaultEffortFor(models, 'muse-spark-1.2')).toBe('high')
+    expect(defaultEffortFor(models, 'muse-spark-unknown')).toBe('high')
   })
 })

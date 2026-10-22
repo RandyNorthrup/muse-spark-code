@@ -1468,8 +1468,12 @@ export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]
   'muse-spark-1.3': EFFORT_LEVELS,
   'muse-spark-1.2': ['minimal', 'low', 'medium', 'high', 'xhigh'],
 }
-// `muse --help` documents `high` as the CLI's own default (verified 2026-09-21,
-// Muse Code 1.3.0); the extension starts there so the TUI and the panel agree.
+// The standing default where a model lists none of its own: `muse --help`
+// documents `high` as the CLI's global default (verified 2026-09-21, Muse
+// Code 1.3.0). A row's own default wins at session start (muse-spark-1.3
+// lists `max` on Muse Code 1.4.10,
+// test/fixtures/muse-contributor/model-list-1.4.10.json, RLTESTDRIVE
+// item 8), so the TUI, the session and the pill agree on the model's own.
 export const DEFAULT_EFFORT: EffortLevel = 'high'
 // Sent as the session default while the Thinking toggle is off.
 export const THINKING_OFF_EFFORT = 'none'
