@@ -16577,7 +16577,7 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ### RLMCPERA — MCP client for both protocol eras (D213)
 
-**Status 2026-10-22: building.** Recovery lane: the Model API backend's
+**Status 2026-10-22: built.** Recovery lane: the Model API backend's
 MCP client probes `server/discover` and falls back to `initialize`, and
 carries the version on every request to a modern server, on stdio and
 streamable HTTP (D213). The connector stays legacy-only (D213). Record:

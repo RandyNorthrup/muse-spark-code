@@ -312,6 +312,7 @@ export class McpServerPool implements McpToolSource {
     launch: McpLaunch,
     isCancelled: () => boolean,
     signal: AbortSignal,
+    log: CoreLogger = this.deps.log,
   ): Promise<McpTransport> {
     const references = mcpSecretReferences(launch)
     if (references.size > 0 && this.deps.vault === undefined) {
@@ -331,7 +332,7 @@ export class McpServerPool implements McpToolSource {
       return new McpStdioTransport(child, {
         name: spec.name,
         framing: launch.framing,
-        log: this.deps.log,
+        log,
       })
     }
     const guardedFetch = this.deps.vault?.fetchFor(spec.name, launch.url, launch.headers)
@@ -342,7 +343,7 @@ export class McpServerPool implements McpToolSource {
       url: launch.url,
       headers: launch.headers,
       fetch: guardedFetch ?? this.deps.fetch,
-      log: this.deps.log,
+      log,
     })
   }
 
@@ -400,7 +401,7 @@ export class McpServerPool implements McpToolSource {
     const verdict = await probeEra({
       name: spec.name,
       transport: launch.transport,
-      openProbe: () => this.transportFor(spec, launch, isCancelled, signal),
+      openProbe: () => this.transportFor(spec, launch, isCancelled, signal, SILENT_LOG),
       clientVersion: this.deps.clientVersion,
       ...(elicitation !== undefined && { elicitation }),
       log: this.deps.log,
