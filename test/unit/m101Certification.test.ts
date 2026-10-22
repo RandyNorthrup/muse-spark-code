@@ -10,7 +10,8 @@ describe('M101 T certification measurements', () => {
     const tool = toolDefinitions('linux').find((definition) => definition.name === 'edit_file')
     const bytes = JSON.stringify(tool)
     const hash = createHash('sha256').update(bytes).digest('hex')
-    expect(hash).toBe('fcde96bd829a336b5ca78aab6daf154fe1edaf3421bacfc0843b93660eb0e4a2')
+    // RLLIMITS' byte-range fields moved the measurement (m101-t.md's revision table).
+    expect(hash).toBe('a2be6849b966a189970141345d63ad72f660f725e61e65f58fe32e0c0437119b')
     const record = readFileSync(
       new URL('../../docs/certification/m101-t.md', import.meta.url),
       'utf8',
@@ -24,6 +25,6 @@ describe('M101 T certification measurements', () => {
           .slice(1, -1)
           .map((cell) => cell.trim()),
       )
-    expect(rows).toContainEqual(['FIXM101T', String(Buffer.byteLength(bytes)), hash])
+    expect(rows).toContainEqual(['RLLIMITS', String(Buffer.byteLength(bytes)), hash])
   })
 })
