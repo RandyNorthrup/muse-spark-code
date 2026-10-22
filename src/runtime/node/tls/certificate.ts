@@ -238,8 +238,8 @@ export async function issueNodeCertificate(
       privateKeyFile: NODE_TLS_KEY_FILE,
       fingerprint,
     }
-  } catch {
-    throw new Error(UI_TEXT.nodeErrors.unavailable)
+  } catch (error: unknown) {
+    throw new Error(UI_TEXT.nodeErrors.unavailable, { cause: error })
   } finally {
     await rm(staging.root, { recursive: true, force: true })
   }

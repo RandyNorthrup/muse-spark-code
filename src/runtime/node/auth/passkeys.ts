@@ -75,8 +75,8 @@ export class SimpleNodePasskeys implements NodePasskeyVerifier {
         failures: 0,
         disabled: false,
       })
-    } catch {
-      throw new Error(UI_TEXT.nodeErrors.unauthenticated)
+    } catch (error: unknown) {
+      throw new Error(UI_TEXT.nodeErrors.unauthenticated, { cause: error })
     }
   }
 
@@ -117,8 +117,8 @@ export class SimpleNodePasskeys implements NodePasskeyVerifier {
       if (!result.verified || !result.authenticationInfo.userVerified)
         throw new Error(UI_TEXT.nodeErrors.unauthenticated)
       return result.authenticationInfo.newCounter
-    } catch {
-      throw new Error(UI_TEXT.nodeErrors.unauthenticated)
+    } catch (error: unknown) {
+      throw new Error(UI_TEXT.nodeErrors.unauthenticated, { cause: error })
     }
   }
 }

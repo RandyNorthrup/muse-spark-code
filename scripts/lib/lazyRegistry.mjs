@@ -64,6 +64,12 @@ export const COMPUTED_SOURCE_LOADS = Object.freeze([
       'The adapter every deferred bundle loads through: its callers pass the path, and each names the file in a literal or a bundle-name constant the scan reads.',
   }),
   Object.freeze({
+    importer: 'src/runtime/node/bundle.ts',
+    call: 'createRequire(file)(file)',
+    reason:
+      'The node bundle loader: its caller passes the path, built from the NODE_BUNDLE_FILE bundle-name constant the scan reads.',
+  }),
+  Object.freeze({
     importer: 'src/core/providers/configured.ts',
     call: String.raw`import(pathToFileURL(options.catalogFile.replace(/\.json$/,'.js')).href)`,
     reason:

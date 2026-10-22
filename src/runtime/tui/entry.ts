@@ -27,7 +27,10 @@ export async function runLocalTui(deps: {
     deps.terminal.write(`${UI_TEXT.tuiUsage}\n`)
     return 2
   }
-  return await runTui({
+  // Socket binding failures are collected for one fixed line after the run;
+  // their raw text never reaches the terminal.
+  const failures: unknown[] = []
+  const code = await runTui({
     options: parsed.options,
     ink: deps.ink,
     terminal: deps.terminal,
@@ -39,6 +42,11 @@ export async function runLocalTui(deps: {
         signal: deps.signal,
         binding: deps.binding,
         receive,
+        report: (error: unknown) => {
+          failures.push(error)
+        },
       }),
   })
+  if (failures.length > 0) deps.terminal.write(`${UI_TEXT.tuiUnexpectedFailure}\n`)
+  return code
 }

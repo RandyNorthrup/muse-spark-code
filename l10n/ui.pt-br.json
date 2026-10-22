@@ -66,7 +66,8 @@
     "terminalOpened": "Terminal {id} aberto em {workspace}.",
     "terminalEnded": "O terminal {id} terminou com código de saída {code}.",
     "auditRetention": "O armazenamento de auditoria é limitado a {size} e mantido por {days}.",
-    "unofficial": "Este nó não é oficial e não é endossado pela Meta."
+    "unofficial": "Este nó não é oficial e não é endossado pela Meta.",
+    "unexpectedFailure": "O nó encontrou uma falha inesperada e continua funcionando."
   },
   "nodeErrors": {
     "invalidRequest": "A solicitação é inválida.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Uso: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "O renderizador de terminal não está instalado.",
   "tuiLineKeys": "Esc: parar tudo. /stop /chat /diff /tasks /status. Enter envia. Escolha uma aprovação pelo número; Enter sozinho nunca aprova.",
+  "tuiUnexpectedFailure": "O terminal encontrou uma falha inesperada e parou.",
   "companionVoiceCancel": "Cancelar",
   "companionVoiceFailed": "O ditado falhou ou foi recusado. Confira a permissão do microfone, o mecanismo escolhido e o orçamento diário e grave novamente. Uma solicitação paga já enviada ainda pode ser cobrada.",
   "companionVoiceFree": "Sistema operacional (grátis)",

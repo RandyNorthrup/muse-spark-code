@@ -66,7 +66,8 @@
     "terminalOpened": "已在 {workspace} 中打开终端 {id}。",
     "terminalEnded": "终端 {id} 已结束，退出代码为 {code}。",
     "auditRetention": "审计存储上限为 {size}，保留期限为 {days}。",
-    "unofficial": "此节点为非官方产品，未获得 Meta 认可。"
+    "unofficial": "此节点为非官方产品，未获得 Meta 认可。",
+    "unexpectedFailure": "节点发生意料之外的故障，但仍在继续运行。"
   },
   "nodeErrors": {
     "invalidRequest": "请求无效。",
@@ -108,6 +109,7 @@
   "tuiUsage": "用法：muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "终端渲染器尚未安装。",
   "tuiLineKeys": "Esc：停止全部。/stop /chat /diff /tasks /status。Enter 发送。按编号选择批准；只按 Enter 绝不会批准。",
+  "tuiUnexpectedFailure": "终端发生意料之外的故障，已停止。",
   "companionVoiceCancel": "取消",
   "companionVoiceFailed": "听写失败或被拒绝。请检查麦克风权限、所选引擎和每日预算，然后重新录音。已发送的付费请求仍可能产生费用。",
   "companionVoiceFree": "操作系统（免费）",

@@ -8,6 +8,11 @@ export interface NodeHealthPorts {
   keysNeeded(): boolean
 }
 
+/** Engine failures are bugs; every other probe failure means not-ready. */
+function isStorageFailure(error: unknown): boolean {
+  return !(error instanceof TypeError) && !(error instanceof RangeError)
+}
+
 /** The deployment binds this only on loopback; replies contain fixed status words. */
 export async function nodeHealth(
   route: '/livez' | '/readyz',
@@ -23,7 +28,9 @@ export async function nodeHealth(
     ports.state.read()
     await ports.state.files.write('health.probe', '')
     return { status: NODE_HEALTH_OK, word: 'ready' }
-  } catch {
+  } catch (error: unknown) {
+    // Every storage failure is not-ready; engine failures are bugs and surface.
+    if (!isStorageFailure(error)) throw error
     return { status: NODE_HEALTH_UNREADY, word: 'not-ready' }
   }
 }

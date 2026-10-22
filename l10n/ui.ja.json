@@ -66,7 +66,8 @@
     "terminalOpened": "{workspace} でターミナル {id} を開きました。",
     "terminalEnded": "ターミナル {id} は終了コード {code} で終了しました。",
     "auditRetention": "監査ストレージの上限は {size}、保持期間は {days} です。",
-    "unofficial": "このノードは非公式で、Meta の承認を受けていません。"
+    "unofficial": "このノードは非公式で、Meta の承認を受けていません。",
+    "unexpectedFailure": "ノードで予期しない障害が発生しましたが、動作を続けています。"
   },
   "nodeErrors": {
     "invalidRequest": "リクエストは無効です。",
@@ -108,6 +109,7 @@
   "tuiUsage": "使用方法: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "端末レンダラーがインストールされていません。",
   "tuiLineKeys": "Esc: すべて停止。/stop /chat /diff /tasks /status。Enterで送信。承認は番号で選択してください。Enterだけでは承認されません。",
+  "tuiUnexpectedFailure": "端末で予期しない障害が発生したため、停止しました。",
   "companionVoiceCancel": "キャンセル",
   "companionVoiceFailed": "音声入力に失敗したか拒否されました。マイクの権限、選択したエンジン、1日の予算を確認し、再録音してください。送信済みの有料リクエストには料金が発生する場合があります。",
   "companionVoiceFree": "OS（無料）",

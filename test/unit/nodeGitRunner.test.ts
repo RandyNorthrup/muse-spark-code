@@ -13,10 +13,11 @@ import {
 import path from 'node:path'
 import { tmpdir } from 'node:os'
 import { promisify } from 'node:util'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import { createNodeGitSnapshot } from '../../src/runtime/node/gitSnapshot'
 import { NodeClosedGitRunner, type NodeGitRunnerOptions } from '../../src/runtime/node/gitRunner'
+import { scripted } from './helpers/recordCalls'
 
 const runFile = promisify(execFile)
 const directories: string[] = []
@@ -33,8 +34,8 @@ async function setup() {
   const execPathOutput = await runFile('git', ['--exec-path'])
   const execPath = execPathOutput.stdout.trim()
   const files = new NodePrivateFiles(state)
-  const use = vi.fn(() => Promise.reject(new Error('test network not authorized')))
-  const publish = vi.fn(() => Promise.resolve())
+  const use = scripted(() => Promise.reject(new Error('test network not authorized')))
+  const publish = scripted(() => Promise.resolve())
   const options: NodeGitRunnerOptions = {
     files,
     workspaceRoot: workspaces,
@@ -146,8 +147,8 @@ describe('M110-N closed Git runner (native Linux receipt)', () => {
       { workspaceId: 'repo', paths: ['example.txt'] },
       new AbortController().signal,
     )
-    expect(publish).toHaveBeenCalledOnce()
-    expect(use).not.toHaveBeenCalled()
+    expect(publish.calls).toHaveLength(1)
+    expect(use.calls).toHaveLength(0)
   })
   it('H10 refuses object alternates, symlinks and service state inside a workspace', async () => {
     const { files, workspaces, repo } = await setup()

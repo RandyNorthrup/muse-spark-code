@@ -92,16 +92,33 @@ function decrypt(key: Uint8Array, item: EncryptedItem): Buffer {
   }
 }
 
+/** Sealed access, double initialize and dropped epochs are answered to the caller. */
+function isRoutineKeyStoreRefusal(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    [UI_TEXT.nodeErrors.conflict, UI_TEXT.nodeErrors.locked, UI_TEXT.nodeErrors.cancelled].includes(
+      error.message,
+    )
+  )
+}
+
 export class NodeInterimKeyStore implements SecretStore {
   private key: Uint8Array | undefined
   private record: NodeVaultRecord | undefined
   private epoch = 0
-  private readonly transactions = new NodeTransactions()
+  private readonly transactions: NodeTransactions
 
   constructor(
     private readonly files: NodePrivateFiles,
     private readonly codec: NodeVaultCodec,
-  ) {}
+    report: (error: unknown) => void,
+  ) {
+    // Passphrase refusals stay visible to the operator: typos are rare and
+    // guessing attacks must not pass silently.
+    this.transactions = new NodeTransactions((error: unknown) => {
+      if (!isRoutineKeyStoreRefusal(error)) report(error)
+    })
+  }
 
   private unlocked(): { key: Uint8Array; record: NodeVaultRecord } {
     if (this.key === undefined || this.record === undefined)

@@ -88,8 +88,10 @@ async function readBody(request: IncomingMessage): Promise<unknown> {
       new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(parts)),
     )
     return value
-  } catch {
-    throw new NodeListenerError('invalidRequest')
+  } catch (error: unknown) {
+    // Only the decoders throw here: malformed JSON or non-UTF-8 bytes.
+    if (!(error instanceof SyntaxError) && !(error instanceof TypeError)) throw error
+    throw new NodeListenerError('invalidRequest', { cause: error })
   }
 }
 
@@ -171,6 +173,9 @@ export class NodeListener {
       // Admission refusal is not a failed proof and cannot extend source backoff.
       if (error instanceof NodeListenerError && error.code === 'rateLimited') isFailed = false
       refuse(response, error)
+      // Protocol failures are answered above; anything else is a bug and surfaces.
+      if (error instanceof Error && error.name === 'AbortError') return
+      if (!(error instanceof NodeListenerError)) throw error
     } finally {
       clearTimeout(timeout)
       release?.(isFailed, hasAuthenticated)
@@ -242,8 +247,13 @@ export class NodeListener {
         try {
           guardNodeRequest(request, this.config, true)
           upgradeNodeTerminal(request, socket, head, this.options, this.lifetime.signal)
-        } catch {
-          socket.destroy()
+        } catch (error: unknown) {
+          // Guard and upgrade failures are NodeListenerErrors by construction.
+          if (error instanceof NodeListenerError) {
+            socket.destroy()
+          } else {
+            throw error
+          }
         }
       })
       // Plain HTTP and malformed TLS are refused on this same port, with no redirect.

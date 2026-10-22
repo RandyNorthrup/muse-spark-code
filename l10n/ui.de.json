@@ -66,7 +66,8 @@
     "terminalOpened": "Terminal {id} in {workspace} geöffnet.",
     "terminalEnded": "Terminal {id} mit Exitcode {code} beendet.",
     "auditRetention": "Der Auditspeicher ist auf {size} begrenzt und wird für {days} aufbewahrt.",
-    "unofficial": "Dieser Knoten ist inoffiziell und wird nicht von Meta unterstützt."
+    "unofficial": "Dieser Knoten ist inoffiziell und wird nicht von Meta unterstützt.",
+    "unexpectedFailure": "Der Knoten ist auf einen unerwarteten Fehler gestoßen und läuft weiter."
   },
   "nodeErrors": {
     "invalidRequest": "Die Anfrage ist ungültig.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Aufruf: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "Der Terminalrenderer ist nicht installiert.",
   "tuiLineKeys": "Esc: alles stoppen. /stop /chat /diff /tasks /status. Enter sendet. Genehmigungen per Zahl wählen; Enter allein genehmigt nie.",
+  "tuiUnexpectedFailure": "Das Terminal ist auf einen unerwarteten Fehler gestoßen und wurde angehalten.",
   "companionVoiceCancel": "Abbrechen",
   "companionVoiceFailed": "Diktat fehlgeschlagen oder abgelehnt. Prüfen Sie Mikrofonberechtigung, gewählte Erkennung und Tagesbudget, dann nehmen Sie erneut auf. Eine bereits gesendete kostenpflichtige Anfrage kann noch berechnet werden.",
   "companionVoiceFree": "Betriebssystem (kostenlos)",

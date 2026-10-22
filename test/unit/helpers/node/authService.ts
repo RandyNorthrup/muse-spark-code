@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
-import { vi } from 'vitest'
 import { NODE_CHALLENGE_KEY_BYTES, NODE_ZERO_DIGEST } from '../../../../src/shared/constants'
+import { recordCalls, scripted } from '../recordCalls'
 import { nodeStateSchema, type NodeAudit } from '../../../../src/shared/node'
 import type { NodeStateStore } from '../../../../src/runtime/node/state'
 import { NodePasskeyAuth } from '../../../../src/runtime/node/auth/service'
@@ -48,11 +48,13 @@ export function authFixture() {
     disabled: false,
   }
   const verifier = {
-    enroll: vi.fn(() => Promise.resolve({ ...key })),
-    assert: vi.fn(() => Promise.resolve(1)),
+    enroll: scripted(() => Promise.resolve({ ...key })),
+    assert: scripted(() => Promise.resolve(1)),
   }
-  const console = vi.fn<(line: string) => void>()
-  const lifecycle = { attached: vi.fn(), ended: vi.fn() }
+  const printed = recordCalls<[string]>()
+  const attached = recordCalls<[unknown]>()
+  const ended = recordCalls<[unknown]>()
+  const lifecycle = { attached: attached.fn, ended: ended.fn }
   const options = {
     state: store,
     clock,
@@ -60,7 +62,7 @@ export function authFixture() {
     rpId: 'home.local',
     origin: 'https://home.local:7443',
     verifier,
-    console,
+    console: printed.fn,
     lifecycle,
   }
   const auth = new NodePasskeyAuth(options)
@@ -70,8 +72,8 @@ export function authFixture() {
     store,
     audit,
     verifier,
-    console,
-    lifecycle,
+    console: printed,
+    lifecycle: { attached, ended },
     clock,
     advance: (ms: number) => {
       elapsed += ms
@@ -81,7 +83,7 @@ export function authFixture() {
       now += ms
     },
     code: () =>
-      console.mock.calls
+      printed.calls
         .findLast(([line]) => line.startsWith('One-time setup code: '))?.[0]
         .slice('One-time setup code: '.length) ?? '',
   }

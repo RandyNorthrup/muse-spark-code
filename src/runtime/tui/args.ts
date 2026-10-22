@@ -6,6 +6,16 @@ export interface TuiOptions {
   noColor: boolean
 }
 
+/** Option parsing fails with parseArgs TypeErrors. */
+function isParseArgsError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.name === 'TypeError' &&
+    'code' in error &&
+    typeof error.code === 'string'
+  )
+}
+
 /** T-LAUNCH plugs this strict subcommand parser into cliArgs without altering ACP. */
 export function parseTuiArgs(
   argv: readonly string[],
@@ -26,7 +36,9 @@ export function parseTuiArgs(
         noColor: values['no-color'] === true || env['NO_COLOR'] !== undefined,
       },
     }
-  } catch {
+  } catch (error: unknown) {
+    // Option parsing only throws parseArgs Errors; anything else surfaces.
+    if (!isParseArgsError(error)) throw error
     return { ok: false, reason: UI_TEXT.tuiUsage }
   }
 }

@@ -1,7 +1,8 @@
 import { nodeTempRoot, nodeNativeTest } from './helpers/nodeNative'
+import { recordCalls, scripted } from './helpers/recordCalls'
 import { mkdir, rm, symlink } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import {
   NodeProcessToolHost,
   type NodePty,
@@ -58,11 +59,13 @@ class TestPty implements NodePty {
   }
 }
 const directories: string[] = []
-async function setup(pty = new TestPty()) {
+async function setup() {
+  const pty = new TestPty()
   const dir = await nodeTempRoot('m110-tools-')
   directories.push(dir)
   await mkdir(path.join(dir, 'workspace'))
-  const open = vi.fn((_options: Parameters<NodePtyFactory['open']>[0]) => Promise.resolve(pty))
+  const open = scripted((_options: Parameters<NodePtyFactory['open']>[0]) => Promise.resolve(pty))
+  const reported = recordCalls<[unknown]>()
   const options: NodeToolHostOptions = {
     toolsUid: 1000,
     serviceUid: 1001,
@@ -72,8 +75,9 @@ async function setup(pty = new TestPty()) {
     toolsHome: dir,
     shell: process.execPath,
     pty: { open },
+    report: reported.fn,
   }
-  return { dir, pty, options, open, host: new NodeProcessToolHost(options) }
+  return { dir, pty, options, open, host: new NodeProcessToolHost(options), reported }
 }
 afterEach(async () => {
   for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true })
@@ -118,7 +122,7 @@ describe('M110-N tools process and terminal lifecycle', () => {
     },
   )
   it('H10 refuses unknown, untrusted and symlink-escaping workspaces before spawn', async () => {
-    const { host, options, dir, open } = await setup()
+    const { host, options, dir, open, reported } = await setup()
     await expect(
       host.openTerminal(
         'unknown',
@@ -162,10 +166,11 @@ describe('M110-N tools process and terminal lifecycle', () => {
         new AbortController().signal,
       ),
     ).rejects.toThrow()
-    expect(open).not.toHaveBeenCalled()
+    expect(open.calls).toHaveLength(0)
+    expect(reported.calls).toHaveLength(0)
   })
   it('H13 delivers output in order, awaits each acknowledgement and ends exactly once after output', async () => {
-    const { host, pty, open } = await setup()
+    const { host, pty, open, reported } = await setup()
     pty.push('first')
     pty.push('second')
     const received: NodeTerminalHostEvent[] = []
@@ -200,15 +205,16 @@ describe('M110-N tools process and terminal lifecycle', () => {
     await pty.closed.promise
     await host.closeTerminal(terminal.id)
     expect(received.filter((event) => event.type === 'terminalEnded')).toHaveLength(1)
-    expect(open.mock.calls[0]![0].env).toEqual({
+    expect(open.calls[0]![0].env).toEqual({
       PATH: '/usr/local/bin:/usr/bin:/bin',
       HOME: expect.any(String),
       LANG: 'C.UTF-8',
       TERM: 'xterm-256color',
     })
+    expect(reported.calls).toHaveLength(0)
   })
   it('H13 disconnect after opening disposes the PTY and labels the final exit lost', async () => {
-    const { host, pty } = await setup()
+    const { host, pty, reported } = await setup()
     const signal = new AbortController()
     const received: NodeTerminalHostEvent[] = []
     const ended = Promise.withResolvers<undefined>()
@@ -226,17 +232,48 @@ describe('M110-N tools process and terminal lifecycle', () => {
     await pty.closed.promise
     await ended.promise
     expect(received).toEqual([expect.objectContaining({ reason: 'lost' })])
+    expect(reported.calls).toHaveLength(0)
+  })
+  it('H13 a failing PTY close reports through dispose and the completion observer', async () => {
+    const { host, pty, reported } = await setup()
+    const signal = new AbortController()
+    await host.openTerminal(
+      'workspace',
+      { cols: 80, rows: 24 },
+      () => Promise.resolve(),
+      signal.signal,
+    )
+    pty.close = () => {
+      pty.finish(null)
+      return Promise.reject(new Error('test close failure'))
+    }
+    signal.abort()
+    // Dispose and the completion observer each see the teardown failure.
+    await expect.poll(() => reported.calls.length, { timeout: 1000 }).toBe(2)
+  })
+  it('H13 a failing PTY open reports while the caller receives the failure', async () => {
+    const { host, open, reported } = await setup()
+    open.use(() => Promise.reject(new Error('test open failure')))
+    await expect(
+      host.openTerminal(
+        'workspace',
+        { cols: 80, rows: 24 },
+        () => Promise.resolve(),
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow('test open failure')
+    expect(reported.calls).toHaveLength(1)
   })
   it('H13 cancellation during PTY creation disposes a late PTY before returning', async () => {
-    const { host, pty, open } = await setup()
+    const { host, pty, open, reported } = await setup()
     const started = Promise.withResolvers<undefined>()
     const release = Promise.withResolvers<TestPty>()
-    open.mockImplementation(() => {
+    open.use(() => {
       started.resolve(undefined)
       return release.promise
     })
     const signal = new AbortController()
-    const onEvent = vi.fn(() => Promise.resolve())
+    const onEvent = scripted(() => Promise.resolve())
     const opening = expect(
       host.openTerminal('workspace', { cols: 80, rows: 24 }, onEvent, signal.signal),
     ).rejects.toThrow()
@@ -245,11 +282,12 @@ describe('M110-N tools process and terminal lifecycle', () => {
     release.resolve(pty)
     await opening
     await pty.closed.promise
-    expect(onEvent).not.toHaveBeenCalled()
+    expect(onEvent.calls).toHaveLength(0)
+    expect(reported.calls).toHaveLength(0)
   })
   it('H09 oversized PTY output is never forwarded and disposes the terminal', async () => {
-    const { host, pty } = await setup()
-    const onEvent = vi.fn(() => Promise.resolve())
+    const { host, pty, reported } = await setup()
+    const onEvent = scripted(() => Promise.resolve())
     const terminal = await host.openTerminal(
       'workspace',
       { cols: 80, rows: 24 },
@@ -258,8 +296,9 @@ describe('M110-N tools process and terminal lifecycle', () => {
     )
     pty.push('x'.repeat(1_048_577))
     await pty.closed.promise
-    expect(onEvent).not.toHaveBeenCalled()
+    expect(onEvent.calls).toHaveLength(0)
     await expect(host.closeTerminal(terminal.id)).rejects.toThrow()
+    await expect.poll(() => reported.calls.length, { timeout: 1000 }).toBe(1)
   })
   nodeNativeTest('H09 real child output has a combined stdout and stderr cap', async () => {
     const { host } = await setup()
@@ -276,7 +315,7 @@ describe('M110-N tools process and terminal lifecycle', () => {
     ).rejects.toThrow()
   })
   it('H13 consumer rejection terminates the PTY; write/resize/close keep their bounds', async () => {
-    const { host, pty } = await setup()
+    const { host, pty, reported } = await setup()
     const terminal = await host.openTerminal(
       'workspace',
       { cols: 80, rows: 24 },
@@ -293,6 +332,7 @@ describe('M110-N tools process and terminal lifecycle', () => {
     await pty.closed.promise
     await expect(host.closeTerminal(terminal.id)).rejects.toThrow('test consumer rejection')
     await host.closeTerminal(terminal.id)
+    await expect.poll(() => reported.calls.length, { timeout: 1000 }).toBe(1)
   })
   nodeNativeTest('H08 stop cancels a real running child and waits for disposal', async () => {
     const { host } = await setup()

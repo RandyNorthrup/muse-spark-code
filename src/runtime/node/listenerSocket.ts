@@ -17,6 +17,7 @@ import {
   NODE_WS_TEXT,
   NODE_TERMINAL_FRAMES_PER_S,
   NODE_SIGNIN_BACKOFF_MS,
+  UI_TEXT,
 } from '../../shared/constants'
 import { nodeEventSchema, nodeTerminalClientFrameSchema, type NodeEvent } from '../../shared/node'
 import type { NodeSession } from '../../shared/nodeAuth'
@@ -75,6 +76,10 @@ export function upgradeNodeTerminal(
   )
     throw new NodeListenerError('forbidden')
 
+  // Unexpected socket failures reach the serve console; the peer only sees the close.
+  const report = (_error: unknown): void => {
+    options.print(UI_TEXT.nodeMessages.unexpectedFailure)
+  }
   const pending = new AbortController()
   let signal = AbortSignal.any([pending.signal, lifetime])
   let bearer: string | undefined
@@ -240,15 +245,20 @@ export function upgradeNodeTerminal(
           try {
             await previous
             await receive(bytes, opcode)
-          } catch {
+          } catch (error: unknown) {
+            // Any receive failure closes the socket; the queue absorbs it so later
+            // frames still settle, and unexpected failures are reported.
             close()
+            if (!(error instanceof NodeListenerError)) report(error)
           } finally {
             queuedBytes -= bytes.length
           }
         })()
       }
-    } catch {
+    } catch (error: unknown) {
+      // Any frame failure closes the socket; unexpected failures are reported.
       close()
+      if (!(error instanceof NodeListenerError)) report(error)
     }
   }
   socket.on('data', (chunk: unknown) => {

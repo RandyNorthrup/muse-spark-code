@@ -44,8 +44,11 @@ export type NodeListenerErrorCode =
   | 'rateLimited'
   | 'unavailable'
 export class NodeListenerError extends Error {
-  constructor(readonly code: NodeListenerErrorCode) {
-    super(UI_TEXT.nodeErrors[code])
+  constructor(
+    readonly code: NodeListenerErrorCode,
+    options?: { cause?: unknown },
+  ) {
+    super(UI_TEXT.nodeErrors[code], options)
   }
 }
 
@@ -97,9 +100,9 @@ export async function nodeAuthenticate(
     signal.throwIfAborted()
     if (session.ownerId !== ownerId) throw new NodeListenerError('unauthenticated')
     return session
-  } catch {
+  } catch (error: unknown) {
     // No verifier/account text or bearer leaves this boundary.
-    throw new NodeListenerError('unauthenticated')
+    throw new NodeListenerError('unauthenticated', { cause: error })
   }
 }
 

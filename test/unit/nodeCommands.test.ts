@@ -1,8 +1,8 @@
 import { nodeTempRoot, nodeNativeTest } from './helpers/nodeNative'
 import { createHash } from 'node:crypto'
-import { readFile, rm, stat } from 'node:fs/promises'
+import { readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseNodeArgs } from '../../src/runtime/node/args'
 import {
@@ -12,7 +12,9 @@ import {
 } from '../../src/runtime/node/main'
 import { NodeStateStore } from '../../src/runtime/node/state'
 import { nodeDataFolder } from '../../src/runtime/dataFolder'
-import { NODE_LOCK_FILE } from '../../src/shared/constants'
+import { NODE_LOCK_FILE, UI_TEXT } from '../../src/shared/constants'
+import { recordCalls } from './helpers/recordCalls'
+import { scripted } from './helpers/recordCalls'
 import { nodeDashboard } from './helpers/node/records'
 
 const directories: string[] = []
@@ -87,8 +89,10 @@ describe('M110-N node commands and isolated dispatch', () => {
     async () => {
       const { root, lines, deps, init } = await setup()
       expect(await runNodeCommand(init, deps)).toBe(0)
-      const store = new NodeStateStore(root)
+      const reread = recordCalls<[unknown]>()
+      const store = new NodeStateStore(root, reread.fn)
       const state = await store.load()
+      expect(reread.calls).toHaveLength(0)
       expect(state.config.listener).toBeNull()
       const code = lines.find((line) => line.startsWith('One-time setup code: '))?.split(': ', 2)[1]
       expect(code).toBeDefined()
@@ -102,6 +106,13 @@ describe('M110-N node commands and isolated dispatch', () => {
       await expect(stat(path.join(root, NODE_LOCK_FILE))).rejects.toThrow()
     },
   )
+  nodeNativeTest('H01 a corrupt state file fails init with one fixed operator line', async () => {
+    const { root, lines, deps, init } = await setup()
+    expect(await runNodeCommand(init, deps)).toBe(0)
+    await writeFile(path.join(root, 'state.v1.json'), 'not json')
+    await expect(runNodeCommand(init, deps)).rejects.toThrow()
+    expect(lines.filter((line) => line === UI_TEXT.nodeMessages.unexpectedFailure)).toHaveLength(1)
+  })
   nodeNativeTest(
     'H01 bind is selected only by init; missing production adapters explicitly refuse serve',
     async () => {
@@ -118,8 +129,10 @@ describe('M110-N node commands and isolated dispatch', () => {
         '192.168.1.9',
       ])
       await runNodeCommand(init, deps)
-      const store = new NodeStateStore(deps.root)
+      const reread = recordCalls<[unknown]>()
+      const store = new NodeStateStore(deps.root, reread.fn)
       const state = await store.load()
+      expect(reread.calls).toHaveLength(0)
       expect(state.config.listener).toEqual({ address: '192.168.1.9', port: 7443 })
       await expect(runNodeCommand(parseNodeArgs(['serve']), deps)).rejects.toThrow()
       await runNodeCommand(parseNodeArgs(['status']), deps)
@@ -132,7 +145,7 @@ describe('M110-N node commands and isolated dispatch', () => {
       await runNodeCommand(init, deps)
       const started = Promise.withResolvers<undefined>()
       const finish = Promise.withResolvers<undefined>()
-      const command = vi.fn(
+      const command = scripted(
         (
           action: 'status' | 'stop' | 'lock' | 'unlock',
           _input: Parameters<NodeServiceBinding['command']>[1],
@@ -153,12 +166,7 @@ describe('M110-N node commands and isolated dispatch', () => {
       await expect(runNodeCommand(parseNodeArgs(['status']), deps)).rejects.toThrow()
       for (const action of ['status', 'lock', 'unlock', 'stop'])
         await runNodeCommand(parseNodeArgs([action]), bound)
-      expect(command.mock.calls.map(([action]) => action)).toEqual([
-        'status',
-        'lock',
-        'unlock',
-        'stop',
-      ])
+      expect(command.calls.map(([action]) => action)).toEqual(['status', 'lock', 'unlock', 'stop'])
       finish.resolve(undefined)
       expect(await running).toBe(0)
     },
@@ -168,7 +176,7 @@ describe('M110-N node commands and isolated dispatch', () => {
     async () => {
       const { deps, init, root } = await setup()
       await runNodeCommand(init, deps)
-      const wipe = vi.fn(async (store: NodeStateStore) => {
+      const wipe = scripted(async (store: NodeStateStore) => {
         expect(store.read().config.label).toBe('Home')
         await store.files.write('keys.v1', '')
       })
@@ -177,9 +185,9 @@ describe('M110-N node commands and isolated dispatch', () => {
         binding: { serve: () => Promise.resolve(), command: () => Promise.resolve({}), wipe },
       }
       await expect(runNodeCommand(parseNodeArgs(['wipe']), bound)).rejects.toThrow()
-      expect(wipe).not.toHaveBeenCalled()
+      expect(wipe.calls).toHaveLength(0)
       expect(await runNodeCommand(parseNodeArgs(['wipe', '--confirm-wipe']), bound)).toBe(0)
-      expect(wipe).toHaveBeenCalledOnce()
+      expect(wipe.calls).toHaveLength(1)
       await expect(stat(root)).rejects.toThrow()
     },
   )

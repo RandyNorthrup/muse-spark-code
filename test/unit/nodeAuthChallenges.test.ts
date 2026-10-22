@@ -8,10 +8,11 @@ import {
 import { nodeChallengeTokenSchema } from '../../src/shared/nodeAuth'
 import { NodeChallenges } from '../../src/runtime/node/auth/challenges'
 
-function fixture(key = randomBytes(NODE_CHALLENGE_KEY_BYTES)) {
+function fixture() {
   let wall = 1000
   let mono = 0
   const clock = { now: () => wall, monotonicMs: () => mono }
+  const key = randomBytes(NODE_CHALLENGE_KEY_BYTES)
   const challenges = new NodeChallenges(clock, 'home.local', 'https://home.local:7443', key)
   return {
     challenges,
@@ -145,7 +146,7 @@ describe('H04/H05/H09 stateless authenticated one-use challenges', () => {
     for (let index = 0; index < 1000; index++) f.challenges.issue('signin')
     const consumed: unknown = Reflect.get(f.challenges, 'consumed')
     expect(consumed).toBeInstanceOf(Map)
-    if (!(consumed instanceof Map)) throw new Error('missing replay set')
+    if (!(consumed instanceof Map)) throw new TypeError('missing replay set')
     expect(consumed.size).toBe(0)
     expect(Reflect.has(f.challenges, 'pending')).toBe(false)
     const verified = f.challenges.verify(a.id, 'signin')

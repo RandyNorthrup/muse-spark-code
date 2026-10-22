@@ -32,7 +32,7 @@ const built: {
   certificate: '',
   port: 0,
   listener: undefined,
-  options: { ...fixture.options, methods: vi.fn(fixture.options.methods) },
+  options: { ...fixture.options },
 }
 
 async function vacantPort(): Promise<number> {
@@ -108,15 +108,14 @@ beforeAll(async () => {
         .toLowerCase(),
     },
   }
-  built.options = { ...built.options, methods: vi.fn(built.options.methods) }
   built.listener = new NodeListener(built.options)
   await built.listener.start()
 })
 beforeEach(() => {
-  fixture.request.mockReset().mockResolvedValue({ done: true })
-  vi.mocked(built.options.methods).mockClear()
-  fixture.verifier.verifyBearer.mockClear()
-  fixture.verifier.consumeStepUp.mockClear()
+  fixture.request.reset()
+  fixture.methods.calls.length = 0
+  fixture.verifier.verifyBearer.calls.length = 0
+  fixture.verifier.consumeStepUp.calls.length = 0
 })
 afterAll(async () => {
   await built.listener?.close()
@@ -180,6 +179,70 @@ async function status(...args: Parameters<typeof post>): Promise<number> {
   return response.status
 }
 
+// Feeds a huge body in small chunks and stops the moment the server refuses.
+// A single 2 MB write fills the client's send buffer while the server is
+// already answering 413, which surfaces as EPIPE on smaller loopback
+// buffers; chunking observes the same 413 without the write race.
+async function postHuge(
+  body: string,
+  headers: Record<string, string | undefined> = {},
+): Promise<number> {
+  const defaults: Record<string, string | undefined> = {
+    Host: `home.local:${String(built.port)}`,
+    Origin: `https://home.local:${String(built.port)}`,
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
+    Authorization: `Bearer ${nodeBearer}`,
+    'Content-Type': 'application/json',
+  }
+  const actual = Object.fromEntries(
+    Object.entries({ ...defaults, ...headers }).filter(([, value]) => value !== undefined),
+  )
+  return await new Promise<number>((resolve, reject) => {
+    let hasAnswered = false
+    const req = httpsRequest(
+      {
+        host: '127.0.0.1',
+        port: built.port,
+        servername: 'home.local',
+        ca: built.certificate,
+        path: '/node/stop',
+        method: 'POST',
+        headers: actual,
+        agent: false,
+      },
+      (response) => {
+        hasAnswered = true
+        response.resume()
+        req.destroy()
+        resolve(response.statusCode ?? 0)
+      },
+    )
+    req.on('error', (error) => {
+      if (!hasAnswered) reject(error)
+    })
+    const chunk = 64 * 1024
+    let offset = 0
+    const feed = (): void => {
+      if (hasAnswered) return
+      if (offset >= body.length) {
+        req.end()
+        return
+      }
+      try {
+        req.write(body.slice(offset, offset + chunk))
+      } catch (error) {
+        reject(error instanceof Error ? error : new Error('huge upload failed'))
+        return
+      }
+      offset += chunk
+      setImmediate(feed)
+    }
+    feed()
+  })
+}
+
 async function terminalSocket(origin: string): Promise<Duplex> {
   return await new Promise<Duplex>((resolve, reject) => {
     const req = httpsRequest({
@@ -230,10 +293,11 @@ describe('M110-N real selected-interface HTTPS listener', () => {
       })
       await retry.start()
       try {
-        fixture.request
-          .mockRejectedValueOnce(new NodeListenerError('rateLimited'))
-          .mockRejectedValueOnce(new NodeListenerError('rateLimited'))
-          .mockResolvedValueOnce({
+        const rateLimited = () => Promise.reject(new NodeListenerError('rateLimited'))
+        fixture.request.once(rateLimited)
+        fixture.request.once(rateLimited)
+        fixture.request.once(() =>
+          Promise.resolve({
             v: 1,
             id: 'console-enrollment',
             purpose: 'enroll',
@@ -242,7 +306,8 @@ describe('M110-N real selected-interface HTTPS listener', () => {
             challenge: 'a'.repeat(43),
             issuedAt: 0,
             expiresAt: 1000,
-          })
+          }),
+        )
         for (let count = 0; count < 2; count++) {
           const refused = await post('/node/auth/begin', '{"purpose":"signin"}', {}, port)
           expect(refused.status).toBe(429)
@@ -254,7 +319,7 @@ describe('M110-N real selected-interface HTTPS listener', () => {
           port,
         )
         expect(setup.status).toBe(200)
-        expect(fixture.request).toHaveBeenCalledTimes(3)
+        expect(fixture.request.calls).toHaveLength(3)
       } finally {
         await retry.close()
       }
@@ -275,7 +340,7 @@ describe('M110-N real selected-interface HTTPS listener', () => {
         })
       })
       expect(extra.destroyed).toBe(true)
-      expect(fixture.request).not.toHaveBeenCalled()
+      expect(fixture.request.calls).toHaveLength(0)
     } finally {
       for (const socket of held) socket.destroy()
     }
@@ -350,7 +415,7 @@ describe('M110-N real selected-interface HTTPS listener', () => {
       })
     })
     expect(Buffer.concat(received).toString()).not.toContain('HTTP/')
-    expect(fixture.request).not.toHaveBeenCalled()
+    expect(fixture.request.calls).toHaveLength(0)
   })
   nodeNativeTest(
     'H06/H07 exact guards refuse before authentication/body parsing and emit no CORS or cookies',
@@ -370,8 +435,8 @@ describe('M110-N real selected-interface HTTPS listener', () => {
         expect(response.headers['set-cookie']).toBeUndefined()
         expect(response.headers['cache-control']).toBe('no-store')
       }
-      expect(fixture.verifier.verifyBearer).not.toHaveBeenCalled()
-      expect(fixture.request).not.toHaveBeenCalled()
+      expect(fixture.verifier.verifyBearer.calls).toHaveLength(0)
+      expect(fixture.request.calls).toHaveLength(0)
     },
   )
   nodeNativeTest(
@@ -397,7 +462,7 @@ describe('M110-N real selected-interface HTTPS listener', () => {
       } finally {
         await closed.close()
       }
-      expect(fixture.request).not.toHaveBeenCalled()
+      expect(fixture.request.calls).toHaveLength(0)
     },
   )
   nodeNativeTest(
@@ -406,12 +471,12 @@ describe('M110-N real selected-interface HTTPS listener', () => {
       expect(
         await status('/node/stop', '{}', { 'Content-Length': String(NODE_HTTP_BODY_BYTES + 1) }),
       ).toBe(413)
-      const oversized = await post('/node/stop', `"${'x'.repeat(NODE_HTTP_BODY_BYTES)}"`)
-      expect(oversized.status).toBe(413)
-      const chunked = await post('/node/stop', `"${'x'.repeat(NODE_HTTP_BODY_BYTES)}"`, {
+      const oversized = await postHuge(`"${'x'.repeat(NODE_HTTP_BODY_BYTES)}"`)
+      expect(oversized).toBe(413)
+      const chunked = await postHuge(`"${'x'.repeat(NODE_HTTP_BODY_BYTES)}"`, {
         'Transfer-Encoding': 'chunked',
       })
-      expect(chunked.status).toBe(413)
+      expect(chunked).toBe(413)
       expect(await status('/node/stop', '{}', { 'Content-Encoding': 'gzip' })).toBe(400)
       expect(await status('/node/stop', '{"extra":1}')).toBe(400)
       expect(await status('/node/stop', 'malformed')).toBe(400)
@@ -419,10 +484,10 @@ describe('M110-N real selected-interface HTTPS listener', () => {
         'X-Padding': 'x'.repeat(NODE_HTTP_HEADER_BYTES),
       })
       expect(header.status).toBe(431)
-      expect(fixture.request).not.toHaveBeenCalled()
+      expect(fixture.request.calls).toHaveLength(0)
       const bad = { done: true } as const
       Object.defineProperty(bad, 'done', { value: false })
-      fixture.request.mockResolvedValueOnce(bad)
+      fixture.request.once(() => Promise.resolve(bad))
       expect(await status('/node/stop')).toBe(503)
     },
   )
@@ -430,12 +495,12 @@ describe('M110-N real selected-interface HTTPS listener', () => {
     const response = await post('/node/stop')
     expect(response.status).toBe(200)
     expect(response.body).toBe('{"done":true}')
-    expect(fixture.request).toHaveBeenCalledWith('node/stop', {}, expect.any(AbortSignal))
-    expect(built.options.methods).toHaveBeenCalledWith(
+    expect(fixture.request.calls).toContainEqual(['node/stop', {}, expect.any(AbortSignal)])
+    expect(fixture.methods.calls).toContainEqual([
       expect.objectContaining({ ownerId: 'owner' }),
       '127.0.0.1',
-    )
-    expect(fixture.verifier.consumeStepUp).not.toHaveBeenCalled()
+    ])
+    expect(fixture.verifier.consumeStepUp.calls).toHaveLength(0)
     expect(await status('/node/stop', '{}', {}, built.port, 'OPTIONS')).toBe(400)
     expect(await status('/node/stop', '{}', {}, built.port, 'GET')).toBe(400)
   })
@@ -443,24 +508,24 @@ describe('M110-N real selected-interface HTTPS listener', () => {
     'H07 the real TLS upgrade refuses foreign Origin and dispatches same-origin first-frame/input through the shared port',
     async () => {
       await expect(terminalSocket('https://evil.local')).rejects.toThrow()
-      expect(fixture.request).not.toHaveBeenCalled()
+      expect(fixture.request.calls).toHaveLength(0)
       const socket = await terminalSocket(`https://home.local:${String(built.port)}`)
       try {
         socket.write(maskedFrame({ type: 'auth', bearer: nodeBearer, terminalId: 'terminal-1' }))
         await vi.waitFor(() => {
-          expect(fixture.request).toHaveBeenCalledWith(
+          expect(fixture.request.calls).toContainEqual([
             'node/terminal/attach',
             { terminalId: 'terminal-1' },
             expect.any(AbortSignal),
-          )
+          ])
         })
         socket.write(maskedFrame({ type: 'input', data: 'synthetic' }))
         await vi.waitFor(() => {
-          expect(fixture.request).toHaveBeenCalledWith(
+          expect(fixture.request.calls).toContainEqual([
             'node/terminal/write',
             { terminalId: 'terminal-1', data: 'synthetic' },
             expect.any(AbortSignal),
-          )
+          ])
         })
       } finally {
         socket.destroy()

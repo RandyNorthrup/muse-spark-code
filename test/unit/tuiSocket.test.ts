@@ -43,7 +43,13 @@ async function waitForSocket(description: string, check: () => void): Promise<vo
       check()
       return
     } catch (error) {
-      if (Date.now() > deadline) throw error
+      if (Date.now() > deadline)
+        throw new Error(
+          `${description}: ${error instanceof Error ? error.message : String(error)}`,
+          {
+            cause: error,
+          },
+        )
       await new Promise((resolve) => setTimeout(resolve, 10))
     }
   }
@@ -67,24 +73,28 @@ async function socketFixture() {
     server.listen(endpoint, resolve)
   })
   if (!isWindows) await chmod(socketPath, 0o600)
+  const reported = recordCalls<[unknown]>()
   const start = (
     receive: (event: TuiEvent) => void = ignoreEvent,
     wire: TuiWireBinding = binding,
     signal: AbortSignal = new AbortController().signal,
-  ) => connectTuiSocket({ socketPath, uid: fixtureUid, binding: wire, receive, signal })
+    report: (error: unknown) => void = reported.fn,
+  ) => connectTuiSocket({ socketPath, uid: fixtureUid, binding: wire, receive, signal, report })
   return {
     dir,
     socketPath,
     endpoint,
     peer: () => accepted.at(-1),
     start,
+    reported,
     async open(
       receive: (event: TuiEvent) => void = ignoreEvent,
       wire: TuiWireBinding = binding,
       signal: AbortSignal = new AbortController().signal,
+      report: (error: unknown) => void = reported.fn,
     ) {
       const before = accepted.length
-      const connection = await start(receive, wire, signal)
+      const connection = await start(receive, wire, signal, report)
       await waitForSocket('peer accepted', () => {
         expect(accepted.length).toBeGreaterThan(before)
       })
@@ -229,6 +239,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
         }
       })
       expect(received.calls).toEqual([])
+      expect(f.reported.calls).toEqual([])
     },
   )
   it('decoder is mandatory and encoder output is capped', async () => {
@@ -246,6 +257,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
       },
       receive: ignoreEvent,
       signal: new AbortController().signal,
+      report: f.reported.fn,
     })
     const peerSocket = f.peer()
     expect(peerSocket).toBeDefined()
@@ -253,12 +265,14 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     peerSocket?.write('{}\n')
     await failure
     expect(seen).toEqual([{}])
+    expect(f.reported.calls).toHaveLength(1)
     const other = await connectTuiSocket({
       socketPath: f.socketPath,
       uid: fixtureUid,
       binding: { ...binding, encode: () => 'x'.repeat(TUI_LIMITS.frameBytes + 1) },
       receive: ignoreEvent,
       signal: new AbortController().signal,
+      report: f.reported.fn,
     })
     expect(() => {
       other.send({ type: 'stop', scope: 'all' })
@@ -274,6 +288,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
       binding,
       receive: ignoreEvent,
       signal: abort.signal,
+      report: f.reported.fn,
     })
     const failure = expect(connection.closed).rejects.toThrow(UI_TEXT.tuiDisconnected)
     abort.abort()
@@ -288,6 +303,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
         binding,
         receive: ignoreEvent,
         signal: abort.signal,
+        report: f.reported.fn,
       }),
     ).rejects.toThrow()
     const other = await f.open()
@@ -296,6 +312,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     expect(peerSocket).toBeDefined()
     peerSocket?.end()
     await ended
+    expect(f.reported.calls).toEqual([])
   })
   it('the lazy entry runs a complete local socket session with streaming output, explicit consent and Stop', async () => {
     const f = await socketFixture()
@@ -359,6 +376,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     })
     input.end()
     expect(await run).toBe(0)
+    expect(screen).not.toContain(UI_TEXT.tuiUnexpectedFailure)
     expect(screen).toContain('Agent: local reply')
     expect(screen.replaceAll('\u{1B}[?2004h', '').replaceAll('\u{1B}[?2004l', '')).not.toContain(
       '\u{1B}',
@@ -386,6 +404,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
       },
       receive: received.fn,
       signal: new AbortController().signal,
+      report: f.reported.fn,
     })
     const peerSocket = f.peer()
     expect(peerSocket).toBeDefined()
@@ -393,6 +412,46 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
       peerSocket?.write('{}\n')
     })
     expect(received.calls).toEqual([])
+    expect(f.reported.calls).toEqual([])
+  })
+  it('the lazy entry reports a binding failure once, without its raw text', async () => {
+    const f = await socketFixture()
+    const input = Object.assign(new PassThrough(), { isTTY: true })
+    const output = Object.assign(new PassThrough(), { isTTY: true })
+    const signals = new EventEmitter()
+    let screen = ''
+    output.on('data', (bytes: Buffer) => {
+      screen += bytes.toString()
+    })
+    const run = runLocalTui({
+      argv: ['--screen-reader'],
+      env: {},
+      socketPath: f.socketPath,
+      uid: fixtureUid,
+      signal: new AbortController().signal,
+      binding: {
+        ...binding,
+        decode: () => {
+          throw new Error('test binding failure with account label')
+        },
+      },
+      ink: undefined,
+      terminal: createTuiTerminal(input, output, signals),
+      table: EN,
+      locale: 'en',
+      now: () => 1000,
+    })
+    await waitForSocket('line keys shown', () => {
+      expect(screen).toContain(UI_TEXT.tuiLineKeys)
+    })
+    const peerSocket = f.peer()
+    expect(peerSocket).toBeDefined()
+    peerSocket?.write('{}\n')
+    expect(await run).toBe(1)
+    expect(screen).toContain(UI_TEXT.tuiUnexpectedFailure)
+    expect(screen).not.toContain('test binding failure')
+    input.destroy()
+    output.destroy()
   })
   it('validates outbound messages before encoding and never writes an oversized draft', async () => {
     const f = await socketFixture()

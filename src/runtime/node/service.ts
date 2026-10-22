@@ -22,13 +22,24 @@ export interface NodeServicePorts {
   createResources(signal: AbortSignal): Promise<NodeResources>
   /** A1 must invalidate its actual bearer/challenge state as well as the public list. */
   endSessions(): Promise<void>
+  /** Unexpected control/journal failures, fixed text at the presentation edge. */
+  report: (error: unknown) => void
+}
+
+// Locked access and dropped control epochs are answered to the caller.
+function isRoutineControlRefusal(error: unknown): boolean {
+  return (
+    (error instanceof Error && error.name === 'AbortError') ||
+    (error instanceof Error &&
+      [UI_TEXT.nodeErrors.locked, UI_TEXT.nodeErrors.cancelled].includes(error.message))
+  )
 }
 
 export class NodeService {
   private resources: { value: NodeResources; kill: NodeKillSwitch } | undefined
   private opening: AbortController | undefined
   private readonly lifetime = new AbortController()
-  private readonly transactions = new NodeTransactions()
+  private readonly transactions: NodeTransactions
   private locked = false
   private cleanupFailed = false
   private hasBooted = false
@@ -43,8 +54,11 @@ export class NodeService {
     private readonly ports: NodeServicePorts,
   ) {
     this.attendance = new NodeAttendance(ports.clock, state.read().ownerId)
-    this.attempts = new NodeAttempts(state.files, this.attendance)
-    this.keys = new NodeInterimKeyStore(state.files, ports.vaultCodec)
+    this.attempts = new NodeAttempts(state.files, this.attendance, ports.report)
+    this.keys = new NodeInterimKeyStore(state.files, ports.vaultCodec, ports.report)
+    this.transactions = new NodeTransactions((error: unknown) => {
+      if (!isRoutineControlRefusal(error)) ports.report(error)
+    })
   }
 
   private isUnavailable(): boolean {

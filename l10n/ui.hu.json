@@ -66,7 +66,8 @@
     "terminalOpened": "A(z) {id} terminál megnyílt itt: {workspace}.",
     "terminalEnded": "A(z) {id} terminál ezzel a kilépési kóddal zárult: {code}.",
     "auditRetention": "Az ellenőrzési napló tárhelykorlátja {size}, megőrzési ideje {days}.",
-    "unofficial": "Ez a csomópont nem hivatalos, és a Meta nem támogatja."
+    "unofficial": "Ez a csomópont nem hivatalos, és a Meta nem támogatja.",
+    "unexpectedFailure": "A csomópont váratlan hibába ütközött, de tovább fut."
   },
   "nodeErrors": {
     "invalidRequest": "A kérés érvénytelen.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Használat: muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "A terminál megjelenítője nincs telepítve.",
   "tuiLineKeys": "Esc: minden leállítása. /stop /chat /diff /tasks /status. Az Enter küld. Jóváhagyást számmal válasszon; az Enter önmagában sosem hagy jóvá.",
+  "tuiUnexpectedFailure": "A terminál váratlan hibába ütközött és leállt.",
   "companionVoiceCancel": "Mégse",
   "companionVoiceFailed": "A diktálás sikertelen vagy elutasított. Ellenőrizze a mikrofonengedélyt, a választott motort és a napi keretet, majd rögzítsen újra. A már elküldött fizetős kérésért még díjat számíthatnak fel.",
   "companionVoiceFree": "Operációs rendszer (ingyenes)",

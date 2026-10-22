@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { readFile } from 'node:fs/promises'
 import {
   NODE_AUDIT_MAX_BYTES,
@@ -38,6 +38,7 @@ import {
   nodeWorkspaceSchema,
   type NodeTerminalHostEvent,
 } from '../../src/shared/node'
+import { scripted } from './helpers/recordCalls'
 import { FakeNodeToolHost } from './helpers/node/toolHost'
 import {
   nodeAudit,
@@ -374,7 +375,7 @@ describe('home node records', () => {
     await expect(host.run(request, controller.signal)).rejects.toThrow('aborted')
     expect(host.requests).toEqual([request])
     await expect(host.run(request, new AbortController().signal)).rejects.toThrow('no scripted')
-    const onEvent = vi.fn(() => Promise.resolve())
+    const onEvent = scripted(() => Promise.resolve())
     const signal = new AbortController().signal
     expect(() => host.openTerminal('unknown', { cols: 80, rows: 24 }, onEvent, signal)).toThrow(
       'workspace',
@@ -441,7 +442,14 @@ describe('home node records', () => {
       observer,
       controller.signal,
     )
-    const remove = vi.spyOn(controller.signal, 'removeEventListener')
+    type Remove = typeof controller.signal.removeEventListener
+    const inner: Remove = controller.signal.removeEventListener.bind(controller.signal)
+    const removed: unknown[][] = []
+    const wrapped: Remove = (...args: Parameters<Remove>): void => {
+      removed.push(args)
+      inner(...args)
+    }
+    controller.signal.removeEventListener = wrapped
     controller.abort()
     await Promise.resolve()
     await host.closeTerminal(id)
@@ -449,7 +457,7 @@ describe('home node records', () => {
       { type: 'terminalEnded', terminalId: id, exitCode: null, reason: 'lost' },
     ])
     expect(host.terminals.size).toBe(0)
-    expect(remove).toHaveBeenCalledWith('abort', expect.any(Function))
+    expect(removed).toContainEqual(['abort', expect.any(Function)])
     await expect(
       host.openTerminal('workspace-1', { cols: 80, rows: 24 }, observer, controller.signal),
     ).rejects.toThrow('aborted')
@@ -478,7 +486,7 @@ describe('home node records', () => {
   it('bounds queued PTY output and requires scripts to wait for acknowledgement', async () => {
     const host = new FakeNodeToolHost(new Set(['workspace-1']))
     const ack = Promise.withResolvers<undefined>()
-    const onEvent = vi.fn(() => ack.promise)
+    const onEvent = scripted(() => ack.promise)
     const { id } = await host.openTerminal(
       'workspace-1',
       { cols: 80, rows: 24 },
@@ -492,7 +500,7 @@ describe('home node records', () => {
     await output
     await host.outputTerminal(id, 'after acknowledgement')
     await host.closeTerminal(id)
-    expect(onEvent).toHaveBeenCalledTimes(3)
+    expect(onEvent.calls).toHaveLength(3)
     expect(host.terminals.size).toBe(0)
   })
   it('versioned JSON schema documents match their canonical parsers', async () => {

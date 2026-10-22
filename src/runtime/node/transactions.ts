@@ -1,7 +1,11 @@
 /** Serialize private writes/control changes without poisoning later requests
- * after a refusal. The caller still receives the original failure. */
+after a refusal. The caller still receives the original failure, and report
+sees it too, so journal failures reach the operator. Each owner filters its
+own routine refusals before reporting. */
 export class NodeTransactions {
   private tail: Promise<unknown> = Promise.resolve()
+
+  constructor(private readonly report: (error: unknown) => void) {}
 
   enqueue<T>(work: () => Promise<T>): Promise<T> {
     const previous = this.tail
@@ -12,8 +16,9 @@ export class NodeTransactions {
     this.tail = (async () => {
       try {
         await result
-      } catch {
-        /* Only the queue consumes the rejection; result remains rejected. */
+      } catch (error: unknown) {
+        // The caller owns the failure; the report keeps the journal observable.
+        this.report(error)
       }
     })()
     return result

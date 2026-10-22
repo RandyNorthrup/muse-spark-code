@@ -52,8 +52,10 @@ export function createTuiTerminal(
         }
         try {
           output.write('', finish)
-        } catch {
-          finish(new Error(UI_TEXT.tuiDisconnected))
+        } catch (error: unknown) {
+          // A synchronous probe failure rejects the flush with its real cause.
+          clearTimeout(timer)
+          throw error
         }
       })
     },

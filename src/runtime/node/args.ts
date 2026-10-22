@@ -19,6 +19,16 @@ export interface NodeCommand {
 }
 
 /** No key, passphrase, bearer or code can enter an argument or environment option. */
+/** Usage failures are invalid requests, bad option values or option-parser Errors. */
+export function isUsageError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === UI_TEXT.nodeErrors.invalidRequest ||
+      error.name === 'ZodError' ||
+      (error.name === 'TypeError' && 'code' in error && typeof error.code === 'string'))
+  )
+}
+
 export function parseNodeArgs(argv: readonly string[]): NodeCommand {
   const { values, positionals } = parseArgs({
     args: [...argv],

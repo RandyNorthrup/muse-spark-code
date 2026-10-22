@@ -99,6 +99,7 @@ export const EN = {
     terminalEnded: 'Terminal {id} ended with exit code {code}.',
     auditRetention: 'Audit storage is capped at {size} and retained for {days}.',
     unofficial: 'This node is unofficial and is not endorsed by Meta.',
+    unexpectedFailure: 'The node hit an unexpected failure and kept running.',
   },
   nodeErrors: {
     invalidRequest: 'The request is invalid.',
@@ -143,6 +144,7 @@ export const EN = {
   tuiRendererMissing: 'The terminal renderer is not installed.',
   tuiLineKeys:
     'Esc: Stop all. /stop /chat /diff /tasks /status. Enter sends. Choose an approval by number; Enter alone never approves.',
+  tuiUnexpectedFailure: 'The terminal hit an unexpected failure and stopped.',
   companionVoiceCancel: 'Cancel',
   companionVoiceFailed:
     'Dictation failed or was refused. Check microphone permission, the selected engine and the daily budget, then record again. A paid request already sent may still be charged.',

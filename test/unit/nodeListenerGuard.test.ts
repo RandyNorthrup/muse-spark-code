@@ -149,9 +149,9 @@ describe('M110-N listener guards', () => {
     const signal = new AbortController().signal
     await expect(nodeAuthenticate(undefined, nodeBearer, 'owner', signal)).rejects.toThrow()
     await expect(nodeAuthenticate(verifier, '', 'owner', signal)).rejects.toThrow()
-    expect(verifier.verifyBearer).not.toHaveBeenCalled()
+    expect(verifier.verifyBearer.calls).toHaveLength(0)
     await expect(nodeAuthenticate(verifier, nodeBearer, 'other', signal)).rejects.toThrow()
-    verifier.verifyBearer.mockRejectedValueOnce(new Error('synthetic account detail'))
+    verifier.verifyBearer.once(() => Promise.reject(new Error('synthetic account detail')))
     await expect(nodeAuthenticate(verifier, nodeBearer, 'owner', signal)).rejects.toThrow('Sign in')
     expect(await nodeAuthenticate(verifier, nodeBearer, 'owner', signal)).toEqual(nodeSession())
   })
@@ -222,7 +222,7 @@ describe('M110-N listener guards', () => {
     const dispatch = (input: unknown) =>
       dispatchNodeMethod('node/maker/action', input, nodeSession(), ports, signal)
     await expect(dispatch({ ...params, payload: '{"angle":2}' })).rejects.toThrow()
-    expect(fixture.verifier.consumeStepUp).not.toHaveBeenCalled()
+    expect(fixture.verifier.consumeStepUp.calls).toHaveLength(0)
     for (const invalid of [
       { ...proof, action: 'terminal.open' as const },
       { ...proof, sessionId: 'other' },
@@ -230,25 +230,24 @@ describe('M110-N listener guards', () => {
       { ...proof, expiresAt: 1000 },
       { ...proof, verifiedAt: 1001 },
     ]) {
-      fixture.verifier.consumeStepUp.mockResolvedValueOnce(invalid)
+      fixture.verifier.consumeStepUp.once(() => Promise.resolve(invalid))
       await expect(dispatch(params)).rejects.toThrow()
     }
-    expect(fixture.request).not.toHaveBeenCalled()
-    fixture.verifier.consumeStepUp
-      .mockResolvedValueOnce(proof)
-      .mockRejectedValue(new Error('consumed'))
+    expect(fixture.request.calls).toHaveLength(0)
+    fixture.verifier.consumeStepUp.once(() => Promise.resolve(proof))
+    fixture.verifier.consumeStepUp.use(() => Promise.reject(new Error('consumed')))
     await expect(dispatch(params)).resolves.toEqual({ done: true })
     await expect(dispatch(params)).rejects.toThrow()
-    expect(fixture.request).toHaveBeenCalledTimes(1)
+    expect(fixture.request.calls).toHaveLength(1)
     await dispatchNodeMethod('node/stop', {}, nodeSession(), ports, signal)
     await dispatchNodeMethod('node/stop', {}, { ...nodeSession(), id: 'another' }, ports, signal)
-    expect(fixture.verifier.consumeStepUp).toHaveBeenCalledTimes(7)
+    expect(fixture.verifier.consumeStepUp.calls).toHaveLength(7)
     await expect(
       dispatchNodeMethod('node/stop', {}, nodeSession(), { ...ports, verifier: undefined }, signal),
     ).rejects.toThrow()
     const invalidResult = { done: true } as const
     Object.defineProperty(invalidResult, 'done', { value: false })
-    fixture.request.mockResolvedValueOnce(invalidResult)
+    fixture.request.once(() => Promise.resolve(invalidResult))
     await expect(
       dispatchNodeMethod('node/stop', {}, nodeSession(), ports, signal),
     ).rejects.toThrow()

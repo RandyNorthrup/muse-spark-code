@@ -554,6 +554,15 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'node.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'NODE_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  { file: 'nodeAuth.js', side: 'unreached', requestedBy: [] },
+  { file: 'nodeAuthPage.js', side: 'unreached', requestedBy: [] },
+  {
     file: 'pageWorker.js',
     side: 'both',
     requestedBy: [

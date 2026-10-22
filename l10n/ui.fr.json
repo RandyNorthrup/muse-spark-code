@@ -66,7 +66,8 @@
     "terminalOpened": "Terminal {id} ouvert dans {workspace}.",
     "terminalEnded": "Le terminal {id} s’est terminé avec le code de sortie {code}.",
     "auditRetention": "Le stockage d’audit est limité à {size} et conservé pendant {days}.",
-    "unofficial": "Ce nœud n’est pas officiel et n’est pas approuvé par Meta."
+    "unofficial": "Ce nœud n’est pas officiel et n’est pas approuvé par Meta.",
+    "unexpectedFailure": "Le nœud a rencontré une erreur inattendue et continue de fonctionner."
   },
   "nodeErrors": {
     "invalidRequest": "La requête est invalide.",
@@ -108,6 +109,7 @@
   "tuiUsage": "Utilisation : muse-spark-code-acp tui [--screen-reader] [--no-color]",
   "tuiRendererMissing": "Le moteur de rendu du terminal n’est pas installé.",
   "tuiLineKeys": "Esc : tout arrêter. /stop /chat /diff /tasks /status. Enter envoie. Choisissez une autorisation par numéro ; Enter seul n’autorise jamais.",
+  "tuiUnexpectedFailure": "Le terminal a rencontré une erreur inattendue et s’est arrêté.",
   "companionVoiceCancel": "Annuler",
   "companionVoiceFailed": "La dictée a échoué ou a été refusée. Vérifiez l’autorisation du microphone, le moteur choisi et le budget quotidien, puis enregistrez à nouveau. Une demande payante déjà envoyée peut encore être facturée.",
   "companionVoiceFree": "Système d’exploitation (gratuit)",
