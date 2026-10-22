@@ -81,21 +81,24 @@ describe('sealed at boot', () => {
     const sealed = sealNode({ state: 'open', nodeId: 'node-a' })
     expect(sealed).toEqual({ state: 'sealed' })
     const grant = authorizeUnseal('node-a', Buffer.from(approver.privateKey, 'base64'))
-    expect(unsealNode(sealed, grant, [approver.publicKey])).toEqual({
+    expect(unsealNode('node-a', sealed, grant, [approver.publicKey])).toEqual({
       state: 'open',
       nodeId: 'node-a',
     })
-    expect(() => unsealNode(sealed, grant, [stranger.publicKey])).toThrow(
+    expect(() => unsealNode('node-a', sealed, grant, [stranger.publicKey])).toThrow(
       'this approver is not paired',
     )
+    expect(() => unsealNode('node-b', sealed, grant, [approver.publicKey])).toThrow(
+      'this unseal names another node',
+    )
     const secondApprover = authorizeUnseal('node-a', Buffer.from(stranger.privateKey, 'base64'))
-    expect(unsealNode(sealed, secondApprover, [stranger.publicKey])).toEqual({
+    expect(unsealNode('node-a', sealed, secondApprover, [stranger.publicKey])).toEqual({
       state: 'open',
       nodeId: 'node-a',
     })
-    expect(() => unsealNode(sealed, { ...grant, nodeId: 'node-b' }, [approver.publicKey])).toThrow(
-      'this unseal signature is wrong',
-    )
+    expect(() =>
+      unsealNode('node-b', sealed, { ...grant, nodeId: 'node-b' }, [approver.publicKey]),
+    ).toThrow('this unseal signature is wrong')
 
     const dataKey = randomBytes(32)
     const kek = randomBytes(32)

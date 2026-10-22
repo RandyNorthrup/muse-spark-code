@@ -54,15 +54,19 @@ export function authorizeUnseal(
   return unsealAuthorizationSchema.parse({ nodeId, approver, signature })
 }
 
-/** The node's side: open only on a paired approver's live signature. */
+/* The node's side: open only on a paired approver's live signature for
+ * this node itself. A grant addressed to another node never opens this one. */
 export function unsealNode(
+  selfNodeId: string,
   seal: NodeSeal,
   authorization: UnsealAuthorization,
   pairedApprovers: readonly string[],
 ): NodeSeal {
+  if (selfNodeId.length === 0) throw new Error('an unseal names its node')
   const parsed = nodeSealSchema.parse(seal)
   if (parsed.state === 'open') throw new Error('this node is already open')
   const grant = unsealAuthorizationSchema.parse(authorization)
+  if (grant.nodeId !== selfNodeId) throw new Error('this unseal names another node')
   if (!pairedApprovers.includes(grant.approver)) throw new Error('this approver is not paired')
   if (!isIdentityChallengeValid(grant.approver, unsealStatement(grant.nodeId), grant.signature))
     throw new Error('this unseal signature is wrong')

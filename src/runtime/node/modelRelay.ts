@@ -57,7 +57,8 @@ export const modelRelayLedgerEntrySchema = z.strictObject({
 })
 export type ModelRelayLedgerEntry = z.infer<typeof modelRelayLedgerEntrySchema>
 
-/** Settle one completed call onto the payer's ledger; failures settle too. */
+/* Settle one completed call onto the payer's ledger; failures settle too.
+ * One settlement per attempt: a retried completion settles once. */
 export function settleModelRelayUsage(
   ledger: readonly ModelRelayLedgerEntry[],
   entry: {
@@ -69,7 +70,10 @@ export function settleModelRelayUsage(
     readonly usage: ModelRelayUsage
   },
 ): readonly ModelRelayLedgerEntry[] {
-  return [...ledger, modelRelayLedgerEntrySchema.parse(entry)]
+  const parsed = modelRelayLedgerEntrySchema.parse(entry)
+  return ledger.some((settled) => settled.attemptKey === parsed.attemptKey)
+    ? ledger
+    : [...ledger, parsed]
 }
 
 export interface ModelRelayTotals {

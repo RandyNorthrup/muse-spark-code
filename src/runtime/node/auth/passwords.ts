@@ -43,6 +43,7 @@ export function isNodePasswordValid(password: string, stored: string): boolean {
   )
     return false
   const expected = Buffer.from(hashText, 'base64')
+  if (salt === '' || expected.length === 0) return false
   const actual = scryptSync(password, salt, expected.length, options)
   return expected.length === actual.length && timingSafeEqual(expected, actual)
 }

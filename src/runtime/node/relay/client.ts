@@ -12,10 +12,25 @@ import {
 } from './protocol'
 
 export interface NodeRelayConnection {
-  send(frame: RelayClientFrame): void
+  /** Queue one frame; false when the wire is already gone. */
+  send(frame: RelayClientFrame): boolean
   onFrame(handler: (frame: RelayServerFrame) => void): void
   onClose(handler: (reason: string) => void): void
   close(): Promise<void>
+}
+
+function registrationRefusal(answer: RelayServerFrame): string {
+  switch (answer.t) {
+    case 'refused': {
+      return answer.reason
+    }
+    case 'registered': {
+      return 'relay registered another node'
+    }
+    default: {
+      return 'relay refused registration'
+    }
+  }
 }
 
 export function connectNodeRelay(options: {
@@ -45,8 +60,10 @@ export function connectNodeRelay(options: {
     }
 
     const connection: NodeRelayConnection = {
-      send(frame: RelayClientFrame): void {
-        if (!socket.destroyed) socket.write(encodeRelayFrame(frame))
+      send(frame: RelayClientFrame): boolean {
+        if (socket.destroyed) return false
+        socket.write(encodeRelayFrame(frame))
+        return true
       },
       onFrame(handler: (frame: RelayServerFrame) => void): void {
         frameHandlers.add(handler)
@@ -80,6 +97,7 @@ export function connectNodeRelay(options: {
       rejectRegistration(closeReason)
     })
     socket.on('connect', () => {
+      socket.setKeepAlive(true)
       socket.write(encodeRelayFrame({ t: 'register', nodeId: options.nodeId }))
     })
     socket.on('data', (chunk: Buffer) => {
@@ -105,7 +123,7 @@ export function connectNodeRelay(options: {
           isRegistered = true
           resolve(connection)
         } else {
-          fail(answer.t === 'refused' ? answer.reason : 'relay refused registration')
+          fail(registrationRefusal(answer))
           return
         }
         for (const frame of rest) dispatchFrame(frame)

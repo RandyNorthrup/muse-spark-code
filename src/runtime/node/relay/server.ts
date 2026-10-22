@@ -41,13 +41,6 @@ function sendFrame(socket: Socket, frame: RelayServerFrame): void {
   if (!socket.destroyed) socket.write(encodeRelayFrame(frame))
 }
 
-/** Refuse with the reason delivered: the frame flushes, then the wire closes. */
-function refuse(tracked: TrackedConnection, reason: string): void {
-  if (tracked.closing || tracked.socket.destroyed) return
-  tracked.closing = true
-  tracked.socket.end(encodeRelayFrame({ t: 'refused', reason }))
-}
-
 export function startNodeRelay(options: {
   readonly host?: string
   readonly port?: number
@@ -70,14 +63,18 @@ export function startNodeRelay(options: {
         byNodeId.delete(tracked.nodeId)
     }
 
+    /* Refuse with the reason delivered: the frame flushes, then the wire
+     * closes. Every refusal counts, whatever its cause. */
+    const refuse = (tracked: TrackedConnection, reason: string): void => {
+      if (tracked.closing || tracked.socket.destroyed) return
+      tracked.closing = true
+      rejected += 1
+      tracked.socket.end(encodeRelayFrame({ t: 'refused', reason }))
+    }
+
     server.on('connection', (socket: Socket) => {
       connectionsSeen += 1
-      const ceiling = options.ceilings?.maxConnections
-      if (ceiling !== undefined && connections.size >= ceiling) {
-        rejected += 1
-        socket.destroy()
-        return
-      }
+      socket.setKeepAlive(true)
       const tracked: TrackedConnection = {
         socket,
         reader: new RelayFrameReader(options.maxFrameBytes),
@@ -93,12 +90,11 @@ export function startNodeRelay(options: {
         forget(tracked)
       })
       socket.on('data', (chunk: Buffer) => {
-        if (tracked.closing) return
         tracked.bytes += chunk.length
         bytesSeen += chunk.length
+        if (tracked.closing) return
         const byteCeiling = options.ceilings?.maxBytesPerConnection
         if (byteCeiling !== undefined && tracked.bytes > byteCeiling) {
-          rejected += 1
           refuse(tracked, 'connection exceeds the relay ceiling')
           return
         }
@@ -141,7 +137,7 @@ export function startNodeRelay(options: {
             return
           } else {
             const target = byNodeId.get(frame.to)
-            if (target === undefined || target.socket.destroyed) {
+            if (target === undefined || target.closing || target.socket.destroyed) {
               sendFrame(socket, {
                 t: 'unreachable',
                 to: frame.to,
@@ -159,6 +155,10 @@ export function startNodeRelay(options: {
           }
         }
       })
+      // Every socket is tracked and drained from accept, including refused
+      // ones: an undrained socket wedges the server's own close.
+      const ceiling = options.ceilings?.maxConnections
+      if (ceiling !== undefined && connections.size > ceiling) refuse(tracked, 'relay is full')
     })
     server.on('error', (error: Error) => {
       if (isSettled) return
