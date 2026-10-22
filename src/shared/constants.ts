@@ -996,6 +996,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accounts.severalOnThisDevice',
   // Reading the user's `gh` token is the user's choice (M123, D104 source c).
   'github.useGhLogin',
+  // RLGROKAUTH: the OAuth client id chooses which xAI sign-in
+  // (and whose subscription billing) the account uses (PLAN.md D15).
+  'grokClientId',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
