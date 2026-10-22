@@ -2,7 +2,7 @@
 // a real Unix socket (a named pipe on Windows), a real beacon, and the
 // removal semantics the design's recovery chapter rests on.
 import { mkdtemp, open, rm, unlink } from 'node:fs/promises'
-import { connect, createServer } from 'node:net'
+import { connect, createServer, type Socket } from 'node:net'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { tmpdir } from 'node:os'
@@ -47,6 +47,38 @@ async function readLine(socket: {
   })
 }
 
+/** Serve one speech on a socket: the probe must read it as a foreign speaker. */
+async function expectForeignSpeaker(
+  directory: string,
+  name: string,
+  speak: (socket: Socket) => void,
+): Promise<void> {
+  const address = discoveryEndpointAddress(directory, name)
+  const server = createServer((socket) => {
+    socket.on('error', () => {
+      socket.destroy()
+    })
+    speak(socket)
+  })
+  await new Promise<void>((resolve) => {
+    server.listen(address.path, () => {
+      resolve()
+    })
+  })
+  try {
+    expect(await probeDiscoveryEndpoint(address)).toEqual({
+      reachable: false,
+      code: 'badBeacon',
+    })
+  } finally {
+    await new Promise<void>((resolve) => {
+      server.close(() => {
+        resolve()
+      })
+    })
+  }
+}
+
 describe('M96d discovery endpoint', () => {
   it('publishes a beacon the probe validates', async () => {
     const directory = await socketDirectory()
@@ -89,56 +121,14 @@ describe('M96d discovery endpoint', () => {
   it('a foreign speaker reads unreachable, never validated', async () => {
     const directory = await socketDirectory()
     for (const speech of ['not-json\n', `${JSON.stringify({ storeId: 'x' })}\n`]) {
-      const address = discoveryEndpointAddress(directory, `m96d-foreign-${String(speech.length)}`)
-      const server = createServer((socket) => {
-        socket.on('error', () => {
-          socket.destroy()
-        })
+      await expectForeignSpeaker(directory, `m96d-foreign-${String(speech.length)}`, (socket) => {
         socket.end(speech)
       })
-      await new Promise<void>((resolve) => {
-        server.listen(address.path, () => {
-          resolve()
-        })
-      })
-      try {
-        expect(await probeDiscoveryEndpoint(address)).toEqual({
-          reachable: false,
-          code: 'badBeacon',
-        })
-      } finally {
-        await new Promise<void>((resolve) => {
-          server.close(() => {
-            resolve()
-          })
-        })
-      }
     }
     // A beacon line beyond the bound is a foreign speaker, never our broker.
-    const address = discoveryEndpointAddress(directory, 'm96d-flood')
-    const flooder = createServer((socket) => {
-      socket.on('error', () => {
-        socket.destroy()
-      })
+    await expectForeignSpeaker(directory, 'm96d-flood', (socket) => {
       socket.write('x'.repeat(8192))
     })
-    await new Promise<void>((resolve) => {
-      flooder.listen(address.path, () => {
-        resolve()
-      })
-    })
-    try {
-      expect(await probeDiscoveryEndpoint(address)).toEqual({
-        reachable: false,
-        code: 'badBeacon',
-      })
-    } finally {
-      await new Promise<void>((resolve) => {
-        flooder.close(() => {
-          resolve()
-        })
-      })
-    }
   })
 
   it('a second broker on the same address fails to listen', async () => {

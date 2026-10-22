@@ -32,22 +32,12 @@ import {
   coordinatorSignalTarget,
   type CoordinatorReference,
 } from '../../src/core/team/coordinator/references'
+import { reference, retiredReference } from './helpers/coordinatorReferences'
 
 const platforms = ['linux', 'darwin', 'win32'] as const
 const resources = ['worker', 'processWorker', 'heavyCommand', 'singleton', 'landing'] as const
 const owner = 'window-A'
 const grant = 'grant-A'
-const reference: CoordinatorReference = {
-  platform: 'linux',
-  kind: 'pidfd',
-  token: 'held-reference-A',
-  boot: 'boot-A',
-  start: '1000001',
-  pid: 42,
-  validated: true,
-  exited: false,
-}
-const retiredReference: CoordinatorReference = { ...reference, exited: true }
 
 function referenceFor(platform: CoordinatorReference['platform']): CoordinatorReference {
   const kinds = { linux: 'pidfd', win32: 'processHandle', darwin: 'ownedChild' } as const
@@ -82,6 +72,15 @@ function refusalOf(operation: () => unknown): CoordinatorGrantRefusal {
   throw new Error('Expected the engine to refuse')
 }
 
+/** A second grant over held resources refuses with the held reason. */
+function expectResourcesHeld(engine: CoordinatorGrants): void {
+  expect(
+    refusalOf(() => {
+      engine.reserve('grant-B', 'window-B', [...resources])
+    }),
+  ).toBe('resourcesHeld')
+}
+
 describe('M96d RVM96C2 adversarial schedules', () => {
   for (const platform of platforms) {
     for (const error of ['ECONNREFUSED', 'ENOENT', 'ERROR_PIPE_BUSY', 'EOF']) {
@@ -94,11 +93,7 @@ describe('M96d RVM96C2 adversarial schedules', () => {
         expect(() => {
           engine.reserve('grant-B', 'window-B', [...resources])
         }).toThrow(expect.objectContaining({ name: 'CoordinatorGrantError' }))
-        expect(
-          refusalOf(() => {
-            engine.reserve('grant-B', 'window-B', [...resources])
-          }),
-        ).toBe('resourcesHeld')
+        expectResourcesHeld(engine)
       })
     }
 
@@ -112,18 +107,10 @@ describe('M96d RVM96C2 adversarial schedules', () => {
         if (boundary === 'resume' || boundary === 'detachedChild') engine.resume(grant)
         engine.ownerExited(owner)
         expect(engine.held(grant)).toEqual([...resources])
-        expect(
-          refusalOf(() => {
-            engine.reserve('grant-B', 'window-B', [...resources])
-          }),
-        ).toBe('resourcesHeld')
+        expectResourcesHeld(engine)
         const recovered = restarted(engine)
         expect(recovered.held(grant)).toEqual([...resources])
-        expect(
-          refusalOf(() => {
-            recovered.reserve('grant-B', 'window-B', [...resources])
-          }),
-        ).toBe('resourcesHeld')
+        expectResourcesHeld(recovered)
         // A fresh custody drops reference authority: nothing retained can release.
         expect(recovered.retirementState(grant)).toBe('unknown')
       })
@@ -239,18 +226,10 @@ describe('M96d release and fallback obligations', () => {
       ).toBe('refused')
       expect(engine.retirementState(grant)).toBe('unknown')
       expect(engine.held(grant)).toEqual([...resources])
-      expect(
-        refusalOf(() => {
-          engine.reserve('grant-B', 'window-B', [...resources])
-        }),
-      ).toBe('resourcesHeld')
+      expectResourcesHeld(engine)
       const recovered = restarted(engine)
       expect(recovered.retirementState(grant)).toBe('unknown')
-      expect(
-        refusalOf(() => {
-          recovered.reserve('grant-B', 'window-B', [...resources])
-        }),
-      ).toBe('resourcesHeld')
+      expectResourcesHeld(recovered)
     })
   }
 
@@ -331,11 +310,7 @@ describe('M96d release and fallback obligations', () => {
     const engine = fixture()
     expect(engine.electSuccessor(true)).toBe(true)
     expect(engine.held(grant)).toEqual([...resources])
-    expect(
-      refusalOf(() => {
-        engine.reserve('grant-B', 'window-B', [...resources])
-      }),
-    ).toBe('resourcesHeld')
+    expectResourcesHeld(engine)
   })
 
   for (const platform of platforms) {

@@ -27,12 +27,25 @@ function plan(
   return expandWriteSet(writes, [], writePaths, false, false, shared)
 }
 
+/** A lease table over the regioned file with two holders ready. */
+function leasedRegions(): {
+  shared: SharedFiles
+  leases: WriteSetLeases
+  a: { taskId: string; attempt: number }
+  b: { taskId: string; attempt: number }
+} {
+  const shared = sharedWithRegions()
+  return {
+    shared,
+    leases: new WriteSetLeases('w', shared),
+    a: { taskId: 'a', attempt: 1 },
+    b: { taskId: 'b', attempt: 1 },
+  }
+}
+
 describe('M96d region leases', () => {
   it('leases disjoint regions of one file independently', () => {
-    const shared = sharedWithRegions()
-    const leases = new WriteSetLeases('w', shared)
-    const a = { taskId: 'a', attempt: 1 }
-    const b = { taskId: 'b', attempt: 1 }
+    const { shared, leases, a, b } = leasedRegions()
     expect(leases.acquire(a, plan(['src/en.ts#strings'], shared)).kind).toBe('acquired')
     // Another region of the same file does not wait.
     expect(leases.acquire(b, plan(['src/en.ts#tables'], shared)).kind).toBe('acquired')
@@ -46,10 +59,7 @@ describe('M96d region leases', () => {
   })
 
   it('overlaps whole-file work with every region', () => {
-    const shared = sharedWithRegions()
-    const leases = new WriteSetLeases('w', shared)
-    const a = { taskId: 'a', attempt: 1 }
-    const b = { taskId: 'b', attempt: 1 }
+    const { shared, leases, a, b } = leasedRegions()
     expect(leases.acquire(a, plan(['src/en.ts#strings'], shared)).kind).toBe('acquired')
     expect(leases.acquire(b, plan(['src/en.ts'], shared)).kind).toBe('wait')
     expect(

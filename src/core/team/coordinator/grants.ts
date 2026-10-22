@@ -35,7 +35,6 @@ const grantPhaseSchema = z.enum([
   'running',
   'terminal',
 ])
-export type CoordinatorGrantPhase = z.infer<typeof grantPhaseSchema>
 
 export const grantRecordSchema = z.strictObject({
   id: grantId,
@@ -80,6 +79,12 @@ export function isCoordinatorGrantError(value: unknown): value is CoordinatorGra
   return value instanceof Error && value.name === 'CoordinatorGrantError'
 }
 
+/** A record's parsed copy, detached from the caller's object. */
+function indexedCopy(record: CoordinatorGrantRecord): CoordinatorGrantRecord {
+  const checked = grantRecordSchema.parse(record)
+  return { ...checked, resources: [...checked.resources] }
+}
+
 /**
 The window- and machine-shared grant engine. One instance per ledger
 custody; the durable shell snapshots before every mutation and
@@ -116,11 +121,8 @@ export class CoordinatorGrants {
   restore(records: readonly CoordinatorGrantRecord[]): void {
     this.grants.clear()
     for (const record of records) {
-      const checked = grantRecordSchema.parse(record)
-      this.grants.set(checked.id, {
-        ...checked,
-        resources: [...checked.resources],
-      })
+      const copy = indexedCopy(record)
+      this.grants.set(copy.id, copy)
     }
   }
 
@@ -133,11 +135,10 @@ export class CoordinatorGrants {
   retainLoaded(records: readonly CoordinatorGrantRecord[]): void {
     this.grants.clear()
     for (const record of records) {
-      const checked = grantRecordSchema.parse(record)
-      this.grants.set(checked.id, {
-        ...checked,
-        resources: [...checked.resources],
-        ...(checked.phase !== 'terminal' && {
+      const copy = indexedCopy(record)
+      this.grants.set(copy.id, {
+        ...copy,
+        ...(copy.phase !== 'terminal' && {
           reference: undefined,
           scopeCoverage: 'unknown' as const,
         }),

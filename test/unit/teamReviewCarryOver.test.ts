@@ -203,6 +203,33 @@ function commitChange(repo: CarryRepo, files: Record<string, string>): string {
   return git(['rev-parse', 'HEAD'], repo.root).trim()
 }
 
+/** A harness with its head on a fresh change, before any round runs. */
+function harnessOnChange(files: Record<string, string>): {
+  repo: CarryRepo
+  harness: CarryHarness
+} {
+  const repo = scratchRepo()
+  const harness = carryHarness(repo, repo.base, {
+    integrationChanged: [],
+    readSets: new Map(),
+  })
+  harness.setHead(commitChange(repo, files))
+  return { repo, harness }
+}
+
+/** An empty commit adopted as the head: same bytes, new head. */
+function advanceEmptyHead(repo: CarryRepo, harness: CarryHarness): void {
+  git(['commit', '--allow-empty', '-m', 'empty'], repo.root)
+  harness.setHead(git(['rev-parse', 'HEAD'], repo.root).trim())
+}
+
+/** The second round re-reviewed exactly one file, after six class requests. */
+async function expectSingleFileSecondRound(harness: CarryHarness, file: string): Promise<void> {
+  expect(await retireAndReview(harness, 2)).toBe('reviewed')
+  expect(harness.requests).toHaveLength(6)
+  expect(harness.requests[3]?.files).toEqual([file])
+}
+
 /** This diff's real stable patch ID, or empty when the file is unchanged. */
 function patchId(repo: CarryRepo, base: string, head: string, file: string): string {
   const diff = git(['diff', `${base}..${head}`, '--', file], repo.root)
@@ -388,37 +415,25 @@ async function retireAndReview(harness: CarryHarness, attempt: number): Promise<
 
 describe('M96d review carry-over on real worktrees', () => {
   it('scopes re-review to the changed file and carries the rest', async () => {
-    const repo = scratchRepo()
-    const harness = carryHarness(repo, repo.base, {
-      integrationChanged: [],
-      readSets: new Map(),
+    const { repo, harness } = harnessOnChange({
+      'a.ts': 'export const a = 2\n',
+      'b.ts': 'export const b = 2\n',
     })
-    harness.setHead(
-      commitChange(repo, { 'a.ts': 'export const a = 2\n', 'b.ts': 'export const b = 2\n' }),
-    )
     expect(await retireAndReview(harness, 1)).toBe('reviewed')
     expect(harness.requests).toHaveLength(3)
     expect(harness.requests[0]?.files).toBeUndefined()
     harness.setHead(commitChange(repo, { 'b.ts': 'export const b = 3\n' }))
-    expect(await retireAndReview(harness, 2)).toBe('reviewed')
     // The second round scoped to the changed file only; the first
     // round's three class requests plus the second's three.
-    expect(harness.requests).toHaveLength(6)
-    expect(harness.requests[3]?.files).toEqual(['b.ts'])
+    await expectSingleFileSecondRound(harness, 'b.ts')
     expect(harness.rounds).toHaveLength(2)
     expect(harness.releases).toBe(2)
   })
 
   it('carries an empty commit with no new round', async () => {
-    const repo = scratchRepo()
-    const harness = carryHarness(repo, repo.base, {
-      integrationChanged: [],
-      readSets: new Map(),
-    })
-    harness.setHead(commitChange(repo, { 'a.ts': 'export const a = 2\n' }))
+    const { repo, harness } = harnessOnChange({ 'a.ts': 'export const a = 2\n' })
     expect(await retireAndReview(harness, 1)).toBe('reviewed')
-    git(['commit', '--allow-empty', '-m', 'empty'], repo.root)
-    harness.setHead(git(['rev-parse', 'HEAD'], repo.root).trim())
+    advanceEmptyHead(repo, harness)
     expect(await retireAndReview(harness, 2)).toBe('reviewed')
     // No new round ran: the record moved to the new head and its
     // standing verdict dispatched again.
@@ -450,10 +465,8 @@ describe('M96d review carry-over on real worktrees', () => {
     harness.setHead(head1)
     expect(await retireAndReview(harness, 1)).toBe('reviewed')
     harness.setHead(head2)
-    expect(await retireAndReview(harness, 2)).toBe('reviewed')
     // The bytes differ, so the file re-reviews despite the equal hint.
-    expect(harness.requests).toHaveLength(6)
-    expect(harness.requests[3]?.files).toEqual(['a.ts'])
+    await expectSingleFileSecondRound(harness, 'a.ts')
   })
 
   it('re-reviews an unchanged file the context touches, and only it', async () => {
@@ -471,12 +484,9 @@ describe('M96d review carry-over on real worktrees', () => {
     expect(await retireAndReview(harness, 1)).toBe('reviewed')
     // Same bytes, new head, but the integration moved under lib.ts,
     // which only a.ts reads.
-    git(['commit', '--allow-empty', '-m', 'empty'], repo.root)
-    harness.setHead(git(['rev-parse', 'HEAD'], repo.root).trim())
+    advanceEmptyHead(repo, harness)
     harness.setIntegrationChanged(['lib.ts'])
-    expect(await retireAndReview(harness, 2)).toBe('reviewed')
-    expect(harness.requests).toHaveLength(6)
-    expect(harness.requests[3]?.files).toEqual(['a.ts'])
+    await expectSingleFileSecondRound(harness, 'a.ts')
   })
 
   it('re-reviews everything on an unknown context or unreadable deltas', async () => {
@@ -494,8 +504,7 @@ describe('M96d review carry-over on real worktrees', () => {
       const harness = carryHarness(repo, repo.base, options)
       harness.setHead(head1)
       expect(await retireAndReview(harness, 1)).toBe('reviewed')
-      git(['commit', '--allow-empty', '-m', 'empty'], repo.root)
-      harness.setHead(git(['rev-parse', 'HEAD'], repo.root).trim())
+      advanceEmptyHead(repo, harness)
       // Unknown context, or unreadable deltas: a full new round.
       expect(await retireAndReview(harness, 2)).toBe('reviewed')
       expect(harness.requests).toHaveLength(6)
@@ -504,22 +513,14 @@ describe('M96d review carry-over on real worktrees', () => {
   })
 
   it('records no verdict for a findings round and keeps reviewing it', async () => {
-    const repo = scratchRepo()
-    const harness = carryHarness(repo, repo.base, {
-      integrationChanged: [],
-      readSets: new Map(),
-    })
-    harness.setHead(commitChange(repo, { 'a.ts': 'export const a = 2\n' }))
+    const { repo, harness } = harnessOnChange({ 'a.ts': 'export const a = 2\n' })
     harness.setReply([{ file: 'a.ts', title: 'blocking finding', severity: 'high' }])
     expect(await retireAndReview(harness, 1)).toBe('rework')
     expect(harness.reworks).toBe(1)
     // Same bytes, new head: without a verdict the file re-reviews.
-    git(['commit', '--allow-empty', '-m', 'empty'], repo.root)
-    harness.setHead(git(['rev-parse', 'HEAD'], repo.root).trim())
+    advanceEmptyHead(repo, harness)
     harness.setReply([])
-    expect(await retireAndReview(harness, 2)).toBe('reviewed')
-    expect(harness.requests).toHaveLength(6)
-    expect(harness.requests[3]?.files).toEqual(['a.ts'])
+    await expectSingleFileSecondRound(harness, 'a.ts')
   })
 
   it('refreshes the waiting branch on a moved integration and carries exact deltas', async () => {

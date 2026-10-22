@@ -128,6 +128,17 @@ export class TaskBoard {
     return head
   }
 
+  /** Every stacked dependency with its current head. */
+  private stackedHeads(task: TeamBoardTask): { task: string; base: string }[] {
+    const heads: { task: string; base: string }[] = []
+    const edges = task.depends_on ?? []
+    for (const edge of edges) {
+      if (edge.on !== 'stacked') continue
+      heads.push({ task: edge.task, base: this.requireHead(edge.task) })
+    }
+    return heads
+  }
+
   private retainOpen(tasks: readonly TeamBoardTask[]): TeamBoardTask[] {
     const completed = tasks.filter((task) => terminal.has(task.state))
     if (completed.length > 0) this.context.archive(structuredClone(completed))
@@ -361,14 +372,9 @@ export class TaskBoard {
   stackRefreshDue(id: string): readonly { task: string; base: string }[] {
     const task = this.requireTask(id)
     const recorded = new Map((task.stackBases ?? []).map((entry) => [entry.task, entry.base]))
-    const due: { task: string; base: string }[] = []
-    const edges = task.depends_on ?? []
-    for (const edge of edges) {
-      if (edge.on !== 'stacked') continue
-      const base = this.requireHead(edge.task)
-      if (recorded.get(edge.task) !== base) due.push({ task: edge.task, base })
-    }
-    return due
+    return this.stackedHeads(task).filter(
+      ({ task: dependency, base }) => recorded.get(dependency) !== base,
+    )
   }
 
   /**
@@ -380,13 +386,9 @@ export class TaskBoard {
   acknowledgeStackRefresh(id: string, bases: readonly { task: string; base: string }[]): boolean {
     const task = this.requireTask(id)
     const given = new Map(bases.map((entry) => [entry.task, entry.base]))
-    const recorded: { task: string; base: string }[] = []
-    const edges = task.depends_on ?? []
-    for (const edge of edges) {
-      if (edge.on !== 'stacked') continue
-      const base = this.requireHead(edge.task)
-      if (given.get(edge.task) !== base) return false
-      recorded.push({ task: edge.task, base })
+    const recorded = this.stackedHeads(task)
+    for (const entry of recorded) {
+      if (given.get(entry.task) !== entry.base) return false
     }
     task.stackBases = recorded
     return true
