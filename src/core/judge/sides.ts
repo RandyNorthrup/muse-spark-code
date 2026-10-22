@@ -7,6 +7,7 @@
 import type { ModelCapabilityRecord } from '../providers/capabilityRecord'
 import { JUDGE_LOCAL_SEPARATE_PREFIX, type JUDGE_SEPARATE_GAPS } from '../../shared/constants'
 import type { Phase2SeparateSource } from './binding'
+import type { JudgeRuntime } from './engine'
 import { chooseByoTechnique } from './providers/decide'
 import type { JudgeCapability, JudgeProfileIdentity, JudgeQuestion } from './schema'
 import * as z from 'zod/mini'
@@ -93,6 +94,23 @@ export interface SeparateSourcePorts {
   readonly hasStoredKey: (providerId: string) => boolean | undefined
   /** The surface's loud tally: one row per call actually sent (the window). */
   readonly onCall?: ((model: string) => SeparateSourceCall) | undefined
+  /**
+  A verified local judge runtime (M125 lane E closes the `install`
+  gap): 2j-registered, its peer proof and disk proof (or hold) intact,
+  on a certified platform. The surface supplies it only when 2j
+  verifies; without it the `install` gap stands.
+  */
+  readonly local?:
+    | {
+        readonly runtime: JudgeRuntime
+        readonly capability: JudgeCapability
+        readonly model: string
+        /** The approved profile version the store is read for ('' while none is approved). */
+        readonly fitVersion: string
+        /** The model's M95 record, when one chooses the technique. */
+        readonly record?: ModelCapabilityRecord | undefined
+      }
+    | undefined
 }
 
 const usageSchema = z.looseObject({
@@ -249,6 +267,24 @@ export function buildSeparateSource(
       model: route.model,
     }
   }
-  if (id.startsWith(JUDGE_LOCAL_SEPARATE_PREFIX)) return { kind: 'gap', gap: 'install' }
+  if (id.startsWith(JUDGE_LOCAL_SEPARATE_PREFIX)) {
+    const local = ports.local
+    if (local === undefined) return { kind: 'gap', gap: 'install' }
+    return {
+      kind: 'built',
+      source: {
+        runtime: local.runtime,
+        capability: local.capability,
+        fitVersion: local.fitVersion,
+        verified: true,
+        locality: 'verified-local',
+        technique: judgeSideTechnique({ capability: local.capability, record: local.record, kind }),
+      },
+      // Local inference is free; judged state stays on the loopback endpoint.
+      worstCaseUsd: 0,
+      recipient: local.capability.endpoint,
+      model: local.model,
+    }
+  }
   return { kind: 'gap', gap: id.includes(':') ? 'capture' : 'unknown' }
 }
