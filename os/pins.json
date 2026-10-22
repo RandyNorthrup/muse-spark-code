@@ -1,0 +1,12 @@
+{
+  "mkosi": {
+    "version": "27.1",
+    "url": "https://github.com/systemd/mkosi/archive/refs/tags/v27.1.tar.gz",
+    "sha256": "33520d662e151d6c43e910c3840ac971fd6023e4488d9c10599e199a07f77d8b"
+  },
+  "node": {
+    "version": "24.18.0",
+    "x86-64": "55aa7153f9d88f28d765fcdad5ae6945b5c0f98a36881703817e4c450fa76742",
+    "arm64": "58c9520501f6ae2b52d5b210444e24b9d0c029a58c5011b797bc1fe7105886f6"
+  }
+}

@@ -1,0 +1,89 @@
+{
+  "sameInputs": true,
+  "comparisons": [
+    {
+      "file": "muse-node-x86-64.SHA256SUMS",
+      "beforeSha256": "4c90d77ddb358624fbacb85fdf0b2c51f89eafe54498733d72d11163ef8a2a54",
+      "afterSha256": "c685f967fac1f5b98bf781a832516b493d46928a843ffdc6412c0f46c35fe52d",
+      "equal": false
+    },
+    {
+      "file": "muse-node-x86-64.efi",
+      "beforeSha256": "b30fc0b06827620cf5cc19eef30c343742bd9b1717c780b8e196bcf7ca45262a",
+      "afterSha256": "b30fc0b06827620cf5cc19eef30c343742bd9b1717c780b8e196bcf7ca45262a",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.esp.raw",
+      "beforeSha256": "7e625ab10c5e037e5aacc59a9f77f2a635a6379172e645578694c0d70362e6f8",
+      "afterSha256": "7e625ab10c5e037e5aacc59a9f77f2a635a6379172e645578694c0d70362e6f8",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.initrd",
+      "beforeSha256": "616aeaedc9d5766931fe3885ec64d449cf1f67690cd44f29f042602351a32751",
+      "afterSha256": "616aeaedc9d5766931fe3885ec64d449cf1f67690cd44f29f042602351a32751",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.manifest",
+      "beforeSha256": "120585141a331f1631e7abede38da977866f767ebba59453aaf352c44ba7a0cf",
+      "afterSha256": "120585141a331f1631e7abede38da977866f767ebba59453aaf352c44ba7a0cf",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.raw",
+      "beforeSha256": "3d36bc567f4e09a2ee2b2c4eed345117e902e291841879eedaffe35ddcbfc646",
+      "afterSha256": "23a53ff1509ebd83bd4f7120c3d07f5cbcaf9d5c483f7413536555d4d58c11f4",
+      "equal": false
+    },
+    {
+      "file": "muse-node-x86-64.root-x86-64.raw",
+      "beforeSha256": "952ae0c6d50a0555bfe020f482c93418f40a0fd19f3455272bb60b5eeb2a3871",
+      "afterSha256": "952ae0c6d50a0555bfe020f482c93418f40a0fd19f3455272bb60b5eeb2a3871",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.roothash",
+      "beforeSha256": "37ff4fe7220d9916adf70168cde04fe24fa1b6e77d1dc2d8be61835a84096171",
+      "afterSha256": "37ff4fe7220d9916adf70168cde04fe24fa1b6e77d1dc2d8be61835a84096171",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.usr-a-verity.raw",
+      "beforeSha256": "19e00880051b7743099cde945ad370ce04e754aee569a8ee2f8035d6fff3b0c8",
+      "afterSha256": "19e00880051b7743099cde945ad370ce04e754aee569a8ee2f8035d6fff3b0c8",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.usr-a.raw",
+      "beforeSha256": "204ac381fb33fa4572f30e02c5b91d7239e3fc03d012d9a347616fa5decd12ff",
+      "afterSha256": "204ac381fb33fa4572f30e02c5b91d7239e3fc03d012d9a347616fa5decd12ff",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.usr-b-verity.raw",
+      "beforeSha256": "3b6a07d0d404fab4e23b6d34bc6696a6a312dd92821332385e5af7c01c421351",
+      "afterSha256": "3b6a07d0d404fab4e23b6d34bc6696a6a312dd92821332385e5af7c01c421351",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.usr-b.raw",
+      "beforeSha256": "b7a1ca05cae9eefbf2deee895f4fb34c8d8ffc5d6665982424e0b2711c79ed1d",
+      "afterSha256": "b7a1ca05cae9eefbf2deee895f4fb34c8d8ffc5d6665982424e0b2711c79ed1d",
+      "equal": true
+    },
+    {
+      "file": "muse-node-x86-64.var.raw",
+      "beforeSha256": "2fab8eb059174567d2cb120de9d9fd42966180ad3ff5e5ea0582ab95c9bdd8a5",
+      "afterSha256": "ce387d7561d3694f084b579b649bac786d359555b7d07eb7a71171137903c049",
+      "equal": false
+    },
+    {
+      "file": "muse-node-x86-64.vmlinuz",
+      "beforeSha256": "6d8a7f745280cc06a6d2877c932f4dfa9079b694eb4227b61b27232642340794",
+      "afterSha256": "6d8a7f745280cc06a6d2877c932f4dfa9079b694eb4227b61b27232642340794",
+      "equal": true
+    }
+  ]
+}

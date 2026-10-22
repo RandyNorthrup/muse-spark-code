@@ -1,0 +1,216 @@
+#!/bin/sh
+# Pi EEPROM/bootloader readiness check for A/B tryboot updates (OS2, M110).
+#
+# First boot checks two things (PLAN D90.24): Pi 4 boards of revisions 1.0
+# and 1.1 need a writable EEPROM, and Pi 5 boards need a bootloader dated
+# 2025-03-10 or later. Anything it cannot determine fails closed.
+#
+# It prints exactly one machine-readable code on stdout and nothing else:
+#   OK                        ready for tryboot updates (exit 0)
+#   PI4_EEPROM_WRITE_REQUIRED Pi 4 rev 1.0/1.1 whose bootloader is not up
+#                             to date: the EEPROM must be made writable and
+#                             updated before A/B updates (exit 3)
+#   PI5_BOOTLOADER_TOO_OLD    Pi 5 bootloader predates 2025-03-10 (exit 4)
+#   CANNOT_DETERMINE          revision or bootloader date missing or
+#                             unparseable; fail closed (exit 2)
+# Diagnostics go to stderr with a PI_EEPROM_ prefix. The user-facing text
+# for each code is a handoff for OS3 and U2 (no l10n edits are allowed in
+# this lane); see docs/certification/m110-os2-image-update.md.
+#
+# Sources, all injectable for tests (production defaults read the device):
+#  - MUSE_PI_REVISION_FILE (default /proc/cpuinfo): the board comes from
+#    its `Model : Raspberry Pi <4|5> ... Rev <x.y>` line when present;
+#    otherwise the new-style `Revision :` hex is decoded (bit 23 set;
+#    type 0x11 is Pi 4, 0x17 is Pi 5; the low nibble 0/1 means PCB 1.0/1.1).
+#    Old-style revision codes and unknown types fail closed. The whole
+#    revision must be hex before any arithmetic: a first-character check
+#    lets `b03111+1` through to the arithmetic evaluator.
+#  - MUSE_VCGENCMD (default vcgencmd): `bootloader_version` output whose
+#    first YYYY/MM/DD or YYYY-MM-DD date is compared against 2025-03-10
+#    (numeric tuple compare, so no calendar library is needed).
+#  - MUSE_RPI_EEPROM_CMD (default rpi-eeprom-update, status mode, read-only):
+#    for early Pi 4 boards (PCB 1.0/1.1). Upstream rpi-eeprom-update
+#    (raspberrypi/rpi-eeprom, `printVersions`) prints NO write-protect state
+#    in status mode, so writability itself is not observable from it and is
+#    never guessed here. What it does print is the bootloader update state,
+#    as exactly one line `BOOTLOADER: up to date` or
+#    `BOOTLOADER: update available` (followed by CURRENT/LATEST/RELEASE and
+#    the VL805 lines, which are ignored). An up-to-date bootloader is the
+#    observable result of a writable, updated EEPROM, so: up to date -> OK;
+#    update available -> PI4_EEPROM_WRITE_REQUIRED (remedy: make the EEPROM
+#    writable, apply `rpi-eeprom-update -a`, reboot, retry; it then prints
+#    up to date and passes). Upstream exits 0, or 1 when an update is
+#    available, in status mode; any other exit, a missing tool, no BOOTLOADER
+#    line, both lines, or any other wording fails closed with
+#    CANNOT_DETERMINE. An on-device capture of this output is still the
+#    hardware receipt Q-M110-OS2-EEPROM; a write-protected but up-to-date
+#    board passing is the recorded residual (protection is not observable).
+
+set -u
+
+REV_FILE="${MUSE_PI_REVISION_FILE:-/proc/cpuinfo}"
+VCGENCMD="${MUSE_VCGENCMD:-vcgencmd}"
+EEPROM_CMD="${MUSE_RPI_EEPROM_CMD:-rpi-eeprom-update}"
+
+fail_closed() {
+    echo "CANNOT_DETERMINE"
+    echo "pi-eeprom-check: PI_EEPROM_CANNOT_DETERMINE $1" >&2
+    exit 2
+}
+
+# eeprom_update_state prints `current` or `stale` from the upstream status
+# line, and returns nonzero when the state cannot be determined.
+eeprom_update_state() {
+    if ! command -v "$EEPROM_CMD" >/dev/null 2>&1 && [ ! -x "$EEPROM_CMD" ]; then
+        return 1
+    fi
+    out=$("$EEPROM_CMD" 2>/dev/null)
+    case "$?" in
+        0 | 1) ;;
+        *) return 1 ;;
+    esac
+    lines=$(printf '%s\n' "$out" | grep -c '^BOOTLOADER:') || return 1
+    if [ "$lines" != "1" ]; then
+        return 1
+    fi
+    if printf '%s\n' "$out" | grep -q -x 'BOOTLOADER: up to date'; then
+        echo "current"
+        return 0
+    fi
+    if printf '%s\n' "$out" | grep -q -x 'BOOTLOADER: update available'; then
+        echo "stale"
+        return 0
+    fi
+    return 1
+}
+
+if [ ! -f "$REV_FILE" ] || [ -L "$REV_FILE" ]; then
+    fail_closed "revision-file=$REV_FILE"
+fi
+
+model=$(grep -m 1 '^Model[[:space:]]*:' "$REV_FILE" 2>/dev/null | sed 's/^Model[[:space:]]*:[[:space:]]*//') || model=""
+revision=$(grep -m 1 '^Revision[[:space:]]*:' "$REV_FILE" 2>/dev/null | sed 's/^Revision[[:space:]]*:[[:space:]]*//' | tr -d ' \t') || revision=""
+revision=${revision#0x}
+revision=${revision#0X}
+case "$revision" in
+    '') ;;
+    *[!0-9a-fA-F]*) fail_closed "revision=$revision" ;;
+esac
+
+board=""
+pcb=""
+case "$model" in
+    *"Raspberry Pi 5"*)
+        board="pi5"
+        ;;
+    *"Raspberry Pi 4"*)
+        board="pi4"
+        case "$model" in
+            *"Rev 1.0"*) pcb="1.0" ;;
+            *"Rev 1.1"*) pcb="1.1" ;;
+            *"Rev "[2-9]* | *"Rev 1."[2-9]*) pcb="later" ;;
+        esac
+        ;;
+    "" | *)
+        case "$revision" in
+            [0-9a-fA-F]*)
+                # New-style codes have bit 23 set (>= 0x800000).
+                if [ "$((0x$revision & 0x800000))" = "8388608" ]; then
+                    type=$((0x$revision >> 4 & 0xff))
+                    nibble=$((0x$revision & 0xf))
+                    case "$type" in
+                        17) board="pi4" ;;
+                        23) board="pi5" ;;
+                        *) fail_closed "board-type=$type" ;;
+                    esac
+                    if [ "$board" = "pi4" ]; then
+                        if [ "$nibble" -le 1 ]; then
+                            pcb="1.$nibble"
+                        else
+                            pcb="later"
+                        fi
+                    fi
+                else
+                    fail_closed "old-style-revision=$revision"
+                fi
+                ;;
+            *) fail_closed "no-model-no-revision" ;;
+        esac
+        ;;
+esac
+
+if [ -z "$board" ]; then
+    fail_closed "model=$model"
+fi
+
+if [ "$board" = "pi4" ]; then
+    case "$pcb" in
+        1.0 | 1.1)
+            # Early boards need a writable, updated EEPROM: read the real
+            # upstream update state instead of refusing unconditionally.
+            if state=$(eeprom_update_state 2>/dev/null); then
+                case "$state" in
+                    current)
+                        echo "OK"
+                        exit 0
+                        ;;
+                    stale)
+                        echo "PI4_EEPROM_WRITE_REQUIRED"
+                        echo "pi-eeprom-check: PI_EEPROM_EARLY_PI4 pcb=$pcb remedy=make-eeprom-writable-run-rpi-eeprom-update-a-reboot-retry" >&2
+                        exit 3
+                        ;;
+                    *) fail_closed "eeprom-state=$state" ;;
+                esac
+            fi
+            fail_closed "early-pi4-pcb=$pcb remedy=run-rpi-eeprom-update-status-make-eeprom-writable-update-then-retry"
+            ;;
+        later) ;;
+        *) fail_closed "pcb=$pcb" ;;
+    esac
+    echo "OK"
+    exit 0
+fi
+
+# Pi 5: the bootloader must be dated 2025-03-10 or later.
+if ! command -v "$VCGENCMD" >/dev/null 2>&1 && [ ! -x "$VCGENCMD" ]; then
+    fail_closed "no-vcgencmd"
+fi
+version_text=$("$VCGENCMD" bootloader_version 2>/dev/null) || fail_closed "vcgencmd-failed"
+boot_date=$(printf '%s' "$version_text" | grep -m 1 -o -E '[0-9]{4}[/-][0-9]{2}[/-][0-9]{2}' | tr '-' '/') || boot_date=""
+case "$boot_date" in
+    ????/??/??) ;;
+    *) fail_closed "bootloader-date" ;;
+esac
+b_year=${boot_date%%/*}
+rest=${boot_date#*/}
+b_month=${rest%%/*}
+b_day=${rest#*/}
+# Strip leading zeros: some `test` builtins read them as octal.
+case "$b_month" in
+    0[1-9] | 1[0-2]) ;;
+    *) fail_closed "bootloader-date=$boot_date" ;;
+esac
+case "$b_day" in
+    0[1-9] | [12][0-9] | 3[01]) ;;
+    *) fail_closed "bootloader-date=$boot_date" ;;
+esac
+b_month=${b_month#0}
+b_day=${b_day#0}
+case "$b_year$b_month$b_day" in
+    *[!0-9]*) fail_closed "bootloader-date=$boot_date" ;;
+esac
+new_enough=0
+if [ "$b_year" -gt 2025 ]; then
+    new_enough=1
+elif [ "$b_year" -eq 2025 ] && [ "$b_month" -gt 3 ]; then
+    new_enough=1
+elif [ "$b_year" -eq 2025 ] && [ "$b_month" -eq 3 ] && [ "$b_day" -ge 10 ]; then
+    new_enough=1
+fi
+if [ "$new_enough" = "1" ]; then
+    echo "OK"
+    exit 0
+fi
+echo "PI5_BOOTLOADER_TOO_OLD"
+echo "pi-eeprom-check: PI_EEPROM_OLD_BOOTLOADER date=$boot_date" >&2
+exit 4

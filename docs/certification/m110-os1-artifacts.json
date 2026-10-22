@@ -1,0 +1,497 @@
+{
+  "modelAttempts": 0,
+  "signedRelease": false,
+  "wholeImageReproducible": false,
+  "artifacts": [
+    {
+      "file": "muse-node-x86-64.raw",
+      "bytes": 5910839808,
+      "sha256": "37455f0766f19a62db87a2bf37cfab956fab6aec2bb9a3b38d9b1c44977bcbd4",
+      "path": "out/x86-64/muse-node-x86-64.raw",
+      "allocatedBytes": 733777920,
+      "recipeCommit": "905ad6b30",
+      "partitions": {
+        "label": "gpt",
+        "id": "3B8ACC10-7157-4226-B9E5-F83BC42355AA",
+        "device": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw",
+        "unit": "sectors",
+        "firstlba": 2048,
+        "lastlba": 11544575,
+        "sectorsize": 512,
+        "partitions": [
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw1",
+            "start": 2048,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+            "name": "muse-efi"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw2",
+            "start": 534528,
+            "size": 262144,
+            "type": "4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709",
+            "uuid": "C7476C00-9296-49A2-B93E-3FB35307C909",
+            "name": "muse-root",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw3",
+            "start": 796672,
+            "size": 3145728,
+            "type": "8484680C-9521-48C6-9C11-B0720656F69E",
+            "uuid": "D40253E6-28E5-C6A2-990F-6C8C959036D8",
+            "name": "muse-usr-a",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw4",
+            "start": 3942400,
+            "size": 131072,
+            "type": "77FF5F63-E7B6-4633-ACF4-1565B864C0E6",
+            "uuid": "B5DD1895-8DE4-4A2E-8120-1269F65050CE",
+            "name": "muse-usr-a-verity",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw5",
+            "start": 4073472,
+            "size": 3145728,
+            "type": "8484680C-9521-48C6-9C11-B0720656F69E",
+            "uuid": "1AA7E15D-8883-4817-AE79-F497F129839F",
+            "name": "muse-usr-b",
+            "attrs": "GUID:59,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw6",
+            "start": 7219200,
+            "size": 131072,
+            "type": "77FF5F63-E7B6-4633-ACF4-1565B864C0E6",
+            "uuid": "F0776DF8-03C0-49A8-8E08-E69B210AF6BB",
+            "name": "muse-usr-b-verity",
+            "attrs": "GUID:60,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64.raw7",
+            "start": 7350272,
+            "size": 4194304,
+            "type": "4D21B016-B534-45C2-A9FB-5C16E091FD2D",
+            "uuid": "651623BE-5689-4827-9EC6-652C0692723B",
+            "name": "muse-var",
+            "attrs": "GUID:59"
+          }
+        ]
+      },
+      "qualification": "UEFI TCG test-only Node lifecycle/readiness/private-file denial"
+    },
+    {
+      "file": "muse-node-x86-64-installer.iso",
+      "bytes": 3763356160,
+      "sha256": "24ab27cc800d17d3ca1fe3f963850a2383d2e0cd2aef3aa23ef79b65dfe3fc6b",
+      "path": "out/x86-64/muse-node-x86-64-installer.iso",
+      "allocatedBytes": 730521600,
+      "recipeCommit": "905ad6b30",
+      "partitions": {
+        "label": "gpt",
+        "id": "3B8ACC10-7157-4226-B9E5-F83BC42355AA",
+        "device": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso",
+        "unit": "sectors",
+        "firstlba": 2048,
+        "lastlba": 7350271,
+        "sectorsize": 512,
+        "partitions": [
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso1",
+            "start": 2048,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+            "name": "muse-efi"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso2",
+            "start": 534528,
+            "size": 262144,
+            "type": "4F68BCE3-E8CD-4DB1-96E7-FBCAF984B709",
+            "uuid": "C7476C00-9296-49A2-B93E-3FB35307C909",
+            "name": "muse-root",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso3",
+            "start": 796672,
+            "size": 3145728,
+            "type": "8484680C-9521-48C6-9C11-B0720656F69E",
+            "uuid": "D40253E6-28E5-C6A2-990F-6C8C959036D8",
+            "name": "muse-usr-a",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso4",
+            "start": 3942400,
+            "size": 131072,
+            "type": "77FF5F63-E7B6-4633-ACF4-1565B864C0E6",
+            "uuid": "B5DD1895-8DE4-4A2E-8120-1269F65050CE",
+            "name": "muse-usr-a-verity",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso5",
+            "start": 4073472,
+            "size": 3145728,
+            "type": "8484680C-9521-48C6-9C11-B0720656F69E",
+            "uuid": "1AA7E15D-8883-4817-AE79-F497F129839F",
+            "name": "muse-usr-b",
+            "attrs": "GUID:59,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/x86-64/muse-node-x86-64-installer.iso6",
+            "start": 7219200,
+            "size": 131072,
+            "type": "77FF5F63-E7B6-4633-ACF4-1565B864C0E6",
+            "uuid": "F0776DF8-03C0-49A8-8E08-E69B210AF6BB",
+            "name": "muse-usr-b-verity",
+            "attrs": "GUID:60,63"
+          }
+        ]
+      },
+      "qualification": "UEFI TCG test-only Node lifecycle/readiness/private-file denial"
+    },
+    {
+      "file": "muse-node-arm64.raw",
+      "bytes": 5910839808,
+      "sha256": "1035010955837bc56891d56d3e4ca15a28ac4980732ce0d9a6cb5e87c28b8fca",
+      "path": "out/arm64/muse-node-arm64.raw",
+      "allocatedBytes": 833355776,
+      "recipeCommit": "905ad6b30",
+      "partitions": {
+        "label": "gpt",
+        "id": "3B8ACC10-7157-4226-B9E5-F83BC42355AA",
+        "device": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw",
+        "unit": "sectors",
+        "firstlba": 2048,
+        "lastlba": 11544575,
+        "sectorsize": 512,
+        "partitions": [
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw1",
+            "start": 2048,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+            "name": "muse-efi"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw2",
+            "start": 534528,
+            "size": 262144,
+            "type": "B921B045-1DF0-41C3-AF44-4C6F280D3FAE",
+            "uuid": "1BB1B6A6-872B-4DC6-8597-8F22291AB68D",
+            "name": "muse-root",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw3",
+            "start": 796672,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "B9E50EAE-3E4A-35B8-8AA1-6EA30E0BD4F1",
+            "name": "muse-usr-a",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw4",
+            "start": 3942400,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "5A8ED4B9-847D-0338-9669-8A7CD5380ED9",
+            "name": "muse-usr-a-verity",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw5",
+            "start": 4073472,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "F6A13AC0-F523-44F2-87DB-E3A15A277E7B",
+            "name": "muse-usr-b",
+            "attrs": "GUID:59,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw6",
+            "start": 7219200,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "68C3DAAB-3F1A-408C-AD60-0ABDC3AAB102",
+            "name": "muse-usr-b-verity",
+            "attrs": "GUID:60,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64.raw7",
+            "start": 7350272,
+            "size": 4194304,
+            "type": "4D21B016-B534-45C2-A9FB-5C16E091FD2D",
+            "uuid": "651623BE-5689-4827-9EC6-652C0692723B",
+            "name": "muse-var",
+            "attrs": "GUID:59"
+          }
+        ]
+      },
+      "qualification": "UEFI TCG test-only Node lifecycle/readiness/private-file denial"
+    },
+    {
+      "file": "muse-node-arm64-installer.iso",
+      "bytes": 3763356160,
+      "sha256": "7240688f22490e22dbdf039e48295daa81bd66e435f0dd73dc41b5cf06351976",
+      "path": "out/arm64/muse-node-arm64-installer.iso",
+      "allocatedBytes": 830099456,
+      "recipeCommit": "905ad6b30",
+      "partitions": {
+        "label": "gpt",
+        "id": "3B8ACC10-7157-4226-B9E5-F83BC42355AA",
+        "device": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso",
+        "unit": "sectors",
+        "firstlba": 2048,
+        "lastlba": 7350271,
+        "sectorsize": 512,
+        "partitions": [
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso1",
+            "start": 2048,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+            "name": "muse-efi"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso2",
+            "start": 534528,
+            "size": 262144,
+            "type": "B921B045-1DF0-41C3-AF44-4C6F280D3FAE",
+            "uuid": "1BB1B6A6-872B-4DC6-8597-8F22291AB68D",
+            "name": "muse-root",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso3",
+            "start": 796672,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "B9E50EAE-3E4A-35B8-8AA1-6EA30E0BD4F1",
+            "name": "muse-usr-a",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso4",
+            "start": 3942400,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "5A8ED4B9-847D-0338-9669-8A7CD5380ED9",
+            "name": "muse-usr-a-verity",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso5",
+            "start": 4073472,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "F6A13AC0-F523-44F2-87DB-E3A15A277E7B",
+            "name": "muse-usr-b",
+            "attrs": "GUID:59,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/arm64/muse-node-arm64-installer.iso6",
+            "start": 7219200,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "68C3DAAB-3F1A-408C-AD60-0ABDC3AAB102",
+            "name": "muse-usr-b-verity",
+            "attrs": "GUID:60,63"
+          }
+        ]
+      },
+      "qualification": "UEFI TCG test-only Node lifecycle/readiness/private-file denial"
+    },
+    {
+      "file": "muse-node-pi4.raw",
+      "bytes": 6183469568,
+      "sha256": "8044fda90056cfae2d9f97970ea33ece6214d988297292a522de0835ef6efd14",
+      "path": "out/pi4/muse-node-pi4.raw",
+      "allocatedBytes": 581988352,
+      "recipeCommit": "1a8dfb09e",
+      "partitions": {
+        "label": "gpt",
+        "id": "3B8ACC10-7157-4226-B9E5-F83BC42355AA",
+        "device": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw",
+        "unit": "sectors",
+        "firstlba": 2048,
+        "lastlba": 12077055,
+        "sectorsize": 512,
+        "partitions": [
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw1",
+            "start": 2048,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+            "name": "muse-pi-boot-a"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw2",
+            "start": 534528,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "9F91E8B6-2BC5-44F3-8318-F2C52CD2327F",
+            "name": "muse-pi-boot-b"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw3",
+            "start": 1067008,
+            "size": 262144,
+            "type": "B921B045-1DF0-41C3-AF44-4C6F280D3FAE",
+            "uuid": "1BB1B6A6-872B-4DC6-8597-8F22291AB68D",
+            "name": "muse-root",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw4",
+            "start": 1329152,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "A3C98E33-882F-A6F1-77E7-DA774E8A40F8",
+            "name": "muse-usr-a",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw5",
+            "start": 4474880,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "5E320938-A122-1D32-A009-CFB92955BF38",
+            "name": "muse-usr-a-verity",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw6",
+            "start": 4605952,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "F6A13AC0-F523-44F2-87DB-E3A15A277E7B",
+            "name": "muse-usr-b",
+            "attrs": "GUID:59,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw7",
+            "start": 7751680,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "68C3DAAB-3F1A-408C-AD60-0ABDC3AAB102",
+            "name": "muse-usr-b-verity",
+            "attrs": "GUID:60,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw8",
+            "start": 7882752,
+            "size": 4194304,
+            "type": "4D21B016-B534-45C2-A9FB-5C16E091FD2D",
+            "uuid": "651623BE-5689-4827-9EC6-652C0692723B",
+            "name": "muse-var",
+            "attrs": "GUID:59"
+          }
+        ]
+      },
+      "qualification": "native FAT/kernel/verity inspection; physical boot waiting Q"
+    },
+    {
+      "file": "muse-node-pi5.raw",
+      "bytes": 6183469568,
+      "sha256": "6f19cf611a53ec00ee2a5c356b1541c0e5a248c51174c7c1ef3b2e19cebc7552",
+      "path": "out/pi5/muse-node-pi5.raw",
+      "allocatedBytes": 581980160,
+      "recipeCommit": "1a8dfb09e",
+      "partitions": {
+        "label": "gpt",
+        "id": "3B8ACC10-7157-4226-B9E5-F83BC42355AA",
+        "device": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw",
+        "unit": "sectors",
+        "firstlba": 2048,
+        "lastlba": 12077055,
+        "sectorsize": 512,
+        "partitions": [
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw1",
+            "start": 2048,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+            "name": "muse-pi-boot-a"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw2",
+            "start": 534528,
+            "size": 532480,
+            "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+            "uuid": "9F91E8B6-2BC5-44F3-8318-F2C52CD2327F",
+            "name": "muse-pi-boot-b"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw3",
+            "start": 1067008,
+            "size": 262144,
+            "type": "B921B045-1DF0-41C3-AF44-4C6F280D3FAE",
+            "uuid": "1BB1B6A6-872B-4DC6-8597-8F22291AB68D",
+            "name": "muse-root",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw4",
+            "start": 1329152,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "BDA68FA7-D918-64DB-B72E-221E64653684",
+            "name": "muse-usr-a",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw5",
+            "start": 4474880,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "14BCE3BE-4135-77A5-7398-750F2F02EB4F",
+            "name": "muse-usr-a-verity",
+            "attrs": "GUID:60"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw6",
+            "start": 4605952,
+            "size": 3145728,
+            "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+            "uuid": "F6A13AC0-F523-44F2-87DB-E3A15A277E7B",
+            "name": "muse-usr-b",
+            "attrs": "GUID:59,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw7",
+            "start": 7751680,
+            "size": 131072,
+            "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+            "uuid": "68C3DAAB-3F1A-408C-AD60-0ABDC3AAB102",
+            "name": "muse-usr-b-verity",
+            "attrs": "GUID:60,63"
+          },
+          {
+            "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw8",
+            "start": 7882752,
+            "size": 4194304,
+            "type": "4D21B016-B534-45C2-A9FB-5C16E091FD2D",
+            "uuid": "651623BE-5689-4827-9EC6-652C0692723B",
+            "name": "muse-var",
+            "attrs": "GUID:59"
+          }
+        ]
+      },
+      "qualification": "native FAT/kernel/verity inspection; physical boot waiting Q"
+    }
+  ]
+}
