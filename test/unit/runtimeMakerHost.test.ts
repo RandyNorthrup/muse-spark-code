@@ -3,7 +3,8 @@ import { mkdtemp, mkdir, readFile, rm, link, symlink, rename } from 'node:fs/pro
 import { makerTempRoot } from './helpers/makerTemp'
 import path from 'node:path'
 import { randomUUID, createHash } from 'node:crypto'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
+import type { UserPresenceRequest } from '../../src/core/maker/userPresence'
 import { RuntimeMakerHost } from '../../src/runtime/maker/runtimeMakerHost'
 import { createRuntimeMakerService } from '../../src/runtime/maker/service'
 import { createMakerStore } from '../../src/webview/maker/store'
@@ -26,28 +27,58 @@ function request(): ApprovalRequest {
     payload: 'payload',
   }
 }
+type PresenceResult = 'approved' | 'denied' | 'unavailable'
+function presencePort() {
+  const port = {
+    calls: [] as UserPresenceRequest[],
+    once: [] as Promise<PresenceResult>[],
+    result: 'approved' as PresenceResult,
+    impl: undefined as undefined | (() => Promise<PresenceResult>),
+    check(request: UserPresenceRequest): Promise<PresenceResult> {
+      port.calls.push(request)
+      const next = port.once.shift()
+      if (next !== undefined) return next
+      return port.impl === undefined ? Promise.resolve(port.result) : port.impl()
+    },
+  }
+  return port
+}
+// The grant clock is performance.now in production and test alike (both from
+// node:perf_hooks); expiry cases assign an offset by plain assignment.
+const nativeNow = performance.now
+const GRANT_EXPIRY_OFFSET_MS = 6000
+function offsetClock() {
+  performance.now = () => nativeNow.call(performance) + GRANT_EXPIRY_OFFSET_MS
+}
+function restoreClock() {
+  performance.now = nativeNow
+}
 async function fixture(overrides: Partial<Parameters<typeof RuntimeMakerHost.create>[0]> = {}) {
   const directory = await mkdtemp(path.join(makerTempRoot(), 'maker-host-'))
   directories.push(directory)
   const workspace = path.join(directory, 'workspace')
   await mkdir(workspace)
-  const auditEnable = vi.fn<(reason: string) => Promise<void>>().mockResolvedValue(undefined)
+  const audits: string[] = []
+  const auditEnable = (reason: string) => {
+    audits.push(reason)
+    return Promise.resolve()
+  }
   const deps = {
     dataDirectory: path.join(directory, 'data'),
     workspace,
     secrets: {
-      get: vi.fn().mockResolvedValue(undefined),
-      store: vi.fn().mockResolvedValue(undefined),
-      delete: vi.fn().mockResolvedValue(undefined),
+      get: () => Promise.resolve(undefined),
+      store: () => Promise.resolve(),
+      delete: () => Promise.resolve(),
     },
     trusted: () => true,
     flagged: () => true,
-    presence: { check: vi.fn().mockResolvedValue('approved') },
+    presence: presencePort(),
     interactive: () => true,
     auditEnable,
     ...overrides,
   }
-  return { host: await RuntimeMakerHost.create(deps), deps, workspace, auditEnable }
+  return { host: await RuntimeMakerHost.create(deps), deps, workspace, audits }
 }
 async function confirming(overrides: Partial<Parameters<typeof RuntimeMakerHost.create>[0]> = {}) {
   const { host } = await fixture(overrides)
@@ -72,9 +103,9 @@ async function confirming(overrides: Partial<Parameters<typeof RuntimeMakerHost.
   return { host, snapshot, engine, pending, didReview, answer }
 }
 /**
- * RVM103W2 P2 (Windows): lifecycle tests inject the port probe. Real discovery needs
- * SystemRoot and PowerShell on Windows (and ioreg on macOS), which an empty test env lacks.
- */
+RVM103W2 P2 (Windows): lifecycle tests inject the port probe. Real discovery needs
+SystemRoot and PowerShell on Windows (and ioreg on macOS), which an empty test env lacks.
+*/
 async function lifecycleService({
   platform = process.platform,
   ...overrides
@@ -84,7 +115,7 @@ async function lifecycleService({
     ...deps,
     native: { platform, env: {}, packageRoot: path.resolve('.') },
   })
-  vi.spyOn(service.serial, 'ports').mockResolvedValue([])
+  service.serial.ports = () => Promise.resolve([])
   return service
 }
 /** A pending request held by the real service, with its exact review and allow. */
@@ -111,10 +142,10 @@ function grantFile(host: RuntimeMakerHost): string {
 }
 describe('runtime maker host', () => {
   it('persists hardware by canonical workspace and audits the reason first', async () => {
-    const { host, deps, auditEnable } = await fixture()
+    const { host, deps, audits } = await fixture()
     expect(host.hardwareEnabled()).toBe(false)
     await host.setHardware(true, ' supervised bench ')
-    expect(auditEnable).toHaveBeenCalledWith('supervised bench')
+    expect(audits).toEqual(['supervised bench'])
     const restored = await RuntimeMakerHost.create(deps)
     expect(restored.hardwareEnabled()).toBe(true)
     await host.setHardware(false)
@@ -221,11 +252,11 @@ describe('runtime maker host', () => {
       decision: 'allow_once',
     }
     const grant = await host.authorize(answer)
-    const clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 6000)
+    offsetClock()
     try {
       expect(host.answer(answer, grant)).toBe(false)
     } finally {
-      clock.mockRestore()
+      restoreClock()
       host.cancelApprovals()
       await pending
     }
@@ -233,10 +264,10 @@ describe('runtime maker host', () => {
   it.each(['denied', 'unavailable'] as const)(
     'OS presence %s cannot authorize a send or enable hardware',
     async (result) => {
-      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const presence = presencePort()
       const { host } = await fixture({ presence })
       await host.setHardware(true, 'bench')
-      presence.check.mockResolvedValue(result)
+      presence.result = result
       const snapshot = request()
       const pending = host.confirm(snapshot)
       const answer = {
@@ -259,11 +290,11 @@ describe('runtime maker host', () => {
     },
   )
   it('a competing presence reply cannot mint a second grant for the same approval', async () => {
-    const presence = { check: vi.fn().mockResolvedValue('approved') }
+    const presence = presencePort()
     const { host } = await fixture({ presence })
     await host.setHardware(true, 'bench')
     const native = Promise.withResolvers<'approved'>()
-    presence.check.mockReturnValue(native.promise)
+    presence.impl = () => native.promise
     const snapshot = request()
     const pending = host.confirm(snapshot)
     const answer = {
@@ -285,7 +316,11 @@ describe('runtime maker host', () => {
     const { host } = await fixture()
     await host.setHardware(true, 'bench')
     const snapshot = request()
-    const didReview = vi.fn<(raw: unknown) => boolean>().mockReturnValue(true)
+    const reviews: unknown[] = []
+    const didReview = (raw: unknown) => {
+      reviews.push(raw)
+      return true
+    }
     const pending = host.confirm(snapshot, didReview)
     const review = {
       v: 1 as const,
@@ -295,13 +330,13 @@ describe('runtime maker host', () => {
       isComplete: true,
     }
     expect(host.review({ ...review, id: randomUUID() })).toBe(false)
-    expect(didReview).not.toHaveBeenCalled()
+    expect(reviews).toEqual([])
     expect(host.review(review)).toBe(true)
-    expect(didReview).toHaveBeenCalledExactlyOnceWith(review)
+    expect(reviews).toEqual([review])
     host.cancelApprovals()
     await pending
     expect(host.review(review)).toBe(false)
-    expect(didReview).toHaveBeenCalledOnce()
+    expect(reviews).toHaveLength(1)
   })
   it.each([
     ['win32', false],
@@ -353,15 +388,15 @@ describe('runtime maker host', () => {
       expect(engine.answer(await pending)).toBeDefined()
     })
     it('authenticate: a second Send once while the OS prompt is open does not prompt again', async () => {
-      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const presence = presencePort()
       const { host, pending, answer } = await confirming({ presence })
       const native = Promise.withResolvers<'approved'>()
-      presence.check.mockReturnValue(native.promise)
+      presence.impl = () => native.promise
       const first = host.authorize(answer)
       expect(await host.authorize(answer)).toBeUndefined()
       native.resolve('approved')
       expect(await first).toBeDefined()
-      expect(presence.check).toHaveBeenCalledTimes(2)
+      expect(presence.calls).toHaveLength(2)
       host.cancelApprovals()
       await pending
     })
@@ -370,21 +405,21 @@ describe('runtime maker host', () => {
       expect(didReview()).toBe(true)
       const old = await host.authorize(answer)
       expect(await host.authorize(answer)).toBeUndefined()
-      const clock = vi.spyOn(performance, 'now').mockReturnValue(performance.now() + 6000)
+      offsetClock()
       try {
         const fresh = await host.authorize(answer)
         expect(fresh).toBeDefined()
         expect(host.answer(answer, old)).toBe(false)
         expect(host.answer(answer, fresh)).toBe(true)
       } finally {
-        clock.mockRestore()
+        restoreClock()
       }
       expect(engine.answer(await pending)).toBeDefined()
     })
     it('authentication failed: a denied OS prompt leaves the request open for a retry', async () => {
-      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const presence = presencePort()
       const { host, pending, answer } = await confirming({ presence })
-      presence.check.mockResolvedValueOnce('denied')
+      presence.once.push(Promise.resolve('denied'))
       await expect(host.authorize(answer)).rejects.toThrow()
       const grant = await host.authorize(answer)
       expect(grant).toBeDefined()
@@ -401,10 +436,10 @@ describe('runtime maker host', () => {
       await pending
     })
     it('newDocument: OS authentication started before it mints nothing; the new document can', async () => {
-      const presence = { check: vi.fn().mockResolvedValue('approved') }
+      const presence = presencePort()
       const { host, engine, pending, didReview, answer } = await confirming({ presence })
       const native = Promise.withResolvers<'approved'>()
-      presence.check.mockReturnValueOnce(native.promise)
+      presence.once.push(native.promise)
       const inFlight = host.authorize(answer)
       host.newDocument()
       native.resolve('approved')
@@ -446,7 +481,7 @@ describe('runtime maker host', () => {
       })
       expect(await pending).toMatchObject({ id: snapshot.id, decision: 'reject_once' })
       expect(engine.answer(await pending)).toBeUndefined()
-      expect(deps.presence.check).toHaveBeenCalledTimes(1)
+      expect(deps.presence.calls).toHaveLength(1)
     })
     it('close: a cancelled request accepts no review, authentication or answer', async () => {
       const { host, pending, didReview, answer } = await confirming()
@@ -459,14 +494,14 @@ describe('runtime maker host', () => {
     it.each(['grant before ready', 'presence in flight'] as const)(
       'RVM103W2 P2 a reloaded document gets its own grant; the old one is retired (%s)',
       async (variant) => {
-        const presence = { check: vi.fn().mockResolvedValue('approved') }
+        const presence = presencePort()
         const service = await lifecycleService({ presence, platform: 'win32' })
         const signal = new AbortController().signal
         try {
           const { engine, pending, review, answer } = await pendingReview(service)
           expect(await service.dispatch(review, signal)).toBe(true)
           const native = Promise.withResolvers<'approved'>()
-          if (variant === 'presence in flight') presence.check.mockReturnValueOnce(native.promise)
+          if (variant === 'presence in flight') presence.once.push(native.promise)
           const old = service.host.authorize(answer)
           if (variant === 'grant before ready') await old
           await service.dispatch({ v: 1, type: 'makerReady' }, signal)
@@ -489,7 +524,10 @@ describe('runtime maker host', () => {
     await host.setHardware(true, 'bench')
     const snapshot = { ...request(), expiresAt: Date.now() + 30_000 }
     const pending = host.confirm(snapshot)
-    const post = vi.fn()
+    const posted: unknown[] = []
+    const post = (message: unknown) => {
+      posted.push(message)
+    }
     const store = createMakerStore({
       post,
       messages: new EventTarget(),
@@ -501,7 +539,7 @@ describe('runtime maker host', () => {
     })
     try {
       expect(store.getState().approvals).toHaveLength(1)
-      expect(post).not.toHaveBeenCalled()
+      expect(posted).toEqual([])
     } finally {
       unsubscribe()
       store.dispose(false)
@@ -510,10 +548,10 @@ describe('runtime maker host', () => {
     }
   })
   it('hardware disable during OS authentication revokes the pending enable', async () => {
-    const presence = { check: vi.fn().mockResolvedValue('approved') }
+    const presence = presencePort()
     const { host } = await fixture({ presence })
     const native = Promise.withResolvers<'approved'>()
-    presence.check.mockReturnValue(native.promise)
+    presence.impl = () => native.promise
     const enabling = host.setHardware(true, 'bench')
     await host.setHardware(false)
     native.resolve('approved')
@@ -580,9 +618,11 @@ describe('runtime maker host', () => {
 describe('ACP maker permissions', () => {
   it('offers only allow/reject once and shows the full engine snapshot', async () => {
     const snapshot = request()
-    const ask = vi
-      .fn()
-      .mockResolvedValue({ outcome: { outcome: 'selected', optionId: 'allow_once' } })
+    const asked: [string, string, unknown][] = []
+    const ask = (title: string, text: string, options: unknown) => {
+      asked.push([title, text, options])
+      return Promise.resolve({ outcome: { outcome: 'selected', optionId: 'allow_once' } })
+    }
     expect(makerPermissionOptions().map((option) => option.kind)).toEqual([
       'allow_once',
       'reject_once',
@@ -593,7 +633,7 @@ describe('ACP maker permissions', () => {
       target: snapshot.target,
       decision: 'allow_once',
     })
-    const text: unknown = ask.mock.calls[0]?.[1]
+    const text: unknown = asked[0]?.[1]
     expect(typeof text === 'string' ? JSON.parse(text) : undefined).toEqual(snapshot)
   })
   it.each(['allow_always', 'reject_once', 'foreign'])('does not honour %s', async (optionId) => {
