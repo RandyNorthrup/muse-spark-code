@@ -3781,6 +3781,8 @@
     "purposeResources": "Rechnerauslastung und Verlauf anzeigen.",
     "purposeShare": "Eine Unterhaltung teilen: kopieren, in einer Datei speichern oder im Browser öffnen.",
     "purposePrompts": "Wiederverwendbare Prompt-Vorlagen speichern, auflisten, verwenden und teilen.",
+    "purposeLsp": "Den Language Server auf stdin und stdout bereitstellen, mit kostenpflichtigem Tab-Opt-in.",
+    "purposePanel": "Das portable Panel für native Editoren bereitstellen.",
     "modelsList": "Modelle für {entry}:",
     "modelsForced": "erzwungen: {reason}",
     "modelsExtra": "Beim Anbieter, aber nicht im Eintrag:",

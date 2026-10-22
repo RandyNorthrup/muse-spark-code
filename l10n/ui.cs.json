@@ -3931,6 +3931,8 @@
     "purposeResources": "Zobrazit zatížení počítače a nedávnou historii.",
     "purposeShare": "Sdílejte konverzaci: zkopírujte ji, uložte do souboru nebo otevřete v prohlížeči.",
     "purposePrompts": "Ukládejte, vypisujte, používejte a sdílejte opakovaně použitelné šablony promptů.",
+    "purposeLsp": "Poskytovat jazykový server na stdin a stdout, s placeným Tab na přihlášení.",
+    "purposePanel": "Poskytovat přenosný panel nativním editorům.",
     "modelsList": "Modely pro {entry}:",
     "modelsForced": "vynuceno: {reason}",
     "modelsExtra": "U poskytovatele, ale ne v záznamu:",

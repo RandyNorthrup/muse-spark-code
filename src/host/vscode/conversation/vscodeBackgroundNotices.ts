@@ -7,10 +7,10 @@
 // instead of passing against scripted closures.
 
 import * as vscode from 'vscode'
-import { SETTINGS_SECTION, UI_TEXT } from '../../shared/constants'
-import { type Logger } from '../logger'
-import { readSettings } from '../settings'
-import { type BackgroundNotifierDeps } from './turnNotifications'
+import { SETTINGS_SECTION, UI_TEXT } from '../../../shared/constants'
+import { type Logger } from '../../logger'
+import { readSettings } from '../../settings'
+import { type BackgroundNotifierDeps } from '../../conversation/turnNotifications'
 
 /** The production `BackgroundNotifier` ports: every read hits the live host. */
 export function vscodeBackgroundNoticeDeps(log: Logger): BackgroundNotifierDeps {

@@ -4,16 +4,16 @@
 // and this bundle's loader: the registry itself, D85.7's contributor consent
 // and its modal, and the binding that registers each approved file.
 import * as vscode from 'vscode'
-import { AttachedMedia } from '../../core/media/attachedMedia'
-import { UI_TEXT, type MEDIA_CONTRIBUTOR_CHOICES } from '../../shared/constants'
-import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
+import { AttachedMedia } from '../../../core/media/attachedMedia'
+import { UI_TEXT, type MEDIA_CONTRIBUTOR_CHOICES } from '../../../shared/constants'
+import type { UiText } from '../../../shared/l10n/en'
+import { setUiText } from '../../../shared/l10n/text'
 import {
   createMediaAttachDeps,
   createMediaSourceOpen,
   type MediaHostSettings,
   type MediaSourceOpenDeps,
-} from './mediaProviders'
+} from '../../media/mediaProviders'
 
 /** U18: the batch endpoint takes contract WAV; MP3 converts first (T9). */
 const TRANSCRIBABLE_AUDIO: ReadonlySet<string> = new Set(['audio/wav', 'audio/mpeg'])

@@ -3781,6 +3781,8 @@
     "purposeResources": "A gép terhelésének és az előzményeknek a megjelenítése.",
     "purposeShare": "Beszélgetés megosztása: másolás, fájlba mentés vagy megnyitás böngészőben.",
     "purposePrompts": "Újrafelhasználható promptsablonok mentése, listázása, használata és megosztása.",
+    "purposeLsp": "A nyelvi kiszolgáló szolgáltatása stdin-en és stdout-on, fizetős Tab lehetőséggel.",
+    "purposePanel": "A hordozható panel szolgáltatása natív szerkesztőknek.",
     "modelsList": "{entry} modelljei:",
     "modelsForced": "kényszerítve: {reason}",
     "modelsExtra": "A szolgáltatónál igen, a bejegyzésben nem:",

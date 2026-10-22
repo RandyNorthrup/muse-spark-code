@@ -3931,6 +3931,8 @@
     "purposeResources": "Pokaż obciążenie komputera i ostatnią historię.",
     "purposeShare": "Udostępnij rozmowę: skopiuj ją, zapisz do pliku lub otwórz w przeglądarce.",
     "purposePrompts": "Zapisuj, wyświetlaj, używaj i udostępniaj szablony promptów wielokrotnego użytku.",
+    "purposeLsp": "Udostępniać serwer językowy na stdin i stdout, z płatnym Tab jako opcją.",
+    "purposePanel": "Udostępniać przenośny panel edytorom natywnym.",
     "modelsList": "Modele dla {entry}:",
     "modelsForced": "wymuszono: {reason}",
     "modelsExtra": "U dostawcy, ale nie we wpisie:",

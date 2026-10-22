@@ -255,7 +255,7 @@ const MEDIA_OUTFILE = 'dist/media.js'
 // loaded the first time a recording command runs.
 // RVMEDIAV 8: the window's attached-media registry, contributor consent and
 // attach binding, required on the first attach beside dist/media.js.
-const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
+const MEDIA_HOST_ENTRY = 'src/host/vscode/media/mediaHostEntry.ts'
 const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
@@ -1707,20 +1707,23 @@ const portableOptions = {
   outdir: PORTABLE_OUTDIR,
 }
 
-async function buildPortable() {
+async function buildPortable(buildRecord) {
+  const record = (options) => (isProduction ? withCompiledRecording(options, buildRecord) : options)
   const [graph, loader] = await Promise.all([
-    esbuild.build(portableOptions),
-    esbuild.build({
-      ...common,
-      entryPoints: ['src/webview/bridges/moduleLoader.ts'],
-      outfile: `${PORTABLE_OUTDIR}/loader.js`,
-      metafile: true,
-      plugins: isProduction ? [compactBrowserEnglish] : [],
-      charset: 'utf8',
-      platform: 'browser',
-      format: 'iife',
-      target: BROWSER_TARGET,
-    }),
+    esbuild.build(record(portableOptions)),
+    esbuild.build(
+      record({
+        ...common,
+        entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+        outfile: `${PORTABLE_OUTDIR}/loader.js`,
+        metafile: true,
+        plugins: isProduction ? [compactBrowserEnglish] : [],
+        charset: 'utf8',
+        platform: 'browser',
+        format: 'iife',
+        target: BROWSER_TARGET,
+      }),
+    ),
   ])
   writePortableManifest(graph.metafile, PORTABLE_OUTDIR)
   return {
@@ -2184,7 +2187,11 @@ if (isWatch) {
     pageWorker: recorded('pageWorker', pageWorkerOptions),
     imageResizeWorker: recorded('imageResizeWorker', imageResizeWorkerOptions),
     webview: recorded('webview', webviewOptions),
-    portable: await buildPortable(),
+    portable: () => {
+      const buildRecord = newBuildRecord()
+      buildRecords.set('portable', buildRecord)
+      return buildPortable(buildRecord)
+    },
   }
   const extraSpecs = [
     ['acp', () => esbuild.build(acpOptions)],

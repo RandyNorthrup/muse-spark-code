@@ -3781,6 +3781,8 @@
     "purposeResources": "Makine yükünü ve son geçmişi gösterir.",
     "purposeShare": "Bir sohbeti paylaş: kopyala, dosyaya kaydet ya da tarayıcıda aç.",
     "purposePrompts": "Yeniden kullanılabilir istem şablonlarını kaydet, listele, kullan ve paylaş.",
+    "purposeLsp": "Dil sunucusunu stdin ve stdout üzerinden sunmak, ücretli Tab katılımıyla.",
+    "purposePanel": "Yerel düzenleyicilere taşınabilir paneli sunmak.",
     "modelsList": "{entry} modelleri:",
     "modelsForced": "zorla eklendi: {reason}",
     "modelsExtra": "Sağlayıcıda var, girdide yok:",

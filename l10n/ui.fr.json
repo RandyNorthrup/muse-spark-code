@@ -3856,6 +3856,8 @@
     "purposeResources": "Afficher la charge de la machine et l’historique récent.",
     "purposeShare": "Partager une conversation : la copier, l’enregistrer dans un fichier ou l’ouvrir dans un navigateur.",
     "purposePrompts": "Enregistrer, lister, utiliser et partager des modèles d’invite réutilisables.",
+    "purposeLsp": "Servir le serveur de langage sur stdin et stdout, avec Tab payant en opt-in.",
+    "purposePanel": "Servir le panneau portable aux éditeurs natifs.",
     "modelsList": "Modèles de {entry} :",
     "modelsForced": "forcé : {reason}",
     "modelsExtra": "Chez le fournisseur, mais pas dans l’entrée :",

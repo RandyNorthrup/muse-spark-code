@@ -217,6 +217,9 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     ignoreFileExists: deps.ignoreFileExists,
     workspaceRoots: deps.workspaceRoots,
     onIgnoreFilesChanged: deps.onIgnoreFilesChanged,
+    trace: (message) => {
+      deps.log.trace(message)
+    },
   })
   let generation = 0
   let request = 0

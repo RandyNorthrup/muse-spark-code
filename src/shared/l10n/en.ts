@@ -4700,6 +4700,8 @@ export const EN = {
     purposeResources: 'Show machine pressure and recent history.',
     purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
     purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    purposeLsp: 'Serve the language server on stdin and stdout, with paid Tab opt-in.',
+    purposePanel: 'Serve the portable panel to native editors.',
     // {entry}: the provider entry id.
     modelsList: 'Models for {entry}:',
     // {reason}: the user's one-line reason for forcing the model.

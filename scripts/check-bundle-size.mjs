@@ -421,7 +421,9 @@ const BUDGETS = [
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25
   // KiB. M115W: the main protocol carries the v2 surface's validated draft
   // and targets, 55.5 KiB measured, plus 15%, rounded up to 25 KiB.
-  { path: 'dist/wire.js', budgetKiB: 75 },
+  // RLM104: the merged MHP panel presentation protocol, 75.6 KiB measured
+  // plus 15%, rounded up to 87 KiB.
+  { path: 'dist/wire.js', budgetKiB: 87 },
   { path: 'dist/hostProtocol.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.

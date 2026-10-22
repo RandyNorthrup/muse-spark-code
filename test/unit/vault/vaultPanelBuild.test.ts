@@ -122,7 +122,7 @@ it('RVAPP-CM1091D5 BYTES the explicit-action code ships only in vaultActions.js 
   // dialogs and the write crypto are here...
   for (const member of [
     'src/host/vault/vaultActionsEntry.ts',
-    'src/host/vault/vaultActionDialogs.ts',
+    'src/host/vscode/vault/vaultActionDialogs.ts',
     'src/host/vault/vaultNativeEditor.ts',
     'src/core/vault/crypto.ts',
   ])
@@ -131,7 +131,7 @@ it('RVAPP-CM1091D5 BYTES the explicit-action code ships only in vaultActions.js 
   // the migration record schema) from the migrate side.
   const host = built.host!
   for (const member of [
-    'src/host/vault/vaultActionDialogs.ts',
+    'src/host/vscode/vault/vaultActionDialogs.ts',
     'src/host/vault/vaultNativeEditor.ts',
     'src/core/vault/crypto.ts',
     'src/core/vault/migrate/ports.ts',

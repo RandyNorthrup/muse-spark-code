@@ -4,13 +4,13 @@
 // never with the opening bundle; only the small confirm/remove/copy/error
 // channel stays in vaultPanelEntry.ts.
 import * as vscode from 'vscode'
-import { UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
-import type { VaultItem, VaultItemMetadata } from '../../shared/vault'
-import { generateEd25519Key, importSshKey, type SoftwareSshKey } from '../../core/vault/ssh/keys'
-import { sshFailure } from '../../core/vault/ssh/wire'
-import type { VaultPanelHostDeps } from './vaultPanelHost'
-import { editVaultItem, type VaultNativeInput } from './vaultNativeEditor'
+import { UI_TEXT } from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
+import type { VaultItem, VaultItemMetadata } from '../../../shared/vault'
+import { generateEd25519Key, importSshKey, type SoftwareSshKey } from '../../../core/vault/ssh/keys'
+import { sshFailure } from '../../../core/vault/ssh/wire'
+import type { VaultPanelHostDeps } from '../../vault/vaultPanelHost'
+import { editVaultItem, type VaultNativeInput } from '../../vault/vaultNativeEditor'
 
 export interface VaultActionDialogDeps {
   readonly now: () => number

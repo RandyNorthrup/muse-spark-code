@@ -11,7 +11,7 @@
     "src/host/backend/productionMediaEntry.ts",
     "src/host/backend/productionAudioEntry.ts",
     "src/runtime/runtimeMediaEntry.ts",
-    "src/host/media/mediaHostEntry.ts",
+    "src/host/vscode/media/mediaHostEntry.ts",
     "src/core/backends/modelapi/modelApiToolsEntry.ts",
     "src/core/backends/modelapi/modelApiVerifyEntry.ts",
     "src/shared/wireEntry.ts",

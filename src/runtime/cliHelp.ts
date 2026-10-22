@@ -192,6 +192,16 @@ function factFor(name: string): CliOptionFact | undefined {
   }
 }
 
+/** The serve-family options the lsp command also takes. */
+const LSP_FAMILY_OPTION_NAMES: ReadonlySet<string> = new Set([
+  'backend',
+  'trust-workspace',
+  'muse-binary',
+  'shell-sandbox',
+  'allow-contributor-models',
+  'verbose',
+])
+
 /** The options serve and login take the same way. */
 const SERVE_FAMILY_OPTIONS: readonly CliHelpOption[] = [
   { name: 'backend', shape: '', fact: factFor('backend') },
@@ -560,6 +570,44 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} prompts use standup --var name=Ana --confirm`,
     ],
     ...SHARING_EXITS,
+  },
+  {
+    name: 'lsp',
+    purpose: (table) => table.cliHelp.purposeLsp,
+    usage: [
+      (command) =>
+        `${command} lsp [--workspace <path>] [--tab --trust-workspace] [--tab-model <model>] [--tab-daily-budget-usd <amount>]`,
+    ],
+    routes: ['lsp'],
+    options: [
+      ...SERVE_FAMILY_OPTIONS.filter((option) => LSP_FAMILY_OPTION_NAMES.has(option.name)),
+      { name: 'workspace', shape: '<path>' },
+      { name: 'tab', shape: '' },
+      { name: 'tab-model', shape: '<model>' },
+      { name: 'tab-daily-budget-usd', shape: '<amount>' },
+      { name: 'broker-worker', shape: '' },
+      { name: 'help', shape: '' },
+    ],
+    examples: [
+      (command) => `${command} lsp --workspace .`,
+      (command) => `${command} lsp --workspace . --tab --trust-workspace`,
+    ],
+    ...GENERIC_EXITS,
+  },
+  {
+    name: 'panel',
+    purpose: (table) => table.cliHelp.purposePanel,
+    usage: [(command) => `${command} panel (--stdio | --companion)`],
+    routes: ['panel'],
+    options: [
+      { name: 'stdio', shape: '' },
+      { name: 'companion', shape: '' },
+    ],
+    examples: [
+      (command) => `${command} panel --stdio`,
+      (command) => `${command} panel --companion`,
+    ],
+    ...GENERIC_EXITS,
   },
 ]
 

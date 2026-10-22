@@ -35406,6 +35406,22 @@ binding (M108 handoffs, kept on the tags). Receipts:
 
 ## 7. Gates
 
+**RLM104 check:catches deferral (2026-10-22).** `check:catches` fails
+with 107 sites the `catch-baseline.json` does not know: runtime +21/+37/+7,
+webview +8/+7/+1, host +3/+5, shared +3/+3, core +1/+1
+(SWALLOW/GENERIC/CLEANUP). Attribution, proved by scanning the 01 branch
+tree with the gate's own `scanCatches`: 99 sites are identity-identical to
+branch code (the LSP bridge, panel protocol, companion features and
+fallbacks predate the baseline, which neither branch carries); 7 more are
+branch-identical catch blocks whose owner function the merge unioned (new
+identity, same block); the last is main's own `runExec` result catch,
+textually unchanged, identity-shifted by the union around it (main passes
+the gate; the worktree baseline is main's, unmodified). This lane authors
+no new catch block. Converting the branch's ~100 sites to NARROW/REPORTED
+is a hardening lane's work, so RLM104 defers it and does not rewrite the
+baseline: regenerating now would accept the debt without the intentional
+fix the gate requires.
+
 **RLM104 check:plan deferral (2026-10-22).** `check:plan` fails on size:
 PLAN.md is 3,691,829 bytes against the 3,565,158-byte 85% bound, over by
 126,671 bytes. Main at f3941b85 passes at 3,563,591 bytes; the overrun is
