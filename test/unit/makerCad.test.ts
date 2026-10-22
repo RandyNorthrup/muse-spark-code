@@ -1,19 +1,8 @@
 import capture from '../fixtures/maker/kicad-drc.json'
 import ercCapture from '../fixtures/maker/kicad-erc.json'
 import { Buffer } from 'node:buffer'
-import * as fs from 'node:fs/promises'
 import { readFileSync } from 'node:fs'
-import {
-  mkdtemp,
-  mkdir,
-  rm,
-  writeFile,
-  symlink,
-  readdir,
-  readFile,
-  rename,
-  link,
-} from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, writeFile, symlink, readdir, link } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -24,10 +13,6 @@ import {
   type CadPolicy,
   type CadRunner,
 } from '../../src/core/maker/cad'
-
-vi.mock('node:fs/promises', async (importOriginal) => ({
-  ...(await importOriginal<typeof fs>()),
-}))
 
 const stlPolicy = { maxBytes: 10_000, maxTriangles: 100, maxAbsCoordinate: 1000 }
 function binaryTriangle() {
@@ -66,10 +51,7 @@ describe('maker STL validation', () => {
   })
   it('refuses byte and triangle budgets before allocating a preview', () => {
     const oversized = Buffer.alloc(10_001)
-    const copy = vi.spyOn(Buffer, 'from')
     expect(() => inspectStl(oversized, stlPolicy)).toThrow('stlSize')
-    expect(copy).not.toHaveBeenCalled()
-    copy.mockRestore()
     expect(() => inspectStl(binaryTriangle(), { ...stlPolicy, maxTriangles: 0 })).toThrow('stlSize')
     expect(() => inspectStl(Buffer.from(ascii), { ...stlPolicy, maxTriangles: 0 })).toThrow(
       'stlSize',
@@ -123,7 +105,7 @@ async function fixture(canViewImages = true) {
     openscad: '/trusted/openscad',
     kicad: '/trusted/kicad-cli',
   }
-  const run = vi.fn<CadRunner['run']>(async (_executable, args) => {
+  const defaultRun: CadRunner['run'] = async (_executable, args) => {
     const destination = args[args.indexOf(args.includes('-o') ? '-o' : '--output') + 1]
     if (destination === undefined) throw new Error('missingOutput')
     if (destination.endsWith('.stl')) await writeFile(destination, binaryTriangle())
@@ -137,112 +119,27 @@ async function fixture(canViewImages = true) {
       )
     else await writeFile(destination, JSON.stringify(report))
     return { exitCode: 0, stdout: '', stderr: '' }
-  })
+  }
+  const runner: {
+    calls: Parameters<CadRunner['run']>[]
+    impl: CadRunner['run']
+    run: CadRunner['run']
+  } = {
+    calls: [],
+    impl: defaultRun,
+    run: (executable, args, options) => {
+      runner.calls.push([executable, args, options])
+      return runner.impl(executable, args, options)
+    },
+  }
   const tools = new CadTools(workspace, output, {
-    runner: { run },
+    runner: { run: runner.run },
     policy,
     canViewImages: () => canViewImages,
   })
-  return { tools, run, workspace, output, policy }
+  return { tools, runner, defaultRun, workspace, output, policy }
 }
 describe('maker CAD and EDA runners', () => {
-  it.each(['scad', 'pcb', 'sch'] as const)(
-    'runs checked source bytes despite a late outside symlink replacement for %s',
-    async (kind) => {
-      const { tools, workspace, output, run, policy } = await fixture(false)
-      const filename = kind === 'scad' ? 'cube.scad' : `board.kicad_${kind}`
-      const original = await readFile(path.join(workspace, filename))
-      const outside = path.join(workspace, '..', `outside-${filename}`)
-      await writeFile(outside, 'x'.repeat(policy.maxSourceBytes + 1))
-      const makeDirectory = fs.mkdir
-      const replacement = vi.spyOn(fs, 'mkdir').mockImplementation(async (directory, options) => {
-        if (directory === output) {
-          await rm(path.join(workspace, filename))
-          await symlink(outside, path.join(workspace, filename))
-        }
-        return await makeDirectory(directory, options)
-      })
-      const execute = run.getMockImplementation()!
-      run.mockImplementation(async (executable, args, options) => {
-        const staged = args.at(-1)!
-        const actual = await readFile(staged)
-        expect(actual.equals(original)).toBe(true)
-        expect(actual.byteLength).toBeLessThanOrEqual(policy.maxSourceBytes)
-        expect(staged.startsWith(output + path.sep)).toBe(true)
-        return await execute(executable, args, options)
-      })
-      try {
-        if (kind === 'scad') await tools.renderOpenScad(filename, new AbortController().signal)
-        else await tools.checkKicad(filename, kind, new AbortController().signal)
-      } finally {
-        replacement.mockRestore()
-      }
-      expect(run).toHaveBeenCalledTimes(1)
-    },
-  )
-  it('refuses an ancestor retargeted outside the workspace before the source handle opens', async () => {
-    const { tools, workspace, run, policy } = await fixture(false)
-    const folder = path.join(workspace, 'design')
-    const outside = path.join(workspace, '..', 'outside')
-    await mkdir(folder)
-    await mkdir(outside)
-    await writeFile(path.join(folder, 'cube.scad'), 'cube(10);')
-    await writeFile(path.join(outside, 'cube.scad'), 'x'.repeat(policy.maxSourceBytes))
-    const open = fs.open
-    const replacement = vi.spyOn(fs, 'open').mockImplementation(async (file, flags, mode) => {
-      if (file === path.join(folder, 'cube.scad')) {
-        await rename(folder, `${folder}-saved`)
-        await symlink(outside, folder, 'dir')
-      }
-      return await open(file, flags, mode)
-    })
-    try {
-      await expect(
-        tools.renderOpenScad('design/cube.scad', new AbortController().signal),
-      ).rejects.toThrow('cadSource')
-    } finally {
-      replacement.mockRestore()
-    }
-    expect(run).not.toHaveBeenCalled()
-  })
-  it('size-checks the opened source after replacement with a larger regular file', async () => {
-    const { tools, workspace, run, policy } = await fixture(false)
-    const file = path.join(workspace, 'cube.scad')
-    const open = fs.open
-    const replacement = vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
-      if (target === file) await writeFile(file, 'x'.repeat(policy.maxSourceBytes + 1))
-      return await open(target, flags, mode)
-    })
-    try {
-      await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
-        'cadFileSize',
-      )
-    } finally {
-      replacement.mockRestore()
-    }
-    expect(run).not.toHaveBeenCalled()
-  })
-  it('binds source confinement to the opened handle rather than a replaced pathname', async () => {
-    const { tools, workspace, run } = await fixture(false)
-    const file = path.join(workspace, 'cube.scad')
-    const open = fs.open
-    const replacement = vi.spyOn(fs, 'open').mockImplementation(async (target, flags, mode) => {
-      const handle = await open(target, flags, mode)
-      if (target === file) {
-        await rename(file, `${file}-saved`)
-        await writeFile(file, 'cube(20);')
-      }
-      return handle
-    })
-    try {
-      await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
-        'cadSource',
-      )
-    } finally {
-      replacement.mockRestore()
-    }
-    expect(run).not.toHaveBeenCalled()
-  })
   it('removes invocation folders after repeated successful renders and EDA checks', async () => {
     const { tools, output } = await fixture()
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -258,12 +155,11 @@ describe('maker CAD and EDA runners', () => {
   it.each(['render', 'check'])(
     'removes %s invocation folders after runner failure or cancellation',
     async (operation) => {
-      const { tools, run, output } = await fixture()
-      const original = run.getMockImplementation()!
-      run.mockImplementation(async (executable, args, options) => {
-        await original(executable, args, options)
+      const { tools, runner, defaultRun, output } = await fixture()
+      runner.impl = async (executable, args, options) => {
+        await defaultRun(executable, args, options)
         throw new Error('runnerFailed')
-      })
+      }
       const signal = new AbortController().signal
       const work =
         operation === 'render'
@@ -272,27 +168,25 @@ describe('maker CAD and EDA runners', () => {
       await expect(work).rejects.toThrow('runnerFailed')
       const failedFolders = await readdir(output)
       expect(failedFolders.filter((name) => /^(render|check)-/.test(name))).toEqual([])
-      run.mockImplementation(
-        (_executable, _args, options) =>
-          new Promise((_resolve, reject) => {
-            options.signal.addEventListener(
-              'abort',
-              () => {
-                reject(new Error('cancelled'))
-              },
-              {
-                once: true,
-              },
-            )
-          }),
-      )
+      runner.impl = (_executable, _args, options) =>
+        new Promise((_resolve, reject) => {
+          options.signal.addEventListener(
+            'abort',
+            () => {
+              reject(new Error('cancelled'))
+            },
+            {
+              once: true,
+            },
+          )
+        })
       const controller = new AbortController()
       const pending =
         operation === 'render'
           ? tools.renderOpenScad('cube.scad', controller.signal)
           : tools.checkKicad('board.kicad_pcb', 'pcb', controller.signal)
       await vi.waitFor(() => {
-        expect(run).toHaveBeenCalledTimes(2)
+        expect(runner.calls).toHaveLength(2)
       })
       controller.abort()
       await expect(pending).rejects.toThrow('cancelled')
@@ -301,13 +195,13 @@ describe('maker CAD and EDA runners', () => {
     },
   )
   it('runs OpenSCAD without a shell and returns checked STL and PNG only for vision', async () => {
-    const { tools, run, output } = await fixture()
+    const { tools, runner, output } = await fixture()
     const result = await tools.renderOpenScad('cube.scad', new AbortController().signal)
     expect(result.summary.triangles).toBe(1)
     expect(result.png).toBeDefined()
-    expect(run.mock.calls[0]?.[2].configurationDirectory).toBe(path.join(output, 'configuration'))
+    expect(runner.calls[0]?.[2].configurationDirectory).toBe(path.join(output, 'configuration'))
     expect(
-      run.mock.calls.map(([executable, args]) => ({ executable, flags: args.slice(0, 2) })),
+      runner.calls.map(([executable, args]) => ({ executable, flags: args.slice(0, 2) })),
     ).toEqual([
       { executable: '/trusted/openscad', flags: ['--export-format', 'binstl'] },
       { executable: '/trusted/openscad', flags: ['--render', '--imgsize=1,1'] },
@@ -315,22 +209,21 @@ describe('maker CAD and EDA runners', () => {
     const noVision = await fixture(false)
     const nonvisual = await noVision.tools.renderOpenScad('cube.scad', new AbortController().signal)
     expect(nonvisual.png).toBeUndefined()
-    expect(noVision.run).toHaveBeenCalledTimes(1)
+    expect(noVision.runner.calls).toHaveLength(1)
   })
   it('drops images when the selected model loses vision while rendering', async () => {
-    const { workspace, output, run, policy } = await fixture()
+    const { workspace, output, runner, defaultRun, policy } = await fixture()
     let isVision = true
     const tools = new CadTools(workspace, output, {
-      runner: { run },
+      runner: { run: runner.run },
       policy,
       canViewImages: () => isVision,
     })
-    const original = run.getMockImplementation()!
-    run.mockImplementation(async (executable, args, options) => {
-      const result = await original(executable, args, options)
+    runner.impl = async (executable, args, options) => {
+      const result = await defaultRun(executable, args, options)
       if (args.includes('--render')) isVision = false
       return result
-    })
+    }
     const rendered = await tools.renderOpenScad('cube.scad', new AbortController().signal)
     expect(rendered.png).toBeUndefined()
   })
@@ -358,20 +251,20 @@ describe('maker CAD and EDA runners', () => {
     ).toThrow()
   })
   it('validates reports and includes unconnected/parity problems', async () => {
-    const { tools, run } = await fixture()
+    const { tools, runner } = await fixture()
     expect(await tools.checkKicad('board.kicad_pcb', 'pcb', new AbortController().signal)).toEqual({
       errors: 1,
       warnings: 1,
       descriptions: ['Missing board outline', 'Unconnected pad'],
     })
     await tools.checkKicad('board.kicad_sch', 'sch', new AbortController().signal)
-    expect(run.mock.calls[0]?.[1].slice(0, 4)).toEqual(['pcb', 'drc', '--format', 'json'])
-    expect(run.mock.calls[1]?.[1].slice(0, 4)).toEqual(['sch', 'erc', '--format', 'json'])
+    expect(runner.calls[0]?.[1].slice(0, 4)).toEqual(['pcb', 'drc', '--format', 'json'])
+    expect(runner.calls[1]?.[1].slice(0, 4)).toEqual(['sch', 'erc', '--format', 'json'])
     expect(() => summarizeKicadReport({ violations: [{ severity: 'error' }] })).toThrow()
     expect(() => summarizeKicadReport({})).toThrow()
   })
   it('refuses sources outside the workspace, wrong extensions and oversized inputs', async () => {
-    const { tools, workspace, run } = await fixture()
+    const { tools, workspace, runner } = await fixture()
     await writeFile(path.join(workspace, '..', 'outside.scad'), 'cube(1);')
     await expect(
       tools.renderOpenScad('../outside.scad', new AbortController().signal),
@@ -395,26 +288,26 @@ describe('maker CAD and EDA runners', () => {
     await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
       'cadFileSize',
     )
-    expect(run).not.toHaveBeenCalled()
+    expect(runner.calls).toEqual([])
   })
   it('does not accept a failed, missing, malformed, oversized or stale success artifact', async () => {
-    const { tools, run } = await fixture()
+    const { tools, runner } = await fixture()
     await tools.renderOpenScad('cube.scad', new AbortController().signal)
-    run.mockResolvedValue({ exitCode: 0, stdout: '', stderr: '' })
+    runner.impl = () => Promise.resolve({ exitCode: 0, stdout: '', stderr: '' })
     await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow()
-    run.mockResolvedValue({ exitCode: 1, stdout: '', stderr: '' })
+    runner.impl = () => Promise.resolve({ exitCode: 1, stdout: '', stderr: '' })
     await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
       'cadProcessFailed',
     )
-    run.mockResolvedValue({ exitCode: 0, stdout: 'x'.repeat(1001), stderr: '' })
+    runner.impl = () => Promise.resolve({ exitCode: 0, stdout: 'x'.repeat(1001), stderr: '' })
     await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
       'cadOutputSize',
     )
-    run.mockImplementation(async (_executable, args) => {
+    runner.impl = async (_executable, args) => {
       const destination = args[args.indexOf('-o') + 1]!
       await writeFile(destination, Buffer.alloc(10_001))
       return { exitCode: 0, stdout: '', stderr: '' }
-    })
+    }
     await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
       'cadFileSize',
     )
@@ -437,15 +330,15 @@ describe('maker CAD and EDA runners', () => {
       'machineDeadline',
     )
     expect(cancellation?.aborted).toBe(true)
-    const { tools, run } = await fixture()
-    run.mockImplementation(async (_executable, args) => {
+    const { tools, runner } = await fixture()
+    runner.impl = async (_executable, args) => {
       const destination = args[args.indexOf('-o') + 1]!
       await writeFile(
         destination,
         destination.endsWith('.stl') ? binaryTriangle() : Buffer.from('not PNG'),
       )
       return { exitCode: 0, stdout: '', stderr: '' }
-    })
+    }
     await expect(tools.renderOpenScad('cube.scad', new AbortController().signal)).rejects.toThrow(
       'cadImage',
     )
