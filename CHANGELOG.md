@@ -7,6 +7,14 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Agent roles and teams (still behind the release latch)
+
+- The team runtime now ships in the package: the host, engine, panel,
+  file-IO, creation, worker-operations and merge chunks with their ship
+  lists. Nothing turns on yet: teams stay hidden until an enabled team
+  really runs, and the README still says the feature remains unavailable
+  until its integration is complete.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
