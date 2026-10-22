@@ -642,6 +642,7 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
   "operations": [
     "initialize",
     "authenticate",
+    "logout",
     "session/new",
     "session/load",
     "session/resume",
@@ -658,7 +659,9 @@ help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Us
     "model": "model",
     "effort": "effort",
     "fast": "fast",
-    "account": "account"
+    "account": "account",
+    "mode": "mode",
+    "paidAllowAlways": "paidAllowAlways"
   },
   "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
   "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -870,7 +873,7 @@ Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/m
 
 Mention a file from this project in your message.
 
-Click to compact now Summarise older context to free the window Cannot rewind before the latest compaction.
+Click to compact now Summarise older context to free the context window Cannot rewind before the latest compaction.
 
 ```json
 {
@@ -1742,7 +1745,7 @@ Availability depends on the backend. Installed skills also add their own slash c
 - `/usage page`: museCode: Track cost, tokens and limits across editors.; modelApi: Track cost, tokens and limits across editors.
 - `/hook run <name>`: museCode: Run a Manual hook from spark-hooks.json; modelApi: Run a Manual hook from spark-hooks.json
 - `/agents`: museCode: Show the agent map; modelApi: Show the agent map
-- `/compact`: museCode: Summarise older context to free the window; modelApi: Summarise older context to free the window
+- `/compact`: museCode: Summarise older context to free the context window; modelApi: Summarise older context to free the context window
 - `/handoff [goal]`: museCode: Distil this conversation into a brief for a fresh one; modelApi: Distil this conversation into a brief for a fresh one
 - `/goal <objective>` | `/goal edit <objective>` | `/goal pause` | `/goal resume` | `/goal clear`: museCode: Set a goal Muse keeps working toward: /goal &lt;objective&gt;; modelApi: Set a goal Muse keeps working toward: /goal &lt;objective&gt;
 - `/playback`: museCode: Muse states its own understanding of the goal, from memory only, with no tools; modelApi: Muse states its own understanding of the goal, from memory only, with no tools

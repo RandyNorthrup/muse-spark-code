@@ -50,6 +50,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, uiLocale } from '../../shared/l10n/text'
+import { listModelsRemedy, unknownProviderModelText } from '../../core/unknownModel'
 import {
   formatStoredProviderSecret,
   parseStoredProviderSecret,
@@ -877,9 +878,12 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
   const requested = input.model ?? model
   if (requested === undefined) {
     // A default that names another provider is the file's choice, not this
-    // run's model; only a run with no model anywhere needs --model spelled out.
+    // run's model: the sentence names that default and the entry it cannot
+    // run on. Only a run with no model anywhere needs --model spelled out.
     return usage(
-      `${UI_TEXT.execProviderModelRequired}: ${provider.entry.models.map((id) => `${provider.entry.id}/${id}`).join(', ')}`,
+      fallback === undefined
+        ? UI_TEXT.execProviderModelRequired
+        : unknownProviderModelText(fallback, provider.entry.id, UI_TEXT.execProviderModelRequired),
     )
   }
   // The key reads before the model check: refresh on use consults the
@@ -967,7 +971,10 @@ export async function assembleProviderRun(input: ProviderRunInput): Promise<
   const modelRef = `${provider.entry.id}/${modelId}`
   const parsedRef = parseModelRef(modelRef)
   if (parsedRef?.providerId !== provider.entry.id) {
-    return usage(UI_TEXT.execUnknownModel)
+    // The id does not parse as this entry's: the sentence names the id as
+    // typed, this entry, and the command listing what it offers. A model
+    // the entry does not offer was refused above, after the live list.
+    return usage(unknownProviderModelText(modelRef, provider.entry.id, listModelsRemedy()))
   }
   const answers = await input.resolveHost(new URL(provider.origin).hostname)
   if (!isEndpointBindingCurrent(provider, answers)) {

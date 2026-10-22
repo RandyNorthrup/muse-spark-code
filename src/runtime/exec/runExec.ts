@@ -52,6 +52,7 @@ import {
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
 import { formatUsd } from '../../shared/l10n/exactUsd'
+import { effortNotForModelText } from '../../core/unknownModel'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
@@ -536,6 +537,8 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         modelCallLimitReason = event.reason
         sink.emit({ type: 'limit', limit: 'requests' })
       }
+      if (event.terminal === 'failed')
+        log.error(`${event.errorKind ?? 'turn_failed'}: ${event.reason ?? UI_TEXT.execIncomplete}`)
     } else if (event.type === 'tokenUsage' && options.backend === 'museCode') {
       latestTokens = {
         inputTokens: event.inputTokens,
@@ -1215,7 +1218,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
             await lifecycle.race(
               connection.request('initialize', {
                 protocolVersion: engine.PROTOCOL_VERSION,
-                clientCapabilities: {},
+                // The exec tap forwards notice updates as update events, so
+                // it advertises them: the agent may send a notice only to a
+                // client that did (the pinned SDK's v1 `Notice` contract).
+                clientCapabilities: { session: { notices: {} } },
               }),
             )
             const created = await lifecycle.race(
@@ -1283,8 +1289,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   (entry) => !('value' in entry && entry.value === requestedModel),
                 )
               ) {
+                // The session does not offer this id: the sentence names
+                // the id as typed. No request was sent.
                 setup.isUsageError = true
-                error = UI_TEXT.execUnknownModel
+                error = fill(UI_TEXT.modelNotInSession, { model: requestedModel })
                 return
               }
               const changed = await lifecycle.race(
@@ -1331,7 +1339,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 !levels.includes(options.effort)
               ) {
                 setup.isUsageError = true
-                error = `${UI_TEXT.execEffortUnavailable} --effort: ${levels.join(', ')}`
+                error = effortNotForModelText(
+                  options.effort,
+                  model ?? '',
+                  levels.filter((level): level is string => typeof level === 'string'),
+                )
                 return
               }
               await lifecycle.race(

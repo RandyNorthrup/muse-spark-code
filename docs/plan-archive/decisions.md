@@ -8288,3 +8288,135 @@ providers' documentation quotes for "not billed" (with what they do not say
 marked), and five red drills are in the certification record.
 
 <!-- plan-archive:end id="decisions-406932fef-14803" -->
+
+## D214 — The stabilized ACP surface is answered, on SDK 1.8.0 (lane ACPGAPS, 2026-10-12; numbered D108 on its branch until the 0.19.0 join, when that number was found shared with the test overhaul; numbered D212 until the int/recovery join of 2026-10-22, when that number was found shared with secondary roles)
+
+<!-- plan-archive:begin id="decisions-62a29535c-15270" lines="15270-15314" at="62a29535c" bytes="2881" sha256="c78b28116497977cc7a4d8697f7f32de6c95e16b41b19cd28f4c88f7a2df7423" -->
+
+**Owner (2026-10-12):** "we need the gaps alll filled asap" — every
+stabilized editor-protocol method and field the scans found our agent not
+answering or sending. Rule: an editor that calls a stabilized method gets
+the documented answer, never "method not found"; every request or reply
+shape rests on the pinned SDK 1.8.0 schema or a protocol page read
+2026-10-12, and stays UNVERIFIED until a real editor confirms it
+(`docs/certification/ACPGAPS-capture-plan.json`; certification
+`docs/certification/ACPGAPS.md`). Landed 2026-10-22 on the 0.19.0 join
+against main's error-truth refusal shapes (PR #238): deletes go through
+the required `AgentHost.deleteSession` behind `info.canDeleteSessions`,
+advertised only where the backend deletes, and every refusal answers in
+the failure's own true words.
+
+- **ACP-G02 closed:** `session/delete` removes the stored session on both
+  backends (`AgentHost.deleteSession`; Muse Code's own delete verb, a
+  stored-file remove on Model API). Unknown ids succeed silently.
+- **ACP-G03 closed:** `logout` stops every held session and removes the
+  stored Model API key; the CLI's sign-in stays the user's to end.
+- **ACP-G04 closed:** `$/cancel_request` ends a prompt like
+  `session/cancel` (the SDK aborts the request signal; the agent cancels
+  the turn and answers `cancelled`), and a cancel sends it for the
+  client's waiting requests. The team worker cancels its child the same
+  way.
+- **ACP-G05/G06 closed:** the modes are also a `mode` settings selector,
+  mode changes are announced, and paid "Allow always" is a boolean
+  setting shown only where the client renders booleans. Legacy
+  `modes`/`set_mode` stay until the protocol removes them.
+- **ACP-G09 closed:** new/load/resume take absolute `additionalDirectories`
+  and listing reports them; tools keep running in the session folder.
+- **ACP-G10/G11 closed:** every message chunk carries its item's
+  `messageId`, every tool call its backend `name`. One-shot notices keep
+  going out ungrouped (follow-up).
+- **ACP-G12 NOT started (design note in the certification):** the agent
+  makes no client `terminal/*` or `fs/*` call; no turn needs one yet, and
+  inventing a call site would be guessing. Decision points: which turn
+  may run client-side commands, whose approval gates them, and what the
+  panel/terminal twins get at the same time.
+- **Parity (owner: all editors equal):** the panel has no session delete
+  and no per-session "Allow always" refusal; the terminal agent has no
+  logout/delete surface. Recorded as follow-ups; nothing here is
+  reachable only through a vscode-only path.
+- **Reference detector fix:** `scripts/lib/reference.mjs` matches wrapped
+  `client.request(` calls too — the cancel cascade wrapped every call
+  site and silently dropped `session/request_permission` from the
+  generated reference until the maintained generator test caught it.
+
+<!-- plan-archive:end id="decisions-62a29535c-15270" -->
+
+## D34
+
+<!-- plan-archive:begin id="decisions-b49b4ecc2-2865" lines="2865-2937" at="b49b4ecc2" bytes="4883" sha256="c8cc75bea3c13454ee082577a2f3421fc269ec60b72ce43c28ffad178f638d0b" -->
+
+The owner said "do it" (2026-09-25) to M33–M35 under D30's five rules. What
+Meta's documentation says (read 2026-09-25, public pages, no key used or
+spent; the Muse Code subscription never pays for any of this, D30):
+
+- **Web search** is a Responses tool, `{"type": "web_search"}`, billed at
+  $2.50 per 1,000 search queries on top of tokens. `include:
+["web_search_call.results"]` adds the results (title, URL, snippet) to
+  each `web_search_call` item. Replies carry `url_citation` annotations,
+  complete only once the response is ("the cookbook"). Earlier
+  `web_search_call` items may be replayed. The usage object has no search
+  count, and Meta does not say how a call with several queries, or one that
+  opened a page, is counted.
+- **Images** are `POST /v1/images/generations` with `muse-image-1.0`: $0.01
+  per image returned, whatever its size; failed and filtered ones are not
+  billed. `size` sets only the aspect ratio. `b64_json` returns the image
+  inline; `output_format` takes png, jpeg or webp.
+- **Muse Voice Transcribe** is not OpenAI-shaped: `wss://api.meta.ai/v1/asr/realtime`,
+  whose first text frame carries the key (Meta ignores the Authorization
+  header there) and the audio format; binary frames of 16-bit mono PCM at
+  16 or 24 kHz, paced at real time; `{"type":"endStream"}` at the end.
+  Push-to-talk mode sends cumulative partials and marks the final one.
+  $0.18 per hour of audio, rounded down to whole seconds.
+
+The choices:
+
+- **The gate.** A feature is on only when its setting is on _and_ the user
+  accepted its price in a modal that names it; the acceptance lives in the
+  extension's global state. A setting turned on anywhere (the palette, the
+  Settings editor, settings.json, another window, while VS Code was closed)
+  is confirmed by the focused window when it notices; a declined
+  confirmation turns the setting back off; turning a setting off forgets the
+  acceptance. The three settings are machine-scoped (D15), so a repository
+  cannot turn one on.
+- **Loud.** The composer's badge names every paid feature that is on, with
+  the prices in its tooltip, on the Model API backend only (the one that
+  uses them); the palette's toggles live there too. Each search and each
+  image is its own transcript row marked "paid", with the price in its
+  tooltip; the microphone is ringed and says "Muse Voice (paid)" while that
+  is its engine. Account & usage shows this window's count of each and its
+  estimated cost.
+- **Search.** The tool is sent only while the feature is on, never in a
+  compaction. Rows complete on `output_item.done`, or from the completed
+  response when the stream never finished them. Each query is counted, and
+  a call that opened a page counts once, so the estimate errs high; a failed
+  search is not counted. A reply's sources are listed under it, taken again
+  from the completed response. The search is replayed without its results.
+- **Images.** `generate_image` (prompt, workspace path ending in `.png`,
+  square, landscape or portrait) is offered only while the feature is on.
+  Every call asks, in every mode, Bypass included, with "Allow once" and
+  "Reject" only (superseded by D48: the paid-use popup, which adds "Allow
+  always in this workspace"); Plan refuses it, since it writes a file. The card is not a
+  file write, so Edit automatically never answers it, and it shows the
+  prompt and the price. What cannot be saved is refused before the card (a
+  taken path, a wrong extension, a path outside the workspace, a prompt
+  over 4,000 characters), so nothing is billed for it. After the card the
+  gate is checked again, and the file is reserved (created empty,
+  exclusively) before the image is bought, so a feature turned off or a path
+  taken while the card was open costs nothing. The request retries a 429
+  only: a lost connection or a server error may have made and billed an
+  image. The reply must start with the PNG signature, and the file is
+  created, never overwritten (the review of PR #27).
+- **Muse Voice.** The microphone's engine is Muse Voice while the feature is
+  on and the window runs on the Model API key; otherwise the free recogniser
+  as before. The audio comes from a capture helper speaking the helper
+  protocol with one more line, `audio`: `native/windows/capture.ps1` (the
+  waveIn API through a C# type Windows PowerShell compiles when the helper
+  starts), the Swift helper's `--capture` mode (AVAudioEngine, microphone
+  permission only), or on Linux the system's `arecord` or `parec`. Audio
+  recorded before the stream is up is held, then sent; the final text lands
+  at the caret; every whole second sent is counted. Turned off (or the
+  backend changed) mid-recording, the recording stops at once and the
+  transcript of what was already sent still lands (the review of PR #27).
+  Linux gets a microphone for the first time, on the paid engine only.
+
+<!-- plan-archive:end id="decisions-b49b4ecc2-2865" -->

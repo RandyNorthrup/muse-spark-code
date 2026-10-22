@@ -137,6 +137,7 @@ export interface ExecRuntimeOptions {
 
 export interface RuntimeBackendDeps {
   readonly team?: TeamHostSeams | undefined
+  readonly hostKind?: 'acp' | 'cli'
   readonly usageRecording?: UsageRecording | undefined
   readonly usageScope?: UsageScopeReader | undefined
   readonly questions?: { remove(sessionId: string): Promise<void> }
@@ -322,7 +323,6 @@ function newFilesClient(input: {
 
 function modelApiManager(
   deps: RuntimeBackendDeps,
-  credentials: CredentialStore,
   storedWorkspaceRoot: string,
   workspaceRoot: string,
   homes: MuseHomes,
@@ -330,6 +330,7 @@ function modelApiManager(
   workspaceEdits: WorkspaceEdits,
   assertWorkspaceCurrent: () => void,
   metaKeyProbe: MetaKeyProbe,
+  credentials: CredentialStore,
   media: {
     /** The runtime's one registry: the media port writes, every session resolves. */
     readonly attached: AttachedMediaPort
@@ -545,6 +546,7 @@ function modelApiManager(
     mediaAudioAction: undefined,
     usageRecording: deps.usageRecording,
     usageScope: deps.usageScope,
+    hostKind: deps.exec === undefined ? (deps.hostKind ?? 'cli') : 'exec',
     hasExternalPaidRecording: deps.exec !== undefined,
     getApiKey: async () => {
       const key = await credentials.getApiKey()
@@ -1126,7 +1128,6 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     workspaceEdits.set(key, edits)
     const manager = modelApiManager(
       deps,
-      credentials,
       cwd,
       canonical,
       homes,
@@ -1134,6 +1135,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
       edits,
       assertWorkspaceCurrent,
       metaKeyProbe,
+      credentials,
       {
         attached: attachedMedia,
         onIo: (io) => {

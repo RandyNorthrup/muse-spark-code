@@ -24,6 +24,8 @@ import { buildAgentReceipt } from '../shared/agentReceipt'
 import { recoveryStamp } from '../shared/agentRecovery'
 import { agentStateText } from '../shared/agentOutcome'
 import { compactReference } from '../shared/cliCommands'
+import { compactResultText } from '../core/compactResult'
+import { effortNotForModelText } from '../core/unknownModel'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
@@ -39,6 +41,7 @@ import {
   type ContentBlock,
   type CreateElicitationRequest,
   type InitializeResponse,
+  type PromptResponse,
   type ListSessionsResponse,
   type McpServer,
   PROTOCOL_VERSION,
@@ -56,6 +59,8 @@ import {
   isModeKeptError,
   isPermissionReviewerError,
   isPromptSettledError,
+  isSessionNotFoundError,
+  isSessionNotLoadedError,
   type ModelSummary,
   type SessionMcpServer,
   type SkillSummary,
@@ -63,14 +68,26 @@ import {
   type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
-import { causeForLog, failureForLog } from '../core/backends/musecode/logText'
+import {
+  causeForLog,
+  failureForLog,
+  internalFaultForLog,
+  isMspFailure,
+} from '../core/backends/musecode/logText'
 import { wireWordForLog } from '../core/logging'
 import { resolveResumedModel } from '../core/backends/musecode/resumedModel'
 import {
   isLinuxSandboxBlocked,
   type LinuxSandboxReadiness,
 } from '../core/backends/musecode/sandbox'
-import { unlessAborted } from '../core/timeouts'
+import { DeadlineError, unlessAborted } from '../core/timeouts'
+import { isMissingApiKeyError, isModelApiError } from '../core/backends/modelapi/transport'
+import {
+  acpUsageSnapshotSchema,
+  readAcpUsage,
+  type AcpAccounting,
+  type AcpUsageSnapshot,
+} from './accounting'
 import type { CoreLogger } from '../core/logging'
 import { type PaidUseAnswer, paidUseQuestion } from '../core/paid/paidConsent'
 import type { AgentEvent } from '../shared/agentEvents'
@@ -78,9 +95,13 @@ import { parsePlaybackPrompt } from '../shared/playbackCommand'
 import { playbackTurnText } from '../core/playback/playbackPrompt'
 import {
   ACP_AGENT_NAME,
+  ACP_ERROR_CODES,
+  CREDENTIAL_STORE_ERROR_KIND,
+  JSON_RPC_ERRORS,
   ACP_AGENT_TITLE,
   ACP_COMPACT_COMMAND,
   ACP_CONFIG_IDS,
+  ACP_NEAREST_COMMAND_COUNT,
   ACP_PAID_TOOL_CALL_PREFIX,
   ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
@@ -125,7 +146,13 @@ import {
 import { type AcpPaidUse, paidUseAnswer, paidUseOptions } from './paid'
 import { acpResourceCommand, acpResourceUpdates, resourceCommands } from './resources'
 import type { RuntimeResources } from '../runtime/resources/port'
-import { resourceStatusText } from '../runtime/resources/text'
+import {
+  isResourceReadingError,
+  isResourceReadingName,
+  resourceFailureReporter,
+  resourceStatusText,
+  type ResourceReading,
+} from '../runtime/resources/text'
 import type {
   AcpQuestionDeferral,
   AcpQuestionRegistry,
@@ -160,7 +187,7 @@ import {
   UpdateTranslator,
 } from './translate'
 import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
-import type { AcpSharingPort } from './sharing'
+import { isAcpSharingFailure, SHARING_FAILURE_CODES, type AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
@@ -232,6 +259,8 @@ export interface SignInMethod {
 }
 
 export interface AcpAgentDeps {
+  readonly accounting?: AcpAccounting
+
   readonly legalScan?:
     | ((
         cwd: string,
@@ -260,6 +289,12 @@ export interface AcpAgentDeps {
   readonly options: AcpAgentOptions
   readonly signIn: SignInMethod
   readonly providerSignIns?: readonly SignInMethod[]
+  /**
+  Ends what `logout` can besides held sessions: removing the credential
+  the agent itself keeps. Absent where that credential is not the
+  agent's to remove (the Muse Code CLI's sign-in).
+  */
+  readonly signOut?: () => Promise<void>
   /** The folder a `session/list` without one lists (the agent's own). */
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
@@ -344,12 +379,29 @@ interface SessionClaim {
 }
 
 const CANCELLED_TERMINAL = 'cancelled'
+/** Alphabetical fallback order for the unknown-slash suggestions. */
+function compareCommandName(left: string, right: string): number {
+  return left.localeCompare(right)
+}
 const FAILED_TERMINAL = 'failed'
 // Turns that finished before `sendTurn` answered with their id; a few suffice.
 const EARLY_FINISHES_KEPT = 8
 
 function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
+/**
+One stop from two: the defined one, or both together. A waiting editor
+request ends when the turn stops, when its own caller stops it, or when
+either does (G04).
+*/
+function combinedStop(
+  first: AbortSignal | undefined,
+  second: AbortSignal | undefined,
+): AbortSignal | undefined {
+  if (first === undefined) return second
+  return second === undefined ? first : AbortSignal.any([first, second])
 }
 
 /**
@@ -360,6 +412,14 @@ export function isLegalScanUnavailable(error: unknown): boolean {
   return error instanceof Error && error.message === UI_TEXT.legalScanUnavailable
 }
 
+/**
+A refusal the product defines, as the ACP error its own message deserves:
+invalid request in this state, never -32603 internal error (DFACPERR).
+*/
+function refusalError(message: string): RequestError {
+  return RequestError.invalidRequest(undefined, message)
+}
+
 function accountRequestError(error: unknown): RequestError {
   // A refused switch is user-actionable (the session kept its account), not
   // an internal failure: answer invalidRequest with the stay-put text.
@@ -368,7 +428,29 @@ function accountRequestError(error: unknown): RequestError {
   const text = accountErrorText(error)
   return text === UI_TEXT.accounts.invalidAccount
     ? RequestError.invalidParams(undefined, text)
-    : RequestError.internalError(undefined, text)
+    : refusalError(text)
+}
+
+/**
+A sharing failure that crossed the lazy bundle, as the ACP error its code
+deserves. The engine owns the single RequestError constructor; the adapter
+never builds one, so a second bundled copy cannot fail the `instanceof`
+check and misreport a refusal as an internal error. Anything else passes
+through untouched (notably cancellation).
+*/
+function sharingRequestError(error: unknown): unknown {
+  if (!isAcpSharingFailure(error)) return error
+  switch (error.code) {
+    case SHARING_FAILURE_CODES.invalidParams: {
+      return RequestError.invalidParams(undefined, error.message)
+    }
+    case SHARING_FAILURE_CODES.invalidRequest: {
+      return RequestError.invalidRequest(undefined, error.message)
+    }
+    default: {
+      return RequestError.internalError(undefined, error.message)
+    }
+  }
 }
 
 /**
@@ -419,7 +501,7 @@ function startingModel(
     pool.find((candidate) => candidate.isDefault) ??
     (isStrict ? undefined : pool[0])
   if (model === undefined) {
-    if (pool.length === 0) throw RequestError.internalError(undefined, UI_TEXT.acpNoModels)
+    if (pool.length === 0) throw refusalError(UI_TEXT.acpNoModels)
     throw RequestError.invalidParams(
       undefined,
       `${UI_TEXT.execProviderModelRequired}: ${models.map((candidate) => candidate.modelId).join(', ')}`,
@@ -438,8 +520,8 @@ export function modelEffortLevels(
 
 /**
 The refusal an editor reads for a level the model does not serve: the
-sentence plus the levels it does serve, the same words headless `exec`
-refuses with, so both surfaces name the choice.
+unavailable sentence plus the levels it does serve. Headless `exec`
+names the effort too, through `effortNotForModelText`.
 */
 export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
   return `${UI_TEXT.execEffortUnavailable} --effort: ${servedEffortLevels(models, modelId).join(', ')}`
@@ -541,6 +623,35 @@ function effortOptionsFor(
   }))
 }
 
+/** The client renders boolean options only with this capability (stable 2026-07-06). */
+export function hasBooleanOptions(client: ClientCapabilities | undefined): boolean {
+  const flag = client?.session?.configOptions?.boolean
+  return flag !== undefined && flag !== null
+}
+
+/**
+Further workspace roots from a session request: every entry is an
+absolute path, kept as sent. Anything else is a bad request, never a
+session scoped somewhere the editor did not ask for.
+*/
+export function parseAdditionalDirectories(value: unknown): string[] {
+  if (value === undefined) return []
+  if (!Array.isArray(value)) throw RequestError.invalidParams()
+  const roots: string[] = []
+  for (const entry of value) {
+    if (typeof entry !== 'string' || !isAbsoluteRoot(entry)) {
+      throw RequestError.invalidParams()
+    }
+    roots.push(entry)
+  }
+  return roots
+}
+
+/** Absolute on this machine or written with Windows separators (an editor on one). */
+function isAbsoluteRoot(entry: string): boolean {
+  return path.isAbsolute(entry) || path.win32.isAbsolute(entry)
+}
+
 /** One ACP session over one AgentSession. */
 class AcpSession {
   private readonly questionRegistry: AcpQuestionRegistry | undefined
@@ -558,6 +669,7 @@ class AcpSession {
   private readonly earlyFinishes = new Map<string, TurnCompleted>()
   private outbox: Promise<void> = Promise.resolve()
   private pending: PendingPrompt | undefined
+  private hasLoggedUsageFailure = false
   /**
   A prompt before its turn starts, while the session's skills are first
   announced: the session is busy, and a cancel ends the prompt there.
@@ -571,6 +683,7 @@ class AcpSession {
   private hasSaidSandboxCannotStart = false
   /** F91: the model heard once that Muse Code's Linux sandbox cannot start here. */
   private hasToldModelSandboxCannotStart = false
+  private readonly notices = new Set<string>()
   private releaseSchedules: (() => Promise<void>) | undefined
   private isScheduleHostAvailable = true
   private effort: EffortLevel = DEFAULT_EFFORT
@@ -589,6 +702,15 @@ class AcpSession {
   private starting: Promise<unknown> | undefined
   /** The last backend mode command queued: each one runs after the one before it. */
   private modeOrder: Promise<unknown> = Promise.resolve()
+  /**
+  The turn's own stop: aborting it sends `$/cancel_request` for the
+  client's requests still waiting (permission, elicitation), the
+  cascade the cancellation page shows. Fresh per turn; spent by
+  cancel, release or a host exit.
+  */
+  private clientStop: AbortController | undefined
+  /** Whether paid uses may offer "Allow always" here (a boolean option, G06). */
+  private rememberPaid = true
   public readonly sessionId: string
 
   public constructor(
@@ -626,8 +748,9 @@ class AcpSession {
     this.translator = new UpdateTranslator(
       cwd,
       false,
-      undefined,
       'museCode',
+      // Notices may go out only to a client that advertised them (the
+      // pinned SDK's v1 `Notice` contract; see translate.ts).
       clientCapabilities.session?.notices != null,
     )
     this.unsubscribeResources = deps.resources?.subscribe(this.sessionId, (notice) => {
@@ -706,7 +829,7 @@ class AcpSession {
           starting: this.starting,
         }),
         notice: (text) => {
-          this.questionNotice(text)
+          this.showNotice(text)
         },
         failed: () => {
           this.questionFailed()
@@ -822,6 +945,59 @@ class AcpSession {
   }
 
   /** `/selector arguments` naming one of the session's skills runs that skill, as in the panel. */
+
+  /**
+  A slash message no local command, advertised command or installed skill
+  owns is answered here, never sent to the model. `/help <topic>` answers
+  about that command. A name the session owns falls through to its owner.
+  */
+  private unknownSlashText(typed: string): string | undefined {
+    if (typed === '/' || !typed.startsWith('/')) {
+      return undefined
+    }
+    const match = /^\/(\S+)(?:\s+([\s\S]*))?$/.exec(typed)
+    const name = match?.[1] ?? ''
+    const topic = match?.[2]?.trim() ?? ''
+    if (topic !== '' && name === SLASH_COMMAND_NAMES.help) {
+      return this.helpTopicText(topic)
+    }
+    const known = new Set(this.availableCommands().map((command) => command.name))
+    const isKnown = name === '' || name === SLASH_COMMAND_NAMES.help || known.has(name)
+    return isKnown
+      ? undefined
+      : fill(UI_TEXT.acpUnknownCommand, {
+          command: `/${name}`,
+          commands: this.nearestCommands(name),
+        })
+  }
+
+  /** The `/help <topic>` answer: what the command does, or no such topic. */
+  private helpTopicText(topic: string): string {
+    const found = this.availableCommands().find((command) => command.name === topic)
+    return found === undefined
+      ? fill(UI_TEXT.acpHelpUnknownTopic, { topic })
+      : `/${found.name}: ${found.description}`
+  }
+
+  /** Up to three known commands `name` is nearest to, for the unknown answer. */
+  private nearestCommands(name: string): string {
+    const names = this.availableCommands().map((command) => command.name)
+    const lower = name.toLowerCase()
+    const starts = names
+      .filter((candidate) => candidate.toLowerCase().startsWith(lower))
+      .toSorted(compareCommandName)
+    const holds = names
+      .filter((candidate) => !starts.includes(candidate) && candidate.toLowerCase().includes(lower))
+      .toSorted(compareCommandName)
+    const nearest = [...starts, ...holds].slice(0, ACP_NEAREST_COMMAND_COUNT)
+    const shown =
+      nearest.length > 0
+        ? nearest
+        : names.toSorted(compareCommandName).slice(0, ACP_NEAREST_COMMAND_COUNT)
+    return shown.map((candidate) => `/${candidate}`).join(', ')
+  }
+
+  /** A finished compact says what it did, so the turn never ends silent. */
   private withSkill(parts: TurnPart[]): TurnPart[] {
     const [first, ...rest] = parts
     if (first?.type !== 'text') {
@@ -837,14 +1013,6 @@ class AcpSession {
         ? { type: 'skill', selector: invocation.selector }
         : { type: 'skill', selector: invocation.selector, arguments: invocation.arguments }
     return [skill, ...rest]
-  }
-
-  private async announceCommands(): Promise<void> {
-    if (this.areCommandsAnnounced) {
-      return
-    }
-    this.areCommandsAnnounced = true
-    await this.refreshCommands()
   }
 
   private async refreshCommands(): Promise<void> {
@@ -1114,7 +1282,15 @@ class AcpSession {
         throw RequestError.invalidParams(undefined, error.message)
       throw RequestError.invalidParams(undefined, UI_TEXT.attachmentUnreadable)
     }
-    if (attachment === undefined) return true
+    if (attachment === undefined) {
+      // A dismissed recording is still an answer: the person reads that
+      // nothing was attached. Only /record returns undefined.
+      this.send({
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: UI_TEXT.media.recordingDiscarded },
+      })
+      return true
+    }
     if (signal.aborted || this.isDisposed) {
       await attachment.dispose?.()
       signal.throwIfAborted()
@@ -1152,6 +1328,12 @@ class AcpSession {
         if (pending?.turnId === event.turnId && pending.userMessageId === undefined) {
           this.commitAnswers(pending)
         }
+        return
+      }
+      case 'tokenUsage': {
+        // Token events never read the journal: the usage figures are read
+        // once per completed request, off the answer path (finding 4).
+        for (const update of this.translator.updates(event)) this.send(update)
         return
       }
       case 'messageAdmitted': {
@@ -1382,10 +1564,14 @@ class AcpSession {
         return
       }
       pending.reject(
-        RequestError.internalError(
-          undefined,
-          event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
-        ),
+        event.errorKind === CREDENTIAL_STORE_ERROR_KIND
+          ? new RequestError(ACP_ERROR_CODES.credentialStore, UI_TEXT.acpCredentialStoreNoAnswer, {
+              kind: CREDENTIAL_STORE_ERROR_KIND,
+              requestSent: false,
+            })
+          : new RequestError(ACP_ERROR_CODES.turnFailed, event.reason ?? UI_TEXT.actionFailed, {
+              kind: event.errorKind ?? 'turn_failed',
+            }),
       )
       return
     }
@@ -1425,11 +1611,15 @@ class AcpSession {
         let response: RequestPermissionResponse | undefined
         try {
           response = permissionResponse(
-            await this.client.request('session/request_permission', {
-              sessionId: this.sessionId,
-              toolCall: approvalToolCall(event, this.cwd),
-              options: permissionOptions(event.availableChoices),
-            }),
+            await this.client.request(
+              'session/request_permission',
+              {
+                sessionId: this.sessionId,
+                toolCall: approvalToolCall(event, this.cwd),
+                options: permissionOptions(event.availableChoices),
+              },
+              this.clientRequestOptions(),
+            ),
           )
         } catch (error: unknown) {
           this.deps.log.warn(
@@ -1516,10 +1706,15 @@ class AcpSession {
       const { elicitationSchema, elicitationText, parseElicitationResult } =
         this.questionBundle().acpElicitation(UI_TEXT, uiLocale())
       if (settle === undefined || this.clientCapabilities.elicitation?.form == null) {
-        this.send({
-          sessionUpdate: 'agent_message_chunk',
-          content: { type: 'text', text: elicitationText(message, event.fields) },
-        })
+        const text = elicitationText(message, event.fields)
+        if (event.itemId === undefined) this.showNotice(text, `elicitation.${event.elicitationId}`)
+        else
+          this.send({
+            sessionUpdate: 'tool_call_update',
+            toolCallId: event.itemId,
+            status: 'pending',
+            content: [{ type: 'content', content: { type: 'text', text } }],
+          })
       } else {
         const request: CreateElicitationRequest = {
           sessionId: this.sessionId,
@@ -1527,7 +1722,11 @@ class AcpSession {
           message,
           requestedSchema: elicitationSchema(event.fields),
         }
-        const response = await this.client.request('elicitation/create', request)
+        const response = await this.client.request(
+          'elicitation/create',
+          request,
+          this.clientRequestOptions(),
+        )
         if (!this.isCurrentPrompt(pending)) {
           return
         }
@@ -1597,7 +1796,12 @@ class AcpSession {
   }
 
   private questionNotice(text: string): void {
-    this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+    // Its own message, named so the client never folds it into a turn's.
+    this.send({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text },
+      messageId: randomUUID(),
+    })
   }
 
   /** Whether the probe measured at host start that Muse Code's Linux sandbox cannot start here. */
@@ -1655,10 +1859,27 @@ class AcpSession {
   /** A load or resume runs on the remembered mode: a refusal names the host's instead. */
   private async syncRememberedMode(): Promise<void> {
     try {
-      await this.session.setApprovalMode(approvalModeFor(this.mode, true))
+      await this.sessionCommand(() =>
+        this.session.setApprovalMode(approvalModeFor(this.mode, true)),
+      )
     } catch (error: unknown) {
       if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
       await this.showRunningMode(error, this.mode)
+      throw error
+    }
+  }
+
+  /**
+  One backend session command. Muse Code evicts or closes sessions ACP
+  still holds (MSP `sessionNotLoaded`); the editor's id then names nothing,
+  so the request reads as a missing resource, never an internal error.
+  Any other backend failure propagates as before.
+  */
+  private async sessionCommand(action: () => Promise<void>): Promise<void> {
+    try {
+      await action()
+    } catch (error: unknown) {
+      if (isSessionNotLoadedError(error)) throw RequestError.resourceNotFound(this.sessionId)
       throw error
     }
   }
@@ -1732,10 +1953,13 @@ class AcpSession {
       // Only the scanner failing to load says it could not be loaded: the
       // bundle loader's contract throws exactly `legalScanUnavailable` (the
       // log has the cause). A failing scan, a refused permission prompt or a
-      // lost update carries its own cause instead.
-      if (isLegalScanUnavailable(error))
-        throw RequestError.internalError(undefined, UI_TEXT.legalScanUnavailable)
-      throw error
+      // lost update is an internal fault instead, with the raw failure in
+      // the log and a fixed reason on the wire.
+      if (isLegalScanUnavailable(error)) throw refusalError(UI_TEXT.legalScanUnavailable)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: legal scan failed: ${failureForLog(error)}`,
+      )
+      throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
     } finally {
       if (this.legalStop === stop) this.legalStop = undefined
       if (this.preparing === preparing) this.preparing = undefined
@@ -1872,6 +2096,16 @@ class AcpSession {
   private cancelVaultRequests(): void {
     this.vaultGeneration += 1
     for (const controller of this.vaultRequests) controller.abort()
+  }
+
+  /**
+  The turn's stop as request options: the SDK sends `$/cancel_request`
+  for the request when it aborts (G04). Outside a turn there is nothing
+  to stop, so no options.
+  */
+  private clientRequestOptions(): { cancellationSignal: AbortSignal } | undefined {
+    const stop = this.clientStop
+    return stop === undefined ? undefined : { cancellationSignal: stop.signal }
   }
 
   /**
@@ -2040,6 +2274,48 @@ class AcpSession {
     )
   }
 
+  /**
+  One accounting read per completed request, off the answer path: token
+  events never read, and the read never holds the outbox. Answers,
+  permission questions and completion never queue behind a journal read,
+  and unavailable accounting never reads as zero spend.
+  */
+  private async readUsage(): Promise<AcpUsageSnapshot | { v: 1; available: false } | undefined> {
+    const accounting = this.deps.accounting
+    if (accounting === undefined) return undefined
+    try {
+      return await readAcpUsage(accounting, this.sessionId)
+    } catch (error: unknown) {
+      this.deps.log.trace(`ACP usage accounting is unavailable: ${failureForLog(error)}`)
+      if (!this.hasLoggedUsageFailure) {
+        this.hasLoggedUsageFailure = true
+        this.deps.log.warn('ACP usage accounting is unavailable')
+      }
+      return { v: 1, available: false }
+    }
+  }
+
+  /** The settled figures for a finished request, as a client update. */
+  private usageUpdate(usage: AcpUsageSnapshot | { v: 1; available: false }): SessionUpdate {
+    return { sessionUpdate: 'session_info_update', _meta: { 'museSpark.usage': usage } }
+  }
+
+  private showNotice(
+    text: string,
+    key = text,
+    title = text,
+    severity: 'info' | 'warning' = 'info',
+  ): void {
+    if (this.clientCapabilities.session?.notices == null || this.notices.has(key)) return
+    this.notices.add(key)
+    this.send({
+      sessionUpdate: 'notice',
+      severity,
+      title,
+      ...(title !== text && { description: text }),
+    })
+  }
+
   private async askPaidQuestion(
     title: string,
     detail: string,
@@ -2057,11 +2333,15 @@ class AcpSession {
       sessionUpdate: 'tool_call',
       toolCallId,
       title,
+      ...(request !== undefined && { name: request.feature }),
       kind: 'other',
       status: 'pending',
       content,
     })
     let answer: PaidUseAnswer = 'deny'
+    // The session's boolean option can take "Allow always" off the table:
+    // offering it would cost a stored grant the session refused to keep.
+    const canOfferAlways = canRemember && this.rememberPaid
     try {
       await this.outbox
       if (!isCurrent()) {
@@ -2069,18 +2349,28 @@ class AcpSession {
       }
       const params: RequestPermissionRequest = {
         sessionId: this.sessionId,
-        toolCall: { toolCallId, title, status: 'pending', content },
+        toolCall: {
+          toolCallId,
+          title,
+          ...(request !== undefined && { name: request.feature }),
+          status: 'pending',
+          content,
+        },
         options: paidUseOptions(
-          canRemember,
+          canOfferAlways,
           request?.feature === 'scheduledPrompts' && request.schedule !== undefined,
         ),
       }
       // The companion's cancellation also cancels the editor's prompt: a
       // locally abandoned wait must not leave the editor's question open.
+      // The turn's own stop cancels it too, sending `$/cancel_request`
+      // for the waiting request (G04).
+      const turnStop = this.clientStop?.signal
+      const cancellationSignal = combinedStop(signal, turnStop)
       const pendingPermission = this.client.request(
         'session/request_permission',
         params,
-        signal === undefined ? undefined : { cancellationSignal: signal },
+        cancellationSignal === undefined ? undefined : { cancellationSignal },
       )
       const response =
         signal === undefined
@@ -2089,7 +2379,7 @@ class AcpSession {
       // A session let go while the editor was asked is billed for nothing.
       answer =
         response !== undefined && isCurrent()
-          ? paidUseAnswer(permissionResponse(response), canRemember)
+          ? paidUseAnswer(permissionResponse(response), canOfferAlways)
           : 'deny'
     } catch (error: unknown) {
       this.deps.log.warn(
@@ -2169,6 +2459,7 @@ class AcpSession {
       sessionUpdate: 'tool_call',
       toolCallId,
       title: UI_TEXT.vault.title,
+      name: 'vault',
       kind: 'other',
       status: 'pending',
       content,
@@ -2193,7 +2484,13 @@ class AcpSession {
             'session/request_permission',
             {
               sessionId: this.sessionId,
-              toolCall: { toolCallId, title: UI_TEXT.vault.title, status: 'pending', content },
+              toolCall: {
+                toolCallId,
+                title: UI_TEXT.vault.title,
+                name: 'vault',
+                status: 'pending',
+                content,
+              },
               options: vaultPermissionOptions(request),
             },
             { cancellationSignal: controller.signal },
@@ -2232,6 +2529,16 @@ class AcpSession {
   }
 
   public configOptions(): SessionConfigOption[] {
+    // Annotated so `type` stays the `'boolean'` literal the option union
+    // discriminates on; an inline conditional spread would widen it.
+    const paidAlways: SessionConfigOption | undefined = hasBooleanOptions(this.clientCapabilities)
+      ? {
+          id: ACP_CONFIG_IDS.paidAllowAlways,
+          name: UI_TEXT.paidAllowAlways,
+          type: 'boolean',
+          currentValue: this.rememberPaid,
+        }
+      : undefined
     return [
       ...(this.accounts?.option() ?? []),
       {
@@ -2248,6 +2555,25 @@ class AcpSession {
       },
       ...this.effortOption(),
       ...this.fastOption(),
+      // The same modes `session/set_mode` takes, as the category the
+      // protocol prefers (G05): editors on config options stop needing
+      // the dedicated method before it is removed.
+      {
+        id: ACP_CONFIG_IDS.mode,
+        name: UI_TEXT.modesTitle,
+        category: 'mode',
+        type: 'select',
+        currentValue: this.mode,
+        options: availablePermissionModes(this.deps.options.canBypass).map((mode) => ({
+          value: mode,
+          name: UI_TEXT.permissionModes[mode],
+          description: permissionModeDetail(mode, this.deps.backend.kind),
+        })),
+      },
+      // The only boolean: offering "Allow always" costs a stored grant,
+      // so a session can refuse to offer it (G06). Sent only where the
+      // client says it renders booleans.
+      ...(paidAlways === undefined ? [] : [paidAlways]),
     ]
   }
 
@@ -2274,7 +2600,7 @@ class AcpSession {
         this.deps.backend.kind === 'modelApi',
       )
       this.ensureHeld()
-      await this.session.setModel(listed)
+      await this.sessionCommand(() => this.session.setModel(listed))
       this.modelId = listed
     }
     await this.applyEffort(this.effort)
@@ -2291,7 +2617,9 @@ class AcpSession {
         this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
       ).length > 0
     )
-      await this.session.setReasoningEffort(effortForThinking(served, true))
+      await this.sessionCommand(() =>
+        this.session.setReasoningEffort(effortForThinking(served, true)),
+      )
     if (this.effortChangeRevision === revision) {
       this.effort = served
     }
@@ -2361,7 +2689,7 @@ class AcpSession {
     this.ensureHeld()
     await this.inModeOrder(async () => {
       try {
-        await this.session.setApprovalMode(approvalModeFor(mode, true))
+        await this.sessionCommand(() => this.session.setApprovalMode(approvalModeFor(mode, true)))
       } catch (error: unknown) {
         if (!isPermissionReviewerError(error) && !isModeKeptError(error)) throw error
         // The host runs another mode: show it so the editor agrees with the
@@ -2389,12 +2717,25 @@ class AcpSession {
       this.fast = value
       return
     }
+    if (configId === ACP_CONFIG_IDS.paidAllowAlways) {
+      if (typeof value !== 'boolean') {
+        throw RequestError.invalidParams(undefined, configId)
+      }
+      this.rememberPaid = value
+      return
+    }
+    if (configId === ACP_CONFIG_IDS.mode) {
+      if (typeof value !== 'string') {
+        throw RequestError.invalidParams(undefined, configId)
+      }
+      await this.setMode(value)
+      return
+    }
     if (typeof value !== 'string') {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (configId === ACP_CONFIG_IDS.account) {
-      if (this.accounts === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+      if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
       if (this.pending !== undefined || this.preparing !== undefined)
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
@@ -2410,7 +2751,12 @@ class AcpSession {
     if (configId === ACP_CONFIG_IDS.model) {
       const chosen = this.models.find((model) => model.modelId === value)
       if (chosen === undefined) {
-        throw RequestError.invalidParams(undefined, value)
+        // The session does not offer this id: the refusal names the id
+        // as typed. No request was sent.
+        throw RequestError.invalidParams(
+          undefined,
+          fill(UI_TEXT.modelNotInSession, { model: value }),
+        )
       }
       // Refused in the protocol's own error with the limit's sentence
       // (F83): a plain backend error would reach the client as a bare
@@ -2420,7 +2766,7 @@ class AcpSession {
       }
       this.ensureHeld()
       const revision = this.modelChangeRevision
-      await this.session.setModel(value)
+      await this.sessionCommand(() => this.session.setModel(value))
       // A backend event during the command is authoritative (for example a
       // canonicalized id); its editor update must survive the command ack.
       if (this.modelChangeRevision === revision) {
@@ -2446,7 +2792,12 @@ class AcpSession {
       throw RequestError.invalidParams(undefined, configId)
     }
     if (!isEffortLevel(value) || !servedEffortLevels(this.models, this.modelId).includes(value)) {
-      throw RequestError.invalidParams(undefined, effortRefusalData(this.models, this.modelId))
+      // The effort is not on this model: the refusal names the effort, the
+      // model, and the levels it serves (the one shared function, RVCM1063D).
+      throw RequestError.invalidParams(
+        undefined,
+        effortNotForModelText(value, this.modelId, servedEffortLevels(this.models, this.modelId)),
+      )
     }
     await this.applyEffort(value)
     this.isEffortChosen = true
@@ -2512,12 +2863,27 @@ class AcpSession {
     })
   }
 
+  /**
+  Sends the session's command list once; the agent calls it while adopting
+  a session, so later prompts find it already sent.
+  */
+  public async announceCommands(): Promise<void> {
+    if (this.areCommandsAnnounced) {
+      return
+    }
+    this.areCommandsAnnounced = true
+    await this.refreshCommands()
+  }
+
   public async prompt(
     blocks: readonly ContentBlock[],
     onAccepted?: () => void,
   ): Promise<StopReason> {
     this.ensureHeld()
     if (this.deps.resources !== undefined) {
+      // A rejected reading reaches `respond` below, which reports it once
+      // under its own name and carries it to the client as that typed
+      // reason, never an internal error (finding 5).
       const update = await acpResourceCommand(blocks, this.deps.resources)
       this.ensureHeld()
       if (update !== undefined) {
@@ -2566,8 +2932,7 @@ class AcpSession {
     if (slash !== undefined) {
       if (slash === 'invalid' || blocks.length !== 1)
         throw RequestError.invalidParams(undefined, UI_TEXT.vault.noAccess)
-      if (this.deps.vault === undefined)
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+      if (this.deps.vault === undefined) throw refusalError(UI_TEXT.vault.brokerBlocked)
       const preparing: PreparingPrompt | undefined =
         slash === 'lock' ? undefined : { isCancelled: false, abort: new AbortController() }
       if (preparing === undefined) this.cancelVaultRequests()
@@ -2579,10 +2944,16 @@ class AcpSession {
         await this.outbox
         return 'end_turn'
       } catch (error: unknown) {
+        // Only the broker's own cannot-start refusal reads as one: a protocol
+        // fault (notably a malformed broker status) or a programming fault
+        // stays internal, with the failure's kind in the log and a fixed
+        // reason on the wire.
         this.deps.log.warn(
           `ACP session ${this.sessionId}: vault command failed: ${failureForLog(error)}`,
         )
-        throw RequestError.internalError(undefined, UI_TEXT.vault.brokerBlocked)
+        if (error instanceof Error && error.message === UI_TEXT.vault.brokerBlocked)
+          throw refusalError(UI_TEXT.vault.brokerBlocked)
+        throw RequestError.internalError(undefined, UI_TEXT.actionFailed)
       } finally {
         if (preparing !== undefined && this.preparing === preparing) this.preparing = undefined
       }
@@ -2611,7 +2982,11 @@ class AcpSession {
     }
     const preparing: PreparingPrompt = { isCancelled: false, abort: new AbortController() }
     this.preparing = preparing
-    let parsed: Awaited<ReturnType<typeof promptParts>>
+    // A `\/...` message goes to the model with a literal leading slash: set
+    // where the escape is stripped, read where the turn is sent.
+    let isLiteralSlash: boolean
+    let turnParts: TurnPart[]
+    let turnText: string
     let isCompact: boolean
     let isPlayback: boolean
     let isUsage: boolean
@@ -2657,7 +3032,7 @@ class AcpSession {
       )
       const media =
         isNeedsMedia && this.deps.media !== undefined ? await this.mediaPort() : undefined
-      parsed = await promptParts(
+      const parsed = await promptParts(
         blocks,
         this.cwd,
         media,
@@ -2743,7 +3118,10 @@ class AcpSession {
             sessionUpdate: 'agent_message_chunk',
             content: {
               type: 'text',
-              text: compactReference(this.availableCommands().map((command) => command.name)),
+              text: [
+                compactReference(this.availableCommands().map((command) => command.name)),
+                UI_TEXT.acpCommandHelpNote,
+              ].join('\n\n'),
             },
           })
         await this.outbox
@@ -2810,8 +3188,7 @@ class AcpSession {
         return 'end_turn'
       }
       if (/^\/accounts(?:\s|$)/.test(typed)) {
-        if (this.accounts === undefined)
-          throw RequestError.internalError(undefined, UI_TEXT.accounts.unavailable)
+        if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
         if (parsed.parts.length !== 1)
           throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
         let text: string | undefined
@@ -2824,8 +3201,10 @@ class AcpSession {
           throw accountRequestError(error)
         }
         if (preparing.isCancelled || this.isDisposed) return 'cancelled'
-        if (text !== undefined)
-          this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
+        // A command turn never ends silently: no sentence is a refusal.
+        if (text === undefined)
+          throw RequestError.invalidParams(undefined, UI_TEXT.accounts.invalidAccount)
+        this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
       }
@@ -2851,22 +3230,67 @@ class AcpSession {
           !preparing.isCancelled &&
           !('error' in preparing)
         if (!isActive()) return 'cancelled'
-        const text = await unlessAborted(
-          sharing.execute(parsed.displayText, {
-            cwd: this.cwd,
-            sessionId: this.sessionId,
-            isActive,
-            signal: preparing.abort.signal,
-          }),
-          preparing.abort.signal,
-        )
+        // The lazy sharing bundle's failures become the engine's own
+        // RequestErrors here, where the single constructor lives.
+        let text: string | undefined
+        try {
+          text = await unlessAborted(
+            sharing.execute(parsed.displayText, {
+              cwd: this.cwd,
+              sessionId: this.sessionId,
+              isActive,
+              signal: preparing.abort.signal,
+            }),
+            preparing.abort.signal,
+          )
+        } catch (error: unknown) {
+          // An internal sharing fault reaches the wire as the fixed
+          // could-not-complete reason; the log names the underlying fault
+          // the wrapper carries as `cause` (a name only, never raw text).
+          if (isAcpSharingFailure(error) && error.code === SHARING_FAILURE_CODES.internalError)
+            this.deps.log.warn(
+              `ACP session ${this.sessionId}: sharing command failed: ${internalFaultForLog(error)}`,
+            )
+          throw sharingRequestError(error)
+        }
         if ('error' in preparing) throw preparing.error
         if (text === undefined || !isActive()) return 'cancelled'
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })
         await this.outbox
         return 'end_turn'
       }
-      isUsage = await this.usageReply(blocks, preparing)
+      // `\/...` sends a literal leading slash to the model: the escape is
+      // stripped here, after every local command missed it, and nothing
+      // below names the stripped text a command, a skill or an unknown
+      // slash. A lone `/` is ordinary prompt text, not a command.
+      const escape =
+        parsed.parts.length === 1 && part?.type === 'text' && typed.startsWith('/\\')
+          ? {
+              parts: [{ ...part, text: part.text.replace(/^(\s*)\/\\\//u, '$1/') }],
+              text: parsed.displayText.replace(/^(\s*)\/\\\//u, '$1/'),
+            }
+          : undefined
+      isLiteralSlash = escape !== undefined
+      turnParts = escape?.parts ?? parsed.parts
+      turnText = escape?.text ?? parsed.displayText
+      // A playbook answer, even a refusal or a usage correction, owns its
+      // command: only a slash nothing above named is unknown.
+      if (!isLiteralSlash && local === undefined) {
+        const unknownText =
+          parsed.parts.length === 1 && part?.type === 'text'
+            ? this.unknownSlashText(typed)
+            : undefined
+        if (unknownText !== undefined) {
+          if (!preparing.isCancelled && !this.isDisposed)
+            this.send({
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text: unknownText },
+            })
+          await this.outbox
+          return 'end_turn'
+        }
+      }
+      isUsage = !isLiteralSlash && (await this.usageReply(blocks, preparing))
       if (!isUsage && !isCompact && !isPlayback && local === undefined)
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
@@ -2896,8 +3320,12 @@ class AcpSession {
       return 'end_turn'
     }
     if (isUsage) {
+      // A usage turn stopped before its first sentence ends stopped, not
+      // silent: only a finished usage ends the turn. The shared preparing
+      // flag is read through the reply gate (cancelPreparing mutates it
+      // through the shared reference, past the type checker's narrowing).
       await this.outbox
-      return 'end_turn'
+      return this.canReplyUsage(preparing) ? 'end_turn' : 'cancelled'
     }
     // Outcomes are values: a host exit before turn/start answers must not
     // reject a promise that the prompt has not yet reached (Node would exit).
@@ -2918,12 +3346,21 @@ class AcpSession {
       }
     })
     this.pending = pending
+    // From here a cancel also stops the client's own waiting requests.
+    this.clientStop = new AbortController()
     try {
       if (isCompact) {
         // The same AgentSession core serves interactive ACP and runExec. A
         // compact starts synchronously, so cancellation need not wait for it.
         // No answer lease is peeked for a compact: a queued answer stays queued.
+        // A command turn never ends silently: the person reads what happened.
         const outcome = await this.inResourceSession(() => this.session.compact())
+        // Every local command says what it did: the compacted report names
+        // the turns folded away, never a bare done.
+        this.send({
+          sessionUpdate: 'agent_message_chunk',
+          content: { type: 'text', text: compactResultText(outcome) },
+        })
         this.finishCompaction(outcome.status)
       } else {
         // No answer lease is peeked for a playback: a queued answer stays
@@ -2938,13 +3375,15 @@ class AcpSession {
               this.session.sendTurn(
                 [
                   ...(pending.answerLease?.parts ?? []),
-                  ...this.withSkill([
-                    ...parsed.parts,
-                    ...mediaQueued.map((attachment) => attachment.part),
-                  ]),
+                  ...(isLiteralSlash
+                    ? turnParts
+                    : this.withSkill([
+                        ...turnParts,
+                        ...mediaQueued.map((attachment) => attachment.part),
+                      ])),
                   ...sandboxNote,
                 ],
-                parsed.displayText,
+                turnText,
               ),
             )
         this.starting = starting
@@ -2984,9 +3423,7 @@ class AcpSession {
           this.commitAnswers(pending)
         }
         this.noteTurnId(submission.turnId, submission.disposition)
-        if (!isAccepted) {
-          throw RequestError.internalError(undefined, UI_TEXT.answerNotAccepted)
-        }
+        if (!isAccepted) throw refusalError(UI_TEXT.answerNotAccepted)
       }
     } catch (error: unknown) {
       await this.releaseAnswers(pending)
@@ -3017,6 +3454,7 @@ class AcpSession {
       this.starting = undefined
     }
     const outcome = await finished
+    this.clientStop = undefined
     await pending.answerCommit
     if ('error' in outcome) {
       throw outcome.error
@@ -3025,8 +3463,31 @@ class AcpSession {
     return outcome.reason
   }
 
+  public async promptResponse(blocks: readonly ContentBlock[]): Promise<PromptResponse> {
+    try {
+      const stopReason = await this.prompt(blocks)
+      const usage = await this.readUsage()
+      if (usage !== undefined) this.send(this.usageUpdate(usage))
+      return { stopReason, ...(usage !== undefined && { _meta: { 'museSpark.usage': usage } }) }
+    } catch (error: unknown) {
+      const usage = await this.readUsage()
+      if (usage !== undefined) this.send(this.usageUpdate(usage))
+      if (usage !== undefined && error instanceof RequestError) {
+        const data = error.data
+        error.data = {
+          ...(typeof data === 'object' && data !== null && !Array.isArray(data)
+            ? data
+            : { cause: data }),
+          _meta: { 'museSpark.usage': usage },
+        }
+      }
+      throw error
+    }
+  }
+
   public async cancel(): Promise<void> {
     this.legalStop?.abort()
+    this.clientStop?.abort()
     this.cancelVaultRequests()
     if (this.cancelPreparing()) {
       this.deps.log.info(`ACP session ${this.sessionId}: cancelled before its turn started`)
@@ -3053,7 +3514,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
-    const error = RequestError.internalError(undefined, description)
+    const error = new RequestError(ACP_ERROR_CODES.unavailable, description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()
@@ -3063,6 +3524,8 @@ class AcpSession {
     this.pending?.reject(error)
     void this.releaseAnswers()
     this.pending = undefined
+    this.clientStop?.abort()
+    this.clientStop = undefined
     void this.endQuestions(false).catch(() => {
       this.questionStateNotSaved()
     })
@@ -3097,10 +3560,12 @@ class AcpSession {
       this.isScheduleHostAvailable = false
       this.deps.log.warn('ACP schedule workspace startup failed')
       observeError(this.deps, 'scheduleHostStartFailed')
-      this.send({
-        sessionUpdate: 'agent_message_chunk',
-        content: { type: 'text', text: UI_TEXT.scheduleV2.runtime.hostUnavailable },
-      })
+      this.showNotice(
+        UI_TEXT.scheduleV2.runtime.hostUnavailable,
+        'schedule.host',
+        UI_TEXT.scheduleV2.labels.title,
+        'warning',
+      )
     }
   }
 
@@ -3122,6 +3587,8 @@ class AcpSession {
     await Promise.all([...this.dictationPages].map((page) => page.close()))
     this.dictationPages.clear()
     this.legalStop?.abort()
+    this.clientStop?.abort()
+    this.clientStop = undefined
     const releasingAnswers = this.releaseAnswers()
     this.questions?.dispose()
     if (this.questions === undefined) this.questionRegistry?.dispose()
@@ -3203,6 +3670,8 @@ class AgentState {
   private readonly claims = new Map<string, SessionClaim>()
   /** Modes clients set (`session/set_mode`): a later load keeps them, not the initial mode. */
   private readonly sessionModes = new Map<string, PermissionMode>()
+  /** Further workspace roots each session was opened with (G09), by id. */
+  private readonly additionalRoots = new Map<string, readonly string[]>()
   /** Remains visible even when the session is no longer available for requests. */
   private readonly releasing = new Map<string, Promise<unknown>>()
   private readonly watchedHosts = new WeakSet<AgentHost>()
@@ -3238,7 +3707,7 @@ class AgentState {
       throw RequestError.authRequired(undefined, readiness.message)
     }
     if (readiness.state === 'unavailable') {
-      throw RequestError.internalError(undefined, readiness.message)
+      throw refusalError(readiness.message)
     }
     return readiness
   }
@@ -3333,6 +3802,11 @@ class AgentState {
       await acp.holdSchedules()
       await prepare(acp)
       await acp.startAccounts()
+      // The editor builds its slash menu from available_commands_update, so
+      // the list goes out with the new or loaded session, never with the
+      // first prompt: prepare ran first, so modes, models and replay order
+      // keep what the session had.
+      await acp.announceCommands()
       this.ensureClaim(claim, host)
       if (acp.isReleased) {
         // A newer load of this session, or a close, let it go meanwhile.
@@ -3383,6 +3857,7 @@ class AgentState {
     )
     this.sessions.delete(sessionId)
     this.adopting.delete(sessionId)
+    this.additionalRoots.delete(sessionId)
     const previous = this.releasing.get(sessionId)
     if (previous === undefined && found.length === 0) {
       return false
@@ -3471,7 +3946,14 @@ class AgentState {
           // its CLI still serves `session/delete` (D26); the request then
           // refuses with the real cause instead.
           ...(this.deps.backend.kind === 'modelApi' && { delete: {} }),
+          // New, load and resume take extra workspace roots, and listing
+          // reports them (G09).
+          additionalDirectories: {},
         },
+        // The agent ends its authenticated state on `logout` (G03): held
+        // sessions stop, and where it owns the credential (Model API) the
+        // stored key goes too. The CLI's own sign-in is the user's to end.
+        auth: { logout: {} },
       },
       authMethods: [this.deps.signIn, ...(this.deps.providerSignIns ?? [])].map((method) =>
         this.authMethod(method),
@@ -3497,8 +3979,10 @@ class AgentState {
     cwd: string,
     requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
+    additionalDirectories?: readonly string[],
   ) {
     try {
+      const roots = parseAdditionalDirectories(additionalDirectories)
       const { host, models } = await this.openHost(cwd)
       const modelId = startingModel(
         models,
@@ -3532,6 +4016,7 @@ class AgentState {
       )
       // Keep what the editor is shown, including backend events during setup.
       this.choices.set(session.sessionId, acp.currentChoice())
+      this.additionalRoots.set(session.sessionId, [...roots])
       return {
         sessionId: session.sessionId,
         modes: acp.modes(),
@@ -3549,10 +4034,14 @@ class AgentState {
     requestedMcp: readonly McpServer[] | undefined,
     client: AgentContext,
     isReplayed: boolean,
+    additionalDirectories?: readonly string[],
   ) {
     // Claimed before backend I/O: a slow older resume cannot replace a
     // newer request, and a close can invalidate one still loading.
     const claim = this.claimSession(sessionId)
+    // A non-empty list replaces the session's whole extra-root list, as the
+    // protocol says; omitted or empty keeps it rootless.
+    const roots = parseAdditionalDirectories(additionalDirectories)
     try {
       const { host, models } = await this.openHost(cwd)
       this.ensureClaim(claim, host)
@@ -3600,11 +4089,15 @@ class AgentState {
         loaded.activeTurnId,
       )
       this.choices.set(sessionId, acp.currentChoice())
+      this.additionalRoots.set(sessionId, [...roots])
       return { modes: acp.modes(), configOptions: acp.configOptions() }
     } catch (error: unknown) {
       if (this.claims.get(sessionId) === claim) {
         this.claims.delete(sessionId)
       }
+      // An id no host holds loads nothing: the same resource-not-found a
+      // prompt on an unknown session answers, never an internal error.
+      if (isSessionNotFoundError(error)) throw RequestError.resourceNotFound(sessionId)
       throw error
     }
   }
@@ -3621,14 +4114,20 @@ class AgentState {
       ...(cursor !== undefined && { cursor }),
     })
     return {
-      sessions: page.sessions.map((record) => ({
-        sessionId: record.sessionId,
-        cwd: record.workspaceRoot ?? folder,
-        // The panel's own label: the person's words, never the extension's
-        // notes, quoted passages or attached files (sessionRecords.ts).
-        title: sessionTitle(record),
-        updatedAt: record.lastActivityAt ?? record.updatedAt,
-      })),
+      sessions: page.sessions.map((record) => {
+        const roots = this.additionalRoots.get(record.sessionId)
+        return {
+          sessionId: record.sessionId,
+          cwd: record.workspaceRoot ?? folder,
+          // The panel's own label: the person's words, never the extension's
+          // notes, quoted passages or attached files (sessionRecords.ts).
+          title: sessionTitle(record),
+          updatedAt: record.lastActivityAt ?? record.updatedAt,
+          // What this agent opened the session with; stored sessions from
+          // before report nothing, and omitted means none either way.
+          ...(roots !== undefined && roots.length > 0 && { additionalDirectories: [...roots] }),
+        }
+      }),
       nextCursor: page.nextCursor ?? null,
     }
   }
@@ -3706,6 +4205,21 @@ class AgentState {
     }
   }
 
+  /**
+  The editor signs out (ACP-G03, stable 2026-05-22): every held session
+  stops, and the credential the agent itself keeps (the Model API key)
+  is removed, so the next turn asks to sign in again. The Muse Code
+  CLI's own sign-in stays the user's to end, as its sign-in stays the
+  user's to run.
+  */
+  public async logout(): Promise<void> {
+    this.claims.clear()
+    for (const sessionId of [...this.sessions.keys(), ...this.adopting.keys()]) {
+      await this.releaseAll(sessionId)
+    }
+    await this.deps.signOut?.()
+  }
+
   /** A paid use asked in the session it is for; one the agent does not hold is denied (M58). */
   public async askPaidUse(
     sessionId: string,
@@ -3745,9 +4259,424 @@ class AgentState {
   }
 }
 
+/**
+The one outbound error shape (R1): every error that leaves `respond` is
+built by `outboundError` from a code in the allow-list below, a sentence
+from fixed or translated text, and a data object whose fields are
+enumerated and whose values come from fixed vocabularies. Nothing from a
+thrown error's message, data, kind, code or cause is ever copied through;
+an unknown kind maps to the generic member of the vocabulary. Two narrow
+template shapes pass with their value: the transport's send-failure advice
+(the detail is dropped, only the fixed sentence stays) and the unknown
+command-word error (the word is the user's own command, echoed in an error
+about that word). The same built value feeds the log line, so logs cannot
+carry request content either. There is no redaction step because there is
+nothing left to redact: no submitted prompt, blob or key reaches this
+point.
+*/
+const OUTBOUND_ERROR_KINDS = [
+  'resource_reading',
+  'credential_store_unavailable',
+  'authRequired',
+  'deadline',
+  'turn_failed',
+  'model_api_error',
+  'invalid_params',
+  'invalid_request',
+  'not_found',
+  'cancelled',
+  'unavailable',
+  'internal',
+] as const
+type OutboundErrorKind = (typeof OUTBOUND_ERROR_KINDS)[number]
+
+/** ACP codes without a shared name: cancellation, auth, not-found. */
+const REQUEST_CANCELLED_CODE = -32_800
+const AUTH_REQUIRED_CODE = -32_000
+const RESOURCE_NOT_FOUND_CODE = -32_002
+
+/** Numeric codes an outbound error may carry; anything else is internal. */
+const OUTBOUND_ERROR_CODES: ReadonlySet<number> = new Set([
+  ACP_ERROR_CODES.internal,
+  ACP_ERROR_CODES.credentialStore,
+  ACP_ERROR_CODES.turnFailed,
+  ACP_ERROR_CODES.unavailable,
+  ACP_ERROR_CODES.refused,
+  JSON_RPC_ERRORS.invalidRequest,
+  JSON_RPC_ERRORS.methodNotFound,
+  JSON_RPC_ERRORS.invalidParams,
+  REQUEST_CANCELLED_CODE,
+  AUTH_REQUIRED_CODE,
+  RESOURCE_NOT_FOUND_CODE,
+])
+
+interface OutboundErrorData {
+  readonly kind: OutboundErrorKind
+  readonly reading?: ResourceReading
+  readonly requestSent?: boolean
+  /**
+  The session's own settled usage snapshot, attached by `promptResponse`
+  when a turn fails after spending (R1: the one non-vocabulary field, and
+  only when it validates — anything else in `_meta` is dropped).
+  */
+  readonly _meta?: { readonly 'museSpark.usage': AcpUsageSnapshot }
+}
+
+/** Our own settled usage snapshot when it validates, never anything else. */
+function outboundUsageMeta(data: unknown): OutboundErrorData['_meta'] {
+  if (typeof data !== 'object' || data === null || !('_meta' in data)) return undefined
+  const meta = (data as { readonly _meta?: unknown })._meta
+  if (typeof meta !== 'object' || meta === null || !('museSpark.usage' in meta)) return undefined
+  const parsed = acpUsageSnapshotSchema.safeParse(
+    (meta as { readonly 'museSpark.usage'?: unknown })['museSpark.usage'],
+  )
+  return parsed.success ? { 'museSpark.usage': parsed.data } : undefined
+}
+
+interface OutboundFailure {
+  readonly code: number
+  readonly message: string
+  readonly data: OutboundErrorData
+}
+
+/**
+Every sentence a typed error may carry out, read from the installed table
+at use time (never at module load): fixed or translated text only. A
+sentence not in this set — an echoed mode, path, session id, backend
+message or any other thrown text — leaves as the generic failure.
+*/
+function outboundSentences(): ReadonlySet<string> {
+  return new Set([
+    UI_TEXT.actionFailed,
+    UI_TEXT.acpPromptBusy,
+    UI_TEXT.acpNoModels,
+    UI_TEXT.acpCredentialStoreNoAnswer,
+    UI_TEXT.vault.noAccess,
+    UI_TEXT.vault.brokerBlocked,
+    UI_TEXT.accounts.unavailable,
+    UI_TEXT.accounts.invalidAccount,
+    UI_TEXT.media.uploadStorageUnknown,
+    UI_TEXT.media.recordingUserOnly,
+    UI_TEXT.media.attachHeadless,
+    UI_TEXT.attachmentUnreadable,
+    UI_TEXT.attachmentUnsupported,
+    UI_TEXT.answerNotAccepted,
+    UI_TEXT.media.durationUnknown,
+    UI_TEXT.referenceAgentOutcomes,
+    UI_TEXT.agentContinueUnavailable,
+    UI_TEXT.promptFileInvalid,
+    UI_TEXT.legalScanUnavailable,
+    UI_TEXT.questionQueueCommitFailed,
+    UI_TEXT.resourceGovernorDescription,
+    UI_TEXT.acpNetworkUnreachable,
+    UI_TEXT.acpNetworkProxyCredentials,
+    UI_TEXT.acpNetworkUntrustedCertificate,
+    'Invalid params',
+    'Invalid request',
+    'Authentication required',
+    'Request cancelled',
+    'Internal error',
+    'Resource not found',
+    'Method not found',
+    'Parse error',
+  ])
+}
+
+/** A typed error even when another bundle built it (R2): never by `instanceof`. */
+function isOutboundRequestError(error: unknown): error is RequestError {
+  return (
+    error instanceof RequestError ||
+    (typeof error === 'object' &&
+      error !== null &&
+      (error as { readonly name?: unknown }).name === 'RequestError' &&
+      'code' in error &&
+      typeof error.code === 'number' &&
+      'message' in error &&
+      typeof error.message === 'string')
+  )
+}
+
+function kindForCode(code: number): OutboundErrorKind {
+  switch (code) {
+    case JSON_RPC_ERRORS.invalidParams: {
+      return 'invalid_params'
+    }
+    case JSON_RPC_ERRORS.invalidRequest: {
+      return 'invalid_request'
+    }
+    case RESOURCE_NOT_FOUND_CODE: {
+      return 'not_found'
+    }
+    case REQUEST_CANCELLED_CODE: {
+      return 'cancelled'
+    }
+    case AUTH_REQUIRED_CODE: {
+      return 'authRequired'
+    }
+    case ACP_ERROR_CODES.credentialStore: {
+      return 'credential_store_unavailable'
+    }
+    case ACP_ERROR_CODES.turnFailed: {
+      return 'turn_failed'
+    }
+    case ACP_ERROR_CODES.unavailable: {
+      return 'unavailable'
+    }
+    default: {
+      return 'internal'
+    }
+  }
+}
+
+/** Rebuild outbound data from the allow-list: enumerated fields, vocabulary values. */
+function outboundData(code: number, data: unknown): OutboundErrorData {
+  let kind: OutboundErrorKind = kindForCode(code)
+  let reading: ResourceReading | undefined
+  let requestSent: boolean | undefined
+  if (typeof data === 'object' && data !== null) {
+    if (
+      'kind' in data &&
+      typeof data.kind === 'string' &&
+      (OUTBOUND_ERROR_KINDS as readonly string[]).includes(data.kind)
+    ) {
+      kind = data.kind as OutboundErrorKind
+    }
+    if ('reading' in data && isResourceReadingName(data.reading)) reading = data.reading
+    if ('requestSent' in data && typeof data.requestSent === 'boolean')
+      requestSent = data.requestSent
+  }
+  const meta = outboundUsageMeta(data)
+  return {
+    kind,
+    ...(reading !== undefined && { reading }),
+    ...(requestSent !== undefined && { requestSent }),
+    ...(meta !== undefined && { _meta: meta }),
+  }
+}
+
+/**
+The SDK's own fixed prefixes (`RequestError.invalidRequest` sends
+`Invalid request: …`). A prefix is protocol wording; what follows it must
+still be an allow-listed sentence before the message may leave.
+*/
+const SDK_MESSAGE_PREFIXES = [
+  'Parse error: ',
+  'Invalid request: ',
+  '"Method not found": ',
+  'Invalid params: ',
+  'Internal error: ',
+  'Request cancelled: ',
+  'Authentication required: ',
+  'Resource not found: ',
+]
+
+/**
+Templates whose filled sentence may leave: the slot echoes the user's own
+command word in an error about that word (`Unknown argument: /share`).
+The template is fixed translated text read from the installed table at use
+time; the value travels only as the command word, never prompt, blob or
+key content. A raw planted secret carries no template prefix and stays
+generic.
+*/
+function outboundTemplates(): readonly { readonly prefix: string; readonly suffix: string }[] {
+  const [prefix = '', suffix = ''] = UI_TEXT.acpUnknownArgument.split('{argument}', 2)
+  return prefix.length > 0 ? [{ prefix, suffix }] : []
+}
+
+/** The allow-listed sentence a message carries, past the SDK's own prefix. */
+function outboundSentence(message: string): string | undefined {
+  if (outboundSentences().has(message)) return message
+  // The SDK factories prefix their own wording (`Invalid request: …`); the
+  // allow-list matches past it, and the built error keeps the prefix.
+  let unprefixed = message
+  for (const prefix of SDK_MESSAGE_PREFIXES) {
+    if (unprefixed.startsWith(prefix)) unprefixed = unprefixed.slice(prefix.length)
+  }
+  if (outboundSentences().has(unprefixed)) return message
+  for (const { prefix, suffix } of outboundTemplates()) {
+    if (
+      unprefixed.startsWith(prefix) &&
+      unprefixed.endsWith(suffix) &&
+      unprefixed.length >= prefix.length + suffix.length
+    )
+      return message
+  }
+  return undefined
+}
+
+/**
+The transport's send-failure advice when a request never reached the
+server: fixed advice text plus a parenthesised technical detail. A message
+that begins with one of the fixed agent-advice sentences keeps exactly
+that sentence (re-read from the installed table, detail dropped); anything
+else — a server echo, `cancelled`, the shared proxy-refusal template with
+its status slot — is left for the generic failure. The output is always a
+fixed string, so a planted secret in the message cannot change it. The
+advice also arrives wrapped in the failed turn's own `RequestError`, whose
+reason is the transport message, so both branches below consult this.
+*/
+function networkAdviceSentence(message: string): string | undefined {
+  const candidates = [
+    UI_TEXT.acpNetworkUnreachable,
+    UI_TEXT.acpNetworkProxyCredentials,
+    UI_TEXT.acpNetworkUntrustedCertificate,
+  ]
+  return candidates.find((sentence) => message.startsWith(sentence))
+}
+
+/** The single constructor for every error that leaves `respond`. */
+function outboundError(failure: OutboundFailure): RequestError {
+  const code = OUTBOUND_ERROR_CODES.has(failure.code) ? failure.code : ACP_ERROR_CODES.internal
+  // The named reading sentence is fixed vocabulary too: the reading names
+  // the failed port, never request content (R2's reporter uses the same).
+  const isNamedReading =
+    failure.data.kind === 'resource_reading' &&
+    isResourceReadingName(failure.data.reading) &&
+    failure.message === `${failure.data.reading}: ${UI_TEXT.resourceUnavailable}`
+  const sentence = isNamedReading ? failure.message : outboundSentence(failure.message)
+  const message = sentence !== undefined && code === failure.code ? sentence : UI_TEXT.actionFailed
+  const kind = (OUTBOUND_ERROR_KINDS as readonly string[]).includes(failure.data.kind)
+    ? failure.data.kind
+    : 'internal'
+  return new RequestError(code, message, {
+    kind,
+    ...(failure.data.reading !== undefined &&
+      isResourceReadingName(failure.data.reading) && { reading: failure.data.reading }),
+    ...(typeof failure.data.requestSent === 'boolean' && { requestSent: failure.data.requestSent }),
+    ...(failure.data._meta !== undefined &&
+      outboundUsageMeta({ _meta: failure.data._meta }) !== undefined && {
+        _meta: failure.data._meta,
+      }),
+  })
+}
+
+/** Classify a caught failure into the one outbound shape, copying nothing it carried. */
+function toOutbound(error: unknown): { readonly failure: OutboundFailure; readonly log: boolean } {
+  if (isResourceReadingError(error)) {
+    const reading = error.reading
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.unavailable,
+        message: `${reading}: ${UI_TEXT.resourceUnavailable}`,
+        data: { kind: 'resource_reading', reading },
+      },
+      log: false,
+    }
+  }
+  if (isOutboundRequestError(error)) {
+    return {
+      failure: {
+        code: error.code,
+        // A failed turn wraps the transport's message as its reason: recover
+        // the fixed advice sentence when it carries one, never its detail.
+        message:
+          error.code === ACP_ERROR_CODES.turnFailed
+            ? (networkAdviceSentence(error.message) ?? error.message)
+            : error.message,
+        data: outboundData(error.code, error.data),
+      },
+      log: false,
+    }
+  }
+  if (error instanceof Error && error.name === 'StoreUnavailableError') {
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.credentialStore,
+        message: UI_TEXT.acpCredentialStoreNoAnswer,
+        data: { kind: 'credential_store_unavailable', requestSent: false },
+      },
+      log: false,
+    }
+  }
+  if (isMissingApiKeyError(error))
+    return {
+      failure: {
+        code: AUTH_REQUIRED_CODE,
+        message: 'Authentication required',
+        data: { kind: 'authRequired' },
+      },
+      log: false,
+    }
+  if (error instanceof DeadlineError || (error instanceof Error && error.name === 'DeadlineError'))
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.unavailable,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'deadline' },
+      },
+      log: false,
+    }
+  if (isMspFailure(error))
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.turnFailed,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'turn_failed' },
+      },
+      log: false,
+    }
+  if (isModelApiError(error))
+    return {
+      failure: {
+        code: ACP_ERROR_CODES.turnFailed,
+        message: networkAdviceSentence(error.message) ?? UI_TEXT.actionFailed,
+        data: { kind: 'model_api_error' },
+      },
+      log: false,
+    }
+  if (error instanceof RangeError)
+    return {
+      failure: {
+        code: JSON_RPC_ERRORS.invalidParams,
+        message: UI_TEXT.actionFailed,
+        data: { kind: 'invalid_params' },
+      },
+      log: false,
+    }
+  if (error instanceof Error && error.name === 'AbortError')
+    return {
+      failure: {
+        code: REQUEST_CANCELLED_CODE,
+        message: 'Request cancelled',
+        data: { kind: 'cancelled' },
+      },
+      log: false,
+    }
+  return {
+    failure: {
+      code: ACP_ERROR_CODES.internal,
+      message: UI_TEXT.actionFailed,
+      data: { kind: 'internal' },
+    },
+    log: true,
+  }
+}
+
 /** The agent: register it on a stream with `connect`. */
 export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   const state = new AgentState(deps)
+  // Every known reading failure is logged once under its own name.
+  const reportResource = resourceFailureReporter(deps.log)
+  const respond = async <T>(method: string, work: () => T | Promise<T>): Promise<T> => {
+    try {
+      return await work()
+    } catch (error: unknown) {
+      const { failure, log } = toOutbound(error)
+      if (failure.data.kind === 'resource_reading') reportResource(error)
+      const built = outboundError(failure)
+      if (log) {
+        deps.log.error(
+          `ACP ${method} failed: ${String(built.code)} ${failure.data.kind} ${built.message}`,
+        )
+        observeError(deps, 'requestFailed')
+      } else {
+        // A routine failure still leaves its kind in the finest detail; the
+        // answer on the wire is unchanged.
+        deps.log.trace(`ACP ${method} ended: ${failureForLog(error)}`)
+      }
+      throw built
+    }
+  }
   deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
   deps.paid.attach((sessionId, request, canRemember) =>
     state.askPaidUse(sessionId, request, canRemember),
@@ -3756,49 +4685,113 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     state.notePaidNotKept(sessionId, text)
   })
   return acpAgent({ name: ACP_AGENT_NAME })
-    .onRequest('initialize', (context) => {
-      deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
-      return state.initialize(context.params.clientCapabilities)
-    })
-    .onRequest('authenticate', (context) => state.authenticate(context.params.methodId))
+    .onRequest('initialize', (context) =>
+      respond('initialize', () => {
+        deps.onClientName?.(context.params.clientInfo?.name ?? 'ACP')
+        return state.initialize(context.params.clientCapabilities)
+      }),
+    )
+    .onRequest('authenticate', (context) =>
+      respond('authenticate', () => state.authenticate(context.params.methodId)),
+    )
+    .onRequest('logout', () =>
+      respond('logout', async () => {
+        await state.logout()
+        return {}
+      }),
+    )
     .onRequest('session/new', (context) =>
-      state.newSession(context.params.cwd, context.params.mcpServers, context.client),
+      respond('session/new', () =>
+        state.newSession(
+          context.params.cwd,
+          context.params.mcpServers,
+          context.client,
+          context.params.additionalDirectories ?? undefined,
+        ),
+      ),
     )
-    .onRequest('session/load', (context) => {
-      const { sessionId, cwd, mcpServers } = context.params
-      return state.loadSession(sessionId, cwd, mcpServers, context.client, true)
-    })
-    .onRequest('session/resume', (context) => {
-      const { sessionId, cwd, mcpServers } = context.params
-      return state.loadSession(sessionId, cwd, mcpServers ?? undefined, context.client, false)
-    })
+    .onRequest('session/load', (context) =>
+      respond('session/load', () => {
+        const { sessionId, cwd, mcpServers } = context.params
+        return state.loadSession(
+          sessionId,
+          cwd,
+          mcpServers,
+          context.client,
+          true,
+          context.params.additionalDirectories ?? undefined,
+        )
+      }),
+    )
+    .onRequest('session/resume', (context) =>
+      respond('session/resume', () => {
+        const { sessionId, cwd, mcpServers } = context.params
+        return state.loadSession(
+          sessionId,
+          cwd,
+          mcpServers ?? undefined,
+          context.client,
+          false,
+          context.params.additionalDirectories ?? undefined,
+        )
+      }),
+    )
     .onRequest('session/list', (context) =>
-      state.listSessions(context.params.cwd ?? undefined, context.params.cursor ?? undefined),
+      respond('session/list', () =>
+        state.listSessions(context.params.cwd ?? undefined, context.params.cursor ?? undefined),
+      ),
     )
-    .onRequest('session/close', async (context) => {
-      await state.closeSession(context.params.sessionId)
-      return {}
-    })
-    .onRequest('session/delete', async (context) => {
-      await state.deleteSession(context.params.sessionId)
-      return {}
-    })
-    .onRequest('session/set_mode', async (context) => {
-      await state.setSessionMode(context.params.sessionId, context.params.modeId)
-      return {}
-    })
-    .onRequest('session/set_config_option', async (context) => {
-      const session = state.session(context.params.sessionId)
-      await session.setConfigOption(context.params.configId, context.params.value)
-      state.noteChoice(context.params.sessionId)
-      return { configOptions: session.configOptions() }
-    })
-    .onRequest('session/prompt', async (context) => ({
-      stopReason: await state.session(context.params.sessionId).prompt(context.params.prompt),
-    }))
-    .onNotification('session/cancel', async (context) => {
-      // A notification has no answer: a cancel for a session already
-      // closed, still being set up, or never held stops nothing.
-      await state.held(context.params.sessionId)?.cancel()
-    })
+    .onRequest('session/close', (context) =>
+      respond('session/close', async () => {
+        await state.closeSession(context.params.sessionId)
+        return {}
+      }),
+    )
+    .onRequest('session/delete', (context) =>
+      respond('session/delete', async () => {
+        await state.deleteSession(context.params.sessionId)
+        return {}
+      }),
+    )
+    .onRequest('session/set_mode', (context) =>
+      respond('session/set_mode', async () => {
+        await state.setSessionMode(context.params.sessionId, context.params.modeId)
+        return {}
+      }),
+    )
+    .onRequest('session/set_config_option', (context) =>
+      respond('session/set_config_option', async () => {
+        const session = state.session(context.params.sessionId)
+        await session.setConfigOption(context.params.configId, context.params.value)
+        state.noteChoice(context.params.sessionId)
+        return { configOptions: session.configOptions() }
+      }),
+    )
+    .onRequest('session/prompt', (context) =>
+      respond('session/prompt', async () => {
+        const session = state.session(context.params.sessionId)
+        // `$/cancel_request` aborts this request's signal in the SDK's
+        // JSON-RPC layer (G04): end the turn the way `session/cancel` does
+        // and answer with the cancellation marker the protocol allows.
+        const stop = context.signal
+        if (stop.aborted) {
+          await session.cancel()
+          return { stopReason: 'cancelled' }
+        }
+        const onStop = (): void => {
+          void session.cancel()
+        }
+        stop.addEventListener('abort', onStop, { once: true })
+        try {
+          return await session.promptResponse(context.params.prompt)
+        } finally {
+          stop.removeEventListener('abort', onStop)
+        }
+      }),
+    )
+    .onNotification('session/cancel', (context) =>
+      respond('session/cancel', async () => {
+        await state.held(context.params.sessionId)?.cancel()
+      }),
+    )
 }

@@ -1,0 +1,118 @@
+{
+  "lane": "ACPGAPS",
+  "readOn": "2026-10-12",
+  "sdk": "@agentclientprotocol/sdk 1.7.0 (pinned; node_modules/@agentclientprotocol/sdk/dist)",
+  "statusOfEveryFactBelow": "UNVERIFIED until a real request confirms it; no live editor or model call was made from this lane",
+  "transport": "stdio JSON-RPC to the packed agent (built dist/acp.js, `serve` on stdio; src/runtime/main.ts). Send each `request` frame, read the reply frame.",
+  "requests": [
+    {
+      "gap": "ACP-G02",
+      "method": "session/delete",
+      "params": { "sessionId": "<a session id from session/list>" },
+      "expect": "Result `{}` (or void) and the id gone from a following session/list; without the delete capability advertised, Zed hides deletion. Also send session/delete for an unknown id and record the exact error code/message."
+    },
+    {
+      "gap": "ACP-G03",
+      "method": "logout",
+      "params": { "_meta": null },
+      "expect": "Result `{}` (or void) and a following authenticate/prompt behaves as signed out; record whether Zed shows a sign-out affordance once `authCapabilities.logout` is `{}`."
+    },
+    {
+      "gap": "ACP-G04a",
+      "method": "$/cancel_request",
+      "params": { "id": "<id of an in-flight session/prompt request>" },
+      "expect": "The prompt settles with stopReason `cancelled`; the client gets a ResponseError for the cancelled id. Record Zed's exact id type (number vs string) and whether Zed ever sends $/cancel_request today."
+    },
+    {
+      "gap": "ACP-G04b",
+      "method": "session/prompt then client-side cancel",
+      "params": {
+        "note": "agent sends $/cancel_request for an in-flight client request (e.g. request_permission) while session/cancel is in flight"
+      },
+      "expect": "Record which editors answer $/cancel_request and with what error; our agent must never crash on a -32800/unknown answer."
+    },
+    {
+      "gap": "ACP-G05",
+      "method": "session/set_config_option (mode)",
+      "params": {
+        "sessionId": "<id>",
+        "configId": "<mode option id>",
+        "value": "<a permission mode id>"
+      },
+      "expect": "Result lists configOptions with the new current value AND session modes report the same currentModeId; record whether Zed renders a category:'mode' select option and whether it still calls session/set_mode."
+    },
+    {
+      "gap": "ACP-G06",
+      "method": "session/set_config_option (boolean)",
+      "params": { "sessionId": "<id>", "configId": "<boolean option id>", "value": true },
+      "expect": "Result lists configOptions with the new value; record how Zed renders type:'boolean' (toggle vs select) and the exact value shape it sends (bare boolean)."
+    },
+    {
+      "gap": "ACP-G09a",
+      "method": "session/new",
+      "params": {
+        "cwd": "<abs path>",
+        "mcpServers": [],
+        "additionalDirectories": ["<second abs path>"]
+      },
+      "expect": "Session works with both roots; record whether Zed sends additionalDirectories today and whether it gates it on our sessionCapabilities.additionalDirectories."
+    },
+    {
+      "gap": "ACP-G09b",
+      "method": "session/load",
+      "params": {
+        "sessionId": "<id>",
+        "cwd": "<abs path>",
+        "mcpServers": [],
+        "additionalDirectories": ["<second abs path>"]
+      },
+      "expect": "Loaded session reports the complete resulting root list; record Zed's exact field name and behaviour when cwd mismatches."
+    },
+    {
+      "gap": "ACP-G10",
+      "method": "session/prompt (streaming)",
+      "params": { "sessionId": "<id>", "prompt": [{ "type": "text", "text": "say hello" }] },
+      "expect": "Record the messageId values across agent_message_chunk frames: same id within one message, new id per message; record whether Zed groups or breaks without it."
+    },
+    {
+      "gap": "ACP-G11",
+      "method": "session/prompt (tool call)",
+      "params": {
+        "sessionId": "<id>",
+        "prompt": [{ "type": "text", "text": "list the files here" }]
+      },
+      "expect": "Record the `name` value on tool_call updates and how Zed renders it (icon/label) vs title; record Zed's behaviour when name is omitted/null."
+    },
+    {
+      "gap": "ACP-G12a",
+      "method": "terminal/* from agent",
+      "params": {
+        "note": "agent calls terminal/create against the connected editor during a turn"
+      },
+      "expect": "Record which editors answer terminal/create/output/wait_for_exit/kill/release, exact param shapes accepted, and what Zed shows; a client without the capability must get no call at all."
+    },
+    {
+      "gap": "ACP-G12b",
+      "method": "fs/* from agent",
+      "params": {
+        "note": "agent calls fs/read_text_file and fs/write_text_file against the connected editor"
+      },
+      "expect": "Record which editors answer, exact param/response shapes (line offsets? whole file?), and whether Zed asks the user first."
+    }
+  ],
+  "docPagesToRecheck": [
+    { "address": "https://agentclientprotocol.com/protocol/session-delete", "gap": "ACP-G02" },
+    { "address": "https://agentclientprotocol.com/protocol/authentication", "gap": "ACP-G03" },
+    { "address": "https://agentclientprotocol.com/protocol/cancellation", "gap": "ACP-G04" },
+    {
+      "address": "https://agentclientprotocol.com/protocol/session-config-options",
+      "gaps": "ACP-G05, ACP-G06"
+    },
+    { "address": "https://agentclientprotocol.com/protocol/session-modes", "gap": "ACP-G05" },
+    { "address": "https://agentclientprotocol.com/protocol/session-setup", "gap": "ACP-G09" },
+    { "address": "https://agentclientprotocol.com/protocol/content", "gap": "ACP-G10" },
+    { "address": "https://agentclientprotocol.com/protocol/tool-calls", "gap": "ACP-G11" },
+    { "address": "https://agentclientprotocol.com/protocol/terminals", "gap": "ACP-G12" },
+    { "address": "https://agentclientprotocol.com/protocol/file-system", "gap": "ACP-G12" }
+  ]
+}

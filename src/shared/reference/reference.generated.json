@@ -899,6 +899,7 @@
         "operations": [
           "initialize",
           "authenticate",
+          "logout",
           "session/new",
           "session/load",
           "session/resume",
@@ -915,7 +916,9 @@
           "model": "model",
           "effort": "effort",
           "fast": "fast",
-          "account": "account"
+          "account": "account",
+          "mode": "mode",
+          "paidAllowAlways": "paidAllowAlways"
         },
         "permissionModes": ["manual", "acceptEdits", "plan", "auto", "bypassPermissions"],
         "bypassFlag": "--allow-dangerously-skip-permissions",
@@ -4799,7 +4802,7 @@
     },
     {
       "name": "compact",
-      "description": "Summarise older context to free the window",
+      "description": "Summarise older context to free the context window",
       "descriptions": {
         "museCode": { "ui": "compactDetail" },
         "modelApi": { "ui": "compactDetail" }

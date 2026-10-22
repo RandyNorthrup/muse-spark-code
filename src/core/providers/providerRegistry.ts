@@ -16,6 +16,7 @@ import { isEffortLevel } from '../../shared/effort'
 import type { ModelCapabilityRecord } from './capabilityRecord'
 import { parseModelRef, sanitizeModelLabel } from './modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
+import { unknownModelRefText } from '../unknownModel'
 
 export interface RegistryModel {
   readonly catalogueMissing?: boolean
@@ -99,7 +100,10 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
       if (model === undefined || parsed === undefined || parsed.providerId === 'meta') {
-        throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+        // No configured provider offers this id (bare Meta ids never
+        // resolve here): the sentence names the id as typed, the entry
+        // that was asked, and what the person can do.
+        throw new Error(unknownModelRefText(ref))
       }
       if (model.catalogueMissing === true)
         throw new UserRefusalError(
@@ -161,17 +165,6 @@ function settleWithImages(
   reported: Parameters<typeof settleUsageAmount>[2],
 ): UsdAmount | undefined {
   const cost = settleUsageAmount(pricing.card, usage, reported)
-  if (
-    cost !== undefined &&
-    reported?.cost === undefined &&
-    reported?.costInUsdTicks === undefined &&
-    (usage.cacheWriteTokens1h ?? 0) > 0 &&
-    pricing.card.cacheWrite1h !== undefined
-  ) {
-    // P2 owns the arithmetic. Until its public module honours the 1h subset,
-    // keep the reservation as uncertain liability instead of under-settling it.
-    return undefined
-  }
   return cost === undefined ||
     reported?.cost !== undefined ||
     reported?.costInUsdTicks !== undefined

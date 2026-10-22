@@ -2,7 +2,7 @@ import path from 'node:path'
 import { createMachineResourceSampler } from '../../core/resources/sampler/system'
 import type { ResourceLaunchHost } from '../../core/resources/launchHost'
 import type { ResourceRunningWork } from '../../core/resources/queue'
-import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS, UI_TEXT } from '../../shared/constants'
+import { BOUNDED_FILE_READ_CHUNK_BYTES, RESOURCE_SAMPLE_MS } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import {
@@ -18,6 +18,7 @@ import {
 } from './host'
 import type { ResourceHistoryPort, ResourceMachineStore } from './port'
 import { resourceMachineStore } from './settings'
+import { isResourceReadingError, ResourceReadingError } from './text'
 
 /** H–C1: what the process's launch host borrows, plus whether history is read. */
 export interface RuntimeLaunchShare extends RuntimeGovernorShare {
@@ -92,7 +93,7 @@ export async function createResources(
           },
           { read: () => Promise.resolve(bound.host?.launchRows() ?? []) },
           () => {
-            options.onError(new Error(UI_TEXT.resourceHistoryInvalid))
+            options.onError(new ResourceReadingError('resources.history'))
           },
         )
   const launches = options.launches
@@ -129,9 +130,11 @@ export async function createResources(
     // throttle still admits background work, one per kind, on this queue's
     // own held permits.
     running: options.running ?? { backgroundCount: () => null },
-    onError: () => {
-      // Settings/OS failures carry no free-text diagnostic across a resource surface.
-      options.onError(new Error(UI_TEXT.resourceUnavailable))
+    onError: (error) => {
+      // Only our fixed reading identity crosses the resource/log boundary.
+      options.onError(
+        isResourceReadingError(error) ? error : new ResourceReadingError('resources.status'),
+      )
     },
     history: options.history ?? recorder?.history ?? resourceHistoryReader(options.machineDir),
     ...(recorder !== undefined && {
@@ -159,9 +162,9 @@ export async function createResources(
       host.dispose()
       // Best effort: the open minute is written if the process lives long enough.
       void recorder.flush().catch((error: unknown) => {
-        // A failed flush reaches the error port with its cause under fixed
-        // words; disposal itself never throws.
-        options.onError(new Error(UI_TEXT.resourceHistoryInvalid, { cause: error }))
+        // A failed flush reaches the error port under the fixed reading
+        // identity, with its cause; disposal itself never throws.
+        options.onError(new ResourceReadingError('resources.history', { cause: error }))
       })
     },
   }

@@ -69,3 +69,10 @@ export function windowsPathProblem(
   }
   return undefined
 }
+
+/** A spelling refusal's stable code, without exporting the model-text block. */
+export function windowsPathRefusalCode(problem: string): 'outside_workspace' | undefined {
+  return problem === WINDOWS_PATH_MODEL_TEXT.windowsUncOutsideWorkspace
+    ? 'outside_workspace'
+    : undefined
+}

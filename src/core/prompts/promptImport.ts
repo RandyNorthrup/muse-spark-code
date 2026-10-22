@@ -29,7 +29,9 @@ export class PromptImporter {
   public async preview(input: unknown, scope: SavedPrompt['scope']): Promise<PromptImportPreview> {
     this.pending = undefined
     const generation = ++this.generation
-    const source = sourceSchema.parse(input)
+    const parsed = sourceSchema.safeParse(input)
+    if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+    const source = parsed.data
     if (source.kind !== 'file' && this.port.isConfidentialWorkspace() !== false)
       throw new Error(UI_TEXT.shareConfidential)
     const file = await this.port.read(source)

@@ -1,8 +1,6 @@
 import type { UsageCost } from '../shared/usageJournal'
-import { estimateCostUsd } from '../core/usage/insights'
-import { Usd } from '../shared/usd'
+import { Usd, type UsdAmount } from '../shared/usd'
 import {
-  MODEL_API_PRICED_MODELS,
   BASE64_INPUT_BLOCK_BYTES,
   BASE64_OUTPUT_BLOCK_CHARS,
   FILE_EDIT_TOOLS,
@@ -253,6 +251,28 @@ export function planEntries(items: readonly TodoItem[]): PlanEntry[] {
   }))
 }
 
+/** A carried answer cost the translator may show: exact decimal dollars with a priced certainty. */
+function isPricedCarriedCost(cost: {
+  readonly usd: UsdAmount
+  readonly certainty: string
+}): cost is { readonly usd: UsdAmount; readonly certainty: 'reported' | 'computed' } {
+  let amount: Usd
+  try {
+    amount = Usd.from(cost.usd)
+  } catch (error: unknown) {
+    // Only a non-decimal amount (or an exponent past BigInt) is unpriced:
+    // anything else keeps its kind.
+    if (error instanceof Error && error.message === 'USD amount must be a finite decimal')
+      return false
+    if (error instanceof RangeError) return false
+    throw error
+  }
+  return (
+    amount.compare(Usd.from(0)) >= 0 &&
+    (cost.certainty === 'reported' || cost.certainty === 'computed')
+  )
+}
+
 /**
 Turns one session's AgentEvents into ACP session updates. It remembers,
 per item, how much text went out (an item can arrive whole after its
@@ -267,7 +287,11 @@ export class UpdateTranslator {
   private readonly previewing = new Set<string>()
   /** Each item's kind, so a delta is routed by what it belongs to. */
   private readonly kinds = new Map<string, string>()
-  private tokens = { inputTokens: 0, outputTokens: 0, cachedTokens: 0 }
+  /**
+  The answer's cost, carried on the usage event itself (R5): the settled
+  dollars behind its totals, each request priced at the model actually
+  billed. The translator computes nothing.
+  */
   private cost: UsageCost | undefined
   private hasUnpricedUsage = false
   /** The last agent text sent ended mid-line, so the next notice opens its own paragraph. */
@@ -277,7 +301,6 @@ export class UpdateTranslator {
     private readonly cwd: string,
     /** Replaying a loaded history: the user's own messages go out too. */
     private readonly isReplay: boolean,
-    private readonly readCost?: () => UsageCost | undefined,
     private readonly backend: 'modelApi' | 'museCode' = 'museCode',
     /**
     The client advertised `session.notices`: backend notices go out as
@@ -298,19 +321,19 @@ export class UpdateTranslator {
       const index = Number(summary[1])
       const isNewPart = this.summaryParts.has(itemId) && this.summaryParts.get(itemId) !== index
       this.summaryParts.set(itemId, index)
-      return [thoughtText(isNewPart ? `${PART_SEPARATOR}${delta}` : delta)]
+      return [thoughtText(itemId, isNewPart ? `${PART_SEPARATOR}${delta}` : delta)]
     }
     if (field !== TEXT_FIELD || (kind !== 'reasoning' && kind !== 'agentMessage')) {
       return []
     }
     this.sentText.set(itemId, (this.sentText.get(itemId) ?? 0) + delta.length)
-    return [kind === 'reasoning' ? thoughtText(delta) : agentText(delta)]
+    return [kind === 'reasoning' ? thoughtText(itemId, delta) : agentText(itemId, delta)]
   }
 
   private remainingText(
     itemId: string,
     text: string | undefined,
-    wrap: (text: string) => SessionUpdate,
+    wrap: (itemId: string, text: string) => SessionUpdate,
   ): SessionUpdate[] {
     if (text === undefined || this.summaryParts.has(itemId)) {
       return []
@@ -320,7 +343,7 @@ export class UpdateTranslator {
       return []
     }
     this.sentText.set(itemId, text.length)
-    return [wrap(text.slice(sent))]
+    return [wrap(itemId, text.slice(sent))]
   }
 
   private toolUpdates(item: ItemSnapshot, isCompleted: boolean): SessionUpdate[] {
@@ -362,6 +385,9 @@ export class UpdateTranslator {
         sessionUpdate: 'tool_call',
         toolCallId: item.itemId,
         title,
+        // The programmatic name beside the human title (ACP-G11, stable
+        // 2026-09-17): the backend's tool, `shell` for a `!` command.
+        name: tool,
         kind: item.kind === 'subagent' ? 'other' : toolKind(tool),
         status,
         locations: toolLocations(args, this.cwd),
@@ -390,6 +416,9 @@ export class UpdateTranslator {
           locations: toolLocations(args, this.cwd),
         }),
       ...(item.kind === 'subagent' && item.result !== undefined && { rawOutput: item.result }),
+      ...(item.refusalCode !== undefined && {
+        _meta: { 'museSpark.refusal': { code: item.refusalCode, reason: item.failureReason } },
+      }),
     })
     if (isCompleted) {
       this.toolOutput.delete(item.itemId)
@@ -400,36 +429,21 @@ export class UpdateTranslator {
   private translated(event: AgentEvent): SessionUpdate[] {
     switch (event.type) {
       case 'tokenUsage': {
-        const priced: readonly string[] = Object.values(MODEL_API_PRICED_MODELS).flat()
-        const next = {
-          inputTokens: event.inputTokens,
-          outputTokens: event.outputTokens,
-          cachedTokens: event.cachedTokens ?? 0,
-        }
-        const delta = {
-          inputTokens: next.inputTokens - this.tokens.inputTokens,
-          outputTokens: next.outputTokens - this.tokens.outputTokens,
-          cachedTokens: next.cachedTokens - this.tokens.cachedTokens,
-        }
+        // One source for cost (R5): the event carries what the usage record
+        // computed for these totals, per model actually billed. No second
+        // computation here; without it the answer shows no cost.
+        const carried = event.cost
         if (
+          carried !== undefined &&
+          !this.hasUnpricedUsage &&
           this.backend === 'modelApi' &&
-          event.modelId !== undefined &&
-          priced.includes(event.modelId) &&
-          Object.values(delta).every((value) => Number.isSafeInteger(value) && value >= 0) &&
-          delta.cachedTokens <= delta.inputTokens &&
-          !this.hasUnpricedUsage
+          isPricedCarriedCost(carried)
         ) {
-          this.cost = {
-            certainty: 'computed',
-            usd: Usd.from(this.cost?.usd ?? 0)
-              .add(Usd.from(estimateCostUsd(delta, event.modelId)))
-              .toAmount(),
-          }
+          this.cost = { certainty: carried.certainty, usd: carried.usd }
         } else {
           this.hasUnpricedUsage = true
           this.cost = undefined
         }
-        this.tokens = next
         return []
       }
       case 'itemStarted':
@@ -452,12 +466,15 @@ export class UpdateTranslator {
         return [{ sessionUpdate: 'session_info_update', title: event.name }]
       }
       case 'contextUsage': {
-        const cost = this.readCost === undefined ? this.cost : this.readCost()
+        // The turn's own running tally, which includes the request it
+        // describes: never a journal snapshot from before it (finding 3).
+        const cost = this.cost
         const hasCost =
           cost?.usd !== undefined &&
           cost.certainty !== 'unpriced' &&
           cost.certainty !== 'uncertain' &&
-          cost.certainty !== 'plan'
+          cost.certainty !== 'plan' &&
+          cost.certainty !== 'local'
         return event.windowTokens === undefined
           ? []
           : [
@@ -479,6 +496,9 @@ export class UpdateTranslator {
         // goes out as its own `notice` update where the client can show
         // one, and only then falls back to an agent message (the
         // protocol's sanctioned fallback for clients without notices).
+        // An empty notice has no title and no words: drop it, never send
+        // blank model text.
+        if (event.text.trim() === '') return []
         if (this.areNoticesSupported) {
           return [
             {
@@ -490,9 +510,15 @@ export class UpdateTranslator {
         }
         // A client renders agent chunks as one text: after the model's
         // words the notice opens its own paragraph instead of running on
-        // ("Canberra.The turn finished…").
+        // ("Canberra.The turn finished…"). A one-shot notice names no
+        // item, so it goes out ungrouped, without a message id.
         const opening = this.isAgentLineOpen ? PART_SEPARATOR : ''
-        return [agentText(`${opening}${event.text}${PART_SEPARATOR}`)]
+        return [
+          {
+            sessionUpdate: 'agent_message_chunk',
+            content: { type: 'text', text: `${opening}${event.text}${PART_SEPARATOR}` },
+          },
+        ]
       }
       case 'messageAdmitted': {
         // Nothing to send (M87): an ACP prompt is never queued behind
@@ -545,16 +571,21 @@ export class UpdateTranslator {
   }
 }
 
-function agentText(text: string): SessionUpdate {
-  return { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } }
+/**
+One streamed message part: every chunk of an item carries the item's id
+as its `messageId` (ACP-G10, stable 2026-06-05), so the client groups a
+message's deltas and starts a new message where the item changes.
+*/
+function agentText(messageId: string, text: string): SessionUpdate {
+  return { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text }, messageId }
 }
 
-function thoughtText(text: string): SessionUpdate {
-  return { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text } }
+function thoughtText(messageId: string, text: string): SessionUpdate {
+  return { sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text }, messageId }
 }
 
-function userText(text: string): SessionUpdate {
-  return { sessionUpdate: 'user_message_chunk', content: { type: 'text', text } }
+function userText(messageId: string, text: string): SessionUpdate {
+  return { sessionUpdate: 'user_message_chunk', content: { type: 'text', text }, messageId }
 }
 
 // --- approvals ---------------------------------------------------------------
@@ -637,6 +668,7 @@ export function approvalToolCall(
     // A paid call never gets an approval (M58, PLAN.md D48): its price is in
     // the paid-use question (paid.ts) and on its row.
     title: detail === undefined ? toolTitle(event.toolName, args) : `${name}: ${detail}`,
+    name: event.toolName,
     kind: toolKind(event.toolName),
     status: 'pending',
     locations: toolLocations(args, cwd),

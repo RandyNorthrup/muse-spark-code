@@ -19,6 +19,7 @@ import {
   locateHead,
   modelText,
   patchOutcome,
+  type PathRefuser,
   resolveEditRanges,
   type TextShape,
   touchedBy,
@@ -512,6 +513,7 @@ export async function readFileByRange(
     readonly limit?: number | undefined
   },
   context: ToolContext,
+  refuse?: PathRefuser,
 ): Promise<ToolOutcome> {
   if (args.offset !== undefined || args.limit !== undefined) {
     return failure(
@@ -519,7 +521,7 @@ export async function readFileByRange(
     )
   }
   // The path is confined first, exactly as the inline version did.
-  const head = await locateHead(args.path, context)
+  const head = await locateHead(args.path, context, refuse)
   return head.ok ? await readFileWindow(head, args, context) : head.outcome
 }
 
@@ -529,8 +531,9 @@ export async function editFileByRange(
   singles: readonly { readonly find: string; readonly replace: string }[],
   hasEdits: boolean,
   context: ToolContext,
+  refuse?: PathRefuser,
 ): Promise<ToolOutcome> {
   // The path is confined first, exactly as the inline version did.
-  const head = await locateHead(args.path, context)
+  const head = await locateHead(args.path, context, refuse)
   return head.ok ? await editFileRange(head, args, singles, hasEdits, context) : head.outcome
 }

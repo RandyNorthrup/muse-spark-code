@@ -49,11 +49,23 @@ const REDACTING_FNS = new Set([
   // causeForLog (logText.ts), verified by reading: failureForLog plus only
   // the error's token-shaped machine code word.
   'causeForLog',
+  // Lane RLACP: internalFaultForLog unwraps `cause` chains and returns
+  // failureForLog's own words (a name or kind and code, never raw text),
+  // so it redacts exactly what failureForLog does.
+  'internalFaultForLog',
 ])
 /** A call that records the failure under a fixed-vocabulary code. */
 const CODE_RECORD_FNS = new Set(['observeError', 'recordError', 'reportError'])
 /** A `report(x, error)`-shaped call posts the failure to the host's record. */
-const ERROR_SINK_FNS = new Set(['report', 'notify', 'record'])
+const ERROR_SINK_FNS = new Set([
+  'report',
+  'notify',
+  'record',
+  // Lane RLACP: an `onError` error port counts only when the error itself
+  // is passed (a fixed value without it still fails), the same bar as the
+  // other sinks.
+  'onError',
+])
 /**
 A formatter whose result reaches the failure record with the error: the
 webview's M39 host channel (`postMessage(webviewErrorReport(source, error))`).

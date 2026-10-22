@@ -396,6 +396,63 @@ happened, not what was planned; superseded entries are kept.
 - Keep the Estimator panel within its existing byte budget, retain safe host
   refusal details through the panel, and load headless settings from their
   existing resource bundle on first estimate.
+- Workspace file refusals reach both the model and ACP tool rows with a typed reason.
+- Account, resource, question and schedule advisories stay out of model answers.
+- ACP turn responses and updates expose journal-backed exact costs, token classes and remaining budgets. Failed turns retain incurred-cost metadata.
+- Verbose exec logs name failed-turn causes; resource logs name unavailable readings once.
+- ACP requests report known failures as typed refusals and log unexpected failure causes once with secrets and request content redacted.
+- Provider settlement preserves catalogue cache-write rates and prices cache duration classes separately; usage records retain exact USD amounts.
+- ACP backend advisories use negotiated session notices, keeping model answers free of feature-state and transport notices.
+- ACP slash handling: unknown slash commands are answered locally with the nearest known commands and never reach the model; `/help <command>` explains one command; `\/` sends a literal leading slash to the model. `session/load` of an unknown id answers resource-not-found like a prompt on an unknown session. `/compact` always ends with a message saying what it did. The command list arrives with the new or loaded session.
+- `/compact` in an editor session now answers instead of ending in
+  silence: it says how many turns it folded (and the size before and
+  after), or why nothing was done. The panel shows the same sentence.
+- Product notices (such as the automatic-compaction status) no longer
+  open the model's answer in editor sessions; where the editor shows
+  notices they arrive on the protocol's own notice channel, otherwise
+  as a separate message.
+- A model or effort the run does not offer is refused with its name:
+  the message names the id as typed, the provider or session that does
+  not offer it, and what to do (for a provider entry, the command that
+  lists its models; in a session, picking an offered model or effort).
+- M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
+  reads and writes, and 1-hour cache writes settle at their own price.
+  The shared retry classifier refuses known quota codes and excessive
+  `Retry-After` waits. Provider-specific retry-table binding remains pending for non-Meta transports;
+  this does not certify endpoint quota refusal.
+  One-shot OAuth callbacks retain every parameter and destroy keep-alive
+  connections on settlement. Custom servers accept validated compatibility
+  overrides. Session saves coalesce into one in-flight write plus the latest;
+  parallel save failures are observed immediately while other sessions drain.
+  History listing validates headers without replay/transcript validation.
+
+- The ACP agent reports product-defined refusals with their own message as
+  invalid request (-32600) instead of internal error (-32603): unavailable
+  accounts, a broker that cannot start, a backend that cannot run, no usable
+  model, a failed legal scan, and a turn the backend would not take. Sharing
+  an empty conversation is refused with "There is no conversation to export
+  yet.", and bad share/prompt arguments are invalid params (-32602) with
+  their reason (DFACPERR). Follow-up: mode/model/effort commands against a
+  backend session Muse Code evicted read as a missing resource (-32002);
+  caller-owned share/save validation names its flag (-32602) in the installed
+  language; scanner and broker programming faults stay internal errors
+  (-32603) with a fixed reason and nothing raw on the wire. An unexpected
+  sharing, prompt or headless fault reads as an internal error with the fixed
+  could-not-complete reason (never as a prompt-file error), and the
+  underlying fault is logged server-side by name — never a path or prompt
+  text. Defined refusals (an empty chat, an unreadable prompt store, a bad
+  prompt file) keep their own sentences on every surface. Malformed imports,
+  unsupported prompt schemas and headless argument refusals now retain their
+  localized reason (titles and bodies have no ceilings per D121, so a draft
+  that fails its schema reads as an invalid prompt file, never a size
+  limit). The native Prompt Library and
+  panel retry failed initialization safely. Export scrubbing recognizes OS
+  usernames in paths and identity fields, preserving ordinary words and
+  personal-prompt metadata even for usernames such as `user`, `admin` and `test`.
+  A scrubbed chat export whose text carries a username path segment (for
+  example `team/[user]/src/main.ts`) now releases instead of expiring its own
+  preview: every marker the scrub emits is atomic, so the confirmation
+  re-scrub is a fixed point.
 
 ### Release infrastructure
 
@@ -404,6 +461,15 @@ happened, not what was planned; superseded entries are kept.
   plain version address can name any one of them, and 0.19.0's check
   compared the universal package with another platform's (every package
   was published and matched when checked by its own address).
+- ACP gaps lane (ACPGAPS): editors using the agent protocol can now delete
+  a stored session, sign out (stopping every session and, with a stored
+  Model API key, removing it), cancel a single request, pick the permission
+  mode from the settings selectors as well as the old mode control, switch
+  off "Allow always" per session where the editor shows boolean settings,
+  and open sessions with extra workspace folders. Streamed messages carry
+  message ids and tool calls carry tool names, so editors group them
+  correctly. The agent still never drives the editor's terminal or files
+  itself; that stays a design note until a turn needs it.
 
 ### MCP connector
 

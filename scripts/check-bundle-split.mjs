@@ -289,7 +289,7 @@ function backendFiles() {
 }
 
 const problems = []
-const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts'])
+const EXTRA_ONLY = new Set(['modelApiHooksEntry.ts', 'modelApiMcpEntry.ts', 'modelApiAcpEntry.ts'])
 const CONFIGURED_ONLY = ['authSource.ts', 'providerClient.ts']
 const PROVIDER_ONLY = []
 const onDisk = new Set(backendFiles())
@@ -1435,6 +1435,7 @@ const TEXT_BLOCKS = [
       // The byte-range execution reads the refusal and window keys of this
       // block, so it carries the block whole (one object is carried whole, D6).
       'dist/modelApiFileRange.js',
+      'dist/modelApiAcp.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the
