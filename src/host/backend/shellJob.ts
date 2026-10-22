@@ -81,7 +81,7 @@ async function prepare(deps: ShellJobDeps): Promise<string | undefined> {
     let assembly = path.join(deps.storageDir, SHELL_JOB_FOLDER, shellJobAssemblyName(csharp))
     if (!(await isPresent(assembly))) {
       await compileJob(ASSEMBLY, assembly, csharp, deps.systemRoot, deps.run)
-      await removeStaleJobs(ASSEMBLY, assembly, deps.log)
+      await removeStaleJobs(ASSEMBLY, assembly, deps.log, () => deps.readJobSource('shellJob'))
     }
     assembly = await nativeJobPath(assembly)
     // Loading the type and joining a job, as a command does, proves both
