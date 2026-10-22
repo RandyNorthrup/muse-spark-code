@@ -1,16 +1,16 @@
 // Tab's completion engine (M94, PLAN.md D73): lane C's pure pieces composed
 // for one window. The typing-through cache answers first; otherwise the
-// scheduler debounces an Automatic trigger (Invoke goes at once), caps the
-// open and per-minute requests, and the request body goes to the injected
-// key-client stream. The suggestion is published as soon as the closing
-// tag arrives, while the request runs on to its end so its usage settles
-// the reservation (the probe: text at 2.9 s, usage at 15 s). A sent request
-// is never aborted by the editor; only the provider-side timeout ends it,
-// and then it reports no usage and its reservation stands (M82).
+// scheduler debounces an Automatic trigger (Invoke goes at once), and the
+// request body goes to the injected key-client stream. The suggestion is
+// published as soon as the closing tag arrives, while the request runs on
+// to its end so its usage settles the reservation (the probe: text at
+// 2.9 s, usage at 15 s). A sent request is never aborted, by the editor
+// or by a timeout of ours (acceptance 7); it runs to the provider's
+// answer or failure. A request that ends without usage reports none, and
+// its reservation stands (M82).
 // Pure: no `vscode` import. The stream is the activation bundle's key
 // client, handed across the bundle boundary (PLAN.md D6).
 
-import { TAB_REQUEST_TIMEOUT_MS } from '../../shared/constants'
 import type { ResponseAttemptGuard, RetryBudget } from '../backends/modelapi/client'
 import { noRetryBudget } from '../backends/modelapi/transport'
 import type { CreateResponseBody, StreamEvent, Usage } from '../backends/modelapi/schemas'
@@ -210,24 +210,21 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
     })
     /** Reads the stream to its end; resolves its usage, rejects without one. */
     const drain = async (): Promise<TabEngineUsage> => {
-      // A backstop only (D73): the editor never aborts a sent request.
-      const timeout = new AbortController()
-      const timer = setTimeout(() => {
-        timeout.abort()
-      }, TAB_REQUEST_TIMEOUT_MS)
+      // Acceptance 7: no timeout of ours — the request runs until the
+      // stream ends. The signal never aborts; only the provider's answer,
+      // a network failure, or the usage settling below ends the read.
+      const neverAborted = AbortSignal.any([])
       try {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = noRetryBudget()
-        for await (const event of deps.stream(body, timeout.signal, budget, admit)) {
+        for await (const event of deps.stream(body, neverAborted, budget, admit)) {
           if (shouldStopAt(event)) {
             break
           }
         }
       } catch (error: unknown) {
         progress.failure = asError(error)
-      } finally {
-        clearTimeout(timer)
       }
       if (gate.isRefused && !gate.isSent) {
         // Nothing was POSTed: no suggestion and no usage (the reply is empty).

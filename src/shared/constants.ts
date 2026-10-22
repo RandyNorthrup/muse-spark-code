@@ -2961,10 +2961,6 @@ export const TAB_FAST_MAX_OUTPUT_TOKENS = 608
 // probe's cap and showed no text. Lead decision: 1,536 ends runaways sooner
 // and spends less, at the cost of about one multi-line reply in ten.
 export const TAB_MULTILINE_MAX_OUTPUT_TOKENS = 1536
-// Provider-side backstop only, never UX: a stale answer is dropped by the
-// token. Twice the probe's p99 total time (33.0 s, 2026-10-04), rounded up
-// to a second, so it never cuts a request that would still report usage.
-export const TAB_REQUEST_TIMEOUT_MS = 67_000
 // Typing-through LRU windows (Continue's design, research §4).
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.
