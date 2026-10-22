@@ -5024,7 +5024,8 @@
   "importUntrusted": "Ce fichier n’est pas fiable : vérifiez chaque adresse avant de l’importer.",
   "openRouterOrder": "Ordre de fournisseurs préféré",
   "openRouterFallback": "Basculer vers d’autres fournisseurs",
-  "keyMissing": "Aucune clé enregistrée",
+  "keyMissing": "Aucune clé enregistrée dans l’éditeur",
+  "providerKeysSplitStores": "Les clés saisies ici restent dans le stockage secret de l’éditeur ; l’agent du terminal conserve ses propres clés dans le magasin d’identifiants du système.",
   "testRunning": "Test en cours…",
   "modelsShownCount": {
     "one": "{shown} modèle sur {count}",

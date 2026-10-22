@@ -5148,7 +5148,8 @@
   "importUntrusted": "Tento soubor není důvěryhodný: před importem zkontrolujte každou adresu.",
   "openRouterOrder": "Upřednostňované pořadí poskytovatelů",
   "openRouterFallback": "Přejít na jiné poskytovatele",
-  "keyMissing": "Žádný klíč není uložen",
+  "keyMissing": "V editoru není uložen žádný klíč",
+  "providerKeysSplitStores": "Zde zadané klíče zůstávají v úložišti tajných údajů editoru; terminálový agent si své klíče ukládá do úložiště pověření operačního systému.",
   "testRunning": "Testuje se…",
   "modelsShownCount": {
     "one": "{shown} z {count} modelu",

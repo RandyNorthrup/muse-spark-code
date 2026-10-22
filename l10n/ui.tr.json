@@ -4900,7 +4900,8 @@
   "importUntrusted": "Bu dosya güvenilir değil: içe aktarmadan önce her adresi denetleyin.",
   "openRouterOrder": "Tercih edilen sağlayıcı sırası",
   "openRouterFallback": "Diğer sağlayıcılara geç",
-  "keyMissing": "Kayıtlı anahtar yok",
+  "keyMissing": "Düzenleyicide kayıtlı anahtar yok",
+  "providerKeysSplitStores": "Buraya girilen anahtarlar düzenleyicinin gizli deposunda kalır; terminal aracısı kendi anahtarlarını işletim sisteminin kimlik bilgisi deposunda tutar.",
   "testRunning": "Test ediliyor…",
   "modelsShownCount": {
     "one": "{shown} / {count} model",

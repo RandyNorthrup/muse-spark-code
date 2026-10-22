@@ -4776,7 +4776,8 @@
   "importUntrusted": "이 파일은 신뢰할 수 없습니다. 가져오기 전에 모든 주소를 확인하세요.",
   "openRouterOrder": "선호 공급자 순서",
   "openRouterFallback": "다른 공급자로 대체",
-  "keyMissing": "저장된 키가 없습니다",
+  "keyMissing": "편집기에 저장된 키가 없습니다",
+  "providerKeysSplitStores": "여기에 입력한 키는 편집기의 비밀 저장소에 남습니다. 터미널 에이전트는 자체 키를 OS 자격 증명 저장소에 보관합니다.",
   "testRunning": "테스트 중…",
   "modelsShownCount": {
     "other": "{count}개 중 {shown}개"

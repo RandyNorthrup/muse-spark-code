@@ -4900,7 +4900,8 @@
   "importUntrusted": "Diese Datei ist nicht vertrauenswürdig: Prüfen Sie jede Adresse vor dem Importieren.",
   "openRouterOrder": "Bevorzugte Anbieterreihenfolge",
   "openRouterFallback": "Auf andere Anbieter zurückgreifen",
-  "keyMissing": "Kein Schlüssel gespeichert",
+  "keyMissing": "Kein Schlüssel im Editor gespeichert",
+  "providerKeysSplitStores": "Hier eingegebene Schlüssel bleiben im geheimen Speicher des Editors; der Terminal-Agent bewahrt seine eigenen Schlüssel im Anmeldedatenspeicher des Betriebssystems auf.",
   "testRunning": "Wird getestet…",
   "modelsShownCount": {
     "one": "{shown} von {count} Modell",

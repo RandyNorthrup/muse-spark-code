@@ -4776,7 +4776,8 @@
   "importUntrusted": "此檔案不可信任：匯入前請檢查每個位址。",
   "openRouterOrder": "慣用供應商順序",
   "openRouterFallback": "回復到其他供應商",
-  "keyMissing": "未儲存金鑰",
+  "keyMissing": "編輯器中未儲存金鑰",
+  "providerKeysSplitStores": "在此處輸入的金鑰保留在編輯器的機密儲存區中；終端代理會將自己的金鑰保存在作業系統的認證儲存區中。",
   "testRunning": "正在測試…",
   "modelsShownCount": {
     "other": "共 {count} 個模型，顯示 {shown} 個"

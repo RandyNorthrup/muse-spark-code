@@ -4900,7 +4900,8 @@
   "importUntrusted": "Ez a fájl nem megbízható: importálás előtt ellenőrizze mindegyik címet.",
   "openRouterOrder": "Előnyben részesített szolgáltatói sorrend",
   "openRouterFallback": "Váltás más szolgáltatókra",
-  "keyMissing": "Nincs tárolt kulcs",
+  "keyMissing": "Nincs tárolt kulcs a szerkesztőben",
+  "providerKeysSplitStores": "Az itt megadott kulcsok a szerkesztő titkos tárolójában maradnak; a terminálügynök saját kulcsait az operációs rendszer hitelesítőadat-tárolójában tartja.",
   "testRunning": "Tesztelés…",
   "modelsShownCount": {
     "one": "{shown} / {count} modell",

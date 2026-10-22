@@ -5024,7 +5024,8 @@
   "importUntrusted": "Este archivo no es de confianza: compruebe cada dirección antes de importar.",
   "openRouterOrder": "Orden de proveedores preferido",
   "openRouterFallback": "Recurrir a otros proveedores",
-  "keyMissing": "Ninguna clave guardada",
+  "keyMissing": "Ninguna clave guardada en el editor",
+  "providerKeysSplitStores": "Las claves introducidas aquí permanecen en el almacenamiento secreto del editor; el agente de terminal guarda sus propias claves en el almacén de credenciales del sistema operativo.",
   "testRunning": "Probando…",
   "modelsShownCount": {
     "one": "{shown} de {count} modelo",

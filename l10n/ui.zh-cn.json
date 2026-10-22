@@ -4776,7 +4776,8 @@
   "importUntrusted": "此文件不可信：导入前请检查每个地址。",
   "openRouterOrder": "首选供应商顺序",
   "openRouterFallback": "回退到其他供应商",
-  "keyMissing": "未存储密钥",
+  "keyMissing": "编辑器中未存储密钥",
+  "providerKeysSplitStores": "在此处输入的密钥保留在编辑器的机密存储中；终端代理将其自己的密钥保存在操作系统的凭据存储中。",
   "testRunning": "正在测试…",
   "modelsShownCount": {
     "other": "共 {count} 个模型，显示 {shown} 个"

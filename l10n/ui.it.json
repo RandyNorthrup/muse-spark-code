@@ -5024,7 +5024,8 @@
   "importUntrusted": "Questo file non è attendibile: controlli ogni indirizzo prima di importare.",
   "openRouterOrder": "Ordine provider preferito",
   "openRouterFallback": "Passa ad altri provider",
-  "keyMissing": "Nessuna chiave salvata",
+  "keyMissing": "Nessuna chiave salvata nell’editor",
+  "providerKeysSplitStores": "Le chiavi inserite qui restano nell’archivio segreto dell’editor; l’agente del terminale conserva le proprie chiavi nell’archivio credenziali del sistema operativo.",
   "testRunning": "Verifica in corso…",
   "modelsShownCount": {
     "one": "{shown} di {count} modello",

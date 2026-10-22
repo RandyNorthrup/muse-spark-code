@@ -1072,6 +1072,11 @@ outcome visible. A budget-only partial save with a fresh snapshot can retry;
 a failed refresh retires that form to prevent retries against stale values.
 Two editor windows saving the same provider at the same moment can overwrite
 fields both changed. Cross-window serialization is a planned follow-up.
+The panel and the terminal agent share the provider list but keep keys
+separately: keys you enter here stay in the editor's secret storage, and
+keys entered through `muse-spark-code-acp` stay in the agent's own OS
+credential store entries — so this panel reads "No Key Stored in the
+Editor" for a provider whose key only the terminal agent holds.
 
 ## Questions
 
