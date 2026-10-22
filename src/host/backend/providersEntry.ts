@@ -42,6 +42,7 @@ export {
   promptOpenRouterCode,
   OPENROUTER_ORIGIN,
 } from '../providers/openRouter'
+export * as huggingface from '../providers/huggingface'
 export { startOAuthLoopback } from '../providers/oauthLoopback'
 export { metaResolvedModel } from '../../core/backends/modelapi/modelPolicy'
 export { isPkceState, pkceRandom } from '../../core/providers/pkce'

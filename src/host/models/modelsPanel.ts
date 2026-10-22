@@ -51,6 +51,7 @@ import {
   createOpenRouterPanelUsage,
   clearOpenRouterPanelUsage,
   createOpenRouterDraftDiscard,
+  huggingface,
 } from '../backend/providersEntry'
 import { Usd } from '../../shared/usd'
 import { distinctProviderLabels } from '../../shared/providerLabels'
@@ -114,6 +115,11 @@ export interface ModelsVaultBinding {
 export type ModelsVaultFactory = (
   publish: (message: VaultHostMessage) => void,
 ) => ModelsVaultBinding
+/** The origin a connected OAuth key is bound to (never pasted-key input). */
+function connectedOrigin(presetId: string): string {
+  return presetId === 'huggingface' ? huggingface.HF_ORIGIN : OPENROUTER_ORIGIN
+}
+
 /** The navigate target the host posts; a vault link needs the binding. */
 function navigateSection(
   section: string,
@@ -977,7 +983,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (
           preset === undefined ||
           (message.type === 'providers/connect' &&
-            (preset.id !== 'openrouter' || preset.connectLabel === undefined))
+            (preset.connectLabel === undefined ||
+              (preset.id !== 'openrouter' && preset.id !== 'huggingface')))
         ) {
           throw new Error(UI_TEXT.actionFailed)
         }
@@ -986,13 +993,14 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           draft.connecting = true
           publish()
           try {
-            connection = await providers.connectOpenRouter(
-              deps.isRemote === true,
-              AbortSignal.any([
-                lifetime.signal,
-                ...(connectionRequest === undefined ? [] : [connectionRequest.signal]),
-              ]),
-            )
+            const signal = AbortSignal.any([
+              lifetime.signal,
+              ...(connectionRequest === undefined ? [] : [connectionRequest.signal]),
+            ])
+            connection =
+              preset.id === 'huggingface'
+                ? await providers.connectHuggingFace(deps.isRemote === true, signal)
+                : await providers.connectOpenRouter(deps.isRemote === true, signal)
           } finally {
             draft.connecting = false
           }
@@ -1009,7 +1017,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
             connected: message.type === 'providers/connect',
             origin:
               message.type === 'providers/connect'
-                ? OPENROUTER_ORIGIN
+                ? connectedOrigin(preset.id)
                 : new URL(entry.address).origin,
           })
           draft.keyPresent = true
