@@ -24,11 +24,34 @@ import type { VaultBrokerProcess } from '../../../../src/host/vault/brokerProces
 import { collectingLogger } from '../collectingLogger'
 import { expect, vi } from 'vitest'
 
-const ORIGIN = 'https://api.example.com'
+/** The origin the shared first-party probe row is bound to. */
+export const PANEL_FLOW_ORIGIN = 'https://api.example.com'
 // Each step can include a slot helper launch through the governor (DPAPI on
 // Windows, the Secure Enclave probe and the keychain on macOS), and the
 // first use of each fresh helper pays the platform's trust evaluation.
 const STEP_TIMEOUT_MS = 60_000
+
+/** A first-party row to write and read back through the private channel. */
+export function panelFirstPartyItem(id: string, value: Uint8Array<ArrayBuffer>): VaultItem {
+  return {
+    metadata: {
+      id,
+      name: 'first-party-row',
+      handle: 'secret://first-party-row',
+      label: 'First-party row',
+      kind: 'apiKey',
+      bindings: [{ kind: 'origin', origin: PANEL_FLOW_ORIGIN }],
+      requirePresence: false,
+      hidden: true,
+      firstParty: true,
+      policy: { mode: 'never', unattendedAllowed: false, allowDisclosure: false },
+      dates: { createdAt: Date.now(), rotatedAt: null, expiresAt: null, lastUsedAt: null },
+      publicKey: null,
+      fingerprint: null,
+    },
+    material: { kind: 'apiKey', value, auth: 'bearer', origin: PANEL_FLOW_ORIGIN },
+  }
+}
 
 export interface PanelFlowClient {
   /** A home folder the ambient discovery reads (generated, empty). */
@@ -61,7 +84,7 @@ export async function drivePanelFlow(
   // kind, name, label, where it may be used (nowhere yet), policy,
   // presence, expiry (none), hidden, unattended, disclosure, then the key,
   // its use and its origin.
-  const typed = ['service-key', 'Service key', '', 'panel-key-value', ORIGIN]
+  const typed = ['service-key', 'Service key', '', 'panel-key-value', PANEL_FLOW_ORIGIN]
   const picked = ['apiKey', 'none', 'askEveryTime', 'keep', 'keep', 'keep', 'keep', 'bearer']
   const person: VaultNativeInput = {
     input: () => Promise.resolve(typed.shift()),
@@ -119,30 +142,13 @@ export async function drivePanelFlow(
   // relay once failed (and took every connection with it) on any frame
   // larger than one wrapped slot key.
   const value = Buffer.from('first-party-panel-value-'.repeat(400))
-  const firstParty: VaultItem = {
-    metadata: {
-      id: 'a1'.repeat(16),
-      name: 'first-party-row',
-      handle: 'secret://first-party-row',
-      label: 'First-party row',
-      kind: 'apiKey',
-      bindings: [{ kind: 'origin', origin: ORIGIN }],
-      requirePresence: false,
-      hidden: true,
-      firstParty: true,
-      policy: { mode: 'never', unattendedAllowed: false, allowDisclosure: false },
-      dates: { createdAt: Date.now(), rotatedAt: null, expiresAt: null, lastUsedAt: null },
-      publicKey: null,
-      fingerprint: null,
-    },
-    material: { kind: 'apiKey', value: Buffer.from(value), auth: 'bearer', origin: ORIGIN },
-  }
+  const firstParty = panelFirstPartyItem('a1'.repeat(16), Buffer.from(value))
   const readBack = () =>
     new VaultFirstPartyReader(client.connect).read({
       v: VAULT_PROTOCOL_VERSION,
       kind: 'firstPartyRead',
       itemId: firstParty.metadata.id,
-      origin: ORIGIN,
+      origin: PANEL_FLOW_ORIGIN,
       client: 'model',
     })
   // The broker inherits the working folder: the suite's launch-folder

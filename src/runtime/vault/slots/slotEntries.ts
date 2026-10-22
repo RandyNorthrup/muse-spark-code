@@ -2,6 +2,7 @@ import * as z from 'zod/mini'
 import { UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
 import type { VaultSlotRecord } from '../../../shared/vault'
 import type { VaultSlotProvider } from '../../../core/vault/broker/repository'
+import { VaultError } from '../../../core/vault/crypto'
 import { OsStoreVaultSlot } from './osStoreVaultSlot'
 import type { PresenceRecords } from './slotIdentity'
 
@@ -70,6 +71,32 @@ export function freshOsStoreSlot(
   scope: string,
 ): OsStoreVaultSlot {
   return new OsStoreVaultSlot(freshSlotEntry(vaultId, id), platform, open, scope)
+}
+
+/**
+Guards an OS-store slot provider's construction: its own platform, and the
+vault root its references scope to. Without a root no key can be named, so
+construction refuses.
+*/
+export function checkOsStoreProviderDeps(
+  deps: { readonly dataDir: string; readonly platform?: NodeJS.Platform },
+  platform: NodeJS.Platform,
+): void {
+  if ((deps.platform ?? process.platform) !== platform) throw new VaultError('invalid')
+  if (deps.dataDir === '') throw new VaultError('invalid')
+}
+
+/** An OS-store slot of this platform's provider opened from its record, else null. */
+export function openPlatformOsStoreSlot(
+  record: VaultSlotRecord,
+  platform: NodeJS.Platform,
+  provider: VaultSlotRecord['provider'],
+  open: OpenOsStoreEntry | undefined,
+  scope: string,
+): OsStoreVaultSlot | null {
+  return record.tier !== 'osStore' || record.provider !== provider
+    ? null
+    : openOsStoreSlot(record, platform, open, scope)
 }
 
 /**
