@@ -8381,6 +8381,10 @@ export const ESTIMATE_PRICE_CATALOG_URLS: readonly string[] = [
 // response cannot fill the disk before the cap trips.
 export const ESTIMATE_PRICE_MAX_AGE_MS = 24 * 60 * 60 * 1000
 export const ESTIMATE_PRICE_MAX_BYTES = 256 * 1024
+// M117 C-M117-2: the history journal under the agent data folder, shared by
+// every workspace's lanes. A relative path, never absolute: hosts join it
+// onto the data folder (forward slashes join on Windows too).
+export const ESTIMATE_HISTORY_DIRECTORY = 'estimator/history'
 export const ESTIMATE_ID_MAX_CHARS = 128
 export const ESTIMATE_LABEL_MAX_CHARS = 256
 // M117 W (PLAN.md D100, gotcha G4): a lane whose base is this many days old

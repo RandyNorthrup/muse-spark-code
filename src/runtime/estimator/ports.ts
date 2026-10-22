@@ -8,6 +8,7 @@ import { EstimateDiagnosticError } from '../../core/estimator/diagnostic'
 // milestones (M96, M109, M110) and refuse with their handoff names until
 // those merge; price lookups stay off outside the editor (M80, D65).
 // History appends arrive with M115's lane-finished trigger.
+import { homedir } from 'node:os'
 import path from 'node:path'
 import { createAcpEstimate, type AcpEstimatePort } from '../../acp/estimate'
 import { lazyEstimator, type EstimatorSourcePorts } from '../../host/estimator/estimatorBundle'
@@ -16,7 +17,9 @@ import {
   headlessFleetSources,
   type FleetUsageOwners,
 } from '../../host/estimator/fleetBinding'
+import { estimateHistoryDirectory, fileHistoryPorts } from '../../host/estimator/historyStore'
 import { estimatorSourcePorts } from '../../host/estimator/localFleet'
+import { agentDataFolder } from '../dataFolder'
 import { planCheckLoader, planSnapshotLoader } from '../../host/estimator/planSnapshotBundle'
 import { runEstimateCommand, fleetFailure } from './command'
 import { lazyBundleLoader } from '../../host/lazyBundle'
@@ -127,6 +130,16 @@ export function runtimeEstimatorPorts(
         currentOwner: deps.currentOwner,
         readUsage: deps.readUsage,
       }),
+    ),
+    // The history journal in the agent data folder (M117 C-M117-2).
+    fileHistoryPorts(
+      estimateHistoryDirectory(
+        agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+      ),
     ),
   )
 }

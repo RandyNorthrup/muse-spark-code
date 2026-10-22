@@ -116,7 +116,8 @@ The milestone bindings every shell assembles (M117, PLAN.md D97): this
 machine measured as the fleet, with M107's caps, M108's account rows and
 CI concurrency applied when their readers are passed (C-M117-3); the
 snapshot reads the workspace plan through the shared core adapter
-(C-M117-1); the board, broker and catalog bindings refuse with their
+(C-M117-1); the history reads the journal in the agent data folder
+(C-M117-2); the board, broker and catalog bindings refuse with their
 handoff names until those merge; history appends arrive with M115's
 lane-finished trigger. Only the price lookup differs.
 */
@@ -124,6 +125,10 @@ export function estimatorSourcePorts(
   priceLookup: EstimatorSourcePorts['priceLookup'],
   snapshot: EstimatorSourcePorts['snapshot'],
   fleetIo?: FleetBindingIo,
+  historyPorts?: {
+    history: () => Promise<unknown>
+    skipped?: () => Promise<unknown>
+  },
   prices: EstimatorSourcePorts['prices'] = () => ({
     cached: () => missingEstimateBinding('M117-W-M113-catalog'),
     store: () => missingEstimateBinding('M117-W-M113-catalog'),
@@ -138,7 +143,8 @@ export function estimatorSourcePorts(
       const bound = await read(lanes, asOf)
       return bound.fleet
     },
-    history: () => Promise.resolve([]),
+    history: historyPorts?.history ?? (() => Promise.resolve([])),
+    ...(historyPorts?.skipped !== undefined && { historySkipped: historyPorts.skipped }),
     candidatePool: async (lanes, asOf) => {
       const bound = await read(lanes, asOf)
       return bound.fleet
