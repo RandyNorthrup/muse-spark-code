@@ -4,21 +4,19 @@
 // the only scripted partner is a held promise standing in for a slow
 // first-use initialization. Cancelling, failing and retiring are observed
 // through real process table reads (pgrep) and real rejections.
-import { execFile, execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
-import * as os from 'node:os'
-import { tmpdir } from 'node:os'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { admitResource, configureResources } from '../../src/core/resources/admission'
 import { ResourceLaunchHost } from '../../src/core/resources/launchHost'
 import { resourceGovernorHost } from '../../src/core/resources/resourceGovernorEntry'
 import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
-import { MachineResourceSampler } from '../../src/core/resources/sampler/machineSampler'
-import { createOptionalResourceProbes } from '../../src/core/resources/sampler/optionalProbes'
-import { createSamplerIo } from '../../src/core/resources/sampler/system'
-import { createRuntimeResourceHost } from '../../src/runtime/resources/host'
+import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
+import {
+  createRuntimeResourceHost,
+  type RuntimeResourceProcess,
+} from '../../src/runtime/resources/host'
 import { resourceHistoryRecorder } from '../../src/runtime/resources/history'
 import { resourceMachineStore } from '../../src/runtime/resources/settings'
 import {
@@ -28,6 +26,7 @@ import {
 } from '../../src/shared/resources'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
+import { compileHelper, granted, helperPids, manualClock, settledGone } from './resourceHarness'
 
 setUiText(EN, 'en')
 
@@ -35,126 +34,13 @@ const limits = { timeoutMs: 1000, maxOutputBytes: 128 }
 const helper = { folder: '', binary: '' }
 const state = { machineDir: '' }
 
-function granted<T>(promise: Promise<T>, what: string): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_resolve, reject) => {
-      setTimeout(() => {
-        reject(new Error(`resource ${what} did not settle`))
-      }, 2000)
-    }),
-  ])
-}
-
-function manualClock() {
-  const nowMs = 0
-  const timers = new Set<ReturnType<typeof setTimeout>>()
-  const clock: ResourceClock = {
-    now: () => nowMs,
-    setTimeout: (callback, delayMs) => {
-      const timer = setTimeout(callback, delayMs)
-      timers.add(timer)
-      return () => {
-        clearTimeout(timer)
-        timers.delete(timer)
-      }
-    },
-  }
-  return {
-    clock,
-    clear: () => {
-      for (const timer of timers) clearTimeout(timer)
-      timers.clear()
-    },
-  }
-}
-
-/** Real governor sampler: live OS counters, with the helper child on Darwin. */
-function sharedSampler(settings: () => ResourceSettings, reader?: DarwinMemoryReader) {
-  const io = createSamplerIo({ timeoutMs: 1000, maxOutputBytes: 64 * 1024 })
-  const compatibleProcess: { availableMemory?: () => number } = process
-  return new MachineResourceSampler(
-    {
-      platform: process.platform,
-      now: () => Date.now(),
-      cpus: () => os.cpus().map((cpu) => cpu.times),
-      totalMemory: () => os.totalmem(),
-      freeMemory: () => os.freemem(),
-      availableMemory: () =>
-        reader === undefined ? (compatibleProcess.availableMemory?.() ?? null) : reader.read(),
-      dispose: () => {
-        reader?.dispose()
-      },
-      read: io.read,
-      loadOptionalProbes: () => Promise.resolve(createOptionalResourceProbes(io)),
-    },
-    settings,
-  )
-}
-
-function helperPids(): Promise<number[]> {
-  return new Promise((resolve) => {
-    execFile('pgrep', ['-f', helper.binary], (error, stdout) => {
-      if (error === null) {
-        resolve(
-          stdout
-            .split('\n')
-            .map(Number)
-            .filter((pid) => Number.isSafeInteger(pid) && pid > 0),
-        )
-      } else {
-        resolve([])
-      }
-    })
-  })
-}
-
-async function settledGone(): Promise<void> {
-  const startedAt = Date.now()
-  for (;;) {
-    const running = await helperPids()
-    if (running.length === 0) return
-    if (Date.now() - startedAt > 5000) throw new Error('helper child outlived disposal')
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  }
-}
-
 beforeAll(async () => {
   mkdirSync('temp', { recursive: true })
   state.machineDir = mkdtempSync(path.resolve('temp', 'hc1-machine-'))
   if (process.platform !== 'darwin') return
-  helper.folder = await mkdtemp(path.join(tmpdir(), 'm107-shared-governor-'))
-  helper.binary = path.join(helper.folder, 'memory')
-  execFileSync(
-    '/usr/bin/cc',
-    [
-      '-Os',
-      '-Wall',
-      '-Wextra',
-      '-Werror',
-      '-DMUSE_CREATED_STANDALONE',
-      '-arch',
-      'x86_64',
-      '-arch',
-      'arm64',
-      '-mmacosx-version-min=12.0',
-      path.resolve('native/darwin/MuseSparkCreated.c'),
-      '-o',
-      helper.binary,
-    ],
-    {
-      env: {
-        PATH: '/usr/bin:/bin',
-        TMPDIR: helper.folder,
-        // The toolchain lookup (not the helper) may need this: without it a
-        // machine whose xcode-select names a missing Xcode cannot drive cc.
-        ...(process.env['DEVELOPER_DIR'] !== undefined && {
-          DEVELOPER_DIR: process.env['DEVELOPER_DIR'],
-        }),
-      },
-    },
-  )
-  execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', helper.binary], { env: {} })
+  const built = await compileHelper('m107-shared-governor-')
+  helper.folder = built.folder
+  helper.binary = built.binary
 })
 
 afterAll(async () => {
@@ -166,7 +52,7 @@ function runtimeHost(options: {
   settings: () => ResourceSettings
   onError: (error: unknown) => void
   builds: { count: number }
-  reader?: DarwinMemoryReader
+  reader?: DarwinMemoryReader | undefined
 }) {
   const machine = resourceMachineStore({
     settingsFile: path.join(state.machineDir, 'resources.json'),
@@ -175,7 +61,12 @@ function runtimeHost(options: {
   })
   return createRuntimeResourceHost({
     clock: options.clock,
-    sampler: sharedSampler(options.settings, options.reader),
+    sampler: createMachineResourceSampler(
+      options.settings,
+      { timeoutMs: 1000, maxOutputBytes: 64 * 1024 },
+      undefined,
+      options.reader,
+    ),
     machine,
     running: { backgroundCount: () => 0 },
     onError: options.onError,
@@ -195,116 +86,87 @@ function runtimeHost(options: {
   })
 }
 
+async function withHost(
+  body: (scoped: {
+    host: RuntimeResourceProcess
+    errors: unknown[]
+    builds: { count: number }
+  }) => Promise<void> | void,
+  reader?: DarwinMemoryReader,
+): Promise<void> {
+  const { clock, clear } = manualClock()
+  const errors: unknown[] = []
+  const settings = resourceSettingsSchema.parse({})
+  const builds = { count: 0 }
+  const host = await runtimeHost({
+    clock,
+    settings: () => settings,
+    onError: (error) => {
+      errors.push(error)
+    },
+    builds,
+    reader,
+  })
+  try {
+    await body({ host, errors, builds })
+  } finally {
+    host.dispose()
+    reader?.dispose()
+    clear()
+  }
+}
+
 describe('one governor per runtime process', () => {
   it('builds the process launches once and shares them', async () => {
-    const { clock, clear } = manualClock()
-    const errors: unknown[] = []
-    const settings = resourceSettingsSchema.parse({})
-    const builds = { count: 0 }
-    const host = await runtimeHost({
-      clock,
-      settings: () => settings,
-      onError: (e) => {
-        errors.push(e)
-      },
-      builds,
-    })
-    try {
+    await withHost(({ host, errors, builds }) => {
       expect(host.launchRows()).toEqual([])
       expect(host.launches?.()).toBe(host.launches?.())
       expect(builds.count).toBe(1)
       expect(errors).toEqual([])
-    } finally {
-      host.dispose()
-      clear()
-    }
+    })
   })
 
   it('counts an admitted launch as occupancy until it completes', async () => {
-    const { clock, clear } = manualClock()
-    const errors: unknown[] = []
-    const settings = resourceSettingsSchema.parse({})
-    const builds = { count: 0 }
-    const host = await runtimeHost({
-      clock,
-      settings: () => settings,
-      onError: (e) => {
-        errors.push(e)
-      },
-      builds,
-    })
-    try {
+    await withHost(async ({ host, errors }) => {
       const launches = host.launches?.()
       if (launches === undefined) throw new Error('process launches were not built')
       expect(launches.backgroundCount('check')).toBe(0)
       const lease = await granted(
         launches.admit('check', undefined, 'background', false, undefined, true),
         'launch admission',
+        'did not settle',
       )
       expect(launches.backgroundCount('check')).toBe(1)
       lease.complete(true)
       expect(launches.backgroundCount('check')).toBe(0)
       expect(errors).toEqual([])
-    } finally {
-      host.dispose()
-      clear()
-    }
+    })
   })
 
   it('stops launches on dispose and refuses further use', async () => {
-    const { clock, clear } = manualClock()
-    const errors: unknown[] = []
-    const settings = resourceSettingsSchema.parse({})
-    const builds = { count: 0 }
-    const host = await runtimeHost({
-      clock,
-      settings: () => settings,
-      onError: (e) => {
-        errors.push(e)
-      },
-      builds,
-    })
-    try {
+    await withHost(({ host, errors }) => {
       host.launches?.()
       host.dispose()
       expect(() => host.launches?.()).toThrow()
       expect(errors).toEqual([])
-    } finally {
-      clear()
-    }
+    })
   })
 
   it.runIf(process.platform === 'darwin')(
     'retires the sampler helper with the process',
     async () => {
-      const { clock, clear } = manualClock()
-      const errors: unknown[] = []
-      const settings = resourceSettingsSchema.parse({})
-      const builds = { count: 0 }
       // This host owns its reader: sampling spawns the helper, and only this
       // host's disposal retires it.
       const reader = new DarwinMemoryReader(limits, helper.binary)
-      const host = await runtimeHost({
-        clock,
-        settings: () => settings,
-        onError: (e) => {
-          errors.push(e)
-        },
-        builds,
-        reader,
-      })
-      try {
+      await withHost(async ({ host, errors }) => {
         const status = await host.status()
         expect(status.sample?.memoryAvailableBytes).toBeTypeOf('number')
-        const running = await helperPids()
+        const running = await helperPids(helper.binary)
         expect(running).toHaveLength(1)
         host.dispose()
-        await settledGone()
+        await settledGone(helper.binary)
         expect(errors).toEqual([])
-      } finally {
-        reader.dispose()
-        clear()
-      }
+      }, reader)
     },
   )
 })
@@ -337,6 +199,7 @@ describe('first-use admission waits', () => {
       const lease = await granted(
         admitResource('check', undefined, 'background', false, undefined, true),
         'admission after abort',
+        'did not settle',
       )
       expect(lease).not.toBeUndefined()
       lease?.complete(true)
@@ -367,6 +230,7 @@ describe('first-use admission waits', () => {
       const lease = await granted(
         admitResource('check', undefined, 'background', false, undefined, true),
         'admission after failure',
+        'did not settle',
       )
       expect(lease).not.toBeUndefined()
       expect(attempts).toBe(2)

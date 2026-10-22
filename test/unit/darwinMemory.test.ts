@@ -5,65 +5,29 @@
 // the reader's fixed `--memory-headroom` argument. No spawn, clock or
 // platform value is stubbed, so a failure below is a real helper the reader
 // mishandled. Darwin-only: the helper reads Mach VM counters.
-import { execFile, execFileSync } from 'node:child_process'
-import { mkdtemp, rm } from 'node:fs/promises'
-import * as os from 'node:os'
-import { tmpdir, totalmem } from 'node:os'
+import { rm } from 'node:fs/promises'
+import { totalmem } from 'node:os'
 import path from 'node:path'
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { ResourceEvents } from '../../src/core/resources/events'
 import { ResourceGovernor } from '../../src/core/resources/governor'
 import { DarwinMemoryReader } from '../../src/core/resources/sampler/darwinMemory'
-import { MachineResourceSampler } from '../../src/core/resources/sampler/machineSampler'
-import { createSamplerIo } from '../../src/core/resources/sampler/system'
-import { createOptionalResourceProbes } from '../../src/core/resources/sampler/optionalProbes'
+import { createMachineResourceSampler } from '../../src/core/resources/sampler/system'
 import {
   resourceSettingsSchema,
   type ResourceClock,
   type ResourceSettings,
 } from '../../src/shared/resources'
+import { compileHelper, helperPids, settledGone } from './resourceHarness'
 
 const limits = { timeoutMs: 1000, maxOutputBytes: 128 }
 const helper = { folder: '', binary: '' }
 
-function compileHelper() {
-  execFileSync(
-    '/usr/bin/cc',
-    [
-      '-Os',
-      '-Wall',
-      '-Wextra',
-      '-Werror',
-      '-DMUSE_CREATED_STANDALONE',
-      '-arch',
-      'x86_64',
-      '-arch',
-      'arm64',
-      '-mmacosx-version-min=12.0',
-      path.resolve('native/darwin/MuseSparkCreated.c'),
-      '-o',
-      helper.binary,
-    ],
-    {
-      env: {
-        PATH: '/usr/bin:/bin',
-        TMPDIR: helper.folder,
-        // The toolchain lookup (not the helper) may need this: without it a
-        // machine whose xcode-select names a missing Xcode cannot drive cc.
-        ...(process.env['DEVELOPER_DIR'] !== undefined && {
-          DEVELOPER_DIR: process.env['DEVELOPER_DIR'],
-        }),
-      },
-    },
-  )
-  execFileSync('/usr/bin/codesign', ['--force', '--sign', '-', helper.binary], { env: {} })
-}
-
 beforeAll(async () => {
   if (process.platform !== 'darwin') return
-  helper.folder = await mkdtemp(path.join(tmpdir(), 'm107-memory-reader-'))
-  helper.binary = path.join(helper.folder, 'memory')
-  compileHelper()
+  const built = await compileHelper('m107-memory-reader-')
+  helper.folder = built.folder
+  helper.binary = built.binary
 })
 
 afterAll(async () => {
@@ -74,7 +38,7 @@ afterAll(async () => {
 // case observes names only the children that case started.
 afterEach(async () => {
   for (const item of readers.splice(0)) item.dispose()
-  await settledGone()
+  await settledGone(helper.binary)
 })
 
 const readers: DarwinMemoryReader[] = []
@@ -85,37 +49,9 @@ function reader(binary = helper.binary): DarwinMemoryReader {
   return result
 }
 
-/** PIDs whose full command line names this run's helper binary. */
-function helperPids(): Promise<number[]> {
-  return new Promise((resolve) => {
-    execFile('pgrep', ['-f', helper.binary], (error, stdout) => {
-      if (error !== null) {
-        resolve([])
-        return
-      }
-      resolve(
-        stdout
-          .split('\n')
-          .map(Number)
-          .filter((pid) => Number.isSafeInteger(pid) && pid > 0),
-      )
-    })
-  })
-}
-
-async function settledGone(): Promise<void> {
-  const startedAt = Date.now()
-  for (;;) {
-    const running = await helperPids()
-    if (running.length === 0) return
-    if (Date.now() - startedAt > 5000) throw new Error('helper child outlived disposal')
-    await new Promise((resolve) => setTimeout(resolve, 50))
-  }
-}
-
 describe.runIf(process.platform === 'darwin')('Darwin memory helper transport', () => {
   it('starts lazily, shares one in-flight request and reuses one idle child', async () => {
-    expect(await helperPids()).toEqual([])
+    expect(await helperPids(helper.binary)).toEqual([])
     const sample = reader()
     const first = sample.read()
     expect(sample.read()).toBe(first)
@@ -129,7 +65,7 @@ describe.runIf(process.platform === 'darwin')('Darwin memory helper transport', 
     expect(second).toBeTypeOf('number')
     expect(second).toBeGreaterThanOrEqual(0)
     expect(second).toBeLessThanOrEqual(totalmem())
-    expect(await helperPids()).toHaveLength(1)
+    expect(await helperPids(helper.binary)).toHaveLength(1)
   })
 
   it.each([
@@ -161,23 +97,12 @@ describe.runIf(process.platform === 'darwin')('Darwin memory helper transport', 
 
   it('retires the helper child when its governor disposes', async () => {
     const owned = new DarwinMemoryReader(limits, helper.binary)
-    const io = createSamplerIo({ timeoutMs: 1000, maxOutputBytes: 64 * 1024 })
     const settings: ResourceSettings = resourceSettingsSchema.parse({})
-    const sampler = new MachineResourceSampler(
-      {
-        platform: 'darwin',
-        now: () => Date.now(),
-        cpus: () => os.cpus().map((cpu) => cpu.times),
-        totalMemory: () => os.totalmem(),
-        freeMemory: () => os.freemem(),
-        availableMemory: () => owned.read(),
-        dispose: () => {
-          owned.dispose()
-        },
-        read: io.read,
-        loadOptionalProbes: () => Promise.resolve(createOptionalResourceProbes(io)),
-      },
+    const sampler = createMachineResourceSampler(
       () => settings,
+      { timeoutMs: 1000, maxOutputBytes: 64 * 1024 },
+      undefined,
+      owned,
     )
     const errors: unknown[] = []
     const events = new ResourceEvents((error) => {
@@ -207,10 +132,10 @@ describe.runIf(process.platform === 'darwin')('Darwin memory helper transport', 
     })
     try {
       await governor.refresh()
-      const running = await helperPids()
+      const running = await helperPids(helper.binary)
       expect(running).toHaveLength(1)
       governor.dispose()
-      await settledGone()
+      await settledGone(helper.binary)
       expect(errors).toEqual([])
     } finally {
       for (const timer of timers) clearTimeout(timer)

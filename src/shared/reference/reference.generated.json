@@ -20,7 +20,11 @@
       "backends": ["museCode", "modelApi"],
       "paid": false,
       "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
-      "details": [],
+      "details": [
+        { "ui": "resourceRelocateAskDescription" },
+        { "ui": "resourceRelocateOffDescription" },
+        { "ui": "referenceResourceMemory" }
+      ],
       "facts": {},
       "editors": ["vscode", "acp"]
     },
@@ -2552,7 +2556,7 @@
     },
     {
       "id": "museSpark.nextOpenQuestion",
-      "name": "Next Open Question",
+      "name": "Next open question",
       "nameKey": "command.nextOpenQuestion.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2562,7 +2566,7 @@
     },
     {
       "id": "museSpark.previousOpenQuestion",
-      "name": "Previous Open Question",
+      "name": "Previous open question",
       "nameKey": "command.previousOpenQuestion.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
@@ -2572,11 +2576,11 @@
     },
     {
       "id": "museSpark.startWithOwnModel",
-      "name": "Start With Your Own Model",
+      "name": "Start with Your Own Model",
       "nameKey": "command.startWithOwnModel.title",
       "category": "Muse Spark",
       "categoryKey": "command.category",
-      "description": "Start With Your Own Model",
+      "description": "Start with Your Own Model",
       "text": { "command": "museSpark.startWithOwnModel" },
       "canRun": false
     },
@@ -4130,7 +4134,7 @@
       },
       "id": "museSpark.resourceDiskMinFreeGiB",
       "name": "museSpark.resourceDiskMinFreeGiB",
-      "description": "Free disk space floor in GiB. Unset means no floor; a set floor is at least 2 GiB.",
+      "description": "Free disk space floor in GiB. The default is 10 GiB or 10% of the volume, whichever is smaller, with a minimum of 2 GiB.",
       "descriptionKey": "config.resourceDiskMinFreeGiB.description",
       "type": ["number", "null"],
       "default": null,
@@ -4144,15 +4148,15 @@
       },
       "id": "museSpark.resourceRelocate",
       "name": "museSpark.resourceRelocate",
-      "description": "Controls the missing-route note on resource pauses. No relocation route is bound; work stays on this machine.",
+      "description": "Where queued team tasks and checks may move when this machine is busy. Relocation needs a paired device or runner route and is not available yet, so work stays on this machine.",
       "descriptionKey": "config.resourceRelocate.description",
       "type": "string",
       "default": "paired",
       "enum": ["paired", "ask", "off"],
       "enumDescriptions": [
-        "Show the missing-route note when resource pressure pauses work; no paired-device route is bound.",
-        "Show the missing-route note when resource pressure pauses work; no relocation question or transfer runs.",
-        "Hide the missing-route note on resource pauses; work stays on this machine."
+        "Use an approved paired device with normal resource load once relocation is available.",
+        "Ask before moving queued work.",
+        "Keep work on this machine."
       ],
       "enumDescriptionKeys": [
         "config.resourceRelocate.enumDescriptions.paired",
@@ -4166,7 +4170,7 @@
               "when": "resourceRelocation=noRoute",
               "text": {
                 "fallbackKey": "config.resourceRelocate.enumDescriptions.paired",
-                "fallback": "Show the missing-route note when resource pressure pauses work; no paired-device route is bound."
+                "fallback": "Use an approved paired device with normal resource load once relocation is available."
               }
             }
           ]
@@ -4177,7 +4181,7 @@
               "when": "resourceRelocation=noRoute",
               "text": {
                 "fallbackKey": "config.resourceRelocate.enumDescriptions.ask",
-                "fallback": "Show the missing-route note when resource pressure pauses work; no relocation question or transfer runs."
+                "fallback": "Ask before moving queued work."
               }
             }
           ]
@@ -4188,7 +4192,7 @@
               "when": "resourceRelocation=off",
               "text": {
                 "fallbackKey": "config.resourceRelocate.enumDescriptions.off",
-                "fallback": "Hide the missing-route note on resource pauses; work stays on this machine."
+                "fallback": "Keep work on this machine."
               }
             }
           ]
@@ -4201,7 +4205,7 @@
     {
       "id": "museSpark.questions.deferAfterSeconds",
       "name": "museSpark.questions.deferAfterSeconds",
-      "description": "Seconds before an unanswered question is deferred so Muse can keep working. No limit unless you set one: 0 (the default) never defers; any other whole number of seconds is used as you set it. The question stays open and can be answered later. Only this machine’s setting is used.",
+      "description": "Seconds before an unanswered question is deferred so Muse can keep working. 60 by default; 0 means never; 1–9 are read as 10; maximum 3,600. The question stays open and can be answered later. Only this machine’s setting is used.",
       "descriptionKey": "config.questions.deferAfterSeconds.description",
       "type": "integer",
       "default": 0,
