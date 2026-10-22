@@ -97,6 +97,27 @@ export async function lockWindowsStorageDir(storageDir: string, systemRoot: stri
   )
 }
 
+/**
+A test's private folder for one body: a temporary folder locked down to
+this user, SYSTEM and Administrators on Windows, so a storage guard's
+ancestor check passes however permissive the shared temporary folder is
+(it carries foreign grants on some rigs, and the guard rightly refuses
+them). POSIX temporary folders pass their anchor rule as created.
+*/
+export async function usingPrivateDir<T>(
+  prefix: string,
+  work: (folder: string) => T | Promise<T>,
+): Promise<T> {
+  return await usingTempDir(prefix, async (folder) => {
+    if (process.platform === 'win32') {
+      const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
+      if (systemRoot === undefined) throw new Error('no system root')
+      await lockWindowsStorageDir(folder, systemRoot)
+    }
+    return await work(folder)
+  })
+}
+
 /** Every file under a folder, as absolute paths: what a key scan reads. */
 export function filesUnder(folder: string): readonly string[] {
   return readdirSync(folder, { recursive: true, withFileTypes: true })
