@@ -6,7 +6,7 @@
 // refuses to serve or report on untrusted storage while revoke and kill
 // still narrow it.
 import { execFile } from 'node:child_process'
-import { lstat, mkdir, stat, symlink, writeFile } from 'node:fs/promises'
+import { link, lstat, mkdir, stat, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { PassThrough } from 'node:stream'
@@ -180,6 +180,21 @@ describe('M124 connector storage guard', () => {
         path.join(root, 'grants'),
         process.platform === 'win32' ? 'junction' : 'dir',
       )
+      const refusal = await refusalOf(() => guard.verify())
+      expect(refusal.reason).toBe('link')
+    })
+  })
+
+  it('refuses a hard link below the root', async () => {
+    await usingTempDir('m124-guard-hardlink-', async (data) => {
+      const root = path.join(data, CONNECTOR_FOLDER)
+      await mkdir(root, { recursive: true })
+      const guard = connectorStorageGuard(root)
+      await guard.secure(root, 'directory')
+      const target = path.join(root, 'target.json')
+      await writeFile(target, '{}\n')
+      await guard.secure(target, 'file')
+      await link(target, path.join(root, 'alias.json'))
       const refusal = await refusalOf(() => guard.verify())
       expect(refusal.reason).toBe('link')
     })

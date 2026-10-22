@@ -338,6 +338,7 @@ async function windowsVerify(root: string, anchor: string): Promise<void> {
     if (info.isSymbolicLink()) throw refused('link')
     const isDirectory = info.isDirectory()
     if (!isDirectory && !info.isFile()) throw refused('kind')
+    if (!isDirectory && info.nlink !== 1) throw refused('link')
     if (scanned.folder !== isDirectory) throw refused('kind')
     windowsLeafVerdict(scanned, tree.me)
   }
@@ -413,11 +414,11 @@ async function posixVerify(root: string, anchor: string): Promise<void> {
     if (info.isSymbolicLink()) throw refused('link')
     if (info.uid !== uid) throw refused('owner')
     const isDirectory = info.isDirectory()
-    if (
-      !isDirectory &&
-      (!info.isFile() || info.nlink !== 1 || (info.mode & POSIX_MODE_MASK) !== POSIX_FILE_MODE)
-    )
-      throw refused('access')
+    if (!isDirectory) {
+      if (!info.isFile() || (info.mode & POSIX_MODE_MASK) !== POSIX_FILE_MODE)
+        throw refused('access')
+      if (info.nlink !== 1) throw refused('link')
+    }
     if (isDirectory && (info.mode & POSIX_MODE_MASK) !== POSIX_DIRECTORY_MODE)
       throw refused('access')
   }
