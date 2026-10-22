@@ -17239,6 +17239,16 @@ Studio, Eclipse, the companion page and the editor-protocol editors wait
 for M104's bridges (lanes L, the runtime panel route and Q), which are not
 on main. Record: `docs/certification/msm71m123.md`.
 
+**Status 2026-10-22: building.** RLM123 landed `src/RLM123/02-rv-spawnm123d`
+(the superset of both source branches), reworked for main: checkout git
+runs through the governed launcher with the gate rechecked after
+admission/preparation and at Windows GO; read-only forms take probes,
+the rest stays contained; refusals name their cause and failures show
+git's redacted message. Proven by real-git tests on both routes and the
+PATHGUARD inventory; stand-in tests not carried. No production importer
+yet: lane L, panel routes, Q receipts and missingScopes remain. Record:
+`docs/certification/rlm123.md`.
+
 - **MSM71M123 (2026-10-16 and 17, host Claude, `ms/msm71m123`).** Main
   already held lanes 0, G and P (merged through `int/train-1011` and
   rewritten by the identity rewrite), so the lane joined main and then
@@ -35810,6 +35820,10 @@ The two matching packaged-process rows reuse their existing `TIMEOUT` (30,000 ms
 for the same sixty-request OS operation. All ordinary tests retain the repository
 default; final runs use no `--testTimeout` flag. The default 200-call proof uses
 memory fixtures, and real ACP delivery uses a three-call caller allowance.
+
+| RLM123 location                      | Escape hatch                             | Reason                                                                                                                                                                                                                                   |
+| ------------------------------------ | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unconfiguredGit.ts` (M123 checkout) | Two raw git launches, nosemgrep'd inline | Direct route only when resource admission is absent (the shared-runner rule); the caller gate runs synchronously before each bounded no-shell launch. In the PATHGUARD record and the spawn inventory (test-only with nodeGitProcesses). |
 
 | Location                                            | Residual / follow-up                                    | Lead decision (2026-10-09)                                                                                                                                                                                                                            |
 | --------------------------------------------------- | ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

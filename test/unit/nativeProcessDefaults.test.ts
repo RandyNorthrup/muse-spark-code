@@ -21,6 +21,7 @@ describe('native process defaults', () => {
   afterAll(() => removeFolder(root))
 
   it('runs git to completion through nodeGitProcesses.run and .start', async () => {
+    let gateRuns = 0
     const options = {
       cwd: root,
       // The real guarded child environment for the run's directory: git
@@ -31,6 +32,11 @@ describe('native process defaults', () => {
       }),
       signal: new AbortController().signal,
       timeout: GIT_TIMEOUT_MS,
+      // The checkout's synchronous last check: the direct route runs it
+      // immediately before each launch; here it always allows.
+      beforeSpawn: () => {
+        gateRuns += 1
+      },
     }
     const ran = await nodeGitProcesses.run('git', ['--version'], {
       ...options,
@@ -38,7 +44,10 @@ describe('native process defaults', () => {
     })
     expect(ran).toContain('git version')
 
-    const child = nodeGitProcesses.start('git', ['--version'], { ...options, detached: false })
+    const child = await nodeGitProcesses.start('git', ['--version'], {
+      ...options,
+      detached: false,
+    })
     const chunks: Buffer[] = []
     child.stdout.on('data', (chunk: Buffer) => {
       chunks.push(chunk)
@@ -48,6 +57,7 @@ describe('native process defaults', () => {
     })
     expect(exit).toBe(0)
     expect(Buffer.concat(chunks).toString('utf8')).toContain('git version')
+    expect(gateRuns).toBeGreaterThanOrEqual(1)
   })
 
   it('opens, identifies and reads a real file through WORKER_NATIVE_IO.openFile', async () => {

@@ -2,6 +2,7 @@ import type { ChildProcess } from 'node:child_process'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import {
+  ResourceUnavailableError,
   resourceEnvironment,
   type ResourceLaunchProfile,
   type ResourceProcessOptions,
@@ -334,7 +335,7 @@ async function spawnPiped(
   profile: 'contained' | 'probe' | 'bootstrap',
   file: string,
   args: readonly string[],
-  { jobMemoryBytes, ...options }: ResourceProcessOptions,
+  { jobMemoryBytes, beforeSpawn, ...options }: ResourceProcessOptions,
   extraDescriptors: readonly number[],
   resource: ResourceLease,
   signal: AbortSignal | undefined,
@@ -348,12 +349,23 @@ async function spawnPiped(
     const job = await untilAborted(resourceWindowsJob(), signal)
     if (job === undefined || extraDescriptors.length > 0) {
       signal?.throwIfAborted()
-      throw new Error('Native governed process launch unavailable')
+      throw new ResourceUnavailableError('launchUnavailable')
     }
     // Before every launch: a changed helper is refused (typed) and never runs.
     await untilAborted(job.verify(), signal)
     const { spawnAttestedJob } = await import('../../host/backend/mcpJobLaunch.js')
     signal?.throwIfAborted()
+    let refusal: Error | undefined
+    const authorize = () => {
+      try {
+        signal?.throwIfAborted()
+        beforeSpawn?.()
+      } catch (error: unknown) {
+        refusal = error instanceof Error ? error : new Error(String(error))
+        throw error
+      }
+    }
+    authorize()
     const { child: launcher, control } = spawnAttestedJob({
       executablePath: job.executablePath,
       file,
@@ -362,6 +374,7 @@ async function spawnPiped(
       env: options.env,
       isVerbatim: false,
       resource,
+      authorize,
       jobMemoryLimit: jobMemoryBytes,
       attestation: ATTESTED_JOB,
       log: () => {
@@ -414,7 +427,9 @@ async function spawnPiped(
     })
     outcome = async () => {
       if (launcher.pid === undefined) return
-      return await settlement
+      const settled = await settlement
+      if (refusal !== undefined) throw refusal
+      return settled
     }
     payloadPid = async () => {
       const root = await control.root
@@ -422,6 +437,8 @@ async function spawnPiped(
     }
   } else {
     const isGroup = process.platform !== 'win32'
+    signal?.throwIfAborted()
+    beforeSpawn?.()
     // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted payload or bootstrap compiler: argument array, no shell, pipes, its own POSIX group, owned whole-tree stop (PLAN SPAWN017C, section 8).
     const root = spawnGuarded(file, [...args], {
       ...options,
@@ -510,13 +527,14 @@ export async function spawnResourceProcess(
   extraDescriptors: readonly number[] = [],
 ): Promise<ResourceInteractiveProcess | ResourceHandoffProcess | ResourcePipedProcess> {
   // The memory cap is the attested job's, never a spawn option.
-  const { jobMemoryBytes, handoffUntil = 'exit', ...options } = launchOptions
+  const { jobMemoryBytes, handoffUntil = 'exit', beforeSpawn, ...options } = launchOptions
   if (profile === 'handoff') {
     // The named deadline covers the handoff's admission and the adapter's run.
     const deadline = AbortSignal.timeout(RESOURCE_HANDOFF_TIMEOUT_MS)
     const cancel = options.signal
     const signal = cancel === undefined ? deadline : AbortSignal.any([cancel, deadline])
     return await withLease(profile, signal, (resource, spawned) => {
+      beforeSpawn?.()
       spawned.value = true
       return Promise.resolve(
         spawnHandoff(file, args, options, resource, cancel, deadline, handoffUntil),
@@ -526,6 +544,7 @@ export async function spawnResourceProcess(
   const { signal } = options
   if (profile === 'interactive')
     return await withLease(profile, signal, (resource, spawned) => {
+      beforeSpawn?.()
       spawned.value = true
       return Promise.resolve(spawnInteractive(file, args, options, resource, signal))
     })
@@ -534,7 +553,7 @@ export async function spawnResourceProcess(
       profile,
       file,
       args,
-      { ...options, jobMemoryBytes },
+      { ...options, jobMemoryBytes, beforeSpawn },
       extraDescriptors,
       resource,
       signal,
@@ -550,7 +569,7 @@ async function withLease<T>(
   launch: (resource: ResourceLease, spawned: { value: boolean }) => Promise<T>,
 ): Promise<T> {
   const resource = await admitProfile(profile, signal)
-  if (resource === undefined) throw new Error('Resource admission unavailable')
+  if (resource === undefined) throw new ResourceUnavailableError('admissionUnavailable')
   const spawned = { value: false }
   try {
     signal?.throwIfAborted()
