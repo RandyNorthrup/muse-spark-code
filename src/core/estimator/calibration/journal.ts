@@ -109,6 +109,30 @@ export class EstimateHistoryJournal implements EstimateHistoryPort {
     return this.skipped
   }
 
+  /** Storage retention and deletion (M117 C-M117-2): removes every published
+  observation, lane-identity claim and staging file. Observations are
+  otherwise immutable and never pruned by age: calibration needs the whole
+  history, and a partial journal would silently bias every fit. The
+  directory itself stays, with its private permissions.
+  */
+  async clear(): Promise<void> {
+    let files: string[]
+    try {
+      files = await readdir(this.directory)
+    } catch (error) {
+      if (hasCode(error, 'ENOENT')) return
+      throw calibrationFailure('historyReadFailed')
+    }
+    try {
+      for (const file of files.toSorted(compareIds)) {
+        if (file.endsWith('.json') || file.endsWith('.identity') || file.endsWith('.tmp'))
+          await rm(path.join(this.directory, file), { force: true })
+      }
+    } catch {
+      throw calibrationFailure('historyCleanupFailed')
+    }
+  }
+
   async list(): Promise<readonly HistoryRecord[]> {
     const skipped: { recordId: string; code: string }[] = []
     let files: string[]

@@ -364,6 +364,7 @@ import {
   ownedSubscriptionUsage,
 } from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
+import { estimateHistoryDirectory, fileHistoryPorts } from './host/estimator/historyStore'
 import { estimatorNetworkPolicy, lazyPriceCatalog } from './host/estimator/priceCatalogBundle'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { createProviderGenerationTracker } from './host/auth/providerGeneration'
@@ -2819,6 +2820,16 @@ async function activateWindow(
               : ownedSubscriptionUsage(usage, usageRecording.ownedLimits?.() ?? [], scope)
           },
         }),
+      ),
+      // The history journal in the agent data folder (M117 C-M117-2).
+      fileHistoryPorts(
+        estimateHistoryDirectory(
+          agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+        ),
       ),
       () =>
         priceCatalog.createEstimatePricePort({

@@ -33291,6 +33291,22 @@ and byte-exact red drill in `docs/certification/m117.md`. No dependencies, paid
 calls, network probes, merges, pushes or gate changes. Full quality is lead-owned
 under the scoped rig brief.
 
+**C-M117-2 history journal and builders (2026-10-11, macmini).** Both shells
+read calibration history from `EstimateHistoryJournal` under the agent data
+folder (`estimator/history`); concrete builders project git lane-branch
+elapsed time (M113's branch convention, unique match only), M116 review
+rounds/strikes/redesigns and CI job-hours from measured check durations.
+Missing stays missing with its exclusion reason; malformed fails loudly.
+Skipped journal records ride the estimate in the optional string-only
+`historySkipped` field; `clear()` deletes observations, identity claims and
+staging together, and observations are otherwise never age-pruned. Proof:
+multi-process append tests, source regressions and byte-exact red drills in
+`docs/certification/m117-history.md`. Still waiting: the M115 lane-finished
+collection trigger (with the rig-to-machine-class mapping), M96c board
+durations, and panel/CLI surfacing of `historySkipped`. No dependencies, paid
+calls, merges, pushes or gate changes. Full quality is lead-owned under the
+scoped rig brief.
+
 **C-M117-1R2 review fixes (2026-10-10, Kubuntu).** Every RVCM1171 finding is
 fixed in the lane's files: one `asOf` captured once and passed through to the
 fleet; ACP/headless snapshots read the requesting session's root (cached per

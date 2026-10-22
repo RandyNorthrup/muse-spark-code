@@ -33,7 +33,7 @@ The VS Code adapter: 50 files. Everything else reaches VS Code only through them
 
 | File                                               | VS Code APIs used |
 | -------------------------------------------------- | ----------------- |
-| `src/extension.ts`                                 | 195               |
+| `src/extension.ts`                                 | 196               |
 | `src/host/agentImportHost.ts`                      | 28                |
 | `src/host/browser/browserCheckConfirm.ts`          | 5                 |
 | `src/host/browser/runtimeCommand.ts`               | 9                 |
@@ -103,7 +103,7 @@ These never reach `vscode` through their imports, type-only ones included; the g
 - `src/host/conversation/conversationController.ts`
 - `src/host/ide/ideMcpServer.ts`
 
-## VS Code API used at run time (384)
+## VS Code API used at run time (385)
 
 Functions, variables, classes, enums and members declared in `@types/vscode`; the members of a VS Code interface the code implements (a provider, an options object); and the members of a VS Code object handed to code that takes it by shape.
 
@@ -291,6 +291,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `SecretStorage.get`                                                                  | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `SecretStorage.onDidChange`                                                          | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `SecretStorage.store`                                                                | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `SecretStorageChangeEvent.key`                                                       | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `Selection`                                                                          | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `Selection.active`                                                                   | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `StatusBarAlignment`                                                                 | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
@@ -500,20 +501,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:async_hooks`       | 5     |
 | `node:buffer`            | 73    |
-| `node:child_process`     | 31    |
-| `node:crypto`            | 217   |
+| `node:child_process`     | 32    |
+| `node:crypto`            | 219   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 6     |
 | `node:events`            | 4     |
-| `node:fs`                | 135   |
+| `node:fs`                | 136   |
 | `node:fs/promises`       | 144   |
 | `node:http`              | 17    |
 | `node:https`             | 3     |
 | `node:module`            | 4     |
 | `node:net`               | 26    |
-| `node:os`                | 46    |
-| `node:path`              | 265   |
+| `node:os`                | 47    |
+| `node:path`              | 266   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 28    |
 | `node:readline`          | 1     |
@@ -524,7 +525,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:timers/promises`   | 37    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
-| `node:util`              | 11    |
+| `node:util`              | 12    |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |
 | `node:zlib`              | 10    |

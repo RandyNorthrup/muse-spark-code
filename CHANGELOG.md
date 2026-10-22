@@ -28,6 +28,30 @@ happened, not what was planned; superseded entries are kept.
   disclosed zero-sample assumptions until calibration replaces them per kind.
   Starting lanes, price catalogs, history and multi-machine fleets still refuse
   with their handoff names until their lanes land.
+- **Estimator history journal** (M117 C-M117-2). `/estimate` reads calibration
+  history from a durable journal in the agent data folder
+  (`estimator/history`), shared by every workspace, instead of always
+  starting empty — so observations persist across windows and processes.
+  Concrete builders project git lane-branch elapsed time, M116 review rounds
+  and CI job-hours; skipped journal records are disclosed by opaque id and
+  fixed code in the estimate. With no observations yet the estimate still
+  reports the uncalibrated prior with its sample size. The M96c board's
+  active-agent time and the M115 lane-finished collection trigger arrive with
+  their lanes.
+- **`estimate --check-plan`** (M117 CM1171R4). The headless `estimate` command
+  and the ACP agent's `/estimate` accept `--check-plan`, which lists every
+  estimator plan problem in `PLAN.md` — duplicate lanes, malformed `Starts`
+  cells (naming cell and line), unknown prerequisites, unknown rigs and
+  unknown release members — one per line, printing nothing when the plan is
+  clean. The exit code carries the verdict: 0 clean, 1 problems, 2 usage.
+- **Strict `Starts` grammar** (M117 CM1171R4). A `Starts` cell is `day 0`,
+  `first`, `last`, or `after` lane, qualified-lane and whole-milestone refs;
+  parenthetical text is a note and is ignored; anything else refuses with
+  `malformed-starts` instead of inventing or dropping dependencies. Strictness
+  applies to the goal's dependency closure, so rows outside it never block a
+  forecast. A planned lane with `Hours 0` is refused as a missing estimate,
+  and a `MERGED` pull request without a merge timestamp is refused as
+  malformed evidence.
 - **Estimator fleet binding** (M117 C-M117-3). The `fleet` and `candidatePool`
   ports accept M107 capacity caps, M108 account rows and GitHub CI concurrency
   through injected readers and apply them fail-closed onto this machine's

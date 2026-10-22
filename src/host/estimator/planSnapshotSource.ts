@@ -16,7 +16,7 @@ import path from 'node:path'
 import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { withoutCredentials } from '../../core/credentialEnvironment'
-import { buildPlanSnapshot, checkPlan } from '../../core/estimator/planSnapshot'
+import { buildPlanSnapshot, checkPlan, outputLines } from '../../core/estimator/planSnapshot'
 import { NO_WORKSPACE } from '../../core/executables'
 import { resolveExecutable } from '../../core/execGuard'
 import type { EstimateGoal } from '../../shared/estimate'
@@ -124,14 +124,6 @@ function defaultIo(root: string): PlanSnapshotSourceIo {
   }
 }
 
-function lines(output: string): string[] {
-  return output
-    .replaceAll('\r\n', '\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line !== '')
-}
-
 function refuseSource(detail: string): never {
   throw new EstimateDiagnosticError(detail)
 }
@@ -178,7 +170,7 @@ export function createPlanSnapshotSource(
       () => io.runGit(['for-each-ref', '--format=%(refname:short)', 'refs/heads'], signal),
       signal,
     )
-    const branches = lines(branchOutput)
+    const branches = outputLines(branchOutput)
     if (branches.length > ESTIMATE_MAX_ITEMS) refuseSource('source-incomplete: branches')
     const defaultOutput = await required(
       'default-branch',
@@ -193,7 +185,7 @@ export function createPlanSnapshotSource(
       () => io.runGit(['branch', '--merged', defaultRef, '--format=%(refname:short)'], signal),
       signal,
     )
-    const mergedNames = lines(mergedOutput)
+    const mergedNames = outputLines(mergedOutput)
     if (mergedNames.length > ESTIMATE_MAX_ITEMS) refuseSource('source-incomplete: merged-branches')
     const merged = new Set(mergedNames)
     const branchEvidence = branches.map((name) => ({ name, merged: merged.has(name) }))
