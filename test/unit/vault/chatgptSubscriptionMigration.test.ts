@@ -15,6 +15,7 @@ import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { shouldSkipPosixBrokerSuite } from '../helpers/vault/socketFit'
 import {
   chatgptSeeds,
+  driveRetireCase,
   driveSlotCase,
   expectOriginRefused,
   pooledAccountSeeds,
@@ -110,6 +111,20 @@ describe.skipIf(shouldSkipPosixBrokerSuite())(
               accounts: ['default', POOLED_ACCOUNT],
             },
             ...pooledAccountSeeds(POOLED_PROVIDER, POOLED_ACCOUNT, POOLED_ORIGIN),
+          }),
+        )
+      },
+      FLOW_TIMEOUT_MS,
+    )
+
+    it(
+      'retires the legacy entry when due and keeps reading from the vault',
+      async () => {
+        await withClient('retire', (client) =>
+          driveRetireCase({
+            connect: client.connect,
+            lockScope: client.hostId,
+            fresh: true,
           }),
         )
       },
