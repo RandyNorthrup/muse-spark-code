@@ -8,11 +8,11 @@
 // activation bundle's table before it builds anything.
 
 import { createHash, randomUUID } from 'node:crypto'
-import { type BigIntStats } from 'node:fs'
+import { type BigIntStats, type Stats } from 'node:fs'
 import { Buffer } from 'node:buffer'
 import { type FileHandle, open, realpath, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { sameFile } from '../../core/fs/fileIdentity'
+import { sameFile, statIdentity } from '../../core/fs/fileIdentity'
 import type { AtomicWriteOptions } from '../fsAtomic'
 import type { ToolIo } from '../../core/backends/modelapi/tools'
 import { PERMISSION_BITS } from '../fsAtomic'
@@ -189,7 +189,7 @@ export function createFileRangeIo(
       }
       try {
         signal?.throwIfAborted()
-        await deps.checkOpenedFile(absolutePath, file, expectedCanonicalPath)
+        const opened = await deps.checkOpenedFile(absolutePath, file, expectedCanonicalPath)
         const metadata = await file.stat()
         if (metadata.size !== expected.size || metadata.mtimeMs !== expected.mtimeMs) {
           return { status: 'changed' } as const
@@ -252,6 +252,11 @@ export function createFileRangeIo(
           return { status: 'changed' } as const
         }
         options.assertCanWrite?.()
+        // Windows refuses a rename over a file that any handle holds open,
+        // this read handle included, so it closes first; each attempt then
+        // checks by path that the target is still the file that was read,
+        // with the size and mtime the edit was planned against.
+        await file.close()
         try {
           await deps.renameReplacing(
             temporary,
@@ -266,8 +271,22 @@ export function createFileRangeIo(
               platform: deps.platform,
             },
             async () => {
-              const again = await file.stat()
-              if (again.size !== expected.size || again.mtimeMs !== expected.mtimeMs) {
+              let again: Stats
+              let againIdentity: BigIntStats
+              try {
+                againIdentity = await statIdentity(real)
+                again = await stat(real)
+              } catch (error: unknown) {
+                if (deps.isMissingFile(error)) {
+                  throw new SpliceStaleError()
+                }
+                throw error
+              }
+              if (
+                !sameFile(opened, againIdentity) ||
+                again.size !== expected.size ||
+                again.mtimeMs !== expected.mtimeMs
+              ) {
                 throw new SpliceStaleError()
               }
             },
