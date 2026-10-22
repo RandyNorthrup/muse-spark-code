@@ -5,6 +5,7 @@ import type { ScheduleAuthorityStore } from '../../core/schedules/grantAudit'
 import { ScheduleEventPrivacy } from '../../core/schedules/events/privacy'
 import { ScheduleEventRegistry } from '../../core/schedules/events/registry'
 import { ScheduleManualSource } from '../../core/schedules/events/signals'
+import type { ScheduleEventSource } from '../../shared/scheduleEvents'
 import { nextScheduleTime, previewScheduleTimes } from '../../core/schedules/time/scheduleTime'
 import type { createScheduler } from '../../core/schedules/scheduler'
 import { MILLISECONDS_PER_HOUR, UI_TEXT } from '../../shared/constants'
@@ -67,6 +68,12 @@ export interface ScheduleControlDeps {
   readonly workspaces: () => Promise<readonly string[]>
   readonly onCreate: (workspaceKey: string) => Promise<void>
   readonly scanDeferred: () => Promise<void>
+  /** C-M115-4's production event set; absent keeps the manual source alone. */
+  readonly eventSources?: readonly ScheduleEventSource[]
+  /** Poll the workspace's production sources; absent observes nothing. */
+  readonly pollEvents?: (workspaceKey: string) => Promise<void>
+  /** Clear a schedule's open event bursts; absent keeps them. */
+  readonly discardEvents?: (scheduleId: string) => Promise<void>
 }
 
 /** The service behind ScheduleControlPort: store CRUD, scheduler dispatch, audits and previews. */
@@ -74,7 +81,7 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
   const editor = new ScheduleGrantEditor(deps.authority, deps.now)
   const registry = new ScheduleEventRegistry(
     deps.workspaceKey,
-    [new ScheduleManualSource(deps.workspaceKey, deps.now)],
+    deps.eventSources ?? [new ScheduleManualSource(deps.workspaceKey, deps.now)],
     new ScheduleEventPrivacy(
       [deps.workspaceRoot],
       {
@@ -224,6 +231,9 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
     const isOk = await deps.store.update(next)
     if (!isOk) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
     await deps.authority.append({ scheduleId: id, atMs: now, kind: 'changed' })
+    // An update replaces authority and may replace the trigger: bursts
+    // claimed under the old revision must not fire under the new one.
+    await deps.discardEvents?.(id)
     return { kind: 'accepted', id }
   }
 
@@ -237,7 +247,9 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
     const isOk = await deps.store.update(
       scheduleV2Schema.parse({ ...current, paused: isPaused, updatedAtMs: deps.now() }),
     )
-    return isOk ? { kind: 'accepted', id } : refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    if (!isOk) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+    if (isPaused) await deps.discardEvents?.(id)
+    return { kind: 'accepted', id }
   }
 
   const timeline = async (workspaceKey: string, hours: number): Promise<ScheduleResponse> => {
@@ -304,9 +316,9 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
         }
         case 'schedules/remove': {
           const isRemoved = await deps.store.remove(request.workspaceKey, request.id)
-          return isRemoved
-            ? { kind: 'accepted', id: request.id }
-            : refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+          if (!isRemoved) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+          await deps.discardEvents?.(request.id)
+          return { kind: 'accepted', id: request.id }
         }
         case 'schedules/pause': {
           return await setPaused(request.workspaceKey, request.id, true)
@@ -316,9 +328,9 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
         }
         case 'schedules/revokeGrant': {
           const isRevoked = await editor.revoke(request.workspaceKey, request.id)
-          return isRevoked
-            ? { kind: 'accepted', id: request.id }
-            : refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+          if (!isRevoked) return refused(UI_TEXT.scheduleV2.runtime.invalidRequest)
+          await deps.discardEvents?.(request.id)
+          return { kind: 'accepted', id: request.id }
         }
         case 'schedules/runNow':
         case 'schedules/fire': {
@@ -362,6 +374,7 @@ export function createScheduleControl(deps: ScheduleControlDeps): ScheduleContro
       for (const workspace of workspaces) {
         await deps.scheduler.poll(workspace)
         await deps.scheduler.recover(workspace)
+        await deps.pollEvents?.(workspace)
       }
     },
     close(): Promise<void> {

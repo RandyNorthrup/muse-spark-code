@@ -17,7 +17,7 @@ export interface ScheduleEventOccurrence {
   readonly text: string
   readonly coalescedCount: number
 }
-interface PendingEvent {
+export interface ScheduleEventPendingBurst {
   event: ScheduleEvent
   readyAt: number
   count: number
@@ -27,8 +27,8 @@ interface PendingEvent {
 export interface ScheduleEventClaimState {
   readonly receipts: Set<string>
   readonly legacyReceipts: ReadonlySet<string>
-  open?: PendingEvent
-  ready: PendingEvent[]
+  open?: ScheduleEventPendingBurst
+  ready: ScheduleEventPendingBurst[]
 }
 /** S persists the entire mutation under one cross-process lock, before return.
 Receipts include migrated legacy ids and never expire; only safe data is stored.
@@ -116,7 +116,7 @@ export class ScheduleEventEngine {
           state.ready.push(state.open)
           delete state.open
         }
-        const taken: PendingEvent[] = []
+        const taken: ScheduleEventPendingBurst[] = []
         state.ready = state.ready.filter((burst) => {
           // A disappeared owner's lease lasts one debounce interval past its window.
           if (burst.owner !== this.owner && now < burst.readyAt + SCHEDULE_EVENT_DEBOUNCE_MS)
