@@ -7,6 +7,35 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Team scheduler
+
+- **Stacked dependencies.** A task with `on: stacked` starts from its
+  dependency's finished head, the queue lands the dependency first,
+  and a rework of the dependency refreshes the dependent at its next
+  boundary.
+- **Reviews carry over exact deltas.** When a branch moves, files
+  whose change is byte-identical keep their review; only changed
+  files, and files whose read context moved, review again.
+- **Tested trees reuse their result.** A merged tree whose checks
+  already ran is admitted without re-running them, only for the same
+  tree and the same checks.
+- **Waiting branches refresh.** A waiting branch whose integration
+  state moved refreshes onto it before its next attempt.
+- **Cross-branch advisories.** A window is warned as soon as another
+  window's branch conflicts with files it changed; advisories never
+  block.
+- **Traffic suggestions.** The engine suggests what the bottleneck
+  needs — a reviewer, more intensity, another provider entry, a
+  shared file, a runner — each with its reason, never applied
+  without a click, plus a count of tasks waiting for the user.
+- **Stealing across roles.** A free lane takes a task of another
+  role only when the task lists it in `alt_roles`, running under
+  both roles' policies; a policy the lane cannot meet refuses the
+  steal with its reason.
+- **Regions inside source files.** A shared source file declares
+  named regions, and tasks working in different regions proceed in
+  parallel instead of serializing on the file.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
