@@ -27,6 +27,17 @@ happened, not what was planned; superseded entries are kept.
   Production authentication, issuance and deployment still require their lane
   bindings and platform receipts.
 
+- Muse Node OS image-side updates (M110 OS2, simulator evidence only): RAUC
+  slot configs for UEFI and Raspberry Pi; a custom Pi tryboot backend with
+  one-shot trials on the controller-first layout (controller FAT 1, boot A/B
+  2/3) that reads the booted slot from binary device-tree integers and only
+  touches the `muse-pi-ctl` controller mount; a trial-only mark-good with a
+  monotonic deadline, `timeout(1)` per-call limits and handled-fallback exit
+  codes; a single-key signed update channel (not TUF, see PLAN §9 OS2-TUF);
+  and a Pi EEPROM/bootloader readiness check that reads upstream
+  `rpi-eeprom-update` status. No image was built or booted; RAUC, QEMU and
+  Pi hardware receipts are still open.
+
 ### Fixed
 
 - The internal M110 terminal surface now requires freshly focused approval

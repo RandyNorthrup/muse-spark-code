@@ -1,0 +1,224 @@
+[
+  {
+    "target": "pi4",
+    "nativeHardwareBoot": "waiting Q",
+    "firmwareFiles": {
+      "kernel8.img": {
+        "bytes": 10192324,
+        "sha256": "c9f5af153236ec42eb012700e39ff43d02bc7c5f2ab71abad6da1f20880343e0"
+      },
+      "bcm2711-rpi-4-b.dtb": {
+        "bytes": 56407,
+        "sha256": "75761b73c284e26623e4d1624bff13e67bce2ae620880efd81d6571a3739fcfb"
+      },
+      "config.txt": {
+        "bytes": 117,
+        "sha256": "33a19b1a2c31515b63b38eb1550d04395a8cc5922d6a1d867204f9a67e1b0dae"
+      },
+      "cmdline.txt": {
+        "bytes": 137,
+        "sha256": "83e86f0fa3b8687285371d8dd75d0da93138cdb4a360d02bd9aec4ab32c57f96"
+      },
+      "autoboot.txt": {
+        "bytes": 64,
+        "sha256": "c7c1d9093c9427d8a6fcdb3cb547f558ca560e8b55c864792930af7d5927d401"
+      },
+      "initrd.img": {
+        "bytes": 54074372,
+        "sha256": "e637d6908cc6cc3af4882a9cb77a358dffaa21b1d9fb58a4851bbe9c7b20178c"
+      },
+      "start.elf": {
+        "bytes": 3023104,
+        "sha256": "32f990801e7765bae6fe5cb940ba5eeff02dd0dac8dc5474db5b3fd345281790"
+      },
+      "fixup.dat": {
+        "bytes": 7381,
+        "sha256": "7853f2b51e4489f8b3ce6f9c52fd0afdda38c7383961524e0883d34afcb4827b"
+      }
+    },
+    "partitions": [
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw1",
+        "start": 2048,
+        "size": 532480,
+        "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+        "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+        "name": "muse-pi-boot-a"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw2",
+        "start": 534528,
+        "size": 532480,
+        "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+        "uuid": "9F91E8B6-2BC5-44F3-8318-F2C52CD2327F",
+        "name": "muse-pi-boot-b"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw3",
+        "start": 1067008,
+        "size": 262144,
+        "type": "B921B045-1DF0-41C3-AF44-4C6F280D3FAE",
+        "uuid": "1BB1B6A6-872B-4DC6-8597-8F22291AB68D",
+        "name": "muse-root",
+        "attrs": "GUID:60"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw4",
+        "start": 1329152,
+        "size": 3145728,
+        "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+        "uuid": "A3C98E33-882F-A6F1-77E7-DA774E8A40F8",
+        "name": "muse-usr-a",
+        "attrs": "GUID:60"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw5",
+        "start": 4474880,
+        "size": 131072,
+        "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+        "uuid": "5E320938-A122-1D32-A009-CFB92955BF38",
+        "name": "muse-usr-a-verity",
+        "attrs": "GUID:60"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw6",
+        "start": 4605952,
+        "size": 3145728,
+        "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+        "uuid": "F6A13AC0-F523-44F2-87DB-E3A15A277E7B",
+        "name": "muse-usr-b",
+        "attrs": "GUID:59,63"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw7",
+        "start": 7751680,
+        "size": 131072,
+        "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+        "uuid": "68C3DAAB-3F1A-408C-AD60-0ABDC3AAB102",
+        "name": "muse-usr-b-verity",
+        "attrs": "GUID:60,63"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi4/muse-node-pi4.raw8",
+        "start": 7882752,
+        "size": 4194304,
+        "type": "4D21B016-B534-45C2-A9FB-5C16E091FD2D",
+        "uuid": "651623BE-5689-4827-9EC6-652C0692723B",
+        "name": "muse-var",
+        "attrs": "GUID:59"
+      }
+    ],
+    "verityVerified": true
+  },
+  {
+    "target": "pi5",
+    "nativeHardwareBoot": "waiting Q",
+    "firmwareFiles": {
+      "kernel_2712.img": {
+        "bytes": 10197590,
+        "sha256": "154f0ea1e14bb1075077dfd1bdc63c1502bc0b17b0354628d515b4fbd3a4198d"
+      },
+      "bcm2712-rpi-5-b.dtb": {
+        "bytes": 78740,
+        "sha256": "a5165cb562035f479ea9f5a81cedf7b6596ea32a0598608c4dc3b77ada909c60"
+      },
+      "config.txt": {
+        "bytes": 121,
+        "sha256": "7142c9d4b374d18a4a0b2e835b9b494d9274882b5094d171308a2bb8ea2f26fc"
+      },
+      "cmdline.txt": {
+        "bytes": 137,
+        "sha256": "01eabc1ac47505a0694071a66d7dfb4eb744f89a7f6c2daf75d6131c8bf4e93e"
+      },
+      "autoboot.txt": {
+        "bytes": 64,
+        "sha256": "c7c1d9093c9427d8a6fcdb3cb547f558ca560e8b55c864792930af7d5927d401"
+      },
+      "initrd.img": {
+        "bytes": 54070888,
+        "sha256": "61aa76817c696a40ff3bcfd9b42f88789604464c18b7fa7389c6fa77a543f8ef"
+      },
+      "start.elf": {
+        "bytes": 3023104,
+        "sha256": "32f990801e7765bae6fe5cb940ba5eeff02dd0dac8dc5474db5b3fd345281790"
+      },
+      "fixup.dat": {
+        "bytes": 7381,
+        "sha256": "7853f2b51e4489f8b3ce6f9c52fd0afdda38c7383961524e0883d34afcb4827b"
+      }
+    },
+    "partitions": [
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw1",
+        "start": 2048,
+        "size": 532480,
+        "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+        "uuid": "19FAB794-CD6F-4193-B67C-FAC84D874750",
+        "name": "muse-pi-boot-a"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw2",
+        "start": 534528,
+        "size": 532480,
+        "type": "C12A7328-F81F-11D2-BA4B-00A0C93EC93B",
+        "uuid": "9F91E8B6-2BC5-44F3-8318-F2C52CD2327F",
+        "name": "muse-pi-boot-b"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw3",
+        "start": 1067008,
+        "size": 262144,
+        "type": "B921B045-1DF0-41C3-AF44-4C6F280D3FAE",
+        "uuid": "1BB1B6A6-872B-4DC6-8597-8F22291AB68D",
+        "name": "muse-root",
+        "attrs": "GUID:60"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw4",
+        "start": 1329152,
+        "size": 3145728,
+        "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+        "uuid": "BDA68FA7-D918-64DB-B72E-221E64653684",
+        "name": "muse-usr-a",
+        "attrs": "GUID:60"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw5",
+        "start": 4474880,
+        "size": 131072,
+        "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+        "uuid": "14BCE3BE-4135-77A5-7398-750F2F02EB4F",
+        "name": "muse-usr-a-verity",
+        "attrs": "GUID:60"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw6",
+        "start": 4605952,
+        "size": 3145728,
+        "type": "B0E01050-EE5F-4390-949A-9101B17104E9",
+        "uuid": "F6A13AC0-F523-44F2-87DB-E3A15A277E7B",
+        "name": "muse-usr-b",
+        "attrs": "GUID:59,63"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw7",
+        "start": 7751680,
+        "size": 131072,
+        "type": "6E11A4E7-FBCA-4DED-B9E9-E1A512BB664E",
+        "uuid": "68C3DAAB-3F1A-408C-AD60-0ABDC3AAB102",
+        "name": "muse-usr-b-verity",
+        "attrs": "GUID:60,63"
+      },
+      {
+        "node": "/home/randy/lanes/M110OS1/out/pi5/muse-node-pi5.raw8",
+        "start": 7882752,
+        "size": 4194304,
+        "type": "4D21B016-B534-45C2-A9FB-5C16E091FD2D",
+        "uuid": "651623BE-5689-4827-9EC6-652C0692723B",
+        "name": "muse-var",
+        "attrs": "GUID:59"
+      }
+    ],
+    "verityVerified": true
+  }
+]

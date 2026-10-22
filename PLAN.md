@@ -36668,6 +36668,21 @@ No new escape hatch is introduced.
 
 ## 9. Security assumptions and accepted residual risk
 
+- **OS2-TUF (RVM110OS2I P2-12, RVM110OS2F F11).** `os/update/channel.py` is
+  a signed channel with a single key, not TUF: one detached RSA signature
+  over the metadata plus no-downgrade, expiry and increasing
+  metadata-version policy, with strict installed state. There are no roles,
+  thresholds, root rotation, timestamp/snapshot/targets metadata or
+  persisted trusted-metadata continuity, so one compromised channel key can
+  sign any policy-conforming channel. Safe for now: no runtime consumes the
+  channel yet (OS2-RUNTIME is unbuilt), RAUC still verifies every bundle's
+  X.509 signature against the owner's keyring before writing, and the
+  signing keys are the owner's (Q-M110, OS2-SIGNING). Follow-up: replace the
+  verify-and-policy step with a real TUF client (threshold role checks,
+  continuity against persisted trusted metadata, rotation) before RAUC ever
+  trusts a bundle selected by the channel; certification
+  `docs/certification/m110-os2-image-update.md` §7.
+
 - **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
   registration binds PID/UID/birth/image to owner-only files; it does not
   attest against arbitrary hostile same-user code rewriting those files
