@@ -13,7 +13,7 @@
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 114,
+      "GENERIC": 113,
       "CLEANUP": 90
     },
     "root": {
@@ -3081,11 +3081,6 @@
     {
       "file": "src/host/auth/credentialRead.ts",
       "identity": "83ceb2949cf57e5acfd7a5955af8c74387de87a22b9c0a7530461e00c84c8fb7",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/auth/providerGeneration.ts",
-      "identity": "ac6803adb62fbff23e36c11e9633a93737f2ca4ef02e702d158a7f3f8fde1cbd",
       "class": "GENERIC"
     },
     {

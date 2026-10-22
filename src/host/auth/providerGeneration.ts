@@ -12,6 +12,7 @@
 // key is its identity, so a replaced key is a new owner.
 import { createHash } from 'node:crypto'
 import { PROVIDER_SECRET_PREFIX, SECRET_KEYS } from '../../shared/constants'
+import type { Logger } from '../logger'
 
 /** Secret keys behind which an estimator producer's credential may sit. */
 export function isProviderCredentialKey(key: string): boolean {
@@ -70,18 +71,21 @@ bumping.
 export function createProviderGenerationTracker(deps: {
   readonly secrets: ProviderCredentialReader
   readonly onGenerationChanged: () => void
+  readonly log?: Logger
 }): {
   readonly seed: (keys: readonly string[]) => Promise<void>
   readonly noteSecretChanged: (key: string) => Promise<void>
 } {
   const identities = new Map<string, string>()
   let pending = Promise.resolve()
-  const readIdentity = async (key: string): Promise<string> => {
+  const readIdentity = async (key: string): Promise<string | undefined> => {
     try {
       return providerCredentialIdentity(await deps.secrets.get(key))
     } catch {
-      // An unreadable credential cannot prove it is unchanged: fail safe.
-      return `unreadable:${String(Date.now())}`
+      // An unreadable credential cannot prove it is unchanged: the missing
+      // identity reads as fail-safe below, and the fixed warning records it.
+      deps.log?.warn(`Provider credential unreadable: ${key}`)
+      return undefined
     }
   }
   return {
@@ -89,7 +93,8 @@ export function createProviderGenerationTracker(deps: {
       const previous = pending
       pending = (async () => {
         await previous
-        for (const key of keys) identities.set(key, await readIdentity(key))
+        for (const key of keys)
+          identities.set(key, (await readIdentity(key)) ?? `unreadable:${String(Date.now())}`)
       })()
       return pending
     },
@@ -98,7 +103,7 @@ export function createProviderGenerationTracker(deps: {
       const previous = pending
       pending = (async () => {
         await previous
-        const identity = await readIdentity(key)
+        const identity = (await readIdentity(key)) ?? `unreadable:${String(Date.now())}`
         const known = identities.get(key)
         identities.set(key, identity)
         // A first-seen key has no baseline to compare: bump fail-safe.
