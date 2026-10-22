@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge verified-path hold: a native holder process keeps the
+  judged blobs open across the boundary drills, with a runner that
+  refuses a hold that never becomes ready and proves the refusal leaves
+  no holder behind. Killing the holder corrupts nothing: the blobs stay
+  intact and a new hold starts on the same files.
+
 - Fast judge calibration: the SystemOne technique and nine fast-judge
   families join the fitted profiles, with per-engine base curves and
   per-family overrides in a committed, dated profile directory. No
