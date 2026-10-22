@@ -117,6 +117,18 @@ async function searchableText(
   }
 }
 
+function inlineContent(
+  content: string,
+  relative: string,
+  isDenied: (paths: string[]) => boolean,
+  maxFileBytes: number,
+): string | undefined {
+  if (isDenied([relative])) {
+    return undefined
+  }
+  return Buffer.byteLength(content) > maxFileBytes || isBinary(content) ? undefined : content
+}
+
 async function run(job: SearchJob): Promise<SearchOutcome> {
   let regex: RegExp
   try {
@@ -140,18 +152,10 @@ async function run(job: SearchJob): Promise<SearchOutcome> {
     if (found >= job.maxHits) {
       break
     }
-    let text: string | undefined
-    if (file.content === undefined) {
-      text = await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
-    } else if (
-      isDenied([file.relative]) ||
-      Buffer.byteLength(file.content) > job.maxFileBytes ||
-      isBinary(file.content)
-    ) {
-      text = undefined
-    } else {
-      text = file.content
-    }
+    const text =
+      file.content === undefined
+        ? await searchableText(realRoot, file.absolute, job.maxFileBytes, isDenied)
+        : inlineContent(file.content, file.relative, isDenied, job.maxFileBytes)
     if (text === undefined) {
       continue
     }

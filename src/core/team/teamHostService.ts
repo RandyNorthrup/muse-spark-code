@@ -82,7 +82,8 @@ export interface TeamHostService extends TeamHostSeams {
   /** Re-reads the stored team after the Roles section (lane U1) saves it. */
   readonly reload: () => void
   /** Stops every task and releases every port. */
-  readonly dispose: () => Promise<void>
+  /** Run-owned storage waits for each worker's final durable handoff before removal. */
+  readonly dispose: (options?: { readonly waitForWorkers: boolean }) => Promise<void>
 }
 
 // --- Ports: what each editor supplies ---

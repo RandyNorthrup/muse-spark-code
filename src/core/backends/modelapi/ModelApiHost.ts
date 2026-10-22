@@ -1011,6 +1011,8 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
         { readonly stable: readonly TeamStableRole[]; readonly live?: TeamRosterLive } | undefined)
     | undefined
   readonly teamRunner?: TeamToolRunner | undefined
+  /** Explicit headless team opt-in; never authorizes the orchestrator's shell or hooks. */
+  readonly isTeamTrusted?: (() => boolean) | undefined
   readonly isTeamInPlaceActive?: (() => boolean) | undefined
   /** Drain only state transitions and config edits; ordinary consumption stays in tool results. */
   readonly takeTeamChanges?:
@@ -11316,7 +11318,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       const reason = fill(TEAM_BOOTSTRAP_MODEL_TEXT.undeclaredTool, { tool: call.name })
       return { output: reason, visibleOutput: reason, failureReason: reason }
     }
-    if ((name === 'delegate' || name === 'merge') && !this.deps.isWorkspaceTrusted()) {
+    if (
+      (name === 'delegate' || name === 'merge') &&
+      !(this.deps.isTeamTrusted?.() ?? this.deps.isWorkspaceTrusted())
+    ) {
       return toolFailure(MODEL_API_MODEL_TEXT.shellRestrictedMode)
     }
     if (
@@ -19115,7 +19120,7 @@ export class ModelApiHost implements AgentHost {
     canDeleteSessions: true,
   }
 
-  public constructor(private readonly deps: ModelApiHostDeps) {
+  public constructor(private deps: ModelApiHostDeps) {
     this.workspaceEdits = deps.workspaceEdits ?? new WorkspaceEdits()
     // Elicitations outside any tool call have no session to ask: they are
     // declined, and the pool declares the capability while this stands
@@ -20152,6 +20157,16 @@ export class ModelApiHost implements AgentHost {
 
   public onUsageChanged(_listener: (usage: SubscriptionUsage) => void): () => void {
     return NO_UNSUBSCRIBE
+  }
+
+  /**
+  A headless team run vouches for its workers (M96b): the runtime sets the
+  team-switch trust after construction, before the first session, so the
+  always-loaded backend manager never carries it (activation budget). The
+  editor never calls this: its workers keep workspace trust.
+  */
+  public setTeamTrusted(isTrusted: () => boolean): void {
+    this.deps = { ...this.deps, isTeamTrusted: isTrusted }
   }
 
   /** Only the owning live session can receive its pre-dispatch format. */

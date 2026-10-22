@@ -705,7 +705,7 @@
     {
       "id": "M96b",
       "title": "Teams in other editors and headless runs",
-      "summary": "Team integration in other editors and headless runs is in progress.",
+      "summary": "Headless exec and the ACP agent run engine teams behind the availability switch (off until certified): hard budgets, keyless local workers, denied questions and checked merges; certification and remaining editor bindings follow in their slices.",
       "area": "agents"
     },
     {

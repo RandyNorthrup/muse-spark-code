@@ -7,6 +7,9 @@
 //   extra one, the same {slots}, code spans and bold markers, exactly the
 //   plural forms Intl.PluralRules gives the language, and no value left in
 //   English unless l10n/untranslated.json allows it (names, commands, …).
+//   Keys stand in English order at every level (plural-form order stays
+//   authorial): the packaged archive reader restores that order, so any
+//   other fails the packaged-equals-source comparison.
 //   A `one` form also needs {count} if the locale selects it for an integer
 //   other than 1 in 0..200, even when English's `one` omits the number.
 // - The manifest: every user-visible string in package.json is a `%key%` of
@@ -155,6 +158,30 @@ function duplicateKeys(text) {
   return found
 }
 
+/**
+A source table whose key order differs from English (RVCM96B2D P1-3): the
+packaged archive reader restores tables in English order, so any other
+order fails the packaged-equals-source comparison. Missing or extra keys
+stay the strict check's job; plural-form key order stays authorial, as the
+reader keeps it. Returns problem suffixes with the dotted path.
+*/
+function orderProblems(english, table, isPluralForms, where = '') {
+  const found = []
+  if (!isRecord(english) || !isRecord(table) || Array.isArray(english) || Array.isArray(table))
+    return found
+  if (isPluralForms(english)) return found
+  const expected = Object.keys(english)
+  const actual = Object.keys(table).filter((key) => Object.hasOwn(english, key))
+  if (expected.length === actual.length && expected.some((key, index) => actual[index] !== key))
+    found.push(`${where === '' ? '(top level)' : where}: keys are not in English order`)
+  for (const key of expected) {
+    if (!isRecord(english[key]) || !isRecord(table[key])) continue
+    const child = where === '' ? key : `${where}.${key}`
+    found.push(...orderProblems(english[key], table[key], isPluralForms, child))
+  }
+  return found
+}
+
 /** The parsed JSON file, or undefined with the reason added to `problems`. */
 function readJson(file, problems, root) {
   let value
@@ -283,7 +310,10 @@ function checkTables(l10n, untranslatedFor, problems, family, repoRoot) {
     }
     if (family === 'ui') checkOrder(english, table)
     const untranslated = untranslatedFor(family, locale)
-    const found = tableProblems(english, table, { locale, isStrict: true, untranslated })
+    const found = [
+      ...tableProblems(english, table, { locale, isStrict: true, untranslated }),
+      ...orderProblems(english, table, l10n.isPluralForms),
+    ]
     problems.push(...found.map((problem) => `${file}: ${problem}`))
   }
   return TABLE_LOCALES.length

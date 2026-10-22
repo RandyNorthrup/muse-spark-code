@@ -316,6 +316,13 @@ above.
   theorem, price, returned/uncertain tally and retained liability are visible;
   the subscription pays none of it.
 
+- **Headless teams (M96b):** `exec --team` requires `acceptEdits` and the
+  hard run budget. Every engine worker request/retry reserves against that
+  same ledger. Questions and protected merges deny. Local models run keyless;
+  Muse Code, external and subscription workers never start. Engine workers
+  run in-process; no stored or CI key reaches a child. Run-owned board/copies
+  and task refs are removed only after worker handoff drains.
+
 13. **Keep the reference current.** Every new command, setting or feature
     updates `src/shared/featureCatalog.ts` in the same PR. Update the CLI table
     for a new runtime command; regenerate with `npm run reference:generate`.

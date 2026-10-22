@@ -452,6 +452,14 @@ Surfaces: vscode:modelApi, acp:modelApi. Paid: no extra feature charge; model us
 
 Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#agent-loop-guarantees)
 
+### Team Workers
+
+--team: Run engine teams with Model API, acceptEdits and a hard budget shared by every worker; prompts deny, merges enter the run working tree.
+
+Surfaces: acp:modelApi. Paid: yes; consent required; admission depends on the surface.
+
+Commands: —. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#headless-runs)
+
 ### Validate the final answer against a bounded JSON schema file (Model API only).
 
 Validate the final answer against a bounded JSON schema file (Model API only).

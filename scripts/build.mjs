@@ -663,6 +663,12 @@ const teamEngineOptions = {
   outfile: 'dist/teamEngine.js',
 }
 
+const execTeamOptions = {
+  ...teamOptions,
+  entryPoints: ['src/runtime/exec/execTeamEntry.ts'],
+  outfile: 'dist/execTeam.js',
+}
+
 const teamFileIoOptions = {
   ...teamOptions,
   entryPoints: [TEAM_FILE_IO_ENTRY],
@@ -1837,6 +1843,7 @@ if (isWatch) {
     esbuild.context(teamRunnersOptions),
     esbuild.context(teamHostOptions),
     esbuild.context(teamEngineOptions),
+    esbuild.context(execTeamOptions),
     esbuild.context(teamFileIoOptions),
     esbuild.context(teamCreateOptions),
     esbuild.context(teamWorkerOpsOptions),
@@ -2026,6 +2033,7 @@ if (isWatch) {
     teamFileIo: recorded('teamFileIo', teamFileIoOptions),
     teamCreate: recorded('teamCreate', teamCreateOptions),
     teamWorkerOps: recorded('teamWorkerOps', teamWorkerOpsOptions),
+    execTeam: recorded('execTeam', execTeamOptions),
     teamMerge: recorded('teamMerge', teamMergeOptions),
     teamScheduler: recorded('teamScheduler', teamSchedulerOptions),
     foreignHooks: recorded('foreignHooks', foreignHooksOptions),

@@ -6,6 +6,7 @@
 // the same seams. Each editor's host builds one of these over its own ports.
 
 import { UI_TEXT } from '../shared/constants'
+import { failureForLog } from '../core/backends/musecode/logText'
 import { fill } from '../shared/l10n/text'
 import { hasRunnableTeamEntry, isTeamAvailable } from '../shared/teamConversation'
 import type { WebviewToHostMessage } from '../shared/protocol'
@@ -132,10 +133,8 @@ export class TeamHostBinding implements TeamSurfacePort {
           for (const listener of this.treeListeners) listener()
         })
         return service
-      } catch {
-        // The team bundle failed to load; the tree stays empty until the
-        // next open. No detail: a bundle path never reaches the log.
-        this.deps.ports.log.warn('The team bundle could not be loaded')
+      } catch (error: unknown) {
+        this.deps.ports.log.warn(`The team bundle could not be loaded: ${failureForLog(error)}`)
         return
       } finally {
         this.loading = undefined

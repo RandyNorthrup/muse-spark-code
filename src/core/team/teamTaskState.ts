@@ -6,7 +6,7 @@ import {
   teamRoleConfigSchema,
   teamUsageSchema,
 } from '../../shared/team'
-import { teamReportSchema } from '../../shared/team'
+import { teamReportSchema } from '../../shared/teamReport'
 import { reviewFindingSchema } from '../../shared/reviewFindings'
 import { TEAM_LEARNED_RECENT_TASKS, UI_TEXT } from '../../shared/constants'
 import type { TeamRoleRecord } from './autofill'
