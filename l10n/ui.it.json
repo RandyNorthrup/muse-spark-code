@@ -4310,6 +4310,8 @@
     "other": "{count} approvazioni negate",
     "many": "{count} approvazioni negate"
   },
+  "bestOfNAttemptCost": "spesa rendicontata {cost}",
+  "bestOfNAttemptCostPartial": "{cost} rendicontati, altri in attesa",
   "bestOfNAttemptFailed": "Non riuscito: {reason}",
   "bestOfNTakenMark": "Scelto: {branch}",
   "bestOfNDiffClipped": "Diff abbreviato.",
@@ -4330,6 +4332,8 @@
   "bestOfNAttemptNotDone": "Solo un tentativo completato può essere scelto.",
   "bestOfNWorktreeFailed": "Impossibile creare gli alberi di lavoro dei tentativi: {reason}",
   "bestOfNTaken": "Anteprima di {branch} applicata e preparata.",
+  "bestOfNTakenSpend": "Anteprima di {branch} applicata e preparata. Utilizzo rendicontato: {tokens}.",
+  "bestOfNTakenSpendCost": "Anteprima di {branch} applicata e preparata. Utilizzo rendicontato: {tokens}, spesa rendicontata {cost}.",
   "bestOfNTakeFailed": "Impossibile applicare e preparare {branch}. Controlla la copia di lavoro prima di riprovare: {reason}",
   "paidConfirmAccept": "Attiva",
   "paidBadge": "A pagamento: {features}",

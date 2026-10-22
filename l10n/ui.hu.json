@@ -4213,6 +4213,8 @@
     "one": "{count} elutasított jóváhagyás",
     "other": "{count} elutasított jóváhagyás"
   },
+  "bestOfNAttemptCost": "jelentett költség {cost}",
+  "bestOfNAttemptCostPartial": "{cost} jelentve, további függőben",
   "bestOfNAttemptFailed": "Sikertelen: {reason}",
   "bestOfNTakenMark": "Kiválasztva: {branch}",
   "bestOfNDiffClipped": "Diff levágva.",
@@ -4233,6 +4235,8 @@
   "bestOfNAttemptNotDone": "Csak befejezett kísérlet választható ki.",
   "bestOfNWorktreeFailed": "A kísérletek munkafa-mappáit nem sikerült létrehozni: {reason}",
   "bestOfNTaken": "A(z) {branch} előnézete alkalmazva és előkészítve.",
+  "bestOfNTakenSpend": "A(z) {branch} előnézete alkalmazva és előkészítve. Jelentett használat: {tokens}.",
+  "bestOfNTakenSpendCost": "A(z) {branch} előnézete alkalmazva és előkészítve. Jelentett használat: {tokens}, jelentett költség {cost}.",
   "bestOfNTakeFailed": "Nem sikerült alkalmazni és előkészíteni: {branch}. Újrapróbálkozás előtt ellenőrizze a munkapéldányt: {reason}",
   "paidConfirmAccept": "Bekapcsolás",
   "paidBadge": "Fizetős: {features}",

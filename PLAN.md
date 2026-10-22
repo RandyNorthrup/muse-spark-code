@@ -19195,7 +19195,23 @@ extension's own storage, never the workspace's `.git`.
 
 ### M77 — Session board and best-of-N (D49)
 
-**Status 2026-09-29: building.** Status evidence: `docs/certification/m77.md`.
+**Status 2026-10-21 (RLM77 recovery): building.** The three source
+branches landed as one merge onto 0.19.0, preserving D121/D208 and main's
+deleted stand-in tests. C-M77-2 folds each attempt's reported spend into the run,
+the comparison and the take notice, proven by recorded-reply unit tests,
+a real-Git worktree test and light/dark looks; C-M77-1's older receipts
+are historical. C-M77-3's editor mapping does not close missing bindings;
+C-M77-4 still requires actual three-OS/editor qualification. Paid
+end-to-end proof waits for the owner's go; this recovery made no provider
+request. Status evidence: `docs/certification/rlm77.md`.
+
+**Completion ownership.** C-M77-1: current VS Code proof. C-M77-2:
+each attempt's spend in the run. C-M77-3: bindings for JetBrains, Visual
+Studio, Eclipse, Zed, Xcode, Neovim, Emacs, Sublime and ACP/headless.
+C-M77-4: three-OS/editor qualification and independent review. The source
+lane's VS Code-only implementation is not an approved scope reduction.
+Historical 2026-10-10/17 receipts: `docs/certification/m77.md` and
+`docs/certification/msm77.md`; their deleted suites are not current proof.
 
 **RV78 review fixes, 2026-10-02.** The board's git status ran through the
 ordinary runner, so opening it could start a repository's configured
@@ -19208,18 +19224,10 @@ the host accepted the run, so a startup refusal (a notice, no update) left an
 empty dialog; the form now stays until a new run arrives. Records and drills
 are in `docs/certification/m77.md`.
 
-**Lane resume, 2026-09-30.** Retain the existing M82 commits and staged M77
-port. Compilation passed all five projects. The initial focused run found
-voice Stop was blocked by a newly enabled cap; Stop now reaches its existing
-driver even when a new recording is unavailable. Native shared-budget fixtures
-use the production rename backoff instead of exhausting retries during reads.
-Both affected suites then passed all 719 tests. The initial production build
-failed at 651.0 KiB against the unchanged 600 KiB activation limit.
-The lead's resumed-lane decision removes the controller split and keeps every
-feature. One shared English-table change will land separately; this lane
-records any remaining cap failure without adding a split, loader or cap change.
-The native skill ledger validator is deferred: this canonical plan predates its
-JSON ledger format; converting the project plan is outside this lane.
+**Lane resume, 2026-09-30 (historical).** M82 integration and its local
+receipts are in `docs/certification/m77.md`. The native skill ledger
+validator remains deferred: this canonical plan predates its JSON ledger;
+converting the project plan is outside this lane.
 
 - **Goal.** Run several agents at once and pick the best result.
 - **Scope.**
@@ -19255,10 +19263,11 @@ JSON ledger format; converting the project plan is outside this lane.
   symlink/protected-path confinement and ownership before applying. No
   synthetic commits, force, or three-way application. Automatic snapshots
   suppress repository programs; applying a patch creates no commit. M82's
-  cross-host attempts must use the originating account-owned budget journal;
-  bind the canonical M82 OwnedSessionBudgetScope before consent and to every
-  attempt host; finite-cap runs refuse when no owned scope exists. M82 must
-  integrate before this consumer draft is typechecked. Extend the
+  cross-host attempts share the originating account-owned session scope when
+  the person set a budget. D208 supersedes the original mandatory journal:
+  no budget means no reservation/check; reported usage remains counted.
+  Bind the canonical M82 OwnedSessionBudgetScope to each attempt when present.
+  Extend the
   existing PaidUsage tally with each admitted attempt request, unknown
   request costs, and validated per-response token/cost deltas from the owned
   worktree host. Cumulative transcript frames are never billed twice, and
@@ -19279,8 +19288,9 @@ JSON ledger format; converting the project plan is outside this lane.
     root, including uncommitted/new files and VS Code search fallback.
     Real temporary repo program canaries, replacement refs, held validators
     and production manager file-lister tests are required; proof is queued.
-- **Tests.** The fake Model API with N attempts, and the board in the
-  harness and the accessibility gate.
+- **Tests.** Real Git/worktree snapshot and apply behavior, recorded provider
+  usage through the real accumulator, and provider-free packed editor use.
+  No stand-in Model API or editor is accepted as product proof.
 - **Size.** L.
 - **Files (built 2026-09-28).** `src/shared/{bestOfN,sessionBoard,paid,protocol,constants}.ts`,
   `src/core/{sessionBoard.ts,bestOfN/bestOfN.ts,bestOfN/bestOfNRunner.ts,bestOfN/worktreeConversationHost.ts}`,
@@ -19302,18 +19312,10 @@ JSON ledger format; converting the project plan is outside this lane.
   The board orders running, then waiting, then the rest; its waiting mark
   comes from `PendingPrompts`, shared window-wide by every surface's
   controller. Best-of-N is Model API only; the board serves both backends.
-- **Tests (built 2026-09-28).** `bestOfN.test.ts` (branches, folders, the
-  paid request, numstat, clipping), `bestOfNAttempts.test.ts`,
-  `bestOfNRunner.test.ts` (guards, consent, take, cancel),
-  `bestOfNManager.test.ts`, `worktreeConversationHost.test.ts` (ceiling,
-  declines), `sessionBoard.test.ts` (rows, ordering),
-  `sessionBoardHost.test.ts`, `SessionBoardDialog.test.tsx`,
-  `BestOfNDialog.test.tsx`, plus the touched `conversationController`,
-  `paidFeatures` and `paidHost` suites. The harness `board`/`bestofn`
-  scenarios run in the accessibility gate.
-- **Gates.** `npm run quality` and meaningful red/restored drills remain
-  queued for the completion draft; `docs/certification/m77.md` records this
-  explicit verification hold. The prior branch did not contain that record.
+- **Gates.** Current commands and red/restored-green drills belong in
+  `docs/certification/rlm77.md`. The older test inventory, nineteen drills
+  and four-theme receipts remain historical in `docs/certification/m77.md`;
+  main's stand-in test deletions stay deleted.
 - **Docs.** README (Session board and best-of-N, Paid features, settings
   table), CHANGELOG, the 14 UI and manifest tables.
 - **Security.** Attempts run worktree-confined on the Model API backend
@@ -19321,10 +19323,13 @@ JSON ledger format; converting the project plan is outside this lane.
   never reaches `muse serve`; "take" applies and stages only the captured
   chosen tree, through ordinary Git apply with no force/three-way fallback.
   The attempt index is pinned to its original absolute Git directory.
-- **Status.** Completion draft on `feature/m77-board` (2026-09-29),
-  verification queued; M82 external parent-budget binding remains an
-  integration dependency. No new model calls or verifiers were run during
-  the shared host verification hold.
+- **Status.** RLM77 landed the merge with the C-M77-2 spend fold on
+  2026-10-21. The source lane's C-M77-1 certification describes an older
+  tree and superseded journal design; current proof is recorded separately
+  in `docs/certification/rlm77.md`. C-M77-3 remains partial: ACP
+  list/resume/close is not a best-of-N binding, and native editors still
+  need their M60–M66/M104 host bridges. C-M77-4, independent review and
+  the owner-authorized paid run remain open.
 
 ### M78 — Auto, made safe (D49)
 

@@ -18,6 +18,7 @@ import {
   type BestOfNValidationError,
 } from '../../shared/bestOfN'
 import { fill, plural } from '../../shared/l10n/text'
+import { bestOfNAttemptMeta } from '../../shared/bestOfNAttemptText'
 import { ListBody } from './ListBody'
 
 export interface BestOfNDialogProps {
@@ -90,20 +91,6 @@ function fieldError(
   }
 }
 
-function attemptMeta(attempt: BestOfNAttempt): string {
-  const parts = [plural(UI_TEXT.bestOfNRequests, attempt.requestsMade)]
-  if (attempt.ceilingReached) {
-    parts.push(UI_TEXT.bestOfNCeilingReached)
-  }
-  if (attempt.approvalsDenied > 0) {
-    parts.push(plural(UI_TEXT.bestOfNApprovalsDenied, attempt.approvalsDenied))
-  }
-  if (attempt.status === 'failed' && attempt.failureReason !== undefined) {
-    parts.push(fill(UI_TEXT.bestOfNAttemptFailed, { reason: attempt.failureReason }))
-  }
-  return parts.join(' · ')
-}
-
 function AttemptRow({
   attempt,
   canTake,
@@ -122,7 +109,7 @@ function AttemptRow({
           {attempt.branch}
           <span className="badge">{attemptStatusWord(attempt.status)}</span>
         </span>
-        <span className="palette-item-detail">{attemptMeta(attempt)}</span>
+        <span className="palette-item-detail">{bestOfNAttemptMeta(attempt)}</span>
         <span className="palette-item-detail">
           {plural(UI_TEXT.boardChanges, attempt.files.length)}
         </span>

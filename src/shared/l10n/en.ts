@@ -5333,6 +5333,8 @@ export const EN = {
     one: '{count} approval declined',
     other: '{count} approvals declined',
   }),
+  bestOfNAttemptCost: 'reported spend {cost}',
+  bestOfNAttemptCostPartial: '{cost} reported, more pending',
   bestOfNAttemptFailed: 'Failed: {reason}',
   bestOfNTakenMark: 'Took {branch}',
   bestOfNDiffClipped: 'Diff clipped.',
@@ -5355,6 +5357,9 @@ export const EN = {
   bestOfNAttemptNotDone: 'Only a finished attempt can be taken.',
   bestOfNWorktreeFailed: 'Could not create the attempt worktrees: {reason}',
   bestOfNTaken: 'Applied and staged the preview from {branch}.',
+  bestOfNTakenSpend: 'Applied and staged the preview from {branch}. Reported use: {tokens}.',
+  bestOfNTakenSpendCost:
+    'Applied and staged the preview from {branch}. Reported use: {tokens}, reported spend {cost}.',
   bestOfNTakeFailed:
     'Could not apply and stage {branch}. Check the checkout before retrying: {reason}',
   paidConfirmAccept: 'Turn On',

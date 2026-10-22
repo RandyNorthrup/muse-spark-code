@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 267,
+      "GENERIC": 266,
       "CLEANUP": 235
     },
     "host": {
@@ -731,11 +731,6 @@
     {
       "file": "src/core/backends/musecode/approvalModesEntry.ts",
       "identity": "a9fd6d640864051876c776e9199e22678b20b3a6ef6deb16d3259b59c2aa1ffd",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/bestOfN/bestOfNRunner.ts",
-      "identity": "3e42f25d677feb4c9079bb245842d799fde96179628569c00fbce32606ef0aec",
       "class": "GENERIC"
     },
     {

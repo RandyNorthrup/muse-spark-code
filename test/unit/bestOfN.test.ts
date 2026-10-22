@@ -1,7 +1,11 @@
 // Best-of-N planning (M77, PLAN.md D49): the run's bounds, its branch and
 // worktree names, the paid-use shape, and the git shapes around the take.
 
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { processGitRunner } from '../../src/host/git'
+import { worktreeAddArgs, parseWorktreeList } from '../../src/core/worktrees'
 import { BEST_OF_N_DIFF_MAX_CHARS } from '../../src/shared/constants'
 import {
   bestOfNBranch,
@@ -91,6 +95,86 @@ describe('bestOfNPaidRequest', () => {
       attempts: 3,
       requestCeilingPerAttempt: 20,
     })
+  })
+})
+
+describe('best-of-N with real Git worktrees', () => {
+  it('applies the frozen binary tree to the index without committing or following later edits', async () => {
+    const tempRoot = path.resolve('temp')
+    await mkdir(tempRoot, { recursive: true })
+    const folder = await mkdtemp(path.join(tempRoot, 'rlm77-git-'))
+    const root = path.join(folder, 'repository')
+    const git = processGitRunner()
+    // A disposable repository has no external programs: the PC's global LFS
+    // drivers otherwise correctly refuse automatic best-of-N operations.
+    // This child-only environment changes no user config or repository hook.
+    const config = path.join(folder, 'empty.gitconfig')
+    await writeFile(config, '')
+    const automatic = processGitRunner({
+      isAutomatic: true,
+      env: { ...process.env, GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: config },
+    })
+    try {
+      await git(['init', '-b', 'main', root], folder)
+      const original = await readFile(new URL('../../src/shared/bestOfN.ts', import.meta.url))
+      const changed = await readFile(new URL('../../src/core/bestOfN/bestOfN.ts', import.meta.url))
+      const binary = await readFile(new URL('../../media/icon.png', import.meta.url))
+      const ignore = await readFile(new URL('../../.gitignore', import.meta.url))
+      await writeFile(path.join(root, 'bestOfN.ts'), original)
+      await writeFile(path.join(root, 'icon.png'), binary)
+      await writeFile(path.join(root, '.gitignore'), ignore)
+      await git(['add', '--all', '--'], root)
+      await git(['commit', '-m', 'Capture real repository files for worktree proof'], root)
+      const baseOutput = await git(['rev-parse', 'HEAD'], root)
+      const base = baseOutput.trim()
+      const branch = bestOfNBranch('bon-recovery', 0)
+      const worktree = bestOfNWorktreeFolder(root, 'bon-recovery', 0, process.platform)
+      await automatic(worktreeAddArgs(worktree, branch, base), root)
+      const listed = parseWorktreeList(await git(['worktree', 'list', '--porcelain'], root))
+      expect(listed.map((entry) => entry.branch)).toEqual(['main', branch])
+      await writeFile(path.join(worktree, 'bestOfN.ts'), changed)
+      const changedBinary = Buffer.from(binary).reverse()
+      await writeFile(path.join(worktree, 'icon.png'), changedBinary)
+      await writeFile(path.join(worktree, 'new.ts'), original)
+      await mkdir(path.join(worktree, 'temp'))
+      await writeFile(path.join(worktree, 'temp', 'ignored.ts'), original)
+      await automatic(['add', '--all', '--'], worktree)
+      const treeOutput = await automatic(['write-tree'], worktree)
+      const tree = treeOutput.trim()
+      const files = parseBestOfNNumstat(await automatic(bestOfNDiffStatArgs(base, tree), root))
+      expect(files.map((file) => file.path)).toEqual(['bestOfN.ts', 'icon.png', 'new.ts'])
+      expect(files.find((file) => file.path === 'icon.png')).toEqual({
+        path: 'icon.png',
+        insertions: 0,
+        deletions: 0,
+      })
+      const patch = await automatic(
+        ['diff', '--binary', ...bestOfNDiffArgs(base, tree).slice(1)],
+        root,
+      )
+      // The preview is immutable even if the attempt changes after capture.
+      await writeFile(path.join(worktree, 'bestOfN.ts'), original)
+      await automatic(bestOfNTakeArgs(), root, undefined, patch)
+      expect(await readFile(path.join(root, 'bestOfN.ts'))).toEqual(changed)
+      expect(await readFile(path.join(root, 'new.ts'))).toEqual(original)
+      expect(await readFile(path.join(root, 'icon.png'))).toEqual(changedBinary)
+      const appliedTree = await git(['write-tree'], root)
+      const currentHead = await git(['rev-parse', 'HEAD'], root)
+      const commitCount = await git(['rev-list', '--count', 'HEAD'], root)
+      const unstaged = await git(['diff', '--name-only'], root)
+      expect(appliedTree.trim()).toBe(tree)
+      expect(currentHead.trim()).toBe(base)
+      expect(commitCount.trim()).toBe('1')
+      expect(unstaged.trim()).toBe('')
+      // A changed target is refused, never silently overwritten by a retry.
+      await writeFile(path.join(root, 'bestOfN.ts'), original)
+      await expect(automatic(bestOfNTakeArgs(), root, undefined, patch)).rejects.toThrow()
+      expect(await readFile(path.join(root, 'bestOfN.ts'))).toEqual(original)
+      const refusedTree = await git(['write-tree'], root)
+      expect(refusedTree.trim()).toBe(tree)
+    } finally {
+      await rm(folder, { recursive: true, force: true })
+    }
   })
 })
 

@@ -1,0 +1,85 @@
+{
+  "version": 1,
+  "lane": "CM771",
+  "date": "2026-10-10",
+  "sourceRevision": "82d50d5e456d17205623064b0a70caf8a6e34471",
+  "sourceInputs": [
+    {
+      "file": "test/harness/index.html",
+      "sha256": "f0b89f845a8a5bd36829f10408ac427ffe4d4b2d517dcd926e1aa8a5bcb31a75"
+    },
+    {
+      "file": "scripts/lib/harnessServer.mjs",
+      "sha256": "6fbb35d4b3b9b73aa78a985aa360b676b898cae53edbc28a12b35d1146d5b93a"
+    }
+  ],
+  "browser": "153.0.8010.53",
+  "review": "CM771 self review, 2026-10-10; independent Grok review remains lead-owned",
+  "archive": "harness-shots/<theme>/<scenario>.png (ignored, outside the tracked PNG set)",
+  "images": [
+    {
+      "theme": "light",
+      "scenario": "board-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 35043,
+      "sha256": "4f4ed4eaaf9158a247acd475807ab2cd8cd77bf4074cc43e9e6351c9a9c55cb5"
+    },
+    {
+      "theme": "light",
+      "scenario": "bestofn-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 29703,
+      "sha256": "0cb962e89561d599c5d8dd1dbdaa49f3d74d2e94f74e92485e6a2f483848f870"
+    },
+    {
+      "theme": "dark",
+      "scenario": "board-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 35561,
+      "sha256": "5fa58245c4a7995c2fedb9f12c66c28ed0ddc5bc3ca631c0609eb042fd23282b"
+    },
+    {
+      "theme": "dark",
+      "scenario": "bestofn-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 29300,
+      "sha256": "5a0133bed9f6cda7f0784444c6864f9eaf6746cd36e89807754286152d76fa39"
+    },
+    {
+      "theme": "hc-dark",
+      "scenario": "board-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 34194,
+      "sha256": "a18306bfc3a23e620068e9b816f72ec4d71ae0651a85ebc07c62a6bfc34bcfdf"
+    },
+    {
+      "theme": "hc-dark",
+      "scenario": "bestofn-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 30544,
+      "sha256": "aab69b2dd4b844920bacee91d1c0f6e9a5ebb6cf4216c325f6f28f2eec900040"
+    },
+    {
+      "theme": "hc-light",
+      "scenario": "board-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 34515,
+      "sha256": "3201c4b5f7e87a9d846839befd047cd34e71b9f6cf5c4744ff40eff513706a94"
+    },
+    {
+      "theme": "hc-light",
+      "scenario": "bestofn-narrow",
+      "width": 320,
+      "height": 760,
+      "bytes": 28546,
+      "sha256": "5a768f2999c601718cc2eb5e3afbfd999ee868682ffc9aa6da8e595e6f20f81b"
+    }
+  ]
+}

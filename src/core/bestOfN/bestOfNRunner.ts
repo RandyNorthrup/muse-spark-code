@@ -16,6 +16,9 @@ import { admitResource, inResourceClass } from '../resources/admission'
 import type { ResourceLease } from '../resources/launch'
 import type { ResourceClass } from '../../shared/resources'
 import type { BestOfNCoordinator } from './bestOfNCoordinator'
+import { accumulateAttemptUsage } from './attemptUsage'
+import { failureForLog } from '../backends/musecode/logText'
+import { redactSecrets } from '../redact'
 import type { ResponseAttemptGuard } from '../backends/modelapi/client'
 import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
 import type {
@@ -454,13 +457,20 @@ export class BestOfNRunner {
             budgetScope: run.budgetScope,
             noteUsage: (modelId, usage) => {
               if (
-                this.run === run &&
-                !run.controller.signal.aborted &&
-                run.isCurrent() &&
-                modelId === run.modelId
+                this.run !== run ||
+                run.controller.signal.aborted ||
+                !run.isCurrent() ||
+                modelId !== run.modelId
               ) {
-                this.deps.noteAttemptUsage?.(modelId, usage)
+                return
               }
+              // The attempt keeps its own reported spend (C-M77-2) with
+              // the same refusal contract as the window tally: an invalid
+              // delta throws before either side records it.
+              const reported = accumulateAttemptUsage(entry.attempt, modelId, usage)
+              entry.attempt = { ...entry.attempt, ...reported }
+              this.publish(run)
+              this.deps.noteAttemptUsage?.(modelId, usage)
             },
             admitRequest: Object.assign(
               (keyDigest: string | undefined) => {
@@ -518,8 +528,9 @@ export class BestOfNRunner {
         ...(sessionId !== undefined && { sessionId }),
       }
     } catch (error: unknown) {
+      this.deps.log.warn(`A best-of-N attempt could not start: ${failureForLog(error)}`)
       if (!isTerminal(entry.attempt.status)) {
-        const reason = error instanceof Error ? error.message : String(error)
+        const reason = redactSecrets(error instanceof Error ? error.message : String(error))
         entry.attempt = { ...entry.attempt, status: 'failed', failureReason: reason }
       }
       this.disposeOf(entry)

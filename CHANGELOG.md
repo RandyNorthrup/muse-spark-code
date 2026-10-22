@@ -7,6 +7,16 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- Best-of-N shows each attempt's reported tokens in the side-by-side
+  comparison, plus its reported cost where the attempt's usage reports
+  carry one, and the take notice names the taken attempt's reported use
+  and complete reported cost. Responses still missing a reported cost say
+  more is pending; unknown requests stay unknown and the aggregate
+  Account & usage row is unchanged, so nothing is counted twice
+  (M77 C-M77-2).
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
