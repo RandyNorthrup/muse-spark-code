@@ -379,6 +379,19 @@ function isContributorModel(modelId: string): boolean {
 }
 
 /**
+One stop from two: the defined one, or both together. A waiting editor
+request ends when the turn stops, when its own caller stops it, or when
+either does (G04).
+*/
+function combinedStop(
+  first: AbortSignal | undefined,
+  second: AbortSignal | undefined,
+): AbortSignal | undefined {
+  if (first === undefined) return second
+  return second === undefined ? first : AbortSignal.any([first, second])
+}
+
+/**
 The bundle loader's refusal: the legal scanner that could not load (its
 cause stays in the log). Only this failure says the scan could not run.
 */
@@ -2242,12 +2255,7 @@ class AcpSession {
       // The turn's own stop cancels it too, sending `$/cancel_request`
       // for the waiting request (G04).
       const turnStop = this.clientStop?.signal
-      const cancellationSignal =
-        signal === undefined
-          ? turnStop
-          : turnStop === undefined
-            ? signal
-            : AbortSignal.any([signal, turnStop])
+      const cancellationSignal = combinedStop(signal, turnStop)
       const pendingPermission = this.client.request(
         'session/request_permission',
         params,
