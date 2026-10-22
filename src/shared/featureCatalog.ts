@@ -1397,6 +1397,7 @@ const REFERENCE_DETAILS: Readonly<
 > = {
   // Reset also recovers unknown writer ownership through its confirmed path.
   vault: ['referenceVault'],
+  resources: ['referenceResourceMemory'],
   providers: [
     'providerOpenRouterServices',
     'pricePerMillion',

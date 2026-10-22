@@ -13,6 +13,9 @@ export const RESOURCE_SAMPLE_MS = 5000
 export const RESOURCE_DARWIN_HEADROOM_LIBUV_MIN_MINOR = 52
 // IOKit's storage busy counters tick in nanoseconds; samples tick in milliseconds.
 export const RESOURCE_NS_PER_MS = 1_000_000
+// The fixed headroom frame is tiny; never retain an unbounded child stream.
+export const RESOURCE_DARWIN_HEADROOM_MAX_BYTES = 128
+export const RESOURCE_DARWIN_HEADROOM_MAX_COUNTER = Number.MAX_SAFE_INTEGER
 // D87.14: free-space policy and owned-tree retention. D121 (owner
 // 2026-10-16): no threshold of ours — the person's disk floor (null by
 // default) is the only level the governor holds against.

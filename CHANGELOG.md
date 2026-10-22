@@ -7,6 +7,19 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Fixed
+
+- **Runtime resource cleanup on older macOS.** CLI, ACP and headless
+  shutdown now forward disposal to the sampler's memory helper, so a
+  resource status command exits normally and no helper keeps the runtime
+  alive after shutdown.
+
+- On macOS, memory headroom includes free, inactive and purgeable pages on
+  runtimes with libuv older than 1.52, including Node 22 and older
+  extension hosts. The packaged signed helper handles one request per
+  sample in one child per governor; a failed reading stays unknown, and
+  newer runtimes keep Node's API.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
@@ -2367,6 +2380,7 @@ Correction (2026-10-10): Several accounts per provider, credential vault, schedu
   Recordings return to their starting conversation; picked media uses drop
   confinement and reasoned refusals. Audio pastes transcribe by default;
   Gemini/OpenAI-compatible video remains unsupported.
+
 
 - On macOS 26, a process that `ps` lists with an unknown state (`?`) while
   it changes no longer voids every resource tree's membership read, which

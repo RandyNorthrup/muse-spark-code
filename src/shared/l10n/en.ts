@@ -110,6 +110,8 @@ export const EN = {
   resourceMemoryAmple: 'Ample Headroom',
   referenceResources:
     'Resource, service and transport pressure reduce admission. Each job has observed process and birth limits; cleanup removes only recorded temp roots.',
+  referenceResourceMemory:
+    'On macOS, memory headroom includes free, inactive and purgeable pages. Older runtimes use the signed helper; a failed reading stays unknown.',
   resourceGovernorDescription:
     'Keep this machine responsive by slowing or deferring work started by the harness. On by default.',
   resourceCpuMaxPercentDescription:

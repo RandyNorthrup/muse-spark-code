@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Wenig Spielraum",
   "resourceMemoryAmple": "Viel Spielraum",
   "referenceResources": "Ressourcen-, Dienst- und Transportdruck begrenzen die Zulassung. Jeder Auftrag hat Grenzwerte für beobachtete Prozesse und Prozessstarts; die Bereinigung entfernt nur erfasste temporäre Wurzeln.",
+  "referenceResourceMemory": "Unter macOS umfasst der verfügbare Speicher freie, inaktive und freigebbare Seiten. Ältere Laufzeiten verwenden das signierte Hilfsprogramm; eine fehlgeschlagene Messung bleibt unbekannt.",
   "resourceGovernorDescription": "Hält diesen Rechner reaktionsfähig, indem von der Agentenumgebung gestartete Arbeit verlangsamt oder verschoben wird. Standardmäßig aktiviert.",
   "resourceCpuMaxPercentDescription": "Drosselt, wenn die CPU-Auslastung des Rechners 30 Sekunden lang über diesem Prozentsatz liegt. Ohne Wert wird die CPU nicht begrenzt.",
   "resourceMemoryMaxPercentDescription": "Drosselt, wenn der belegte Arbeitsspeicher bei zwei Messungen über diesem Prozentsatz liegt. Ohne Wert wird der belegte Arbeitsspeicher nicht begrenzt.",

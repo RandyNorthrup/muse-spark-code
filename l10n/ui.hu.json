@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Kis tartalék",
   "resourceMemoryAmple": "Bőséges tartalék",
   "referenceResources": "Az erőforrások, szolgáltatások és átvitel terhelése csökkenti a feladatok befogadását. Minden feladat korlátozza a megfigyelt folyamatok számát és létrehozását; a takarítás csak a nyilvántartott ideiglenes gyökereket törli.",
+  "referenceResourceMemory": "macOS alatt a rendelkezésre álló memória a szabad, inaktív és felszabadítható lapokat is tartalmazza. A régebbi futtatókörnyezetek az aláírt segédprogramot használják; a sikertelen mérés ismeretlen marad.",
   "resourceGovernorDescription": "Az ügynökkörnyezet által indított munka lassításával vagy elhalasztásával megőrzi a gép válaszkészségét. Alapértelmezés szerint bekapcsolva.",
   "resourceCpuMaxPercentDescription": "Lassít, ha a gép CPU-használata 30 másodpercig e százalék fölött marad. Érték nélkül nincs CPU-korlát.",
   "resourceMemoryMaxPercentDescription": "Lassít, ha a használt memória két egymást követő mérésben e százalék fölött marad. Érték nélkül nincs memóriahasználati korlát.",

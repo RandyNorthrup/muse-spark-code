@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Faible marge",
   "resourceMemoryAmple": "Marge suffisante",
   "referenceResources": "La pression sur les ressources, les services et le transport réduit les admissions. Chaque tâche limite les processus et créations observés ; le nettoyage supprime uniquement les racines temporaires enregistrées.",
+  "referenceResourceMemory": "Sous macOS, la mémoire disponible comprend les pages libres, inactives et purgeables. Les anciens environnements utilisent le programme auxiliaire signé ; une mesure échouée reste inconnue.",
   "resourceGovernorDescription": "Préserve la réactivité de cette machine en ralentissant ou en différant le travail lancé par l’environnement d’agent. Activé par défaut.",
   "resourceCpuMaxPercentDescription": "Ralentit lorsque l’utilisation du processeur reste au-dessus de ce pourcentage pendant 30 secondes. Sans valeur, aucune limite de processeur.",
   "resourceMemoryMaxPercentDescription": "Ralentit lorsque la mémoire utilisée reste au-dessus de ce pourcentage pendant deux mesures. Sans valeur, aucune limite de mémoire utilisée.",

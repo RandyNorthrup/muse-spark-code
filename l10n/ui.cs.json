@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Malá rezerva",
   "resourceMemoryAmple": "Dostatečná rezerva",
   "referenceResources": "Zátěž prostředků, služeb a přenosu omezuje přijímání práce. Každá úloha má limity pozorovaných procesů a jejich vzniku; úklid odstraňuje pouze zaznamenané dočasné kořeny.",
+  "referenceResourceMemory": "V macOS zahrnuje dostupná paměť volné, neaktivní a uvolnitelné stránky. Starší běhová prostředí používají podepsaný pomocný program; neúspěšné měření zůstává neznámé.",
   "resourceGovernorDescription": "Udržuje odezvu počítače zpomalením nebo odložením práce spuštěné prostředím agenta. Ve výchozím nastavení zapnuto.",
   "resourceCpuMaxPercentDescription": "Omezí práci, když využití procesoru překračuje toto procento po dobu 30 sekund. Bez hodnoty se CPU neomezuje.",
   "resourceMemoryMaxPercentDescription": "Omezí práci, když využitá paměť překračuje toto procento ve dvou po sobě jdoucích vzorcích. Bez hodnoty se využitá paměť neomezuje.",

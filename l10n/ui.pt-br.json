@@ -74,6 +74,7 @@
   "resourceMemoryLow": "Pouca folga",
   "resourceMemoryAmple": "Folga suficiente",
   "referenceResources": "A pressão sobre recursos, serviços e transporte reduz a admissão. Cada tarefa limita os processos e as criações observados; a limpeza remove apenas raízes temporárias registradas.",
+  "referenceResourceMemory": "No macOS, a memória disponível inclui páginas livres, inativas e descartáveis. Ambientes de execução antigos usam o auxiliar assinado; uma leitura que falha permanece desconhecida.",
   "resourceGovernorDescription": "Mantém esta máquina responsiva ao reduzir a velocidade ou adiar trabalhos iniciados pelo ambiente do agente. Ativado por padrão.",
   "resourceCpuMaxPercentDescription": "Limita quando o uso da CPU permanece acima desta porcentagem por 30 segundos. Sem valor, sem limite de CPU.",
   "resourceMemoryMaxPercentDescription": "Limita quando a memória em uso permanece acima desta porcentagem por duas amostras. Sem valor, sem limite de memória em uso.",

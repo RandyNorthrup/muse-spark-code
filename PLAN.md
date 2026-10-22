@@ -8255,7 +8255,7 @@ one governor for everything the harness starts.
 
 4. **The sampler is cheap and honest.**
    - **The machine,** every `RESOURCE_SAMPLE_MS` (5 seconds), with no child
-     process:
+     process except the older-Darwin headroom helper below:
      - CPU from `os.cpus()` deltas (`os.loadavg()` is all zeros on Windows),
        plus Linux's pressure files (`/proc/pressure/cpu` and `memory`) where
        present;
@@ -8263,9 +8263,17 @@ one governor for everything the harness starts.
        a container from cgroup v2's `memory.max` and `memory.current`;
      - on macOS, `process.availableMemory()` only with libuv 1.52 or newer,
        which counts free, inactive and purgeable pages. Older versions count
-       free pages alone and report unknown headroom here; an absent API does
-       too. `kern.memorystatus_level` is not a byte reading. ACPM118's Node
-       22/24 capture and regressions certify this boundary (2026-10-09).
+       free pages alone. **C-M107-2 amendment (2026-10-10):** on those older
+       Darwin runtimes, the existing universal ad-hoc-signed helper reads
+       `host_statistics64(HOST_VM_INFO64)` free + inactive + purgeable pages,
+       multiplied by the host page size. One request-driven child per governor
+       stays idle between samples, inherits no credentials and exits on stdin
+       EOF or governor disposal. Construction starts nothing; each request
+       has a bounded deadline and strict bounded response validation. A missing,
+       failed or malformed helper returns unknown; it never substitutes free
+       pages. Newer runtimes still use the API; an absent API or unparseable
+       libuv version remains unknown. `kern.memorystatus_level` is not bytes.
+       ACPM118's Node 22/24 capture certifies the original API boundary.
    - **The harness's own trees,** every `RESOURCE_TREE_SAMPLE_MS` (15
      seconds), only while governed work runs: CPU time and resident memory
      per tree.
@@ -16357,6 +16365,15 @@ unknown-language blocks. Support or re-review the recorded source harness.
 No production webview file is edited here. The next attempt passes under
 the unchanged policy; the failed attempt remains evidence, not a red drill.
 See `docs/certification/m114-s-after/c3-highlight-readiness.json`.
+
+**Q-CM1072R2 native delivery qualification (2026-10-10).** RVCM1072
+correctly leaves the clean installed-VSIX macOS 15/26, prompt-free launch,
+arm64 execution and actual older-editor/runtime matrix unconfirmed. The
+Mac mini is x86_64 on macOS 15; compiling/signing arm64 and simulating libuv
+1.51 do not supply those receipts. This is a hardware/editor qualification
+blocker, not a demonstrated Gatekeeper defect. The lead must arrange that
+matrix before claiming native delivery qualification; no signing/security
+setting is changed or approval bypass introduced by this lifecycle repair.
 
 ## 4. Architecture
 
@@ -27771,6 +27788,46 @@ quality/coverage and non-Linux native receipts remain the lead's release gate.
 
 ### M107 — Resource governor: CPU and memory thresholds that throttle or relocate work (D87)
 
+**CM1072R2 — RVCM1072 lifecycle repair (2026-10-10).** Forward sampler
+disposal through the runtime host's settings wrapper. Sweep the same ownership
+chain in the window, lazy runtime, ACP/CLI and headless shutdown paths; prove
+helper PID retirement on normal, failed, interrupted and in-flight teardown.
+Every regression runs at repository deadlines and gets a deliberately red,
+byte-exact restoration receipt in `docs/certification/m107-darwin-memory.md`.
+No dependency, guard, command, setting or bundle cap changes. Clean installed
+VSIX, macOS 26 and arm64 execution qualification remains an external hardware/
+editor receipt; this x86_64 macOS 15 rig cannot certify it. The rig/common brief
+keeps aggregate quality and hosted cross-platform checks with the lead.
+Scoped certification: the three-line disposal forwarding fix passes 213 distinct
+tests; four ownership guard mutations fail (10, 11, 1 and 4 cases respectively)
+and restore byte-exact. The runtime/window/lazy/headless sweep finds no sibling
+wrapper dropping disposal. Scoped static/build gates and unchanged caps pass;
+only the external native delivery qualification matrix remains unconfirmed.
+Evidence: `docs/certification/m107-darwin-memory.md` and its R2 drill receipt.
+
+**C-M107-2 — older macOS memory headroom (2026-10-10).** Scope: D87.4's
+request-driven memory mode in the existing signed Darwin helper, shared by
+the extension and ACP/headless sampler. Acceptance: parity with Node 24.21's
+available-memory API within one sample, one child per governor only below
+libuv 1.52, unknown on helper failure, bounded/cancellable lifecycle, and
+combined sampler/helper CPU below 0.5% of one core on the Mac mini. Certify
+the production universal signed artifact, default-timeout regressions and
+byte-exact red drills in `docs/certification/m107-darwin-memory.md`. Windows
+and Linux retain their existing sampler. Native editor status/chip rows
+(JetBrains, Visual Studio, Eclipse, Zed, Xcode, Neovim/Emacs/Sublime and the
+companion) remain with C-M104-1/C-M107-8; their shared ACP runtime receives
+this headroom fix without an editor-specific implementation. No dependency,
+paid/model call, command or setting is added. The lane brief forbids full
+quality and merges; the lead owns joined quality and cross-OS CI.
+
+Scoped certification: native parity and the 25-sample production signed-helper
+receipt pass on the Mac mini; one child, combined cost 0.071407% of one core
+(including measurement resolution), all 15 guard drills fail as intended and
+restore byte-exact. The same-agent Codex review covers validation/security,
+failure honesty, concurrency/lifecycle and docs. This closes the older-Darwin
+headroom scope, not M107's unrelated relocation, native bindings or editor
+qualification. Evidence: `docs/certification/m107-darwin-memory.md`.
+
 **M107 W chip — the U–C1/W window binding (2026-10-08, for 0.17).** PR #140's
 review found the chip never mounted. The window's `ResourceLaunchHost` now
 keeps one cached, schema-checked status (replaced only when its content
@@ -35867,6 +35924,10 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | MSM113 escape (2026-10-17)                                                                                                                                | Reason                                                                                                                                                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `src/core/reporting/collect/playbook.ts` `isModuleMatch`: `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` | Every glob segment passes `escapeGlob` before fixed character classes, anchors and `**` crossings are added; user text cannot introduce regex operators or groups. The module-glob table covers literal `.`, `+`, `()` and the `*`-cannot-cross-`/` rule; neutering the escaper fails exactly those three cases (proven 2026-10-17). |
+
+| RLM107 location                                                                           | Escape hatch                | Reason                                                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/core/resources/sampler/darwinMemory.ts`, `start` (`nosemgrep: detect-child-process`) | Fixed packaged sampler mode | Absolute packaged Darwin helper, fixed `--memory-headroom` argument, no shell or inherited credentials, neutral temporary cwd, strict bounded schema/deadline and sampler-owned retirement. Read-only sampling infrastructure is outside governed work to avoid recursive admission. |
 
 | PORTS017 escape                                                                           | Reason                                                                                                                                                                                                                          |
 | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

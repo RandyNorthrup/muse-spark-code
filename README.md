@@ -5632,10 +5632,15 @@ controls your own terminals, editor or other applications. Model requests,
 Tab, approvals, paid consent and Stop do not wait for it. It does not change
 provider capabilities, permissions, paid consent or budgets.
 
-On macOS, memory headroom is unknown when the runtime's libuv is older than
-1.52 (including Node 22), or its available-memory API is absent. Those older
-readings count only free pages and can falsely pause new ACP sessions despite
-reclaimable memory. Newer runtimes include inactive and purgeable pages.
+On macOS, memory headroom includes free, inactive and purgeable pages. Runtimes
+with libuv 1.52 or newer use Node's available-memory API. Older runtimes
+(including Node 22 and older VS Code extension hosts) use the packaged signed
+helper, with one idle child per governor and one request per sample. It asks
+for no privacy permission and exits when the governor closes. If the helper
+is missing, fails or times out, or a newer runtime has no available-memory
+API, the reading stays unknown; free pages alone never stand in for headroom.
+The shared sampler applies to the extension and ACP/headless hosts, including
+editors that embed an older Node runtime.
 
 These settings are machine-scoped; workspace values are ignored. Settings
 names below start with `museSpark.`.

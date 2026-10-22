@@ -790,7 +790,7 @@
     {
       "id": "M107",
       "title": "Resource limits for your machine",
-      "summary": "CPU, memory and disk limits narrow then pause new background work without stopping running work; macOS headroom is unknown before libuv 1.52, and moving work to another device is unavailable.",
+      "summary": "CPU, memory and disk limits pause new background work; older macOS runtimes read reclaimable headroom through a signed helper retired at shutdown, while relocation and native editor chips await qualification.",
       "area": "platform",
       "release": "0.16.0"
     },
