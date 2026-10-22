@@ -55,9 +55,10 @@ export function freshSlotEntry(vaultId: string, id: string): SlotContext {
 export function openOsStoreSlot(
   record: VaultSlotRecord,
   platform: NodeJS.Platform,
-  open?: OpenOsStoreEntry,
+  open: OpenOsStoreEntry | undefined,
+  scope: string,
 ): OsStoreVaultSlot {
-  return new OsStoreVaultSlot(slotEntryFromRecord(record), platform, open)
+  return new OsStoreVaultSlot(slotEntryFromRecord(record), platform, open, scope)
 }
 
 /** A fresh OS-store slot created now. */
@@ -65,9 +66,10 @@ export function freshOsStoreSlot(
   vaultId: string,
   id: string,
   platform: NodeJS.Platform,
-  open?: OpenOsStoreEntry,
+  open: OpenOsStoreEntry | undefined,
+  scope: string,
 ): OsStoreVaultSlot {
-  return new OsStoreVaultSlot(freshSlotEntry(vaultId, id), platform, open)
+  return new OsStoreVaultSlot(freshSlotEntry(vaultId, id), platform, open, scope)
 }
 
 /**
