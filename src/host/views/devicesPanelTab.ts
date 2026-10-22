@@ -11,7 +11,6 @@ import { DEVICES_PANEL_VIEW_TYPE, UI_TEXT } from '../../shared/constants'
 import type { DeviceHostMessage } from '../../shared/devicesPanel'
 import type { DeviceProductionContext } from '../devices/deviceEntry'
 import type { DeviceExecutionHost } from '../devices/deviceSecrets'
-import { DevicePairingError } from '../../core/devices/pairing'
 import { deviceMethods } from '../devices/deviceBundle'
 import { logRejection, type Logger } from '../logger'
 import { createAuxWebviewPanel } from './auxWebviewPanel'
@@ -54,7 +53,19 @@ const deviceRequestCorrelation = z.object({
 })
 type OpenRefusal = 'unsupported-host' | 'storage'
 
-/** The typed reason a service that could not open gives, if it gave one. */
+/**
+The typed reason a service that could not open gives. Structural, never an
+instanceof on the lazy pairing module: this tab ships in the activation
+bundle and must not carry it.
+*/
+function isOpenRefusal(error: unknown): error is Error & { reason: OpenRefusal } {
+  return (
+    error instanceof Error &&
+    'reason' in error &&
+    (error.reason === 'unsupported-host' || error.reason === 'storage')
+  )
+}
+
 export class DevicesPanelTab implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined
   private isReady = false
@@ -118,12 +129,7 @@ export class DevicesPanelTab implements vscode.Disposable {
         try {
           service = await this.service()
         } catch (error) {
-          if (
-            error instanceof DevicePairingError &&
-            (error.reason === 'unsupported-host' || error.reason === 'storage') &&
-            this.refuse(raw, error.reason)
-          )
-            return
+          if (isOpenRefusal(error) && this.refuse(raw, error.reason)) return
           throw error
         }
         this.send(await service.request(raw))
