@@ -165,6 +165,9 @@
     // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6), required by
     // path the first time an estimate needs a plan snapshot.
     "src/host/estimator/planSnapshotEntry.ts",
+    // The estimator's price port (M117 C-M117-4, PLAN.md D6), required by
+    // path the first time an estimate looks up prices.
+    "src/host/estimator/priceCatalogEntry.ts",
     // Both-backend extension hooks, required by path on first use (M91 E).
     "src/host/extensionHooksEntry.ts",
     // What's New (M99), required on the first page or notice, and its page script.

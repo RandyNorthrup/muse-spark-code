@@ -54,6 +54,9 @@ import {
   CONVERSATION_GIT_BUNDLE_FILE,
   CONVERSATION_BUNDLE_FILE,
   BUNDLED_SKILLS_BUNDLE_FILE,
+  ESTIMATE_PRICES_BUNDLE_FILE,
+  ESTIMATE_PRICE_CATALOG_URLS,
+  ESTIMATE_PRICE_MAX_AGE_MS,
   ESTIMATOR_BUNDLE_FILE,
   PLAN_SNAPSHOT_BUNDLE_FILE,
   BUNDLED_SKILLS_SETTING,
@@ -361,6 +364,7 @@ import {
   ownedSubscriptionUsage,
 } from './host/estimator/fleetBinding'
 import { estimatorSourcePorts } from './host/estimator/localFleet'
+import { estimatorNetworkPolicy, lazyPriceCatalog } from './host/estimator/priceCatalogBundle'
 import { planSnapshotLoader } from './host/estimator/planSnapshotBundle'
 import { createProviderGenerationTracker } from './host/auth/providerGeneration'
 import { PendingPrompts, type BoardSession } from './core/sessionBoard'
@@ -2740,11 +2744,24 @@ async function activateWindow(
     'dist',
     ESTIMATOR_BUNDLE_FILE,
   ).fsPath
+  // The estimator's price port (M117 C-M117-4, PLAN.md D6): the reader and
+  // cache live in dist/estimatePrices.js, required the first time an
+  // estimate looks one up. Only this loader sits in the activation bundle.
+  const priceCatalog = lazyPriceCatalog({
+    bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', ESTIMATE_PRICES_BUNDLE_FILE)
+      .fsPath,
+    log,
+  })
   // An estimate requested by one conversation is delivered only to that
   // conversation: each surface reads the fleet through its own controller's
   // provider, never the focused pane's, with the live credential generation.
   const estimatorPortsFor = (readProviderId?: () => string): EstimatorSourcePorts => {
     let signedInRevision = -1
+    const networkPolicy = estimatorNetworkPolicy({
+      settings: currentSettings,
+      isTrusted: () => vscode.workspace.isTrusted,
+      isSignedIn: () => signedInRevision === estimatorAuthenticationRevision,
+    })
     const snapshot = planSnapshotLoader({
       bundlePath: snapshotBundlePath,
       log,
@@ -2760,34 +2777,17 @@ async function activateWindow(
                 { silent: true },
               )
         signedInRevision = session === undefined ? -1 : revision
-        return {
-          surface: 'editor',
-          get mode() {
-            return currentSettings()['reports.network']
-          },
-          get githubSignedIn() {
-            return session !== undefined && revision === estimatorAuthenticationRevision
-          },
-          allowEgress: () =>
-            Promise.resolve(
-              vscode.workspace.isTrusted &&
-                currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED,
-            ),
-        }
+        return networkPolicy
       },
     })
     return estimatorSourcePorts(
       () => ({
-        // No catalogs are pinned until M113 merges its Reports catalogs.
+        // The pinned public catalogs (M117 C-M117-4): no account, under
+        // the Reports network policy, dated per catalog refresh.
         enabled: currentSettings()['estimator.priceLookup'],
-        networkAllowed:
-          vscode.workspace.isTrusted &&
-          currentSettings().sandboxNetwork !== SANDBOX_NETWORK_DENIED &&
-          (currentSettings()['reports.network'] === 'always' ||
-            (currentSettings()['reports.network'] === 'whenSignedIn' &&
-              signedInRevision === estimatorAuthenticationRevision)),
-        maxAgeMs: 0,
-        catalogUrls: [],
+        networkAllowed: networkPolicy.mode !== 'off',
+        maxAgeMs: ESTIMATE_PRICE_MAX_AGE_MS,
+        catalogUrls: [...ESTIMATE_PRICE_CATALOG_URLS],
       }),
       snapshot,
       // M117: bind the usage owners already used by Account & usage.
@@ -2820,6 +2820,12 @@ async function activateWindow(
           },
         }),
       ),
+      () =>
+        priceCatalog.createEstimatePricePort({
+          storageRoot: context.globalStorageUri.fsPath,
+          workspaceRoot: firstFolderPath() ?? process.cwd(),
+          policy: networkPolicy,
+        }),
     )
   }
   const estimatorForSurface = (surface: ChatSurface): EstimatorRun =>

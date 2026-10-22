@@ -230,10 +230,12 @@ export function createEstimatorRun(
       }
       signal.throwIfAborted()
       const lookup = ports.priceLookup()
-      const catalog =
-        lookup.enabled && lookup.networkAllowed
-          ? await lookupEstimatePrices({ ...lookup, asOf: parsed.asOf }, ports.prices())
-          : { rows: [], sources: [], unavailable: [] }
+      // The lookup itself honours the network setting: with network off it
+      // serves only the dated cache (C-M117-4), so a fresh cache still prices
+      // setups offline while no fetch is ever dispatched.
+      const catalog = lookup.enabled
+        ? await lookupEstimatePrices({ ...lookup, asOf: parsed.asOf }, ports.prices())
+        : { rows: [], sources: [], unavailable: [] }
       signal.throwIfAborted()
       const recommendation = recommendEstimate(
         inputs,
@@ -241,7 +243,9 @@ export function createEstimatorRun(
         { forecast },
         catalog.rows.flatMap((row) =>
           pool.machines
-            .filter((machine) => machine.classId === row.classId)
+            // Advice prices belong to rented offers only: an existing
+            // machine of the same class has no hourly rate (C-M117-4).
+            .filter((machine) => machine.source === 'rented' && machine.classId === row.classId)
             .map((machine) => ({ machineId: machine.id, price: row.price })),
         ),
       )

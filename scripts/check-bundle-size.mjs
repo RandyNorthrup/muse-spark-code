@@ -378,6 +378,10 @@ const BUDGETS = [
   // over M113's plan reader with the host's git and `gh` reads. 61.5 KiB
   // when split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/planSnapshot.js', budgetKiB: 75 },
+  // The estimator's price port (M117 C-M117-4, PLAN.md D6), loaded on the
+  // first price lookup: the report reader and cache over the pinned catalogs.
+  // 58.0 KiB when split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
+  { path: 'dist/estimatePrices.js', budgetKiB: 75 },
   // The flight recorder's journal (M93), loaded just after activation or at
   // the first failure: 51.3 KiB when split out (the journal, its policy and
   // the shared protocol it validates against), plus 15%, rounded up to 25 KiB

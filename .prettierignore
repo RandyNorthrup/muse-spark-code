@@ -23,6 +23,14 @@ test/fixtures/golden-requests/
 # break both the live-manifest SHA-256 and the fixture pins).
 test/fixtures/m106/u9-raw-strict-stream.json
 test/fixtures/m106/output-incomplete.json
+# Lane C-M117-4 captured wire fixture: the Azure retail-prices response bytes
+# as received (rule 13); reformatting would break the capture record.
+test/fixtures/estimator/azure-retail-eastus.json
+# Lane C-M117-4R2: the lead's captures of the same public endpoint (rule 13),
+# kept byte-exact with their receipts: the one-SKU answer (Spot rows beside
+# on-demand rows) and the paged answer (NextPageLink with $skip=1000).
+test/fixtures/estimator/azure-retail-prices-one-sku/
+test/fixtures/estimator/azure-retail-prices-paged/
 
 # M91 saved vendor sources, kept byte-exact: code cites them by line
 # (cline-hooks-901d1b5c97.md:157), and reformatting would move those lines.
