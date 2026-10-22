@@ -7,6 +7,12 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge deterministic checks: loop and stall detection, first-send
+  triage, effort lowering for mechanical requests, context ranking,
+  skill matching, and unmentioned-failure and unbacked-done detection
+  run instantly with no model, network or download, missing to today's
+  behaviour on anything they do not recognise.
+
 - Fast judge contract: `auto` now means the fast judge (deterministic
   checks first, then the fastest ready engine per decision), with one
   `museSpark.judge.fastPathOff` switch for the whole fast path and a
