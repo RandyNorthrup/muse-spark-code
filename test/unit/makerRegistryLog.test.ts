@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile, link } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { REGISTRY_PROCESS_MARKER } from './helpers/makerRegistryProcess'
 import { DeviceLog, payloadDigest } from '../../src/core/maker/deviceLog'
 import {
@@ -47,12 +47,45 @@ async function registry() {
   directories.push(directory)
   let stored: unknown = { revision: 0, records: [] }
   let revision = 0
-  const write = vi.fn((expected: number, records: readonly MachineRecord[]) => {
+  const writes: [number, readonly MachineRecord[]][] = []
+  const control = {
+    failNextWrite: undefined as string | undefined,
+    failAfterWrites: undefined as number | undefined,
+    staleAfterWrites: undefined as number | undefined,
+    staleNextWrite: false,
+    failNextDelete: undefined as string | undefined,
+    deletions: [] as string[],
+  }
+  const write = (expected: number, records: readonly MachineRecord[]) => {
+    writes.push([expected, records])
+    if (control.failNextWrite !== undefined) {
+      const failure = control.failNextWrite
+      control.failNextWrite = undefined
+      return Promise.reject(new Error(failure))
+    }
+    if (control.failAfterWrites !== undefined) {
+      control.failAfterWrites -= 1
+      if (control.failAfterWrites < 0) {
+        control.failAfterWrites = undefined
+        return Promise.reject(new Error('diskFull'))
+      }
+    }
+    if (control.staleAfterWrites !== undefined) {
+      control.staleAfterWrites -= 1
+      if (control.staleAfterWrites < 0) {
+        control.staleAfterWrites = undefined
+        return Promise.resolve(false)
+      }
+    }
+    if (control.staleNextWrite) {
+      control.staleNextWrite = false
+      return Promise.resolve(false)
+    }
     if (expected !== revision) return Promise.resolve(false)
     revision += 1
     stored = { revision, records: structuredClone(records) }
     return Promise.resolve(true)
-  })
+  }
   const values = new Map<string, string>()
   const secrets: MakerSecrets = {
     get: (name) => Promise.resolve(values.get(name)),
@@ -61,6 +94,12 @@ async function registry() {
       return Promise.resolve()
     },
     delete: (name) => {
+      control.deletions.push(name)
+      if (control.failNextDelete !== undefined) {
+        const failure = control.failNextDelete
+        control.failNextDelete = undefined
+        return Promise.reject(new Error(failure))
+      }
       values.delete(name)
       return Promise.resolve()
     },
@@ -73,7 +112,8 @@ async function registry() {
     ),
     values,
     secrets,
-    write,
+    writes,
+    control,
     setRecords(input: unknown) {
       stored = { revision, records: input }
     },
@@ -81,10 +121,10 @@ async function registry() {
 }
 describe('maker registry boundaries', () => {
   it('stores keys only through the host secret port and rejects unregistered machines', async () => {
-    const { registry: records, values, write } = await registry(),
+    const { registry: records, values, writes } = await registry(),
       key = randomUUID()
     await records.register(machine(), key)
-    expect(JSON.stringify(write.mock.calls).includes(key)).toBe(false)
+    expect(JSON.stringify(writes).includes(key)).toBe(false)
     const captured0 = await records.get('printer')
     expect(values.has(machineSecretName(captured0.registrationId))).toBe(true)
     expect(captured0.name).toBe('Virtual')
@@ -124,8 +164,8 @@ describe('maker registry boundaries', () => {
     ).rejects.toThrow('machineEndpoint')
   })
   it('serializes concurrent registry mutations and rolls back a failed new secret', async () => {
-    const { registry: records, values, write } = await registry()
-    write.mockRejectedValueOnce(new Error('diskFull'))
+    const { registry: records, values, control } = await registry()
+    control.failNextWrite = 'diskFull'
     await expect(records.register(machine(), randomUUID())).rejects.toThrow('diskFull')
 
     expect(values.size).toBe(0)
@@ -137,11 +177,11 @@ describe('maker registry boundaries', () => {
     expect(captured2).toHaveLength(2)
   })
   it('keeps failed credential removal pending, blocks reuse and retries deletion', async () => {
-    const { registry: records, values, secrets, write } = await registry()
+    const { registry: records, values, writes, control } = await registry()
     const key = randomUUID()
     await records.register(machine(), key)
     const registered = await records.get('printer')
-    const deletion = vi.spyOn(secrets, 'delete').mockRejectedValueOnce(new Error('storeLocked'))
+    control.failNextDelete = 'storeLocked'
     await expect(records.remove('printer')).rejects.toThrow('storeLocked')
     expect(await records.list()).toMatchObject([{ id: 'printer', credentialPendingRemoval: true }])
     await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
@@ -150,26 +190,24 @@ describe('maker registry boundaries', () => {
     ).rejects.toThrow('duplicateMachine')
     expect(values.has(machineSecretName(registered.registrationId))).toBe(true)
     await records.remove('printer')
-    expect(deletion).toHaveBeenCalledTimes(2)
+    expect(control.deletions).toHaveLength(2)
     expect(values.size).toBe(0)
     expect(await records.list()).toEqual([])
-    expect(JSON.stringify(write.mock.calls).includes(key)).toBe(false)
+    expect(JSON.stringify(writes).includes(key)).toBe(false)
   })
   it('does not delete a secret until the pending-removal record is durable', async () => {
-    const { registry: records, values, secrets, write } = await registry()
+    const { registry: records, values, control } = await registry()
     await records.register(machine(), randomUUID())
-    const deletion = vi.spyOn(secrets, 'delete')
-    write.mockRejectedValueOnce(new Error('diskFull'))
+    control.failNextWrite = 'diskFull'
     await expect(records.remove('printer')).rejects.toThrow('diskFull')
-    expect(deletion).not.toHaveBeenCalled()
+    expect(control.deletions).toEqual([])
     expect(values.size).toBe(1)
     expect(await records.get('printer')).toMatchObject({ id: 'printer', name: 'Virtual' })
   })
   it('isolates replacement credentials by registration identity and never reuses an orphan', async () => {
-    const { registry: records, values, secrets } = await registry()
+    const { registry: records, values, control } = await registry()
     const orphan = machineSecretName(machine().registrationId)
     values.set(orphan, randomUUID())
-    const deletion = vi.spyOn(secrets, 'delete')
     await records.register(machine())
     const first = await records.get('printer')
     expect(first.registrationId).not.toBe(machine().registrationId)
@@ -180,13 +218,12 @@ describe('maker registry boundaries', () => {
     expect(second.registrationId).not.toBe(first.registrationId)
     expect(values.has(machineSecretName(second.registrationId))).toBe(true)
     expect(values.has(orphan)).toBe(true)
-    expect(deletion).toHaveBeenCalledExactlyOnceWith(machineSecretName(first.registrationId))
+    expect(control.deletions).toEqual([machineSecretName(first.registrationId)])
   })
   it('retains the pending record when registration rollback cannot delete its credential', async () => {
-    const { registry: records, values, secrets, write } = await registry()
-    const originalWrite = write.getMockImplementation()!
-    write.mockImplementationOnce(originalWrite).mockRejectedValueOnce(new Error('diskFull'))
-    vi.spyOn(secrets, 'delete').mockRejectedValueOnce(new Error('storeLocked'))
+    const { registry: records, values, control } = await registry()
+    control.failAfterWrites = 1
+    control.failNextDelete = 'storeLocked'
     await expect(records.register(machine(), randomUUID())).rejects.toThrow('storeLocked')
     expect(await records.list()).toMatchObject([{ id: 'printer', credentialPendingRemoval: true }])
     await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
@@ -195,10 +232,9 @@ describe('maker registry boundaries', () => {
     expect(values.size).toBe(0)
   })
   it('keeps removal pending when record finalization fails after deleting the key', async () => {
-    const { registry: records, values, write } = await registry()
+    const { registry: records, values, control } = await registry()
     await records.register(machine(), randomUUID())
-    const originalWrite = write.getMockImplementation()!
-    write.mockImplementationOnce(originalWrite).mockRejectedValueOnce(new Error('diskFull'))
+    control.failAfterWrites = 1
     await expect(records.remove('printer')).rejects.toThrow('diskFull')
     expect(values.size).toBe(0)
     await expect(records.get('printer')).rejects.toThrow('credentialPendingRemoval')
@@ -206,9 +242,8 @@ describe('maker registry boundaries', () => {
     expect(await records.list()).toEqual([])
   })
   it('rejects a stale revision without committing a record or deleting another credential', async () => {
-    const { registry: records, values, write } = await registry()
-    const original = write.getMockImplementation()!
-    write.mockImplementationOnce(original).mockResolvedValueOnce(false)
+    const { registry: records, values, control } = await registry()
+    control.staleAfterWrites = 1
     await expect(records.register(machine(), randomUUID())).rejects.toThrow(
       'machineRegistryChanged',
     )
