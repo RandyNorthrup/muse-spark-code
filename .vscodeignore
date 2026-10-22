@@ -142,6 +142,7 @@
 !dist/modelApiFileRange.js
 !dist/modelApiVerify.js
 !dist/modelApiImage.js
+!dist/modelApiAcp.js
 
 !dist/reporting.js
 !dist/reportingPanel.js

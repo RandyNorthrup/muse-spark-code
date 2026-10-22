@@ -8,12 +8,12 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 270,
+      "GENERIC": 263,
       "CLEANUP": 241
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 109,
+      "GENERIC": 106,
       "CLEANUP": 92
     },
     "root": {
@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 33,
-      "GENERIC": 198,
+      "GENERIC": 194,
       "CLEANUP": 130
     },
     "shared": {
@@ -90,7 +90,7 @@
     },
     {
       "file": "src/acp/agent.ts",
-      "identity": "2dfdfffaa611fd7ae736211e87669e2236903abf55bd6a6e9ec4aa825e33379c",
+      "identity": "15509d6d4b2dd765ffd586307b7cf730d47e3adb36ee9b23ffa8bbb7002ffab1",
       "class": "GENERIC"
     },
     {
@@ -535,7 +535,7 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "9063d0e82477e42e271745fefb13dbdad91fda680398ef5d5043896ca41234ac",
+      "identity": "2d95dcdd297fe4ff8448e76c1f4878b132bb16be609f0c09a24c143085488201",
       "class": "GENERIC"
     },
     {
@@ -1141,21 +1141,6 @@
     {
       "file": "src/core/judge/fast/inspectExec.ts",
       "identity": "41e2752639b5534dfa879f71609db8fe1f3fd06ca633096fd4cc7741f5c5d014",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/same/batches.ts",
-      "identity": "ea9c481bd1fb7f2a7fa009ea2e4643a20e972527539ee9dfba51e40cac98f6e7",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/same/scheduler.ts",
-      "identity": "48c5ce7f1c8a524379b8ce659429eafc53088e4f8616d5897ca4c0ed55596a4b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/use.ts",
-      "identity": "df4bff919899812ecba0ce6bd6e1ef041256b7d54276db5cc91e1017ed36af03",
       "class": "GENERIC"
     },
     {
@@ -2069,18 +2054,8 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/core/resources/events.ts",
-      "identity": "deeabc9abaf6cd4ff6fd48a981401300f3d3c1db4bfff882533829938da765c6",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/resources/governor.ts",
       "identity": "382b1f750ae6c83dba8097d7e6460db78e1d6feeb6d8190e520ad88afde58532",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/governor.ts",
-      "identity": "fa9fee15665abf0cf1c134090f9c7aa75c50f697fc5fc2a07eab40a8b685c425",
       "class": "GENERIC"
     },
     {
@@ -2141,16 +2116,6 @@
     {
       "file": "src/core/resources/queue.ts",
       "identity": "17c532919ad0b177b3fd2a7b9b50589eb18b6debc873c7ccb231ad94e3d50514",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/relocate.ts",
-      "identity": "d406c48c222b9c2a47e12e50af67aaf441b5977562ac56ca2e3e7e2e7b33bc7a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/relocate.ts",
-      "identity": "2814b0b45f842e596d3c110471ac04cb45b1c1a6d8a64f022b54d63c2d5bd78a",
       "class": "GENERIC"
     },
     {
@@ -3612,21 +3577,6 @@
       "file": "src/host/processTree.ts",
       "identity": "5b1c988ed59ddea44fbf0df9ebbf12f487295aa280353b42a77f91d292572e2f",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/prompts/promptEntry.ts",
-      "identity": "188f038cad76aab64ee04a4564d017064bc8b9c9d4d43003196bcbadb17d6e23",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/prompts/promptEntry.ts",
-      "identity": "1fff9bf7a123e4af09776c8a62d2529af90d19587c0a6b84c81d53f356b3d82a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/prompts/promptEntry.ts",
-      "identity": "e8cb2150cdc6b535c347a23eae0df41b1e035f1c2876709617a2aac5991e7b24",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/providers/chatgptSignIn.ts",
@@ -5279,11 +5229,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/resources/entry.ts",
-      "identity": "f39901d0ee6db00c71db8114cc59413fceb3c6faa69aabba577469f94dc80763",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/resources/history.ts",
       "identity": "8a251a950297260bfb01b893c3edb1821734d0320bd33ef24bb071a8c5c4ad9c",
       "class": "GENERIC"
@@ -5301,16 +5246,6 @@
     {
       "file": "src/runtime/resources/history.ts",
       "identity": "c36a390a6fceec930aec3f00d7c29cb38cb691c1a666521a7eda662ae3957287",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/resources/host.ts",
-      "identity": "5336fd5a49ea0d6b74a1e71d44ca803b24d451b9933d3536724becce4caa5a8a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/resources/host.ts",
-      "identity": "67bf7329945d2281204dfa94f6baf2173695fec74eab45d24ea8688e989bbf68",
       "class": "GENERIC"
     },
     {
@@ -5431,11 +5366,6 @@
     {
       "file": "src/runtime/schedules/surface.ts",
       "identity": "bcffe5165959a08cbff699309189539cc0f3b41f5a02cfb1bf834a709da29c5a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/sharing/sharingEntry.ts",
-      "identity": "116c0791ad8b330e0dc1938f16a5471b0b0a32f9c73e92d9a0f0d9867efa37f5",
       "class": "GENERIC"
     },
     {

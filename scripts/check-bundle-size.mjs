@@ -126,6 +126,10 @@ const BUDGETS = [
   // M105 lane V seam 5: the runtime's ACP and exec media port, loaded on the
   // first media prompt: 52.5 KiB measured +15%, rounded up to 25 KiB.
   { path: 'dist/runtimeMedia.js', budgetKiB: 75 },
+  // ACPDOG round 4: the settled-cost tally, translated refusal wording and
+  // alias-glob fallback, loaded with the Model API backend; 19.7 KiB
+  // measured + 15%, rounded up to 25 KiB (D6).
+  { path: 'dist/modelApiAcp.js', budgetKiB: 25 },
   { path: 'dist/runtimeAccounting.js', budgetKiB: 50 },
   // TRAIN15E: credentials/model references only; 7.7 KiB +15%, rounded to 25 KiB.
   { path: 'dist/providerPolicy.js', budgetKiB: 25 },

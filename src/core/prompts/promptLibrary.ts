@@ -75,7 +75,11 @@ export class PromptLibrary {
 
   /** Prepare ephemeral shares without storing the message or composer text. */
   public prepare(input: PromptDraft, existing?: SavedPrompt): SavedPrompt {
-    const draft = promptDraftSchema.parse(input)
+    // D121: titles and bodies have no ceilings, so a draft that fails its
+    // schema is malformed, never over a limit.
+    const parsed = promptDraftSchema.safeParse(input)
+    if (!parsed.success) throw new Error(UI_TEXT.promptFileInvalid)
+    const draft = parsed.data
     const now = this.identity.now()
     const names = promptVariableNames(draft.body)
     const prompt = validatePrompt({

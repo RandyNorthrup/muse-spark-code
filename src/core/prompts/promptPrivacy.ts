@@ -12,6 +12,30 @@ function pathPattern(root: string): string {
     .join(String.raw`[\\/]+`)
 }
 
+/** Account names are private in paths and identity fields, never as ordinary words. */
+export function scrubUserIdentity(text: string, user: string): string {
+  if (user === '') return text
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- escapePattern quotes username metacharacters; fixed Unicode boundaries and the callback limit replacement to path segments (PLAN.md §8).
+  const name = new RegExp(
+    String.raw`(?<![\p{L}\p{N}_])${escapePattern(user)}(?![\p{L}\p{N}_])`,
+    'giu',
+  )
+  const paths = text.replaceAll(name, (match: string, offset: number, input: string) => {
+    const before = input[offset - 1] ?? ''
+    const after = input[offset + match.length] ?? ''
+    const isSegment =
+      (before === '' || /[\\/\s"'`<>()[\]{},;:=]/.test(before)) &&
+      (after === '' || /[\\/\s"'`<>()[\]{},;:=]/.test(after))
+    return isSegment && /[\\/]/.test(`${before}${after}`) ? '[user]' : match
+  })
+  // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- escapePattern quotes username metacharacters; identity labels, delimiters and boundaries are fixed (PLAN.md §8).
+  const identity = new RegExp(
+    String.raw`((?<![\p{L}\p{N}_])(?:(?:user(?:name)?|owner|author|account|login)["']?\s*[:=]\s*|(?:owner|author|account|login)\s+)["']?)${escapePattern(user)}(?![\p{L}\p{N}_])`,
+    'giu',
+  )
+  return paths.replaceAll(identity, (_match: string, label: string) => `${label}[user]`)
+}
+
 /** In-memory values only. Hosts refresh them immediately before preview and release. */
 export function promptPrivacy(input: {
   readonly workspaceRoots: readonly string[]
@@ -41,12 +65,7 @@ export function promptPrivacy(input: {
       /file:\/\/[^\s<>"'`]+|(?:(?<!\w)[A-Za-z]:[\\/]|\\\\)[^\s<>"'`]+|(?<![\w:/\]])\/(?!\/)[^\s<>"'`]+/g,
       () => '[path]',
     )
-    if (input.user !== '')
-      result = result.replaceAll(
-        // nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp -- escapePattern quotes all username metacharacters; word boundaries and flags are fixed (PLAN.md §8).
-        new RegExp(String.raw`\b${escapePattern(input.user)}\b`, 'gi'),
-        () => '[user]',
-      )
+    result = scrubUserIdentity(result, input.user)
     return result
   }
   return {

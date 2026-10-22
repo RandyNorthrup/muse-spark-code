@@ -16,12 +16,12 @@ export function isPromptStoreDamaged(error: unknown): boolean {
 }
 
 /**
-The failure the person may read: a message from the known fixed list, or
-the fixed invalid words. The boundary discards the original cause by
-design (see below), so only this function's answer ever crosses it.
+The defined refusals every sharing surface reports, read at use time so
+the installed language is the one shown. The panel boundary and the
+headless command boundary (promptEntry.ts) keep the same list.
 */
-export function safePromptFailure(error: unknown): Error {
-  const safeMessages = [
+export function safePromptMessages(): readonly string[] {
+  return [
     UI_TEXT.promptFileInvalid,
     UI_TEXT.promptLimits,
     UI_TEXT.promptStoreDamaged,
@@ -37,6 +37,15 @@ export function safePromptFailure(error: unknown): Error {
     UI_TEXT.shareConfidential,
     UI_TEXT.shareCancelled,
   ]
+}
+
+/**
+The failure the person may read: a message from the known fixed list, or
+the fixed invalid words. The boundary discards the original cause by
+design (see below), so only this function's answer ever crosses it.
+*/
+export function safePromptFailure(error: unknown): Error {
+  const safeMessages = safePromptMessages()
   // The boundary discards the original cause: it may contain private paths or prompt text.
   return new Error(
     error instanceof Error && safeMessages.includes(error.message)

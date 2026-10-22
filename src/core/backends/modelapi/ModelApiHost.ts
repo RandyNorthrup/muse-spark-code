@@ -6,6 +6,14 @@ import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
 import type * as ModelApiTools from './modelApiToolsEntry'
+import {
+  costField,
+  foldChildCost,
+  newTally,
+  pathRefusal,
+  settleCost,
+  type CostTally,
+} from './modelApiAcpEntry'
 import { Usd, type UsdAmount, sumUsd, multiplyUsd, isPositiveUsd } from '../../../shared/usd'
 import {
   freezePaidQuote,
@@ -80,6 +88,7 @@ import {
   SETTING_DEFAULTS,
   type MEDIA_AUDIO_ACTION_OPTIONS,
   AUTH_REQUIRED_ERROR_KIND,
+  CREDENTIAL_STORE_ERROR_KIND,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
@@ -178,6 +187,7 @@ import {
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
 import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
+import { unknownModelRefText } from '../../unknownModel'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'
 import { SessionOwner, type SessionToken } from '../../schedules/sessionOwner'
 import {
@@ -227,6 +237,7 @@ import {
   type StartSessionOptions,
   SteerRefusedError,
   PromptSettledError,
+  SessionNotFoundError,
   type TurnPart,
   type TurnSubmission,
   type WithdrawOutcome,
@@ -639,6 +650,7 @@ type CompactionAttemptGuard = ResponseAttemptGuard & {
 export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDeps {
   /** Host restriction at both declaration and dispatch. */
   readonly toolAllowlist?: readonly string[] | undefined
+  readonly hostKind?: 'vscode' | 'acp' | 'cli' | 'exec' | undefined
   /** M105-A: M2 binds the attachment choices to the portable sound router in
   dist/media.js. Absent until that lane is integrated; no eager media load. */
   readonly prepareAudioMessage?: (request: {
@@ -1136,6 +1148,8 @@ interface ChildRecord {
   chargedGoalId: string | undefined
   /** Already displayed cost; the child settles its own resolved provider price. */
   costUsd: UsdAmount
+  /** The child's settled cost at the last fold into the parent's answer tally. */
+  mark: UsdAmount
   readonly waiters: Set<() => void>
   readonly pendingMessages: string[]
   followupAfterStop: string | undefined
@@ -2878,7 +2892,6 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     | undefined
   private readonly autoCompact = new AutoCompact()
-  private didReportCompactionEvaluation = false
   private readonly interruptedWork = new WeakSet<AbortController>()
   private modelHooksRuntime: typeof ModelHooksRuntime | undefined
   /** Interrupt survives the turn's abort, but never the session's lifetime. */
@@ -3028,7 +3041,14 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** Settled usage on this session alone: a child's deltas for its parent's display. */
   private usageCostUsd = Usd.from(0).toAmount()
   /** Some call of the conversation went out and reported no usage: its cost is unknown. */
+  /**
+  Settled dollars behind the `tokenUsage` totals, owned by the assist
+  bundle: every priced request at the model actually billed, children
+  included. The host holds one per session and never reads its fields.
+  */
+  private tally: CostTally = newTally()
   private hasUnknownBudgetCost = false
+  private didReportCompactionEvaluation = false
   /** How many calls went out and reported no usage: unknown, never counted as spent. */
   private unknownChargeCalls = 0
   /** The near-limit warning was said for what is left now; said again after a raise. */
@@ -3367,8 +3387,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
         ? await this.deps.models?.resolve(ref)
         : metaResolvedModel(ref, this.deps.client, planFacts)
-    if (model?.ref !== ref || !model.isCurrent()) {
-      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+    if (model?.ref !== ref) {
+      // Unknown: the sentence names the id as typed, the entry that was
+      // asked, and what the person can do. No request was sent.
+      throw new Error(unknownModelRefText(ref))
+    }
+    if (!model.isCurrent()) {
+      // Stale, not unknown: the record changed while resolving, so the
+      // stale sentence and its retry remedy are the true ones (as the
+      // provider registry itself answers a stale record).
+      throw this.staleRecordError()
     }
     if (ref.includes('/')) {
       this.modelKeyDigests.set(ref, await model.client.currentKeyDigest())
@@ -3382,7 +3410,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const found = this.resolvedModels.get(ref)
     if (found !== undefined) return found
     if (ref.includes('/') && this.deps.client.isPlanModel?.(ref) !== true)
-      throw new UserRefusalError(UI_TEXT.execUnknownModel, 'unknown_model')
+      throw new Error(unknownModelRefText(ref))
     return metaResolvedModel(ref, this.deps.client)
   }
 
@@ -5196,6 +5224,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       read(checks, JSON.stringify(checks), { kind: 'harness', operation: 'verify-settings' }, false)
     return {
       instructions: instructionsFor({
+        hostKind: this.deps.hostKind,
         identity: replayProducer(this.modelId),
         workspaceRoot: this.deps.workspaceRoot,
         platform: this.deps.platform,
@@ -6344,11 +6373,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (missed !== undefined) {
       this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
     }
-    const cost = (this.sendingModel ?? this.selectedModel(sentModelId)).price.settle(billable, {
+    const sentModel = this.sendingModel ?? this.selectedModel(sentModelId)
+    const cost = sentModel.price.settle(billable, {
       cost: usage.provider_cost_usd,
     })
     const hasKnownPrice = cost !== undefined
-    // An unpriced model's cost is unknown: shown and charged as unknown, never guessed (D208).
+    // The answer's cost is what the usage record computed for this request:
+    // settled here at the model it was sent to and carried on the usage event
+    // below. The assist bundle owns the tally; the ACP translator reads it.
+    // An unpriced model's cost stays unknown: shown and charged as unknown,
+    // never guessed (D208).
+    settleCost(this.tally, usage, cost, sentModel, this.hasAmbiguousCallAttempt)
     const costUsd = cost ?? Usd.from(0).toAmount()
     const nextUsage = {
       inputTokens: this.usage.inputTokens + billable.inputTokens,
@@ -6484,6 +6519,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       type: 'tokenUsage',
       ...this.usage,
       modelId: this.modelId,
+      // One source for cost: the settled dollars behind these totals, each
+      // request priced at the model actually billed. Absent while any of it
+      // is unpriced, so the answer never shows a partial tally.
+      ...costField(this.tally),
       ...(this.packing !== undefined && { packedTokensAvoided: this.packing.savings() }),
       ...(this.hookTokensAdded > 0 && { hookTokensAdded: this.hookTokensAdded }),
     })
@@ -10195,6 +10234,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         .subtract(Usd.from(child.costUsd))
         .toAmount()
       child.costUsd = child.session.usageCostUsd
+      // One source for cost: the child's settled dollars join the answer
+      // tally at the child's own models, never repriced here. A child with
+      // no displayable price hides the tally, as its tokens do.
+      child.mark = foldChildCost(this.tally, child.session.tally, child.mark)
       const nextUsage = {
         inputTokens: this.usage.inputTokens + inputDelta,
         outputTokens: this.usage.outputTokens + outputDelta,
@@ -11081,6 +11124,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       usage: { inputTokens: 0, outputTokens: 0, cachedTokens: 0, reasoningTokens: 0 },
       chargedGoalId: undefined,
       costUsd: Usd.from(0).toAmount(),
+      mark: child.tally.cost,
       waiters: new Set(),
       pendingMessages: [],
       followupAfterStop: undefined,
@@ -11347,7 +11391,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       (name === 'delegate' || name === 'merge') &&
       !(this.deps.isTeamTrusted?.() ?? this.deps.isWorkspaceTrusted())
     ) {
-      return toolFailure(MODEL_API_MODEL_TEXT.shellRestrictedMode)
+      return toolFailure(
+        this.deps.hostKind === undefined || this.deps.hostKind === 'vscode'
+          ? MODEL_API_MODEL_TEXT.shellRestrictedMode
+          : MODEL_API_MODEL_TEXT.runtimeNoShell,
+      )
     }
     if (
       this.approvalMode === 'denyUnmatched' &&
@@ -12166,7 +12214,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     // The loop's functions come from the lazy verify chunk (D6).
     const verify = await this.verifyFunctions()
     if (!this.deps.isWorkspaceTrusted())
-      return { outcome: toolFailure(MODEL_API_MODEL_TEXT.checkSkipRestricted) }
+      return {
+        outcome: toolFailure(
+          this.deps.hostKind === undefined || this.deps.hostKind === 'vscode'
+            ? MODEL_API_MODEL_TEXT.checkSkipRestricted
+            : MODEL_API_MODEL_TEXT.runtimeNoShell,
+        ),
+      }
     const configured = this.checkCommands()
     if (configured.length === 0) {
       return { outcome: toolFailure(MODEL_API_MODEL_TEXT.runChecksNone) }
@@ -13244,10 +13298,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     if ((toolClass === 'shell' || toolClass === 'mcp') && !this.deps.isWorkspaceTrusted()) {
       // Restricted Mode (PLAN.md D13): the tool is not offered, and a model
       // that calls it anyway is refused, never prompted.
-      const reason =
-        toolClass === 'mcp'
-          ? MODEL_API_MODEL_TEXT.mcpRestrictedMode
-          : MODEL_API_MODEL_TEXT.shellRestrictedMode
+      let reason: string
+      if (this.deps.hostKind !== undefined && this.deps.hostKind !== 'vscode') {
+        reason =
+          toolClass === 'mcp'
+            ? MODEL_API_MODEL_TEXT.runtimeMcpRefused
+            : MODEL_API_MODEL_TEXT.runtimeNoShell
+      } else {
+        reason =
+          toolClass === 'mcp'
+            ? MODEL_API_MODEL_TEXT.mcpRestrictedMode
+            : MODEL_API_MODEL_TEXT.shellRestrictedMode
+      }
       return { outcome: toolFailure(reason), isRejected: true }
     }
     const policy = this.policy()
@@ -13270,7 +13332,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     const target = toolClass === 'edit' ? await this.editTarget(call) : undefined
     if (target?.ok === false) {
       // A path the tool would refuse anyway is refused before any card.
-      return { outcome: toolFailure(target.reason), isRejected: false }
+      const refusedPath = pick(argumentsOf(call), 'path')
+      return {
+        outcome: pathRefusal(target, refusedPath),
+        isRejected: target.code === 'outside_workspace',
+      }
     }
     if (target?.ok === true && policy.files.isDenied([target.relative, target.canonical])) {
       return { outcome: deniedPath(target.relative), isRejected: true }
@@ -13717,6 +13783,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...started,
       status,
       visibleOutput: outcome.visibleOutput,
+      ...(outcome.refusalCode !== undefined && { refusalCode: outcome.refusalCode }),
       ...(outcome.exitCode !== undefined && { exitCode: outcome.exitCode }),
       ...(started.recordedAt !== undefined && {
         durationMs: Math.max(0, this.deps.now() - Date.parse(started.recordedAt)),
@@ -14136,6 +14203,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // about, not the end of the turn.
       result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
+    if (result.outcome.refusalCode !== undefined) result = { ...result, isRejected: true }
     if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
       prepared.provisionalSeen.clear()
     if (isParallelRead(effectiveCall.name) && this.externalTool(effectiveCall.name)?.kind !== 'mcp')
@@ -15898,6 +15966,12 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.emit({ type: 'backendNotice', level: 'warning', text: reason })
         } else if (error instanceof ChildTaskRefusedError) {
           errorKind = `subagent_${error.kind}`
+        } else if (
+          (error instanceof Error && error.name === 'StoreUnavailableError') ||
+          (isModelApiError(error) && error.code === CREDENTIAL_STORE_ERROR_KIND)
+        ) {
+          reason = UI_TEXT.acpCredentialStoreNoAnswer
+          errorKind = CREDENTIAL_STORE_ERROR_KIND
         } else if (error instanceof ContextOverflowError) {
           // TOOLCAP recovery (c): the true last word. With the provider's
           // own numbers, by how much and what the person can do; otherwise
@@ -18008,9 +18082,27 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.active !== undefined || this.compacting !== undefined) {
       throw new Error(TURN_RUNNING)
     }
+    // What /compact reports: the turns and replay entries it folded away.
+    const size = (): { turns: number; entries: number } => ({
+      turns: new Set(
+        this.replay
+          .filter((entry) => entry.turnId !== COMPACTION_TURN_ID)
+          .map((entry) => entry.turnId),
+      ).size,
+      entries: this.replay.length,
+    })
+    const before = size()
     const compacting = this.compactNow(summaryForkSource)
     this.track(compacting, true)
-    return await compacting
+    const outcome = await compacting
+    if (outcome.status !== ACCEPTED) return outcome
+    const after = size()
+    return {
+      ...outcome,
+      turns: before.turns - after.turns,
+      beforeEntries: before.entries,
+      afterEntries: after.entries,
+    }
   }
 
   /** Resolves after turns, compactions, Interrupt work and children's work end. */
@@ -18497,6 +18589,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.isSubagent || this.conversationAccountId === undefined) return
     const capUsd = this.currentBudgetCap()
     return {
+      exact: {
+        capUsd,
+        spentUsd: this.budgetSpentUsd,
+        uncertainUsd: Usd.from(0).toAmount(),
+        hasUnknownCost: this.hasUnknownBudgetCost,
+      },
       budget: {
         id: this.sessionId,
         kind: 'conversation',
@@ -18804,6 +18902,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         usage: { ...saved.session.usage },
         chargedGoalId: undefined,
         costUsd: session.usageCostUsd,
+        mark: session.tally.cost,
         waiters: new Set(),
         pendingMessages: [...saved.pendingMessages],
         followupAfterStop: undefined,
@@ -18954,6 +19053,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         usage: { ...child.usage },
         chargedGoalId: undefined,
         costUsd: session.usageCostUsd,
+        mark: session.tally.cost,
         waiters: new Set(),
         pendingMessages: [],
         followupAfterStop: undefined,
@@ -19590,7 +19690,8 @@ export class ModelApiHost implements AgentHost {
         return stored
       }
     }
-    throw new Error(`session ${sessionId} is not held by this window`)
+    // The ACP agent answers resource-not-found for an id no host holds.
+    throw new SessionNotFoundError(sessionId)
   }
 
   private async storedHistorySource(sessionId: string): Promise<StoredSession> {
@@ -19604,7 +19705,8 @@ export class ModelApiHost implements AgentHost {
       const stored = await this.storedSession(parentId)
       const child = stored.children?.find((entry) => entry.session.sessionId === sessionId)
       if (child === undefined) {
-        throw new Error(`session ${sessionId} is not held by this window`)
+        // Branded as above: no host holds this child id either.
+        throw new SessionNotFoundError(sessionId)
       }
       source = child.session
     }
@@ -19996,6 +20098,14 @@ export class ModelApiHost implements AgentHost {
     if (live !== undefined) {
       live.disposeAll()
     }
+    // List-watchers hear the row is gone (ACP `session/delete` semantics:
+    // a deleted session stays out of `session/list`).
+    notify<SessionListEvent>(
+      this.listListeners,
+      { type: 'closed', sessionId, reason: 'deleted' },
+      this.deps.log,
+      'modelApi.list',
+    )
   }
 
   /** A conversation or one of its private child transcripts (M48). */

@@ -648,7 +648,7 @@ describe('filterPalette', () => {
     const filtered = filterPalette(groups, 'DEPLOY')
     expect(filtered.map((group) => group.id)).toEqual(['skills'])
     expect(filtered[0]?.items.map((item) => item.id)).toEqual(['skill:acme:deploy'])
-    expect(filterPalette(groups, 'free the window').map((g) => g.id)).toEqual(['slash'])
+    expect(filterPalette(groups, 'free the context window').map((g) => g.id)).toEqual(['slash'])
     expect(filterPalette(groups, 'zzz')).toEqual([])
     expect(filterPalette(groups, '  ')).toBe(groups)
   })
@@ -714,7 +714,7 @@ describe('slashCommandsOf', () => {
       action: { type: 'openModelPicker' },
     })
     expect(commands.find((command) => command.name === 'compact')?.detail).toBe(
-      'Summarise older context to free the window',
+      'Summarise older context to free the context window',
     )
     // M45: /goal readies the prompt for an objective.
     expect(commands.find((command) => command.name === 'goal')?.action).toEqual({

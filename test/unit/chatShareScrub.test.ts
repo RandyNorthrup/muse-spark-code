@@ -25,8 +25,8 @@ describe('M118 always-on scrub', () => {
       redactRegisteredSecrets: (text) => text,
     })
     expect(
-      scrubShareText(`C:/work/${name}/src/main.ts C:/Users/${name}/data ${name}`, literal),
-    ).toBe('src/main.ts [home]/data [user]')
+      scrubShareText(`C:/work/${name}/src/main.ts C:/Users/${name}/data owner: ${name}`, literal),
+    ).toBe('src/main.ts [home]/data owner: [user]')
     expect(scrubShareText(`C:/work/${name}/src/main.ts`.replaceAll('/', '\\'), literal)).toBe(
       'src/main.ts',
     )
@@ -34,6 +34,28 @@ describe('M118 always-on scrub', () => {
       'AliceaaaaEnd unrelated words',
     )
   })
+  it.each(['user', 'admin', 'test', 'randy.northrup'])(
+    'preserves ordinary words while scrubbing %s identity and path segments',
+    (username) => {
+      const port = createChatSharePrivacy({ ...context, userName: username })
+      const ordinary = `Ask the user to admin the test. Say ${username}. {"scope":"user"}`
+      expect(scrubShareText(ordinary, port)).toBe(ordinary)
+      for (const relative of [
+        `team/${username}-guide/file`,
+        `team/prefix.${username}/file`,
+        `${username}.ts`,
+      ]) {
+        expect(scrubShareText(relative, port)).toBe(relative)
+      }
+      expect(scrubShareText(`owner ${username}; username="${username}"`, port)).toBe(
+        'owner [user]; username="[user]"',
+      )
+      expect(scrubShareText(`/home/Alice Example/work/team/${username}/file`, port)).toBe(
+        'team/[user]/file',
+      )
+      expect(scrubShareText(`team\\${username}\\file`, port)).toBe(String.raw`team\[user]\file`)
+    },
+  )
   it('redacts colon-prefixed private paths in both modes and every format', () => {
     for (const path of [
       'path:/srv/PrivateProject/config.json',
@@ -110,7 +132,8 @@ describe('M118 always-on scrub', () => {
       ['file:///C:/Users/Alice%20Example/work/src/a.ts', 'src/a.ts'],
       ['file://server/share/work/src/a.ts', 'src/a.ts'],
       ['/home/Alice Example/notes.txt', '[home]/notes.txt'],
-      ['Alice Example wrote this', '[user] wrote this'],
+      ['Author: Alice Example', 'Author: [user]'],
+      ['Alice Example wrote this', 'Alice Example wrote this'],
       ['/srv/Private Data/notes.txt', '[path] Data/notes.txt'],
       [String.raw`Z:\Private Data\notes.txt`, String.raw`[path] Data\notes.txt`],
       [String.raw`\\other\private\notes.txt`, '[path]'],
@@ -153,7 +176,7 @@ describe('M118 always-on scrub', () => {
   })
   it('scrubs every portable string in every format, including ids, names and chosen content', () => {
     const key = `LLM_${'K'.repeat(20)}`
-    const text = `${key} registered-value ${'a'.repeat(64)} alice@example.com Alice Example /home/Alice Example/work/src/a.ts`
+    const text = `${key} registered-value ${'a'.repeat(64)} alice@example.com owner: Alice Example /home/Alice Example/work/src/a.ts`
     const source = {
       sessionId: 's1',
       title: text,
@@ -231,4 +254,42 @@ describe('M118 always-on scrub', () => {
     value = 'second'
     expect(scrubShareText('first second', dynamic)).toBe('first [redacted]')
   })
+  it('reaches the RVDFACPERR5 fixed point: a username path segment scrubs once and stays', () => {
+    const review = createChatSharePrivacy({
+      workspaceRoots: ['/work'],
+      home: '/home/user',
+      userName: 'user',
+      redactRegisteredSecrets: (text) => text,
+    })
+    expect(scrubShareText('/work/team/user/src/main.ts', review)).toBe('team/[user]/src/main.ts')
+  })
+  it.each(['user', 'home', 'src', 'team'])(
+    'is a fixed point for %s across nested paths and both separators',
+    (user) => {
+      const roots = ['/work', String.raw`C:\work`, String.raw`\\server\share\work`]
+      for (const root of roots) {
+        const home = root.startsWith('C:') ? `C:\\Users\\${user}` : `/home/${user}`
+        const port = createChatSharePrivacy({
+          workspaceRoots: [root],
+          home,
+          userName: user,
+          redactRegisteredSecrets: (text) => text,
+        })
+        const messages = [
+          `${root}/team/${user}/src/main.ts`,
+          `${root}/team/${user}/src/main.ts`.replaceAll('/', '\\'),
+          `${root}/a/${user}/b/${user}/c.ts`,
+          `${home}/team/${user}/src/main.ts`,
+          `see ${root}/team/${user}/src/main.ts for details`,
+          `the ${user} opened ${root}/src/notes.ts`,
+          `owner: ${user}`,
+          `owner ${user}/team/notes`,
+        ]
+        for (const message of messages) {
+          const once = scrubShareText(message, port)
+          expect(scrubShareText(once, port), message).toBe(once)
+        }
+      }
+    },
+  )
 })

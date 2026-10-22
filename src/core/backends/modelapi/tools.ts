@@ -56,6 +56,7 @@ import {
   fileText,
   isDenied,
   locateHead,
+  type PathRefuser,
   resolveEditRanges,
   modelText,
   patchOutcome,
@@ -76,6 +77,7 @@ import {
   BROWSER_CHECK_PARAMETERS,
   BROWSER_CHECK_REQUIRED,
 } from '../../browser/browserTool'
+import { confinedGlob, pathRefusal } from './modelApiAcpEntry'
 import { confineWorkspacePath, normalizeModelPath } from '../../workspacePath'
 import type { GlobLimits } from './glob'
 import type { ListFilesCallArgs, SearchCallArgs } from './searchPaging'
@@ -557,6 +559,8 @@ export interface TouchedFiles {
 }
 
 export interface ToolOutcome {
+  readonly refusalCode?: 'outside_workspace'
+
   /** Owned process exit, retained separately from its human-readable output. */
   readonly exitCode?: number
   /** What the model receives as the function result. */
@@ -1452,6 +1456,7 @@ interface RangeCalls {
       readonly byteLength?: number | undefined
     },
     context: ToolContext,
+    refuse?: PathRefuser,
   ): Promise<ToolOutcome>
   editFileByRange(
     args: {
@@ -1462,6 +1467,7 @@ interface RangeCalls {
     singles: readonly { readonly find: string; readonly replace: string }[],
     hasEdits: boolean,
     context: ToolContext,
+    refuse?: PathRefuser,
   ): Promise<ToolOutcome>
 }
 /**
@@ -1520,6 +1526,26 @@ interface SearchCalls {
 const searchCallsLoad: { promise: Promise<SearchCalls> | undefined } = {
   promise: undefined,
 }
+/**
+A search or listing pattern under the workspace's spelling rules (RLACP):
+a pattern outside the workspace refuses in the translated outside-workspace
+words, and an alias spelling (a Windows 8.3 short name) is rewritten onto
+the real folder. The deferred execution helpers then match the confined
+pattern; this runs in dist/modelApi.js, the one bundle that may reach the
+assist bundle.
+*/
+async function confineGlobArgs<T extends { readonly glob?: string | undefined }>(
+  args: T,
+  context: ToolContext,
+): Promise<
+  { readonly ok: true; readonly args: T } | { readonly ok: false; readonly outcome: ToolOutcome }
+> {
+  const checked = await confinedGlob(args.glob, context)
+  return checked.ok
+    ? { ok: true, args: { ...args, glob: checked.glob } }
+    : { ok: false, outcome: pathRefusal(checked, args.glob) }
+}
+
 async function loadSearchCalls(): Promise<SearchCalls> {
   searchCallsLoad.promise ??= (async (): Promise<SearchCalls> => {
     const entry = await import('./modelApiToolsEntry.js')
@@ -1545,12 +1571,16 @@ async function readFile(
       loadFileRangeTools,
       `${MODEL_API_TOOLS.readFile} needs byte addressing for \`${args.path}\`, but its helpers (dist/modelApiFileRange.js) could not be loaded; try the call again`,
     )
-    return loaded.ok ? await loaded.calls.readFileByRange(args, context) : loaded.outcome
+    return loaded.ok
+      ? await loaded.calls.readFileByRange(args, context, (refusal) =>
+          pathRefusal(refusal, args.path),
+        )
+      : loaded.outcome
   }
   const resolved = await readablePath(args.path, context)
   context.signal?.throwIfAborted()
   if (!resolved.ok) {
-    return failure(resolved.reason)
+    return pathRefusal(resolved, args.path)
   }
   if (isDenied(resolved, context)) {
     return failure(`${resolved.relative} ${MODEL_API_MODEL_TEXT.pathDeniedByPolicy}`)
@@ -1654,7 +1684,7 @@ async function located(
     }
   | { readonly ok: false; readonly outcome: ToolOutcome }
 > {
-  const head = await locateHead(given, context)
+  const head = await locateHead(given, context, (refusal) => pathRefusal(refusal, given))
   if (!head.ok) {
     return head
   }
@@ -1791,7 +1821,9 @@ async function editFile(
       `${MODEL_API_TOOLS.editFile} needs byte addressing for \`${args.path}\`, but its helpers (dist/modelApiFileRange.js) could not be loaded; try the call again`,
     )
     return loaded.ok
-      ? await loaded.calls.editFileByRange(args, singles, hasEdits, context)
+      ? await loaded.calls.editFileByRange(args, singles, hasEdits, context, (refusal) =>
+          pathRefusal(refusal, args.path),
+        )
       : loaded.outcome
   }
   const file = await located(args.path, context)
@@ -2046,7 +2078,9 @@ export async function executeTool(
         loadSearchCalls,
         `${MODEL_API_TOOLS.search} needs its execution helpers, but its helpers (dist/modelApiTools.js) could not be loaded; try the call again`,
       )
-      return loaded.ok ? await loaded.calls.search(parsed.data, context) : loaded.outcome
+      if (!loaded.ok) return loaded.outcome
+      const confined = await confineGlobArgs(parsed.data, context)
+      return confined.ok ? await loaded.calls.search(confined.args, context) : confined.outcome
     }
     case MODEL_API_TOOLS.listFiles: {
       const parsed = listFilesArgs.safeParse(raw)
@@ -2055,7 +2089,9 @@ export async function executeTool(
         loadSearchCalls,
         `${MODEL_API_TOOLS.listFiles} needs its execution helpers, but its helpers (dist/modelApiTools.js) could not be loaded; try the call again`,
       )
-      return loaded.ok ? await loaded.calls.listFiles(parsed.data, context) : loaded.outcome
+      if (!loaded.ok) return loaded.outcome
+      const confined = await confineGlobArgs(parsed.data, context)
+      return confined.ok ? await loaded.calls.listFiles(confined.args, context) : confined.outcome
     }
     case MODEL_API_TOOLS.bash:
     case MODEL_API_TOOLS.powershell: {

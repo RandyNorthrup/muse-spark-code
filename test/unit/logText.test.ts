@@ -4,7 +4,12 @@
 
 import { MspError } from '@muse-code/sdk'
 import { describe, expect, it } from 'vitest'
-import { causeForLog, failureForLog, stderrForLog } from '../../src/core/backends/musecode/logText'
+import {
+  causeForLog,
+  failureForLog,
+  internalFaultForLog,
+  stderrForLog,
+} from '../../src/core/backends/musecode/logText'
 import { CreatedRegistrySaveError } from '../../src/shared/createdRegistrySaveError'
 import { wireWordForLog } from '../../src/core/logging'
 import { DeadlineError } from '../../src/core/timeouts'
@@ -104,6 +109,18 @@ describe('causeForLog', () => {
     expect(causeForLog(new DeadlineError('Muse Code did not answer task/stopAll in time'))).toBe(
       'Muse Code did not answer task/stopAll in time',
     )
+  })
+})
+
+describe('internalFaultForLog', () => {
+  it('names the root only at cause-aware sites while legacy readers name the outer error', () => {
+    const root = new TypeError(PERSONAL)
+    const wrapped = new Error('sanitized boundary', {
+      cause: new Error('another wrapper', { cause: root }),
+    })
+    expect(internalFaultForLog(wrapped)).toBe('TypeError')
+    expect(failureForLog(wrapped)).toBe('Error')
+    expect(internalFaultForLog(wrapped)).not.toContain(PERSONAL)
   })
 })
 

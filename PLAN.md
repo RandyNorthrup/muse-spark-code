@@ -144,6 +144,8 @@ clear and hook/event checks remain explicit lead-run scenarios in
 `docs/certification/muse-restart-model.md`; lane gates and provider-free
 packed-product commands are measured separately.
 
+**CMDSAY: editor commands answer, notices leave model text, refusals name the model (2026-10-12, macmini; lane ACPSAY).** Three real-life findings on the 0.18.x product, fixed as classes. (1) Every local editor-protocol command ends with something the person can read: `/compact` reports turns folded and sizes before/after (the editor protocol reads it from one sentence source; the panel shows the same sentences), and the two remaining silent turns (`/accounts` with no sentence, a `/usage` stopped before its first sentence) now refuse or report stopped instead of ending the turn. (2) A product status is never model text: every `backendNotice` goes through the SDK 1.7.0 `notice` channel on the editor protocol (empty notices are dropped), on both backends through the one translator; where the editor shows notices they travel the protocol's own notice channel, otherwise as a separate message. (3) Every product-decided model/effort refusal names the id as typed, the entry that does not offer it, and the remedy (`providers list` for provider entries; an offered model or effort in a session), sharing the model sentence source while the editor-session effort wording sits beside the kept session sentence until the follow-up unifies them; a provider entry's own list is checked before any request is sent. A provider's own wire refusal stays the provider-refusals lane's. Certification: `docs/certification/editor-commands-answer.md`.
+
 **VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
 mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
 that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
@@ -2868,79 +2870,14 @@ bundled. The manifest moves to `package.nls.json` and
 
 ### D34 — The paid features, as built (2026-09-25)
 
-The owner said "do it" (2026-09-25) to M33–M35 under D30's five rules. What
-Meta's documentation says (read 2026-09-25, public pages, no key used or
-spent; the Muse Code subscription never pays for any of this, D30):
-
-- **Web search** is a Responses tool, `{"type": "web_search"}`, billed at
-  $2.50 per 1,000 search queries on top of tokens. `include:
-["web_search_call.results"]` adds the results (title, URL, snippet) to
-  each `web_search_call` item. Replies carry `url_citation` annotations,
-  complete only once the response is ("the cookbook"). Earlier
-  `web_search_call` items may be replayed. The usage object has no search
-  count, and Meta does not say how a call with several queries, or one that
-  opened a page, is counted.
-- **Images** are `POST /v1/images/generations` with `muse-image-1.0`: $0.01
-  per image returned, whatever its size; failed and filtered ones are not
-  billed. `size` sets only the aspect ratio. `b64_json` returns the image
-  inline; `output_format` takes png, jpeg or webp.
-- **Muse Voice Transcribe** is not OpenAI-shaped: `wss://api.meta.ai/v1/asr/realtime`,
-  whose first text frame carries the key (Meta ignores the Authorization
-  header there) and the audio format; binary frames of 16-bit mono PCM at
-  16 or 24 kHz, paced at real time; `{"type":"endStream"}` at the end.
-  Push-to-talk mode sends cumulative partials and marks the final one.
-  $0.18 per hour of audio, rounded down to whole seconds.
-
-The choices:
-
-- **The gate.** A feature is on only when its setting is on _and_ the user
-  accepted its price in a modal that names it; the acceptance lives in the
-  extension's global state. A setting turned on anywhere (the palette, the
-  Settings editor, settings.json, another window, while VS Code was closed)
-  is confirmed by the focused window when it notices; a declined
-  confirmation turns the setting back off; turning a setting off forgets the
-  acceptance. The three settings are machine-scoped (D15), so a repository
-  cannot turn one on.
-- **Loud.** The composer's badge names every paid feature that is on, with
-  the prices in its tooltip, on the Model API backend only (the one that
-  uses them); the palette's toggles live there too. Each search and each
-  image is its own transcript row marked "paid", with the price in its
-  tooltip; the microphone is ringed and says "Muse Voice (paid)" while that
-  is its engine. Account & usage shows this window's count of each and its
-  estimated cost.
-- **Search.** The tool is sent only while the feature is on, never in a
-  compaction. Rows complete on `output_item.done`, or from the completed
-  response when the stream never finished them. Each query is counted, and
-  a call that opened a page counts once, so the estimate errs high; a failed
-  search is not counted. A reply's sources are listed under it, taken again
-  from the completed response. The search is replayed without its results.
-- **Images.** `generate_image` (prompt, workspace path ending in `.png`,
-  square, landscape or portrait) is offered only while the feature is on.
-  Every call asks, in every mode, Bypass included, with "Allow once" and
-  "Reject" only (superseded by D48: the paid-use popup, which adds "Allow
-  always in this workspace"); Plan refuses it, since it writes a file. The card is not a
-  file write, so Edit automatically never answers it, and it shows the
-  prompt and the price. What cannot be saved is refused before the card (a
-  taken path, a wrong extension, a path outside the workspace, a prompt
-  over 4,000 characters), so nothing is billed for it. After the card the
-  gate is checked again, and the file is reserved (created empty,
-  exclusively) before the image is bought, so a feature turned off or a path
-  taken while the card was open costs nothing. The request retries a 429
-  only: a lost connection or a server error may have made and billed an
-  image. The reply must start with the PNG signature, and the file is
-  created, never overwritten (the review of PR #27).
-- **Muse Voice.** The microphone's engine is Muse Voice while the feature is
-  on and the window runs on the Model API key; otherwise the free recogniser
-  as before. The audio comes from a capture helper speaking the helper
-  protocol with one more line, `audio`: `native/windows/capture.ps1` (the
-  waveIn API through a C# type Windows PowerShell compiles when the helper
-  starts), the Swift helper's `--capture` mode (AVAudioEngine, microphone
-  permission only), or on Linux the system's `arecord` or `parec`. Audio
-  recorded before the stream is up is held, then sent; the final text lands
-  at the caret; every whole second sent is counted. Turned off (or the
-  backend changed) mid-recording, the recording stops at once and the
-  transcript of what was already sent still lands (the review of PR #27).
-  Linux gets a microphone for the first time, on the paid engine only.
+The owner said "do it" (2026-09-25) to M33-M35 under D30's five rules: the
+paid features (web search, image generation, voice transcription) sit behind
+the paid gate — a feature is on only while its setting is on and the price was
+accepted, acceptances live in the extension's global state, and the
+subscription never pays. Prices and wire shapes were read from Meta's public
+pages on 2026-09-25; the code's tariffs and the paid gate are the record
+since. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ### D35 — Replay as Meta validates it (2026-09-25)
 
@@ -15378,6 +15315,14 @@ limit of ours. The connector stays legacy-only: the spec requires
 nothing of legacy servers and none of its clients speaks only the new
 era. Full record: `docs/certification/rlmcpera.md`.
 
+### D214 — The stabilized ACP surface is answered, on SDK 1.8.0 (lane ACPGAPS, 2026-10-12; numbered D108 on its branch until the 0.19.0 join, when that number was found shared with the test overhaul; numbered D212 until the int/recovery join of 2026-10-22, when that number was found shared with secondary roles)
+
+An editor that calls a stabilized method gets the documented answer, never
+"method not found"; shapes rest on the pinned SDK 1.8.0 schema or a protocol
+page read 2026-10-12, and stay UNVERIFIED until a real editor confirms them
+(capture plan and certification record are linked in the full record). Full
+record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -16787,6 +16732,18 @@ every branch.
   existing contributor confirmation; a person not entitled hears the
   provider's own refusal.
 
+### ACPDOG — ACP and headless dogfood repairs (2026-10-11; lane RLACP)
+
+**Status 2026-10-22: building.** The advisory-answer,
+settlement-pricing, error-cause, accounting-metadata, workspace-refusal and
+host-fact repairs land here; the fake-driven loopback/store suites stay
+deleted per the test overhaul, and the behaviours they covered are proven
+by real-code unit suites plus the packed-product real-life run instead.
+Notices go out only where the client advertises them (pinned ACP 1.8.0
+schema). Protocol accounting reads the journal's settled records with
+explicit uncertainty. Certification: `docs/certification/acp-dogfood.md`
+(branch record) and `docs/certification/rlacp.md` (this join).
+
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
 **Status 2026-10-09: built.** On the provider branch for 0.17.1.
@@ -17934,44 +17891,73 @@ Lane G third round (RVM123G2, 6 P1 + 6 P2, 2026-10-09, branch `m123/g3`, Windows
   - [ ] No live call without the lead; the optional live check is counted.
   - [ ] Codex reviews each lane class in one pass before push.
 
+### DFACPERR — Honest ACP refusals (2026-10-10)
+
+**Status 2026-10-10: built.** Certification:
+`docs/certification/dfacperr-acp-refusals.md`. Review RVDFACPERR (round 1)
+and this lane's round-2 repair of all seven findings (1 P1, 4 P2, 2 P3),
+plus the same-day round-3 repair of review RVDFACPERR2's single P3, plus
+the same-day round-4 repair of review RVDFACPERR3's three findings
+(1 P2, 2 P3), round-5 repair of all RVDFACPERR4 findings (4 P2,
+1 P3), and round-6 repair of review RVDFACPERR5's single P2 (a username
+path segment refused its own unchanged export). Round 5 classifies invalid imported files
+at their input boundaries (titles and bodies have no ceilings per D121),
+preserves typed headless argument refusals, and
+routes the native Prompt Library and panel initialization through the safe
+catch and failed-promise eviction. Privacy adapters scrub account names only
+in path segments or identity fields, preserving common words and structural
+metadata. Regressions cover user/admin/test and a personal-looking username;
+certification scopes names-only cause logging to its actual readers and
+reruns the formerly timing-out lifecycle test at repository deadlines.
+
+- **Scope.** Every ACP failure maps to the right JSON-RPC error with a
+  product-owned, localized, privacy-safe message: defined refusals read as
+  invalid request (-32600) with their own sentence, bad caller arguments as
+  invalid params (-32602) with the flag that carried them, and genuine
+  internal faults stay internal errors (-32603) with a fixed reason and no
+  raw exception text in `error.data`. Exactly one `RequestError` identity:
+  the engine owns the constructor; the lazy sharing bundle carries failures
+  across as `AcpSharingFailure` (read with `isAcpSharingFailure`, never
+  `instanceof`). Mode/model/effort commands against a backend session Muse
+  Code evicted or closed read as a missing resource (-32002).
+- **Out of scope.** Turn-path backend failures keep their terminal channel;
+  schedules/estimate/reports/playbook-unbound paths keep their chat text;
+  no new command, setting, string or dependency.
+- [x] Sharing adapter carries no SDK copy; the engine maps bundle-crossing
+      failures by name and code (P1), covered by an in-memory bundle test.
+- [x] Caller-owned mini-zod validation fails as -32602 naming its flag;
+      service-data validation stays internal (P2 validation).
+- [x] `SessionNotLoadedError` on mode/model/effort reads as -32002 (P2 lifecycle).
+- [x] Legal and vault catch-alls distinguish the defined refusal from
+      genuine faults, which stay -32603 (P2 classification).
+- [x] Unexpected sharing errors reach the wire sanitized; parser errors read
+      in the installed language (P2 privacy, P3 localization).
+- [x] Every fix has a regression test that fails without it and a recorded
+      red drill with a byte-exact restore.
+- [x] Unexpected sharing/prompt-store faults read as -32603 with the fixed
+      could-not-complete reason and a server-side log entry, never as a
+      prompt-file error (RVDFACPERR2 P3).
+- [x] The server-side entry names the underlying fault (the failure rides
+      as `cause`; RVDFACPERR3 P2), and headless `share`/`prompts` plus the
+      editor prompt boundary keep defined refusals while reporting genuine
+      faults as internal errors (RVDFACPERR3 P3).
+- [x] Caller-file/schema/UTF-8 and malformed-draft refusals keep their
+      localized reasons (titles and bodies have no ceilings per D121, so a
+      draft that fails its schema reads as an invalid prompt file, never a
+      size limit); native Library and panel initialization sanitize and
+      retry;
+      headless typed arguments retain their flag; common usernames preserve
+      ordinary exports while complete path segments/identity fields remain
+      scrubbed. Certification records the actual logging scope (RVDFACPERR4).
+- [x] Every scrub marker is atomic from the single shared list, so the
+      confirmation re-scrub is a fixed point and an unchanged username-path
+      export releases in every format and mode (RVDFACPERR5 P2).
+
 ### M122 — Public roadmap (2026-10-08)
 
 **Status 2026-10-08: built.** Certification: `docs/certification/roadmap.md`.
 
-- **Goal.** A public `ROADMAP.md` that cannot go stale silently. It is
-  generated by `scripts/gen-roadmap.mjs` from this plan's milestone ids and
-  status lines (through the same reader as `check:plan`), `CHANGELOG.md`'s
-  dated release headings, §10's preparation and release records, and the
-  curated user-facing words in `docs/roadmap/entries.json` (one entry per
-  milestone; internal work is `"public": false` with a note).
-- **Sections.** Each version with only preparation records in §10 gets its
-  own _In the next release (X.Y.Z)_ section, oldest first (RVROADMAP F10:
-  an older preparation is never listed as shipped when a newer one starts);
-  _Shipped_ groups every other changelog version, newest first. A built, merged, certified,
-  complete or released milestone with a named release is listed under it;
-  one without a release is _In progress_ ("not in a release yet"). Building
-  and waiting milestones are _In progress_; planned ones are _Planned_
-  unless an entry names the release that shipped their first parts, which
-  makes them _In progress_ with that note (and the generator prints the
-  stale plan status). Superseded milestones are listed nowhere, and only
-  `M…` ids are rendered as reference tags.
-- **Gate.** `npm run check:roadmap` (in `quality:gates` and the CI static
-  gates) fails when `ROADMAP.md` differs from the generated text, when a
-  milestone has no entry, when an entry names a milestone this plan does
-  not have, and on malformed entries: a missing or non-string id, unknown
-  keys, a public entry without one-sentence summary, area or valid release,
-  milestone, decision or working ids in the public words (any case), or a
-  released milestone without its release. A preparation record without a
-  dated changelog heading also fails. `ROADMAP.md` carries a source
-  fingerprint (milestone ids, headings, statuses and status dates, §10
-  record versions, dates and kinds, changelog headings, every entry), so any
-  change to those facts fails the check until regenerated, even when the
-  listing reads the same. Rules: `scripts/lib/roadmap.mjs`; fixture tests:
-  `test/unit/genRoadmap.test.mjs`.
-- **Release step.** Preparing a release adds its `X.Y.Z preparation (…)`
-  record here in §10; publishing it adds `X.Y.Z released (…)`. Regenerate
-  after each (`npm run roadmap:generate`) so the release moves from _In the
-  next release_ to _Shipped_.
+- **Archived.** The record that stood here is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### PORTS017 — Exact current money ports (2026-10-08)
 
@@ -25369,6 +25355,13 @@ Emacs, Neovim and JupyterLab by hand and in `hosts.yml` jobs deleted on
 `registry/muse-spark-code/`, otherwise PR #661's own; the registry's own
 build and `--auth-check` pass against the published package. Push and
 merge still to come.
+
+**Status 2026-10-22 (RLACP recovery, macmini): built.** The ACPGAPS
+stable methods, the dogfood fixes, the refusal-honesty fixes and the
+ACPSAY editor answers landed from `src/RLACP/01`, `02`, `04` and `05`
+(`03` empty) onto 0.19.0, reconciled with the merged error-truth and
+the no-invented-limits rule; evidence in `docs/certification/rlacp.md`.
+M63b real conversations in Zed, Neovim and Emacs are recorded there.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
@@ -37366,19 +37359,25 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | core/resources/bootstrap.ts | detect-child-process nosemgrep on spawn    | The shared compiler boundary holds heavy admission, strips credentials, caps output, stops only on the caller's own cancel or deadline (none of ours, 2026-10-21), and observes exit; it cannot use its not-yet-built containment helper. | Keep the bootstrap-tier boundary guarded by native tree and admission regressions. |
 | core/resources/bootstrap.ts | detect-child-process nosemgrep on taskkill | Fixed trusted OS terminator, owned numeric PID, empty credential environment and bounded output, with no deadline of ours (2026-10-21); termination must remain usable at pause.                                                          | Retain the native whole-tree drill; compiled payloads use jobs.                    |
 
-| 0.15.0 hosted-CI location                                                                                                                                                                      | Escape hatch                                                                                                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`)                                                                                           | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                                   | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                        | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
-| `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                                                                                                               | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                          | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS. | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
-| `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                                                                                                          | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                                        | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                              | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
-| `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                                                                                                                | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                                      | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                               | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
-| `package.json` `typecheck:unit`                                                                                                                                                                | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                           | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                             | Remove when the unit project fits the default heap (smaller project references).                                                                          |
-| `test/unit/vsixCompression.test.mjs`                                                                                                                                                           | `REAL_VSIX_COMPRESSION_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                  | Python writes a real archive and the real compressor rewrites it at maximum compression; hosted Windows with coverage timed out at 5 s (5.9 s measured).                                                                                                                                                                                                                                         | Compress a smaller real table at a lower level for the metadata checks and keep one full-size case in the packaging job.                                  |
-| `test/unit/whatsNewContent.test.ts` (real CHANGELOG cases)                                                                                                                                     | `REAL_CHANGELOG_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                         | The cases parse and encode every release of the real CHANGELOG.md; hosted macOS with coverage timed out at 5 s (5.4 s measured).                                                                                                                                                                                                                                                                 | Parse the real changelog once per file and share the result between the cases.                                                                            |
-| `test/unit/usageCompanionChunks.test.ts`                                                                                                                                                       | `REAL_BROWSER_PAGE_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                      | The case loads the real shared vendor and Usage bundles in a real Chromium page; hosted macOS with coverage timed out at 5 s.                                                                                                                                                                                                                                                                    | Build the bundles in `beforeAll` (its own hook deadline), leaving only the page load in the case.                                                         |
-| `test/unit/ReferencePage.test.tsx` (C03)                                                                                                                                                       | `FULL_REFERENCE_SEARCH_TIMEOUT_MS` (20 s) per-case deadline (the handoff refusal case is back on the default after rel017ci removed its per-string matcher rebuild)          | The case loops over several reference sections; hosted runners with coverage took 4.7 s, within half a second of the default.                                                                                                                                                                                                                                                                    | Split the loop into `it.each` cases, then return to the default deadline.                                                                                 |
-| `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)                                                                                                        | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                                 | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                     | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
-| `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four.                                                  | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s.     |
+| 0.15.0 hosted-CI location                                                                            | Escape hatch                                                                                                                                                        | Reason                                                                                                                                                                                                                                                                                                                                                                                           | Removal                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/teamHintsAndLoad.test.ts` (`native owner-only folder`, `native Windows hint permissions`) | `NATIVE_WINDOWS_HINT_TIMEOUT_MS` (30 s) per-suite deadline instead of the 5 s unit default                                                                          | Each native Windows hint read starts Windows PowerShell and compiles the C# hint reader (`windowHints.ts`); two or three per test land at about 5 s on a cold hosted runner (reproduced at 5,045 ms on a local Windows 11 host). The suites test real ACL and handle behaviour, so faking them would remove the evidence.                                                                        | Precompile `MuseTeamHintReader` once into the cached, content-addressed job assembly (as `MuseSparkJob`), then return the suites to the default deadline. |
+| `test/unit/usageL10nGate.test.mjs` (`beforeAll`)                                                     | `L10N_GATE_SETUP_TIMEOUT_MS` (30 s) setup deadline instead of the 10 s hook default                                                                                 | Setup runs one cold, complete localization gate over the copied sources: a TypeScript parse of every file naming a text table. Hosted macOS with coverage exceeded 10 s. The gate now caches parses by content and skips files without a table name, so later checks take about 2 s instead of 21 s; the duplicate cold CLI build was removed, since CI's static gates run that CLI on every OS. | Narrow the load-order scan to files that import a text table, or ship it as its own gate step, then return to the default hook deadline.                  |
+| `test/unit/teamNativeLifetime.test.ts` (`M96 K real native lifetime`)                                | `NATIVE_PROCESS_SUITE_TIMEOUT_MS` (20 s) per-suite and setup deadline                                                                                               | Each case starts the team host, journals and the fake CLI as real processes over real pipes; the first case exceeded 5 s on hosted macOS with coverage, and the setup that compiles the Windows job helper exceeded 10 s in a loaded Windows shard.                                                                                                                                              | Start one shared fake-CLI host per file in `beforeAll` and reuse it across cases, then return to the default deadline.                                    |
+| `test/unit/teamHarness.test.mjs` (`RVM96B browser regressions`)                                      | `REAL_HARNESS_CASE_TIMEOUT_MS` (20 s) per-case deadline                                                                                                             | Each case opens a fresh page and loads the full production webview bundle from a local server; one case passed 5 s in a loaded hosted Windows shard with coverage.                                                                                                                                                                                                                               | Reuse one page per theme with in-page scenario switching, then return to the default deadline.                                                            |
+| `package.json` `typecheck:unit`                                                                      | `--max-old-space-size=4096` for the single unit TypeScript program                                                                                                  | Measured peak 2.48 GB (`--extendedDiagnostics`, 2026-10-07), above Node's default heap on hosted macOS; splitting the project instead re-checked shared sources and pushed the static gate past its 15-minute limit.                                                                                                                                                                             | Remove when the unit project fits the default heap (smaller project references).                                                                          |
+| `test/unit/vsixCompression.test.mjs`                                                                 | `REAL_VSIX_COMPRESSION_TIMEOUT_MS` (30 s) per-case deadline                                                                                                         | Python writes a real archive and the real compressor rewrites it at maximum compression; hosted Windows with coverage timed out at 5 s (5.9 s measured).                                                                                                                                                                                                                                         | Compress a smaller real table at a lower level for the metadata checks and keep one full-size case in the packaging job.                                  |
+| `test/unit/whatsNewContent.test.ts` (real CHANGELOG cases)                                           | `REAL_CHANGELOG_TIMEOUT_MS` (30 s) per-case deadline                                                                                                                | The cases parse and encode every release of the real CHANGELOG.md; hosted macOS with coverage timed out at 5 s (5.4 s measured).                                                                                                                                                                                                                                                                 | Parse the real changelog once per file and share the result between the cases.                                                                            |
+| `test/unit/usageCompanionChunks.test.ts`                                                             | `REAL_BROWSER_PAGE_TIMEOUT_MS` (30 s) per-case deadline                                                                                                             | The case loads the real shared vendor and Usage bundles in a real Chromium page; hosted macOS with coverage timed out at 5 s.                                                                                                                                                                                                                                                                    | Build the bundles in `beforeAll` (its own hook deadline), leaving only the page load in the case.                                                         |
+| `test/unit/ReferencePage.test.tsx` (C03)                                                             | `FULL_REFERENCE_SEARCH_TIMEOUT_MS` (20 s) per-case deadline (the handoff refusal case is back on the default after rel017ci removed its per-string matcher rebuild) | The case loops over several reference sections; hosted runners with coverage took 4.7 s, within half a second of the default.                                                                                                                                                                                                                                                                    | Split the loop into `it.each` cases, then return to the default deadline.                                                                                 |
+| `test/unit/legalScan.test.ts` (scan cap), `test/unit/checkBadges.test.mjs` (CLI wiring)              | `LEGAL_CAP_SCAN_TIMEOUT_MS`, `COLD_CLI_TIMEOUT_MS` (15 s) per-case deadlines                                                                                        | The cap case scans one file past the scan limit and the wiring case starts the badge CLI cold under Node; hosted runners with coverage took 3.5 s and 3.1 s.                                                                                                                                                                                                                                     | Lower the cap in a test-only scanner option; check the CI override in-process instead of a cold CLI.                                                      |
+
+| RLACP escape (2026-10-22)                                                                                                                                                                      | Reason                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test/unit/acpTranslate.test.ts`: `'not-a-decimal' as UsdAmount`                                                                                                                               | Intentional malformed carried-cost port: the translator must hide the cost instead of throwing. No valid constructor produces a non-decimal branded amount, so the probe bypasses the brand the way the wire can. Test-only; the priced-cost control beside it uses `Usd.from(...).toAmount()`. |
+| `scripts/lib/catch-inventory.mjs`: `internalFaultForLog` in `REDACTING_FNS`                                                                                                                    | The formatter unwraps `cause` chains and returns `failureForLog`'s own words (a name or kind and code, never raw text), so it redacts exactly what the blessed formatter does. Pinned by the classifier's REPORTED cases.                                                                       |
+| `scripts/lib/catch-inventory.mjs`: `onError` in `ERROR_SINK_FNS`                                                                                                                               | An `onError` error port counts only when the error itself is passed (a fixed value without it still fails), the same bar as the other sinks. Pinned by the classifier's REPORTED case and its SWALLOW negative.                                                                                 |
+| `test/unit/ollamaCodec.test.ts` (stream cap), `test/unit/vsixPackaging.test.mjs` (oversized archive), `test/unit/refreshBadges.test.mjs` (README badges), `test/unit/companionBrowser.test.ts` | `OLLAMA_STREAM_CAP_TIMEOUT_MS`, `REAL_OVERSIZED_PACKAGE_TIMEOUT_MS` (30 s), `README_BADGE_PARSE_TIMEOUT_MS` (15 s) per-case; `REAL_BROWSER_CASE_TIMEOUT_MS` (20 s) per-suite                                                                                                                    | A second sweep at 2 s over two full CI runs: the stream-cap case took 5.2 s and the companion browser case passed 5 s on hosted runners; the others took 3.4 to 4.0 s. The same run showed hosted macOS (3 vCPUs) oversubscribed by four workers plus coverage; `vitest.config.ts` now uses cores minus one there, capped at the measured four. | Read the stream cap from a test-sized option; share one browser context per file; drop each deadline once a hosted run measures the case under 2.5 s. |
 
 | Location                                                           | Escape hatch                                                                                              | Reason                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -37414,10 +37413,10 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | `test/unit/treesWindows.test.ts`, `test/unit/actuatorsWindows.test.ts`, `test/unit/resourceWindowsLaunch.test.ts`                                                                              | `REAL_WINDOWS_JOB_TIMEOUT_MS` (60 s) per-suite deadline                                                                                                                      | These suites compile and drive the real Windows job helper (C#) and real child processes. In PR #140 run 2 (0.16.0) they passed the 15 s Windows default on hosted runners, while the Win11 rig ran them in a few seconds. Assertions unchanged.                                                                                                                                                                   | Precompile the job helper once per run into the content-addressed assembly cache, then return to the Windows default.                                     |
 | `test/unit/helpers/fixtureBudget.ts`; `test/unit/scheduleMigrate.test.ts`; the fixture hooks of `test/e2e` (`acpStdio`, `estimator`, `reports`, `schedulesStdio`)                              | `FIXTURE_HOOK_TIMEOUT_MS` (120 s) for a hook that builds bundles or starts real processes                                                                                    | Building fixtures is work that grows with the product, not a wait for readiness. Under the 10 s default `acpStdio`'s hook (seven bundle builds, the created-path helper) failed three of four hosted macOS attempts of 0.17.1's pull request before any assertion ran; the Mac mini built it in 1.3 to 2.2 s at load 26 to 64. Lead's ruling (2026-10-11); `REAL_GIT_TIMEOUT_MS`'s value; assertions unchanged.    | The train applies it to the other 98 such hooks and adds a guard against an unbudgeted one; shorten it when hosted macOS measures these hooks.            |
 
-| REL0144 location                                                | Escape hatch                                                                                                   | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| --------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/core/prompts/promptPrivacy.ts` (workspace, home, username) | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | Every variable fragment passes through `escapePattern`; `pathPattern` splits separators and escapes each literal segment before joining fixed separator syntax. Boundaries, tails and flags are fixed. Names cannot introduce regex operators or groups. Literal-metacharacter regressions cover workspace/home/username and Windows separators; removing escaping must fail them. CI's generic dynamic-RegExp audit does not follow these local escaping helpers. |
-| `src/core/sharing/privacy.ts` (workspace, home, username)       | Three `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | `rootPattern` escapes each path segment with `escaped`, and username uses `escaped` directly; only fixed Unicode boundaries, separator/tail syntax and flags are added. Literal-metacharacter regressions and escape-removal drills cover these sites. Keep the existing root, UNC, case and space semantics rather than replacing the scrubber with an unrelated path parser.                                                                                     |
+| REL0144 location                                                | Escape hatch                                                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/core/prompts/promptPrivacy.ts` (workspace, home, username) | Four `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments | Every variable fragment passes through `escapePattern`; `pathPattern` splits separators and escapes each literal segment before joining fixed separator syntax. Boundaries, tails, identity labels and flags are fixed. The shared username scrub replaces only path segments or explicit identity fields, preserving structural metadata and ordinary words. Names cannot introduce regex operators or groups. Literal-metacharacter regressions cover workspace/home/username and Windows separators; removing escaping must fail them. CI's generic dynamic-RegExp audit does not follow these local escaping helpers. |
+| `src/core/sharing/privacy.ts` (workspace, home, username)       | Two `nosemgrep: javascript.lang.security.audit.detect-non-literal-regexp.detect-non-literal-regexp` comments  | `rootPattern` escapes each path segment with `escaped`; only fixed boundaries, separator/tail syntax and flags are added. Username handling delegates to the shared `scrubUserIdentity` helper in `promptPrivacy.ts`. Literal-metacharacter regressions and escape-removal drills cover these sites. Keep the existing root, UNC, case and space semantics rather than replacing the scrubber with an unrelated path parser.                                                                                                                                                                                              |
 
 | M118INT location                                   | Escape hatch                   | Reason                                                                                                                                                                                                                             |
 | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

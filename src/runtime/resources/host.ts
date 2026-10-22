@@ -24,7 +24,7 @@ import type {
   RuntimeResourceNotice,
   RuntimeResources,
 } from './port'
-import { resourceNoticeText, resourceStatusText } from './text'
+import { readResource, ResourceReadingError, resourceNoticeText, resourceStatusText } from './text'
 
 export interface RuntimeResourceHostOptions {
   clock: ResourceClock
@@ -69,7 +69,7 @@ export async function createRuntimeResourceHost(
   options: RuntimeResourceHostOptions,
 ): Promise<RuntimeResourceProcess> {
   let settings = resourceSettingsSchema.parse({
-    ...(await options.machine.readSettings()),
+    ...(await readResource('resources.settings', () => options.machine.readSettings())),
     ...options.overrides,
   })
   const events = new ResourceEvents(options.onError)
@@ -89,11 +89,13 @@ export async function createRuntimeResourceHost(
       ),
   }
   const sync = async () => {
-    const next = resourceSettingsSchema.parse({
-      ...(await options.machine.readSettings()),
-      ...options.overrides,
-    })
-    const until = await options.machine.readResumeUntil()
+    const next = await readResource('resources.settings', async () =>
+      resourceSettingsSchema.parse({
+        ...(await options.machine.readSettings()),
+        ...options.overrides,
+      }),
+    )
+    const until = await readResource('resources.resume', () => options.machine.readResumeUntil())
     if (isDisposed) throw new Error(UI_TEXT.resourceUnavailable)
     if (JSON.stringify(next) !== JSON.stringify(settings)) {
       settings = next
@@ -101,7 +103,7 @@ export async function createRuntimeResourceHost(
     }
     const now = options.clock.now()
     if (until !== null && until > now + RESOURCE_OVERRIDE_MS)
-      throw new Error(UI_TEXT.resourceUnavailable)
+      throw new ResourceReadingError('resources.resume')
     if (until === null || until === appliedUntil || !settings.enabled || until <= now) return
 
     appliedUntil = until
@@ -118,7 +120,7 @@ export async function createRuntimeResourceHost(
     sampler: {
       async sample() {
         await sync()
-        return await options.sampler.sample()
+        return await readResource('resources.sample', () => options.sampler.sample())
       },
       dispose() {
         options.sampler.dispose?.()
@@ -227,15 +229,21 @@ export async function createRuntimeResourceHost(
     },
     async history() {
       ensureOpen()
-      if (options.history === undefined) throw new Error(UI_TEXT.resourceUnavailable)
-      const history = await options.history.read()
+      const historyPort = options.history
+      if (historyPort === undefined) throw new Error(UI_TEXT.resourceUnavailable)
+      // A rejected read reaches `respond` as the named branded reading (R3),
+      // never a plain error: every /resources command reports it typed.
+      const history = await readResource('resources.history', () => historyPort.read())
       ensureOpen()
       // A strict copy: private fields or out-of-range dates never reach a surface.
       return resourceHistorySchema.parse(history)
     },
     async resume() {
       ensureOpen()
-      await options.machine.writeResumeUntil(options.clock.now() + RESOURCE_OVERRIDE_MS)
+      // A rejected persistence write reports as the named branded reading too.
+      await readResource('resources.resume', () =>
+        options.machine.writeResumeUntil(options.clock.now() + RESOURCE_OVERRIDE_MS),
+      )
       await sync()
       return snapshot()
     },

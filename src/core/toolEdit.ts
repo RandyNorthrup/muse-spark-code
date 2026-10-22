@@ -264,6 +264,17 @@ export function isDenied(
 }
 
 /**
+How a confinement refusal reads. The default is the plain reason; the Model
+API backend passes the assist bundle's `pathRefusal`, so an outside-workspace
+path refuses in translated words with its refusal code (RLACP), which this
+shared module cannot import itself (only dist/modelApi.js may).
+*/
+export type PathRefuser = (refusal: {
+  readonly reason: string
+  readonly code?: 'outside_workspace'
+}) => ToolOutcome
+
+/**
 A path confined, policy-checked and approval-checked, without reading the
 file: range reads and edits work from here, and the whole-file execution
 reads from here too, so files of any size stay reachable without loading
@@ -272,6 +283,7 @@ them whole.
 export async function locateHead(
   given: string,
   context: ToolContext,
+  refuse: PathRefuser = (refusal) => failure(refusal.reason),
 ): Promise<
   | {
       readonly ok: true
@@ -289,7 +301,7 @@ export async function locateHead(
     context.io,
   )
   if (!resolved.ok) {
-    return { ok: false, outcome: failure(resolved.reason) }
+    return { ok: false, outcome: refuse(resolved) }
   }
   if (isDenied(resolved, context)) {
     return {

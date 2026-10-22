@@ -156,6 +156,8 @@ import {
   lazyRuntimeResources,
   type ProcessResources,
 } from './resources/load'
+import { resourceFailureReporter } from './resources/text'
+import { createAcpAccounting } from './acpAccounting'
 import { execAccountSelection } from './exec/execAccounts'
 import { ACCOUNT_DEFAULT_ID } from '../shared/constants'
 import { runtimeAccountsLoader, type RuntimeAccountsBundle } from './providers/accountsBundle'
@@ -500,6 +502,7 @@ async function runtimeFor(
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
   return engine.createRuntimeBackend({
+    hostKind: questions === undefined ? 'cli' : 'acp',
     options,
     version: packageVersion(),
     distDir,
@@ -529,9 +532,7 @@ function resourcesFor(log: Logger): ProcessResources {
     }),
     sleep,
     log,
-    onError: () => {
-      log.warn(UI_TEXT.resourceUnavailable)
-    },
+    onError: resourceFailureReporter(log),
     // A damaged usage-history choice on stderr once, with what is damaged,
     // what the product does, and what to do (the noter announces once per
     // distinct damage).
@@ -1157,6 +1158,18 @@ async function serve(
     }
     const dictationLifetime = new AbortController()
     const agent = engine.createAcpAgent({
+      accounting: createAcpAccounting({
+        recording,
+        runtime,
+        isEnabled: () => isUsageHistoryOn && options.backend === 'modelApi',
+        dataFolder: agentDataFolder({
+          platform: process.platform,
+          env: process.env,
+          homeDir: homedir(),
+        }),
+        now: Date.now,
+        sleep,
+      }),
       schedules: {
         isAvailable: OPTIONAL_RUNTIME_AVAILABILITY.schedules,
         async holdWorkspace(cwd, session) {
@@ -1260,6 +1273,14 @@ async function serve(
       },
       signIn: signInMethod(options),
       providerSignIns: [...providerCommands.signIns, ...openRouterSignIns],
+      // `logout` on the Model API backend removes the stored key, the same
+      // entry `auth clear` deletes. The Muse Code CLI's sign-in is the
+      // user's to end, so that backend offers no credential removal.
+      ...(options.backend === 'modelApi' && {
+        signOut: async (): Promise<void> => {
+          await secrets.delete(SECRET_KEYS.modelApiKey)
+        },
+      }),
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,
@@ -1831,6 +1852,7 @@ async function main(processResources: ProcessResources): Promise<number> {
           sharingPorts(log, runtime, sharingDeps()),
           UI_TEXT,
           uiLocale(),
+          log,
         )
       } finally {
         await runtime?.close()

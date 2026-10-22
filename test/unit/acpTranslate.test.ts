@@ -20,6 +20,7 @@ import {
 } from '../../src/acp/translate'
 import type { ApprovalChoice, ItemSnapshot, Question } from '../../src/shared/agentEvents'
 import { SELECTION_TEXT_MAX_CHARS, UI_TEXT } from '../../src/shared/constants'
+import { Usd, type UsdAmount } from '../../src/shared/usd'
 
 // M63 (PLAN.md D62): what an ACP client sees of the panel's events, prompts,
 // approvals and questions.
@@ -48,6 +49,7 @@ describe('UpdateTranslator', () => {
         sessionUpdate: 'tool_call',
         toolCallId: 't1',
         title: 'PowerShell: Run the tests',
+        name: 'powershell',
         kind: 'execute',
         status: 'in_progress',
         locations: [],
@@ -198,7 +200,13 @@ describe('UpdateTranslator', () => {
     })
     expect(
       translator.updates({ type: 'textDelta', itemId: 'r2', field: 'text', delta: 'raw' }),
-    ).toEqual([{ sessionUpdate: 'agent_thought_chunk', content: { type: 'text', text: 'raw' } }])
+    ).toEqual([
+      {
+        sessionUpdate: 'agent_thought_chunk',
+        content: { type: 'text', text: 'raw' },
+        messageId: 'r2',
+      },
+    ])
   })
 
   it('ignores deltas of items it does not stream and fields it does not know', () => {
@@ -240,7 +248,13 @@ describe('UpdateTranslator', () => {
         },
         true,
       ),
-    ).toEqual([{ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Done.' } }])
+    ).toEqual([
+      {
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'Done.' },
+        messageId: 'm1',
+      },
+    ])
   })
 
   it('replays the user’s messages only from a loaded history', () => {
@@ -252,7 +266,11 @@ describe('UpdateTranslator', () => {
     }
     expect(new UpdateTranslator(CWD, false).itemUpdates(user, true)).toEqual([])
     expect(new UpdateTranslator(CWD, true).itemUpdates(user, true)).toEqual([
-      { sessionUpdate: 'user_message_chunk', content: { type: 'text', text: 'Hi' } },
+      {
+        sessionUpdate: 'user_message_chunk',
+        content: { type: 'text', text: 'Hi' },
+        messageId: 'u1',
+      },
     ])
   })
 
@@ -272,6 +290,9 @@ describe('UpdateTranslator', () => {
     expect(translator.updates({ type: 'contextUsage', usedTokens: 10, pressure: 'low' })).toEqual(
       [],
     )
+    // No notices capability on this translator: the SDK's sanctioned agent
+    // message carries the notice instead (acpBackendNotice.test.ts covers
+    // the advertised path).
     expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
       { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
     ])
@@ -298,7 +319,7 @@ describe('UpdateTranslator', () => {
     expect(said).toBe('Canberra.\n\nFinished\n\nAgain\n\n')
     // F82: where the client can show notices, a backend notice is its own
     // update with the app's severity — never the model's words.
-    const notices = new UpdateTranslator(CWD, false, undefined, 'museCode', true)
+    const notices = new UpdateTranslator(CWD, false, 'museCode', true)
     expect(notices.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
       { sessionUpdate: 'notice', severity: 'warning', title: 'Slow' },
     ])
@@ -324,6 +345,38 @@ describe('UpdateTranslator', () => {
         ],
       },
     ])
+  })
+
+  it('shows a priced carried cost and hides a malformed one without throwing', () => {
+    const priced = new UpdateTranslator(CWD, false, 'modelApi', true)
+    priced.updates({
+      type: 'tokenUsage',
+      inputTokens: 10,
+      outputTokens: 5,
+      cost: { usd: Usd.from('0.05').toAmount(), certainty: 'reported' },
+    })
+    expect(
+      priced.updates({ type: 'contextUsage', usedTokens: 15, windowTokens: 100, pressure: 'ok' }),
+    ).toEqual([
+      {
+        sessionUpdate: 'usage_update',
+        used: 15,
+        size: 100,
+        cost: { amount: 0.05, currency: 'USD' },
+        _meta: { museSpark: { costCertainty: 'reported' } },
+      },
+    ])
+    // A carried `usd` the decimal parser rejects is wire-shaped input the
+    // amount brand cannot spell, hence the cast (PLAN.md §8): the answer
+    // shows no cost instead of failing the turn.
+    const malformed = { usd: 'not-a-decimal' as UsdAmount, certainty: 'reported' as const }
+    const hidden = new UpdateTranslator(CWD, false, 'modelApi', true)
+    expect(() =>
+      hidden.updates({ type: 'tokenUsage', inputTokens: 10, outputTokens: 5, cost: malformed }),
+    ).not.toThrow()
+    expect(
+      hidden.updates({ type: 'contextUsage', usedTokens: 15, windowTokens: 100, pressure: 'ok' }),
+    ).toEqual([{ sessionUpdate: 'usage_update', used: 15, size: 100 }])
   })
 })
 

@@ -984,6 +984,11 @@
       "note": "development dependency updates"
     },
     {
+      "id": "DFACPERR",
+      "public": false,
+      "note": "honest ACP, headless and editor prompt refusals; safe initialization retry and contextual account scrubbing; goal tracked by M63"
+    },
+    {
       "id": "DIET1",
       "public": false,
       "note": "startup size budget"
@@ -1382,6 +1387,11 @@
       "title": "Fleet defects found in real use",
       "summary": "Fixes four defects found running 0.19.0 as the fleet overnight: concurrent starts sharing the registry, failure words instead of bare errors, recoverable service timeouts, and honest usage records.",
       "area": "chat"
+    },
+    {
+      "id": "ACPDOG",
+      "public": false,
+      "note": "implementation complete; dependent validation pending"
     }
   ]
 }

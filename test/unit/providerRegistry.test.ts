@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { unknownModelRefText } from '../../src/core/unknownModel'
 import {
   createProviderRegistry,
   type ProviderRegistryDeps,
@@ -62,8 +63,12 @@ describe('providerRegistry tool-calling gate', () => {
         model: 'together/openai/gpt-oss-20b',
       }),
     )
+    // An unknown id is refused with the shared unknown-model sentence
+    // (the id as typed, the entry asked, what the person can do), not the
+    // old fixed line.
     await expect(registry.resolve('together/unknown-model')).rejects.toThrow(
-      UI_TEXT.execUnknownModel,
+      unknownModelRefText('together/unknown-model'),
     )
+    expect(unknownModelRefText('together/unknown-model')).toContain('together/unknown-model')
   })
 })

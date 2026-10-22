@@ -91,6 +91,7 @@ export const ACP_BUNDLES = [
   'resourceJournal.js',
   'modelApiHooks.js',
   'modelApiMcp.js',
+  'modelApiAcp.js',
   'productionMedia.js',
   'productionAudio.js',
   'runtimeMedia.js',
