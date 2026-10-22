@@ -2049,6 +2049,7 @@
     "signInRequired": "A forrás olvasásához jelentkezzen be a GitHubra.",
     "noPlan": "A projektnek nincs strukturált terve.",
     "noCustomKeybindings": "Nincsenek egyéni billentyűparancsok.",
+    "noCheckRuns": "Ellenőrzés-futtatás még nem lett rögzítve.",
     "planDrift": "Tervformátum a(z) {line}. sorban: {detail}",
     "automatedNote": "Ez a jelentés automatikusan készült.",
     "post": "Közzététel",
@@ -2116,6 +2117,10 @@
   "reportProblemsMore": {
     "one": "További {count} probléma",
     "other": "További {count} probléma"
+  },
+  "checkRunsUnreadable": {
+    "one": "{count} ellenőrzés-futtatást nem sikerült beolvasni.",
+    "other": "{count} ellenőrzés-futtatást nem sikerült beolvasni."
   },
   "reportCliUsage": "Determinisztikus jelentés készítése megnevezett forrásokból modellhívás nélkül.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Típusok: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

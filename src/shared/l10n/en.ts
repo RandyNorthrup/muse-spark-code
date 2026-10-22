@@ -2492,6 +2492,7 @@ export const EN = {
     signInRequired: 'Sign in to GitHub to read this source.',
     noPlan: 'This project has no structured plan.',
     noCustomKeybindings: 'There are no custom keybindings.',
+    noCheckRuns: 'No check runs have been recorded yet.',
     planDrift: 'Plan format at line {line}: {detail}',
     automatedNote: 'This report was generated automatically.',
     post: 'Post',
@@ -2560,6 +2561,10 @@ export const EN = {
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportProblemsMore: forms({ one: '{count} more problem', other: '{count} more problems' }),
+  checkRunsUnreadable: forms({
+    one: '{count} check run could not be read.',
+    other: '{count} check runs could not be read.',
+  }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
   reportCliKinds:

@@ -2107,6 +2107,7 @@
     "signInRequired": "Zaloguj się do GitHub, aby odczytać to źródło.",
     "noPlan": "Projekt nie ma uporządkowanego planu.",
     "noCustomKeybindings": "Brak niestandardowych skrótów klawiaturowych.",
+    "noCheckRuns": "Nie zarejestrowano jeszcze żadnych przebiegów kontroli.",
     "planDrift": "Format planu w wierszu {line}: {detail}",
     "automatedNote": "Ten raport został wygenerowany automatycznie.",
     "post": "Opublikuj",
@@ -2178,6 +2179,12 @@
     "other": "{count} kolejnego problemu",
     "few": "{count} kolejne problemy",
     "many": "{count} kolejnych problemów"
+  },
+  "checkRunsUnreadable": {
+    "one": "Nie można odczytać {count} przebieg kontroli.",
+    "other": "Nie można odczytać {count} przebiegu kontroli.",
+    "few": "Nie można odczytać {count} przebiegi kontroli.",
+    "many": "Nie można odczytać {count} przebiegów kontroli."
   },
   "reportCliUsage": "Wygeneruj deterministyczny raport z nazwanych źródeł, bez wywołania modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Rodzaje: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

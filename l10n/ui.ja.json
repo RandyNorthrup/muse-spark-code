@@ -2020,6 +2020,7 @@
     "signInRequired": "このソースを読むには GitHub にサインインしてください。",
     "noPlan": "このプロジェクトに構造化された計画はありません。",
     "noCustomKeybindings": "カスタムのキーボードショートカットはありません。",
+    "noCheckRuns": "チェックの実行はまだ記録されていません。",
     "planDrift": "計画形式の {line} 行目: {detail}",
     "automatedNote": "このレポートは自動生成されました。",
     "post": "投稿",
@@ -2085,6 +2086,9 @@
   },
   "reportProblemsMore": {
     "other": "ほか {count} 件の問題"
+  },
+  "checkRunsUnreadable": {
+    "other": "{count} 件のチェック実行を読み取れませんでした。"
   },
   "reportCliUsage": "名前付きのデータソースから、モデルを呼び出さずに決定的なレポートを生成します。\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "種類: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

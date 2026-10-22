@@ -2049,6 +2049,7 @@
     "signInRequired": "Bu kaynağı okumak için GitHub’a giriş yapın.",
     "noPlan": "Bu projenin yapılandırılmış bir planı yok.",
     "noCustomKeybindings": "Özel klavye kısayolu yok.",
+    "noCheckRuns": "Henüz kaydedilmiş denetim çalıştırması yok.",
     "planDrift": "{line}. satırda plan biçimi: {detail}",
     "automatedNote": "Bu rapor otomatik oluşturulmuştur.",
     "post": "Yayımla",
@@ -2116,6 +2117,10 @@
   "reportProblemsMore": {
     "one": "{count} sorun daha",
     "other": "{count} sorun daha"
+  },
+  "checkRunsUnreadable": {
+    "one": "{count} denetim çalıştırması okunamadı.",
+    "other": "{count} denetim çalıştırması okunamadı."
   },
   "reportCliUsage": "Model çağrısı yapmadan, adlandırılmış kaynaklardan belirlenimci bir rapor oluşturun.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Türler: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",

@@ -2078,6 +2078,7 @@
     "signInRequired": "Connectez-vous à GitHub pour lire cette source.",
     "noPlan": "Ce projet n’a pas de plan structuré.",
     "noCustomKeybindings": "Il n'y a aucun raccourci clavier personnalisé.",
+    "noCheckRuns": "Aucune exécution de vérification n'a encore été enregistrée.",
     "planDrift": "Format du plan à la ligne {line} : {detail}",
     "automatedNote": "Ce rapport a été généré automatiquement.",
     "post": "Publier",
@@ -2147,6 +2148,11 @@
     "one": "{count} problème de plus",
     "other": "{count} problèmes de plus",
     "many": "{count} problèmes de plus"
+  },
+  "checkRunsUnreadable": {
+    "one": "Impossible de lire {count} exécution de vérification.",
+    "other": "Impossible de lire {count} exécutions de vérification.",
+    "many": "Impossible de lire {count} exécutions de vérification."
   },
   "reportCliUsage": "Générer un rapport déterministe à partir de sources nommées, sans appel à un modèle.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Types : project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
