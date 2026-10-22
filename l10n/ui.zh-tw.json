@@ -3129,6 +3129,13 @@
   "backgroundTasksLabel": "背景工作",
   "backgroundBadge": "背景",
   "subagentRowLabel": "代理程式",
+  "nodeTeam": {
+    "live": "在線",
+    "quiet": "靜默",
+    "gone": "離線",
+    "capabilities": "能力",
+    "noNodes": "尚無節點加入"
+  },
   "teamTreeLabel": "團隊",
   "teamWorkerMerged": "已合併",
   "teamWorkerDiscarded": "已捨棄",

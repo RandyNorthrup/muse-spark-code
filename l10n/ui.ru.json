@@ -3315,6 +3315,13 @@
   "backgroundTasksLabel": "Фоновые задачи",
   "backgroundBadge": "Фоновая",
   "subagentRowLabel": "Агент",
+  "nodeTeam": {
+    "live": "Активен",
+    "quiet": "Молчит",
+    "gone": "Отключён",
+    "capabilities": "Возможности",
+    "noNodes": "Пока нет подключённых узлов"
+  },
   "teamTreeLabel": "Команда",
   "teamWorkerMerged": "объединено",
   "teamWorkerDiscarded": "отброшено",
