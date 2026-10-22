@@ -87,6 +87,7 @@ import {
   subscriptionUsageSchema,
   usageReadResultSchema,
 } from '../../../shared/usage'
+import { backgroundTaskRowSchema, sessionHookRowSchema } from '../../../shared/sessionLists'
 import {
   type AgentHost,
   type ApprovalDecision,
@@ -495,16 +496,7 @@ export function toSkillSummary(
 
 /** Exported for the M127 capture tests. */
 export const backgroundTaskListResultSchema = z.object({
-  tasks: z.array(
-    z.object({
-      taskId: z.string(),
-      kind: z.string(),
-      status: z.string(),
-      startedAt: z.optional(z.string()),
-      tool: z.optional(z.string()),
-      backgroundInitiator: z.optional(z.string()),
-    }),
-  ),
+  tasks: z.array(backgroundTaskRowSchema),
 })
 
 /** One recorded `task/list` row as the summary readers get. */
@@ -525,14 +517,7 @@ export function toBackgroundTaskSummary(
 
 /** Exported for the M127 capture tests. */
 export const hookListResultSchema = z.object({
-  hooks: z.array(
-    z.object({
-      key: z.string(),
-      event: z.string(),
-      handlerKind: z.string(),
-      enabled: z.boolean(),
-    }),
-  ),
+  hooks: z.array(sessionHookRowSchema),
 })
 
 /** One recorded `hook/list` row as readers get it. */
@@ -684,6 +669,19 @@ const computerUseSetupSchema = z.object({
   message: z.optional(z.string()),
   refused: z.optional(z.string()),
 })
+
+/** One grants-and-phase answer from a `computerUseSetup` result, however asked. */
+function toComputerUseSetup(result: unknown): ComputerUseSetup {
+  const parsed = computerUseSetupSchema.parse(result)
+  return {
+    accessibility: parsed.accessibility,
+    inputMonitoring: parsed.inputMonitoring,
+    screenRecording: parsed.screenRecording,
+    setup: parsed.setup,
+    ...(parsed.message !== undefined && { message: parsed.message }),
+    ...(parsed.refused !== undefined && { refused: parsed.refused }),
+  }
+}
 
 const workflowResumeResultSchema = z.object({
   commandId: z.string(),
@@ -2667,16 +2665,7 @@ export class MuseSession implements ScheduledAgentSession {
   the same grants-and-phase answer as the check, for this session.
   */
   public async readComputerUseSetup(): Promise<ComputerUseSetup> {
-    const result = await this.command('computerUseSetup/read', {})
-    const parsed = computerUseSetupSchema.parse(result)
-    return {
-      accessibility: parsed.accessibility,
-      inputMonitoring: parsed.inputMonitoring,
-      screenRecording: parsed.screenRecording,
-      setup: parsed.setup,
-      ...(parsed.message !== undefined && { message: parsed.message }),
-      ...(parsed.refused !== undefined && { refused: parsed.refused }),
-    }
+    return toComputerUseSetup(await this.command('computerUseSetup/read', {}))
   }
 
   /** Releases this surface's hold; the last one forgets the session (D25). */
@@ -3439,16 +3428,7 @@ export class MuseCodeHost implements AgentHost {
   (a Linux host answers `computerUseUnavailable`) flow as the MSP error.
   */
   public async checkComputerUseSetup(): Promise<ComputerUseSetup> {
-    const result = await this.command('computerUseSetup/check', {})
-    const parsed = computerUseSetupSchema.parse(result)
-    return {
-      accessibility: parsed.accessibility,
-      inputMonitoring: parsed.inputMonitoring,
-      screenRecording: parsed.screenRecording,
-      setup: parsed.setup,
-      ...(parsed.message !== undefined && { message: parsed.message }),
-      ...(parsed.refused !== undefined && { refused: parsed.refused }),
-    }
+    return toComputerUseSetup(await this.command('computerUseSetup/check', {}))
   }
 
   /**
