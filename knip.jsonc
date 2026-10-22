@@ -252,6 +252,9 @@
     // The reports e2e bundles this entry with esbuild by path
     // (test/e2e/reports.e2e.test.ts), which knip does not trace.
     "test/e2e/reportsEntry.ts",
+    // The two-process device drill bundles this child with esbuild by path
+    // (test/e2e/deviceTwoProcess.e2e.test.ts), which knip does not trace.
+    "test/e2e/deviceTwoProcessDriver.ts",
     // The README-shots script starts this reporting verifier by path
     // (scripts/readme-shots.mjs), which knip does not trace.
     "test/harness/reporting/verify.mjs",
