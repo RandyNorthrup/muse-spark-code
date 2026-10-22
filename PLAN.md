@@ -34153,6 +34153,24 @@ lane A's first step.
         count first, use an empty workspace, count from the trace log.
   - [ ] Codex review in one pass per lane class before push.
 
+### RLTESTDRIVE — The owner's 0.19.0 test drive: every defect it found, fixed (2026-10-22)
+
+**Status 2026-10-22: built.** Fixed on rig `linuxlt`, branch
+`rec/rltestdrive`, base 0.19.0, never merged: one true status per agent
+(derived text alone on every surface); the Anthropic count body drops
+manual thinking (live acceptance runs on the owner PC); the exec ready
+line names the provider run; headless documents no subagent tools by
+design; `providers refresh` plus refresh-on-use with the shared
+`dist/providerList.js`; the panel names the editor key store; one
+ChatGPT truth from both status surfaces; Max locked as the 1.3 row
+default; our bounds removed under D121/D208 (hand-off waits,
+recording cleanup, schedule snapshots, CI lookup pages, report
+cancellation; the fs-retry count, orphan-sweep rounds and registry
+visibility bound stay under D121(4) with records); the vault back in
+the palette with an always-present tab showing state or reason.
+claude-haiku-5-5 verified priced from Anthropic's published page.
+Evidence: `docs/certification/rltestdrive.md`.
+
 ---
 
 ## 7. Gates
