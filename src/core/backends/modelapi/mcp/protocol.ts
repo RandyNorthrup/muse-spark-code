@@ -201,7 +201,6 @@ export const inputRequiredResultSchema = z.object({
   inputRequests: z.optional(z.record(z.string(), z.unknown())),
   requestState: z.optional(z.string()),
 })
-export type InputRequiredResult = z.infer<typeof inputRequiredResultSchema>
 
 /** One `inputRequests` entry: the server-side method and its params. */
 export const inputRequestSchema = z.object({
