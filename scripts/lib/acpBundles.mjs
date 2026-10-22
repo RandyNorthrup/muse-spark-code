@@ -4,7 +4,7 @@
 // can reach. scripts/package-acp.mjs copies this list into the package; the
 // packaged-chunks gate fails a reachable chunk missing here, so a new
 // on-demand chunk cannot ship unpackaged again.
-import { readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 
 /**
@@ -46,6 +46,13 @@ export function acpUsageAssets(packageRoot = process.cwd()) {
       pending.push(imported.path)
     }
   }
+  // M114 C: the companion page's static theme sheets ride beside the entry,
+  // not inside its JavaScript graph; the built file ships too.
+  const themeCss = 'dist/webview/theme.css'
+  const themePath = path.join(packageRoot, themeCss)
+  if (!existsSync(themePath) || !statSync(themePath).isFile())
+    throw new Error(`${themeCss} is missing from the usage browser build`)
+  files.add(themeCss)
   return [...files]
 }
 

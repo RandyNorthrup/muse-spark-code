@@ -4877,6 +4877,10 @@ export const FONT_FILE_MODE = 0o600
 export const FONT_WOFF2_MAGIC = 'wOF2'
 export const FONT_WOFF2_HEADER_BYTES = 48
 export const FONT_WOFF2_LENGTH_OFFSET = 8
+// M114 C-M114-1: the companion page's stored appearance (theme mode and font
+// preferences); the page falls back to the operating system and the token
+// stacks when it is absent or invalid.
+export const COMPANION_APPEARANCE_STORAGE_KEY = 'museSpark.companion.appearance'
 
 export const ACP_DATA_FOLDER = {
   win32: 'Muse Spark Code',
