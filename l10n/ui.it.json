@@ -3864,6 +3864,15 @@
   },
   "acpNoModels": "Il backend non offre alcun modello che questo agente possa usare.",
   "acpPromptBusy": "In questa sessione è già in corso un prompt.",
+  "acpSessionStartFailed": "Non è stato possibile avviare la sessione ({detail}). I dettagli sono nel log di Muse Spark.",
+  "acpTurnStartFailed": "Non è stato possibile avviare il turno ({detail}). I dettagli sono nel log di Muse Spark.",
+  "createdRegistrySave": {
+    "failed": "Non è stato possibile salvare il registro delle risorse create ({reason}). I dettagli sono nel log di Muse Spark.",
+    "refused": "l’helper di sistema ha rifiutato il salvataggio",
+    "unsafe": "un controllo di sicurezza sul registro salvato non è riuscito",
+    "invalid": "il registro salvato non è valido",
+    "io": "il salvataggio non può essere scritto"
+  },
   "acpQuestionFormMessage": "Muse ha una domanda per te.",
   "acpQuestionAsked": "Muse ha una domanda; questo editor non può mostrarla come modulo, quindi rispondi nel prossimo messaggio:",
   "acpUnknownArgument": "Argomento sconosciuto: {argument}",
@@ -4208,6 +4217,7 @@
   "removeAttachmentNamed": "Rimuovi {name}",
   "announceApprovalFor": "Approvazione necessaria per {tool}",
   "turnFailed": "Il turno non è riuscito.",
+  "turnTransientFailed": "Il servizio di Muse non è riuscito a completare il turno. Il turno ha conservato il suo lavoro; invia di nuovo il messaggio per continuare.",
   "turnRetrying": "Tentativo {attempt}/{maxAttempts} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
   "turnRetryingUncapped": "Tentativo {attempt} non riuscito ({reason}); nuovo tentativo tra {seconds} s (nessun limite di tentativi impostato).",
   "modelApiProviderRetryWait": "{reason}; il provider ha chiesto di attendere fino a {time}. Puoi interrompere il turno in qualsiasi momento.",

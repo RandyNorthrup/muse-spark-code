@@ -3942,6 +3942,15 @@
   },
   "acpNoModels": "Backend nie oferuje żadnego modelu, którego ten agent może użyć.",
   "acpPromptBusy": "W tej sesji jest już uruchomiony prompt.",
+  "acpSessionStartFailed": "Nie udało się uruchomić sesji ({detail}). Szczegóły w dzienniku Muse Spark.",
+  "acpTurnStartFailed": "Nie udało się uruchomić tury ({detail}). Szczegóły w dzienniku Muse Spark.",
+  "createdRegistrySave": {
+    "failed": "Nie udało się zapisać rejestru utworzonych zasobów ({reason}). Szczegóły w dzienniku Muse Spark.",
+    "refused": "pomocnik systemowy odmówił zapisu",
+    "unsafe": "kontrola bezpieczeństwa zapisanego rejestru nie powiodła się",
+    "invalid": "zapisany rejestr jest nieprawidłowy",
+    "io": "nie można zapisać zapisu"
+  },
   "acpQuestionFormMessage": "Muse ma do Ciebie pytanie.",
   "acpQuestionAsked": "Muse ma pytanie; ten edytor nie może go pokazać jako formularza, więc odpowiedz w następnej wiadomości:",
   "acpUnknownArgument": "Nieznany argument: {argument}",
@@ -4300,6 +4309,7 @@
   "removeAttachmentNamed": "Usuń {name}",
   "announceApprovalFor": "Wymagane zatwierdzenie dla {tool}",
   "turnFailed": "Tura nie powiodła się.",
+  "turnTransientFailed": "Usługa Muse nie mogła ukończyć tury. Tura zachowała swoją pracę; wyślij wiadomość ponownie, aby kontynuować.",
   "turnRetrying": "Próba {attempt}/{maxAttempts} nie powiodła się ({reason}); ponowienie za {seconds} s.",
   "turnRetryingUncapped": "Próba {attempt} nie powiodła się ({reason}); ponowienie za {seconds} s (nie ustawiono limitu ponowień).",
   "modelApiProviderRetryWait": "{reason}; dostawca poprosił o odczekanie do {time}. Turę możesz zatrzymać w dowolnym momencie.",

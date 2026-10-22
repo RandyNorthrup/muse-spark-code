@@ -3864,6 +3864,15 @@
   },
   "acpNoModels": "Le backend ne propose aucun modèle que cet agent puisse utiliser.",
   "acpPromptBusy": "Un prompt est déjà en cours dans cette session.",
+  "acpSessionStartFailed": "La session n’a pas pu démarrer ({detail}). Le journal de Muse Spark contient les détails.",
+  "acpTurnStartFailed": "Le tour n’a pas pu démarrer ({detail}). Le journal de Muse Spark contient les détails.",
+  "createdRegistrySave": {
+    "failed": "Le registre des ressources créées n’a pas pu être enregistré ({reason}). Le journal de Muse Spark contient les détails.",
+    "refused": "l’assistant système a refusé l’enregistrement",
+    "unsafe": "un contrôle de sécurité du registre enregistré a échoué",
+    "invalid": "le registre enregistré est invalide",
+    "io": "l’enregistrement n’a pas pu être écrit"
+  },
   "acpQuestionFormMessage": "Muse a une question pour vous.",
   "acpQuestionAsked": "Muse a une question ; cet éditeur ne peut pas l’afficher sous forme de formulaire, répondez donc dans votre prochain message :",
   "acpUnknownArgument": "Argument inconnu : {argument}",
@@ -4208,6 +4217,7 @@
   "removeAttachmentNamed": "Supprimer {name}",
   "announceApprovalFor": "Approbation requise pour {tool}",
   "turnFailed": "Le tour a échoué.",
+  "turnTransientFailed": "Le service de Muse n’a pas pu terminer le tour. Le tour a conservé son travail ; renvoyez le message pour continuer.",
   "turnRetrying": "La tentative {attempt}/{maxAttempts} a échoué ({reason}) ; nouvelle tentative dans {seconds} s.",
   "turnRetryingUncapped": "La tentative {attempt} a échoué ({reason}) ; nouvelle tentative dans {seconds} s (aucune limite de tentatives définie).",
   "modelApiProviderRetryWait": "{reason} ; le fournisseur a demandé d’attendre jusqu’à {time}. Vous pouvez arrêter le tour à tout moment.",

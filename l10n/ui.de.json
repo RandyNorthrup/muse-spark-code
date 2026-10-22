@@ -3786,6 +3786,15 @@
   },
   "acpNoModels": "Das Backend bietet kein Modell an, das dieser Agent verwenden darf.",
   "acpPromptBusy": "In dieser Sitzung läuft bereits ein Prompt.",
+  "acpSessionStartFailed": "Die Sitzung konnte nicht gestartet werden ({detail}). Details stehen im Muse Spark-Protokoll.",
+  "acpTurnStartFailed": "Der Durchgang konnte nicht gestartet werden ({detail}). Details stehen im Muse Spark-Protokoll.",
+  "createdRegistrySave": {
+    "failed": "Die Registrierung erstellter Ressourcen konnte nicht gespeichert werden ({reason}). Details stehen im Muse Spark-Protokoll.",
+    "refused": "der Systemhelfer hat das Speichern verweigert",
+    "unsafe": "eine Sicherheitsprüfung der gespeicherten Registrierung ist fehlgeschlagen",
+    "invalid": "die gespeicherte Registrierung ist ungültig",
+    "io": "das Speichern konnte nicht geschrieben werden"
+  },
   "acpQuestionFormMessage": "Muse hat eine Frage an Sie.",
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",
   "acpUnknownArgument": "Unbekanntes Argument: {argument}",
@@ -4116,6 +4125,7 @@
   "removeAttachmentNamed": "{name} entfernen",
   "announceApprovalFor": "Genehmigung erforderlich für {tool}",
   "turnFailed": "Der Durchgang ist fehlgeschlagen.",
+  "turnTransientFailed": "Der Dienst von Muse konnte den Durchgang nicht beenden. Der Durchgang hat seine Arbeit behalten; senden Sie die Nachricht erneut, um fortzufahren.",
   "turnRetrying": "Versuch {attempt}/{maxAttempts} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s.",
   "turnRetryingUncapped": "Versuch {attempt} fehlgeschlagen ({reason}); neuer Versuch in {seconds} s (kein Wiederholungslimit festgelegt).",
   "modelApiProviderRetryWait": "{reason}; der Anbieter hat gebeten, bis {time} zu warten. Sie können den Durchgang jederzeit stoppen.",
