@@ -138,7 +138,7 @@ describe.skipIf(process.env['MUSE_MAKER_EMULATORS'] !== '1')('maker emulator boa
           expect(written.capture.bytes.toString('utf8')).toContain(models[board.name])
         }
         expect(confirmCalls).toHaveLength(2)
-        expect(confirmCalls[0].id).not.toBe(confirmCalls[1]?.id)
+        expect(confirmCalls[0]?.id).not.toBe(confirmCalls[1]?.id)
         // Stop an actual active reader, independently of the normal turn queue.
         const opened = new AbortController()
         const active = runSerialAction(

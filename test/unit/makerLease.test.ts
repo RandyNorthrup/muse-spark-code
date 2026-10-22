@@ -406,10 +406,12 @@ describe('hardware lease', () => {
   })
   it('refuses oversized preparation and a missing holder identity before starting an endpoint', async () => {
     const deps = await fixture()
+    const nativeListen = deps.listenOwnerPipe
+    if (nativeListen === undefined) throw new Error('listen-owner-pipe')
     let listens = 0
     const listen: typeof deps.listenOwnerPipe = (...args) => {
       listens += 1
-      return deps.listenOwnerPipe(...args)
+      return nativeListen(...args)
     }
     await expect(claim({ ...deps, maxRecordBytes: 1, listenOwnerPipe: listen })).rejects.toThrow(
       'lease-record-oversize',
