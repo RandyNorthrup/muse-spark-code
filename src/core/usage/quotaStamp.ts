@@ -9,11 +9,11 @@
 import type { UsageRecording } from './recording'
 
 /**
- * The credential a host's attempts use, carried from final admission: the
- * host notes each admitted attempt's digest here, and its recorder wrapper
- * stamps observations with it. One session per host, so one stash per host
- * is exact. An undefined admission never clears the carried digest.
- */
+The credential a host's attempts use, carried from final admission: the
+host notes each admitted attempt's digest here, and its recorder wrapper
+stamps observations with it. One session per host, so one stash per host
+is exact. An undefined admission never clears the carried digest.
+*/
 export interface TeamQuotaStash {
   readonly noteAttempt: (keyDigest: string | undefined) => void
   readonly current: () => string | undefined
@@ -30,13 +30,13 @@ export function teamQuotaStash(): TeamQuotaStash {
 }
 
 /**
- * The stamp for one recorded row: a non-Meta provider attributes its quota
- * to the credential the attempt used; Meta keeps the reservation's budget
- * identity. A removed credential's old quota gives no offer: without a
- * carried digest the reservation stays (P2-4, P3-6). The provider arrives
- * from the same model id the quote named, so the quote, the admission and
- * the stamp compare one identity end to end (P2-A).
- */
+The stamp for one recorded row: a non-Meta provider attributes its quota
+to the credential the attempt used; Meta keeps the reservation's budget
+identity. A removed credential's old quota gives no offer: without a
+carried digest the reservation stays (P2-4, P3-6). The provider arrives
+from the same model id the quote named, so the quote, the admission and
+the stamp compare one identity end to end (P2-A).
+*/
 export function stampQuotaRow(options: {
   readonly provider: string
   readonly attemptKeyDigest: string | undefined
@@ -48,10 +48,10 @@ export function stampQuotaRow(options: {
 }
 
 /**
- * A team host's usage recording: rows pass through, re-stamped with the
- * credential the attempt used. Hosts without a team stash record exactly
- * what the session stamped.
- */
+A team host's usage recording: rows pass through, re-stamped with the
+credential the attempt used. Hosts without a team stash record exactly
+what the session stamped.
+*/
 export function restampTeamQuota(
   recording: UsageRecording | undefined,
   stash: { readonly current: () => string | undefined } | undefined,
