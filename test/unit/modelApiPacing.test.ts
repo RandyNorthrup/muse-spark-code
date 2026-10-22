@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ModelApiPacing } from '../../src/core/backends/modelapi/pacing'
+import { fanOutPacingClass } from '../../src/core/backends/modelapi/subagentTools'
 
 function pacer() {
   return new ModelApiPacing({
@@ -142,5 +143,19 @@ describe('pacing follows the provider, not our own pace (NOLIMITS2 C2)', () => {
       waits.push(delayMs)
     })
     expect(waits).toEqual([])
+  })
+})
+
+describe('fan-out pacing classes (D86.6, C-M106-4)', () => {
+  it('paces key-billed team work as background team, never foreground', () => {
+    expect(fanOutPacingClass('teamWorkers')).toBe('team')
+  })
+
+  it('keeps every paid tag on its own class', () => {
+    expect(fanOutPacingClass('subagents')).toBe('subagent')
+    expect(fanOutPacingClass('bestOfN')).toBe('bestOfN')
+    expect(fanOutPacingClass('scheduledPrompts')).toBe('schedule')
+    expect(fanOutPacingClass('judge')).toBe('judge')
+    expect(fanOutPacingClass(undefined)).toBe('foreground')
   })
 })

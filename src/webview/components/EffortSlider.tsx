@@ -9,7 +9,41 @@
 // itself carries the value ("Effort (Extra high)") and takes Left / Right.
 
 import { type EffortLevel, UI_TEXT } from '../../shared/constants'
-import { effortLabel, isEffortLevel } from '../../shared/effort'
+import { effortLabel, isEffortLevel, type CatalogueTiers } from '../../shared/effort'
+import { fill } from '../../shared/l10n/text'
+
+/**
+The slider's catalogue path for one row (C-M106-3R3): the panel footer and
+the palette share this, so the captured variants and default reach the
+rendered tiers through the model list the controller sends. Undefined
+where the row carries no catalogue, and the slider falls back to the
+family table. A tier outside the extension's vocabulary renders with its
+catalogue name; selecting one stays the caller's typed path.
+*/
+export function catalogueSliderProps(
+  source: CatalogueTiers | undefined,
+  current: string,
+  onSelectTier: (tier: string) => void,
+):
+  | (CatalogueTiers & { readonly current: string; readonly onSelect: (tier: string) => void })
+  | undefined {
+  if (source?.variants === undefined) return undefined
+  return {
+    variants: source.variants,
+    ...(source.reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: source.reasoningEffortVariants.map((variant) =>
+        variant.description === undefined
+          ? { tier: variant.tier }
+          : { tier: variant.tier, description: variant.description },
+      ),
+    }),
+    ...(source.defaultReasoningEffort !== undefined && {
+      defaultReasoningEffort: source.defaultReasoningEffort,
+    }),
+    current,
+    onSelect: onSelectTier,
+  }
+}
 
 export interface EffortSliderProps {
   readonly levels: readonly EffortLevel[]
@@ -19,16 +53,12 @@ export interface EffortSliderProps {
   /** In a row that is itself the control: dots for the mouse only. */
   readonly isInsideOption?: boolean
   /** Lane W supplies the validated Muse Code catalogue through the shared bridge. */
-  readonly model?: {
-    readonly variants: readonly string[] | 'unknown'
-    readonly reasoningEffortVariants?: readonly {
-      readonly tier: string
-      readonly description?: string
-    }[]
-    readonly defaultReasoningEffort?: string
-    readonly current?: string
-    readonly onSelect?: (tier: string) => void
-  }
+  readonly model?:
+    | (CatalogueTiers & {
+        readonly current?: string
+        readonly onSelect?: (tier: string) => void
+      })
+    | undefined
 }
 
 function stepClass(index: number, currentIndex: number): string {
@@ -43,21 +73,31 @@ export function EffortSlider({
   model,
 }: EffortSliderProps) {
   const variants = model?.variants
-  const hasCatalogue = variants !== undefined && variants !== 'unknown'
+  const hasCatalogue = variants !== undefined
   const selected = hasCatalogue ? (model?.current ?? model?.defaultReasoningEffort) : current
   const steps = hasCatalogue
-    ? variants.map((tier) => ({
-        tier,
-        label:
-          model?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
-          (isEffortLevel(tier) ? effortLabel(tier) : tier),
-        select:
-          model?.onSelect === undefined
-            ? undefined
-            : () => {
-                model.onSelect?.(tier)
-              },
-      }))
+    ? (variants === 'unknown' ? [] : variants).map((tier) => {
+        const description = model?.reasoningEffortVariants?.find(
+          (variant) => variant.tier === tier,
+        )?.description
+        if (!isEffortLevel(tier)) {
+          // A tier outside the extension's vocabulary renders with its
+          // catalogue name, disabled, and says why in its tooltip and
+          // accessible name (RVCM1063C #2/#6).
+          const unsupported = fill(UI_TEXT.effortTierUnsupported, { tier: description ?? tier })
+          return { tier, label: unsupported, select: undefined }
+        }
+        return {
+          tier,
+          label: description ?? effortLabel(tier),
+          select:
+            model?.onSelect === undefined || !levels.includes(tier)
+              ? undefined
+              : () => {
+                  model.onSelect?.(tier)
+                },
+        }
+      })
     : levels.map((tier) => ({
         tier,
         label: effortLabel(tier),
@@ -109,5 +149,36 @@ export function EffortSlider({
         />
       ))}
     </span>
+  )
+}
+
+/** The Modes footer and its labels load only with the effort control. */
+export function EffortMenuFooter({
+  catalogue,
+  ...props
+}: EffortSliderProps & {
+  readonly catalogue: CatalogueTiers | undefined
+}) {
+  // A future-only catalogue has no selectable tier, but its names still
+  // render verbatim and disabled; nothing renders when the catalogue names
+  // no tier at all (RVCM1063C #2). Decided here, in the lazy chunk, so the
+  // startup closure carries no visibility check.
+  const variants = catalogue?.variants
+  const hasTiers =
+    props.levels.length > 0 ||
+    (variants !== undefined && variants !== 'unknown' && variants.length > 0)
+  if (!hasTiers) return null
+  return (
+    <div className="effort-row">
+      <span className="effort-row-label">
+        {UI_TEXT.effortItem} ({effortLabel(props.current)})
+      </span>
+      <EffortSlider
+        {...props}
+        model={catalogueSliderProps(catalogue, props.current, (tier) => {
+          if (isEffortLevel(tier)) props.onSelect?.(tier)
+        })}
+      />
+    </div>
   )
 }

@@ -58,5 +58,7 @@ export interface ScheduleSurfaceProps {
   readonly currentConversationId?: string
   readonly nowMs: number
   readonly initialView?: 'list' | 'timeline' | 'editor'
+  /** Behind a modal the surface takes no focus or clicks (M25). */
+  readonly isInert?: boolean
   readonly onClose?: () => void
 }

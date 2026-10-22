@@ -53,7 +53,7 @@ export function Modal({ title, titleId, isWide = false, onClose, children }: Mod
       trapTab(event, action === 'focusPrevious')
       return
     }
-    if (webviewKey('modal.focus', event) !== 'close') {
+    if (action !== 'close') {
       return
     }
     event.preventDefault()

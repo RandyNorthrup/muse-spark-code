@@ -62,6 +62,7 @@ import {
   isSessionNotLoadedError,
   isSteerRefusedError,
   type LoadedSession,
+  type ModelSummary,
   type MuseCodeFaultError,
   type OutputPage,
   type OutputPageRequest,
@@ -106,6 +107,7 @@ import { type BestOfNError, isBestOfNError } from '../../core/bestOfN/bestOfNErr
 import type { BestOfNCoordinator } from '../../core/bestOfN/bestOfNCoordinator'
 import type { BoardSession, PendingPrompts } from '../../core/sessionBoard'
 import { failureForLog, isMspFailure, stderrForLog } from '../../core/backends/musecode/logText'
+import { feedbackClassificationSchema } from '../../core/backends/musecode/feedback'
 import { resolveResumedModel } from '../../core/backends/musecode/resumedModel'
 import { signInLossText } from '../../core/backends/musecode/signInLoss'
 import { chatReferenceText } from '../../core/chatReference'
@@ -195,7 +197,7 @@ import {
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
-import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
+import { effortForThinking, isEffortLevel, servedEffortLevels } from '../../shared/effort'
 import {
   isChildTurn,
   type AgentEvent,
@@ -838,6 +840,8 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'importSession',
   'savePlan',
   'implementPlan',
+  'previewFeedback',
+  'submitFeedback',
   // A handoff's Cancel is not here (M74): releasing an operation the panel
   // owns needs no admission, and the panel has already closed its dialog.
   'requestHandoff',
@@ -1002,6 +1006,65 @@ function turnEndLine(
 
 function isContributorModel(modelId: string): boolean {
   return modelId.endsWith(CONTRIBUTOR_MODEL_SUFFIX)
+}
+
+/**
+The webview's model row for one host summary (C-M106-3R3): everything the
+picker shows plus the served catalogue's tiers, so the sliders render the
+catalogue the host sent instead of the static family table (RVCM1063 #3).
+*/
+export function toModelOption(model: ModelSummary): ModelOption {
+  return {
+    modelId: model.modelId,
+    displayLabel: model.displayLabel,
+    ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
+    // Muse Code's per-model tiers light the slider (META-G05); the
+    // static family table applies where the host reports none. Only a
+    // non-empty known list is posted, so the slider never hides behind
+    // an unusable row.
+    ...(model.effortLevels !== undefined &&
+      model.effortLevels.some((level) => isEffortLevel(level)) && {
+        effortLevels: model.effortLevels.filter((level) => isEffortLevel(level)),
+      }),
+    ...(model.defaultEffort !== undefined &&
+      isEffortLevel(model.defaultEffort) && { defaultEffort: model.defaultEffort }),
+    ...(model.fastTier !== undefined && {
+      fastTier: {
+        id: model.fastTier.id,
+        name: model.fastTier.name,
+        description: model.fastTier.description,
+      },
+    }),
+    isDefault: model.isDefault,
+    ...(model.providerId !== undefined && { providerId: model.providerId }),
+    ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
+    ...(model.pricing !== undefined && { pricing: model.pricing }),
+    ...(model.inputUsdPerMTokens !== undefined && {
+      inputUsdPerMTokens: model.inputUsdPerMTokens,
+    }),
+    ...(model.outputUsdPerMTokens !== undefined && {
+      outputUsdPerMTokens: model.outputUsdPerMTokens,
+    }),
+    ...(model.isPinned === true && { isPinned: model.isPinned }),
+    ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
+    ...(model.agentLimit !== undefined && { agentLimit: model.agentLimit }),
+    // The contributor state travels with the model (F62): the CLI's list
+    // names no tier, but a `-contributor` id trains on what it is sent by
+    // definition, so the picker's tier mark and the contributor switch
+    // (F8 lane) read the same fact from `trainsOnContent`.
+    ...((model.trainsOnContent === true || isContributorModel(model.modelId)) && {
+      trainsOnContent: true,
+    }),
+    ...(model.variants !== undefined && {
+      variants: model.variants === 'unknown' ? 'unknown' : [...model.variants],
+    }),
+    ...(model.reasoningEffortVariants !== undefined && {
+      reasoningEffortVariants: model.reasoningEffortVariants.map((variant) => ({ ...variant })),
+    }),
+    ...(model.defaultReasoningEffort !== undefined && {
+      defaultReasoningEffort: model.defaultReasoningEffort,
+    }),
+  }
 }
 
 /**
@@ -4161,58 +4224,14 @@ export class ConversationController {
           (model) => !isContributorModel(model.modelId) && model.trainsOnContent !== true,
         )
       : listed
-    this.models = models.map((model) => ({
-      modelId: model.modelId,
-      displayLabel: model.displayLabel,
-      ...(model.contextLimit !== undefined && { contextLimit: model.contextLimit }),
-      ...(model.effortLevels !== undefined && { effortLevels: [...model.effortLevels] }),
-      ...(model.defaultEffort !== undefined && { defaultEffort: model.defaultEffort }),
-      ...(model.fastTier !== undefined && {
-        fastTier: {
-          id: model.fastTier.id,
-          name: model.fastTier.name,
-          description: model.fastTier.description,
-        },
-      }),
-      isDefault: model.isDefault,
-      ...(model.providerId !== undefined && { providerId: model.providerId }),
-      ...(model.providerLabel !== undefined && { providerLabel: model.providerLabel }),
-      ...(model.pricing !== undefined && { pricing: model.pricing }),
-      ...(model.inputUsdPerMTokens !== undefined && {
-        inputUsdPerMTokens: model.inputUsdPerMTokens,
-      }),
-      ...(model.outputUsdPerMTokens !== undefined && {
-        outputUsdPerMTokens: model.outputUsdPerMTokens,
-      }),
-      ...(model.isPinned === true && { isPinned: model.isPinned }),
-      ...(model.planLimitsUrl !== undefined && { planLimitsUrl: model.planLimitsUrl }),
-      // The tool-calling limit travels with the model (F83): a configured
-      // model without confirmed tool calling is listed with its limit stated.
-      ...(model.agentLimit !== undefined && { agentLimit: model.agentLimit }),
-      // The contributor state travels with the model (F62): the CLI's list
-      // names no tier, but a `-contributor` id trains on what it is sent by
-      // definition, so the picker's tier mark and the contributor switch
-      // (F8 lane) read the same fact from `trainsOnContent`.
-      ...((model.trainsOnContent === true || isContributorModel(model.modelId)) && {
-        trainsOnContent: true,
-      }),
-      // Muse Code's per-model tiers light the slider (META-G05); the
-      // static family table applies where the host reports none. Only a
-      // non-empty known list is posted, so the slider never hides behind
-      // an unusable row.
-      ...(model.effortLevels !== undefined &&
-        model.effortLevels.some((level) => isEffortLevel(level)) && {
-          effortLevels: model.effortLevels.filter((level) => isEffortLevel(level)),
-        }),
-      ...(model.defaultEffort !== undefined &&
-        isEffortLevel(model.defaultEffort) && { defaultEffort: model.defaultEffort }),
-    }))
+    this.models = models.map((model) => toModelOption(model))
     this.post({ type: 'modelList', models: [...this.models] })
     // Before any session exists the composer already shows the level the
     // first turn will run at; a live session keeps the level it was given.
     if (this.session === undefined) this.startOnCatalogueEffort(this.modelId)
   }
 
+  /**
   /**
   The composer's effort for the session; a refusal is said, and the turn
   still goes. One `session/setReasoningEffort` per session is in flight
@@ -4222,6 +4241,14 @@ export class ConversationController {
   this burst. Resolves to undefined when the newest value applied, else to
   the composer state the session still holds.
   */
+  /**
+  What a model may be asked for (RVCM1063D cause 1): the served catalogue's
+  tiers for one model id, through the one shared function. Every admission
+  site in this controller calls this, never the static table.
+  */
+  private servedLevels(modelId: string | undefined): readonly EffortLevel[] {
+    return servedEffortLevels(this.models, modelId)
+  }
   private applyEffort(
     session: AgentSession,
     kept: ComposerEffort,
@@ -4461,10 +4488,24 @@ export class ConversationController {
     this.noteActivity()
     this.git.sessionChanged(session.sessionId)
     this.startOnCatalogueEffort(this.modelId)
-    await this.applyEffort(session, {
-      effort: this.effort,
-      isThinkingEnabled: this.isThinkingEnabled,
-    })
+    // The first write obeys the served catalogue like every later one: a
+    // composer tier the session's model does not serve is clamped to the
+    // highest tier it does, and a catalogue with no selectable tier sends
+    // nothing instead of a fabricated tier (RVCM1063C #1). The model is the
+    // announced active one, never the resumed handle's requested id: a
+    // session resumed on another model admits against the learnt row
+    // (RVCM1063D #1).
+    const served = this.servedLevels(this.modelId)
+    if (served.length > 0) {
+      if (!served.includes(this.effort)) {
+        this.effort = served.at(-1) ?? DEFAULT_EFFORT
+        this.postComposerState()
+      }
+      await this.applyEffort(session, {
+        effort: this.effort,
+        isThinkingEnabled: this.isThinkingEnabled,
+      })
+    }
     // Fast starts off on every session this surface takes, new or resumed,
     // unless the person chose it before any session existed: that pre-session
     // choice applies to the first session, while a flag left by an earlier
@@ -9081,25 +9122,17 @@ export class ConversationController {
     // A tier the new model does not serve would fail its turns with a 400
     // (muse-spark-1.2 has no `max`); drop to the model's own default where
     // the backend knows it, else the highest tier it does serve.
-    const levels = this.modelEffortLevels(modelId)
+    const levels = this.servedLevels(modelId)
     const startEffort = this.unchosenEffort(modelId)
     if (startEffort !== undefined && startEffort !== this.effort) {
       await this.updateEffort(startEffort, this.isThinkingEnabled)
-    } else if (!levels.includes(this.effort)) {
+    } else if (levels.length > 0 && !levels.includes(this.effort)) {
       await this.updateEffort(this.modelDefaultEffort(modelId, levels), this.isThinkingEnabled)
     }
     // Fast never survives a model change: it is off by default, and the
     // new model may list no priority tier at all. Off is sent even when the
     // panel already shows it off, so the session never keeps an old tier.
     await this.updateFast(false)
-  }
-
-  /** The tiers a model serves: its own list where the backend knows it. */
-  private modelEffortLevels(modelId: string): readonly EffortLevel[] {
-    return effortLevelsFor(
-      modelId,
-      this.models?.find((model) => model.modelId === modelId)?.effortLevels,
-    )
   }
 
   /**
@@ -9122,7 +9155,7 @@ export class ConversationController {
   private unchosenEffort(modelId: string): EffortLevel | undefined {
     if (this.isEffortChosen) return undefined
     const fallback = this.models?.find((model) => model.modelId === modelId)?.defaultEffort
-    return fallback !== undefined && this.modelEffortLevels(modelId).includes(fallback)
+    return fallback !== undefined && this.servedLevels(modelId).includes(fallback)
       ? fallback
       : undefined
   }
@@ -9141,13 +9174,26 @@ export class ConversationController {
     this.effort = effort
     this.isThinkingEnabled = isThinkingEnabled
     const { session } = this
-    const kept = session === undefined ? undefined : await this.applyEffort(session, previous)
+    // A catalogue with no selectable tier sends nothing instead of a
+    // fabricated tier (RVCM1063D #2): Thinking toggling back on restores no
+    // wire value where none is served. Thinking off still sends its
+    // supported `none`. The refusal is said, and the turn still goes.
+    const served = this.servedLevels(this.modelId)
+    let kept: ComposerEffort | undefined
+    if (session === undefined) {
+      kept = undefined
+    } else if (isThinkingEnabled && served.length === 0) {
+      kept = undefined
+      this.notice('warning', UI_TEXT.execEffortUnavailable)
+    } else {
+      kept = await this.applyEffort(session, previous)
+    }
     // The session kept its effort, so the composer shows it again, unless
     // the model no longer serves it (a model switch dropped the tier).
     if (
       kept !== undefined &&
       this.session === session &&
-      this.modelEffortLevels(this.modelId).includes(kept.effort)
+      this.servedLevels(this.modelId).includes(kept.effort)
     ) {
       this.effort = kept.effort
       this.isThinkingEnabled = kept.isThinkingEnabled
@@ -9458,6 +9504,66 @@ export class ConversationController {
     }
     if (session !== undefined) {
       await this.refreshSkills(session)
+    }
+  }
+
+  /**
+  The feedback dialog's scrubbed preview (C-M106-3R2): registered literals
+  stay in the host, so the dialog approves exactly what would be sent. A
+  session without the port previews the note unchanged; the dialog still
+  applies the shared credential-pattern detector locally.
+  */
+  private previewFeedback(requestId: number, note: string): void {
+    const preview = this.session?.previewFeedbackNote?.(note) ?? note
+    this.post({ type: 'feedbackPreview', requestId, note: preview })
+  }
+
+  /**
+  The dialog's confirmed note with its classification. Refused before
+  dispatch without a session, without the port (the Model API backend has
+  no `feedback/submit`), for another session, or for a classification
+  outside the client-selected vocabulary; the host reader refuses
+  record-attached receipts, which this dialog never offers.
+  */
+  private async submitSessionFeedback(
+    message: Extract<ConversationMessage, { type: 'submitFeedback' }>,
+  ): Promise<void> {
+    const session = this.session
+    const classification = feedbackClassificationSchema.safeParse(message.classification)
+    const submit = session?.submitFeedback
+    if (
+      session === undefined ||
+      submit === undefined ||
+      message.sessionId !== session.sessionId ||
+      !classification.success
+    ) {
+      this.post({
+        type: 'feedbackOutcome',
+        requestId: message.requestId,
+        error: UI_TEXT.feedbackFailed,
+      })
+      return
+    }
+    try {
+      const outcome = await submit({
+        sessionId: message.sessionId,
+        classification: classification.data,
+        note: message.note,
+        withFiles: false,
+        attachSessionRecord: false,
+      })
+      this.post({ type: 'feedbackOutcome', requestId: message.requestId, outcome })
+    } catch (error: unknown) {
+      // The dialog carries the reason; the log keeps only its kind (never a
+      // note), like any other refused webview promise.
+      this.deps.log.warn(
+        `Feedback submit refused (${errorKind(error)}); the dialog carries the reason`,
+      )
+      this.post({
+        type: 'feedbackOutcome',
+        requestId: message.requestId,
+        error: error instanceof Error ? error.message : UI_TEXT.feedbackFailed,
+      })
     }
   }
 
@@ -11017,6 +11123,20 @@ export class ConversationController {
           })
           break
         }
+        case 'previewFeedback': {
+          // Without admission there is no host scrub: the dialog falls back
+          // to its local pattern detector over the unchanged note.
+          this.post({ type: 'feedbackPreview', requestId: message.requestId, note: message.note })
+          break
+        }
+        case 'submitFeedback': {
+          this.post({
+            type: 'feedbackOutcome',
+            requestId: message.requestId,
+            error: UI_TEXT.notSignedInReason,
+          })
+          break
+        }
         default: {
           break
         }
@@ -11298,6 +11418,10 @@ export class ConversationController {
       }
       case 'setEffort': {
         this.isEffortChosen = true
+        if (!this.servedLevels(this.modelId).includes(message.effort)) {
+          this.notice('warning', UI_TEXT.execEffortUnavailable)
+          break
+        }
         await this.updateEffort(message.effort, this.isThinkingEnabled)
         break
       }
@@ -11384,6 +11508,14 @@ export class ConversationController {
       }
       case 'listSkills': {
         await this.listSkills()
+        break
+      }
+      case 'previewFeedback': {
+        this.previewFeedback(message.requestId, message.note)
+        break
+      }
+      case 'submitFeedback': {
+        await this.submitSessionFeedback(message)
         break
       }
       case 'searchMentions': {
