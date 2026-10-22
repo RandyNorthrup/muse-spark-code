@@ -53,6 +53,11 @@ set|status|clear --provider <id> --admin` stores the separate admin
 
 ### Fixed
 
+- The terminal accounts commands name an unknown provider id
+  (`Unknown provider: <id>.`) instead of reporting that the runtime is not
+  connected to the account service. `auth set` refuses before asking for a
+  key.
+
 - Bind every Meta attempt to its resolved billing route, including Best-of-N,
   Judge and prompt/agent hooks. Search consent remembers payer kind and model
   token rates; subscription/provider account transitions work without a restart,
@@ -136,17 +141,17 @@ set|status|clear --provider <id> --admin` stores the separate admin
 
 ### Changed
 
-- Held account requests retain their payer through retries, restore conversation choice, scope uncertain liability to its original period, and prune day-indexed admission history. Paid image/reviewer/hook calls ask after choosing their payer. Models account bootstrap stays hidden and typed; policy questions no longer block unrelated eligible chats. Certification remains off.
+- Account requests retain their payer through retries, restore conversation choice, scope uncertain liability to its original period, and prune day-indexed admission history. Paid image/reviewer/hook calls ask after choosing their payer. Models account bootstrap stays hidden and typed; policy questions no longer block unrelated eligible chats. When an account hits a vendor limit mid-turn, the request automatically fails over to a healthy account instead of dying on the dead one.
 
-- Held account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
+- The account request path chooses its payer before hosted-search consent; user-selected accounts cannot borrow the default account approval.
 
-- Held paid requests run on one lease from choice to settlement: retries survive the lease's own rate-limit block, image spending questions keep Stop and per-request consent, Judge sends leave no per-send residue and stay on the turn's payer, negative waits map to the shared default, and stop messages name the earliest recovery. Certification stays off.
+- Paid requests run on one lease from choice to settlement: retries survive the lease's own rate-limit block, image spending questions keep Stop and per-request consent, Judge sends leave no per-send residue and stay on the turn's payer, negative waits map to the shared default, and stop messages name the earliest recovery.
 
-- The held Accounts section states that the chosen account serves the chat's own requests while background work spreads by headroom, in all fourteen languages.
+- The Accounts section states that the chosen account serves the chat's own requests while background work spreads by headroom, in all fourteen languages.
 
 - Account availability now restores its registered release text, setting
   descriptions and Help pooling row together during reference generation.
-  Certification stays off; local profiles and Muse Code accounts remain held.
+  Certification is open; local profiles and Muse Code accounts remain held.
 
 - Resource CLI certification shares its compiled setup and runs independent
   reads together; repository test deadlines and product behavior stay unchanged.
