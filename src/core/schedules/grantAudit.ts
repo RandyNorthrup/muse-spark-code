@@ -4,6 +4,7 @@ import {
   scheduleGrantAuditSchema,
   scheduleGrantSchema,
   scheduleV2Schema,
+  type ScheduleCallOptions,
   type ScheduleGrant,
   type ScheduleV2,
 } from '../../shared/scheduleV2'
@@ -14,11 +15,23 @@ export type ScheduleGrantAudit = z.infer<typeof scheduleGrantAuditSchema>
 export interface ScheduleAuthorityStore {
   /** Local mutations invalidate dispatch synchronously; reads observe other holders. */
   generation?(workspaceKey: string, scheduleId: string): number
-  read(workspaceKey: string, scheduleId: string): Promise<ScheduleV2 | undefined>
+  read(
+    workspaceKey: string,
+    scheduleId: string,
+    options?: ScheduleCallOptions,
+  ): Promise<ScheduleV2 | undefined>
   /** `created` admits an absent id at revision zero; other mutations use CAS. */
-  commit(next: ScheduleV2, audit: ScheduleGrantAudit): Promise<boolean>
-  append(audit: ScheduleGrantAudit): Promise<void>
-  audit(workspaceKey: string, scheduleId: string): Promise<readonly ScheduleGrantAudit[]>
+  commit(
+    next: ScheduleV2,
+    audit: ScheduleGrantAudit,
+    options?: ScheduleCallOptions,
+  ): Promise<boolean>
+  append(audit: ScheduleGrantAudit, options?: ScheduleCallOptions): Promise<void>
+  audit(
+    workspaceKey: string,
+    scheduleId: string,
+    options?: ScheduleCallOptions,
+  ): Promise<readonly ScheduleGrantAudit[]>
 }
 
 /** Shared editor model; callers supply the displayed revision when changing authority. */

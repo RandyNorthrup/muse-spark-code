@@ -260,7 +260,7 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
           // Read authority after awaited pricing, then validate synchronously
           // beside admission. A pause during a quote cannot use an older read.
           const live = assertCurrent(
-            await authority.read(record.workspaceKey, record.id),
+            await authority.read(record.workspaceKey, record.id, { signal }),
             record,
             fresh.identity,
           )
@@ -269,7 +269,7 @@ export function createScheduleBilling(ports: ScheduleBillingPorts) {
           try {
             const quoted = await quote(session.modelId)
             assertCurrent(
-              await authority.read(record.workspaceKey, record.id),
+              await authority.read(record.workspaceKey, record.id, { signal }),
               live,
               quoted.identity,
             )
