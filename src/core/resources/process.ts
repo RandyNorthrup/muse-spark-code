@@ -17,7 +17,6 @@ import type { ResourceProcessIdentity } from '../../shared/resources'
 import {
   CLI_OUTPUT_MAX_BYTES,
   MILLISECONDS_PER_SECOND,
-  PROCESS_TABLE_TIMEOUT_MS,
   RESOURCE_HANDOFF_TIMEOUT_MS,
   RESOURCE_JOB_EMPTY_MS,
   RESOURCE_JOB_SAMPLE_MS,
@@ -146,15 +145,15 @@ async function stopBootstrap(root: ChildProcess): Promise<void> {
   if (systemRoot === undefined) throw new Error('Bootstrap tree termination unavailable')
   await new Promise<void>((resolve, reject) => {
     // OS termination infrastructure must remain usable while admission is paused.
-    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed SystemRoot taskkill, numeric owned root PID, bounded output/deadline, credential-free environment; emergency termination cannot queue behind pause (PLAN SPAWN017B/SPAWN017C, section 8).
+    // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Fixed SystemRoot taskkill, numeric owned root PID, bounded output, credential-free environment; emergency termination cannot queue behind pause (PLAN SPAWN017B/SPAWN017C, section 8).
     execFileGuarded(
       path.win32.join(systemRoot, WINDOWS_TASKKILL_RELATIVE_PATH),
       ['/PID', String(pid), '/T', '/F'],
       {
         // Fixed `taskkill` under SystemRoot: absolute entries only, links followed.
+        // No deadline of ours: the stop the caller asked for runs to taskkill's end.
         env: noWorkspaceChildEnvironment('win32', { SystemRoot: systemRoot }, realpathSync),
         windowsHide: true,
-        timeout: PROCESS_TABLE_TIMEOUT_MS,
         maxBuffer: CLI_OUTPUT_MAX_BYTES,
       },
       (error) => {

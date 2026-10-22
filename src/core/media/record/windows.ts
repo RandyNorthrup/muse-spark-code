@@ -6,7 +6,6 @@ import {
   MEDIA_MAX_UPLOAD_MIB,
   MEDIA_FILE_ID_MIN_BYTES,
   MILLISECONDS_PER_SECOND,
-  PROCESS_TABLE_TIMEOUT_MS,
   SCREEN_RECORDING_REMOVE_ATTEMPTS,
   SCREEN_RECORDING_REMOVE_RETRY_MS,
 } from '../../../shared/constants'
@@ -198,33 +197,43 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
       const child = deps.launch(helper, args)
       let reason = unavailable()
       let countdown: ReturnType<typeof setInterval> | undefined
-      let deadline: ReturnType<typeof setTimeout> | undefined
       let remaining = options?.maxSeconds ?? 0
       const exited = new Promise<number | null>((resolve) => {
         child.onExit((code) => {
           state.hasExited = true
           clearInterval(countdown)
-          clearTimeout(deadline)
           resolve(code)
         })
       })
+      // Ends the helper now, cancelled; its exit port then settles the run.
+      // Only for a helper that can no longer be asked, or one the person
+      // cancels while it is still finishing: never on a clock of ours.
+      const kill = () => {
+        state.isCancelled = true
+        void child.kill().catch(() => {
+          /* The exit port still settles the run. */
+        })
+      }
+      // Asks the helper once, then waits for its own exit: finishing or
+      // cancelling a recording takes as long as it takes (D121, no deadline).
       const end = (shouldCancel: boolean) => {
         state.isCancelled ||= shouldCancel
         if (state.hasRequestedStop || state.hasExited) return
         state.hasRequestedStop = true
-        deadline = setTimeout(() => {
-          state.isCancelled = true
-          void child.kill().catch(() => {
-            /* The exit port still settles the run. */
-          })
-        }, PROCESS_TABLE_TIMEOUT_MS)
         try {
           child.send(shouldCancel ? 'cancel' : 'stop')
         } catch {
-          // A dead helper channel counts as cancelled; the kill deadline
-          // below still ends the helper and settles the run.
-          state.isCancelled = true
+          // A dead helper channel cannot take the request, so nothing would
+          // ever answer it: the helper is ended now and the run settles.
+          kill()
         }
+      }
+      // The person's Cancel or the window closing. A helper already asked
+      // to stop that is still running is ended at once: the person's own
+      // cancel stops the work; no clock of ours does.
+      const cancelByPerson = () => {
+        if (state.hasRequestedStop && !state.hasExited) kill()
+        else end(true)
       }
       child.onLine((line) => {
         let value: unknown
@@ -305,9 +314,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           if (remaining === 0) end(false)
         }, MILLISECONDS_PER_SECOND)
       })
-      cancelChild = () => {
-        end(true)
-      }
+      cancelChild = cancelByPerson
       if (isCancelled()) end(true)
       let cleanup: Promise<void> | undefined
       // Share in-flight/successful cleanup, but let a later discard retry a
@@ -348,7 +355,6 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           return outcome
         } finally {
           clearInterval(countdown)
-          clearTimeout(deadline)
           unsubscribeShutdown()
           active = undefined
         }
@@ -360,7 +366,7 @@ export function windowsScreenRecorder(deps: WindowsRecorderDeps): WindowsScreenR
           await result
         },
         cancel: async () => {
-          end(true)
+          cancelByPerson()
           const outcome = await result
           if (outcome.ok) await outcome.preview.dispose()
         },
