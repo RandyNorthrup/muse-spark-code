@@ -106,6 +106,12 @@ happened, not what was planned; superseded entries are kept.
 - The session's background tasks, hooks and plugins open as a read-only
   dialog with Refresh, and the History dialog offers a Recap button
   where the backend can recap sessions.
+- **A failed turn can be retried.** Where the backend judged a failed
+  turn retryable, its error row offers Retry, which resubmits the
+  turn's own message as a new turn and keeps all its work; a turn that
+  died with its host resubmits once the host restarts. Through the
+  editor protocol the judgment rides the prompt error's
+  `data.retryable`. Nothing resubmits by itself.
 
 ### Changed
 
@@ -278,6 +284,9 @@ happened, not what was planned; superseded entries are kept.
   exclusions. Legacy tasks remain outside borrowing. Exhausted reviewer
   preferences block merge with skip reasons and queue or ask for an eligible
   reviewer instead of allowing an unreviewed merge (RVM120SG).
+- One-shot product notices in editor sessions no longer fold into the
+  model's answer: where the editor shows no notices they go out as
+  their own message with their own id.
 
 ### Release infrastructure
 
