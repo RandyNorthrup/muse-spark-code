@@ -1974,11 +1974,14 @@ export class MuseSession implements ScheduledAgentSession {
       const stop = hardwareStop(event.subject.command, 'bash', this.hardwareGuard.current())
       if (stop !== undefined) {
         void (async () => {
-          try {
-            if (this.runHardwareStop === undefined)
-              throw new Error(UI_TEXT.hardwareBindingUnavailable)
-            await this.runHardwareStop(stop)
-          } catch {
+          const [attempt] = await Promise.allSettled([
+            (async () => {
+              if (this.runHardwareStop === undefined)
+                throw new Error(UI_TEXT.hardwareBindingUnavailable)
+              await this.runHardwareStop(stop)
+            })(),
+          ])
+          if (attempt.status === 'rejected') {
             this.emit({
               type: 'backendNotice',
               level: 'error',

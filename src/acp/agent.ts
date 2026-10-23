@@ -2829,6 +2829,9 @@ class AcpSession {
         lease = await this.questionRegistry?.peekQueued()
     } catch (error: unknown) {
       this.maker?.setInteractive(false)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: turn preparation failed: ${failureForLog(error)}`,
+      )
       // Peeking is the try's last step, so no answer lease is held here.
       if ('error' in preparing) throw preparing.error
       if (!preparing.isCancelled) throw error
@@ -2949,6 +2952,9 @@ class AcpSession {
       }
     } catch (error: unknown) {
       this.maker?.setInteractive(false)
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: turn start failed: ${failureForLog(error)}`,
+      )
       await this.releaseAnswers(pending)
       if (this.pending === pending) this.pending = undefined
       if (this.isDisposed) {

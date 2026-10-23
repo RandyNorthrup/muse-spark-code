@@ -131,21 +131,26 @@ export class MachineHttp {
               reject(new MachineError('machineTransport'))
             })
             response.on('end', () => {
-              const status = response.statusCode ?? 0
-              if (status < HTTP_SUCCESS_MIN || status > HTTP_SUCCESS_MAX) {
-                reject(new MachineError('machineHttpStatus'))
-                return
-              }
-              try {
-                const text = redactSecrets(
-                  Buffer.concat(chunks).toString('utf8'),
-                  key === undefined ? [] : [key],
-                )
-                const parsed: unknown = text === '' ? null : JSON.parse(text)
-                resolve({ status, body: responseBodySchema.parse(parsed) })
-              } catch {
-                reject(new MachineError('machineResponse'))
-              }
+              void (async () => {
+                const status = response.statusCode ?? 0
+                if (status < HTTP_SUCCESS_MIN || status > HTTP_SUCCESS_MAX) {
+                  reject(new MachineError('machineHttpStatus'))
+                  return
+                }
+                const [body] = await Promise.allSettled([
+                  (async () => {
+                    await Promise.resolve()
+                    const text = redactSecrets(
+                      Buffer.concat(chunks).toString('utf8'),
+                      key === undefined ? [] : [key],
+                    )
+                    const parsed: unknown = text === '' ? null : JSON.parse(text)
+                    return responseBodySchema.parse(parsed)
+                  })(),
+                ])
+                if (body.status === 'fulfilled') resolve({ status, body: body.value })
+                else reject(new MachineError('machineResponse'))
+              })()
             })
           },
         )
