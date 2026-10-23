@@ -195,6 +195,10 @@ happened, not what was planned; superseded entries are kept.
   each share their own fleet/pool snapshot. Missing CI qualifies only work
   that uses CI. Default/configured thresholds retain their provenance and
   explanations use the installed language.
+- `providers refresh <id>` re-reads a provider's live model list, and
+  exec admits a live-but-unfiled model and files it on use.
+- The Models & Agents panel says where provider keys live: the editor's
+  secret storage is not the terminal agent's OS credential store.
 
 ### Changed
 
@@ -243,6 +247,8 @@ happened, not what was planned; superseded entries are kept.
   symlink aliases into shared source; non-file modules need one entry owner
   or an exact plugin ID exception (none is needed by the production build),
   including tree-shaken inputs and virtual modules behind real dependencies.
+- Headless exec says plainly that it offers no subagent tools, so
+  built-in and custom agents cannot run there.
 
 ### Fixed
 
@@ -452,6 +458,24 @@ happened, not what was planned; superseded entries are kept.
   example `team/[user]/src/main.ts`) now releases instead of expiring its own
   preview: every marker the scrub emits is atomic, so the confirmation
   re-scrub is a fixed point.
+- Agent Map, transcripts and workflow runs show one true status per
+  agent; a finished agent no longer reads Running, Inactive and Ended
+  at once.
+- Anthropic runs meter input with a count body the API accepts, so the
+  byte-bound fallback warning no longer fires on thinking models.
+- Headless exec's ready line names the provider the run actually uses.
+- `auth status` and `providers status` agree on the ChatGPT sign-in.
+- The documented effort default agrees with Muse Code's own record:
+  Max for muse-spark-1.3, High where a row lists none.
+- OS hand-offs (open, clipboard) wait for the adapter instead of giving
+  up after 10 seconds; only the usage-page opener keeps its own bound.
+- Screen-recording cleanup waits out a scanner lock until the person's
+  cancel instead of failing after 3 attempts.
+- The schedules report waits for an agreed snapshot instead of failing
+  busy, and report cancellation returns at once.
+- The vault is findable again: both commands are back in the Command
+  Palette and the Models & Agents tab is always present, showing the
+  vault's state or, when it cannot start, the reason.
 
 ### Release infrastructure
 
@@ -469,6 +493,9 @@ happened, not what was planned; superseded entries are kept.
   message ids and tool calls carry tool names, so editors group them
   correctly. The agent still never drives the editor's terminal or files
   itself; that stays a design note until a turn needs it.
+- The release's CI lookup scans every page for a reusable build instead
+  of stopping at 3, and waits for the API instead of rebuilding on a
+  timeout.
 
 ### MCP connector
 
