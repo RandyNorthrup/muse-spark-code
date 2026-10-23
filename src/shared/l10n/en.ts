@@ -8874,6 +8874,63 @@ export const EN = {
     itemsCount: forms({ one: '{count} item', other: '{count} items' }),
     grantsCount: forms({ one: '{count} Grant', other: '{count} Grants' }),
   },
+  // M110os (OS3, OS4, OS5, OS7): the first-boot setup over the LAN, served
+  // by the node until the setup code is accepted. TPM/PIN/SSH/Tang names stay
+  // English in every table: they are product and protocol names.
+  nodeOs: {
+    setupTitle: 'Set up your Muse Node',
+    setupCodeLabel: 'Setup code',
+    setupCodeHint: 'Type the code shown on the machine’s screen. It works once.',
+    setupCodeWrong: 'That code did not match. Check the machine’s screen and try again.',
+    setupCodeUsed: 'That code was already used. Restart the machine to show a new one.',
+    consoleAddress: 'Address',
+    consoleName: 'Name',
+    consoleFingerprint: 'Certificate fingerprint',
+    consoleCode: 'Setup code',
+    netTitle: 'Network',
+    netDhcp: 'Ethernet (automatic)',
+    netWifi: 'Wi-Fi',
+    netSsid: 'Network name',
+    netPassword: 'Wi-Fi password',
+    netSeedNote: 'Network settings from the card were applied, then removed.',
+    netConsoleNote:
+      'A Wi-Fi-only machine shows no setup page until its network is typed at the console.',
+    diskTitle: 'Disk',
+    diskTarget: 'Install disk',
+    diskEncryptTpm: 'Unlock automatically (TPM)',
+    diskEncryptPassphrase: 'Ask for a passphrase at every boot',
+    diskEncryptNone: 'No disk encryption',
+    diskNoEncryptWarning: 'Workspaces are not encrypted at rest. Secrets stay in the sealed store.',
+    diskTpmPin: 'TPM PIN (optional)',
+    recoveryKeyTitle: 'Recovery key',
+    recoveryKeyWarning: 'Write this key down. It is shown once and never again.',
+    diskTangNote:
+      'Without a TPM, a headless machine unlocks from your Tang server or waits for a passphrase.',
+    sshTitle: 'Remote shell (SSH)',
+    sshKeyLabel: 'Public key (optional)',
+    sshKeyInvalid: 'That is not a valid SSH public key.',
+    sshOffNote: 'SSH stays off until a public key is added. Passwords are never allowed.',
+    signinTitle: 'Sign-in and pairing',
+    signinPasskeyNote:
+      'The first passkey and browser pairing are set up here once the sign-in update lands.',
+    orchestratorTitle: 'Orchestrator (optional)',
+    orchestratorWaiting:
+      'Pairing with an orchestrator arrives with a later update. This node works alone until then.',
+    chromeTitle: 'Google Chrome (optional)',
+    chromeTerms: 'Google Chrome installs from Google’s packages under Google’s terms.',
+    chromeAccept: 'Install Google Chrome',
+    chromeFallback: 'Without Chrome, the node uses Chromium.',
+    nvidiaTitle: 'NVIDIA graphics (optional)',
+    nvidiaTerms: 'The NVIDIA driver installs from NVIDIA’s packages under NVIDIA’s terms.',
+    nvidiaAccept: 'Install the NVIDIA driver',
+    nvidiaDatacenter: 'GeForce cards are not licensed for datacenter use.',
+    skipStep: 'Skip',
+    summaryTitle: 'Review',
+    setupDone: 'Setup is complete. The machine is starting your node.',
+    setupFailed: 'Setup could not finish: {reason}',
+    seedRefused: 'The card’s setup files were not used: {reason}',
+    continueButton: 'Continue',
+  },
 }
 
 /** The shape every table has: English's keys, with any language's plural forms. */

@@ -146,7 +146,8 @@
       "nodeAudit.filterGit",
       "nodeDashboard.sessionTui",
       "referenceNodeTreeKeys",
-      "referenceNodeEditorKeys"
+      "referenceNodeEditorKeys",
+      "nodeOs.netWifi"
     ],
     "cs": [
       "groupModel",
@@ -174,7 +175,8 @@
       "judgeSetupCli.planLicenceNoUrl",
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
-      "nodeDashboard.sessionEditor"
+      "nodeDashboard.sessionEditor",
+      "nodeOs.diskTitle"
     ],
     "tr": [
       "groupModel",
@@ -190,7 +192,8 @@
       "devices.cpuPressure",
       "devices.diskPressure",
       "judgeSetupCli.planModel",
-      "nodeDashboard.sessionWeb"
+      "nodeDashboard.sessionWeb",
+      "nodeOs.diskTitle"
     ],
     "pl": [
       "groupModel",
@@ -270,7 +273,8 @@
       "nodeLabels.version",
       "nodeAudit.filterTerminal",
       "nodeDashboard.sessionWeb",
-      "nodeDashboard.sessionEditor"
+      "nodeDashboard.sessionEditor",
+      "nodeOs.consoleName"
     ],
     "es": [
       "hooksItem",
