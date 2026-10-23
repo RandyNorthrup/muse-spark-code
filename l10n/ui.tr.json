@@ -3342,6 +3342,18 @@
     "checkSlots": "Denetim yuvaları",
     "perCopy": "Her çalışma kopyası"
   },
+  "coordinatorStoreTooLarge": "Makine koordinatörünün kaydı güvenli okuma için çok büyük, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorStoreAmbiguous": "Makine koordinatörünün kaydı bozuk veya belirsiz, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor. Hiçbir şey silinmedi.",
+  "coordinatorStoreIdentity": "Makine koordinatörünün kaydı başka bir depoya ait, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorEpochReused": "Makine koordinatörü yeniden kullanılan bir oturumu reddetti, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorLedgerOwned": "Başka bir işlem bu makineyi zaten koordine ediyor, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorLedgerOwnerUncertain": "Makine koordinatörü başka bir işlemin bu makineyi hâlâ koordine edip etmediğini söyleyemez, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorSyncFailed": "Makine koordinatörü kaydını kaydedemedi, bu yüzden bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorModeWindowStorage": "Makine genelinde koordinasyon kapalı: bu depo bunu barındıramaz. Bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorModeWindowNative": "Makine genelinde koordinasyon kapalı: bu makinenin işlem denetimi henüz nitelikli değil. Bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorModeWindowScope": "Makine genelinde koordinasyon kapalı: tam işlem yalıtımı burada kanıtlanmadı. Bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorModeBlockedGrants": "Makine genelinde koordinasyon engellendi: önceki tahsisler hâlâ açık. Bu pencere, bunlar kapanana kadar kendi zamanlayıcısını kullanmaya devam ediyor.",
+  "coordinatorEndpointPathTooLong": "Makine koordinatörü burada dinleyemez: adres çok uzun. Bu pencere kendi zamanlayıcısını kullanmaya devam ediyor.",
   "teamTrafficMetrics": {
     "utilisation": "Yuva kullanımı",
     "queueDepth": "Kuyruk uzunluğu",
@@ -5674,6 +5686,34 @@
   "teamSuggestFreeLocal": "{model} ücretsiz ve yereldir ve {role} işini yapabilir",
   "teamSuggestFallbackDetail": "{role} rolünün tek kaydı var; yedek olarak {model} modelini ekleyin",
   "teamSuggestBudget": "Kalan günlük bütçeden {role} günlük üst sınırı {amount}",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Testli bir özellik",
   "teamPreviewResearchLibrary": "Bir kitaplığı araştırın",
   "teamPreviewReviewBranch": "Dalımı inceleyin",

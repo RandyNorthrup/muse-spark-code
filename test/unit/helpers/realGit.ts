@@ -1,7 +1,7 @@
 // Real git for the suites that drive an injected `runGit` port: the binary
 // runs, and its failures come back as the product's own exit error with
 // real codes. Shared so the suites cannot drift apart.
-import { execFile } from 'node:child_process'
+import { execFile, execFileSync } from 'node:child_process'
 import { promisify } from 'node:util'
 import { GitExitError } from '../../../src/host/git'
 
@@ -31,6 +31,22 @@ const resolvedBinary: Promise<string> = (async (): Promise<string> => {
 
 export function resolveGitBinary(): Promise<string> {
   return resolvedBinary
+}
+
+/** The same resolution under the name the M96d suites use. */
+export function resolveWorkingGit(): Promise<string> {
+  return resolvedBinary
+}
+
+/**
+A synchronous git runner bound to this machine's working binary:
+`const git = await syncGitRunner()`. Suites that shell git directly
+share this instead of repeating the resolution.
+*/
+export async function syncGitRunner(): Promise<(args: readonly string[], cwd: string) => string> {
+  const git = await resolveWorkingGit()
+  return (args, cwd) =>
+    execFileSync(git, [...args], { cwd, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] })
 }
 
 export const realGit = async (

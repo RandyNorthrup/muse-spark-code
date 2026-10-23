@@ -3408,6 +3408,18 @@
     "checkSlots": "Turnos de comprobación",
     "perCopy": "Cada copia de trabajo"
   },
+  "coordinatorStoreTooLarge": "El registro del coordinador de la máquina es demasiado grande para leerlo con seguridad, por lo que esta ventana conserva su propio planificador.",
+  "coordinatorStoreAmbiguous": "El registro del coordinador de la máquina está dañado o no está claro, por lo que esta ventana conserva su propio planificador. No se eliminó nada.",
+  "coordinatorStoreIdentity": "El registro del coordinador de la máquina pertenece a otro almacén, por lo que esta ventana conserva su propio planificador.",
+  "coordinatorEpochReused": "El coordinador de la máquina rechazó una sesión reutilizada, por lo que esta ventana conserva su propio planificador.",
+  "coordinatorLedgerOwned": "Otro proceso ya coordina esta máquina, por lo que esta ventana conserva su propio planificador.",
+  "coordinatorLedgerOwnerUncertain": "El coordinador de la máquina no puede saber si otro proceso sigue coordinando esta máquina, por lo que esta ventana conserva su propio planificador.",
+  "coordinatorSyncFailed": "El coordinador de la máquina no pudo guardar su registro, por lo que esta ventana conserva su propio planificador.",
+  "coordinatorModeWindowStorage": "La coordinación de la máquina está desactivada: este almacén no puede contenerla. Esta ventana conserva su propio planificador.",
+  "coordinatorModeWindowNative": "La coordinación de la máquina está desactivada: el control de procesos de esta máquina aún no está cualificado. Esta ventana conserva su propio planificador.",
+  "coordinatorModeWindowScope": "La coordinación de la máquina está desactivada: la contención completa de procesos no está probada aquí. Esta ventana conserva su propio planificador.",
+  "coordinatorModeBlockedGrants": "La coordinación de la máquina está bloqueada: hay concesiones anteriores aún abiertas. Esta ventana conserva su propio planificador hasta que se resuelvan.",
+  "coordinatorEndpointPathTooLong": "El coordinador de la máquina no puede escuchar aquí: la dirección es demasiado larga. Esta ventana conserva su propio planificador.",
   "teamTrafficMetrics": {
     "utilisation": "Utilización de turnos",
     "queueDepth": "Longitud de la cola",
@@ -5808,6 +5820,41 @@
   "teamSuggestFreeLocal": "{model} es gratis y local, y puede hacer trabajo de {role}",
   "teamSuggestFallbackDetail": "{role} tiene una sola entrada; añada {model} como reserva",
   "teamSuggestBudget": "Límite diario de {role} de {amount}, del presupuesto diario restante",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them",
+    "many": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more",
+    "many": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load",
+    "many": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly",
+    "many": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load",
+    "many": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine",
+    "many": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them",
+    "many": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Una función con pruebas",
   "teamPreviewResearchLibrary": "Investigar una biblioteca",
   "teamPreviewReviewBranch": "Revisar mi rama",

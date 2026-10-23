@@ -13,6 +13,7 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import { type TeamAttempt, type TeamBoard, type TeamBoardTask } from '../../shared/team'
 import { type TaskBoard } from './scheduler/board'
 import { TaskPicker, type PickContext, type SchedulerEntry } from './scheduler/pick'
+import type { StolenPolicy } from './scheduler/steal'
 import { type SchedulerSlots, type SlotRequest } from './scheduler/slots'
 import { SchedulerBorrowing, type SchedulerBorrowPort } from './scheduler/borrowing'
 // Team pools and selection (M96 lane A, PLAN.md D75): entries, caps and
@@ -722,11 +723,16 @@ export interface SchedulerDependencies {
   lease(task: TeamBoardTask, ref: SlotRequest): { release(): void } | undefined
   authorize(task: TeamBoardTask, entry: SchedulerEntry): Promise<boolean>
   journal(board: TeamBoard): Promise<void>
-  /** Resolve on launch admission, not on the worker's eventual completion. */
+  /**
+  Resolve on launch admission, not on the worker's eventual completion.
+  A host that passes role policies for cross-role steals runs a
+  stolen task under the carried policy, never under either role alone.
+  */
   start(
     task: TeamBoardTask,
     entry: SchedulerEntry,
     input: ReturnType<TaskBoard['dependencyInput']>,
+    stolenPolicy: StolenPolicy | undefined,
   ): Promise<'started' | 'notStarted' | 'uncertain'>
   uncertain(ref: SlotRequest): Promise<void>
   schedule(callback: () => void, ms: number): () => void
@@ -886,7 +892,7 @@ export class TeamScheduler {
         continue
       }
       try {
-        await this.launch(reservation, pick.task, pick.entry, context)
+        await this.launch(reservation, pick.task, pick.entry, context, pick.stolenPolicy)
       } finally {
         this.hasWake = true
       }
@@ -920,6 +926,7 @@ export class TeamScheduler {
     picked: TeamBoardTask,
     entry: SchedulerEntry,
     context: PickContext,
+    stolenPolicy: StolenPolicy | undefined,
   ): Promise<void> {
     const { ref, lease } = reservation
     let isCounted = false
@@ -1005,7 +1012,7 @@ export class TeamScheduler {
       this.slots.mark(ref, 'running')
       isHeld = false
       this.leases.set(this.key(ref), lease)
-      const outcome = await this.deps.start(this.board.task(current.id), entry, input)
+      const outcome = await this.deps.start(this.board.task(current.id), entry, input, stolenPolicy)
       this.picker.started(entry, this.deps.now())
       if (outcome !== 'started' && this.isActive(ref)) {
         this.slots.mark(ref, 'uncertain')

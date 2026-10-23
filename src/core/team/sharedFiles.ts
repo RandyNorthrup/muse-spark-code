@@ -91,6 +91,30 @@ function canPatternsOverlap(left: string, right: string, isCaseInsensitive: bool
   return a.startsWith(b) || b.startsWith(a)
 }
 
+/**
+A validated region split: the path part must be a literal path whose
+shared-file entry declares the region. A glob path part leases whole,
+dropping a region no single file owns. Anything else — an unknown
+file, an undeclared region, a `#` inside a plain path — stays a
+whole pattern, keeping M96c's behaviour exactly.
+*/
+export function splitDeclaredRegion(
+  pattern: string,
+  shared: SharedFiles,
+): { path: string; region: string | undefined } {
+  const at = pattern.lastIndexOf('#')
+  if (at <= 0) return { path: pattern, region: undefined }
+  const path = pattern.slice(0, at)
+  const region = pattern.slice(at + 1)
+  if (region === '') return { path: pattern, region: undefined }
+  if (/[*?{[]/.test(path)) return { path, region: undefined }
+  const declared = shared.regionsFor(path) ?? []
+  const isDeclared = shared.isCaseInsensitive
+    ? declared.some((name) => name.toLowerCase() === region.toLowerCase())
+    : declared.includes(region)
+  return isDeclared ? { path, region } : { path: pattern, region: undefined }
+}
+
 export class SharedFiles {
   private readonly matches: { entry: SharedFile; match: (path: string) => boolean }[]
   readonly entries: readonly SharedFile[]
@@ -134,6 +158,11 @@ export class SharedFiles {
     return this.matches.findLast((entry) => entry.match(path))?.entry.kind
   }
 
+  /** Named regions the latest matching entry declares; leases own these by name. */
+  regionsFor(path: string): readonly string[] | undefined {
+    return this.matches.findLast((entry) => entry.match(path))?.entry.regions
+  }
+
   shouldSerialize(path: string): boolean {
     const kind = this.kind(path)
     return kind === undefined || kind === 'text'
@@ -157,7 +186,10 @@ export class SharedFiles {
   }
 
   undeclaredTextFiles(changed: readonly string[], declared: readonly string[]): string[] {
-    const matches = declared.map((pattern) => teamPathMatcher(pattern, this.isCaseInsensitive))
+    // Declared regions cover their file; anything else matches literally.
+    const matches = declared.map((pattern) =>
+      teamPathMatcher(splitDeclaredRegion(pattern, this).path, this.isCaseInsensitive),
+    )
     return changed.filter(
       (path) => this.kind(path) === 'text' && matches.every((match) => !match(path)),
     )

@@ -3408,6 +3408,18 @@
     "checkSlots": "Vagas de verificação",
     "perCopy": "Cada cópia de trabalho"
   },
+  "coordinatorStoreTooLarge": "O registro do coordenador da máquina é grande demais para ser lido com segurança, por isso esta janela mantém seu próprio agendador.",
+  "coordinatorStoreAmbiguous": "O registro do coordenador da máquina está danificado ou não está claro, por isso esta janela mantém seu próprio agendador. Nada foi excluído.",
+  "coordinatorStoreIdentity": "O registro do coordenador da máquina pertence a outro armazenamento, por isso esta janela mantém seu próprio agendador.",
+  "coordinatorEpochReused": "O coordenador da máquina recusou uma sessão reutilizada, por isso esta janela mantém seu próprio agendador.",
+  "coordinatorLedgerOwned": "Outro processo já coordena esta máquina, por isso esta janela mantém seu próprio agendador.",
+  "coordinatorLedgerOwnerUncertain": "O coordenador da máquina não sabe dizer se outro processo ainda coordena esta máquina, por isso esta janela mantém seu próprio agendador.",
+  "coordinatorSyncFailed": "O coordenador da máquina não conseguiu salvar seu registro, por isso esta janela mantém seu próprio agendador.",
+  "coordinatorModeWindowStorage": "A coordenação da máquina está desativada: este armazenamento não pode contê-la. Esta janela mantém seu próprio agendador.",
+  "coordinatorModeWindowNative": "A coordenação da máquina está desativada: o controle de processos desta máquina ainda não está qualificado. Esta janela mantém seu próprio agendador.",
+  "coordinatorModeWindowScope": "A coordenação da máquina está desativada: a contenção completa de processos não está provada aqui. Esta janela mantém seu próprio agendador.",
+  "coordinatorModeBlockedGrants": "A coordenação da máquina está bloqueada: concessões anteriores ainda estão abertas. Esta janela mantém seu próprio agendador até elas serem concluídas.",
+  "coordinatorEndpointPathTooLong": "O coordenador da máquina não pode escutar aqui: o endereço é longo demais. Esta janela mantém seu próprio agendador.",
   "teamTrafficMetrics": {
     "utilisation": "Utilização das vagas",
     "queueDepth": "Tamanho da fila",
@@ -5808,6 +5820,41 @@
   "teamSuggestFreeLocal": "{model} é grátis e local, e pode fazer trabalho de {role}",
   "teamSuggestFallbackDetail": "{role} tem uma só entrada; adicione {model} como reserva",
   "teamSuggestBudget": "Teto diário de {role} de {amount}, do orçamento diário restante",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them",
+    "many": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more",
+    "many": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load",
+    "many": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly",
+    "many": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load",
+    "many": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine",
+    "many": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them",
+    "many": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Um recurso com testes",
   "teamPreviewResearchLibrary": "Pesquisar uma biblioteca",
   "teamPreviewReviewBranch": "Revisar meu branch",

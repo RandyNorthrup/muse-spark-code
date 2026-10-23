@@ -1,4 +1,7 @@
 import { isResourceSlotAvailable, type TeamCapacityPort } from './slots'
+import { isDependencySatisfied } from './dependencies'
+import { stealPolicy, type StolenPolicy } from './steal'
+import type { RoleDefinition } from '../roles'
 
 /** Input is M96c's already eligible, fairly ordered local work; keep that order.
 @unwired M96c scheduler ready-work picker
@@ -43,6 +46,11 @@ export interface PickContext {
   selected?(task: TeamBoardTask, selection: TeamSelection): void
   now: number
   entries: readonly SchedulerEntry[]
+  /**
+  Role policies for cross-role steals (M96d): absent, unknown roles
+  and refused meets all keep M96c's same-role behaviour.
+  */
+  roles?: (roleId: string) => RoleDefinition | undefined
   canStart(task: TeamBoardTask, entry: SchedulerEntry): boolean
   estimatedTokens(task: TeamBoardTask): number
   minutes(task: TeamBoardTask): number
@@ -62,6 +70,24 @@ export interface ScoredPick {
   fit: number
   score: number
   starved: boolean
+  /** The stolen policy both roles admit; undefined runs the task's own role. */
+  stolenPolicy: StolenPolicy | undefined
+}
+
+/** A steal the task lists and both roles admit, or undefined for own-role work. */
+function stealForTask(
+  task: TeamBoardTask,
+  roleId: string,
+  context: PickContext,
+): StolenPolicy | undefined {
+  if (task.alt_roles?.includes(roleId) !== true) return undefined
+  const roles = context.roles
+  if (roles === undefined) return undefined
+  const from = roles(task.roleId)
+  const to = roles(roleId)
+  if (from === undefined || to === undefined) return undefined
+  const stolen = stealPolicy(task, from, to)
+  return stolen.ok ? stolen.policy : undefined
 }
 
 /** Recomputed from live waiters; inherited priority disappears with the wait. */
@@ -89,12 +115,7 @@ export function inheritedPriorities(
       (task.depends_on ?? [])
         .filter((edge) => {
           const dependency = tasks.find((item) => item.id === edge.task)
-          return (
-            dependency &&
-            (edge.on === 'merged'
-              ? dependency.state !== 'merged'
-              : !['done', 'merged'].includes(dependency.state))
-          )
+          return dependency && !isDependencySatisfied(edge.on, dependency.state)
         })
         .map((edge) => ({ waiter: task.id, holder: edge.task })),
     ),
@@ -185,8 +206,11 @@ export class TaskPicker {
       }
       for (const entry of context.entries) {
         const last = this.processStarts.get(entry.agentProfileId)
+        // A listed, admitted steal competes below its own role's lanes.
+        const stolen =
+          entry.roleId === task.roleId ? undefined : stealForTask(task, entry.roleId, context)
         if (
-          entry.roleId !== task.roleId ||
+          (stolen === undefined && entry.roleId !== task.roleId) ||
           (preferredId !== undefined && entry.id !== preferredId) ||
           !entry.eligible(task) ||
           !context.canStart(task, entry) ||
@@ -198,7 +222,8 @@ export class TaskPicker {
         const fit =
           entry.poolFit *
           (entry.remainingDayTokens >= context.estimatedTokens(task) ? 1 : 1 / 2) *
-          (context.landingOverlap(task) ? 1 / 2 : 1)
+          (context.landingOverlap(task) ? 1 / 2 : 1) *
+          (stolen === undefined ? 1 : 1 / 2)
         if (!(fit > 0 && fit <= 1)) continue
         const priorityWeight = TEAM_PRIORITY_WEIGHTS[inherited.get(task.id) ?? task.priority]
         const criticalPathFactor = longest > 0 ? 1 + (paths.get(task.id) ?? 0) / longest : 1
@@ -212,6 +237,7 @@ export class TaskPicker {
           starved:
             context.now - (task.readyAt ?? context.now) >=
               (context.starvationMs ?? TEAM_STARVATION_MS) && context.youngerStarted(task),
+          stolenPolicy: stolen,
         })
       }
     }

@@ -6,10 +6,14 @@ import {
   TEAM_PRIORITY_WEIGHTS,
 } from '../../shared/constants'
 import type { TeamSchedulerFields } from '../../shared/team'
+import type { TestedTreeCache, TestedTreeOutcome } from './coordinator/testedTrees'
 
 export interface MergeCandidate {
   readonly id: string
-  /** Only `merged` edges belong here; `done` edges do not order landings. */
+  /**
+  Only `merged` and stacked edges belong here, mapped with
+  landingOrderEdges; `done` edges do not order landings.
+  */
   readonly dependsOn: readonly string[]
   readonly priority: TeamSchedulerFields['priority']
   readonly inheritedPriority?: TeamSchedulerFields['priority']
@@ -18,6 +22,19 @@ export interface MergeCandidate {
   readonly files: readonly { readonly shared: boolean; readonly protected: boolean }[]
   readonly finishedAt: number
   readonly onConflict: 'rework' | 'markers'
+}
+
+/**
+The landing-order edges of a task: `merged` edges and stacked ones,
+whose dependency the queue lands first. `done` edges carry reports,
+not code, and never order landings.
+*/
+export function landingOrderEdges(task: {
+  depends_on?: readonly { task: string; on?: 'merged' | 'done' | 'stacked' }[]
+}): readonly string[] {
+  return (task.depends_on ?? [])
+    .filter((edge) => edge.on === 'merged' || edge.on === 'stacked')
+    .map((edge) => edge.task)
 }
 
 /** Numeric decision material for the Traffic view to explain each queue position. */
@@ -168,12 +185,25 @@ export interface MergeAdmission<T> {
   readonly checkRuns: number
 }
 
+/**
+The tested-tree cache (M96d): the coordinator's shared cache, the
+current check identity, and how to read a tree's hash. A lookup hits
+only when both the tree hash and the check identity are equal; a hit
+replays the recorded terminal outcome without running checks.
+*/
+export interface MergeAdmissionCache<T> {
+  readonly cache: TestedTreeCache
+  readonly checkIdentity: string
+  readonly treeHash: (tree: T) => string
+}
+
 /** A failed batch gets one rerun, then cumulative serial admission, never bisection. */
 export async function admitMergeBatch<T>(
   initial: T,
   candidates: readonly MergeCandidate[],
   merged: ReadonlySet<string>,
   deps: MergeAdmissionDeps<T>,
+  cache?: MergeAdmissionCache<T>,
 ): Promise<MergeAdmission<T>> {
   if (candidates.length > TEAM_MERGE_BATCH_MAX) throw new Error('merge batch exceeds cap')
   let checkRuns = 0
@@ -183,6 +213,11 @@ export async function admitMergeBatch<T>(
   const admitted: string[] = []
   const available = new Set(merged)
   const survivors: MergeCandidate[] = []
+  const lookup = (tree: T): TestedTreeOutcome | undefined =>
+    cache?.cache.lookup(cache.treeHash(tree), cache.checkIdentity)
+  const record = (tree: T, outcome: TestedTreeOutcome, runs: number): void => {
+    cache?.cache.record(cache.treeHash(tree), cache.checkIdentity, outcome, runs)
+  }
   const trial = async (tree: T, candidate: MergeCandidate): Promise<T | undefined> => {
     const result = await deps.merge(tree, candidate)
     if (result.status === 'merged') return result.tree
@@ -210,16 +245,43 @@ export async function admitMergeBatch<T>(
     available.add(candidate.id)
   }
   if (survivors.length === 0) return { tree: initial, admitted, returned, held, flaky, checkRuns }
-  let failures = await deps.check(batchTree)
-  checkRuns += 1
-  for (let retry = 0; failures.length > 0 && retry < TEAM_MERGE_FLAKE_RETRIES; retry += 1) {
-    const previous = failures
-    failures = await deps.check(
+  const batchOutcome = lookup(batchTree)
+  if (batchOutcome?.status === 'passed') {
+    flaky.push(...batchOutcome.flaky)
+    return {
+      tree: batchTree,
+      admitted: survivors.map((candidate) => candidate.id),
+      returned,
+      held,
+      flaky,
+      checkRuns,
+    }
+  }
+  // A recorded batch failure already survived flake retries: it goes
+  // straight to serial admission, whose smaller trees differ anyway.
+  let failures: readonly CheckFailure[] =
+    batchOutcome?.status === 'failed' ? batchOutcome.failures : await deps.check(batchTree)
+  let batchRuns = batchOutcome === undefined ? 1 : 0
+  checkRuns += batchRuns
+  if (batchOutcome === undefined) {
+    for (let retry = 0; failures.length > 0 && retry < TEAM_MERGE_FLAKE_RETRIES; retry += 1) {
+      const previous = failures
+      failures = await deps.check(
+        batchTree,
+        previous.map((failure) => failure.id),
+      )
+      batchRuns += 1
+      checkRuns += 1
+      if (failures.length === 0) flaky.push(...previous.map((failure) => failure.id))
+    }
+    // The recorded outcome copies: the live arrays keep mutating below.
+    record(
       batchTree,
-      previous.map((failure) => failure.id),
+      failures.length === 0
+        ? { status: 'passed', flaky: [...flaky] }
+        : { status: 'failed', failures: [...failures] },
+      batchRuns,
     )
-    checkRuns += 1
-    if (failures.length === 0) flaky.push(...previous.map((failure) => failure.id))
   }
   if (failures.length === 0)
     return {
@@ -240,8 +302,28 @@ export async function admitMergeBatch<T>(
     }
     const next = await trial(tree, candidate)
     if (next === undefined) continue
+    const cached = lookup(next)
+    if (cached?.status === 'passed') {
+      flaky.push(...cached.flaky)
+      tree = next
+      admitted.push(candidate.id)
+      available.add(candidate.id)
+      continue
+    }
+    if (cached?.status === 'failed') {
+      returned.push(candidate.id)
+      await deps.rework(candidate, cached.failures)
+      continue
+    }
     const result = await deps.check(next)
     checkRuns += 1
+    record(
+      next,
+      result.length === 0
+        ? { status: 'passed', flaky: [] }
+        : { status: 'failed', failures: [...result] },
+      1,
+    )
     if (result.length > 0) {
       returned.push(candidate.id)
       await deps.rework(candidate, result)

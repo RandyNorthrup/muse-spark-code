@@ -14,6 +14,7 @@ import {
 } from '../../../shared/team'
 import { fill } from '../../../shared/l10n/text'
 import { teamHandoffRecordSchema, type TeamChainEntry } from '../../../shared/teamHandoff'
+import { isDependencySatisfied } from './dependencies'
 
 export interface BoardSubmission {
   id: string
@@ -26,6 +27,19 @@ export interface BoardContext {
   workspaceFor(taskId: string): string | undefined
   workspaceMode(taskId: string): BoardSubmission['workspaceMode']
   report(taskId: string): string
+  /**
+  The dependency's finished head, as an opaque token: stacked tasks
+  start from it and refresh when it moves. Required only for boards
+  with stacked edges; tasks without them never call it.
+  */
+  head?(taskId: string): string
+  /**
+  The integration head, as an opaque token: an own-branch task whose
+  recorded base differs refreshes its waiting branch before its next
+  attempt. Required only once a base is recorded; unrecorded tasks
+  and other workspace modes never call it.
+  */
+  integrationHead?(): string
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
   /**
   Refunds exactly the admission `countAttempt` counted for this attempt. The
@@ -106,6 +120,29 @@ export class TaskBoard {
     const task = this.findTask(id)
     if (!task) throw new BoardRefusal('unknownTask', [id])
     return task
+  }
+
+  private requireHead(taskId: string): string {
+    const head = this.context.head?.(taskId)
+    if (head === undefined) throw new BoardRefusal('dependencies', [taskId])
+    return head
+  }
+
+  private requireIntegrationHead(taskId: string): string {
+    const head = this.context.integrationHead?.()
+    if (head === undefined) throw new BoardRefusal('dependencies', [taskId])
+    return head
+  }
+
+  /** Every stacked dependency with its current head. */
+  private stackedHeads(task: TeamBoardTask): { task: string; base: string }[] {
+    const heads: { task: string; base: string }[] = []
+    const edges = task.depends_on ?? []
+    for (const edge of edges) {
+      if (edge.on !== 'stacked') continue
+      heads.push({ task: edge.task, base: this.requireHead(edge.task) })
+    }
+    return heads
   }
 
   private retainOpen(tasks: readonly TeamBoardTask[]): TeamBoardTask[] {
@@ -296,9 +333,7 @@ export class TaskBoard {
         })
       } else if (
         dependencies.every(({ edge, task: dependency }) =>
-          edge.on === 'merged'
-            ? dependency.state === 'merged'
-            : dependency.state === 'done' || dependency.state === 'merged',
+          isDependencySatisfied(edge.on, dependency.state),
         )
       ) {
         task.state = 'ready'
@@ -313,6 +348,7 @@ export class TaskBoard {
   dependencyInput(id: string): {
     integrationTasks: string[]
     reports: { taskId: string; kind: 'data'; text: string }[]
+    stackedBases: { task: string; base: string }[]
   } {
     const task = this.requireTask(id)
     if (task.state !== 'ready') throw new BoardRefusal('dependencies', [id])
@@ -327,12 +363,87 @@ export class TaskBoard {
           kind: 'data',
           text: this.context.report(edge.task),
         })),
+      stackedBases: (task.depends_on ?? [])
+        .filter((edge) => edge.on === 'stacked')
+        .map((edge) => ({ task: edge.task, base: this.requireHead(edge.task) })),
     }
+  }
+
+  /**
+  The stacked bases the launcher must (re)base the worktree on before
+  the next begin: every stacked dependency whose current head differs
+  from the recorded one. Empty for tasks without stacked edges, which
+  never touch the head provider.
+  */
+  stackRefreshDue(id: string): readonly { task: string; base: string }[] {
+    const task = this.requireTask(id)
+    const recorded = new Map((task.stackBases ?? []).map((entry) => [entry.task, entry.base]))
+    return this.stackedHeads(task).filter(
+      ({ task: dependency, base }) => recorded.get(dependency) !== base,
+    )
+  }
+
+  /**
+  Record the stacked bases the launcher based the worktree on. Every
+  base must still equal the dependency's current head: a dependency
+  that moved again fails the acknowledgement, and the launcher
+  refreshes once more. Never records a base the worktree does not have.
+  */
+  acknowledgeStackRefresh(id: string, bases: readonly { task: string; base: string }[]): boolean {
+    const task = this.requireTask(id)
+    const given = new Map(bases.map((entry) => [entry.task, entry.base]))
+    const recorded = this.stackedHeads(task)
+    for (const entry of recorded) {
+      if (given.get(entry.task) !== entry.base) return false
+    }
+    task.stackBases = recorded
+    return true
+  }
+
+  /**
+  The integration head the launcher must refresh this task's waiting
+  branch onto before its next begin, or undefined when no refresh is
+  due. Only own-branch tasks with a recorded base consult the
+  integration provider; everyone else keeps M96c's behaviour.
+  */
+  integrationRefreshDue(id: string): { base: string } | undefined {
+    const task = this.requireTask(id)
+    if (task.integrationBase === undefined) return undefined
+    if (this.context.workspaceMode(task.id) !== 'own-branch') return undefined
+    const current = this.requireIntegrationHead(task.id)
+    return task.integrationBase === current ? undefined : { base: current }
+  }
+
+  /**
+  Record the integration head the launcher based the branch on after
+  creating or refreshing it. The base must still equal the current
+  head: an integration that moved again fails the acknowledgement,
+  and the launcher refreshes once more. Never records a base the
+  branch does not have.
+  */
+  acknowledgeIntegrationRefresh(id: string, base: string): boolean {
+    const task = this.requireTask(id)
+    // Short-circuit: other modes never touch the integration provider.
+    if (
+      this.context.workspaceMode(task.id) !== 'own-branch' ||
+      base !== this.requireIntegrationHead(task.id)
+    )
+      return false
+    task.integrationBase = base
+    return true
   }
 
   begin(id: string, attempt: TeamAttempt, isReplacementQuarantined = false): boolean {
     const task = this.requireTask(id)
     if (this.paused || task.held || task.state !== 'ready') return false
+    // A stacked task whose bases moved waits for its refresh: the
+    // launcher reads stackRefreshDue, rebases the worktree, and
+    // acknowledges before this attempt. Throws when a stacked task has
+    // no head provider: a wiring bug, never a stall.
+    if (this.stackRefreshDue(id).length > 0) return false
+    // A waiting branch whose integration moved waits for its refresh
+    // the same way, with review carry-over on exact deltas after it.
+    if (this.integrationRefreshDue(id) !== undefined) return false
     const prior = task.attempts.at(-1)
     if (
       prior &&

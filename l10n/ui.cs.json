@@ -3474,6 +3474,18 @@
     "checkSlots": "Kontrolní sloty",
     "perCopy": "Každá pracovní kopie"
   },
+  "coordinatorStoreTooLarge": "Záznam koordinátora stroje je příliš velký na bezpečné čtení, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorStoreAmbiguous": "Záznam koordinátora stroje je poškozený nebo nejasný, takže si toto okno ponechává vlastní plánovač. Nic nebylo smazáno.",
+  "coordinatorStoreIdentity": "Záznam koordinátora stroje patří jinému úložišti, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorEpochReused": "Koordinátor stroje odmítl znovu použitou relaci, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorLedgerOwned": "Jiný proces již tento stroj koordinuje, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorLedgerOwnerUncertain": "Koordinátor stroje nedokáže říct, zda jiný proces tento stroj stále koordinuje, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorSyncFailed": "Koordinátor stroje nemohl uložit svůj záznam, takže si toto okno ponechává vlastní plánovač.",
+  "coordinatorModeWindowStorage": "Koordinace stroje je vypnutá: toto úložiště ji nemůže pojmout. Toto okno si ponechává vlastní plánovač.",
+  "coordinatorModeWindowNative": "Koordinace stroje je vypnutá: řízení procesů tohoto stroje zatím není kvalifikované. Toto okno si ponechává vlastní plánovač.",
+  "coordinatorModeWindowScope": "Koordinace stroje je vypnutá: úplné omezení procesů zde není prokázáno. Toto okno si ponechává vlastní plánovač.",
+  "coordinatorModeBlockedGrants": "Koordinace stroje je blokována: dřívější přidělení jsou stále otevřená. Toto okno si ponechává vlastní plánovač, dokud se neuzavřou.",
+  "coordinatorEndpointPathTooLong": "Koordinátor stroje zde nemůže naslouchat: adresa je příliš dlouhá. Toto okno si ponechává vlastní plánovač.",
   "teamTrafficMetrics": {
     "utilisation": "Využití slotů",
     "queueDepth": "Délka fronty",
@@ -5942,6 +5954,48 @@
   "teamSuggestFreeLocal": "{model} je zdarma a místní a zvládne práci {role}",
   "teamSuggestFallbackDetail": "{role} má jediný záznam; přidejte {model} jako zálohu",
   "teamSuggestBudget": "Denní strop {role} {amount} ze zbývajícího denního rozpočtu",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them",
+    "few": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them",
+    "many": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more",
+    "few": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more",
+    "many": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load",
+    "few": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load",
+    "many": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly",
+    "few": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly",
+    "many": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load",
+    "few": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load",
+    "many": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine",
+    "few": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine",
+    "many": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them",
+    "few": "{count} tasks wait for you; answering unblocks them",
+    "many": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Funkce s testy",
   "teamPreviewResearchLibrary": "Prozkoumejte knihovnu",
   "teamPreviewReviewBranch": "Zrevidujte mou větev",
