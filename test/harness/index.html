@@ -3771,11 +3771,11 @@
             search.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
           })
         },
-        // --- Prompt sequences (M88): the library from /sequences, two rows ---
+        // --- Prompt sequences (M88): the library from the palette, two rows ---
         sequences: () => {
           click('Commands')
           whenFound('.palette-filter', (filter) => {
-            setValue(filter, HTMLInputElement.prototype, '/sequences')
+            setValue(filter, HTMLInputElement.prototype, 'sequences')
             filter.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))
           })
         },
@@ -5854,12 +5854,8 @@
         // --- M71: someone else's pull request, held, with its status and checks ---
         'git-held': () => {
           // The host holds the conversation in Plan until the worktree is trusted.
-          send({
-            type: 'composerState',
-            effort: 'high',
-            isThinkingEnabled: true,
-            permissionMode: 'plan',
-          })
+          composer = { ...composer, permissionMode: 'plan' }
+          send({ type: 'composerState', ...composer })
           send({
             type: 'gitState',
             state: {

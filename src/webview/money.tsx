@@ -15,6 +15,7 @@
 // `moneyHooks.ts`, so panels sharing this chunk do not carry them.
 import { useCallback, useEffect, useSyncExternalStore } from 'react'
 import { UI_TEXT, type PaidFeature } from '../shared/constants'
+import { loadDeferredEnglish } from '../shared/l10n/deferredEnglish'
 import type { UsdAmount } from '../shared/usdSchema'
 import type { Usd } from '../shared/usd'
 
@@ -46,6 +47,11 @@ const SMALL_COST_DIGITS = 6
 const COST_DIGITS = 4
 
 async function importMoneyDisplay(): Promise<MoneyDisplay> {
+  // The prices read deferred English (tokenRatePrice's tariff line), so
+  // the table loads before the chunk, as every deferred surface does.
+  // Otherwise the first badge price crashes the panel (RLF-A11Y: Tab on
+  // with no surface opened yet).
+  await loadDeferredEnglish()
   // One await per chunk, destructured at once: the unused-export gate
   // follows this shape to the money modules' exact members.
   const { paidFeaturePrice, formatUsd, isPositiveUsd, Usd } = await import('../shared/paid')
