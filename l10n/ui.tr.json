@@ -3825,6 +3825,8 @@
   "peekNoAgents": "Bu oturumda çalışan aracı yok.",
   "peekUnknownAgent": "Bilinmeyen aracı: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "Toolchains",
+  "referenceToolchains": "Bu bilgisayarda kurulu toolchain’ler ve sürümleri.",
   "execDeniedStop": "İzin reddi bu çalıştırmayı durdurdu.",
   "execInterrupted": "Çalıştırma kesildi.",
   "execOutputStalled": "Çıktı kapandı veya takıldı.",

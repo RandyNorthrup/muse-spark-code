@@ -3981,6 +3981,8 @@
   "peekNoAgents": "В этом сеансе агенты не запущены.",
   "peekUnknownAgent": "Неизвестный агент: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "Тулчейны",
+  "referenceToolchains": "Установленные на этой машине тулчейны и их версии.",
   "execDeniedStop": "Отказ в разрешении остановил этот запуск.",
   "execInterrupted": "Запуск был прерван.",
   "execOutputStalled": "Вывод закрыт или заблокирован.",

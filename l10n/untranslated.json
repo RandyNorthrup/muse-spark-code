@@ -13,6 +13,7 @@
       "usageCommand",
       "costCommand",
       "peekUsage",
+      "toolchainsFeatureName",
       "importSourceClaude",
       "importSourceCodex",
       "usageCliVersion",

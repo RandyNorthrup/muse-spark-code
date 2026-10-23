@@ -3747,6 +3747,8 @@
   "peekNoAgents": "このセッションではエージェントが実行されていません。",
   "peekUnknownAgent": "不明なエージェント: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "ツールチェーン",
+  "referenceToolchains": "このマシンにインストールされているツールチェーンとそのバージョン。",
   "execDeniedStop": "権限の拒否により実行を停止しました。",
   "execInterrupted": "実行が中断されました。",
   "execOutputStalled": "出力が閉じられたか停止しました。",

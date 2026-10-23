@@ -25,6 +25,15 @@ const OCTAL_ESCAPE_DIGITS = 3
 /** The `?? ` prefix an untracked porcelain line starts with. */
 const PORCELAIN_UNTRACKED_PREFIX = '?? '
 
+/**
+A failure carrying a machine-readable code: an errno string from the
+kernel, or an exit-status number from a tool. Anything else rethrows
+instead of reading as absent or falling back.
+*/
+function isCodedFailure(error: unknown): error is Error & { readonly code: unknown } {
+  return error instanceof Error && 'code' in error
+}
+
 const snapshotManifestSchema = z.strictObject({
   version: z.literal(SNAPSHOT_VERSION),
   takenAt: z.string(),
@@ -133,7 +142,9 @@ export function detectVolumeFs(dir: string): SnapshotVolumeFs {
   try {
     magic = statfsSync(dir).type
   } catch (error: unknown) {
-    if (error instanceof Error) return 'other'
+    if (isCodedFailure(error) && (error.code === 'ENOENT' || error.code === 'ENOTDIR')) {
+      return 'other'
+    }
     throw error
   }
   if (magic === STATFS_BTRFS) return 'btrfs'
@@ -249,6 +260,7 @@ export async function createWorkspaceSnapshot(
         archive: null,
       })
     } catch (error: unknown) {
+      if (!isCodedFailure(error)) throw error
       return await bundleSnapshot(tools, dir, destDir, takenAt, head, `btrfs: ${errorCode(error)}`)
     }
   }
@@ -275,6 +287,7 @@ export async function createWorkspaceSnapshot(
         archive: null,
       })
     } catch (error: unknown) {
+      if (!isCodedFailure(error)) throw error
       return await bundleSnapshot(tools, dir, destDir, takenAt, head, `zfs: ${errorCode(error)}`)
     }
   }

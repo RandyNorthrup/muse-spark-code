@@ -3747,6 +3747,8 @@
   "peekNoAgents": "此会话中没有正在运行的代理。",
   "peekUnknownAgent": "未知代理：{id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "工具链",
+  "referenceToolchains": "此计算机上安装的工具链及其版本。",
   "execDeniedStop": "权限被拒绝，运行已停止。",
   "execInterrupted": "运行已中断。",
   "execOutputStalled": "输出已关闭或停滞。",

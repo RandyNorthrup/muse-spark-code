@@ -24,7 +24,7 @@
     "runtime": {
       "SWALLOW": 34,
       "GENERIC": 203,
-      "CLEANUP": 125
+      "CLEANUP": 126
     },
     "shared": {
       "SWALLOW": 0,
@@ -90,7 +90,7 @@
     },
     {
       "file": "src/acp/agent.ts",
-      "identity": "c473bf8024c6695b09c5e9b4c525bffc1b29091292c01f6e556e4412af36fa57",
+      "identity": "f5e8a8780a894c3d71dc543468106298124fcb82ce9cb64ae17245febef1014e",
       "class": "GENERIC"
     },
     {
@@ -4702,6 +4702,11 @@
       "file": "src/runtime/namedLock.ts",
       "identity": "24d8e6d9ed38343f99dede9d7a4db472c401cf19fd0f12c07b477a7d3841a173",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/node/egress/server.ts",
+      "identity": "475695f693f77d98e96bb4d89e23f715e9a28763fcd5a90a73811f9c23601a2e",
+      "class": "CLEANUP"
     },
     {
       "file": "src/runtime/openRouterCommands.ts",

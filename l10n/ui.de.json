@@ -3825,6 +3825,8 @@
   "peekNoAgents": "In dieser Sitzung laufen keine Agenten.",
   "peekUnknownAgent": "Unbekannter Agent: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "Toolchains",
+  "referenceToolchains": "Die auf diesem Rechner installierten Toolchains mit ihren Versionen.",
   "execDeniedStop": "Eine verweigerte Freigabe hat diesen Lauf gestoppt.",
   "execInterrupted": "Der Lauf wurde unterbrochen.",
   "execOutputStalled": "Die Ausgabe wurde geschlossen oder blockiert.",

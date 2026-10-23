@@ -3981,6 +3981,8 @@
   "peekNoAgents": "V této relaci neběží žádní agenti.",
   "peekUnknownAgent": "Neznámý agent: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "Toolchainy",
+  "referenceToolchains": "Toolchainy nainstalované na tomto počítači, včetně jejich verzí.",
   "execDeniedStop": "Odmítnutí oprávnění zastavilo tento běh.",
   "execInterrupted": "Běh byl přerušen.",
   "execOutputStalled": "Výstup byl uzavřen nebo zablokován.",
