@@ -1,7 +1,8 @@
-import { spawn } from 'node:child_process'
 import { createInterface } from 'node:readline'
 import * as z from 'zod/mini'
 import { LOCAL_JUDGE_TIMEOUT_MS } from '../../../shared/constants'
+import { probeChildEnvironment } from '../../executables'
+import { spawnGuarded } from '../../guardedChildProcess'
 import type { PosixPeerDependencies, PosixProcessLease } from './posixPeer'
 import { verifyLinuxAnchor, verifyLinuxLocalVolume } from './linuxVolume'
 
@@ -31,8 +32,17 @@ async function acquireLinuxProcess(
   const signal = AbortSignal.any([callerSignal, AbortSignal.timeout(LOCAL_JUDGE_TIMEOUT_MS)])
   await verifyLinuxAnchor(helper, uid, 'file', signal)
   signal.throwIfAborted()
-  const child = spawn(helper, [String(pid)], { env: {}, stdio: ['pipe', 'pipe', 'ignore'] })
-  const reader = createInterface({ input: child.stdout })
+  const child = spawnGuarded(helper, [String(pid)], {
+    env: probeChildEnvironment({}),
+    stdio: ['pipe', 'pipe', 'ignore'],
+  })
+  const stdin = child.stdin
+  const stdout = child.stdout
+  if (stdin === null || stdout === null) {
+    child.kill()
+    throw new Error('unverified-native-lifetime')
+  }
+  const reader = createInterface({ input: stdout })
   const lines = reader[Symbol.asyncIterator]()
   let isClosed = false
   let hasFault = false
@@ -40,7 +50,7 @@ async function acquireLinuxProcess(
     hasFault = true
     reader.close()
   })
-  child.stdin.on('error', () => {
+  stdin.on('error', () => {
     hasFault = true
     reader.close()
   })
@@ -58,7 +68,7 @@ async function acquireLinuxProcess(
     if (isClosed) return
     isClosed = true
     signal.removeEventListener('abort', abort)
-    child.stdin.end('q\n')
+    stdin.end('q\n')
     child.kill()
     reader.close()
     await exited
@@ -67,7 +77,7 @@ async function acquireLinuxProcess(
     signal.throwIfAborted()
     if (isClosed || hasFault) throw new Error('unverified-native-lifetime')
     const next = lines.next()
-    child.stdin.write('i\n')
+    stdin.write('i\n')
     const line = await next
     signal.throwIfAborted()
     if (line.done) throw new Error('unverified-native-lifetime')

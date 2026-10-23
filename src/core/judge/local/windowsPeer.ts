@@ -1,6 +1,4 @@
-import { execFile } from 'node:child_process'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import { realpath } from 'node:fs/promises'
 import type { Socket } from 'node:net'
 import * as z from 'zod/mini'
@@ -9,6 +7,7 @@ import {
   LOCAL_JUDGE_TIMEOUT_MS,
   LOCAL_JUDGE_DIGEST_HEX_LENGTH,
 } from '../../../shared/constants'
+import { executeGuarded } from './guardedExec'
 
 const identitySchema = z.strictObject({
   pid: z.int().check(z.positive()),
@@ -22,7 +21,6 @@ const identitySchema = z.strictObject({
   callerSid: z.string().check(z.regex(/^S-1-/)),
 })
 type PeerIdentity = z.infer<typeof identitySchema>
-const execute = promisify(execFile)
 
 /** The native helper holds a process handle and double-reads the TCP row. */
 export async function windowsPeer(
@@ -41,7 +39,7 @@ export async function windowsPeer(
   ) {
     throw new Error('unverified-peer')
   }
-  const { stdout } = await execute(
+  const { stdout } = await executeGuarded(
     helper,
     [
       socket.remoteAddress,
@@ -71,7 +69,7 @@ export async function windowsModelDirectory(
   signal.throwIfAborted()
   if (process.platform !== 'win32' || path.resolve(directory) !== (await realpath(directory)))
     throw new Error('unverified-model-root')
-  const { stdout } = await execute(helper, ['root', directory], {
+  const { stdout } = await executeGuarded(helper, ['root', directory], {
     windowsHide: true,
     timeout: LOCAL_JUDGE_TIMEOUT_MS,
     maxBuffer: LOCAL_JUDGE_MAX_RESPONSE_BYTES,
