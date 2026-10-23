@@ -24,13 +24,6 @@ import {
   type LintUnit,
 } from '../../core/judge/lint/units'
 
-export interface JudgeLintOptions {
-  readonly changed?: boolean
-  readonly failOn?: 'error' | 'warning'
-  readonly budgetUsd?: number
-  readonly format?: 'text' | 'json' | 'sarif'
-}
-
 export interface JudgeLintDependencies {
   readonly log?: Logger | undefined
   /** Pinned, strict config/pack decoding; no alternate Muse keys in jevlint.json. */
@@ -53,6 +46,8 @@ const optionsSchema = z.strictObject({
   budgetUsd: z.optional(z.number().check(z.nonnegative())),
   format: z.optional(z.enum(['text', 'json', 'sarif'])),
 })
+
+export type JudgeLintOptions = z.infer<typeof optionsSchema>
 
 const errorCodes: ReadonlySet<string> = new Set([
   'lint-answer-alignment',
@@ -126,7 +121,7 @@ export async function runJudgeLint(
   let isIncomplete = false
   let error: string | undefined
   const parsed = optionsSchema.safeParse(rawOptions)
-  const options = parsed.success ? parsed.data : {}
+  const options: JudgeLintOptions = parsed.success ? parsed.data : {}
   try {
     if (!parsed.success) throw new Error('lint-options-invalid')
     assertCurrent()
