@@ -5045,6 +5045,16 @@ export const JUDGE_PROBE_MAX_OUTPUT_BYTES = 262_144
 export const JUDGE_STATE_LATENCY_MAX_MS = 5000
 // Lane-0 choice: the ten-question setup smoke needs this many correct.
 export const JUDGE_SETUP_SMOKE_MIN_CORRECT = 8
+// Lane-W choice: the context window setup records for the local judge
+// (requested as num_ctx at serve time); the table carries no window.
+export const JUDGE_SETUP_CONTEXT_TOKENS = 4096
+// Lane-W choice: starting the private runtime answers /api/version
+// within 30 s (cold disk on a loaded machine), polled twice a second.
+export const JUDGE_SETUP_VERSION_TIMEOUT_MS = 30_000
+export const JUDGE_SETUP_VERSION_POLL_MS = 500
+// Lane-W choice: the runtime archive's extracted tree stays under
+// 2 GiB; anything larger is a wrong file, not a runtime.
+export const JUDGE_SETUP_EXTRACT_MAX_MIB = 2048
 // The longest a backstop wait may run (check commands derive their own
 // ceiling from it): the shell tool itself no longer clamps (owner
 // 2026-10-16).
