@@ -6,7 +6,7 @@ Captured 2026-10-23 on linuxlt with:
 curl -sSL -o linux_signing_key.pub https://dl.google.com/linux/linux_signing_key.pub
 ```
 
-SHA-256: `54dea5f6c2a26091578cf52a999cebc6b64df478d37ad4dce96376b711e3b27cbc` —
+SHA-256: `54dea5f6c2a26091578cf52a999cebc6b64df478d37ad4dce96376b711e3b27c` —
 recompute after any copy; the check-key suite fails on drift.
 
 Primary (pinned in `os/addons/chrome/fingerprints.txt`):

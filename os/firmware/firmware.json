@@ -1,0 +1,13 @@
+{
+  "packages": {
+    "amd": ["firmware-amd-graphics"],
+    "intel": ["firmware-intel-graphics"],
+    "wifi": [
+      "firmware-iwlwifi",
+      "firmware-atheros",
+      "firmware-realtek",
+      "firmware-brcm80211",
+      "firmware-mediatek"
+    ]
+  }
+}
