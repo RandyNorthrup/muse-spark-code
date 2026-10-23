@@ -696,6 +696,12 @@ happened, not what was planned; superseded entries are kept.
 
 - Add the generated Devices help inventory and its stale-reference gate.
 
+- Bind Devices pairs to their owners (unshipped authority, tested over
+  the two-process rig): per-message authorization by role under
+  least-privilege time-bounded revocable grants with per-owner quotas,
+  every decision audited; brokered vault uses ride the paired channel
+  and answer capability-only; pair keys wrap for OS-store rest (DPAPI
+  on Windows). Production still refuses until the install qualifies.
 - Define the unshipped Devices phase-2 contracts every later lane codes
   against: versioned channel, capability, grant and result envelopes with
   byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending

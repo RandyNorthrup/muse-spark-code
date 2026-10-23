@@ -95,6 +95,13 @@ export function pinnedDialer(
   }
 }
 
+export async function closePacedServers(servers: Server[]): Promise<void> {
+  for (const server of servers.splice(0)) {
+    server.close()
+    await new Promise((resolve) => server.once('close', resolve))
+  }
+}
+
 export async function listenEphemeral(server: Server): Promise<number> {
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject)

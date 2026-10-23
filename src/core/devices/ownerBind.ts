@@ -134,7 +134,6 @@ export const DEVICE_OWNER_AUDIT_ACTIONS = [
   'serve',
   'request',
 ] as const
-export type DeviceOwnerAuditAction = (typeof DEVICE_OWNER_AUDIT_ACTIONS)[number]
 // Value-free: digests bind a record to its message, never its bytes.
 export const deviceOwnerAuditSchema = z.strictObject({
   at: timestamp,

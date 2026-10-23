@@ -25281,6 +25281,17 @@ refusal proof green. Awaiting lead integration; two-machine check-only
 and four-device qualification stay lead-side. Record:
 `docs/certification/rlm100.md`.
 
+**RLF-M100K recovery (2026-10-23, linuxlt): lane K built.** RLM109
+merged first (vault migration, pooled accounts, retire). New
+`src/core/devices/ownerBind.ts` (owner bindings, per-message grants,
+per-owner quotas, audit, brokered-use call sites with M109 lane R,
+pair-key envelopes); `vaultRequest`/`vaultResponse` multiplexed
+members; the three drills green over the two-process rig with red
+proofs; DPAPI leg and store suites for hosted CI. Production still
+refuses through `unboundDeviceLanePorts` pending the status
+conditions; the M95 review question is not found in §3 and waits on
+the lead. Record: `docs/certification/rlf-m100k.md`. M100 stays open.
+
 **PORTM100 release-base port (2026-10-11, before follow-up repairs).** Merge
 0.17.1 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4` into accepted phase 2
 `1630f022d`, retaining both behaviours and every existing cap. Preserve the
