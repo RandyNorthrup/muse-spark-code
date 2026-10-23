@@ -1305,6 +1305,7 @@ async function serve(
             .execute(text, context),
       },
       paid: runtime.paid,
+      maker: runtime.maker,
       // The vault's asker: broker approvals route back as
       // session/request_permission, and /vault commands work in sessions.
       vault: acpVault,

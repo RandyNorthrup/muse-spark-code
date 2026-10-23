@@ -93,6 +93,7 @@ import { loadLegalScanner } from './legal/legalScanner'
 import { existsSync, realpathSync } from 'node:fs'
 import { accountErrorText, isInvalidProvidersFileError } from '../acp/accountText'
 import { AcpPaidUse, type HeadlessPaidPolicy } from '../acp/paid'
+import { AcpMakerSurface } from '../acp/maker'
 import { fileContextIo } from '../host/backend/contextIo'
 import { describeEnvironment } from '../host/backend/environment'
 import { createFileSessionStore } from '../host/backend/fileSessionStore'
@@ -181,6 +182,8 @@ export interface RuntimeBackend {
   readonly museCode: MuseCodeBackendManager
   /** The flagged paid features and their questions, shared with the agent (M63c, M58). */
   readonly paid: AcpPaidUse
+  /** The exact-payload approval before a maker send, shared with the agent (RLF-DEVICES). */
+  readonly maker: AcpMakerSurface
   /**
   At start: "always" lapses for a paid feature the Model API agent was
   started without. A Muse Code agent has no paid flags, so it leaves the
@@ -906,6 +909,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     ...(deps.exec !== undefined && { headless: deps.exec.headlessPaid }),
   })
+  const maker = new AcpMakerSurface({ log: deps.log })
   const metaKeyProbe: MetaKeyProbe = { state: undefined }
   const museEnvironment = museCode.childEnvironment()
   const homes: MuseHomes = {
@@ -1293,6 +1297,7 @@ export function createRuntimeBackend(deps: RuntimeBackendDeps): RuntimeBackend {
     },
     museCode,
     paid,
+    maker,
     ...(deps.options.backend === 'modelApi' && {
       media: async (context) => {
         // The folder's host first: it owns the confined reads the port uses.
