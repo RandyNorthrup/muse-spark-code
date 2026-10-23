@@ -8,6 +8,19 @@ import type { DiskCandidate } from './disks'
 import type { SetupChoices } from './schemas'
 import type { SetupState } from './setupStore'
 
+/**
+Vendor terms, verified live 2026-10-23 (HTTP 200; titles in the OS7 cert
+record). The URLs themselves are the link text, so no language needs a
+new word for them.
+*/
+const CHROME_TERMS_URL = 'https://www.google.com/chrome/terms/'
+const NVIDIA_LICENSE_URL = 'https://www.nvidia.com/en-us/drivers/nvidia-license/'
+
+function termsLink(url: string): string {
+  const escaped = escapeHtml(url)
+  return `<a href="${escaped}">${escaped}</a>`
+}
+
 /** Escape text for HTML content and double-quoted attributes. */
 export function escapeHtml(value: string): string {
   return value
@@ -133,13 +146,13 @@ export function wizardPage(input: WizardInput): string {
       `<label>${escapeHtml(text.sshKeyLabel)}<textarea name="sshKey" rows="3" spellcheck="false">${escapeHtml(prefill.sshKey)}</textarea></label></section>` +
       `<section><h2>${escapeHtml(text.signinTitle)}</h2><p>${escapeHtml(text.signinPasskeyNote)}</p></section>` +
       `<section><h2>${escapeHtml(text.orchestratorTitle)}</h2><p>${escapeHtml(text.orchestratorWaiting)}</p></section>` +
-      `<section><h2>${escapeHtml(text.chromeTitle)}</h2><p>${escapeHtml(text.chromeTerms)}</p>` +
+      `<section><h2>${escapeHtml(text.chromeTitle)}</h2><p>${escapeHtml(text.chromeTerms)} ${termsLink(CHROME_TERMS_URL)}</p>` +
       `<p>${escapeHtml(text.chromeFallback)}</p>` +
       `<label><input type="radio" name="chrome" value="install"${checked(prefill.chrome === 'install')}> ` +
       `${escapeHtml(text.chromeAccept)}</label>` +
       `<label><input type="radio" name="chrome" value="skip"${checked(prefill.chrome !== 'install')}> ` +
       `${escapeHtml(text.skipStep)}</label></section>` +
-      `<section><h2>${escapeHtml(text.nvidiaTitle)}</h2><p>${escapeHtml(text.nvidiaTerms)}</p>` +
+      `<section><h2>${escapeHtml(text.nvidiaTitle)}</h2><p>${escapeHtml(text.nvidiaTerms)} ${termsLink(NVIDIA_LICENSE_URL)}</p>` +
       `<p>${escapeHtml(text.nvidiaDatacenter)}</p>` +
       `<label><input type="radio" name="nvidia" value="install"${checked(prefill.nvidia === 'install')}> ` +
       `${escapeHtml(text.nvidiaAccept)}</label>` +

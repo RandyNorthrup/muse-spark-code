@@ -1,0 +1,6 @@
+# Pinned Google signing key (M110os OS7). The primary of
+# https://dl.google.com/linux/linux_signing_key.pub, pinned 2026-10-23
+# (fixture capture: test/fixtures/nodeos-chrome/CAPTURE.md). check-key
+# passes only when the install keyring carries every fingerprint here.
+# A rotation is pinned deliberately, never accepted silently.
+EB4C1BFD4F042F6DDDCCEC917721F63BD38B4796  Google Inc. (Linux Packages Signing Authority)
