@@ -6512,6 +6512,7 @@
     "summaryTitle": "Podsumowanie",
     "setupDone": "Konfiguracja zakończona. Maszyna uruchamia Twój węzeł.",
     "setupFailed": "Nie można ukończyć konfiguracji: {reason}",
+    "seedRefused": "Pliki konfiguracyjne z karty nie zostały użyte: {reason}",
     "continueButton": "Dalej"
   }
 }

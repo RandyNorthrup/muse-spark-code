@@ -6032,6 +6032,7 @@
     "summaryTitle": "檢查",
     "setupDone": "設定完成。機器正在啟動您的節點。",
     "setupFailed": "無法完成設定：{reason}",
+    "seedRefused": "未使用記憶卡中的設定檔：{reason}",
     "continueButton": "繼續"
   }
 }

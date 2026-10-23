@@ -6352,6 +6352,7 @@
     "summaryTitle": "Récapitulatif",
     "setupDone": "La configuration est terminée. La machine démarre votre nœud.",
     "setupFailed": "La configuration n’a pas pu aboutir : {reason}",
+    "seedRefused": "Les fichiers de configuration de la carte n’ont pas été utilisés : {reason}",
     "continueButton": "Continuer"
   }
 }

@@ -10,14 +10,20 @@ import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   acceptSetupCode,
+  applySeed,
   completeSetup,
   createSetupState,
+  isCodeHolder,
   loadSetupState,
   recordChoices,
   saveSetupState,
 } from '../../src/runtime/node/firstBoot/setupStore'
-import { isSetupCode, issueSetupCode } from '../../src/runtime/node/firstBoot/setupCode'
-import { parseSshPublicKey } from '../../src/runtime/node/firstBoot/schemas'
+import {
+  isSetupCode,
+  issueRecoveryKey,
+  issueSetupCode,
+} from '../../src/runtime/node/firstBoot/setupCode'
+import { parseSshPublicKey, setupDiskTargetSchema } from '../../src/runtime/node/firstBoot/schemas'
 import { readAndConsumeSeed } from '../../src/runtime/node/firstBoot/seed'
 
 function scratch(tag: string): string {
@@ -48,6 +54,10 @@ describe('setup code', () => {
 
   it('issues distinct codes', () => {
     expect(issueSetupCode()).not.toBe(issueSetupCode())
+  })
+
+  it('issues longer recovery keys', () => {
+    expect(issueRecoveryKey()).toMatch(/^([0-9A-HJKMNP-TV-Z]{5}-){7}[0-9A-HJKMNP-TV-Z]{5}$/)
   })
 })
 
@@ -94,6 +104,17 @@ describe('SSH public keys from the installed ssh-keygen', () => {
       const [type = '', blob = ''] = (keys[name] ?? '').split(' ', 2)
       expect(parseSshPublicKey(`${type} ${blob.slice(0, -8)}`)).toBeUndefined()
       expect(parseSshPublicKey(`${type} ${blob}AAAA`)).toBeUndefined()
+    }
+  })
+})
+
+describe('disk targets', () => {
+  it('takes device paths and refuses escapes', () => {
+    for (const target of ['/dev/sda', '/dev/nvme0n1', '/dev/mmcblk0', '/dev/mapper/vg-lv']) {
+      expect(setupDiskTargetSchema.safeParse(target).success).toBe(true)
+    }
+    for (const target of ['', 'sda', '/dev/../etc/shadow', '/dev/sda1 evil', '/tmp/disk.img']) {
+      expect(setupDiskTargetSchema.safeParse(target).success).toBe(false)
     }
   })
 })
@@ -146,6 +167,27 @@ describe('setup store', () => {
     }
     expect(() => recordChoices(state, choices)).toThrow('setup code not accepted')
     expect(() => completeSetup(state)).toThrow('setup has no choices')
+  })
+
+  it('holds the code past the gate until completion', () => {
+    const code = issueSetupCode()
+    const fresh = createSetupState(code)
+    expect(isCodeHolder(fresh, code)).toBe(false)
+    const accepted = acceptSetupCode(fresh, code)
+    if (!accepted.ok) throw new Error('unreachable')
+    expect(isCodeHolder(accepted.state, code)).toBe(true)
+    expect(isCodeHolder(accepted.state, 'AAAAA-BBBBB-CCCCC-DDDDD')).toBe(false)
+  })
+
+  it('folds a seed once, and refuses after the start', () => {
+    const fresh = createSetupState(issueSetupCode())
+    const seeded = applySeed(fresh, { ok: false, code: 'seed-network-static' })
+    expect(seeded.seedRefusal).toBe('seed-network-static')
+    const accepted = acceptSetupCode(fresh, 'AAAAA-BBBBB-CCCCC-DDDDD')
+    expect(accepted.ok).toBe(false)
+    expect(() =>
+      applySeed({ ...fresh, codeConsumed: true }, { ok: false, code: 'seed-network-static' }),
+    ).toThrow('setup already started')
   })
 
   it('throws on a damaged file', () => {

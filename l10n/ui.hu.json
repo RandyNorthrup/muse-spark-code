@@ -6192,6 +6192,7 @@
     "summaryTitle": "Összegzés",
     "setupDone": "A beállítás kész. A gép elindítja a csomópontját.",
     "setupFailed": "A beállítást nem sikerült befejezni: {reason}",
+    "seedRefused": "A kártya beállítófájljai nem lettek felhasználva: {reason}",
     "continueButton": "Folytatás"
   }
 }

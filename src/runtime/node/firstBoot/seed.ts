@@ -42,6 +42,15 @@ export type SeedOutcome =
   | { readonly ok: true; readonly network: SeedNetwork; readonly user: SeedUserData }
   | { readonly ok: false; readonly code: SeedRefusalCode }
 
+/** A refused seed: the setup continues without it and says the code. */
+export class SeedFailure extends Error {
+  readonly code: SeedRefusalCode
+  constructor(code: SeedRefusalCode, options?: ErrorOptions) {
+    super(code, options)
+    this.code = code
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
@@ -59,47 +68,43 @@ function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
 
-interface SeedFileRead {
-  readonly status: 'found' | 'missing' | 'unreadable'
-  readonly text: string | undefined
-}
-
-function readSeedFile(dir: string, name: string): SeedFileRead {
+function readSeedFile(dir: string, name: string, unreadable: SeedRefusalCode): string | undefined {
   try {
-    return { status: 'found', text: readFileSync(path.join(dir, name), 'utf8') }
+    return readFileSync(path.join(dir, name), 'utf8')
   } catch (error: unknown) {
-    return { status: isMissing(error) ? 'missing' : 'unreadable', text: undefined }
+    if (isMissing(error)) return undefined
+    throw new SeedFailure(unreadable, { cause: error })
   }
 }
 
-function parseNetworkDoc(text: string): SeedNetwork | SeedRefusalCode {
+function parseNetworkDoc(text: string): SeedNetwork {
   let doc: unknown
   try {
     doc = parseYaml(text)
-  } catch {
-    return 'seed-network-invalid'
+  } catch (error: unknown) {
+    throw new SeedFailure('seed-network-invalid', { cause: error })
   }
   // An empty file configures nothing: like cloud-init, fall back to DHCP.
   if (doc === null || doc === undefined) return { network: null, ignored: [] }
-  if (!isRecord(doc)) return 'seed-network-invalid'
+  if (!isRecord(doc)) throw new SeedFailure('seed-network-invalid')
   // The `network:` wrapper lives in cloud.cfg; the raw file may carry it or not.
   const network: unknown = 'network' in doc ? doc['network'] : doc
-  if (!isRecord(network)) return 'seed-network-invalid'
-  if (network['version'] !== 2) return 'seed-network-version'
+  if (!isRecord(network)) throw new SeedFailure('seed-network-invalid')
+  if (network['version'] !== 2) throw new SeedFailure('seed-network-version')
   const ignored: string[] = []
   for (const key of Object.keys(network)) {
     if (key !== 'version' && key !== 'ethernets' && key !== 'wifis') ignored.push(key)
   }
   const ethernets = network['ethernets']
-  if (ethernets !== undefined && !isRecord(ethernets)) return 'seed-network-invalid'
+  if (ethernets !== undefined && !isRecord(ethernets)) throw new SeedFailure('seed-network-invalid')
   const wifis = network['wifis']
-  if (wifis !== undefined && !isRecord(wifis)) return 'seed-network-invalid'
+  if (wifis !== undefined && !isRecord(wifis)) throw new SeedFailure('seed-network-invalid')
 
   let hasDhcp = false
   let isStaticOnly = false
   if (ethernets !== undefined) {
     for (const [id, def] of Object.entries(ethernets)) {
-      if (!isRecord(def)) return 'seed-network-invalid'
+      if (!isRecord(def)) throw new SeedFailure('seed-network-invalid')
       for (const key of Object.keys(def)) {
         if (key !== 'dhcp4' && key !== 'dhcp6' && key !== 'addresses') ignored.push(`${id}.${key}`)
       }
@@ -111,28 +116,31 @@ function parseNetworkDoc(text: string): SeedNetwork | SeedRefusalCode {
 
   if (wifis !== undefined) {
     for (const [id, def] of Object.entries(wifis)) {
-      if (!isRecord(def)) return 'seed-network-invalid'
+      if (!isRecord(def)) throw new SeedFailure('seed-network-invalid')
       for (const key of Object.keys(def)) {
         if (key !== 'access-points' && key !== 'dhcp4') ignored.push(`${id}.${key}`)
       }
       const points = def['access-points']
       if (points === undefined) continue
-      if (!isRecord(points)) return 'seed-network-invalid'
+      if (!isRecord(points)) throw new SeedFailure('seed-network-invalid')
       const entries = Object.entries(points)
       const first = entries[0]
       if (first === undefined) continue
       const [ssid, ap] = first
       const later = entries.slice(1)
       for (const [other] of later) ignored.push(`${id}.${other}`)
-      if (!isRecord(ap)) return 'seed-network-invalid'
+      if (!isRecord(ap)) throw new SeedFailure('seed-network-invalid')
       const password = ap['password']
-      if (password !== undefined && typeof password !== 'string') return 'seed-wifi-password'
+      if (password !== undefined && typeof password !== 'string') {
+        throw new SeedFailure('seed-wifi-password')
+      }
       const network: SetupNetwork =
         password === undefined ? { kind: 'wifi', ssid } : { kind: 'wifi', ssid, psk: password }
       return { network, ignored }
     }
   }
-  return isStaticOnly ? 'seed-network-static' : { network: null, ignored }
+  if (isStaticOnly) throw new SeedFailure('seed-network-static')
+  return { network: null, ignored }
 }
 
 function sshKeyList(value: unknown): readonly string[] | undefined {
@@ -145,39 +153,39 @@ function sshKeyList(value: unknown): readonly string[] | undefined {
   return keys
 }
 
-function parseUserDoc(text: string): SeedUserData | SeedRefusalCode {
-  const firstLine = text.split('\n').find((line) => line.trim().length > 0)
-  if (firstLine?.trim() !== '#cloud-config') return 'seed-userdata-header'
+function parseUserDoc(text: string): SeedUserData {
+  const firstLine = text.split('\n', 1)[0]?.trim()
+  if (firstLine !== '#cloud-config') throw new SeedFailure('seed-userdata-header')
   let doc: unknown
   try {
     doc = parseYaml(text)
-  } catch {
-    return 'seed-userdata-invalid'
+  } catch (error: unknown) {
+    throw new SeedFailure('seed-userdata-invalid', { cause: error })
   }
-  if (!isRecord(doc)) return 'seed-userdata-invalid'
+  if (!isRecord(doc)) throw new SeedFailure('seed-userdata-invalid')
   const ignored: string[] = []
   let hostname: string | undefined
   if (doc['hostname'] !== undefined) {
     const checked = setupHostnameSchema.safeParse(doc['hostname'])
-    if (!checked.success) return 'seed-hostname-invalid'
+    if (!checked.success) throw new SeedFailure('seed-hostname-invalid')
     hostname = checked.data
   }
   const sshKeys: string[] = []
   if (doc['ssh_authorized_keys'] !== undefined) {
     const keys = sshKeyList(doc['ssh_authorized_keys'])
-    if (keys === undefined) return 'seed-ssh-invalid'
+    if (keys === undefined) throw new SeedFailure('seed-ssh-invalid')
     sshKeys.push(...keys)
   }
   if (doc['users'] !== undefined) {
     // Accounts are the image's own; only their keys are taken.
     ignored.push('users')
     const users = doc['users']
-    if (!Array.isArray(users)) return 'seed-userdata-invalid'
+    if (!Array.isArray(users)) throw new SeedFailure('seed-userdata-invalid')
     for (const user of users) {
-      if (!isRecord(user)) return 'seed-userdata-invalid'
+      if (!isRecord(user)) throw new SeedFailure('seed-userdata-invalid')
       if (user['ssh_authorized_keys'] === undefined) continue
       const keys = sshKeyList(user['ssh_authorized_keys'])
-      if (keys === undefined) return 'seed-ssh-invalid'
+      if (keys === undefined) throw new SeedFailure('seed-ssh-invalid')
       sshKeys.push(...keys)
     }
   }
@@ -194,20 +202,23 @@ continues without the seed either way: the refusal code is the page's
 note, never a stop.
 */
 export function readAndConsumeSeed(bootDir: string): SeedOutcome {
-  const networkFile = readSeedFile(bootDir, 'network-config')
-  if (networkFile.status === 'unreadable') return { ok: false, code: 'seed-network-unreadable' }
-  const userFile = readSeedFile(bootDir, 'user-data')
-  if (userFile.status === 'unreadable') return { ok: false, code: 'seed-userdata-unreadable' }
-  const network: SeedNetwork | SeedRefusalCode =
-    networkFile.text === undefined
-      ? { network: null, ignored: [] }
-      : parseNetworkDoc(networkFile.text)
-  if (typeof network === 'string') return { ok: false, code: network }
-  const user: SeedUserData | SeedRefusalCode =
-    userFile.text === undefined
+  try {
+    return readSeed(bootDir)
+  } catch (error: unknown) {
+    if (error instanceof SeedFailure) return { ok: false, code: error.code }
+    throw error
+  }
+}
+
+function readSeed(bootDir: string): Extract<SeedOutcome, { ok: true }> {
+  const networkText = readSeedFile(bootDir, 'network-config', 'seed-network-unreadable')
+  const userText = readSeedFile(bootDir, 'user-data', 'seed-userdata-unreadable')
+  const network =
+    networkText === undefined ? { network: null, ignored: [] } : parseNetworkDoc(networkText)
+  const user =
+    userText === undefined
       ? { hostname: undefined, sshKeys: [], ignored: [] }
-      : parseUserDoc(userFile.text)
-  if (typeof user === 'string') return { ok: false, code: user }
+      : parseUserDoc(userText)
   for (const name of ['network-config', 'user-data', 'meta-data']) {
     rmSync(path.join(bootDir, name), { force: true })
   }

@@ -6032,6 +6032,7 @@
     "summaryTitle": "检查",
     "setupDone": "设置完成。机器正在启动您的节点。",
     "setupFailed": "无法完成设置：{reason}",
+    "seedRefused": "未使用存储卡中的设置文件：{reason}",
     "continueButton": "继续"
   }
 }
