@@ -1,18 +1,12 @@
-# The Node OS image pipeline (M110os OS6): every image for both
-# architectures on each change, the QEMU boot tests (x86-64 with KVM,
-# aarch64 `virt` emulated), the reproducibility comparison, and the
-# release assets with checksums, signatures and provenance.
-#
-# The image jobs wait for OS1's recipe: the `pre` job reports whether
-# os/images/ exists, and build, boot, repro and publish run only then,
-# skipping visibly until it lands. OS1 owns os/images/ (the mkosi
-# recipe, the image names, the SOURCES package lists, the
-# NODE-OS-BOOT-OK serial marker); the conventions it must meet are in
-# the steps below. The static job runs on every trigger.
+# The Node OS image pipeline (M110os OS6, on OS1's recipe): both images
+# on each change, built by os/build.py with the pinned mkosi 27.1 and the
+# per-architecture Linux runtime from this commit, the QEMU boot tests
+# (x86-64 with KVM, aarch64 `virt` emulated), the reproducibility
+# comparison, the SPDX SBOM from the build manifests, and the release
+# assets with checksums, signatures and provenance.
 #
 # Waiting, named: image signing waits for the owner's key ceremony
-# (the publish job warns loudly and records the assets unsigned);
-# the SPDX SBOM waits for OS1's build to expose the package set.
+# (the publish job warns loudly and records the assets unsigned).
 # The reproducibility comparison starts recorded and blocks once two
 # builds match (REPRO_ENFORCE below).
 name: Node OS
@@ -23,9 +17,14 @@ on:
       - 'os/**'
       - 'scripts/os-boot-test.mjs'
       - 'scripts/os-repro-check.mjs'
+      - 'scripts/os-sbom.mjs'
       - 'scripts/lib/osBootTest.mjs'
       - 'scripts/lib/osReproCheck.mjs'
+      - 'scripts/lib/osSbom.mjs'
+      - 'scripts/package-acp.mjs'
+      - 'scripts/lib/acpBundles.mjs'
       - 'test/unit/nodeOs*.test.ts'
+      - 'test/unit/osImageBuild*.test.mjs'
       - 'test/fixtures/nodeos-*/**'
       - '.github/workflows/node-os.yml'
   push:
@@ -34,9 +33,14 @@ on:
       - 'os/**'
       - 'scripts/os-boot-test.mjs'
       - 'scripts/os-repro-check.mjs'
+      - 'scripts/os-sbom.mjs'
       - 'scripts/lib/osBootTest.mjs'
       - 'scripts/lib/osReproCheck.mjs'
+      - 'scripts/lib/osSbom.mjs'
+      - 'scripts/package-acp.mjs'
+      - 'scripts/lib/acpBundles.mjs'
       - 'test/unit/nodeOs*.test.ts'
+      - 'test/unit/osImageBuild*.test.mjs'
       - 'test/fixtures/nodeos-*/**'
       - '.github/workflows/node-os.yml'
   workflow_dispatch:
@@ -68,7 +72,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24.18.0
       - name: shell syntax of the OS scripts
         shell: bash
         run: |
@@ -100,59 +104,84 @@ jobs:
             exit 1
           fi
 
-  pre:
-    name: images present (OS1)
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      have-images: ${{ steps.check.outputs.have-images }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: check
-        shell: bash
-        run: |
-          if [ -n "${{ hashFiles('os/images/**') }}" ]; then
-            echo 'have-images=true' >> "$GITHUB_OUTPUT"
-          else
-            echo 'have-images=false' >> "$GITHUB_OUTPUT"
-            echo '::notice::os/images/ is absent (OS1 has not landed): build, boot, repro and publish skip'
-          fi
-
   build:
-    name: build images twice
-    needs: pre
-    if: needs.pre.outputs.have-images == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
+    name: build ${{ matrix.target }} twice
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86-64
+            acp-target: linux-x64
+            runner: ubuntu-latest
+          - target: arm64
+            acp-target: linux-arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24.18.0
       - name: install the image toolchain
         shell: bash
-        run: sudo apt-get install -y mkosi qemu-system-x86 qemu-system-arm ovmf qemu-efi-aarch64
-      # OS1 owns os/images/ and these flags: two builds of the same
-      # recipe and commit, one raw image per architecture per build,
-      # named muse-node-<arch>.raw, with a .sources package list beside
-      # each image when the recipe records one.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3 python3-venv \
+            systemd systemd-boot-efi systemd-boot-tools systemd-container systemd-repart systemd-ukify \
+            cryptsetup-bin dosfstools e2fsprogs mtools kmod cpio gdisk fdisk \
+            squashfs-tools zstd xz-utils ca-certificates debian-archive-keyring \
+            gcc libssl-dev
+      - name: install the pinned mkosi
+        shell: bash
+        run: |
+          url="$(python3 -c 'import json; print(json.load(open("os/pins.json"))["mkosi"]["url"])')"
+          sha="$(python3 -c 'import json; print(json.load(open("os/pins.json"))["mkosi"]["sha256"])')"
+          curl -fsSL -o "$RUNNER_TEMP/mkosi.tar.gz" "$url"
+          echo "$sha  $RUNNER_TEMP/mkosi.tar.gz" | sha256sum -c -
+          python3 -m venv "$RUNNER_TEMP/mkosi-venv"
+          "$RUNNER_TEMP/mkosi-venv/bin/pip" install "$RUNNER_TEMP/mkosi.tar.gz"
+          "$RUNNER_TEMP/mkosi-venv/bin/mkosi" --version
+          echo "$RUNNER_TEMP/mkosi-venv/bin" >> "$GITHUB_PATH"
+      - run: npm ci --ignore-scripts --no-audit
+      - name: production build and the runtime package
+        shell: bash
+        env:
+          ACP_TARGET: ${{ matrix.acp-target }}
+        run: |
+          node scripts/build.mjs --production
+          node scripts/package-acp.mjs --target "$ACP_TARGET"
+      # mkosi assembles disk images (loop mounts, id-mapped builds), so
+      # the composer runs as root; its out/ tree stays world-readable
+      # for the artifact upload below.
       - name: first build
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ACP_TARGET: ${{ matrix.acp-target }}
         run: |
+          runtime=(dist/muse-spark-code-acp-"*"-$ACP_TARGET.tgz)
+          sha="$(sha256sum "${runtime[0]}" | cut -d' ' -f1)"
+          sudo python3 os/build.py "$TARGET" --runtime "${runtime[0]}" --runtime-sha256 "$sha" --mkosi "$RUNNER_TEMP/mkosi-venv/bin/mkosi"
           mkdir -p build-a
-          (cd os/images && mkosi --output-directory "$GITHUB_WORKSPACE/build-a" build)
+          sudo mv "out/$TARGET" "build-a/$TARGET"
       - name: second build
         shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          ACP_TARGET: ${{ matrix.acp-target }}
         run: |
+          runtime=(dist/muse-spark-code-acp-"*"-$ACP_TARGET.tgz)
+          sha="$(sha256sum "${runtime[0]}" | cut -d' ' -f1)"
+          sudo python3 os/build.py "$TARGET" --runtime "${runtime[0]}" --runtime-sha256 "$sha" --mkosi "$RUNNER_TEMP/mkosi-venv/bin/mkosi"
           mkdir -p build-b
-          (cd os/images && mkosi --output-directory "$GITHUB_WORKSPACE/build-b" build)
+          sudo mv "out/$TARGET" "build-b/$TARGET"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: node-os-images
+          name: node-os-images-${{ matrix.target }}
           path: |
             build-a/
             build-b/
@@ -166,11 +195,13 @@ jobs:
       matrix:
         include:
           - arch: x86-64
+            build-target: x86-64
             qemu-arch: x86_64
             kvm: 'on'
             memory: '2048'
             timeout: '900'
           - arch: aarch64
+            build-target: arm64
             qemu-arch: aarch64
             kvm: 'off'
             memory: '2048'
@@ -183,10 +214,10 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24.18.0
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: node-os-images
+          name: node-os-images-${{ matrix.build-target }}
       - name: install QEMU and the firmware
         shell: bash
         run: sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf qemu-efi-aarch64
@@ -194,14 +225,15 @@ jobs:
         shell: bash
         env:
           ARCH: ${{ matrix.arch }}
+          BUILD_TARGET: ${{ matrix.build-target }}
           QEMU_ARCH: ${{ matrix.qemu-arch }}
           KVM: ${{ matrix.kvm }}
           MEMORY: ${{ matrix.memory }}
           TIMEOUT: ${{ matrix.timeout }}
         run: |
-          image="build-a/muse-node-$ARCH.raw"
+          image="build-a/$BUILD_TARGET/muse-node-$BUILD_TARGET.raw"
           if [ ! -f "$image" ]; then
-            echo "::error::OS1 names the images muse-node-<arch>.raw; $image is missing" >&2
+            echo "::error::the OS1 recipe names the raw image $image; it is missing" >&2
             exit 1
           fi
           firmware_args=()
@@ -211,8 +243,11 @@ jobs:
           else
             firmware_args=(--aavmf /usr/share/AAVMF/AAVMF_CODE.fd)
           fi
+          # The marker is the serial getty's login prompt: systemd's
+          # own status lines carry ANSI escapes, so their plain text
+          # never matches byte for byte.
           node scripts/os-boot-test.mjs --arch "$QEMU_ARCH" --out "boot-$ARCH" \
-            --marker NODE-OS-BOOT-OK --timeout "$TIMEOUT" --memory "$MEMORY" \
+            --marker 'localhost login:' --timeout "$TIMEOUT" --memory "$MEMORY" \
             --image "$image" --kvm "$KVM" "${firmware_args[@]}"
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
@@ -232,10 +267,11 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24.18.0
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: node-os-images
+          pattern: node-os-images-*
+          merge-multiple: true
       - name: record both builds
         shell: bash
         run: |
@@ -251,9 +287,37 @@ jobs:
           path: hashes-*.json
           retention-days: 90
 
+  sbom:
+    name: SPDX SBOM from the build manifests
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.18.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: node-os-images-*
+          merge-multiple: true
+      - name: write the SBOM for each architecture
+        shell: bash
+        run: |
+          mkdir -p sbom
+          node scripts/os-sbom.mjs --manifest build-a/x86-64/muse-node-x86-64.manifest --out sbom/muse-node-x86-64.spdx.json
+          node scripts/os-sbom.mjs --manifest build-a/arm64/muse-node-arm64.manifest --out sbom/muse-node-arm64.spdx.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: node-os-sbom
+          path: sbom/
+          retention-days: 90
+
   publish:
     name: release assets
-    needs: [boot, repro]
+    needs: [boot, repro, sbom]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -266,23 +330,53 @@ jobs:
           persist-credentials: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: node-os-images
+          name: node-os-images-x86-64
+          path: images-x86-64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: node-os-images-arm64
+          path: images-arm64
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: node-os-sbom
+          path: sbom
       - name: checksums and the asset manifest
         shell: bash
         run: |
           mkdir -p assets
-          cp build-a/muse-node-*.raw assets/
-          cp build-a/*.sources assets/ 2>/dev/null || echo '::notice::no SOURCES package lists from the build (OS1 records them when the recipe can)'
-          (cd assets && sha256sum muse-node-*.raw > SHA256SUMS)
+          cp images-x86-64/build-a/x86-64/muse-node-x86-64.raw images-arm64/build-a/arm64/muse-node-arm64.raw assets/
+          cp sbom/*.spdx.json assets/
+          cp images-x86-64/build-a/x86-64/muse-node-x86-64.manifest images-arm64/build-a/arm64/muse-node-arm64.manifest assets/
+          cp images-x86-64/build-a/x86-64/inputs.json images-x86-64/build-a/x86-64/artifacts.json assets/inputs-x86-64.json assets/artifacts-x86-64.json
+          cp images-arm64/build-a/arm64/inputs.json images-arm64/build-a/arm64/artifacts.json assets/inputs-arm64.json assets/artifacts-arm64.json
+          (cd assets && sha256sum muse-node-*.raw muse-node-*.spdx.json muse-node-*.manifest inputs-*.json artifacts-*.json > SHA256SUMS)
           node -e "
             const fs = require('node:fs');
             const sums = fs.readFileSync('assets/SHA256SUMS', 'utf8').trim().split('\n');
             const manifest = {
-              images: sums.map((line) => {
-                const [sha256, file] = line.split(/\s+/);
-                return { file, sha256 };
-              }),
-              debianSources: fs.readdirSync('assets').filter((f) => f.endsWith('.sources')),
+              images: sums
+                .filter((line) => line.endsWith('.raw'))
+                .map((line) => {
+                  const [sha256, file] = line.split(/\s+/);
+                  return { file, sha256 };
+                }),
+              sbom: sums
+                .filter((line) => line.endsWith('.spdx.json'))
+                .map((line) => {
+                  const [sha256, file] = line.split(/\s+/);
+                  return { file, sha256 };
+                }),
+              provenance: sums
+                .filter(
+                  (line) =>
+                    line.endsWith('.manifest') ||
+                    line.includes('inputs-') ||
+                    line.includes('artifacts-'),
+                )
+                .map((line) => {
+                  const [sha256, file] = line.split(/\s+/);
+                  return { file, sha256 };
+                }),
               signed: false,
               signatureNote: 'image signing waits for the owner key ceremony',
             };
