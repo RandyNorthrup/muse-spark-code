@@ -4489,6 +4489,7 @@
   "teamRunnerUnavailable": "{tool}을(를) 사용할 수 없습니다. 이 창에 팀 실행기가 로드되지 않았습니다.",
   "teamPlanShown": "팀 계획을 표시했습니다. 아무것도 시작하지 않았습니다.",
   "teamTasksStarted": "시작된 팀 작업: {count}",
+  "teamTasksQueued": "대기 중인 팀 작업: {count}",
   "teamMergeRework": "병합 중 충돌이 발생했습니다. 작업이 재작업을 위해 돌아갔습니다.",
   "teamTaskUnknown": "이 팀 작업은 이 창에서 열려 있지 않습니다.",
   "teamWaitingUnknown": "이 답변을 기다리는 것이 더 이상 없습니다.",

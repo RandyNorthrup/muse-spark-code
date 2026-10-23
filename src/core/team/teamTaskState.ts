@@ -64,6 +64,14 @@ const storedTaskSchema = z.object({
   reviewVerdict: z.optional(z.string()),
   reviewFindings: z.optional(z.array(reviewFindingSchema)),
   continueFrom: z.optional(z.string()),
+  schedulerAttempt: z.optional(z.number()),
+  owner: z.optional(
+    z.object({
+      windowInstanceId: z.string(),
+      released: z.optional(z.boolean()),
+    }),
+  ),
+  consented: z.optional(z.array(z.string())),
   writerModels: z.optional(z.array(z.string())),
   ordinal: z.optional(z.number()),
   isRaised: z.optional(z.boolean()),
@@ -71,10 +79,13 @@ const storedTaskSchema = z.object({
     z.array(
       z.object({
         ordinal: z.number(),
+        attempt: z.optional(z.number()),
+        entryId: z.optional(z.string()),
         atMs: z.number(),
         usage: teamUsageSchema,
         isSettled: z.boolean(),
         reported: z.optional(teamUsageSchema),
+        isDispatch: z.optional(z.boolean()),
       }),
     ),
   ),

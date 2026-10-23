@@ -4707,6 +4707,7 @@
   "teamRunnerUnavailable": "{tool} não está disponível: o executor da equipe não foi carregado nesta janela.",
   "teamPlanShown": "Plano da equipe exibido; nada foi iniciado.",
   "teamTasksStarted": "Tarefas da equipe iniciadas: {count}",
+  "teamTasksQueued": "Tarefas da equipe na fila: {count}",
   "teamMergeRework": "A mesclagem encontrou conflitos: a tarefa voltou para retrabalho.",
   "teamTaskUnknown": "Essa tarefa da equipe não está aberta nesta janela.",
   "teamWaitingUnknown": "Nada mais está aguardando esta resposta.",

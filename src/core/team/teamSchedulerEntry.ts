@@ -1,6 +1,7 @@
 // Board, reservations and scheduler tools load only for a scheduled team (M96c X2).
 import { TaskBoard } from './scheduler/board'
 import { SchedulerSlots } from './scheduler/slots'
+import { createWindowTeamScheduler } from './scheduler/window'
 import { TeamScheduler } from './teamPool'
 import { TeamLiveAvailability, selectTeamEntry } from './selection'
 import { pickReviewer } from './reviewerPick'
@@ -13,6 +14,7 @@ export function createTeamSchedulerRuntime(table: UiText, locale: string) {
   return {
     TaskBoard,
     SchedulerSlots,
+    createWindowTeamScheduler,
     TeamScheduler,
     TeamLiveAvailability,
     selectTeamEntry,

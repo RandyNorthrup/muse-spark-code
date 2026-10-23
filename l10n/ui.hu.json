@@ -4598,6 +4598,7 @@
   "teamRunnerUnavailable": "A(z) {tool} nem érhető el: a csapat futtatója nem töltődött be ebben az ablakban.",
   "teamPlanShown": "A csapat terve megjelent; semmi sem indult el.",
   "teamTasksStarted": "Elindított csapatfeladatok: {count}",
+  "teamTasksQueued": "Sorba állított csapatfeladatok: {count}",
   "teamMergeRework": "Az egyesítés ütközésekbe ütközött: a feladat átdolgozásra visszakerült.",
   "teamTaskUnknown": "Ez a csapatfeladat nincs megnyitva ebben az ablakban.",
   "teamWaitingUnknown": "Már semmi sem vár erre a válaszra.",

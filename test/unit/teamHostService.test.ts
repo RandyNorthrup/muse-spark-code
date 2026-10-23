@@ -275,6 +275,16 @@ async function settle(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0))
 }
 
+async function openMergeCard(h: Harness): Promise<void> {
+  await vi.waitFor(() => {
+    expect(h.cards.at(-1)?.item).toMatchObject({
+      kind: 'teamMerge',
+      status: 'inProgress',
+      teamMerge: { taskId: 'task-1' },
+    })
+  })
+}
+
 async function delegatedTeam() {
   const h = harness(team([entry('e1', WORKER_MODEL)]))
   const service = createTeamHostService(h.deps)
@@ -407,11 +417,11 @@ describe('the team host service', () => {
     ])
     expect(service.tree()?.roles[0]?.unmerged.map((task) => task.taskId)).toEqual(['task-1'])
     const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    await settle()
+    const placed = json(await output(merging))
+    expect(placed).toMatchObject({ task_id: 'task-1', position: 1 })
+    await openMergeCard(h)
     expect(h.merged).toEqual([])
     await service.decideMerge('task-1', 'merge')
-    const answer = json(await output(merging))
-    expect(answer).toMatchObject({ task_id: 'task-1', status: 'merged' })
     expect(h.merged).toEqual(['task-1'])
     expect(await output(service.teamRunner.merge({ task_id: 'task-1' }, context()))).toContain(
       TEAM_MODEL_TEXT.hostMergeNotReady,
@@ -687,7 +697,8 @@ describe('the team host service', () => {
     h.finish(0)
     await settle()
     const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    await settle()
+    expect(json(await output(merging))).toMatchObject({ task_id: 'task-1', position: 1 })
+    await openMergeCard(h)
     expect(h.cards.at(-1)).toMatchObject({
       sessionId: 's1',
       item: {
@@ -697,7 +708,6 @@ describe('the team host service', () => {
       },
     })
     await expect(service.decideMerge('task-1', 'merge')).rejects.toThrow('refused a moved ref')
-    expect(await output(merging)).toContain('refused a moved ref')
     expect(h.cards.at(-1)?.item).toMatchObject({
       status: 'completed',
       teamDecision: 'refused a moved ref',
@@ -920,6 +930,9 @@ async function waitingDecision(
 async function finishedReview(h: Harness, report?: TeamWorkerOutcome['report']) {
   const service = await finishedTask(h)
   await service.teamRunner.merge({ task_id: 'task-1' }, context())
+  await vi.waitFor(() => {
+    expect(h.started).toHaveLength(2)
+  })
   h.finish(1, {
     report: report ?? { status: 'done', summary: 'review complete' },
     folder: undefined,
@@ -1192,21 +1205,24 @@ describe('RVCM963 review findings', () => {
     }
     const h = harness(stored)
     const service = await finishedTask(h)
-    expect(await output(service.teamRunner.merge({ task_id: 'task-1' }, context()))).toContain(
-      TEAM_MODEL_TEXT.hostReviewStarted.replace('{task}', 'task-2').split(';', 1)[0] ?? '',
-    )
+    const placed = json(await output(service.teamRunner.merge({ task_id: 'task-1' }, context())))
+    expect(placed).toMatchObject({ task_id: 'task-1', position: 1 })
+    await vi.waitFor(() => {
+      expect(h.started).toHaveLength(2)
+    })
     expect(h.started[1]).toMatchObject({ role: { role: 'code-review' }, entry: { id: 'r1' } })
     expect(h.started[1]?.reviewOf?.head).toBe('b'.repeat(40))
     h.finish(1, { report: { status: 'done', summary: 'looks right' } })
     await settle()
     const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    await settle()
+    expect(json(await output(merging))).toMatchObject({ task_id: 'task-1', position: 1 })
+    await openMergeCard(h)
     expect(h.cards.at(-1)?.item).toMatchObject({
       kind: 'teamMerge',
       teamMerge: { review: 'reviewed', reviewerFindings: ['looks right'] },
     })
     await service.decideMerge('task-1', 'merge')
-    expect(json(await output(merging))).toMatchObject({ status: 'merged' })
+    expect(h.merged).toEqual(['task-1'])
   })
 
   it('14: the merge card approves the protected paths it lists', async () => {
@@ -1470,15 +1486,17 @@ describe('RVCM963C ownership redesign', () => {
     const service = await finishedTask(h)
     const first = service.teamRunner.merge({ task_id: 'task-1' }, context())
     const second = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    await settle()
+    // One landing turn owns the task: the first call takes the queue place
+    // and the second is refused while that turn holds the merge phase.
+    expect(json(await output(first))).toMatchObject({ task_id: 'task-1', position: 1 })
+    const secondResult = await second
+    expect(secondResult.output).toContain('Error:')
+    await openMergeCard(h)
     expect(
       h.cards.filter(({ item }) => item.kind === 'teamMerge' && item.status === 'inProgress'),
     ).toHaveLength(1)
     await service.decideMerge('task-1', 'merge')
-    const secondResult = await second
-    expect(secondResult.output).toContain('Error:')
-    const firstResult = await first
-    expect(firstResult.output).toContain('merged')
+    expect(h.merged).toEqual(['task-1'])
     await service.dispose()
   })
 
@@ -1507,7 +1525,7 @@ describe('RVCM963C ownership redesign', () => {
       findings: [{ file: 'a.ts', line: 2, severity: 'P1', title: 'unsafe', detail: 'race detail' }],
     })
     const merging = service.teamRunner.merge({ task_id: 'task-1' }, context())
-    await settle()
+    await openMergeCard(h)
     const card = h.cards.at(-1)?.item
     expect(card?.kind === 'teamMerge' ? card.teamMerge.reviewerFindings?.join('\n') : '').toContain(
       'a.ts:2',
@@ -1526,14 +1544,18 @@ describe('RVCM963C ownership redesign', () => {
       const h = harness(reviewedTeam())
       const service = await finishedTask(h)
       await service.teamRunner.merge({ task_id: 'task-1' }, context())
+      await vi.waitFor(() => {
+        expect(h.started).toHaveLength(2)
+      })
       h.finish(1, {
         report: { status, summary: 'unfinished', questions: ['need input'] },
         folder: undefined,
       })
       await settle()
       const retry = service.teamRunner.merge({ task_id: 'task-1' }, context())
-      await settle()
-      expect(h.started).toHaveLength(3)
+      await vi.waitFor(() => {
+        expect(h.started).toHaveLength(3)
+      })
       expect(h.cards.filter(({ item }) => item.kind === 'teamMerge')).toHaveLength(0)
       await service.dispose()
       await retry
@@ -1552,7 +1574,9 @@ describe('RVCM963C ownership redesign', () => {
     h.finish(1, { head: 'c'.repeat(40) })
     await settle()
     await service.teamRunner.merge({ task_id: 'task-2' }, context())
-    expect(h.started[2]?.entry.id).toBe('r2')
+    await vi.waitFor(() => {
+      expect(h.started[2]?.entry.id).toBe('r2')
+    })
     await service.dispose()
   })
 
@@ -1627,8 +1651,15 @@ describe('RVCM963C ownership redesign', () => {
     h.finish(0)
     await settle()
     shouldReject = true
-    const refusedMerge = await service.teamRunner.merge({ task_id: 'task-1' }, context())
-    expect(refusedMerge.output).toContain('lazy import failed')
+    const placed = json(await output(service.teamRunner.merge({ task_id: 'task-1' }, context())))
+    expect(placed).toMatchObject({ task_id: 'task-1', position: 1 })
+    await vi.waitFor(() => {
+      expect(h.cards.at(-1)?.item).toMatchObject({
+        kind: 'teamMerge',
+        status: 'completed',
+        teamDecision: 'lazy import failed',
+      })
+    })
     expect(service.tree()?.roles[1]?.entries[0]?.running).toBe(0)
     h.values.set(TEAM_WORKSPACE_KEYS.team, team([keyEntry('e1', WORKER_MODEL)]))
     service.reload()
@@ -1647,7 +1678,7 @@ describe('RVCM963C ownership redesign', () => {
     const service = await finishedReview(h)
     const restored = createTeamHostService(h.deps)
     const merging = restored.teamRunner.merge({ task_id: 'task-1' }, context())
-    await settle()
+    await openMergeCard(h)
     expect(h.cards.at(-1)?.item).toMatchObject({ teamMerge: { reviewVerdict: 'done' } })
     await restored.decideMerge('task-1', 'discard')
     await merging
@@ -1732,7 +1763,10 @@ it('R6 release: revocation during durable admission releases the never-dispatche
       h.started[0]?.meter.reserveRequest({ ...usage(80), costUsd: Usd.from(0.75).toAmount() }),
     ).rejects.toThrow()
     expect(service.tree()?.roles[0]?.entries[0]?.caps[0]?.used).toBe(0)
-    expect(h.values.get(TEAM_TASKS_STATE_KEY)).toMatchObject({ tasks: [{ claims: [] }] })
+    // The revoked request claim is gone; the dispatch stamp (zero liability) stays.
+    expect(h.values.get(TEAM_TASKS_STATE_KEY)).toMatchObject({
+      tasks: [{ claims: [{ isDispatch: true, isSettled: true }] }],
+    })
   } finally {
     await service.dispose()
   }
@@ -1759,7 +1793,7 @@ it('R6 final claims: unknown-priced receipt retains labelled liability with no o
       estimated: true,
     })
     expect(h.values.get(TEAM_TASKS_STATE_KEY)).toMatchObject({
-      tasks: [{ claims: [{ isSettled: true }] }],
+      tasks: [{ claims: [{ isDispatch: true, isSettled: true }, { isSettled: true }] }],
     })
     const restored = createTeamHostService(h.deps)
     try {

@@ -116,6 +116,8 @@ export interface TeamToolRunner {
   readonly collect: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
   readonly cancel: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
   readonly merge: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
+  /** M96c: reorder, hold or release queued work on the scheduler's board. */
+  readonly reschedule: (args: unknown, context: TeamToolContext) => Promise<TeamToolResult>
 }
 
 /** One answered team tool call, as the model and the transcript read it. */

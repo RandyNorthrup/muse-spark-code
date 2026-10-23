@@ -4489,6 +4489,7 @@
   "teamRunnerUnavailable": "{tool} 不可用：此窗口尚未加载团队执行器。",
   "teamPlanShown": "已显示团队计划；未启动任何内容。",
   "teamTasksStarted": "已启动的团队任务：{count}",
+  "teamTasksQueued": "已排队的团队任务：{count}",
   "teamMergeRework": "合并遇到冲突：任务已退回返工。",
   "teamTaskUnknown": "该团队任务未在此窗口中打开。",
   "teamWaitingUnknown": "已没有内容在等待此回答。",
