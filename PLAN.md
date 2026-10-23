@@ -37123,6 +37123,14 @@ removes it); the vault lane owns removing this row. Evidence:
 
 ## 8. Escape hatches register
 
+RLF-ACPTURNS, 2026-10-22: `// eslint-disable-next-line
+@typescript-eslint/no-unnecessary-condition` on the `turnRunning` read in
+`retryTurn` (`src/host/conversation/conversationController.ts`). A turn may
+start while `sessionForAction` re-establishes the dropped session, so the
+live `activeTurnId` read after the await is load-bearing; the rule sees
+only the pre-await narrowing. Removal guard: restructure so no narrowing
+crosses the await (e.g. establishment returning the live turn state).
+
 TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
 @typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
 (`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`

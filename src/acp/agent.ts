@@ -329,6 +329,16 @@ export function turnFailureError(event: TurnCompleted): RequestError {
   )
 }
 
+/**
+A dead backend's prompt error (RLF-ACPTURNS): never retryable. The session
+is released with its host (`watch` calls `releaseAll` beside `hostExited`),
+so resubmitting the prompt into this session cannot work; the client
+starts a new session instead, which is a new turn, not a retry.
+*/
+export function hostExitError(description: string): RequestError {
+  return RequestError.internalError({ retryable: false }, description)
+}
+
 interface PendingPrompt {
   readonly resolve: (reason: StopReason) => void
   readonly reject: (error: unknown) => void
@@ -3037,7 +3047,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
-    const error = RequestError.internalError(undefined, description)
+    const error = hostExitError(description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()

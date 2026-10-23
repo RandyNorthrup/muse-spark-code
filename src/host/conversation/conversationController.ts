@@ -2573,13 +2573,23 @@ export class ConversationController implements DeferredSend {
   more (it stopped, restarted or closed the session, D25): the reply stops
   streaming and its cards go, as for a turn the host completed.
   */
-  private endTurnLocally(terminal: 'cancelled' | 'failed', reason: string): void {
+  private endTurnLocally(
+    terminal: 'cancelled' | 'failed',
+    reason: string,
+    isRetryable = false,
+  ): void {
     const turnId = this.activeTurnId
     if (turnId === undefined) {
       return
     }
     this.activeTurnId = undefined
-    const event = { type: 'turnCompleted', turnId, terminal, reason } as const
+    const event = {
+      type: 'turnCompleted',
+      turnId,
+      terminal,
+      reason,
+      ...(isRetryable && { retryable: true }),
+    } as const
     // The same end line and clock as a turn the host ended (the review of PR #20).
     this.endTurnClock(event)
     this.checkpoints.turnCompleted(turnId)
@@ -8081,15 +8091,37 @@ export class ConversationController implements DeferredSend {
   resubmits the turn's own remembered parts as a new turn, answered
   `turnAccepted` or `sendFailed` for the webview's optimistic card. The
   failed turn's work stays: nothing is taken back. Every refusal is said.
-  Never an automatic resubmit: only this press sends it.
+  Never an automatic resubmit: only this press sends it. The host may have
+  died under the turn and dropped the session: the resubmit re-establishes
+  it like any send (restarts on send, D25), but only for a press that can
+  send — nothing remembered restarts no host.
   */
   private async retryTurn(localId: string, turnId: string): Promise<void> {
-    const session = this.session
     const remembered = this.retryableTurns.get(turnId)
+    if (remembered?.failedRetryable !== true) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryUnavailable })
+      return
+    }
+    if (this.activeTurnId !== undefined) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
+      return
+    }
+    let session = this.session
+    if (session === undefined) {
+      session = await this.sessionForAction(localId)
+      if (session === undefined) {
+        // That step refused with its own reason already.
+        return
+      }
+    }
     const refusal = retryTurnRefusal({
-      sessionId: session?.sessionId,
-      rememberedSessionId: remembered?.sessionId,
-      failedRetryable: remembered?.failedRetryable,
+      sessionId: session.sessionId,
+      rememberedSessionId: remembered.sessionId,
+      failedRetryable: remembered.failedRetryable,
+      // A turn may have started while the session re-established above,
+      // so the live read is load-bearing; the rule sees only the
+      // pre-await narrowing (PLAN.md §8).
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
       turnRunning: this.activeTurnId !== undefined,
     })
     if (refusal === 'unavailable') {
@@ -8098,11 +8130,6 @@ export class ConversationController implements DeferredSend {
     }
     if (refusal === 'busy') {
       this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
-      return
-    }
-    if (session === undefined || remembered === undefined) {
-      // The admission above answered every refusal; this is unreachable.
-      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryUnavailable })
       return
     }
     const generation = this.sendInvalidationEpoch
@@ -13379,9 +13406,27 @@ export class ConversationController implements DeferredSend {
     }
     this.historyWatchEpoch += 1
     const didHaveSession = this.session !== undefined
+    // The drop below forgets every remembered turn. A non-persistent exit
+    // restarts the host on send and resumes this same conversation (D25),
+    // so its turns stay resubmittable; the dead one arms its Retry, and
+    // only when the send was a plain one worth resubmitting. A persistent
+    // exit refuses to run as configured: no Retry, the sign-in gate speaks.
+    const keptTurns = new Map(this.retryableTurns)
+    const deadTurnId = this.activeTurnId
+    const deadTurn = deadTurnId === undefined ? undefined : keptTurns.get(deadTurnId)
+    const isResubmittable = !exit.isPersistent && deadTurn !== undefined
     this.rememberForResume(this.session)
-    this.endTurnLocally('failed', `${UI_TEXT.hostExited} (${exit.description})`)
+    this.endTurnLocally('failed', `${UI_TEXT.hostExited} (${exit.description})`, isResubmittable)
     this.dropSession(false)
+    if (!exit.isPersistent) {
+      for (const [turnId, turn] of keptTurns) {
+        this.retryableTurns.set(turnId, turn)
+      }
+      // The restored entry is this same object: arming it arms the map.
+      if (deadTurn !== undefined) {
+        deadTurn.failedRetryable = true
+      }
+    }
     this.forgetModels()
     this.listWatch.forget()
     this.usageWatch.forget()

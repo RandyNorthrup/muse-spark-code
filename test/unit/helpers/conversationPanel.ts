@@ -11,7 +11,7 @@ import path from 'node:path'
 import { expect } from 'vitest'
 import { BestOfNCoordinator } from '../../../src/core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../../src/core/sessionBoard'
-import type { AuthPort } from '../../../src/host/auth/authService'
+import type { AuthPort, AuthSnapshot } from '../../../src/host/auth/authService'
 import { createCheckpointPort } from '../../../src/host/checkpoints/checkpointHost'
 import {
   ConversationController,
@@ -229,12 +229,15 @@ export interface PanelRig {
   readonly posted: HostToWebviewMessage[]
   /** What the controller wrote to the window's log, as the output channel shows it. */
   readonly logged: string[]
+  /** Backend errors reported to the sign-in gate (a host that refuses to run). */
+  readonly backendErrors: string[]
 }
 
 /** The real controller on `rig`'s host, as the editor builds it for one panel. */
 export function conversationPanel(options: PanelOptions): PanelRig {
   const posted: HostToWebviewMessage[] = []
   const logged: string[] = []
+  const backendErrors: string[] = []
   const record = (message: string) => {
     logged.push(message)
   }
@@ -263,7 +266,10 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     refresh: unused('auth.refresh'),
     checkAgain: unused('auth.checkAgain'),
     markAuthRequired: unused('auth.markAuthRequired'),
-    markBackendError: unused('auth.markBackendError'),
+    markBackendError: (detail: string): AuthSnapshot => {
+      backendErrors.push(detail)
+      return { status: 'signedIn', detail, backend: 'modelApi' }
+    },
   }
   // No path here drives git: every entry fails closed instead of pretending
   // git ran, except the session-changed notification, which the rig has no
@@ -409,7 +415,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     now: () => Date.now(),
     log: { trace: record, info: record, warn: record, error: record },
   }
-  return { controller: new ConversationController(deps), posted, logged }
+  return { controller: new ConversationController(deps), posted, logged, backendErrors }
 }
 
 export function panelNotices(
