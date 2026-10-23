@@ -54,6 +54,36 @@ function frame(event: Record<string, unknown>): string {
   return `event: ${String(event['type'])}\ndata: ${JSON.stringify(event)}\n\n`
 }
 
+/**
+The recorded 02-tool-call-stream completion (1,444 written) with a
+docs-shaped `cache_write_tokens_details` breakdown spliced into its usage
+(RLPROVSYNC's cache-write cases), framed, with the recorded written total.
+*/
+function completionWithBreakdown(breakdown: (written: number) => Record<string, number>): {
+  readonly frame: string
+  readonly written: number
+} {
+  const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
+  if (terminal === undefined) throw new Error('Missing captured completion')
+  const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
+  const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
+  const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
+  const written = z.number().parse(details['cache_write_tokens'])
+  return {
+    written,
+    frame: frame({
+      ...terminal,
+      response: {
+        ...response,
+        usage: {
+          ...usage,
+          input_tokens_details: { ...details, cache_write_tokens_details: breakdown(written) },
+        },
+      },
+    }),
+  }
+}
+
 function stream(...parts: readonly string[]): ReadableStream<Uint8Array> {
   return new ReadableStream<Uint8Array>({
     start(controller) {
@@ -591,34 +621,13 @@ describe('responsesCodec decodeStream', () => {
     // the docs-shaped `cache_write_tokens_details` the rig cannot capture
     // (it holds no key): disjoint parts summing to the recorded written
     // total, per the prompt-caching guide (read 2026-10-22).
-    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
-    if (terminal === undefined) throw new Error('Missing captured completion')
-    const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
-    const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
-    const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
-    const written = z.number().parse(details['cache_write_tokens'])
-    expect(written).toBe(1444)
     const twelveHourTokens = 44
-    const events = await collect(
-      stream(
-        frame({
-          ...terminal,
-          response: {
-            ...response,
-            usage: {
-              ...usage,
-              input_tokens_details: {
-                ...details,
-                cache_write_tokens_details: {
-                  ttl_30m_tokens: written - twelveHourTokens,
-                  ttl_12h_tokens: twelveHourTokens,
-                },
-              },
-            },
-          },
-        }),
-      ),
-    )
+    const spliced = completionWithBreakdown((written) => ({
+      ttl_30m_tokens: written - twelveHourTokens,
+      ttl_12h_tokens: twelveHourTokens,
+    }))
+    expect(spliced.written).toBe(1444)
+    const events = await collect(stream(spliced.frame))
     expect(events.at(-1)).toMatchObject({
       type: 'response.completed',
       response: {
@@ -635,67 +644,20 @@ describe('responsesCodec decodeStream', () => {
   })
 
   it('refuses a TTL breakdown that exceeds the written total (RLPROVSYNC)', async () => {
-    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
-    if (terminal === undefined) throw new Error('Missing captured completion')
-    const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
-    const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
-    const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
-    const written = z.number().parse(details['cache_write_tokens'])
-    await expect(
-      collect(
-        stream(
-          frame({
-            ...terminal,
-            response: {
-              ...response,
-              usage: {
-                ...usage,
-                input_tokens_details: {
-                  ...details,
-                  cache_write_tokens_details: {
-                    ttl_30m_tokens: written,
-                    ttl_12h_tokens: 1,
-                  },
-                },
-              },
-            },
-          }),
-        ),
-      ),
-    ).rejects.toThrow('invalid_cache_write_split')
+    const spliced = completionWithBreakdown((written) => ({
+      ttl_30m_tokens: written,
+      ttl_12h_tokens: 1,
+    }))
+    await expect(collect(stream(spliced.frame))).rejects.toThrow('invalid_cache_write_split')
   })
 
   it('accepts a breakdown below the written total for a later TTL (RLPROVSYNC)', async () => {
     // The known parts summing below the written total stays accepted: a
     // later TTL the guide adds may make up the rest. The 12-hour part
     // still maps exactly.
-    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
-    if (terminal === undefined) throw new Error('Missing captured completion')
-    const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
-    const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
-    const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
-    const written = z.number().parse(details['cache_write_tokens'])
-    const events = await collect(
-      stream(
-        frame({
-          ...terminal,
-          response: {
-            ...response,
-            usage: {
-              ...usage,
-              input_tokens_details: {
-                ...details,
-                cache_write_tokens_details: {
-                  ttl_30m_tokens: 1000,
-                  ttl_12h_tokens: 44,
-                },
-              },
-            },
-          },
-        }),
-      ),
-    )
-    expect(written).toBe(1444)
+    const spliced = completionWithBreakdown(() => ({ ttl_30m_tokens: 1000, ttl_12h_tokens: 44 }))
+    const events = await collect(stream(spliced.frame))
+    expect(spliced.written).toBe(1444)
     expect(events.at(-1)).toMatchObject({
       type: 'response.completed',
       response: {

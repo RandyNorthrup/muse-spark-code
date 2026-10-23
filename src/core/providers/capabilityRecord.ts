@@ -172,18 +172,24 @@ const groups = {
   sampling: samplingSchema,
   hosted: hostedSchema,
 }
+/**
+The served version and the model's lifecycle from its list (AC3):
+`active`, `deprecated` or `retired`, with the deprecation and
+scheduled-retirement instants where the list carries them. The record's
+identity and its overrides read the same fields.
+*/
+const lifecycleFields = {
+  servedVersion: z.optional(z.string()),
+  lifecycle: z.optional(z.enum(['active', 'deprecated', 'retired'])),
+  deprecatedAt: z.optional(z.string()),
+  retiresAt: z.optional(z.string()),
+}
 const recordSchema = z.strictObject({
   identity: z.strictObject({
     provider: z.string(),
     nativeModel: z.string(),
     format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
-    servedVersion: z.optional(z.string()),
-    // The model's lifecycle from its list (AC3): `active`, `deprecated`
-    // or `retired`, with the deprecation and scheduled-retirement
-    // instants where the list carries them.
-    lifecycle: z.optional(z.enum(['active', 'deprecated', 'retired'])),
-    deprecatedAt: z.optional(z.string()),
-    retiresAt: z.optional(z.string()),
+    ...lifecycleFields,
   }),
   ...groups,
   logprobs: logprobsSchema,
@@ -201,10 +207,7 @@ export type ModelCapabilityRecord = Readonly<z.infer<typeof recordSchema>>
 /** Any policy family may be overridden; identity's route remains registry-owned. */
 export const capabilityOverridesSchema = z
   .strictObject({
-    servedVersion: z.optional(z.string()),
-    lifecycle: z.optional(z.enum(['active', 'deprecated', 'retired'])),
-    deprecatedAt: z.optional(z.string()),
-    retiresAt: z.optional(z.string()),
+    ...lifecycleFields,
     tools: z.optional(z.partial(toolsSchema)),
     reasoning: z.optional(
       z.extend(z.partial(reasoningSchema), { replay: z.optional(z.partial(replaySchema)) }),

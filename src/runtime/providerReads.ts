@@ -40,6 +40,22 @@ export function providerListHeaders(provider: ResolvedProvider): Record<string, 
   return headers
 }
 
+/**
+The free key test's refusals before any request (D74): a paid-token test
+asks its price in the panel first, and a keyed preset without a key has
+nothing to test. Undefined lets the probe read.
+*/
+export function freeProbeRefusal(
+  provider: ResolvedProvider,
+  key: string | undefined,
+): { readonly ok: false; readonly paid: boolean; readonly reason: string } | undefined {
+  if (provider.preset.keyTest.kind === 'paid-token')
+    return { ok: false, paid: true, reason: 'paid' }
+  return key === undefined && provider.preset.auth === 'apiKey'
+    ? { ok: false, paid: false, reason: 'no-key' }
+    : undefined
+}
+
 /** Model ids from a list body: OpenAI's `{data: [{id}]}` or Gemini's `{models: [{name}]}`. */
 const modelId = z.string().check(z.minLength(1))
 const modelRows = z

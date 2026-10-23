@@ -1,20 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { readSettings } from '../../src/host/settings'
-
-const log = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
+import { readOneSetting } from './helpers/oneSetting'
 
 function capOf(value: unknown) {
-  return readSettings(
-    {
-      get: (key: string) => (key === 'tabMaxOutputTokens' ? value : undefined),
-    },
-    log,
-  ).tabMaxOutputTokens
+  return readOneSetting('tabMaxOutputTokens', value)
 }
 
 describe('Tab output cap setting (M94 goal, D121)', () => {
