@@ -17,3 +17,5 @@ src/core/reporting/collect/estimate.ts:generic-api-key:123
 src/core/reporting/collect/estimate.ts:generic-api-key:124
 # Public hCaptcha site key inside MediaWiki's page config (wg*), served to every reader of the recorded Wikipedia fixture; site keys are public by design, no credential.
 test/fixtures/webfetch/wiki-internet.body:generic-api-key:6
+# SHA-256 source digest in the M125 F1 machine receipt; a file hash, not a credential.
+docs/certification/m125-f1-linux.json:generic-api-key:131

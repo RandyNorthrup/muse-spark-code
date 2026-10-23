@@ -1,0 +1,210 @@
+{
+  "binary": {
+    "bytes": 36080,
+    "path": "temp/confine/muse-confine",
+    "sha256": "af1fe02b20db385b0919a139cc9348421c835f9e544495751cdb031b2d6e12fc"
+  },
+  "bubblewrap": "0.11.0",
+  "capture": "m125-f1-linux-linuxlt-2026-10-23",
+  "capturedAt": "2026-10-23T02:32:26+0000",
+  "drills": {
+    "gateFire": [
+      {
+        "break": "settledBy forbidRule read as allowRule",
+        "failed": 1,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "fails settled rules first, even for an innocent line",
+        "id": "floor-forbid-rule",
+        "suite": "test/unit/judgeApprovalFloor.test.ts"
+      },
+      {
+        "break": "program sudo read as sudoo",
+        "failed": 1,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "names evaluators, sudo, installs and git",
+        "id": "floor-sudo",
+        "suite": "test/unit/judgeApprovalFloor.test.ts"
+      },
+      {
+        "break": "certified gate inverted",
+        "failed": 4,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "stays off everywhere until a receipt and the harm bound land",
+        "id": "conditions-certified",
+        "suite": "test/unit/judgeApprovalFloor.test.ts"
+      },
+      {
+        "break": "sessionProcessAlive inverted",
+        "failed": 2,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "admits a certified platform once both land",
+        "id": "conditions-session",
+        "suite": "test/unit/judgeApprovalFloor.test.ts"
+      },
+      {
+        "break": "veto answer inverted",
+        "failed": 3,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "skips on a non-veto and B1 output before the reviewer, and cancels it",
+        "id": "race-veto-meaning",
+        "suite": "test/unit/judgeApprovalRace.test.ts"
+      },
+      {
+        "break": "reviewer dropped from the second wait",
+        "failed": 1,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "lets a slow B1 lose to the reviewer",
+        "id": "race-second-reviewer",
+        "suite": "test/unit/judgeApprovalRace.test.ts"
+      },
+      {
+        "break": "veto window closed at once",
+        "failed": 3,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "skips on a non-veto and B1 output before the reviewer, and cancels it",
+        "id": "race-window",
+        "suite": "test/unit/judgeApprovalRace.test.ts"
+      },
+      {
+        "break": "shared fence never recorded",
+        "failed": 1,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "skips on the shared fence and the delivered run, with the parse",
+        "id": "hold-share-fence",
+        "suite": "test/unit/judgeApprovalHold.test.ts"
+      },
+      {
+        "break": "hold conditions inverted",
+        "failed": 5,
+        "file": "src/core/judge/fast/approval.ts",
+        "firstFailure": "starts nothing when the conditions fail",
+        "id": "hold-conditions",
+        "suite": "test/unit/judgeApprovalHold.test.ts"
+      },
+      {
+        "break": "audit class literal B1 read as B2",
+        "failed": 4,
+        "file": "src/shared/fastPathAudit.ts",
+        "firstFailure": "keeps a full audit with its pipeline detail",
+        "id": "audit-class",
+        "suite": "test/unit/judgeFastSkipAudit.test.ts"
+      },
+      {
+        "break": "permille bound widened by one",
+        "failed": 1,
+        "file": "src/shared/fastPathAudit.ts",
+        "firstFailure": "refuses audit fields outside their bounds",
+        "id": "audit-permille-bound",
+        "suite": "test/unit/judgeFastSkipAudit.test.ts"
+      },
+      {
+        "break": "redactor check inverted",
+        "failed": 2,
+        "file": "src/core/support/flightRecorder.ts",
+        "firstFailure": "keeps a full audit with its pipeline detail",
+        "id": "audit-redactor",
+        "suite": "test/unit/judgeFastSkipAudit.test.ts"
+      }
+    ],
+    "holdDrill": {
+      "note": "No judge backend on the rig, so the veto never settles; the skip path's logic stays covered over the ports. The rig id-maps system files to nobody, so the confined run refuses systemFile fail-closed.",
+      "passed": 4,
+      "suite": "test/unit/judgeB1HoldDrill.test.ts"
+    },
+    "nonFiringBreak": {
+      "finding": "The first wait's reviewer arm is outcome-preserving: a reviewer verdict first still wins through the second wait or the fallback. It buys latency and veto-abort hygiene. The second wait's reviewer arm is outcome-determining.",
+      "id": "race-first-reviewer",
+      "note": "Recorded as a finding, not a gap."
+    },
+    "restoredSha256": {
+      "src/core/judge/fast/approval.ts": "96668ad5096b8dcdd5e2b7cf2f48c65182fbf7714db7cd340660722ed2543a0e",
+      "src/core/support/flightRecorder.ts": "a7bf910e6ca713d6430a1bfc0df77ed9a8e773d183e3acdfc145c085f20a9dad",
+      "src/shared/fastPathAudit.ts": "9aca0511bb2050a3354a72768eb00ecb7ecf74a84b0cd080d829c147e51225f0"
+    }
+  },
+  "method": "Unit suites at repository default timeouts with --maxWorkers=3; deliberate one-line breaks each restored byte-exact with SHA-256 verified; hold drill over the real helper binary, governed bootstrap launcher and real clock; strace -f -c over probe (success) and run (fail-closed refusal) from a private TMPDIR fixture.",
+  "modelAttempts": 0,
+  "platform": { "architecture": "x86_64", "os": "Linux", "release": "6.17.0-12-generic" },
+  "sourceSha256": {
+    "native/confine/MuseSparkConfine.c": "0750facf3b334e74caa268df81799fb49db40c2475bc15f7911def7e2304fef7",
+    "scripts/build-confine.mjs": "b57175ed758f2d5bbe235a762d85a4f51bd632537967fdb4fc0efefba4e83a21",
+    "src/core/backends/modelapi/ModelApiHost.ts": "568443036d5ea736f190cc9a359c09275438d66b07b31a35fea35babd15aa2b0",
+    "src/core/judge/fast/approval.ts": "96668ad5096b8dcdd5e2b7cf2f48c65182fbf7714db7cd340660722ed2543a0e",
+    "src/core/judge/fast/inspectExec.ts": "44ebaca5daf701bb93d320d7663a1840b59ee6bc6da02fade78bd563fc90eccf",
+    "src/core/support/flightRecorder.ts": "a7bf910e6ca713d6430a1bfc0df77ed9a8e773d183e3acdfc145c085f20a9dad",
+    "src/shared/fastPathAudit.ts": "9aca0511bb2050a3354a72768eb00ecb7ecf74a84b0cd080d829c147e51225f0",
+    "test/unit/judgeB1HoldDrill.test.ts": "18fef42c1057933717246866e458b0a7b3049fa5213e623df3fd9f618a7154c1"
+  },
+  "strace": {
+    "absent": ["open", "bind", "connect", "clone3"],
+    "probe": {
+      "calls": [
+        "access",
+        "arch_prctl",
+        "brk",
+        "clone",
+        "close",
+        "execve",
+        "fstat",
+        "geteuid",
+        "getrandom",
+        "getuid",
+        "ioctl",
+        "landlock_add_rule",
+        "landlock_create_ruleset",
+        "landlock_restrict_self",
+        "link",
+        "mkdir",
+        "mmap",
+        "mprotect",
+        "munmap",
+        "openat",
+        "prctl",
+        "pread64",
+        "prlimit64",
+        "read",
+        "rseq",
+        "rt_sigprocmask",
+        "set_robust_list",
+        "set_tid_address",
+        "socket",
+        "socketpair",
+        "unlink",
+        "write"
+      ],
+      "exit": 0
+    },
+    "runToRefusal": {
+      "calls": [
+        "access",
+        "arch_prctl",
+        "brk",
+        "close",
+        "execve",
+        "fcntl",
+        "fstat",
+        "getdents64",
+        "geteuid",
+        "getrandom",
+        "getuid",
+        "landlock_create_ruleset",
+        "mmap",
+        "mprotect",
+        "munmap",
+        "newfstatat",
+        "openat",
+        "pread64",
+        "prlimit64",
+        "read",
+        "readlink",
+        "rseq",
+        "set_robust_list",
+        "set_tid_address",
+        "write"
+      ],
+      "exit": 125,
+      "refusal": "systemFile"
+    }
+  },
+  "workspace": "<lane-private-TMPDIR>/b1strace-*"
+}
