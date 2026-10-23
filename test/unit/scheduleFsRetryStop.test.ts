@@ -1,29 +1,54 @@
-// No attempt count of ours on schedule storage reads (D121, RLF-NOLIMITS):
-// a transient-coded failure retries until the read succeeds, fails another
-// way, or the call's stop fires. The denial below is the kernel's own
-// (helpers/deniedAccess: chmod 0 on POSIX, a deny entry on Windows);
-// nothing is simulated.
+// The schedule storage retry bound (D121 clarification, RLF-SAFELIMITS): a
+// transient-coded failure retries a bounded number of times, then the last
+// error surfaces with its kind; a brief denial still reads, and the call's
+// stop still ends the wait with the abort reason. The denial below is the
+// kernel's own (helpers/deniedAccess: chmod 0 on POSIX, a deny entry on
+// Windows); nothing is simulated.
 import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
-import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
+import {
+  createNodeScheduleFs,
+  isTransientStoreError,
+} from '../../src/runtime/schedules/nodeScheduleFs'
 import { denyAccess } from './helpers/deniedAccess'
 import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
 
-describe('schedule storage reads without an attempt count', () => {
-  it('retries a transient denial past five attempts, then reads', async () => {
+describe('schedule storage reads with a retry bound', () => {
+  it('reads through a brief transient denial', async () => {
     const root = await temporaryDir('muse-schedule-retry-')
     try {
       const fs = createNodeScheduleFs(root)
       await fs.publish('probe/file.json', '{"held":true}')
-      // Six attempts space themselves ~420 ms apart (20 ms × attempt);
-      // holding the denial 1.5 s proves the read outlived the removed
-      // five-attempt budget with room for a loaded rig.
+      // Five attempts space themselves over ~200 ms of backoff (20 ms ×
+      // attempt); lifting the denial after 100 ms proves a transient
+      // failure still heals inside the budget.
       const allow = await denyAccess(root)
       const reading = fs.read('probe/file.json')
-      await delay(1500)
+      await delay(100)
       await allow()
       await expect(reading).resolves.toBe('{"held":true}')
     } finally {
+      await removeFolder(root)
+    }
+  })
+
+  it('stops a never-clearing denial after five attempts, keeping its kind', async () => {
+    const root = await temporaryDir('muse-schedule-bound-')
+    const allow = await denyAccess(root)
+    try {
+      const fs = createNodeScheduleFs(root)
+      // Unbounded code would wait here past the suite's own timeout; the
+      // bound rejects after five attempts (~200 ms of backoff).
+      let failure: unknown
+      try {
+        await fs.read('probe/file.json')
+      } catch (error: unknown) {
+        failure = error
+      }
+      expect(failure).toBeInstanceOf(Error)
+      expect(isTransientStoreError(failure)).toBe(true)
+    } finally {
+      await allow()
       await removeFolder(root)
     }
   })
@@ -35,7 +60,9 @@ describe('schedule storage reads without an attempt count', () => {
       const fs = createNodeScheduleFs(root)
       const stop = new AbortController()
       const reading = fs.read('probe/missing.json', { signal: stop.signal })
-      await delay(300)
+      // Abort mid-backoff, before the five attempts run out (~200 ms):
+      // the stop still ends the wait with its own reason.
+      await delay(50)
       stop.abort()
       await expect(reading).rejects.toBe(stop.signal.reason)
     } finally {

@@ -5417,6 +5417,13 @@ export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
 export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY
 export const SCHEDULE_FENCE_SEGMENT_CHARS = 2
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a transient-coded
+// schedule storage failure (a held Windows handle) retries this many times,
+// then the last error surfaces. Bounded transient retries are the industry
+// shape (the OpenAI and Anthropic SDKs retry twice by default; AWS SDKs
+// attempt three times); five attempts over 200 ms of backoff rides out a
+// scanner lock without waiting on a never-clearing denial.
+export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
 export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
 export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
 export const SCHEDULE_LEASE_EXPIRES_MS = 10_000
