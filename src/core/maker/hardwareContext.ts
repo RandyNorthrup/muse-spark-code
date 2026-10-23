@@ -41,60 +41,81 @@ export function hasHardwareEvidence(context: HardwareContext): boolean {
   )
 }
 
-function hasProject(root: string | undefined): boolean {
-  if (root === undefined) return true
+/**
+Positive evidence only: an unknown inventory is fail-safe for commands, but
+it is not proof of hardware. Attach-time fences (resume on an adapter that
+cannot verify targets) refuse on this, so an unscannable or unqualified
+machine does not make every session unresumable.
+*/
+function hasPositiveHardwareEvidence(context: HardwareContext): boolean {
+  return (
+    context.isHardwareWorkspace === true ||
+    context.isMakerEnabled === true ||
+    context.isHardwareProject === true ||
+    context.hasConnectedBoard === true ||
+    (context.targets?.length ?? 0) > 0 ||
+    (context.boardRoots?.length ?? 0) > 0
+  )
+}
+
+/** True: a marker was found. False: scanned clean. Undefined: cannot say. */
+function scanForProject(root: string | undefined): boolean | undefined {
+  if (root === undefined) return undefined
   try {
     const pending = [root]
     const budget = { files: 0 }
     while (pending.length > 0) {
       const directory = pending.pop()
       if (directory === undefined) break
-      if (hasDirectoryMarker(directory, pending, budget)) return true
+      const found = scanDirectoryMarker(directory, pending, budget)
+      if (found === 'marker') return true
+      if (found === 'unknown') return undefined
     }
     return /(?:^|\/)CIRCUITPY\/?$/i.test(root.replaceAll('\\', '/'))
   } catch (error) {
-    if (isScanFailure(error)) return true
+    if (isScanFailure(error)) return undefined
     throw error
   }
 }
 
-function hasDirectoryMarker(
+function scanDirectoryMarker(
   directory: string,
   pending: string[],
   budget: { files: number },
-): boolean {
+): 'marker' | 'unknown' | undefined {
   const folder = opendirSync(directory, { bufferSize: 1 })
   try {
     for (let entry = folder.readSync(); entry !== null; entry = folder.readSync()) {
       budget.files += 1
-      if (budget.files >= MAKER_DETECT_MAX_FILES) return true
+      if (budget.files >= MAKER_DETECT_MAX_FILES) return 'unknown'
       if (/^(?:\.|node_modules$|vendor$|dist$|build$|temp$)/.test(entry.name)) continue
       const file = path.join(directory, entry.name)
-      if (entry.isSymbolicLink()) return true
+      if (entry.isSymbolicLink()) return 'unknown'
       if (entry.isDirectory()) {
         pending.push(file)
         continue
       }
+      if (!entry.isFile()) return 'unknown'
       if (
-        !entry.isFile() ||
         /^(?:platformio\.ini|sdkconfig(?:\.defaults)?|pico_sdk_import\.cmake|printer\.cfg|Configuration.*\.h|prj\.conf|west\.ya?ml|code\.py|boot\.py|package\.xml)$|\.ino$/i.test(
           entry.name,
         )
       )
-        return true
+        return 'marker'
       if (!/^(?:CMakeLists\.txt)$|\.ya?ml$/i.test(entry.name)) {
         continue
       }
 
-      if (hasSniffedProject(file)) return true
+      const sniffed = sniffProjectFile(file)
+      if (sniffed !== false) return sniffed
     }
-    return false
+    return undefined
   } finally {
     folder.closeSync()
   }
 }
 
-function hasSniffedProject(file: string): boolean {
+function sniffProjectFile(file: string): 'marker' | 'unknown' | false {
   // Enumeration can race a replacement: never wait for a FIFO writer or follow a link.
   const descriptor = openSync(
     file,
@@ -102,12 +123,14 @@ function hasSniffedProject(file: string): boolean {
   )
   try {
     const stat = fstatSync(descriptor)
-    if (!stat.isFile() || stat.size > MAKER_DETECT_MAX_BYTES) return true
+    if (!stat.isFile() || stat.size > MAKER_DETECT_MAX_BYTES) return 'unknown'
     const buffer = Buffer.alloc(MAKER_DETECT_MAX_BYTES)
     const count = readSync(descriptor, buffer, 0, buffer.length, 0)
     return /IDF_PATH|pico_sdk_import|pico_sdk_init|^\s*esphome\s*:/m.test(
       buffer.toString('utf8', 0, count),
     )
+      ? 'marker'
+      : false
   } finally {
     closeSync(descriptor)
   }
@@ -116,11 +139,14 @@ function hasSniffedProject(file: string): boolean {
 /** One workspace lease; disappearing evidence cannot unlatch it. */
 export class HardwareWorkspace {
   private isLatched: boolean
+  private hasPositiveEvidence: boolean
   private observation = ''
   private readonly activity = new Set<() => boolean>()
   public constructor(private readonly source: () => HardwareContext) {
     const initial = source()
-    this.isLatched = initial.hardwareSessionLatched ?? hasProject(initial.workspaceRoot)
+    const scanned = scanForProject(initial.workspaceRoot)
+    this.isLatched = initial.hardwareSessionLatched ?? scanned !== false
+    this.hasPositiveEvidence = scanned === true
     this.observe(initial)
   }
   private signature(context: HardwareContext): string {
@@ -137,6 +163,7 @@ export class HardwareWorkspace {
   public observe(context: HardwareContext): void {
     const { hardwareSessionLatched: _latched, ...evidence } = context
     this.isLatched ||= hasHardwareEvidence(evidence)
+    this.hasPositiveEvidence ||= hasPositiveHardwareEvidence(evidence)
     this.observation = this.signature(context)
   }
   public current(): HardwareContext {
@@ -151,7 +178,14 @@ export class HardwareWorkspace {
   }
   public startSession(): void {
     const source = this.source()
-    this.isLatched ||= source.hardwareSessionLatched ?? hasProject(source.workspaceRoot)
+    const scanned = scanForProject(source.workspaceRoot)
+    this.isLatched ||= source.hardwareSessionLatched ?? scanned !== false
+    this.hasPositiveEvidence ||= scanned === true
+  }
+  /** Positive evidence only (never the fail-safe latch); see the resume fence. */
+  public isPositivelyHardware(): boolean {
+    this.current()
+    return this.hasPositiveEvidence
   }
   public trackActivity(isActive: () => boolean): () => void {
     this.activity.add(isActive)
@@ -163,6 +197,7 @@ export class HardwareWorkspace {
     if (this.source().isInventoryKnown === false) throw new Error(UI_TEXT.hardwareRefused)
     if ([...this.activity].some((isActive) => isActive())) throw new Error(UI_TEXT.hardwareRefused)
     this.isLatched = false
+    this.hasPositiveEvidence = false
     this.observation = this.signature(this.source())
   }
 }

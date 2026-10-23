@@ -3493,7 +3493,10 @@ export class MuseCodeHost implements AgentHost {
     owner.startSession()
     const assertCanResume = () => {
       owner.startSession()
-      if (isHardwareWorkspace(owner.current())) throw new Error(UI_TEXT.hardwareBindingUnavailable)
+      // Attach refuses only on positive hardware evidence: an unknown
+      // inventory or an unscannable folder is fail-safe for commands
+      // (the per-turn fences still apply), never proof of hardware.
+      if (owner.isPositivelyHardware()) throw new Error(UI_TEXT.hardwareBindingUnavailable)
     }
     assertCanResume()
     const { loaded, hasPending } = await this.opened(async () => {
