@@ -34,10 +34,11 @@ g:muse_spark_command	Default: 'muse-spark-code-acp'. The agent to run;
 				a list is the full argv (e.g. ['node',
 				'/path/to/dist/acp.js']).
 g:muse_spark_args	Default: []. Extra agent arguments, e.g.
-				['--model', 'muse-spark-1.3',
-				'--trust-workspace']. Contributor models need
-				'--allow-contributor-models' beside the
-				'--model' that names one.
+				['--trust-workspace'] (the serve options
+				from docs/acp.md; '--model' is exec-only,
+				pick the model with |:MuseSparkModel|).
+				Contributor models list only with
+				'--allow-contributor-models' here.
 g:muse_spark_mcp_servers	Default: []. MCP servers the session offers
 				the agent (ACP mcpServers), e.g. Xcode 26.3's
 				bridge while Xcode runs with a project open: >

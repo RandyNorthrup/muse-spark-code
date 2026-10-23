@@ -18,9 +18,10 @@ endif
 if !exists('g:muse_spark_command')
   let g:muse_spark_command = 'muse-spark-code-acp'
 endif
-" Extra arguments for the agent, e.g. ['--model', 'muse-spark-1.3',
-" '--trust-workspace']. Contributor models need '--allow-contributor-models'
-" beside the '--model' that names one.
+" Extra arguments for the agent, e.g. ['--trust-workspace'] (the serve
+" options from docs/acp.md; '--model' is exec-only, pick the model with
+" :MuseSparkModel). Contributor models list only with
+" '--allow-contributor-models' here.
 if !exists('g:muse_spark_args')
   let g:muse_spark_args = []
 endif
