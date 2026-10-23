@@ -1,0 +1,50 @@
+#cloud-config
+# Muse Node on a rented server (M110f lane S, D90.20): the two service
+# users, unattended security upgrades, and the node's systemd unit. The
+# node's own port stays closed here: `node init` on the machine opens the
+# port the person chooses, so this file never guesses it. Afterwards only
+# SSH and the node's port are open.
+users:
+  - name: muse-node
+    system: true
+    shell: /bin/false
+    create_home: true
+    home: /var/lib/muse-node
+  - name: muse-tools
+    system: true
+    shell: /bin/false
+    create_home: false
+packages:
+  - ca-certificates
+  - curl
+  - unattended-upgrades
+write_files:
+  - path: /etc/systemd/system/muse-node.service
+    owner: root:root
+    permissions: '0644'
+    content: |
+      [Unit]
+      Description=Muse Node (Unofficial)
+      After=network-online.target
+      Wants=network-online.target
+      [Service]
+      Type=simple
+      User=muse-node
+      Group=muse-node
+      WorkingDirectory=/var/lib/muse-node
+      ExecStart=/usr/local/bin/muse-node serve
+      Restart=on-failure
+      NoNewPrivileges=true
+      PrivateTmp=true
+      ProtectSystem=strict
+      ProtectHome=true
+      ReadWritePaths=/var/lib/muse-node
+      [Install]
+      WantedBy=multi-user.target
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable --now unattended-upgrades
+  - systemctl enable muse-node.service
+  - ufw --force enable
+  - ufw allow OpenSSH
+final_message: 'Muse Node cloud-init finished. Run node init to choose the port.'

@@ -3417,6 +3417,13 @@
   "backgroundTasksLabel": "백그라운드 작업",
   "backgroundBadge": "백그라운드",
   "subagentRowLabel": "에이전트",
+  "nodeTeam": {
+    "live": "활성",
+    "quiet": "응답 없음",
+    "gone": "연결 끊김",
+    "capabilities": "기능",
+    "noNodes": "참가한 노드가 없습니다"
+  },
   "teamTreeLabel": "팀",
   "teamWorkerMerged": "병합됨",
   "teamWorkerDiscarded": "폐기됨",

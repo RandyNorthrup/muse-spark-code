@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: muse-node
+  labels:
+    app: muse-node
+spec:
+  type: ClusterIP
+  selector:
+    app: muse-node
+  ports:
+    - name: node
+      port: { { .Values.service.port } }
+      targetPort: node

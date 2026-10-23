@@ -3621,6 +3621,13 @@
   "backgroundTasksLabel": "Úlohy na pozadí",
   "backgroundBadge": "Na pozadí",
   "subagentRowLabel": "Agent",
+  "nodeTeam": {
+    "live": "Aktivní",
+    "quiet": "Tichý",
+    "gone": "Odpojený",
+    "capabilities": "Schopnosti",
+    "noNodes": "Zatím se nepřipojil žádný uzel"
+  },
   "teamTreeLabel": "Tým",
   "teamWorkerMerged": "sloučeno",
   "teamWorkerDiscarded": "zahozeno",

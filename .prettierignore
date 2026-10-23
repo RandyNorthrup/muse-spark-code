@@ -46,3 +46,8 @@ test/fixtures/m113/stores/
 # Lane RLMCPERA wire captures: the exact bytes the SDK servers sent
 # (test/unit/mcpEra.test.ts). Prettier would reflow them.
 test/fixtures/mcpEra/
+
+# M110f Helm templates: Go-templated by Helm's own convention, which is not
+# YAML prettier can parse ({{- if }} blocks). Values and the chart stay
+# formatted; only the templates are out of its reach.
+deploy/helm/muse-node/templates/

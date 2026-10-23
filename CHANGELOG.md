@@ -649,6 +649,23 @@ set|status|clear --provider <id> --admin` stores the separate admin
 - **Regions inside source files.** A shared source file declares
   named regions, and tasks working in different regions proceed in
   parallel instead of serializing on the file.
+### Added
+
+- Muse Node's later phases are built and tested as ready cores: remote
+  reach (pairing security, route choice, the sealed-frame relay,
+  sealed-at-boot, brokered secret uses and the remote-session gate),
+  the orchestrator host (roles, worker registry, duty planning, the
+  credential-free model relay and the team/nodes pages), full sign-in
+  (passwords, TOTP, recovery codes, OIDC with PKCE, proxy sign-in,
+  ACME, passkey origin checks and the installable app manifest),
+  rented-server descriptors with the installer verifier, operations
+  (backup, upgrades, retention, clock, wipe, metrics), local model
+  sidecars with hardware detection, and team mode (roles, per-person
+  scope, budgets, audit). None of it is wired to a command yet: the
+  node server, pairing transport and CLIs that switch it on are other
+  lanes' work, and remote reach waits on the owner's server and
+  domain, team mode on the terms decision, and updates on the owner's
+  key ceremony.
 
 ### Release infrastructure
 
