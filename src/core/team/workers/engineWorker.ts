@@ -37,6 +37,7 @@ import {
   type CheckJob,
   type CheckResult,
   type CheckRoutingDeps,
+  type ResourceRunnerRouter,
 } from '../../runners/routing'
 import { type Runner } from '../../../shared/team'
 // M77's attempt host for every engine worker (M96 lane W, PLAN.md D75):
@@ -413,6 +414,9 @@ export interface WorkerCheckRouting {
   readonly routing: CheckRoutingDeps
   /** Every ordinary shell guard, including hooks, ref/path fences and permissions. */
   readonly guard: (job: CheckJob) => Promise<string>
+  /** The governor-aware router (M107): heavy checks move under machine
+  pressure through it; without it, checks take the ordinary route. */
+  readonly resourceRouter?: ResourceRunnerRouter | undefined
 }
 
 /** testShell, detected test scripts, run_checks and then_run use this after classification. */
@@ -420,11 +424,16 @@ export async function routeWorkerCheck(
   job: CheckJob,
   deps: WorkerCheckRouting,
 ): Promise<CheckResult> {
-  return await routeChecks(
-    job,
-    deps.runners(),
-    deps.routing,
-    async (value) => await deps.guard(value),
-  )
+  const ordinary = async (): Promise<CheckResult> =>
+    await routeChecks(job, deps.runners(), deps.routing, async (value) => await deps.guard(value))
+  return deps.resourceRouter === undefined
+    ? await ordinary()
+    : await deps.resourceRouter.route(
+        job,
+        deps.runners(),
+        deps.routing,
+        async () => await deps.routing.local(job),
+        ordinary,
+      )
 }
 // --- End M96c lane O region. Engine lifetime and ordinary tools are M96 lane W. ---

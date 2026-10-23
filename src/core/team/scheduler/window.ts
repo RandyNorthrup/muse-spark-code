@@ -245,6 +245,7 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
       }
       return {
         now: deps.now(),
+        ...(deps.capacity !== undefined && { capacity: deps.capacity }),
         entries: entries(),
         canStart,
         estimatedTokens: () => 1,

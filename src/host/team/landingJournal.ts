@@ -10,6 +10,7 @@ import { UI_TEXT } from '../../shared/constants'
 import { canonicalPath, isMissingPath } from '../canonicalPath'
 import { isOwnedFile, writeFileIfUnchanged } from '../fsAtomic'
 import type { StagingCopy } from './stagingCopy'
+import type { JournalRead, TeamJournal } from './teamJournal'
 
 const blobSchema = z.strictObject({
   oid: z.string().check(z.regex(/^[a-f0-9]+$/u)),
@@ -58,6 +59,60 @@ const recordSchema = z
 
 export type LandingRecord = z.infer<typeof recordSchema>
 export type LandingFile = z.infer<typeof fileSchema>
+
+/** One landing-* entry read across the window's and foreign journal stores. */
+export interface LandingScanEntry {
+  readonly name: string
+  readonly raw: JournalRead<unknown>
+  /** The store that owns the entry: recovery authority is its owner's. */
+  readonly owner: TeamJournal['owner']
+}
+
+export interface LandingScan {
+  /** True when a foreign journal is unreadable: the caller blocks landing. */
+  readonly blocked: boolean
+  readonly entries: readonly LandingScanEntry[]
+}
+
+/** Reads every landing-* entry across the window's and foreign journal stores. */
+export async function scanLandingEntries(journalStore: TeamJournal): Promise<LandingScan> {
+  const foreign = await journalStore.otherWindows()
+  if (foreign.unreadable.length > 0) return { blocked: true, entries: [] }
+  const entries: LandingScanEntry[] = []
+  const stores = [journalStore, ...foreign.journals]
+  for (const store of stores) {
+    const names = await store.names()
+    for (const name of names) {
+      if (!name.startsWith('landing-')) continue
+      entries.push({ name, raw: await store.read(name, z.unknown()), owner: store.owner })
+    }
+  }
+  return { blocked: false, entries }
+}
+
+/** Parses one scanned value as the record its name claims; malformed input throws. */
+export function parseLandingEntry(name: string, value: unknown): LandingRecord {
+  landingIdSchema.parse(name.slice('landing-'.length))
+  return recordSchema.parse(value)
+}
+
+/*
+True when an open landing for this root exists, or when the scan cannot
+prove otherwise: an unreadable store or a non-record entry blocks landing.
+*/
+export async function hasOpenLanding(
+  journalStore: TeamJournal,
+  canonical: string,
+): Promise<boolean> {
+  const scanned = await scanLandingEntries(journalStore)
+  if (scanned.blocked) return true
+  for (const entry of scanned.entries) {
+    if (entry.raw.kind !== 'record') return true
+    const record = parseLandingEntry(entry.name, entry.raw.value)
+    if (record.status === 'open' && (await canonicalPath(record.root)) === canonical) return true
+  }
+  return false
+}
 
 /**
 Lane K supplies the window's atomic, flushed journal. Its adapter retains the
