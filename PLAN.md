@@ -35438,8 +35438,8 @@ and does not rewrite the baseline: regenerating now would accept the debt
 without the intentional fix the gate requires.
 
 **RLM104 check:plan deferral (2026-10-22, re-measured at the lane head).**
-`check:plan` fails on size: PLAN.md is 3,694,083 bytes against the
-3,565,158-byte 85% bound, over by 128,925 bytes. Main at f3941b85 passes
+`check:plan` fails on size: PLAN.md is 3,694,113 bytes against the
+3,565,158-byte 85% bound, over by 128,955 bytes. Main at f3941b85 passes
 at 3,563,591 bytes; the overrun is
 introduced by this recovery lane's re-merges, which unioned the branches'
 closed history into the live file (dated M104 review-round records, gate
