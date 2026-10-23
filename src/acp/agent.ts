@@ -284,7 +284,7 @@ export interface AcpAgentDeps {
   readonly playbookBundle?: () => AcpPlaybookBundle
   /**
   The admission `/agents continue|retry` asks before resuming a child
-  (M116, PLAN.md D215): the same `SubagentAdmission` port the Model API
+  (M116, PLAN.md D219): the same `SubagentAdmission` port the Model API
   host asks, as a `delegate` round. Absent, the control runs as before.
   */
   readonly subagentAdmission?: SubagentAdmission
@@ -2211,7 +2211,7 @@ class AcpSession {
     let refusal: string | undefined
     try {
       // The person's own resume of a child, through the playbook's
-      // admission as a `delegate` round (M116, D215): the same port the
+      // admission as a `delegate` round (M116, D219): the same port the
       // Model API host asks, asked last, around the effect. A refusal
       // reaches no backend; the round covers the control call, which is
       // over when it returns.

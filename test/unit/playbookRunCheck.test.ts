@@ -1,4 +1,4 @@
-// M116 (D213): headless `playbook run <name>` through the real policy,
+// M116 (D217): headless `playbook run <name>` through the real policy,
 // journal and spawn. Unknown capacity admits (the owner rule); a paused
 // reading refuses with its why-note and never spawns. Shell lines are
 // the shells' own (`exit`, `sleep`), quiet on both interpreters.

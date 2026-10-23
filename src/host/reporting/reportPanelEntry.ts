@@ -82,7 +82,7 @@ export interface ReportingWindowDeps extends Pick<
     context: SourceReadContext,
   ) => Promise<SecurityVaultSnapshot | null>
   /**
-  M116 (D212): told the observed CI check runs after a generation that
+  M116 (D216): told the observed CI check runs after a generation that
   attempted the github read. Feeds the team runner's CI holder; absent,
   nothing observes and the board reads CI as unknown.
   */
@@ -162,7 +162,7 @@ export function createReportingWindow(
       engine: () =>
         (engine ??= loadEngine().createReportingEngine({
           ...deps,
-          // M116 (D212): the engine's CI observation feeds the team runner.
+          // M116 (D216): the engine's CI observation feeds the team runner.
           ...(deps.reportCiObserved !== undefined && { noteGithubCi: deps.reportCiObserved }),
           session: {
             read: (context) =>
@@ -238,7 +238,7 @@ export function createReportingWindow(
                 )
                 .read(context),
           },
-          // D214: the playbook, milestone and fleet kinds order through
+          // D218: the playbook, milestone and fleet kinds order through
           // the same journal the reader reads. The orderer replays fresh
           // on every section; the note names its rule for the log.
           playbookOrder: loadPlaybookSchedules().createPlaybookReportOrder(

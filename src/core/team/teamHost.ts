@@ -348,7 +348,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const probes = new Map<string, { readonly identity: string; readonly isReady: boolean }>()
   const probeGenerations = new Map<string, number>()
   const tasks = new Map<string, TeamTaskRecord>()
-  /** Admitted playbook work by task, released when the task ends (D212). */
+  /** Admitted playbook work by task, released when the task ends (D216). */
   const openPlaybookWork = new Map<string, ManagedPlaybookWork>()
   const leases = new Map<string, string>()
   const copyOwners = new Set<string>()
@@ -489,7 +489,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   }
 
   /**
-  The team runner's playbook board facts (M116, PLAN.md D212), read live on
+  The team runner's playbook board facts (M116, PLAN.md D216), read live on
   every lookup: the entry worker states, and each finished task's branch
   with whether it merged into the working tree (the team's integration
   target). The integration is built once; absent, dispatches run as before.
@@ -525,7 +525,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const playbook = deps.playbook?.create(playbookFacts)
 
   /**
-  Start the task's playbook work now that every admission passed (D212): the
+  Start the task's playbook work now that every admission passed (D216): the
   dispatch base, the brief the policy records, then the round. A team
   without the binding, or a task with no files, is ungoverned. A refusal
   says so and the task does not start; anything else thrown is the

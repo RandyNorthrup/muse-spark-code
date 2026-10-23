@@ -1,4 +1,4 @@
-// M116 (D212): team dispatches through the real playbook integration: a
+// M116 (D216): team dispatches through the real playbook integration: a
 // real team host, a real policy over a real file journal, and the dispatch
 // base read over real git. A task with files journals its dispatch brief;
 // a task whose brief carries a template marker is refused and its sibling

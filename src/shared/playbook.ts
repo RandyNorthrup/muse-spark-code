@@ -70,7 +70,7 @@ export function defaultPlaybookSettings(teamId: string): PlaybookSettings {
   })
 }
 
-/** D214: the journal's settings for a team: defaults, then the last settings
+/** D218: the journal's settings for a team: defaults, then the last settings
 record that team wrote. The policy's refresh and the report orderer share
 this replay, so reports gate on the settings the policy enforces. */
 export function replayPlaybookSettings(
@@ -83,7 +83,7 @@ export function replayPlaybookSettings(
   return settings
 }
 
-/** D214: the note an ordering carries: owner-first while loudFailures is on,
+/** D218: the note an ordering carries: owner-first while loudFailures is on,
 the recorded opt-out (actor and reason) once it is off. The policy's
 orderReport and the report orderer share this builder; the note is returned
 for the caller to show, never stored. */
@@ -438,7 +438,7 @@ export interface PlaybookReportItem {
   readonly failing: boolean
 }
 
-/** D214: the one report ordering. Owner rows first, then failures, then the
+/** D218: the one report ordering. Owner rows first, then failures, then the
 rest; ties keep their input order under a stable sort. The policy's
 orderReport and every record/text presentation share this comparator, so no
 parallel copy of the order can drift. */
@@ -451,7 +451,7 @@ export function comparePlaybookReportItems(
   )
 }
 
-/** D214: flags as a severity bucket for key order: owner rows 0, failures 1,
+/** D218: flags as a severity bucket for key order: owner rows 0, failures 1,
 the rest 2. The report wrap prefixes keys with this bucket so the canonical
 key sort keeps the severity order. */
 function failingBucket(isFailing: boolean): 1 | 2 {
@@ -464,7 +464,7 @@ export function playbookReportBucket(
   return flags.needsUser ? 0 : failingBucket(flags.failing)
 }
 
-/** D214: journal records as report items. Unresolved designs and notes that
+/** D218: journal records as report items. Unresolved designs and notes that
 need the person sort first; rounds with findings, failed verifications and
 refusal/failure notes next; everything else keeps journal order. This
 reproduces the CLI's buckets exactly (note codes outside

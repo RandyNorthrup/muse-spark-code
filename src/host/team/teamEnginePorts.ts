@@ -113,7 +113,7 @@ export interface TeamHostBundleDeps extends Omit<
   'workers' | 'merges' | 'playbook'
 > {
   readonly engine: EngineTeamPortsDeps
-  /** The team runner's playbook factory (D212); the bundle adds the dispatch-base read. */
+  /** The team runner's playbook factory (D216); the bundle adds the dispatch-base read. */
   readonly playbook?: Pick<TeamPlaybookPort, 'create'> | undefined
 }
 
@@ -708,7 +708,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     },
   }
   /**
-  The playbook's dispatch base (M116, PLAN.md D212), read over the engine's
+  The playbook's dispatch base (M116, PLAN.md D216), read over the engine's
   own governed git: no repository, no base. A git or workspace failure
   refuses with its words; anything else is the caller's to survive.
   */

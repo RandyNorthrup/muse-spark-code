@@ -3464,7 +3464,7 @@ async function activateWindow(
       .fsPath,
     log,
   })
-  // M116 (D212/D213): the team runner's playbook readings. Capacity serves
+  // M116 (D216/D217): the team runner's playbook readings. Capacity serves
   // the latest M107 governor reading (unknown until the governor reports);
   // CI serves the latest report-engine observation (unknown until a
   // generation attempts the github read). Unknown never pauses work and
@@ -4317,7 +4317,7 @@ async function activateWindow(
     },
   })
   /**
-  M116 (D212): the team runner's playbook integration, built on the first
+  M116 (D216): the team runner's playbook integration, built on the first
   team open over the window's journal. No open folder, no journal, no
   integration. The capacity holder starts refreshing on the governor's
   readings the first time a team binds; until then admission reads unknown
@@ -4421,7 +4421,7 @@ async function activateWindow(
             env: process.env,
             homeDir: homedir(),
           }),
-          // M116 (D212): report generations that attempt the github read
+          // M116 (D216): report generations that attempt the github read
           // feed the team runner's CI holder; idle CI reads absent until
           // its first run lands in a report.
           reportCiObserved: (outcome) => {

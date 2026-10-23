@@ -1227,9 +1227,9 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   } {
     this.refresh()
     const ordered = [...items]
-    // D214: the sort is the one shared ordering, never a local copy of it.
+    // D218: the sort is the one shared ordering, never a local copy of it.
     if (this.on('loudFailures')) ordered.sort((a, b) => comparePlaybookReportItems(a, b))
-    // D214: ordering is presentation, not an effect: the note is returned
+    // D218: ordering is presentation, not an effect: the note is returned
     // for the caller to show, never stored. Storing it would rewrite the
     // shared journal on every report and view, and a CAS conflict there
     // would fail a read; the retention already evicts these notes first.

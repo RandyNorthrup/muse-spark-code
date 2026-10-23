@@ -1,4 +1,4 @@
-// Headless `playbook run <name>` (M116, PLAN.md D213): one of the
+// Headless `playbook run <name>` (M116, PLAN.md D217): one of the
 // workspace's check commands through the same admission, journal and
 // report as the panel. No process, filesystem, backend or credential
 // access: the settings text, the resource reading and the spawn all

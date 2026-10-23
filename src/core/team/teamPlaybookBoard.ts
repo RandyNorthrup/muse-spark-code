@@ -1,4 +1,4 @@
-// The team runner's playbook board (M116, PLAN.md D212): readBoard from real
+// The team runner's playbook board (M116, PLAN.md D216): readBoard from real
 // team facts. Workers are the team's entry worker states, available when the
 // worker is idle (nothing running on its entry) and admitted (the entry is
 // usable), under the entry ids the offloading caller addresses, so

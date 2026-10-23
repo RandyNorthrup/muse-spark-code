@@ -1,4 +1,4 @@
-// M116 (D213): the headless check spawn runs one shell line in the
+// M116 (D217): the headless check spawn runs one shell line in the
 // workspace and answers its exit code, or the timeout once the check's
 // own cap kills its tree. Shell lines are the shells' own (`exit`,
 // `sleep`), quiet on both interpreters.

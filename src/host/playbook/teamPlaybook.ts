@@ -1,4 +1,4 @@
-// The team runner's playbook integration (M116, PLAN.md D212): a real
+// The team runner's playbook integration (M116, PLAN.md D216): a real
 // policy over the workspace journal, scoped to the team runner's team,
 // with the board read from the team's live facts. It lives in the
 // window's playbook bundle, beside the panel governor, so the policy
@@ -8,7 +8,7 @@
 // policy: beginWork records the dispatch baseline from the workspace, and
 // launched work is released, never verified, when the task ends. Trust is
 // gated by the caller (delegate refuses untrusted workspaces before the
-// start); the check admission is the host's own capacity (D213). The reads
+// start); the check admission is the host's own capacity (D217). The reads
 // spawn synchronously in-process and complete in milliseconds with no kill
 // path, so they take no Windows job (spawnSync reaps; the job exists for
 // the worker's killable calls).
@@ -33,7 +33,7 @@ export interface TeamPlaybookIntegrationDeps {
   readonly workspaceFolder: string
   readonly teamId: string
   readonly laneId: string
-  /** The host's own capacity (D213): the panel's fail-closed port stays the panel's. */
+  /** The host's own capacity (D217): the panel's fail-closed port stays the panel's. */
   readonly checkAdmission: PlaybookCheckAdmission
   /** The plan binding's lanes (M113's lanes tables); empty until it lands. */
   readonly lanes: () => readonly PlaybookLane[]

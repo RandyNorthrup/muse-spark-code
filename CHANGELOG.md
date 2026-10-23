@@ -264,14 +264,14 @@ happened, not what was planned; superseded entries are kept.
   symlink aliases into shared source; non-file modules need one entry owner
   or an exact plugin ID exception (none is needed by the production build),
   including tree-shaken inputs and virtual modules behind real dependencies.
-- **`playbook run` headless check command** (M116, RLM116 D213). The ACP
+- **`playbook run` headless check command** (M116, RLM116 D217). The ACP
   agent runs one of the workspace's `museSpark.checkCommands` through the
   same admission, journal and record as the panel: a paused resource
   governor refuses with its why-note and the check never spawns, and the
   record follows the outcome line either way. The command exits with the
   check's own exit code. `/playbook` stays read-only.
 
-- **Governed `/agents` child resumes** (M116, RLM116 D215). In the ACP
+- **Governed `/agents` child resumes** (M116, RLM116 D219). In the ACP
   agent, `/agents continue` and `/agents retry` go through the
   playbook's child-work admission: while the resource governor
   pauses new work the resume is refused with its reason and the
@@ -310,7 +310,7 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
-- **One playbook report ordering** (M116, RLM116 D214). Playbook,
+- **One playbook report ordering** (M116, RLM116 D218). Playbook,
   milestone and fleet report rows order through the same engine
   path — owner and residual rows first, then failures — and the
   playbook CLI text reads that same order. Milestone reports merge

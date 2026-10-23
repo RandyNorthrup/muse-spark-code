@@ -163,7 +163,7 @@ export function row(
   }
 }
 
-/** D214: a built row as a report item. Label cells read from the closed enum
+/** D218: a built row as a report item. Label cells read from the closed enum
 (a failed cell fails the row; needs-you, open or blocked calls it the
 person's); every other label — waiting, stale, skipped, and every absence
 (unavailable, unknown, partial) — flags nothing, so unknown never reads as

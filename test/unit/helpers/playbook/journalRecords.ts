@@ -1,4 +1,4 @@
-// D214: schema-valid journal records and a journal writer for the report
+// D218: schema-valid journal records and a journal writer for the report
 // ordering tests. Every record parses before it is used, so only shapes the
 // journal itself accepts reach the orderer.
 import { mkdirSync, writeFileSync } from 'node:fs'

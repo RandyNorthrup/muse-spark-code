@@ -1,5 +1,5 @@
 // `/agents continue|retry` through the playbook's child-work admission
-// (M116, PLAN.md D215): the agent asks the same `SubagentAdmission` port
+// (M116, PLAN.md D219): the agent asks the same `SubagentAdmission` port
 // the Model API host asks, as a `delegate` round for the listed child. A
 // refusal answers the person and reaches no backend; admitted, the
 // control runs as before; without the port, it runs unconsulted. The

@@ -1,4 +1,4 @@
-// D214: the M113 collector's playbook ordering. Built rows flag from their
+// D218: the M113 collector's playbook ordering. Built rows flag from their
 // closed statuses, the orderer replays the journal the report read, and the
 // playbook, milestone and fleet kinds go through collectPlaybookReport.
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
@@ -78,7 +78,7 @@ function drillsSection(): ReportSection {
   )
 }
 
-describe('D214 collector playbook ordering', () => {
+describe('D218 collector playbook ordering', () => {
   it('flags rows from label cells, failing on failed only', () => {
     expect(flagged({ status: label('failed') })).toEqual({ needsUser: false, failing: true })
     expect(flagged({ status: label('open') })).toEqual({ needsUser: true, failing: false })

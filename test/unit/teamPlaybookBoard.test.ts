@@ -1,4 +1,4 @@
-// M116 (D212): the team runner's playbook board from real team facts, and
+// M116 (D216): the team runner's playbook board from real team facts, and
 // one dispatched task's dispatch work. The work must pass the policy's own
 // module and brief schemas: otherwise the integration would refuse every
 // team dispatch at recordBrief.

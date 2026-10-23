@@ -1,4 +1,4 @@
-// D214: the one report ordering. The shared comparator and the record flags
+// D218: the one report ordering. The shared comparator and the record flags
 // below are the only ordering criteria: the policy's orderReport and every
 // record/text presentation (CLI, ACP, the panel's rows) derive from them.
 import { existsSync } from 'node:fs'
@@ -92,7 +92,7 @@ function verification(result: 'pass' | 'fail'): PlaybookRecord {
   return orderVerification(result)
 }
 
-describe('D214 one report ordering', () => {
+describe('D218 one report ordering', () => {
   it('pins the informational note codes the ordering shares', () => {
     expect([...PLAYBOOK_INFORMATIONAL_NOTE_CODES]).toEqual([
       'checksPassed',

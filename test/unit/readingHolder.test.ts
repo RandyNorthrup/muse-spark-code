@@ -1,4 +1,4 @@
-// M116 (D213): the sync cells behind the playbook's sync ports. A failed
+// M116 (D217): the sync cells behind the playbook's sync ports. A failed
 // refresh clears to unknown rather than keeping a stale reading, and the
 // hosts' admission pauses local checks only at the paused level: unknown
 // never pauses work.

@@ -777,7 +777,7 @@ function runtimeReports(
                   )
                   .read(context),
             },
-            // D214: the playbook, milestone and fleet kinds order through
+            // D218: the playbook, milestone and fleet kinds order through
             // the same journal the reader reads. The orderer replays fresh
             // on every section; the note names its rule for the log.
             playbookOrder: playbookSchedules().createPlaybookReportOrder(
@@ -1232,7 +1232,7 @@ async function serve(
           uiLocale(),
         ),
       // `/agents continue|retry` through the playbook's child-work
-      // admission (M116, D215): the governor's latest reading, refreshed
+      // admission (M116, D219): the governor's latest reading, refreshed
       // on every resume. Unknown reads as unknown, never as paused.
       subagentAdmission: createSubagentAdmission({
         holder: createReadingHolder<ResourceStatus>(),
@@ -2455,7 +2455,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       })
       const playbook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)()
       if (command.argv[0] === 'run') {
-        // Headless `playbook run <name>` (M116 D213): one check command
+        // Headless `playbook run <name>` (M116 D217): one check command
         // through the same admission, journal and report as the panel. It
         // is not part of the shared read-only grammar, so ACP's /playbook
         // keeps its surface.

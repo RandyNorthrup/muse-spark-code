@@ -293,7 +293,7 @@ export interface TeamMergePort {
 }
 
 /**
-The team runner's playbook binding (M116, PLAN.md D212): the integration is
+The team runner's playbook binding (M116, PLAN.md D216): the integration is
 built by the owner's factory over the workspace journal with the team's
 live facts; the head is the team's own governed git read of the dispatch
 base. Absent, the team runs exactly as before.
@@ -352,7 +352,7 @@ export interface TeamHostServiceDeps {
   readonly merges: TeamMergePort
   readonly paid: TeamPaidPort
   readonly cards: TeamCardPort
-  /** The team runner's playbook (D212); absent, dispatches run as before. */
+  /** The team runner's playbook (D216); absent, dispatches run as before. */
   readonly playbook?: TeamPlaybookPort | undefined
   readonly newId: () => string
   readonly now: () => number

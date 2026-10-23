@@ -310,7 +310,7 @@ export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string)
 }
 
 /**
-The dispatch base for a task of this mode (M116, PLAN.md D212): raw HEAD
+The dispatch base for a task of this mode (M116, PLAN.md D216): raw HEAD
 in place (the tree's own parent; the work lands in the tree itself), else
 the base commit the task's copy branches from, with the branch ref when
 the checkout names one (`HEAD` reads as detached, never as a branch).

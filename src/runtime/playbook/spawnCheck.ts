@@ -1,4 +1,4 @@
-// The headless check spawn (M116, PLAN.md D213): one shell line in the
+// The headless check spawn (M116, PLAN.md D217): one shell line in the
 // workspace, its output straight to the person's terminal, killed as a
 // tree on the check's own time cap. The interpreter resolves outside the
 // workspace (a planted shell there never runs) and the child's PATH
