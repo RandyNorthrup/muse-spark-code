@@ -13,6 +13,7 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { parseTuiArgs } from '../../src/runtime/tui/args'
 import { recordCalls } from './helpers/recordCalls'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const toolAsk: TuiAsk = {
   kind: 'tool',
@@ -138,7 +139,12 @@ describe('M110 T controller and projections', () => {
   )
   it('paid choices are three equal explicit options with price and shared budget', () => {
     const f = fixture()
-    const ask: TuiAsk = { ...toolAsk, kind: 'paid', price: '$0.04 per image', dailyBudgetUsd: 1 }
+    const ask: TuiAsk = {
+      ...toolAsk,
+      kind: 'paid',
+      price: '$0.04 per image',
+      dailyBudgetUsd: canonicalUsd(1),
+    }
     expect(askChoices(ask).map((item) => item.choice)).toEqual(['once', 'always', 'deny'])
     expect(askLines(ask).join(' ')).toContain('$0.04 per image')
     expect(askLines(ask).join(' ')).toContain('$1.00')
