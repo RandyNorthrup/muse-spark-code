@@ -13,7 +13,7 @@ import {
   DEVELOPER_MACHINE_ID_TMP_PID_RADIX,
   DEVELOPER_MACHINE_ID_TMP_SUFFIX_BYTES,
 } from '../../shared/constants'
-import { DeveloperOptionsError } from './developerOptions'
+import { DeveloperOptionsError } from './developerOptionsError'
 
 /** The machine identity file every host on this machine shares (DEVID017B,
 PLAN.md D88): `<dataDir>/machine-id`, beside the runtime's other

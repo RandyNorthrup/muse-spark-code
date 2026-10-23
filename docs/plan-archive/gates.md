@@ -6497,3 +6497,699 @@ threshold, ignore or timeout is weakened.
 **MSM9M35 lane-K activation budget (2026-10-17, macmini; open, lead-owned).** `test/unit/modelsActivationBudget.test.ts` (at most 3 KiB over the immutable pre-K production bundle) fails on the lane tree: baseline 561,352 B, current 568,566 B, growth 7,214 B against the 3,072 B cap. `main-now` 3d30a7321 alone measures 561,352 B to 564,215 B = 2,863 B (the test passes there with 209 B headroom), so the lane's specified behaviour adds 4,351 B and no behaviour-adding milestone can fit the remainder. Diet already applied, none of it a gate change: the Linux driver ships in the new `dist/voiceLinux.js` (50 KiB budget by the measured-plus-15% rule, actual 35,907 B) instead of raising `dist/voice.js`'s 50 KiB cap; companion tunables moved out of `src/shared/constants.ts`; moving the download-consent card into `dist/voiceLinux.js` was tried and reverted because deferred bundles keep no `vscode` import by build design (a stray import fails `npm run build`) and consent arrives as a parameter, the M93 precedent. What remains in activation is specified behaviour: the M9 Linux availability probe (`src/core/voice/helperLocation.ts`), the disabled-model cleanup with its honest pending/removed states (`src/host/voice/dictationHost.ts`, RVCM9LNX P3), the Linux bundle loader (`src/host/voice/voiceBundle.ts`), the M35 paid scope identity and reserve wiring (`src/extension.ts`, D30), and the `LINUX_DICTATION` pins and paths (`src/shared/constants.ts`, D140). No threshold, rule level or ignore is changed and the test is not skipped. **Fixed 2026-10-17 (linuxlt, RVMSM9M35FIX), no cap change:** the setups moved off the activation path into the new `dist/dictation.js` (13,032 B measured, 25 KiB budget by the measured-plus-15% rule), required at their existing construction points with the installed table, so timing and behaviour are unchanged; `dictationHost.ts` takes its host capabilities as parameters (the M93 precedent) because deferred bundles keep no `vscode` import; `LINUX_DICTATION` moved to `src/shared/linuxDictationConstants.ts` (re-exported, the browser-check precedent) so activation no longer carries it. Growth is now 2,577 B of the 3,072 B cap (495 B headroom). The split gate refuses the four moved modules back in activation, and its fire drill is recorded with the real-use proof in `docs/certification/msm9m35.md`. No threshold, rule level or ignore changed; the deferral is closed.
 
 <!-- plan-archive:end id="gates-5d64f91ce-36513" -->
+
+## Pre-section gate records (2026-10-07 to 2026-10-15)
+
+<!-- plan-archive:begin id="gates-b96bda2b6-1" lines="1-13" at="b96bda2b6" bytes="959" sha256="3900ed35baa1b92ea8686b34c3aba3604efa4c3cf6b0ff7969d278544e7173c3" -->
+
+**CM352R2 review repair (2026-10-11, macbook; continuation).** Finish all
+five RVCM352 findings and their sibling paths. Bind each paid recording's
+helper, socket callbacks and cap to its identity; serialize capture restart
+until stop acknowledgement or forced termination. Read the Meta key and
+complete both reservations before recording. Await voice admission/settlement
+on backend stop and extension shutdown. Give Meta voice its own key-bound
+journal scope regardless of the conversation provider. Announce Linux
+listening only after admitted spawn succeeds. Preserve reported-duration
+flooring and uncertain liability. Add regression tests and byte-exact red
+drills in `docs/certification/cm352.md`; certify dependent suites at repository
+timeouts. Attribute the two reviewer-red suites against `dbdb55a0e`.
+No browser, real microphone, loopback listener, paid/live call, merge, push,
+subagents, dependency, guard relaxation or Model API bundle growth.
+
+<!-- plan-archive:end id="gates-b96bda2b6-1" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-25" lines="25-67" at="b96bda2b6" bytes="3296" sha256="fe12db283cca92fd6249c0495f285e62da89487d1fb160329b6d5c7782655f1a" -->
+
+**PRTH161 review closure (2026-10-15, Windows).** Merge main `d842cad5d`,
+retain its real-code-only test overhaul, then address threads T1–T5 in
+`.lane/PR161.threads.md`. Reuse the catch classifier and baseline: prove
+all handler paths, then ratchet individual sites rather than area totals.
+Recheck durable damage markers across windows; defer paid not-kept notices
+until the currentness fence; settle HTTP bridge failures without poisoning
+its queue. Pure-module tests and real temporary files only; consent/editor
+composition goes to the lead's real-life steps, never a stand-in. Receipts:
+`docs/certification/catch-money.md` and `.lane/PRTH161.report.md`.
+**CM352 bounded realtime dictation (2026-10-11, macmini).** Restore the
+Model API microphone through the existing production voice bundle, controller
+and Windows/macOS/Linux capture adapters. Linux start failures are explicit;
+closed adapters never restart or forward stale recorder callbacks. Use C-M35-1's five captured sessions
+(`~/lanes/_captures/CM352/s1..s5.json`, lead-provided capture artifacts;
+five model attempts, 246 audio seconds) for `audioProcessedMs` and `errorType`.
+Cap each recording at 180 seconds by accepted PCM bytes and elapsed time;
+reframe every recorder's PCM into 80 ms messages, with at most one short tail.
+Reserve the cap plus an 80 ms tail allowance at the published list tariff
+before opening the socket, in both D78's daily journal and M82's owned session
+journal when present. Recheck each send. Settle final reported milliseconds,
+rounded down to whole seconds; without a final duration tally local seconds
+and retain uncertain reserved liability. Idle with no sent audio settles zero.
+Ask once per window before spending, retaining workspace Always and revocation.
+Show the duration and estimated price; state that the provider invoice cannot
+be read back. Restore truth-pass publication wording and all translations.
+No paid/live calls, microphone access, merge, push, subagents or new dependency.
+Scoped rig gates replace aggregate quality per the binding lane brief.
+Certification: `docs/certification/cm352.md`; Grok review and physical mic
+receipts on all three OSes remain lead-owned C-M35-3 work. Existing microphone
+surfaces are the VS Code family sidebar and tabs. Companion/native-plugin mic
+surfaces await C-M9-1; ACP/headless have no realtime microphone surface.
+**PORTM105 review round 3 (2026-10-11, MacBook).** Fix all four RVPORTM105
+findings and their sibling paths: cancelled uploads must be deleted or durably
+queued for cleanup; audio-action changes during preparation refuse before ASR;
+the exec attachment fixture must exercise real Files delivery; attachment names
+and content stay out of logs while detailed refusals remain visible to users.
+Continue the four existing fix commits, audit every post-receipt await across
+VS Code/ACP/exec, and certify failing regressions with byte-exact red drills in
+`docs/certification/m105-port.md`. Run complete owning/dependent suites in
+sequential batches of three at repository deadlines, all five typechecks,
+unchanged zero-clone duplication and production budgets. No browser/loopback
+suites here, aggregate quality, new dependency, merge, push or paid/live call.
+Visibility and device/vendor qualification holds remain lead-owned.
+
+<!-- plan-archive:end id="gates-b96bda2b6-25" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-69" lines="69-86" at="b96bda2b6" bytes="1250" sha256="f6e5ea5a9b314386a13c79980a51d6e7b7f12284ad344b1a25fb94324a1d446d" -->
+
+**PORTM105 round 2 (2026-10-11, macmini).** Remove all 29 inherited
+duplication clones through shared helpers without changing behavior; the
+section 7 duplication deferral is withdrawn. Then prove existing-file video
+and audio attachment delivery through production VS Code, ACP and exec
+composition, including distinct transcribe/sendAudio routing, admission and
+exact reservation/settlement. Repair any missing binding, with failing
+regressions and byte-exact red drills. Keep every visibility hold and recorder
+unchanged; inventory switches and precise missing vendor/platform receipts in
+`docs/certification/m105-port.md`, round 2. No new dependency, raised cap,
+merge, push, paid/live call, browser or GUI. Scoped rig gates only; aggregate
+quality remains lead-owned under the explicit common rules.
+Production composition also covers the first-turn session-journal seed before
+paid transcription on a capped conversation; bind the existing host budget
+initialization if that path lacks it.
+Bind U6's exact Files routes to headless egress for existing-video delivery,
+with bounded multipart streams and the existing origin, redirect and lifetime
+fences. U6c's selected not-billed storage policy applies; transcription stays
+unavailable in exec.
+
+<!-- plan-archive:end id="gates-b96bda2b6-69" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-88" lines="88-120" at="b96bda2b6" bytes="2383" sha256="6958a15f4fc6f6182f7298b29640de7881d3f4e9df45372e9e93c1432be77c21" -->
+
+**PORTM105 release-base port (2026-10-11, MacBook).** Merge accepted
+M105 V/VB/redesign tip `eda2fdfe6` with release base
+`35d7b6f54280e6b6235ae4b90e079b865c3e4ff4`, keeping both features and
+release repairs. Resolve by meaning; regenerate reference/roadmap and preserve
+all bundle caps and qualification holds. Commit the real merge after all five
+typechecks, then repair scoped gates with regression/red-control evidence.
+Headless only: browser, GUI, microphone and capture checks belong to the lead.
+No additional merge, push, rebase, dependency change or live/paid call.
+Resolution and final gate receipts: `docs/certification/m105-port.md`.
+**PRTH154 review fixes (2026-10-15, Windows).** Merge main `ac21f1d24`,
+then answer PR 154's ten open threads: fail closed on uncertain credential
+cleanup, setup failure and unread liability; isolate concurrent provider
+identities; reconcile terminal results with journal usage; describe ACP
+request admission honestly; remove Node preload controls; validate model
+overrides; fix the runner locale; and record observed fail-first drills for
+the real-module tests. No provider calls or credential access in this lane.
+Receipts: `docs/certification/prth154.md`; lead-owned real-life steps remain
+explicit where the credential store or a provider is required.
+**PRTH158 review fixes (2026-10-15, owner's Windows PC).** Merge main
+`ac21f1d24`, retaining the real-code test overhaul, then answer T1–T6 of
+PR 158. Reuse `scripts/rule2-gate.mjs`, its pure `scripts/lib/rule2Gate.mjs`
+and `test/unit/rule2Gate.test.mjs`; no substitute GitHub server or process
+test. T1 refuses re-executed release verification; T2 rereads every release
+commit immediately before passing; T3 needs successful hosted evidence;
+T4 refuses distinct executions of the same workflow on one head; T5 uses
+one workflow-path representation for recovery exclusions; T6 records
+parser/evidence red drills with exact SHA-256 restoration. Each accepted
+finding is a separate hooked commit. Pure data tests and deliberate breaks
+prove decisions; the lead's read-only hosted steps prove API composition.
+Scoped static gates, all five compiler projects, the production build and
+surviving affected inventory suites decide the final local tree. No model
+calls, pushes, gate weakening, cap changes or edits to archived blocks.
+Certification: `docs/certification/rule2-gate.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-88" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-122" lines="122-134" at="b96bda2b6" bytes="980" sha256="76a006977e3256af7ef9a193e4b96c161b841b2a4474bd73ba6c5bdec99f26a2" -->
+
+**PRTH165 review repair (2026-10-15, Windows).** Merge `d842cad5d`
+with hooks, retaining main's deleted fake-driven tests. Resolve threads T1–T6
+in the existing ACP permission-answer cache, agent lifecycle and translated
+manifest tables; no new abstraction or provider calls. T1 compares persistent
+rule identity and never falls back to a reused choice id; T2 remembers consent
+before dispatch; T4 awaits the queued mode notice; T5 retains mode across close;
+T6 aligns all fourteen manifest translations. T3 records the merged deletion
+and real-life replacement steps, never restores a stand-in. Pure-module proof
+and a byte-exact red drill cover rule identity; integration ordering and mode
+lifecycle require the lead's real signed-in run. Run scoped static gates,
+all five typechecks, dependent/list-consuming unit suites, build and permitted
+packed-product commands. Evidence and postable replies: `.lane/PRTH165.report.md`
+and `docs/certification/muse-code-permissions.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-122" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-136" lines="136-145" at="b96bda2b6" bytes="718" sha256="73aceed2bf9a21d72a944281f267ea59b563a4689c8a69ade7f4c0987b0ac92c" -->
+
+**PRTH166 review repairs (2026-10-15).** Reuse the controller's opening
+and resumed-handle ownership checks and ACP's existing choice state. After
+merging main `d842cad5d`, address T1 stale attachment, T2 verification cleanup,
+T3 Model API no-switch loads, T4 backend-event choice updates, and T5 honest
+restart proof. No new abstraction, wire shape, dependency or UI. The owner's
+2026-10-12 rule forbids a replay CLI or any stand-in: pure resolver checks
+are not product-wiring proof. Real-provider restart, mismatch, concurrent
+clear and hook/event checks remain explicit lead-run scenarios in
+`docs/certification/muse-restart-model.md`; lane gates and provider-free
+packed-product commands are measured separately.
+
+<!-- plan-archive:end id="gates-b96bda2b6-136" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-147" lines="147-162" at="b96bda2b6" bytes="1170" sha256="6cc0a6cdd4432da8a80acf640f561ea3d098a63b8f5bd54c5110ace9d3ff53d4" -->
+
+**VISFIX: release notes move no screenshot (2026-10-11, host with the Mac
+mini and linuxlt; before 0.17.2).** Lead's ruling after REL0171C's finding
+that a `CHANGELOG.md` entry or a version bump moved 108 What's New frames and
+cost a 73 to 113 minute reviewed render per release. The three What's New
+scenes (`whats-new`, `whats-new-footer`, `whats-new-highlights`) render a
+checked-in fixture of two fixed releases and a fixed version
+(`test/harness/whats-new/CHANGELOG.fixture.md`) through the real builder and
+schema; the frames verify the layout, the text gates verify the real text. A
+guard parses the real notes of the two newest releases with the same builder
+and fails on a kind of part the fixture lacks. The one list of capture inputs
+(`scripts/lib/captureInputs.mjs`, read by the reviewed update's guard and
+the candidate's identity) loses `CHANGELOG.md` and gains `scripts/lib`,
+`package.json` and `package-lock.json`, which can move pixels. One reviewed
+update render follows with the fixture in place; after it a release with
+notes and a version bump needs none. A scene-filtered update is left to the
+train. Certification: `docs/certification/visfix.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-147" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-164" lines="164-177" at="b96bda2b6" bytes="1042" sha256="b506355e21d7dce332d36d6522b3284fc2e120f22338876e12692d548a2e9e34" -->
+
+**PANELMARKR2 review repairs (2026-10-11, macmini).** Close all three
+RVPANELMARK findings: give the product mark its own blue tokens (the
+Marketplace gradient's light-background and dark-background endpoints),
+retain theme foreground in high contrast and CanvasText under forced colours,
+and fill the existing 1.8 by 1.2 em logo box with a cropped, stroke-padded
+view box and a weight suited to the bold name. Cover every ProductMark use,
+including the icon gallery. Compute six-theme contrast (at least 3:1) and
+ordinary-theme blue hue (210–240 degrees), prove unchanged surrounding
+layout/pixels at both widths, and certify all fourteen affected panel scenes
+with exact frame counts. Each finding gets a regression and a byte-exact
+red/restored drill in `docs/certification/panelmark.md`. No baseline update,
+dependency, merge, push, subagent or paid/live call. Scoped gates and dependent
+suites run directly on the rig; aggregate quality and the release's reviewed
+visual baseline remain lead-owned under the explicit rig/common brief.
+
+<!-- plan-archive:end id="gates-b96bda2b6-164" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-179" lines="179-218" at="b96bda2b6" bytes="2918" sha256="b8a0bbe48eabf67b21ad21e94a07410cd9303f8cdc968515d2f0b855c981337a" -->
+
+**REL0171C release assembly (2026-10-11, host with Kubuntu, the Mac mini,
+Win11 and linuxlt; 0.17.1).** Merge the accepted share-preview fix (SHAREFIX
+`a7052b708`) and the truth pass (C-X-1 `99e9b4106`) into `rel0171/final`.
+The truth pass wins on what is claimed, 0.17.1 on labels; tables merge key by
+key and generated files are regenerated. Notes that 0.17.1 files under
+`[0.17.0]` and whose subject is a feature the truth pass lists as not working
+take its archive marker, text unchanged. Then one fix batch on the branch:
+RVCX1F's two P2 findings (one normalisation for every ACP local-command
+decision; the CX1R2 assertion follows round 6's contract), the suites the
+truth pass left red, its chat-startup English regression (the `/schedule`
+refusal reads its words through the lazy prompt module), MINOUT's surface
+English overage (the output-minimum message gets a leaf of its own; no cap
+changes), two inherited test clones and the host API record. Each fix has a
+named regression and a red drill restored byte for byte. After the batch:
+the `/schedule` refusal stays in the conversation it was typed in
+(RVREL0171FIX P3); the integration test expects the Title Case tab title;
+the provider forms' error list is a list inside its alert (the
+accessibility gate's `listitem` finding, so screen readers announce several
+provider-save errors as a list); the badge check makes a request that got no
+answer again, never after an answer: first at most twice more, then, when
+hosted jobs still got no answer for over half a minute, four attempts of
+15 s with pauses of 3, 10 and 20 s and a failure that names the URL, the
+attempts and the time waited; `browserUiText`'s source-graph walks run in
+its setup hook (the fix batch's pin had put a whole-graph walk inside a
+case, which missed its 5 s deadline on hosted Linux); `m114Panel`'s
+tool-menu scene plays until its menu is attached (an open menu walks every
+ancestor's computed style on each animation frame since this release's menu
+work, which spent that case's deadline on hosted macOS in every run; known
+at release, the walk itself is repaired in 0.18.0); and the four hooks of
+`test/e2e` that build bundles or start processes get one named budget,
+`FIXTURE_HOOK_TIMEOUT_MS` (§8), after `acpStdio`'s hook passed the default
+10 s on hosted macOS in three of four attempts (the other 98 such hooks the
+sweep found go to the train). `CHANGELOG.md` is a capture input and gets no
+line for the two fixes here; 0.18.0's Fixed section carries "Screen readers
+announce several provider-save errors as a list (shipped in 0.17.1)". Then
+one reviewed What's New visual update (108 frames in two scenes, every one
+inspected) and the gates one by one. No push, pull request, tag, dependency
+or cap change; the deadlines changed are the lead's two rulings named in
+the certification. Certification:
+`docs/certification/rel0171c.md` and `docs/certification/cx1.md` (CX1R7).
+
+<!-- plan-archive:end id="gates-b96bda2b6-179" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-220" lines="220-232" at="b96bda2b6" bytes="942" sha256="49eeb7c32e75b49db7f19c56d4246212649c8d1bd061d85e3c4a156872ee898c" -->
+
+**MINOUT round 2 (2026-10-10, macmini).** Close static output caps below
+a selected provider's captured minimum, including provider-file capability
+overrides and custom limits, team settings, the shared request builder and
+the final Meta/configured-provider/headless send boundaries. Refuse with one
+localized message naming the minimum, without dispatch or silent increases.
+Audit editor settings, CLI flags, ACP configuration and exec options: retain
+their existing interfaces; do not invent an output-cap option where none
+exists. Add regression and byte-exact red drills per applicable path, translate
+new strings in all fourteen languages, and replay configuredProviders in full
+including its loopback test. Run scoped gates under the rig/common brief;
+aggregate quality and hosted cross-platform checks remain lead-owned. No
+merge, push, subagents, credentials or live/paid calls. Certification:
+`docs/certification/min-output-cap.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-220" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-234" lines="234-256" at="b96bda2b6" bytes="1754" sha256="7a49a1b4c7816907802359a3a276c72afc64ff63f737c431be369eb73d355e42" -->
+
+**CX1R6 release truth repair (2026-10-10, kubuntu; 0.17.1).** Close all
+six RVCX1E findings and sweep their siblings within C-X-1. Settings describe
+the legacy Muse Code loop shortcut, editor draft, relocation notice and inactive-compaction notice they still
+control, including the interactive shell credential fence found in the sibling
+sweep, with all fifteen manifest tables and the truth matrix updated. Truly
+inert settings keep persisted values but no longer read them at runtime. The
+reference gate verifies ignored values and zero readers rather than assuming
+all contributed controls honor configured inputs; active value/bound checks
+remain and inverse-boolean probes are added. Active controls lose the false
+deprecation marker and retain explicit catalog condition selectors.
+Dormant v2 schedule and estimator commands refuse plainly on invocation and
+stay absent from the chat palette, completions, ACP discovery and Help;
+legacy `/loop` remains unchanged. Reserve built-in schedule discovery against
+workspace-skill collisions. Unavailable team toggles record no price acceptance.
+Update the release schedule-help e2e. Review every intentionally changed
+What's New frame, update only those baselines, and run the full pixel gate,
+fake-only release e2e, xvfb integration and accessibility once at the end.
+The full capture's agent-details scene also exposed a frozen-clock/I/O race:
+advance the existing scenario budget in paint steps, settling chunk requests
+between steps, without changing its timing or failure bounds.
+Each finding gets a named failing regression and SHA-256 restored red drill
+in docs/certification/cx1.md. No dependency, guard relaxation, merge, push,
+subagent or paid/live calls; aggregate quality remains lead-owned.
+
+<!-- plan-archive:end id="gates-b96bda2b6-234" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-288" lines="288-302" at="b96bda2b6" bytes="1125" sha256="a61b71d7eccc5d72f239b1692cb54672f2cdf16ed685a501739fd98d1d3c372d" -->
+
+**ACPM118 hosted macOS release repair (2026-10-09, macmini).** Diagnose the
+M118 real-stdio prompt/sharing timeout in runs 37992331755 and 37992331263.
+Reproduce under load before changing the responsible product or fixture;
+retain every request, assertion, repository deadline and gate. Add a failing
+regression and byte-exact restoration drill, then certify complete owning
+suites and scoped static/build gates in `docs/certification/cifix017.md`,
+Round 3, ACP M118. The rig/common brief leaves aggregate quality and hosted
+replay to the lead; no merge, push, rebase, subagents or paid/live calls.
+Node 22.23.3/libuv 1.51 reproduces the thirty-second failure under bounded
+memory/CPU load, waiting on the second workspace: two foreground launches
+each incur D87's twenty-second pause. Its Darwin available-memory API counts
+only free pages (619 MB here); libuv 1.52 includes reclaimable pages (13.2 GB
+on Node 24 here). Reject the older reading as unknown at the shared sampler
+boundary, preserving D87's limits, admission and containment. Certify the
+libuv boundary and unchanged real-stdio path on both runtime versions.
+
+<!-- plan-archive:end id="gates-b96bda2b6-288" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-304" lines="304-313" at="b96bda2b6" bytes="758" sha256="a72a184a1a8aea63876accfc0624c5b75825f4652c43acd68d819dcd8ed8b6bd" -->
+
+**CIFIX017L2 Linux/macOS hosted-CI round 2 (2026-10-09).** Repair run
+37980345168 and agent-package run 37980344591 at their causes: shared native
+created-path fixtures, slow visual setup and resource-history disposal,
+forced-colour state measurement, lazy-chunk rejection delivery, and M118 ACP
+stdio lifecycle. Review the inherited uncommitted fixture change before use.
+Preserve all deadlines, gates, caps, tolerances and baselines. No subagents,
+merge, rebase, push or paid/live call. The rig/common brief delegates aggregate
+quality to the lead; run scoped gates and complete owning suites directly,
+at most three files per invocation. Record exact restoration drills and Linux
+and available macOS receipts in `docs/certification/cifix017.md`, round 2.
+
+<!-- plan-archive:end id="gates-b96bda2b6-304" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-315" lines="315-325" at="b96bda2b6" bytes="804" sha256="44b9d187580f390f292bf69a0be9fc8ab21ae93223e8c8060c5616bd47002d37" -->
+
+**CIFIX017W Windows hosted-CI repair (2026-10-09, win11).** Reproduce the
+0.17.0 Windows failures from run 37950960680 in the release worktree. Repair
+recorder native path identity under 8.3 temporary ancestors, expensive native
+and package setup, resource-history disposal ordering, companion-upload
+cleanup ordering, and the trusted-path test clone at their causes. Keep all
+repository test/hook deadlines and gate caps. Run each of the eight owned
+files twice at repository defaults (at most three files per invocation),
+five typechecks, changed-file ESLint/Prettier, duplication and the shared
+static/build gates. Commit each validated root cause with installed hooks;
+no merge, push, live/paid call or aggregate quality (lead-owned under the
+rig brief). Receipts: `docs/certification/cifix017w.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-315" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-327" lines="327-334" at="b96bda2b6" bytes="595" sha256="63fe8573f676033d61990f52468a9f1b0cab8453568f8770438ed7e054424a59" -->
+
+**LEFT017B visual and deferred-entry completion (2026-10-08, linuxlt).**
+The continuation brief removes LEFT017's mapping scope limit: certify every
+current renderer through an actual harness scene, preserve six themes, two
+widths and all interaction states, refresh source/theme receipts through the
+repository generators, and review every rendered image. Register the intended
+lazy schedule slash-command entry without increasing activation's byte cap.
+No waivers, assertion weakening, paid/live calls, merge or push. Existing
+unrelated bundle caps remain the shrinking lane's responsibility.
+
+<!-- plan-archive:end id="gates-b96bda2b6-327" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-343" lines="343-358" at="b96bda2b6" bytes="1132" sha256="f46c48241df6bafadb6695394018af8db3a45ae1ccba25688c4e0ff4d4d6a738" -->
+
+**SPAWN017C redesign (2026-10-08, win11).** Replace implicit portable launch
+lifetime with explicit contained, probe, handoff, interactive and bootstrap
+profiles. Contained work owns its tree and temp root through shutdown; a
+probe (bounded and read-only) owns its tree but no temp root; handoff owns
+only its OS adapter (ten-second named deadline, output to the null device,
+root-only stop); interactive work inherits the terminal and remains in its
+session. Pause refuses bootstrap/background admission immediately with the
+governor's status words, without compiler fallback or a second vault
+attempt. The caller deadline includes runtime sampling without cancelling
+the shared sample. A checked-in, mechanically checked inventory covers all
+source process sites, records each probe with its reason, and proves
+test-only reachability. Qualify regressions against fb0b12aa3, four red
+drills and scoped gates at repository timeouts; record receipts in
+int0170-combined.md and the threat model. Aggregate quality and unrelated
+bundle caps remain with the lead; no hook, threshold, dependency, push,
+credential or live-model changes.
+
+<!-- plan-archive:end id="gates-b96bda2b6-343" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-360" lines="360-373" at="b96bda2b6" bytes="1027" sha256="23f82285eb4da5cab65d2ab0079c5a2367bf18868f4f832d46c656dadb404c6e" -->
+
+**SPAWN017C Windows job attestation (2026-10-08, lead decision).** Portable
+contained and probe launches on Windows start no reader process: the helper
+holds the only handle to an unnamed kill-on-close job without breakaway,
+the kernel enforces ActiveProcessLimit, the helper counts the spawn rate
+from the job's own accounting, ends and drains the job to zero active
+processes before it exits, and reports one final record (CPU, peak job
+memory, process total) on the kept control pipe; a missing record is
+uncertain usage, never a refusal. PowerShell stays only for helper
+compilation and self-test, the extension's own MCP, shell, team and browser
+launchers, and runProgram probes. Measured on the win11 VM pinned to four
+CPUs: scheduleEvents.local real-Git 12.4 s before, 8.1 to 8.6 s after, at the
+unchanged 15 s deadline. RVSPAWN017C's four P2s are fixed in the same round
+(dispose ownership until observed exit, scanner aliases/wrappers/workers,
+alias-resolved test-only proof, caller deadline over shared preparation).
+
+<!-- plan-archive:end id="gates-b96bda2b6-360" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-375" lines="375-398" at="b96bda2b6" bytes="1750" sha256="b6228cff52717bb11ece2bc6ed72345046ee23b36c0eff04400aca613764f30b" -->
+
+**RVSPAWN4W fixes (2026-10-08, amends the paragraph above).** Only a record
+saying the helper drained the job (`emptied: true`) proves whole-tree
+retirement and known usage; a missing record, an undrained job or a killed
+helper takes the lease's uncertain path (admission released, temp root kept
+for recovery, failure reported), never complete(true). Dispose awaits that
+settlement; a dispatched kill is not completion. The job's completion port
+reports cap refusals and enforced memory limits in the record (`capRefusals`,
+`limits`), which governed commands raise as typed errors even after exit 0;
+`jobMemoryBytes` hands a portable launch's memory cap to the Windows job
+(the media converter maps `jobMemory` to its memory-cap error). The prepared
+helper is hashed around its self-test and re-hashed before every launch; a
+changed one is refused, removed and recompiled. Attested usage rows are kept
+only for a bound history reader (none in production yet,
+M107-J-C1-T-accounting), at most RESOURCE_SETTLED_ROWS_MAX between reads.
+RESULT lines are bounded before parsing and keep native 32-bit ranges. The
+inventory scanner and test-only proof cover wrappers, aliased/default/dynamic
+Workers, bound/called launches, re-exports, dynamic-import namespaces and
+load-time class, decorator, IIFE and callback evaluation; the stale Windows
+launch fixtures pass the bootstrap runner seam. Bundle cohorts: the pause,
+cap and memory errors live in `launch.ts`, helper integrity in
+`src/host/backend/`, and `runBootstrap` (a facade client, not policy) in
+`src/core/bootstrapCommand.ts`, so no `src/core/resources/` policy module
+rides in `extension.js`, `acp.js` or the runtime bundles any more (the
+cohort check was red since `e50ef9f49` and `867d9d7cf`).
+
+<!-- plan-archive:end id="gates-b96bda2b6-375" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-400" lines="400-410" at="b96bda2b6" bytes="762" sha256="3f0db90b05041d5b782481f1f5dea655bc3e840ba22b4e9420ec934f9e44d504" -->
+
+**SPAWN017C gitRefs root cause (2026-10-08, win11; merged from
+rel017/spawn3).** Every bounded command was admitted as ordinary work with a
+helper-backed temp root: six native created-file round trips, needing a
+packaged helper (absent from a source checkout on POSIX) and six cold
+PowerShell starts on Windows. Lead decision: the narrowing is the explicit
+`probe` profile only, chosen per call site (Git ref and report reads, gh
+reads, birth probes, media version checks); a bounded command that might
+write keeps `contained` with its temp root. The runtime prepares its
+Windows job helpers once, as the extension does; a failure is retried. The
+Git source keeps its fixed reason and attaches the actual refusal as
+`cause`. Receipts are in int0170-combined.md.
+
+<!-- plan-archive:end id="gates-b96bda2b6-400" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-412" lines="412-417" at="b96bda2b6" bytes="463" sha256="a77d012a768319f658ce8786f862990c95945e298649a176d3d969f40270b9f4" -->
+
+**SPAWN017B cold-probe finding (2026-10-08).** The third complete-file idle
+replay fails before lock admission because PowerShell's Get-Process discovery
+consumes the unchanged birth-probe bound. Read the same OS birth identity
+through Diagnostics.Process without module discovery; retain absence handling,
+all identity/lease assertions and every deadline. Restart the thirty idle and
+thirty loaded complete-file sequence and record this excluded failed attempt.
+
+<!-- plan-archive:end id="gates-b96bda2b6-412" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-438" lines="438-451" at="b96bda2b6" bytes="1029" sha256="3c896882e4e5a555120fcf978ef03c5bb193a98cf158290e7e215436bfcf696e" -->
+
+**SPAWN017 release repair (2026-10-08, win11).** Close the combined
+0.17.0 candidate's spawn governance gaps under M107/D87. Account-scoped MSP
+hosts retain their command owner while sharing the ordinary MSP native
+launch, bounded shutdown and observed whole-tree retirement. Supply the
+vault MCP route with a production builder using the ordinary governed MCP
+spawn boundary; retain authorization, canonical command checks and output
+scrubbing, and refuse unbound broker services. Audit every spawn-bearing
+source file changed since `4da4ef666`, repairing newly introduced payload
+paths. Prove regressions on `7a4fc2ab3`, deliberate red drills and restored
+default-timeout runs. Qualify a fresh clone with npm ci, five typechecks,
+changed-file lint/format/duplication, plain knip, localization, host API and
+the production build without changing caps. Aggregate quality belongs to
+the lead; normal-hook local commits only. Receipts and the spawn inventory:
+`docs/certification/int0170-combined.md`, Spawn governance (SPAWN017).
+
+<!-- plan-archive:end id="gates-b96bda2b6-438" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-453" lines="453-465" at="b96bda2b6" bytes="978" sha256="7578e30d533fcc74d9f8dea11dfaf48183a5ae903aafea88b44a1f030db77abb" -->
+
+**FIX0160W2 hosted Windows repair (2026-10-07, win11).** Reproduce the three
+remaining suites with an actual 8.3 TEMP/TMP alias and fresh PowerShell
+processes. Resolve compiler storage and returned helper paths to native long
+names, proving unchanged native file identity across resolution. Remove
+implicit PowerShell module discovery from handle-bound resource signals;
+load the actuator drill's exact Utility module and assembly once. Share the
+launch suite's compiled shell helper across its cases, retaining independent
+jobs, cleanup and every identity/membership/retirement assertion. Keep all
+existing deadlines. Run the six-file regression set at repository timeouts,
+five typechecks, changed-file lint/format and duplication, then normal-hook
+commits with explicit staging. The lane brief/common rules prohibit aggregate
+quality and leave it to the lead; no merge, push or paid/live calls.
+Receipts and byte-exact red/restored drills: `docs/certification/fix0160w2.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-453" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-467" lines="467-487" at="b96bda2b6" bytes="1582" sha256="d75cf659c610bc75a17e90f19c460b5bcac1fb5cedbc9724b37f081c76d29ece" -->
+
+**FIX0160W Windows release repair (2026-10-07, win11).** Restore the joined
+M107 and 0.15.0 Windows job helper as one compiled design: remove duplicate
+native declarations, use the existing direct compiler and assembly loader for
+resource helpers, and retain identity, containment and retirement guards.
+Qualify all nine owned failing files at repository deadlines, then all five
+typecheck projects, lint, changed-file formatting, plain knip, duplication,
+localization, host API and production build. Full quality and cross-platform
+packaging belong to the lead and FIX0160X; no merge, push or live/paid call.
+Record failures, repairs and deliberate guard-fire drills in
+`docs/certification/fix0160w.md`; commit validated pieces with normal hooks.
+Native creation qualification also requires explicit current-user ownership on
+new Win32 objects when an elevated token defaults to the Administrators group;
+prepare only owned test fixtures with that SID, retaining existing-object
+ownership refusals and every native identity/rename guard.
+The registry's Windows race cases must interpose inside the existing C# helper,
+as Darwin already does inside its C helper, preserving all assertions. Cover
+missing-root completion and reopen a newly created name before stamping it.
+Windows' final disposition uses its held handle, so the final-name test must
+prove preservation of both empty and populated replacement directories there.
+D100 G64: independently retained native test variants own separate compiler
+storage roots, so normal stale-build retirement cannot invalidate one another.
+
+<!-- plan-archive:end id="gates-b96bda2b6-467" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-497" lines="497-506" at="b96bda2b6" bytes="744" sha256="af2dbf39c3bf873216aa35b12d5d2f10468acca0eec0fde6c9c65b5fbd05abb0" -->
+
+**FIX0150P release-review repair (2026-10-07, linuxlt).** Own only PR #136's
+six threads on `panelSeam.ts` and `importExport.ts`; base `0113c131e`.
+Resolve configured endpoint hosts before classification, retain private and
+metadata refusals, and distinguish unresolved answers from unusable addresses.
+Populate local probes from preset ports and model-list paths. Existing
+OpenRouter exchange/usage services are absent: hide unavailable actions and
+reads with localized, honest status while preserving pasted-key inference.
+Export subscription configuration without credentials; validate imported
+defaults and provider identities before confirmation, clear replaced/removed
+credentials, and publish providers/default in one atomic file write.
+
+<!-- plan-archive:end id="gates-b96bda2b6-497" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-515" lines="515-526" at="b96bda2b6" bytes="923" sha256="689db7c076ec3d44ddbb0bb4152095dd81baa295eded7a3d06c6c60f32b59c66" -->
+
+The rig brief overrides common.md's clean prohibition for
+`git clean -xdf -e node_modules` and delegates full quality to the lead.
+No merge, live/paid calls, dependencies, gate changes or other review threads.
+Receipts and guard-fire drills: `docs/certification/fix0150p.md`. Repair commit
+`e67886ea` and resolver follow-up `042a187c` passed hooks. Final clean CI
+verification passed 15 complete owning files, 171 tests per run, three consecutive
+times at default deadlines; all five typechecks, full lint, changed-file format,
+localization/reference, plain knip, zero-clone duplication, host API, production
+build and cycle checks passed. Focused accessibility passed twelve pages across
+four themes, including the 320 px panel. Sixteen deliberate red drills restored
+source hashes exactly. OpenRouter live services remain honestly unavailable;
+full quality and installed-editor/platform certification stay with the lead.
+
+<!-- plan-archive:end id="gates-b96bda2b6-515" -->
+
+<!-- plan-archive:begin id="gates-b96bda2b6-530" lines="530-550" at="b96bda2b6" bytes="1435" sha256="13e46af4286275ce6b80ace608bb61074cd59185d7b82f68889c2c114cd5baf5" -->
+
+**TRAINACT release-train activation repair (2026-10-11, macmini).**
+Move automatic-compaction admission behind the existing Model API backend
+boundary, with pricing supplied by the existing providers chunk. Preserve
+fail-closed reservation, consent, cancellation and per-attempt accounting.
+Measure the unchanged immutable pre-K activation budget after each cut;
+move further on-demand helpers only as needed to retain at least 150 bytes
+of room below 3,072 bytes. The paid-use question formatter moves whole to
+the existing imported-hook runtime, preserving its async API and installed
+language; the smaller hook runtime retains its cap. The admission factory
+loads from that same runtime on first compaction to retain the backend
+ratchet. Refresh the owning size-drill fixture with the two existing Models
+section entries missing after the train merge; remove the unused type
+alias `GitHubLeaseResult` reported by knip, with
+no emitted-code change. Keep the compaction refusal error in a dependency-free
+shared leaf, re-exported through its existing consent API, to prevent the
+new lazy runtime edge from cycling back into consent. Consolidate only
+the duplicated runtime-account test fixtures reported by the unchanged
+clone gate, preserving every assertion. No cap, baseline, allow-list,
+string, behavior,
+wire shape or evaluation-latch change. No merge, push or subagents.
+Certification: `docs/certification/train-activation.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-530" -->
+
+## CM96C1 merged-base qualification (2026-10-11)
+
+<!-- plan-archive:begin id="gates-b96bda2b6-34893" lines="34893-34900" at="b96bda2b6" bytes="600" sha256="4e4b9c87feaede066e62c5a826c9be74159e53f2fcde56ec6d17da3bf30038a3" -->
+
+**CM96C1 merged-base qualification (2026-10-11, linuxlt).** The required
+separate accepted-design merge passes five type projects and focused team
+tests. Its full production build emits all bundles then refuses teamHost's
+130 KiB and Models body's 75 KiB caps (133,408 bytes and 75.5 KiB). Preserve
+these caps; the following binding work closes these integration size seams.
+The deferred-bundle legal-cap test also reports this aggregate size refusal.
+No gate is waived. Aggregate quality and hosted CI remain lead-owned under
+the explicit rig/common brief; receipts: `docs/certification/cm96c1.md`.
+
+<!-- plan-archive:end id="gates-b96bda2b6-34893" -->
+
+## CIFIX017L2 scoped rig qualification (2026-10-09)
+
+<!-- plan-archive:begin id="gates-b96bda2b6-35206" lines="35206-35216" at="b96bda2b6" bytes="781" sha256="e8d1adc057221f069140c6bbe381398f63f83401f01db43abde8ba3b44b911da" -->
+
+**CIFIX017L2 scoped rig qualification (2026-10-09, Kubuntu).** The lane's
+explicit rig/common brief prohibits aggregate `npm run quality` and full-suite
+runs; the lead owns those gates. Run the complete owning files, at most three
+per invocation, at repository deadlines, plus five type projects, changed-file
+lint/format, plain knip, duplication, localization, host API and the production
+build. Preserve every assertion and cap. The approved `macmini` SSH route
+refuses host-key verification; no trust setting is changed. Linux receipts
+alone cannot close the macOS-only outline/image failure or M118 ACP timeout.
+Record the missing platform receipts and failure-stage diagnostics in
+`docs/certification/cifix017.md`; this is a qualification deferral, not a
+release-green claim.
+
+<!-- plan-archive:end id="gates-b96bda2b6-35206" -->
+
+## M120CAP round 4 qualification (2026-10-10)
+
+<!-- plan-archive:begin id="gates-b96bda2b6-35218" lines="35218-35225" at="b96bda2b6" bytes="582" sha256="6a2ed8ce48d361156307e017b4e386bdc628729f9e63850f8fe914feef09e1c6" -->
+
+**M120CAP round 4 qualification (2026-10-10, linuxlt).** Namespace and
+real-file ownership regressions, byte-exact drills and scoped gates are
+certified in `docs/certification/m120-s.md`. The accepted base's full build
+still fails at the What's New content decode bound before aggregate emission;
+the encoder and its cap are outside this lane's authorized files. Independent
+production team builds match the prior bytes and hashes within all original
+caps. Aggregate quality/build/package qualification remains lead-owned under
+the rig/common brief; no gate or threshold is waived.
+
+<!-- plan-archive:end id="gates-b96bda2b6-35218" -->
+
+## C-M106-3R4 scoped certification (2026-10-11)
+
+<!-- plan-archive:begin id="gates-b96bda2b6-35289" lines="35289-35298" at="b96bda2b6" bytes="740" sha256="b6ba709dfdcaae042b4b42327d6b9c0c7fb62fe186d72e604b58aa199de6fbd4" -->
+
+**C-M106-3R4 scoped certification (2026-10-11, linuxlt).** The explicit
+rig/common brief forbids aggregate quality here. Run complete owning and
+related files in batches of at most three at repository deadlines, all five
+typechecks and scoped static/build/accessibility gates. The lead retains
+aggregate quality and cross-OS integration. The native review no-filter
+collector is unchanged from the base; a same-machine native/Node-error control
+isolates its `exitCode`/`code` defect. The native schedule test encounters the
+rig's existing group-writable systemd search root; no machine mode is changed.
+These receipts and final dispositions remain explicit in
+`docs/certification/m106-native-readers.md`; no gate, timeout or cap is raised.
+
+<!-- plan-archive:end id="gates-b96bda2b6-35289" -->
+
+## C-M106-2 R5 / M107HC2 (2026-10-09/10)
+
+<!-- plan-archive:begin id="gates-b96bda2b6-35300" lines="35300-35323" at="b96bda2b6" bytes="1758" sha256="f8ab97cb698f9c7c731860e218a2a5f106a07f69de9361614919e4eec79a61ad" -->
+
+**C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
+brief forbids aggregate quality, full-suite runs and branch integration.
+Run the owning whole test files at repository timeouts with at most three
+workers/files per invocation, all five typechecks, changed-file lint and
+format, deadcode, duplication, localization, reference, host API, plan,
+roadmap and production build. Every new guard must fail its regression in a
+deliberate drill and be restored byte-exact. The lead retains aggregate
+quality, independent review and the multi-OS release matrix; no gate is
+weakened. Evidence: `docs/certification/m106-capability-binding.md`.
+**M107HC2 bounded delivery deferrals (2026-10-09).** Both RVM107HC1
+findings have permanent regressions and byte-exact red drills. All requested
+resource/runtime suites and scoped checks pass (356 tests, 11 existing
+platform skips; all five typechecks, changed-file ESLint/Prettier, localization,
+reference, host API, plan, roadmap and plain Knip). The full aggregate stays
+with the lead under the lane brief. `jscpd` reports only the inherited
+51-token clone in `windowsTrustedPath.test.ts:206` and `:279`; that file is
+byte-identical to `8b3ce3df8`. `npm run build` stops before bundling at the
+existing What's New decode cap: 79,510 bytes versus 76,800, identical for
+the reviewed head's and current changelogs. No cap or gate is weakened;
+the release lane owns that repair. Independent production-option esbuild
+measurements (`write: false`) keep all seven measured bundles within their
+existing caps; extension, Model API, launcher and runtime engine remain
+byte-identical. Full build/split/notices clearance is not claimed. Receipts
+and sizes are in `docs/certification/m107.md`'s M107HC2 record.
+
+<!-- plan-archive:end id="gates-b96bda2b6-35300" -->
+
+## CIFIX017W inherited production-build blocker (2026-10-09)
+
+<!-- plan-archive:begin id="gates-6ad5b6d39-34595" lines="34595-34613" at="6ad5b6d39" bytes="1287" sha256="698f906c7d7d7858d6cca2d03e60631d105aacb0613c26a1f0e30c6410c7f86f" -->
+
+**CIFIX017W inherited production-build blocker (2026-10-09, win11).** The
+release head's two full What's New releases serialize to 79,510 bytes,
+above the unchanged 76,800-byte decoded-content bound. LF normalization
+does not change that size. `encodeWhatsNewContent` refuses before bundling;
+the package test's captured data-URL stack previously masked it as ENOBUFS.
+Preserve the real build refusal and its full disk-backed diagnostics. Shared
+package-build qualification uses a clearly named private source fixture
+with abbreviated previous-release notes; it cannot certify the actual
+release build or replace final runs against the committed tree. The lead
+must resolve release-note representation within the existing cap before
+actual-source packaging can be green. No cap, threshold or test timeout is
+changed; aggregate quality remains lead-owned under the rig/common rules.
+
+The controlled full webview consumer also exits 1 on its resource-policy
+emitted-input negative drill: spawning the complete split check exceeds
+the unchanged Windows 15-second test deadline. Shared fixture copies keep
+the drill and all assertions intact. Split-check latency and actual-release
+content qualification remain with the lead; no green release claim follows
+from the private package fixture.
+
+<!-- plan-archive:end id="gates-6ad5b6d39-34595" -->

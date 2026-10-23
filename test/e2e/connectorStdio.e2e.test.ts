@@ -19,6 +19,7 @@ import type { ConnectorGrant } from '../../src/shared/connector'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { serialisePromptFile } from '../../src/shared/prompts'
+import { lockWindowsStorageDir } from '../unit/helpers/temporaryFolders'
 
 const directory = realpathSync(mkdtempSync(path.join(os.tmpdir(), 'm124-connector-e2e-')))
 const agent = path.join(directory, 'dist', 'acp.js')
@@ -43,6 +44,15 @@ function dataFolder(): string {
 }
 
 beforeAll(async () => {
+  // The staged data folder must pass the storage guard's ancestor check
+  // however permissive the shared temporary folder is (it carries foreign
+  // grants on some rigs): lock the stage down first, so everything the
+  // agent creates below it inherits a private ACL.
+  if (process.platform === 'win32') {
+    const systemRoot = process.env['SystemRoot'] ?? process.env['windir']
+    if (systemRoot === undefined) throw new Error('no system root')
+    await lockWindowsStorageDir(directory, systemRoot)
+  }
   await mkdir(path.dirname(agent), { recursive: true })
   const common = {
     bundle: true,

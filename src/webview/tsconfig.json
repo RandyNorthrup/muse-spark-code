@@ -8,5 +8,9 @@
     "jsx": "react-jsx",
     "types": ["vscode-webview"]
   },
-  "include": ["./**/*.ts", "./**/*.tsx", "../shared/**/*.ts"]
+  "include": ["./**/*.ts", "./**/*.tsx", "../shared/**/*.ts"],
+  // The Node boundary roots export Node-only members (file-tool execution,
+  // the SSH wire format); the browser never imports them, so they stay out
+  // of this program.
+  "exclude": ["../shared/modelApiBoundariesEntry.ts", "../shared/vaultBoundariesEntry.ts"]
 }

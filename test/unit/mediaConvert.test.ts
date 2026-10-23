@@ -9,11 +9,14 @@ import { describe, expect, it } from 'vitest'
 import { convertToMp4 } from '../../src/core/media/convert'
 import { conversionBindings } from '../../src/host/backend/productionAudioEntry'
 import { openPrivateRoot } from '../../src/runtime/privateDirectory'
-import { usingTempDir } from './helpers/temporaryFolders'
+import { usingPrivateDir } from './helpers/temporaryFolders'
 
 describe('convertToMp4 failures', () => {
   it('carries a missing input with its cause instead of dropping it', async () => {
-    await usingTempDir('muse-convert-', async (folder) => {
+    // A private folder, like production's own storage: the private-root
+    // guard rightly refuses a store under a shared temporary folder that
+    // carries foreign grants, before conversion ever runs.
+    await usingPrivateDir('muse-convert-', async (folder) => {
       const options = await conversionBindings(undefined, () =>
         openPrivateRoot(path.join(folder, 'media')),
       )
