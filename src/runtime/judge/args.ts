@@ -49,6 +49,16 @@ const DEFAULT_OPTIONS: JudgeCliOptions = {
 /** Nano-USD in one USD: the judge's run cap keeps the liability precision (RVM98P2R2 8). */
 const NANO_USD_PER_USD = BigInt(USD_DECIMAL_RADIX) ** BigInt(USD_LIABILITY_DECIMALS)
 
+/** Node's argv parser refusing flags: every refusal keeps its code prefix. */
+function isParseArgsError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    error.code.startsWith('ERR_PARSE_ARGS_')
+  )
+}
+
 /** `--budget-usd` as exact nano-USD: decimal text, at most nine decimals, never through a float. */
 function budget(value: string | undefined): number | undefined {
   if (value === undefined) return JUDGE_CLI_DEFAULT_BUDGET_USD
@@ -133,8 +143,9 @@ export function parseJudgeArgs(argv: readonly string[]):
         timeoutMs,
       },
     }
-  } catch {
+  } catch (error: unknown) {
     // Never echo parseArgs' raw argv: it can contain pasted credentials.
+    if (!isParseArgsError(error)) throw error
     return invalid()
   }
 }
