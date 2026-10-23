@@ -1,0 +1,19 @@
+{
+  "method": "workflow/cancel",
+  "params": {
+    "sessionId": "01a1674a-328b-7053-83c2-2f185e18ae19",
+    "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b"
+  },
+  "error": {
+    "message": "workflow/cancel command 01a1674b-2156-7000-913b-223a58d98e3a rejected: missing_run",
+    "code": -32030,
+    "kind": "commandRejected",
+    "data": {
+      "kind": "commandRejected",
+      "retryable": false,
+      "commandId": "01a1674b-2156-7000-913b-223a58d98e3a",
+      "reason": "missing_run"
+    },
+    "retryable": false
+  }
+}

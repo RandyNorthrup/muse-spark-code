@@ -1,0 +1,222 @@
+{
+  "method": "workflow/childControl",
+  "params": {
+    "sessionId": "01a1674d-7dee-7330-b894-b469c91bd3d2",
+    "workflowRunId": "workflow-run-model-tool-call_01a1674daee371c99cd61d624e0bed5c",
+    "childId": "01a1674d-bf47-77c1-aad7-a105ef8a3569",
+    "attempt": 1,
+    "action": "skip"
+  },
+  "ack": {
+    "commandId": "01a1674d-ca89-7000-8c95-972b6e4e0323",
+    "status": "accepted"
+  },
+  "outcome": {
+    "before": {
+      "note": "item/updated",
+      "at": "2026-10-23T05:48:34.036Z",
+      "item": {
+        "itemId": "c158f2e9-99b4-562c-8502-8c2b53ac415d",
+        "kind": "workflow",
+        "turnId": "01a1674d-893d-7000-8e8b-d2aea7c4bf49",
+        "revision": 6,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:48:33.582331Z",
+        "fallbackText": "Workflow: Four throwaway essays parallel",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674daee371c99cd61d624e0bed5c",
+        "entryId": "Four throwaway essays parallel",
+        "scriptId": "generated.workflow.Four_throwaway_essays_parallel",
+        "triggerSource": "guidanceAuto",
+        "children": [
+          {
+            "childId": "01a1674d-bf47-77c1-aad7-a105ef8a3569",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674d-c82a-78f0-8f20-96788454263f",
+            "attempt": 1,
+            "status": "scheduled",
+            "label": "bravo"
+          }
+        ],
+        "stopAvailable": true,
+        "childPromptRefs": [
+          {
+            "id": "993a45b2-dca1-5407-a25e-4b094d88ac30",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 64,
+            "availability": "available"
+          },
+          {
+            "id": "5a6936e6-38d4-5699-a2c8-aa80601c5887",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          }
+        ]
+      }
+    },
+    "settled": {
+      "note": "item/updated",
+      "at": "2026-10-23T05:48:45.492Z",
+      "item": {
+        "itemId": "c158f2e9-99b4-562c-8502-8c2b53ac415d",
+        "kind": "workflow",
+        "turnId": "01a1674d-893d-7000-8e8b-d2aea7c4bf49",
+        "revision": 15,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:48:45.379085Z",
+        "fallbackText": "Workflow: Four throwaway essays parallel",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674daee371c99cd61d624e0bed5c",
+        "entryId": "Four throwaway essays parallel",
+        "scriptId": "generated.workflow.Four_throwaway_essays_parallel",
+        "triggerSource": "guidanceAuto",
+        "children": [
+          {
+            "childId": "01a1674d-bf47-77c1-aad7-a105ef8a3569",
+            "attempt": 1,
+            "status": "cancelled",
+            "durationMs": 83,
+            "resultRef": "subagent-result://01a1674d-bf47-77c1-aad7-a105ef8a3569/task/993a45b2-dca1-5407-a25e-4b094d88ac30#5",
+            "failureKind": "workflow_child_skipped",
+            "failureReason": "Workflow child skipped by user."
+          },
+          {
+            "childId": "01a1674d-c82a-78f0-8f20-96788454263f",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674d-d43b-70d0-abe7-58e6d728d52a",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674d-e052-7a53-b007-01d84fbfbab3",
+            "attempt": 1,
+            "status": "started"
+          }
+        ],
+        "stopAvailable": true,
+        "childPromptRefs": [
+          {
+            "id": "993a45b2-dca1-5407-a25e-4b094d88ac30",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 64,
+            "availability": "available"
+          },
+          {
+            "id": "5a6936e6-38d4-5699-a2c8-aa80601c5887",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "0add4a0d-51b4-5f0b-a4f7-6208d7ff5295",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "181cd6ed-4a3a-5e3c-afdf-f6f606d9c2e8",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 66,
+            "availability": "available"
+          }
+        ]
+      }
+    },
+    "terminal": {
+      "note": "item/updated",
+      "at": "2026-10-23T05:48:45.600Z",
+      "item": {
+        "itemId": "c158f2e9-99b4-562c-8502-8c2b53ac415d",
+        "kind": "workflow",
+        "turnId": "01a1674d-893d-7000-8e8b-d2aea7c4bf49",
+        "revision": 16,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:48:45.493748Z",
+        "fallbackText": "Workflow: Four throwaway essays parallel",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674daee371c99cd61d624e0bed5c",
+        "entryId": "Four throwaway essays parallel",
+        "scriptId": "generated.workflow.Four_throwaway_essays_parallel",
+        "triggerSource": "guidanceAuto",
+        "children": [
+          {
+            "childId": "01a1674d-bf47-77c1-aad7-a105ef8a3569",
+            "attempt": 1,
+            "status": "terminal",
+            "durationMs": 83,
+            "terminal": "cancelled",
+            "resultRef": "subagent-result://01a1674d-bf47-77c1-aad7-a105ef8a3569/task/993a45b2-dca1-5407-a25e-4b094d88ac30#5",
+            "failureKind": "workflow_child_skipped",
+            "failureReason": "Workflow child skipped by user."
+          },
+          {
+            "childId": "01a1674d-c82a-78f0-8f20-96788454263f",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674d-d43b-70d0-abe7-58e6d728d52a",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674d-e052-7a53-b007-01d84fbfbab3",
+            "attempt": 1,
+            "status": "started"
+          }
+        ],
+        "stopAvailable": true,
+        "childPromptRefs": [
+          {
+            "id": "993a45b2-dca1-5407-a25e-4b094d88ac30",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 64,
+            "availability": "available"
+          },
+          {
+            "id": "5a6936e6-38d4-5699-a2c8-aa80601c5887",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "0add4a0d-51b4-5f0b-a4f7-6208d7ff5295",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "181cd6ed-4a3a-5e3c-afdf-f6f606d9c2e8",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 66,
+            "availability": "available"
+          }
+        ]
+      }
+    }
+  }
+}
