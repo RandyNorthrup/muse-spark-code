@@ -96,7 +96,8 @@ function invalid() {
 Reserved before ACP/prompt parsing, including malformed and future judge
 commands. An action's `--help` is malformed judge argv (exit 2): the strict
 parser below owns every action form. Only the bare form answers help, so the
-command table's walk can describe the one judge screen.
+command table's walk can describe the one judge screen; the local-judge
+steps (scan, setup, remove) answer a lone `--help` the same way.
 */
 export function parseJudgeArgs(argv: readonly string[]):
   | JudgeCliCommand
@@ -109,6 +110,12 @@ export function parseJudgeArgs(argv: readonly string[]):
   const action = argv[1]
   if (argv.length === 2 && (action === '--help' || action === '-h'))
     return { command: 'help', route: 'judge' }
+  // The local-judge steps (M125 lane W) answer a lone --help with their
+  // help screen, as the generic help router did for them before judge was
+  // reserved here; their other flags stay theirs to validate.
+  const [onlyFlag, ...more] = argv.slice(2)
+  if (isSetupAction(action) && more.length === 0 && (onlyFlag === '--help' || onlyFlag === '-h'))
+    return { command: 'help', route: `judge ${action}` }
   if (action === 'serve' || action === 'lint' || isSetupAction(action)) {
     return { command: 'judge', action, options: DEFAULT_OPTIONS, surfaceArgs: argv.slice(2) }
   }
