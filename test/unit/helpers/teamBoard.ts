@@ -17,6 +17,8 @@ export function testBoardContext(heads?: Map<string, string>): BoardContext {
     workspaceMode: () => 'own-branch',
     report: (taskId) => `report-${taskId}`,
     countAttempt: () => true,
+    // countAttempt admits without a ledger here, so a refund has nothing to return.
+    refundAttempt: () => undefined,
     archive: (tasks) => {
       for (const task of tasks) archived.set(task.id, task)
     },
