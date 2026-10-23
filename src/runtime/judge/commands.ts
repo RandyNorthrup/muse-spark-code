@@ -17,7 +17,12 @@ import { Usd } from '../../shared/usd'
 import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import type { FdWriter } from '../exec/fdWriter'
 import { readPromptStdin } from '../exec/keyInput'
-import { JudgeCliInputError, type JudgeCliCommand, type JudgeCliOptions } from './args'
+import {
+  JudgeCliInputError,
+  isSetupAction,
+  type JudgeCliCommand,
+  type JudgeCliOptions,
+} from './args'
 import { runJudgeMcp } from './mcp'
 import { isServedJudgeModel } from '../../core/judge/served'
 
@@ -88,6 +93,18 @@ export interface JudgeCliDeps {
     signal: AbortSignal,
   ) => Promise<number>
   readonly lint?: (command: JudgeCliCommand, io: JudgeCliIo, signal: AbortSignal) => Promise<number>
+  /** M125 lane W: the local-judge text steps, supplied by the setup bundle. */
+  readonly scan?: (command: JudgeCliCommand, io: JudgeCliIo, signal: AbortSignal) => Promise<number>
+  readonly setup?: (
+    command: JudgeCliCommand,
+    io: JudgeCliIo,
+    signal: AbortSignal,
+  ) => Promise<number>
+  readonly remove?: (
+    command: JudgeCliCommand,
+    io: JudgeCliIo,
+    signal: AbortSignal,
+  ) => Promise<number>
 }
 
 function noAnswer(reason: Extract<JudgeOutcome, { outcome: 'no-answer' }>['reason']): JudgeOutcome {
@@ -252,7 +269,11 @@ export async function runJudgeCommand(
     if (deps.initialize !== undefined) await untilAborted(deps.initialize(signal), signal)
     if (command.action === 'mcp') {
       code = await untilAborted(runJudgeMcp(io, judge, signal), signal)
-    } else if (command.action === 'serve' || command.action === 'lint') {
+    } else if (
+      command.action === 'serve' ||
+      command.action === 'lint' ||
+      isSetupAction(command.action)
+    ) {
       const surface = deps[command.action]
       if (surface === undefined) throw new Error(UI_TEXT.execUnknownModel)
       code = await untilAborted(surface(command, io, signal), signal)

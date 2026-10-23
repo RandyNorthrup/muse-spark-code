@@ -104,6 +104,9 @@ import {
 
 execFileSync(process.execPath, ['scripts/team-tool-schemas.mjs'], { stdio: 'inherit' })
 
+// M125 lane W: the judged-models table ships beside the setup bundles,
+// byte-identical; the setup flow validates it before use.
+cpSync('src/shared/judgeModels.json', 'dist/judgeModels.json', { force: true })
 mkdirSync('dist/legal-data', { recursive: true })
 // Dataset attribution and provenance accompany both packaged scanner bundles.
 cpSync('src/core/legal/data/NOTICE.md', 'dist/legal-data/NOTICE.md', { force: true })
@@ -353,6 +356,8 @@ const JUDGE_USES_ENTRY = 'src/runtime/judge/judgeUsesEntry.ts'
 const JUDGE_USES_OUTFILE = 'dist/judgeUses.js'
 const JUDGE_SERVE_ENTRY = 'src/runtime/judge/judgeServeEntry.ts'
 const JUDGE_SERVE_OUTFILE = 'dist/judgeServe.js'
+const JUDGE_SETUP_ENTRY = 'src/runtime/judge/judgeSetupEntry.ts'
+const JUDGE_SETUP_OUTFILE = 'dist/judgeSetup.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
@@ -995,6 +1000,11 @@ const judgeServeOptions = {
   ...judgeP2Options,
   entryPoints: [JUDGE_SERVE_ENTRY],
   outfile: JUDGE_SERVE_OUTFILE,
+}
+const judgeSetupOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_SETUP_ENTRY],
+  outfile: JUDGE_SETUP_OUTFILE,
 }
 
 const judgeOptions = {
@@ -1872,6 +1882,7 @@ if (isWatch) {
     esbuild.context(judgeLocalOptions),
     esbuild.context(judgeUsesOptions),
     esbuild.context(judgeServeOptions),
+    esbuild.context(judgeSetupOptions),
     esbuild.context(validationSchemaOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
@@ -2031,6 +2042,7 @@ if (isWatch) {
     judgeLocal: recorded('judgeLocal', judgeLocalOptions),
     judgeUses: recorded('judgeUses', judgeUsesOptions),
     judgeServe: recorded('judgeServe', judgeServeOptions),
+    judgeSetup: recorded('judgeSetup', judgeSetupOptions),
     validationSchema: recorded('validationSchema', validationSchemaOptions),
     scheduleBackground: recorded('scheduleBackground', scheduleBackgroundOptions),
     uiText: recorded('uiText', uiTextOptions),

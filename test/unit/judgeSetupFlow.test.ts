@@ -348,7 +348,9 @@ describe('setup flow', () => {
       const world = fakeWorld(failure.ports)
       seedArchive(world)
       const result = await runJudgeSetupFlow(runOptions(world, planned()))
-      expect(result).toEqual({ ok: false, phase: failure.phase, reason: failure.reason })
+      // The port-thrown failures carry the port's refusal; the rest do not.
+      const cause = index === 5 || index === 8 ? { cause: expect.any(Error) } : {}
+      expect(result).toEqual({ ok: false, phase: failure.phase, reason: failure.reason, ...cause })
       // Only the runs that started the runtime stop it again.
       expect(world.stopped).toBe(index >= 6 && index <= 9)
     }

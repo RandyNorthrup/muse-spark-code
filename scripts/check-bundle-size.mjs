@@ -91,7 +91,10 @@ const BUDGETS = [
   { path: 'dist/connector.js', budgetKiB: 125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
-  { path: 'dist/modelApi.js', budgetKiB: 525 },
+  // RLM125 lanes M/P: the fast path rides every Model API turn (tail,
+  // triage, effort, B1 veto), so it bundles with the session: 546.8 KiB
+  // measured +5%, rounded up to 25 KiB.
+  { path: 'dist/modelApi.js', budgetKiB: 575 },
   // PR206: the Muse Code backend's own bundle (the host, its notification
   // mapping and the SDK), loaded on the first backend start: 97.6 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -414,6 +417,9 @@ const BUDGETS = [
   // RLM98P2: merged judge schema grows the serve closure to 25.2 KiB;
   // 25.2 KiB + 15%, rounded up to 25 KiB.
   { path: 'dist/judgeServe.js', budgetKiB: 30 },
+  // M125 lane W: the scan/setup/remove text steps: 39.7 KiB measured
+  // +15%, rounded up to 25 KiB.
+  { path: 'dist/judgeSetup.js', budgetKiB: 50 },
   // M98 integration: JSON Schema conversion loads only on explicit tool listing.
   { path: 'dist/validationSchema.js', budgetKiB: 50 },
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },

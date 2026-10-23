@@ -4918,6 +4918,17 @@
       "invocations": [["judge"]]
     },
     {
+      "route": "judgeSetup",
+      "name": "judge scan|setup|remove",
+      "description": "Scan this machine and install a local judge model.",
+      "text": { "ui": "referenceJudgeSetup" },
+      "invocations": [
+        ["judge", "scan"],
+        ["judge", "setup"],
+        ["judge", "remove"]
+      ]
+    },
+    {
       "route": "usage",
       "name": "usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json",
       "description": "Show usage and cost across models, or open the usage page.",

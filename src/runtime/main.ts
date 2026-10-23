@@ -131,7 +131,8 @@ import {
 } from '../core/usage/recording'
 import type { UsageBudgetRead } from '../core/usage/usageService'
 import { requireFile } from '../host/lazyBundle'
-import { judgeFeaturesLoader } from './judge/judgeBundle'
+import { isSetupAction } from './judge/args'
+import { judgeFeaturesLoader, setupFeaturesLoader } from './judge/judgeBundle'
 import { cliJudgeBinding } from './judge/cliBinding'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
 import { fileContextIo } from '../host/backend/contextIo'
@@ -1414,6 +1415,61 @@ async function main(): Promise<number> {
     })
     process.on('SIGINT', stop)
     process.on('SIGTERM', stop)
+    if (isSetupAction(command.action)) {
+      // M125 lane W: the local-only text steps, outside the priced
+      // pipeline (no binding, no admission, no request deadline). The
+      // abort signal still cancels; anything unexpected keeps the
+      // judge command's fixed words and codes.
+      const loadSetup = setupFeaturesLoader({
+        bundlePath: path.join(distDir, 'judgeSetup.js'),
+        log,
+      })
+      try {
+        await loadDisplayLanguage(log)
+        const setup = loadSetup()
+        const io = { stdin: process.stdin, stdout, stderr }
+        const setupPorts = setup.productionSetupCliPorts()
+        const setupPaths = {
+          storageRoot: agentDataFolder({
+            platform: process.platform,
+            env: process.env,
+            homeDir: homedir(),
+          }),
+          tableFile: path.join(distDir, 'judgeModels.json'),
+        }
+        let code: number
+        if (command.action === 'scan') {
+          code = await setup.runJudgeScan(io, command.surfaceArgs, setupPorts, setupPaths)
+        } else if (command.action === 'setup') {
+          code = await setup.runJudgeSetup(
+            io,
+            command.surfaceArgs,
+            setupPorts,
+            setupPaths,
+            controller.signal,
+          )
+        } else {
+          code = await setup.runJudgeRemove(io, command.surfaceArgs, setupPorts, setupPaths)
+        }
+        const flushed = await Promise.all([
+          stdout.flush(EXEC_FORCE_WRITE_MS),
+          stderr.flush(EXEC_FORCE_WRITE_MS),
+        ])
+        exitHeadless(
+          flushed.every(Boolean) && !stdout.isClosed && !stderr.isClosed ? code : EXEC_EXIT.failed,
+          stdout.queuedBytes > 0 || stderr.queuedBytes > 0,
+        )
+      } catch {
+        // Fixed words only: no paths, payloads or argv echo.
+        stderr.write(
+          `${controller.signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\n`,
+        )
+        exitHeadless(EXEC_EXIT.failed, stderr.queuedBytes > 0)
+      } finally {
+        process.off('SIGINT', stop)
+        process.off('SIGTERM', stop)
+      }
+    }
     try {
       // Available source/offline/surface adapters are required before those
       // commands can succeed; missing dependencies retain explicit refusals.
