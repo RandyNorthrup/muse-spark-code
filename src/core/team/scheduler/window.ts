@@ -428,6 +428,9 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
                 !(await retirementPort.applyReplacement(ref, replacement.attempt, checkpoint))
               )
                 return false
+              // The quarantined attempt keeps its copy, not its write lease:
+              // the replacement must be able to lease the same paths.
+              leases.withdraw(ref)
               await save()
               await scheduler.wake()
               return true
@@ -617,7 +620,12 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
       return true
     },
     reopenInterrupted: async (id) => {
+      const popped = board.task(id).currentAttempt
       if (!board.reopenInterrupted(id, deps.now())) return false
+      // The reopened attempt never ran: its recovered slot and write lease
+      // go back, or the fresh attempt's reservation reads as a duplicate.
+      slots.release({ taskId: id, attempt: popped }, 'retired')
+      adopted.find((lease) => lease.taskId === id && lease.attempt === popped)?.release()
       await save()
       return true
     },

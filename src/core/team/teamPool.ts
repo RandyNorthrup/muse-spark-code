@@ -1063,7 +1063,10 @@ export class TeamScheduler {
           accuracy: 'reported',
         },
       }
-      if (!this.board.begin(current.id, attempt)) return
+      // A ready task whose prior attempt is uncertain reached ready only
+      // through a quarantined replacement (prepareNext): begin it as one.
+      if (!this.board.begin(current.id, attempt, current.attempts.at(-1)?.state === 'uncertain'))
+        return
       isCounted = true
       this.noteActivity({ taskId: current.id, attempt: ref.attempt })
       const loan = this.board.task(current.id).loan
