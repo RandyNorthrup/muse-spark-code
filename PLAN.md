@@ -260,7 +260,7 @@ temp/planfix0190/d2-summary.txt Full record:
 | `@types/node`                                                                                        | 22.20.4                           |
 | `@vscode/vsce`                                                                                       | 4.0.0                             |
 | `react` / `react-dom` / `@types/react` / `@types/react-dom`                                          | 19.3.0                            |
-| `zod`                                                                                                | 4.6.5                             |
+| `zod`                                                                                                | 4.6.7                             |
 | `@muse-code/sdk`                                                                                     | 1.4.4                             |
 | `@agentclientprotocol/sdk`                                                                           | 1.7.0                             |
 | `husky` / `lint-staged`                                                                              | 9.1.7 / 17.5.1                    |
@@ -421,6 +421,17 @@ and the advisory carries a reviewed exception in
 `.github/audit-exceptions.json` that expires 2026-10-24: pin 14.3.3 through
 `overrides` once it is old enough, then remove the exception. No VSIX or ACP
 bundle imports markdown-it; no user or model input reaches it.
+
+INT-RECOVERY audit update (2026-10-23, D29): pin `zod` to 4.6.7 for
+GHSA-mrhx-c7xc-m3w5 (high: validating an oversized constrained collection
+can exhaust memory; versions before 4.6.6). GitHub updated the advisory on
+2026-10-23 and `security:audit` refused it once the braces exception
+closed. 4.6.7 was published 2026-10-12, past `.npmrc`'s seven-day rule;
+every dependent accepts it (`eslint-plugin-react-hooks` declares
+`^3.25.0 || ^4.0.0`; the ACP SDK, knip and `zod-validation-error`
+dedupe to the top-level copy). Integrity matches the registry tarball
+(sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==).
+`security:audit` exits 0 with only the markdown-it exception.
 
 SDK142 update (2026-10-02): `@muse-code/sdk` 1.4.2, published September 30,
 matches CLI 1.4.2-R4684.1 and is a drop-in for the runtime code imported by
