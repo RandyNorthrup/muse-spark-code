@@ -3159,6 +3159,49 @@
             },
           }
           send({ type: 'paidState', state: window.harnessPaid })
+          // M125 lane U: the window's fast-decision rolls ride the snapshot.
+          send({
+            type: 'judgeUsage',
+            usage: {
+              engine: 'off',
+              effectiveSource: 'none',
+              unverifiedLocal: false,
+              untested: false,
+              billing: 'none',
+              paidSourceSelected: false,
+              consent: 'not-required',
+              askFirstCharge: false,
+              showSubscriptionNote: false,
+              fast: {
+                rows: [
+                  {
+                    decision: 'loop.stuck',
+                    state: 'acted',
+                    reason: 'repeat',
+                    evaluated: 3,
+                    appliedTurns: 2,
+                  },
+                  {
+                    decision: 'triage.needFull',
+                    state: 'raised',
+                    reason: 'no-window',
+                    evaluated: 4,
+                    appliedTurns: 0,
+                    noWindow: 2,
+                  },
+                ],
+                totals: {
+                  turns: 5,
+                  appliedTurns: 2,
+                  raised: 3,
+                  acted: 2,
+                  judgeCalls: 0,
+                  judgeTokens: 0,
+                },
+                method: 'deterministic',
+              },
+            },
+          })
         },
         // --- D26: three approvals waiting; the oldest is docked, with the count ---
         'approval-several': () => {

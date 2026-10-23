@@ -4581,6 +4581,18 @@
     "unpriced": "Az ár nem ismert, ezért fizetős hívás nem indul.",
     "askOnce": "Ár ellenőrzése",
     "freeLocal": "Ingyenes ezen a számítógépen",
+    "fast": {
+      "method": "Gyors módszer",
+      "turns": "Gyors fordulók",
+      "applied": "Alkalmazott gyors fordulók",
+      "judgeCalls": "Értékelőhívások",
+      "judgeTokens": "Értékelő tokenjei",
+      "saved": "Megtakarított idő",
+      "stateActed": "Alkalmazva",
+      "stateRaised": "Észlelve, nem alkalmazva",
+      "stateIdle": "Nem észlelt",
+      "noWindow": "{count} ablak nélkül"
+    },
     "techniques": {
       "logprob": "Log-valószínűségek",
       "top1": "Közelítés az első tokenből",

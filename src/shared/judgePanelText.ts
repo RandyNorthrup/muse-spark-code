@@ -2,8 +2,13 @@
 // Wire schemas and host projection stay in judgePanel without these labels.
 import { MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS, UI_TEXT } from './constants'
 import { formatUsd } from './l10n/exactUsd'
-import { fill } from './l10n/text'
-import type { JudgePanelLabel, JudgePanelSnapshot, JudgePanelTechnique } from './judgePanelSchema'
+import { fill, formatDurationMs, formatNumber } from './l10n/text'
+import type {
+  JudgePanelFastRow,
+  JudgePanelLabel,
+  JudgePanelSnapshot,
+  JudgePanelTechnique,
+} from './judgePanelSchema'
 
 /**
 Exact dollars. The paid view quotes provider prices at the same scale
@@ -171,6 +176,26 @@ function moneyRow(
 }
 
 /**
+D107 (M125 lane U): one fast decision's detail. The state names what
+the window did with the decision; the reason token and the decision
+id stay technical, as model ids do.
+*/
+function fastRowDetail(row: JudgePanelFastRow): string {
+  const text = UI_TEXT.judgePanel.fast
+  let state = text.stateIdle
+  if (row.state === 'acted') {
+    state = text.stateActed
+  } else if (row.state === 'raised') {
+    state = text.stateRaised
+  }
+  const windowed =
+    row.noWindow === undefined || row.noWindow === 0
+      ? ''
+      : `, ${fill(text.noWindow, { count: formatNumber(row.noWindow) })}`
+  return `${state} · ${row.reason}${windowed}`
+}
+
+/**
 The definition list the panel and the usage dialog share. A subscription
 with no paid source shows the subscription status, not a zero price.
 An unknown paid amount says it is not known.
@@ -231,6 +256,23 @@ export function judgePanelRows(snapshot: JudgePanelSnapshot): readonly JudgePane
       term: UI_TEXT.judgePanel.spentToday,
       detail: judgePanelMoney(snapshot.dailySpentUsd),
     })
+  }
+  const fast = snapshot.fast
+  if (fast !== undefined) {
+    const text = UI_TEXT.judgePanel.fast
+    rows.push(
+      { term: text.method, detail: fast.method },
+      { term: text.turns, detail: formatNumber(fast.totals.turns) },
+      { term: text.applied, detail: formatNumber(fast.totals.appliedTurns) },
+      { term: text.judgeCalls, detail: formatNumber(fast.totals.judgeCalls) },
+      { term: text.judgeTokens, detail: formatNumber(fast.totals.judgeTokens) },
+    )
+    if (fast.savedMsTotal !== undefined) {
+      rows.push({ term: text.saved, detail: formatDurationMs(fast.savedMsTotal) })
+    }
+    for (const row of fast.rows) {
+      rows.push({ term: row.decision, detail: fastRowDetail(row) })
+    }
   }
   return rows
 }

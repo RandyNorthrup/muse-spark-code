@@ -131,6 +131,17 @@ export function formatUnit(value: number, unit: DurationUnit | 'byte'): string {
   }).format(value)
 }
 
+const MS_PER_SECOND = 1000
+const SECONDS_PER_MINUTE = 60
+
+/** "45s", "1m 30s", in the display language's narrow units. */
+export function formatDurationMs(durationMs: number): string {
+  const totalSeconds = Math.round(durationMs / MS_PER_SECOND)
+  const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE)
+  const seconds = formatUnit(totalSeconds % SECONDS_PER_MINUTE, 'second')
+  return minutes === 0 ? seconds : `${formatUnit(minutes, 'minute')} ${seconds}`
+}
+
 /** "5 min. ago", "yesterday": a signed amount of time relative to now. */
 export function formatRelativeTime(value: number, unit: Intl.RelativeTimeFormatUnit): string {
   return current.relativeTimes.format(value, unit)

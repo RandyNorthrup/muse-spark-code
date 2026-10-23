@@ -2904,6 +2904,14 @@ export class ConversationController {
         ])
         break
       }
+      case 'judgeFastTurn': {
+        // D107 (M125 lane U): the turn's fast-decision record joins the
+        // window's rolls, and the usage dialog shows the fresh snapshot.
+        this.deps.judge?.observeFastTurn?.(event)
+        const usage = this.deps.judge?.readPanelSnapshot?.()
+        if (usage !== undefined) this.postJudge({ type: 'judgeUsage', usage })
+        break
+      }
       default: {
         break
       }

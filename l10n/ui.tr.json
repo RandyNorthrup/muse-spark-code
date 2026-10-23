@@ -4581,6 +4581,18 @@
     "unpriced": "Fiyat bilinmiyor, bu yüzden ücretli bir çağrı gönderilmez.",
     "askOnce": "Fiyatı gözden geçir",
     "freeLocal": "Bu bilgisayarda ücretsiz",
+    "fast": {
+      "method": "Hızlı yöntem",
+      "turns": "Hızlı turlar",
+      "applied": "Uygulanan hızlı turlar",
+      "judgeCalls": "Değerlendirici çağrıları",
+      "judgeTokens": "Değerlendirici jetonları",
+      "saved": "Kazanılan süre",
+      "stateActed": "Uygulandı",
+      "stateRaised": "Algılandı, uygulanmadı",
+      "stateIdle": "Algılanmadı",
+      "noWindow": "{count} penceresiz"
+    },
     "techniques": {
       "logprob": "Log olasılıkları",
       "top1": "İlk belirteçten yaklaşık değer",

@@ -4468,6 +4468,18 @@
     "unpriced": "가격을 모르므로 유료 호출은 보내지 않습니다.",
     "askOnce": "가격 검토",
     "freeLocal": "이 컴퓨터에서 무료",
+    "fast": {
+      "method": "빠른 방법",
+      "turns": "빠른 턴",
+      "applied": "적용된 빠른 턴",
+      "judgeCalls": "판단자 호출",
+      "judgeTokens": "판단자 토큰",
+      "saved": "절약된 시간",
+      "stateActed": "적용됨",
+      "stateRaised": "감지됨, 미적용",
+      "stateIdle": "미감지",
+      "noWindow": "윈도우 없음 {count}건"
+    },
     "techniques": {
       "logprob": "로그 확률",
       "top1": "첫 토큰으로 근사",

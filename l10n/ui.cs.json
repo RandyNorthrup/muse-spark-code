@@ -4807,6 +4807,18 @@
     "unpriced": "Cena není známa, takže se placené volání neodesílá.",
     "askOnce": "Zkontrolovat cenu",
     "freeLocal": "Zdarma na tomto počítači",
+    "fast": {
+      "method": "Rychlá metoda",
+      "turns": "Rychlé tahy",
+      "applied": "Použité rychlé tahy",
+      "judgeCalls": "Volání posuzovatele",
+      "judgeTokens": "Tokeny posuzovatele",
+      "saved": "Ušetřený čas",
+      "stateActed": "Použito",
+      "stateRaised": "Zjištěno, nepoužito",
+      "stateIdle": "Nezjištěno",
+      "noWindow": "{count} bez okna"
+    },
     "techniques": {
       "logprob": "Logaritmické pravděpodobnosti",
       "top1": "Odhad z prvního tokenu",
