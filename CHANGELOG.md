@@ -628,6 +628,17 @@ set|status|clear --provider <id> --admin` stores the separate admin
   request with more images than Anthropic's documented per-request count
   (100 for 200k-context models, 600 otherwise) is refused with the reason
   before sending.
+- Background requests honour DeepSeek's documented account concurrency
+  (2500 for deepseek-flash, 500 for deepseek-v4-pro): past the ceiling
+  they wait for a request slot and say so, naming DeepSeek's limit,
+  instead of collecting the provider's 429. Azure requests spread evenly
+  across the documented 1-second and 10-second evaluation windows once
+  Azure's own answers start arriving; until its capture lands, Azure
+  dispatches stay refused as before.
+- A request Anthropic would reject is refused with the reason before
+  sending: past 20 images every image must fit 2000 px per side, and a
+  request past the documented 32 MB Messages cap names the cap and its
+  own size.
 
 ### Fixed
 

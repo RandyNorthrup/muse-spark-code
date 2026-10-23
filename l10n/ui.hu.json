@@ -114,6 +114,8 @@
   "outputSchemaLocalValidation": "Kimeneti séma ellenőrzése: helyben (a kiválasztott modellnek nincs strukturált kimeneti formátuma).",
   "outputSchemaReadFailed": "A kimeneti séma nem olvasható: {detail}",
   "modelApiPacingWaiting": "Várakozás a kérések korlátján belüli szabad kapacitásra…",
+  "modelApiPacingConcurrencyWaiting": "Várakozás DeepSeek-kéréshelyre (fiókszintű korlát {limit})…",
+  "modelApiPacingBurstWaiting": "Kérések egyenletes elosztása az Azure rövid ablakos sebességkiértékeléséhez…",
   "modelApiStatusLabel": "A Meta API állapota",
   "modelApiStatusUnavailable": "Az állapot nem érhető el",
   "modelApiStatusOpen": "A szolgáltatás állapotának megnyitása",
@@ -5393,6 +5395,8 @@
   "chatCodecThinkingOffUnsupported": "A kiválasztott modellnél a gondolkodás nem kapcsolható ki.",
   "anthropicCodecEmptyTurn": "Az Anthropic legalább egy üzenetet igényel.",
   "anthropicCodecLimitExceeded": "Az Anthropic válasza túllépte a dekódolási korlátot.",
+  "anthropicCodecManyImagesDimensions": "Az Anthropic legfeljebb {maxPixels} px-t engedélyez képenként oldalanként a {maxImages} képnél többet tartalmazó kérésekben ({count} kép, legnagyobb oldal {pixels} px).",
+  "anthropicCodecRequestTooLarge": "Az Anthropic legfeljebb {maxSize} méretű kéréseket engedélyez (ez a kérés {size}).",
   "modelsEmpty": "Még nincsenek modellszolgáltatók. Adjon hozzá egyet saját modellek használatához.",
   "panelNoMatches": "Nincs találat.",
   "modelFilterLabels": {
