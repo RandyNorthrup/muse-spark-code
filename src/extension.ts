@@ -99,7 +99,6 @@ import {
   PAID_FEATURE_SETTINGS,
   IS_AUTO_COMPACTION_EVALUATED,
   PAID_DAILY_BUDGET,
-  type PaidFeature,
   PERSONAL_SKILLS_GLOB,
   PROJECT_SKILLS_GLOB,
   GLOBAL_STATE_KEYS,
@@ -429,7 +428,7 @@ import { museCodeReviewerPort } from './host/review/museCodeReviewerBundle'
 import { isActivationPaidSettingOn } from './host/paid/paidActivation'
 import { modelsSubscriptionsLoader } from './host/models/modelsSubscriptionsBundle'
 import { paidBundleLoader } from './host/paid/paidBundle'
-import type { PaidFeatures } from './host/paid/paidHost'
+import { paidAvailability, type PaidFeatures } from './host/paid/paidHost'
 import type { askPaidUse as askPaidUseFn } from './host/paid/paidEntry'
 import type * as ScheduleSurfaces from './host/conversation/scheduleSurfacesEntry'
 import { authBundleLoader } from './host/auth/authBundle'
@@ -1271,10 +1270,6 @@ async function activateWindow(
   // sign-in change, never from anywhere but the secret store.
   let isKeyStored = false
   let paidBackend: 'modelApi' | 'museCode' | undefined
-  const isDefaultPaidOn = (feature: PaidFeature) =>
-    vscode.workspace
-      .getConfiguration(SETTINGS_SECTION)
-      .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined
   void vscode.commands.executeCommand(
     VSCODE_COMMANDS.setContext,
     CONTEXT_KEYS.scheduleDeliveryCertified,
@@ -1335,9 +1330,13 @@ async function activateWindow(
       isSettingOn: (feature) => isActivationPaidSettingOn(feature, currentSettings()),
       isJudgeOn: () => isJudgeEngineOn(currentSettings()['judge.engine']),
       autoCompactionEvaluated: () => IS_AUTO_COMPACTION_EVALUATED,
-      isAvailable: (feature) =>
-        feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature),
-      isDefaultOn: isDefaultPaidOn,
+      ...paidAvailability({
+        backend: () => paidBackend,
+        hasUserValue: (feature) =>
+          vscode.workspace
+            .getConfiguration(SETTINGS_SECTION)
+            .inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue !== undefined,
+      }),
       dailyBudgetUsd: (feature) =>
         paidBackend === 'modelApi' || feature === 'legalExplanation'
           ? dailyPaid.capUsd()
