@@ -4771,6 +4771,12 @@
     "removeDone": "Odebráno: {paths}.",
     "setupUsage": "Použití: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} odpovídá v rámci svého limitu (p95 {p95}).",
+    "doneClassOver": "{class} nestíhá svůj limit (p95 {p95}); tato rozhodnutí běží jako dosud.",
+    "doneCheckOn": "Zkalibrováno.",
+    "doneCheckOff": "Zatím nezkalibrováno."
+  },
   "judgeB1": {
     "allowRow": "Povoleno bez kontroly: příkaz inspect",
     "excluded": {

@@ -4547,6 +4547,12 @@
     "removeDone": "Eltávolítva: {paths}.",
     "setupUsage": "Használat: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} a határidőn belül válaszol (p95 {p95}).",
+    "doneClassOver": "{class} túllépi a határidőt (p95 {p95}); ezek a döntések a megszokott módon futnak.",
+    "doneCheckOn": "Kalibrálva.",
+    "doneCheckOff": "Még nincs kalibrálva."
+  },
   "judgeB1": {
     "allowRow": "Felülvizsgálat nélkül engedélyezve: inspect parancs",
     "excluded": {

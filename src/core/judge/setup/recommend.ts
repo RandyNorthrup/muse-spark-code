@@ -100,7 +100,8 @@ const CLASS_NAME_KEYS = {
   P: 'classPost',
 } as const
 
-function className(timingClass: FastTimingClass): string {
+/** The timing class's display name; the Done step reuses it for its rows. */
+export function className(timingClass: FastTimingClass): string {
   return UI_TEXT.judgeRecommend[CLASS_NAME_KEYS[timingClass]]
 }
 

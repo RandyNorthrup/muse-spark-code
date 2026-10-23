@@ -1428,7 +1428,7 @@ async function main(): Promise<number> {
         await loadDisplayLanguage(log)
         const setup = loadSetup()
         const io = { stdin: process.stdin, stdout, stderr }
-        const setupPorts = setup.productionSetupCliPorts()
+        const setupPorts = setup.productionSetupPorts()
         const setupPaths = {
           storageRoot: agentDataFolder({
             platform: process.platform,

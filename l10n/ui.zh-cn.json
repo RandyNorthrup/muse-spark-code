@@ -4435,6 +4435,12 @@
     "removeDone": "已删除:{paths}。",
     "setupUsage": "用法:judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} 在期限内响应(p95 {p95})。",
+    "doneClassOver": "{class} 未能赶上期限(p95 {p95});这些决定保持原样运行。",
+    "doneCheckOn": "已校准。",
+    "doneCheckOff": "尚未校准。"
+  },
   "judgeB1": {
     "allowRow": "免复查允许：inspect 命令",
     "excluded": {

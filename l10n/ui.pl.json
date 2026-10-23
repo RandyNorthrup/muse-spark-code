@@ -4771,6 +4771,12 @@
     "removeDone": "Usunięto: {paths}.",
     "setupUsage": "Użycie: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} odpowiada w terminie (p95 {p95}).",
+    "doneClassOver": "{class} przekracza termin (p95 {p95}); te decyzje działają jak dotąd.",
+    "doneCheckOn": "Skalibrowano.",
+    "doneCheckOff": "Jeszcze nieskalibrowane."
+  },
   "judgeB1": {
     "allowRow": "Dozwolone bez przeglądu: polecenie inspect",
     "excluded": {

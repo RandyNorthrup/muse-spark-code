@@ -4547,6 +4547,12 @@
     "removeDone": "Kaldırıldı: {paths}.",
     "setupUsage": "Kullanım: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} zamanında yanıt verir (p95 {p95}).",
+    "doneClassOver": "{class} son tarihi kaçırır (p95 {p95}); bu kararlar eskisi gibi çalışır.",
+    "doneCheckOn": "Kalibre edildi.",
+    "doneCheckOff": "Henüz kalibre edilmedi."
+  },
   "judgeB1": {
     "allowRow": "İnceleme olmadan izin verildi: inspect komutu",
     "excluded": {
