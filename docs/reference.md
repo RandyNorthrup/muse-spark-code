@@ -59,7 +59,7 @@ Enter the context window loaded on the local server. Manual values override scan
 
 Surfaces: vscode:museCode, vscode:modelApi, acp:museCode, acp:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
+Commands: `museSpark.startWithOwnModel`, `museSpark.modelsAndAgents`, `museSpark.addModelProvider`, `museSpark.connectChatGpt`, `museSpark.connectCopilot`, `museSpark.connectGrok`. Settings: `museSpark.suggestedProvider`, `museSpark.modelApiSessionBudgetUsd`, `museSpark.grokClientId`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#backends)
 
 ### Show Report…
 
@@ -2009,6 +2009,10 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 
 `museSpark.connectCopilot` — Add a model provider with an API key and pick a model.
 
+### Muse Spark: Continue With Grok
+
+`museSpark.connectGrok` — Add a model provider with an API key and pick a model.
+
 ### Muse Spark: Share Prompt…
 
 `museSpark.sharePrompt` — Review the exact preview for private text before confirming. Known and registered secrets are removed; other private text may remain.
@@ -3423,6 +3427,19 @@ Type: `"string"`. Default: `""`. Scope: `window`.
 }
 ```
 
+### museSpark.grokClientId
+
+This app's own xAI OAuth client id for Grok subscription sign-in (Continue With Grok). Empty until xAI issues one; sign-in refuses until it is set. A client id is a public identifier, not a secret.
+
+Type: `"string"`. Default: `""`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "default": ""
+}
+```
+
 ### museSpark.modelApiAutoCompaction
 
 conversationStart&modelPricing: On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.
@@ -3786,6 +3803,7 @@ These are defaults; editor customizations take precedence.
 - `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `help <command>`: help / --help / -h: ACP / CLI. help &lt;command&gt; / &lt;command&gt; --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.
 - `providers add|remove|status chatgpt [--new-account]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers add|remove|status grok [--device] [--client-id <id>] [--scopes <scopes>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `[options]`: muse-spark-code-acp [options] Serve the Agent Client Protocol on stdin and stdout
 - `login`: Runs Muse Code’s own sign-in in a terminal. Your Muse subscription pays for the conversations.
 - `auth set`: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations.
