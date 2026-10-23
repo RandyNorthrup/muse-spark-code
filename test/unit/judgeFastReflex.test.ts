@@ -73,6 +73,25 @@ describe('fast judge reflex checks', () => {
     })
   })
 
+  it('skips recorded passing summaries, and nothing like them', () => {
+    expect(triageOutput({ exitCode: 0, output: fixture('vitest-pass.txt') })).toEqual({
+      decision: 'skip',
+      reason: 'pass-summary',
+    })
+    expect(triageOutput({ exitCode: 0, output: fixture('git-status-clean.txt') })).toEqual({
+      decision: 'skip',
+      reason: 'pass-summary',
+    })
+    // A failing count beside the passing one still needs the full output.
+    expect(triageOutput({ exitCode: 1, output: fixture('vitest-summary.txt') })).toMatchObject({
+      decision: 'needs-full',
+    })
+    // No exit code, no skip: an unrecognised tool's summary is a guess.
+    expect(triageOutput({ exitCode: undefined, output: fixture('vitest-pass.txt') })).toEqual({
+      decision: 'miss',
+    })
+  })
+
   it('lowers effort only for narrowly mechanical requests, and never raises it', () => {
     expect(ruleEffort({ request: 'format these files', filesTouched: 2 })).toEqual({
       decision: 'lower',

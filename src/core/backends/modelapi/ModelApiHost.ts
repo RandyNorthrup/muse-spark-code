@@ -114,6 +114,7 @@ import {
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
   JUDGE_FAST_B1_READY_PLATFORMS,
+  JUDGE_FAST_KEEP_ENTRIES,
   JUDGE_FAST_VETO_WINDOW_MS,
   MCP_ELICITATION_TIMEOUT_MS,
   MEMORY_INDEX_FILE,
@@ -275,6 +276,20 @@ import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
 import { raceB1Hold, resolveB1Executable } from '../../judge/fast/approval'
+import {
+  doneTailNote,
+  failureTailHint,
+  loopTailNote,
+  lowerEffortLevel,
+  rankedKeepIds,
+  tailNotes,
+  triageRoute,
+} from '../../judge/fast/apply'
+import { judgeDoneClaim } from '../../judge/fast/reflex/done'
+import { ruleEffort } from '../../judge/fast/reflex/effort'
+import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
+import { detectLoop, type LoopSignal } from '../../judge/fast/reflex/loop'
+import { triageOutput } from '../../judge/fast/reflex/triage'
 import {
   b1Realpath,
   closeInspectSession,
@@ -661,6 +676,14 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   its confinement, and the helper ships only with certification (§11).
   */
   readonly b1HelperPath?: string | undefined
+  /**
+  D107 (M125 lane M): the fast judge's one switch
+  (`museSpark.judge.fastPathOff`), read at each decision. On keeps the
+  same-model caution judge only: no tail note, no triage mark, no effort
+  change and no kept entry. Absent reads as off's opposite: the
+  deterministic checks run.
+  */
+  readonly fastPathOff?: (() => boolean) | undefined
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
@@ -2473,6 +2496,20 @@ function typedText(parts: readonly TurnPart[]): string {
     .trim()
 }
 
+/** The text a replay input item carries, for the judge's keep-list ranking. */
+function inputItemText(item: InputItem): string | undefined {
+  if (item.type === 'message') {
+    const texts: string[] = []
+    for (const part of item.content) {
+      if (part.type === 'input_text') texts.push(part.text)
+    }
+    return texts.length === 0 ? undefined : texts.join('\n')
+  }
+  return item.type === 'function_call_output' && typeof item.output === 'string'
+    ? item.output
+    : undefined
+}
+
 /** A tool's argument JSON as an object; an empty one when it is not an object. */
 function parsedArguments(argsJson: string): Record<string, unknown> {
   try {
@@ -2942,6 +2979,19 @@ export class ModelApiSession implements ScheduledAgentSession {
   private outputFormat: CreateResponseBody['text']
   private readonly outputCaps = new WeakMap<ResolvedModel, number>()
   private readonly repeatGuard = new RepeatGuard()
+  /**
+  D107 (M125 lane M): the fast judge's session state. The loop signals
+  cover the current turn only (a turn boundary starts a new episode);
+  the tail queue drains into the next request; the triage tallies feed
+  the Judge section's no-window share (lane U).
+  */
+  private readonly fastLoop: LoopSignal[] = []
+  private readonly fastTail: string[] = []
+  private fastStuck = false
+  private fastLastTurn: string | undefined
+  private fastLastRequest = ''
+  private fastTriageMiss = 0
+  private fastTriageNoWindow = 0
   /**
   The ledger total a resumed session brought (M73), kept so a save keeps
   it even where this session does not pack; a packing session's store
@@ -5226,9 +5276,177 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
   }
 
+  /** D107 (M125 lane M): the fast judge's one switch, read at each decision. */
+  private fastOff(): boolean {
+    return this.deps.fastPathOff?.() === true
+  }
+
+  /**
+  D107 §6.3 and §6.2 (lane M): one settled tool result through the loop
+  detector and the first-send triage. A loop queues its note for the
+  next request's tail, once per episode — the turn is never stopped
+  (D121), and a repeat also carries the repeat guard's own notice. A
+  skipped output packs through M73's own placeholder; anything else
+  rides whole as today, and a miss tallies for the Judge section's
+  no-window share (lane U).
+  */
+  private fastObserveResult(
+    call: { readonly name: string; readonly arguments: string; readonly call_id: string },
+    output: string,
+    exitCode: number | undefined,
+    hasFailed: boolean,
+    isParallel: boolean,
+  ): void {
+    if (this.fastOff()) return
+    this.fastLoop.push({
+      key: toolRepeatKey(call),
+      failed: hasFailed,
+      outputDigest: fingerprint(output),
+    })
+    const loop = detectLoop(this.fastLoop)
+    if (loop.stuck && !this.fastStuck) {
+      this.fastTail.push(loopTailNote(loop.pattern, call.name))
+      if (loop.pattern === 'repeat') {
+        const last = this.fastLoop.at(-1)
+        let run = 0
+        if (last !== undefined) {
+          for (const signal of this.fastLoop.toReversed()) {
+            if (signal.key !== last.key || signal.outputDigest !== last.outputDigest) break
+            run += 1
+          }
+        }
+        this.emit({
+          type: 'backendNotice',
+          level: 'info',
+          text: fill(UI_TEXT.modelApiToolRepeating, {
+            tool: call.name,
+            count: formatNumber(run),
+          }),
+        })
+      }
+    }
+    this.fastStuck = loop.stuck
+    // A parallel call settles while its round's other calls ran
+    // alongside, so the decision may still land before the next
+    // request; a lone result has no window.
+    const route = triageRoute(
+      triageOutput({ exitCode, output }),
+      isParallel ? 'real' : 'none',
+      false,
+    )
+    if (route.action === 'pack') this.packing?.markEarly(call.call_id)
+    else if (route.unasked !== 'recognised') {
+      this.fastTriageMiss += 1
+      if (route.unasked === 'no-window') this.fastTriageNoWindow += 1
+    }
+  }
+
+  /**
+  D107 §6.4 and §7.3 (lane M): the turn boundary. The loop signals
+  cover one turn's episode; the finished turn's reply and outputs queue
+  the next turn's hints. A backed done queues its note; an unbacked one
+  is lane U's note under the reply, nothing model-side. The replay
+  keeps no exit code, so the verdicts read the texts alone and miss
+  more often without one — never a guess.
+  */
+  private fastOnTurn(turnId: string | undefined): void {
+    if (turnId === this.fastLastTurn) return
+    const previous = this.fastLastTurn
+    this.fastLastTurn = turnId
+    this.fastLoop.length = 0
+    this.fastStuck = false
+    if (previous === undefined || this.fastOff()) return
+    const reply = this.transcript.findLast(
+      (entry) => entry.turnId === previous && entry.item.kind === 'agentMessage',
+    )?.item.text
+    if (reply === undefined) return
+    const names = new Map<string, string>()
+    const outputs: { readonly tool: string; readonly output: string }[] = []
+    for (const entry of this.replay) {
+      if (entry.turnId !== previous) continue
+      if (entry.item.type === 'function_call') names.set(entry.item.call_id, entry.item.name)
+      else if (
+        entry.item.type === 'function_call_output' &&
+        typeof entry.item.output === 'string'
+      ) {
+        outputs.push({ tool: names.get(entry.item.call_id) ?? 'tool', output: entry.item.output })
+      }
+    }
+    if (outputs.length === 0) return
+    const done = judgeDoneClaim({
+      replyText: reply,
+      toolOutputs: outputs.map((output) => ({ exitCode: undefined, output: output.output })),
+    })
+    if (done.decision === 'backed') this.fastTail.push(doneTailNote())
+    for (const output of outputs) {
+      const failure = findUnmentionedFailure({
+        toolOutput: output.output,
+        exitCode: undefined,
+        replyText: reply,
+      })
+      if (failure.decision === 'unmentioned') {
+        this.fastTail.push(failureTailHint(output.tool))
+        return
+      }
+    }
+  }
+
+  /**
+  D107 §6.6 (lane M): this request's effort. A narrowly mechanical
+  request on a few touched files runs one level below the configured
+  effort on the model's own scale; anything else sends the configured
+  level, byte for byte as today.
+  */
+  private fastEffort(resolved: ResolvedModel): string {
+    const turn = this.active
+    if (turn === undefined || this.fastOff()) return this.effort
+    const files = this.replay.filter(
+      (entry) =>
+        entry.turnId === turn.turnId &&
+        entry.item.type === 'function_call' &&
+        (entry.item.name === MODEL_API_TOOLS.writeFile ||
+          entry.item.name === MODEL_API_TOOLS.editFile),
+    ).length
+    const verdict = ruleEffort({ request: typedText(turn.inputParts), filesTouched: files })
+    if (verdict.decision !== 'lower') return this.effort
+    // The model's own scale from its capability record; unknown keeps
+    // the configured level.
+    const levels = resolved.policy.reasoning.effortLevels
+    return lowerEffortLevel(this.effort, levels.state === 'yes' ? levels.value : [])
+  }
+
+  /**
+  D107 §6.1 (lane M): what this compaction keeps past its tail: the
+  replay entries the request's text ranks most relevant, most relevant
+  first, up to the keep bound. Empty with the switch off, with no
+  request yet, or on a miss — the tail then keeps exactly as today.
+  Nothing already sent is removed or reordered.
+  */
+  private fastKeepForCompaction(kept: readonly ReplayItem[]): ReplayItem[] {
+    if (this.fastOff() || this.fastLastRequest.trim().length === 0) return []
+    const held = new Set(kept)
+    const candidates: { readonly id: string; readonly text: string }[] = []
+    for (const [index, entry] of this.replay.entries()) {
+      if (held.has(entry)) continue
+      const text = inputItemText(entry.item)
+      if (text !== undefined && text.trim().length > 0) candidates.push({ id: String(index), text })
+    }
+    const ids = new Set(
+      rankedKeepIds(this.fastLastRequest, candidates).slice(0, JUDGE_FAST_KEEP_ENTRIES),
+    )
+    const keptEntries: ReplayItem[] = []
+    for (const [index, entry] of this.replay.entries()) {
+      if (ids.has(String(index))) keptEntries.push(entry)
+    }
+    return keptEntries
+  }
+
   private body(resolved: ResolvedModel, shouldFormatDraft = true): CreateResponseBody {
     this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
+    // D107 (lane M): first, so a new turn's first request already carries
+    // the finished turn's hints at its tail.
+    this.fastOnTurn(this.active?.turnId)
     const original = this.requestReplay().map((entry) => entry.item)
     const recorded = RecordingScope.build(recordProjection, {
       inputs: original.map((item) => ({
@@ -5276,6 +5494,18 @@ export class ModelApiSession implements ScheduledAgentSession {
         content: [{ type: 'input_text', text: progress }],
       })
     }
+    // D107 (lane M): the fast judge's queued tail notes drain here, one
+    // developer message each, after everything already sent. Empty with
+    // the switch off or every decision abstaining: the input then keeps
+    // today's bytes.
+    const drained = tailNotes(this.fastTail.splice(0))
+    for (const note of drained) {
+      input.push({
+        type: 'message',
+        role: note.role,
+        content: [{ type: 'input_text', text: note.text }],
+      })
+    }
     const prompt = this.promptAndTools(
       this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
       resolved,
@@ -5308,7 +5538,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(wrapUpLimit !== undefined && { tools: [] }),
       tool_choice: 'auto',
       reasoning: {
-        effort: effortForPolicy(resolved.policy, this.effort),
+        effort: effortForPolicy(resolved.policy, this.fastEffort(resolved)),
         // The provider's own client sends no summary where the catalogue
         // says the model takes none; every other request is unchanged.
         ...(resolved.policy.reasoning.planFacts?.supportsReasoningSummary !== false && {
@@ -6062,6 +6292,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       .filter((line) => line.length > 0)
       .join('\n')
     this.firstPrompt ??= text
+    // D107 (lane M): the keep-list's ranking query is always the latest
+    // request's text.
+    this.fastLastRequest = text
     const attachments = attachmentsOf(parts)
     this.recordTranscript(turnId, {
       itemId,
@@ -14343,6 +14576,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         : (outcome.outputParts ?? outcome.output),
       post.replacement === undefined ? repeatWitness : undefined,
     )
+    // D107 (lane M): what the model will read, as the guard above sees
+    // it: a hook replacement wins over the outcome's own text.
+    let fastOutput = outcome.output
+    if (post.replacement?.target === 'toolResult') {
+      const value = post.replacement.value
+      fastOutput = typeof value === 'string' ? value : JSON.stringify(value)
+    }
+    this.fastObserveResult(
+      effectiveCall,
+      fastOutput,
+      outcome.exitCode,
+      outcome.failureReason !== undefined,
+      executed.value.isParallelExecution,
+    )
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
         ? [post.blockedReason]
@@ -16781,6 +17028,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         (entry) => canReplayReasoning || !isReasoningItem(entry.item),
       )
       tail = [...new Set([...tail, ...(this.media?.tail(this.replay) ?? [])])]
+      // D107 §6.1 (lane M): the judge keeps relevance-ranked entries past
+      // the tail; empty with the switch off or on a miss.
+      tail = [...new Set([...tail, ...this.fastKeepForCompaction(tail)])]
       const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
       snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
       const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
