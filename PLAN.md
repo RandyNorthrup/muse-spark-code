@@ -16319,6 +16319,10 @@ observe the named tests fail, restore byte-exact and record the evidence in
      before lanes SH1, SH2, WB and ST start; his changes land in lane 0's
      component contracts.
 
+     **Owner answer (2026-10-23): approved — "looks great".** The 18-screen
+     artifact stands at `docs/design/m111-mockups/`; lane 0 (RLF-M111L0)
+     turned it into component contracts, strings and tokens. Item closed.
+
   **Owner answer (2026-10-06), items 2–6:** every default, accepted.
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions."
 
@@ -32099,6 +32103,15 @@ security` threshold; the OS images' QEMU boot test and their reproducibility
         live or paid call without CLAUDE.md's count first
 
 ### M111 — Muse Desktop: the host edition's own shell (D91)
+
+**Status 2026-10-23 (RLF-M111L0): mockups approved; lane 0 landed.** The
+owner approved the lead's 18-screen mockups on 2026-10-23 ("looks great"),
+closing Q-M111 item 6 and unblocking lanes SH1, SH2, WB and ST. The sources
+are the design reference at `docs/design/m111-mockups/`. Lane 0's component
+contracts are `src/shared/desktopContracts.ts` (tested in
+`test/unit/desktop/contracts.test.ts`) and the proposed tokens entered
+`design/tokens/muse.tokens.json`. The mockups' tiled detached terminal
+diverges from D91.13; D91.13 (floating) governs. No build lane has started.
 
 **Status 2026-10-22 (RLM111): planned.** The accepted
 threat model is landed at `docs/certification/m111-threat-model.md` (rows

@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tiled desktop</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">14</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">Tiled desktop · workbench, Chrome and a terminal</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · dwindle · gaps_in = --ms-space-4 · gaps_out = --ms-space-8 · rounding = --ms-radius-lg · border_size = --ms-focus-width · active border = --ms-focus</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="Prompts.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="Onboarding.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1100" height="620" style="opacity: 0.09"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+
+    <div class="ms-bar" role="banner" style="height: 32px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; padding-inline: 6px; border-bottom: 1px solid var(--ms-border); font-size: 12px; position: relative; z-index: 2">
+      <div style="display: flex; align-items: center; gap: 6px">
+        <button class="ib" aria-label="Open the launcher (Super)" style="width: 36px"><svg viewBox="-14 -14 228 128" width="26" height="15" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+        <button class="sb" aria-label="Desktop 1, current: Workbench, Chrome, Terminal" style="height: 22px; border-radius: var(--ms-radius-pill); background: var(--ms-selection); color: var(--ms-on-selection)"><span class="mono" style="font-weight: 600">1</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.monitor}}"></path></svg><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.terminal}}"></path></svg></button>
+        <button class="sb" aria-label="Desktop 3: opened by web-eng" style="height: 22px; border-radius: var(--ms-radius-pill); border: 1px solid var(--ms-border)"><span class="mono" style="font-weight: 600">3</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg><span class="chip dat" style="height: 15px; font-size: 10px; color: var(--ms-info)">web-eng</span></button>
+        <button class="sb" style="font-weight: 600">Terminal · <span class="dat">zsh</span></button>
+      </div>
+      <button class="sb" style="font-weight: 600">Fri 23 Oct · 14:32</button>
+      <div style="justify-self: end; display: flex; align-items: center; gap: 1px">
+        <button class="sb" aria-label="Node ready"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.node}}"></path></svg>Local<span style="width: 6px; height: 6px; border-radius: 50%; background: var(--ms-success)"></span></button>
+        <button class="sb" aria-label="Agents"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg>3<span class="badge" style="background: var(--ms-warning); color: var(--ms-surface)">1</span></button>
+        <button class="sb mono">EN</button>
+        <button class="sb" aria-label="Wi-Fi"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.wifi}}"></path></svg></button>
+        <button class="sb" aria-label="Battery">82%</button>
+        <button class="sb" aria-label="Notifications"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bell}}"></path></svg><span class="badge">3</span></button>
+      </div>
+    </div>
+
+    <div style="position: relative; flex: 1">
+      <!-- Workbench window -->
+      <section aria-label="Workbench window" style="position: absolute; top: 8px; inset-inline-start: 8px; width: 948px; height: 1008px; border: var(--ms-focus-width) solid var(--ms-raised); border-radius: var(--ms-radius-lg); box-shadow: var(--ms-elevation-raised); overflow: hidden; display: flex; background: var(--ms-surface)">
+        <div style="width: 320px; flex: none; display: flex; flex-direction: column; border-inline-end: 1px solid var(--ms-border)">
+          <div style="height: 40px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--ms-border)"><svg viewBox="-14 -14 228 128" width="20" height="12" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg><span class="dat" style="font-weight: 600; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Cart summary: tax and shipping</span></div>
+          <div style="margin: 8px; padding: 8px 10px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); background: var(--ms-raised); display: flex; flex-direction: column; gap: 2px; font-size: 12px">
+            <span class="lbl">Agent map</span>
+            <sc-for list="{{agents}}" as="a" hint-placeholder-count="3">
+              <div style="display: flex; align-items: center; gap: 8px; height: 24px"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{a.dot}}; border: 1.5px solid {{a.c}}"></span><span class="dat" style="font-weight: 600">{{a.name}}</span><span style="flex: 1; color: var(--ms-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.task}}</span><span class="chip" style="color: {{a.c}}">{{a.state}}</span></div>
+            </sc-for>
+          </div>
+          <div style="flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; padding: 4px 12px 10px; overflow: hidden">
+            <div class="dat" style="background: var(--ms-raised); border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 10px 12px">The cart summary should show shipping and tax before the total.</div>
+            <div>One test failed at exactly $50.00. I changed the check to <code class="mono" style="font-size: 12px; background: var(--ms-code-surface); padding: 1px 4px; border-radius: var(--ms-radius-xs)">&gt;=</code> and want to run the tests again.</div>
+            <div style="border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); background: var(--ms-raised); padding: 12px; display: flex; flex-direction: column; gap: 8px">
+              <span style="font-weight: 600">Run this command?</span>
+              <span class="mono dat" style="font-size: 12px; padding: 6px 8px; border-radius: var(--ms-radius-md); background: var(--ms-surface); border: 1px solid var(--ms-border)">npm run test -- CartSummary</span>
+              <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px"><button class="btn" style="padding: 0 4px; font-size: 12px">Allow once</button><button class="btn" style="padding: 0 4px; font-size: 12px">Always allow</button><button class="btn" style="padding: 0 4px; font-size: 12px">Deny</button></div>
+            </div>
+          </div>
+          <div style="margin: 0 8px 8px; height: 76px; border: 1px solid var(--ms-input-border); border-radius: var(--ms-radius-lg); background: var(--ms-input-surface); padding: 10px; color: var(--ms-input-placeholder)">Ask Muse…</div>
+        </div>
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--ms-editor-surface)">
+          <div style="height: 36px; flex: none; display: flex; background: var(--ms-surface); border-bottom: 1px solid var(--ms-border)">
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; background: var(--ms-editor-surface); box-shadow: inset 0 2px 0 var(--ms-accent); border-inline-end: 1px solid var(--ms-border)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.files}}"></path></svg><span class="dat">CartSummary.tsx</span></span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; color: var(--ms-muted); font-style: italic; border-inline-end: 1px solid var(--ms-border)"><span class="dat">CartSummary.test.tsx</span></span>
+          </div>
+          <div class="mono ltr" dir="ltr" style="flex: 1; overflow: hidden; padding-block: 6px; font-size: var(--ms-code-size); line-height: var(--ms-line-code)">
+            <sc-for list="{{code}}" as="l" hint-placeholder-count="20">
+              <div style="display: flex; height: 20.8px; background: {{l.bg}}"><span style="width: 18px; flex: none; text-align: center; color: {{l.mc}}">{{l.mark}}</span><span style="width: 30px; flex: none; text-align: end; color: var(--ms-muted)">{{l.n}}</span><span style="white-space: pre; padding-inline-start: 14px">{{l.t}}</span></div>
+            </sc-for>
+          </div>
+          <div style="height: 28px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-top: 1px solid var(--ms-border); background: var(--ms-surface)"><span class="sb" style="border: 1px solid var(--ms-border); height: 20px">Terminal · <span class="dat">zsh</span> · detached</span><span class="sb" style="border: 1px solid var(--ms-border); height: 20px">Output · vite dev <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--ms-success)"></span></span></div>
+        </div>
+        <nav aria-label="Sidebar rail, sidebar collapsed" style="width: 48px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding-block: 6px; border-inline-start: 1px solid var(--ms-border)">
+          <sc-for list="{{rail}}" as="r" hint-placeholder-count="9">
+            <span style="position: relative; width: 44px; height: 40px; display: grid; place-items: center; color: var(--ms-muted)"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"></path></svg><span class="kc" style="position: absolute; inset-block-end: 2px; inset-inline-end: 2px">{{r.k}}</span></span>
+          </sc-for>
+        </nav>
+      </section>
+
+      <!-- Chrome window -->
+      <section aria-label="Chrome window" style="position: absolute; top: 8px; inset-inline-start: 964px; width: 948px; height: 500px; border: var(--ms-focus-width) solid var(--ms-raised); border-radius: var(--ms-radius-lg); box-shadow: var(--ms-elevation-raised); overflow: hidden; display: flex; flex-direction: column; background: var(--ms-raised)">
+        <div style="height: 38px; flex: none; display: flex; align-items: flex-end; gap: 4px; padding: 0 8px">
+          <span style="height: 32px; display: inline-flex; align-items: center; gap: 8px; padding: 0 14px; border-radius: var(--ms-radius-md) var(--ms-radius-md) 0 0; background: var(--ms-surface); font-size: 12px; width: 240px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg><span class="dat" style="flex: 1">Trailhead · Cart</span><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.x}}"></path></svg></span>
+          <span style="height: 32px; display: inline-grid; place-items: center; width: 28px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.plus}}"></path></svg></span>
+        </div>
+        <div style="height: 40px; flex: none; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--ms-surface); border-bottom: 1px solid var(--ms-border)">
+          <svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.arrowL}}"></path></svg><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-disabled)"><path d="{{I.arrowR}}"></path></svg><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.refresh}}"></path></svg>
+          <span class="mono dat" style="flex: 1; height: 28px; display: flex; align-items: center; padding: 0 12px; border-radius: var(--ms-radius-pill); background: var(--ms-raised); font-size: 12px">localhost:5173/cart</span>
+        </div>
+        <div class="ltr" data-ms-theme="light" dir="ltr" style="flex: 1; background: var(--ms-surface); color: var(--ms-text); font-size: 14px; overflow: hidden">
+          <div style="height: 50px; display: flex; align-items: center; gap: 22px; padding: 0 32px; border-bottom: 1px solid var(--ms-border)"><b style="font-size: 18px">Trailhead</b><span style="color: var(--ms-muted)">Packs</span><span style="color: var(--ms-muted)">Apparel</span><span style="color: var(--ms-muted)">Camp</span><span style="flex: 1"></span><span>Cart (3)</span></div>
+          <div style="padding: 20px 32px; display: flex; gap: 24px; align-items: flex-start">
+            <div style="flex: 1"><div style="font-size: 22px; font-weight: 600; margin-bottom: 8px">Your cart</div><div style="height: 50px; display: flex; align-items: center; border-bottom: 1px solid var(--ms-border)"><span style="flex: 1">Merino trail socks · 2 × $14.00</span><b>$28.00</b></div><div style="height: 50px; display: flex; align-items: center; border-bottom: 1px solid var(--ms-border)"><span style="flex: 1">Bandana, olive · 1 × $9.50</span><b>$9.50</b></div></div>
+            <div style="width: 300px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 12px 14px; display: flex; flex-direction: column">
+              <div style="height: 28px; display: flex; align-items: center"><span style="flex: 1">Subtotal</span>$37.50</div>
+              <div style="height: 28px; display: flex; align-items: center"><span style="flex: 1">Shipping</span>$4.99</div>
+              <div style="height: 28px; display: flex; align-items: center"><span style="flex: 1">Tax</span>$3.40</div>
+              <div style="height: 32px; display: flex; align-items: center; font-weight: 600; border-top: 1px solid var(--ms-border)"><span style="flex: 1">Total</span>$45.89</div>
+              <div style="height: 40px; margin-top: 8px; border-radius: var(--ms-radius-md); background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600">Check out</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Terminal window, focused -->
+      <section aria-label="Terminal window, focused" style="position: absolute; top: 516px; inset-inline-start: 964px; width: 948px; height: 500px; border: var(--ms-focus-width) solid var(--ms-focus); border-radius: var(--ms-radius-lg); box-shadow: var(--ms-elevation-raised); overflow: hidden; display: flex; flex-direction: column; background: var(--ms-surface)">
+        <div style="height: 34px; flex: none; display: flex; align-items: center; gap: 4px; padding: 0 8px; border-bottom: 1px solid var(--ms-border)">
+          <span class="sb" style="background: var(--ms-selection); color: var(--ms-on-selection)"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.terminal}}"></path></svg><span class="dat">zsh · trailhead</span></span>
+          <button class="ib" aria-label="New terminal"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.plus}}"></path></svg></button>
+          <span style="flex: 1"></span>
+          <button class="ib" aria-label="Dock back into the workbench"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.dock}}"></path></svg></button>
+          <button class="ib" aria-label="Always on top"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.pin}}"></path></svg></button>
+        </div>
+        <div class="mono ltr" dir="ltr" style="flex: 1; padding: 10px 16px; font-size: var(--ms-code-size); line-height: 1.5; white-space: pre; overflow: hidden">
+          <sc-for list="{{term}}" as="t" hint-placeholder-count="12">
+            <div style="color: {{t.c}}; min-height: 19.5px">{{t.t}}</div>
+          </sc-for>
+          <div><span style="display: inline-block; width: 8px; height: 16px; vertical-align: text-bottom; background: var(--ms-cursor)"></span></div>
+        </div>
+      </section>
+    </div>
+
+    <div class="ms-bar" role="contentinfo" style="height: 24px; flex: none; display: flex; align-items: center; gap: 1px; padding-inline: 6px; border-top: 1px solid var(--ms-border); position: relative; font-size: 12px">
+      <button class="sb"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.git}}"></path></svg><span class="dat">feat/cart-summary</span></button>
+      <button class="sb" style="color: var(--ms-warning)"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg>1 approval waiting</button>
+      <span style="flex: 1"></span>
+      <button class="sb"><span class="dat">muse-spark-1.3-contributor</span></button>
+    </div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
+      globe: c(12, 12, 9) + ' M3 12h18 M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9',
+      terminal: 'M4 5h16v14H4z M7.5 9.5l3 2.5-3 2.5 M12.5 15h4',
+      node: 'M4 4h16v6H4z M4 14h16v6H4z M8 7h.01 M8 17h.01',
+      bot: 'M5 8h14v11H5z M12 4v4 M9.5 13h.01 M14.5 13h.01 M2 12v3 M22 12v3',
+      wifi: 'M2 8.5a15 15 0 0 1 20 0 M5 12a10 10 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 19h.01',
+      bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 21h4',
+      files: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5',
+      x: 'M6 6l12 12 M18 6L6 18', plus: 'M12 5v14 M5 12h14',
+      arrowL: 'M19 12H5 M11 6l-6 6 6 6', arrowR: 'M5 12h14 M13 6l6 6-6 6',
+      refresh: 'M20 11a8 8 0 0 0-14.6-4.5L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.6 4.5L20 16 M20 20v-4h-4',
+      dock: 'M3 4h18v16H3z M3 14h18 M12 7v5 M9.5 9.5L12 12l2.5-2.5',
+      pin: 'M9 3h6l-1 6 4 4H6l4-4z M12 13v8',
+      git: 'M6 3v12 ' + c(18, 6, 3) + ' ' + c(6, 18, 3) + ' M18 9a9 9 0 0 1-9 9',
+      search: c(11, 11, 7) + ' M20 20l-4-4',
+      conn: c(5, 12, 2.5) + ' ' + c(19, 5, 2.5) + ' ' + c(19, 19, 2.5) + ' M7.3 11l9.4-4.8 M7.3 13l9.4 4.8',
+      team: c(9, 7, 4) + ' M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1 M16 3.3a4 4 0 0 1 0 7.4 M22 21v-1a6 6 0 0 0-4-5.6',
+      usage: 'M3 21h18 M6 17v-6 M11 17V5 M16 17v-9',
+      key: c(7, 12, 4) + ' M11 12h10 M17 12v3 M20 12v2',
+      chip: 'M7 7h10v10H7z M10 3v4 M14 3v4 M10 17v4 M14 17v4 M3 10h4 M3 14h4 M17 10h4 M17 14h4',
+      ext: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M16.5 13v7 M13 16.5h7'
+    };
+    const agents = [
+      { name: 'web-eng', task: 'Wants to run npm run test', state: 'approval', dot: 'var(--ms-warning)', c: 'var(--ms-warning)' },
+      { name: 'docs-writer', task: 'Updating CHANGELOG.md', state: 'running', dot: 'var(--ms-info)', c: 'var(--ms-info)' },
+      { name: 'reviewer', task: 'Starts when tests pass', state: 'queued', dot: 'transparent', c: 'var(--ms-muted)' }
+    ];
+    const src = [
+      ['', 'export function CartSummary({ lines, region }: Props) {'],
+      ['', '  const subtotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0);'],
+      ['-', '  const total = subtotal;'],
+      ['+', '  const shipping = subtotal >= FREE_SHIPPING_FROM'],
+      ['+', '    ? 0 : shippingFor(region);'],
+      ['+', '  const tax = taxFor(region, subtotal + shipping);'],
+      ['+', '  const total = subtotal + shipping + tax;'],
+      ['', ''],
+      ['', '  return ('],
+      ['', '    <dl className="cart-summary">'],
+      ['', '      <dt>Subtotal</dt>'],
+      ['', '      <dd>{formatMoney(subtotal)}</dd>'],
+      ['+', '      <dt>Shipping</dt>'],
+      ['+', "      <dd>{shipping === 0 ? 'Free' : formatMoney(shipping)}</dd>"],
+      ['+', '      <dt>Tax</dt>'],
+      ['+', '      <dd>{formatMoney(tax)}</dd>'],
+      ['', '      <dt className="total">Total</dt>'],
+      ['', '      <dd className="total">{formatMoney(total)}</dd>'],
+      ['', '    </dl>'],
+      ['', '  );'],
+      ['', '}']
+    ];
+    let n = 7;
+    const code = src.map(([k, t]) => {
+      if (k !== '-') n += 1;
+      return { t, n: k === '-' ? '' : String(n), mark: k === '-' ? '−' : k, mc: k === '+' ? 'var(--ms-git-added)' : 'var(--ms-git-deleted)', bg: k === '+' ? 'var(--ms-diff-added)' : (k === '-' ? 'var(--ms-diff-removed)' : 'transparent') };
+    });
+    const rail = [['1', I.files], ['2', I.search], ['3', I.git], ['4', I.conn], ['5', I.team], ['6', I.usage], ['7', I.key], ['8', I.chip], ['9', I.ext]].map(([k, icon]) => ({ k, icon }));
+    const T = (t, cc) => ({ t, c: cc || 'var(--ms-text)' });
+    const term = [
+      T('randy@muse:~/trailhead$ npm run dev'),
+      T(' '),
+      T('> trailhead@0.4.0 dev', 'var(--ms-muted)'),
+      T('> vite', 'var(--ms-muted)'),
+      T(' '),
+      T('  VITE v7.1.3  ready in 412 ms', 'var(--ms-success)'),
+      T(' '),
+      T('  ➜  Local:   http://localhost:5173/', 'var(--ms-info)'),
+      T('  ➜  Network: use --host to expose', 'var(--ms-muted)'),
+      T('  ➜  press h + enter to show help', 'var(--ms-muted)'),
+      T('14:31:58 [vite] (client) hmr update /src/components/CartSummary.tsx'),
+      T('14:32:04 [vite] (client) hmr update /src/components/CartSummary.tsx')
+    ];
+    return {
+      theme, themeName: names[theme] ?? theme, I, agents, code, rail, term,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'editor-surface', 'border', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'focus', 'selection', 'on-selection', 'success', 'warning', 'info', 'disabled', 'diff-added', 'diff-removed', 'git-added', 'git-deleted', 'cursor', 'elevation-raised', 'overlay-alpha', 'backdrop-blur', 'radius-md', 'radius-lg', 'radius-pill', 'space-4', 'space-8', 'focus-width', 'font-ui', 'font-code', 'code-size', 'line-code', 'motion-base', 'ease-emphasised', 'bar-height', 'status-height', 'rail-width']
+    };
+  }
+}
+</script>
+</body>
+</html>
