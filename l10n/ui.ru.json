@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Нажмите Tab, чтобы выбрать этот запрос, затем нажмите его номер. Вставленные варианты игнорируются.",
   "tuiApprovalTooLarge": "Запрос целиком не помещается. Увеличьте терминал; варианты выбора отключены.",
   "tuiKeys": "Esc: остановить всё | Tab: виды | ↑/↓: прокрутка | Enter: отправить | цифры: выбор",
-  "tuiUsage": "Использование: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Использование: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Модуль отображения терминала не установлен.",
   "tuiLineKeys": "Esc: остановить всё. /stop /chat /diff /tasks /status. Enter отправляет. Выберите разрешение по номеру; один Enter никогда не одобряет.",
   "tuiUnexpectedFailure": "В терминале произошла непредвиденная ошибка, работа остановлена.",

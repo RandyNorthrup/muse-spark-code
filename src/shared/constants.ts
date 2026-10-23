@@ -151,6 +151,45 @@ export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 // never match a durable revocation epoch.
 export const ACCOUNT_QUOTE_GRANT_VERSION = 2
 
+// TD: the tier decision reads `tput colors` against these floors: 256
+// answers take the 256 palette, 8 take the sixteen ANSI codes, and
+// anything less is plain text.
+export const TUI_TIER_C256_COLORS = 256
+export const TUI_TIER_SIXTEEN_COLORS = 8
+
+// TD: the standard 256-colour lookup the tier mapping competes over:
+// the cube levels, the sixteen VGA defaults, the grey ramp geometry,
+// and the redmean weights. Fixed by the terminal standard, not tuned.
+export const TUI_ANSI256_CUBE_LEVELS = [0, 95, 135, 175, 215, 255] as const
+export const TUI_ANSI256_VGA = [
+  [0, 0, 0],
+  [170, 0, 0],
+  [0, 170, 0],
+  [170, 85, 0],
+  [0, 0, 170],
+  [170, 0, 170],
+  [0, 170, 170],
+  [170, 170, 170],
+  [85, 85, 85],
+  [255, 85, 85],
+  [85, 255, 85],
+  [255, 255, 85],
+  [85, 85, 255],
+  [255, 85, 255],
+  [85, 255, 255],
+  [255, 255, 255],
+] as const
+export const TUI_ANSI256_CUBE_OFFSET = 16
+export const TUI_ANSI256_CUBE_RED = 36
+export const TUI_ANSI256_CUBE_GREEN = 6
+export const TUI_ANSI256_GRAY_OFFSET = 232
+export const TUI_ANSI256_GRAY_LEVELS = 24
+export const TUI_ANSI256_GRAY_BASE = 8
+export const TUI_ANSI256_GRAY_STEP = 10
+export const TUI_CHANNEL_LEVELS = 256
+export const TUI_CHANNEL_MAX = 255
+export const TUI_REDMEAN_GREEN_WEIGHT = 4
+
 // M110 T: local terminal surface only; the MHP binding is injected by lane N.
 export const TUI_LIMITS = {
   frameBytes: 256 * 1024,
@@ -162,6 +201,8 @@ export const TUI_LIMITS = {
   setupCodeChars: 128,
   statusHeaderRows: 2,
   connectMs: 5000,
+  probeMs: 5000,
+  probeBytes: 1024,
   refreshMs: 1000,
   escapeMs: 100,
   decisionQuietMs: 100,

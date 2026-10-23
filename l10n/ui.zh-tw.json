@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "按 Tab 聚焦此請求，然後按對應數字。貼上的選擇會被忽略。",
   "tuiApprovalTooLarge": "無法完整顯示請求。請擴大終端；選項已停用。",
   "tuiKeys": "Esc：停止全部 | Tab：切換檢視 | ↑/↓：捲動 | Enter：傳送 | 數字：選擇",
-  "tuiUsage": "用法：muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "用法：muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "終端機轉譯器尚未安裝。",
   "tuiLineKeys": "Esc：停止全部。/stop /chat /diff /tasks /status。Enter 傳送。依編號選擇核准；只按 Enter 絕不會核准。",
   "tuiUnexpectedFailure": "終端機發生意料之外的故障，已停止。",

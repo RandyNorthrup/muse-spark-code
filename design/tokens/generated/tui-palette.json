@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "roles": {
+    "text": { "dark": "#e4e7ed", "light": "#252932" },
+    "muted": { "dark": "#aeb6c4", "light": "#575d68" },
+    "border": { "dark": "#858b98", "light": "#737780" },
+    "brand": { "dark": "#3d8bff", "light": "#0a5cff" },
+    "accent": { "dark": "#0a5cff", "light": "#0a5cff" },
+    "selection": { "dark": "#064e8a", "light": "#064e8a" },
+    "success": { "dark": "#3fb950", "light": "#176b2b" },
+    "warning": { "dark": "#e5c34b", "light": "#735500" },
+    "danger": { "dark": "#ff9292", "light": "#ac1721" },
+    "info": { "dark": "#7fb2ff", "light": "#095bbe" }
+  },
+  "motion": { "splashFrameMs": 180, "progressFrameMs": 120 }
+}

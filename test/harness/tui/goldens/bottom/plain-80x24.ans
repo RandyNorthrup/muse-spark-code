@@ -1,0 +1,5 @@
+╞════════════════════════════════[1m Terminal [22m════════════════════════════════╡
+│$ npm run quality:gates -- --reporter=verbose --coverage enabled          │
+│--all-workspaces --fail-fast                                              │
+│all gates green in 41s                                                    │
+╰──────────────────────────────────────────────────────────────────────────╯

@@ -723,6 +723,9 @@ temp/planfix0190/d2-summary.txt Full record:
 | `playwright-core`                                                                                    | 1.63.0                            |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     |
 | `smol-toml`                                                                                          | 1.8.0                             |
+| `@xterm/xterm` / `addon-fit` / `headless`                                                            | 6.0.0 / 0.11.0 / 6.0.0            |
+| `string-width` / `wrap-ansi`                                                                         | 8.3.0 / 10.0.2                    |
+| `ink` / `ink-testing-library`                                                                        | 6.3.1 / 4.0.0                     |
 
 **`typescript`** — Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.
 
@@ -789,6 +792,12 @@ temp/planfix0190/d2-summary.txt Full record:
 **`mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown`** — M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
+
+**`@xterm/xterm` / `@xterm/addon-fit` / `@xterm/headless`** — M110a0 U2: the node workspace's terminal tabs render a real emulator (xterm.js 6 with `screenReaderMode`, fitted by `addon-fit`); the session suite drives the headless build as its emulator. MIT; no dependencies; no peers; `npm audit` clean. Only the terminal's lazy chunk carries them (343.9 KiB of its 400 KiB budget); the workspace startup holds none.
+
+**`string-width` / `wrap-ansi`** — M110a0 TD: cell widths and word-wrap with the same libraries Ink itself uses (sindresorhus, MIT; no peers; `npm audit` clean), so components clip on real cell boundaries instead of a hand-rolled width table. `string-width` ships (the components and the art sizer import it); `wrap-ansi` is dev-only (the harness wraps one log line the way callers wrap theirs).
+
+**`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` ships with the agent; `ink-testing-library` is dev-only.
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.

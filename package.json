@@ -1989,6 +1989,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unicorn": "77.0.0",
     "husky": "9.1.7",
+    "ink-testing-library": "4.0.0",
     "jscpd": "5.4.1",
     "jsdom": "30.1.2",
     "knip": "6.41.0",
@@ -2005,6 +2006,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
     "vitest": "5.0.3",
+    "wrap-ansi": "10.0.2",
     "yaml": "2.9.1",
     "zod": "4.6.5"
   },
@@ -2024,6 +2026,7 @@
     "codemirror": "6.0.2",
     "highlight.js": "11.12.0",
     "html-encoding-sniffer": "7.0.0",
+    "ink": "6.3.1",
     "jpeg-js": "0.4.4",
     "lz-string": "1.5.0",
     "mdast-util-from-markdown": "2.1.0",
@@ -2034,6 +2037,7 @@
     "pngjs": "7.0.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "smol-toml": "1.9.1"
+    "smol-toml": "1.9.1",
+    "string-width": "8.3.0"
   }
 }

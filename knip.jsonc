@@ -229,6 +229,9 @@
     // M115 schedule scenes: test/harness/index.html imports this page module.
     "test/harness/schedules.mjs",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    // TD's golden replay, invoked by path; the entry is bundled by it.
+    "test/harness/tui/replay.mjs",
+    "test/harness/tui/replay-entry.ts",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
     "test/harness/usage-resource-scenes.mjs",
@@ -602,6 +605,8 @@
   // The vault suites drive the installed ssh-keygen probe binary for real.
   // These are system programs, not npm dependencies.
   "ignoreBinaries": [
+    // The TUI suite probes the real terminfo database for its tier table.
+    "tput",
     "gitleaks",
     "mkfifo",
     "cmake",

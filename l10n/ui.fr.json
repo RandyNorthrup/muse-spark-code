@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Appuyez sur Tab pour cibler cette demande, puis sur son numéro. Les choix collés sont ignorés.",
   "tuiApprovalTooLarge": "La demande complète ne tient pas. Agrandissez le terminal ; les choix sont désactivés.",
   "tuiKeys": "Esc : tout arrêter | Tab : vues | ↑/↓ : défiler | Enter : envoyer | chiffres : choisir",
-  "tuiUsage": "Utilisation : muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Utilisation : muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Le moteur de rendu du terminal n’est pas installé.",
   "tuiLineKeys": "Esc : tout arrêter. /stop /chat /diff /tasks /status. Enter envoie. Choisissez une autorisation par numéro ; Enter seul n’autorise jamais.",
   "tuiUnexpectedFailure": "Le terminal a rencontré une erreur inattendue et s’est arrêté.",

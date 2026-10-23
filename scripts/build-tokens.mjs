@@ -17,6 +17,7 @@ export const TOKEN_OUTPUTS = [
   'design/tokens/generated/muse.css',
   'design/tokens/generated/consumers.json',
   'design/tokens/generated/report-themes.json',
+  'design/tokens/generated/tui-palette.json',
 ]
 const MODES = ['light', 'dark', 'hc-light', 'hc-dark']
 const dimension = z
@@ -356,12 +357,48 @@ export async function renderTokens(input) {
       ),
     ]),
   )
+  // TD: the TUI's roles resolve against the same tokens, so the
+  // terminal and the panel never drift apart. Only opaque colours qualify:
+  // a wash would lie about the cell it lands on.
+  const tuiRoles = {
+    text: 'colour.text',
+    muted: 'colour.muted',
+    border: 'colour.border',
+    brand: 'colour.brand-mark',
+    accent: 'colour.accent',
+    selection: 'colour.selection',
+    success: 'colour.success',
+    warning: 'colour.warning',
+    danger: 'colour.danger',
+    info: 'colour.info',
+  }
+  const tuiHex = (mode, role) => {
+    const value = resolveToken(tokens, tuiRoles[role], mode)
+    if (value.colorSpace !== 'srgb' || value.alpha !== 1)
+      throw new Error(`TUI role ${role} must be an opaque sRGB colour in ${mode}`)
+    return colourCss(value)
+  }
+  const tuiMs = (name) => {
+    const value = resolveToken(tokens, name, 'dark')
+    return value.unit === 's' ? value.value * 1000 : value.value
+  }
+  const tuiPalette = {
+    version: meta.version,
+    roles: Object.fromEntries(
+      Object.keys(tuiRoles).map((role) => [
+        role,
+        { dark: tuiHex('dark', role), light: tuiHex('light', role) },
+      ]),
+    ),
+    motion: { splashFrameMs: tuiMs('motion.base'), progressFrameMs: tuiMs('motion.fast') },
+  }
   const outputs = [
     web,
     hostRoles,
     palettes,
     JSON.stringify(consumers),
     JSON.stringify(reportThemes),
+    JSON.stringify(tuiPalette),
   ]
   return Object.fromEntries(
     await Promise.all(

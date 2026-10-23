@@ -4,6 +4,10 @@ import { UI_TEXT } from '../../shared/constants'
 export interface TuiOptions {
   screenReader: boolean
   noColor: boolean
+  /** TD: absent unless the flag passed; capabilities default it to full motion. */
+  reducedMotion?: boolean
+  /** TD: absent unless the flag passed; capabilities default it to plain text. */
+  nerdFont?: boolean
 }
 
 /** Option parsing fails with parseArgs TypeErrors. */
@@ -26,7 +30,12 @@ export function parseTuiArgs(
       args: [...argv],
       strict: true,
       allowPositionals: true,
-      options: { 'screen-reader': { type: 'boolean' }, 'no-color': { type: 'boolean' } },
+      options: {
+        'screen-reader': { type: 'boolean' },
+        'no-color': { type: 'boolean' },
+        'reduced-motion': { type: 'boolean' },
+        'nerd-font': { type: 'boolean' },
+      },
     })
     if (positionals.length > 0) return { ok: false, reason: UI_TEXT.tuiUsage }
     return {
@@ -34,6 +43,8 @@ export function parseTuiArgs(
       options: {
         screenReader: values['screen-reader'] === true,
         noColor: values['no-color'] === true || env['NO_COLOR'] !== undefined,
+        ...(values['reduced-motion'] === true && { reducedMotion: true }),
+        ...(values['nerd-font'] === true && { nerdFont: true }),
       },
     }
   } catch (error: unknown) {
