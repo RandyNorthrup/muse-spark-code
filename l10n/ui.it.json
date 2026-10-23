@@ -4450,8 +4450,8 @@
   "turnRetryAction": "Riprova",
   "turnRetryUnavailable": "Quel turno non può più essere ripetuto. Invia di nuovo il messaggio.",
   "turnRetryBusy": "Attendi la fine della risposta, oppure interrompila, prima di riprovare.",
-  "turnRetrying": "Tentativo {attempt}/{maxAttempts} non riuscito ({reason}); nuovo tentativo tra {seconds} s.",
-  "turnRetryingUncapped": "Tentativo {attempt} non riuscito ({reason}); nuovo tentativo tra {seconds} s (nessun limite di tentativi impostato).",
+  "turnRetrying": "Nuovo tentativo tra {seconds} s (tentativo {attempt} di {maxAttempts}).",
+  "turnRetryingUncapped": "Nuovo tentativo tra {seconds} s (tentativo {attempt}).",
   "modelApiProviderRetryWait": "{reason}; il provider ha chiesto di attendere fino a {time}. Puoi interrompere il turno in qualsiasi momento.",
   "usageWindowHours": {
     "one": "finestra di {count} ora",

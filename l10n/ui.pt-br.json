@@ -4450,8 +4450,8 @@
   "turnRetryAction": "Tentar novamente",
   "turnRetryUnavailable": "Esse turno não pode mais ser repetido. Envie sua mensagem novamente.",
   "turnRetryBusy": "Aguarde o fim da resposta, ou interrompa-a, antes de tentar novamente.",
-  "turnRetrying": "A tentativa {attempt}/{maxAttempts} falhou ({reason}); tentando novamente em {seconds} s.",
-  "turnRetryingUncapped": "A tentativa {attempt} falhou ({reason}); tentando novamente em {seconds} s (sem limite de tentativas definido).",
+  "turnRetrying": "Tentando novamente em {seconds} s (tentativa {attempt} de {maxAttempts}).",
+  "turnRetryingUncapped": "Tentando novamente em {seconds} s (tentativa {attempt}).",
   "modelApiProviderRetryWait": "{reason}; o provedor pediu para aguardar até {time}. Você pode interromper a vez a qualquer momento.",
   "usageWindowHours": {
     "one": "janela de {count} hora",

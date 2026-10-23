@@ -904,6 +904,24 @@ function without<T>(record: Readonly<Record<string, T>>, key: string): Readonly<
     : record
 }
 
+/**
+Drop "Retrying in Ns" rows (D217): the wait is over. One turn's row when
+named, every row when a new turn starts (a resend or a fresh send ends
+all waits).
+*/
+function withoutRetrying(
+  entries: readonly TranscriptEntry[],
+  turnId: string | undefined,
+): readonly TranscriptEntry[] {
+  const kept = entries.filter(
+    (entry) =>
+      entry.kind !== 'notice' ||
+      entry.retryingTurnId === undefined ||
+      (turnId !== undefined && entry.retryingTurnId !== turnId),
+  )
+  return kept.length === entries.length ? entries : kept
+}
+
 /** Keep only corrections that could still belong to pending user cards. */
 function boundedReplayTurns(
   record: Readonly<Record<string, string>>,
@@ -2039,7 +2057,10 @@ function completeTurn(
       strayItems: without(state.strayItems, event.turnId),
       transcript: [
         ...settleAll(
-          admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
+          admitQueued(
+            withoutRetrying(state.transcript, event.turnId),
+            (entry) => entry.turnId === event.turnId,
+          ),
           at,
         ),
         ...failure,
@@ -2062,7 +2083,10 @@ function applyAgentEvent(
             ...state,
             activeTurnId: event.turnId,
             strayItems: without(state.strayItems, event.turnId),
-            transcript: admitQueued(state.transcript, (entry) => entry.turnId === event.turnId),
+            transcript: admitQueued(
+              withoutRetrying(state.transcript, undefined),
+              (entry) => entry.turnId === event.turnId,
+            ),
           }
         : state
     }
@@ -2070,7 +2094,15 @@ function applyAgentEvent(
     case 'toolArgumentPreview':
     case 'itemUpdated':
     case 'itemCompleted': {
-      const next = applyItem(state, event.item, at)
+      // The turn speaks again: its retry wait fired (D217).
+      const unwaited =
+        event.item.turnId === undefined
+          ? state
+          : {
+              ...state,
+              transcript: withoutRetrying(state.transcript, event.item.turnId),
+            }
+      const next = applyItem(unwaited, event.item, at)
       const resolution = state.pendingApprovalResolutions.find(
         (pending) => pending.itemId === event.item.itemId,
       )
@@ -2130,23 +2162,35 @@ function applyAgentEvent(
       }
     }
     case 'turnRetry': {
-      const seconds = Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND)
-      // Lane RETRYLIMITS: no cap to name when neither the provider nor the
-      // person sets a retry limit.
+      // D217: one "Retrying in Ns (attempt K of N)" row per turn, replaced
+      // in place by each further attempt (never a row per wait), offering
+      // Stop. It clears when the turn speaks or ends (below).
+      const seconds = Math.max(1, Math.round(event.retryDelayMs / MILLISECONDS_PER_SECOND))
       const text =
         event.maxAttempts === undefined
-          ? fill(UI_TEXT.turnRetryingUncapped, {
-              attempt: event.attempt,
-              reason: event.reason,
-              seconds,
-            })
+          ? fill(UI_TEXT.turnRetryingUncapped, { attempt: event.attempt, seconds })
           : fill(UI_TEXT.turnRetrying, {
               attempt: event.attempt,
               maxAttempts: event.maxAttempts,
-              reason: event.reason,
               seconds,
             })
-      return withNotice(state, 'warning', text)
+      const id = `retry:${event.turnId}`
+      const entry: TranscriptEntry = {
+        kind: 'notice',
+        id,
+        level: 'warning',
+        text,
+        retryingTurnId: event.turnId,
+      }
+      const index = state.transcript.findIndex((item) => item.id === id)
+      return {
+        ...state,
+        localSequence: state.localSequence + 1,
+        transcript:
+          index === -1
+            ? [...state.transcript, entry]
+            : [...state.transcript.slice(0, index), entry, ...state.transcript.slice(index + 1)],
+      }
     }
     case 'tokenUsage': {
       return {
@@ -2440,10 +2484,11 @@ function applyAgentEvent(
     }
     case 'turnWithdrawn': {
       // Only the message that will never run is marked (D26); the running
-      // turn keeps its rows and its Stop.
+      // turn keeps its rows and its Stop. The withdrawn turn's retry wait,
+      // if any, ends with it (D217).
       return {
         ...state,
-        transcript: state.transcript.map((entry) =>
+        transcript: withoutRetrying(state.transcript, event.turnId).map((entry) =>
           entry.kind === 'user' && entry.turnId === event.turnId
             ? { ...entry, status: 'failed', reason: event.reason }
             : entry,

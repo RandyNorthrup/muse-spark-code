@@ -4260,8 +4260,8 @@
   "turnRetryAction": "다시 시도",
   "turnRetryUnavailable": "해당 턴은 더 이상 다시 시도할 수 없습니다. 메시지를 다시 보내세요.",
   "turnRetryBusy": "다시 시도하기 전에 응답이 끝나기를 기다리거나 중지하세요.",
-  "turnRetrying": "시도 {attempt}/{maxAttempts} 실패({reason}). {seconds}초 후에 다시 시도합니다.",
-  "turnRetryingUncapped": "시도 {attempt} 실패({reason}). {seconds}초 후에 다시 시도합니다(재시도 제한 없음).",
+  "turnRetrying": "{seconds}초 후에 다시 시도합니다(시도 {attempt}/{maxAttempts}).",
+  "turnRetryingUncapped": "{seconds}초 후에 다시 시도합니다(시도 {attempt}).",
   "modelApiProviderRetryWait": "{reason}; 제공자가 {time}까지 대기하도록 요청했습니다. 턴은 언제든지 중지할 수 있습니다.",
   "usageWindowHours": {
     "other": "{count}시간 기간"

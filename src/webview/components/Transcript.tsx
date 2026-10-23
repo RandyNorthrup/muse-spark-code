@@ -173,6 +173,11 @@ export interface TranscriptProps {
   the failed turn and this panel holds its user card.
   */
   readonly onRetryTurn?: ((entryId: string, turnId: string) => void) | undefined
+  /**
+  Stop on a retry wait's row (D217): ends the wait and shows the failure
+  with Retry. Rows offer it only while they carry the waiting turn.
+  */
+  readonly onStopRetry?: ((entryId: string, turnId: string) => void) | undefined
   /** The turns whose user card this panel holds, so Retry can resend it. */
   readonly resendableTurnIds?: ReadonlySet<string> | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
@@ -1022,10 +1027,38 @@ function RetryTurnButton({
   )
 }
 
+/**
+Stop on a retry wait's row (D217): ends the wait the row names. Nothing
+renders without a handler or a waiting turn; stopping is the turn's own
+Stop, so a second press while the host answers is harmless.
+*/
+function StopRetryButton({
+  entryId,
+  turnId,
+  onStopRetry,
+}: {
+  readonly entryId: string
+  readonly turnId: string | undefined
+  readonly onStopRetry: ((entryId: string, turnId: string) => void) | undefined
+}) {
+  return onStopRetry === undefined || turnId === undefined ? null : (
+    <button
+      type="button"
+      className="notice-action chat-control"
+      onClick={() => {
+        onStopRetry(entryId, turnId)
+      }}
+    >
+      {UI_TEXT.stopTitle}
+    </button>
+  )
+}
+
 function OtherRow({
   entry,
   onReportProblem,
   onRetryTurn,
+  onStopRetry,
   canRetryTurn,
   isRetryDisabled,
 }: {
@@ -1047,6 +1080,7 @@ function OtherRow({
   >
   readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
   readonly onRetryTurn?: ((entryId: string, turnId: string) => void) | undefined
+  readonly onStopRetry?: ((entryId: string, turnId: string) => void) | undefined
   readonly canRetryTurn?: boolean | undefined
   readonly isRetryDisabled?: boolean | undefined
 }) {
@@ -1082,6 +1116,11 @@ function OtherRow({
         <li className={`notice notice-${entry.level}`}>
           {entry.text}
           <RepeatCount count={entry.repeatCount} />
+          <StopRetryButton
+            entryId={entry.id}
+            turnId={entry.retryingTurnId}
+            onStopRetry={onStopRetry}
+          />
           <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )
@@ -1254,6 +1293,7 @@ function TranscriptList(props: TranscriptProps) {
     onNoticeAction,
     onReportProblem,
     onRetryTurn,
+    onStopRetry,
     resendableTurnIds,
     restoreNote,
     conversationNote,
@@ -1441,7 +1481,12 @@ function TranscriptList(props: TranscriptProps) {
           )
         }
         return onRedo === undefined || entry.redoRestoreId === undefined ? (
-          <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
+          <MemoOtherRow
+            key={entry.id}
+            entry={entry}
+            onReportProblem={onReportProblem}
+            onStopRetry={onStopRetry}
+          />
         ) : (
           <RestoreNotice
             key={entry.id}
