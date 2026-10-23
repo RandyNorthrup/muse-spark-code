@@ -109,6 +109,7 @@ import {
   NATIVE_GIT_BUNDLE_FILE,
   OUTPUT_DOCUMENT_SCHEME,
   PRODUCT_NAME,
+  type PromptCacheTtl,
   PROMPT_BUNDLE_FILE,
   PROMPT_COMMAND_IDS,
   PROMPT_SYNC_SETTING,
@@ -991,6 +992,8 @@ async function activateWindow(
   // limit is needed; null stays unset. One reader for the three clients
   // below keeps the activation bundle small (modelsActivationBudget).
   const personCap = (): number | undefined => currentSettings().modelApiMaxRetries ?? undefined
+  // RLPROVSYNC: the person's cache-lifetime choice, read live per request.
+  const promptCacheTtl = (): PromptCacheTtl => currentSettings().modelApiPromptCacheTtl
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -1199,6 +1202,7 @@ async function activateWindow(
       catalogFile: vscode.Uri.joinPath(context.extensionUri, 'dist', 'providerCatalog.json').fsPath,
       configFile: providerConfigFile,
       personCap,
+      promptCacheTtl,
       isRemote: vscode.env.remoteName !== undefined,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,

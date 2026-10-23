@@ -1470,7 +1470,7 @@ Settings (modelApiPromptCacheRetention).
 
 Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
+Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`, `museSpark.modelApiPromptCacheTtl`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
 
 ### museSpark.paidDailyBudgetUsd
 
@@ -2352,6 +2352,23 @@ Type: `"string"`. Default: `"in_memory"`. Scope: `machine`.
 
 - `"in_memory"`: Meta's default: kept in memory and evicted sooner, under load or after inactivity.
 - `"24h"`: Up to 24 hours, so a conversation you come back to after a pause still reads from the cache. Priced the same as in memory.
+
+### museSpark.modelApiPromptCacheTtl
+
+The minimum lifetime asked of OpenAI's cache on GPT-5.6 and later (prompt_cache_options.ttl), sent only on direct Responses API requests with your own key. A 12-hour lifetime bills cache writes at 2.5 times the input rate instead of 1.25 times; reads cost the same either way. Earlier models keep prompt_cache_retention.
+
+Type: `"string"`. Default: `"default"`. Scope: `machine`.
+
+```json
+{
+  "type": "string",
+  "enum": ["default", "12h"],
+  "default": "default"
+}
+```
+
+- `"default"`: OpenAI's default: a 30-minute minimum lifetime, billed at 1.25 times the input rate for cache writes.
+- `"12h"`: A 12-hour minimum lifetime for stable instructions reused across longer gaps, billed at 2.5 times the input rate for cache writes.
 
 ### museSpark.modelApiScheduledPrompts
 

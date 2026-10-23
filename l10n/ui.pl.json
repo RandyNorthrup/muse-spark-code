@@ -4874,7 +4874,7 @@
     "newBadge": "Nowy"
   },
   "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu.",
-  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
+  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, zapis na 12 godzin {write12h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
   "paidProviderPriceTier": "Od {threshold} tokenów wejściowych: wejście {input}, wyjście {output} za milion.",
   "modelUnpriced": "Bez ceny",
   "modelLocal": "Lokalny",

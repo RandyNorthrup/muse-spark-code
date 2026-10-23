@@ -4514,7 +4514,7 @@
     "newBadge": "新着"
   },
   "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。",
-  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
+  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、12時間の書き込み {write12h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
   "paidProviderPriceTier": "入力が {threshold} トークン以上の場合：100万トークンあたり入力 {input}、出力 {output}。",
   "modelUnpriced": "価格なし",
   "modelLocal": "ローカル",

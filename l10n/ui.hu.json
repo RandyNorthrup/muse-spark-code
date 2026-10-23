@@ -4634,7 +4634,7 @@
     "newBadge": "Új"
   },
   "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél.",
-  "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
+  "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, tizenkét órás írás {write12h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
   "paidProviderPriceTier": "{threshold} bemeneti tokentől: bemenet {input}, kimenet {output} milliónként.",
   "modelUnpriced": "Ár nélkül",
   "modelLocal": "Helyi",

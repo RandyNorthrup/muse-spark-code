@@ -230,6 +230,15 @@ describe('package.json manifest', () => {
     expect(retention.enum).toEqual(['in_memory', '24h'])
   })
 
+  it('keeps the prompt-cache ttl a machine choice defaulting to the provider default (RLPROVSYNC)', () => {
+    // A cloned .vscode/settings.json must not raise the person's
+    // cache-write rate from the 30-minute 1.25x to the 12-hour 2.5x.
+    const ttl = manifest.contributes.configuration.properties['museSpark.modelApiPromptCacheTtl']
+    expect(ttl.scope).toBe('machine')
+    expect(ttl.default).toBe('default')
+    expect(ttl.enum).toEqual(['default', '12h'])
+  })
+
   it('keeps the session budget a machine choice, and claims no more than it keeps (M82)', () => {
     // A cloned .vscode/settings.json must not set what is billed.
     const properties = manifest.contributes.configuration.properties as Record<

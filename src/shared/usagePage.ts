@@ -103,6 +103,7 @@ const modelDetailSchema = /* @__PURE__ */ z.strictObject({
       cachedPerMillion: z.optional(usageAmountSchema),
       cacheWritePerMillion: z.optional(usageAmountSchema),
       cacheWrite1hPerMillion: z.optional(usageAmountSchema),
+      cacheWrite12hPerMillion: z.optional(usageAmountSchema),
       outputPerMillion: z.optional(usageAmountSchema),
       source: z.enum(['list', 'catalogue', 'user', 'meta-published']),
       date: usageDaySchema,

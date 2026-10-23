@@ -1863,7 +1863,7 @@
       "summary": { "setting": "modelApiPromptCacheRetention" },
       "description": { "setting": "modelApiPromptCacheRetention" },
       "commands": [],
-      "settings": ["museSpark.modelApiPromptCacheRetention"],
+      "settings": ["museSpark.modelApiPromptCacheRetention", "museSpark.modelApiPromptCacheTtl"],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": false,
@@ -3156,6 +3156,27 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["in_memory", "24h"], "default": "in_memory" }
+    },
+    {
+      "id": "museSpark.modelApiPromptCacheTtl",
+      "name": "museSpark.modelApiPromptCacheTtl",
+      "description": "The minimum lifetime asked of OpenAI's cache on GPT-5.6 and later (prompt_cache_options.ttl), sent only on direct Responses API requests with your own key. A 12-hour lifetime bills cache writes at 2.5 times the input rate instead of 1.25 times; reads cost the same either way. Earlier models keep prompt_cache_retention.",
+      "descriptionKey": "config.modelApiPromptCacheTtl.description",
+      "type": "string",
+      "default": "default",
+      "enum": ["default", "12h"],
+      "enumDescriptions": [
+        "OpenAI's default: a 30-minute minimum lifetime, billed at 1.25 times the input rate for cache writes.",
+        "A 12-hour minimum lifetime for stable instructions reused across longer gaps, billed at 2.5 times the input rate for cache writes."
+      ],
+      "enumDescriptionKeys": [
+        "config.modelApiPromptCacheTtl.enumDescriptions.default",
+        "config.modelApiPromptCacheTtl.enumDescriptions.12h"
+      ],
+      "enumTexts": {},
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "enum": ["default", "12h"], "default": "default" }
     },
     {
       "id": "museSpark.modelApiScheduledPrompts",

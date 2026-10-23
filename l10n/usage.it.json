@@ -108,6 +108,7 @@
   "cacheWriteTokens": "Scritture nella cache",
   "cacheWrite5mTokens": "Scritture nella cache ({duration})",
   "cacheWrite1hTokens": "Scritture nella cache ({duration})",
+  "cacheWrite12hTokens": "Scritture nella cache ({duration})",
   "reasoningTokens": "Token di ragionamento",
   "reasoningNote": "Il ragionamento è incluso nell’output; non viene addebitato due volte.",
   "totalCost": "Costo totale",

@@ -88,6 +88,7 @@
   "cacheWriteTokens": "快取寫入",
   "cacheWrite5mTokens": "{duration}快取寫入",
   "cacheWrite1hTokens": "{duration}快取寫入",
+  "cacheWrite12hTokens": "{duration}快取寫入",
   "reasoningTokens": "推理 Token",
   "reasoningNote": "推理包含在輸出中，不會重複計費。",
   "totalCost": "總費用",

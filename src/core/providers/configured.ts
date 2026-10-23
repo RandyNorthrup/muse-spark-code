@@ -108,6 +108,7 @@ import {
   ANTHROPIC_MAX_ITEMS,
   EFFORT_PROVIDER_DEFAULT,
   MANUAL_THINKING_BUDGET_BY_EFFORT,
+  type PromptCacheTtl,
   PROVIDER_CONNECTION_LOST_CODE,
   PROVIDER_MANUAL_THINKING_BUDGET,
   PROVIDER_SECRET_PREFIX,
@@ -154,6 +155,14 @@ export interface ConfiguredProviderOptions {
   own wait or stop answer ends it.
   */
   readonly personCap?: () => number | undefined
+  /**
+  RLPROVSYNC: the person's `museSpark.modelApiPromptCacheTtl` setting,
+  read live so a change applies without a restart. Set, it is the minimum
+  cache lifetime sent as `prompt_cache_options.ttl` where the codec takes
+  it (OpenAI GPT-5.6 and later); unset, nothing is sent and the provider
+  default applies.
+  */
+  readonly promptCacheTtl?: () => PromptCacheTtl
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -1377,6 +1386,10 @@ export function createConfiguredProviderServices(
                 },
                 {
                   ...(safetyIdentifier !== undefined && { safetyIdentifier }),
+                  // RLPROVSYNC: the person's cache-lifetime choice rides to
+                  // the wire only where the codec takes it (OpenAI GPT-5.6
+                  // and later); the codec omits `default` itself.
+                  cacheTtl: options.promptCacheTtl?.() ?? 'default',
                 },
               )
             if (isAzure) path = '/responses'
@@ -1893,6 +1906,7 @@ export function createConfiguredProviderServices(
                 card.cachedInput,
                 card.cacheWrite,
                 card.cacheWrite1h,
+                card.cacheWrite12h,
                 card.request,
                 card.image,
                 card.longContextTier?.input,

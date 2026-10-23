@@ -1680,13 +1680,15 @@ function isCountedUsage(usage: Usage): boolean {
       usage.input_tokens_details?.cached_tokens ?? 0,
       usage.input_tokens_details?.cache_write_tokens ?? 0,
       usage.input_tokens_details?.cache_write_tokens_1h ?? 0,
+      usage.input_tokens_details?.cache_write_tokens_12h ?? 0,
       usage.output_tokens_details?.reasoning_tokens ?? 0,
       usage.total_tokens ?? 0,
     ].every((count) => Number.isSafeInteger(count) && count >= 0) &&
     (usage.input_tokens_details?.cached_tokens ?? 0) +
       (usage.input_tokens_details?.cache_write_tokens ?? 0) <=
       usage.input_tokens &&
-    (usage.input_tokens_details?.cache_write_tokens_1h ?? 0) <=
+    (usage.input_tokens_details?.cache_write_tokens_1h ?? 0) +
+      (usage.input_tokens_details?.cache_write_tokens_12h ?? 0) <=
       (usage.input_tokens_details?.cache_write_tokens ?? 0)
   )
 }

@@ -98,6 +98,7 @@
   "cacheWriteTokens": "Gyorsítótár-írások",
   "cacheWrite5mTokens": "{duration} gyorsítótár-írások",
   "cacheWrite1hTokens": "{duration} gyorsítótár-írások",
+  "cacheWrite12hTokens": "{duration} gyorsítótár-írások",
   "reasoningTokens": "Érvelési tokenek",
   "reasoningNote": "Az érvelés a kimenet része; nem kerül kétszer felszámításra.",
   "totalCost": "Teljes költség",

@@ -137,3 +137,4 @@ The PNGs beside the records are that day's harness renders.
 
 - [M95 lane X review corrections](m95-x.md): credential allowlist, provider commit recovery, captured probes, path/DNS guards and translated counts, with regression drills and named integration residuals.
 - [M102 integration](m102.md): usage integration on M95's joined transport, lazy ACP usage and headless loading, golden and guard-fire evidence; round three records the stopped provider-accounting path, cold exec package timeout and universal VSIX cap blocker.
+- [RLPROVSYNC](rlprovsync.md): provider-survey MUST and SHOULDs on 0.19.0: Anthropic count-failure lines and separate count pacing, API version 2026-10-21 with live thinking and lifecycle, catalogue re-sync 2026-10-22, OpenAI cache TTL send and 1.25x/2.5x write pricing, xAI grok-4.7 with safety id and retired DeepSeek out; red/green drills and named real-life residuals.

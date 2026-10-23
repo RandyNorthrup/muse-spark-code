@@ -4634,7 +4634,7 @@
     "newBadge": "Neu"
   },
   "modelToolCallingUnavailable": "Werkzeugaufrufe wurden für dieses Modell nicht verifiziert.",
-  "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
+  "paidProviderPrice": "Pro Million Tokens: Eingabe {input}, Cache-Lesen {cached}, Cache-Schreiben {write}, einstündiges Schreiben {write1h}, zwölfstündiges Schreiben {write12h}, Ausgabe {output}. Pro Anfrage {request}; pro Bild {image}.",
   "paidProviderPriceTier": "Ab {threshold} Eingabe-Tokens: Eingabe {input}, Ausgabe {output} pro Million.",
   "modelUnpriced": "Ohne Preis",
   "modelLocal": "Lokal",

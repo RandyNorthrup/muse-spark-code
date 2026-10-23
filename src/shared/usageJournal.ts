@@ -121,6 +121,7 @@ export const usageTokensSchema = /* @__PURE__ */ z.strictObject({
   cacheWrite: z.optional(usageCountSchema),
   cacheWrite5m: z.optional(usageCountSchema),
   cacheWrite1h: z.optional(usageCountSchema),
+  cacheWrite12h: z.optional(usageCountSchema),
   output: z.optional(usageCountSchema),
   reasoning: z.optional(usageCountSchema),
   estimated: z.optional(z.boolean()),
