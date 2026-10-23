@@ -25,6 +25,8 @@
     "src/webview/reporting/main.tsx",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
+    // RLF-BUDGETS: the Windows tree reader, required by path on the first Windows job bind.
+    "src/core/resources/trees/windowsEntry.ts",
     // U1: standalone portable controller factory, built by scripts/build.mjs.
     "src/core/team/teamPanelEntry.ts",
     "src/core/resources/admissionEntry.ts",

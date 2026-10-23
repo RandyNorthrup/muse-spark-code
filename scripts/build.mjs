@@ -181,6 +181,10 @@ const MUSE_CODE_ENTRY = 'src/host/backend/museCodeEntry.ts'
 const MUSE_CODE_OUTFILE = 'dist/museCode.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
+// RLF-BUDGETS: the Windows job-object tree reader, beside (never inside)
+// the governor; it reads no `vscode`, so a stray import fails this build.
+const RESOURCE_WINDOWS_ENTRY = 'src/core/resources/trees/windowsEntry.ts'
+const RESOURCE_WINDOWS_OUTFILE = 'dist/resourceGovernorWindows.js'
 // POSTSPAWN: the governed launcher, beside (never inside) the governor.
 const RESOURCE_PROCESS_ENTRY = 'src/core/resources/resourceProcessEntry.ts'
 const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
@@ -587,6 +591,15 @@ const resourceGovernorOptions = {
   ...modelApiOptions,
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
+}
+// RLF-BUDGETS: the Windows job-object tree reader, required the first
+// time a Windows job launch binds its tree; it reads no `vscode`, so a
+// stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const resourceGovernorWindowsOptions = {
+  ...modelApiOptions,
+  entryPoints: [RESOURCE_WINDOWS_ENTRY],
+  outfile: RESOURCE_WINDOWS_OUTFILE,
 }
 const resourceProcessOptions = {
   ...modelApiOptions,
@@ -1943,6 +1956,7 @@ if (isWatch) {
     esbuild.context(connectorStoreGuardOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceGovernorWindowsOptions),
     esbuild.context(resourceProcessOptions),
     esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
@@ -2140,6 +2154,7 @@ if (isWatch) {
     connectorStoreGuard: recorded('connectorStoreGuard', connectorStoreGuardOptions),
     modelApi: recorded('modelApi', modelApiOptions),
     resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
+    resourceGovernorWindows: recorded('resourceGovernorWindows', resourceGovernorWindowsOptions),
     resourceProcess: recorded('resourceProcess', resourceProcessOptions),
     resourceJournal: recorded('resourceJournal', resourceJournalOptions),
     resourceAdmission: recorded('resourceAdmission', resourceAdmissionOptions),
@@ -2415,6 +2430,7 @@ if (isWatch) {
   reportSize(CONNECTOR_STORE_GUARD_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(RESOURCE_OUTFILE)
+  reportSize(RESOURCE_WINDOWS_OUTFILE)
   reportSize(RESOURCE_ADMISSION_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
   reportSize(SUBSCRIPTIONS_OUTFILE)

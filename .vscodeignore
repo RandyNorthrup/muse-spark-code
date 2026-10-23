@@ -2,6 +2,7 @@
 !dist/extension.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
+!dist/resourceGovernorWindows.js
 !dist/resourceProcess.js
 !dist/resourceJournal.js
 !dist/mcpVault.js

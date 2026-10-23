@@ -56,6 +56,9 @@ const BUDGETS = [
   { path: 'dist/extension.js', budgetKiB: 600 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
+  // RLF-BUDGETS: the Windows job-object tree reader, off the governor.
+  // 11,007 bytes (10.7 KiB) measured +15% = 12.4 KiB, rounded up to 13 KiB.
+  { path: 'dist/resourceGovernorWindows.js', budgetKiB: 13 },
   // POSTSPAWN: the governed launcher, split from the governor; 35.6 KiB
   // measured, +15%, rounded up to 25 KiB. The governor's cap is unchanged.
   { path: 'dist/resourceProcess.js', budgetKiB: 50 },
