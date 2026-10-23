@@ -785,6 +785,9 @@ export const EN = {
     'share-out': '--out <file>: Write the shared text to a file instead of stdout.',
     'sharing-json': '--json: Print the machine-readable result instead of the human preview.',
     fast: '--fast: Use the plan catalogue’s Fast tier (2x speed, increased usage). Off by default: it uses more of your plan allowance.',
+    'exec-provider':
+      'Run on this provider (Model API backend); --model is then <provider>/<model>.',
+    'scan-timeout': 'Set the scan deadline in seconds; without it the scan runs until it finishes.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',

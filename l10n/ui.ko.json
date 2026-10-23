@@ -613,7 +613,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: 플랜 카탈로그의 Fast 티어를 사용합니다(2배 속도, 사용량 증가). 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다."
+    "fast": "--fast: 플랜 카탈로그의 Fast 티어를 사용합니다(2배 속도, 사용량 증가). 기본적으로 꺼져 있습니다. 플랜 할당량을 더 많이 사용합니다.",
+    "exec-provider": "이 공급자에서 실행합니다(Model API 백엔드). --model은 <provider>/<model>이 됩니다.",
+    "scan-timeout": "검사 기한을 초 단위로 설정합니다. 설정하지 않으면 검사가 끝날 때까지 실행됩니다."
   },
   "referenceScanSecrets": "UTF-8 패치 파일에서 비밀 정보를 검색하고 발견하면 실패로 종료합니다. --key-stdin은 메모리에 있는 정확한 Model API 키도 검색하며 키를 저장하지 않습니다.",
   "referenceVault": "터미널에서 사용자별 자격 증명 Vault로 작업합니다: 설정, 복구, 재설정, 상태, 잠금 해제, 잠금, 목록, 추가, 부여, 감사, 가져오기 및 감시. 값은 절대 인쇄되지 않으며 브로커가 보관합니다. 명시적으로 확인하면 초기화를 통해 소유자를 알 수 없는 쓰기 잠금도 교체할 수 있습니다.",

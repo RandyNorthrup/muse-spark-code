@@ -24,6 +24,14 @@ export interface LegalScanRequest {
   readonly input: LegalScanInput
   readonly signal?: AbortSignal
   readonly canReadFile?: (relative: string) => boolean
+  /**
+  Workspace-relative directories the snapshot never enters (forward
+  slashes): caller-named tool artifacts, skipped like `.git` and
+  `node_modules` — expected, never incomplete reasons, outside the
+  directory-entry budget. Distribution evidence admitted from the build
+  records is unaffected. Absent, the walk covers the whole workspace.
+  */
+  readonly exclude?: readonly string[]
 }
 
 export interface LegalScanHandle {

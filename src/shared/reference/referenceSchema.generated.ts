@@ -401,6 +401,8 @@ export const textKeys = [
   'share-out',
   'sharing-json',
   'fast',
+  'exec-provider',
+  'scan-timeout',
 ] as const
 
 const plainTextSchema = z.union([
@@ -505,6 +507,8 @@ const plainTextSchema = z.union([
       textKeys[396],
       textKeys[397],
       textKeys[398],
+      textKeys[399],
+      textKeys[400],
     ]),
   }),
   z.object({

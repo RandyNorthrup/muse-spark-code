@@ -58,3 +58,20 @@ export function resolveRequest(
   deferredOutfiles: ReadonlyMap<string, string>,
   request: LazyRequest,
 ): LazyResolution
+export function forwardSlashes(file: string): string
+/** Files the production build writes below dist/ without esbuild. */
+export const NON_ESBUILD_OUTPUTS: readonly string[]
+export function isStableBundle(file: string): boolean
+/**
+Every dist bundle the metafiles in `directory` emit: outputs below dist/
+ending in .js whose file is on disk. Stale records never become rows.
+*/
+export function readMetafiles(
+  directory: string,
+  root: string,
+  emitted: Set<string>,
+  inputChunks: Map<string, Set<string>>,
+  importEdges: Map<string, Set<string>>,
+): void
+/** The stable emitted outputs plus the files the build writes without esbuild. */
+export function knownBundleOutputs(emitted: ReadonlySet<string>): Set<string>

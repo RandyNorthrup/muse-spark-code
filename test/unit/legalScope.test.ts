@@ -85,6 +85,34 @@ describe('order: what ships is admitted first, the rest is walked', () => {
     expect(snapshot.files.some((file) => file.startsWith('.git/'))).toBe(false)
     expect(snapshot.incompleteChecks).toEqual([])
   })
+
+  it('skips caller-named tool artifacts, excluded or whole workspace by the caller', async () => {
+    // RLF-HYGIENE: the release build names its regenerable checkout
+    // artifacts (VS Code downloads, dev test bundles, scratch) so they
+    // cannot blow the directory-entry budget. Skipped like .git and
+    // node_modules: expected, never incomplete reasons.
+    const root = writeTree({
+      'src/a.ts': HEADED,
+      '.vscode-test/vscode-seed/f1.js': 'module.exports = 1\n',
+      'dist/test/integration/leftover.test.js': 'leftover\n',
+      'temp/note.txt': 'scratch\n',
+    })
+    const snapshot = await createLegalSnapshot(root, undefined, undefined, [
+      '.vscode-test',
+      String.raw`dist\test`,
+      'temp/',
+    ])
+    expect(snapshot.files).toContain('src/a.ts')
+    expect(snapshot.files.some((file) => file.startsWith('.vscode-test/'))).toBe(false)
+    expect(snapshot.files.some((file) => file.startsWith('dist/test/'))).toBe(false)
+    expect(snapshot.files).not.toContain('temp/note.txt')
+    expect(snapshot.incompleteChecks).toEqual([])
+    // Absent, the walk covers the whole workspace, as before.
+    const whole = await createLegalSnapshot(root)
+    expect(whole.files).toContain('.vscode-test/vscode-seed/f1.js')
+    expect(whole.files).toContain('dist/test/integration/leftover.test.js')
+    expect(whole.files).toContain('temp/note.txt')
+  })
 })
 
 describe('shipped vs not', () => {
