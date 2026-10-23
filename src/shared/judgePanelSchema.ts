@@ -93,6 +93,15 @@ const panelIdentityFields = {
   reason: z.optional(z.enum(JUDGE_PANEL_REASONS)),
 }
 
+/** The five exact-money liability figures facts and snapshots share. */
+const panelMoneyFields = {
+  reservedUsd: z.optional(nonnegativeUsdSchema),
+  settledUsd: z.optional(nonnegativeUsdSchema),
+  uncertainUsd: z.optional(nonnegativeUsdSchema),
+  dailyBudgetUsd: z.optional(nonnegativeUsdSchema),
+  dailySpentUsd: z.optional(nonnegativeUsdSchema),
+}
+
 export const judgePanelFactsSchema = z.strictObject({
   ...panelIdentityFields,
   capability: z.optional(judgePanelCapabilitySchema),
@@ -107,11 +116,7 @@ export const judgePanelFactsSchema = z.strictObject({
   inputPerMillion: z.optional(reportedRate),
   cachedPerMillion: z.optional(reportedRate),
   outputPerMillion: z.optional(reportedRate),
-  reservedUsd: z.optional(nonnegativeUsdSchema),
-  settledUsd: z.optional(nonnegativeUsdSchema),
-  uncertainUsd: z.optional(nonnegativeUsdSchema),
-  dailyBudgetUsd: z.optional(nonnegativeUsdSchema),
-  dailySpentUsd: z.optional(nonnegativeUsdSchema),
+  ...panelMoneyFields,
 })
 export type JudgePanelFacts = z.infer<typeof judgePanelFactsSchema>
 
@@ -127,10 +132,6 @@ export const judgePanelSnapshotSchema = z.strictObject({
   inputPerMillion: z.optional(rateSchema),
   cachedPerMillion: z.optional(rateSchema),
   outputPerMillion: z.optional(rateSchema),
-  reservedUsd: z.optional(nonnegativeUsdSchema),
-  settledUsd: z.optional(nonnegativeUsdSchema),
-  uncertainUsd: z.optional(nonnegativeUsdSchema),
-  dailyBudgetUsd: z.optional(nonnegativeUsdSchema),
-  dailySpentUsd: z.optional(nonnegativeUsdSchema),
+  ...panelMoneyFields,
 })
 export type JudgePanelSnapshot = z.infer<typeof judgePanelSnapshotSchema>
