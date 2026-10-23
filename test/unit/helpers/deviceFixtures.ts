@@ -7,6 +7,7 @@ import { afterAll, afterEach, beforeEach } from 'vitest'
 import type { DeviceStore } from '../../../src/host/devices/deviceStore'
 import type { DeviceStorageProtection } from '../../../src/core/devices/storageProtection'
 import { startWindowsStorageProtection } from '../../../src/host/devices/windowsStorageProtection'
+import { runProgram } from '../../../src/host/processTree'
 import { DEVICE_LIMITS } from '../../../src/shared/constants'
 import type { DeviceGrant } from '../../../src/core/devices/grants'
 import type { DeviceDispatch } from '../../../src/shared/devices'
@@ -126,6 +127,9 @@ function startNativeBinding(): Promise<OwnedBinding> {
     directory: path.join(tmpdir(), 'muse-spark-device-storage-test'),
     systemRoot: process.env['SystemRoot'] ?? String.raw`C:\Windows`,
     extensionPath: process.cwd(),
+    // The real program runner compiles the helper, as the job suites do;
+    // bootstrap admission has its own suite and no window configures it here.
+    run: runProgram,
   })
 }
 const windowsBinding: { current?: Promise<OwnedBinding> } = {}
