@@ -104,6 +104,14 @@ function terminate(child) {
       clearTimer(timer)
       resolve()
     })
+    // An already-exited child never emits 'exit' again: a late listener
+    // would hang until the loop drains (D1 drill, exit 13). The check sits
+    // after the listener so a child that exits in between still resolves.
+    if (child.exitCode !== null || child.signalCode !== null) {
+      clearTimer(timer)
+      resolve()
+      return
+    }
     try {
       child.kill('SIGTERM')
     } catch {
