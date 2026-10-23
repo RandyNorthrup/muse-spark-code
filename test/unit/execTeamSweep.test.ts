@@ -11,7 +11,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { EXEC_TEAM_CLEANUP_FILE, EXEC_TEAM_RUN_PREFIX } from '../../src/shared/constants'
 import { processTeamGit } from '../../src/core/team/workers/workerOps'
 import { configureResources } from '../../src/core/resources/admission'
+import {
+  createdPathCommands,
+  flushResourceHistory,
+} from '../../src/core/resources/resourceGovernorEntry'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
+import { buildLinuxHelper } from '../../scripts/build-linux-helper.mjs'
 import {
   currentOwner,
   predictedAgentsRef,
@@ -62,11 +67,24 @@ describe('exec team sweep over the real runs root', () => {
     }
     // The sweep's git is the governed contained launch, so the governor is
     // configured as the runtime process configures it for a headless run.
+    // The governor's bundled default spells dist/../native, which from
+    // source would read src/core/native: the created helper is rooted at
+    // the fixture's jobs root instead, as the resource suites stage it.
     jobsRoot = await mkdtemp(path.join(tmpdir(), 'exec-team-sweep-jobs-'))
+    const windowsJob = runtimeWindowsJob(jobsRoot, process.cwd())
+    let commands: (args: readonly string[]) => Promise<string>
+    if (process.platform === 'linux') {
+      buildLinuxHelper(path.join(jobsRoot, 'linux', process.arch))
+      commands = createdPathCommands(jobsRoot, undefined)
+    } else {
+      commands = createdPathCommands(path.resolve('native'), windowsJob)
+    }
     disposeResources = configureResources({
+      registryFile: path.join(jobsRoot, 'resource-created', 'registry.json'),
+      createdDirectories: commands,
       inspect: () => ({}),
       onError: () => undefined,
-      windowsJob: runtimeWindowsJob(jobsRoot, process.cwd()),
+      windowsJob,
     })
     gitImpl = processTeamGit(process.platform)
     root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}sweep-`))
@@ -103,10 +121,13 @@ describe('exec team sweep over the real runs root', () => {
   }, REAL_GIT_TIMEOUT_MS)
 
   afterAll(async () => {
+    // Disposal flushes the governor's history after it returns; settle
+    // that write before removing the root its registry lives under.
     disposeResources?.()
+    await flushResourceHistory()
     const { rm } = await import('node:fs/promises')
     await rm(root, { recursive: true, force: true })
-    await rm(jobsRoot, { recursive: true, force: true })
+    await rm(jobsRoot, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }, REAL_GIT_TIMEOUT_MS)
 
   it(
