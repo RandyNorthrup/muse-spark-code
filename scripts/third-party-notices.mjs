@@ -127,6 +127,14 @@ function sourceUrl(manifest) {
     : (manifest.homepage ?? `https://www.npmjs.com/package/${manifest.name}`)
 }
 
+const VENDORED_LICENCES = new Map([
+  // RLF-M110OS2: qrcode-generator@2.0.4 declares MIT but its tarball ships
+  // no licence file. The text below is upstream's LICENSE verbatim (its
+  // copyright holder is also named in the shipped dist/qrcode.mjs); the
+  // manifest's MIT declaration is still checked.
+  ['qrcode-generator', { licence: 'MIT', file: 'vendor/qrcode-generator/LICENSE' }],
+])
+
 function describePackage(dir, problems) {
   const manifest = JSON.parse(readFileSync(path.join(dir, 'package.json'), 'utf8'))
   const files = readdirSync(dir)
@@ -137,12 +145,25 @@ function describePackage(dir, problems) {
       `${manifest.name}: licence "${String(manifest.license)}" is not on the allow-list`,
     )
   }
-  if (licenceFile === undefined) {
+  const vendored = VENDORED_LICENCES.get(manifest.name)
+  if (licenceFile === undefined && vendored === undefined) {
     problems.push(`${manifest.name}: ships no licence file`)
+  }
+  if (
+    licenceFile === undefined &&
+    vendored !== undefined &&
+    vendored.licence !== manifest.license
+  ) {
+    problems.push(
+      `${manifest.name}: vendored ${vendored.licence} notice does not match the declared "${String(manifest.license)}" licence`,
+    )
   }
   const texts = [licenceFile, noticeFile]
     .filter((file) => file !== undefined)
     .map((file) => normalise(readFileSync(path.join(dir, file), 'utf8')))
+  if (licenceFile === undefined && vendored !== undefined) {
+    texts.unshift(normalise(readFileSync(vendored.file, 'utf8')))
+  }
   return {
     name: manifest.name,
     licence: manifest.license,

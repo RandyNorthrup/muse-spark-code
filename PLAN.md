@@ -804,6 +804,8 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`zopfli`** — VSIXFIT B (D6): the `.vsix` recompressor (`scripts/compress-vsix.py`) writes Zopfli raw-deflate members (stored for already-brotli members), about 1.2% smaller than zlib level 9 (44,904 bytes measured on the 0.19.0 linux-x64 package). A build tool, never shipped: it runs in the `packages` steps only, from the pinned `.github/vsix-compress/requirements.txt`. 0.4.3; Apache-2.0; no dependencies; `zopfli.zlib.compress(data, numiterations=15)` minus its 2-byte header and 4-byte trailer, written as raw deflate with correct CRC and sizes. Without it packaging fails with a named requirements file, never silently falling back to level 9.
 
+**`qrcode-generator`** — RLF-M110OS2 (2026-10-23): the first-boot console screen (`src/runtime/node/firstBoot/display.ts`, landed from RLF-M110OS) draws the setup code as block-character QR rows with `qrcode(0, 'M')`/`addData`/`make`/`isDark`. 2.0.4, the registry latest, published 2025-08-07 (past `.npmrc`'s seven-day rule); MIT; no dependencies; no peer dependencies; `npm audit` clean (see the lane's gate exits). Its tarball ships no licence file, so the notices script reads upstream's LICENSE verbatim from `vendor/qrcode-generator/LICENSE` (byte-identical to the upstream repository, verified 2026-10-23) while still checking the manifest's MIT declaration. A runtime dependency: the ACP package's node bundles carry it.
+
 DEP138 dependency review (2026-10-07): PR #138 proposes ACP SDK 1.5.1,
 Vitest and V8 coverage 5.0.3 together, jscpd 5.4.0, knip 6.39.0 and
 typescript-eslint 8.71.0. Their exact registry peers accept the existing
