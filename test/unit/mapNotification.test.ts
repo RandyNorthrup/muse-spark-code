@@ -230,6 +230,74 @@ describe('mapNotification', () => {
         retryable: false,
       },
     ],
+    // RLF-ACPTURNS: a failed turn carries the CLI's own retry judgment
+    // (m91-captures/05-linux-msp-failure/turn-completed.jsonl); an older
+    // host that omits it reads retryable unless the sign-in was lost.
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'refused by exit 2',
+        error: { kind: 'modelError', message: 'refused by exit 2', retryable: true },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'refused by exit 2',
+        errorKind: 'modelError',
+        retryable: true,
+      },
+    ],
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        error: { kind: 'modelError', message: 'broke' },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        errorKind: 'modelError',
+        retryable: true,
+      },
+    ],
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'not logged in',
+        error: { kind: 'authRequired', message: 'not logged in' },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'not logged in',
+        errorKind: 'authRequired',
+        retryable: false,
+      },
+    ],
+    [
+      'turn/completed',
+      { sessionId, turnId: 't1', terminal: 'failed', reason: 'broke' },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        retryable: true,
+      },
+    ],
     [
       'turn/retryScheduled',
       {
@@ -745,10 +813,11 @@ it('forwards a failed turn’s retryable judgment (RLWINFIX2 item 3)', () => {
     sessionId: 's1',
     event: { type: 'turnCompleted', turnId: 't1', terminal: 'failed', retryable: true },
   })
+  // An older host that omits the judgment reads retryable unless the
+  // sign-in was lost (RLF-ACPTURNS): the table above pins those rows.
   const older = mapNotification({
     method: 'turn/completed',
     params: { sessionId: 's1', turnId: 't1', terminal: 'failed', reason },
   })
-  expect(older).toMatchObject({ event: { type: 'turnCompleted', reason } })
-  expect(older).not.toMatchObject({ event: { retryable: expect.anything() } })
+  expect(older).toMatchObject({ event: { type: 'turnCompleted', reason, retryable: true } })
 })

@@ -34,11 +34,25 @@ describe('acpResourceUpdates', () => {
   it('keeps the agent-message fallback for clients without notices', () => {
     const updates = acpResourceUpdates(pause, false)
     expect(updates).toHaveLength(1)
-    expect(updates[0]).toMatchObject({
+    const [chunk] = updates
+    expect(chunk).toMatchObject({
       sessionUpdate: 'agent_message_chunk',
       content: { type: 'text', text: 'Paused: the machine is busy.' },
     })
-    expect(acpResourceUpdates(pause)).toEqual(updates)
+    // RLF-ACPTURNS F1: the fallback is its own message, with a fresh id
+    // per emission, so it never folds into the model's answer.
+    expect(chunk?.sessionUpdate).toBe('agent_message_chunk')
+    const firstId = chunk?.sessionUpdate === 'agent_message_chunk' ? chunk.messageId : undefined
+    expect(typeof firstId).toBe('string')
+    const [defaulted] = acpResourceUpdates(pause)
+    expect(defaulted).toMatchObject({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Paused: the machine is busy.' },
+    })
+    const secondId =
+      defaulted?.sessionUpdate === 'agent_message_chunk' ? defaulted.messageId : undefined
+    expect(typeof secondId).toBe('string')
+    expect(secondId).not.toBe(firstId)
   })
 
   it('keeps a deferred tool call on its tool update either way', () => {
