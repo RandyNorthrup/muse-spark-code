@@ -19,7 +19,12 @@ export async function runLegalScan(request: LegalScanRequest): Promise<LegalScan
   const input = legalScanInputSchema.parse(request.input)
   // No deadline of its own: the scan runs until it is done or the signal
   // aborts (owner 2026-10-16: no arbitrary limits).
-  const snapshot = await createLegalSnapshot(request.workspaceRoot, request.signal)
+  const snapshot = await createLegalSnapshot(
+    request.workspaceRoot,
+    request.signal,
+    undefined,
+    request.exclude,
+  )
   const result = await scanLegal(snapshot, {
     ...(input.paths !== undefined && { paths: input.paths }),
     headerPolicy: input.headerPolicy ?? SETTING_DEFAULTS.legalHeaderPolicy,
