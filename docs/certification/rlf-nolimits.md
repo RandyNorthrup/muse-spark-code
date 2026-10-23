@@ -151,3 +151,32 @@ the final word belongs to hosted CI on a quiet runner. `treeSyncNoDeadline`
 (2 tests) cannot run in this sandbox: spawning `/bin/ps` answers EPERM
 (`runTreeSync` reads the real process table through it). Untouched by this
 lane; the lead runs it outside the sandbox.
+
+## Final verification (2026-10-22, rig macmini, load ~50, repo default timeout)
+
+All 46 schedule/MCP/git suite files ran at the repository's own 5 s
+timeout, ≤3 files per run, then every failure re-ran at base `397aca3dd`
+in a clean clone. Result: every file this lane touches passes; every
+failure below fails identically at base (same tests, same reasons):
+
+- `scheduleFireFailures` (6) + `schedulePauseAfterFailures` (3): 5 s
+  timeouts under load; base shows the same 9 timeouts.
+- `playbookSchedulesInputs` (3–4, flaky set): 5 s timeouts; base shows 3
+  timeouts in the same file (one passing test measured 4272 ms).
+- `execTeamSweep` (1): assertion on a path under the sandboxed home;
+  identical assertion at base.
+- `resourceCreatedSweep` (4): ENOENT spawning the unbuilt macOS helper
+  `native/darwin/muse-dictate-screen-x64.app`; identical at base.
+- `treeSyncNoDeadline` (2): `spawnSync /bin/ps` EPERM in this sandbox;
+  identical at base.
+- Drill files green: `scheduleFsRetryStop`, `processTreeSweep`,
+  `publishRegistry` (12 passed), `nativeCheckout` with lease/migrate (38
+  passed).
+- Gates green: all five tsc projects, eslint --max-warnings 0 over every
+  touched file, prettier, l10n, all three no-limits guards with their
+  package.json arguments, knip, cycles, catches --check, jscpd (0 clones),
+  reference, host-api, roadmap.
+- `node scripts/check-plan.mjs` reports only the pre-existing 85%
+  archive-budget overage (PLAN.md 3,669,977 bytes vs 3,565,158 budget;
+  over by ~105 KB before this lane's ~1 KB entry): no drift. Archiving is
+  the lead's procedure, not this lane's brief.
