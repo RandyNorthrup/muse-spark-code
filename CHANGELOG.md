@@ -167,6 +167,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- A stray sign-in callback can no longer end a ChatGPT or Grok sign-in:
+  a browser redirect carrying another attempt's state is turned away
+  and the sign-in keeps waiting for its own, instead of failing at
+  once. The Grok device flow also only ever sends you to an xAI
+  address to type its code, and a refreshed Grok identity token must
+  still belong to the sign-in that started the grant.
+
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read

@@ -29558,6 +29558,13 @@ real runs. Undo trigger, vault-reset restoration of retired slots
 and the companion surface are owner/product questions. macOS and
 Windows proofs stay with the lead and hosted CI.
 
+**RLM109 recovery (2026-10-22, RVSEC): merged and security-reviewed.**
+Increments 1–4 landed on `int/recovery` through the RVSEC lane, which
+reviewed the migration, the private reader's `secret` admission and
+the retire path (no secret in logs, errors, usage or panel state; no
+loss or duplication found). Evidence: `docs/certification/rvsec.md`.
+M109 stays open.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
@@ -34924,7 +34931,7 @@ Evidence: `docs/certification/rltestdrive.md`.
 
 ### RLGROKAUTH — Grok subscription sign-in (xAI OAuth), pending xAI's registration (2026-10-22)
 
-**Status 2026-10-22: building.** Lane `rec/rlgrokauth` on rig `linuxlt`,
+**Status 2026-10-22: built.** Merged into RVSEC (below) and security-reviewed there. Lane `rec/rlgrokauth` on rig `linuxlt`,
 base 0.19.0. A Grok account sign-in in Models & Agents and the CLI, like
 Continue With ChatGPT: browser PKCE flow plus RFC 8628 device flow for
 SSH/remote hosts, against the published `https://auth.x.ai` discovery
@@ -34936,6 +34943,20 @@ configuration and refuses plainly until xAI issues it (never another
 application's client id or scope). Research:
 `docs/research/providers/xai-grok-oauth.md`. Evidence:
 `docs/certification/rlgrokauth.md`.
+
+### RVSEC — Security review: Grok sign-in, connector grants, vault anchors and migration (2026-10-22)
+
+**Status 2026-10-22: built.** Lane `rec/rvsec` on rig `linuxlt`, base
+`int/recovery` at 0.19.0 (`397aca3ddb`): merged RLGROKAUTH and RLM109,
+then reviewed them, the M124 connector and RLVAULTANCHOR adversarially
+(same-machine, network and malicious-repository attackers). Three
+findings fixed with red/green real-code tests: the device verification
+address is pinned to xAI's domain, a Grok refresh ID token may omit
+but never change the grant nonce, and a foreign loopback callback no
+longer aborts a ChatGPT or Grok sign-in. One availability residual is
+recorded for its own lane (editor and CLI refresh locks are the
+shipped ChatGPT split). No real sign-in or provider call. Evidence:
+`docs/certification/rvsec.md`.
 
 ---
 
