@@ -27,8 +27,10 @@ import { compactReference } from '../shared/cliCommands'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
+import { acpWatchdog } from './watchdog'
 import { signInLossFailure } from './signInLoss'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
+import type { WatchdogSurfacePort } from '../runtime/watchdog/command'
 import {
   agent as acpAgent,
   type AgentApp,
@@ -244,6 +246,8 @@ export interface AcpAgentDeps {
   readonly schedules?: AcpSchedulePort
   /** I binds P's local /playbook parsing and rendering (the journal bundle). */
   readonly playbookBundle?: () => AcpPlaybookBundle
+  /** WU binds the watchdog's store, signed-in client and clock. */
+  readonly watchdogFor?: (cwd: string, sessionId: string) => Promise<WatchdogSurfacePort>
   /** H-W-SESSION: one profile-owned account service, bound to this backend. */
   readonly accounts?: AccountsSessionPort
   readonly vault?: AcpVault
@@ -861,6 +865,15 @@ class AcpSession {
               input: { hint: 'status|record|settings' },
             },
           ]),
+      ...(this.deps.watchdogFor === undefined
+        ? []
+        : [
+            {
+              name: 'watchdog',
+              description: UI_TEXT.watchdog.cli.description,
+              input: { hint: 'list|status|pause|resume|poll|evidence|apply|decide|resolve' },
+            },
+          ]),
       ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
         ? []
         : [
@@ -915,6 +928,7 @@ class AcpSession {
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
               skill.selector !== 'usage') &&
             (this.deps.playbookFor === undefined || skill.selector !== 'playbook') &&
+            (this.deps.watchdogFor === undefined || skill.selector !== 'watchdog') &&
             skill.selector !== 'schedule',
         )
         .map((skill) => ({
@@ -2684,6 +2698,11 @@ class AcpSession {
           if (bundle === undefined) throw new Error(UI_TEXT.playbookUnavailable)
           return bundle
         },
+      )
+      local ??= await acpWatchdog(
+        blocks,
+        async () => await this.deps.watchdogFor?.(this.cwd, this.sessionId),
+        this.deps.log,
       )
       if (local === undefined) await this.announceCommands()
       if (/^\/schedule(?:\s|$)/.test(typed)) {

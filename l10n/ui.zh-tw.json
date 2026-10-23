@@ -410,6 +410,7 @@
   "referenceInstallSkills": "將 project_setup、feature_delivery 和 quality_retrofit 複製到 Muse Code 設定中，並連結為技能。",
   "referenceExecContract": "無介面執行不允許信任工作區或略過權限。 無介面執行僅允許 plan 或 acceptEdits。 託管網頁搜尋沒有可保證的費用上限，因此拒絕使用。 圖片生成需要 acceptEdits。 請選擇且僅選擇一個提示來源。 提示和金鑰不能同時使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自動壓縮僅在 --auto-compaction 和 --max-budget-usd 下執行。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 單一命令的用法、選項與範例。help --all: 命令、設定和功能，附有說明和文件。",
+  "referenceWatchdog": "從終端機監視 GitHub 問題:列出、狀態、暫停、恢復、輪詢、證據、套用、裁決和解決。",
   "referenceKeyStdin": "auth set: 在終端機中讀取你的金鑰，並保存在這台電腦的認證儲存區中。對話費用會計入該金鑰。 exec / scan-secrets --key-stdin: 請從管線讀取金鑰，而非終端機。 stdin → memory; prompt stdin + key stdin = 提示和金鑰不能同時使用 stdin。",
   "referenceModalKeys": "關閉對話框或在其中移動焦點。",
   "referenceRenameKeys": "確認或取消重新命名此對話。",
@@ -1814,7 +1815,30 @@
       "alreadyPaused": "{repository} 的看守已處於暫停狀態。",
       "notPaused": "{repository} 的看守未處於暫停狀態。",
       "invalidRepository": "請按 擁有者/名稱 的格式指定儲存庫。",
-      "watching": "正在監視 {repository}。"
+      "watching": "正在監視 {repository}。",
+      "usage": "請使用 `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`。",
+      "notSignedIn": "請先登入 GitHub，然後執行 `auth github`。",
+      "invalidIssue": "請指定問題編號。",
+      "invalidEvidence": "驗證證據的格式不符合預期。",
+      "applyNeedsAck": "此問題未在等待分類。",
+      "decideNeedsTriage": "此問題沒有可裁決的分類結果。",
+      "resolveNeedsPlan": "此問題沒有可解決的計畫。",
+      "overdue": "已逾期",
+      "commandFailed": "無法完成看守命令。",
+      "unavailable": "看守無法使用。",
+      "description": "列出、輪詢和裁決受監視的 GitHub 問題。",
+      "pausedWord": "已暫停",
+      "issueCount": {
+        "other": "{count} 個問題"
+      },
+      "noIssues": "未記錄任何問題。",
+      "triagedAs": "已分類為{verdict}。",
+      "decided": "已裁決:{outcome}。",
+      "posted": "已發佈。",
+      "closedNote": "已關閉。",
+      "notVerified": "未驗證:{notes}。",
+      "unknownIssue": "此問題未被監視。",
+      "alreadyPosted": "回覆已發佈。"
     },
     "poll": {
       "skippedPullRequest": "是提取請求，而非問題",
@@ -1832,6 +1856,10 @@
       "inHand": "處理中",
       "invalid": "無效",
       "spam": "垃圾訊息"
+    },
+    "outcomes": {
+      "planEntry": "計畫條目",
+      "fixLane": "修復通道"
     },
     "planDraft": {
       "intro": "針對 {repository}#{number} 的看守計畫草案（結論：{verdict}）。",
@@ -3729,6 +3757,7 @@
     "purposeResources": "顯示電腦負載與最近歷程紀錄。",
     "purposeShare": "分享對話：複製、儲存到檔案或在瀏覽器中開啟。",
     "purposePrompts": "儲存、列出、使用和分享可重複使用的提示詞範本。",
+    "purposeWatchdog": "監視 GitHub 問題:列出、輪詢、分類、裁決和解決。",
     "modelsList": "{entry} 的模型：",
     "modelsForced": "強制加入：{reason}",
     "modelsExtra": "提供者有但項目中沒有：",

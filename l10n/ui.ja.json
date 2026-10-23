@@ -410,6 +410,7 @@
   "referenceInstallSkills": "project_setup、feature_delivery、quality_retrofit を Muse Code の設定へコピーし、スキルとしてリンクします。",
   "referenceExecContract": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。 ヘッドレス実行で許可されるのは plan または acceptEdits のみです。 ホスト型ウェブ検索には保証された上限がないため拒否します。 画像生成には acceptEdits が必要です。 プロンプトの入力元は1つだけ選んでください。 プロンプトとキーに同時に stdin は使えません。 Model API には --max-budget-usd が必要です。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自動圧縮は --auto-compaction と --max-budget-usd の下でのみ実行されます。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: コマンドごとの使い方、オプション、例。help --all: コマンド、設定、機能の説明とドキュメント。",
+  "referenceWatchdog": "ターミナルから GitHub 課題を監視:一覧表示、ステータス、一時停止、再開、ポーリング、証拠、適用、決定、解決。",
   "referenceKeyStdin": "auth set: ターミナルでキーを読み取り、このコンピューターの資格情報ストアに保管します。会話はこのキーに課金されます。 exec / scan-secrets --key-stdin: キーは端末ではなくパイプから読み込んでください。 stdin → memory; prompt stdin + key stdin = プロンプトとキーに同時に stdin は使えません。",
   "referenceModalKeys": "ダイアログを閉じるか、内部のフォーカスを移動します。",
   "referenceRenameKeys": "この会話の名前変更を確定またはキャンセルします。",
@@ -1814,7 +1815,30 @@
       "alreadyPaused": "{repository} のウォッチドッグは既に一時停止しています。",
       "notPaused": "{repository} のウォッチドッグは一時停止していません。",
       "invalidRepository": "リポジトリは owner/name 形式で指定してください。",
-      "watching": "{repository} を監視しています。"
+      "watching": "{repository} を監視しています。",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>` を使用してください。",
+      "notSignedIn": "最初に GitHub にサインインして、`auth github` を実行してください。",
+      "invalidIssue": "課題番号を指定してください。",
+      "invalidEvidence": "検証証拠の形式が期待通りではありませんでした。",
+      "applyNeedsAck": "この課題はトリアージ待ちではありません。",
+      "decideNeedsTriage": "この課題には決定すべきトリアージがありません。",
+      "resolveNeedsPlan": "この課題には解決すべき計画がありません。",
+      "overdue": "期限超過",
+      "commandFailed": "ウォッチドッグのコマンドを完了できませんでした。",
+      "unavailable": "ウォッチドッグは利用できません。",
+      "description": "監視中の GitHub 課題を一覧表示、ポーリング、決定します。",
+      "pausedWord": "一時停止中",
+      "issueCount": {
+        "other": "{count} 件の課題"
+      },
+      "noIssues": "記録された課題はありません。",
+      "triagedAs": "{verdict} としてトリアージしました。",
+      "decided": "決定:{outcome}。",
+      "posted": "投稿しました。",
+      "closedNote": "クローズしました。",
+      "notVerified": "未検証:{notes}。",
+      "unknownIssue": "この課題は監視されていません。",
+      "alreadyPosted": "返信は投稿済みです。"
     },
     "poll": {
       "skippedPullRequest": "issue ではなくプルリクエスト",
@@ -1832,6 +1856,10 @@
       "inHand": "対応中",
       "invalid": "無効",
       "spam": "スパム"
+    },
+    "outcomes": {
+      "planEntry": "計画項目",
+      "fixLane": "修正レーン"
     },
     "planDraft": {
       "intro": "{repository}#{number} のウォッチドッグ計画案（判定: {verdict}）。",
@@ -3729,6 +3757,7 @@
     "purposeResources": "マシンの負荷と最近の履歴を表示します。",
     "purposeShare": "会話を共有します：コピー、ファイルへの保存、ブラウザーで開く。",
     "purposePrompts": "再利用できるプロンプトテンプレートを保存・一覧・使用・共有します。",
+    "purposeWatchdog": "GitHub 課題の監視:一覧表示、ポーリング、トリアージ、決定、解決。",
     "modelsList": "{entry} のモデル:",
     "modelsForced": "強制追加: {reason}",
     "modelsExtra": "プロバイダーにはあるがエントリにないもの:",

@@ -4552,7 +4552,7 @@ prints the full reference in the installed language without a model call. Each c
 itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
 command's own usage, options with defaults and bounds, and two examples, for
 `serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
-`fonts`, `playbook`, `setup`, `usage`, `resources`, `share` and `prompts`.
+`fonts`, `playbook`, `setup`, `usage`, `resources`, `share`, `prompts` and `watchdog`.
 `exec --help`, `report --help` and `scan-secrets --help` print command-local help
 (each command's own options, e.g. the problem report's `--description`,
 `--no-facts` and `--no-events`); `--help` prints concise ACP usage.

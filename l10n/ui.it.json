@@ -412,6 +412,7 @@
   "referenceInstallSkills": "Copiare project_setup, feature_delivery e quality_retrofit nella configurazione di Muse Code e collegarli come competenze.",
   "referenceExecContract": "Le esecuzioni senza interfaccia rifiutano la fiducia nell’area di lavoro e l’aggiramento dei permessi. Senza interfaccia sono consentiti solo plan o acceptEdits. La ricerca web ospitata non ha un limite garantito e viene rifiutata. La generazione di immagini richiede acceptEdits. Scegli una sola fonte per l’istruzione. L’istruzione e la chiave non possono usare entrambe stdin. La Model API richiede --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. La compattazione automatica viene eseguita solo con --auto-compaction sotto --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Uso, opzioni ed esempi per un comando. help --all: Comandi, impostazioni e funzionalità, con descrizioni e documentazione.",
+  "referenceWatchdog": "Osservare le segnalazioni GitHub dal terminale: elencare, stato, pausa, ripresa, interrogazione, prove, applicazione, decisione e risoluzione.",
   "referenceKeyStdin": "auth set: Legge la tua chiave in un terminale e la conserva nell’archivio delle credenziali di questo computer. Le conversazioni vengono addebitate alla chiave. exec / scan-secrets --key-stdin: Leggi la chiave da una pipe, non da un terminale. stdin → memory; prompt stdin + key stdin = L’istruzione e la chiave non possono usare entrambe stdin.",
   "referenceModalKeys": "Chiudere la finestra o spostare il focus al suo interno.",
   "referenceRenameKeys": "Confermare o annullare la rinomina di questa conversazione.",
@@ -1872,7 +1873,32 @@
       "alreadyPaused": "Il guardiano per {repository} è già in pausa.",
       "notPaused": "Il guardiano per {repository} non è in pausa.",
       "invalidRepository": "Indica un repository come proprietario/nome.",
-      "watching": "Osservo {repository}."
+      "watching": "Osservo {repository}.",
+      "usage": "Usa `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Accedi prima a GitHub, poi esegui `auth github`.",
+      "invalidIssue": "Indica un numero di segnalazione.",
+      "invalidEvidence": "La prova di verifica non aveva la forma prevista.",
+      "applyNeedsAck": "Questa segnalazione non è in attesa di smistamento.",
+      "decideNeedsTriage": "Questa segnalazione non ha alcuno smistamento da decidere.",
+      "resolveNeedsPlan": "Questa segnalazione non ha alcun piano da risolvere.",
+      "overdue": "in ritardo",
+      "commandFailed": "Il comando del guardiano non può essere completato.",
+      "unavailable": "Il guardiano non è disponibile.",
+      "description": "Elenca, interroga e decidi le segnalazioni GitHub osservate.",
+      "pausedWord": "In pausa",
+      "issueCount": {
+        "one": "{count} segnalazione",
+        "other": "{count} segnalazioni",
+        "many": "{count} segnalazioni"
+      },
+      "noIssues": "Nessuna segnalazione registrata.",
+      "triagedAs": "Smistato come {verdict}.",
+      "decided": "Deciso: {outcome}.",
+      "posted": "Pubblicato.",
+      "closedNote": "Chiuso.",
+      "notVerified": "Non verificato: {notes}.",
+      "unknownIssue": "Questa segnalazione non è osservata.",
+      "alreadyPosted": "La risposta è già pubblicata."
     },
     "poll": {
       "skippedPullRequest": "una pull request, non una segnalazione",
@@ -1890,6 +1916,10 @@
       "inHand": "In lavorazione",
       "invalid": "Non valida",
       "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Voce di piano",
+      "fixLane": "Corsia di correzione"
     },
     "planDraft": {
       "intro": "Bozza di piano del guardiano per {repository}#{number} (verdetto: {verdict}).",
@@ -3879,6 +3909,7 @@
     "purposeResources": "Mostra il carico della macchina e la cronologia recente.",
     "purposeShare": "Condividere una conversazione: copiarla, salvarla in un file o aprirla nel browser.",
     "purposePrompts": "Salvare, elencare, usare e condividere modelli di prompt riutilizzabili.",
+    "purposeWatchdog": "Osservare le segnalazioni GitHub: elencare, interrogare, smistare, decidere e risolvere.",
     "modelsList": "Modelli di {entry}:",
     "modelsForced": "forzato: {reason}",
     "modelsExtra": "Presso il provider, ma non nella voce:",

@@ -412,6 +412,7 @@
   "referenceInstallSkills": "Copier project_setup, feature_delivery et quality_retrofit dans la configuration de Muse Code et les lier comme compétences.",
   "referenceExecContract": "Les exécutions sans interface refusent la confiance dans l’espace de travail et le contournement des autorisations. Sans interface, seuls plan et acceptEdits sont autorisés. La recherche web hébergée n’a pas de plafond garanti et est refusée. La génération d’images exige acceptEdits. Choisissez une seule source d’invite. L’invite et la clé ne peuvent pas utiliser stdin ensemble. La Model API exige --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. La compaction automatique ne s'exécute qu'avec --auto-compaction sous --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Utilisation, options et exemples pour une commande. help --all: Commandes, paramètres et fonctionnalités, avec descriptions et documentation.",
+  "referenceWatchdog": "Surveiller les problèmes GitHub depuis le terminal : lister, statut, pause, reprise, sondage, preuves, application, décision et résolution.",
   "referenceKeyStdin": "auth set: Lit votre clé dans un terminal et la conserve dans le magasin d’identifiants de cet ordinateur. Les conversations sont facturées à la clé. exec / scan-secrets --key-stdin: Lisez la clé depuis un tube, pas un terminal. stdin → memory; prompt stdin + key stdin = L’invite et la clé ne peuvent pas utiliser stdin ensemble.",
   "referenceModalKeys": "Fermer la boîte de dialogue ou y déplacer le focus.",
   "referenceRenameKeys": "Confirmer ou annuler le renommage de cette conversation.",
@@ -1872,7 +1873,32 @@
       "alreadyPaused": "La veille pour {repository} est déjà en pause.",
       "notPaused": "La veille pour {repository} n’est pas en pause.",
       "invalidRepository": "Indiquez un dépôt sous la forme propriétaire/nom.",
-      "watching": "Surveillance de {repository}."
+      "watching": "Surveillance de {repository}.",
+      "usage": "Utilisez `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Connectez-vous d’abord à GitHub, puis exécutez `auth github`.",
+      "invalidIssue": "Indiquez un numéro de problème.",
+      "invalidEvidence": "Les preuves de vérification n’avaient pas la forme attendue.",
+      "applyNeedsAck": "Ce problème n’attend pas le triage.",
+      "decideNeedsTriage": "Ce problème n’a aucun triage à trancher.",
+      "resolveNeedsPlan": "Ce problème n’a aucun plan à résoudre.",
+      "overdue": "en retard",
+      "commandFailed": "La commande de la veille n’a pas pu aboutir.",
+      "unavailable": "La veille n’est pas disponible.",
+      "description": "Liste, sonde et tranche les problèmes GitHub surveillés.",
+      "pausedWord": "En pause",
+      "issueCount": {
+        "one": "{count} problème",
+        "other": "{count} problèmes",
+        "many": "{count} problèmes"
+      },
+      "noIssues": "Aucun problème enregistré.",
+      "triagedAs": "Trié comme {verdict}.",
+      "decided": "Tranché : {outcome}.",
+      "posted": "Publié.",
+      "closedNote": "Fermé.",
+      "notVerified": "Non vérifié : {notes}.",
+      "unknownIssue": "Ce problème n’est pas surveillé.",
+      "alreadyPosted": "La réponse est déjà publiée."
     },
     "poll": {
       "skippedPullRequest": "une demande de tirage, pas un problème",
@@ -1890,6 +1916,10 @@
       "inHand": "En cours",
       "invalid": "Non valide",
       "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Entrée du plan",
+      "fixLane": "Voie de correction"
     },
     "planDraft": {
       "intro": "Brouillon de plan de la veille pour {repository}#{number} (verdict : {verdict}).",
@@ -3879,6 +3909,7 @@
     "purposeResources": "Afficher la charge de la machine et l’historique récent.",
     "purposeShare": "Partager une conversation : la copier, l’enregistrer dans un fichier ou l’ouvrir dans un navigateur.",
     "purposePrompts": "Enregistrer, lister, utiliser et partager des modèles d’invite réutilisables.",
+    "purposeWatchdog": "Surveiller les problèmes GitHub : lister, sonder, trier, trancher et résoudre.",
     "modelsList": "Modèles de {entry} :",
     "modelsForced": "forcé : {reason}",
     "modelsExtra": "Chez le fournisseur, mais pas dans l’entrée :",

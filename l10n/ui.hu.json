@@ -411,6 +411,7 @@
   "referenceInstallSkills": "A project_setup, feature_delivery és quality_retrofit másolása a Muse Code konfigurációjába és csatolásuk készségként.",
   "referenceExecContract": "A felület nélküli futások nem engedélyezik a munkaterület megbízhatónak jelölését és az engedélyek megkerülését. Felület nélkül csak a plan vagy acceptEdits mód engedélyezett. A szolgáltatói webes keresésnek nincs garantált korlátja, ezért tiltott. A képgeneráláshoz acceptEdits szükséges. Pontosan egy utasításforrást válassz. Az utasítás és a kulcs nem használhatja egyszerre a stdin bemenetet. A Model API használatához --max-budget-usd szükséges. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Az automatikus tömörítés csak --auto-compaction kapcsolóval, --max-budget-usd keret alatt fut.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Egy parancs használata, kapcsolói és példái. help --all: Parancsok, beállítások és funkciók leírással és dokumentációval.",
+  "referenceWatchdog": "GitHub-problémák figyelése terminálból: listázás, állapot, szüneteltetés, folytatás, lekérdezés, bizonyítékok, alkalmazás, döntés és megoldás.",
   "referenceKeyStdin": "auth set: Terminálban beolvassa a kulcsot, és a számítógép hitelesítőadat-tárolójában őrzi. A beszélgetéseket a kulcs terhére számlázzák. exec / scan-secrets --key-stdin: A kulcsot csővezetékből olvasd, ne terminálból. stdin → memory; prompt stdin + key stdin = Az utasítás és a kulcs nem használhatja egyszerre a stdin bemenetet.",
   "referenceModalKeys": "A párbeszédablak bezárása vagy a fókusz mozgatása benne.",
   "referenceRenameKeys": "A beszélgetés átnevezésének jóváhagyása vagy elvetése.",
@@ -1843,7 +1844,31 @@
       "alreadyPaused": "A(z) {repository} figyelője már szünetel.",
       "notPaused": "A(z) {repository} figyelője nincs szüneteltetve.",
       "invalidRepository": "Adja meg a tárolót tulajdonos/név formában.",
-      "watching": "{repository} figyelve."
+      "watching": "{repository} figyelve.",
+      "usage": "Használat: `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Előbb jelentkezzen be a GitHubra, majd futtassa az `auth github` parancsot.",
+      "invalidIssue": "Adja meg a probléma számát.",
+      "invalidEvidence": "Az ellenőrzési bizonyíték nem a várt alakú.",
+      "applyNeedsAck": "Ez a probléma nem vár osztályozásra.",
+      "decideNeedsTriage": "Ehhez a problémához nem tartozik eldöntendő osztályozás.",
+      "resolveNeedsPlan": "Ehhez a problémához nem tartozik lezárandó terv.",
+      "overdue": "késedelmes",
+      "commandFailed": "A figyelő parancsát nem sikerült végrehajtani.",
+      "unavailable": "A figyelő nem érhető el.",
+      "description": "Listázza, lekérdezi és eldönti a figyelt GitHub-problémákat.",
+      "pausedWord": "Szünetel",
+      "issueCount": {
+        "one": "{count} probléma",
+        "other": "{count} probléma"
+      },
+      "noIssues": "Nincs rögzített probléma.",
+      "triagedAs": "Osztályozva mint {verdict}.",
+      "decided": "Döntés: {outcome}.",
+      "posted": "Közzétéve.",
+      "closedNote": "Lezárva.",
+      "notVerified": "Nincs ellenőrizve: {notes}.",
+      "unknownIssue": "Ez a probléma nincs figyelve.",
+      "alreadyPosted": "A válasz már közzé van téve."
     },
     "poll": {
       "skippedPullRequest": "nem probléma, hanem pull request",
@@ -1861,6 +1886,10 @@
       "inHand": "Folyamatban",
       "invalid": "Érvénytelen",
       "spam": "Levélszemét"
+    },
+    "outcomes": {
+      "planEntry": "Tervbejegyzés",
+      "fixLane": "Javítási sáv"
     },
     "planDraft": {
       "intro": "A figyelő tervvázlata ehhez: {repository}#{number} (ítélet: {verdict}).",
@@ -3804,6 +3833,7 @@
     "purposeResources": "A gép terhelésének és az előzményeknek a megjelenítése.",
     "purposeShare": "Beszélgetés megosztása: másolás, fájlba mentés vagy megnyitás böngészőben.",
     "purposePrompts": "Újrafelhasználható promptsablonok mentése, listázása, használata és megosztása.",
+    "purposeWatchdog": "GitHub-problémák figyelése: listázás, lekérdezés, osztályozás, döntés és megoldás.",
     "modelsList": "{entry} modelljei:",
     "modelsForced": "kényszerítve: {reason}",
     "modelsExtra": "A szolgáltatónál igen, a bejegyzésben nem:",

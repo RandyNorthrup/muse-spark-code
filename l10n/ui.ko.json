@@ -410,6 +410,7 @@
   "referenceInstallSkills": "project_setup, feature_delivery, quality_retrofit을 Muse Code 설정에 복사하고 스킬로 연결합니다.",
   "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.자동 압축은 --auto-compaction 및 --max-budget-usd에서만 실행됩니다.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 명령별 사용법, 옵션 및 예제. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
+  "referenceWatchdog": "터미널에서 GitHub 이슈 감시: 나열, 상태, 일시 중지, 다시 시작, 폴링, 증거, 적용, 결정, 해결.",
   "referenceKeyStdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
   "referenceModalKeys": "대화 상자를 닫거나 내부에서 초점을 이동합니다.",
   "referenceRenameKeys": "이 대화의 이름 변경을 확인하거나 취소합니다.",
@@ -1814,7 +1815,30 @@
       "alreadyPaused": "{repository}의 와치독은 이미 일시 중지되어 있습니다.",
       "notPaused": "{repository}의 와치독은 일시 중지되어 있지 않습니다.",
       "invalidRepository": "리포지토리를 owner/name 형식으로 지정하세요.",
-      "watching": "{repository} 감시 중."
+      "watching": "{repository} 감시 중.",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`를 사용하세요.",
+      "notSignedIn": "먼저 GitHub에 로그인한 다음 `auth github`을 실행하세요.",
+      "invalidIssue": "이슈 번호를 지정하세요.",
+      "invalidEvidence": "확인 증거의 형식이 예상과 달랐습니다.",
+      "applyNeedsAck": "이 이슈는 트리아지를 기다리고 있지 않습니다.",
+      "decideNeedsTriage": "이 이슈에는 결정할 트리아지가 없습니다.",
+      "resolveNeedsPlan": "이 이슈에는 해결할 계획이 없습니다.",
+      "overdue": "기한 초과",
+      "commandFailed": "와치독 명령을 완료할 수 없습니다.",
+      "unavailable": "와치독을 사용할 수 없습니다.",
+      "description": "감시 중인 GitHub 이슈를 나열하고 폴링하며 결정합니다.",
+      "pausedWord": "일시 중지됨",
+      "issueCount": {
+        "other": "{count}개의 이슈"
+      },
+      "noIssues": "기록된 이슈가 없습니다.",
+      "triagedAs": "{verdict}(으)로 트리아지했습니다.",
+      "decided": "결정됨: {outcome}.",
+      "posted": "게시했습니다.",
+      "closedNote": "종료했습니다.",
+      "notVerified": "확인되지 않음: {notes}.",
+      "unknownIssue": "이 이슈는 감시 대상이 아닙니다.",
+      "alreadyPosted": "답변이 이미 게시되었습니다."
     },
     "poll": {
       "skippedPullRequest": "이슈가 아닌 풀 리퀘스트",
@@ -1832,6 +1856,10 @@
       "inHand": "진행 중",
       "invalid": "무효",
       "spam": "스팸"
+    },
+    "outcomes": {
+      "planEntry": "계획 항목",
+      "fixLane": "수정 레인"
     },
     "planDraft": {
       "intro": "{repository}#{number}에 대한 와치독 계획 초안(판정: {verdict}).",
@@ -3729,6 +3757,7 @@
     "purposeResources": "컴퓨터 부하와 최근 기록을 표시합니다.",
     "purposeShare": "대화를 공유합니다: 복사, 파일 저장, 브라우저에서 열기.",
     "purposePrompts": "재사용 가능한 프롬프트 템플릿을 저장, 나열, 사용 및 공유합니다.",
+    "purposeWatchdog": "GitHub 이슈 감시: 나열, 폴링, 트리아지, 결정, 해결.",
     "modelsList": "{entry}의 모델:",
     "modelsForced": "강제 추가: {reason}",
     "modelsExtra": "공급자에는 있지만 항목에 없는 모델:",

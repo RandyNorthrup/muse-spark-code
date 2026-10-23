@@ -536,6 +536,8 @@ export const EN = {
     'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
+  referenceWatchdog:
+    'Watch GitHub issues from the terminal: list, status, pause, resume, poll, evidence, apply, decide and resolve.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -2274,6 +2276,28 @@ export const EN = {
       notPaused: 'The watchdog is not paused for {repository}.',
       invalidRepository: 'Give a repository as owner/name.',
       watching: 'Watching {repository}.',
+      usage:
+        'Use `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.',
+      notSignedIn: 'Sign in to GitHub first, then run `auth github`.',
+      invalidIssue: 'Give an issue number.',
+      invalidEvidence: 'The verification evidence did not have the expected shape.',
+      applyNeedsAck: 'This issue is not waiting for triage.',
+      decideNeedsTriage: 'This issue has no triage to decide.',
+      resolveNeedsPlan: 'This issue has no plan to resolve.',
+      overdue: 'overdue',
+      commandFailed: 'The watchdog command could not be completed.',
+      unavailable: 'The watchdog is unavailable.',
+      description: 'List, poll and decide watched GitHub issues.',
+      pausedWord: 'Paused',
+      issueCount: forms({ one: '{count} issue', other: '{count} issues' }),
+      noIssues: 'No issues recorded.',
+      triagedAs: 'Triaged as {verdict}.',
+      decided: 'Decided: {outcome}.',
+      posted: 'Posted.',
+      closedNote: 'Closed.',
+      notVerified: 'Not verified: {notes}.',
+      unknownIssue: 'This issue is not being watched.',
+      alreadyPosted: 'The reply is already posted.',
     },
     poll: {
       skippedPullRequest: 'a pull request, not an issue',
@@ -2291,6 +2315,10 @@ export const EN = {
       inHand: 'In hand',
       invalid: 'Invalid',
       spam: 'Spam',
+    },
+    outcomes: {
+      planEntry: 'Plan entry',
+      fixLane: 'Fix lane',
     },
     planDraft: {
       intro: 'Watchdog plan draft for {repository}#{number} (verdict: {verdict}).',
@@ -4722,6 +4750,7 @@ export const EN = {
     purposeResources: 'Show machine pressure and recent history.',
     purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
     purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    purposeWatchdog: 'Watch GitHub issues: list, poll, triage, decide and resolve.',
     // {entry}: the provider entry id.
     modelsList: 'Models for {entry}:',
     // {reason}: the user's one-line reason for forcing the model.

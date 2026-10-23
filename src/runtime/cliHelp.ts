@@ -448,6 +448,21 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     ...GENERIC_EXITS,
   },
   {
+    name: 'watchdog',
+    purpose: (table) => table.cliHelp.purposeWatchdog,
+    usage: [
+      (command) =>
+        `${command} watchdog <list|status|pause|resume|poll|evidence|apply|decide|resolve ...>`,
+    ],
+    routes: [],
+    options: [],
+    examples: [
+      (command) => `${command} watchdog list`,
+      (command) => `${command} watchdog poll owner/name`,
+    ],
+    ...GENERIC_EXITS,
+  },
+  {
     name: 'setup',
     purpose: (table) => table.cliHelp.purposeSetup,
     usage: [(command) => `${command} --trust-workspace setup [--maintenance]`],

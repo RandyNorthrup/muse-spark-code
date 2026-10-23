@@ -57,6 +57,17 @@ export function cliCommands(shouldIncludeHeld = false) {
       action,
     ]),
     playbook: ['status', 'record', 'settings'].map((action) => ['playbook', action]),
+    watchdog: [
+      'list',
+      'status',
+      'pause',
+      'resume',
+      'poll',
+      'evidence',
+      'apply',
+      'decide',
+      'resolve',
+    ].map((action) => ['watchdog', action]),
     estimate: [['estimate']],
     report: [['report'], ['report', 'problem']],
     reports: [
@@ -279,6 +290,12 @@ export function cliCommands(shouldIncludeHeld = false) {
       name: 'playbook [status|record|settings]',
       description: UI_TEXT.playbookCommandUsage,
       text: { ui: 'playbookCommandUsage' },
+    },
+    {
+      route: 'watchdog',
+      name: 'watchdog [list|status|pause|resume|poll|evidence|apply|decide|resolve]',
+      description: UI_TEXT.referenceWatchdog,
+      text: { ui: 'referenceWatchdog' },
     },
     {
       route: 'fontsInstall',
