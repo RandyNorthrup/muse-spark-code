@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "checkedDate": "2026-10-22",
+  "runtime": {
+    "version": "0.35.1",
+    "minimum": "0.35.1",
+    "archives": []
+  },
+  "rows": [
+    {
+      "model": "tev1:4b",
+      "technique": "systemone",
+      "quantization": "Q8_0",
+      "digest": "9b5bb969e46c4b776826d6f2d401e22893205693f172653af6254897255025b8",
+      "downloadBytes": 4482415847,
+      "residentBytesGpu": 4669109698,
+      "accuracy": {
+        "correct": 39,
+        "total": 40,
+        "brier": 0.03,
+        "source": "docs/certification/m98-research.md (40-item set; Brier 0.030 CPU, 0.031 GPU)"
+      },
+      "latency": [
+        {
+          "backend": "cuda",
+          "platform": "win32",
+          "p50Ms": 295,
+          "p95Ms": 356,
+          "path": "raw",
+          "source": "docs/certification/m98-research.md (Win11 VM, GTX 1080 Ti, SSH tunnel adds 20-150 ms)"
+        },
+        {
+          "backend": "cpu",
+          "platform": "linux",
+          "p50Ms": 3100,
+          "p95Ms": 3800,
+          "path": "raw",
+          "source": "docs/certification/m98-research.md (Kubuntu rig CPU)"
+        }
+      ],
+      "profiledFamilies": [],
+      "source": "docs/certification/m98-research.md; test/unit/fixtures/localJudgeSystemOneCapture.json (digest, size, quantization)",
+      "checkDate": "2026-10-22"
+    },
+    {
+      "model": "tev1:0.8b",
+      "technique": "systemone",
+      "quantization": "Q8_0",
+      "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+      "downloadBytes": 811856202,
+      "weightBytes": 811843424,
+      "accuracy": {
+        "correct": 30,
+        "total": 40,
+        "brier": 0.176,
+        "source": "docs/certification/m98-research.md (40-item set, CPU)"
+      },
+      "latency": [
+        {
+          "backend": "cpu",
+          "platform": "linux",
+          "p50Ms": 670,
+          "p95Ms": 830,
+          "path": "raw",
+          "source": "docs/certification/m98-research.md (Kubuntu rig CPU)"
+        }
+      ],
+      "profiledFamilies": [],
+      "speedOnly": true,
+      "source": "docs/certification/m98-research.md; docs/certification/m98p2-j.md (digest, bytes)",
+      "checkDate": "2026-10-22"
+    },
+    {
+      "model": "tev1:0.8b-q8_0",
+      "technique": "systemone",
+      "quantization": "Q8_0",
+      "digest": "d45e875d63fed9465390a4eb9e55f51f470390a446667b55d0a075a15e0336bf",
+      "downloadBytes": 811856202,
+      "weightBytes": 811843424,
+      "accuracy": {
+        "correct": 30,
+        "total": 40,
+        "source": "docs/certification/m98-research.md (same weights as tev1:0.8b, 40-item set)"
+      },
+      "latency": [],
+      "profiledFamilies": [],
+      "speedOnly": true,
+      "source": "docs/certification/m98p2-j.md (digest, bytes, darwin tag entry)",
+      "checkDate": "2026-10-22"
+    },
+    {
+      "model": "qwen3:4b-instruct-2507-q4_K_M",
+      "technique": "logprob",
+      "quantization": "Q4_K_M",
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+      "weightDigest": "85e4a5b7b8ef0e48af0e8658f5aaab9c2324c76c1641493f4d1e25fce54b18b9",
+      "weightBytes": 2497280480,
+      "downloadBytes": 2497293803,
+      "accuracy": {
+        "correct": 37,
+        "total": 40,
+        "brier": 0.071,
+        "source": "docs/certification/m98-research.md (40-item set, GPU)"
+      },
+      "latency": [
+        {
+          "backend": "cuda",
+          "platform": "win32",
+          "p50Ms": 104,
+          "p95Ms": 137,
+          "path": "raw",
+          "source": "docs/certification/m98-research.md (Win11 VM, GTX 1080 Ti)"
+        }
+      ],
+      "profiledFamilies": [],
+      "requiresCalibration": true,
+      "source": "docs/certification/m98-research.md; docs/certification/m98-2j-spike.md (digests, bytes)",
+      "checkDate": "2026-10-22"
+    }
+  ]
+}

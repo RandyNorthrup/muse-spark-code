@@ -231,6 +231,14 @@ const JUDGE_CHILDREN = [
       'src/runtime/judge/tokenFile.ts',
     ],
   },
+  {
+    // M125 lane W: the scan/setup/remove text steps, out of the judge
+    // parent bundle into their own explicit-action child. The flow and
+    // H's modules stay shared with the wizard's host controller.
+    output: 'dist/judgeSetup.js',
+    metafile: 'dist/meta/judgeSetup.json',
+    files: ['src/runtime/judge/judgeSetupEntry.ts', 'src/runtime/judge/setupCli.ts'],
+  },
 ]
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
@@ -645,6 +653,28 @@ if (parserFiles.length > 0) {
 }
 if (!planReader.has(PLAN_READER.module)) {
   problems.push(`${PLAN_READER.output} no longer carries ${PLAN_READER.module}`)
+}
+
+// M125's Set Up Local Judge wizard driver (D107 lane W): the host
+// requires it on the first wizard open. The activation bundle carries
+// neither its entry nor the setup flows; the driver's bundle carries
+// the controller.
+const JUDGE_SETUP_DRIVER = {
+  output: 'dist/judgeSetupDriver.js',
+  metafile: 'dist/meta/judgeSetupDriver.json',
+  entry: 'src/host/judgeSetup/judgeSetupDriver.ts',
+  module: 'src/core/judge/setup/controller.ts',
+}
+const judgeSetupDriver = inputsOf(JUDGE_SETUP_DRIVER)
+for (const file of [JUDGE_SETUP_DRIVER.entry, JUDGE_SETUP_DRIVER.module]) {
+  if (activation.has(file)) {
+    problems.push(
+      `${BUNDLES.activation.output} carries ${file}, which loads only on the first wizard open`,
+    )
+  }
+}
+if (!judgeSetupDriver.has(JUDGE_SETUP_DRIVER.module)) {
+  problems.push(`${JUDGE_SETUP_DRIVER.output} no longer carries ${JUDGE_SETUP_DRIVER.module}`)
 }
 
 const PAGE_WORKER = { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' }
@@ -1752,6 +1782,14 @@ const TEXT_BLOCKS = [
     sentinels: ['singleTokenInstruction'],
     readers: ['dist/judgeSources.js'],
   },
+  // M125 lanes M/C: the fast judge's harness notes. The backends read
+  // them through the shared application layer; the runtime engine embeds
+  // both backends, so it carries the block too.
+  {
+    block: 'FAST_PATH_MODEL_TEXT',
+    sentinels: ['fastLoopRepeat', 'fastDoneBacked'],
+    readers: ['dist/modelApi.js', 'dist/museCode.js', 'dist/runtimeEngine.js'],
+  },
   // M124: what another agent's model reads from the connector, `mcp` only.
   {
     block: 'CONNECTOR_MODEL_TEXT',
@@ -1978,6 +2016,7 @@ for (const [page, entry] of [
   ['modelsWebview', 'dist/webview/models.js'],
   ['usageWebview', 'dist/webview/usage.js'],
   ['whatsNewPage', 'dist/webview/whatsNew.js'],
+  ['judgeSetupWebview', 'dist/webview/judgeSetup.js'],
 ]) {
   const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))
   const reachable = new Set()
@@ -2053,6 +2092,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'resourceHistory.json',
         'reportingPageWebview.json',
         'reportingDestinationsWebview.json',
+        'judgeSetupWebview.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)

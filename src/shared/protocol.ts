@@ -312,6 +312,10 @@ export const NOTICE_ACTIONS = [
   'installBundledSkills',
   'updateBundledSkills',
   'declineBundledSkills',
+  // M125 lane C (D107): the stuck chip's way on. Both run in the panel:
+  // Stop cancels the running turn, Steer focuses the composer.
+  'stopTurn',
+  'steerTurn',
 ] as const
 export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 

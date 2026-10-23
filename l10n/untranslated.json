@@ -135,7 +135,10 @@
       "trafficSuggestDeclareSharedFile",
       "trafficSuggestAddRunner",
       "trafficSuggestLowerIntensity",
-      "trafficSuggestUserWaiters"
+      "trafficSuggestUserWaiters",
+      "judgeSetupCli.scanCpu",
+      "judgeSetupCli.scanGpu",
+      "judgeSetupCli.setupProgress"
     ],
     "cs": [
       "groupModel",
@@ -158,7 +161,10 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure"
+      "devices.diskPressure",
+      "judgeSetupCli.planLicence",
+      "judgeSetupCli.planLicenceNoUrl",
+      "judgeSetupCli.planModel"
     ],
     "tr": [
       "groupModel",
@@ -172,7 +178,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure"
+      "devices.diskPressure",
+      "judgeSetupCli.planModel"
     ],
     "pl": [
       "groupModel",
@@ -195,7 +202,8 @@
       "usageLimit",
       "teamTemplates.solo",
       "teamCapabilityWarning",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "judgeSetupCli.planModel"
     ],
     "de": [
       "groupSkills",
@@ -283,7 +291,8 @@
       "teamCapabilityWarning",
       "teamUsageTokens",
       "reportLabels.total",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "judgeSetupCli.scanClasses"
     ],
     "fr": [
       "modesTitle",
@@ -315,7 +324,11 @@
       "teamIntensityLevels.minimal",
       "reportLabels.total",
       "sessionListsHooks",
-      "devices.grantQuota"
+      "devices.grantQuota",
+      "judgeSetupCli.planLicence",
+      "judgeSetupCli.planLicenceNoUrl",
+      "judgeSetupCli.planRuntime",
+      "judgeSetupCli.scanClasses"
     ],
     "it": [
       "usageAccount",
@@ -338,7 +351,9 @@
       "devices.grantRepository",
       "devices.grantQuota",
       "devices.cpuPressure",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "judgeSetupCli.planRuntime",
+      "judgeSetupCli.scanCores.one"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],

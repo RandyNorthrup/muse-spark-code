@@ -17,6 +17,7 @@
 // transport bounds alone cannot see (absolute paths, traversal, URLs).
 
 import * as z from 'zod/mini'
+import { fastPathAuditSchema, type FastPathAudit } from '../../shared/fastPathAudit'
 import { BACKEND_KINDS, reportWebviewErrorSchema, type BackendKind } from '../../shared/protocol'
 import {
   REPORT_ERROR_CODE_MAX_CHARS,
@@ -73,6 +74,8 @@ export const flightRecordSchema = z.strictObject({
   count: z.optional(z.int().check(z.gte(0))),
   /** The scrubbed stack's verified frames, most recent call first. */
   frames: flightFramesSchema,
+  /** A fast-path allow's audit facts (§9.6): closed vocabularies, never content. */
+  audit: z.optional(fastPathAuditSchema),
 })
 export type FlightRecord = z.infer<typeof flightRecordSchema>
 
@@ -94,7 +97,7 @@ export interface FlightFrameInput {
   readonly column: number
 }
 
-/** Raw caller data for one failure: scrubbed and validated before writing. */
+/** Raw caller data for one failure or audit: scrubbed and validated before writing. */
 export interface FlightEventInput {
   readonly kind: ReportEventKind
   /** The raw error class; an unknown shape becomes the fixed unknown word. */
@@ -104,6 +107,8 @@ export interface FlightEventInput {
   readonly backend?: BackendKind
   readonly count?: number
   readonly frames?: readonly FlightFrameInput[]
+  /** A fast-path allow's audit facts (§9.6); anything off-schema is omitted, never guessed. */
+  readonly audit?: FastPathAudit
 }
 
 /** Why a record was refused: fixed words, never the offending text. */
@@ -184,6 +189,20 @@ function scrubFrames(frames: readonly FlightFrameInput[] | undefined): FlightFra
   return kept
 }
 
+/**
+An audit the journal may hold: on-schema, and its engine token
+unchanged by the redactor. Anything else omits the audit while the
+record itself still lands: the skip fact outranks its details.
+*/
+function scrubAudit(audit: FastPathAudit | undefined): FastPathAudit | undefined {
+  if (audit === undefined) return undefined
+  const parsed = fastPathAuditSchema.safeParse(audit)
+  return !parsed.success ||
+    (parsed.data.engine !== undefined && redactSecrets(parsed.data.engine) !== parsed.data.engine)
+    ? undefined
+    : parsed.data
+}
+
 function assemble(input: {
   kind: string
   code: string
@@ -192,6 +211,7 @@ function assemble(input: {
   backend: string | undefined
   count: number | undefined
   frames: readonly FlightFrameInput[] | undefined
+  audit: FastPathAudit | undefined
   at: number
 }): BuiltFlightRecord {
   if (!isEventKind(input.kind)) return { ok: false, reason: 'unknownKind' }
@@ -206,6 +226,7 @@ function assemble(input: {
     return { ok: false, reason: 'badCount' }
   }
   if (!Number.isSafeInteger(input.at) || input.at < 0) return { ok: false, reason: 'invalid' }
+  const audit = scrubAudit(input.audit)
   const candidate = {
     v: REPORT_JOURNAL_VERSION,
     kind: input.kind,
@@ -216,6 +237,7 @@ function assemble(input: {
     ...(input.backend !== undefined && { backend: input.backend }),
     ...(input.count !== undefined && { count: input.count }),
     frames: scrubFrames(input.frames),
+    ...(audit !== undefined && { audit }),
   }
   const parsed = flightRecordSchema.safeParse(candidate)
   if (!parsed.success) return { ok: false, reason: 'invalid' }
@@ -235,6 +257,7 @@ export function buildFlightRecord(input: FlightEventInput, at: number): BuiltFli
     backend: input.backend,
     count: input.count,
     frames: input.frames,
+    audit: input.audit,
     at,
   })
 }
@@ -261,6 +284,7 @@ export function buildWebviewFlightRecord(
     backend: undefined,
     count: undefined,
     frames: parsed.data.frames,
+    audit: undefined,
     at,
   })
 }
@@ -275,12 +299,21 @@ A stored record must still look like one the recorder wrote: the fixed
 code and version vocabularies and verified frame paths. Anything else was
 tampered with after writing and is skipped, never trusted or exported.
 */
+function isStoredAudit(audit: FastPathAudit | undefined): boolean {
+  return (
+    audit === undefined ||
+    (fastPathAuditSchema.safeParse(audit).success &&
+      (audit.engine === undefined || redactSecrets(audit.engine) === audit.engine))
+  )
+}
+
 function isStoredRecord(record: FlightRecord): boolean {
   return (
     scrubCode(record.code) === record.code &&
     scrubVersion(record.ext) === record.ext &&
     scrubVersion(record.host) === record.host &&
-    record.frames.every((frame) => scrubFramePath(frame.path) === frame.path)
+    record.frames.every((frame) => scrubFramePath(frame.path) === frame.path) &&
+    isStoredAudit(record.audit)
   )
 }
 

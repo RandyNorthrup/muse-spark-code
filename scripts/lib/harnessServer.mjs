@@ -19,6 +19,7 @@ export const HARNESS_PATH = 'test/harness/index.html'
 // (`?bundle=models`, M95 lane M) for its scenarios, the chat's otherwise.
 export function bundleFor(scenario) {
   if (scenario.startsWith('usage-page-')) return 'usage'
+  if (scenario.startsWith('judge-setup-')) return 'judgeSetup'
   return scenario !== 'models-byo' && scenario.startsWith('models-') ? 'models' : 'main'
 }
 // Real time for one page; a hung browser fails rather than producing an empty result.
@@ -332,6 +333,11 @@ export const SCENARIOS = [
   'models-undo',
   'models-import',
   'models-narrow',
+  'judge-setup-scan',
+  'judge-setup-recommend',
+  'judge-setup-recommend-advanced',
+  'judge-setup-install',
+  'judge-setup-done',
   'report',
   'report-narrow',
   'legal',
@@ -474,6 +480,11 @@ export const SIZED_SCENARIOS = {
   judge: { width: 690, ready: '.judge-status' },
   'judge-slow': { width: 690, ready: '.judge-status' },
   'judge-usage': { width: 690, ready: '[role="dialog"]' },
+  'judge-setup-scan': { width: 690, ready: '.js-panel section' },
+  'judge-setup-recommend': { width: 690, ready: '.js-panel section' },
+  'judge-setup-recommend-advanced': { width: 690, ready: '.js-advanced[open]' },
+  'judge-setup-install': { width: 690, ready: '.js-panel section' },
+  'judge-setup-done': { width: 690, ready: '.js-panel section' },
   'plan-notice-narrow': { width: 320, ready: '#chatgpt-plan-title' },
   'plan-limit-narrow': { width: 320, ready: '#chatgpt-plan-title' },
   'plan-usage-narrow': { width: 320, ready: '#usage-title' },

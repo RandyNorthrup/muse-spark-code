@@ -479,6 +479,22 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'judgeSetup.js',
+    side: 'acp',
+    requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
+  },
+  {
+    file: 'judgeSetupDriver.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'JUDGE_SETUP_DRIVER_BUNDLE_FILE',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'judgeSources.js',
     side: 'both',
     requestedBy: [
@@ -1548,6 +1564,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       { importer: 'src/host/backend/toolIo.ts', symbol: 'createToolIo', side: ['acp', 'vscode'] },
       { importer: 'src/shared/constants.ts', symbol: 'WEB_FETCH_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'webview/judgeSetup.js',
+    side: 'vscode',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'JUDGE_SETUP_WEBVIEW_SCRIPT_FILE',
+        side: ['vscode'],
+      },
     ],
   },
   {

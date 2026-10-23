@@ -204,6 +204,7 @@ import {
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
 import { effortForThinking, isEffortLevel, servedEffortLevels } from '../../shared/effort'
+import type { FastPathAudit } from '../../shared/fastPathAudit'
 import {
   isChildTurn,
   type AgentEvent,
@@ -347,6 +348,8 @@ export interface ConversationReports {
   carries, or undefined when nothing was recorded.
   */
   readonly record: (kind: ReportEventKind, code: string) => ReportEventRef | undefined
+  /** Journals a fast-path allow's audit facts (M125, D107 §9.6) from the audit's own budget. */
+  readonly recordAudit: (audit: FastPathAudit) => void
 }
 
 /**
@@ -2896,6 +2899,7 @@ export class ConversationController implements DeferredSend {
       return
     }
     const reportRef = this.observeFailure(event)
+    if (event.type === 'judgeFastSkip') this.deps.reports?.recordAudit(event.audit)
     if (
       (event.type === 'approvalRequested' || event.type === 'questionRequested') &&
       event.isReplayed !== undefined
@@ -3233,6 +3237,23 @@ export class ConversationController implements DeferredSend {
               this.say('error', UI_TEXT.questionAnswerFailed)
             })
         }
+        break
+      }
+      case 'judgeStuck': {
+        // D107 (lane C): the stuck chip with its way on: Stop ends the
+        // turn, Steer focuses the composer for a steering message.
+        this.notice('warning', UI_TEXT.judgeLooksStuck, undefined, undefined, [
+          'stopTurn',
+          'steerTurn',
+        ])
+        break
+      }
+      case 'judgeFastTurn': {
+        // D107 (M125 lane U): the turn's fast-decision record joins the
+        // window's rolls, and the usage dialog shows the fresh snapshot.
+        this.deps.judge?.observeFastTurn?.(event)
+        const usage = this.deps.judge?.readPanelSnapshot?.()
+        if (usage !== undefined) this.postJudge({ type: 'judgeUsage', usage })
         break
       }
       default: {

@@ -774,6 +774,106 @@ set|status|clear --provider <id> --admin` stores the separate admin
   really runs, and the README still says the feature remains unavailable
   until its integration is complete.
 
+### Muse Judge fast path (M125)
+
+- Fast judge setup in the editor: the **Muse: Set Up Local Judge**
+  command opens a wizard (scan, recommendation with Advanced model
+  and CPU-only picks, licence, install with byte progress, done with
+  timing classes, accuracy checks and the smoke count), one panel per
+  window with a status entry until setup or deferral, and the Models
+  & Agents Judge section manages the install (open, change, remove
+  behind a native question). The first run is a walkthrough step.
+  The driver's flows load on first open, never at activation.
+
+- Fast judge approval fence: a held Auto action that is a confined
+  read-only inspect command, or the workspace's own unchanged check
+  script, may skip the slow reviewer when the judge does not veto it
+  within 5 seconds of the hold. The reviewer still starts as today,
+  so a veto adds no wait; every skip lands in the audit with its
+  program allow-list, proven over strace on x86_64.
+
+- Fast judge check sandbox: the workspace's unchanged npm or pnpm
+  check script runs in a contained sandbox over a frozen snapshot of
+  a verified allow-listed closure, so a skip cannot read or change
+  anything outside it.
+
+- Fast judge on the Model API backend: the compaction tail keeps
+  relevance-ranked entries past the recent turns, with triage and
+  effort signals carried on the turn.
+
+- Fast judge on the Muse Code backend: turn-tail verdicts, review
+  notes and a stuck-turn chip, carried on the session's own frames.
+
+- Fast judge provider gating: an engine admits only over its M95
+  capability record, and the logprob wire only with a top-5 answer.
+
+- Fast judge headless setup: `muse-spark-code-acp judge
+  scan|setup|remove` scans the machine (writing nothing, calling
+  nothing), installs the recommended model, or removes only what
+  setup added; setup and removal change nothing without `--yes`.
+
+- Fast judge measurement: per-turn fast-decision records on both
+  backends, with paired on-minus-off replay deciding what ships.
+
+- Fast judge usage rows: Account & usage and the Models & Agents Judge
+  section show the window's fast-decision rolls — turns, applied turns,
+  judge calls and tokens, and each evaluated decision's state — with a
+  measured time saving once a paired evaluation exists.
+
+- Fast judge hardware scan: the wizard's Scan step reads the OS and
+  architecture, RAM, the GPU's vendor and usable backend (CUDA, ROCm,
+  Metal or CPU only, each with its reason), CPU features, free install
+  disk, any existing Ollama with its version and models, and a bounded
+  CPU throughput probe. Unknown readings stay unknown; the scan
+  writes nothing and makes no network call.
+
+- Fast judge accuracy checks: six checks on the agent's own work
+  (destructive commands, edit fit, unmentioned failures, unbacked
+  "done", scope, consistency with files read) show a hint, a note or a
+  caution-latch bit only when the engine's calibrated answer meets the
+  check's precision bar from its fitted profile. Below the bar, or with
+  no profile for the engine, the verdict is a measurement record that
+  carries no judged content.
+
+- Fast judge verified-path hold: a native holder process keeps the
+  judged blobs open across the boundary drills, with a runner that
+  refuses a hold that never becomes ready and proves the refusal leaves
+  no holder behind. Killing the holder corrupts nothing: the blobs stay
+  intact and a new hold starts on the same files.
+
+- Fast judge calibration: the SystemOne technique and nine fast-judge
+  families join the fitted profiles, with per-engine base curves and
+  per-family overrides in a committed, dated profile directory. No
+  profile qualifies yet, so every model-backed family stays off and
+  reports its own missing profile.
+
+- Fast judge engine choice: each decision picks the fastest ready engine
+  its deadline admits, suspending a hanging engine by its third miss and
+  requalifying it only through background probes. The chat model never
+  serves inline or slack decisions, hosted engines need consent, and a
+  verified local judge closes the separate-source install gap.
+
+- Fast judge deterministic checks: loop and stall detection, first-send
+  triage, effort lowering for mechanical requests, context ranking,
+  skill matching, and unmentioned-failure and unbacked-done detection
+  run instantly with no model, network or download, missing to today's
+  behaviour on anything they do not recognise.
+
+- Fast judge contract: `auto` now means the fast judge (deterministic
+  checks first, then the fastest ready engine per decision), with one
+  `museSpark.judge.fastPathOff` switch for the whole fast path and a
+  **Set Up Local Judge** command that opens the Judge settings until the
+  setup wizard lands.
+
+- Judge fast path: the confinement helper answers `stat` itself instead of
+  starting the system `stat`, so the report cannot depend on which
+  coreutils a machine ships. The report comes from the walked files, prints
+  the full device number, refuses recursive runs and mismatched tool
+  arguments, accepts only the helper's own refusal lines (never a started
+  program's output), and prints a dash for any detail the filesystem does
+  not supply. A `du` killed for asking for a thread reports process
+  creation refused instead of a generic refusal.
+
 ### Muse Judge phase 2 (M98)
 
 - **M98 phase 2 judge redesign.** Each judge run is planned once: one

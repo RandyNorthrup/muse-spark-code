@@ -1,0 +1,58 @@
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 17 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m test/unit/inspectNative.test.ts[2m > [22mB1 Linux kernel boundary[2m > [22mruns verified cat or refuses its unsupported thread requirement
+[31m[1mAssertionError[22m: cat: {"refused":"systemFile"}
+: expected 125 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 125[39m
+
+[36m [2m❯[22m test/unit/inspectNative.test.ts:[2m221:63[22m[39m
+    [90m219|[39m             return
+    [90m220|[39m           }
+    [90m221|[39m           expect(result.code, `${program}: ${result.stderr}`).toBe(0)
+    [90m   |[39m                                                               [31m^[39m
+    [90m222|[39m           expect(result.stderr).toMatch(/^\{"confined":true,/u)
+    [90m223|[39m           if (program === 'ls')
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/inspectNative.test.ts[2m > [22mB1 Linux kernel boundary[2m > [22mruns verified ls or refuses its unsupported thread requirement
+[31m[1mAssertionError[22m: ls: {"refused":"systemFile"}
+: expected 125 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 125[39m
+
+[36m [2m❯[22m test/unit/inspectNative.test.ts:[2m221:63[22m[39m
+    [90m219|[39m             return
+    [90m220|[39m           }
+    [90m221|[39m           expect(result.code, `${program}: ${result.stderr}`).toBe(0)
+    [90m   |[39m                                                               [31m^[39m
+    [90m222|[39m           expect(result.stderr).toMatch(/^\{"confined":true,/u)
+    [90m223|[39m           if (program === 'ls')
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/17]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m test/unit/inspectNative.test.ts[2m > [22mB1 Linux kernel boundary[2m > [22mruns verified head or refuses its unsupported thread requirement
+[31m[1mAssertionError[22m: head: {"refused":"systemFile"}
+: expected 125 to be +0 // Object.is equality[39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- 0[39m
+[31m+ 125[39m
+
+[36m [2m❯[22m test/unit/inspectNative.test.ts:[2m221:63[22m[39m
+    [90m219|[39m             return
+    [90m220|[39m           }
+    [90m221|[39m           expect(result.code, `${program}: ${result.stderr}`).toBe(0)
+    [90m   |[39m                                                               [31m^[39m
+    [90m222|[39m           expect(result.stderr).toMatch(/^\{"confined":true,/u)

@@ -6,7 +6,7 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import * as esbuild from 'esbuild'
 
-async function buildConfine(directory) {
+export async function buildConfine(directory) {
   if (process.platform !== 'linux' && process.platform !== 'darwin')
     throw new Error('B1 is confined on Linux (Landlock) and macOS (Seatbelt) only')
   if (!['x64', 'arm64'].includes(process.arch)) throw new Error('Unsupported B1 architecture')

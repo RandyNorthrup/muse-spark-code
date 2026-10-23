@@ -99,13 +99,17 @@ export function formatPercent(percent: number, maximumFractionDigits = 0): strin
 // Decimal sizes, as Intl's byte units are named (kB, MB).
 const BYTES_PER_KILOBYTE = 1000
 const BYTES_PER_MEGABYTE = BYTES_PER_KILOBYTE * BYTES_PER_KILOBYTE
+const BYTES_PER_GIGABYTE = BYTES_PER_MEGABYTE * BYTES_PER_KILOBYTE
 const SIZE_FRACTION_DIGITS = 1
 
-/** A size as the language writes one, in the largest unit below it: 512 byte / 48.2 kB / 5.2 MB. */
+/** A size as the language writes one, in the largest unit below it: 512 byte / 48.2 kB / 5.2 MB / 5.2 GB. */
 export function formatBytes(bytes: number): string {
   let unit = 'byte'
   let value = bytes
-  if (bytes >= BYTES_PER_MEGABYTE) {
+  if (bytes >= BYTES_PER_GIGABYTE) {
+    unit = 'gigabyte'
+    value = bytes / BYTES_PER_GIGABYTE
+  } else if (bytes >= BYTES_PER_MEGABYTE) {
     unit = 'megabyte'
     value = bytes / BYTES_PER_MEGABYTE
   } else if (bytes >= BYTES_PER_KILOBYTE) {
@@ -129,6 +133,17 @@ export function formatUnit(value: number, unit: DurationUnit | 'byte'): string {
     unit,
     unitDisplay: 'narrow',
   }).format(value)
+}
+
+const MS_PER_SECOND = 1000
+const SECONDS_PER_MINUTE = 60
+
+/** "45s", "1m 30s", in the display language's narrow units. */
+export function formatDurationMs(durationMs: number): string {
+  const totalSeconds = Math.round(durationMs / MS_PER_SECOND)
+  const minutes = Math.floor(totalSeconds / SECONDS_PER_MINUTE)
+  const seconds = formatUnit(totalSeconds % SECONDS_PER_MINUTE, 'second')
+  return minutes === 0 ? seconds : `${formatUnit(minutes, 'minute')} ${seconds}`
 }
 
 /** "5 min. ago", "yesterday": a signed amount of time relative to now. */

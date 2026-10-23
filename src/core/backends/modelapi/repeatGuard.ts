@@ -1,36 +1,5 @@
 import { fingerprint } from '../../verify/fingerprint'
-
-interface ToolIdentity {
-  readonly name: string
-  readonly arguments: string
-}
-
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((entry: unknown) => canonical(entry))
-  return typeof value === 'object' && value !== null
-    ? Object.fromEntries(
-        Object.entries(value)
-          .toSorted(([left], [right]) => {
-            if (left === right) return 0
-            return left < right ? -1 : 1
-          })
-          .map(([key, entry]: [string, unknown]) => [key, canonical(entry)]),
-      )
-    : value
-}
-
-/** Object key order and insignificant JSON whitespace never distinguish two calls. */
-export function toolRepeatKey(call: ToolIdentity): string {
-  let args: string
-  try {
-    const parsed: unknown = JSON.parse(call.arguments)
-    args = JSON.stringify(canonical(parsed))
-  } catch {
-    // Invalid JSON still belongs to the tool's validated refusal path.
-    args = call.arguments
-  }
-  return JSON.stringify([call.name, args])
-}
+import { canonicalJson, toolRepeatKey, type ToolIdentity } from '../../judge/fast/reflex/loop'
 
 /**
 Turn-local, consecutive results only; stores digests, never tool output
@@ -75,7 +44,7 @@ export class RepeatGuard {
 
   public observe(call: ToolIdentity, output: unknown, witness: string | undefined): void {
     const key = toolRepeatKey(call)
-    const result = fingerprint(JSON.stringify(canonical(output)))
+    const result = fingerprint(JSON.stringify(canonicalJson(output)))
     const count =
       this.previous?.key === key && this.previous.result === result ? this.previous.count + 1 : 1
     this.previous = { key, result, witness, count }

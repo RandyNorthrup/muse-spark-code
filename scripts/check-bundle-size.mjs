@@ -113,9 +113,7 @@ const BUDGETS = [
   { path: 'dist/connectorStoreGuard.js', budgetKiB: 18 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
-  // RLF-PROVLIMITS: 525.0 KiB measured +5%, rounded up to 25 KiB (DeepSeek
-  // concurrency admission, Azure burst shaping, Anthropic request limits).
-  { path: 'dist/modelApi.js', budgetKiB: 575 },
+  { path: 'dist/modelApi.js', budgetKiB: 525 },
   // PR206: the Muse Code backend's own bundle (the host, its notification
   // mapping and the SDK), loaded on the first backend start: 97.6 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).
@@ -192,6 +190,10 @@ const BUDGETS = [
   { path: 'dist/webview/theme.css', budgetKiB: 25 },
   // TRAIN15E: Models page and its shared static imports: 424.9 KiB +15%.
   { path: 'dist/webview/models.js', budgetKiB: 500 },
+  // RLM125 lane W: the setup wizard page and its shared static imports:
+  // 346.0 KiB measured, plus 15%, rounded up to 25 KiB.
+  { path: 'dist/webview/judgeSetup.js', budgetKiB: 400 },
+  { path: 'dist/webview/judgeSetup.css', budgetKiB: 25 },
   // M115W: v1's Model API schedules beside the v2 runtime binding (store,
   // scheduler, delivery, time, events, registry, control and engine), loaded
   // on first schedule use: 167.8 KiB measured, plus 15%, rounded up to 25 KiB.
@@ -508,6 +510,12 @@ const BUDGETS = [
   // runTreeSync, so bundles that never call it stop carrying it; 21.1 KiB
   // measured, back under the original 25 KiB cap.
   { path: 'dist/judgeServe.js', budgetKiB: 25 },
+  // M125 lane W: the scan/setup/remove text steps: 39.7 KiB measured
+  // +15%, rounded up to 25 KiB.
+  { path: 'dist/judgeSetup.js', budgetKiB: 50 },
+  // RLM125 lane W: the wizard driver (controller, ports, flows):
+  // 42.2 KiB measured +15%, rounded up to 25 KiB.
+  { path: 'dist/judgeSetupDriver.js', budgetKiB: 50 },
   // M98 integration: JSON Schema conversion loads only on explicit tool listing.
   { path: 'dist/validationSchema.js', budgetKiB: 50 },
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },
@@ -607,6 +615,7 @@ for (const { path, budgetKiB } of BUDGETS) {
     'dist/webview/models.js': 'dist/meta/modelsWebview.json',
     'dist/webview/usage.js': 'dist/meta/usageWebview.json',
     'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+    'dist/webview/judgeSetup.js': 'dist/meta/judgeSetupWebview.json',
   }[path]
   const files = pageMetafile
     ? webviewStartupOutputs(JSON.parse(readFileSync(pageMetafile, 'utf8')), path)

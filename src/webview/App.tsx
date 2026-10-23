@@ -2450,6 +2450,16 @@ export function App({
         onNewConversation()
         return
       }
+      // M125 lane C (D107): the stuck chip runs in the panel: Stop
+      // cancels the running turn, Steer focuses the composer.
+      if (action === 'stopTurn') {
+        postMessage({ type: 'cancelTurn' })
+        return
+      }
+      if (action === 'steerTurn') {
+        dispatch({ type: 'steerRequested' })
+        return
+      }
       postMessage({ type: 'hostAction', action })
     },
     [dispatch, onNewConversation, postMessage],

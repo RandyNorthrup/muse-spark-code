@@ -9,7 +9,11 @@
 import { readFileSync } from 'node:fs'
 import { z } from 'zod'
 import { Connection, type DuplexTransport } from '@muse-code/sdk'
-import { MuseCodeHost, type MuseSession } from '../../../src/core/backends/musecode/MuseCodeHost'
+import {
+  MuseCodeHost,
+  type MuseCodeFeaturePorts,
+  type MuseSession,
+} from '../../../src/core/backends/musecode/MuseCodeHost'
 import { stderrLogger } from '../../../src/runtime/stderrLog'
 import { captureFrameRow } from './wireCapture'
 
@@ -188,6 +192,7 @@ export async function closeLiveHosts(): Promise<void> {
 /** A real host over the replay wire; the script answers every method the test needs. */
 export function startLiveHost(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
+  features?: MuseCodeFeaturePorts,
 ): LiveHost {
   const wire = new ReplayWire()
   wire.answer = answer
@@ -203,6 +208,8 @@ export function startLiveHost(
       },
     },
     stderrLogger(() => undefined, 'warn'),
+    undefined,
+    features,
   )
   liveHosts.push({
     host,
@@ -220,9 +227,12 @@ export interface LiveSession extends LiveHost {
 /** A real host plus its real started session; `session/start` serves the recorded frame. */
 export async function startLiveSession(
   answer: (method: string, params: Record<string, unknown>) => Answer | Promise<Answer>,
+  features?: MuseCodeFeaturePorts,
 ): Promise<LiveSession> {
-  const live = startLiveHost((method, params) =>
-    method === 'session/start' ? { result: startResult } : answer(method, params),
+  const live = startLiveHost(
+    (method, params) =>
+      method === 'session/start' ? { result: startResult } : answer(method, params),
+    features,
   )
   const session = await live.host.startSession({
     workspaceRoot: '<capture-workspace>',

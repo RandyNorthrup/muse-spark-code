@@ -51,3 +51,7 @@ test/fixtures/mcpEra/
 # YAML prettier can parse ({{- if }} blocks). Values and the chart stay
 # formatted; only the templates are out of its reach.
 deploy/helm/muse-node/templates/
+
+# Lane L loader fixture: intentionally not JSON (the loader's
+# invalid-json case in test/unit/judgeCalibration.test.ts).
+test/fixtures/judgeCalibration/invalid/systemone/loop.stuck/bad.json

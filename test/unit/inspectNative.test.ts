@@ -15,7 +15,10 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { InspectRunner } from '../../src/core/judge/fast/inspectExec'
+import { InspectRunner, type InspectExecOptions } from '../../src/core/judge/fast/inspectExec'
+import { parseInspectCommand } from '../../src/core/judge/fast/inspectGrammar'
+import { JUDGE_FAST_B1_REFUSED_EXIT } from '../../src/shared/constants'
+import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 import {
   inspectFixture,
   inspectSpellingMatrix,
@@ -23,6 +26,7 @@ import {
   type InspectCase,
 } from './helpers/inspectCase'
 import { inspectProtectedPaths } from './helpers/inspectPaths'
+import { inspectStart } from './helpers/inspectStart'
 
 interface Receipt {
   stdout: Buffer
@@ -35,6 +39,7 @@ function native(
   cwd: string,
   ready?: () => void,
   stdio?: StdioOptions,
+  marker = '"confined":true',
 ): Promise<Receipt> {
   return new Promise((resolve, reject) => {
     const child = spawn(file, args, { cwd, env: {}, stdio: stdio ?? ['ignore', 'pipe', 'pipe'] })
@@ -46,7 +51,7 @@ function native(
     })
     child.stderr?.on('data', (chunk: Buffer) => {
       errors.push(chunk)
-      if (hasReady || !chunk.toString().includes('"confined":true')) {
+      if (hasReady || !chunk.toString().includes(marker)) {
         return
       }
 
@@ -60,51 +65,112 @@ function native(
   })
 }
 
+// Replays exact helper bytes for runner-parsing tests through the same
+// launcher the real runs use (the session self-test cannot run in this
+// sandbox): probe and self-test answers, then a confined line followed by
+// the refusal, exit 125.
+const replayScript = (stdout: string, stderr: string, code: number) =>
+  `process.stdout.write(${JSON.stringify(stdout)}, () => { process.stderr.write(${JSON.stringify(stderr)}, () => process.exit(${String(code)})); });`
+const replayStart: InspectExecOptions['start'] = (_file, args, options) => {
+  const program = args[0] === 'probe' ? 'probe' : (args[5] ?? '')
+  if (program === 'probe')
+    return inspectStart(
+      process.execPath,
+      ['-e', replayScript('{"abi":7,"confined":true}\n', '', 0)],
+      options,
+    )
+  if (program === 'cat')
+    return inspectStart(
+      process.execPath,
+      ['-e', replayScript('B1_ALLOWED_CANARY', '{"confined":true,"abi":7,"excluded":0}\n', 0)],
+      options,
+    )
+  if (program === 'grep')
+    return inspectStart(
+      process.execPath,
+      ['-e', replayScript('B1_ALLOWED_CANARY\n', '{"confined":true,"abi":7,"excluded":3}\n', 0)],
+      options,
+    )
+  const refused = program === 'stat' ? 'operand' : 'exec'
+  return inspectStart(
+    process.execPath,
+    [
+      '-e',
+      replayScript(
+        '',
+        `{"confined":true,"abi":7,"excluded":0}\n{"refused":"${refused}"}\n`,
+        JUDGE_FAST_B1_REFUSED_EXIT,
+      ),
+    ],
+    options,
+  )
+}
+
 switch (process.platform) {
   case 'linux': {
     describe('B1 Linux kernel boundary', () => {
       let scratch = '',
         binary = ''
       const variants = new Map<string, string>()
+      // The C compiles measured ~7 s on linuxlt at load 4.4, so the default
+      // hook budget flakes on a loaded runner: this hook carries the shared
+      // fixture-build budget, and every build runs under an inner timeout that
+      // fails the suite with this sentence instead of leaving the tests skipped.
       beforeAll(async () => {
-        scratch = await mkdtemp(path.join(os.tmpdir(), 'b1-native-'))
-        execFileSync(process.execPath, ['scripts/build-confine.mjs'], {
-          env: { PATH: '/usr/bin:/bin' },
-        })
-        binary = path.resolve('temp/confine/muse-confine')
-        for (const name of [
-          'Race',
-          'Guards',
-          'Device',
-          'Budget',
-          'Trust',
-          'Depth',
-          'Abi',
-          'Root',
-          'Paths',
-        ]) {
-          const variant = path.join(scratch, name)
-          execFileSync(
-            '/usr/bin/cc',
-            [
-              '-std=c11',
-              '-O2',
-              '-Wall',
-              '-Wextra',
-              '-Werror',
-              '-Wconversion',
-              '-Wshadow',
-              '-I',
-              'temp/confine',
-              `test/unit/helpers/inspect${name}.c`,
-              '-o',
-              variant,
-            ],
-            { env: { PATH: '/usr/bin:/bin' } },
+        try {
+          scratch = await mkdtemp(path.join(os.tmpdir(), 'b1-native-'))
+          execFileSync(process.execPath, ['scripts/build-confine.mjs'], {
+            env: { PATH: '/usr/bin:/bin' },
+            timeout: 100_000,
+          })
+          binary = path.resolve('temp/confine/muse-confine')
+          for (const name of [
+            'Race',
+            'StatRace',
+            'StatNlink',
+            'StatMask',
+            'StatNoExec',
+            'StatChecks',
+            'ExecFail',
+            'Guards',
+            'Device',
+            'Budget',
+            'Trust',
+            'Depth',
+            'Abi',
+            'Root',
+            'Paths',
+          ]) {
+            const variant = path.join(scratch, name)
+            execFileSync(
+              '/usr/bin/cc',
+              [
+                '-std=c11',
+                '-O2',
+                '-Wall',
+                '-Wextra',
+                '-Werror',
+                '-Wconversion',
+                '-Wshadow',
+                '-I',
+                'temp/confine',
+                `test/unit/helpers/inspect${name}.c`,
+                '-o',
+                variant,
+              ],
+              { env: { PATH: '/usr/bin:/bin' }, timeout: 100_000 },
+            )
+            variants.set(name, variant)
+          }
+        } catch (error) {
+          throw new Error(
+            'B1 native test setup failed: the confine helper and variants did not build',
+            {
+              cause: error,
+            },
           )
-          variants.set(name, variant)
         }
-      })
+      }, FIXTURE_HOOK_TIMEOUT_MS)
       afterAll(async () => {
         if (scratch) await rm(scratch, { recursive: true, force: true })
       })
@@ -158,6 +224,261 @@ switch (process.platform) {
             expect(result.stdout.toString()).toContain(String(statSync(h.allowed).uid))
         },
       )
+      it('reports stat without the system stat binary: mode, owners, links and times match fs.statSync', async () => {
+        // The NoExec variant fails every execve, so exit 0 proves no binary ran.
+        const h = await fixture()
+        for (const [operand, kind] of [
+          ['allowed.txt', 'regular file'],
+          ['.', 'directory'],
+        ] as const) {
+          const result = await native(
+            variant('StatNoExec'),
+            h.args('stat', [operand], [operand]),
+            h.root,
+          )
+          expect(result.code, operand).toBe(0)
+          expect(result.stderr).toMatch(/^\{"confined":true,/u)
+          const expected = statSync(path.join(h.workspace, operand))
+          const stdout = result.stdout.toString()
+          expect(stdout).toContain(`File: ${operand}\n`)
+          expect(stdout).toContain(`Size: ${String(expected.size)} `)
+          expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
+          expect(stdout).toContain(
+            `Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `,
+          )
+          expect(stdout).toContain(kind)
+          expect(stdout).toContain(`Links: ${String(expected.nlink)}\n`)
+          const octal = (expected.mode & 0o7777).toString(8).padStart(4, '0')
+          expect(stdout).toContain(`Access: (${octal}/`)
+          expect(stdout).toContain(`Uid: (${String(expected.uid).padStart(5)}/ UNKNOWN)`)
+          expect(stdout).toContain(`Gid: (${String(expected.gid).padStart(5)}/ UNKNOWN)`)
+          // Times print in UTC with nanoseconds; fs.statSync resolves
+          // milliseconds, so the comparison tolerance is milliseconds.
+          const instants: readonly (readonly [string, number])[] = [
+            ['Access', expected.atimeMs],
+            ['Modify', expected.mtimeMs],
+            ['Change', expected.ctimeMs],
+          ]
+          for (const [label, ms] of instants) {
+            const line = stdout
+              .split('\n')
+              .find((entry) => entry.startsWith(`${label}: `) && /\d{4}-/u.test(entry))
+            const match =
+              /^(\w+): (\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})\.(\d{9}) \+0000$/u.exec(
+                line ?? '',
+              )
+            expect(match, `${operand} ${label}`).not.toBeNull()
+            if (match === null) throw new Error('Missing reported time')
+            const reported =
+              Date.UTC(
+                Number(match[2]),
+                Number(match[3]) - 1,
+                Number(match[4]),
+                Number(match[5]),
+                Number(match[6]),
+                Number(match[7]),
+              ) +
+              Number(match[8]) / 1e6
+            expect(Math.abs(reported - ms), `${operand} ${label}`).toBeLessThan(5)
+          }
+          if (expected.birthtimeMs === 0) expect(stdout).toContain('Birth: -\n')
+          else {
+            const line = stdout.split('\n').find((entry) => entry.startsWith('Birth:'))
+            expect(line, `${operand} Birth`).toMatch(/^Birth: \d{4}-/u)
+          }
+        }
+      })
+      it('stat prints a dash for every field the filesystem withholds, never zero or 1970', async () => {
+        const h = await fixture()
+        const result = await native(
+          variant('StatMask'),
+          h.args('stat', ['allowed.txt'], ['allowed.txt']),
+          h.root,
+        )
+        expect(result.code, result.stderr).toBe(0)
+        const stdout = result.stdout.toString()
+        expect(stdout).toContain('Size: -  Blocks: - ')
+        expect(stdout).toContain('Uid: (-/ UNKNOWN)  Gid: (-/ UNKNOWN)')
+        expect(stdout).toContain('Access: -\n')
+        expect(stdout).toContain('Modify: -\n')
+        expect(stdout).toContain('Change: -\n')
+        expect(stdout).toContain('Birth: -\n')
+        expect(stdout).not.toContain('1970')
+        expect(stdout).not.toContain('Size: 0')
+        // The supplied fields still print.
+        const expected = statSync(h.allowed)
+        expect(stdout).toContain(`Inode: ${String(expected.ino)} `)
+        expect(stdout).toContain(`Device: ${expected.dev.toString(16)}h/${String(expected.dev)}d `)
+      })
+      it('a refusal after the walk leaves the refusal as the last stderr line', async () => {
+        // The ExecFail variant fails wc's execve. Where /usr/bin/wc verifies,
+        // that is a confined line plus {"refused":"exec"}; on this uutils rig
+        // no system file verifies (every one is nobody-owned), so the refusal
+        // stands alone. Either way the last line is the refusal the runner reads.
+        const h = await fixture()
+        const result = await native(
+          variant('ExecFail'),
+          h.args('wc', ['allowed.txt'], ['-l', 'allowed.txt']),
+          h.root,
+        )
+        expect(result.code).toBe(125)
+        expect(result.stdout.length).toBe(0)
+        const lines = result.stderr.split('\n').filter((line) => line.length > 0)
+        expect(lines.at(-1)).toMatch(/^\{"refused":"[a-zA-Z]+"\}$/u)
+        if (lines.length === 2) {
+          expect(lines[0]).toMatch(/^\{"confined":true,/u)
+          expect(lines.at(-1)).toBe('{"refused":"exec"}')
+        } else expect(lines).toHaveLength(1)
+      })
+      it('the runner reports the refusal reason, not confinement, after the confined line', async () => {
+        // Replays the exact bytes the helper emits (pinned above against the
+        // real helper): probe and self-test answers, then a confined line
+        // followed by the refusal, exit 125. The session self-test cannot run
+        // in this sandbox, so the runner logic is proved here and the helper
+        // bytes against the real binary above.
+        const h = await fixture()
+        const runner = new InspectRunner({
+          helper: binary,
+          storage: path.join(h.root, 'storage'),
+          start: replayStart,
+        })
+        try {
+          expect(await runner.run('wc -l allowed.txt', h.binding)).toEqual({
+            kind: 'refused',
+            reason: 'exec',
+          })
+          expect(await runner.run('stat link', h.binding)).toEqual({
+            kind: 'refused',
+            reason: 'operand',
+          })
+        } finally {
+          await runner.dispose()
+        }
+      })
+      it('stat refuses a recursive run and tool arguments that do not mirror the operands', async () => {
+        const h = await fixture()
+        const recursive = await native(
+          binary,
+          h.args('stat', ['allowed.txt'], ['allowed.txt'], true),
+          h.root,
+        )
+        expect(recursive.code).toBe(125)
+        expect(recursive.stdout.length).toBe(0)
+        expect(recursive.stderr).toContain('request')
+        const count = await native(
+          binary,
+          h.args('stat', ['allowed.txt'], ['allowed.txt', 'allowed.txt']),
+          h.root,
+        )
+        expect(count.code).toBe(125)
+        expect(count.stdout.length).toBe(0)
+        expect(count.stderr).toContain('request')
+        const spelling = await native(
+          binary,
+          h.args('stat', ['allowed.txt', '.'], ['allowed.txt', 'allowed.txt']),
+          h.root,
+        )
+        expect(spelling.code).toBe(125)
+        expect(spelling.stdout.length).toBe(0)
+        expect(spelling.stderr).toContain('request')
+      })
+      it('stat refuses symlinked and hard-linked operands at the walk', async () => {
+        // Walk-level refusals: the link dies in openat2 RESOLVE_NO_SYMLINKS and
+        // the hard link in the walk's link-count check, both before any report.
+        const h = await fixture()
+        symlinkSync(h.outside, path.join(h.workspace, 'link'))
+        linkSync(h.outside, path.join(h.workspace, 'hardlink'))
+        for (const operand of ['link', 'hardlink']) {
+          const result = await native(binary, h.args('stat', [operand], [operand]), h.root)
+          expect(result.code, operand).toBe(125)
+          expect(result.stdout.length).toBe(0)
+          expect(result.stderr).toContain('operand')
+        }
+      })
+      it('the post-walk stat check refuses a link count raised after the walk', async () => {
+        // The StatNlink variant signals the parent once the walk is done; the
+        // parent adds a second hard link inside that window. The walk saw one
+        // link, so only the post-walk check_stat call in production main can
+        // refuse: removing it answers exit 0 instead (red drill in the record).
+        const h = await fixture()
+        const pending = native(
+          variant('StatNlink'),
+          h.args('stat', ['allowed.txt'], ['allowed.txt']),
+          h.root,
+          () => {
+            linkSync(h.allowed, path.join(h.workspace, 'allowed.second'))
+          },
+          undefined,
+          '{"walked":true}',
+        )
+        const result = await pending
+        expect(result.code).toBe(125)
+        expect(result.stdout.length).toBe(0)
+        expect(result.stderr).toContain('operand')
+      })
+      it('stat refuses more operands than the process may hold open with a limit reason', async () => {
+        // The helper keeps one descriptor per stat operand until the report, so
+        // a list longer than RLIMIT_NOFILE fails in openat2 with EMFILE. Under
+        // a 64-descriptor prlimit 100 repeated operands refuse with "limits";
+        // without the limit the same list answers, so the count itself is lawful.
+        const h = await fixture()
+        const operands = Array.from({ length: 100 }, () => 'allowed.txt')
+        const limited = await native(
+          '/usr/bin/prlimit',
+          ['--nofile=64:64', binary, ...h.args('stat', operands, operands)],
+          h.root,
+        )
+        expect(limited.code).toBe(125)
+        expect(limited.stdout.length).toBe(0)
+        expect(limited.stderr).toContain('limits')
+        const ample = await native(binary, h.args('stat', operands, operands), h.root)
+        expect(ample.code, ample.stderr).toBe(0)
+      })
+      it('the post-walk stat checks refuse hostile shapes and accept files and folders', async () => {
+        const h = await fixture()
+        const result = await native(variant('StatChecks'), [], h.root)
+        expect(result.code, result.stderr).toBe(0)
+        const stdout = result.stdout.toString()
+        for (const line of [
+          'ok regular',
+          'ok directory',
+          'ok symlink-refused',
+          'ok foreign-device-refused',
+          'ok hardlink-refused',
+          'ok fifo-refused',
+        ])
+          expect(stdout, line).toContain(`${line}\n`)
+        expect(stdout).not.toContain('FAIL')
+      })
+      it('stat -- name answers: the grammar drops the separator the helper would refuse', async () => {
+        // Builds the helper argv exactly as InspectRunner.execute does, so the
+        // grammar's tool arguments and the helper's mirror check must agree.
+        const h = await fixture()
+        const parsed = parseInspectCommand('stat -- allowed.txt')
+        expect(parsed).toMatchObject({
+          program: 'stat',
+          args: ['allowed.txt'],
+          operands: ['allowed.txt'],
+        })
+        if (parsed === undefined) throw new Error('Missing parsed command')
+        const result = await native(
+          binary,
+          [
+            'run',
+            h.workspace,
+            h.binding.identity,
+            h.home,
+            'single',
+            parsed.program,
+            ...parsed.operands,
+            '--',
+            ...parsed.args,
+          ],
+          h.root,
+        )
+        expect(result.code, result.stderr).toBe(0)
+        expect(result.stdout.toString()).toContain('File: allowed.txt\n')
+      })
       it('B1-3/4/5/6/7 excludes protected/private descendants, links, devices, hard links and foreign device ids', async () => {
         const h = await fixture()
         for (const name of [
@@ -270,6 +591,74 @@ switch (process.platform) {
             expect(result.code).not.toBe(0)
           }
         }
+      })
+      it('stat reports the walked file when an ancestor is swapped for a link mid-report', async () => {
+        // Outcome-driven rounds, not one fixed sleep: on a loaded machine the
+        // swap lands before the walk (a refusal), on a fast one inside the
+        // report's 200 ms delay (exit 0 with the walked file's bytes). The race
+        // RAN only when both outcomes were seen across the rounds; a round that
+        // never reports retries with a wider window, and a run that never
+        // refuses falls back to a pre-swapped control, which must refuse.
+        async function raceFixture() {
+          const h = await fixture()
+          mkdirSync(path.join(h.workspace, 'src'))
+          writeFileSync(path.join(h.workspace, 'src/a.txt'), 'ALLOWED_CANARY\n')
+          mkdirSync(path.join(h.root, 'foreign'))
+          writeFileSync(path.join(h.root, 'foreign/a.txt'), 'FORBIDDEN_CANARY_IS_LONGER\n')
+          const original = statSync(path.join(h.workspace, 'src/a.txt'))
+          const outside = statSync(path.join(h.root, 'foreign/a.txt'))
+          expect(outside.size).not.toBe(original.size)
+          const swap = () => {
+            renameSync(path.join(h.workspace, 'src'), path.join(h.workspace, 'src.old'))
+            symlinkSync(path.join(h.root, 'foreign'), path.join(h.workspace, 'src'))
+          }
+          return { h, original, outside, swap }
+        }
+        const seen = new Set<string>()
+        for (let round = 0; round < 3 && !(seen.has('report') && seen.has('refused')); round++) {
+          for (const delay of [0, 100 + 100 * round]) {
+            const { h, original, outside, swap } = await raceFixture()
+            const pending = native(
+              variant('StatRace'),
+              h.args('stat', ['src/a.txt'], ['src/a.txt']),
+              h.root,
+            )
+            await new Promise((resolve) => setTimeout(resolve, delay))
+            swap()
+            const result = await pending
+            // It never reports the outside file, whichever side wins.
+            expect(result.stdout.toString()).not.toContain(`Size: ${String(outside.size)} `)
+            if (result.code === 0) {
+              expect(result.stderr).toMatch(/^\{"confined":true,/u)
+              expect(result.stdout.toString()).toContain(`Size: ${String(original.size)} `)
+              expect(result.stdout.toString()).toContain(`Inode: ${String(original.ino)} `)
+              seen.add('report')
+            } else {
+              expect(result.code).toBe(125)
+              expect(result.stdout.length).toBe(0)
+              seen.add('refused')
+            }
+          }
+        }
+        if (!seen.has('refused')) {
+          const { h, swap } = await raceFixture()
+          swap()
+          const control = await native(
+            variant('StatRace'),
+            h.args('stat', ['src/a.txt'], ['src/a.txt']),
+            h.root,
+          )
+          expect(control.code).toBe(125)
+          seen.add('refused')
+        }
+        expect(
+          seen.has('report'),
+          'the ancestor swap never landed after the walk in 6 timed runs',
+        ).toBe(true)
+        expect(
+          seen.has('refused'),
+          'the ancestor swap never landed before the walk in 6 timed runs',
+        ).toBe(true)
       })
       it('B1-12 refuses inserted, renamed and replacement inodes after a recursive walk', async () => {
         const h = await fixture()
