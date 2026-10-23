@@ -97,17 +97,16 @@ export class BrowserChecks {
     if (!this.isOffered()) {
       return { ok: false, failure: { kind: 'notOffered' } }
     }
-    try {
-      const deniedPorts = await makerCompanionPorts()
-      if (
-        isMakerCompanionPort(Number(new URL(request.url).port)) ||
-        deniedPorts.has(Number(new URL(request.url).port))
-      )
-        return { ok: false, failure: { kind: 'pageBlocked' } }
-    } catch {
-      // An unreadable companion registry cannot establish a safe navigation target.
+    const [denied] = await Promise.allSettled([
+      (async () => {
+        const deniedPorts = await makerCompanionPorts()
+        const port = Number(new URL(request.url).port)
+        return isMakerCompanionPort(port) || deniedPorts.has(port)
+      })(),
+    ])
+    // An unreadable companion registry cannot establish a safe navigation target.
+    if (denied.status === 'rejected' || denied.value)
       return { ok: false, failure: { kind: 'pageBlocked' } }
-    }
     const bundle = this.load(this.deps.checkBundlePath, isBrowserCheckBundle)
     if (bundle === undefined) {
       return { ok: false, failure: { kind: 'launch' } }

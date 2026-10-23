@@ -8,6 +8,11 @@ import {
   THEIA_SHOW_DOCUMENT_FAILURE,
 } from '../../shared/constants'
 
+/** Theia reports a successful editor switch as this one failure. */
+function isTheiaShowFailure(error: unknown): boolean {
+  return error instanceof Error && error.message.startsWith(THEIA_SHOW_DOCUMENT_FAILURE)
+}
+
 export async function showEditorDocument(
   document: vscode.TextDocument,
   options: vscode.TextDocumentShowOptions = {},
@@ -16,7 +21,7 @@ export async function showEditorDocument(
   try {
     return await vscode.window.showTextDocument(document, options)
   } catch (error: unknown) {
-    if (!(error instanceof Error) || !error.message.startsWith(THEIA_SHOW_DOCUMENT_FAILURE)) {
+    if (!isTheiaShowFailure(error)) {
       throw error
     }
     const deadline = Date.now() + EDITOR_REVEAL_MAX_MS

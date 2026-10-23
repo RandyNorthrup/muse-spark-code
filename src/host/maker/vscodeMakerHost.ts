@@ -280,12 +280,14 @@ export class VscodeMakerHost implements MakerHost, vscode.Disposable {
   }
   async stop(machineId?: string): Promise<void> {
     this.cancelApprovals()
-    try {
-      await this.deps.stop(machineId)
-    } catch {
-      await this.notify('physicalStopRequired')
-      throw new Error(UI_TEXT.makerUnavailable)
-    }
+    const [attempt] = await Promise.allSettled([
+      (async () => {
+        await this.deps.stop(machineId)
+      })(),
+    ])
+    if (attempt.status === 'fulfilled') return
+    await this.notify('physicalStopRequired')
+    throw new Error(UI_TEXT.makerUnavailable)
   }
   cancelApprovals(): void {
     for (const cancellation of this.pending) cancellation.abort()

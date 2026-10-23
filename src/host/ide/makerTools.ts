@@ -74,20 +74,18 @@ function answer(
   const message = makerHostMessageSchema.parse(raw)
   if (message.type !== expected) throw new Error(MAKER_HOST_MODEL_TEXT.unavailable)
   if (message.type === 'makerResult') {
-    try {
-      if (message.outcome === 'sentOutcomeUnknown' || message.outcome === 'sentWithUnrecordedAudit')
-        void Promise.resolve(
-          deps.host.notify(
+    // The informational UI never holds an already known tool outcome.
+    if (message.outcome === 'sentOutcomeUnknown' || message.outcome === 'sentWithUnrecordedAudit') {
+      void Promise.allSettled([
+        (async () => {
+          await deps.host.notify(
             message.outcome === 'sentOutcomeUnknown' ? 'sentOutcomeUnknown' : 'auditUnrecorded',
-          ),
-        ).catch(() => {
-          // The informational UI never holds an already known tool outcome.
-        })
-    } catch {
-      // Preserve the dispatch outcome even when the notification UI fails.
-    }
-    if (message.outcome === 'failed' || message.outcome === 'refused')
+          )
+        })(),
+      ])
+    } else if (message.outcome === 'failed' || message.outcome === 'refused') {
       throw new Error(message.message)
+    }
   }
   return JSON.stringify(message)
 }
