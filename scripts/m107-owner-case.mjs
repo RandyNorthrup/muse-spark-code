@@ -91,6 +91,26 @@ function windowSettings(cpuThreshold) {
   }
 }
 
+// Burners hold no state worth flushing (a pure hash loop with no files or
+// handles), so SIGKILL is clean for them — and necessary, since a starved
+// sync loop never runs SIGTERM's handler.
+function terminateImmediate(child) {
+  return new Promise((resolve) => {
+    child.once('exit', () => {
+      resolve()
+    })
+    if (child.exitCode !== null || child.signalCode !== null) {
+      resolve()
+      return
+    }
+    try {
+      child.kill('SIGKILL')
+    } catch {
+      // Already gone; the check above resolves.
+    }
+  })
+}
+
 function terminate(child) {
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
@@ -450,7 +470,10 @@ async function phaseWithGovernor(options, record) {
     }
     const levelAtSubmit = host.status().level
     record('B-submit-at-throttle', levelAtSubmit === 'throttle', { levelAtSubmit })
-    for (const burner of burners) await terminate(burner.child)
+    // Burners die together and at once: sequential graceful kills once cost
+    // 60 s here (a starved sync loop never sees SIGTERM), and the governor
+    // correctly escalated to pause mid-drain.
+    await Promise.all(burners.map((burner) => terminateImmediate(burner.child)))
     const stop = { value: false }
     const tracing = traceLoop(host, stop, errors)
     const histogram = monitorEventLoopDelay({ resolution: EVENT_LOOP_RESOLUTION_MS })
@@ -521,6 +544,10 @@ async function phaseWithGovernor(options, record) {
         grants,
       })
       record('B-held-throttle', transitions.length === 0, { transitions })
+      const drainLevels = [...new Set(trace.map((row) => row.level))]
+      record('B-drained-at-throttle', drainLevels.length === 1 && drainLevels[0] === 'throttle', {
+        drainLevels,
+      })
       return {
         engaged: true,
         trip,
@@ -543,7 +570,7 @@ async function phaseWithGovernor(options, record) {
       stop.value = true
     }
   } finally {
-    for (const burner of burners) await terminate(burner.child)
+    await Promise.all(burners.map((burner) => terminateImmediate(burner.child)))
     host.dispose()
   }
 }
@@ -841,5 +868,5 @@ try {
   console.error(`owner case failed: ${error instanceof Error ? error.message : String(error)}`)
   exitCode = 1
 }
-for (const child of liveChildren) await terminate(child)
+await Promise.all([...liveChildren].map((child) => terminate(child)))
 process.exit(exitCode)
