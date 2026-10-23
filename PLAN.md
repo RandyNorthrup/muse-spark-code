@@ -9640,9 +9640,11 @@ user's own nodes only (decision 10), and adds one D89.2 keyslot kind
      trusts the workspace (D13), under its egress policy. Features and images
      resolve to digests, which are recorded.
    - **Snapshots.** M72's turn checkpoints keep working inside a workspace. A
-     workspace snapshot (a git bundle plus an archive of untracked, non-ignored
-     files, or a file-system snapshot where btrfs or ZFS backs the volume) is
-     taken before an upgrade, a restore and any destructive cleanup.
+     workspace snapshot (a git bundle, a worktree patch of tracked modifications,
+     plus an archive of untracked, non-ignored files, or a file-system snapshot
+     where btrfs or ZFS backs the volume) is taken before an upgrade, a restore
+     and any destructive cleanup. The bundle alone would lose dirty tracked
+     files (proven by the W2 drill, 2026-10-22).
 
 7. **Every model path, with each credential where it belongs.**
    - **Engine providers** (the Model API and every M95 provider) hold their
@@ -36293,6 +36295,10 @@ No new escape hatch is introduced.
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
 | `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
+
+| RLM110B location                                   | Escape hatch                                            | Reason                                                                                                                                                                                                          | Date       |
+| -------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/nodeWorkspaceGit.test.ts` (refused URL) | `eslint-disable-next-line unicorn/prefer-https`, 1 site | The `http://github.com/…` fixture is the refused case the classifier must reject; the rule's `--fix` silently rewrites it to the accepted `https://` case, inverting the test. Inline-reasoned; no rule change. | 2026-10-22 |
 
 ## 9. Security assumptions and accepted residual risk
 

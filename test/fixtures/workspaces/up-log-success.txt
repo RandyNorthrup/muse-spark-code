@@ -1,0 +1,73 @@
+[2026-10-23T01:12:47.002Z] @devcontainers/cli 0.89.0. Node.js v24.21.0. linux 6.17.0-12-generic x64.
+[2026-10-23T01:12:47.252Z] Resolving Feature dependencies for 'ghcr.io/devcontainers/features/common-utils:2'...
+(node:94476) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[2026-10-23T01:12:48.144Z] Files to omit: ''
+[2026-10-23T01:12:48.164Z] Start: Run: docker buildx build --load --build-arg BUILDKIT_INLINE_CACHE=1 -f /home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/devcontainercli-randy/container-features/0.89.0-1792717967250/Dockerfile-with-features -t vsc-ws-87846d78156844e25859700de6e7808dd0f056d5de343924c52019760137ad0e --target dev_containers_target_stage --build-context dev_containers_feature_content_source=/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/devcontainercli-randy/container-features/0.89.0-1792717967250 --build-arg _DEV_CONTAINERS_BASE_IMAGE=dev_container_auto_added_stage_label --build-arg _DEV_CONTAINERS_IMAGE_USER=root --build-arg _DEV_CONTAINERS_FEATURE_CONTENT_SOURCE=dev_container_feature_content_temp /home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/ws/.devcontainer
+[2026-10-23T01:12:48.412Z] #0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile-with-features
+#1 transferring dockerfile: 2.06kB done
+
+[2026-10-23T01:12:48.412Z] #1 DONE 0.0s
+
+#2 [context dev_containers_feature_content_source] load .dockerignore
+#2 transferring dev_containers_feature_content_source: 2B done
+#2 DONE 0.0s
+
+#3 [internal] load metadata for docker.io/library/debian:trixie-slim
+#3 DONE 0.0s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 2B done
+#4 DONE 0.0s
+
+#5 [context dev_containers_feature_content_source] load from client
+#5 transferring dev_containers_feature_content_source: 46.12kB 0.0s done
+#5 DONE 0.0s
+
+#6 [dev_container_auto_added_stage_label 1/2] FROM docker.io/library/debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+#6 resolve docker.io/library/debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad 0.0s done
+#6 DONE 0.0s
+
+#7 [context dev_containers_feature_content_source] load from client
+#7 transferring dev_containers_feature_content_source: 99B done
+#7 DONE 0.0s
+
+#8 [dev_containers_feature_content_normalize 1/2] COPY --from=dev_containers_feature_content_source devcontainer-features.builtin.env /tmp/build-features/
+#8 CACHED
+
+#9 [dev_containers_feature_content_normalize 2/2] RUN chmod -R 0755 /tmp/build-features/
+#9 CACHED
+
+#10 [dev_container_auto_added_stage_label 2/2] RUN echo built > /build-marker
+#10 CACHED
+
+#11 [dev_containers_target_stage 2/4] COPY --from=dev_containers_feature_content_normalize /tmp/build-features/ /tmp/dev-container-features
+#11 CACHED
+
+#12 [dev_containers_target_stage 3/4] RUN echo "_CONTAINER_USER_HOME=$( (command -v getent >/dev/null 2>&1 && getent passwd 'root' || grep -E '^root|^[^:]*:[^:]*:root:' /etc/passwd || true) | cut -d: -f6)" >> /tmp/dev-container-features/devcontainer-features.builtin.env && echo "_REMOTE_USER_HOME=$( (command -v getent >/dev/null 2>&1 && getent passwd 'root' || grep -E '^root|^[^:]*:[^:]*:root:' /etc/passwd || true) | cut -d: -f6)" >> /tmp/dev-container-features/devcontainer-features.builtin.env
+#12 CACHED
+
+#13 [dev_containers_target_stage 1/4] RUN mkdir -p /tmp/dev-container-features
+#13 CACHED
+
+#14 [dev_containers_target_stage 4/4] RUN --mount=type=bind,from=dev_containers_feature_content_source,source=common-utils_0,target=/tmp/build-features-src/common-utils_0     cp -ar /tmp/build-features-src/common-utils_0 /tmp/dev-container-features  && chmod -R 0755 /tmp/dev-container-features/common-utils_0  && cd /tmp/dev-container-features/common-utils_0  && chmod +x ./devcontainer-features-install.sh  && ./devcontainer-features-install.sh  && rm -rf /tmp/dev-container-features/common-utils_0
+#14 CACHED
+
+#15 exporting to image
+#15 exporting layers done
+#15 preparing layers for inline cache 0.1s done
+
+[2026-10-23T01:12:48.551Z] #15 exporting manifest sha256:60f964896c4cccc85e5dcb04f9195609a4688296ec57250805ed085242fc698b done
+#15 exporting config sha256:525306edcb768b40e8d43d48e373350a8d65637c990005fe572123c4a3737669 done
+#15 exporting attestation manifest sha256:aa4ec23a525b06d2915145ea3352793fb58d1e60ef5d8b357655d3c973ac4f99 0.0s done
+#15 exporting manifest list sha256:f636fa635883b4dd29865c701fb141688de5495fae175844c9c2677360e309ec done
+#15 naming to docker.io/library/vsc-ws-87846d78156844e25859700de6e7808dd0f056d5de343924c52019760137ad0e:latest done
+#15 unpacking to docker.io/library/vsc-ws-87846d78156844e25859700de6e7808dd0f056d5de343924c52019760137ad0e:latest 0.0s done
+#15 DONE 0.1s
+
+[2026-10-23T01:12:48.632Z] Start: Run: docker run --sig-proxy=false -a STDOUT -a STDERR --mount type=bind,source=/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/ws,target=/workspaces/ws --mount type=bind,source=/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/ws/data,target=/data -l muse.test=dc-drill --entrypoint /bin/sh vsc-ws-87846d78156844e25859700de6e7808dd0f056d5de343924c52019760137ad0e -c echo Container started
+[2026-10-23T01:12:48.969Z] Container started
+[2026-10-23T01:12:49.165Z] Running the postCreateCommand from devcontainer.json...
+

@@ -3,8 +3,9 @@
 // downgrade. Over recorded exchanges, captured 2026-10-22 from the
 // rig's docker 29.2.1 over its socket (`curl --unix-socket
 // /var/run/docker.sock …/version|info`, a real labelled container's
-// list and inspect, the bridge network's inspect). Socket transport
-// and lifecycle are proven by drill on the live daemon.
+// list and inspect, the bridge network's inspect, the debian image's
+// inspect for W2's digest read-back). Socket transport and lifecycle
+// are proven by drill on the live daemon.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -16,6 +17,7 @@ import {
   MuxDemuxer,
   networkGateway,
   offeredRuntimes,
+  parseImageInspect,
   parseInspect,
   parseNetwork,
   parseSummaries,
@@ -56,6 +58,13 @@ describe('engine adapter', () => {
   })
   it('reads the workspace gateway off the recorded network', () => {
     expect(networkGateway(parseNetwork(fixture('network.json')))).toBe('172.17.0.1')
+  })
+  it('reads the image id and repo digests off the recorded image', () => {
+    const image = parseImageInspect(fixture('image.json'))
+    expect(image.id).toBe('sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad')
+    expect(image.digests).toEqual([
+      'debian@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad',
+    ])
   })
   it('versions paths, filters lists by label, and shapes create and update', () => {
     expect(enginePath('1.44', '/containers/json')).toBe('/v1.44/containers/json')

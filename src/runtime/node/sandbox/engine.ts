@@ -68,6 +68,7 @@ export type ContainerSummary = z.infer<typeof summarySchema>
 const inspectSchema = z.object({
   Id: z.string(),
   Created: z.string(),
+  Image: z.string(),
   State: z.object({
     Status: z.string(),
     Running: z.boolean(),
@@ -158,6 +159,21 @@ export function parseInspect(payload: unknown): ContainerInspect {
 
 export function parseNetwork(payload: unknown): NetworkInspect {
   return networkSchema.parse(payload)
+}
+
+const imageInspectSchema = z.looseObject({
+  Id: z.string(),
+  RepoDigests: z.optional(z.array(z.string())),
+})
+
+export interface ImageInspect {
+  readonly id: string
+  readonly digests: readonly string[]
+}
+
+export function parseImageInspect(payload: unknown): ImageInspect {
+  const inspected = imageInspectSchema.parse(payload)
+  return { id: inspected.Id, digests: inspected.RepoDigests ?? [] }
 }
 
 /** The gateway the proxy binds for one workspace network. */
@@ -543,6 +559,16 @@ export class MuxDemuxer {
     }
     return frames
   }
+}
+
+/**
+Read an image back by name or id: its id and repo digests. Built
+images carry no repo digest until pushed — then the id is the digest.
+*/
+export async function inspectImage(engine: Engine, image: string): Promise<ImageInspect> {
+  return parseImageInspect(
+    await engineRequest(engine, 'GET', `/images/${encodeURIComponent(image)}/json`),
+  )
 }
 
 const execCreateSchema = z.looseObject({ Id: z.string() })
