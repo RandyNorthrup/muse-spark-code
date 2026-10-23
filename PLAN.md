@@ -35701,6 +35701,24 @@ the palette with an always-present tab showing state or reason.
 claude-haiku-5-5 verified priced from Anthropic's published page.
 Evidence: `docs/certification/rltestdrive.md`.
 
+### RLFMACPATH — The spaces app-data path stays whole (2026-10-22)
+
+**Status 2026-10-22: built.** Fixed on rig `macmini`, branch
+`rec/rlf-macpath`. The fleet's `Support/`, `Spark/` and `Code/` strays
+are an unquoted shell expansion of the spaces app-data path, reproduced
+exactly (words, 700/600 modes, missing-parent failures, no marker) from
+a real product tree; the registry, the native helper and every spawn
+path pass argv arrays or quoted strings and split nothing, which the
+lane audited site by site. The registry's refusal of a relative file or
+tree base (thrown before anything is written) is now pinned by a
+real-code test that fails when the guard is broken, and a second
+real-code test runs a full create/finish/release lifecycle under an
+`Application Support/Muse Spark Code`-shaped data home on every OS,
+keeping every tree, stage and manifest inside it with no new words in
+the working folder. No product behaviour changed: there was no
+splitting site to fix. Evidence:
+`docs/certification/rlf-macpath.md`.
+
 ---
 
 ## 7. Gates
