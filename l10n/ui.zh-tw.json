@@ -4468,6 +4468,18 @@
     "unpriced": "不知道價格，因此不會送出付費呼叫。",
     "askOnce": "查看價格",
     "freeLocal": "在這台電腦上免費",
+    "fast": {
+      "method": "快速方法",
+      "turns": "快速輪次",
+      "applied": "已套用的快速輪次",
+      "judgeCalls": "評判器呼叫",
+      "judgeTokens": "評判器權杖",
+      "saved": "節省的時間",
+      "stateActed": "已套用",
+      "stateRaised": "已偵測，未套用",
+      "stateIdle": "未偵測",
+      "noWindow": "無視窗 {count} 個"
+    },
     "techniques": {
       "logprob": "對數機率",
       "top1": "根據第一個詞元的近似",

@@ -6,10 +6,16 @@
 //
 // No `vscode`, Node or DOM import: the chat protocol and the panel share it.
 
-import { judgePanelFactsSchema, judgePanelSnapshotSchema } from './judgePanelSchema'
+import {
+  judgePanelFactsSchema,
+  judgePanelFastFactsSchema,
+  judgePanelSnapshotSchema,
+} from './judgePanelSchema'
 import type {
   JudgePanelCapability,
   JudgePanelFacts,
+  JudgePanelFastFacts,
+  JudgePanelFastSnapshot,
   JudgePanelLabel,
   JudgePanelReason,
   JudgePanelSnapshot,
@@ -118,6 +124,49 @@ function consistentLabel(
 function omitEmpty(value: Readonly<Record<string, unknown>>): Record<string, unknown> {
   const entries = Object.entries(value).filter(([, item]) => item !== undefined)
   return Object.fromEntries(entries)
+}
+
+/**
+D107 (M125 lane U): project the window's fast facts into the snapshot
+rows the panel and the usage dialog show. A decision that acted reads
+acted; one only raised reads raised; an evaluated one that never
+raised reads absent. The saving multiplies lane V's paired median by
+the turns where the decision applied; either side absent leaves the
+saving unknown, never zero.
+*/
+export function projectFastJudgePanel(facts: JudgePanelFastFacts): JudgePanelFastSnapshot {
+  const parsed = judgePanelFastFactsSchema.safeParse(facts)
+  if (!parsed.success) {
+    throw new TypeError('judge panel fast facts are not valid')
+  }
+  const input = parsed.data
+  const rows = input.decisions.map((decision) => {
+    const measured = input.measuredMsPerTurn?.[decision.decision]
+    let state: 'acted' | 'raised' | 'absent' = 'absent'
+    if (decision.acted) state = 'acted'
+    else if (decision.raised) state = 'raised'
+    return {
+      decision: decision.decision,
+      state,
+      reason: decision.reason,
+      evaluated: decision.evaluated,
+      appliedTurns: decision.appliedTurns,
+      ...(decision.noWindow !== undefined && { noWindow: decision.noWindow }),
+      ...(measured !== undefined && {
+        savedMsPerTurn: measured,
+        savedMsTotal: measured * decision.appliedTurns,
+      }),
+    }
+  })
+  const measured = rows.filter((row) => row.savedMsTotal !== undefined)
+  return {
+    rows,
+    totals: input.totals,
+    method: input.method,
+    ...(measured.length > 0 && {
+      savedMsTotal: measured.reduce((sum, row) => sum + (row.savedMsTotal ?? 0), 0),
+    }),
+  }
 }
 
 /**
@@ -244,6 +293,7 @@ export function projectJudgePanel(facts: JudgePanelFacts): JudgePanelSnapshot {
     uncertainUsd: finiteUsd(input.uncertainUsd),
     dailyBudgetUsd,
     dailySpentUsd: finiteUsd(input.dailySpentUsd),
+    fast: input.fast === undefined ? undefined : projectFastJudgePanel(input.fast),
   })
   const checked = judgePanelSnapshotSchema.safeParse(snapshot)
   if (!checked.success) {

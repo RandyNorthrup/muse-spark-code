@@ -4468,6 +4468,18 @@
     "unpriced": "不知道价格，因此不会发送付费调用。",
     "askOnce": "查看价格",
     "freeLocal": "在这台计算机上免费",
+    "fast": {
+      "method": "快速方法",
+      "turns": "快速轮次",
+      "applied": "已应用的快速轮次",
+      "judgeCalls": "评判器调用",
+      "judgeTokens": "评判器令牌",
+      "saved": "节省的时间",
+      "stateActed": "已应用",
+      "stateRaised": "已检出，未应用",
+      "stateIdle": "未检出",
+      "noWindow": "无窗口 {count} 个"
+    },
     "techniques": {
       "logprob": "对数概率",
       "top1": "根据首个词元的近似",

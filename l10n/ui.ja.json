@@ -4468,6 +4468,18 @@
     "unpriced": "価格が不明なため、有料の呼び出しは送信されません。",
     "askOnce": "価格を確認",
     "freeLocal": "このコンピューターでは無料",
+    "fast": {
+      "method": "高速メソッド",
+      "turns": "高速ターン",
+      "applied": "適用された高速ターン",
+      "judgeCalls": "ジャッジ呼び出し",
+      "judgeTokens": "ジャッジトークン",
+      "saved": "節約された時間",
+      "stateActed": "適用済み",
+      "stateRaised": "検出済み、未適用",
+      "stateIdle": "未検出",
+      "noWindow": "ウィンドウなし {count} 件"
+    },
     "techniques": {
       "logprob": "対数確率",
       "top1": "先頭トークンからの近似",

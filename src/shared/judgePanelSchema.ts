@@ -1,7 +1,79 @@
 // Judge wire shapes stay independent of host projection and lazy presentation.
 import * as z from 'zod/mini'
+import { JUDGE_FAST_TURN_DECISIONS, JUDGE_FAST_TURN_REASONS } from './judgeFastTurn'
 
 export const JUDGE_PANEL_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
+
+/**
+D107 (M125 lane U): one fast decision's latest window state. The
+aggregator keeps the newest turn record per decision; unwired or
+unevaluated decisions carry no entry, and the surface shows unknown.
+*/
+export const judgePanelFastDecisionSchema = z.strictObject({
+  decision: z.enum(JUDGE_FAST_TURN_DECISIONS),
+  raised: z.boolean(),
+  acted: z.boolean(),
+  reason: z.enum(JUDGE_FAST_TURN_REASONS),
+  /** Turn records merged into this entry. */
+  evaluated: z.number().check(z.int(), z.minimum(0)),
+  /** Turn records where the decision acted. */
+  appliedTurns: z.number().check(z.int(), z.minimum(0)),
+  /** Triage only: results that rode whole for want of a real window. */
+  noWindow: z.optional(z.number().check(z.int(), z.minimum(0))),
+})
+
+export const judgePanelFastTotalsSchema = z.strictObject({
+  /** Turns with at least one evaluated decision. */
+  turns: z.number().check(z.int(), z.minimum(0)),
+  /** Turns where any decision acted. */
+  appliedTurns: z.number().check(z.int(), z.minimum(0)),
+  raised: z.number().check(z.int(), z.minimum(0)),
+  acted: z.number().check(z.int(), z.minimum(0)),
+  judgeCalls: z.number().check(z.int(), z.minimum(0)),
+  judgeTokens: z.number().check(z.int(), z.minimum(0)),
+})
+
+export const judgePanelFastFactsSchema = z.strictObject({
+  decisions: z.array(judgePanelFastDecisionSchema),
+  totals: judgePanelFastTotalsSchema,
+  /** What decided most recently: `deterministic`, or the engine's id. */
+  method: z.string().check(z.minLength(1)),
+  /**
+  Lane V's paired median wall-time saving per eligible turn, per
+  decision, when a measurement exists. Absent decisions are unmeasured:
+  the surface shows unknown, never zero.
+  */
+  measuredMsPerTurn: z.optional(z.partialRecord(z.enum(JUDGE_FAST_TURN_DECISIONS), z.number())),
+})
+
+/**
+D107 (M125 lane U): one fast decision's snapshot row. The estimate
+multiplies lane V's paired median by the turns where the decision
+applied at least once; either side absent leaves the saving unknown.
+*/
+export const judgePanelFastRowSchema = z.strictObject({
+  decision: z.enum(JUDGE_FAST_TURN_DECISIONS),
+  state: z.enum(['acted', 'raised', 'absent']),
+  reason: z.enum(JUDGE_FAST_TURN_REASONS),
+  evaluated: z.number().check(z.int(), z.minimum(0)),
+  appliedTurns: z.number().check(z.int(), z.minimum(0)),
+  noWindow: z.optional(z.number().check(z.int(), z.minimum(0))),
+  /** The measured median saving per eligible turn, when measured. */
+  savedMsPerTurn: z.optional(z.number()),
+  /** Per-turn median times applied turns; unknown without the median. */
+  savedMsTotal: z.optional(z.number()),
+})
+
+export const judgePanelFastSnapshotSchema = z.strictObject({
+  rows: z.array(judgePanelFastRowSchema),
+  totals: judgePanelFastTotalsSchema,
+  method: z.string().check(z.minLength(1)),
+  /** Summed over measured decisions; unknown when none is measured. */
+  savedMsTotal: z.optional(z.number()),
+})
+export type JudgePanelFastRow = z.infer<typeof judgePanelFastRowSchema>
+export type JudgePanelFastFacts = z.infer<typeof judgePanelFastFactsSchema>
+export type JudgePanelFastSnapshot = z.infer<typeof judgePanelFastSnapshotSchema>
 
 export const JUDGE_PANEL_SOURCES = ['same', 'separate', 'both', 'none'] as const
 export type JudgePanelSource = (typeof JUDGE_PANEL_SOURCES)[number]
@@ -107,6 +179,8 @@ export const judgePanelFactsSchema = z.strictObject({
   uncertainUsd: z.optional(reportedUsd),
   dailyBudgetUsd: z.optional(reportedUsd),
   dailySpentUsd: z.optional(reportedUsd),
+  /** The window's fast-decision state; absent before the first turn record. */
+  fast: z.optional(judgePanelFastFactsSchema),
 })
 export type JudgePanelFacts = z.infer<typeof judgePanelFactsSchema>
 
@@ -127,5 +201,6 @@ export const judgePanelSnapshotSchema = z.strictObject({
   uncertainUsd: z.optional(usdSchema),
   dailyBudgetUsd: z.optional(usdSchema),
   dailySpentUsd: z.optional(usdSchema),
+  fast: z.optional(judgePanelFastSnapshotSchema),
 })
 export type JudgePanelSnapshot = z.infer<typeof judgePanelSnapshotSchema>

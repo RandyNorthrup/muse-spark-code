@@ -432,7 +432,9 @@ const BUDGETS = [
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25
   // KiB. M115W: the main protocol carries the v2 surface's validated draft
   // and targets, 55.5 KiB measured, plus 15%, rounded up to 25 KiB.
-  { path: 'dist/wire.js', budgetKiB: 75 },
+  // RLM125 lane U: the judge snapshot carries the fast rows, 75.5 KiB
+  // measured +5%, rounded up to 25 KiB.
+  { path: 'dist/wire.js', budgetKiB: 80 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/imageResizeWorker.js', budgetKiB: 75 },

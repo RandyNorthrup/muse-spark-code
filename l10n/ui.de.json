@@ -4581,6 +4581,18 @@
     "unpriced": "Es ist kein Preis bekannt, daher wird kein kostenpflichtiger Aufruf gesendet.",
     "askOnce": "Preis prüfen",
     "freeLocal": "Kostenlos auf diesem Computer",
+    "fast": {
+      "method": "Schnelle Methode",
+      "turns": "Schnelle Dialogschritte",
+      "applied": "Angewendete schnelle Dialogschritte",
+      "judgeCalls": "Beurteiler-Aufrufe",
+      "judgeTokens": "Beurteiler-Token",
+      "saved": "Gesparte Zeit",
+      "stateActed": "Angewendet",
+      "stateRaised": "Erkannt, nicht angewendet",
+      "stateIdle": "Nicht erkannt",
+      "noWindow": "{count} ohne Fenster"
+    },
     "techniques": {
       "logprob": "Log-Wahrscheinlichkeiten",
       "top1": "Näherung aus dem ersten Token",

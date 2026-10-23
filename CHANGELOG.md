@@ -7,6 +7,11 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge usage rows: Account & usage and the Models & Agents Judge
+  section show the window's fast-decision rolls — turns, applied turns,
+  judge calls and tokens, and each evaluated decision's state — with a
+  measured time saving once a paired evaluation exists.
+
 - Fast judge hardware scan: the wizard's Scan step reads the OS and
   architecture, RAM, the GPU's vendor and usable backend (CUDA, ROCm,
   Metal or CPU only, each with its reason), CPU features, free install

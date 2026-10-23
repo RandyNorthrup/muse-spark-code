@@ -4694,6 +4694,18 @@
     "unpriced": "Aucun prix n’est connu, donc aucun appel payant n’est envoyé.",
     "askOnce": "Vérifier le prix",
     "freeLocal": "Gratuit sur cet ordinateur",
+    "fast": {
+      "method": "Méthode rapide",
+      "turns": "Tours rapides",
+      "applied": "Tours rapides appliqués",
+      "judgeCalls": "Appels de l’évaluateur",
+      "judgeTokens": "Jetons de l’évaluateur",
+      "saved": "Temps gagné",
+      "stateActed": "Appliqué",
+      "stateRaised": "Détecté, non appliqué",
+      "stateIdle": "Non détecté",
+      "noWindow": "{count} sans fenêtre"
+    },
     "techniques": {
       "logprob": "Log-probabilités",
       "top1": "Approximation à partir du premier jeton",

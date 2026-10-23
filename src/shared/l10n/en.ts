@@ -5809,6 +5809,18 @@ export const EN = {
     unpriced: 'No price is known, so a paid call is not sent.',
     askOnce: 'Review the price',
     freeLocal: 'Free on this computer',
+    fast: {
+      method: 'Fast method',
+      turns: 'Fast turns',
+      applied: 'Fast turns applied',
+      judgeCalls: 'Judge calls',
+      judgeTokens: 'Judge tokens',
+      saved: 'Fast time saved',
+      stateActed: 'Acted',
+      stateRaised: 'Raised, not applied',
+      stateIdle: 'Not raised',
+      noWindow: '{count} without a window',
+    },
     techniques: {
       logprob: 'Log probabilities',
       top1: 'Approximate, from the top token',

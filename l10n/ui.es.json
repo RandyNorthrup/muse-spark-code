@@ -4694,6 +4694,18 @@
     "unpriced": "No se conoce ningún precio, así que no se envía una llamada de pago.",
     "askOnce": "Revisar el precio",
     "freeLocal": "Gratis en este equipo",
+    "fast": {
+      "method": "Método rápido",
+      "turns": "Turnos rápidos",
+      "applied": "Turnos rápidos aplicados",
+      "judgeCalls": "Llamadas del evaluador",
+      "judgeTokens": "Tokens del evaluador",
+      "saved": "Tiempo ahorrado",
+      "stateActed": "Aplicado",
+      "stateRaised": "Detectado, no aplicado",
+      "stateIdle": "No detectado",
+      "noWindow": "{count} sin ventana"
+    },
     "techniques": {
       "logprob": "Log-probabilidades",
       "top1": "Aproximación a partir del primer token",

@@ -6,6 +6,8 @@ import {
   type JudgeReadyOutcome,
 } from './entries'
 import type { JudgeQuestion } from './judge'
+import type { JudgeFastTurn } from '../../shared/judgeFastTurn'
+import type { JudgePanelSnapshot } from '../../shared/judgePanelSchema'
 
 export interface JudgeUseJob {
   readonly entryKey: JudgeEntryHandle
@@ -25,6 +27,14 @@ export interface JudgeAdvisory {
   discardTurn(sessionId: string, turnId: string): void
   discardSession(sessionId: string): void
   readonly isSideSession?: ((sessionId: string) => boolean) | undefined
+  /**
+  D107 (M125 lane U): one turn's fast-decision record for the window's
+  rolls. Only the window port implements it; the caution judge never
+  observes fast turns.
+  */
+  readonly observeFastTurn?: ((event: JudgeFastTurn) => void) | undefined
+  /** D107 (M125 lane U): the window's panel snapshot with its fast rows. */
+  readonly readPanelSnapshot?: (() => JudgePanelSnapshot | undefined) | undefined
 }
 
 export interface JudgeUseDeps {
