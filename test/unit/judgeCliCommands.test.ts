@@ -5,6 +5,7 @@ import type { JudgeOutcome, JudgeResult } from '../../src/core/judge/schema'
 import { runJudgeCommand, type JudgeCliDeps } from '../../src/runtime/judge/commands'
 import { JudgeCliInputError } from '../../src/runtime/judge/args'
 import { JUDGE_MAX_BODY_BYTES, MILLISECONDS_PER_SECOND } from '../../src/shared/constants'
+import { Usd } from '../../src/shared/usd'
 import { answered, command, evidenceCases, io, REQUEST, source, writer } from './judgeCliFixtures'
 
 // One recording paid-admission closure per case: the calls array and the
@@ -69,7 +70,7 @@ describe('judge CLI bounded advisory commands', () => {
     expect(fake.calls[0]?.signal).toBeInstanceOf(AbortSignal)
     expect(resolveSourceCalls).toHaveLength(1)
     const [resolved, resolveSignal, resolveRequest] = resolveSourceCalls[0] ?? []
-    expect(resolved).toMatchObject({ model: 'chosen', engine: 'auto', budgetUsd: 0 })
+    expect(resolved).toMatchObject({ model: 'chosen', engine: 'auto', budgetUsd: '0' })
     expect(resolveSignal).toBeInstanceOf(AbortSignal)
     expect(resolveRequest).toEqual(REQUEST)
   })
@@ -170,7 +171,7 @@ describe('judge CLI bounded advisory commands', () => {
     expect(fake.calls).toHaveLength(0)
   })
   it('refuses a paid source at budget zero and a batch above a tiny positive cap', async () => {
-    const fake = source('paid', 1)
+    const fake = source('paid', Usd.from(1).toAmount())
     const { calls: admitPaidCalls, admitPaid } = paidAdmission()
     for (const budget of ['0', '0.000001']) {
       const streams = io()
@@ -187,7 +188,10 @@ describe('judge CLI bounded advisory commands', () => {
     expect(fake.calls).toHaveLength(0)
   })
   it('refuses unpriced calls and calls without the daily ledger/consent adapter', async () => {
-    for (const cost of [undefined, -1, 0, NaN, Infinity, 1]) {
+    // Exact money only: a non-finite float is not a representable price, so
+    // the unpriced cases are absent, negative and zero amounts.
+    const priced = Usd.from(1).toAmount()
+    for (const cost of [undefined, Usd.from(-1).toAmount(), Usd.from(0).toAmount(), priced]) {
       const fake = source('paid', cost)
       const streams = io()
       expect(
@@ -195,12 +199,12 @@ describe('judge CLI bounded advisory commands', () => {
           resolveSource: () => Promise.resolve(fake.value),
         }),
       ).toBe(4)
-      expect(streams.output()).toContain(cost === 1 ? 'consent-needed' : 'unpriced')
+      expect(streams.output()).toContain(cost === priced ? 'consent-needed' : 'unpriced')
       expect(fake.calls).toHaveLength(0)
     }
   })
   it('routes paid dispatch exclusively through the durable admission adapter', async () => {
-    const fake = source('paid', 1)
+    const fake = source('paid', Usd.from(1).toAmount())
     const { calls: admitPaidCalls, admitPaid } = paidAdmission()
     const streams = io()
     expect(
@@ -213,13 +217,13 @@ describe('judge CLI bounded advisory commands', () => {
     const [admitted, admitRequest, admitCost, admitSignal] = admitPaidCalls[0] ?? []
     expect(admitted).toBe(fake.value)
     expect(admitRequest).toEqual(REQUEST)
-    expect(admitCost).toBe(1)
+    expect(admitCost).toBe(Usd.from(1).toAmount())
     expect(admitSignal).toBeInstanceOf(AbortSignal)
     expect(fake.calls).toHaveLength(0)
   })
   it('preserves daily ledger and consent refusals without paid dispatch', async () => {
     for (const reason of ['over-budget', 'consent-declined', 'engine-failure'] as const) {
-      const fake = source('paid', 1)
+      const fake = source('paid', Usd.from(1).toAmount())
       const streams = io()
       expect(
         await runJudgeCommand(command('ask', ['--model', 'chosen', '--budget-usd', '1']), streams, {

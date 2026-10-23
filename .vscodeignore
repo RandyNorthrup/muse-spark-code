@@ -130,7 +130,6 @@
 !native/windows/MuseSparkScreenRecord.cs
 !native/darwin/muse-dictate-screen-arm64.app/**
 !native/darwin/muse-dictate-screen-x64.app/**
-!native/darwin/muse-dictate
 !native/darwin/muse-local-judge-peer
 !native/linux/MuseSparkLocalJudgePeer.c
 !native/windows/MuseSparkLocalJudgePeer.cs

@@ -2,7 +2,9 @@ import { armHttpServerShutdown, listenHttpServer } from '../httpServer'
 import { Buffer } from 'node:buffer'
 import { timingSafeEqual } from 'node:crypto'
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http'
+import { errorNameForLog } from '../../core/logging'
 import type { JudgeRuntime } from '../../core/judge/engine'
+import type { Logger } from '../../host/logger'
 import {
   judgeOutcomeSchema,
   judgeRequestSchema,
@@ -19,6 +21,7 @@ export interface JudgeServeOptions {
   readonly port?: number
   readonly windowsAcl?: JudgeWindowsAcl
   readonly signal?: AbortSignal
+  readonly log?: Logger | undefined
 }
 
 function hasSingleHeader(request: IncomingMessage, name: string): boolean {
@@ -54,8 +57,10 @@ async function readRequest(request: IncomingMessage): Promise<JudgeRequest | und
     )
     const parsed = judgeRequestSchema.safeParse(body)
     return parsed.success ? parsed.data : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return undefined
+    if (error instanceof TypeError) return undefined
+    throw error
   }
 }
 function isAligned(request: JudgeRequest, result: JudgeResult): boolean {
@@ -75,7 +80,8 @@ export async function startJudgeServer(options: JudgeServeOptions) {
   let authority = ''
   const calls = new Set<AbortController>()
   const server = createServer((request, response) => {
-    void handle(request, response).catch(() => {
+    void handle(request, response).catch((error: unknown) => {
+      options.log?.warn(`Judge server request failed: ${errorNameForLog(error)}`)
       if (response.headersSent) response.destroy()
       else
         reply(response, HTTP_STATUS.internalServerError, {
@@ -162,7 +168,8 @@ export async function startJudgeServer(options: JudgeServeOptions) {
     return closing
   }
   function onSignal() {
-    void close().catch(() => {
+    void close().catch((error: unknown) => {
+      options.log?.warn(`Judge server close failed: ${errorNameForLog(error)}`)
       process.exitCode = 1
     })
   }

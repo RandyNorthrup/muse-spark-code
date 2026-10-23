@@ -1,5 +1,4 @@
 // Compile-once native Devices helper. M27/M50 sources and fallbacks stay untouched.
-import { execFile } from 'node:child_process'
 import { access, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import path from 'node:path'
@@ -11,6 +10,7 @@ import type { Logger } from '../logger'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { isErrno } from '../../core/fs/errno'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { execFileGuarded } from '../../core/guardedChildProcess'
 import { workerEnvironment } from '../../core/team/refFence'
 import { compileJob } from './jobBuild'
 import { jobFileName, type JobBuild } from './staleJobs'
@@ -56,7 +56,7 @@ const taskStateSchema = z.strictObject({
 
 const run: RunProgram = (file, args, env) =>
   new Promise((resolve, reject) => {
-    const child = execFile(
+    const child = execFileGuarded(
       file,
       [...args],
       {

@@ -11,6 +11,7 @@ import type {
   EmbeddingLimits,
   EmbeddingSample,
 } from '../../src/core/judge/embedding/schema'
+import { Usd } from '../../src/shared/usd'
 
 export const embeddingLimits: EmbeddingLimits = {
   maxSamples: 64,
@@ -128,7 +129,7 @@ export function embeddingSource(overrides: Partial<EmbeddingSource> = {}): {
     providerPolicy: 'allow',
     dimension: 3,
     inputTokens: 12,
-    uncachedCostUsd: 0.0002,
+    uncachedCostUsd: Usd.from(0.0002).toAmount(),
     ...rest,
     embed: (inputs, signal) => {
       calls.push([...inputs])

@@ -1,16 +1,13 @@
 // Linux/macOS design adapters. A native lifetime lease is REQUIRED; two
 // snapshots or a listener PID alone never produce a verified peer.
-import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { readFile, readdir, readlink, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import type { Socket } from 'node:net'
-import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import { LOCAL_JUDGE_MAX_RESPONSE_BYTES, LOCAL_JUDGE_TIMEOUT_MS } from '../../../shared/constants'
+import { executeGuarded } from './guardedExec'
 import { verifyLinuxInstallation } from './linuxVolume'
-
-const execute = promisify(execFile)
 // Fixed /proc ABI fields and address encoding, not inference tunables.
 const PROC_LAYOUT = {
   ipv4Octets: 4,
@@ -94,6 +91,27 @@ function socketTuple(socket: Socket) {
   return { remoteAddress, remotePort, localAddress, localPort }
 }
 
+/** A malformed proc status or a coded filesystem failure mid-scan. */
+function isProcError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === 'unverified-process-owner' ||
+      ('code' in error && typeof error.code === 'string'))
+  )
+}
+
+/** A same-user pid whose file list vanished hides its descriptors: refuse. */
+async function checkHiddenOwner(
+  pid: string,
+  hasExpectedUid: boolean,
+  uid: number,
+  error: unknown,
+): Promise<void> {
+  const owner = await stat(`/proc/${pid}`)
+  if (hasExpectedUid || owner.uid === uid)
+    throw new Error('unverified-hidden-owner', { cause: error })
+}
+
 async function linuxSocket(
   socket: Socket,
   uid: number,
@@ -138,9 +156,8 @@ async function linuxSocket(
       files = await readdir(`/proc/${pid}/fd`)
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
-      const owner = await stat(`/proc/${pid}`)
-      if (hasExpectedUid || owner.uid === uid)
-        throw new Error('unverified-hidden-owner', { cause: error })
+      if (!isProcError(error)) throw error
+      await checkHiddenOwner(pid, hasExpectedUid, uid, error)
       continue
     }
     if (await hasSocketDescriptor(pid, files, inode)) owners.push(Number(pid))
@@ -157,7 +174,7 @@ async function macSocket(
   const addresses = socketTuple(socket)
   const family = socket.remoteFamily === 'IPv6' ? '6' : '4'
   const tuple = `${macEndpoint(addresses.remoteAddress, addresses.remotePort)}->${macEndpoint(addresses.localAddress, addresses.localPort)}`
-  const { stdout } = await execute(
+  const { stdout } = await executeGuarded(
     '/usr/sbin/lsof',
     ['-nP', '-a', `-i${family}TCP`, '-sTCP:ESTABLISHED', '-F0pufnT'],
     { env: {}, timeout: LOCAL_JUDGE_TIMEOUT_MS, maxBuffer: LOCAL_JUDGE_MAX_RESPONSE_BYTES, signal },

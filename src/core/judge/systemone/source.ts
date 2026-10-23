@@ -10,6 +10,8 @@ import type { SystemOneModelCapability } from '../../providers/capabilities'
 const { systemOneCapability } = capabilities
 const { systemOnePresetById } = presets
 import type { SystemOneServicePreset } from '../../providers/presets'
+import { errorNameForLog } from '../../logging'
+import type { CoreLogger } from '../../logging'
 import { redactSecrets } from '../../redact'
 import { unlessAborted } from '../../timeouts'
 import type { JudgeRuntime } from '../engine'
@@ -21,6 +23,8 @@ import {
 } from '../schema'
 import { systemOneUsd } from './policy'
 import { prepareSystemOne } from './wire'
+import { compareUsdAmounts, Usd } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usdSchema'
 
 /** HTTP success is the only status whose body is a SystemOne result. */
 const HTTP_OK = 200
@@ -63,23 +67,28 @@ export interface SystemOnePostResult {
 }
 
 export interface SystemOneClaim {
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   /** The durable claim's live admission (Stop, day change, reduced cap): throws when it no longer holds. */
   check(): void
-  settle(usd: number): Promise<void>
+  settle(usd: UsdAmount): Promise<void>
   refund(): Promise<void>
 }
 
 export type SystemOneReserveResult =
   | { readonly reserved: true; readonly claim: SystemOneClaim }
-  | { readonly reserved: false; readonly reason: 'over-budget' | 'unpriced' | 'ledger-unavailable' }
+  | {
+      readonly reserved: false
+      readonly reason: 'over-budget' | 'unpriced' | 'ledger-unavailable'
+      readonly cause?: unknown
+    }
 
 /** Assembly injects these. Constructing the runtime touches none of them. */
 export interface SystemOneJudgeDependencies {
+  readonly log?: CoreLogger | undefined
   configuration(): SystemOneSelection | undefined
   readKey(keyProviderId: string): Promise<string | undefined>
   measureTokens(text: string): number
-  reserve(usd: number): Promise<SystemOneReserveResult>
+  reserve(usd: UsdAmount): Promise<SystemOneReserveResult>
   post(request: SystemOnePost): Promise<SystemOnePostResult>
 }
 
@@ -150,11 +159,16 @@ function abortReason(caller: AbortSignal, deadline: AbortSignal): 'cancelled' | 
   return deadline.aborted ? 'timeout' : 'cancelled'
 }
 
-async function release(claim: SystemOneClaim, reason: NoAnswerReason): Promise<JudgeOutcome> {
+async function release(
+  claim: SystemOneClaim,
+  reason: NoAnswerReason,
+  log: CoreLogger | undefined,
+): Promise<JudgeOutcome> {
   try {
     await claim.refund()
     return refused(reason)
-  } catch {
+  } catch (error: unknown) {
+    log?.warn(`SystemOne refund failed: ${errorNameForLog(error)}`)
     return refused('engine-failure')
   }
 }
@@ -182,8 +196,10 @@ function redactedRequest(parsed: JudgeRequest): JudgeRequest | undefined {
     )
     const candidate = judgeRequestSchema.safeParse(redacted)
     return candidate.success ? candidate.data : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return undefined
+    if (error instanceof TypeError) return undefined
+    throw error
   }
 }
 
@@ -198,7 +214,7 @@ function bindingRefusal(
 
 async function reserveUntilAborted(
   deps: SystemOneJudgeDependencies,
-  quote: number,
+  quote: UsdAmount,
   signal: AbortSignal,
 ): Promise<SystemOneReserveResult | undefined> {
   const pending = deps.reserve(quote)
@@ -208,9 +224,12 @@ async function reserveUntilAborted(
     // it cannot dispatch and refunds exactly once. Late rejections are consumed.
     void pending
       .then(async (late) => {
-        if (late.reserved) await release(late.claim, 'cancelled')
+        if (late.reserved) await release(late.claim, 'cancelled', deps.log)
       })
-      .catch(() => refused('engine-failure'))
+      .catch((error: unknown) => {
+        deps.log?.warn(`SystemOne late release failed: ${errorNameForLog(error)}`)
+        return refused('engine-failure')
+      })
   }
   return reserved
 }
@@ -248,19 +267,20 @@ function measureBody(
 function pricedReservation(
   bodyTokens: number,
   capability: SystemOneModelCapability,
-): number | NoAnswerReason {
+): { readonly cost: UsdAmount } | { readonly refusal: NoAnswerReason } {
   if (
     !Number.isFinite(capability.inputUsdPerMillion) ||
     capability.inputUsdPerMillion <= 0 ||
     !Number.isFinite(capability.outputUsdPerMillion) ||
     capability.outputUsdPerMillion < 0
   ) {
-    return 'unpriced'
+    return { refusal: 'unpriced' }
   }
   try {
-    return systemOneUsd(bodyTokens, 0, capability)
-  } catch {
-    return 'engine-failure'
+    return { cost: Usd.from(systemOneUsd(bodyTokens, 0, capability)).toAmount() }
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError)) throw error
+    return { refusal: 'engine-failure' }
   }
 }
 
@@ -307,21 +327,22 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         )
         if (measured.failure !== undefined) return refused(measured.failure)
         quoteInput = measured.bodyTokens
-      } catch {
+      } catch (error: unknown) {
+        deps.log?.warn(`SystemOne measure failed: ${errorNameForLog(error)}`)
         return refused('engine-failure')
       }
       const quote = pricedReservation(quoteInput, route.capability)
-      if (typeof quote !== 'number') return refused(quote)
+      if ('refusal' in quote) return refused(quote.refusal)
       const deadline = AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS)
       const signal = AbortSignal.any([callerSignal, deadline])
       if (isSignalAborted(signal)) return refused(abortReason(callerSignal, deadline))
       let reserved: SystemOneReserveResult | undefined
       try {
-        reserved = await reserveUntilAborted(deps, quote, signal)
-      } catch {
-        return refused(
-          isSignalAborted(signal) ? abortReason(callerSignal, deadline) : 'engine-failure',
-        )
+        reserved = await reserveUntilAborted(deps, quote.cost, signal)
+      } catch (error: unknown) {
+        if (signal.aborted) return refused(abortReason(callerSignal, deadline))
+        deps.log?.warn(`SystemOne reserve failed: ${errorNameForLog(error)}`)
+        return refused('engine-failure')
       }
       if (reserved === undefined) return refused(abortReason(callerSignal, deadline))
       if (!reserved.reserved) return refused(ledgerReason(reserved.reason))
@@ -335,7 +356,8 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         let isAdmitted = true
         try {
           claim.check()
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne claim check failed: ${errorNameForLog(error)}`)
           isAdmitted = false
         }
         // Cancellation is read last: a reader above may abort synchronously.
@@ -345,16 +367,18 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
       }
       const complete = async (): Promise<JudgeOutcome> => {
         const before = holdReason()
-        if (before !== undefined) return await release(claim, before)
+        if (before !== undefined) return await release(claim, before, deps.log)
         let key: string | undefined
         try {
           key = await unlessAborted(deps.readKey(route.preset.keyProviderId), signal)
-        } catch {
-          return await release(claim, 'engine-failure')
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne key read failed: ${errorNameForLog(error)}`)
+          return await release(claim, 'engine-failure', deps.log)
         }
         const afterKey = holdReason()
-        if (afterKey !== undefined) return await release(claim, afterKey)
-        if (key === undefined || key.length === 0) return await release(claim, 'source-unavailable')
+        if (afterKey !== undefined) return await release(claim, afterKey, deps.log)
+        if (key === undefined || key.length === 0)
+          return await release(claim, 'source-unavailable', deps.log)
         let response: SystemOnePostResult
         try {
           response = await deps.post({
@@ -365,20 +389,23 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
             signal,
             proceed: () => holdReason() === undefined,
           })
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne post failed: ${errorNameForLog(error)}`)
           return refused('engine-failure')
         }
         // Withdrawn or refused before any byte was written: a known non-send.
-        if (!response.sent) return await release(claim, holdReason() ?? 'engine-failure')
+        if (!response.sent) return await release(claim, holdReason() ?? 'engine-failure', deps.log)
         if (response.status !== HTTP_OK) return refused('engine-failure')
         try {
           const prepared = prepareSystemOne(response.body, request, route.capability.responseModels)
-          const actual = systemOneUsd(
-            prepared.usage.input_tokens,
-            prepared.usage.output_tokens,
-            route.capability,
-          )
-          if (actual > claim.reservedUsd) return refused('engine-failure')
+          const actual = Usd.from(
+            systemOneUsd(
+              prepared.usage.input_tokens,
+              prepared.usage.output_tokens,
+              route.capability,
+            ),
+          ).toAmount()
+          if (compareUsdAmounts(actual, claim.reservedUsd) > 0) return refused('engine-failure')
           const result = prepared.withCosts({
             reservedCostUsd: claim.reservedUsd,
             settledCostUsd: actual,
@@ -391,7 +418,8 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
           // from a revoked call.
           const late = bindingRefusal(deps, binding)
           return late === undefined ? { outcome: 'answered', result } : refused(late)
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne settlement failed: ${errorNameForLog(error)}`)
           return refused('engine-failure')
         }
       }

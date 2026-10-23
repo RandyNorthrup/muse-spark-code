@@ -4,6 +4,8 @@
 import * as z from 'zod/mini'
 import { accountIdSchema } from './accounts'
 import { DEVICE_LIMITS, DEVICE_METADATA_ULA_SEGMENTS } from './constants'
+import { compareUsdAmounts } from './usd'
+import { legacyUsdSchema } from './usdSchema'
 
 const id = z
   .string()
@@ -140,7 +142,7 @@ export const deviceCapsSchema = z.strictObject({
   processes: wholeNonNegative,
   heavyChecks: wholeNonNegative,
   tokens: wholeNonNegative,
-  spendUsd: z.number().check(z.gte(0)),
+  spendUsd: legacyUsdSchema,
   artifactBytes: wholeNonNegative,
 })
 export type DeviceCaps = z.infer<typeof deviceCapsSchema>
@@ -302,8 +304,8 @@ const usage = z.strictObject({
   certainty: z.enum(['known', 'estimated', 'uncertain']),
   inputTokens: wholeNonNegative,
   outputTokens: wholeNonNegative,
-  returnedUsd: z.number().check(z.gte(0)),
-  retainedLiabilityUsd: z.number().check(z.gte(0)),
+  returnedUsd: legacyUsdSchema,
+  retainedLiabilityUsd: legacyUsdSchema,
 })
 const outcome = z
   .strictObject({
@@ -710,7 +712,11 @@ export function grantCeilingRefusal(
 ): DeviceGrantRefusal | null {
   const isModeWider =
     DEVICE_GRANT_MODE_ORDER.indexOf(request.mode) > DEVICE_GRANT_MODE_ORDER.indexOf(ceiling.mode)
-  const isQuotaWider = grantQuotaFields.some((field) => request.quota[field] > ceiling.quota[field])
+  const isQuotaWider = grantQuotaFields.some((field) =>
+    field === 'spendUsd'
+      ? compareUsdAmounts(request.quota[field], ceiling.quota[field]) > 0
+      : request.quota[field] > ceiling.quota[field],
+  )
   if (!isModeWider && !isQuotaWider) return null
   return {
     version: DEVICE_LIMITS.protocolVersion,

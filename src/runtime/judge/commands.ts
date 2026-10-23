@@ -1,5 +1,7 @@
 import type { Readable } from 'node:stream'
 import type { JudgeRuntime } from '../../core/judge/engine'
+import type { Logger } from '../../host/logger'
+import { errorNameForLog } from '../../core/logging'
 import {
   judgeOutcomeSchema,
   judgeRequestSchema,
@@ -13,16 +15,14 @@ import {
   JUDGE_MAX_BODY_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { Usd } from '../../shared/usd'
-import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
+import { compareUsdAmounts, Usd } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
+import { USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import type { FdWriter } from '../exec/fdWriter'
 import { readPromptStdin } from '../exec/keyInput'
 import { JudgeCliInputError, type JudgeCliCommand, type JudgeCliOptions } from './args'
 import { runJudgeMcp } from './mcp'
 import { isServedJudgeModel } from '../../core/judge/served'
-
-/** Nano-USD in one USD: the run cap's liability precision. */
-const NANO_USD_PER_USD = USD_DECIMAL_RADIX ** USD_LIABILITY_DECIMALS
 
 /** Z supplies current context; resolution must not start a chat backend/session. */
 export interface JudgeCliSource {
@@ -30,7 +30,7 @@ export interface JudgeCliSource {
   readonly model: string
   readonly runtime: JudgeRuntime
   readonly billing: 'free' | 'paid'
-  readonly worstCaseUsd: (request: JudgeRequest) => number | undefined
+  readonly worstCaseUsd: (request: JudgeRequest) => UsdAmount | undefined
   /**
   The binding's declared embedding model, when an embedding transport is
   configured. An embedding answer honestly names that model instead of
@@ -58,6 +58,7 @@ interface OfflineCommand {
 }
 
 export interface JudgeCliDeps {
+  readonly log?: Logger | undefined
   initialize?(signal: AbortSignal): Promise<void>
   /**
   Resolve once per request: the returned source carries that request's
@@ -77,7 +78,7 @@ export interface JudgeCliDeps {
   admitPaid?(
     source: JudgeCliSource,
     request: JudgeRequest,
-    reservedUsd: number,
+    reservedUsd: UsdAmount,
     signal: AbortSignal,
   ): Promise<JudgeOutcome>
   readonly calibrate?: OfflineCommand
@@ -149,7 +150,9 @@ function isAligned(request: JudgeRequest, outcome: JudgeOutcome): boolean {
 /** Per-process cap is conservatively retained, including failed/uncertain calls. */
 function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
   // Exact nano-USD (RVM98P2R2 8): the run cap and every reservation are integers.
-  let remainingUnits = options.budgetNanoUsd
+  let remainingUnits = Number(
+    Usd.from(options.budgetUsd).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS),
+  )
   return async (raw: unknown, signal: AbortSignal): Promise<JudgeOutcome> => {
     signal.throwIfAborted()
     const request = judgeRequestSchema.parse(raw)
@@ -179,9 +182,10 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     if (source.billing === 'paid') {
       if (remainingUnits <= 0) return noAnswer('over-budget')
       const cost = source.worstCaseUsd(request)
-      if (cost === undefined || !Number.isFinite(cost) || cost <= 0) return noAnswer('unpriced')
-      // The plan's number enters once, as its shortest decimal text, and a
-      // liability rounds up to the nano-USD: never `cost * units` in floats.
+      if (cost === undefined || compareUsdAmounts(cost, Usd.from(0).toAmount()) <= 0)
+        return noAnswer('unpriced')
+      // The plan's amount enters once, and a liability rounds up to the
+      // nano-USD: never `cost * units` in floats.
       const reservedUnits = Number(
         Usd.from(cost).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS),
       )
@@ -189,7 +193,12 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
       if (deps.admitPaid === undefined) return noAnswer('consent-needed')
       remainingUnits -= reservedUnits
       rawOutcome = await untilAborted(
-        deps.admitPaid(source, request, reservedUnits / NANO_USD_PER_USD, signal),
+        deps.admitPaid(
+          source,
+          request,
+          Usd.fromUnits(BigInt(reservedUnits), USD_LIABILITY_DECIMALS).toAmount(),
+          signal,
+        ),
         signal,
       )
     } else {
@@ -251,7 +260,7 @@ export async function runJudgeCommand(
     signal.throwIfAborted()
     if (deps.initialize !== undefined) await untilAborted(deps.initialize(signal), signal)
     if (command.action === 'mcp') {
-      code = await untilAborted(runJudgeMcp(io, judge, signal), signal)
+      code = await untilAborted(runJudgeMcp(io, judge, signal, deps.log), signal)
     } else if (command.action === 'serve' || command.action === 'lint') {
       const surface = deps[command.action]
       if (surface === undefined) throw new Error(UI_TEXT.execUnknownModel)
@@ -272,6 +281,7 @@ export async function runJudgeCommand(
           outcome = await untilAborted(judge(request, signal), signal)
         } catch (error: unknown) {
           if (error instanceof JudgeCliInputError) throw error
+          deps.log?.warn(`Judge request failed: ${errorNameForLog(error)}`)
           outcome = noAnswer(signal.aborted ? 'timeout' : 'engine-failure')
         }
         io.stdout.write(`${JSON.stringify(outcome)}\n`)
@@ -291,8 +301,9 @@ export async function runJudgeCommand(
         code = EXEC_EXIT.ok
       }
     }
-  } catch {
+  } catch (error: unknown) {
     // Fixed localized words only: no private stdin, model error or argv echo.
+    deps.log?.warn(`Judge command failed: ${errorNameForLog(error)}`)
     io.stderr.write(`${signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\n`)
     code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage
   } finally {

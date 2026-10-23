@@ -1,5 +1,6 @@
 // Judge wire shapes stay independent of host projection and lazy presentation.
 import * as z from 'zod/mini'
+import { nonnegativeUsdSchema } from './usdSchema'
 
 export const JUDGE_PANEL_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
 
@@ -51,10 +52,14 @@ export const JUDGE_PANEL_REASONS = [
 ] as const
 export type JudgePanelReason = (typeof JUDGE_PANEL_REASONS)[number]
 
-/** A reported amount. Negative and non-finite values are omitted, never shown as zero. */
-const reportedUsd = z.number()
+/**
+A reported per-unit rate: display dollars at the captured tariff, never a
+liability. The host filters negative and non-finite values before they reach
+the facts; the projection drops any that remain instead of showing zero.
+*/
+const reportedRate = z.number()
 
-const usdSchema = z.number().check(
+const rateSchema = z.number().check(
   z.nonnegative(),
   z.refine((value) => Number.isFinite(value)),
 )
@@ -88,6 +93,15 @@ const panelIdentityFields = {
   reason: z.optional(z.enum(JUDGE_PANEL_REASONS)),
 }
 
+/** The five exact-money liability figures facts and snapshots share. */
+const panelMoneyFields = {
+  reservedUsd: z.optional(nonnegativeUsdSchema),
+  settledUsd: z.optional(nonnegativeUsdSchema),
+  uncertainUsd: z.optional(nonnegativeUsdSchema),
+  dailyBudgetUsd: z.optional(nonnegativeUsdSchema),
+  dailySpentUsd: z.optional(nonnegativeUsdSchema),
+}
+
 export const judgePanelFactsSchema = z.strictObject({
   ...panelIdentityFields,
   capability: z.optional(judgePanelCapabilitySchema),
@@ -99,14 +113,10 @@ export const judgePanelFactsSchema = z.strictObject({
   consent: z.enum(['not-required', 'needed', 'granted', 'declined']),
   consentBoundTo: z.optional(z.string().check(z.minLength(1))),
   paidIdentity: z.optional(z.string().check(z.minLength(1))),
-  inputPerMillion: z.optional(reportedUsd),
-  cachedPerMillion: z.optional(reportedUsd),
-  outputPerMillion: z.optional(reportedUsd),
-  reservedUsd: z.optional(reportedUsd),
-  settledUsd: z.optional(reportedUsd),
-  uncertainUsd: z.optional(reportedUsd),
-  dailyBudgetUsd: z.optional(reportedUsd),
-  dailySpentUsd: z.optional(reportedUsd),
+  inputPerMillion: z.optional(reportedRate),
+  cachedPerMillion: z.optional(reportedRate),
+  outputPerMillion: z.optional(reportedRate),
+  ...panelMoneyFields,
 })
 export type JudgePanelFacts = z.infer<typeof judgePanelFactsSchema>
 
@@ -119,13 +129,9 @@ export const judgePanelSnapshotSchema = z.strictObject({
   consent: z.enum(['not-required', 'needed', 'granted', 'declined']),
   askFirstCharge: z.boolean(),
   showSubscriptionNote: z.boolean(),
-  inputPerMillion: z.optional(usdSchema),
-  cachedPerMillion: z.optional(usdSchema),
-  outputPerMillion: z.optional(usdSchema),
-  reservedUsd: z.optional(usdSchema),
-  settledUsd: z.optional(usdSchema),
-  uncertainUsd: z.optional(usdSchema),
-  dailyBudgetUsd: z.optional(usdSchema),
-  dailySpentUsd: z.optional(usdSchema),
+  inputPerMillion: z.optional(rateSchema),
+  cachedPerMillion: z.optional(rateSchema),
+  outputPerMillion: z.optional(rateSchema),
+  ...panelMoneyFields,
 })
 export type JudgePanelSnapshot = z.infer<typeof judgePanelSnapshotSchema>

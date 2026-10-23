@@ -12,6 +12,7 @@ import type { JudgeAdvisory } from '../../core/judge/use'
 import type { JudgeFenceSample } from '../../core/judge/use'
 import type { ModelApiJudgeConnection } from '../../core/judge/same/modelApiSource'
 import type { PaidFeatures } from '../paid/paidHost'
+import type { UsdAmount } from '../../shared/usdSchema'
 import type { JudgeStatus } from '../../shared/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { UI_TEXT, type JudgeEngine } from '../../shared/constants'
@@ -45,7 +46,7 @@ export interface JudgeWindowDeps {
   readonly readStoredCredential?: ((providerId: string) => Promise<string | undefined>) | undefined
   /** Tests' seams for the SystemOne route's pinned M95 transport; production passes none. */
   readonly separateTransport?: SeparateSourcePorts['transport']
-  readonly dailyBudgetUsd?: () => number
+  readonly dailyBudgetUsd?: () => UsdAmount
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>
     | {

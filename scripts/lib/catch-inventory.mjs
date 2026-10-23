@@ -53,6 +53,12 @@ const REDACTING_FNS = new Set([
   // failureForLog's own words (a name or kind and code, never raw text),
   // so it redacts exactly what failureForLog does.
   'internalFaultForLog',
+  // Lane RLF-JUDGEFIX: errorNameForLog (core/logging.ts), verified by
+  // reading: the error's name, or a fixed phrase for a non-error. It
+  // never touches the message, so paths and accounts cannot pass; it is
+  // failureForLog's fallback branch, factored out for bundles that must
+  // not import the Muse Code backend's log text.
+  'errorNameForLog',
 ])
 /** A call that records the failure under a fixed-vocabulary code. */
 const CODE_RECORD_FNS = new Set(['observeError', 'recordError', 'reportError'])

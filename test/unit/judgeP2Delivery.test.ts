@@ -253,6 +253,19 @@ const judgeMissing = (() => {
   return { size, pack, restored: digest(JUDGE_BUNDLE) === hash, green: gate('check-bundle-size') }
 })()
 
+// The Muse Code backend's log text is a backend detail: judge code reports
+// through errorNameForLog (src/core/logging.ts), so no judge child bundle
+// may carry it. The case below proves its own whistle fires before asserting
+// the tree is clean, in the file's own inject-detect-restore idiom.
+const BACKEND_LOG_TEXT = 'src/core/backends/musecode/logText.ts'
+function judgeChildrenCarryingLogText(): string[] {
+  return children
+    .filter(({ name }) =>
+      Object.hasOwn(output(`dist/meta/${name}.json`, name).result.inputs, BACKEND_LOG_TEXT),
+    )
+    .map(({ name }) => `dist/${name}.js`)
+}
+
 describe('phase-2 judge production delivery', () => {
   it('ships every merged implementation exclusively in the explicit-action factory', () => {
     const judge = output('dist/meta/judgeP2.json', 'judgeP2').result
@@ -269,6 +282,22 @@ describe('phase-2 judge production delivery', () => {
     expect(judge.imports.some((entry) => entry.path === './uiText.js' && entry.external)).toBe(true)
     expect(judge.inputs).not.toHaveProperty('src/shared/l10n/en.ts')
     expect(greenSplit.status, greenSplit.stderr).toBe(0)
+  })
+
+  it('keeps the backend log text out of every judge child bundle', () => {
+    const file = 'dist/meta/judgeSources.json'
+    const original = readFileSync(file)
+    const hash = digest(file)
+    try {
+      const { meta, result } = output(file, 'judgeSources')
+      result.inputs[BACKEND_LOG_TEXT] = { bytesInOutput: 1 }
+      writeFileSync(file, JSON.stringify(meta))
+      expect(judgeChildrenCarryingLogText()).toEqual(['dist/judgeSources.js'])
+    } finally {
+      writeFileSync(file, original)
+    }
+    expect(digest(file)).toBe(hash)
+    expect(judgeChildrenCarryingLogText()).toEqual([])
   })
 
   it(

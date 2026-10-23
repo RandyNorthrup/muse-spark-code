@@ -71,7 +71,7 @@ export function recordingLedger() {
 /** A command binding with a capable embedding transport, paid or verified-local. */
 export function embeddedBinding(locality: 'same-provider' | 'verified-local', consentDelayMs = 0) {
   const fixture = phase2Binding('same')
-  const value = { ...fixture.value, attemptCostUsd: () => 0 }
+  const value = { ...fixture.value, attemptCostUsd: () => Usd.from(0).toAmount() }
   const dataset = groupedDataset(200)
   dataset.identity.endpoint = 'fixture://offline'
   dataset.identity.providerId = 'fixture-provider'
@@ -86,7 +86,8 @@ export function embeddedBinding(locality: 'same-provider' | 'verified-local', co
   const built = embeddingSource({
     locality,
     endpoint: 'fixture://offline',
-    uncachedCostUsd: locality === 'verified-local' ? 0 : 0.0002,
+    uncachedCostUsd:
+      locality === 'verified-local' ? Usd.from(0).toAmount() : Usd.from(0.0002).toAmount(),
     embed: () => Promise.resolve(confidentVectors),
   })
   const prompts: { title: string; detail: string }[] = []

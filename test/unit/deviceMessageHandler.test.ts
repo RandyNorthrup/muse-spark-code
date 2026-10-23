@@ -6,6 +6,7 @@ import type {
   DeviceWebviewRequest,
 } from '../../src/shared/devicesPanel'
 import type { DevicesPanelPort } from '../../src/shared/protocol'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const UI_PAIR_ID = '2'.repeat(32)
 const uiDevice: Extract<DevicesPanelState, { enabled: true }>['devices'][number] = {
@@ -17,7 +18,7 @@ const uiDevice: Extract<DevicesPanelState, { enabled: true }>['devices'][number]
   status: 'connected',
   waitingApprovals: 0,
   unresolvedAttempts: 0,
-  retainedLiabilityUsd: 0,
+  retainedLiabilityUsd: canonicalUsd(0),
   offers: [],
 }
 function uiMessage(): DeviceHostMessage {

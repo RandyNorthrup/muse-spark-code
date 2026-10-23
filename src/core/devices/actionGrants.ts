@@ -21,6 +21,8 @@ import {
   type DeviceDispatch,
 } from '../../shared/devices'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
+import { compareUsdAmounts, sumUsd } from '../../shared/usd'
+import { nonnegativeUsdSchema, type UsdAmount } from '../../shared/usdSchema'
 import { isProtectedPath } from '../protectedPaths'
 
 export interface DeviceLocalAction {
@@ -75,6 +77,26 @@ const quotaFields = [
   'spendUsd',
   'artifactBytes',
 ] as const
+
+/**
+Exact spend-quota check: request plus used against every limit, with no
+float step. A corrupt amount refuses, like a non-finite count, instead
+of crashing admission.
+*/
+function isSpendQuotaExceeded(
+  request: UsdAmount,
+  used: UsdAmount,
+  limits: readonly UsdAmount[],
+): boolean {
+  const parsedRequest = nonnegativeUsdSchema.safeParse(request)
+  const parsedUsed = nonnegativeUsdSchema.safeParse(used)
+  if (!parsedRequest.success || !parsedUsed.success) return true
+  const total = sumUsd(parsedRequest.data, parsedUsed.data)
+  return limits.some((limit) => {
+    const parsedLimit = nonnegativeUsdSchema.safeParse(limit)
+    return !parsedLimit.success || compareUsdAmounts(total, parsedLimit.data) > 0
+  })
+}
 function normalizedPath(value: string): string {
   return path.posix.normalize(value.replaceAll('\\', '/')).toLowerCase()
 }
@@ -194,12 +216,17 @@ export class DeviceActionGrants implements DeviceActionGrantPort {
         request.mode === 'plan')
     )
       return this.refusal(request, 'scope-denied')
-    return quotaFields.some(
-      (field) =>
-        !Number.isFinite(state.used[field]) ||
-        state.used[field] < 0 ||
-        request.quota[field] + state.used[field] >
-          Math.min(...limits.map((limit) => limit.quota[field])),
+    return quotaFields.some((field) =>
+      field === 'spendUsd'
+        ? isSpendQuotaExceeded(
+            request.quota.spendUsd,
+            state.used.spendUsd,
+            limits.map((limit) => limit.quota.spendUsd),
+          )
+        : !Number.isFinite(state.used[field]) ||
+          state.used[field] < 0 ||
+          request.quota[field] + state.used[field] >
+            Math.min(...limits.map((limit) => limit.quota[field])),
     )
       ? this.refusal(request, 'quota-exceeded')
       : {

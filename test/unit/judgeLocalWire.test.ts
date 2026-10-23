@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { judgeRequestSchema, judgeResultSchema } from '../../src/core/judge/schema'
 import { localChatResult, localSystemOneResult } from '../../src/core/judge/local/wire'
+import { Usd } from '../../src/shared/usd'
 import capture from './fixtures/localJudgeSystemOneCapture.json'
 import chat from './fixtures/localJudgeCapture.json'
 
@@ -17,8 +18,8 @@ describe('M98 J2 captured local result boundary', () => {
       technique: 'systemone',
       label: 'uncalibrated',
       partial: false,
-      reservedCostUsd: 0,
-      settledCostUsd: 0,
+      reservedCostUsd: Usd.from(0).toAmount(),
+      settledCostUsd: Usd.from(0).toAmount(),
     })
     expect(result.muse['kind']?.vendorConfidence).toBe(capture.response.answers.kind.confidence)
     expect(result.muse['kind']?.confidence).toBeCloseTo(capture.response.answers.kind.confidence)

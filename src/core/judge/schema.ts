@@ -132,6 +132,15 @@ export const judgeRequestSchema = z
   .check(z.refine((request) => judgeRequestBytes(request) <= JUDGE_MAX_BODY_BYTES))
 export type JudgeRequest = z.infer<typeof judgeRequestSchema>
 
+/**
+A zod schema `.parse` failure (mini or full): outside data refused its
+shape. A brand check, never a constructor: mini exports no error class,
+and schema failures cross lazy bundles where identity cannot.
+*/
+export function isZodParseError(error: unknown): boolean {
+  return error instanceof Error && (error.name === 'ZodError' || error.name === '$ZodError')
+}
+
 /** The wire's bytes for a request, as the 64 KiB cap measures them. */
 export function judgeRequestBytes(request: unknown): number {
   // `stringify` returns `undefined` for no request at all; the types do not

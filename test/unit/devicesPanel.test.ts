@@ -21,6 +21,7 @@ import {
   type DeviceWebviewRequest,
   type DevicesPanelPort,
 } from '../../src/shared/protocol'
+import { Usd } from '../../src/shared/usd'
 
 const ID = 'a'.repeat(32)
 const HASH = 'c'.repeat(64)
@@ -30,7 +31,7 @@ const caps = {
   processes: 2,
   heavyChecks: 1,
   tokens: 100,
-  spendUsd: 1,
+  spendUsd: Usd.from(1).toAmount(),
   artifactBytes: 1024,
 }
 const row = {
@@ -42,7 +43,7 @@ const row = {
   status: 'connected',
   waitingApprovals: 0,
   unresolvedAttempts: 1,
-  retainedLiabilityUsd: 1,
+  retainedLiabilityUsd: Usd.from(1).toAmount(),
   offers: [],
 } satisfies Extract<DevicesPanelState, { enabled: true }>['devices'][number]
 const state: DevicesPanelState = { enabled: true, discoveryEnabled: false, devices: [row] }

@@ -6,6 +6,7 @@ import {
   type DeviceDispatch,
   type DeviceCaps,
 } from '../../shared/devices'
+import { compareUsdAmounts } from '../../shared/usd'
 import { DevicePairingError } from './pairing'
 
 const id = z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/))
@@ -81,7 +82,7 @@ function intersectCaps(a: DeviceCaps, b: DeviceCaps): DeviceCaps {
     processes: Math.min(a.processes, b.processes),
     heavyChecks: Math.min(a.heavyChecks, b.heavyChecks),
     tokens: Math.min(a.tokens, b.tokens),
-    spendUsd: Math.min(a.spendUsd, b.spendUsd),
+    spendUsd: compareUsdAmounts(a.spendUsd, b.spendUsd) <= 0 ? a.spendUsd : b.spendUsd,
     artifactBytes: Math.min(a.artifactBytes, b.artifactBytes),
   }
 }

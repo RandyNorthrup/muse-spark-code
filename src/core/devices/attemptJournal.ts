@@ -12,6 +12,7 @@ import {
   syncStoreDirectory,
   type ProtectedStoreStorage,
 } from '../fs/protectedStore'
+import { compareUsdAmounts } from '../../shared/usd'
 import type { DeviceStorageProtection } from './storageProtection'
 import { DEVICE_LIMITS } from '../../shared/constants'
 import {
@@ -361,7 +362,10 @@ export class AttemptJournal {
         next.state === 'admitted' ||
         (!['retired', 'refused'].includes(next.state) &&
           (canonical(next.occupied) !== canonical(row.outcome.occupied) ||
-            next.usage.retainedLiabilityUsd < row.outcome.usage.retainedLiabilityUsd)) ||
+            compareUsdAmounts(
+              next.usage.retainedLiabilityUsd,
+              row.outcome.usage.retainedLiabilityUsd,
+            ) < 0)) ||
         (next.state === 'launch-intent' && row.outcome.state !== 'admitted') ||
         (next.state === 'running' && row.outcome.state !== 'launch-intent')
       )

@@ -3,6 +3,7 @@ import { JUDGE_MAX_STATE_TOKENS, JUDGE_QUESTION_MAX } from '../../shared/constan
 import { type UsdAmount, Usd, nonnegativeUsdSchema, sumUsd } from '../../shared/usd'
 import { entropyConfidence } from './math'
 import {
+  isZodParseError,
   judgeCapabilitySchema,
   judgeOutcomeSchema,
   judgeProfileIdentitySchema,
@@ -302,8 +303,9 @@ export async function sampleJudge(
       if ('outcome' in call) return call
       plans.push({ id, question, call })
     }
-  } catch {
-    return techniqueRefusal('engine-failure')
+  } catch (error: unknown) {
+    if (signal.aborted) return techniqueRefusal('cancelled')
+    throw error
   }
   const receipts: JudgeTechniqueReceipt[] = []
   const distributions = new Map<string, number[]>()
@@ -341,8 +343,10 @@ export async function sampleJudge(
               : values
           }
           return techniqueRefusal('engine-failure')
-        } catch {
-          return techniqueRefusal(signal.aborted ? 'cancelled' : 'engine-failure')
+        } catch (error: unknown) {
+          if (signal.aborted) return techniqueRefusal('cancelled')
+          if (isZodParseError(error)) return techniqueRefusal('engine-failure')
+          throw error
         }
       }
       const samples: (number[] | JudgeOutcome)[] = []
@@ -368,7 +372,8 @@ export async function sampleJudge(
       )
     }
     return techniqueResult(parsed.data, distributions, 'sampling', deps, receipts)
-  } catch {
-    return techniqueRefusal(signal.aborted ? 'cancelled' : 'engine-failure')
+  } catch (error: unknown) {
+    if (signal.aborted) return techniqueRefusal('cancelled')
+    throw error
   }
 }
