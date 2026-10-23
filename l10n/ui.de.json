@@ -192,7 +192,9 @@
     "notFound": "Das angeforderte Element wurde nicht gefunden.",
     "cancelled": "Die Aktion wurde abgebrochen.",
     "untrusted": "Vertrauen Sie dem Arbeitsbereich, bevor Sie Repository-Code ausführen.",
-    "unsupported": "Diese Operation wird auf diesem Knoten nicht unterstützt."
+    "unsupported": "Diese Operation wird auf diesem Knoten nicht unterstützt.",
+    "running": "Der Knoten läuft. Halten Sie ihn vor dem Löschen an.",
+    "failed": "Der Knotenbefehl ist fehlgeschlagen."
   },
   "tuiInvalidFrame": "Der Knoten hat einen ungültigen oder zu großen Frame gesendet.",
   "tuiConnecting": "Verbindung zum Knoten wird hergestellt…",

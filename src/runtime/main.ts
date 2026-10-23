@@ -1753,7 +1753,8 @@ async function main(): Promise<number> {
       process.on('SIGTERM', stop)
       process.on('SIGINT', stop)
       try {
-        return await nodeModule(path.join(distDir, NODE_BUNDLE_FILE)).runNodeArgs(
+        const loaded = nodeModule(path.join(distDir, NODE_BUNDLE_FILE))
+        return await loaded.runNodeArgs(
           command.argv,
           {
             root: nodeDataFolder({
@@ -1762,6 +1763,7 @@ async function main(): Promise<number> {
               homeDir: homedir(),
             }),
             signal: controller.signal,
+            binding: loaded.productionNodeBinding(),
             now: Date.now,
             print: (line) => {
               writeLine(process.stdout, line)

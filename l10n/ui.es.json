@@ -192,7 +192,9 @@
     "notFound": "No se encontró el elemento solicitado.",
     "cancelled": "Se canceló la acción.",
     "untrusted": "Confía en el espacio de trabajo antes de ejecutar código del repositorio.",
-    "unsupported": "Esta operación no es compatible con este nodo."
+    "unsupported": "Esta operación no es compatible con este nodo.",
+    "running": "El nodo está en ejecución. Detenlo antes de borrarlo.",
+    "failed": "El comando del nodo falló."
   },
   "tuiInvalidFrame": "El nodo envió una trama no válida o demasiado grande.",
   "tuiConnecting": "Conectando con el nodo…",

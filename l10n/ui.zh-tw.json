@@ -192,7 +192,9 @@
     "notFound": "找不到要求的項目。",
     "cancelled": "操作已取消。",
     "untrusted": "請在執行儲存庫程式碼前信任工作區。",
-    "unsupported": "此節點不支援此操作。"
+    "unsupported": "此節點不支援此操作。",
+    "running": "節點正在執行。請先停止，然後再清除。",
+    "failed": "節點命令失敗。"
   },
   "tuiInvalidFrame": "節點傳送了無效或過大的訊框。",
   "tuiConnecting": "正在連線至節點…",

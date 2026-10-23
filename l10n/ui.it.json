@@ -192,7 +192,9 @@
     "notFound": "L’elemento richiesto non è stato trovato.",
     "cancelled": "L’azione è stata annullata.",
     "untrusted": "Considera attendibile l’area di lavoro prima di eseguire il codice del repository.",
-    "unsupported": "Questa operazione non è supportata su questo nodo."
+    "unsupported": "Questa operazione non è supportata su questo nodo.",
+    "running": "Il nodo è in esecuzione. Arrestalo prima di cancellarlo.",
+    "failed": "Il comando del nodo non è riuscito."
   },
   "tuiInvalidFrame": "Il nodo ha inviato un frame non valido o troppo grande.",
   "tuiConnecting": "Connessione al nodo…",

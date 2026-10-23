@@ -192,7 +192,9 @@
     "notFound": "A kért elem nem található.",
     "cancelled": "A művelet megszakadt.",
     "untrusted": "A tároló kódjának futtatása előtt jelölje megbízhatónak a munkaterületet.",
-    "unsupported": "Ez a művelet nem támogatott ezen a csomóponton."
+    "unsupported": "Ez a művelet nem támogatott ezen a csomóponton.",
+    "running": "A csomópont fut. A törlés előtt állítsa le.",
+    "failed": "A csomópont parancsa sikertelen."
   },
   "tuiInvalidFrame": "A csomópont érvénytelen vagy túl nagy keretet küldött.",
   "tuiConnecting": "Kapcsolódás a csomóponthoz…",
