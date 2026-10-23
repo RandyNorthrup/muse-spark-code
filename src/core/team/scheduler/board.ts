@@ -348,10 +348,13 @@ export class TaskBoard {
   dependencyInput(id: string): {
     integrationTasks: string[]
     reports: { taskId: string; kind: 'data'; text: string }[]
-    stackedBases: { task: string; base: string }[]
+    stackedBases?: { task: string; base: string }[]
   } {
     const task = this.requireTask(id)
     if (task.state !== 'ready') throw new BoardRefusal('dependencies', [id])
+    const stackedBases = (task.depends_on ?? [])
+      .filter((edge) => edge.on === 'stacked')
+      .map((edge) => ({ task: edge.task, base: this.requireHead(edge.task) }))
     return {
       integrationTasks: (task.depends_on ?? [])
         .filter((edge) => edge.on === 'merged')
@@ -363,9 +366,9 @@ export class TaskBoard {
           kind: 'data',
           text: this.context.report(edge.task),
         })),
-      stackedBases: (task.depends_on ?? [])
-        .filter((edge) => edge.on === 'stacked')
-        .map((edge) => ({ task: edge.task, base: this.requireHead(edge.task) })),
+      // Present only for stacked work (RLM96D), so unstacked and
+      // single-model requests keep their bytes (M120's golden, D212).
+      ...(stackedBases.length > 0 && { stackedBases }),
     }
   }
 

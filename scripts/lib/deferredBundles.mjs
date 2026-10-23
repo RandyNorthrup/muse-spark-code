@@ -26,6 +26,8 @@ export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/grok.ts',
   // RLGROKAUTH: the OIDC mechanics both subscription sign-ins share.
   'src/core/providers/subscriptions/oidc.ts',
+  // RLM109: the ChatGPT grant's record schema, a leaf chatgpt.ts re-exports.
+  'src/core/providers/subscriptions/chatgptRecord.ts',
 ]
 // RLGROKAUTH: subscription dispatch and terminal commands, split out of
 // dist/subscriptions.js beside the registry (only files owned by the

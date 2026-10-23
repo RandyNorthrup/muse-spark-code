@@ -40,7 +40,8 @@ function wireCode(value: unknown, request: JudgeRequest, allowed: readonly strin
 
 describe('systemone service catalogue', () => {
   it('omits clef from the service presets', () => {
-    expect(PRESETS).toHaveLength(18)
+    // RLM95B adds Moonshot and Ollama Cloud: 18 + 2.
+    expect(PRESETS).toHaveLength(20)
     const chatIds = PRESETS.map((preset) => preset.id)
     expect(chatIds).not.toContain('openrouter-jev')
     expect(chatIds).not.toContain('typesafe-jev')
