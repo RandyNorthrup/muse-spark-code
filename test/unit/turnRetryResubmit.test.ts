@@ -78,9 +78,9 @@ async function failedFirstTurn(
 ): Promise<{ panel: PanelRig; first: TurnCompleted }> {
   const panel = await panelWithSession(failingKeyRig(directory), directory)
   await sendFirst(panel)
-  const [first] = await awaitTurnEnd(panel, 1)
-  expect(first?.terminal).toBe('failed')
-  expect(first?.retryable).toBe(true)
+  const first = await endedTurn(panel, 1, 0)
+  expect(first.terminal).toBe('failed')
+  expect(first.retryable).toBe(true)
   return { panel, first }
 }
 
@@ -88,7 +88,7 @@ async function failedFirstTurn(
 // it fails again instead of hanging the file.
 async function retriedTurn(panel: PanelRig, turnId: string): Promise<TurnCompleted> {
   await pressRetry(panel, 'local-2', turnId)
-  const [, second] = await awaitTurnEnd(panel, 2)
+  const second = await endedTurn(panel, 2, 1)
   return second
 }
 
@@ -138,6 +138,14 @@ type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
 
 async function awaitTurnEnd(panel: PanelRig, count: number): Promise<readonly TurnCompleted[]> {
   return await awaitPosts(panel, turnCompletions, count, 'turns ended')
+}
+
+/** The turn that ended at `index` (0-based) once `count` turns ended. */
+async function endedTurn(panel: PanelRig, count: number, index: number): Promise<TurnCompleted> {
+  const ended = await awaitTurnEnd(panel, count)
+  const turn = ended[index]
+  if (turn === undefined) throw new Error(`turn ${String(index + 1)} never ended`)
+  return turn
 }
 
 function shownTranscript(panel: PanelRig, sends: readonly { localId: string; text: string }[]) {
@@ -198,9 +206,9 @@ describe('turn retry resubmission', () => {
     // The exit is the product's own reading of a signal death, not a
     // hand-built value: `describeExit` maps it, `hostExited` ends the turn.
     panel.controller.hostExited(describeExit({ code: null, signal: 'SIGKILL' }, false))
-    const [first] = await awaitTurnEnd(panel, 1)
-    expect(first?.terminal).toBe('failed')
-    expect(first?.retryable).toBe(true)
+    const first = await endedTurn(panel, 1, 0)
+    expect(first.terminal).toBe('failed')
+    expect(first.retryable).toBe(true)
 
     const sessionsBefore = sessionInfos(panel.posted).length
     await pressRetry(panel, 'local-2', first.turnId)
@@ -241,9 +249,9 @@ describe('turn retry resubmission', () => {
     // Exit code 2 is one of the product's own persistent codes: the host
     // refuses to run as configured, so no resubmit could help.
     panel.controller.hostExited(describeExit({ code: 2, signal: null }, false))
-    const [first] = await awaitTurnEnd(panel, 1)
-    expect(first?.terminal).toBe('failed')
-    expect(first?.retryable).toBeUndefined()
+    const first = await endedTurn(panel, 1, 0)
+    expect(first.terminal).toBe('failed')
+    expect(first.retryable).toBeUndefined()
 
     const sessionsBefore = sessionInfos(panel.posted).length
     await pressRetry(panel, 'local-2', first.turnId)
@@ -261,12 +269,12 @@ describe('turn retry resubmission', () => {
   it('refuses a turn that failed beyond retrying, and an unknown turn', async () => {
     const panel = await panelWithSession(modelApiRig(directory), directory)
     await sendFirst(panel)
-    const [first] = await awaitTurnEnd(panel, 1)
+    const first = await endedTurn(panel, 1, 0)
     // No key is stored, so the turn fails on its missing sign-in: a
     // resubmit cannot clear that.
-    expect(first?.terminal).toBe('failed')
-    expect(first?.errorKind).toBe('authRequired')
-    expect(first?.retryable).toBe(false)
+    expect(first.terminal).toBe('failed')
+    expect(first.errorKind).toBe('authRequired')
+    expect(first.retryable).toBe(false)
 
     await pressRetry(panel, 'local-2', first.turnId)
     await pressRetry(panel, 'local-3', 'turn-gone')
