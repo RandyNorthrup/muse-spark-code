@@ -30148,7 +30148,7 @@ permission grants. Config/state/audit reject unknown fields and expose no
 credential-valued fields; filesystem containment, cryptographic verification, expiry and hash-chain
 verification still require their runtime bindings and acceptance drills.
 
-**Status 2026-10-06: M110a0 threat model accepted.** N's service core is
+**Status 2026-10-06 (historical; M110a0 threat model accepted): building.** N's service core is
 implemented (`docs/certification/m110-n-node-service.md`); the listener is
 authorized within the accepted table. Production sign-in, images and user
 surfaces still require their named lane bindings and platform receipts. The research is
@@ -30156,6 +30156,16 @@ surfaces still require their named lane bindings and platform receipts. The rese
 model is reviewed and accepted before that phase's listener, relay or sign-in
 code is written. Listening on a network stays off until `node init` chooses
 it: D80's security exception to the enhancements-on ruling, applied again.
+
+**Status 2026-10-23 (S0 and J built on lane RLM110A0, awaiting integration): building.** S0's LAN installer profile (`deploy/install/`), production
+wipe binding, home guide and hosts proof (`docs/certification/m110a0-hosts.md`)
+are committed with their tests; J's operator guides (`docs/node/`), README /
+SECURITY / PRIVACY / AGENTS / ACP / CI / ide-compat rows and A0 attempt log
+are written. Proven on macmini: the packaged CLI and ACP `node` lifecycle,
+the stale-lock recovery, and the installer checks against real POSIX tools.
+Still open: the full Linux install, the attestation success path, every
+container runbook (Docker Desktop's socket never appeared on macmini), and
+the serve binding (A1/M104).
 
 **Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
 graphical host edition. M111's shared lanes TH (theme), IN (languages), AX

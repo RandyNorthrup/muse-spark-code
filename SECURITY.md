@@ -848,3 +848,33 @@ exact budget and Files ledger bindings. Missing ports refuse explicitly.
 - **Child processes.** The runtime removes credential variables from its
   environment before the connector loads; the only process the connector
   starts is the fixed OS opener with the checked loopback URL.
+
+## Home node LAN profile (M110a0 S0)
+
+- **Verified install.** The LAN installer (`deploy/install/install.sh`)
+  refuses any tarball whose SHA-256 entry or GitHub attestation does not
+  verify for the exact file, and refuses reinstalls, unknown versions and
+  non-root runs. The layout step pins every mode (directories 0755, files
+  0644, the state root and workspaces 0700) and fails the install when a
+  member is missing or the node runtime cannot be read.
+- **Two users, one bus.** `muse-node` (10001) owns the state and serves;
+  `muse-tools` (10002) will run tools with no write access to it; both
+  share the `muse-bus` (10003) group. Fixed numeric ids keep ownership
+  identical across reinstalls.
+- **The node's port only.** The profile opens `8443/tcp` and nothing else;
+  the guides bind a chosen LAN address, never a wildcard, on native Linux
+  and both Docker Desktops.
+- **Wipe destroys.** `wipe --confirm-wipe` holds the lock, destroys the
+  key slots and the identity, then removes the state root and the recorded
+  workspace volume together. Without the flag, or on a running node, it
+  refuses and keeps everything.
+- **Stale locks are the operator's.** A crash leaves `service.lock`
+  behind; the CLI refuses while the file exists, and recovery is an
+  explicit `rm` after checking no node runs — never automatic.
+- **No credentials in the installer.** Attestation runs under the
+  operator's own `gh` sign-in; the installer takes no key, token or
+  passphrase and stores none.
+- **Residuals:** serving still refuses `unavailable` (no supervisor yet),
+  so no listener, passkey or session boundary is claimed; the attestation
+  success path and every host runbook in
+  `docs/certification/m110a0-hosts.md` await their PCs.

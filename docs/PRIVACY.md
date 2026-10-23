@@ -823,6 +823,16 @@ address bar after exchange.
   Importing or opening a share file reads the one file you pick; nothing
   is uploaded, and there is no hosted sharing.
 
+### Home node
+
+The node's state root holds its identity, key slots, setup code and service
+lock, and its workspace volume holds your files; both live on the person's
+own PC, and nothing in them leaves it — there is no listener yet to send
+them anywhere. `wipe --confirm-wipe` removes both from disk. Installing
+contacts GitHub only: the tarball and checksums download, and `gh`
+verifies the release attestation for the exact file. No account, e-mail or
+telemetry is created or sent by the install.
+
 ## The agent for other editors
 
 `muse-spark-code-acp` (the npm package, `docs/acp.md`) runs Muse Spark in

@@ -876,6 +876,32 @@ run in Zed, Emacs (agent-shell), Neovim (CodeCompanion) and JupyterLab
 (Jupyter AI) only against that stand-in, so none of them is yet tried for
 real either.
 
+## Muse Node
+
+Muse Node is Muse Spark Code on your own machine: one home PC holds your
+workspaces and serves them over your home LAN, to a browser on another PC
+and to a terminal UI on the machine itself. The home node is the first
+deliverable (M110a0); the later phases add bare-metal OS images, packs, an
+orchestrator host and team mode.
+
+Today it is groundwork, not a runnable node: the contracts and threat
+model, the service listener library, the passkey libraries, the terminal
+and dashboard surfaces, the TUI design system, and the installer's LAN
+profile with its operator guides. `serve`, `stop`, `lock` and `unlock`
+refuse with `The node feature is unavailable.` until their service binding
+lands; `init`, `status` and `wipe` run. Nothing listens on any network yet.
+
+- [Install on a home PC](docs/node/home.md): native Linux and Docker
+  Desktop on macOS and Windows, firewall rules, wipe and stale-lock
+  recovery.
+- [Serving](docs/node/serve.md): what `serve` will own and what each
+  command refuses today.
+- [The workspace volume and the tool host](docs/node/toolhost.md): what
+  `wipe` destroys and the inert tool-host unit.
+- The LAN installer lives in `deploy/install/`; its proof and the open
+  host runbooks are in
+  [the hosts record](docs/certification/m110a0-hosts.md).
+
 ## MCP connector for other agents (M124)
 
 **In progress: the local phase.** `muse-spark-code-acp mcp` serves Muse
