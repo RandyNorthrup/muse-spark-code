@@ -376,6 +376,26 @@ require("codecompanion").setup({
 `:CodeCompanionChat` opens a chat; a permission prompt lists its keys
 (Accept, Reject, Cancel) in the chat buffer.
 
+In classic Vim (not Neovim), the agent package carries its own plugin,
+`editors/vim` (tested with Vim 9.1 and the 0.19.0 package: pure Vimscript,
+no Python or Lua). Copy it beside your Vim packages and restart Vim:
+
+```sh
+mkdir -p ~/.vim/pack/musespark/start
+cp -r <agent-package>/editors/vim ~/.vim/pack/musespark/start/muse-spark
+```
+
+where `<agent-package>` is the installed `muse-spark-code-acp` folder
+(`npm root -g` holds it after a global install). `:MuseSpark` opens the
+chat and starts the agent; write each prompt below the last `You:` line
+and run `:MuseSparkSend`. A permission prompt lists its numbered options
+in the chat; answer with `:MuseSparkAllow {n}` or `:MuseSparkDeny`.
+`:MuseSparkModel` and `:MuseSparkMode` switch the running session.
+Before `:MuseSpark`, `g:muse_spark_args` takes extra agent arguments
+(e.g. `['--model', 'muse-spark-1.3', '--trust-workspace']`), and
+`g:muse_spark_command` the agent itself when it is not on `PATH`.
+`:help muse_spark` lists every command and option.
+
 In JupyterLab 4, [Jupyter AI](https://github.com/jupyterlab/jupyter-ai) 3
 (`pip install jupyter-ai`; tested with 3.2.0 and JupyterLab 4.6.3) runs
 ACP agents as chat personas. Save this as
