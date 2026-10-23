@@ -87,8 +87,9 @@ export class DevcontainerError extends Error {
   public constructor(
     public readonly reason: DevcontainerRefusal,
     message: string,
+    options?: { readonly cause?: unknown },
   ) {
-    super(message)
+    super(message, options)
   }
 }
 
@@ -393,13 +394,17 @@ export async function readDevcontainerConfig(
   let parsed: unknown
   try {
     parsed = JSON.parse(stdout) as unknown
-  } catch {
-    throw new DevcontainerError('bad-output', 'devcontainer read-configuration printed no JSON')
+  } catch (error: unknown) {
+    throw new DevcontainerError('bad-output', 'devcontainer read-configuration printed no JSON', {
+      cause: error,
+    })
   }
   try {
     return devcontainerResolvedSchema.parse(parsed)
-  } catch {
-    throw new DevcontainerError('bad-output', 'devcontainer read-configuration changed shape')
+  } catch (error: unknown) {
+    throw new DevcontainerError('bad-output', 'devcontainer read-configuration changed shape', {
+      cause: error,
+    })
   }
 }
 
@@ -452,16 +457,17 @@ export async function devcontainerUp(
   let parsed: unknown
   try {
     parsed = JSON.parse(stdout) as unknown
-  } catch {
+  } catch (error: unknown) {
     throw new DevcontainerError(
       'bad-output',
       `devcontainer up printed no JSON (exit ${String(exitCode)}): ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
+      { cause: error },
     )
   }
   try {
     return devcontainerUpResultSchema.parse(parsed)
-  } catch {
-    throw new DevcontainerError('bad-output', 'devcontainer up changed shape')
+  } catch (error: unknown) {
+    throw new DevcontainerError('bad-output', 'devcontainer up changed shape', { cause: error })
   }
 }
 

@@ -3825,6 +3825,8 @@
   "peekNoAgents": "Ebben a munkamenetben nem fut egy ügynök sem.",
   "peekUnknownAgent": "Ismeretlen ügynök: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "Toolchainek",
+  "referenceToolchains": "Az ezen a gépen telepített toolchainek, a verzióikkal.",
   "execDeniedStop": "Egy elutasított engedély leállította a futást.",
   "execInterrupted": "A futás megszakadt.",
   "execOutputStalled": "A kimenet lezárult vagy elakadt.",

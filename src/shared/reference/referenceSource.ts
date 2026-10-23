@@ -87,6 +87,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
+  // M110t TA: admitted nowhere yet; the read-only model tool runs, but no
+  // surface claims it until the questionnaire/packs UX lands to link to.
+  ['toolchains', []],
   ['auto-compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['compaction', ['vscode:modelApi', 'acp:modelApi']],
   ['custom-agents', ['vscode:modelApi']],
@@ -414,6 +417,7 @@ export const REFERENCE_TOOL_FEATURES: Readonly<Record<string, string>> = {
   subagent_cancel: 'subagents',
   run_checks: 'verify',
   verify_edits: 'verify',
+  toolchains: 'toolchains',
 }
 
 export { LINUX_RECORDERS } from '../constants'

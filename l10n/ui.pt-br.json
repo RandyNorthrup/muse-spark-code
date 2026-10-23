@@ -3903,6 +3903,8 @@
   "peekNoAgents": "Nenhum agente em execução nesta sessão.",
   "peekUnknownAgent": "Agente desconhecido: {id}",
   "peekAttachmentsRefused": "/peek takes no attachments: send it alone.",
+  "toolchainsFeatureName": "Toolchains",
+  "referenceToolchains": "As toolchains instaladas nesta máquina, com suas versões.",
   "execDeniedStop": "Uma permissão negada interrompeu esta execução.",
   "execInterrupted": "A execução foi interrompida.",
   "execOutputStalled": "A saída foi fechada ou bloqueada.",

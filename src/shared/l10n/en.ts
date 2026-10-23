@@ -4790,6 +4790,8 @@ export const EN = {
   peekNoAgents: 'No agents are running in this session.',
   peekUnknownAgent: 'Unknown agent: {id}',
   peekAttachmentsRefused: '/peek takes no attachments: send it alone.',
+  toolchainsFeatureName: 'Toolchains',
+  referenceToolchains: 'The toolchains installed on this machine, with their versions.',
   execDeniedStop: 'An approval denial stopped this run.',
   execInterrupted: 'The run was interrupted.',
   execOutputStalled: 'Output closed or stalled.',
