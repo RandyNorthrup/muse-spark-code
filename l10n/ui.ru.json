@@ -4874,7 +4874,7 @@
     "newBadge": "Новинка"
   },
   "modelToolCallingUnavailable": "Вызов инструментов для этой модели не проверен.",
-  "paidProviderPrice": "За миллион токенов: ввод {input}, чтение кеша {cached}, запись кеша {write}, запись на час {write1h}, вывод {output}. За запрос {request}; за изображение {image}.",
+  "paidProviderPrice": "За миллион токенов: ввод {input}, чтение кеша {cached}, запись кеша {write}, запись на час {write1h}, запись на 12 часов {write12h}, вывод {output}. За запрос {request}; за изображение {image}.",
   "paidProviderPriceTier": "От {threshold} входных токенов: ввод {input}, вывод {output} за миллион.",
   "modelUnpriced": "Без цены",
   "modelLocal": "Локальная",

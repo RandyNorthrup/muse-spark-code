@@ -200,6 +200,70 @@ describe('responsesCodec encodeRequest', () => {
     expect(omitted).not.toHaveProperty('safety_identifier')
   })
 
+  it.each([
+    { model: 'gpt-5.6-luna', sends: true },
+    { model: 'gpt-5.6', sends: true },
+    { model: 'gpt-6-astra', sends: true },
+    { model: 'gpt-6.1-sol', sends: true },
+    { model: 'gpt-5.5', sends: false },
+    { model: 'gpt-5.4', sends: false },
+    { model: 'gpt-5', sends: false },
+    { model: 'gpt-5-mini', sends: false },
+    { model: 'gpt-4.1', sends: false },
+    { model: 'gpt-4o', sends: false },
+    { model: 'o1', sends: false },
+    { model: 'grok-4.7', sends: false },
+    // An Azure-style deployment name never parses as a GPT version, so the
+    // choice is withheld rather than risked on an unknown backend.
+    { model: 'prod-gpt56', sends: false },
+  ])('sends the picked ttl only on GPT-5.6 and later ($model)', ({ model, sends }) => {
+    // Every id but the deployment name is a sealed snapshot row. The
+    // picked lifetime rides as `prompt_cache_options.ttl` where the API
+    // takes it; anywhere else the choice stays home (an unsupported value
+    // answers `400 invalid_request_error`).
+    const codec = createResponsesCodec(withRetention)
+    const wire = codec.encodeRequest(firstTurnBody(model), { cacheTtl: '12h' })
+    if (sends) {
+      expect(wire).toMatchObject({ prompt_cache_options: { ttl: '12h' } })
+    } else {
+      expect(wire).not.toHaveProperty('prompt_cache_options')
+    }
+  })
+
+  it('omits prompt_cache_options for the provider default, and on the plan route (RLPROVSYNC)', () => {
+    const codec = createResponsesCodec(withRetention)
+    // `default` and absent alike send nothing: the default stays the
+    // provider's to keep, even on a model that would take the option.
+    for (const options of [{ cacheTtl: 'default' } as const, {}]) {
+      expect(codec.encodeRequest(firstTurnBody(), options)).not.toHaveProperty(
+        'prompt_cache_options',
+      )
+    }
+    // The ChatGPT plan proxy is undocumented for cache options, so the
+    // choice never rides it, as `prompt_cache_retention` never does.
+    const plan = createResponsesCodec({
+      profile: 'chatgpt',
+      toolNamespace: 'functions',
+      toolNamespaceDescription: 'test',
+    })
+    expect(plan.encodeRequest(firstTurnBody(), { cacheTtl: '12h' })).not.toHaveProperty(
+      'prompt_cache_options',
+    )
+  })
+
+  it('keeps prompt_cache_retention alongside the picked ttl (RLPROVSYNC)', () => {
+    // The ttl settings do not change the older-model `prompt_cache_retention`
+    // parameter (prompt-caching guide): where the record accepts retention
+    // it still rides, beside the ttl.
+    const wire = createResponsesCodec(withRetention).encodeRequest(firstTurnBody(), {
+      cacheTtl: '12h',
+    })
+    expect(wire).toMatchObject({
+      prompt_cache_retention: 'in_memory',
+      prompt_cache_options: { ttl: '12h' },
+    })
+  })
+
   it('emits the captured U9 strict declaration without changing its schema (M106)', () => {
     const captured = z
       .object({
@@ -523,6 +587,138 @@ describe('responsesCodec decodeStream', () => {
         },
       },
     })
+  })
+
+  it('maps a reported per-TTL breakdown onto the flat 12-hour counter (RLPROVSYNC)', async () => {
+    // The recorded 02-tool-call-stream completion (1,444 written), with
+    // the docs-shaped `cache_write_tokens_details` the rig cannot capture
+    // (it holds no key): disjoint parts summing to the recorded written
+    // total, per the prompt-caching guide (read 2026-10-22).
+    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
+    if (terminal === undefined) throw new Error('Missing captured completion')
+    const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
+    const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
+    const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
+    const written = z.number().parse(details['cache_write_tokens'])
+    expect(written).toBe(1444)
+    const twelveHourTokens = 44
+    const events = await collect(
+      stream(
+        frame({
+          ...terminal,
+          response: {
+            ...response,
+            usage: {
+              ...usage,
+              input_tokens_details: {
+                ...details,
+                cache_write_tokens_details: {
+                  ttl_30m_tokens: written - twelveHourTokens,
+                  ttl_12h_tokens: twelveHourTokens,
+                },
+              },
+            },
+          },
+        }),
+      ),
+    )
+    expect(events.at(-1)).toMatchObject({
+      type: 'response.completed',
+      response: {
+        usage: {
+          input_tokens: 1447,
+          input_tokens_details: { cache_write_tokens: 1444, cache_write_tokens_12h: 44 },
+        },
+      },
+    })
+    // The carrier is dropped after the validated mapping.
+    expect(events.at(-1)).not.toHaveProperty(
+      'response.usage.input_tokens_details.cache_write_tokens_details',
+    )
+  })
+
+  it('refuses a TTL breakdown that exceeds the written total (RLPROVSYNC)', async () => {
+    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
+    if (terminal === undefined) throw new Error('Missing captured completion')
+    const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
+    const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
+    const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
+    const written = z.number().parse(details['cache_write_tokens'])
+    await expect(
+      collect(
+        stream(
+          frame({
+            ...terminal,
+            response: {
+              ...response,
+              usage: {
+                ...usage,
+                input_tokens_details: {
+                  ...details,
+                  cache_write_tokens_details: {
+                    ttl_30m_tokens: written,
+                    ttl_12h_tokens: 1,
+                  },
+                },
+              },
+            },
+          }),
+        ),
+      ),
+    ).rejects.toThrow('invalid_cache_write_split')
+  })
+
+  it('accepts a breakdown below the written total for a later TTL (RLPROVSYNC)', async () => {
+    // The known parts summing below the written total stays accepted: a
+    // later TTL the guide adds may make up the rest. The 12-hour part
+    // still maps exactly.
+    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
+    if (terminal === undefined) throw new Error('Missing captured completion')
+    const response = z.record(z.string(), z.unknown()).parse(terminal['response'])
+    const usage = z.record(z.string(), z.unknown()).parse(response['usage'])
+    const details = z.record(z.string(), z.unknown()).parse(usage['input_tokens_details'])
+    const written = z.number().parse(details['cache_write_tokens'])
+    const events = await collect(
+      stream(
+        frame({
+          ...terminal,
+          response: {
+            ...response,
+            usage: {
+              ...usage,
+              input_tokens_details: {
+                ...details,
+                cache_write_tokens_details: {
+                  ttl_30m_tokens: 1000,
+                  ttl_12h_tokens: 44,
+                },
+              },
+            },
+          },
+        }),
+      ),
+    )
+    expect(written).toBe(1444)
+    expect(events.at(-1)).toMatchObject({
+      type: 'response.completed',
+      response: {
+        usage: {
+          input_tokens_details: { cache_write_tokens: 1444, cache_write_tokens_12h: 44 },
+        },
+      },
+    })
+  })
+
+  it('leaves the 12-hour counter absent without reported details (RLPROVSYNC)', async () => {
+    // The recorded completion as captured: no breakdown, so the canonical
+    // counter stays absent — unknown, never a guessed zero.
+    const terminal = openaiTool.find((event) => event['type'] === 'response.completed')
+    if (terminal === undefined) throw new Error('Missing captured completion')
+    const events = await collect(stream(frame(terminal)))
+    expect(events.at(-1)).toMatchObject({ type: 'response.completed' })
+    expect(events.at(-1)).not.toHaveProperty(
+      'response.usage.input_tokens_details.cache_write_tokens_12h',
+    )
   })
 
   it('decodes captured xAI single-delta tools, reasoning and settled cost', async () => {

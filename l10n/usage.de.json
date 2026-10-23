@@ -98,6 +98,7 @@
   "cacheWriteTokens": "Cache-Schreibvorgänge",
   "cacheWrite5mTokens": "{duration} Cache-Schreibvorgänge",
   "cacheWrite1hTokens": "{duration} Cache-Schreibvorgänge",
+  "cacheWrite12hTokens": "{duration} Cache-Schreibvorgänge",
   "reasoningTokens": "Reasoning-Token",
   "reasoningNote": "Reasoning ist in der Ausgabe enthalten; es wird nicht doppelt berechnet.",
   "totalCost": "Gesamtkosten",

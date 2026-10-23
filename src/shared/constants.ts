@@ -684,6 +684,10 @@ export const SETTING_DEFAULTS = {
   // in-memory prompt-cache retention until the user chooses 24h.
   sandboxNetwork: 'default' as SandboxNetworkMode,
   modelApiPromptCacheRetention: 'in_memory' as PromptCacheRetention,
+  // RLPROVSYNC: the provider's own default cache lifetime until the person
+  // picks 12 hours; machine-scoped beside the retention choice, since a
+  // repository must not raise what cache writes are billed.
+  modelApiPromptCacheTtl: 'default' as PromptCacheTtl,
   modelApiScheduledPrompts: true,
   // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
   schedules: ARE_SCHEDULES_ON_BY_DEFAULT,
@@ -901,6 +905,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'modelApiVoice',
   'sandboxNetwork',
   'modelApiPromptCacheRetention',
+  'modelApiPromptCacheTtl',
   'modelApiScheduledPrompts',
   'modelApiSubagents',
   'modelApiBestOfN',
@@ -2732,6 +2737,24 @@ export const PROMPT_CACHE_KEY_DIGEST_CHARS = 32
 export const PROMPT_CACHE_KEY_HASH = 'sha256'
 export const PROMPT_CACHE_RETENTIONS = ['24h', 'in_memory'] as const
 export type PromptCacheRetention = (typeof PROMPT_CACHE_RETENTIONS)[number]
+// developers.openai.com/api/docs/guides/prompt-caching, read 2026-10-22
+// (RLPROVSYNC): on GPT-5.6 and later the Responses API takes
+// `prompt_cache_options.ttl`, `30m` (the default when omitted) or `12h`,
+// priced as total write rates of 1.25x and 2.5x the uncached input rate.
+// The person's choice is the minimum lifetime or the provider default;
+// `default` sends nothing, so the default stays the provider's to keep.
+export const PROMPT_CACHE_TTLS = ['default', '12h'] as const
+export type PromptCacheTtl = (typeof PROMPT_CACHE_TTLS)[number]
+// The first GPT generation that takes `prompt_cache_options` (same guide):
+// GPT-5.6; a later major takes it whatever its minor.
+export const OPENAI_CACHE_TTL_MIN_MAJOR = 5
+export const OPENAI_CACHE_TTL_MIN_MINOR = 6
+// The same guide's documented 12-hour cache-write multiple of uncached
+// input (a total write rate, not a surcharge): reported 12-hour writes
+// without an explicit rate settle at this multiple of the input rate.
+export const OPENAI_CACHE_WRITE_12H_MULTIPLE = 2.5
+// The 12-hour tier's hours, for the usage display's duration label.
+export const CACHE_WRITE_12H_HOURS = 12
 // dev.meta.ai/docs/error-handling: 429 and the server errors are retryable
 // with exponential backoff and jitter, honouring Retry-After; 3–5 attempts.
 // A 504 is not: the guide says to stream instead, which every long request

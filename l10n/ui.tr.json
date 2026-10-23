@@ -4634,7 +4634,7 @@
     "newBadge": "Yeni"
   },
   "modelToolCallingUnavailable": "Bu model için araç çağırma doğrulanmadı.",
-  "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
+  "paidProviderPrice": "Milyon token başına: girdi {input}, önbellek okuma {cached}, önbellek yazma {write}, bir saatlik yazma {write1h}, on iki saatlik yazma {write12h}, çıktı {output}. İstek başına {request}; görsel başına {image}.",
   "paidProviderPriceTier": "{threshold} girdi tokenından itibaren: milyon başına girdi {input}, çıktı {output}.",
   "modelUnpriced": "Fiyatsız",
   "modelLocal": "Yerel",

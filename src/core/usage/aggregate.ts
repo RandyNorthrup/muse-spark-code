@@ -88,6 +88,7 @@ const TOKEN_KEYS = [
   'cacheWrite',
   'cacheWrite5m',
   'cacheWrite1h',
+  'cacheWrite12h',
   'output',
   'reasoning',
 ] as const

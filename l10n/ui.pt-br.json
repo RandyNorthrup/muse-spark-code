@@ -4754,7 +4754,7 @@
     "newBadge": "Novo"
   },
   "modelToolCallingUnavailable": "A chamada de ferramentas não foi verificada para este modelo.",
-  "paidProviderPrice": "Por milhão de tokens: entrada {input}, leitura de cache {cached}, gravação de cache {write}, gravação de uma hora {write1h}, saída {output}. Por solicitação {request}; por imagem {image}.",
+  "paidProviderPrice": "Por milhão de tokens: entrada {input}, leitura de cache {cached}, gravação de cache {write}, gravação de uma hora {write1h}, gravação de doze horas {write12h}, saída {output}. Por solicitação {request}; por imagem {image}.",
   "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, saída {output} por milhão.",
   "modelUnpriced": "Sem preço",
   "modelLocal": "Local",

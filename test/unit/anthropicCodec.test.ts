@@ -452,7 +452,7 @@ describe('API version 2026-10-21 (removed fields)', () => {
         {
           type: 'function_call_output',
           call_id: 'toolu_01version',
-          output: '2026-10-04T12:00:00Z',
+          output: restoredToolText('2026-10-04T12:00:00Z'),
         },
       ],
     })

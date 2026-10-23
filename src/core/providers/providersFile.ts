@@ -43,6 +43,7 @@ export const userPriceCardSchema = z.object({
   cachedInput: z.optional(z.number()),
   cacheWrite: z.optional(z.number()),
   cacheWrite1h: z.optional(z.number()),
+  cacheWrite12h: z.optional(z.number()),
   output: z.number(),
   request: z.optional(z.number()),
   image: z.optional(z.number()),

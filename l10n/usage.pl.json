@@ -118,6 +118,7 @@
   "cacheWriteTokens": "Zapisy w pamięci podręcznej",
   "cacheWrite5mTokens": "Zapisy w pamięci podręcznej ({duration})",
   "cacheWrite1hTokens": "Zapisy w pamięci podręcznej ({duration})",
+  "cacheWrite12hTokens": "Zapisy w pamięci podręcznej ({duration})",
   "reasoningTokens": "Tokeny rozumowania",
   "reasoningNote": "Rozumowanie jest wliczone w dane wyjściowe; nie jest naliczane podwójnie.",
   "totalCost": "Całkowity koszt",

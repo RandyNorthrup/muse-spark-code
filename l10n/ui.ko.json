@@ -4514,7 +4514,7 @@
     "newBadge": "신규"
   },
   "modelToolCallingUnavailable": "이 모델의 도구 호출은 검증되지 않았습니다.",
-  "paidProviderPrice": "100만 토큰당: 입력 {input}, 캐시 읽기 {cached}, 캐시 쓰기 {write}, 1시간 쓰기 {write1h}, 출력 {output}. 요청당 {request}, 이미지당 {image}.",
+  "paidProviderPrice": "100만 토큰당: 입력 {input}, 캐시 읽기 {cached}, 캐시 쓰기 {write}, 1시간 쓰기 {write1h}, 12시간 쓰기 {write12h}, 출력 {output}. 요청당 {request}, 이미지당 {image}.",
   "paidProviderPriceTier": "입력 토큰 {threshold}개부터: 100만 토큰당 입력 {input}, 출력 {output}.",
   "modelUnpriced": "가격 없음",
   "modelLocal": "로컬",

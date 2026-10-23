@@ -7,6 +7,25 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Providers
+
+- **Anthropic token-count failures say what failed.** A failed count logs
+  its HTTP status and error type instead of discarding them, the
+  over-length rejection has its own message, and count requests pace in
+  their own bucket apart from message requests, as their documented rate
+  limit requires.
+- **Anthropic API version 2026-10-21.** Requests send the new version and
+  none of the removed fields; thinking capabilities and model lifecycle
+  dates come from the live Models API instead of hand-kept facts.
+- **OpenAI cache lifetimes on GPT-5.6 and later.** The new machine-scoped
+  `museSpark.modelApiPromptCacheTtl` setting sends `prompt_cache_options.ttl`
+  where you pick `12h` (the default stays OpenAI's 30 minutes); cache writes
+  settle at 1.25 times input for 30 minutes and 2.5 times for 12 hours.
+- **xAI grok-4.7 and retired DeepSeek models.** The xAI facts cover grok-4.5
+  through grok-4.7 with a per-entry end-user id sent as `safety_identifier`;
+  the retired `deepseek-v4-flash` and `deepseek-v4-vision-exp` facts are gone.
+- The models.dev catalogue is re-synced to 2026-10-22.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own

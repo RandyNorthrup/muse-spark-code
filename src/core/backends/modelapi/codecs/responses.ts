@@ -10,6 +10,9 @@ import {
   CHATGPT_PLAN_RETRYABLE_CODES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
+  OPENAI_CACHE_TTL_MIN_MAJOR,
+  OPENAI_CACHE_TTL_MIN_MINOR,
+  type PromptCacheTtl,
 } from '../../../../shared/constants'
 export { parseNativeModelsList as parseResponsesModelsList } from '../../../providers/modelMetadata'
 import {
@@ -80,6 +83,13 @@ export interface ResponsesEncodeOptions {
   sends nothing.
   */
   readonly safetyIdentifier?: string | undefined
+  /**
+  The person's minimum cache lifetime, sent as
+  `prompt_cache_options.ttl` where the model takes it (RLPROVSYNC).
+  `default` and absent alike send nothing; anything else is a TTL the
+  codec sends only on a model whose id parses as GPT-5.6 or later.
+  */
+  readonly cacheTtl?: PromptCacheTtl | undefined
 }
 
 /**
@@ -342,6 +352,18 @@ const nativeUsageSchema = z
         z.looseObject({
           cached_tokens: z.optional(tokenCountSchema),
           cache_write_tokens: z.optional(tokenCountSchema),
+          // RLPROVSYNC: OpenAI GPT-5.6 and later break writes down per
+          // TTL (prompt-caching guide, read 2026-10-22). The counts are
+          // disjoint and sum to `cache_write_tokens`; the codec maps the
+          // 12-hour part onto the canonical flat counter below.
+          cache_write_tokens_details: z.optional(
+            z.nullable(
+              z.looseObject({
+                ttl_30m_tokens: z.optional(tokenCountSchema),
+                ttl_12h_tokens: z.optional(tokenCountSchema),
+              }),
+            ),
+          ),
         }),
       ),
     ),
@@ -393,6 +415,41 @@ function withStreamedOutput(
   const output = sorted.map((entry) => entry.item)
   return { ...response, output }
 }
+/**
+Maps a reported per-TTL write breakdown onto the canonical flat 12-hour
+counter (RLPROVSYNC): OpenAI GPT-5.6 and later report
+`cache_write_tokens_details` with disjoint per-TTL counts. The known
+parts cannot exceed the written total; a later TTL the guide adds may
+make up the rest, so the check stays an upper bound, never an equality.
+The carrier is dropped after the validated mapping, as the Anthropic
+codec drops its extended-thinking split. Absent details leave the
+canonical counter absent — unknown, never guessed.
+*/
+function withCacheWriteTtl(response: NativeResponse, frameLength: number): NativeResponse {
+  const usage = response.usage
+  const details = usage?.input_tokens_details
+  const ttl = details?.cache_write_tokens_details
+  if (
+    usage === undefined ||
+    usage === null ||
+    details === undefined ||
+    details === null ||
+    ttl === undefined ||
+    ttl === null
+  ) {
+    return response
+  }
+  const written = details.cache_write_tokens ?? 0
+  const ttl12h = ttl.ttl_12h_tokens ?? 0
+  if ((ttl.ttl_30m_tokens ?? 0) + ttl12h > written) {
+    throw new ResponsesDecodeError('invalid_cache_write_split', frameLength)
+  }
+  const { cache_write_tokens_details: _carrier, ...rest } = details
+  return {
+    ...response,
+    usage: { ...usage, input_tokens_details: { ...rest, cache_write_tokens_12h: ttl12h } },
+  }
+}
 const settledCostSchema = z.object({
   cost_in_usd_ticks: tokenCountSchema,
 })
@@ -405,6 +462,24 @@ function settledCostOf(usage: unknown): UsdAmount | undefined {
         .divide(1 / USD_PER_COST_TICK)
         .toAmount()
     : undefined
+}
+
+/**
+Whether the wire model id parses as a GPT generation that takes
+`prompt_cache_options` (RLPROVSYNC): GPT-5.6 or later, per
+developers.openai.com/api/docs/guides/prompt-caching (read 2026-10-22).
+Anything else — earlier GPT, another family, a deployment name, an id
+that does not parse — answers false, so the choice is never sent where
+the API would refuse it (`400 invalid_request_error`).
+*/
+function isCacheTtlModel(model: string): boolean {
+  const parsed = /^gpt-(\d+)(?:\.(\d+))?/.exec(model)
+  if (parsed === null) return false
+  const major = Number(parsed[1] ?? '')
+  if (!Number.isSafeInteger(major) || major < OPENAI_CACHE_TTL_MIN_MAJOR) return false
+  if (major > OPENAI_CACHE_TTL_MIN_MAJOR) return true
+  const minor = parsed[2] === undefined ? 0 : Number(parsed[2])
+  return Number.isSafeInteger(minor) && minor >= OPENAI_CACHE_TTL_MIN_MINOR
 }
 
 export function createResponsesCodec(
@@ -496,6 +571,12 @@ export function createResponsesCodec(
         ...(options?.safetyIdentifier !== undefined && {
           safety_identifier: options.safetyIdentifier,
         }),
+        ...(!isChatgpt &&
+          options?.cacheTtl !== undefined &&
+          options.cacheTtl !== 'default' &&
+          isCacheTtlModel(model) && {
+            prompt_cache_options: { ttl: options.cacheTtl },
+          }),
       }
     },
     async *decodeStream(
@@ -578,9 +659,15 @@ export function createResponsesCodec(
           yield quirks.profile === 'chatgpt' && TERMINAL_WITH_USAGE.has(known.data.type)
             ? {
                 ...known.data,
-                response: withStreamedOutput(parsed.data.response, streamed, frame.data.length),
+                response: withCacheWriteTtl(
+                  withStreamedOutput(parsed.data.response, streamed, frame.data.length),
+                  frame.data.length,
+                ),
               }
-            : { ...known.data, response: parsed.data.response }
+            : {
+                ...known.data,
+                response: withCacheWriteTtl(parsed.data.response, frame.data.length),
+              }
         } else if ('item' in known.data) {
           const parsed = itemFrameSchema.safeParse(json)
           if (!parsed.success) {

@@ -57,6 +57,7 @@ export interface ProviderEntry {
             readonly cachedInput?: number | undefined
             readonly cacheWrite?: number | undefined
             readonly cacheWrite1h?: number | undefined
+            readonly cacheWrite12h?: number | undefined
             readonly request?: number | undefined
             readonly image?: number | undefined
           }

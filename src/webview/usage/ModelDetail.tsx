@@ -1,3 +1,4 @@
+import { CACHE_WRITE_12H_HOURS } from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import { fill, formatUnit } from '../../shared/l10n/text'
 import type { UsagePageState } from '../../shared/usagePage'
@@ -89,6 +90,16 @@ export function ModelDetail({
           </dt>
           <dd>
             <PriceText value={price?.cacheWrite1hPerMillion} />
+          </dd>
+        </div>
+        <div>
+          <dt>
+            {fill(USAGE_TEXT.cacheWrite12hTokens, {
+              duration: formatUnit(CACHE_WRITE_12H_HOURS, 'hour'),
+            })}
+          </dt>
+          <dd>
+            <PriceText value={price?.cacheWrite12hPerMillion} />
           </dd>
         </div>
         <div>

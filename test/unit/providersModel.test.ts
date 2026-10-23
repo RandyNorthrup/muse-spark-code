@@ -2,7 +2,9 @@
 // Built from parts so no scanner ever sees a whole test key.
 
 import capturedOpenai from '../../docs/certification/m95-captures/openai/02-tool-call-stream.json'
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
+import { TOKENS_PER_MILLION } from '../../src/shared/constants'
 import { usdAmountSchema } from '../../src/shared/usdSchema'
 import {
   capabilitiesOf,
@@ -43,6 +45,40 @@ const tiered: PriceCard = {
   ...card,
   source: 'catalogue',
   longContextTier: { fromTokens: 200_000, input: 4e-6, output: 16e-6 },
+}
+
+/** One sealed snapshot row's per-million-token cost block. */
+function catalogueCost(
+  provider: string,
+  id: string,
+): { input: number; output: number; cache_read: number; cache_write: number } {
+  const snapshot: unknown = JSON.parse(
+    readFileSync(new URL('../../vendor/models-dev/snapshot.json', import.meta.url), 'utf8'),
+  )
+  const models: unknown =
+    typeof snapshot === 'object' &&
+    snapshot !== null &&
+    'providers' in snapshot &&
+    typeof snapshot.providers === 'object' &&
+    snapshot.providers !== null
+      ? Reflect.get(Reflect.get(snapshot.providers, provider) as object, 'models')
+      : undefined
+  const row: unknown =
+    typeof models === 'object' && models !== null ? Reflect.get(models, id) : undefined
+  const cost: unknown =
+    typeof row === 'object' && row !== null && 'cost' in row ? row.cost : undefined
+  if (typeof cost !== 'object' || cost === null) throw new TypeError('Missing catalogue cost')
+  const pick = (key: string): number => {
+    const value: unknown = Reflect.get(cost, key)
+    if (typeof value !== 'number') throw new TypeError(`Missing catalogue cost ${key}`)
+    return value
+  }
+  return {
+    input: pick('input'),
+    output: pick('output'),
+    cache_read: pick('cache_read'),
+    cache_write: pick('cache_write'),
+  }
 }
 
 describe('parseModelRef', () => {
@@ -246,7 +282,7 @@ describe('priceCard', () => {
   it('splits 1-hour writes out of written tokens and validates the subset', () => {
     expect(
       splitCacheWrites({ inputTokens: 1000, cacheWriteTokens: 1000, outputTokens: 0 }),
-    ).toEqual({ standard: 1000, oneHour: 0 })
+    ).toEqual({ standard: 1000, oneHour: 0, twelveHour: 0 })
     expect(
       splitCacheWrites({
         inputTokens: 1000,
@@ -254,7 +290,7 @@ describe('priceCard', () => {
         cacheWriteTokens1h: 400,
         outputTokens: 0,
       }),
-    ).toEqual({ standard: 600, oneHour: 400 })
+    ).toEqual({ standard: 600, oneHour: 400, twelveHour: 0 })
     expect(
       isValidUsage({
         inputTokens: 1000,
@@ -339,6 +375,148 @@ describe('priceCard', () => {
         longContextTier: { fromTokens: 200_000, input: 4e-6, output: 16e-6, cachedInput: -1 },
       }),
     ).toBe(false)
+  })
+
+  it('splits 12-hour writes out of written tokens and validates the subsets (RLPROVSYNC)', () => {
+    expect(
+      splitCacheWrites({
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWriteTokens1h: 200,
+        cacheWriteTokens12h: 300,
+        outputTokens: 0,
+      }),
+    ).toEqual({ standard: 500, oneHour: 200, twelveHour: 300 })
+    expect(
+      isValidUsage({
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWriteTokens1h: 200,
+        cacheWriteTokens12h: 300,
+        outputTokens: 0,
+      }),
+    ).toBe(true)
+    // Each subset alone past the written total is invalid ...
+    expect(
+      isValidUsage({
+        inputTokens: 1000,
+        cacheWriteTokens: 400,
+        cacheWriteTokens12h: 401,
+        outputTokens: 0,
+      }),
+    ).toBe(false)
+    expect(isValidUsage({ inputTokens: 1000, cacheWriteTokens12h: 1, outputTokens: 0 })).toBe(false)
+    // ... and so are two individually valid subsets that jointly exceed it.
+    expect(
+      isValidUsage({
+        inputTokens: 1000,
+        cacheWriteTokens: 400,
+        cacheWriteTokens1h: 200,
+        cacheWriteTokens12h: 201,
+        outputTokens: 0,
+      }),
+    ).toBe(false)
+    expect(
+      isValidUsage({
+        inputTokens: 1000,
+        cacheWriteTokens: 400,
+        cacheWriteTokens1h: 200,
+        cacheWriteTokens12h: 200,
+        outputTokens: 0,
+      }),
+    ).toBe(true)
+  })
+
+  it('settles 12-hour writes at the explicit rate, else at 2.5x input (RLPROVSYNC)', () => {
+    const twelveHour: PriceCard = { ...card, cacheWrite12h: 6e-6 }
+    // An explicit 12 h rate prices a 100%-12h write, not the 30-minute one.
+    expect(
+      settleUsageUsd(twelveHour, {
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWriteTokens12h: 1000,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(1000 * 6e-6, 12)
+    // Without one, reported 12-hour writes settle at the documented 2.5x
+    // multiple of uncached input (prompt-caching guide, read 2026-10-22).
+    expect(
+      settleUsageUsd(card, {
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWriteTokens12h: 1000,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(1000 * card.input * 2.5, 12)
+    // Mixed TTLs settle disjointly at their own rates (the card prices no
+    // 1 h rate, so the 1 h subset falls back to the 30-minute write rate).
+    expect(
+      settleUsageUsd(card, {
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWriteTokens1h: 200,
+        cacheWriteTokens12h: 300,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(700 * (card.cacheWrite ?? 0) + 300 * card.input * 2.5, 12)
+    // The long-context tier reprices 12-hour writes too: explicitly where
+    // listed, else at 2.5x the tier's own input rate.
+    const tierExplicit: PriceCard = {
+      ...tiered,
+      longContextTier: { fromTokens: 200_000, input: 4e-6, output: 16e-6, cacheWrite12h: 12e-6 },
+    }
+    const longUsage = {
+      inputTokens: 300_000,
+      cacheWriteTokens: 100_000,
+      cacheWriteTokens12h: 100_000,
+      outputTokens: 0,
+    }
+    expect(settleUsageUsd(tierExplicit, longUsage)).toBeCloseTo(
+      200_000 * 4e-6 + 100_000 * 12e-6,
+      12,
+    )
+    expect(settleUsageUsd(tiered, longUsage)).toBeCloseTo(200_000 * 4e-6 + 100_000 * 4e-6 * 2.5, 12)
+    // A 12 h claim past the written total leaves the cost unknown.
+    expect(
+      settleUsageUsd(card, {
+        inputTokens: 1000,
+        cacheWriteTokens: 400,
+        cacheWriteTokens12h: 401,
+        outputTokens: 0,
+      }),
+    ).toBeUndefined()
+    // A negative 12 h rate invalidates the card, on the card and the tier.
+    expect(isValidPriceCard({ ...card, cacheWrite12h: -1 })).toBe(false)
+    expect(
+      isValidPriceCard({
+        ...tiered,
+        longContextTier: { fromTokens: 200_000, input: 4e-6, output: 16e-6, cacheWrite12h: -1 },
+      }),
+    ).toBe(false)
+  })
+
+  it('prices the catalogue gpt-5.6 30-minute write at 1.25x input (RLPROVSYNC)', () => {
+    // The sealed snapshot's own row (vendor/models-dev/snapshot.json):
+    // gpt-5.6 input 4 with cache_write 5 per million tokens. A re-sync
+    // that reprices the row fails here first, by design.
+    const row = catalogueCost('openai', 'gpt-5.6')
+    expect(row.cache_write / row.input).toBeCloseTo(1.25, 12)
+    // The card the configured mapping builds from the row
+    // (configured.ts: the catalogue branch divides by TOKENS_PER_MILLION).
+    const catalogueCard: PriceCard = {
+      input: row.input / TOKENS_PER_MILLION,
+      cachedInput: row.cache_read / TOKENS_PER_MILLION,
+      cacheWrite: row.cache_write / TOKENS_PER_MILLION,
+      output: row.output / TOKENS_PER_MILLION,
+      source: 'catalogue',
+    }
+    // A fully 30-minute-written million settles at 1.25x its input price.
+    const settled = settleUsageUsd(catalogueCard, {
+      inputTokens: 1_000_000,
+      cacheWriteTokens: 1_000_000,
+      outputTokens: 0,
+    })
+    expect(settled).toBeCloseTo(1_000_000 * catalogueCard.input * 1.25, 8)
   })
 
   it('reserves cold writes at the dearest applicable write price', () => {

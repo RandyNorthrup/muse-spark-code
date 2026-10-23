@@ -361,6 +361,7 @@ export function modelPricedUsage(usage: Usage): ModelPricedUsage {
     cachedTokens: usage.input_tokens_details?.cached_tokens ?? 0,
     cacheWriteTokens: usage.input_tokens_details?.cache_write_tokens ?? 0,
     cacheWriteTokens1h: usage.input_tokens_details?.cache_write_tokens_1h,
+    cacheWriteTokens12h: usage.input_tokens_details?.cache_write_tokens_12h,
   }
 }
 

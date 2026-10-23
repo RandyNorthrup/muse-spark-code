@@ -98,6 +98,7 @@
   "cacheWriteTokens": "Önbellek yazmaları",
   "cacheWrite5mTokens": "{duration} önbellek yazmaları",
   "cacheWrite1hTokens": "{duration} önbellek yazmaları",
+  "cacheWrite12hTokens": "{duration} önbellek yazmaları",
   "reasoningTokens": "Akıl yürütme belirteçleri",
   "reasoningNote": "Akıl yürütme çıktıya dahildir; iki kez ücretlendirilmez.",
   "totalCost": "Toplam maliyet",

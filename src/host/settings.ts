@@ -29,6 +29,8 @@ import {
   type EstimateOptimizeMode,
   PROMPT_CACHE_RETENTIONS,
   type PromptCacheRetention,
+  PROMPT_CACHE_TTLS,
+  type PromptCacheTtl,
   SANDBOX_NETWORK_MODES,
   type SandboxNetworkMode,
   SCHEDULE_AGENT_CREATIONS,
@@ -89,6 +91,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly sandboxNetwork: SandboxNetworkMode
   /** How long Meta is asked to keep the Model API's cached prompt prefix (M56). */
   readonly modelApiPromptCacheRetention: PromptCacheRetention
+  /** The minimum cache lifetime asked of OpenAI GPT-5.6 and later (RLPROVSYNC). */
+  readonly modelApiPromptCacheTtl: PromptCacheTtl
   readonly modelApiScheduledPrompts: boolean
   /** The v2 schedules surface (M115, PLAN.md D95): on by default. */
   readonly schedules: boolean
@@ -265,6 +269,7 @@ const settingSchemas = {
   modelApiVoice: z.boolean(),
   sandboxNetwork: z.enum(SANDBOX_NETWORK_MODES),
   modelApiPromptCacheRetention: z.enum(PROMPT_CACHE_RETENTIONS),
+  modelApiPromptCacheTtl: z.enum(PROMPT_CACHE_TTLS),
   modelApiScheduledPrompts: z.boolean(),
   schedules: z.boolean(),
   scheduleDefaultDelivery: z.enum(SCHEDULE_DELIVERIES),
@@ -455,6 +460,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiVoice: readSetting(config, 'modelApiVoice', log),
     sandboxNetwork: readSetting(config, 'sandboxNetwork', log),
     modelApiPromptCacheRetention: readSetting(config, 'modelApiPromptCacheRetention', log),
+    modelApiPromptCacheTtl: readSetting(config, 'modelApiPromptCacheTtl', log),
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     schedules: readSetting(config, 'schedules', log),
     scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),

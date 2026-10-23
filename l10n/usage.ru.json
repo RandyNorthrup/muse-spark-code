@@ -118,6 +118,7 @@
   "cacheWriteTokens": "Записи в кэш",
   "cacheWrite5mTokens": "Записи в кэш ({duration})",
   "cacheWrite1hTokens": "Записи в кэш ({duration})",
+  "cacheWrite12hTokens": "Записи в кэш ({duration})",
   "reasoningTokens": "Токены рассуждений",
   "reasoningNote": "Рассуждения включены в вывод; двойная оплата не взимается.",
   "totalCost": "Общая стоимость",

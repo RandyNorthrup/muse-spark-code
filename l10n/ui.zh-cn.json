@@ -4514,7 +4514,7 @@
     "newBadge": "新增"
   },
   "modelToolCallingUnavailable": "此模型的工具调用尚未验证。",
-  "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
+  "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、十二小时写入 {write12h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
   "paidProviderPriceTier": "输入达到 {threshold} 个词元后：每百万词元输入 {input}、输出 {output}。",
   "modelUnpriced": "无定价",
   "modelLocal": "本地",

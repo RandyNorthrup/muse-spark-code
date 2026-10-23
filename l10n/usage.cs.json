@@ -118,6 +118,7 @@
   "cacheWriteTokens": "Zápisy do mezipaměti",
   "cacheWrite5mTokens": "Zápisy do mezipaměti ({duration})",
   "cacheWrite1hTokens": "Zápisy do mezipaměti ({duration})",
+  "cacheWrite12hTokens": "Zápisy do mezipaměti ({duration})",
   "reasoningTokens": "Tokeny uvažování",
   "reasoningNote": "Uvažování je zahrnuto ve výstupu; neúčtuje se dvakrát.",
   "totalCost": "Celkové náklady",

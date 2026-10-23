@@ -98,6 +98,7 @@ export const USAGE_EN = {
   cacheWriteTokens: 'Cache Writes',
   cacheWrite5mTokens: '{duration} cache writes',
   cacheWrite1hTokens: '{duration} Cache Writes',
+  cacheWrite12hTokens: '{duration} Cache Writes',
   reasoningTokens: 'Reasoning Tokens',
   reasoningNote: 'Reasoning is included in output; it is not charged twice.',
   totalCost: 'Total Cost',
