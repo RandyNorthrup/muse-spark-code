@@ -363,7 +363,11 @@ export class InspectRunner {
         return false
       }
       return true
-    } catch {
+    } catch (error: unknown) {
+      // A setup step the platform refuses (a link this account may not
+      // create, a full disk) fails the self-test and B1 stays off, under
+      // the self-test refusal; anything else is a fault and stays loud.
+      if (!isErrno(error)) throw error
       return false
     } finally {
       if (root !== undefined) await rm(root, { recursive: true, force: true })
