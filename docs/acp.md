@@ -434,6 +434,34 @@ Other editors take the same command and arguments in their own agent or
 ACP settings (JetBrains AI Assistant, Xcode's Intelligence settings, Qt
 Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
 
+## Xcode 26.3
+
+Xcode 26.3 lends its own tools (build, test, project, simulator, file
+access) to external agents over MCP; the agent reaches them through
+Apple's bridge, a local stdio server ([Apple's
+guide](https://developer.apple.com/documentation/xcode/giving-agentic-coding-tools-access-to-xcode)).
+In Xcode, open the project and switch on "Allow external agents to use
+Xcode tools" (Settings → Intelligence). Then offer the bridge to the
+session from your ACP client:
+
+```json
+{
+  "type": "stdio",
+  "name": "xcode",
+  "command": "/usr/bin/xcrun",
+  "args": ["mcpbridge"],
+  "env": []
+}
+```
+
+In classic Vim's plugin that object goes in `g:muse_spark_mcp_servers`;
+other clients take the same command and arguments in their own MCP-server
+settings. The bridge finds Xcode itself (`MCP_XCODE_PID` names one
+process when several run); keep the project open while the session runs,
+and Xcode shows the connection while the agent is active. The tools need
+no key of their own; the session's turns bill its own backend as usual.
+Headless `exec` takes no MCP servers, so this route needs an ACP client.
+
 ## Interactive ACP options
 
 | Argument                               | Effect                                                                                                                  |
