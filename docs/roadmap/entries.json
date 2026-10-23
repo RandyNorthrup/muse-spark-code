@@ -1407,6 +1407,11 @@
       "id": "ACPDOG",
       "public": false,
       "note": "implementation complete; dependent validation pending"
+    },
+    {
+      "id": "USAGEFIELDS",
+      "public": false,
+      "note": "provider usage and price fields (cached, reasoning, tiers, upstreams, credit balance)"
     }
   ]
 }

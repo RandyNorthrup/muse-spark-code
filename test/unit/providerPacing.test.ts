@@ -99,16 +99,20 @@ describe('provider pacing readers', () => {
       tokenWindowMs: 59_776,
     })
   })
-  it('reads xAI limits with no reset, so the default window stands', () => {
+  it('reads xAI limits with documented per-second requests and per-minute tokens', () => {
+    // No reset headers in the capture; the scopes come from xAI's own rate
+    // limit doc (docs.x.ai/developers/rate-limits, read 2026-10-22): every
+    // team holds per-model requests-per-second and tokens-per-minute
+    // budgets, so requests refill per second and tokens per minute.
     const limits = xaiPacingLimits(capturedHeaders.xai)
     expect(limits).toMatchObject({
       requests: 1800,
       remainingRequests: 1800,
       tokens: 10_000_000,
       remainingTokens: 10_000_000,
+      requestWindowMs: 1000,
+      tokenWindowMs: 60_000,
     })
-    expect(limits?.requestWindowMs).toBeUndefined()
-    expect(limits?.tokenWindowMs).toBeUndefined()
   })
   it('reads Anthropic request and total-token buckets from the captured frame', () => {
     // The captured resets are past, so the window stays default; the

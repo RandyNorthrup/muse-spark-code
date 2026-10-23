@@ -89,6 +89,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['headless-teams', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // PROVSPEND: the terminal report, the editor's recorded key-usage figures
+  // and the ACP usage summary read the same shared spend shape.
+  ['provider-spend', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
@@ -184,6 +187,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...['search'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
   // TOOLCAP: the per-result bound on the Model API backend, every surface.
   ...['tool-result-bound'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
+  // C-M95-SUB: the subscription credential on the Model API backend, in VS
+  // Code and ACP alike.
+  ...['muse-code-subscription'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:modelApi', 'acp:modelApi'],
   ]),

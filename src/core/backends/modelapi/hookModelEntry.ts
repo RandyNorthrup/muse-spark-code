@@ -376,6 +376,9 @@ async function requestHookStep(
         dailyClaim?.check()
       },
       {
+        billingRoute: required.billingRoute,
+        confirmBillingRoute: required.confirmBillingRoute,
+        paidFeature: 'hookModels' as const,
         onRequestStarted: () => {
           dailyClaim?.check()
           required.onRequestStarted?.()

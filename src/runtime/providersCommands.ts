@@ -21,8 +21,12 @@ import {
   setUiText as setProvidersUiText,
 } from '../host/backend/providersEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
+import type { Logger } from '../host/logger'
+import { failureForLog } from '../core/backends/musecode/logText'
 const { isCredentialBound } = credentialRecord
 const { checkEndpointUrl } = endpointPolicy
+import type { TransportResponse } from '../core/backends/modelapi/transport'
+import type { SpendEstimate } from '../core/providers/providerSpend'
 import type { ProviderPreset } from '../core/providers/presets'
 import { isConnectionFailure } from '../core/networkFailure'
 const { azureOrigin, inspectProviderKey, providerKeyNoticeText, presetById } = presets
@@ -41,6 +45,7 @@ import {
   HTTP_STATUS,
   UI_TEXT,
 } from '../shared/constants'
+import { listModelIds, readProviderJson } from './providerReads'
 import { credentialLockDir } from '../core/credentialPaths'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
@@ -51,6 +56,7 @@ import {
   formatStoredProviderSecret,
   isStoreUnavailable,
   parseStoredProviderSecret,
+  providerAdminSecretAccount,
   providerSecretAccount,
   StoreUnavailableError,
 } from './keyStore'
@@ -66,7 +72,7 @@ import {
   type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
-import { listModelIds, providerListHeaders, readProviderJson } from './exec/providerList'
+import { providerListHeaders } from './exec/providerList'
 // The panel's Refresh Models reads the live list through the commands.
 export { listProviderModels } from './exec/providerList'
 
@@ -93,6 +99,20 @@ export interface ProvidersDeps {
   unreadable) in tests: add/test/list skip the warnings, never fail.
   */
   readonly readCatalog?: () => Promise<unknown>
+  /** The clock, injected so tests own the report period. */
+  readonly now?: () => number
+  /**
+  Our own estimate for the period, from the usage journal (PROVSPEND).
+  Undefined when the journal recorded no spend for the provider: the
+  provider's figures are then shown alone, never against a zero. The
+  reader never throws: a journal failure resolves undefined, recorded
+  where it happens.
+  */
+  readonly readSpendEstimate?: (
+    provider: string,
+    startMs: number,
+    endMs: number,
+  ) => Promise<SpendEstimate | undefined>
 }
 
 /** The default production file IO over the user's own providers file. */
@@ -180,38 +200,48 @@ export async function commitProviderChange(
       isRemoving || secret !== undefined || expectedSecret !== undefined
         ? providerSecretAccount(id)
         : undefined
-    let previous: string | undefined
-    if (account !== undefined) {
-      try {
-        previous = await deps.secrets.get(account)
-      } catch (error: unknown) {
-        // Only a store failure fails the save this way; anything else is
-        // not this read's answer to give.
-        if (!(error instanceof StoreUnavailableError)) throw error
-        return failed(
-          deps,
-          fill(UI_TEXT.providerSaveFailed, { reason: UI_TEXT.providerSaveSecretFailed }),
-        )
-      }
+    // Removing the provider removes its admin report key too (PROVSPEND).
+    const adminAccount = isRemoving ? providerAdminSecretAccount(id) : undefined
+    const touched = [account, adminAccount].filter((entry) => entry !== undefined)
+    const previous = new Map<string, string | undefined>()
+    try {
+      for (const entry of touched) previous.set(entry, await deps.secrets.get(entry))
+    } catch (error: unknown) {
+      // Only a store failure fails the save this way; anything else is
+      // not this read's answer to give.
+      if (!(error instanceof StoreUnavailableError)) throw error
+      return failed(
+        deps,
+        fill(UI_TEXT.providerSaveFailed, { reason: UI_TEXT.providerSaveSecretFailed }),
+      )
     }
-    if (expectedSecret !== undefined && previous !== expectedSecret)
+    const previousSecret = account === undefined ? undefined : previous.get(account)
+    if (expectedSecret !== undefined && previousSecret !== expectedSecret)
       return failed(deps, UI_TEXT.providerEditConflict)
     const canRestore = async () => {
       // A borrowed credential is never written or restored: another actor
       // may rotate/remove it even while a configuration write is failing.
       if (account === undefined || (!isRemoving && secret === undefined)) return true
       try {
-        if (previous === undefined) await deps.secrets.delete(account)
-        else await deps.secrets.store(account, previous)
+        for (const entry of touched) {
+          const value = previous.get(entry)
+          if (value === undefined) await deps.secrets.delete(entry)
+          else await deps.secrets.store(entry, value)
+        }
         return true
-      } catch {
+      } catch (error: unknown) {
+        // Only a store failure fails the rollback this way; anything else
+        // is not this restore's answer to give.
+        if (!(error instanceof StoreUnavailableError)) throw error
         return false
       }
     }
     try {
       if (account !== undefined) {
-        if (isRemoving) await deps.secrets.delete(account)
-        else if (secret !== undefined) await deps.secrets.store(account, secret)
+        if (isRemoving) {
+          await deps.secrets.delete(account)
+          if (adminAccount !== undefined) await deps.secrets.delete(adminAccount)
+        } else if (secret !== undefined) await deps.secrets.store(account, secret)
       }
     } catch (error: unknown) {
       // A rejecting store may have changed its entry before reporting failure.
@@ -423,6 +453,39 @@ function probeReason(reason: string): string {
 }
 
 /**
+One pinned read-only JSON GET, shared by the key probe and the spend
+fetcher: an HTTP failure (a status, even 4xx/5xx) comes back as a page so
+the caller can report it; anything below HTTP rethrows for the caller to
+classify. An unreadable body is a page without a body, never a zero.
+*/
+export async function getPinnedJsonPage(
+  send: () => Promise<TransportResponse>,
+  read: (result: TransportResponse) => Promise<unknown>,
+  httpStatusOf: (error: unknown) => number | undefined,
+  log?: Logger,
+): Promise<{ readonly status: number; readonly body: unknown }> {
+  let result: TransportResponse
+  try {
+    result = await send()
+  } catch (error: unknown) {
+    const status = httpStatusOf(error)
+    if (status === undefined) throw error
+    // The page itself reaches the caller, who reports it; the log, when
+    // the caller passes one, keeps the failure's kind beside the status.
+    log?.warn(`Pinned provider read answered HTTP ${String(status)} (${failureForLog(error)})`)
+    return { status, body: undefined }
+  }
+  try {
+    return { status: result.response.status, body: await read(result) }
+  } catch (error: unknown) {
+    // The shared reader wraps a damaged body as the transport's own
+    // error; anything else is not this page's answer to give.
+    if (!(error instanceof Error) || error.name !== 'ModelApiError') throw error
+    return { status: result.response.status, body: undefined }
+  }
+}
+
+/**
 The raw connection failure behind the endpoint pin's refused-connection
 refusal: the pin answers `providerProbeUnreachable` with the fetch
 failure as its cause. A refusal with no such cause (a failed DNS lookup,
@@ -508,12 +571,20 @@ async function probeWithTransport(
   ): Promise<
     { readonly status: number; readonly body: unknown; readonly refusal?: string } | undefined
   > => {
-    const read = await readProviderJson(transport, provider, key, url, headers, {
-      parseError: reader.parseError,
-      sendFailure: reader.sendFailure,
-    })
-    if ('error' in read) {
-      const error = read.error
+    const read = await readProviderJson(
+      transport,
+      provider,
+      key,
+      url,
+      headers,
+      {
+        parseError: reader.parseError,
+        sendFailure: reader.sendFailure,
+      },
+      { noAuth: auth.NoAuthSource, apiKey: auth.ApiKeyAuthSource },
+    )
+    if ('cause' in read) {
+      const error = read.cause
       if (shared.isModelApiError(error) && error.status !== 0) {
         return { status: error.status, body: undefined, refusal: reader.refusal(error) }
       }
@@ -1216,4 +1287,18 @@ export async function keyTargetFor(
     }
   }
   return { ok: true, preset, origin }
+}
+
+/**
+The rebinding check every provider request repeats before dispatch:
+false after reporting the refusal.
+*/
+export async function isEndpointSafe(
+  deps: ProvidersDeps,
+  provider: ResolvedProvider,
+): Promise<boolean> {
+  const answers = await deps.resolveHost(new URL(provider.origin).hostname)
+  if (isEndpointBindingCurrent(provider, answers)) return true
+  failed(deps, fill(UI_TEXT.providerEndpointRefused, { reason: UI_TEXT.providerProbeRebinding }))
+  return false
 }

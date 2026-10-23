@@ -14,7 +14,7 @@ import { fill } from '../../shared/l10n/text'
 import { TOKENS_PER_MILLION, UI_TEXT } from '../../shared/constants'
 import { isEffortLevel } from '../../shared/effort'
 import type { ModelCapabilityRecord } from './capabilityRecord'
-import { parseModelRef, sanitizeModelLabel } from './modelRef'
+import { parseModelRef, sanitizeModelLabel } from '../../shared/modelRef'
 import { reserveRequestAmount, settleUsageAmount, type ModelPricing } from './priceCard'
 import { unknownModelRefText } from '../unknownModel'
 

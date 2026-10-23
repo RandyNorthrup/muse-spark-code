@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { ACCOUNT_ID_PATTERN, UI_TEXT, VAULT_LIMITS } from '../../../shared/constants'
-import { PROVIDER_ID_PATTERN } from '../../providers/modelRef'
+import { PROVIDER_ID_PATTERN } from '../../../shared/modelRef'
 import { vaultItemSchema, type VaultItem } from '../../../shared/vault'
 import type { AccountCredential } from '../../providers/accountCredentialRecord'
 import { VaultMigrationFault, type MigrationCredential } from './ports'

@@ -239,10 +239,24 @@ const inputImagePartSchema = z.object({
   detail: z.literal('auto'),
 })
 // A PDF the conversation carries (M54): replayed as it went, so its bytes stay with the session.
-const inputFilePartSchema = z.object({
-  type: z.literal('input_file'),
-  filename: z.string(),
-  file_data: z.string(),
+// A file uploaded once and referenced by id (OPENAI-G15, GAPANTH-G16):
+// history keeps the id and metadata, never bytes (D85).
+const inputFilePartSchema = z.union([
+  z.object({
+    type: z.literal('input_file'),
+    filename: z.string(),
+    file_data: z.string(),
+  }),
+  z.object({
+    type: z.literal('input_file'),
+    file_id: z.string(),
+    filename: z.optional(z.string()),
+  }),
+])
+const inputImageIdPartSchema = z.object({
+  type: z.literal('input_image'),
+  file_id: z.string(),
+  detail: z.literal('auto'),
 })
 // M101-SIGNATURE-PERSISTENCE: a thought signature Gemini attached to this
 // text part survives a resume/fork round trip (schemas.ts reads the same
@@ -257,7 +271,13 @@ const inputMessageSchema = z.object({
   role: z.enum(['user', 'assistant', 'developer']),
   phase: z.optional(z.nullable(z.string())),
   content: z.array(
-    z.union([inputTextPartSchema, inputImagePartSchema, inputFilePartSchema, outputTextPartSchema]),
+    z.union([
+      inputTextPartSchema,
+      inputImagePartSchema,
+      inputImageIdPartSchema,
+      inputFilePartSchema,
+      outputTextPartSchema,
+    ]),
   ),
 })
 const functionCallOutputSchema = z.object({

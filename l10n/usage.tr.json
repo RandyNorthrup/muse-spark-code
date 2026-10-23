@@ -120,6 +120,7 @@
   "certaintyUncertain": "Belirsiz",
   "reservedLabel": "Ayrılmış",
   "certaintyPlan": "Plan",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Yerel",
   "certaintyUnpriced": "Fiyatsız",
   "certaintyEstimated": "Tahmini",

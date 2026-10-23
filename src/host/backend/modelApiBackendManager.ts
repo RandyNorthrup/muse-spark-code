@@ -1,3 +1,10 @@
+import {
+  payerCredentialSchema,
+  type PayerCredential,
+  type ConversationOwner,
+  type BillingRoute,
+} from '../../core/backends/modelapi/billingRoute'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording, UsageScopeReader } from '../../core/usage/recording'
@@ -45,7 +52,6 @@ import { BestOfNError } from '../../core/bestOfN/bestOfNError'
 import { restampTeamQuota, teamQuotaStash } from '../../core/usage/quotaStamp'
 import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../core/verify/workspaceEdits'
 import type { AgentSession } from '../../core/agent/agentBackend'
-import { isCredentialStoreDown } from '../auth/credentialStore'
 import type { EditedFile } from '../../core/verify/diagnosticsReport'
 import { unstartedShell } from '../../core/shellResult'
 import {
@@ -84,11 +90,19 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly readyProvider?: { readonly id: string; readonly origin: string } | undefined
   readonly log: Logger
   readonly getApiKey: () => Promise<string | undefined>
+  /**
+  C-M95-SUB: the stored pay-as-you-go key for paid extras. While the
+  subscription pays for chat, billed images authenticate as this key.
+  */
+  readonly getPaidApiKey?: (() => Promise<string | undefined>) | undefined
   readonly getAccountId?: (() => Promise<string | undefined>) | undefined
   readonly createProviders?: (() => Promise<ModelResolver>) | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
   /** The gate's Meta-key probe says the credential store itself is dead. */
   readonly isCredentialStoreDown?: (() => boolean) | undefined
+  /** The immutable Meta credential/pricing decision for each request. */
+  readonly subscriptionAccountId?: ConversationOwner | undefined
+  readonly getBillingRoute?: ((isPaid?: boolean) => Promise<BillingRoute | undefined>) | undefined
   readonly workspaceRoot: string | undefined
   readonly io: ToolIo
   /** Existing file-listing adapter rooted in each actual attempt worktree. */
@@ -317,22 +331,6 @@ function cancelExternalEdits(completions: readonly (() => void)[]): void {
   }
 }
 
-/**
-The key, with a dead credential store reading as no key: account
-identity falls back to the subscription account (unknown, not failed)
-instead of failing on the store.
-*/
-async function readApiKey(
-  getApiKey: ModelApiBackendManagerDeps['getApiKey'],
-): Promise<string | undefined> {
-  try {
-    return await getApiKey()
-  } catch (error: unknown) {
-    if (!isCredentialStoreDown(error)) throw error
-    return undefined
-  }
-}
-
 export class ModelApiBackendManager {
   /** Runtime/activation injects the same journal into every owned host. */
   public static usageRecording: UsageRecording | undefined
@@ -440,6 +438,10 @@ export class ModelApiBackendManager {
         ...(this.deps.streamIdleMs !== undefined && { streamIdleMs: this.deps.streamIdleMs }),
         baseUrl: MODEL_API_BASE_URL,
         apiKey: this.deps.getApiKey,
+        ...(this.deps.getPaidApiKey !== undefined && { paidApiKey: this.deps.getPaidApiKey }),
+        ...(this.deps.getBillingRoute !== undefined && {
+          getBillingRoute: this.deps.getBillingRoute,
+        }),
         sleep: this.deps.sleep,
         now: this.deps.now,
         random: this.deps.random,
@@ -492,12 +494,44 @@ export class ModelApiBackendManager {
         ...(this.deps.mediaPrivateRoot !== undefined && {
           mediaPrivateRoot: this.deps.mediaPrivateRoot,
         }),
+        subscriptionAccountId: this.deps.subscriptionAccountId,
         getAccountId: async () => {
           if (this.deps.getAccountId !== undefined) return await this.deps.getAccountId()
-          const key = await readApiKey(this.deps.getApiKey)
-          return key === undefined
-            ? await this.deps.getProviderAccountId?.()
-            : createHash('sha256').update(key).digest('hex')
+          if (this.deps.getBillingRoute !== undefined) {
+            try {
+              const route = await this.deps.getBillingRoute()
+              if (route !== undefined) return route.accountId
+            } catch (error: unknown) {
+              this.deps.log.warn(
+                `Billing route read failed (${failureForLog(error)}); trying the provider account`,
+              )
+              const fallback = await this.deps.getProviderAccountId?.()
+              if (fallback !== undefined) return fallback
+              throw error
+            }
+            return await this.deps.getProviderAccountId?.()
+          }
+          let key: string | undefined
+          let refusal: Error | undefined
+          try {
+            key = await this.deps.getApiKey()
+          } catch (error: unknown) {
+            // A refused subscription key reads as no key here, so an
+            // unrelated provider's own account can still make the host
+            // ready; the turn path surfaces the refusal itself.
+            this.deps.log.warn(`API key read failed (${failureForLog(error)}); reading as no key`)
+            refusal = error instanceof Error ? error : new Error(String(error))
+            key = undefined
+          }
+          if (key === undefined) {
+            const fallback = await this.deps.getProviderAccountId?.()
+            if (fallback !== undefined) return fallback
+            // No provider account behind it: Meta-only use keeps the
+            // refusal (with its fix) instead of a bare missing key.
+            if (refusal !== undefined) throw refusal
+            return
+          }
+          return createHash('sha256').update(key).digest('hex')
         },
         admitResponseAttempt: variant.admitResponseAttempt,
         noteResponseUsage: variant.noteResponseUsage,
@@ -510,6 +544,9 @@ export class ModelApiBackendManager {
         usageKind: variant.usageKind,
         hasMetaCredential: this.deps.hasMetaCredential,
         isCredentialStoreDown: this.deps.isCredentialStoreDown,
+        ...(this.deps.getBillingRoute !== undefined && {
+          getBillingRoute: this.deps.getBillingRoute,
+        }),
         ...(variant.budgetScope !== undefined && { budgetScope: variant.budgetScope }),
         describeEnvironment: variant.describeEnvironment,
         isPaidFeatureOn: variant.isPaidFeatureOn,
@@ -715,7 +752,9 @@ export class ModelApiBackendManager {
               (budgetScope === undefined &&
                 !kind.isIndependentPreview &&
                 Usd.from(this.deps.sessionBudgetUsd()).compare(Usd.from(0)) !== 0) ||
-              budgetScope?.isStillAllowed(keyDigest) === false
+              budgetScope?.isStillAllowed(
+                keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+              ) === false
             ) {
               throw new Error(kind.budgetUnavailable())
             }
@@ -866,11 +905,21 @@ export class ModelApiBackendManager {
     return this.host?.readUsageBudgets() ?? Promise.resolve([])
   }
 
-  public async accountId(): Promise<string | undefined> {
-    const key = await readApiKey(this.deps.getApiKey)
-    return key === undefined
-      ? await this.deps.getProviderAccountId?.()
-      : createHash('sha256').update(key).digest('hex')
+  public async accountId(): Promise<PayerCredential | undefined> {
+    let key: string | undefined
+    try {
+      key = await (this.deps.getPaidApiKey ?? this.deps.getApiKey)()
+    } catch (error: unknown) {
+      // A refused subscription key reads as no key here; the turn path
+      // surfaces the refusal itself, and paid scopes stay unavailable.
+      this.deps.log.warn(`Paid key read failed (${failureForLog(error)}); paid scopes stay off`)
+      const provider = await this.deps.getProviderAccountId?.()
+      return provider === undefined ? undefined : payerCredentialSchema.parse(provider)
+    }
+    const provider = key === undefined ? await this.deps.getProviderAccountId?.() : undefined
+    if (key !== undefined)
+      return payerCredentialSchema.parse(createHash('sha256').update(key).digest('hex'))
+    return provider === undefined ? undefined : payerCredentialSchema.parse(provider)
   }
 
   /** The host, created on first use with the stored sessions read. Rejects without a workspace. */

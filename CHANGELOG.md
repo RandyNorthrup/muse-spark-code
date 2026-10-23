@@ -421,6 +421,45 @@ happened, not what was planned; superseded entries are kept.
   the message names the id as typed, the provider or session that does
   not offer it, and what to do (for a provider entry, the command that
   lists its models; in a session, picking an offered model or effort).
+### Added
+
+- **Model API on the Muse Code subscription** (C-M95-SUB). The Model API
+  backend can bill the Muse Code plan instead of a pay-as-you-go key: turn
+  on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+  machine-scoped, off by default) and the extension reads the subscription
+  key the Muse Code CLI already holds after a browser or device-code
+  sign-in. A pay-as-you-go `muse auth set` key never counts: it is refused,
+  never billed as plan. Those calls count
+  against the plan, never the card; usage and cost surfaces record them as
+  **Muse Code plan** with no dollar price. While the setting is on, a missing or
+  unreadable CLI sign-in stops Model API calls with the fix instead of
+  billing a stored key. The key is held in memory only: never shown, logged,
+  copied into settings, or stored anywhere. Paid images still bill a stored
+  Model API key; enabled hosted search, subagents and Auto review use that
+  key under normal consent, while voice keeps using the stored key. A search
+  response's model tokens also bill that key, disclosed before use; denied
+  search keeps chat on the plan. Rotation preserves saved-session ownership; toggling the opt-in restarts the
+  backend. Outside VS Code, `serve` and
+  `exec` take `--subscription` (Model API backend only); a macOS
+  Keychain-only sign-in cannot be read, so use a key there.
+- PROVUSAGE (provider-reported spend): each preset declares one spend
+  capability (`none`, `key-usage`, `balance`, `admin-report`). `providers
+  usage <id> [--days n] [--output json]` shows the provider's own figures
+  for the period (tokens by model, dollars by day) next to the journal
+  estimate with the difference, over the pinned transport; `auth
+  set|status|clear --provider <id> --admin` stores the separate admin
+  report key after saying what it can read. The OpenRouter read is the
+  first shared-shape report. Admin wire shapes are documented, not live
+  captured (UNVERIFIED until the lead's capture); a provider with no spend
+  API shows nothing new. Spend reports are display only and never feed a
+  cap.
+
+- Attachments follow each provider's documented rules: on xAI models only
+  PNG and JPEG images up to 20 MiB are sent, and anything else is refused
+  with a reason before sending. The groundwork for upload-once file
+  references on OpenAI, xAI and Anthropic is in place (the request builders
+  and the per-provider upload dialects), but uploads stay off until live
+  provider answers confirm every shape.
 - M101 lane P2 (Pi/SoL-Pi upstream sync): long-context tiers reprice cached
   reads and writes, and 1-hour cache writes settle at their own price.
   The shared retry classifier refuses known quota codes and excessive
@@ -525,6 +564,34 @@ happened, not what was planned; superseded entries are kept.
   issues one, sign-in refuses before any request and says so. Tokens stay
   in the credential store under their own lane, refreshed in the
   background, and usage spends the subscription allowance.
+- Provider usage and price gaps: cached tokens on Groq settle at the
+  documented half price instead of the full input price; DeepSeek's
+  catalogue reasoning-token price reaches the price card and settlement;
+  catalogue long-context tiers (Gemini 2.5 Pro past 200k prompts) apply to
+  every tiered model; the Hugging Face router shows per-upstream prices,
+  honours per-upstream context and tool/structured flags, and takes an
+  `upstream` choice on the provider entry (sent as the documented
+  `model:upstream` suffix); a tested OpenRouter key's credit balance
+  reaches Account & usage; Fireworks requests carry
+  `prompt_cache_isolation_key` beside the cache key. Catalogue
+  `cache_write` prices now apply too. Every new wire shape is
+  documentation-quoted and UNVERIFIED until the lead's real-request
+  capture (`docs/certification/usagefields-capture-plan.json`) confirms it.
+- Background requests honour xAI's documented per-second request budgets
+  and per-minute token budgets instead of one default window, and a
+  request with more images than Anthropic's documented per-request count
+  (100 for 200k-context models, 600 otherwise) is refused with the reason
+  before sending.
+
+### Fixed
+
+- Bind every Meta attempt to its resolved billing route, including Best-of-N,
+  Judge and prompt/agent hooks. Search consent remembers payer kind and model
+  token rates; subscription/provider account transitions work without a restart,
+  Windows path casing preserves history, and refused retries describe only that
+  attempt.
+- A session you just started appears in History at once. It was saved but
+  left out of the list until a restart.
 
 ### Release infrastructure
 

@@ -91,6 +91,8 @@ export interface ExecOptions {
   readonly failOnDenial: boolean
   readonly ephemeral: boolean
   readonly keyFromStdin: boolean
+  /** C-M95-SUB: the Muse Code subscription pays for this run. Model API only. */
+  readonly subscription: boolean
   /** Local unattended vault grants only; CI's stdin-key lane remains vault-free. */
   readonly vault: boolean
   readonly museBinary: string
@@ -109,6 +111,7 @@ const BOOLEAN_OPTIONS = new Set([
   'fail-on-denial',
   'ephemeral',
   'key-stdin',
+  'subscription',
   'vault',
   'verbose',
   'trust-workspace',
@@ -349,6 +352,7 @@ export function parseExec(
     'max-output-tokens',
     'ephemeral',
     'key-stdin',
+    'subscription',
     'image-generation',
     'auto-compaction',
     'output-schema',
@@ -359,6 +363,8 @@ export function parseExec(
   const museCodeOnly = given(['muse-binary', 'shell-sandbox'])
   if (backend === 'modelApi' && museCodeOnly !== '')
     return invalid(fill(UI_TEXT.execMuseCodeOnly, { options: museCodeOnly }))
+  if (values['key-stdin'] === true && values['subscription'] === true)
+    return invalid(UI_TEXT.execSubscriptionStdin)
   if (mode !== 'acceptEdits' && values['image-generation'] === true)
     return invalid(UI_TEXT.execPaidNeedsEdits)
   const files = values['untrusted-file']
@@ -437,6 +443,7 @@ export function parseExec(
       failOnDenial: values['fail-on-denial'] === true,
       ephemeral: values['ephemeral'] === true,
       keyFromStdin: values['key-stdin'] === true,
+      subscription: values['subscription'] === true,
       vault: values['vault'] === true,
       museBinary: stringValue('muse-binary') ?? SETTING_DEFAULTS.museBinaryPath,
       shellSandbox,
@@ -486,5 +493,6 @@ export function serveOptionsFor(options: ExecOptions): ServeOptions {
     isVerbose: options.isVerbose,
     autoCompaction: options.autoCompaction,
     maxToolOutputBytes: options.maxToolOutputBytes,
+    ...(options.subscription && { subscription: true }),
   }
 }

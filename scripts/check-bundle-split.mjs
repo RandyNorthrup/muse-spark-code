@@ -262,6 +262,10 @@ const ACTIVATION_ALLOWED = new Map([
     'autoCompactionAdmission.ts',
     'shared paid admission bound by panel and runtime managers (M101)',
   ],
+  [
+    'billingRoute.ts',
+    'the frozen credential route and stable sign-in identity shared by activation and Model API (D216)',
+  ],
   ['schemas.ts', 'shared boundary schemas used by activation and ACP'],
   // imageGeneration.ts loads with the image chunk on the backend's first
   // image call (MODEL_API_IMAGE_ONLY); activation keeps its own copy for
@@ -269,6 +273,15 @@ const ACTIVATION_ALLOWED = new Map([
   ['imageToolDefinitions.ts', "the IDE server's image tools on Muse Code (M44)"],
   ['sessionStore.ts', "the stored-session format the window's session store reads (D14)"],
   ['goalRecord.ts', "a stored session's goal (D14, M45)"],
+  // C-M95-SUB: the subscription key source. Activation reads it for the
+  // opt-in readiness gate; the runtime engine (serve) and the headless
+  // preflight read it for the --subscription opt-in; dist/modelApi.js never
+  // carries it (the manager receives the credential instead of importing
+  // the source).
+  [
+    'subscriptionKey.ts',
+    'the subscription key source activation reads for the opt-in readiness gate (C-M95-SUB)',
+  ],
 ])
 
 // The files that load only with the backend: the host, its tools, hooks,
@@ -447,6 +460,15 @@ for (const name of [
 }
 
 const activation = inputsOf(BUNDLES.activation)
+// D216: the frozen route belongs to the engine, never the tiny headless preflight.
+const headlessRouteInputs = inputsOf({
+  output: 'dist/headless.js',
+  metafile: 'dist/meta-acp/headless.json',
+})
+if (headlessRouteInputs.has(`${MODEL_API_DIR}/billingRoute.ts`))
+  problems.push(
+    'dist/headless.js carries the billing route; keep it out of the headless preflight (D216)',
+  )
 // M118: prompt/share implementations load with their first action, never
 // activation. Type-only imports contribute no runtime bytes.
 for (const file of ['src/shared/prompts.ts', 'src/shared/share.ts']) {
@@ -1333,7 +1355,7 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
           (input.startsWith('src/core/providers/') &&
             !(
               output === 'dist/providerPolicy.js' &&
-              ['credentialRecord.ts', 'modelRef.ts', 'endpointPolicy.ts'].some(
+              ['credentialRecord.ts', 'endpointPolicy.ts'].some(
                 (file) => input === `src/core/providers/${file}`,
               )
             ) &&
@@ -1349,10 +1371,8 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             // provider records, so the migration chunk carries their
             // schemas beside the engine.
             !(
-              output === VAULT_MIGRATION.output &&
-              ['modelRef.ts', 'accountCredentialRecord.ts'].some(
-                (file) => input === `src/core/providers/${file}`,
-              )
+              input === 'src/core/providers/accountCredentialRecord.ts' &&
+              output === VAULT_MIGRATION.output
             ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal
@@ -1573,6 +1593,8 @@ const TEXT_BLOCKS = [
     sentinels: ['compactionPrompt', 'goalUnfinishedExists', 'verifyAccessRefused'],
     // The verify chunk reads two skip/outcome keys of this block, so it
     // carries the block whole (one object is carried whole, D6).
+    // RLM95: productionMedia read only the media omission sentences, now
+    // MEDIA_MODEL_TEXT's own block below.
     readers: [
       BUNDLES.modelApi.output,
       'dist/mcpPool.js',
@@ -1592,6 +1614,14 @@ const TEXT_BLOCKS = [
     block: 'VERIFY_MODEL_TEXT',
     sentinels: ['verifyChecksHeading', 'verifyUncheckedCodeLoading'],
     readers: ['dist/modelApiVerify.js'],
+  },
+  // RLM95: media omission sentences, split out of MODEL_API_MODEL_TEXT.
+  // Both the Model API budget and the providers-bundle codecs read them,
+  // so neither bundle carries the other's whole block.
+  {
+    block: 'MEDIA_MODEL_TEXT',
+    sentinels: ['mediaLeftOut', 'imageLeftOut'],
+    readers: [BUNDLES.modelApi.output, BUNDLES.providers.output, 'dist/productionMedia.js'],
   },
   // The packing store's own words (M73): the placeholder, the recalled
   // pages and the background-note lead read through the lazy tools chunk.

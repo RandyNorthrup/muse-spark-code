@@ -1,7 +1,7 @@
 // M95b: local, non-secret plan tallies. A dispatched attempt is one request,
 // including a refused/failed stream; no price or dollar reservation is invented.
 import * as z from 'zod/mini'
-import { isProviderId } from '../modelRef'
+import { isProviderId } from '../../../shared/modelRef'
 
 const count = z.int().check(z.gte(0))
 const providerId = z.string().check(z.refine(isProviderId))

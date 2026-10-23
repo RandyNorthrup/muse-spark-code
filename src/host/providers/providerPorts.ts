@@ -199,7 +199,7 @@ export interface ModelFetcher {
 
 /** The Test step's answer (D74: the free check, or the one-token cost asked first). */
 export type KeyTestResult =
-  | { readonly kind: 'ok'; readonly models: number }
+  | { readonly kind: 'ok'; readonly models: number; readonly keyUsage?: KeyUsageSnapshot }
   | { readonly kind: 'failed'; readonly detail: string }
   | { readonly kind: 'paid'; readonly cost: string }
 

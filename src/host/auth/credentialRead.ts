@@ -131,6 +131,12 @@ export interface CredentialReadPort {
   readonly warn: (message: string) => void
   readonly storeName: string
   readonly providerIds?: () => PromiseLike<readonly CredentialProviderId[]>
+  /**
+  C-M95-SUB: an additional credential outside secret storage (the
+  opted-in CLI subscription key). Consulted for backend availability
+  only; the key itself is never stored here.
+  */
+  readonly hasSubscriptionCredential?: () => PromiseLike<boolean>
 }
 
 /** Stores whose unreadable notice the window already showed, once each. */
@@ -205,6 +211,21 @@ function unreadableKey(port: CredentialReadPort, error: unknown): string | undef
     )
   }
   return undefined
+}
+
+/**
+The opted-in CLI subscription's presence as a value: `found`, or the
+failure as `cause` for the guarded scan to map onto the closed kind.
+The failure keeps its identity into the scan's own warn-once record.
+*/
+async function readSubscriptionPresence(
+  hasSubscriptionCredential: () => PromiseLike<boolean>,
+): Promise<{ readonly found: boolean } | { readonly cause: unknown }> {
+  try {
+    return { found: await hasSubscriptionCredential() }
+  } catch (error: unknown) {
+    return { cause: error }
+  }
 }
 
 /**
@@ -283,6 +304,21 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
           )
       }
     }
+  }
+  if (!isFound && port.hasSubscriptionCredential !== undefined) {
+    // C-M95-SUB: the opted-in CLI subscription counts for availability;
+    // the key itself never enters the store.
+    const probe = await readSubscriptionPresence(port.hasSubscriptionCredential)
+    if ('cause' in probe) {
+      // An unreadable subscription says nothing about presence, so the
+      // read answers unknown rather than absent (fail closed).
+      isFailed = true
+      unreadable ??= unreadableKindFor(probe.cause)
+      if (isScanWarnDue(port, 'subscription'))
+        port.warn(
+          `Subscription credential could not be read, so its presence is unknown (${wireWordForLog(probe.cause instanceof Error ? probe.cause.name : typeof probe.cause)})`,
+        )
+    } else if (probe.found) isFound = true
   }
   if (!isFailed) scanWarningsShown.delete(port.owner)
   if (isFound) {

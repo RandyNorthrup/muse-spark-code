@@ -16,7 +16,7 @@
 import { Buffer } from 'node:buffer'
 import {
   MODEL_API_MEDIA_PER_REQUEST,
-  MODEL_API_MODEL_TEXT,
+  MEDIA_MODEL_TEXT,
   MODEL_API_PDF_PAGE_IMAGES,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -81,23 +81,26 @@ function assertRequiredFitsRecord(
 
 function leftOut(part: InputContentPart, reason: OmissionReason) {
   const reasons = {
-    support: MODEL_API_MODEL_TEXT.mediaSupportRefused,
-    mime: MODEL_API_MODEL_TEXT.mediaMimeRefused,
-    limit: MODEL_API_MODEL_TEXT.mediaLimitExceeded,
+    support: MEDIA_MODEL_TEXT.mediaSupportRefused,
+    mime: MEDIA_MODEL_TEXT.mediaMimeRefused,
+    limit: MEDIA_MODEL_TEXT.mediaLimitExceeded,
   }
   let text: string
   if (reason === 'budget') {
-    // A provider-held reference names no bytes: the current request's own
-    // projected parts are protected from elision, so this is defensive.
-    if (part.type === 'input_file' && 'filename' in part) {
-      text = fill(MODEL_API_MODEL_TEXT.pdfLeftOut, { name: part.filename })
+    // A file reference carries no filename; its technical id still names
+    // it. The current request's own projected parts are protected from
+    // elision, so this is defensive.
+    if (part.type === 'input_file') {
+      text = fill(MEDIA_MODEL_TEXT.pdfLeftOut, {
+        name: 'filename' in part ? part.filename : part.file_id,
+      })
     } else if (part.type === 'input_image') {
-      text = MODEL_API_MODEL_TEXT.imageLeftOut
+      text = MEDIA_MODEL_TEXT.imageLeftOut
     } else {
-      text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons.limit })
+      text = fill(MEDIA_MODEL_TEXT.mediaLeftOut, { reason: reasons.limit })
     }
   } else {
-    text = fill(MODEL_API_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
+    text = fill(MEDIA_MODEL_TEXT.mediaLeftOut, { reason: reasons[reason] })
   }
   return { type: 'input_text' as const, text }
 }
@@ -209,9 +212,20 @@ export class MediaBudget {
         const isImage = part.type === 'input_image'
         const policy = isImage ? record.modalities.image : record.modalities.pdf
         if (policy.state !== 'yes') return 'support'
-        // A provider-held reference has no bytes to check: with no readable
-        // payload the limit refusal below stands, as it does for undecodable
-        // data URLs.
+        // A file reference carries no bytes to re-check: the provider's own
+        // attach and upload gates admitted this exact file before anything
+        // was sent. It still counts against a documented per-request image
+        // bound below (OPENAI-G15, GAPANTH-G16, XAI-G11).
+        if ('file_id' in part) {
+          if (isImage) {
+            const image = record.modalities.image
+            if (image.state === 'yes' && image.value.maxCount !== undefined) {
+              if (imageCount + 1 > image.value.maxCount) return 'budget'
+              imageCount++
+            }
+          }
+          return undefined
+        }
         let dataUrl = ''
         if (part.type === 'input_image' && 'image_url' in part) dataUrl = part.image_url
         else if (part.type === 'input_file' && 'file_data' in part) dataUrl = part.file_data

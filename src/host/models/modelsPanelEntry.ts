@@ -77,6 +77,7 @@ export interface ModelsPanelHostDeps {
   readonly readImportFile?: () => Promise<string | undefined>
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
+  readonly onSpend?: Parameters<typeof createProvidersHost>[0]['onSpend']
   /**
   The vault bundle loader and its dist/ directory (C-M109-1 P1): the entry
   builds the broker-backed binding factory around this panel's publisher
@@ -359,6 +360,7 @@ export function createModelsPanelFeatures(
     exchanger: seam.exchanger,
     usage: seam.usage,
     ...(host.onKeyUsage !== undefined && { onKeyUsage: host.onKeyUsage }),
+    ...(host.onSpend !== undefined && { onSpend: host.onSpend }),
     pkce: seam.pkce,
     suggest: seam.suggest,
     scanStore: scanStoreOver(host.globalState),

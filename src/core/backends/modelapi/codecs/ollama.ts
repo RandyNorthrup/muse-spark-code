@@ -273,6 +273,11 @@ function imagesOf(parts: readonly InputContentPart[]): readonly string[] {
   )
 }
 
+/** A file reference rides no bytes: the local wire cannot take it (GAPANTH-G16). */
+function hasFileReference(parts: readonly InputContentPart[]): boolean {
+  return parts.some((part) => 'file_id' in part)
+}
+
 /**
 The native `/api/chat` request bytes for a canonical body. Keys in a
 fixed order, tool schemas rewritten the same way every time, nothing
@@ -329,9 +334,14 @@ export function encodeOllamaRequest(
     }
     const images = imagesOf(item.content)
     // M101 lane P1 (BYO item 1): images for a model without image input
-    // ride as the image-omitted placeholder, keeping the turn's shape.
+    // ride as the image-omitted placeholder, keeping the turn's shape. A
+    // file reference rides the same placeholder: it carries no bytes for
+    // the local wire, and is never dropped silently.
     const text = textOf(item.content)
-    const content = vision === false && images.length > 0 ? placeholderAppended(text) : text
+    const content =
+      (vision === false && images.length > 0) || hasFileReference(item.content)
+        ? placeholderAppended(text)
+        : text
     messages.push({
       role: item.role === 'developer' ? 'system' : item.role,
       content,

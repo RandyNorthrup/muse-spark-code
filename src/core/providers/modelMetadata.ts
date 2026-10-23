@@ -1,7 +1,15 @@
 // Reinterpret captured native metadata without discarding its JSON fields.
 // A field absent from a list stays unknown; a price never proves a feature.
 import * as z from 'zod/mini'
-import { ANTHROPIC_MAX_IMAGE_BYTES, IMAGE_MEDIA_TYPES } from '../../shared/constants'
+import {
+  ANTHROPIC_IMAGE_200K_WINDOW_TOKENS,
+  ANTHROPIC_IMAGE_MAX_COUNT,
+  ANTHROPIC_IMAGE_MAX_COUNT_200K,
+  ANTHROPIC_MAX_IMAGE_BYTES,
+  IMAGE_MEDIA_TYPES,
+  XAI_IMAGE_MEDIA_TYPES,
+  XAI_MAX_IMAGE_BYTES,
+} from '../../shared/constants'
 import type { CapabilityEvidence, CapabilityOverrides, CapabilitySource } from './capabilityRecord'
 
 export const nativeModelMetadataSchema = z.record(z.string(), z.json())
@@ -22,6 +30,7 @@ export function nativeCapabilityEvidence(
   preset: string,
   input: unknown,
   source: CapabilitySource,
+  selectedUpstream?: string,
 ): CapabilityEvidence {
   const native = nativeModelMetadataSchema.parse(input)
   const read = <T>(schema: z.ZodMiniType<T>, ...path: string[]): T | undefined => {
@@ -48,12 +57,19 @@ export function nativeCapabilityEvidence(
   const limits: NonNullable<CapabilityOverrides['limits']> = {}
   const modalities: NonNullable<CapabilityOverrides['modalities']> = {}
   const sampling: NonNullable<CapabilityOverrides['sampling']> = {}
-  // Native support is required. Research supplies Anthropic's documented
-  // provider bound; other providers state no image byte bound here, so none
-  // is enforced locally for them (D121) — the provider's own refusal reaches
+  // Native support is required. Research supplies the documented provider
+  // bounds (Anthropic's byte bound, xAI's jpg/jpeg/png formats up to 20
+  // MiB, XAI-G11); other providers state no image bound here, so none is
+  // enforced locally for them (D121) — the provider's own refusal reaches
   // the caller in words.
-  const imagePolicy: { mimes: string[]; maxBytes?: number } = { mimes: [...IMAGE_MEDIA_TYPES] }
+  const imagePolicy: { mimes: string[]; maxBytes?: number; maxCount?: number } = {
+    mimes: [...IMAGE_MEDIA_TYPES],
+  }
   if (preset === 'anthropic') imagePolicy.maxBytes = ANTHROPIC_MAX_IMAGE_BYTES
+  else if (preset === 'xai') {
+    imagePolicy.mimes = [...XAI_IMAGE_MEDIA_TYPES]
+    imagePolicy.maxBytes = XAI_MAX_IMAGE_BYTES
+  }
   const context =
     read(numeric, 'limit', 'context') ??
     read(numeric, 'context_length') ??
@@ -84,6 +100,14 @@ export function nativeCapabilityEvidence(
     read(numeric, 'max_input_tokens') ??
     read(numeric, 'inputTokenLimit')
   if (context !== undefined && context > 0) limits.contextTokens = context
+  // Anthropic's per-request image count rides the model's own window (its
+  // vision doc, read 2026-10-22): 100 for 200k-context models, 600 where
+  // the window is anything else or unknown.
+  if (preset === 'anthropic')
+    imagePolicy.maxCount =
+      context === ANTHROPIC_IMAGE_200K_WINDOW_TOKENS
+        ? ANTHROPIC_IMAGE_MAX_COUNT_200K
+        : ANTHROPIC_IMAGE_MAX_COUNT
   if (maxInput !== undefined && maxInput > 0) limits.inputTokens = maxInput
   if (maxOutput !== undefined && maxOutput > 0) {
     output.maxTokens = maxOutput
@@ -164,6 +188,51 @@ export function nativeCapabilityEvidence(
   const structuredOutput = read(z.boolean(), 'structured_output')
   if (structuredOutput !== undefined)
     output.formats = yes(structuredOutput ? ['text', 'json_schema'] : ['text'])
+  if (preset === 'huggingface') {
+    // The router's `/v1/models` row prices and bounds per live upstream
+    // (router.huggingface.co, read 2026-10-12): each states `context_length`
+    // and its `supports_tools` / `supports_structured_output` flags. An
+    // explicitly chosen upstream decides; otherwise the context promises no
+    // more than the smallest live window, and tools/structured stay at the
+    // catalogue's answer unless every stating upstream agrees.
+    const routerUpstreams = z
+      .array(
+        z.object({
+          provider: z.string(),
+          status: z.string(),
+          context_length: z.optional(z.number()),
+          supports_tools: z.optional(z.boolean()),
+          supports_structured_output: z.optional(z.boolean()),
+        }),
+      )
+      .safeParse(native['providers'])
+    if (routerUpstreams.success) {
+      const live = routerUpstreams.data.filter((row) => row.status === 'live')
+      const scoped =
+        selectedUpstream === undefined
+          ? live
+          : live.filter((row) => row.provider === selectedUpstream)
+      const windows = scoped.flatMap((row) =>
+        row.context_length !== undefined &&
+        Number.isFinite(row.context_length) &&
+        row.context_length > 0
+          ? row.context_length
+          : [],
+      )
+      if (windows.length > 0) limits.contextTokens = Math.min(...windows)
+      const toolFlags = scoped.flatMap((row) =>
+        row.supports_tools === undefined ? [] : [row.supports_tools],
+      )
+      if (toolFlags.length > 0 && toolFlags.every(Boolean)) tools.calling = yes(true)
+      else if (toolFlags.length > 0 && toolFlags.every((supported) => !supported))
+        tools.calling = { state: 'no', source }
+      const structuredFlags = scoped.flatMap((row) =>
+        row.supports_structured_output === undefined ? [] : [row.supports_structured_output],
+      )
+      if (structuredOutput === undefined && structuredFlags.length > 0)
+        output.formats = yes(structuredFlags.every(Boolean) ? ['text', 'json_schema'] : ['text'])
+    }
+  }
   if (samplingParameters !== undefined) {
     sampling.temperature = flag(samplingParameters.includes('temperature'))
     sampling.topP = flag(samplingParameters.includes('top_p'))
@@ -255,6 +324,41 @@ export function nativeCapabilityEvidence(
       ...(typeof native['version'] === 'string' && { servedVersion: native['version'] }),
     },
   }
+}
+
+/**
+A preset's Files API facts (OPENAI-G15, GAPANTH-G16): which upload dialect
+a file takes. OpenAI and xAI speak the OpenAI multipart dialect (`file`
+plus `purpose`); Anthropic takes `file` with an optional
+`expires_in_seconds` (3600 to 7776000 seconds) and 500 MB per file
+(platform.claude.com file guide, read 2026-10-13), and our uploads always
+set an expiry. Retention for OpenAI and xAI is not documented, so it stays
+unknown and the uploader deletes explicitly. Every value stays UNVERIFIED
+until the capture plan's requests confirm it; anything else stays unknown
+and uploads nothing.
+*/
+export function presetFilesEvidence(preset: string): CapabilityEvidence[] {
+  const source: CapabilitySource = { kind: 'preset', ref: preset }
+  const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })
+  if (preset === 'openai' || preset === 'xai')
+    return [
+      {
+        source,
+        fields: { files: { upload: yes({ wire: 'openai-files' }) } },
+      },
+    ]
+  if (preset === 'anthropic')
+    return [
+      {
+        source,
+        fields: {
+          files: {
+            upload: yes({ wire: 'anthropic-files', maxBytes: 500_000_000, retention: 'expiring' }),
+          },
+        },
+      },
+    ]
+  return []
 }
 
 /** OpenAI/xAI and chat servers share captured id-bearing data/model envelopes. */

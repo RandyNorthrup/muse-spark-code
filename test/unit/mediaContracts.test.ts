@@ -81,10 +81,16 @@ describe('M105 media metadata', () => {
     expect(mediaInfoSchema.safeParse(info).success).toBe(false)
   })
 
-  it('requires an expiry and a SHA-256 and refuses content in an upload reference', () => {
+  it('requires a SHA-256, keeps expiry optional, and refuses content in an upload reference', () => {
     expect(uploadedMediaRefSchema.parse(file)).toEqual(file)
+    // OPENAI-G15, GAPANTH-G16: a file that lives until deleted carries no
+    // expiry; the ledger deletes it explicitly.
+    const { expiresAt: _dropped, ...noExpiry } = file
+    expect(uploadedMediaRefSchema.parse(noExpiry).expiresAt).toBeUndefined()
+    expect(
+      uploadedMediaRefSchema.parse({ ...file, expiresAt: undefined }).expiresAt,
+    ).toBeUndefined()
     for (const bad of [
-      { ...file, expiresAt: undefined },
       { ...file, expiresAt: 0 },
       { ...file, sha256: 'invalid' },
       { ...file, sha256: 'a'.repeat(65) },
