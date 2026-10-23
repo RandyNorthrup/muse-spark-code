@@ -199,6 +199,12 @@ happened, not what was planned; superseded entries are kept.
   exec admits a live-but-unfiled model and files it on use.
 - The Models & Agents panel says where provider keys live: the editor's
   secret storage is not the terminal agent's OS credential store.
+- **A failed turn can be retried.** Where the backend judged a failed
+  turn retryable, its error row offers Retry, which resubmits the
+  turn's own message as a new turn and keeps all its work; a turn that
+  died with its host resubmits once the host restarts. Through the
+  editor protocol the judgment rides the prompt error's
+  `data.retryable`. Nothing resubmits by itself.
 
 ### Changed
 
@@ -458,6 +464,9 @@ happened, not what was planned; superseded entries are kept.
   --provider` now says it runs on that provider instead of naming the
   account commands, and `scan-secrets --timeout` names the scan's
   deadline instead of a run's.
+- One-shot product notices in editor sessions no longer fold into the
+  model's answer: where the editor shows no notices they go out as
+  their own message with their own id.
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API

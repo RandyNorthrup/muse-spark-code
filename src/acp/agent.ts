@@ -1,4 +1,5 @@
 import { estimateFailureText } from '../shared/estimateDiagnostic'
+import type { AccountEvent } from '../shared/accounts'
 import type { UsdAmount } from '../shared/usdSchema'
 import { vaultApprovalText } from '../runtime/vault/vaultApproval'
 // The Muse Spark agent over the Agent Client Protocol (PLAN.md D62): one
@@ -179,6 +180,7 @@ import {
   decidedChoice,
   isMediaLink,
   mcpServersFrom,
+  noticeMessageId,
   permissionOptions,
   permissionResponse,
   planEntries,
@@ -350,7 +352,40 @@ function observeError(deps: AcpAgentDeps, code: string): void {
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
 type ElicitationRequest = Extract<AgentEvent, { type: 'elicitationRequested' }>
-type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
+export type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
+
+/**
+A failed turn's prompt error (RLF-ACPTURNS): the backend's retry judgment
+rides the error's `data`, so the client can offer to send the prompt
+again. Absent judgment never reads as retryable. A turn the CLI judged
+resubmittable (a transient service failure, RLWINFIX2) says our sentence
+with the turn's own detail; the rest keep their typed codes: the
+credential store's no-answer, else the failed turn with its kind.
+*/
+export function turnFailureError(event: TurnCompleted): RequestError {
+  const transient = transientTurnFailureText(event)
+  if (transient !== undefined) return RequestError.internalError({ retryable: true }, transient)
+  return event.errorKind === CREDENTIAL_STORE_ERROR_KIND
+    ? new RequestError(ACP_ERROR_CODES.credentialStore, UI_TEXT.acpCredentialStoreNoAnswer, {
+        kind: CREDENTIAL_STORE_ERROR_KIND,
+        requestSent: false,
+        retryable: false,
+      })
+    : new RequestError(ACP_ERROR_CODES.turnFailed, event.reason ?? UI_TEXT.actionFailed, {
+        kind: event.errorKind ?? 'turn_failed',
+        retryable: false,
+      })
+}
+
+/**
+A dead backend's prompt error (RLF-ACPTURNS): never retryable. The session
+is released with its host (`watch` calls `releaseAll` beside `hostExited`),
+so resubmitting the prompt into this session cannot work; the client
+starts a new session instead, which is a new turn, not a retry.
+*/
+export function hostExitError(description: string): RequestError {
+  return new RequestError(ACP_ERROR_CODES.unavailable, description, { retryable: false })
+}
 
 interface PendingPrompt {
   readonly resolve: (reason: StopReason) => void
@@ -462,6 +497,54 @@ function startRequestError(error: unknown, site: StartSite): RequestError {
   return error instanceof RequestError
     ? error
     : RequestError.internalError(undefined, startFailureText(error, site))
+}
+
+/**
+An account swap or stop as the client sees it (F82's class, RLF-ACPTURNS
+F1): its own `notice` where the client can show one, else the
+agent-message fallback as its own message — the app's own status, never
+the model's words. The structured event rides `_meta` either way.
+*/
+export function accountNoticeUpdate(
+  text: string,
+  event: AccountEvent,
+  areNoticesSupported: boolean,
+): SessionUpdate {
+  return areNoticesSupported
+    ? {
+        sessionUpdate: 'notice',
+        severity: event.type === 'stop' ? 'warning' : 'info',
+        title: text,
+        _meta: { accountNotice: event },
+      }
+    : {
+        sessionUpdate: 'agent_message_chunk',
+        messageId: noticeMessageId(),
+        _meta: { accountNotice: event },
+        content: { type: 'text', text },
+      }
+}
+
+/**
+F91's sandbox note as the client sees it (RLF-ACPTURNS F1): its own
+`notice` where the client can show one, else the agent-message fallback
+as its own message, carrying the `_meta` marker a client can tell apart
+from model speech.
+*/
+export function sandboxCannotStartUpdate(areNoticesSupported: boolean): SessionUpdate {
+  return areNoticesSupported
+    ? {
+        sessionUpdate: 'notice',
+        severity: 'warning',
+        title: UI_TEXT.sandboxCannotStartNotice,
+        _meta: { sandboxCannotStartNotice: true },
+      }
+    : {
+        sessionUpdate: 'agent_message_chunk',
+        messageId: noticeMessageId(),
+        _meta: { sandboxCannotStartNotice: true },
+        content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
+      }
 }
 
 /**
@@ -796,24 +879,7 @@ class AcpSession {
               })
             },
             (text, event) => {
-              // An account swap or stop is the app's own status, never the
-              // model's words: its own notice where the client can show
-              // one, the agent-message fallback otherwise (F82's class).
-              // The structured event rides `_meta` either way.
-              this.send(
-                this.areNoticesSupported
-                  ? {
-                      sessionUpdate: 'notice',
-                      severity: event.type === 'stop' ? 'warning' : 'info',
-                      title: text,
-                      _meta: { accountNotice: event },
-                    }
-                  : {
-                      sessionUpdate: 'agent_message_chunk',
-                      _meta: { accountNotice: event },
-                      content: { type: 'text', text },
-                    },
-              )
+              this.send(accountNoticeUpdate(text, event, this.areNoticesSupported))
             },
           )
   }
@@ -1571,24 +1637,12 @@ class AcpSession {
       // failure): the client hears our sentence with the turn's own
       // detail, and the error carries the retryable judgment for clients
       // that act on it, so the turn can continue with the same input.
-      const transient = transientTurnFailureText(event)
-      if (transient !== undefined) {
+      if (event.retryable === true) {
         this.deps.log.warn(
           `ACP session ${this.sessionId}: turn ${event.turnId} failed but the CLI judged it retryable`,
         )
-        pending.reject(RequestError.internalError({ retryable: true }, transient))
-        return
       }
-      pending.reject(
-        event.errorKind === CREDENTIAL_STORE_ERROR_KIND
-          ? new RequestError(ACP_ERROR_CODES.credentialStore, UI_TEXT.acpCredentialStoreNoAnswer, {
-              kind: CREDENTIAL_STORE_ERROR_KIND,
-              requestSent: false,
-            })
-          : new RequestError(ACP_ERROR_CODES.turnFailed, event.reason ?? UI_TEXT.actionFailed, {
-              kind: event.errorKind ?? 'turn_failed',
-            }),
-      )
+      pending.reject(turnFailureError(event))
       return
     }
     // A turn that ran to completion proves the host: no later failure blames
@@ -2863,35 +2917,15 @@ class AcpSession {
   /**
   F91: the editor hears once per session, in words, that Muse Code's
   Linux sandbox cannot start on this machine. The host start already said
-  it on stderr; the posture stands until the person turns it off.
-  
-  This is the harness speaking, never the model (that confusion is F82).
-  Where the client advertises its session-notices capability
-  (`ClientSessionCapabilities::notices`), it goes as that branch's
-  separate notice update; otherwise it stays an `agent_message_chunk`
-  carrying a `_meta` marker (the accountNotice precedent) a client can
-  tell apart from model speech, which the schema prescribes when notices
-  are not advertised.
+  it on stderr; the posture stands until the person turns it off. The
+  update itself is `sandboxCannotStartUpdate`.
   */
   public noteSandboxCannotStart(): void {
     if (this.hasSaidSandboxCannotStart || !this.sandboxCannotStart()) {
       return
     }
     this.hasSaidSandboxCannotStart = true
-    if (this.clientCapabilities.session?.notices != null) {
-      this.send({
-        sessionUpdate: 'notice',
-        severity: 'warning',
-        title: UI_TEXT.sandboxCannotStartNotice,
-        _meta: { sandboxCannotStartNotice: true },
-      })
-      return
-    }
-    this.send({
-      sessionUpdate: 'agent_message_chunk',
-      _meta: { sandboxCannotStartNotice: true },
-      content: { type: 'text', text: UI_TEXT.sandboxCannotStartNotice },
-    })
+    this.send(sandboxCannotStartUpdate(this.areNoticesSupported))
   }
 
   public async loadQuestions(): Promise<void> {
@@ -3553,7 +3587,7 @@ class AcpSession {
 
   /** The backend went away: the running prompt ends with its reason. */
   public hostExited(description: string): void {
-    const error = new RequestError(ACP_ERROR_CODES.unavailable, description)
+    const error = hostExitError(description)
     if (this.preparing !== undefined) {
       this.preparing.error = error
       this.preparing.abandonElicitation?.()

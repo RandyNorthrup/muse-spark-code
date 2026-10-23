@@ -106,8 +106,15 @@ const schemas = {
     terminal: z.string(),
     reason: z.optional(z.string()),
     durationMs: z.optional(z.number()),
+    // The CLI's own retry judgment rides beside the kind (captured
+    // 2026-10-04, m91-captures/05-linux-msp-failure/turn-completed.jsonl);
+    // absent on older hosts, which never sent it.
     error: z.optional(
-      z.object({ kind: z.string(), message: z.string(), retryable: z.optional(z.boolean()) }),
+      z.object({
+        kind: z.string(),
+        message: z.string(),
+        retryable: z.optional(z.boolean()),
+      }),
     ),
   }),
   'turn/retryScheduled': z.object({
@@ -379,6 +386,8 @@ function rawNotification(notification: WireNotification): MapOutcome {
           terminal,
           ...(reason !== undefined && { reason }),
           ...(error !== undefined && { errorKind: error.kind }),
+          // Whether resubmitting may work (RLF-ACPTURNS, RLWINFIX2): the
+          // CLI's own judgment where it spoke; absent judgment stays absent.
           ...(error?.retryable !== undefined && { retryable: error.retryable }),
           ...(durationMs !== undefined && { durationMs }),
         },

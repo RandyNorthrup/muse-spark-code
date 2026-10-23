@@ -2394,6 +2394,50 @@ export function App({
     },
     [postMessage],
   )
+  // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
+  // the failed turn's user card goes again under a fresh id, and the
+  // host resubmits that turn's own parts. The composer is untouched.
+  // Without the card there is nothing to resend: the row hides Retry
+  // then, so this only answers the press with the card in hand (a
+  // cleared conversation meanwhile answers it by doing nothing).
+  const onRetryTurn = useCallback(
+    (_entryId: string, turnId: string) => {
+      const current = store.getState()
+      // The turn's first card is its starter: a steered message joins the
+      // turn but is never what a retry resends (the host remembers the
+      // starter's parts, never a steer's).
+      const source = current.transcript.find(
+        (entry) => entry.kind === 'user' && entry.turnId === turnId,
+      )
+      if (source?.kind !== 'user') {
+        return
+      }
+      const localId = newLocalId()
+      dispatch({
+        type: 'retried',
+        localId,
+        text: source.text,
+        attachments: source.attachments,
+        contextLabel: source.contextLabel,
+        referenceLabel: source.referenceLabel,
+        at: now(),
+      })
+      postMessage({ type: 'retryTurn', localId, turnId })
+      setIsPinnedToEnd(true)
+    },
+    [store, dispatch, newLocalId, now, postMessage],
+  )
+  // The turns whose user card this panel holds, so an error row offers
+  // Retry only where pressing it has a message to resend.
+  const resendableTurnIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const entry of state.transcript) {
+      if (entry.kind === 'user' && entry.turnId !== undefined) {
+        ids.add(entry.turnId)
+      }
+    }
+    return ids
+  }, [state.transcript])
   const onReportClosed = useCallback(() => {
     dispatch({ type: 'reportClosed' })
   }, [dispatch])
@@ -3091,6 +3135,8 @@ export function App({
           onRedo={state.checkpoints.canRestore ? onRedo : undefined}
           onNoticeAction={onNoticeAction}
           onReportProblem={onReportProblem}
+          onRetryTurn={state.isImported || state.sessionId === undefined ? undefined : onRetryTurn}
+          resendableTurnIds={resendableTurnIds}
           restoreNote={restoreNoteOf(state)}
           conversationNote={
             state.sessionId !== undefined && !state.canEditSessions

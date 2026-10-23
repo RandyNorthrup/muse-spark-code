@@ -54,6 +54,8 @@ describe('signInLossFailure', () => {
     expect(failure?.code).toBe(-32_000)
     expect(failure?.message).toContain(CAUSE)
     expect(failure?.message).toContain(REASON)
+    // RLF-ACPTURNS: a lost sign-in is never cleared by resubmitting.
+    expect(failure?.data).toEqual({ retryable: false })
   })
 
   it('leaves any other turn to the caller', () => {

@@ -45,9 +45,12 @@ describe('UpdateTranslator backendNotice', () => {
       level: 'warning',
       text: 'Automatic compaction failed; continuing with the original context.',
     })
+    // Its own fresh message id (RLF-ACPTURNS F1), so a client that groups by
+    // id starts a new message instead of folding it into the model's answer.
     expect(updates).toEqual([
       {
         sessionUpdate: 'agent_message_chunk',
+        messageId: expect.any(String),
         content: {
           type: 'text',
           text: 'Automatic compaction failed; continuing with the original context.\n\n',
