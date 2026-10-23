@@ -24743,6 +24743,16 @@ inside `dist/tab.js`; the shim's Tab-attributable bytes fall from
 suggestion, the 4 KiB ambition and the live check stay open (B4).
 Record: `docs/certification/rlf-tab.md`.
 
+**Owner decision 2026-10-23: the Tab status bar stays at startup; the
+4 KiB ambition is dropped.** RLF-TAB moved everything else Tab carried at
+activation into `dist/tab.js` (Tab's share of `dist/extension.js` fell
+from 10.598 KiB to 8.136 KiB) and showed that the rest is the startup
+status item acceptance 1 requires, so reaching acceptance 19's 4 KiB
+growth ambition would mean deferring the status bar until first use. The
+owner chose the status bar (2026-10-23: "sure for what you suggest status
+bar"). Acceptance 19 keeps `dist/tab.js`'s budget, `dist/extension.js`'s
+600 KiB budget, the split gate and the VSIX budget; no budget changes.
+
 **RVM94KR3G follow-up (2026-10-09, kubuntu).** The shared window-once
 revocation counter is replaced with per-feature generations, retaining every
 Tab revocation and the global Ask again fence. Regressions prove Tab's Allow
@@ -25003,9 +25013,10 @@ the exact redacted prompt reservation before the engine receives it.
   18. **Activation.** With Tab off and no view or panel, activation reads no
       secret, starts no process and requires no lazy bundle. With Tab on,
       `dist/tab.js` is required on the first request only.
-  19. **Size.** `dist/tab.js` fits its budget. `dist/extension.js` grows by no
-      more than 4 KiB and stays within 600. The split gate and the VSIX
-      budget pass.
+  19. **Size.** `dist/tab.js` fits its budget. `dist/extension.js` stays
+      within its 600 KiB budget; the former "grows by no more than 4 KiB"
+      ambition is dropped (owner, 2026-10-23: the Tab status bar stays at
+      startup, acceptance 1). The split gate and the VSIX budget pass.
   20. **Logs.** No code, completion or path appears in any log line at any
       level.
 - **Tests** (each can fail; each has a red drill recorded in
@@ -37381,6 +37392,16 @@ model. The exception lives in `.github/audit-exceptions.json`, and
 `scripts/audit.mjs` fails again once it expires. Remove it when braces
 publishes a fix (then update or override), or when npm stops reporting the
 advisory.
+
+**Closed 2026-10-23: GHSA-vfj7-8cjw-p6xm withdrawn.** GitHub withdrew the
+advisory on 2026-10-23 at 12:53 UTC ("Withdrawn Advisory: braces vulnerable
+to stack-exhaustion denial of service through deeply nested patterns"), so
+`npm audit` no longer reports it and `security:audit` failed on the stale
+exception ("npm no longer reports it; remove it"). Under D29's rule the
+`braces` entry is removed from `.github/audit-exceptions.json`; nothing
+else changes. `braces` stays at 3.0.3 under stylelint's `micromatch` (no
+newer release exists), and the `markdown-it` exception
+(GHSA-gfr2-rv44-r23c, expiring 2026-10-24) is unchanged.
 
 Aggregates: `quality:gates` = format:check, lint, typecheck, check:l10n, check:host-api, deadcode, cycles, duplication, test:unit, build, security:audit; `quality` = quality:gates + test:a11y + security:secrets + security:sast; `quality:ci` = quality:gates + test:a11y + test:integration (secrets and SAST are separate CI jobs). Integration tests run only in CI or via `npm run test:integration`.
 
