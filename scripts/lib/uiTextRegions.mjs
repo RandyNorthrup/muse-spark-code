@@ -404,6 +404,20 @@ export const compactBrowserUiText = {
           'teamTemplates',
           'teamTryWithOrchestrator',
           'teamUsageTokens',
+          // M120 lane P: the preference editor's timers, secondary roles and
+          // auto-order travel with the team chunk beside U1's own keys.
+          'teamBorrowTimersTitle',
+          'teamBorrowDemandWait',
+          'teamBorrowLookahead',
+          'teamBorrowFinishGrace',
+          'teamBorrowRecallWait',
+          'teamBorrowCooldown',
+          'teamAutoOrder',
+          'teamSecondaryMain',
+          'teamSecondaryTitle',
+          'teamSecondaryAdd',
+          'teamSecondaryRemove',
+          'teamSecondaryKeys',
         ].includes(key),
       )
       const accountKeys = deferredKeys.filter((key) => /^(?:accounts|developer)$/.test(key))
