@@ -3482,6 +3482,9 @@ async function activateWindow(
       reports.recordWebviewError(error)
     },
     record: (kind, code) => reports.record(kind, code),
+    recordAudit: (audit) => {
+      reports.recordAudit(audit)
+    },
   }
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {

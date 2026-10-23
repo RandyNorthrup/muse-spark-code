@@ -8,6 +8,7 @@ import { nonnegativeUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 import { agentEvidenceSchema, agentFileSchema } from './agentEvidence'
+import { fastPathAuditSchema } from './fastPathAudit'
 
 import { scheduleViewSchema } from './schedule'
 import {
@@ -550,6 +551,12 @@ const agentEventSchema = z.discriminatedUnion('type', [
     resolvedBy: stringSchema,
     /** Why the one who answered allowed it (the Auto reviewer on Muse Code, M90); the extension's own. */
     reason: optionalString,
+  }),
+  z.object({
+    /** A held action skipped the reviewer and ran confined (M125, D107 §9.6): its audit facts, never content. */
+    type: z.literal('judgeFastSkip'),
+    itemId: stringSchema,
+    audit: fastPathAuditSchema,
   }),
   // The agent asked the user something (`request_user_input`).
   z.object({

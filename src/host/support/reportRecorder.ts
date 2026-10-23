@@ -16,6 +16,7 @@ import {
   REPORT_RECORD_WINDOW_MS,
   type ReportEventKind,
 } from '../../shared/constants'
+import type { FastPathAudit } from '../../shared/fastPathAudit'
 import type { BackendKind, ReportEventRef, ReportWebviewError } from '../../shared/protocol'
 import type { PackageFrame } from '../../shared/stackFrames'
 import type { ReportJournalSource } from '../conversation/reportProblemHandler'
@@ -27,6 +28,8 @@ export type PendingRecord =
       readonly code: string
       readonly backend?: BackendKind
       readonly frames?: readonly PackageFrame[]
+      readonly count?: number
+      readonly audit?: FastPathAudit
     }
   | { readonly kind: ReportEventKind; readonly error: unknown; readonly backend?: BackendKind }
 
@@ -54,6 +57,7 @@ export interface ReportRecorderOptions {
 export class ReportRecorder {
   private sequence = 0
   private recent: readonly number[] = []
+  private recentAudits: readonly number[] = []
   private journal: Promise<WindowJournal | undefined> | undefined
 
   public constructor(private readonly options: ReportRecorderOptions) {}
@@ -66,6 +70,24 @@ export class ReportRecorder {
       return false
     }
     this.recent = [...this.recent, at]
+    return true
+  }
+
+  /**
+  Whether another audit fits its own minute's budget; counts it when it
+  does. Audits (routine fast-path allows) spend a separate bucket from
+  failures at the same cap, so a skip flood neither starves a failure
+  nor becomes a disk write per frame.
+  */
+  private admitAudit(): boolean {
+    const at = this.options.now()
+    this.recentAudits = this.recentAudits.filter(
+      (recorded) => at - recorded < REPORT_RECORD_WINDOW_MS,
+    )
+    if (this.recentAudits.length >= REPORT_RECORD_LIMIT) {
+      return false
+    }
+    this.recentAudits = [...this.recentAudits, at]
     return true
   }
 
@@ -133,6 +155,24 @@ export class ReportRecorder {
     backend?: BackendKind,
   ): ReportEventRef | undefined {
     return this.send({ kind, error, ...(backend !== undefined && { backend }) })
+  }
+
+  /**
+  Records a fast-path allow's audit facts (M125, D107 §9.6): the fixed
+  audit kind and code with the excluded count, from the audit's own
+  minute budget. The journal scrubs and validates again before
+  anything reaches the disk.
+  */
+  public recordAudit(audit: FastPathAudit): void {
+    if (!this.admitAudit()) return
+    void this.open().then((journal) =>
+      journal?.record({
+        kind: 'judgeFastSkip',
+        code: 'fast-path-allow',
+        count: audit.excluded,
+        audit,
+      }),
+    )
   }
 
   /** Records the webview's own scrubbed failure (its frames are checked again by the journal). */
