@@ -3734,6 +3734,15 @@
   "workflowTriggerHowTo": "Setzen Sie run.workflow_trigger_mode in der Einstellungsdatei von Muse Code auf \"auto\", \"explicit\" oder \"off\", um das zu ändern; die Erweiterung bearbeitet diese Datei nie.",
   "workflowLaunched": "Gestartet: Er läuft im Hintergrund und meldet sich in dieser Unterhaltung zurück.",
   "workflowScriptSaved": "Skript gespeichert unter {path}",
+  "workflowCancel": "Abbrechen",
+  "workflowPause": "Pausieren",
+  "workflowSkip": "Überspringen",
+  "workflowPaused": "Pausiert",
+  "workflowControlFailed": "Der Workflow-Befehl wurde abgelehnt",
+  "workflowRunEnded": "Dieser Workflow-Lauf läuft nicht mehr",
+  "workflowChildNotRunning": "Dieser Workflow-Agent läuft gerade nicht",
+  "workflowChildMovedOn": "Der Agent ist inzwischen weiter; versuchen Sie es erneut",
+  "workflowUnsupported": "Dieses Backend führt keine Workflows aus",
   "backgroundTasksCount": {
     "one": "{count} Hintergrundaufgabe",
     "other": "{count} Hintergrundaufgaben"

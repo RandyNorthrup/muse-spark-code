@@ -1,12 +1,13 @@
 // A workflow run (M47, PLAN.md D40) as Muse Code reports it over MSP: its
 // name, its status and what started it, its agents (label, state, time,
-// tokens) and what it returned. Recovery controls explain the captured
-// backend limit after owner confirmation. Pausing and resuming a run are the terminal UI's alone
-// (no MSP verb), and a workflow agent keeps no
+// tokens) and what it returned. A live run offers Cancel, Pause and
+// Resume, a running agent Skip and Retry (RLF-M47, captured live
+// 2026-10-23); recovery controls on an ended agent explain the captured
+// backend limit after owner confirmation. A workflow agent keeps no
 // session of its own to read, so there is no transcript to open. The
 // transcript's card and the Agent map show this same view.
 
-import { UI_TEXT, type SubagentAction } from '../../shared/constants'
+import { UI_TEXT, type SubagentAction, type WorkflowControl } from '../../shared/constants'
 import { AgentReceiptDisclosure } from './AgentReceiptBody'
 import { buildAgentReceipt } from '../../shared/agentReceipt'
 import { agentActivity, endedOutcome, agentStateText } from '../../shared/agentOutcome'
@@ -84,16 +85,28 @@ function agentMeta(child: WorkflowChild, now: number): string {
   ])
 }
 
+/** Drive one run from its card: the run, the control, and the agent for a child control. */
+export type WorkflowControlHandler = (
+  workflowRunId: string,
+  control: WorkflowControl,
+  childId?: string,
+  childLabel?: string,
+) => void
+
 function WorkflowAgent({
   child,
   index,
   onControl,
   entryId,
+  workflowRunId,
+  onWorkflowControl,
 }: {
   readonly child: WorkflowChild
   readonly index: number
   readonly entryId: string
   readonly onControl: ((id: string, action: SubagentAction) => void) | undefined
+  readonly workflowRunId: string | undefined
+  readonly onWorkflowControl: WorkflowControlHandler | undefined
 }) {
   const now = useAgentClock()
   const name = childName(child, index)
@@ -105,6 +118,9 @@ function WorkflowAgent({
   const isEnded = agentActivity(signals, now).activity === 'inactive'
   const outcome = endedOutcome(signals)
   const isRecoverable = isEnded && (outcome === 'failed' || outcome === 'incomplete')
+  // Skip and Retry drive the in-flight attempt only; a scheduled or
+  // ended agent has none (RLF-M47). The run id addresses the command.
+  const canDriveChild = onWorkflowControl !== undefined && workflowRunId !== undefined
   return (
     <li className="workflow-agent">
       <span className={agentDot(child)} aria-hidden="true" />
@@ -122,6 +138,28 @@ function WorkflowAgent({
             buildAgentReceipt([], child.agentEvidence)
           }
         />
+      ) : null}
+      {canDriveChild && isChildRunning(child) ? (
+        <div className="agent-control-row">
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onWorkflowControl(workflowRunId, 'skip', child.childId, name)
+            }}
+          >
+            {UI_TEXT.workflowSkip}
+          </button>
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onWorkflowControl(workflowRunId, 'retry', child.childId, name)
+            }}
+          >
+            {UI_TEXT.agentRetry}
+          </button>
+        </div>
       ) : null}
       {isRecoverable && onControl !== undefined ? (
         <div className="agent-control-row">
@@ -152,38 +190,71 @@ function WorkflowAgent({
 export function WorkflowRunView({
   entry,
   onControl,
+  onWorkflowControl,
 }: {
   readonly entry: WorkflowEntry
   readonly onControl?: ((id: string, action: SubagentAction) => void) | undefined
+  readonly onWorkflowControl?: WorkflowControlHandler | undefined
 }) {
   const outcome = workflowOutcome(entry.message)
   const tokens = workflowTokens(entry)
   const name = workflowName(entry)
+  // The wire reports a paused run inProgress still; the card's own mark
+  // says paused and offers Resume instead of Pause (RLF-M47).
+  const isPaused = entry.pausedByUser === true
   const meta = joined([
-    agentStatusLabel(entry.status),
+    isPaused ? UI_TEXT.workflowPaused : agentStatusLabel(entry.status),
     entry.children.length === 0 ? undefined : plural(UI_TEXT.agentsCount, entry.children.length),
     tokens === undefined ? undefined : tokensText(tokens),
     entry.triggerSource === undefined ? undefined : triggerSourceLabel(entry.triggerSource),
   ])
+  const runId = entry.workflowRunId
+  const canDriveRun =
+    onWorkflowControl !== undefined && runId !== undefined && entry.status === RUNNING
   return (
     <>
       <div className="workflow-header">
-        <span className={runDot(entry.status)} aria-hidden="true" />
+        <span className={isPaused ? DOT : runDot(entry.status)} aria-hidden="true" />
         <span className="workflow-label">{UI_TEXT.workflowRowLabel}</span>
         <span className="workflow-name" dir="auto" title={name}>
           {name}
         </span>
       </div>
       <div className="workflow-meta">{meta}</div>
+      {canDriveRun ? (
+        <div className="agent-control-row">
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onWorkflowControl(runId, isPaused ? 'resume' : 'pause')
+            }}
+          >
+            {isPaused ? UI_TEXT.agentResume : UI_TEXT.workflowPause}
+          </button>
+          <button
+            type="button"
+            className="tool-more"
+            onClick={() => {
+              onWorkflowControl(runId, 'cancel')
+            }}
+          >
+            {UI_TEXT.workflowCancel}
+          </button>
+        </div>
+      ) : null}
       {entry.children.length === 0 ? null : (
         <ul className="workflow-agents" aria-label={UI_TEXT.workflowAgentsLabel}>
           {entry.children.map((child, index) => (
             <WorkflowAgent
-              key={child.childId}
+              // A retry schedules N+1 beside terminal N under one childId (RLF-M47).
+              key={`${child.childId}/${String(child.attempt)}`}
               child={child}
               index={index}
               entryId={entry.id}
               onControl={onControl}
+              workflowRunId={entry.workflowRunId}
+              onWorkflowControl={onWorkflowControl}
             />
           ))}
         </ul>

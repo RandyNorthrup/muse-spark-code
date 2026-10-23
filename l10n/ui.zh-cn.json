@@ -3667,6 +3667,15 @@
   "workflowTriggerHowTo": "要更改，请在 Muse Code 设置文件中将 run.workflow_trigger_mode 设置为 \"auto\"、\"explicit\" 或 \"off\"；此扩展从不编辑该文件。",
   "workflowLaunched": "已启动：它在后台运行，并会向此对话报告结果。",
   "workflowScriptSaved": "脚本已保存到 {path}",
+  "workflowCancel": "取消",
+  "workflowPause": "暂停",
+  "workflowSkip": "跳过",
+  "workflowPaused": "已暂停",
+  "workflowControlFailed": "工作流命令被拒绝",
+  "workflowRunEnded": "该工作流运行已不再运行",
+  "workflowChildNotRunning": "该工作流代理当前未运行",
+  "workflowChildMovedOn": "该代理已继续执行；请重试",
+  "workflowUnsupported": "此后端不运行工作流",
   "backgroundTasksCount": {
     "other": "{count} 个后台任务"
   },

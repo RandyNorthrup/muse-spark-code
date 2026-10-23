@@ -6359,6 +6359,15 @@ export const SUBAGENT_ACTIONS = [
   'retry',
 ] as const
 export type SubagentAction = (typeof SUBAGENT_ACTIONS)[number]
+/**
+The owner controls on a workflow run the card offers (RLF-M47): Cancel,
+Pause and Resume on the run, Skip and Retry on a running agent. Skip and
+Retry reach the in-flight attempt only (captured live 2026-10-23: a
+scheduled child is refused `invalid_target`); MSP `workflow/cancel`,
+`workflow/pause`, `workflow/resume` and `workflow/childControl`.
+*/
+export const WORKFLOW_CONTROLS = ['cancel', 'pause', 'resume', 'skip', 'retry'] as const
+export type WorkflowControl = (typeof WORKFLOW_CONTROLS)[number]
 /** D101: activity freshness and bounded lazy receipts, shared by every editor. */
 export const AGENT_ACTIVITY_WINDOW_MS = 5000
 export const AGENT_CHECK_COMMAND_WORDS = 3

@@ -1478,6 +1478,8 @@ function mergeItem(entry: TranscriptEntry, item: ItemSnapshot, at: number): Tran
         fallbackText: item.fallbackText ?? entry.fallbackText,
         children: reported === undefined ? entry.children : mergeChildren(entry.children, reported),
         message: item.message ?? entry.message,
+        // A settled run is neither paused nor resumable (RLF-M47).
+        pausedByUser: item.status === IN_PROGRESS ? entry.pausedByUser : undefined,
       }
     }
     case 'item': {
@@ -3020,6 +3022,21 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
     }
     case 'surfaceState': {
       return reconcile(state, message, at)
+    }
+    case 'workflowPaused': {
+      // A resumed run re-emits under a new item, so every entry of the
+      // run takes the mark, not just the latest (RLF-M47).
+      return {
+        ...state,
+        transcript: state.transcript.map((entry) =>
+          entry.kind === 'workflow' && entry.workflowRunId === message.workflowRunId
+            ? {
+                ...entry,
+                pausedByUser: message.paused ? true : undefined,
+              }
+            : entry,
+        ),
+      }
     }
     case 'insertText': {
       return withInsert(state, message.text)

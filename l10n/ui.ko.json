@@ -3667,6 +3667,15 @@
   "workflowTriggerHowTo": "변경하려면 Muse Code 설정 파일에서 run.workflow_trigger_mode를 \"auto\", \"explicit\" 또는 \"off\"로 설정하세요. 확장은 이 파일을 편집하지 않습니다.",
   "workflowLaunched": "시작됨: 백그라운드에서 실행되며 결과를 이 대화에 알립니다.",
   "workflowScriptSaved": "스크립트 저장 위치: {path}",
+  "workflowCancel": "취소",
+  "workflowPause": "일시 정지",
+  "workflowSkip": "건너뛰기",
+  "workflowPaused": "일시 정지됨",
+  "workflowControlFailed": "워크플로 명령이 거부되었습니다",
+  "workflowRunEnded": "해당 워크플로 실행이 더 이상 실행 중이 아닙니다",
+  "workflowChildNotRunning": "해당 워크플로 에이전트가 현재 실행 중이 아닙니다",
+  "workflowChildMovedOn": "해당 에이전트가 이미 진행되었습니다. 다시 시도하세요",
+  "workflowUnsupported": "이 백엔드는 워크플로를 실행하지 않습니다",
   "backgroundTasksCount": {
     "other": "백그라운드 작업 {count}개"
   },

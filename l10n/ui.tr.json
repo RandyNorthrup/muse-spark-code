@@ -3734,6 +3734,15 @@
   "workflowTriggerHowTo": "Değiştirmek için Muse Code ayarlar dosyasında run.workflow_trigger_mode değerini “auto”, “explicit” veya “off” olarak ayarlayın; uzantı bu dosyayı hiçbir zaman düzenlemez.",
   "workflowLaunched": "Başlatıldı: arka planda çalışır ve sonucu bu konuşmaya bildirir.",
   "workflowScriptSaved": "Betik şuraya kaydedildi: {path}",
+  "workflowCancel": "İptal",
+  "workflowPause": "Duraklat",
+  "workflowSkip": "Atla",
+  "workflowPaused": "Duraklatıldı",
+  "workflowControlFailed": "İş akışı komutu reddedildi",
+  "workflowRunEnded": "Bu iş akışı çalışması artık çalışmıyor",
+  "workflowChildNotRunning": "Bu iş akışı aracısı şu anda çalışmıyor",
+  "workflowChildMovedOn": "Bu aracı ilerledi; yeniden deneyin",
+  "workflowUnsupported": "Bu arka uç iş akışı çalıştırmıyor",
   "backgroundTasksCount": {
     "one": "{count} arka plan görevi",
     "other": "{count} arka plan görevi"

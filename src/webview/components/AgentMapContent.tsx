@@ -47,7 +47,7 @@ const TeamTree = lazy(async () => {
   return { default: module.TeamTree }
 })
 import { AgentReceiptBody, AgentReceiptDisclosure, AgentReceiptHistory } from './AgentReceiptBody'
-import { WorkflowRunView } from './WorkflowRun'
+import { WorkflowRunView, type WorkflowControlHandler } from './WorkflowRun'
 import { PaidBadge } from './PaidBadge'
 import type { PlaybookRecord } from '../../shared/playbook'
 import type { PlaybookSurfacePort } from '../../runtime/playbook/command'
@@ -90,6 +90,8 @@ export interface AgentMapProps {
   readonly onClose: () => void
   /** This conversation's workflow runs (M47). */
   readonly workflows: readonly WorkflowEntry[]
+  /** Owner controls on a workflow run (RLF-M47); absent where the host takes none. */
+  readonly onWorkflowControl?: WorkflowControlHandler | undefined
   /** Muse Code's `run.workflow_trigger_mode`; undefined on the Model API backend. */
   readonly workflowTriggerMode: string | undefined
   /**
@@ -615,6 +617,7 @@ export default function AgentMapContent({
   onOpenMuseSettings,
   onClose,
   workflows,
+  onWorkflowControl,
   workflowTriggerMode,
   team,
   teamActions,
@@ -690,7 +693,11 @@ export default function AgentMapContent({
             <ul className="agent-workflows" aria-label={UI_TEXT.workflowsLabel}>
               {workflows.map((workflow) => (
                 <li key={workflow.id} className="agent-node workflow" data-status={workflow.status}>
-                  <WorkflowRunView entry={workflow} onControl={onControl} />
+                  <WorkflowRunView
+                    entry={workflow}
+                    onControl={onControl}
+                    onWorkflowControl={onWorkflowControl}
+                  />
                 </li>
               ))}
             </ul>

@@ -1,0 +1,282 @@
+{
+  "method": "workflow/pause",
+  "commandId": "01a1674a-d6e3-7000-ac87-7cf627529dda",
+  "params": {
+    "sessionId": "01a1674a-328b-7053-83c2-2f185e18ae19",
+    "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b"
+  },
+  "ack": {
+    "commandId": "01a1674a-d6e3-7000-ac87-7cf627529dda",
+    "status": "accepted"
+  },
+  "outcome": {
+    "before": {
+      "note": "item/updated",
+      "at": "2026-10-23T05:45:18.802Z",
+      "item": {
+        "itemId": "6a27e9bb-74c4-5464-a2f5-d746319fa11a",
+        "kind": "workflow",
+        "turnId": "01a1674a-40ab-7000-b1d4-f79ccbbc8bec",
+        "revision": 12,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:45:18.548491Z",
+        "fallbackText": "Workflow: Four throwaway essays",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "entryId": "Four throwaway essays",
+        "scriptId": "generated.workflow.Four_throwaway_essays",
+        "triggerSource": "guidanceAuto",
+        "children": [
+          {
+            "childId": "01a1674a-9613-7f80-b5de-c493d442287e",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674a-a48e-7633-9a21-5648ee49795d",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674a-b6e4-7473-9a12-9dbbcb7aec33",
+            "attempt": 1,
+            "status": "started"
+          },
+          {
+            "childId": "01a1674a-cb56-76e2-a992-1f0d1c26e0ef",
+            "attempt": 1,
+            "status": "scheduled",
+            "label": "delta"
+          }
+        ],
+        "stopAvailable": true,
+        "childPromptRefs": [
+          {
+            "id": "652b5804-d0e5-5ec2-828f-44eb8c6ea3c5",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 64,
+            "availability": "available"
+          },
+          {
+            "id": "6941074b-e5b4-5114-ad7b-39fbe56e84af",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "eb60498a-a4e2-5273-8113-cf2aac07eedd",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "1acded93-22c7-58ff-9686-cceefa26ad3d",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 66,
+            "availability": "available"
+          }
+        ]
+      }
+    },
+    "draining": {
+      "note": "item/updated",
+      "at": "2026-10-23T05:45:26.720Z",
+      "item": {
+        "itemId": "6a27e9bb-74c4-5464-a2f5-d746319fa11a",
+        "kind": "workflow",
+        "turnId": "01a1674a-40ab-7000-b1d4-f79ccbbc8bec",
+        "revision": 21,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:45:26.639576Z",
+        "fallbackText": "Workflow: Four throwaway essays",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "entryId": "Four throwaway essays",
+        "scriptId": "generated.workflow.Four_throwaway_essays",
+        "triggerSource": "guidanceAuto",
+        "paused": true,
+        "children": [
+          {
+            "childId": "01a1674a-9613-7f80-b5de-c493d442287e",
+            "attempt": 1,
+            "status": "terminal",
+            "durationMs": 7709,
+            "terminal": "cancelled",
+            "failureKind": "generated_child_cancelled",
+            "failureReason": ""
+          },
+          {
+            "childId": "01a1674a-a48e-7633-9a21-5648ee49795d",
+            "attempt": 1,
+            "status": "terminal",
+            "durationMs": 8712,
+            "terminal": "cancelled",
+            "failureKind": "generated_child_cancelled",
+            "failureReason": ""
+          },
+          {
+            "childId": "01a1674a-b6e4-7473-9a12-9dbbcb7aec33",
+            "attempt": 1,
+            "status": "usage",
+            "usage": {
+              "inputTokens": 0,
+              "outputTokens": 0,
+              "cachedTokens": 0,
+              "reasoningTokens": 0
+            }
+          },
+          {
+            "childId": "01a1674a-cb56-76e2-a992-1f0d1c26e0ef",
+            "attempt": 1,
+            "status": "scheduled",
+            "label": "delta"
+          },
+          {
+            "childId": "01a1674a-9613-7f80-b5de-c493d442287e",
+            "attempt": 2,
+            "status": "scheduled",
+            "label": "alpha"
+          }
+        ],
+        "stopAvailable": true,
+        "childPromptRefs": [
+          {
+            "id": "652b5804-d0e5-5ec2-828f-44eb8c6ea3c5",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 64,
+            "availability": "available"
+          },
+          {
+            "id": "6941074b-e5b4-5114-ad7b-39fbe56e84af",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "eb60498a-a4e2-5273-8113-cf2aac07eedd",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "1acded93-22c7-58ff-9686-cceefa26ad3d",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 66,
+            "availability": "available"
+          }
+        ]
+      }
+    },
+    "settled": {
+      "note": "item/updated",
+      "at": "2026-10-23T05:45:28.113Z",
+      "item": {
+        "itemId": "6a27e9bb-74c4-5464-a2f5-d746319fa11a",
+        "kind": "workflow",
+        "turnId": "01a1674a-40ab-7000-b1d4-f79ccbbc8bec",
+        "revision": 27,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:45:28.020578Z",
+        "fallbackText": "Workflow: Four throwaway essays",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "entryId": "Four throwaway essays",
+        "scriptId": "generated.workflow.Four_throwaway_essays",
+        "triggerSource": "guidanceAuto",
+        "paused": true,
+        "children": [
+          {
+            "childId": "01a1674a-9613-7f80-b5de-c493d442287e",
+            "attempt": 1,
+            "status": "terminal",
+            "durationMs": 7709,
+            "terminal": "cancelled",
+            "failureKind": "generated_child_cancelled",
+            "failureReason": ""
+          },
+          {
+            "childId": "01a1674a-a48e-7633-9a21-5648ee49795d",
+            "attempt": 1,
+            "status": "terminal",
+            "durationMs": 8712,
+            "terminal": "cancelled",
+            "failureKind": "generated_child_cancelled",
+            "failureReason": ""
+          },
+          {
+            "childId": "01a1674a-b6e4-7473-9a12-9dbbcb7aec33",
+            "attempt": 1,
+            "status": "terminal",
+            "durationMs": 2689,
+            "terminal": "cancelled",
+            "failureKind": "generated_child_cancelled",
+            "failureReason": ""
+          },
+          {
+            "childId": "01a1674a-cb56-76e2-a992-1f0d1c26e0ef",
+            "attempt": 1,
+            "status": "scheduled",
+            "label": "delta"
+          },
+          {
+            "childId": "01a1674a-9613-7f80-b5de-c493d442287e",
+            "attempt": 2,
+            "status": "terminal",
+            "durationMs": 80,
+            "terminal": "cancelled",
+            "failureKind": "generated_child_cancelled",
+            "failureReason": ""
+          }
+        ],
+        "stopAvailable": true,
+        "childPromptRefs": [
+          {
+            "id": "652b5804-d0e5-5ec2-828f-44eb8c6ea3c5",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 64,
+            "availability": "available"
+          },
+          {
+            "id": "6941074b-e5b4-5114-ad7b-39fbe56e84af",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "eb60498a-a4e2-5273-8113-cf2aac07eedd",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 62,
+            "availability": "available"
+          },
+          {
+            "id": "1acded93-22c7-58ff-9686-cceefa26ad3d",
+            "kind": "workflow_child_prompt",
+            "uri": "",
+            "mediaType": "text/plain",
+            "byteLen": 66,
+            "availability": "available"
+          }
+        ]
+      }
+    }
+  }
+}

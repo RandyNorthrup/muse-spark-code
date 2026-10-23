@@ -3734,6 +3734,15 @@
   "workflowTriggerHowTo": "A módosításhoz állítsa a run.workflow_trigger_mode értékét \"auto\", \"explicit\" vagy \"off\" értékre a Muse Code beállításfájljában; a kiegészítő soha nem szerkeszti ezt a fájlt.",
   "workflowLaunched": "Elindítva: a háttérben fut, és ebbe a beszélgetésbe jelenti az eredményt.",
   "workflowScriptSaved": "A szkript mentési helye: {path}",
+  "workflowCancel": "Mégse",
+  "workflowPause": "Szünet",
+  "workflowSkip": "Kihagyás",
+  "workflowPaused": "Szünetel",
+  "workflowControlFailed": "A munkafolyamat-parancsot elutasították",
+  "workflowRunEnded": "Ez a munkafolyamat-futtatás már nem fut",
+  "workflowChildNotRunning": "Ez a munkafolyamat-ügynök most nem fut",
+  "workflowChildMovedOn": "Az ügynök azóta továbblépett; próbálja újra",
+  "workflowUnsupported": "Ez a backend nem futtat munkafolyamatokat",
   "backgroundTasksCount": {
     "one": "{count} háttérfeladat",
     "other": "{count} háttérfeladat"
