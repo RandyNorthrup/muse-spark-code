@@ -50,6 +50,8 @@ function settledFence(outcome: 'caution' | 'none'): JudgeFence {
     read: () => outcome,
     card: () => undefined,
     discard: () => undefined,
+    // A settled run is never a dropped one.
+    dropped: () => false,
   }
 }
 

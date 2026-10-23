@@ -127,7 +127,12 @@ describe('judge wiring replay', () => {
     const advisory = {
       start: (action: JudgeEntryParts): JudgeFence | undefined => {
         starts.push(action)
-        return { read: () => undefined, card: () => undefined, discard: () => undefined }
+        return {
+          read: () => undefined,
+          card: () => undefined,
+          discard: () => undefined,
+          dropped: () => false,
+        }
       },
       discardTurn: () => undefined,
       discardSession: () => undefined,
