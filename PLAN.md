@@ -18344,6 +18344,10 @@ and D67.
 (`docs/ide-compatibility.md`), built beside M45–M56. The phases are the
 plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
 
+**Status 2026-10-22 (RLHOSTS): building**
+(M62b tried for real where installable; M63c refreshed for PR #661; M65
+waits on RLM104; M66 assessed; `docs/certification/rlhosts.md`).
+
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
@@ -25133,7 +25137,13 @@ milestone is planned against it:
   redaction, budget and hooks as M94;
 - a separate mode with its own price line.
 
-Until then nothing is built for it.
+Until 2026-10-22 nothing was built for it.
+
+**Status 2026-10-22 (RLHOSTS): built**
+(ready, switched off; `docs/certification/rlhosts.md`). Stable
+`vscode.d.ts` through 1.140.0 has no `isInlineEdit`/`showRange`, so the
+switch names no release and yields nothing; the test proves it stays off
+and fails when flipped early.
 
 ### M100 — Paired devices as lane pools (D80, planned)
 
@@ -25289,6 +25299,15 @@ against the fake Muse Code CLI, by hand (`docs/certification/m62.md`) and
 in `hosts.yml` jobs deleted on 2026-10-17 (`docs/real-life/unproven.md`),
 so they are not yet tried for real.
 
+**Status 2026-10-22 (RLHOSTS, M62b): built**
+(tried for real where this rig can; `docs/certification/rlhosts.md`).
+Devin 3.10.67: the VSIX installs, 48 integration pass, 3 fail as in stock
+VS Code (no user bus here; environmental). code-server 4.141.0: installs,
+activates in 674 ms clean, container renders. Theia 1.76.0 (from npm):
+plugin deploys, chat webview renders, no page errors. No conversations
+(no backend credentials here). Firebase Studio, Che and Codespaces wait
+on accounts.
+
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
 ### M63 — The ACP agent (D62, phase D)
@@ -25301,6 +25320,12 @@ joined with M57, M58 and PR #49's sign-in
 fake Muse Code CLI (`docs/certification/m63.md`): Zed by hand only, and
 Emacs, Neovim and JupyterLab by hand and in `hosts.yml` jobs deleted on
 2026-10-17. None of these editors has yet held a real conversation.
+
+**Status 2026-10-22 (RLHOSTS, M63c): built**
+(entry refreshed to 0.19.0 for PR #661; `docs/certification/rlhosts.md`).
+`registry/muse-spark-code/`, otherwise PR #661's own; the registry's own
+build and `--auth-check` pass against the published package. Push and
+merge still to come.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 
