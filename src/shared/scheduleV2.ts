@@ -143,7 +143,7 @@ const relativeGlob = text.check(
       !value.split(/[\\/]/).includes('..'),
   ),
 )
-export const scheduleGrantRuleSchema = z.discriminatedUnion('kind', [
+const scheduleGrantRuleSchema = z.discriminatedUnion('kind', [
   z.strictObject({ id: identifier, kind: z.literal('command'), prefix: text }),
   z.strictObject({ id: identifier, kind: z.literal('tool'), name: text }),
   z.strictObject({
@@ -157,7 +157,7 @@ export type ScheduleGrantRule = z.infer<typeof scheduleGrantRuleSchema>
 
 // M113 owns execution and destination verification. Future cloud/SMS kinds
 // remain typed as unavailable capabilities, with no production sender here.
-export const scheduleReportDestinationSchema = z.discriminatedUnion('kind', [
+const scheduleReportDestinationSchema = z.discriminatedUnion('kind', [
   z.strictObject({
     id: identifier,
     kind: z.literal('save'),
@@ -245,7 +245,7 @@ export const schedulePaidConsentSchema = z
     runId: z.optional(runId),
   })
   .check(z.refine((consent) => consent.runId === undefined || consent.scope === 'once'))
-export const scheduleCreatorSchema = z.discriminatedUnion('kind', [
+const scheduleCreatorSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('user') }),
   z.strictObject({
     kind: z.literal('agent'),
@@ -364,7 +364,7 @@ export const scheduleGrantAuditSchema = z.strictObject({
 })
 
 // M113 Q's application-level settlement, not a provider wire response.
-export const scheduleReportOutcomeSchema = z.discriminatedUnion('status', [
+const scheduleReportOutcomeSchema = z.discriminatedUnion('status', [
   z.strictObject({ status: z.literal('delivered'), attempts: z.int().check(z.gte(0)) }),
   z.strictObject({
     status: z.literal('deferred'),
@@ -580,14 +580,14 @@ export function scheduleViewV2Of(schedule: ScheduleV2): z.infer<typeof scheduleV
   const { migration: _migration, paidConsent: _paidConsent, ...view } = schedule
   return scheduleViewV2Schema.parse(view)
 }
-export const scheduleTimelineEntrySchema = z.strictObject({
+const scheduleTimelineEntrySchema = z.strictObject({
   scheduleId: identifier,
   atMs: timestamp,
   target: scheduleTargetSchema,
   collisionIds: z.array(identifier),
   creator: scheduleCreatorSchema,
 })
-export const scheduleTimelineRangeSchema = z.union(
+const scheduleTimelineRangeSchema = z.union(
   SCHEDULE_TIMELINE_HOURS.map((hours) => z.literal(hours)),
 )
 

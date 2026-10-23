@@ -1,5 +1,4 @@
 import { parseEstimate, EstimateDiagnosticError } from './diagnostic'
-import { compareCatalogRows } from './priceCatalogs'
 import * as z from 'zod/mini'
 import {
   estimateRequestSchema,
@@ -11,7 +10,7 @@ import {
 import machineClasses from '../../shared/machineClasses.json'
 import { ESTIMATE_MAX_ITEMS } from '../../shared/constants'
 import { isStoreErrorCode } from '../../host/backend/storeErrors'
-import { compareEstimateIds } from './goal'
+import { compareCatalogRows, compareEstimateIds } from './goal'
 
 const priceSchema =
   estimateSectionSchema.shape.setups.def.element.shape.machines.def.element.shape.price.def

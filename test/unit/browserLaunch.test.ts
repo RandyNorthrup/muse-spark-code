@@ -13,8 +13,8 @@ import {
   BROWSER_FORBIDDEN_SWITCHES,
   BROWSER_HOST_RESOLVER_RULES,
   BROWSER_LAUNCH_FLAGS,
-  UI_TEXT,
-} from '../../src/shared/constants'
+} from '../../src/shared/browserCheckConstants'
+import { UI_TEXT } from '../../src/shared/constants'
 
 const PROXY = 'http://127.0.0.1:41234'
 const PROFILE = '/storage/bc/0a1b2c3d/p'

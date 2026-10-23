@@ -1,8 +1,8 @@
-// Linux's offline dictation tunables (M9, PLAN.md D140), re-exported by
-// constants.ts. This module imports nothing: the dictation bundle
-// (dist/dictation.js) and Linux's driver bundle (dist/voiceLinux.js) read it
-// directly, without the rest of constants.ts, so activation does not carry
-// it (the lane-K budget test).
+// Linux's offline dictation tunables (M9, PLAN.md D140). This module imports
+// nothing: the dictation bundle (dist/dictation.js) and Linux's driver
+// bundle (dist/voiceLinux.js) read it directly, without the rest of
+// constants.ts, so activation does not carry it (the lane-K budget test),
+// and every other module reads it from here too.
 //
 // Only Linux uses this offline English engine; model bytes stay out of
 // packages.

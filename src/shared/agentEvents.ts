@@ -43,7 +43,7 @@ One check command as a row reports it (M68): its name, how it ended, why
 it did not run, and that reason's detail (the user's feedback on Reject,
 or a hook's words).
 */
-export const checkSummarySchema = z.object({
+const checkSummarySchema = z.object({
   name: stringSchema,
   outcome: z.enum(CHECK_OUTCOMES),
   skip: z.optional(z.enum(CHECK_SKIPS)),
@@ -277,7 +277,7 @@ export type RequirementRef = z.infer<typeof requirementRefSchema>
 One stage of a multi-command shell approval (`a; b` is two stages, each
 decided in turn; verified live 2026-09-22).
 */
-export const approvalStageSchema = z.object({
+const approvalStageSchema = z.object({
   requirementId: requirementRefSchema,
   position: numberSchema,
   totalStages: numberSchema,
@@ -305,7 +305,7 @@ export const approvalSubjectSchema = z.object({
 })
 export type ApprovalSubject = z.infer<typeof approvalSubjectSchema>
 
-export const questionOptionSchema = z.object({
+const questionOptionSchema = z.object({
   label: stringSchema,
   description: optionalString,
 })
@@ -349,15 +349,10 @@ export const elicitationFieldSchema = z.object({
 export type ElicitationField = z.infer<typeof elicitationFieldSchema>
 
 /** How an elicitation form settles (M91 lane M): accept, decline or cancel. */
-export const elicitationReplySchema = z.union([
-  z.object({
-    kind: z.literal('accepted'),
-    values: z.record(z.string(), z.unknown()),
-  }),
-  z.object({ kind: z.literal('declined') }),
-  z.object({ kind: z.literal('cancelled') }),
-])
-export type ElicitationReply = z.infer<typeof elicitationReplySchema>
+export type ElicitationReply =
+  | { kind: 'accepted'; values: Record<string, unknown> }
+  | { kind: 'declined' }
+  | { kind: 'cancelled' }
 
 export const todoItemSchema = z.object({
   text: stringSchema,
@@ -389,7 +384,7 @@ SessionTokenUsageParams): raw counters verbatim, counted-once prompt
 tokens, the call's own wall time and the effective model that produced
 it. All but input/output stay optional so older frames still parse.
 */
-export const tokenUsageCompletionSchema = z.object({
+const tokenUsageCompletionSchema = z.object({
   inputTokens: numberSchema,
   outputTokens: numberSchema,
   cachedTokens: optionalNumber,

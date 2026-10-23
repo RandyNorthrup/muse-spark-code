@@ -3,8 +3,8 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { isCredentialVariable } from '../../../shared/credentialEnvironment'
+import { DICTATION_QUIT_GRACE_MS } from '../../../shared/dictationConstants'
 import {
-  DICTATION_QUIT_GRACE_MS,
   BYTES_PER_MIB,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MILLISECONDS_PER_SECOND,

@@ -8,7 +8,10 @@
 // injects the start.
 
 import { Buffer } from 'node:buffer'
-import { DICTATION_HELPER_COMMANDS, DICTATION_STDERR_TAIL_CHARS } from '../../shared/constants'
+import {
+  DICTATION_HELPER_COMMANDS,
+  DICTATION_STDERR_TAIL_CHARS,
+} from '../../shared/dictationConstants'
 import type { HelperChild } from './dictation'
 
 type ChunkListener = (chunk: Buffer | string) => void

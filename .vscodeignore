@@ -3,6 +3,7 @@
 !dist/devices.js
 !dist/resourceAdmission.js
 !dist/resourceGovernor.js
+!dist/resourceGovernorWindows.js
 !dist/resourceProcess.js
 !dist/resourceJournal.js
 !dist/mcpVault.js
@@ -180,6 +181,7 @@
 !dist/vaultActions.js
 !dist/vaultMigration.js
 !dist/estimator.js
+!dist/estimateActions.js
 !dist/estimateContracts.js
 !dist/planSnapshot.js
 !dist/estimatePrices.js

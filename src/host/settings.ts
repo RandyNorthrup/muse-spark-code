@@ -16,8 +16,6 @@ import {
   type BackendMode,
   VAULT_PROTECTION_MODES,
   type VaultProtectionMode,
-  BROWSER_RUNTIME_MODES,
-  type BrowserRuntimeMode,
   type CheckCommandSetting,
   type EnvironmentVariable,
   JUDGE_ENGINES,
@@ -51,6 +49,7 @@ import {
   type TabTrigger,
   type TabWithCopilot,
 } from '../shared/constants'
+import { BROWSER_RUNTIME_MODES, type BrowserRuntimeMode } from '../shared/browserCheckConstants'
 import type { PermissionSettings } from '../core/permissionSettings'
 import { type SettingsSnapshot, settingsSnapshotShape } from '../shared/protocol'
 import type { Logger } from './logger'

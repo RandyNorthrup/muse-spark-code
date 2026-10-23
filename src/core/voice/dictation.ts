@@ -29,7 +29,7 @@ import {
   DICTATION_QUIT_GRACE_MS,
   DICTATION_STDERR_TAIL_CHARS,
   DICTATION_STOP_GRACE_MS,
-} from '../../shared/constants'
+} from '../../shared/dictationConstants'
 import type { CoreLogger } from '../logging'
 import type { OwnedSessionBudgetScope } from '../backends/modelapi/sessionBudget'
 

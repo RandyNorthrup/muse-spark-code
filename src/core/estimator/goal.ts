@@ -4,6 +4,7 @@ import {
   estimateGoalSchema,
   estimateLaneSchema,
   estimateRequestSchema,
+  type CatalogPrice,
   type EstimateGoal,
   type EstimateLane,
 } from '../../shared/estimate'
@@ -83,6 +84,19 @@ export interface EstimateGoalSourcesPort {
 export function compareEstimateIds(left: string, right: string): number {
   if (left < right) return -1
   return left > right ? 1 : 0
+}
+
+interface CatalogRow {
+  classId: string
+  price: CatalogPrice
+}
+/** Code-unit order, so rows are deterministic no matter how the vendor orders
+its answer; prices.ts re-sorts identically through this same comparator. */
+export function compareCatalogRows(a: CatalogRow, b: CatalogRow): number {
+  return compareEstimateIds(
+    JSON.stringify([a.classId, a.price.providerId, a.price.sizeId]),
+    JSON.stringify([b.classId, b.price.providerId, b.price.sizeId]),
+  )
 }
 
 /** Remaining active agent hours; git wall time is never subtracted here. */

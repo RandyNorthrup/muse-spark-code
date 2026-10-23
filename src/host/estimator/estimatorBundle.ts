@@ -66,11 +66,11 @@ export function lazyEstimator(deps: LazyEstimatorDeps): EstimatorRun {
     return run
   }
   return {
-    parseCommand: (text, context) => {
+    parseCommand: async (text, context) => {
       const entry = loaded()
       if (entry.parseCommand === undefined)
         throw new EstimateDiagnosticError('estimate-unavailable', UI_TEXT.estimateUnavailable)
-      return entry.parseCommand(text, context)
+      return await entry.parseCommand(text, context)
     },
     estimate: async (request, signal) => await loaded().estimate(request, signal),
     startWave: async (input) => await loaded().startWave(input),
