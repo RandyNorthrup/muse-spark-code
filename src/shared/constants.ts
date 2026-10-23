@@ -6019,6 +6019,7 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  partialContent: 206,
   /** A 2xx answer ends below this (M95 lane K: the local probe). */
   multipleChoices: 300,
   badRequest: 400,

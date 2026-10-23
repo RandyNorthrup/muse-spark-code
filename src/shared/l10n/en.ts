@@ -5706,6 +5706,28 @@ export const EN = {
   judgeNotSetUp: 'Judge: Not Set Up — Set Up',
   judgeInstalling: 'Judge: Installing ({percent})',
   referenceJudgeSetup: 'Scan this machine and install a local judge model.',
+  // M125 lane H (D107): the setup recommender's plain-words reasons. Sizes
+  // and latencies arrive formatted; families stay codes (technical detail).
+  judgeRecommend: {
+    pick: 'Recommended: {model} ({size}).',
+    fitGpu: "It fits in your GPU's memory.",
+    fitCpu: 'It fits in memory with room to spare.',
+    latency: 'Should answer in about {latency} at worst.',
+    classesOn: 'Fast enough for: {classes}.',
+    classesOff: 'Not fast enough for: {classes}.',
+    classInline: 'decisions before each request',
+    classSlack: 'decisions while you type',
+    classBoundary: 'decisions while the model works',
+    classPost: 'checks on each reply',
+    uncalibrated: 'Checks on replies stay off until it is calibrated for them.',
+    calibrated: 'Calibrated for: {families}.',
+    lowerQuality:
+      'A smaller model, lower quality: speed decisions only, never destructive-command review or vetoes.',
+    noneUnmeasured: 'Nothing to recommend yet: no model has verified timings on this computer.',
+    noneUnfit: 'No local judge fits this computer: nothing fast enough fits in memory and on disk.',
+    noneUncalibrated: 'No local judge is ready yet: the fitting models still need calibration.',
+    cpuOnly: 'No usable GPU was found; judging CPU-only options.',
+  },
   // The Models panel's Judge section (M98 phase 2, lane FP). Amounts are filled
   // with the display language's money format; an unknown amount is not shown as zero.
   judgePanel: {
