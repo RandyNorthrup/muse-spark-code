@@ -15,9 +15,8 @@ import {
   pinnedSystemOnePost,
   systemOneKey,
   systemOneRoute,
-  type SystemOneResolve,
-  type SystemOneSend,
   type SystemOneSideIo,
+  type SystemOneTransportSeams,
 } from './systemone/side'
 
 /** The only status whose body lane C reads as a SystemOne result. */
@@ -82,8 +81,7 @@ export interface SeparateSourcePorts {
   /** The surface's key, ledger, consent and policy readers. */
   readonly systemOne: Omit<SystemOneSideIo, 'post' | 'measureTokens'>
   /** Tests' seams for the M95 pinned transport; production passes none. */
-  readonly transport?:
-    { readonly resolve?: SystemOneResolve; readonly send?: SystemOneSend } | undefined
+  readonly transport?: SystemOneTransportSeams | undefined
   /**
   Whether M95's store holds a usable, origin-bound key for this provider
   id. `undefined` means not read yet (the window's first action after

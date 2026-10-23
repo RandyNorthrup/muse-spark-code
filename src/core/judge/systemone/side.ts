@@ -10,6 +10,8 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
+import { failureForLog } from '../../backends/musecode/logText'
+import type { CoreLogger } from '../../logging'
 import type { PinnedResponse, PinnedTarget } from '../../web/webFetch'
 import { isSecretFieldName, redactSecrets } from '../../redact'
 import {
@@ -179,6 +181,13 @@ export type SystemOneSend = (
 /** Name resolution for the route's host; every address is returned. */
 export type SystemOneResolve = (host: string) => Promise<readonly string[]>
 
+/** Tests' seams for the M95 pinned transport; production passes none. */
+export interface SystemOneTransportSeams {
+  readonly resolve?: SystemOneResolve | undefined
+  readonly send?: SystemOneSend | undefined
+  readonly log?: CoreLogger | undefined
+}
+
 async function defaultResolve(host: string): Promise<readonly string[]> {
   const rows = await lookup(host, { all: true })
   return rows.map((row) => row.address)
@@ -288,7 +297,7 @@ is bounded. A refusal before the connection is up is not a send (lane C
 refunds it); anything after it keeps its liability.
 */
 export function pinnedSystemOnePost(
-  seams: { readonly resolve?: SystemOneResolve; readonly send?: SystemOneSend } = {},
+  seams: SystemOneTransportSeams = {},
 ): SystemOneJudgeDependencies['post'] {
   return async (request) => {
     const notSent = { sent: false, status: 0, body: undefined }
@@ -298,7 +307,8 @@ export function pinnedSystemOnePost(
     let answers: readonly string[]
     try {
       answers = isIP(host) === 0 ? await (seams.resolve ?? defaultResolve)(host) : [host]
-    } catch {
+    } catch (error: unknown) {
+      seams.log?.warn(`SystemOne resolve failed: ${failureForLog(error)}`)
       return notSent
     }
     const verdict = endpointPolicy.checkEndpointUrl(url.href, answers)
@@ -341,8 +351,9 @@ export function pinnedSystemOnePost(
         body: scrubSystemOneBody(await boundedJson(response), request.key),
       }
     } catch (error: unknown) {
-      if (!connection.isUp) return notSent
-      throw error
+      if (connection.isUp) throw error
+      seams.log?.warn(`SystemOne send failed: ${failureForLog(error)}`)
+      return notSent
     }
   }
 }

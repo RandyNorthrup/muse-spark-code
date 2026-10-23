@@ -25,6 +25,7 @@ import type { JudgePlanRuntime, JudgeRuntimeDeps } from '../../core/judge/runtim
 import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { SeparateRouteFacts, SeparateSourcePorts } from '../../core/judge/sides'
 import type { Logger } from '../logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { judgeFeaturesLoader } from '../../runtime/judge/judgeBundle'
 
 function defaultReadFile(file: string): string | undefined {
@@ -116,7 +117,8 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
         keyReady.set(separateId, isReady)
         if (isChanged) deps.onKeyChange?.()
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        deps.log.warn(`Separate key check failed: ${failureForLog(error)}`)
         keyReady.set(separateId, false)
       })
   }
