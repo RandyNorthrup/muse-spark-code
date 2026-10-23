@@ -241,10 +241,12 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
           }
         }
       } catch (error: unknown) {
+        // The backstop's failure keeps the abort's own reason as its
+        // cause; the sentence stays fixed either way.
         return {
           ok: false,
           cause: timeout.signal.aborted
-            ? new Error('The Tab request timed out waiting for the provider')
+            ? new Error('The Tab request timed out waiting for the provider', { cause: error })
             : error,
         }
       } finally {
