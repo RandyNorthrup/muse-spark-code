@@ -22,10 +22,14 @@ import {
 } from '../../src/shared/teamAvailability'
 import { isSameTeamModel } from '../../src/core/team/sameModel'
 import { TeamContractError, teamSessionAdmission } from '../../src/acp/teamAdmission'
-import { createExecTeam, type ExecTeamDeps } from '../../src/runtime/exec/execTeamEntry'
+import {
+  createExecTeam,
+  type ExecTeam,
+  type ExecTeamDeps,
+} from '../../src/runtime/exec/execTeamEntry'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { Usd } from '../../src/shared/usd'
-import { availabilityBinding } from './helpers/teamAvailabilityRig'
+import { availabilityBindingWithOpenRoles } from './helpers/teamAvailabilityRig'
 import { panelRig } from './helpers/teamPanelRig'
 import { teamOffers } from './helpers/teamPanelOffers'
 
@@ -62,15 +66,7 @@ function check(
 }
 
 function binding(isTeamOn: boolean) {
-  const openRolesCalls: unknown[][] = []
-  const { bound, factoryCalls } = availabilityBinding(isTeamOn, {
-    openRoles: () => {
-      openRolesCalls.push([])
-      return Promise.resolve()
-    },
-    showDiff: () => Promise.resolve(),
-  })
-  return { bound, factoryCalls, openRolesCalls }
+  return availabilityBindingWithOpenRoles(isTeamOn)
 }
 
 function stored(team: unknown) {
@@ -150,6 +146,24 @@ function snapshotWith(agent: unknown) {
       },
     ],
     intensity: 'balanced',
+  }
+}
+
+async function withTeamRun(
+  snapshot: unknown,
+  run: (team: ExecTeam) => Promise<void>,
+): Promise<void> {
+  const { root, dataFolder, cwd } = await teamRunFolders()
+  try {
+    if (snapshot !== undefined) await storedSnapshot(dataFolder, cwd, snapshot)
+    const team = await createExecTeam(teamRunDeps(dataFolder, cwd), UI_TEXT, 'en')
+    try {
+      await run(team)
+    } finally {
+      await team.close()
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true })
   }
 }
 
@@ -325,17 +339,9 @@ describe('ACP session admission', () => {
 
 describe('headless team runs', () => {
   it('refuses --team without a second runnable model, naming the rule', async () => {
-    const { root, dataFolder, cwd } = await teamRunFolders()
-    try {
-      const team = await createExecTeam(teamRunDeps(dataFolder, cwd), UI_TEXT, 'en')
-      try {
-        await expect(team.prepare(LEAD)).rejects.toThrow(UI_TEXT.teamNeedsSecondModel)
-      } finally {
-        await team.close()
-      }
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+    await withTeamRun(undefined, async (team) => {
+      await expect(team.prepare(LEAD)).rejects.toThrow(UI_TEXT.teamNeedsSecondModel)
+    })
   })
 
   it('refuses a Solo snapshot and a subscription-only second model', async () => {
@@ -343,40 +349,21 @@ describe('headless team runs', () => {
       { ...snapshotWith(undefined), template: 'Solo' },
       snapshotWith({ kind: 'engine', agentId: 'a1', model: WORKER, pays: 'subscription' }),
     ]) {
-      const { root, dataFolder, cwd } = await teamRunFolders()
-      try {
-        await storedSnapshot(dataFolder, cwd, snapshot)
-        const team = await createExecTeam(teamRunDeps(dataFolder, cwd), UI_TEXT, 'en')
-        try {
-          await expect(team.prepare(LEAD)).rejects.toThrow(UI_TEXT.teamNeedsSecondModel)
-        } finally {
-          await team.close()
-        }
-      } finally {
-        await rm(root, { recursive: true, force: true })
-      }
+      await withTeamRun(snapshot, async (team) => {
+        await expect(team.prepare(LEAD)).rejects.toThrow(UI_TEXT.teamNeedsSecondModel)
+      })
     }
   })
 
   it('offers the team endpoint with a second runnable engine model', async () => {
-    const { root, dataFolder, cwd } = await teamRunFolders()
-    try {
-      await storedSnapshot(
-        dataFolder,
-        cwd,
-        snapshotWith({ kind: 'engine', agentId: 'a1', model: WORKER, pays: 'key' }),
-      )
-      const team = await createExecTeam(teamRunDeps(dataFolder, cwd), UI_TEXT, 'en')
-      try {
+    await withTeamRun(
+      snapshotWith({ kind: 'engine', agentId: 'a1', model: WORKER, pays: 'key' }),
+      async (team) => {
         await team.prepare(LEAD)
         await team.prepare(LEAD)
         expect(team.teamDecisionSource(LEAD)).toBeDefined()
-      } finally {
-        await team.close()
-      }
-    } finally {
-      await rm(root, { recursive: true, force: true })
-    }
+      },
+    )
   })
 })
 
