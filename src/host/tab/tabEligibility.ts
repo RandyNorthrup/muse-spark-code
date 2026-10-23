@@ -39,10 +39,13 @@ const BASENAME_SLOT = '$(basename)'
 function matcherOf(glob: string): ((relativePath: string) => boolean) | undefined {
   try {
     return compileGlob(glob)
-  } catch {
-    // An uncompilable pattern excludes nothing: it is the user's own typo,
+  } catch (error) {
+    // An over-limit pattern excludes nothing: it is the user's own typo,
     // and failing closed here would silence Tab for a bad setting.
-    return undefined
+    if (error instanceof RangeError) {
+      return undefined
+    }
+    throw error
   }
 }
 
