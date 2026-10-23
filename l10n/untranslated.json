@@ -121,7 +121,8 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "nodeOs.netWifi"
     ],
     "cs": [
       "groupModel",
@@ -144,7 +145,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure"
+      "devices.diskPressure",
+      "nodeOs.diskTitle"
     ],
     "tr": [
       "groupModel",
@@ -158,7 +160,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure"
+      "devices.diskPressure",
+      "nodeOs.diskTitle"
     ],
     "pl": [
       "groupModel",
@@ -231,7 +234,8 @@
       "gitPullRequestFormLabel",
       "agentsCount.one",
       "openPullRequestRepository",
-      "sessionListsHooks"
+      "sessionListsHooks",
+      "nodeOs.consoleName"
     ],
     "es": [
       "hooksItem",
