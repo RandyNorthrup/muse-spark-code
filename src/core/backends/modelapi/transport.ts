@@ -478,6 +478,23 @@ export function isPacingGoverned(
   return modelId !== undefined && (path === '/responses' || provider !== 'meta')
 }
 
+/**
+The pacing bucket a request observes into. Token-count requests keep
+their own bucket: Anthropic documents a separate rate limit for its
+count endpoint (platform.claude.com/docs/en/build-with-claude/
+token-counting, read 2026-10-22), so count answers must never shape the
+message bucket's headroom, and message answers never the count one.
+*/
+export function pacingAccountFor(
+  provider: string,
+  baseUrl: string,
+  keyDigest: string,
+  isCountRequest: boolean,
+): string {
+  const account = `${provider}:${baseUrl}:${keyDigest}`
+  return isCountRequest ? `${account}:count` : account
+}
+
 /** One retry the client is about to make, for the transcript's notice. */
 export interface RetryNotice {
   readonly phase?: 'pacing'
@@ -1212,6 +1229,12 @@ export class RequestTransport {
       so it is not.
       */
       readonly headers?: Readonly<Record<string, string>>
+      /**
+      Set where the caller built a token-count request (`tokenCount.ts`,
+      the client's own count): its answer paces under the count bucket,
+      never the message one (`pacingAccountFor`).
+      */
+      readonly countRequest?: boolean
       readonly retries?: 'all' | 'rateLimitOnly'
       readonly paid?: {
         readonly claim: SpendClaim
@@ -1338,7 +1361,12 @@ export class RequestTransport {
           throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       }
       assertScheduleAuthority()
-      const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
+      const account = pacingAccountFor(
+        provider.identity.provider,
+        this.deps.baseUrl,
+        credentials.keyDigest,
+        init.countRequest === true,
+      )
       const kind = init.pacingClass ?? 'foreground'
       if (isGoverned) {
         // No admission deadline of our own (owner 2026-10-16): the wait

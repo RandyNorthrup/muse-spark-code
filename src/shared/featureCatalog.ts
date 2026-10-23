@@ -1376,7 +1376,7 @@ export function featureCatalog(): readonly Feature[] {
       { setting: 'modelApiPromptCacheRetention' },
       { setting: 'modelApiPromptCacheRetention' },
       [],
-      ['modelApiPromptCacheRetention'],
+      ['modelApiPromptCacheRetention', 'modelApiPromptCacheTtl'],
       'paid-features',
       ['modelApi'],
       false,

@@ -4080,6 +4080,8 @@
   "execBudgetStartBytes": "Korlátos futtatás: keret {cap}, fennmaradó {remaining}. Minden kérés a bájt-korlátos bemenetét plusz legfeljebb {output} kimeneti tokent foglal le.",
   "execBudgetStillReading": "A költségkeret olvasás közben állította le a futtatást, ezért még nincs válasz.",
   "execCountBytesFallback": "A szolgáltató bemenetszámlálása sikertelen, ezért ez a kérés a bájtbecslést foglalja le.",
+  "execCountBytesFailed": "A szolgáltató bemenetszámlálása sikertelen (HTTP {status}, {type}), ezért ez a kérés a bájtbecslést foglalja le.",
+  "execCountBytesOverLength": "A szolgáltató bemenetszámlálása meghaladta a kérés méretét, ezért ez a kérés a bájtbecslést foglalja le.",
   "execOutputCapExceeded": "A --max-output-tokens meghaladja a(z) {cap} tokent kimeneti korlátot.",
   "execUnpricedProvider": "Ehhez a modellhez nincs ismert díjszabás, ezért a korlátolt futtatás nem tud foglalni ehhez: {model}. Adjon meg árat ehhez a modellhez itt: {file}, vagy válasszon árazott modellt.",
   "execUnpricedModel": "Ehhez a modellhez nincs ismert díjszabás, ezért a korlátolt futtatás nem tud foglalni. Válasszon árazott modellt.",
@@ -5021,7 +5023,7 @@
     "newBadge": "Új"
   },
   "modelToolCallingUnavailable": "Az eszközhívás nincs ellenőrizve ennél a modellnél.",
-  "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
+  "paidProviderPrice": "Millió tokenenként: bemenet {input}, gyorsítótár-olvasás {cached}, gyorsítótár-írás {write}, egyórás írás {write1h}, tizenkét órás írás {write12h}, kimenet {output}. Kérésenként {request}; képenként {image}.",
   "paidProviderPriceTier": "{threshold} bemeneti tokentől: bemenet {input}, kimenet {output} milliónként.",
   "modelUnpriced": "Ár nélkül",
   "modelLocal": "Helyi",
@@ -5286,7 +5288,8 @@
     "azureResource": "Azure-erőforrás",
     "deployment": "Üzembe helyezés",
     "loopbackPort": "Helyi port",
-    "customFormat": "Protokollformátum"
+    "customFormat": "Protokollformátum",
+    "safetyIdentifier": "Végfelhasználói azonosító (xAI-biztonság)"
   },
   "providerDocs": "Dokumentáció",
   "providerDataUse": "Adatai felhasználása",

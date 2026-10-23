@@ -4163,6 +4163,8 @@
   "execBudgetStartBytes": "Execução com teto: teto {cap}, restam {remaining}. Cada solicitação reserva sua entrada limitada por bytes mais até {output} tokens de saída.",
   "execBudgetStillReading": "O orçamento interrompeu a execução enquanto ela ainda estava lendo, então ainda não há resposta.",
   "execCountBytesFallback": "A contagem de entrada do provedor falhou, então esta solicitação reserva o limite de bytes.",
+  "execCountBytesFailed": "A contagem de entrada do provedor falhou (HTTP {status}, {type}), então esta solicitação reserva o limite de bytes.",
+  "execCountBytesOverLength": "A contagem de entrada do provedor excedeu o tamanho da solicitação, então esta solicitação reserva o limite de bytes.",
   "execOutputCapExceeded": "--max-output-tokens excede o limite de saída de {cap} tokens.",
   "execUnpricedProvider": "Este modelo não tem uma tarifa conhecida, então uma execução com limite não pode reservar para {model}. Adicione um preço para este modelo em {file} ou escolha um modelo com preço.",
   "execUnpricedModel": "Este modelo não tem uma tarifa conhecida, então uma execução com limite não pode reservar. Escolha um modelo com preço.",
@@ -5149,7 +5151,7 @@
     "newBadge": "Novo"
   },
   "modelToolCallingUnavailable": "A chamada de ferramentas não foi verificada para este modelo.",
-  "paidProviderPrice": "Por milhão de tokens: entrada {input}, leitura de cache {cached}, gravação de cache {write}, gravação de uma hora {write1h}, saída {output}. Por solicitação {request}; por imagem {image}.",
+  "paidProviderPrice": "Por milhão de tokens: entrada {input}, leitura de cache {cached}, gravação de cache {write}, gravação de uma hora {write1h}, gravação de doze horas {write12h}, saída {output}. Por solicitação {request}; por imagem {image}.",
   "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, saída {output} por milhão.",
   "modelUnpriced": "Sem preço",
   "modelLocal": "Local",
@@ -5418,7 +5420,8 @@
     "azureResource": "Recurso do Azure",
     "deployment": "Implantação",
     "loopbackPort": "Porta local",
-    "customFormat": "Formato do protocolo"
+    "customFormat": "Formato do protocolo",
+    "safetyIdentifier": "ID de usuário final (segurança xAI)"
   },
   "providerDocs": "Documentação",
   "providerDataUse": "Como seus dados são usados",

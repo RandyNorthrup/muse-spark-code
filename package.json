@@ -862,6 +862,20 @@
           "description": "%config.modelApiPromptCacheRetention.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiPromptCacheTtl": {
+          "type": "string",
+          "enum": [
+            "default",
+            "12h"
+          ],
+          "enumDescriptions": [
+            "%config.modelApiPromptCacheTtl.enumDescriptions.default%",
+            "%config.modelApiPromptCacheTtl.enumDescriptions.12h%"
+          ],
+          "default": "default",
+          "description": "%config.modelApiPromptCacheTtl.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiScheduledPrompts": {
           "type": "boolean",
           "default": true,

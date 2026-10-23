@@ -57,6 +57,7 @@ export interface ProviderEntry {
             readonly cachedInput?: number | undefined
             readonly cacheWrite?: number | undefined
             readonly cacheWrite1h?: number | undefined
+            readonly cacheWrite12h?: number | undefined
             readonly request?: number | undefined
             readonly image?: number | undefined
           }
@@ -73,6 +74,8 @@ export interface ProviderEntry {
   readonly numCtx?: Readonly<Record<string, number>> | undefined
   /** An Azure entry's deployment name, sent as the wire `model` (PROVM95). */
   readonly deployment?: string | undefined
+  /** An xAI entry's end-user id, sent as `safety_identifier` (OC5). */
+  readonly safetyIdentifier?: string | undefined
   /** A private-network address the user confirmed once (D74). */
   readonly privateNetwork?: boolean | undefined
 }

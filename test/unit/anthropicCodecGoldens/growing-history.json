@@ -2,7 +2,7 @@
   {
     "path": "/v1/messages",
     "headers": {
-      "anthropic-version": "2023-06-01"
+      "anthropic-version": "2026-10-21"
     },
     "body": {
       "model": "claude-sonnet-5-5",
@@ -64,7 +64,7 @@
   {
     "path": "/v1/messages",
     "headers": {
-      "anthropic-version": "2023-06-01"
+      "anthropic-version": "2026-10-21"
     },
     "body": {
       "model": "claude-sonnet-5-5",
@@ -147,7 +147,7 @@
   {
     "path": "/v1/messages",
     "headers": {
-      "anthropic-version": "2023-06-01"
+      "anthropic-version": "2026-10-21"
     },
     "body": {
       "model": "claude-sonnet-5-5",

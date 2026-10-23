@@ -20,6 +20,7 @@ import {
   type ProvidersFile,
 } from '../../src/core/providers/providersFile'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
+import { settleUsageUsd, type PriceCard } from '../../src/core/providers/priceCard'
 import { ACP_AGENT_NAME } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
@@ -163,6 +164,51 @@ describe('stored force reasons', () => {
         }),
       ).success,
     ).toBe(true)
+  })
+})
+
+describe('stored safety identifier', () => {
+  it('keeps a valid id and rejects blanks and terminal controls', () => {
+    // The id is printed back in the panel and the file, so like a
+    // stored model id it never validates blank or with control or
+    // format characters (the bidi override would steer a terminal).
+    expect(
+      providerEntrySchema.safeParse(entry(['grok-4.7'], { safetyIdentifier: 'coder-7' })).success,
+    ).toBe(true)
+    for (const id of ['', ' '.repeat(3), 'ok\nforged', 'a\u{1B}[31mb', 'a\u{202E}b']) {
+      expect(
+        providerEntrySchema.safeParse(entry(['grok-4.7'], { safetyIdentifier: id })).success,
+        JSON.stringify(id),
+      ).toBe(false)
+    }
+  })
+})
+
+describe('stored user prices', () => {
+  it('keeps a 12-hour write rate on a user-entered card (RLPROVSYNC)', () => {
+    const priced = entry(['gpt-5.6'], {
+      prices: {
+        'gpt-5.6': { input: 4e-6, output: 20e-6, cacheWrite: 5e-6, cacheWrite12h: 10e-6 },
+      },
+    })
+    const parsed = providerEntrySchema.safeParse(priced)
+    expect(parsed.success).toBe(true)
+    if (!parsed.success) throw new Error('the user card did not parse')
+    // The entered rate prices 12-hour writes where the provider reports
+    // them, beating the documented 2.5x fallback.
+    const userCard: PriceCard = {
+      ...parsed.data.prices!['gpt-5.6']!,
+      source: 'user',
+    }
+    expect(userCard.cacheWrite12h).toBe(10e-6)
+    expect(
+      settleUsageUsd(userCard, {
+        inputTokens: 1000,
+        cacheWriteTokens: 1000,
+        cacheWriteTokens12h: 1000,
+        outputTokens: 0,
+      }),
+    ).toBeCloseTo(0.01, 12)
   })
 })
 

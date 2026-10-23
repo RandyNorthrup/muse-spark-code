@@ -124,6 +124,7 @@ describe('usage journal v1', () => {
       cacheWrite: 15,
       cacheWrite5m: 5,
       cacheWrite1h: 10,
+      cacheWrite12h: 0,
       output: 30,
       reasoning: 12,
       estimated: true,

@@ -383,6 +383,7 @@ export function rollupUsageRecords(records: readonly UsageRecord[]): UsageRollup
       'cacheWrite',
       'cacheWrite5m',
       'cacheWrite1h',
+      'cacheWrite12h',
       'output',
       'reasoning',
     ] as const) {

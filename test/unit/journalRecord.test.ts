@@ -10,6 +10,7 @@ import {
   type UsageRecordContext,
 } from '../../src/core/usage/journalRecord'
 import { isValidUsage, settleUsageUsd, type PriceCard } from '../../src/core/providers/priceCard'
+import { modelPricedUsage } from '../../src/core/backends/modelapi/modelPolicy'
 import { decodeAnthropicStream } from '../../src/core/backends/modelapi/codecs/anthropic'
 import { decodeChatStream } from '../../src/core/backends/modelapi/codecs/chat'
 import { decodeGeminiStream } from '../../src/core/backends/modelapi/codecs/gemini'
@@ -95,6 +96,64 @@ describe('journal records', () => {
     expect(isValidUsage({ ...billable, cacheWriteTokens1h: 21 })).toBe(false)
     expect(settleUsageUsd(card, { ...billable, cacheWriteTokens1h: 21 })).toBeUndefined()
     expect(settleUsageUsd(card, { ...billable, cacheWriteTokens1h: NaN })).toBeUndefined()
+  })
+  it('prices twelve-hour writes as a subset, explicitly or at 2.5x input (RLPROVSYNC)', () => {
+    const billable = {
+      inputTokens: 100,
+      outputTokens: 20,
+      cachedTokens: 30,
+      cacheWriteTokens: 20,
+      cacheWriteTokens1h: 5,
+      cacheWriteTokens12h: 7,
+    }
+    // 50 fresh at 1, 30 read at 0.1, 8 short-TTL at 2, 5 1-hour at 3,
+    // 7 12-hour at the explicit 5, 20 out at 4, the 0.5 request price.
+    expect(settleUsageUsd({ ...card, cacheWrite12h: 5 }, billable)).toBe(199.5)
+    // Without an explicit rate the 12-hour subset settles at 2.5x input.
+    expect(settleUsageUsd(card, billable)).toBe(182)
+    // Two individually valid subsets that jointly exceed the written
+    // total leave the cost unknown.
+    expect(
+      settleUsageUsd(card, { ...billable, cacheWriteTokens1h: 14, cacheWriteTokens12h: 7 }),
+    ).toBeUndefined()
+    expect(isValidUsage({ ...billable, cacheWriteTokens1h: 14, cacheWriteTokens12h: 7 })).toBe(
+      false,
+    )
+  })
+  it('keeps the 12-hour subset and derives the short remainder (RLPROVSYNC)', () => {
+    expect(
+      normaliseUsage({
+        ...usage,
+        input_tokens_details: {
+          cached_tokens: 30,
+          cache_write_tokens: 20,
+          cache_write_tokens_1h: 5,
+          cache_write_tokens_12h: 7,
+        },
+      }),
+    ).toEqual({
+      input: 100,
+      output: 20,
+      cached: 30,
+      cacheWrite: 20,
+      cacheWrite1h: 5,
+      cacheWrite12h: 7,
+      cacheWrite5m: 8,
+      reasoning: 4,
+    })
+    expect(() =>
+      normaliseUsage({
+        ...usage,
+        input_tokens_details: { cache_write_tokens: 20, cache_write_tokens_12h: 21 },
+      }),
+    ).toThrow('invalidUsage')
+    // The settle path reads the same subset off the canonical usage.
+    expect(
+      modelPricedUsage({
+        ...usage,
+        input_tokens_details: { cache_write_tokens: 20, cache_write_tokens_12h: 7 },
+      }),
+    ).toMatchObject({ cacheWriteTokens: 20, cacheWriteTokens12h: 7 })
   })
   it('keeps canonical subsets and absent counters without inventing zeroes', () => {
     expect(normaliseUsage(usage)).toEqual({

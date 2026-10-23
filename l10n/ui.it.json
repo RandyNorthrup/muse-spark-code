@@ -4163,6 +4163,8 @@
   "execBudgetStartBytes": "Esecuzione con tetto: tetto {cap}, restano {remaining}. Ogni richiesta prenota il proprio input limitato dai byte più fino a {output} token di output.",
   "execBudgetStillReading": "Il budget ha interrotto l’esecuzione mentre stava ancora leggendo, quindi non esiste ancora una risposta.",
   "execCountBytesFallback": "Il conteggio dell’input del provider non è riuscito, quindi questa richiesta prenota il limite in byte.",
+  "execCountBytesFailed": "Il conteggio dell’input del provider non è riuscito (HTTP {status}, {type}), quindi questa richiesta prenota il limite in byte.",
+  "execCountBytesOverLength": "Il conteggio dell’input del provider ha superato la dimensione della richiesta, quindi questa richiesta prenota il limite in byte.",
   "execOutputCapExceeded": "--max-output-tokens supera il limite di uscita di {cap} token.",
   "execUnpricedProvider": "Questo modello non ha una tariffa nota, quindi un’esecuzione con budget non può prenotare per {model}. Aggiungi un prezzo per questo modello in {file} o scegli un modello con prezzo.",
   "execUnpricedModel": "Questo modello non ha una tariffa nota, quindi un’esecuzione con budget non può prenotare. Scegli un modello con prezzo.",
@@ -5149,7 +5151,7 @@
     "newBadge": "Nuovo"
   },
   "modelToolCallingUnavailable": "La chiamata agli strumenti non è stata verificata per questo modello.",
-  "paidProviderPrice": "Per milione di token: input {input}, lettura cache {cached}, scrittura cache {write}, scrittura di un’ora {write1h}, output {output}. Per richiesta {request}; per immagine {image}.",
+  "paidProviderPrice": "Per milione di token: input {input}, lettura cache {cached}, scrittura cache {write}, scrittura di un’ora {write1h}, scrittura di dodici ore {write12h}, output {output}. Per richiesta {request}; per immagine {image}.",
   "paidProviderPriceTier": "Da {threshold} token di input: input {input}, output {output} per milione.",
   "modelUnpriced": "Senza prezzo",
   "modelLocal": "Locale",
@@ -5418,7 +5420,8 @@
     "azureResource": "Risorsa di Azure",
     "deployment": "Distribuzione",
     "loopbackPort": "Porta locale",
-    "customFormat": "Formato del protocollo"
+    "customFormat": "Formato del protocollo",
+    "safetyIdentifier": "ID utente finale (sicurezza xAI)"
   },
   "providerDocs": "Documentazione",
   "providerDataUse": "Come vengono usati i dati",

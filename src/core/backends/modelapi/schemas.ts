@@ -183,6 +183,11 @@ export const usageSchema = z.object({
         // of writes. Absent TTL information stays unknown, never guessed.
         cache_write_tokens: z.optional(z.number()),
         cache_write_tokens_1h: z.optional(z.number()),
+        // RLPROVSYNC: the 12-hour-written subset of `cache_write_tokens`
+        // (OpenAI GPT-5.6 and later report it per TTL), disjoint from the
+        // 30-minute remainder and from the 1-hour subset. Absent where the
+        // provider reports none.
+        cache_write_tokens_12h: z.optional(z.number()),
       }),
     ),
   ),

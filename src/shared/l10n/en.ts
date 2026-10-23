@@ -5101,6 +5101,14 @@ export const EN = {
   // bound is used instead. The provider's own error never reaches this line.
   execCountBytesFallback:
     'The provider input count failed, so the byte bound reserves this request instead.',
+  // The same fallback with the redacted HTTP failure named: {status} is the
+  // count answer's status, {type} its error type. Never content.
+  execCountBytesFailed:
+    'The provider input count failed (HTTP {status}, {type}), so the byte bound reserves this request instead.',
+  // An exact provider count larger than the request itself was rejected:
+  // its own reason the byte bound is used instead.
+  execCountBytesOverLength:
+    'The provider input count exceeded the request size, so the byte bound reserves this request instead.',
   // A --max-output-tokens value above the policy cap is refused at parsing.
   // {cap} is the absolute ceiling every policy cap sits at or below.
   execOutputCapExceeded: '--max-output-tokens exceeds the output cap of {cap} tokens.',
@@ -6406,7 +6414,7 @@ export const EN = {
   // How a model without a dollar price is marked.
   modelToolCallingUnavailable: 'Tool calling has not been verified for this model.',
   paidProviderPrice:
-    'Per million tokens: input {input}, cache read {cached}, cache write {write}, one-hour write {write1h}, output {output}. Per request {request}; per image {image}.',
+    'Per million tokens: input {input}, cache read {cached}, cache write {write}, one-hour write {write1h}, twelve-hour write {write12h}, output {output}. Per request {request}; per image {image}.',
   paidProviderPriceTier:
     'From {threshold} input tokens: input {input}, output {output} per million.',
   modelUnpriced: 'Unpriced',
@@ -6768,6 +6776,7 @@ export const EN = {
     deployment: 'Deployment',
     loopbackPort: 'Local Port',
     customFormat: 'Wire Format',
+    safetyIdentifier: 'End-user ID (xAI safety)',
   },
   providerDocs: 'Documentation',
   providerDataUse: 'How Your Data Is Used',

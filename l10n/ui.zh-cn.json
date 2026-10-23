@@ -3997,6 +3997,8 @@
   "execBudgetStartBytes": "限额运行：上限 {cap}，剩余 {remaining}。每个请求预留其字节上限的输入，外加最多 {output} 个输出 token。",
   "execBudgetStillReading": "预算在运行仍在读取时将其停止，因此尚无答案。",
   "execCountBytesFallback": "提供方输入计数失败，因此此请求改为按字节上限预留。",
+  "execCountBytesFailed": "提供方输入计数失败（HTTP {status}，{type}），因此此请求改为按字节上限预留。",
+  "execCountBytesOverLength": "提供方输入计数超出请求大小，因此此请求改为按字节上限预留。",
   "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 个 token 的输出上限。",
   "execUnpricedProvider": "此模型没有已知费率，因此限额运行无法为 {model} 预留费用。请在 {file} 中为此模型添加价格，或选择有价格的模型。",
   "execUnpricedModel": "此模型没有已知费率，因此限额运行无法预留费用。请选择有价格的模型。",
@@ -4893,7 +4895,7 @@
     "newBadge": "新增"
   },
   "modelToolCallingUnavailable": "此模型的工具调用尚未验证。",
-  "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
+  "paidProviderPrice": "每百万词元：输入 {input}、缓存读取 {cached}、缓存写入 {write}、一小时写入 {write1h}、十二小时写入 {write12h}、输出 {output}。每次请求 {request}；每张图片 {image}。",
   "paidProviderPriceTier": "输入达到 {threshold} 个词元后：每百万词元输入 {input}、输出 {output}。",
   "modelUnpriced": "无定价",
   "modelLocal": "本地",
@@ -5154,7 +5156,8 @@
     "azureResource": "Azure 资源",
     "deployment": "部署",
     "loopbackPort": "本地端口",
-    "customFormat": "协议格式"
+    "customFormat": "协议格式",
+    "safetyIdentifier": "最终用户ID（xAI安全）"
   },
   "providerDocs": "文档",
   "providerDataUse": "数据的使用方式",

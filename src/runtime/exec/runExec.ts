@@ -90,6 +90,7 @@ import {
   previewResponseReservation,
   type TierPrice,
 } from './runLedger'
+import { inputBoundInfoLine } from '../runtimeAccountingEntry'
 import { isPlanModelRef } from '../../shared/providerRouting'
 import type { ExecBudgetRefusal } from './execProtocol'
 import { observeBackend, type SessionTap } from './sessionTap'
@@ -1030,16 +1031,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 },
                 started: (n, ticket) => {
                   tap?.beginResponse(n)
-                  // EXECPROV round 6: a byte bound after a failed exact count
-                  // says so on the info line, with the fixed reason.
-                  if (ticket.inputBound === 'estimate')
-                    log.info(
-                      fill(UI_TEXT.execEstimateBound, {
-                        margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
-                      }),
-                    )
-                  else if (ticket.inputBound === 'bytes-after-failure')
-                    log.info(UI_TEXT.execCountBytesFallback)
+                  // EXECPROV round 6: a byte bound after a failed or
+                  // rejected exact count says so on the info line, with the
+                  // fixed reason: the redacted HTTP failure where one was
+                  // captured, and its own line for an over-length count.
+                  const boundLine = inputBoundInfoLine(ticket)
+                  if (boundLine !== undefined) log.info(boundLine)
                   sink.emit({
                     type: 'attempt',
                     n,

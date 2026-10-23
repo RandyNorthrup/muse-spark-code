@@ -4246,6 +4246,8 @@
   "execBudgetStartBytes": "Uruchomienie z limitem: limit {cap}, pozostało {remaining}. Każde żądanie rezerwuje wejście ograniczone bajtami plus maksymalnie {output} tokenów wyjściowych.",
   "execBudgetStillReading": "Budżet zatrzymał uruchomienie, gdy wciąż czytało, więc odpowiedź jeszcze nie istnieje.",
   "execCountBytesFallback": "Liczenie wejścia dostawcy nie powiodło się, więc to żądanie rezerwuje ograniczenie bajtowe.",
+  "execCountBytesFailed": "Liczenie wejścia dostawcy nie powiodło się (HTTP {status}, {type}), więc to żądanie rezerwuje ograniczenie bajtowe.",
+  "execCountBytesOverLength": "Liczenie wejścia dostawcy przekroczyło rozmiar żądania, więc to żądanie rezerwuje ograniczenie bajtowe.",
   "execOutputCapExceeded": "--max-output-tokens przekracza limit wyjścia {cap} tokenów.",
   "execUnpricedProvider": "Ten model nie ma znanej taryfy, więc uruchomienie z limitem nie może zarezerwować dla {model}. Dodaj cenę tego modelu w {file} albo wybierz model z ceną.",
   "execUnpricedModel": "Ten model nie ma znanej taryfy, więc uruchomienie z limitem nie może zarezerwować. Wybierz model z ceną.",
@@ -5277,7 +5279,7 @@
     "newBadge": "Nowy"
   },
   "modelToolCallingUnavailable": "Wywoływanie narzędzi nie zostało zweryfikowane dla tego modelu.",
-  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
+  "paidProviderPrice": "Za milion tokenów: wejście {input}, odczyt pamięci podręcznej {cached}, zapis pamięci podręcznej {write}, zapis na godzinę {write1h}, zapis na 12 godzin {write12h}, wyjście {output}. Za żądanie {request}; za obraz {image}.",
   "paidProviderPriceTier": "Od {threshold} tokenów wejściowych: wejście {input}, wyjście {output} za milion.",
   "modelUnpriced": "Bez ceny",
   "modelLocal": "Lokalny",
@@ -5550,7 +5552,8 @@
     "azureResource": "Zasób platformy Azure",
     "deployment": "Wdrożenie",
     "loopbackPort": "Port lokalny",
-    "customFormat": "Format protokołu"
+    "customFormat": "Format protokołu",
+    "safetyIdentifier": "Identyfikator użytkownika końcowego (bezpieczeństwo xAI)"
   },
   "providerDocs": "Dokumentacja",
   "providerDataUse": "Sposób wykorzystania danych",

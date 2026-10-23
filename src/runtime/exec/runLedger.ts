@@ -22,10 +22,20 @@ export interface TierPrice {
 /**
 EXECPROV round 6: which input bound a ticket's reservation used. `exact`
 is the provider's same-body count; `bytes-after-failure` is the byte bound
-after an exact count was tried and failed. Absent is the legacy path, which
-never tried an exact count.
+after an exact count was tried and failed; `bytes-over-length` is the byte
+bound after an exact count larger than the request itself was rejected.
+Absent is the legacy path, which never tried an exact count.
 */
-export type ResponseInputBound = 'exact' | 'estimate' | 'bytes-after-failure'
+export type ResponseInputBound = 'exact' | 'estimate' | 'bytes-after-failure' | 'bytes-over-length'
+/**
+A failed exact count's redacted HTTP facts for the info line: its status
+and the envelope's `error.type`, never content. The kind is already the
+log-safe word (`wireWordForLog` at capture).
+*/
+export interface CountFailureDetail {
+  readonly status: number
+  readonly kind: string
+}
 export interface ResponseTicket {
   readonly recordsLastResponse?: boolean
   readonly contextTokens?: number | undefined
@@ -36,6 +46,8 @@ export interface ResponseTicket {
   readonly reserveUsd: UsdAmount
   readonly price: TierPrice
   readonly inputBound?: ResponseInputBound | undefined
+  /** The failed count's redacted facts, present only with `bytes-after-failure`. */
+  readonly countFailure?: CountFailureDetail | undefined
 }
 export interface ImageTicket {
   readonly n: number
@@ -115,6 +127,7 @@ export interface RunLedger {
     readonly reserveUsd?: UsdAmount | undefined
     readonly inputBound?: ResponseInputBound | undefined
     readonly recordsLastResponse?: boolean
+    readonly countFailure?: CountFailureDetail | undefined
   }): ResponseTicket | { refused: Refusal }
   admitImage(endpoint: 'images.generations' | 'images.edits'): ImageTicket | { refused: Refusal }
   /** A preflight refusal has no attempt to settle but remains typed in the record. */
@@ -181,6 +194,8 @@ function freezeResponseTicket(
     readonly price: TierPrice
     readonly contextTokens?: number | undefined
     readonly reserveUsd?: UsdAmount | undefined
+    readonly inputBound?: ResponseInputBound | undefined
+    readonly countFailure?: CountFailureDetail | undefined
   },
   amount: bigint,
   n: number,

@@ -83,6 +83,11 @@ When you choose a ChatGPT model, OpenAI receives the conversation history,
 instructions, attachments supported by the codec, tool definitions and tool
 results at `https://api.openai.com/v1/responses`, as it would for an OpenAI
 API-key request. `store: false` is requested; OpenAI's terms govern retention.
+With your own key on GPT-5.6 and later, your machine-scoped
+`museSpark.modelApiPromptCacheTtl` setting can ask OpenAI for a 12-hour
+minimum cache lifetime instead of the 30-minute default; the longer
+lifetime's cache writes bill at 2.5 times the input rate, and the plan
+route never sends the choice.
 Sign-in, ID-token validation, refresh and revocation contact
 `https://auth.openai.com`. Catalogue discovery contacts OpenAI's models
 endpoint without sending a conversation. The opaque installation identifier is

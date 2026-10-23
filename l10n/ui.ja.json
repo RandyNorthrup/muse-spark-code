@@ -3997,6 +3997,8 @@
   "execBudgetStartBytes": "上限付き実行: 上限 {cap}、残り {remaining}。各リクエストはバイト上限の入力に加え、最大 {output} 出力トークンを確保します。",
   "execBudgetStillReading": "予算により実行は読み取り中に停止したため、まだ回答は存在しません。",
   "execCountBytesFallback": "プロバイダーの入力カウントに失敗したため、このリクエストはバイト上限で確保します。",
+  "execCountBytesFailed": "プロバイダーの入力カウントに失敗したため (HTTP {status}、{type})、このリクエストはバイト上限で確保します。",
+  "execCountBytesOverLength": "プロバイダーの入力カウントがリクエストサイズを超えたため、このリクエストはバイト上限で確保します。",
   "execOutputCapExceeded": "--max-output-tokens が出力上限 {cap} トークンを超えています。",
   "execUnpricedProvider": "このモデルの料金は不明なため、上限付きの実行では {model} の予約ができません。{file} にこのモデルの料金を追加するか、料金のあるモデルを選んでください。",
   "execUnpricedModel": "このモデルの料金は不明なため、上限付きの実行では予約ができません。料金のあるモデルを選んでください。",
@@ -4893,7 +4895,7 @@
     "newBadge": "新着"
   },
   "modelToolCallingUnavailable": "このモデルではツール呼び出しが検証されていません。",
-  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
+  "paidProviderPrice": "100万トークンあたり：入力 {input}、キャッシュ読み取り {cached}、キャッシュ書き込み {write}、1時間の書き込み {write1h}、12時間の書き込み {write12h}、出力 {output}。リクエストあたり {request}、画像あたり {image}。",
   "paidProviderPriceTier": "入力が {threshold} トークン以上の場合：100万トークンあたり入力 {input}、出力 {output}。",
   "modelUnpriced": "価格なし",
   "modelLocal": "ローカル",
@@ -5154,7 +5156,8 @@
     "azureResource": "Azure リソース",
     "deployment": "デプロイ",
     "loopbackPort": "ローカルポート",
-    "customFormat": "プロトコル形式"
+    "customFormat": "プロトコル形式",
+    "safetyIdentifier": "エンドユーザーID (xAIセーフティ)"
   },
   "providerDocs": "ドキュメント",
   "providerDataUse": "データの使用方法",

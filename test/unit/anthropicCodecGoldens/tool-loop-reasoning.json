@@ -1,7 +1,7 @@
 {
   "path": "/v1/messages",
   "headers": {
-    "anthropic-version": "2023-06-01",
+    "anthropic-version": "2026-10-21",
     "anthropic-beta": "thinking-binding-controls-2026-08-01"
   },
   "body": {

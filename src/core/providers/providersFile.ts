@@ -43,6 +43,7 @@ export const userPriceCardSchema = z.object({
   cachedInput: z.optional(z.number()),
   cacheWrite: z.optional(z.number()),
   cacheWrite1h: z.optional(z.number()),
+  cacheWrite12h: z.optional(z.number()),
   output: z.number(),
   request: z.optional(z.number()),
   image: z.optional(z.number()),
@@ -100,6 +101,18 @@ export const providerEntrySchema = z
     // (and terminal adds, which have no deployment option) must still
     // load; `wireModelFor` requires it at send.
     deployment: z.optional(z.string()),
+    // The person's own end-user id sent as `safety_identifier` (only on
+    // an `xai` entry, OC5): xAI attributes a policy violation to it
+    // rather than to the API key (docs.x.ai release notes, September
+    // 2026). Optional like the deployment; blank, control and format
+    // characters never validate, as for stored model ids.
+    safetyIdentifier: z.optional(
+      z.string().check(
+        z.refine((value) => value.trim() !== '' && !/[\p{Cc}\p{Cf}]/u.test(value), {
+          error: () => UI_TEXT.actionFailed,
+        }),
+      ),
+    ),
     // Set once the user answers the private-network question for this entry.
     privateNetwork: z.optional(z.boolean()),
     // Models added despite the provider not listing them (D120): each maps

@@ -413,6 +413,67 @@ describe('anthropic codec goldens (checked-in request bytes)', () => {
   })
 })
 
+describe('API version 2026-10-21 (removed fields)', () => {
+  it('sends none of the removed fields across a file-and-tools history', () => {
+    // 2026-10-21 answers 400 to temperature/top_p/top_k, to a document
+    // block in an assistant turn, and to citations on user text
+    // (platform.claude.com/docs/en/api/versioning). This history
+    // exercises every block the builder emits — a user PDF (a document,
+    // in the user turn only), an assistant reply, and a tool round-trip —
+    // and the built request carries none of the removed fields.
+    const body = canonicalBody({
+      instructions: 'Answer briefly.',
+      tools: [GET_TIME_TOOL],
+      input: [
+        {
+          type: 'message',
+          role: 'user',
+          content: [
+            { type: 'input_text', text: 'Summarize the attached memo.' },
+            {
+              type: 'input_file',
+              filename: 'memo.pdf',
+              file_data: 'data:application/pdf;base64,AAAA',
+            },
+          ],
+        },
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'output_text', text: 'I will call get_time first.' }],
+        },
+        {
+          type: 'function_call',
+          id: 'toolu_01version',
+          call_id: 'toolu_01version',
+          name: 'get_time',
+          arguments: '{"timezone":"UTC"}',
+        },
+        {
+          type: 'function_call_output',
+          call_id: 'toolu_01version',
+          output: restoredToolText('2026-10-04T12:00:00Z'),
+        },
+      ],
+    })
+    const encoded = encodeAnthropicRequest(body, { ...BASE_OPTIONS, effort: 'none' })
+    expect(encoded.headers['anthropic-version']).toBe('2026-10-21')
+    expect(encoded.body).not.toHaveProperty('temperature')
+    expect(encoded.body).not.toHaveProperty('top_p')
+    expect(encoded.body).not.toHaveProperty('top_k')
+    for (const message of encoded.body.messages) {
+      if (typeof message.content === 'string') continue
+      for (const block of message.content) {
+        if (message.role === 'assistant') expect(block.type).not.toBe('document')
+      }
+    }
+    expect(JSON.stringify(encoded.body)).not.toContain('"citations"')
+    // The PDF still rides as a document in the user turn.
+    const user = encoded.body.messages.find((message) => message.role === 'user')
+    expect(JSON.stringify(user?.content ?? [])).toContain('"type":"document"')
+  })
+})
+
 describe('prefix stability (acceptance 4)', () => {
   it('a follow-up keeps every earlier native byte', () => {
     const first = canonicalBody({

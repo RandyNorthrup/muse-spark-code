@@ -162,6 +162,12 @@ const recordSchema = z.strictObject({
     nativeModel: z.string(),
     format: z.enum(['responses', 'chat', 'anthropic', 'gemini', 'ollama']),
     servedVersion: z.optional(z.string()),
+    // The model's lifecycle from its list (AC3): `active`, `deprecated`
+    // or `retired`, with the deprecation and scheduled-retirement
+    // instants where the list carries them.
+    lifecycle: z.optional(z.enum(['active', 'deprecated', 'retired'])),
+    deprecatedAt: z.optional(z.string()),
+    retiresAt: z.optional(z.string()),
   }),
   ...groups,
   logprobs: logprobsSchema,
@@ -180,6 +186,9 @@ export type ModelCapabilityRecord = Readonly<z.infer<typeof recordSchema>>
 export const capabilityOverridesSchema = z
   .strictObject({
     servedVersion: z.optional(z.string()),
+    lifecycle: z.optional(z.enum(['active', 'deprecated', 'retired'])),
+    deprecatedAt: z.optional(z.string()),
+    retiresAt: z.optional(z.string()),
     tools: z.optional(z.partial(toolsSchema)),
     reasoning: z.optional(
       z.extend(z.partial(reasoningSchema), { replay: z.optional(z.partial(replaySchema)) }),
@@ -273,8 +282,9 @@ export function resolveModelCapabilities(
 ): ModelCapabilityRecord {
   const unknown = { state: 'unknown' }
   const sources: Record<string, CapabilitySource> = {}
+  const mergedIdentity: Record<string, unknown> = { ...identity }
   const result: Record<string, unknown> = {
-    identity: { ...identity },
+    identity: mergedIdentity,
     sources,
     tools: {
       calling: unknown,
@@ -303,7 +313,8 @@ export function resolveModelCapabilities(
   }
   const ordered = evidence.toSorted((a, b) => PRIORITY[a.source.kind] - PRIORITY[b.source.kind])
   for (const item of ordered) {
-    const { servedVersion, ...patch } = capabilityOverridesSchema.parse(item.fields)
+    const { servedVersion, lifecycle, deprecatedAt, retiresAt, ...patch } =
+      capabilityOverridesSchema.parse(item.fields)
     const modes = patch.reasoning?.modes
     if (
       modes !== undefined &&
@@ -317,9 +328,14 @@ export function resolveModelCapabilities(
           : { state: 'no', source: item.source }
     }
     overlay(result, patch, sourceSchema.parse(item.source), sources)
-    if (servedVersion === undefined) continue
-    result['identity'] = { ...identity, servedVersion }
-    sources['identity.servedVersion'] = item.source
+    // Identity facts accumulate per field in priority order, like the
+    // overlay: a later source wins only the fields it speaks.
+    const identityFacts = { servedVersion, lifecycle, deprecatedAt, retiresAt }
+    for (const [key, value] of Object.entries(identityFacts)) {
+      if (value === undefined) continue
+      mergedIdentity[key] = value
+      sources[`identity.${key}`] = item.source
+    }
   }
   const record = recordSchema.parse(result)
   if (

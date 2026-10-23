@@ -3,6 +3,7 @@ import type { ModelPricing } from '../core/providers/priceCard'
 import {
   UI_TEXT,
   MODEL_API_PRICE_DECIMALS,
+  OPENAI_CACHE_WRITE_12H_MULTIPLE,
   PROVIDER_PRICE_MAX_DECIMALS,
   TOKENS_PER_MILLION,
 } from './constants'
@@ -31,6 +32,10 @@ function providerPriceText(pricing: ModelPricing): string | undefined {
     cached: providerPriceRate(card.cachedInput ?? card.input),
     write: providerPriceRate(card.cacheWrite ?? card.input),
     write1h: providerPriceRate(card.cacheWrite1h ?? card.cacheWrite ?? card.input),
+    // RLPROVSYNC: the effective 12-hour write rate, as settlement prices
+    // it — the explicit rate where one exists, else the documented 2.5x
+    // multiple of uncached input.
+    write12h: providerPriceRate(card.cacheWrite12h ?? card.input * OPENAI_CACHE_WRITE_12H_MULTIPLE),
     output: providerPriceRate(card.output),
     request: providerPriceAmount(card.request ?? 0),
     image: providerPriceAmount(card.image ?? 0),

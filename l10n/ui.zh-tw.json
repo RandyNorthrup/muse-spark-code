@@ -3997,6 +3997,8 @@
   "execBudgetStartBytes": "限額執行：上限 {cap}，剩餘 {remaining}。每個請求預留其位元組上限的輸入，外加最多 {output} 個輸出 token。",
   "execBudgetStillReading": "預算在執行仍在讀取時將其停止，因此尚無答案。",
   "execCountBytesFallback": "提供者輸入計數失敗，因此此請求改按位元組上限預留。",
+  "execCountBytesFailed": "提供者輸入計數失敗（HTTP {status}，{type}），因此此請求改按位元組上限預留。",
+  "execCountBytesOverLength": "提供者輸入計數超出請求大小，因此此請求改按位元組上限預留。",
   "execOutputCapExceeded": "--max-output-tokens 超出 {cap} 個 token 的輸出上限。",
   "execUnpricedProvider": "此模型沒有已知費率，因此限額執行無法為 {model} 預留費用。請在 {file} 中為此模型新增價格，或選擇有價格的模型。",
   "execUnpricedModel": "此模型沒有已知費率，因此限額執行無涅法預留費用。請選擇有價格的模型。",
@@ -4893,7 +4895,7 @@
     "newBadge": "新增"
   },
   "modelToolCallingUnavailable": "此模型的工具呼叫尚未驗證。",
-  "paidProviderPrice": "每百萬詞元：輸入 {input}、快取讀取 {cached}、快取寫入 {write}、一小時寫入 {write1h}、輸出 {output}。每次請求 {request}；每張圖片 {image}。",
+  "paidProviderPrice": "每百萬詞元：輸入 {input}、快取讀取 {cached}、快取寫入 {write}、一小時寫入 {write1h}、十二小時寫入 {write12h}、輸出 {output}。每次請求 {request}；每張圖片 {image}。",
   "paidProviderPriceTier": "輸入達到 {threshold} 個詞元後：每百萬詞元輸入 {input}、輸出 {output}。",
   "modelUnpriced": "無定價",
   "modelLocal": "本機",
@@ -5154,7 +5156,8 @@
     "azureResource": "Azure 資源",
     "deployment": "部署",
     "loopbackPort": "本機連接埠",
-    "customFormat": "通訊協定格式"
+    "customFormat": "通訊協定格式",
+    "safetyIdentifier": "最終使用者ID（xAI安全）"
   },
   "providerDocs": "文件",
   "providerDataUse": "資料的使用方式",
