@@ -96,6 +96,10 @@
     "src/host/backend/museCodeEntry.ts",
     "src/host/backend/providersEntry.ts",
     "src/host/backend/subscriptionsEntry.ts",
+    // Subscription dispatch and terminal commands (RLGROKAUTH), built as
+    // dist/subscriptionCommands.js, required by path on the first
+    // subscription action.
+    "src/host/backend/subscriptionCommandsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
     // The sign-in gate's own bundle (CIFIX161B), required by path on the

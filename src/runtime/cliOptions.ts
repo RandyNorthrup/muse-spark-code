@@ -38,6 +38,7 @@ export function formatAcpUsage(table: UiText, command: string): string {
       ? [table.scheduleV2.runtime.usage, table.referenceCliOptions['scheduled-prompts']]
       : []),
     fill(table.acpChatGpt.usage, { command }),
+    fill(table.acpGrok.usage, { command }),
     sharingCliHelp(table, command),
     table.referenceCliOptions['context-window'],
     sharingHelp(table),
@@ -361,6 +362,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
   const name = route
     .replace(/^reports /, 'report ')
     .replace(/^chatGptProvider (.*)$/, 'providers $1 chatgpt')
+    .replace(/^grokProvider (.*)$/, 'providers $1 grok')
     .replace(
       /^(providers|auth|fonts)([A-Z])/,
       (_match, prefix: string, letter: string) => `${prefix} ${letter.toLowerCase()}`,
@@ -392,6 +394,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       developer: table.developer.commandUsage,
       'providers accounts': table.accounts.cliUsage,
       chatGptProvider: table.acpChatGpt.usage,
+      grokProvider: table.acpGrok.usage,
       reports: table.reportCliUsage,
       help: table.referenceBriefHelp,
       share: sharingCliHelp(table, command),

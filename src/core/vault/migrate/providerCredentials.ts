@@ -11,11 +11,12 @@
 // parse it. Documents with unknown fields are refused rather than migrated
 // with fields dropped. `oauth`/`subscription` records are opaque installed
 // strings (no issuer, resource or expiry the vault's `oauth` material could
-// honestly carry), so they migrate opaquely. The `chatgpt` subscription
-// record is a different installed shape (`chatGptRecordSchema`) with its own
-// owner lane: this factory refuses it eagerly so it can never collide with
-// that codec. Meta's own key keeps its codec in `./modelApi`. The codec
-// shell is shared (`migrationCodec` in `./material`).
+// honestly carry), so they migrate opaquely. The `chatgpt` and `grok`
+// subscription records are different installed shapes (`chatGptRecordSchema`,
+// `grokRecordSchema`) with their own owner lanes: this factory refuses them
+// eagerly so they can never collide with those codecs. Meta's own key keeps
+// its codec in `./modelApi`. The codec shell is shared (`migrationCodec` in
+// `./material`).
 import { createHash } from 'node:crypto'
 import { PROVIDER_SECRET_PREFIX, VAULT_KEY_BYTES } from '../../../shared/constants'
 import {
@@ -94,7 +95,7 @@ export function providerCredentialMigrationCredential(
   provider: string,
   now: () => number,
 ): MigrationCredential {
-  if (provider === 'chatgpt') throw new VaultMigrationFault('invalid')
+  if (provider === 'chatgpt' || provider === 'grok') throw new VaultMigrationFault('invalid')
   const key = `${PROVIDER_SECRET_PREFIX}${provider}`
   const itemId = createHash('sha256').update(key).digest('hex').slice(0, VAULT_KEY_BYTES)
   return migrationCodec(key, itemId, migrationItemName('provider', provider), now, shape)

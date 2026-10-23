@@ -1275,6 +1275,11 @@
       "note": "recovery: the owner's 0.19.0 test-drive items 11-15, fixed"
     },
     {
+      "id": "RLGROKAUTH",
+      "public": false,
+      "note": "Grok subscription sign-in (xAI OAuth), pending xAI's registration"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

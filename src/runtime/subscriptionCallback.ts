@@ -1,34 +1,48 @@
-// The ACP callback is the documented /auth/callback, never /callback.
-// A waiting promise exists before the URL is printed, and the deadline
-// starts when the listener opens, even if nobody calls waitForCallback.
+// The subscription callback is the documented /auth/callback, never
+// /callback. A waiting promise exists before the URL is printed, and the
+// deadline starts when the listener opens, even if nobody calls
+// waitForCallback. One server serves every subscription provider; each
+// provider binds its own callback parse and failure class.
 import { createServer, type ServerResponse } from 'node:http'
-import {
-  ChatGptSignInError,
-  parseChatGptCallback,
-  type ChatGptHostPort,
-} from '../core/providers/subscriptions/chatgpt'
+// The sign-in cores stay in dist/subscriptions.js; this bundle reads them
+// through subscriptionsEntry (one `instanceof` across the boundary).
+import { chatGptCallbackBinding, grokCallbackBinding } from '../host/backend/subscriptionsEntry'
 import { pkce } from '../host/backend/providersEntry'
 const { isPkceState } = pkce
 import { HTTP_STATUS, OAUTH_CODE_TTL_MS, OAUTH_LOOPBACK_HOST } from '../shared/constants'
 
-type Callback = Awaited<ReturnType<ChatGptHostPort['startCallback']>>
+export interface SubscriptionCallback {
+  readonly redirectUri: string
+  waitForCallback(): Promise<string>
+  close(): void
+}
+
+export interface SubscriptionCallbackBinding<E extends Error> {
+  /** Validate one callback URL; throw the provider's failure where it does not match. */
+  parse(url: string, redirectUri: string): void
+  fail(
+    code: 'invalid-callback' | 'callback-timeout' | 'cancelled' | 'local-failed',
+    reason?: string,
+    cause?: unknown,
+  ): E
+  isFailure(error: unknown): error is E
+}
 
 /** Localized page text is supplied by the runtime/editor, never provider text. */
-export async function startChatGptCallback(
+export async function startSubscriptionCallback<E extends Error>(
   state: string,
   timeoutMs: number,
   pageText: () => string,
+  binding: SubscriptionCallbackBinding<E>,
   signal?: AbortSignal,
-  /** The saved issued client a reauthorization's callback may omit. */
-  clientId?: string,
-): Promise<Callback> {
+): Promise<SubscriptionCallback> {
   if (
     !isPkceState(state) ||
     !Number.isFinite(timeoutMs) ||
     timeoutMs <= 0 ||
     timeoutMs > OAUTH_CODE_TTL_MS
   )
-    throw new ChatGptSignInError('invalid-callback')
+    throw binding.fail('invalid-callback')
   signal?.throwIfAborted()
   const server = createServer()
   let redirectUri = ''
@@ -47,7 +61,7 @@ export async function startChatGptCallback(
   })
   void waiting.catch(() => null)
 
-  const finish = (value?: string | ChatGptSignInError, isFlushing = false): void => {
+  const finish = (value?: string | E, isFlushing = false): void => {
     if (isSettled) return
     isSettled = true
     clearTimeout(timer)
@@ -55,17 +69,17 @@ export async function startChatGptCallback(
     server.close()
     if (!isFlushing) server.closeAllConnections()
     if (typeof value === 'string') resolveWait?.(value)
-    else rejectWait?.(value ?? new ChatGptSignInError('invalid-callback'))
+    else rejectWait?.(value ?? binding.fail('invalid-callback'))
   }
   const cancel = () => {
     finish()
   }
   // No answer in time and a caller's cancel are their own causes.
   const expire = () => {
-    finish(new ChatGptSignInError('callback-timeout'))
+    finish(binding.fail('callback-timeout'))
   }
   const abort = () => {
-    finish(new ChatGptSignInError('cancelled'))
+    finish(binding.fail('cancelled'))
   }
   const answer = (response: ServerResponse, status: number): void => {
     response.writeHead(status, {
@@ -106,7 +120,7 @@ export async function startChatGptCallback(
       return
     }
     try {
-      parseChatGptCallback(url.href, redirectUri, state, clientId)
+      binding.parse(url.href, redirectUri)
       answer(response, HTTP_STATUS.ok)
       finish(url.href, true)
     } catch (error) {
@@ -114,7 +128,7 @@ export async function startChatGptCallback(
       // Let the fixed page flush, then destroy every connection. Preserve
       // only our validated failure (a refusal, another attempt's state),
       // never arbitrary request/error text.
-      finish(error instanceof ChatGptSignInError ? error : undefined, true)
+      finish(binding.isFailure(error) ? error : undefined, true)
     }
   })
   try {
@@ -125,8 +139,7 @@ export async function startChatGptCallback(
       })
     })
     const address = server.address()
-    if (address === null || typeof address === 'string')
-      throw new ChatGptSignInError('invalid-callback')
+    if (address === null || typeof address === 'string') throw binding.fail('invalid-callback')
     redirectUri = `http://${OAUTH_LOOPBACK_HOST}:${String(address.port)}/auth/callback`
     timer = setTimeout(expire, timeoutMs)
     signal?.addEventListener('abort', abort, { once: true })
@@ -134,7 +147,7 @@ export async function startChatGptCallback(
     return {
       redirectUri,
       waitForCallback: () => {
-        if (hasWaiter) return Promise.reject(new ChatGptSignInError('invalid-callback'))
+        if (hasWaiter) return Promise.reject(binding.fail('invalid-callback'))
         hasWaiter = true
         return waiting
       },
@@ -142,9 +155,42 @@ export async function startChatGptCallback(
     }
   } catch (error) {
     finish()
-    if (error instanceof ChatGptSignInError) throw error
+    if (binding.isFailure(error)) throw error
     // The loopback listener could not open: this machine's cause, with its code.
     const code = error instanceof Error && 'code' in error ? error.code : undefined
-    throw new ChatGptSignInError('local-failed', typeof code === 'string' ? code : 'listen')
+    throw binding.fail('local-failed', typeof code === 'string' ? code : 'listen', error)
   }
+}
+
+/** The ChatGPT binding; the saved issued client a reauthorization's callback may omit. */
+export async function startChatGptCallback(
+  state: string,
+  timeoutMs: number,
+  pageText: () => string,
+  signal?: AbortSignal,
+  clientId?: string,
+): Promise<SubscriptionCallback> {
+  return await startSubscriptionCallback(
+    state,
+    timeoutMs,
+    pageText,
+    chatGptCallbackBinding(state, clientId),
+    signal,
+  )
+}
+
+/** The Grok binding: this app's configured client needs no callback echo. */
+export async function startGrokCallback(
+  state: string,
+  timeoutMs: number,
+  pageText: () => string,
+  signal?: AbortSignal,
+): Promise<SubscriptionCallback> {
+  return await startSubscriptionCallback(
+    state,
+    timeoutMs,
+    pageText,
+    grokCallbackBinding(state),
+    signal,
+  )
 }

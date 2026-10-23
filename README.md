@@ -690,6 +690,22 @@ from an interactive desktop session with an unlocked store (Linux also needs
 Secret Service). These commands certify sign-in management; combined M95b
 model dispatch and editor acceptance still await integration certification.
 
+**Grok subscription sign-in (awaiting xAI's registration):** terminal-capable
+ACP editors offer Continue with Grok (browser and device code), Remove and
+Check; other editors show the same commands to run by hand:
+
+```sh
+muse-spark-code-acp providers add grok --client-id <id>
+muse-spark-code-acp providers add grok --device --client-id <id>
+muse-spark-code-acp providers status grok
+muse-spark-code-acp providers remove grok
+```
+
+Add requires SuperGrok or X Premium, prints the subscription notice and the
+browser URL (or the device code and address), and saves only the
+subscription catalogue's models in the user-level providers file. Until xAI
+issues this app a client id, sign-in refuses before any request and says so.
+
 **On Windows**, npm installs `muse-spark-code-acp` as a `.cmd` launcher,
 which some editors cannot start. If the editor says it cannot find or start
 the agent, use `node` as the command and the agent's script as the first
@@ -766,10 +782,11 @@ section loads. A pending tab indicates loading after 150 ms. Reloads reserve
 the section's last measured height; the first visit estimates from the host's
 rows and can adjust once when the section arrives.
 
-In **Models & Agents → Providers**, choose **Continue With ChatGPT** or
-**Use My Copilot Models**. The same actions are available in the command palette.
-Connecting selects the shared in-process harness and the account's first
-eligible model; the model picker can select another catalogue model.
+In **Models & Agents → Providers**, choose **Continue With ChatGPT**,
+**Continue With Grok** or **Use My Copilot Models**. The same actions are
+available in the command palette. Connecting selects the shared in-process
+harness and the account's first eligible model; the model picker can select
+another catalogue model.
 
 **ChatGPT:** OpenAI's sanctioned Subscription Sharing preview accepts eligible
 **Plus and Pro** accounts. Free and other ineligible accounts cannot use this
@@ -782,6 +799,21 @@ HTTP stream stops the turn and offers usage management. Remove revokes the
 grant and deletes this product's secret record.
 The plan notice is remembered for each verified account. Older grants without
 that identity keep showing it until a verified sign-in or refresh supplies it.
+
+**Grok:** a SuperGrok or X Premium subscription signs in with xAI and Grok
+models run on that subscription, no API key. The system browser signs in
+with xAI's OIDC issuer, with a local loopback callback. Remote VS Code
+windows cannot sign in from the panel; sign in from the terminal on that
+host with `muse-spark-code-acp providers add grok --device`, which prints
+a code and address instead of opening a browser. The app's xAI OAuth
+client id lives in the **Muse Spark: Grok Client Id** setting (or
+`--client-id` on the terminal command); until xAI issues this app one,
+sign-in refuses before any request and says so. Models come from your
+subscription's catalogue. The conversation, tools and tool results spend
+your Grok subscription allowance. Remove revokes the grant and deletes
+this product's secret record. Like the ChatGPT grant, the Grok grant
+stays in the credential store under its own lane and never migrates to
+the vault.
 
 **Copilot:** available only in VS Code hosts exposing `vscode.lm`, using the
 host's Copilot consent. Select it again after reloading the window. It spends
