@@ -10,6 +10,8 @@ import type { SystemOneModelCapability } from '../../providers/capabilities'
 const { systemOneCapability } = capabilities
 const { systemOnePresetById } = presets
 import type { SystemOneServicePreset } from '../../providers/presets'
+import { failureForLog } from '../../backends/musecode/logText'
+import type { CoreLogger } from '../../logging'
 import { redactSecrets } from '../../redact'
 import { unlessAborted } from '../../timeouts'
 import type { JudgeRuntime } from '../engine'
@@ -76,6 +78,7 @@ export type SystemOneReserveResult =
 
 /** Assembly injects these. Constructing the runtime touches none of them. */
 export interface SystemOneJudgeDependencies {
+  readonly log?: CoreLogger | undefined
   configuration(): SystemOneSelection | undefined
   readKey(keyProviderId: string): Promise<string | undefined>
   measureTokens(text: string): number
@@ -150,11 +153,16 @@ function abortReason(caller: AbortSignal, deadline: AbortSignal): 'cancelled' | 
   return deadline.aborted ? 'timeout' : 'cancelled'
 }
 
-async function release(claim: SystemOneClaim, reason: NoAnswerReason): Promise<JudgeOutcome> {
+async function release(
+  claim: SystemOneClaim,
+  reason: NoAnswerReason,
+  log: CoreLogger | undefined,
+): Promise<JudgeOutcome> {
   try {
     await claim.refund()
     return refused(reason)
-  } catch {
+  } catch (error: unknown) {
+    log?.warn(`SystemOne refund failed: ${failureForLog(error)}`)
     return refused('engine-failure')
   }
 }
@@ -210,9 +218,12 @@ async function reserveUntilAborted(
     // it cannot dispatch and refunds exactly once. Late rejections are consumed.
     void pending
       .then(async (late) => {
-        if (late.reserved) await release(late.claim, 'cancelled')
+        if (late.reserved) await release(late.claim, 'cancelled', deps.log)
       })
-      .catch(() => refused('engine-failure'))
+      .catch((error: unknown) => {
+        deps.log?.warn(`SystemOne late release failed: ${failureForLog(error)}`)
+        return refused('engine-failure')
+      })
   }
   return reserved
 }
@@ -261,7 +272,8 @@ function pricedReservation(
   }
   try {
     return systemOneUsd(bodyTokens, 0, capability)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof TypeError)) throw error
     return 'engine-failure'
   }
 }
@@ -309,7 +321,8 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         )
         if (measured.failure !== undefined) return refused(measured.failure)
         quoteInput = measured.bodyTokens
-      } catch {
+      } catch (error: unknown) {
+        deps.log?.warn(`SystemOne measure failed: ${failureForLog(error)}`)
         return refused('engine-failure')
       }
       const quote = pricedReservation(quoteInput, route.capability)
@@ -320,10 +333,10 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
       let reserved: SystemOneReserveResult | undefined
       try {
         reserved = await reserveUntilAborted(deps, quote, signal)
-      } catch {
-        return refused(
-          isSignalAborted(signal) ? abortReason(callerSignal, deadline) : 'engine-failure',
-        )
+      } catch (error: unknown) {
+        if (signal.aborted) return refused(abortReason(callerSignal, deadline))
+        deps.log?.warn(`SystemOne reserve failed: ${failureForLog(error)}`)
+        return refused('engine-failure')
       }
       if (reserved === undefined) return refused(abortReason(callerSignal, deadline))
       if (!reserved.reserved) return refused(ledgerReason(reserved.reason))
@@ -337,7 +350,8 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         let isAdmitted = true
         try {
           claim.check()
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne claim check failed: ${failureForLog(error)}`)
           isAdmitted = false
         }
         // Cancellation is read last: a reader above may abort synchronously.
@@ -347,16 +361,18 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
       }
       const complete = async (): Promise<JudgeOutcome> => {
         const before = holdReason()
-        if (before !== undefined) return await release(claim, before)
+        if (before !== undefined) return await release(claim, before, deps.log)
         let key: string | undefined
         try {
           key = await unlessAborted(deps.readKey(route.preset.keyProviderId), signal)
-        } catch {
-          return await release(claim, 'engine-failure')
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne key read failed: ${failureForLog(error)}`)
+          return await release(claim, 'engine-failure', deps.log)
         }
         const afterKey = holdReason()
-        if (afterKey !== undefined) return await release(claim, afterKey)
-        if (key === undefined || key.length === 0) return await release(claim, 'source-unavailable')
+        if (afterKey !== undefined) return await release(claim, afterKey, deps.log)
+        if (key === undefined || key.length === 0)
+          return await release(claim, 'source-unavailable', deps.log)
         let response: SystemOnePostResult
         try {
           response = await deps.post({
@@ -367,11 +383,12 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
             signal,
             proceed: () => holdReason() === undefined,
           })
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne post failed: ${failureForLog(error)}`)
           return refused('engine-failure')
         }
         // Withdrawn or refused before any byte was written: a known non-send.
-        if (!response.sent) return await release(claim, holdReason() ?? 'engine-failure')
+        if (!response.sent) return await release(claim, holdReason() ?? 'engine-failure', deps.log)
         if (response.status !== HTTP_OK) return refused('engine-failure')
         try {
           const prepared = prepareSystemOne(response.body, request, route.capability.responseModels)
@@ -393,7 +410,8 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
           // from a revoked call.
           const late = bindingRefusal(deps, binding)
           return late === undefined ? { outcome: 'answered', result } : refused(late)
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`SystemOne settlement failed: ${failureForLog(error)}`)
           return refused('engine-failure')
         }
       }
