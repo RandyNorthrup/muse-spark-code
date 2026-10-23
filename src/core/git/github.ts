@@ -18,6 +18,7 @@ import {
   GITHUB_CHECKS_PAGE_SIZE,
   GITHUB_MEDIA_TYPE,
   GITHUB_REQUEST_TIMEOUT_MS,
+  GITHUB_SCOPES_HEADER,
   UI_TEXT,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
@@ -83,6 +84,17 @@ const errorSchema = z.object({
   ),
 })
 
+// M118 phase 2 (D217): the `POST /gists` 201 reply's fields Share reads.
+// Written from GitHub's documented response schema ("Create a gist",
+// docs.github.com/en/rest/gists/gists, read 2026-10-23), not a capture:
+// the lane has no GitHub token with the gist scope (see
+// docs/certification/rlf-m118.md), and the lead runs the live capture.
+const gistSchema = z.object({
+  id: z.string(),
+  html_url: z.string(),
+  public: z.boolean(),
+})
+
 export interface GitHubUser {
   readonly login: string
   readonly id: number
@@ -133,22 +145,42 @@ export interface NewPullRequest {
   readonly isDraft: boolean
 }
 
+/** A secret gist holding one share file; `public` is always false on the way out. */
+export interface NewGist {
+  readonly description: string
+  readonly fileName: string
+  readonly content: string
+}
+
+/** The created gist GitHub names back: its id and the link the person gets. */
+export interface Gist {
+  readonly id: string
+  readonly url: string
+  /** As GitHub answered it; Share refuses anything but a secret gist. */
+  readonly isPublic: boolean
+}
+
 export type GitHubFailureKind =
   'signIn' | 'notFound' | 'invalid' | 'rateLimited' | 'server' | 'network' | 'response'
 
 /**
 A call GitHub refused or that never reached it. `message` is for the user
 (GitHub's own words where it gave them); the log gets `kind` and `status`.
+`scopes` is GitHub's `X-OAuth-Scopes` answer header, null when the call
+never reached GitHub or the header was absent: Share reads it to tell a
+missing gist scope from a real 404.
 */
 export class GitHubError extends Error {
+  public readonly scopes: string | null
   public constructor(
     message: string,
     public readonly kind: GitHubFailureKind,
     public readonly status: number | undefined,
-    options?: { cause?: unknown },
+    options?: { cause?: unknown; scopes?: string | null },
   ) {
     super(message, options)
     this.name = 'GitHubError'
+    this.scopes = options?.scopes ?? null
   }
 }
 
@@ -338,7 +370,7 @@ export class GitHubClient {
   */
   private async request(
     token: string,
-    method: 'GET' | 'POST',
+    method: 'GET' | 'POST' | 'DELETE',
     path: string,
     body?: unknown,
     signal?: AbortSignal,
@@ -382,6 +414,7 @@ export class GitHubClient {
         errorMessage(json, response.status).replaceAll(token, '[redacted]'),
         kind,
         response.status,
+        { scopes: response.headers.get(GITHUB_SCOPES_HEADER) },
       )
     }
     return json
@@ -472,6 +505,32 @@ export class GitHubClient {
       draft: request.isDraft,
     })
     return toPullRequest(this.parse(pullRequestSchema, raw, 'new pull request'))
+  }
+
+  /**
+  Create a secret gist holding one file (`POST /gists`, `public: false`,
+  always). Without the gist scope GitHub answers 404, whatever the
+  credentials (docs.github.com/en/rest/gists/gists, "About gists").
+  */
+  public async createGist(token: string, gist: NewGist, signal?: AbortSignal): Promise<Gist> {
+    const raw = await this.request(
+      token,
+      'POST',
+      '/gists',
+      {
+        description: gist.description,
+        public: false,
+        files: { [gist.fileName]: { content: gist.content } },
+      },
+      signal,
+    )
+    const parsed = this.parse(gistSchema, raw, 'new gist')
+    return { id: parsed.id, url: parsed.html_url, isPublic: parsed.public }
+  }
+
+  /** Delete a gist (`DELETE /gists/{id}`, 204 with no body). */
+  public async deleteGist(token: string, id: string, signal?: AbortSignal): Promise<void> {
+    await this.request(token, 'DELETE', `/gists/${encodeURIComponent(id)}`, undefined, signal)
   }
 
   /** The check runs and commit statuses on `sha`, every page of each, counted. */

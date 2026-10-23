@@ -16134,6 +16134,19 @@ scheduled command released after its turn ends. Deliberately break each fix,
 observe the named tests fail, restore byte-exact and record the evidence in
 `docs/certification/envfence.md`. No new dependency or broader exception.
 
+### D217 — Share asks for the gist scope only at Share time (M118 phase 2, owner 2026-10-23)
+
+M118 phase 2 (a secret gist for a prompt or a chat) was blocked: it needs
+GitHub's `gist` scope, and D104 says that scope is "never asked for". The
+lead put it to the owner: "(a) ask for that permission only at the moment
+you press Share ... or (b) never ask". The owner answered (2026-10-23):
+"sure on the gists" (option a). So D104 stands for every other path, and
+Share is the one exception: the `gist` scope is requested only when the
+person presses Share to a secret gist — incremental consent at that moment,
+with words saying what it allows — never at sign-in and never otherwise;
+declining keeps every other share route working. (Lane RLF-M118; no §3
+question matched, so none is resolved by this.)
+
 - **Q-M101IMAGE-DIMENSIONS (2026-10-06).** Which checked-in provider capture or
   authorized documentation supplies each vision model's maximum width/height?
   This base has no M95 N records for them, and the lane rules permit no network
