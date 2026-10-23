@@ -2,22 +2,16 @@
 // child process over real directory trees: record and check round
 // trips, every divergence named, bad input refused, and a start
 // through a symlinked directory.
-import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { type NodeOsRun, runNodeScript, scratch } from './helpers/nodeOs'
 
 const REPRO_CHECK = fileURLToPath(new URL('../../scripts/os-repro-check.mjs', import.meta.url))
 
-function run(args: string[], script: string = REPRO_CHECK): { status: number | null; out: string } {
-  const run = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
-  return { status: run.status, out: `${run.stdout}${run.stderr}` }
-}
-
-function scratch(prefix: string): string {
-  return mkdtempSync(path.join(tmpdir(), prefix))
+function run(args: string[], script: string = REPRO_CHECK): NodeOsRun {
+  return runNodeScript(script, args)
 }
 
 function writeTree(root: string, files: Record<string, string>): string {
