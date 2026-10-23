@@ -18348,6 +18348,11 @@ plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
 (M62b tried for real where installable; M63c refreshed for PR #661; M65
 waits on RLM104; M66 assessed; `docs/certification/rlhosts.md`).
 
+**Status 2026-10-22 (RLF-HOSTS2): building**
+(M66: Vim plugin shipped and host-checked, its live drill awaits the
+lead's unsandboxed run; Xcode 26.3's bridge is dyld-dead on this Mac, so
+no Xcode session is possible here; `docs/certification/rlf-hosts2.md`).
+
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
@@ -37145,6 +37150,26 @@ removes it); the vault lane owns removing this row. Evidence:
 `docs/certification/m113-join.md` (Proof).
 
 **PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
+
+**RLF-HOSTS2 plan-size deferral (2026-10-22, macmini, open).** `npm run
+check:plan` exits 1: PLAN.md is 3,671,628 bytes, past 85% of the 4-MiB
+archived-plan budget (3,565,158 bytes). Measured on the untouched base
+397aca3dd (3,668,951 bytes, exit 1): the overage predates this lane, which
+adds ~2.6 KB (the RLHOSTS merge's status lines, one M66 line and two §7
+deferrals).
+Archiving mid-recovery would rewrite the file every recovery lane edits,
+so the lead archives at integration; this lane records the red and adds
+nothing beyond its required status line. No threshold is changed.
+Evidence: `docs/certification/rlf-hosts2.md`.
+
+**RLF-HOSTS2 bundle-size deferral (2026-10-22, macmini, open).** `npm run
+build` exits 1 on three bundle budgets: `dist/modelApi.js` 527.7 KiB
+(budget 525), `dist/resourceAdmission.js` and `dist/vaultActions.js`
+25.0 KiB each (budget 25). Measured on the untouched base 397aca3dd
+with identical byte counts: the overages predate this lane, which
+changes no file those bundles contain (no budget is raised, no code of
+theirs touched). Shrinking them belongs to their owning lanes; the lead
+assigns. Evidence: `docs/certification/rlf-hosts2.md`.
 
 ## 8. Escape hatches register
 
