@@ -1,6 +1,6 @@
 // M96b contracts (C-M96b-0, PLAN.md D75): the frozen ACP team mapping.
 import type { ContentBlock, PermissionOption, ToolCallContent } from '@agentclientprotocol/sdk'
-import sdkSchema from '@agentclientprotocol/sdk/schema/schema.json'
+import sdkSchema from '@agentclientprotocol/sdk/schema/v1/schema.json'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import {
