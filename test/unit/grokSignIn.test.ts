@@ -380,6 +380,26 @@ describe('grok device code', () => {
       verification_uri: 'gopher://auth.x.ai/device',
       verification_uri_complete: 'not a url either',
     })
+    // The address is shown to the person, who types the code there: only
+    // xAI's own host may receive it, never a lookalike or a foreign host.
+    await expectVerificationRefused({
+      ...deviceReply(),
+      verification_uri: 'https://evil.example/device',
+    })
+    await expectVerificationRefused({
+      ...deviceReply(),
+      verification_uri: 'https://auth.x.ai.evil.example/device',
+    })
+    await expectVerificationRefused({
+      ...deviceReply(),
+      verification_uri: 'https://notx.ai/device',
+    })
+    // A foreign complete address is unshowable and falls back like any other.
+    const fallback = parseGrokDeviceCode(
+      { ...deviceReply(), verification_uri_complete: 'https://evil.example/device?code=ABCD-1234' },
+      DEVICE_NOW,
+    )
+    expect(fallback.verificationUri).toBe('https://auth.x.ai/device')
   })
 })
 
@@ -469,6 +489,40 @@ describe('grok identity token', () => {
     const firstKey = jwks.keys[0]
     if (firstKey === undefined) throw new Error('the test key set is empty')
     await invalid(valid, { keys: [{ ...firstKey, kty: 'RSA' }] })
+  })
+
+  it('binds a refresh token to the grant nonce it may omit but never change', async () => {
+    const { mint, jwks } = es256Fixture()
+    const nonce = pkceRandom(PKCE_STATE_BYTES)
+    // OIDC permits a refresh ID token to omit the original nonce.
+    const omitted = mint({ alg: 'ES256', kid: 'test-key-1', typ: 'JWT' }, claims())
+    expect(
+      verifyGrokIdToken({
+        token: omitted,
+        jwks,
+        clientId: CLIENT_ID,
+        expectedNonce: nonce,
+        isRefresh: true,
+        now: NOW,
+      }),
+    ).toBe(grokAccountIdHash('https://auth.x.ai', 'test-subject'))
+    // One that carries a different nonce is not this grant's token.
+    const changed = mint(
+      { alg: 'ES256', kid: 'test-key-1', typ: 'JWT' },
+      claims({ nonce: 'a-different-nonce' }),
+    )
+    expect(
+      await failureCode(() =>
+        verifyGrokIdToken({
+          token: changed,
+          jwks,
+          clientId: CLIENT_ID,
+          expectedNonce: nonce,
+          isRefresh: true,
+          now: NOW,
+        }),
+      ),
+    ).toMatchObject({ code: 'invalid-id-token' })
   })
 
   it('verifies without a subject and returns no hash', () => {

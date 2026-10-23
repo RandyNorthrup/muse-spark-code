@@ -30,6 +30,7 @@ export interface HostSubscriptionCallbackBinding<E extends Error> {
 
 /** Bound before the browser opens; the promise also retains an early callback. */
 export async function startHostSubscriptionCallback<E extends Error>(
+  state: string,
   timeoutMs: number,
   pageText: () => string,
   binding: HostSubscriptionCallbackBinding<E>,
@@ -86,8 +87,23 @@ export async function startHostSubscriptionCallback<E extends Error>(
     }
     try {
       const url = new URL(request.url ?? '/', redirectUri)
+      if (
+        request.headers.host !== new URL(redirectUri).host ||
+        url.origin !== new URL(redirectUri).origin
+      ) {
+        answer(HTTP_STATUS.badRequest)
+        return
+      }
       if (url.pathname !== '/auth/callback') {
         answer(HTTP_STATUS.notFound)
+        return
+      }
+      // A callback carrying another attempt's state is not this attempt's:
+      // it is logged without any request text and settles nothing, so
+      // whoever sent it cannot end this sign-in.
+      if (url.searchParams.get('state') !== state) {
+        binding.log('a sign-in callback arrived that this attempt did not send')
+        answer(HTTP_STATUS.badRequest)
         return
       }
       binding.parse(url.href, redirectUri)
@@ -136,7 +152,7 @@ export async function startChatGptCallback(
   clientId: string | undefined,
   log: (message: string) => void,
 ): Promise<HostSubscriptionCallback> {
-  return await startHostSubscriptionCallback(timeoutMs, () => UI_TEXT.oauthCallbackDone, {
+  return await startHostSubscriptionCallback(state, timeoutMs, () => UI_TEXT.oauthCallbackDone, {
     ...chatGptCallbackBinding(state, clientId),
     log,
   })
@@ -148,7 +164,7 @@ export async function startGrokCallback(
   timeoutMs: number,
   log: (message: string) => void,
 ): Promise<HostSubscriptionCallback> {
-  return await startHostSubscriptionCallback(timeoutMs, () => UI_TEXT.acpGrok.callback, {
+  return await startHostSubscriptionCallback(state, timeoutMs, () => UI_TEXT.acpGrok.callback, {
     ...grokCallbackBinding(state),
     log,
   })
