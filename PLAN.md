@@ -35772,6 +35772,15 @@ application's client id or scope). Research:
 `docs/research/providers/xai-grok-oauth.md`. Evidence:
 `docs/certification/rlgrokauth.md`.
 
+### RLFSECSCAN — The five SAST findings on int/recovery, and the secret-scan history (2026-10-23)
+
+**Status 2026-10-23: built.** Lane `rec/rlf-secscan` on rig `linuxlt`,
+base `d057bf203`. The Darwin device worker's plist escaper is
+single-pass (SAST exit 0, 0 findings); the 8 gitleaks history hits are
+all proven fixtures, 4 with draft ignore entries awaiting the owner's
+approval, 4 covered by entries on the M110OS branches, landing at
+their merge. Evidence: `docs/certification/rlf-secscan.md`.
+
 ---
 
 ## 7. Gates
