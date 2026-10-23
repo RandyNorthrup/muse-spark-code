@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bar system popovers</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">07</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">The bar · system popovers</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · popovers shown together for review; one opens at a time</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="Wb1280Hc.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="BarMuse.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1100" height="620" style="opacity: 0.07"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+
+    <div class="ms-bar" role="banner" style="height: 32px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; padding-inline: 6px; border-bottom: 1px solid var(--ms-border); font-size: 12px; position: relative; z-index: 2">
+      <div style="display: flex; align-items: center; gap: 6px">
+        <button class="ib" aria-label="Open the launcher (Super)" style="width: 36px"><svg viewBox="-14 -14 228 128" width="26" height="15" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+        <button class="sb" aria-label="Desktop 1, current" style="height: 22px; border-radius: var(--ms-radius-pill); background: var(--ms-selection); color: var(--ms-on-selection)"><span class="mono" style="font-weight: 600">1</span></button>
+        <button class="sb" aria-label="Desktop 2" style="height: 22px; border-radius: var(--ms-radius-pill); border: 1px solid var(--ms-border)"><span class="mono" style="font-weight: 600">2</span></button>
+        <button class="sb" style="font-weight: 600">Workbench · trailhead</button>
+      </div>
+      <button class="sb" style="font-weight: 600">Fri 23 Oct · 14:32</button>
+      <div style="justify-self: end; display: flex; align-items: center; gap: 1px">
+        <button class="sb mono" aria-label="Keyboard layout: English (US)">EN</button>
+        <sc-for list="{{barItems}}" as="b" hint-placeholder-count="7">
+          <button class="sb" aria-label="{{b.aria}}" aria-expanded="true" style="position: relative; background: var(--ms-hover)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{b.icon}}"></path></svg>{{b.t}}<span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">{{b.n}}</span></button>
+        </sc-for>
+        <button class="sb" aria-label="Notifications: 3"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bell}}"></path></svg><span class="badge">3</span></button>
+        <button class="sb" aria-label="Randy Northrup: user and power menu"><span style="width: 20px; height: 20px; border-radius: 50%; background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600; font-size: 11px">R</span></button>
+      </div>
+    </div>
+
+    <div style="position: relative; flex: 1; display: flex; justify-content: center; gap: 28px; padding-top: 20px; align-items: flex-start">
+      <!-- 1 Quick settings -->
+      <section class="ms-pop" aria-label="Quick settings" style="width: 340px; padding: 6px 6px 10px; display: flex; flex-direction: column; gap: 10px">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 0"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">1</span><span style="font-weight: 600; flex: 1">Quick settings</span></div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; padding-inline: 6px">
+          <sc-for list="{{tiles}}" as="t" hint-placeholder-count="8">
+            <button aria-pressed="{{t.on}}" style="height: 52px; border-radius: var(--ms-radius-lg); border: 1px solid {{t.bd}}; background: {{t.bg}}; color: {{t.fg}}; display: flex; align-items: center; gap: 10px; padding: 0 12px; text-align: start">
+              <svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{t.icon}}"></path></svg>
+              <span style="display: flex; flex-direction: column; min-width: 0"><span style="font-weight: 600; white-space: nowrap">{{t.t}}</span><span style="font-size: var(--ms-font-small); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{t.s}}</span></span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px; padding-inline: 6px">
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sun}}"></path></svg><span class="slider" role="slider" aria-label="Brightness" aria-valuenow="70"><i style="width: 70%"></i><b style="inset-inline-start: 70%"></b></span></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sound}}"></path></svg><span class="slider" role="slider" aria-label="Volume" aria-valuenow="60"><i style="width: 60%"></i><b style="inset-inline-start: 60%"></b></span></div>
+        </div>
+        <div role="radiogroup" aria-label="Power profile" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; margin-inline: 12px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-md); overflow: hidden">
+          <button role="radio" aria-checked="false" style="height: 30px; border: 0; background: transparent; font-size: 12px">Power saver</button>
+          <button role="radio" aria-checked="true" style="height: 30px; border: 0; background: var(--ms-selection); color: var(--ms-on-selection); font-size: 12px; font-weight: 600">Balanced</button>
+          <button role="radio" aria-checked="false" style="height: 30px; border: 0; background: transparent; font-size: 12px">Performance</button>
+        </div>
+        <button class="btn btn-d" style="margin-inline: 12px; height: 40px; justify-content: flex-start; gap: 10px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-danger)"><path d="{{I.stop}}"></path></svg><span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25"><span style="font-weight: 600">Stop everything</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted); font-weight: 400">Ends agent turns, admin actions and dev servers</span></span></button>
+        <div class="hr" style="margin-inline: 6px"></div>
+        <div style="display: flex; gap: 6px; padding-inline: 12px">
+          <button class="btn" style="flex: 1"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.gear}}"></path></svg>Settings</button>
+          <button class="btn" aria-label="Lock (Super+L)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.lock}}"></path></svg></button>
+          <button class="btn" aria-label="Power menu"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.power}}"></path></svg></button>
+        </div>
+      </section>
+
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <!-- 2 Wi-Fi -->
+        <section class="ms-pop" aria-label="Wi-Fi" style="width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">2</span><span style="font-weight: 600; flex: 1">Wi-Fi</span><button class="tog" role="switch" aria-checked="true" aria-label="Wi-Fi"></button></div>
+          <button class="row" style="border: 0; width: 100%; text-align: start; background: var(--ms-selection); color: var(--ms-on-selection); min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.wifi}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span class="dat" style="font-weight: 600">Studio-5G</span><span style="font-size: var(--ms-font-small)">WPA3 · Connected</span></span><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.check}}"></path></svg></button>
+          <sc-for list="{{nets}}" as="w" hint-placeholder-count="4">
+            <button class="row" style="border: 0; width: 100%; text-align: start; background: transparent; min-height: 36px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="opacity: {{w.so}}"><path d="{{I.wifi}}"></path></svg><span class="dat" style="flex: 1">{{w.name}}</span><span class="chip" style="color: {{w.cc}}; opacity: {{w.co}}">{{w.chip}}</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-muted); opacity: {{w.lo}}"><path d="{{I.lock}}"></path></svg></button>
+          </sc-for>
+          <div class="hr" style="margin: 4px 6px"></div>
+          <div class="row" style="color: var(--ms-muted)"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.ethernet}}"></path></svg><span style="flex: 1">Ethernet · cable unplugged</span></div>
+          <div class="row"><span style="flex: 1">Metered connection</span><button class="tog" role="switch" aria-checked="false" aria-label="Treat Studio-5G as metered"></button></div>
+          <div class="row"><span style="flex: 1">Hotspot</span><button class="tog" role="switch" aria-checked="false" aria-label="Hotspot"></button></div>
+          <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Network settings</button>
+        </section>
+        <!-- 5 VPN -->
+        <section class="ms-pop" aria-label="VPN" style="width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">5</span><span style="font-weight: 600; flex: 1">VPN</span></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.shield}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span class="dat">home-wg</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">WireGuard</span></span><button class="tog" role="switch" aria-checked="false" aria-label="home-wg"></button></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.shield}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span class="dat">office</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">OpenVPN</span></span><button class="tog" role="switch" aria-checked="false" aria-label="office"></button></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.node}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span>Muse overlay</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">2 paired nodes reachable</span></span><button class="tog" role="switch" aria-checked="true" aria-label="Muse overlay"></button></div>
+          <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Add VPN</button>
+        </section>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 24px">
+        <!-- 3 Bluetooth -->
+        <section class="ms-pop" aria-label="Bluetooth" style="width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">3</span><span style="font-weight: 600; flex: 1">Bluetooth</span><button class="tog" role="switch" aria-checked="true" aria-label="Bluetooth"></button></div>
+          <sc-for list="{{bts}}" as="d" hint-placeholder-count="3">
+            <div class="row" style="min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{d.icon}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span class="dat">{{d.name}}</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">{{d.s}}</span></span><span class="mono" style="font-size: 12px; color: var(--ms-muted)">{{d.bat}}</span></div>
+          </sc-for>
+          <div class="row" style="min-height: 40px"><span style="flex: 1; font-size: 12px; color: var(--ms-muted)">Randy's phone can share its internet</span><button class="btn" style="height: 26px; font-size: 12px">Use for internet</button></div>
+          <div class="hr" style="margin: 4px 6px"></div>
+          <div class="row" style="color: var(--ms-muted); font-size: 12px"><span style="width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--ms-border); border-top-color: var(--ms-accent)"></span>Searching for devices</div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sound}}"></path></svg><span class="dat" style="flex: 1">Living room speaker</span><button class="btn" style="height: 26px; font-size: 12px">Pair</button></div>
+          <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Bluetooth settings</button>
+        </section>
+        <!-- 4 Cellular -->
+        <section class="ms-pop" aria-label="Cellular" style="width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">4</span><span style="font-weight: 600; flex: 1">Cellular</span><span class="mono" style="font-size: 12px; color: var(--ms-muted)">LTE</span></div>
+          <div class="row" style="min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.cell}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span>USB modem</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">Signal good · SIM unlocked</span></span></div>
+          <div class="row"><span style="flex: 1">Mobile data</span><button class="tog" role="switch" aria-checked="false" aria-label="Mobile data"></button></div>
+          <div class="row"><span style="flex: 1">Roaming</span><button class="tog" role="switch" aria-checked="false" aria-label="Roaming"></button></div>
+          <div class="row" style="font-size: 12px"><span style="flex: 1; color: var(--ms-muted)">Access point</span><span class="mono dat">internet</span><span style="color: var(--ms-muted)">· provider list</span></div>
+          <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Cellular settings</button>
+        </section>
+      </div>
+
+      <!-- 6 Sound -->
+      <section class="ms-pop" aria-label="Sound" style="width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 2px">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">6</span><span style="font-weight: 600; flex: 1">Sound</span><button class="ib" aria-label="Mute"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sound}}"></path></svg></button></div>
+        <span class="lbl" style="padding: 4px 10px">Output</span>
+        <sc-for list="{{outs}}" as="o" hint-placeholder-count="3">
+          <button role="radio" aria-checked="{{o.on}}" class="row" style="border: 0; width: 100%; text-align: start; background: {{o.bg}}; color: {{o.fg}}"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{o.icon}}"></path></svg><span class="dat" style="flex: 1">{{o.name}}</span><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="opacity: {{o.co}}"><path d="{{I.check}}"></path></svg></button>
+        </sc-for>
+        <div class="row"><span class="slider" role="slider" aria-label="Output volume" aria-valuenow="60"><i style="width: 60%"></i><b style="inset-inline-start: 60%"></b></span><span class="mono" style="font-size: 12px; width: 34px; text-align: end">60%</span></div>
+        <span class="lbl" style="padding: 8px 10px 4px">Input</span>
+        <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.mic}}"></path></svg><span style="flex: 1">Built-in microphone</span><span aria-label="Input level" style="display: flex; gap: 2px; align-items: flex-end; height: 14px"><i style="width: 3px; height: 5px; background: var(--ms-success)"></i><i style="width: 3px; height: 8px; background: var(--ms-success)"></i><i style="width: 3px; height: 11px; background: var(--ms-success)"></i><i style="width: 3px; height: 14px; background: var(--ms-border)"></i><i style="width: 3px; height: 14px; background: var(--ms-border)"></i></span></div>
+        <span class="lbl" style="padding: 8px 10px 4px">Apps</span>
+        <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg><span style="width: 120px">Chrome</span><span class="slider" role="slider" aria-label="Chrome volume" aria-valuenow="80"><i style="width: 80%"></i><b style="inset-inline-start: 80%"></b></span></div>
+        <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.monitor}}"></path></svg><span style="width: 120px">Preview tab</span><span class="slider" role="slider" aria-label="Preview tab volume" aria-valuenow="50"><i style="width: 50%"></i><b style="inset-inline-start: 50%"></b></span></div>
+        <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Sound settings</button>
+      </section>
+
+      <!-- 7 Power -->
+      <section class="ms-pop" aria-label="Power and brightness" style="width: 340px; padding: 6px; display: flex; flex-direction: column; gap: 4px">
+        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">7</span><span style="font-weight: 600; flex: 1">Power</span></div>
+        <div style="display: flex; align-items: baseline; gap: 10px; padding: 0 10px"><span style="font-size: 28px; font-weight: 600">82%</span><span style="color: var(--ms-muted)">3 h 10 min left</span></div>
+        <div style="margin: 2px 10px 6px; height: 8px; border-radius: var(--ms-radius-pill); background: var(--ms-badge); overflow: hidden"><div style="width: 82%; height: 100%; background: var(--ms-success)"></div></div>
+        <div role="radiogroup" aria-label="Power profile" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 0 10px 4px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-md); overflow: hidden">
+          <button role="radio" aria-checked="false" style="height: 30px; border: 0; background: transparent; font-size: 12px">Power saver</button>
+          <button role="radio" aria-checked="true" style="height: 30px; border: 0; background: var(--ms-selection); color: var(--ms-on-selection); font-size: 12px; font-weight: 600">Balanced</button>
+          <button role="radio" aria-checked="false" style="height: 30px; border: 0; background: transparent; font-size: 12px">Performance</button>
+        </div>
+        <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sun}}"></path></svg><span class="slider" role="slider" aria-label="Screen brightness" aria-valuenow="70"><i style="width: 70%"></i><b style="inset-inline-start: 70%"></b></span></div>
+        <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.keyboard}}"></path></svg><span class="slider" role="slider" aria-label="Keyboard backlight" aria-valuenow="30"><i style="width: 30%"></i><b style="inset-inline-start: 30%"></b></span></div>
+        <div class="row" style="font-size: 12px"><span style="flex: 1">When the lid closes</span><span style="font-weight: 600">Suspend</span><svg class="ic flipx" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevR}}"></path></svg></div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; padding: 4px 10px 0">
+          <button class="btn"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.moon}}"></path></svg>Suspend</button>
+          <button class="btn" disabled="disabled" style="color: var(--ms-disabled); border-color: var(--ms-disabled)">Hibernate</button>
+        </div>
+        <span style="font-size: var(--ms-font-small); color: var(--ms-muted); padding: 2px 10px 6px">Hibernate needs encrypted swap on this machine.</span>
+        <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Power settings</button>
+      </section>
+    </div>
+
+    <div class="ms-bar" role="contentinfo" style="height: 24px; flex: none; display: flex; align-items: center; gap: 1px; padding-inline: 6px; border-top: 1px solid var(--ms-border); position: relative; font-size: 12px">
+      <button class="sb"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.git}}"></path></svg><span class="dat">feat/cart-summary</span></button>
+      <span style="flex: 1"></span>
+      <button class="sb"><span class="dat">muse-spark-1.3-contributor</span></button>
+    </div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      wifi: 'M2 8.5a15 15 0 0 1 20 0 M5 12a10 10 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 19h.01',
+      bt: 'M7 7l10 10-5 4V3l5 4L7 17',
+      cell: 'M4 20v-3 M9 20v-6 M14 20v-9 M19 20V5',
+      shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z',
+      sound: 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12',
+      battery: 'M3 7h16v10H3z M22 10v4 M6 10v4 M9 10v4 M12 10v4',
+      sliders: 'M4 6h9 M17 6h3 M15 4v4 M4 12h3 M11 12h9 M9 10v4 M4 18h11 M19 18h1 M17 16v4',
+      gear: 'M4 6h9 M17 6h3 M15 4v4 M4 12h3 M11 12h9 M9 10v4 M4 18h11 M19 18h1 M17 16v4',
+      bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 21h4',
+      sun: c(12, 12, 4) + ' M12 2v2 M12 20v2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M2 12h2 M20 12h2 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4',
+      moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      plane: 'M10.5 21l1.5-1 1.5 1v-2l-1.5-1.5V14l8 2.5V15l-8-5V4.5a1.5 1.5 0 0 0-3 0V10l-8 5v1.5L9 14v3.5L7.5 19v2z',
+      dnd: c(12, 12, 9) + ' M8 12h8',
+      night: 'M12 3v2 M5.6 5.6L7 7 M3 12h2 M12 21a9 9 0 0 0 9-9 6 6 0 0 1-9-6 9 9 0 0 0 0 15z',
+      contrast: c(12, 12, 9) + ' M12 3v18',
+      lock: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4',
+      power: 'M12 3v9 M6.3 6.3a8 8 0 1 0 11.4 0',
+      stop: 'M6 6h12v12H6z',
+      check: 'M5 12l5 5 9-10',
+      ethernet: 'M5 9h14v8H5z M8 17v3 M12 17v3 M16 17v3 M9 6h6v3H9z',
+      node: 'M4 4h16v6H4z M4 14h16v6H4z M8 7h.01 M8 17h.01',
+      headphones: 'M4 15v-3a8 8 0 0 1 16 0v3 M4 15h3v5H4z M17 15h3v5h-3z',
+      keyboard: 'M3 6h18v12H3z M7 10h.01 M11 10h.01 M15 10h.01 M7 14h10',
+      phone: 'M7 2h10v20H7z M11 18h2',
+      speaker: 'M6 3h12v18H6z ' + c(12, 14, 3) + ' M12 7h.01',
+      monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
+      mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z M5 11a7 7 0 0 0 14 0 M12 18v3',
+      globe: c(12, 12, 9) + ' M3 12h18 M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9',
+      git: 'M6 3v12 ' + c(18, 6, 3) + ' ' + c(6, 18, 3) + ' M18 9a9 9 0 0 1-9 9',
+      chevR: 'M9 6l6 6-6 6'
+    };
+    const barItems = [
+      { n: '2', icon: I.wifi, t: '', aria: 'Wi-Fi: Studio-5G' },
+      { n: '3', icon: I.bt, t: '', aria: 'Bluetooth: 2 devices connected' },
+      { n: '4', icon: I.cell, t: '', aria: 'Cellular: LTE, data off' },
+      { n: '5', icon: I.shield, t: '', aria: 'VPN: Muse overlay connected' },
+      { n: '6', icon: I.sound, t: '', aria: 'Sound: 60 percent' },
+      { n: '7', icon: I.battery, t: '82%', aria: 'Battery 82 percent' },
+      { n: '1', icon: I.sliders, t: '', aria: 'Quick settings' }
+    ];
+    const tile = (t, s, icon, on) => ({ t, s, icon, on: on ? 'true' : 'false', bg: on ? 'var(--ms-selection)' : 'var(--ms-raised)', fg: on ? 'var(--ms-on-selection)' : 'var(--ms-text)', bd: on ? 'var(--ms-selection)' : 'var(--ms-border)' });
+    const tiles = [
+      tile('Wi-Fi', 'Studio-5G', I.wifi, true), tile('Bluetooth', '2 connected', I.bt, true),
+      tile('Mobile data', 'Off', I.cell, false), tile('VPN', 'Muse overlay', I.shield, true),
+      tile('Airplane mode', 'Off', I.plane, false), tile('Do Not Disturb', 'Off', I.dnd, false),
+      tile('Night light', 'Until 07:00', I.night, true), tile('Dark mode', 'On', I.contrast, theme === 'dark' || theme === 'hc-dark')
+    ];
+    const nets = [
+      { name: 'Studio-2.4', chip: '', cc: 'var(--ms-muted)', co: '0', lo: '1', so: '1' },
+      { name: 'Hotel Lumen Guest', chip: 'Sign-in page', cc: 'var(--ms-warning)', co: '1', lo: '0', so: '0.8' },
+      { name: 'eduroam', chip: 'Enterprise', cc: 'var(--ms-muted)', co: '1', lo: '1', so: '0.6' },
+      { name: 'Other network…', chip: '', cc: 'var(--ms-muted)', co: '0', lo: '0', so: '0' }
+    ];
+    const bts = [
+      { name: "Randy's headphones", s: 'Connected · audio', bat: '74%', icon: I.headphones },
+      { name: 'Travel keyboard', s: 'Connected · input', bat: '60%', icon: I.keyboard },
+      { name: "Randy's phone", s: 'Paired', bat: '', icon: I.phone }
+    ];
+    const outs = [
+      { name: "Randy's headphones", icon: I.headphones, on: 'true', bg: 'var(--ms-selection)', fg: 'var(--ms-on-selection)', co: '1' },
+      { name: 'Built-in speakers', icon: I.speaker, on: 'false', bg: 'transparent', fg: 'var(--ms-text)', co: '0' },
+      { name: 'HDMI · external monitor', icon: I.monitor, on: 'false', bg: 'transparent', fg: 'var(--ms-text)', co: '0' }
+    ];
+    return {
+      theme, themeName: names[theme] ?? theme, I, barItems, tiles, nets, bts, outs,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'overlay', 'border', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'selection', 'on-selection', 'hover', 'success', 'warning', 'danger', 'info', 'badge', 'on-badge', 'disabled', 'error-surface', 'elevation-popover', 'popover-alpha', 'overlay-alpha', 'backdrop-blur', 'radius-xs', 'radius-md', 'radius-lg', 'radius-pill', 'space-8', 'font-ui', 'font-size', 'font-small', 'chip-height', 'button-height', 'focus-width', 'bar-height', 'status-height']
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -6879,5 +6879,67 @@
     "setupFailed": "セットアップを完了できませんでした：{reason}",
     "seedRefused": "カードのセットアップファイルは使用されませんでした：{reason}",
     "continueButton": "続ける"
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "パスワード",
+    "pin": "PIN",
+    "securityKey": "セキュリティキー",
+    "fingerprint": "指紋",
+    "orSignInWith": "または次の方法でサインイン",
+    "capsLockOn": "Caps Lock がオンになっています",
+    "session": "セッション",
+    "sessionDesktop": "デスクトップ",
+    "sessionTerminal": "ターミナル",
+    "accessibility": "アクセシビリティ",
+    "recovery": "回復",
+    "recoveryHint": "管理者パスワードまたは回復キーが必要です",
+    "secureAttentionGreeter": "いつでも Ctrl+Alt+Del を押すと、本物のサインイン画面に移動します。",
+    "secureAttentionLock": "いつでも Ctrl+Alt+Del を押すと、これが本物のロック画面か確認できます。",
+    "secureAttentionPrompt": "本物かどうか不安ですか?Ctrl+Alt+Del を押してください。",
+    "notificationsCount": {
+      "other": "通知 {count} 件"
+    },
+    "agentsRunning": {
+      "other": "実行中のエージェント {count} 個"
+    },
+    "worksWithoutSignIn": "サインインしなくても使えます",
+    "stopEverything": "すべて停止",
+    "stopEverythingDetail": "エージェント、管理操作、開発サーバー",
+    "lockAdmin": "管理をロック",
+    "lockAdminDetail": "ロックを解除するまで、エージェントは管理者アクセスを失います",
+    "stopMachine": "マシンを停止",
+    "administratorPassword": "管理者パスワード",
+    "authenticate": "認証",
+    "cancel": "キャンセル",
+    "agentAdminRequest": "エージェントの管理リクエスト",
+    "taintAskNote": "「常に許可」でもこれは確認します:{agent} がリクエストの前に Web ページを読みました。",
+    "writtenToAdminAudit": "管理監査ログに記録されます",
+    "touchKeyToAllow": "許可するにはセキュリティキーに触れてください",
+    "deny": "拒否",
+    "allowOnce": "一度だけ許可",
+    "wifiPassword": "Wi-Fi パスワード",
+    "connectAutomatically": "自動的に接続",
+    "connect": "接続",
+    "bluetoothPairing": "Bluetooth ペアリング",
+    "launcherCalculateLocal": "このマシン上で計算しました。どこにも送信されません。",
+    "launcherSymbolSearch": "絵文字または記号を検索",
+    "onboardingTitle": "Muse Desktop をセットアップ",
+    "onboardingStep": "ステップ {step} / {total}",
+    "packsForYourWork": "あなたの作業向けパック",
+    "recommendedPacks": {
+      "other": "おすすめ · {count}"
+    },
+    "allPacks": "すべてのパック · {count}",
+    "fromSignedIndex": "署名済みの Muse パックインデックスから",
+    "downloadSize": "ダウンロード",
+    "onDiskSize": "ディスク上",
+    "details": "詳細",
+    "setUpLater": "後でセットアップ",
+    "back": "戻る",
+    "install": "インストール",
+    "installingPacks": {
+      "other": "{count} 個のパックをインストール中"
+    }
   }
 }

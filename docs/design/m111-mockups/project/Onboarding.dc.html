@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Onboarding pack list</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">15</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">Onboarding · the pack list</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · after the first sign-in · pack contents, versions and sizes are sample data</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="Tiled.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="Preview.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div class="ms-bar" style="height: 32px; flex: none; display: flex; align-items: center; gap: 6px; padding-inline: 6px; border-bottom: 1px solid var(--ms-border); font-size: 12px">
+      <span style="width: 36px; display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="26" height="15" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+      <span class="sb" style="height: 22px; border-radius: var(--ms-radius-pill); background: var(--ms-selection); color: var(--ms-on-selection)"><span class="mono" style="font-weight: 600">1</span></span>
+      <span class="sb" style="font-weight: 600">Set up Muse Desktop</span>
+      <span style="flex: 1"></span><span class="sb" style="font-weight: 600">Fri 23 Oct · 14:32</span><span style="flex: 1"></span>
+      <span class="sb"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.wifi}}"></path></svg></span><span class="sb">82%</span>
+    </div>
+    <div style="flex: 1; min-height: 0; display: flex; background: var(--ms-surface)">
+      <nav aria-label="Setup steps" style="width: 300px; flex: none; padding: 40px 24px; border-inline-end: 1px solid var(--ms-border); background: var(--ms-raised); display: flex; flex-direction: column; gap: 6px">
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 24px"><svg viewBox="-14 -14 228 128" width="36" height="20" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg><span style="font-weight: 600; font-size: var(--ms-font-large)">Set up for your work</span></div>
+        <ol style="margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px">
+          <sc-for list="{{steps}}" as="s" hint-placeholder-count="6">
+            <li aria-current="{{s.cur}}" style="height: 44px; display: flex; align-items: center; gap: 12px; padding: 0 12px; border-radius: var(--ms-radius-md); background: {{s.bg}}; color: {{s.fg}}">
+              <span style="width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1.5px solid {{s.rc}}; background: {{s.rb}}; color: {{s.rf}}; display: grid; place-items: center; font-size: 12px; font-weight: 600">{{s.n}}</span>
+              <span style="flex: 1; font-weight: {{s.w}}">{{s.t}}</span>
+              <span style="font-size: var(--ms-font-small); color: {{s.fg}}; opacity: 0.85">{{s.note}}</span>
+            </li>
+          </sc-for>
+        </ol>
+      </nav>
+      <main style="flex: 1; min-width: 0; padding: 40px 48px 0; display: flex; flex-direction: column; gap: 18px">
+        <div style="display: flex; flex-direction: column; gap: 6px; max-width: 900px">
+          <span class="lbl">Step 3 of 6</span>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 600; letter-spacing: -0.01em">Packs for your work</h1>
+          <p style="margin: 0; color: var(--ms-muted); font-size: 14px">Chosen from your answers: Web, Docs and writing · some experience · balanced strictness. Nothing installs until you choose Install.</p>
+        </div>
+        <div role="tablist" aria-label="Pack list" style="display: flex; gap: 6px">
+          <button role="tab" aria-selected="true" class="pill" style="height: 28px; padding: 0 12px; font-size: 13px; background: var(--ms-selection); color: var(--ms-on-selection); border-color: var(--ms-selection)">Recommended · 4</button>
+          <button role="tab" aria-selected="false" class="pill" style="height: 28px; padding: 0 12px; font-size: 13px">All packs · 23</button>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 10px; max-width: 1000px">
+          <sc-for list="{{packs}}" as="p" hint-placeholder-count="5">
+            <article style="display: grid; grid-template-columns: 28px minmax(0, 1fr) 200px; gap: 14px; align-items: start; padding: 14px 16px; border: 1px solid {{p.bd}}; border-radius: var(--ms-radius-lg); background: var(--ms-surface)">
+              <input id="{{p.id}}" type="checkbox" checked="{{p.on}}" aria-label="{{p.name}}" style="width: 18px; height: 18px; margin: 3px 0 0; accent-color: var(--ms-accent)">
+              <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0">
+                <div style="display: flex; align-items: center; gap: 8px"><label for="{{p.id}}" style="font-weight: 600; font-size: 15px">{{p.name}}</label><span class="chip" style="color: var(--ms-success); opacity: {{p.ro}}">recommended</span></div>
+                <span style="color: var(--ms-muted)">{{p.desc}}</span>
+                <span class="mono dat" style="font-size: 12px">{{p.tools}}</span>
+                <span style="font-size: 12px; color: var(--ms-muted)">Licences: <span class="dat">{{p.lic}}</span> · From the Muse pack index, signed</span>
+              </div>
+              <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 2px; font-size: 12px">
+                <span><span style="color: var(--ms-muted)">Download</span> <span class="mono" style="font-weight: 600">{{p.dl}}</span></span>
+                <span><span style="color: var(--ms-muted)">On disk</span> <span class="mono" style="font-weight: 600">{{p.disk}}</span></span>
+                <button class="btn" style="height: 24px; font-size: 12px; margin-top: 6px">Details</button>
+              </div>
+            </article>
+          </sc-for>
+        </div>
+        <span style="flex: 1"></span>
+        <div style="height: 72px; flex: none; margin-inline: -48px; padding: 0 48px; border-top: 1px solid var(--ms-border); background: var(--ms-raised); display: flex; align-items: center; gap: 18px">
+          <span style="font-weight: 600">4 packs</span>
+          <span style="color: var(--ms-muted)">Download <span class="mono" style="color: var(--ms-text)">704 MB</span> · on disk <span class="mono" style="color: var(--ms-text)">2.1 GB</span> · on <span class="dat">Studio-5G</span>, not metered</span>
+          <span style="flex: 1"></span>
+          <button class="btn" style="height: 36px">Set up later</button>
+          <button class="btn" style="height: 36px">Back</button>
+          <button class="btn btn-p focus" style="height: 36px; padding: 0 20px">Install</button>
+        </div>
+      </main>
+      <aside aria-label="Progress, the next step, shown for review" style="width: 400px; flex: none; padding: 40px 24px; border-inline-start: 1px solid var(--ms-border); display: flex; flex-direction: column; gap: 14px">
+        <span class="lbl">Next step · progress</span>
+        <section style="border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 16px; display: flex; flex-direction: column; gap: 14px; background: var(--ms-raised)">
+          <div style="display: flex; align-items: baseline"><span style="font-weight: 600; flex: 1">Installing 4 packs</span><span class="mono" style="font-size: 12px; color: var(--ms-muted)">2 min left</span></div>
+          <div style="height: 8px; border-radius: var(--ms-radius-pill); background: var(--ms-badge); overflow: hidden"><div style="width: 34%; height: 100%; background: var(--ms-progress)"></div></div>
+          <sc-for list="{{progress}}" as="g" hint-placeholder-count="4">
+            <div style="display: flex; flex-direction: column; gap: 4px">
+              <div style="display: flex; font-size: 12px; gap: 8px"><span style="flex: 1; font-weight: 600">{{g.name}}</span><span style="color: {{g.sc}}">{{g.state}}</span></div>
+              <div style="height: 4px; border-radius: var(--ms-radius-pill); background: var(--ms-badge); overflow: hidden"><div style="width: {{g.p}}%; height: 100%; background: var(--ms-progress)"></div></div>
+              <span class="mono" style="font-size: var(--ms-font-small); color: var(--ms-muted)">{{g.bytes}}</span>
+            </div>
+          </sc-for>
+          <button class="btn" style="align-self: flex-start">Cancel</button>
+          <span style="font-size: 12px; color: var(--ms-muted)">Each pack installs as one piece, so cancelling never leaves a pack half installed.</span>
+        </section>
+      </aside>
+    </div>
+    <div class="ms-bar" style="height: 24px; flex: none; border-top: 1px solid var(--ms-border)"></div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"light"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const I = { wifi: 'M2 8.5a15 15 0 0 1 20 0 M5 12a10 10 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 19h.01' };
+    const step = (n, t, st, note) => {
+      const done = st === 'done'; const cur = st === 'cur';
+      return { n: done ? '✓' : n, t, note: note || '', cur: cur ? 'step' : 'false', w: cur ? '600' : '400',
+        bg: cur ? 'var(--ms-selection)' : 'transparent', fg: cur ? 'var(--ms-on-selection)' : (done ? 'var(--ms-text)' : 'var(--ms-muted)'),
+        rc: cur ? 'var(--ms-on-selection)' : (done ? 'var(--ms-success)' : 'var(--ms-border)'), rb: done ? 'var(--ms-success)' : 'transparent', rf: done ? 'var(--ms-surface)' : 'inherit' };
+    };
+    const steps = [
+      step('1', 'Use areas', 'done', 'Web, Docs'), step('2', 'Experience', 'done', 'Some'), step('3', 'Packs', 'cur', ''),
+      step('4', 'Install', 'todo', ''), step('5', 'Companion', 'todo', 'Optional'), step('6', 'Quick tour', 'todo', '')
+    ];
+    const pk = (id, name, rec, on, desc, tools, lic, dl, disk) => ({ id, name, ro: rec ? '1' : '0', on: on ? 'checked' : null, bd: on ? 'var(--ms-accent)' : 'var(--ms-border)', desc, tools, lic, dl, disk });
+    const packs = [
+      pk('pk-web', 'Web essentials', true, true, 'Run and build JavaScript and TypeScript apps.', 'Node.js 22 LTS · pnpm 9 · Vite 7 · TypeScript 5', 'MIT, BSD-2-Clause, Apache-2.0', '212 MB', '640 MB'),
+      pk('pk-browser', 'Browser checks', true, true, 'Preview tools, audits and the agents’ own browser.', 'Chrome for Testing (pinned) · Playwright · Lighthouse · axe-core', 'BSD-3-Clause, Apache-2.0, MPL-2.0', '410 MB', '1.2 GB'),
+      pk('pk-sample', 'Web sample project', true, true, 'A Vite and React app to try the preview on.', 'Sample app · Storybook 9', 'MIT', '18 MB', '96 MB'),
+      pk('pk-docs', 'Docs and writing', true, true, 'Markdown preview, diagrams, spelling and style checks.', 'Vale · cspell · Mermaid CLI · glow', 'MIT', '64 MB', '210 MB'),
+      pk('pk-python', 'Python', false, false, 'Not in your answers. Add it if you need it.', 'Python 3.13 · uv · Ruff', 'PSF-2.0, Apache-2.0, MIT', '96 MB', '380 MB')
+    ];
+    const progress = [
+      { name: 'Web essentials', state: '62%', sc: 'var(--ms-text)', p: 62, bytes: '131 of 212 MB · 40 s left' },
+      { name: 'Browser checks', state: 'Waiting: machine busy', sc: 'var(--ms-warning)', p: 8, bytes: '33 of 410 MB · paused' },
+      { name: 'Web sample project', state: 'Queued', sc: 'var(--ms-muted)', p: 0, bytes: '18 MB' },
+      { name: 'Docs and writing', state: 'Installed', sc: 'var(--ms-success)', p: 100, bytes: '64 MB · verified' }
+    ];
+    return {
+      theme, themeName: names[theme] ?? theme, I, steps, packs, progress,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'border', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'focus', 'selection', 'on-selection', 'success', 'warning', 'badge', 'progress', 'control-border', 'radius-md', 'radius-lg', 'radius-pill', 'radius-circle', 'space-16', 'space-24', 'space-48', 'font-ui', 'font-code', 'font-size', 'font-small', 'font-large', 'weight-bold', 'line-ui', 'chip-height', 'button-height', 'focus-width', 'focus-offset', 'bar-height', 'status-height']
+    };
+  }
+}
+</script>
+</body>
+</html>

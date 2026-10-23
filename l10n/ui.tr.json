@@ -7056,5 +7056,71 @@
     "setupFailed": "Kurulum tamamlanamadı: {reason}",
     "seedRefused": "Karttaki kurulum dosyaları kullanılmadı: {reason}",
     "continueButton": "Devam"
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "Parola",
+    "pin": "PIN",
+    "securityKey": "Güvenlik anahtarı",
+    "fingerprint": "Parmak izi",
+    "orSignInWith": "Veya şununla oturum açın",
+    "capsLockOn": "Caps Lock açık",
+    "session": "Oturum",
+    "sessionDesktop": "Masaüstü",
+    "sessionTerminal": "Terminal",
+    "accessibility": "Erişilebilirlik",
+    "recovery": "Kurtarma",
+    "recoveryHint": "Bir yönetici parolası veya kurtarma anahtarı gerekir",
+    "secureAttentionGreeter": "Gerçek oturum açma ekranına ulaşmak için istediğiniz zaman Ctrl+Alt+Del tuşlarına basın.",
+    "secureAttentionLock": "Bunun gerçek kilit ekranı olduğunu kontrol etmek için istediğiniz zaman Ctrl+Alt+Del tuşlarına basın.",
+    "secureAttentionPrompt": "Gerçek olduğundan emin değil misiniz? Ctrl+Alt+Del tuşlarına basın.",
+    "notificationsCount": {
+      "one": "{count} bildirim",
+      "other": "{count} bildirim"
+    },
+    "agentsRunning": {
+      "one": "{count} aracı çalışıyor",
+      "other": "{count} aracı çalışıyor"
+    },
+    "worksWithoutSignIn": "Oturum açmadan çalışır",
+    "stopEverything": "Her şeyi durdur",
+    "stopEverythingDetail": "Aracılar, yönetici eylemleri ve geliştirme sunucuları",
+    "lockAdmin": "Yöneticiyi kilitle",
+    "lockAdminDetail": "Kilidi açana kadar aracılar yönetici erişimini kaybeder",
+    "stopMachine": "Bilgisayarı kapat",
+    "administratorPassword": "Yönetici parolası",
+    "authenticate": "Kimliği doğrula",
+    "cancel": "İptal",
+    "agentAdminRequest": "Aracı yönetici isteği",
+    "taintAskNote": "«Her zaman izin ver» olsa bile bu sorulur: {agent} istekten önce bir web sayfası okudu.",
+    "writtenToAdminAudit": "Yönetici denetim günlüğüne yazılır",
+    "touchKeyToAllow": "İzin vermek için güvenlik anahtarınıza dokunun",
+    "deny": "Reddet",
+    "allowOnce": "Bir kez izin ver",
+    "wifiPassword": "Wi-Fi parolası",
+    "connectAutomatically": "Otomatik olarak bağlan",
+    "connect": "Bağlan",
+    "bluetoothPairing": "Bluetooth eşleştirmesi",
+    "launcherCalculateLocal": "Bu bilgisayarda hesaplandı. Hiçbir yere gönderilmez.",
+    "launcherSymbolSearch": "Emoji veya simge bul",
+    "onboardingTitle": "Muse Desktop'ı kurun",
+    "onboardingStep": "{total} adımdan {step}. adım",
+    "packsForYourWork": "İşiniz için paketler",
+    "recommendedPacks": {
+      "one": "Önerilen · {count}",
+      "other": "Önerilen · {count}"
+    },
+    "allPacks": "Tüm paketler · {count}",
+    "fromSignedIndex": "İmzalı Muse paket dizininden",
+    "downloadSize": "İndirme",
+    "onDiskSize": "Diskte",
+    "details": "Ayrıntılar",
+    "setUpLater": "Daha sonra kur",
+    "back": "Geri",
+    "install": "Kur",
+    "installingPacks": {
+      "one": "{count} paket kuruluyor",
+      "other": "{count} paket kuruluyor"
+    }
   }
 }

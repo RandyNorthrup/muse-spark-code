@@ -49,6 +49,12 @@ happened, not what was planned; superseded entries are kept.
   pins, MOK signing), the base firmware set resolver, the QEMU
   boot-test driver with a proving guest, the reproducibility
   comparison, and the `node-os` CI pipeline (RLF-M110OS).
+- **Code is coloured again.** The four syntax colours are real colours in
+  every theme (dark, light and both high-contrast themes) instead of plain
+  text colour, and the palette gains a softer divider colour, a colour for
+  modified files in Git lists, and the Muse Desktop frame sizes from the
+  approved desktop mockups, which are now in the repository as the design
+  reference with their component contracts.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use

@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bar Muse popovers</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">08</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">The bar · desktops, agents and the node</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · popovers shown together for review; one opens at a time</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="BarSystem.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="Launcher.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1100" height="620" style="opacity: 0.07"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+
+    <div class="ms-bar" role="banner" style="height: 32px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; padding-inline: 6px; border-bottom: 1px solid var(--ms-border); font-size: 12px; position: relative; z-index: 2">
+      <div style="display: flex; align-items: center; gap: 6px">
+        <button class="ib" aria-label="Open the launcher (Super)" style="width: 36px"><svg viewBox="-14 -14 228 128" width="26" height="15" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+        <button class="sb" aria-label="Desktop 1, current" style="height: 22px; border-radius: var(--ms-radius-pill); background: var(--ms-selection); color: var(--ms-on-selection)"><span class="mono" style="font-weight: 600">1</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.monitor}}"></path></svg></button>
+        <button class="sb" aria-label="Desktop 2: Chrome" style="height: 22px; border-radius: var(--ms-radius-pill); border: 1px solid var(--ms-border)"><span class="mono" style="font-weight: 600">2</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg></button>
+        <button class="sb" aria-label="Desktop 3: opened by web-eng" aria-expanded="true" style="height: 22px; border-radius: var(--ms-radius-pill); border: 1px solid var(--ms-border); background: var(--ms-hover)"><span class="mono" style="font-weight: 600">3</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg><span class="chip dat" style="height: 15px; font-size: 10px; color: var(--ms-info)">web-eng</span><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">1</span></button>
+        <button class="sb" aria-expanded="true" style="font-weight: 600; background: var(--ms-hover)">Workbench · <span class="dat">trailhead</span><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">2</span></button>
+      </div>
+      <button class="sb" aria-expanded="true" style="font-weight: 600; background: var(--ms-hover)">Fri 23 Oct · 14:32<span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">3</span></button>
+      <div style="justify-self: end; display: flex; align-items: center; gap: 1px">
+        <button class="sb" aria-label="Node: this machine, ready" style="background: var(--ms-hover)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.node}}"></path></svg>Local<span style="width: 6px; height: 6px; border-radius: 50%; background: var(--ms-success)"></span><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">4</span></button>
+        <button class="sb" aria-label="Agents: 3 running, 1 waiting" style="background: var(--ms-hover)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg>3<span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">5</span></button>
+        <button class="sb" aria-label="Resources" style="background: var(--ms-hover)"><span style="display: flex; align-items: flex-end; gap: 2px; height: 13px"><i style="width: 4px; height: 8px; background: var(--ms-text)"></i><i style="width: 4px; height: 8px; background: var(--ms-text)"></i><i style="width: 4px; height: 3px; background: var(--ms-text)"></i></span><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">6</span></button>
+        <button class="sb" aria-label="Microphone and screen recording in use" style="background: var(--ms-hover); color: var(--ms-warning)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.mic}}"></path></svg><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.screen}}"></path></svg><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">7</span></button>
+        <button class="sb mono" aria-label="Input method: English (US)" style="background: var(--ms-hover)">EN<span class="badge" style="background: var(--ms-info); color: var(--ms-surface); font-family: var(--ms-font-ui)">8</span></button>
+        <button class="sb" aria-label="Wi-Fi"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.wifi}}"></path></svg></button>
+        <button class="sb" aria-label="Sound"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sound}}"></path></svg></button>
+        <button class="sb" aria-label="Battery 82 percent">82%</button>
+        <button class="sb" aria-label="Randy Northrup: user and power menu" style="background: var(--ms-hover)"><span style="width: 20px; height: 20px; border-radius: 50%; background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600; font-size: 11px">R</span><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">9</span></button>
+      </div>
+    </div>
+
+    <div style="position: relative; flex: 1; display: flex; justify-content: center; gap: 24px; padding-top: 18px; align-items: flex-start">
+      <div style="display: flex; flex-direction: column; gap: 18px; width: 320px">
+        <!-- 1 Desktop pill: thumbnail and menu -->
+        <section class="ms-pop" aria-label="Desktop 3 preview" style="padding: 10px; display: flex; flex-direction: column; gap: 8px">
+          <div style="display: flex; align-items: center; gap: 8px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">1</span><span style="font-weight: 600; flex: 1">Desktop 3</span><span class="chip dat" style="color: var(--ms-info)">web-eng</span></div>
+          <div aria-label="Live thumbnail of desktop 3" style="height: 168px; border-radius: var(--ms-radius-md); border: 1px solid var(--ms-border); background: var(--ms-raised); padding: 8px; display: flex; flex-direction: column; gap: 6px">
+            <div style="height: 14px; border-radius: var(--ms-radius-xs); background: var(--ms-hover)"></div>
+            <div data-ms-theme="light" style="flex: 1; border-radius: var(--ms-radius-xs); background: var(--ms-surface); padding: 8px; display: flex; flex-direction: column; gap: 5px">
+              <div style="height: 8px; width: 40%; background: var(--ms-text); border-radius: 2px"></div>
+              <div style="height: 5px; width: 80%; background: var(--ms-border); border-radius: 2px"></div>
+              <div style="height: 5px; width: 70%; background: var(--ms-border); border-radius: 2px"></div>
+              <div style="height: 30px; border: 1px solid var(--ms-border); border-radius: 3px"></div>
+              <div style="height: 10px; width: 50%; background: var(--ms-accent); border-radius: 2px"></div>
+            </div>
+          </div>
+          <span style="font-size: 12px; color: var(--ms-muted)">Chrome for Testing · opened by web-eng · did not take focus</span>
+        </section>
+        <section class="ms-pop" role="menu" aria-label="Desktop 3 menu" style="padding: 6px; display: flex; flex-direction: column">
+          <sc-for list="{{deskMenu}}" as="m" hint-placeholder-count="7">
+            <button role="menuitem" class="row" style="border: 0; background: {{m.bg}}; color: {{m.fg}}; width: 100%; text-align: start; min-height: 30px; border-top: {{m.sep}}"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.icon}}"></path></svg><span style="flex: 1">{{m.t}}</span><span class="mono" style="font-size: var(--ms-font-small); color: var(--ms-muted)">{{m.k}}</span></button>
+          </sc-for>
+        </section>
+        <!-- 2 Window menu -->
+        <section class="ms-pop" role="menu" aria-label="Window menu" style="padding: 6px; display: flex; flex-direction: column">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">2</span><span style="font-weight: 600">Workbench · <span class="dat">trailhead</span></span></div>
+          <sc-for list="{{winMenu}}" as="m" hint-placeholder-count="6">
+            <button role="menuitem" class="row" style="border: 0; background: transparent; color: {{m.fg}}; width: 100%; text-align: start; min-height: 30px; border-top: {{m.sep}}"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.icon}}"></path></svg><span style="flex: 1">{{m.t}}</span><span class="mono" style="font-size: var(--ms-font-small); color: var(--ms-muted)">{{m.k}}</span></button>
+          </sc-for>
+          <span style="font-size: var(--ms-font-small); color: var(--ms-muted); padding: 2px 10px 6px">The workbench always keeps one window open.</span>
+        </section>
+      </div>
+
+      <!-- 3 Calendar and notifications -->
+      <section class="ms-pop" aria-label="Calendar and notifications" style="width: 380px; padding: 12px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 8px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">3</span><span style="font-weight: 600; flex: 1">October 2026</span><button class="ib" aria-label="Previous month"><svg class="ic flipx" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevL}}"></path></svg></button><button class="ib" aria-label="Next month"><svg class="ic flipx" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevR}}"></path></svg></button></div>
+        <div role="grid" aria-label="October 2026" style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; text-align: center; font-size: 12px">
+          <sc-for list="{{wd}}" as="w" hint-placeholder-count="7"><span style="color: var(--ms-muted); font-size: var(--ms-font-small); font-weight: 600; height: 22px">{{w}}</span></sc-for>
+          <sc-for list="{{days}}" as="d" hint-placeholder-count="35"><span role="gridcell" class="mono" style="height: 30px; display: grid; place-items: center; border-radius: 50%; background: {{d.bg}}; color: {{d.fg}}; font-weight: {{d.w}}">{{d.n}}</span></sc-for>
+        </div>
+        <div class="hr"></div>
+        <div style="display: flex; align-items: center; gap: 8px"><span style="font-weight: 600; flex: 1">Notifications</span><span style="font-size: 12px; color: var(--ms-muted)">Do Not Disturb</span><button class="tog" role="switch" aria-checked="false" aria-label="Do Not Disturb"></button></div>
+        <div style="font-size: 12px; color: var(--ms-muted); margin-top: -6px">Scheduled every night, 22:00 to 07:00</div>
+        <sc-for list="{{notes}}" as="n" hint-placeholder-count="4">
+          <article style="border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); background: var(--ms-raised); padding: 10px 12px; display: flex; flex-direction: column; gap: 4px">
+            <div style="display: flex; align-items: center; gap: 6px; font-size: 12px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: {{n.ic}}"><path d="{{n.icon}}"></path></svg><span class="dat" style="font-weight: 600">{{n.app}}</span><span style="color: var(--ms-muted); flex: 1">· {{n.when}}</span><button class="ib" aria-label="Dismiss" style="width: 20px; height: 20px"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.x}}"></path></svg></button></div>
+            <span style="font-weight: 600">{{n.title}}</span>
+            <span class="dat" style="font-size: 12px; color: var(--ms-muted)">{{n.body}}</span>
+            <sc-if value="{{n.action}}" hint-placeholder-val="{{ false }}"><button class="btn" style="height: 26px; font-size: 12px; align-self: flex-start; margin-top: 4px">{{n.action}}</button></sc-if>
+          </article>
+        </sc-for>
+        <button class="btn" style="align-self: flex-end">Clear all</button>
+      </section>
+
+      <div style="display: flex; flex-direction: column; gap: 18px; width: 320px">
+        <!-- 4 Node -->
+        <section class="ms-pop" aria-label="Node and orchestrator" style="padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 6px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">4</span><span style="font-weight: 600; flex: 1">Node</span></div>
+          <div class="row" style="min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.node}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">This machine</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">Ready · orchestrator on</span></span><span class="chip" style="color: var(--ms-success)">ready</span></div>
+          <span class="lbl" style="padding: 6px 10px 2px">Paired nodes</span>
+          <div class="row"><span style="width: 8px; height: 8px; border-radius: 50%; background: var(--ms-success)"></span><span class="dat" style="flex: 1">shed-pi5</span><span style="font-size: 12px; color: var(--ms-muted)">online · 1 agent</span></div>
+          <div class="row"><span style="width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ms-muted)"></span><span class="dat" style="flex: 1">travel-laptop</span><span style="font-size: 12px; color: var(--ms-muted)">asleep</span></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.eye}}"></path></svg><span style="flex: 1">Live peek</span><span style="font-size: 12px; color: var(--ms-muted)">1 viewer · <span class="dat">Randy's phone</span></span></div>
+          <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Open Connections</button>
+        </section>
+        <!-- 6 Meter -->
+        <section class="ms-pop" aria-label="Resources" style="padding: 6px 6px 10px; display: flex; flex-direction: column; gap: 6px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 2px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">6</span><span style="font-weight: 600; flex: 1">Resources</span><span class="chip" style="color: var(--ms-success)">level: normal</span></div>
+          <sc-for list="{{meters}}" as="m" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 4px; padding: 0 10px">
+              <div style="display: flex; font-size: 12px"><span style="flex: 1">{{m.t}}</span><span class="mono">{{m.v}}</span></div>
+              <div style="height: 6px; border-radius: var(--ms-radius-pill); background: var(--ms-badge); overflow: hidden"><div style="height: 100%; width: {{m.p}}%; background: var(--ms-accent)"></div></div>
+            </div>
+          </sc-for>
+          <span class="lbl" style="padding: 6px 10px 0">Using the most</span>
+          <div class="mono" style="font-size: 12px; padding: 0 10px; display: flex; flex-direction: column; gap: 2px"><span class="dat">vite dev · 22%</span><span class="dat">Chrome · 18%</span><span class="dat">vitest · 12%</span></div>
+          <span style="font-size: var(--ms-font-small); color: var(--ms-muted); padding: 2px 10px 0">Pack installs and big downloads wait while the machine is busy.</span>
+        </section>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px; width: 320px">
+        <!-- 5 Agents -->
+        <section class="ms-pop" aria-label="Running agents" style="padding: 6px 6px 10px; display: flex; flex-direction: column; gap: 4px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">5</span><span style="font-weight: 600; flex: 1">Agents</span><span style="font-size: 12px; color: var(--ms-muted)">3 running</span></div>
+          <sc-for list="{{agents}}" as="a" hint-placeholder-count="3">
+            <div style="border: 1px solid var(--ms-border); border-radius: var(--ms-radius-md); padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; margin: 0 4px">
+              <div style="display: flex; align-items: center; gap: 8px"><span style="width: 8px; height: 8px; border-radius: 50%; background: {{a.dot}}; border: 1.5px solid {{a.c}}"></span><span class="dat" style="font-weight: 600">{{a.name}}</span><span class="mono dat" style="font-size: var(--ms-font-small); color: var(--ms-muted); flex: 1">{{a.model}}</span><span class="chip" style="color: {{a.c}}">{{a.state}}</span></div>
+              <span class="dat" style="font-size: 12px; color: var(--ms-muted)">{{a.task}}</span>
+              <div style="display: flex; gap: 6px"><button class="btn" style="height: 24px; font-size: 12px; padding: 0 8px">{{a.b1}}</button><button class="btn" style="height: 24px; font-size: 12px; padding: 0 8px">{{a.b2}}</button></div>
+            </div>
+          </sc-for>
+          <button class="btn btn-d" style="margin: 4px 4px 0; justify-content: center"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-danger)"><path d="{{I.stop}}"></path></svg>Stop everything</button>
+        </section>
+        <!-- 7 Privacy -->
+        <section class="ms-pop" aria-label="Privacy indicators" style="padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">7</span><span style="font-weight: 600; flex: 1">In use now</span></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-warning)"><path d="{{I.mic}}"></path></svg><span style="flex: 1">Microphone · <span class="dat">Chrome</span></span></div>
+          <div class="row"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-warning)"><path d="{{I.screen}}"></path></svg><span style="flex: 1">Screen recording · region</span><button class="btn" style="height: 24px; font-size: 12px">Stop</button></div>
+          <div class="row" style="color: var(--ms-muted)"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.camera}}"></path></svg><span>Camera · not in use</span></div>
+        </section>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 18px; width: 300px">
+        <!-- 8 Input method -->
+        <section class="ms-pop" role="menu" aria-label="Input method" style="padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 8px; padding: 8px 8px 4px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">8</span><span style="font-weight: 600; flex: 1">Input method</span></div>
+          <sc-for list="{{ims}}" as="m" hint-placeholder-count="4">
+            <button role="menuitemradio" aria-checked="{{m.on}}" class="row" style="border: 0; width: 100%; text-align: start; background: {{m.bg}}; color: {{m.fg}}"><span class="mono" style="width: 28px; font-size: var(--ms-font-small); font-weight: 600">{{m.code}}</span><span class="dat" style="flex: 1">{{m.name}}</span></button>
+          </sc-for>
+          <button class="row" style="border: 0; background: transparent; width: 100%; text-align: start; color: var(--ms-info)">Keyboard settings</button>
+        </section>
+        <!-- 9 User and power -->
+        <section class="ms-pop" role="menu" aria-label="User and power" style="padding: 6px; display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 10px; padding: 8px"><span class="badge" style="background: var(--ms-info); color: var(--ms-surface)">9</span><span style="width: 32px; height: 32px; border-radius: 50%; background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600">R</span><span style="display: flex; flex-direction: column; line-height: 1.3"><span class="dat" style="font-weight: 600">Randy Northrup</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">Owner · administrator</span></span></div>
+          <sc-for list="{{userMenu}}" as="m" hint-placeholder-count="3">
+            <button role="menuitem" class="row" style="border: 0; background: transparent; width: 100%; text-align: start; min-height: 30px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.icon}}"></path></svg><span style="flex: 1">{{m.t}}</span><span class="mono" style="font-size: var(--ms-font-small); color: var(--ms-muted)">{{m.k}}</span></button>
+          </sc-for>
+          <div class="hr" style="margin: 4px 6px"></div>
+          <div class="row" style="min-height: 44px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.shield}}"></path></svg><span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span>Admin access for agents</span><span style="font-size: var(--ms-font-small); color: var(--ms-muted)">Always allow · tainted requests ask</span></span><button class="btn" style="height: 26px; font-size: 12px">Lock admin</button></div>
+          <div class="hr" style="margin: 4px 6px"></div>
+          <sc-for list="{{powerMenu}}" as="m" hint-placeholder-count="3">
+            <button role="menuitem" class="row" style="border: 0; background: transparent; width: 100%; text-align: start; min-height: 30px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{m.icon}}"></path></svg><span style="flex: 1">{{m.t}}</span></button>
+          </sc-for>
+        </section>
+      </div>
+    </div>
+
+    <div class="ms-bar" role="contentinfo" style="height: 24px; flex: none; display: flex; align-items: center; gap: 1px; padding-inline: 6px; border-top: 1px solid var(--ms-border); position: relative; font-size: 12px">
+      <button class="sb"><span class="dat">feat/cart-summary</span></button>
+      <span style="flex: 1"></span>
+      <button class="sb"><span class="dat">muse-spark-1.3-contributor</span></button>
+    </div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
+      globe: c(12, 12, 9) + ' M3 12h18 M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9',
+      node: 'M4 4h16v6H4z M4 14h16v6H4z M8 7h.01 M8 17h.01',
+      bot: 'M5 8h14v11H5z M12 4v4 M9.5 13h.01 M14.5 13h.01 M2 12v3 M22 12v3',
+      mic: 'M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z M5 11a7 7 0 0 0 14 0 M12 18v3',
+      screen: 'M3 4h18v12H3z M8 20h8 M12 13V7 M9 10l3-3 3 3',
+      camera: 'M3 7h4l2-2h6l2 2h4v12H3z ' + c(12, 13, 3),
+      wifi: 'M2 8.5a15 15 0 0 1 20 0 M5 12a10 10 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 19h.01',
+      sound: 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12',
+      chevL: 'M15 6l-6 6 6 6', chevR: 'M9 6l6 6-6 6',
+      x: 'M6 6l12 12 M18 6L6 18', stop: 'M6 6h12v12H6z',
+      eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z ' + c(12, 12, 3),
+      shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z',
+      arrowR: 'M5 12h14 M13 6l6 6-6 6', merge: 'M7 4v4a4 4 0 0 0 4 4h6 M14 9l3 3-3 3 M7 20v-8',
+      pencil: 'M4 20h4L19 9l-4-4L4 16z M14 6l4 4', pin: 'M9 3h6l-1 6 4 4H6l4-4z M12 13v8',
+      window: 'M8 4h12v12 M4 8h12v12H4z', full: 'M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5',
+      plus: 'M12 5v14 M5 12h14', lock: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4',
+      terminal: 'M4 5h16v14H4z M7.5 9.5l3 2.5-3 2.5 M12.5 15h4', out: 'M9 4H4v16h5 M16 8l4 4-4 4 M20 12H9',
+      moon: 'M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z',
+      refresh: 'M20 11a8 8 0 0 0-14.6-4.5L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.6 4.5L20 16 M20 20v-4h-4',
+      power: 'M12 3v9 M6.3 6.3a8 8 0 1 0 11.4 0', check: 'M5 12l5 5 9-10',
+      download: 'M12 4v11 M7 10l5 5 5-5 M4 20h16', pkg: 'M12 3l8 4.5v9L12 21l-8-4.5v-9z M4 7.5l8 4.5 8-4.5 M12 12v9'
+    };
+    const mi = (t, icon, k, o) => ({ t, icon, k: k || '', bg: (o && o.hov) ? 'var(--ms-hover)' : 'transparent', fg: (o && o.danger) ? 'var(--ms-danger)' : ((o && o.off) ? 'var(--ms-disabled)' : 'var(--ms-text)'), sep: (o && o.sep) ? '1px solid var(--ms-border)' : '0' });
+    const deskMenu = [
+      mi('Switch to desktop 3', I.arrowR, 'Super+3', { hov: true }), mi('Preview desktop 3', I.eye, 'Super+Ctrl+3'),
+      mi('Merge into…', I.merge, 'Super+Alt+M'), mi('Rename', I.pencil, ''), mi('Move to display', I.monitor, ''),
+      mi('Pin to sidebar', I.pin, ''), mi('Close desktop', I.x, '', { danger: true, sep: true })
+    ];
+    const winMenu = [
+      mi('Float', I.window, ''), mi('Fullscreen', I.full, 'Super+F'), mi('Move to desktop', I.arrowR, 'Super+Shift+1…9'),
+      mi('Send to a new desktop', I.plus, 'Super+Shift+N'), mi('Pin to sidebar', I.pin, ''), mi('Close window', I.x, '', { off: true, sep: true })
+    ];
+    const wd = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+    const days = [];
+    [28, 29, 30].forEach((n) => days.push({ n, out: true }));
+    for (let i = 1; i <= 31; i += 1) days.push({ n: i, out: false });
+    days.push({ n: 1, out: true });
+    const dayV = days.map((d) => ({ n: d.n, bg: (!d.out && d.n === 23) ? 'var(--ms-accent)' : 'transparent', fg: d.out ? 'var(--ms-muted)' : ((d.n === 23) ? 'var(--ms-on-accent)' : 'var(--ms-text)'), w: (!d.out && d.n === 23) ? '600' : '400' }));
+    const notes = [
+      { app: 'web-eng', when: '2 min ago', title: 'Approval waiting', body: 'Run npm run test -- CartSummary', action: 'Open in the app', icon: I.bot, ic: 'var(--ms-warning)' },
+      { app: 'docs-writer', when: '5 min ago', title: 'Turn finished', body: 'Updated CHANGELOG.md (+6 lines)', action: '', icon: I.check, ic: 'var(--ms-success)' },
+      { app: 'Chrome', when: '12 min ago', title: 'Download complete', body: 'trailhead-photos.zip · 48 MB', action: '', icon: I.download, ic: 'var(--ms-muted)' },
+      { app: 'Updates', when: '1 h ago', title: 'Update ready', body: 'Installs tonight at 03:00, or restart now', action: 'Restart now', icon: I.pkg, ic: 'var(--ms-info)' }
+    ];
+    const meters = [
+      { t: 'CPU', v: '62%', p: 62 }, { t: 'Memory', v: '9.8 of 16 GB', p: 61 }, { t: 'GPU', v: '18%', p: 18 }
+    ];
+    const agents = [
+      { name: 'web-eng', model: 'spark-1.3-contributor', state: 'approval', task: 'Wants to run npm run test -- CartSummary', b1: 'Open the card', b2: 'Peek', dot: 'var(--ms-warning)', c: 'var(--ms-warning)' },
+      { name: 'docs-writer', model: 'spark-1.3-contributor', state: 'running', task: 'Updating CHANGELOG.md · 3 min', b1: 'Peek', b2: 'Stop', dot: 'var(--ms-info)', c: 'var(--ms-info)' },
+      { name: 'reviewer', model: 'wonder-full-1.0-contributor', state: 'queued', task: 'Starts when the tests pass', b1: 'Peek', b2: 'Cancel', dot: 'transparent', c: 'var(--ms-muted)' }
+    ];
+    const im = (code, name, on) => ({ code, name, on: on ? 'true' : 'false', bg: on ? 'var(--ms-selection)' : 'transparent', fg: on ? 'var(--ms-on-selection)' : 'var(--ms-text)' });
+    const ims = [im('EN', 'English (US)', true), im('DE', 'Deutsch', false), im('JA', '日本語 · Mozc', false), im('ZH', '简体中文 · Pinyin', false)];
+    const userMenu = [mi('Lock', I.lock, 'Super+L'), mi('Switch to the Terminal session', I.terminal, ''), mi('Sign out', I.out, '')];
+    const powerMenu = [mi('Suspend', I.moon, ''), mi('Restart', I.refresh, ''), mi('Shut down', I.power, '')];
+    return {
+      theme, themeName: names[theme] ?? theme, I, deskMenu, winMenu, wd, days: dayV, notes, meters, agents, ims, userMenu, powerMenu,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'overlay', 'border', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'selection', 'on-selection', 'hover', 'success', 'warning', 'danger', 'info', 'badge', 'on-badge', 'disabled', 'error-surface', 'elevation-popover', 'popover-alpha', 'overlay-alpha', 'backdrop-blur', 'radius-xs', 'radius-md', 'radius-lg', 'radius-pill', 'space-8', 'space-12', 'font-ui', 'font-code', 'font-size', 'font-small', 'chip-height', 'button-height', 'bar-height', 'status-height']
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -59,3 +59,7 @@ deploy/helm/muse-node/templates/
 # Lane L loader fixture: intentionally not JSON (the loader's
 # invalid-json case in test/unit/judgeCalibration.test.ts).
 test/fixtures/judgeCalibration/invalid/systemone/loop.stuck/bad.json
+
+# M111 approved mockup design reference (RLF-M111L0): the owner-approved
+# artifact is kept byte-exact; its CSS/HTML are design sources, not product code.
+docs/design/m111-mockups/

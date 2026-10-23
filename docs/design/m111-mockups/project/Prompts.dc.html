@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>System prompts</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">13</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">System prompts · administrator, agent admin, Wi-Fi and Bluetooth</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · drawn by the shell (SH2), owned by muse-sysd · the requester always comes from peer credentials</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="Lock.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="Tiled.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1100" height="620" style="opacity: 0.07"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div class="ms-bar" style="height: 32px; flex: none; border-bottom: 1px solid var(--ms-border); position: relative"></div>
+    <div class="scrim" style="top: 32px"></div>
+    <div style="position: relative; flex: 1; display: flex; justify-content: center; align-items: flex-start; gap: 28px; padding-top: 150px">
+
+      <section role="alertdialog" aria-labelledby="pr-a-t" class="ms-pop" style="width: 420px; padding: 22px; border-radius: var(--ms-radius-xl); box-shadow: var(--ms-elevation-overlay); display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ms-border); display: grid; place-items: center"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.lock}}"></path></svg></span><span class="lbl">Administrator password</span></div>
+        <h2 id="pr-a-t" style="margin: 0; font-size: 20px; font-weight: 600">Change the time zone</h2>
+        <p style="margin: 0; color: var(--ms-muted)">Settings wants to set the system time zone to <span class="dat" style="color: var(--ms-text)">Europe/Berlin</span>.</p>
+        <dl style="margin: 0; display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 4px 12px; font-size: 12px">
+          <dt style="color: var(--ms-muted)">Requested by</dt><dd class="dat" style="margin: 0">Settings · muse-settings · pid 4121</dd>
+          <dt style="color: var(--ms-muted)">Action</dt><dd class="mono dat" style="margin: 0; overflow-wrap: anywhere">org.freedesktop.timedate1.set-timezone</dd>
+        </dl>
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="pr-a-pw" style="font-size: 12px; font-weight: 600">Password for <span class="dat">Randy Northrup</span></label><input id="pr-a-pw" class="field focus" type="password" value="correcthorse"></div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px"><button class="btn" style="height: 36px">Cancel</button><button class="btn btn-p" style="height: 36px">Authenticate</button></div>
+        <span style="font-size: var(--ms-font-small); color: var(--ms-muted)">Not sure this is real? Press Ctrl+Alt+Del.</span>
+      </section>
+
+      <section role="alertdialog" aria-labelledby="pr-b-t" class="ms-pop" style="width: 420px; padding: 22px; border-radius: var(--ms-radius-xl); box-shadow: var(--ms-elevation-overlay); display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ms-warning); color: var(--ms-warning); display: grid; place-items: center"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.shield}}"></path></svg></span><span class="lbl">Agent admin request</span></div>
+        <h2 id="pr-b-t" style="margin: 0; font-size: 20px; font-weight: 600">Restart the nginx service?</h2>
+        <div style="display: flex; gap: 8px; padding: 10px 12px; border-radius: var(--ms-radius-md); background: var(--ms-warning-surface); border: 1px solid var(--ms-warning); font-size: 12px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-warning)"><path d="{{I.warn}}"></path></svg><span>This asks even under Always allow: <span class="dat" style="font-weight: 600">web-eng</span> read a web page before making the request.</span></div>
+        <dl style="margin: 0; display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 4px 12px; font-size: 12px">
+          <dt style="color: var(--ms-muted)">Agent</dt><dd class="dat" style="margin: 0">web-eng · Orchestrator session</dd>
+          <dt style="color: var(--ms-muted)">Action</dt><dd class="mono dat" style="margin: 0">service.restart nginx.service</dd>
+          <dt style="color: var(--ms-muted)">Record</dt><dd style="margin: 0">Written to the admin audit</dd>
+        </dl>
+        <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px dashed var(--ms-border); border-radius: var(--ms-radius-md)"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.usbkey}}"></path></svg><span style="font-size: 13px">Touch your security key to allow</span></div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px"><button class="btn" style="height: 36px">Deny</button><button class="btn" style="height: 36px">Allow once</button></div>
+        <span style="font-size: var(--ms-font-small); color: var(--ms-muted)">Not sure this is real? Press Ctrl+Alt+Del.</span>
+      </section>
+
+      <section role="dialog" aria-labelledby="pr-c-t" class="ms-pop" style="width: 380px; padding: 22px; border-radius: var(--ms-radius-xl); box-shadow: var(--ms-elevation-overlay); display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ms-border); display: grid; place-items: center"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.wifi}}"></path></svg></span><span class="lbl">Wi-Fi password</span></div>
+        <h2 id="pr-c-t" style="margin: 0; font-size: 20px; font-weight: 600">Connect to <span class="dat">Studio-5G</span></h2>
+        <p style="margin: 0; color: var(--ms-muted); font-size: 12px">WPA3 personal · asked by Network</p>
+        <div style="display: flex; flex-direction: column; gap: 6px"><label for="pr-c-pw" style="font-size: 12px; font-weight: 600">Password</label><div style="position: relative"><input id="pr-c-pw" class="field" type="password" value="studio-wifi-2026" style="padding-inline-end: 40px"><button class="ib" aria-label="Show password" style="position: absolute; top: 4px; inset-inline-end: 4px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.eye}}"></path></svg></button></div></div>
+        <label for="pr-c-auto" style="display: flex; align-items: center; gap: 8px; font-size: 13px"><input id="pr-c-auto" type="checkbox" checked="checked" style="width: 16px; height: 16px; accent-color: var(--ms-accent)">Connect automatically</label>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px"><button class="btn" style="height: 36px">Cancel</button><button class="btn btn-p" style="height: 36px">Connect</button></div>
+      </section>
+
+      <section role="dialog" aria-labelledby="pr-d-t" class="ms-pop" style="width: 380px; padding: 22px; border-radius: var(--ms-radius-xl); box-shadow: var(--ms-elevation-overlay); display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; align-items: center; gap: 10px"><span style="width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--ms-border); display: grid; place-items: center"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bt}}"></path></svg></span><span class="lbl">Bluetooth pairing</span></div>
+        <h2 id="pr-d-t" style="margin: 0; font-size: 20px; font-weight: 600">Pair with <span class="dat">Living room speaker</span>?</h2>
+        <p style="margin: 0; color: var(--ms-muted)">Check that the speaker shows the same code.</p>
+        <div class="mono" aria-label="Code 482 913" style="align-self: center; font-size: 36px; font-weight: 600; letter-spacing: 0.12em; padding: 8px 18px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); background: var(--ms-raised)">482 913</div>
+        <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px"><button class="btn" style="height: 36px">Cancel</button><button class="btn" style="height: 36px">Pair</button></div>
+      </section>
+    </div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      lock: 'M6 11h12v10H6z M8 11V7a4 4 0 0 1 8 0v4',
+      shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z',
+      warn: 'M12 3l10 18H2z M12 10v4 M12 17.5v.01',
+      usbkey: 'M9 3h6v8H9z M7 11h10v10H7z M12 15v2',
+      wifi: 'M2 8.5a15 15 0 0 1 20 0 M5 12a10 10 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 19h.01',
+      bt: 'M7 7l10 10-5 4V3l5 4L7 17',
+      eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z ' + c(12, 12, 3)
+    };
+    return {
+      theme, themeName: names[theme] ?? theme, I,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'overlay', 'border', 'text', 'muted', 'accent', 'on-accent', 'focus', 'warning', 'warning-surface', 'input-surface', 'input-border', 'modal-scrim', 'elevation-overlay', 'popover-alpha', 'backdrop-blur', 'radius-md', 'radius-lg', 'radius-xl', 'radius-circle', 'space-12', 'space-24', 'font-ui', 'font-code', 'font-size', 'font-small', 'weight-bold', 'focus-width', 'focus-offset', 'button-height', 'bar-height']
+    };
+  }
+}
+</script>
+</body>
+</html>
