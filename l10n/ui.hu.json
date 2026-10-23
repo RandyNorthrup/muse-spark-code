@@ -3485,6 +3485,13 @@
   "backgroundTasksLabel": "Háttérfeladatok",
   "backgroundBadge": "Háttér",
   "subagentRowLabel": "Ügynök",
+  "nodeTeam": {
+    "live": "Élő",
+    "quiet": "Csendes",
+    "gone": "Elment",
+    "capabilities": "Képességek",
+    "noNodes": "Még egy csomópont sem csatlakozott"
+  },
   "teamTreeLabel": "Csapat",
   "teamWorkerMerged": "egyesítve",
   "teamWorkerDiscarded": "elvetve",

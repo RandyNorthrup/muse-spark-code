@@ -3417,6 +3417,13 @@
   "backgroundTasksLabel": "バックグラウンド タスク",
   "backgroundBadge": "バックグラウンド",
   "subagentRowLabel": "エージェント",
+  "nodeTeam": {
+    "live": "稼働中",
+    "quiet": "応答なし",
+    "gone": "切断",
+    "capabilities": "機能",
+    "noNodes": "参加中のノードはありません"
+  },
   "teamTreeLabel": "チーム",
   "teamWorkerMerged": "マージ済み",
   "teamWorkerDiscarded": "破棄済み",

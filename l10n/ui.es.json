@@ -3553,6 +3553,13 @@
   "backgroundTasksLabel": "Tareas en segundo plano",
   "backgroundBadge": "Segundo plano",
   "subagentRowLabel": "Agente",
+  "nodeTeam": {
+    "live": "Activo",
+    "quiet": "Silencioso",
+    "gone": "Desconectado",
+    "capabilities": "Capacidades",
+    "noNodes": "Aún no se ha unido ningún nodo"
+  },
   "teamTreeLabel": "Equipo",
   "teamWorkerMerged": "fusionado",
   "teamWorkerDiscarded": "descartado",

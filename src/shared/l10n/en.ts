@@ -4291,6 +4291,15 @@ export const EN = {
   backgroundTasksLabel: 'Background Tasks',
   backgroundBadge: 'Background',
   subagentRowLabel: 'Agent',
+  // The node's team and nodes pages (M110c lane U3): the worker liveness
+  // words, the capabilities label and the empty-nodes sentence.
+  nodeTeam: {
+    live: 'Live',
+    quiet: 'Quiet',
+    gone: 'Gone',
+    capabilities: 'Capabilities',
+    noNodes: 'No nodes have joined',
+  },
   // The team tree and cards (M96 lane U2): the Agent map's team tree, the
   // delegation, switch, waiting-for-you and merge cards, the worker label's
   // group excluded (it splices technical names), and the Usage Team section.

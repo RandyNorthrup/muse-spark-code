@@ -1,0 +1,18 @@
+# Ollama as a node model sidecar on AMD GPUs (M110g lane L, D90.7): the
+# ROCm devices pass through, and the sidecar answers on loopback only.
+# Needs the host's ROCm kernel driver (/dev/kfd, /dev/dri).
+services:
+  ollama:
+    image: ollama/ollama:0.40.8-rocm
+    container_name: muse-node-ollama-rocm
+    restart: unless-stopped
+    devices:
+      - /dev/kfd
+      - /dev/dri
+    ports:
+      - 127.0.0.1:11434:11434
+    volumes:
+      - ollama-models:/root/.ollama
+
+volumes:
+  ollama-models:

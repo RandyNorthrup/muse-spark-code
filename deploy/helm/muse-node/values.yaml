@@ -1,0 +1,16 @@
+# Muse Node's Helm values (M110f lane S, D90.20). The image is the
+# release's signed node image; the tag is the release being installed.
+# Storage holds the node's state and workspaces; nothing else persists.
+image:
+  repository: ghcr.io/randynorthrup/muse-node
+  tag: 0.19.0
+  pullPolicy: IfNotPresent
+service:
+  port: 8443
+persistence:
+  enabled: true
+  size: 20Gi
+  storageClass: ''
+node:
+  user: 65532
+  group: 65532

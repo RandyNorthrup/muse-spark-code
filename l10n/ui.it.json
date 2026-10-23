@@ -3553,6 +3553,13 @@
   "backgroundTasksLabel": "Attività in background",
   "backgroundBadge": "In background",
   "subagentRowLabel": "Agente",
+  "nodeTeam": {
+    "live": "Attivo",
+    "quiet": "Silenzioso",
+    "gone": "Disconnesso",
+    "capabilities": "Capacità",
+    "noNodes": "Nessun nodo ancora unito"
+  },
   "teamTreeLabel": "Team",
   "teamWorkerMerged": "unito",
   "teamWorkerDiscarded": "scartato",

@@ -3621,6 +3621,13 @@
   "backgroundTasksLabel": "Zadania w tle",
   "backgroundBadge": "W tle",
   "subagentRowLabel": "Podagent",
+  "nodeTeam": {
+    "live": "Aktywny",
+    "quiet": "Cichy",
+    "gone": "Rozłączony",
+    "capabilities": "Możliwości",
+    "noNodes": "Nie dołączył jeszcze żaden węzeł"
+  },
   "teamTreeLabel": "Zespół",
   "teamWorkerMerged": "scalono",
   "teamWorkerDiscarded": "odrzucono",
