@@ -2964,7 +2964,6 @@
   "autoCompactionName": "자동 압축",
   "paidConfirmAutoCompaction": "자동 압축은 선택한 모델을 {price} 요금으로 사용합니다. 구독으로 이 비용을 지불할 수 없습니다.",
   "autoCompactionAwaitingEvaluation": "자동 압축은 평가를 기다리고 있으며 비활성 상태입니다.",
-
   "autoCompactionFailed": "자동 압축에 실패했습니다. 원래 컨텍스트로 계속 진행합니다.",
   "autoCompactionBudgetRefused": "자동 압축이 실행되지 않았습니다: 일일 유료 예산이 거부했습니다. 예산을 늘리거나 내일 다시 시도하세요. 원래 컨텍스트가 유지됩니다.",
   "contextWindowFull": "컨텍스트 창이 가득 찼습니다: /compact 또는 /handoff",
@@ -6398,6 +6397,68 @@
     },
     "grantsCount": {
       "other": "{count} 개 권한"
+    }
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "비밀번호",
+    "pin": "PIN",
+    "securityKey": "보안 키",
+    "fingerprint": "지문",
+    "orSignInWith": "또는 다음으로 로그인",
+    "capsLockOn": "Caps Lock이 켜져 있습니다",
+    "session": "세션",
+    "sessionDesktop": "데스크톱",
+    "sessionTerminal": "터미널",
+    "accessibility": "접근성",
+    "recovery": "복구",
+    "recoveryHint": "관리자 비밀번호 또는 복구 키가 필요합니다",
+    "secureAttentionGreeter": "언제든지 Ctrl+Alt+Del을 누르면 실제 로그인 화면으로 이동합니다.",
+    "secureAttentionLock": "언제든지 Ctrl+Alt+Del을 누르면 이 화면이 실제 잠금 화면인지 확인할 수 있습니다.",
+    "secureAttentionPrompt": "실제인지 확실하지 않나요? Ctrl+Alt+Del을 누르세요.",
+    "notificationsCount": {
+      "other": "알림 {count}개"
+    },
+    "agentsRunning": {
+      "other": "실행 중인 에이전트 {count}개"
+    },
+    "worksWithoutSignIn": "로그인하지 않아도 사용할 수 있습니다",
+    "stopEverything": "모두 중지",
+    "stopEverythingDetail": "에이전트, 관리자 작업, 개발 서버",
+    "lockAdmin": "관리자 잠금",
+    "lockAdminDetail": "잠금을 해제할 때까지 에이전트는 관리자 액세스를 잃습니다",
+    "stopMachine": "컴퓨터 종료",
+    "administratorPassword": "관리자 비밀번호",
+    "authenticate": "인증",
+    "cancel": "취소",
+    "agentAdminRequest": "에이전트 관리자 요청",
+    "taintAskNote": "«항상 허용»이어도 이것은 묻습니다: {agent}가 요청 전에 웹 페이지를 읽었습니다.",
+    "writtenToAdminAudit": "관리자 감사 로그에 기록됩니다",
+    "touchKeyToAllow": "허용하려면 보안 키를 터치하세요",
+    "deny": "거부",
+    "allowOnce": "한 번 허용",
+    "wifiPassword": "Wi-Fi 비밀번호",
+    "connectAutomatically": "자동으로 연결",
+    "connect": "연결",
+    "bluetoothPairing": "Bluetooth 페어링",
+    "launcherCalculateLocal": "이 컴퓨터에서 계산했습니다. 어디에도 전송되지 않습니다.",
+    "launcherSymbolSearch": "이모지 또는 기호 찾기",
+    "onboardingTitle": "Muse Desktop 설정",
+    "onboardingStep": "{total}단계 중 {step}단계",
+    "packsForYourWork": "작업용 팩",
+    "recommendedPacks": {
+      "other": "추천 · {count}"
+    },
+    "allPacks": "모든 팩 · {count}",
+    "fromSignedIndex": "서명된 Muse 팩 인덱스에서 가져옴",
+    "downloadSize": "다운로드",
+    "onDiskSize": "디스크 사용량",
+    "details": "세부 정보",
+    "setUpLater": "나중에 설정",
+    "back": "뒤로",
+    "install": "설치",
+    "installingPacks": {
+      "other": "팩 {count}개 설치 중"
     }
   }
 }

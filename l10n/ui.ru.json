@@ -3150,7 +3150,6 @@
   "autoCompactionName": "Автоматическое сжатие",
   "paidConfirmAutoCompaction": "Автоматическое сжатие использует выбранную модель по тарифу {price}. Подписка не покрывает эти расходы.",
   "autoCompactionAwaitingEvaluation": "Автоматическое сжатие ожидает оценки и неактивно.",
-
   "autoCompactionFailed": "Автоматическое сжатие не удалось; продолжение с исходным контекстом.",
   "autoCompactionBudgetRefused": "Автоматическое сжатие не выполнено: дневной платный бюджет отклонил его. Увеличьте бюджет или повторите попытку завтра; исходный контекст сохраняется.",
   "contextWindowFull": "Контекстное окно заполнено: /compact или /handoff",
@@ -6923,6 +6922,80 @@
       "other": "{count} разрешений",
       "few": "{count} разрешения",
       "many": "{count} разрешений"
+    }
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "Пароль",
+    "pin": "PIN-код",
+    "securityKey": "Ключ безопасности",
+    "fingerprint": "Отпечаток пальца",
+    "orSignInWith": "Или войти с помощью",
+    "capsLockOn": "Включён Caps Lock",
+    "session": "Сеанс",
+    "sessionDesktop": "Рабочий стол",
+    "sessionTerminal": "Терминал",
+    "accessibility": "Специальные возможности",
+    "recovery": "Восстановление",
+    "recoveryHint": "Нужен пароль администратора или ключ восстановления",
+    "secureAttentionGreeter": "В любой момент нажмите Ctrl+Alt+Del, чтобы попасть на настоящий экран входа.",
+    "secureAttentionLock": "В любой момент нажмите Ctrl+Alt+Del, чтобы проверить, что это настоящий экран блокировки.",
+    "secureAttentionPrompt": "Не уверены, что это по-настоящему? Нажмите Ctrl+Alt+Del.",
+    "notificationsCount": {
+      "one": "{count} уведомление",
+      "few": "{count} уведомления",
+      "many": "{count} уведомлений",
+      "other": "{count} уведомлений"
+    },
+    "agentsRunning": {
+      "one": "Работает {count} агент",
+      "few": "Работают {count} агента",
+      "many": "Работают {count} агентов",
+      "other": "Работают {count} агентов"
+    },
+    "worksWithoutSignIn": "Работает без входа",
+    "stopEverything": "Остановить всё",
+    "stopEverythingDetail": "Агенты, действия администратора и серверы разработки",
+    "lockAdmin": "Заблокировать администрирование",
+    "lockAdminDetail": "Агенты теряют доступ администратора, пока вы его не разблокируете",
+    "stopMachine": "Выключить компьютер",
+    "administratorPassword": "Пароль администратора",
+    "authenticate": "Подтвердить",
+    "cancel": "Отмена",
+    "agentAdminRequest": "Запрос администратора от агента",
+    "taintAskNote": "Спрашивает даже при «Разрешать всегда»: {agent} прочитал веб-страницу перед запросом.",
+    "writtenToAdminAudit": "Записывается в журнал администратора",
+    "touchKeyToAllow": "Коснитесь ключа безопасности, чтобы разрешить",
+    "deny": "Запретить",
+    "allowOnce": "Разрешить один раз",
+    "wifiPassword": "Пароль Wi-Fi",
+    "connectAutomatically": "Подключаться автоматически",
+    "connect": "Подключиться",
+    "bluetoothPairing": "Сопряжение Bluetooth",
+    "launcherCalculateLocal": "Вычислено на этом компьютере. Ничего никуда не отправляется.",
+    "launcherSymbolSearch": "Найти эмодзи или символ",
+    "onboardingTitle": "Настройка Muse Desktop",
+    "onboardingStep": "Шаг {step} из {total}",
+    "packsForYourWork": "Пакеты для вашей работы",
+    "recommendedPacks": {
+      "one": "Рекомендуется · {count}",
+      "few": "Рекомендуется · {count}",
+      "many": "Рекомендуется · {count}",
+      "other": "Рекомендуется · {count}"
+    },
+    "allPacks": "Все пакеты · {count}",
+    "fromSignedIndex": "Из подписанного индекса пакетов Muse",
+    "downloadSize": "Загрузка",
+    "onDiskSize": "На диске",
+    "details": "Подробности",
+    "setUpLater": "Настроить позже",
+    "back": "Назад",
+    "install": "Установить",
+    "installingPacks": {
+      "one": "Установка пакета: {count}",
+      "few": "Установка пакетов: {count}",
+      "many": "Установка пакетов: {count}",
+      "other": "Установка пакетов: {count}"
     }
   }
 }
