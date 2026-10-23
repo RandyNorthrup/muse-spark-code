@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Подключение…",
-    "ended": "Терминал завершён."
+    "ended": "Терминал завершён.",
+    "chunkFailed": "Не удалось загрузить терминал.",
+    "retry": "Повторить"
   },
   "nodeDashboard": {
     "noSessions": "Нет сеансов.",
-    "noWorkspaces": "Нет рабочих пространств."
+    "noWorkspaces": "Нет рабочих пространств.",
+    "pendingChallenges": "Ожидающие проверки",
+    "nodeId": "ID узла",
+    "sessionWeb": "Веб",
+    "sessionTui": "TUI",
+    "sessionEditor": "Редактор",
+    "trusted": "Доверенное",
+    "untrusted": "Недоверенное"
   },
   "nodeAudit": {
     "filterAll": "Все события",
@@ -127,7 +136,29 @@
     "filterApproval": "Подтверждения",
     "allowed": "Разрешено",
     "refused": "Отклонено",
-    "noEntries": "Нет записей аудита."
+    "noEntries": "Нет записей аудита.",
+    "more": "Показать ещё",
+    "signinEnroll": "Зарегистрировано",
+    "signinSignin": "Вход выполнен",
+    "signinSignout": "Выход выполнен",
+    "signinLockout": "Заблокировано",
+    "terminalStart": "Запущено",
+    "terminalEnd": "Завершено",
+    "terminalSizes": "получено {input}, отправлено {output}",
+    "keySet": "Сохранено",
+    "keyUnlock": "Разблокировано",
+    "keyUse": "Использовано",
+    "keySeal": "Запечатано",
+    "keyProvider": "Ключ провайдера",
+    "keyDeploy": "Ключ развёртывания",
+    "gitStage": "Подготовлено",
+    "gitCommit": "Зафиксировано",
+    "gitBranch": "Ветка создана",
+    "gitFetch": "Получено",
+    "gitPull": "Втянуто",
+    "gitPush": "Отправлено",
+    "approvalPaid": "Оплачено",
+    "kindStepUp": "Подтверждение"
   },
   "nodeHelp": {
     "title": "Справка узла",

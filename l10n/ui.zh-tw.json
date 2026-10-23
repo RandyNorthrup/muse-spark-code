@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "正在連線…",
-    "ended": "終端機已結束。"
+    "ended": "終端機已結束。",
+    "chunkFailed": "無法載入終端機。",
+    "retry": "重試"
   },
   "nodeDashboard": {
     "noSessions": "沒有工作階段。",
-    "noWorkspaces": "沒有工作區。"
+    "noWorkspaces": "沒有工作區。",
+    "pendingChallenges": "待處理的質詢",
+    "nodeId": "節點 ID",
+    "sessionWeb": "網頁",
+    "sessionTui": "TUI",
+    "sessionEditor": "編輯器",
+    "trusted": "受信任",
+    "untrusted": "不受信任"
   },
   "nodeAudit": {
     "filterAll": "所有事件",
@@ -127,7 +136,29 @@
     "filterApproval": "核准",
     "allowed": "已允許",
     "refused": "已拒絕",
-    "noEntries": "沒有稽核項目。"
+    "noEntries": "沒有稽核項目。",
+    "more": "顯示更多",
+    "signinEnroll": "已註冊",
+    "signinSignin": "已登入",
+    "signinSignout": "已登出",
+    "signinLockout": "已鎖定",
+    "terminalStart": "已啟動",
+    "terminalEnd": "已結束",
+    "terminalSizes": "已接收 {input}，已傳送 {output}",
+    "keySet": "已儲存",
+    "keyUnlock": "已解鎖",
+    "keyUse": "已使用",
+    "keySeal": "已封存",
+    "keyProvider": "服務商金鑰",
+    "keyDeploy": "部署金鑰",
+    "gitStage": "已暫存",
+    "gitCommit": "已提交",
+    "gitBranch": "已建立分支",
+    "gitFetch": "已擷取",
+    "gitPull": "已拉取",
+    "gitPush": "已推送",
+    "approvalPaid": "已付費",
+    "kindStepUp": "驗證"
   },
   "nodeHelp": {
     "title": "節點說明",

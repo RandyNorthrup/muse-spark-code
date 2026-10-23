@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "接続中…",
-    "ended": "ターミナルが終了しました。"
+    "ended": "ターミナルが終了しました。",
+    "chunkFailed": "ターミナルを読み込めませんでした。",
+    "retry": "再試行"
   },
   "nodeDashboard": {
     "noSessions": "セッションがありません。",
-    "noWorkspaces": "ワークスペースがありません。"
+    "noWorkspaces": "ワークスペースがありません。",
+    "pendingChallenges": "保留中のチャレンジ",
+    "nodeId": "ノード ID",
+    "sessionWeb": "ウェブ",
+    "sessionTui": "TUI",
+    "sessionEditor": "エディター",
+    "trusted": "信頼済み",
+    "untrusted": "未信頼"
   },
   "nodeAudit": {
     "filterAll": "すべてのイベント",
@@ -127,7 +136,29 @@
     "filterApproval": "承認",
     "allowed": "許可",
     "refused": "拒否",
-    "noEntries": "監査エントリがありません。"
+    "noEntries": "監査エントリがありません。",
+    "more": "さらに表示",
+    "signinEnroll": "登録済み",
+    "signinSignin": "サインイン済み",
+    "signinSignout": "サインアウト済み",
+    "signinLockout": "ロックアウト",
+    "terminalStart": "開始",
+    "terminalEnd": "終了",
+    "terminalSizes": "{input}受信、{output}送信",
+    "keySet": "保存済み",
+    "keyUnlock": "ロック解除済み",
+    "keyUse": "使用済み",
+    "keySeal": "封印済み",
+    "keyProvider": "プロバイダーキー",
+    "keyDeploy": "デプロイキー",
+    "gitStage": "ステージ済み",
+    "gitCommit": "コミット済み",
+    "gitBranch": "ブランチ作成済み",
+    "gitFetch": "フェッチ済み",
+    "gitPull": "プル済み",
+    "gitPush": "プッシュ済み",
+    "approvalPaid": "支払い済み",
+    "kindStepUp": "検証"
   },
   "nodeHelp": {
     "title": "ノードヘルプ",

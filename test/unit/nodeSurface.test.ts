@@ -18,6 +18,7 @@ function fixture() {
     workspaceId: 'repo',
     port: validatedNodePort({ request: () => Promise.reject(new Error('unbound fixture')) }),
     auth: { verify: () => Promise.reject(new Error('unbound fixture')) },
+    connectTerminal: () => Promise.reject(new Error('unbound fixture')),
     loadWorkspace: () => Promise.resolve({ mountNodeWorkspace: mount }),
   }
   Object.defineProperty(window, 'museNode', {

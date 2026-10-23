@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "연결 중…",
-    "ended": "터미널이 종료되었습니다."
+    "ended": "터미널이 종료되었습니다.",
+    "chunkFailed": "터미널을 로드할 수 없습니다.",
+    "retry": "다시 시도"
   },
   "nodeDashboard": {
     "noSessions": "세션이 없습니다.",
-    "noWorkspaces": "작업 공간이 없습니다."
+    "noWorkspaces": "작업 공간이 없습니다.",
+    "pendingChallenges": "대기 중인 챌린지",
+    "nodeId": "노드 ID",
+    "sessionWeb": "웹",
+    "sessionTui": "TUI",
+    "sessionEditor": "편집기",
+    "trusted": "신뢰함",
+    "untrusted": "신뢰하지 않음"
   },
   "nodeAudit": {
     "filterAll": "모든 이벤트",
@@ -127,7 +136,29 @@
     "filterApproval": "승인",
     "allowed": "허용",
     "refused": "거부",
-    "noEntries": "감사 항목이 없습니다."
+    "noEntries": "감사 항목이 없습니다.",
+    "more": "더 보기",
+    "signinEnroll": "등록됨",
+    "signinSignin": "로그인됨",
+    "signinSignout": "로그아웃됨",
+    "signinLockout": "잠김",
+    "terminalStart": "시작됨",
+    "terminalEnd": "종료됨",
+    "terminalSizes": "{input} 수신, {output} 송신",
+    "keySet": "저장됨",
+    "keyUnlock": "잠금 해제됨",
+    "keyUse": "사용됨",
+    "keySeal": "봉인됨",
+    "keyProvider": "제공자 키",
+    "keyDeploy": "배포 키",
+    "gitStage": "스테이징됨",
+    "gitCommit": "커밋됨",
+    "gitBranch": "브랜치 생성됨",
+    "gitFetch": "가져옴",
+    "gitPull": "풀됨",
+    "gitPush": "푸시됨",
+    "approvalPaid": "결제됨",
+    "kindStepUp": "확인"
   },
   "nodeHelp": {
     "title": "노드 도움말",

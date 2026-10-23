@@ -104,6 +104,88 @@
               truncated: false,
             }
           if (method === 'node/git/stage') return { done: true }
+          if (method === 'node/terminal/open') return { terminalId: 't1' }
+          if (method === 'node/terminal/attach') return { done: true }
+          if (method === 'node/terminal/close') return { done: true }
+          if (method === 'node/dashboard/read')
+            return {
+              nodeId: 'a'.repeat(64),
+              version: '0.19.0',
+              uptimeMs: 3_600_000,
+              sandbox: 'shared',
+              locked: false,
+              keyStoreSealed: true,
+              attendance: 'attended',
+              sessions: [
+                {
+                  v: 1,
+                  id: 'session',
+                  ownerId: 'owner',
+                  surface: 'web',
+                  createdAt: 1000,
+                  lastSeenAt: 2000,
+                  idleExpiresAt: 62_000,
+                  absoluteExpiresAt: 3_602_000,
+                },
+              ],
+              pendingChallenges: 0,
+              cpuPercent: 12.5,
+              memory: { usedBytes: 1500, totalBytes: 8000 },
+              disk: { freeBytes: 2500, totalBytes: 9000 },
+              workspaces: [
+                { id: 'repo', label: 'home', path: 'workspace', trusted: true, lastUsedAt: 3000 },
+              ],
+            }
+          if (method === 'node/audit/list')
+            return {
+              entries: [
+                {
+                  v: 1,
+                  seq: 3,
+                  time: 1003,
+                  nodeId: 'a'.repeat(64),
+                  sessionId: null,
+                  previousHash: 'b'.repeat(64),
+                  hash: 'c'.repeat(64),
+                  outcome: 'allowed',
+                  kind: 'terminal',
+                  terminalId: 't1',
+                  workspaceId: 'repo',
+                  phase: 'end',
+                  inputBytes: 100,
+                  outputBytes: 200,
+                  source: 'person',
+                },
+                {
+                  v: 1,
+                  seq: 2,
+                  time: 1002,
+                  nodeId: 'a'.repeat(64),
+                  sessionId: null,
+                  previousHash: 'b'.repeat(64),
+                  hash: 'c'.repeat(64),
+                  outcome: 'allowed',
+                  kind: 'signin',
+                  action: 'signin',
+                  credentialIdHash: 'd'.repeat(64),
+                },
+                {
+                  v: 1,
+                  seq: 1,
+                  time: 1001,
+                  nodeId: 'a'.repeat(64),
+                  sessionId: null,
+                  previousHash: 'b'.repeat(64),
+                  hash: 'c'.repeat(64),
+                  outcome: 'allowed',
+                  kind: 'git',
+                  workspaceId: 'repo',
+                  action: 'push',
+                  actionDigest: 'e'.repeat(64),
+                },
+              ],
+              nextCursor: null,
+            }
           if (
             [
               'node/git/commit',
@@ -136,7 +218,53 @@
           text = replacement
         },
       }
-      mountNodeWorkspace(document.querySelector('#root'), { port, auth, workspaceId: 'repo' })
+      const wires = []
+      const connectTerminal = async (terminalId) => {
+        const messages = new Set()
+        const closes = new Set()
+        const wire = {
+          send: (frame) => {
+            calls.push({ wire: terminalId, frame: JSON.parse(frame) })
+          },
+          close: () => {
+            for (const handler of [...closes]) handler()
+          },
+          onMessage: (handler) => {
+            messages.add(handler)
+            return () => {
+              messages.delete(handler)
+            }
+          },
+          onClose: (handler) => {
+            closes.add(handler)
+            return () => {
+              closes.delete(handler)
+            }
+          },
+        }
+        wires.push({ terminalId, messages })
+        // The shell answers after the page subscribes: a prompt, one
+        // command and its output, and the tab stays live for the look.
+        setTimeout(() => {
+          const event = {
+            v: 1,
+            seq: 1,
+            time: 1001,
+            nodeId: 'a'.repeat(64),
+            terminalId,
+            type: 'terminalOutput',
+            data: '$ echo hello\r\nhello\r\n$ ',
+          }
+          for (const handler of [...messages]) handler(JSON.stringify(event))
+        }, 50)
+        return wire
+      }
+      mountNodeWorkspace(document.querySelector('#root'), {
+        port,
+        auth,
+        workspaceId: 'repo',
+        connectTerminal,
+      })
       const find = async (selector) => {
         for (let attempt = 0; attempt < 200; attempt += 1) {
           const element = document.querySelector(selector)
@@ -160,12 +288,35 @@
           }
         }
         if (scenario === 'node-git' || scenario === 'node-git-confirm') {
-          document.querySelector('nav button:last-child').click()
+          document.querySelector('nav button:nth-child(2)').click()
           await find('select option')
           if (scenario === 'node-git-confirm') {
             document.querySelector('section .node-actions button:last-child').click()
             await find('[role="group"]')
           }
+        }
+        if (scenario === 'node-terminal') {
+          document.querySelector('nav button:nth-child(3)').click()
+          await find('.node-terminal-stack')
+          // No tabs yet, so the toolbar's first button opens the shell.
+          document.querySelector('section .node-actions button').click()
+          await find('.xterm')
+        }
+        if (scenario === 'node-dashboard') {
+          document.querySelector('nav button:nth-child(4)').click()
+          await find('dl')
+        }
+        if (scenario === 'node-audit') {
+          document.querySelector('nav button:nth-child(5)').click()
+          await find('section li')
+        }
+        if (scenario === 'node-help') {
+          document.querySelector('nav button:nth-child(6)').click()
+          await find('h3')
+        }
+        if (scenario === 'node-whatsnew') {
+          document.querySelector('nav button:nth-child(7)').click()
+          await find('section li')
         }
         document.body.dataset['nodeReady'] = 'true'
         if (params.get('axe') === '1') {

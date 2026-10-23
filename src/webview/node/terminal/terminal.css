@@ -4,7 +4,7 @@
 
 .node-terminal-stack > .node-terminal-view {
   grid-area: 1 / 1;
-  min-height: 240px;
+  height: 320px;
 }
 
 .node-terminal-hidden {

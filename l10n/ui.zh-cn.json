@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "正在连接…",
-    "ended": "终端已结束。"
+    "ended": "终端已结束。",
+    "chunkFailed": "无法加载终端。",
+    "retry": "重试"
   },
   "nodeDashboard": {
     "noSessions": "没有会话。",
-    "noWorkspaces": "没有工作区。"
+    "noWorkspaces": "没有工作区。",
+    "pendingChallenges": "待处理的质询",
+    "nodeId": "节点 ID",
+    "sessionWeb": "网页",
+    "sessionTui": "TUI",
+    "sessionEditor": "编辑器",
+    "trusted": "受信任",
+    "untrusted": "不受信任"
   },
   "nodeAudit": {
     "filterAll": "所有事件",
@@ -127,7 +136,29 @@
     "filterApproval": "审批",
     "allowed": "已允许",
     "refused": "已拒绝",
-    "noEntries": "没有审计条目。"
+    "noEntries": "没有审计条目。",
+    "more": "显示更多",
+    "signinEnroll": "已注册",
+    "signinSignin": "已登录",
+    "signinSignout": "已登出",
+    "signinLockout": "已锁定",
+    "terminalStart": "已启动",
+    "terminalEnd": "已结束",
+    "terminalSizes": "已接收 {input}，已发送 {output}",
+    "keySet": "已保存",
+    "keyUnlock": "已解锁",
+    "keyUse": "已使用",
+    "keySeal": "已封存",
+    "keyProvider": "服务商密钥",
+    "keyDeploy": "部署密钥",
+    "gitStage": "已暂存",
+    "gitCommit": "已提交",
+    "gitBranch": "已创建分支",
+    "gitFetch": "已获取",
+    "gitPull": "已拉取",
+    "gitPush": "已推送",
+    "approvalPaid": "已付费",
+    "kindStepUp": "验证"
   },
   "nodeHelp": {
     "title": "节点帮助",
