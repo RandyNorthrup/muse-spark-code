@@ -13,6 +13,7 @@ import type { ApprovalMode } from '../../../shared/permissionModes'
 import { JUDGE_FAST_VETO_POLL_MS, JUDGE_FAST_VETO_WINDOW_MS } from '../../../shared/constants'
 import type { SettledBy } from '../../backends/modelapi/permissions'
 import { isErrno } from '../../fs/errno'
+import type { JudgeFence } from '../use'
 import type { InspectResult } from './inspectExec'
 import { parseInspectCommand, type InspectCommand } from './inspectGrammar'
 
@@ -356,6 +357,8 @@ export async function raceApproval<R>(
     }
     const answer = first.kind === 'timeout' ? undefined : first.settled
     if (answer?.status !== 'fulfilled' || answer.value.veto) {
+      // The veto ask may still be waiting (it lost the window): stop it.
+      vetoAbort.abort()
       inspectAbort.abort()
       const settled = await reviewer
       if (settled.status === 'rejected') throw settled.cause
@@ -388,5 +391,79 @@ export async function raceApproval<R>(
     }
   } finally {
     if (windowId !== undefined) clearTimeout(windowId)
+  }
+}
+
+/**
+One held shell action through the B1 fence (§9.3): the floor and the
+shared conditions first, then the race. The session supplies its live
+answers and the certified platforms (the constant in use; a drill
+supplies the claim under test). The veto shares the reviewer's judge
+fence — one judge run, started by the reviewer exactly as today and
+read beside it — so the reviewer reports the fence it started and
+the veto polls it from the hold.
+*/
+export interface B1HoldPorts<R> {
+  readonly line: string
+  readonly platform: NodeJS.Platform
+  readonly floor: B1FloorContext
+  readonly conditions: B1Conditions
+  readonly startReviewer: (
+    signal: AbortSignal,
+    shareFence: () => JudgeFence | undefined,
+  ) => Promise<R>
+  readonly startJudgeFence: () => JudgeFence | undefined
+  readonly runInspect: (canonical: string, signal: AbortSignal) => Promise<InspectResult>
+  readonly vetoWindowMs?: number
+  readonly vetoPollMs?: number
+}
+
+export type B1HoldOutcome<R> =
+  | { readonly kind: 'notApplicable'; readonly reason: B1FloorReason | B1ConditionReason }
+  | { readonly kind: 'reviewer'; readonly verdict: R }
+  | {
+      readonly kind: 'skip'
+      readonly parsed: InspectCommand
+      readonly canonical: string
+      readonly stdout: string
+      readonly stderr: string
+      readonly exitCode: number
+      readonly excluded: number
+      readonly detail?: VetoPipelineDetail | undefined
+    }
+
+export async function raceB1Hold<R>(ports: B1HoldPorts<R>): Promise<B1HoldOutcome<R>> {
+  const floored = b1Floor(ports.line, ports.floor, ports.platform)
+  if (!floored.pass) return { kind: 'notApplicable', reason: floored.reason }
+  const conditioned = b1Eligible(ports.conditions)
+  if (!conditioned.eligible) return { kind: 'notApplicable', reason: conditioned.reason }
+  const shared: { fence?: JudgeFence } = {}
+  const shareFence = (signal: AbortSignal): JudgeFence | undefined => {
+    // The reviewer calls this synchronously at its fence site; an abort
+    // already landed refuses the start, and none can land during one.
+    if (signal.aborted) return undefined
+    const fence = ports.startJudgeFence()
+    if (fence !== undefined) shared.fence = fence
+    return fence
+  }
+  const raced = await raceApproval<R>(
+    {
+      startReviewer: (signal) => ports.startReviewer(signal, () => shareFence(signal)),
+      askVeto: (signal) =>
+        readVetoFence({ read: () => shared.fence?.read() }, signal, ports.vetoPollMs),
+      runInspect: (signal) => ports.runInspect(floored.canonical, signal),
+    },
+    ports.vetoWindowMs,
+  )
+  if (raced.kind === 'reviewer') return { kind: 'reviewer', verdict: raced.verdict }
+  return {
+    kind: 'skip',
+    parsed: floored.parsed,
+    canonical: floored.canonical,
+    stdout: raced.stdout,
+    stderr: raced.stderr,
+    exitCode: raced.exitCode,
+    excluded: raced.excluded,
+    ...(raced.detail !== undefined && { detail: raced.detail }),
   }
 }
