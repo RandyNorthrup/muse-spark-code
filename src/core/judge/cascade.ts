@@ -245,55 +245,51 @@ function calibrateSide(
   question: JudgeQuestion,
   distribution: readonly number[],
 ): EligibleAnswer | undefined {
-  try {
-    if (question.type === 'noul') {
-      // Binary contract: the profile maps p(yes) and p(no) is its
-      // complement. Calibrating both masses and renormalizing would erase
-      // the fitted positive-class bias correction (two 0.5 masses through
-      // a biased profile renormalize back to 0.5).
-      if (distribution.length !== 2) {
-        return undefined
-      }
-      const mass = distribution[0]
-      if (mass === undefined) {
-        return undefined
-      }
-      const applied = applySideMass(side, identity, mass)
-      return applied === undefined
-        ? undefined
-        : {
-            distribution,
-            calibrated: [applied.probability, 1 - applied.probability],
-            weight: applied.weight,
-          }
-    }
-    // Multi-alternative contract: each alternative's mass gets the same
-    // independent binary bias correction, renormalized to a distribution.
-    // There is no complement for three or more alternatives, so this is
-    // the cascade's stated combiner input (not B's evaluated predictor).
-    const calibrated: number[] = []
-    let weight: number | undefined
-    for (const mass of distribution) {
-      const applied = applySideMass(side, identity, mass)
-      if (applied === undefined) {
-        return undefined
-      }
-      calibrated.push(applied.probability)
-      weight = applied.weight
-    }
-    if (weight === undefined) {
+  if (question.type === 'noul') {
+    // Binary contract: the profile maps p(yes) and p(no) is its
+    // complement. Calibrating both masses and renormalizing would erase
+    // the fitted positive-class bias correction (two 0.5 masses through
+    // a biased profile renormalize back to 0.5).
+    if (distribution.length !== 2) {
       return undefined
     }
-    let total = 0
-    for (const mass of calibrated) {
-      total += mass
+    const mass = distribution[0]
+    if (mass === undefined) {
+      return undefined
     }
-    return !Number.isFinite(total) || total <= 0
+    const applied = applySideMass(side, identity, mass)
+    return applied === undefined
       ? undefined
-      : { distribution, calibrated: calibrated.map((mass) => mass / total), weight }
-  } catch {
+      : {
+          distribution,
+          calibrated: [applied.probability, 1 - applied.probability],
+          weight: applied.weight,
+        }
+  }
+  // Multi-alternative contract: each alternative's mass gets the same
+  // independent binary bias correction, renormalized to a distribution.
+  // There is no complement for three or more alternatives, so this is
+  // the cascade's stated combiner input (not B's evaluated predictor).
+  const calibrated: number[] = []
+  let weight: number | undefined
+  for (const mass of distribution) {
+    const applied = applySideMass(side, identity, mass)
+    if (applied === undefined) {
+      return undefined
+    }
+    calibrated.push(applied.probability)
+    weight = applied.weight
+  }
+  if (weight === undefined) {
     return undefined
   }
+  let total = 0
+  for (const mass of calibrated) {
+    total += mass
+  }
+  return !Number.isFinite(total) || total <= 0
+    ? undefined
+    : { distribution, calibrated: calibrated.map((mass) => mass / total), weight }
 }
 
 function eligibleAnswer(
@@ -305,33 +301,29 @@ function eligibleAnswer(
   promptVersion: string,
   criteriaVersion: string,
 ): EligibleAnswer | undefined {
-  try {
-    const named = namedAnswer(outcome, side, id, question)
-    if (named === undefined || named.meta.partial || named.meta.technique === 'top1') {
-      // Partial and top-1 results cannot enter the calibrated combiner.
-      return undefined
-    }
-    const { answer, meta } = named
-    const distribution = techniqueProbabilities(question, answer)
-    if (distribution === undefined) {
-      return undefined
-    }
-    const identity: CalibrationIdentity = {
-      source: side.capability.source,
-      providerId: side.capability.providerId,
-      model: side.capability.model,
-      modelVersion: side.capability.modelVersion,
-      endpoint: side.capability.endpoint,
-      technique: meta.technique,
-      family,
-      promptVersion,
-      criteriaVersion,
-      fitVersion: side.fitVersion,
-    }
-    return calibrateSide(side, identity, question, distribution)
-  } catch {
+  const named = namedAnswer(outcome, side, id, question)
+  if (named === undefined || named.meta.partial || named.meta.technique === 'top1') {
+    // Partial and top-1 results cannot enter the calibrated combiner.
     return undefined
   }
+  const { answer, meta } = named
+  const distribution = techniqueProbabilities(question, answer)
+  if (distribution === undefined) {
+    return undefined
+  }
+  const identity: CalibrationIdentity = {
+    source: side.capability.source,
+    providerId: side.capability.providerId,
+    model: side.capability.model,
+    modelVersion: side.capability.modelVersion,
+    endpoint: side.capability.endpoint,
+    technique: meta.technique,
+    family,
+    promptVersion,
+    criteriaVersion,
+    fitVersion: side.fitVersion,
+  }
+  return calibrateSide(side, identity, question, distribution)
 }
 
 /** Dispatch records facts only; settlement alone publishes an outcome. */
@@ -341,7 +333,12 @@ type SideAttempt =
       readonly receipt: JudgeTechniqueReceipt
       readonly result: CascadeSideResult
     }
-  | { readonly status: 'failed'; readonly reason: NoAnswerReason; readonly malformed?: true }
+  | {
+      readonly status: 'failed'
+      readonly reason: NoAnswerReason
+      readonly malformed?: true
+      readonly cause?: unknown
+    }
   | { readonly status: 'not-run'; readonly reason: 'not-needed' | 'source-unavailable' }
 
 async function attemptSide(
@@ -365,8 +362,9 @@ async function attemptSide(
       ids.some((id) => !answered.includes(id))
       ? { status: 'failed', reason: 'engine-failure', malformed: true }
       : { status: 'answered', receipt, result }
-  } catch {
-    return { status: 'failed', reason: 'engine-failure' }
+  } catch (error: unknown) {
+    // Any side failure refuses the attempt; the failure carries its cause.
+    return { status: 'failed', reason: 'engine-failure', cause: error }
   }
 }
 
@@ -643,8 +641,11 @@ function settleCascade(
       },
     })
     return combined.success ? combined.data : refusal('engine-failure')
-  } catch {
-    return refusal(signal.aborted ? 'cancelled' : 'engine-failure')
+  } catch (error: unknown) {
+    if (signal.aborted) return refusal('cancelled')
+    // Degenerate combiner inputs refuse; anything else is a bug and surfaces.
+    if (error instanceof RangeError) return refusal('engine-failure')
+    throw error
   }
 }
 
@@ -658,11 +659,15 @@ export async function cascadeJudge(
   let attempts: CascadeAttempts
   try {
     attempts = await collectCascadeAttempts(request, options, deps, signal)
-  } catch {
+  } catch (error: unknown) {
+    let reason: NoAnswerReason
+    if (signal.aborted) reason = 'cancelled'
+    else if (error instanceof RangeError) reason = 'engine-failure'
+    else throw error
     attempts = {
       separate: { status: 'not-run', reason: 'source-unavailable' },
       same: { status: 'not-run', reason: 'source-unavailable' },
-      reason: signal.aborted ? 'cancelled' : 'engine-failure',
+      reason,
     }
   }
   return settleCascade(attempts, options, deps, signal)
