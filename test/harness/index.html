@@ -653,6 +653,29 @@
           },
         ],
       }
+      const deviceMakerApproval = {
+        requestId: 'c'.repeat(32),
+        digest: 'd'.repeat(64),
+        target: {
+          kind: 'printer',
+          name: 'sim-printer',
+          endpoint: '/dev/ttyUSB0',
+          reportedAs: 'Marlin 2.1',
+          simulated: true,
+        },
+        operation: 'actuate',
+        preview: [
+          { kind: 'text', text: 'G1 X10 Y10 F1500' },
+          { kind: 'text', text: 'M104 S210' },
+        ],
+        analysis: {
+          bounds: { min: { x: 0, y: 0, z: 0 }, max: { x: 10, y: 10, z: 0 } },
+          maxTempC: 210,
+          maxFeedMmMin: 1500,
+          unknownCommands: [],
+        },
+        expiresAt: 2000000000000,
+      }
       let deviceRevision = 0
       const deviceFixture = (name) => {
         const status = name.includes('uncertain')
@@ -675,6 +698,7 @@
               : {
                   enabled: true,
                   discoveryEnabled: name === 'devices-discovery',
+                  ...(name === 'devices-maker' && { makerApproval: deviceMakerApproval }),
                   devices: [
                     {
                       deviceId,
@@ -730,6 +754,7 @@
             reason: 'grant-revoked',
             retryable: false,
           }
+        if (message.action.kind === 'answerMakerApproval') delete response.state.makerApproval
         if (message.action.kind === 'importInvitation')
           response.setup.invitation = devicePeerInvitation
         if (message.action.kind === 'confirmFingerprint')
@@ -6869,6 +6894,7 @@
         'devices-prompts-narrow',
         'devices-power',
         'devices-blocked',
+        'devices-maker',
       ]
       // Each Devices step waits for an element only a host message or its
       // reply creates, so it cannot match early: probe at once, still bounded.
@@ -6949,6 +6975,9 @@
             } else if (name === 'devices-unlink-narrow') {
               document.querySelector('.device-actions button:last-child').click()
               whenReplied('.device-unlink', checkWidth)
+            } else if (name === 'devices-maker') {
+              // The prompt arrives with the first snapshot; no click summons it.
+              whenReplied('.modal', checkWidth)
             } else {
               checkWidth()
             }
