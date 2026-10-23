@@ -860,6 +860,9 @@ not trust.
   unsaved changes in the editor; save before asking it to edit a file you
   have open.
 - MCP servers on the Model API backend.
+- The `node` subcommand initializes, reports on and wipes a home node
+  (`docs/node/home.md`); serving still awaits its binding, so `serve`,
+  `stop`, `lock` and `unlock` refuse.
 
 ## Headless execution and scanner (M80, not yet certified)
 

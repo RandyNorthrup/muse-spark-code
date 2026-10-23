@@ -1,0 +1,36 @@
+{
+  "architecture": "amd64",
+  "layers": [
+    {
+      "layer": "blobs/sha256/ecc510c1e359bdc007b39802570bb7e4dec7d6ebccf357c3201a74299113e05e",
+      "compressedBytes": 29843350
+    },
+    {
+      "layer": "blobs/sha256/476c65551fd0bf38244e45a1f084bcf7748e6d4fd118c5c5c62dfe79698fcd50",
+      "compressedBytes": 983
+    },
+    {
+      "layer": "blobs/sha256/4fc661b7c65ceaf6cb62e51f99a5b1eca410e83274f1d7fd2102f1a81e48d6af",
+      "compressedBytes": 24629
+    },
+    {
+      "layer": "blobs/sha256/6acd9c75503c3462c44836b8e39ddf85a8719525aee08d1296e33fbfdf6bca9d",
+      "compressedBytes": 7847
+    },
+    {
+      "layer": "blobs/sha256/c6d57b7150cfa2609800d458b2e44e7ee3b4eb37540885e6529fc63b3beb1f41",
+      "compressedBytes": 125058
+    },
+    {
+      "layer": "blobs/sha256/d78bfe29e52283cc3d2747d6ffba2a9d4d32f50bbfa95c588a7c8f685707f2e9",
+      "compressedBytes": 151501065
+    },
+    {
+      "layer": "blobs/sha256/4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1",
+      "compressedBytes": 32
+    }
+  ],
+  "compressedBytes": 181502964,
+  "pack": "base",
+  "budgetBytes": 200000000
+}

@@ -1,0 +1,571 @@
+[
+  {
+    "drill": "F-held-inode",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a changed opened inode before reading any bytes"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-held-size",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a changed opened size before reading any bytes"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-held-link",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a hard link created after preflight and before the opened sample"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-final-size",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a changed opened-file size before returning bytes"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-final-mtime",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a changed opened-file mtimeNs before returning bytes"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-final-ctime",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a changed opened-file ctimeNs before returning bytes"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-short-read",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a short held read instead of returning an empty success"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-leaf-type",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a non-file leaf before opening it"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-growing-cap",
+    "hazard": "H09",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 stops a file that grows during its bounded read before a final sample"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-cancel-barriers",
+    "hazard": "H08",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H08 refuses cancelled reads and listings before workspace lookup",
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H08 refuses lookup delivered after cancellation before path resolution",
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > refuses unknown workspace, missing file, invalid UTF-8 and cancellation"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-parsed-path",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 binds returned bytes to the parsed path even when the caller mutates its object"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "B-outgoing-cap",
+    "hazard": "H09",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > H09 refuses serialized request expansion before dispatch"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-response-type",
+    "hazard": "H10",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > refuses valid-looking JSON with the wrong response content type"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-empty-body",
+    "hazard": "H10",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > refuses an empty JSON response body with a fixed error"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-utf8",
+    "hazard": "H10",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > refuses invalid UTF-8 even when replacement would produce valid JSON"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "G-digest",
+    "hazard": "H14",
+    "file": "src/runtime/node/web/git.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses an altered action digest and H10 stale null-head local mutation"
+    ],
+    "before": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d",
+    "restored": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d"
+  },
+  {
+    "drill": "G-destination-head-ref",
+    "hazard": "H14",
+    "file": "src/runtime/node/web/git.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed destination host before dispatch",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed destination port before dispatch",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed destination user before dispatch",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed destination repository before dispatch",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed destination hostKeyDigest before dispatch",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed head, ref or remote registration",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed head, ref or remote registration",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses changed head, ref or remote registration"
+    ],
+    "before": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d",
+    "restored": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d"
+  },
+  {
+    "drill": "G-local-head",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/git.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H14 refuses an altered action digest and H10 stale null-head local mutation"
+    ],
+    "before": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d",
+    "restored": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d"
+  },
+  {
+    "drill": "G-results",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/git.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H10 parses mutation receipts before returning local or network results"
+    ],
+    "before": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d",
+    "restored": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d"
+  },
+  {
+    "drill": "G-cancel",
+    "hazard": "H08",
+    "file": "src/runtime/node/web/git.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H08 refuses already cancelled inspection and dispatch, including read-only methods",
+      "test/unit/nodeGitPage.test.ts > M110-U1 Git page admission > H08 refuses a local result delivered after cancellation"
+    ],
+    "before": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d",
+    "restored": "dde1de0144bdc673cb8b8181f7b2104f7fb96df581a53a6fbeff93c41db6b61d"
+  },
+  {
+    "drill": "G-canonical-browser",
+    "hazard": "H14",
+    "file": "src/webview/node/git/network.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 fresh Git verification > H14 uses the exact same canonical digest as N and sends only the verified tuple"
+    ],
+    "before": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15",
+    "restored": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15"
+  },
+  {
+    "drill": "G-proof-purpose-digest",
+    "hazard": "H14",
+    "file": "src/webview/node/git/network.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 fresh Git verification > H08 refuses wrong-purpose/altered proof and cancelled verification without dispatch"
+    ],
+    "before": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15",
+    "restored": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15"
+  },
+  {
+    "drill": "G-after-verification",
+    "hazard": "H14",
+    "file": "src/webview/node/git/network.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 fresh Git verification > H14 refuses a head or destination changed while the person verifies"
+    ],
+    "before": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15",
+    "restored": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15"
+  },
+  {
+    "drill": "G-unborn-detached-unknown",
+    "hazard": "H14",
+    "file": "src/webview/node/git/network.ts",
+    "suite": "test/unit/nodeGitPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeGitPage.test.ts > M110-U1 fresh Git verification > refuses detached, unborn or unknown remote without asking for verification"
+    ],
+    "before": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15",
+    "restored": "fd08a420a188638e7a88809e4f9335844c4690a01826a4c4e802a4bc00f8bc15"
+  },
+  {
+    "drill": "U-open-path",
+    "hazard": "H10",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > H10 refuses a file response naming a different path before opening the editor"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "U-unsaved",
+    "hazard": "H10",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > H10 retains unsaved edits when another file is requested and after a stale save refuses"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "U-serial",
+    "hazard": "H08",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > H08 serializes file requests and discards a reply after the person cancels"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "U-upload-cap",
+    "hazard": "H09",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > H09 refuses an oversized upload before allocating its bytes"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "U-upload-draft",
+    "hazard": "H10",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > H10 refuses an upload over an unsaved buffer without reading the selected file"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "U-download-digest",
+    "hazard": "H10",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > H10 refuses a download whose digest does not describe its bytes"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "U-table-check",
+    "hazard": "D33",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeWorkspaceUi.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > refuses a language table with invalid locale or template before mount",
+      "test/unit/nodeWorkspaceUi.test.tsx > M110-U1 shared workspace UI > refuses a language table with invalid locale or template before mount"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "S-binding-epoch",
+    "hazard": "H06",
+    "file": "src/webview/bridges/nodeSurface.ts",
+    "suite": "test/unit/nodeSurface.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeSurface.test.ts > M110-U1 injected lazy surface > H06 refuses a binding cleared while the lazy module loads"
+    ],
+    "before": "291aa174b8488905d9c84d5b815f96e346f3a97b034aaaa9260f020ef370a997",
+    "restored": "291aa174b8488905d9c84d5b815f96e346f3a97b034aaaa9260f020ef370a997"
+  },
+  {
+    "drill": "S-unbound",
+    "hazard": "H06",
+    "file": "src/webview/bridges/nodeSurface.ts",
+    "suite": "test/unit/nodeSurface.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeSurface.test.ts > M110-U1 injected lazy surface > H06 refuses an unbound surface with a fixed localized error"
+    ],
+    "before": "291aa174b8488905d9c84d5b815f96e346f3a97b034aaaa9260f020ef370a997",
+    "restored": "291aa174b8488905d9c84d5b815f96e346f3a97b034aaaa9260f020ef370a997"
+  },
+  {
+    "drill": "C-workspace-budget",
+    "hazard": "H09",
+    "file": "src/shared/constants.ts",
+    "suite": "test/unit/nodeWorkspaceBuild.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > H09 enforces the workspace and editor caps with the actual CodeMirror merge bundle",
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > carries the exact shipped dependency licences beside the standalone chunks",
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > keeps CodeMirror out of the independent workspace startup and loads it through a dynamic chunk"
+    ],
+    "before": "4ee89db358d13ff8c14d62a82452752248e627f85896e75b8158818a383fff0b",
+    "restored": "4ee89db358d13ff8c14d62a82452752248e627f85896e75b8158818a383fff0b"
+  },
+  {
+    "drill": "C-editor-budget",
+    "hazard": "H09",
+    "file": "src/shared/constants.ts",
+    "suite": "test/unit/nodeWorkspaceBuild.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > H09 enforces the workspace and editor caps with the actual CodeMirror merge bundle",
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > carries the exact shipped dependency licences beside the standalone chunks",
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > keeps CodeMirror out of the independent workspace startup and loads it through a dynamic chunk"
+    ],
+    "before": "4ee89db358d13ff8c14d62a82452752248e627f85896e75b8158818a383fff0b",
+    "restored": "4ee89db358d13ff8c14d62a82452752248e627f85896e75b8158818a383fff0b"
+  },
+  {
+    "drill": "C-text-coverage",
+    "hazard": "D33",
+    "file": "test/harness/build-node.mjs",
+    "suite": "test/unit/nodeWorkspaceBuild.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > H09 enforces the workspace and editor caps with the actual CodeMirror merge bundle",
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > carries the exact shipped dependency licences beside the standalone chunks",
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > keeps CodeMirror out of the independent workspace startup and loads it through a dynamic chunk"
+    ],
+    "before": "36cc6115f234b561c56adb7d17e84f72b371bc48ded08c35f9d1b37444c48864",
+    "restored": "36cc6115f234b561c56adb7d17e84f72b371bc48ded08c35f9d1b37444c48864"
+  },
+  {
+    "drill": "C-licences",
+    "hazard": "D6",
+    "file": "test/harness/build-node.mjs",
+    "suite": "test/unit/nodeWorkspaceBuild.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > carries the exact shipped dependency licences beside the standalone chunks"
+    ],
+    "before": "36cc6115f234b561c56adb7d17e84f72b371bc48ded08c35f9d1b37444c48864",
+    "restored": "36cc6115f234b561c56adb7d17e84f72b371bc48ded08c35f9d1b37444c48864"
+  },
+  {
+    "drill": "E-localized-phrases",
+    "hazard": "D33",
+    "file": "src/webview/node/editor/codemirror.mjs",
+    "suite": "test/unit/nodeBrowserWorkspace.test.mjs",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserWorkspace.test.mjs > M110-U1 actual CodeMirror browser surface > installs translated CodeMirror screen-reader announcements and control-character labels"
+    ],
+    "before": "42ceb2c612ecd7f249eaa74af523969d5a4b1ea375c7f065e0ed7f9b19179dac",
+    "restored": "42ceb2c612ecd7f249eaa74af523969d5a4b1ea375c7f065e0ed7f9b19179dac"
+  },
+  {
+    "drill": "E-locale-projection",
+    "hazard": "D33",
+    "file": "src/webview/node/files/main.tsx",
+    "suite": "test/unit/nodeBrowserWorkspace.test.mjs",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserWorkspace.test.mjs > M110-U1 actual CodeMirror browser surface > installs translated CodeMirror screen-reader announcements and control-character labels"
+    ],
+    "before": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862",
+    "restored": "22e9fcc69d55883d19008a60a00ca602c24221cdd385d525161ad57f05e2a862"
+  },
+  {
+    "drill": "T-singleflight",
+    "hazard": "H09",
+    "file": "src/webview/node/files/FileTree.tsx",
+    "suite": "test/unit/nodeFileTree.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFileTree.test.tsx > M110-U1 bounded keyboard file tree > H09 admits one pending page per directory when a folder is clicked repeatedly"
+    ],
+    "before": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e",
+    "restored": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e"
+  },
+  {
+    "drill": "T-entry-cap",
+    "hazard": "H09",
+    "file": "src/webview/node/files/FileTree.tsx",
+    "suite": "test/unit/nodeFileTree.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFileTree.test.tsx > M110-U1 bounded keyboard file tree > H09 refuses to retain more than the workspace entry bound across expanded directories"
+    ],
+    "before": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e",
+    "restored": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e"
+  },
+  {
+    "drill": "T-active-mounted",
+    "hazard": "D32",
+    "file": "src/webview/node/files/FileTree.tsx",
+    "suite": "test/unit/nodeFileTree.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFileTree.test.tsx > M110-U1 bounded keyboard file tree > keeps the active descendant present when the visible window scrolls away"
+    ],
+    "before": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e",
+    "restored": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e"
+  },
+  {
+    "drill": "T-identifiers",
+    "hazard": "H10",
+    "file": "src/webview/node/files/FileTree.tsx",
+    "suite": "test/unit/nodeFileTree.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFileTree.test.tsx > M110-U1 bounded keyboard file tree > H10 gives filenames with spaces and punctuation a valid active-descendant identifier"
+    ],
+    "before": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e",
+    "restored": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e"
+  },
+  {
+    "drill": "T-query-snapshot",
+    "hazard": "H10",
+    "file": "src/webview/node/files/FileTree.tsx",
+    "suite": "test/unit/nodeFileTree.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFileTree.test.tsx > M110-U1 bounded keyboard file tree > paginates the submitted search query even when the input is being edited"
+    ],
+    "before": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e",
+    "restored": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e"
+  },
+  {
+    "drill": "T-dispose",
+    "hazard": "H08",
+    "file": "src/webview/node/files/FileTree.tsx",
+    "suite": "test/unit/nodeFileTree.test.tsx",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFileTree.test.tsx > M110-U1 bounded keyboard file tree > H08 aborts its pending list when the surface is disposed"
+    ],
+    "before": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e",
+    "restored": "245b655462f2dd3bab58738d0d34694b4a53c7f4b3af15df6564842043bce85e"
+  },
+  {
+    "drill": "C-esm",
+    "hazard": "H09",
+    "file": "test/harness/build-node.mjs",
+    "suite": "test/unit/nodeWorkspaceBuild.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeWorkspaceBuild.test.ts > M110-U1 independent browser budget > H09 enforces the workspace and editor caps with the actual CodeMirror merge bundle"
+    ],
+    "before": "48036300c3e4de365f1476233fbeea634c2fba1711f938f9f040ab037a3fe8d3",
+    "restored": "48036300c3e4de365f1476233fbeea634c2fba1711f938f9f040ab037a3fe8d3"
+  }
+]

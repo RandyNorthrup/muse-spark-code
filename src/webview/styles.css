@@ -10,6 +10,12 @@
 @import url('tokens.css');
 @import url('../../design/tokens/generated/host-roles.css');
 
+/* M110-U1: the node workspace's outer padding (workspace.css falls back to
+   the same 12px when this is absent). */
+:root {
+  --ms-node-workspace-padding: 12px;
+}
+
 html,
 body {
   height: 100%;

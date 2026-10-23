@@ -3111,6 +3111,7 @@ async function activateWindow(
     log,
   })
   const bundledSkillsPaths = () => ({
+    log,
     vendorRoot: bundledPackageRoot,
     skillsRoot: personalSkillsRoot(museConfig()),
     sourcesRoot: bundledSkillSourcesRoot(museConfig()),

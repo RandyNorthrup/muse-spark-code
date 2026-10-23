@@ -575,9 +575,20 @@ jobs:
         id: published
         run: node scripts/publish-registry.mjs npm release/muse-spark-code-acp-*.tgz
 
+  node-image:
+    name: signed multi-arch node image
+    needs: npm
+    if: ${{ !cancelled() && needs.npm.result == 'success' }}
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+      id-token: write
+    uses: ./.github/workflows/node-image.yml
+
   summary:
     name: release channel outcomes
-    needs: [release, publish, openvsx, npm]
+    needs: [release, publish, openvsx, npm, node-image]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -596,6 +607,12 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
+      - name: report node image outcome and require publication
+        env:
+          NODE_IMAGE_RESULT: ${{ needs.node-image.result }}
+        run: |
+          printf 'Node image: %s\n' "$NODE_IMAGE_RESULT" >> "$GITHUB_STEP_SUMMARY"
+          test "$NODE_IMAGE_RESULT" = success
       - name: report all channels and fail any incomplete job
         id: report
         env:

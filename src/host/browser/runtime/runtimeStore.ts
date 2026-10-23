@@ -579,6 +579,9 @@ export async function prepareRuntime(
       return { ok: false, reason: 'runtimeOutdated' }
     }
     const record = manifest.platforms[platform]
+    if (record === undefined) {
+      return { ok: false, reason: 'runtimeUnsupported' }
+    }
     const digest = createHash('sha256').update(JSON.stringify(manifest)).digest('hex')
     const pin = { manifest, platform, record, digest }
     const root = path.join(request.storageDir, BROWSER_RUNTIME_DIR)

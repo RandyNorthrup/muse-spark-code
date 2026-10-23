@@ -1,0 +1,470 @@
+#!/bin/sh
+# Trial-boot mark-good for Muse Node OS updates (OS2, M110).
+#
+# It marks the trial slot good only after the node's /readyz passes inside a
+# bounded trial, and ONLY while a trial is pending. A probe error, a probe
+# timeout, or a boot that fell back to the stable slot marks the trial slot
+# bad; a trial slot is never marked good on a probe error, and an ordinary or
+# first boot never marks anything at all.
+#
+# Two targets, one script:
+#  - Pi (MUSE_PI_BOOT_DIR/autoboot.txt exists): the trial target comes from
+#    `pi-tryboot-backend get-trial` (armed by RAUC's set-primary after
+#    install) and the running slot from `get-current` (device tree). A trial
+#    that fell back (current != trial) is marked bad without a reboot,
+#    because the machine already runs the stable slot. A trial that is
+#    running here (current == trial) is probed: pass marks good (and the
+#    backend promotes the stable selection), failure marks bad and reboots
+#    into the untouched stable slot. No trial means an ordinary boot: exit 0
+#    without touching RAUC or the backend. The pass path calls ONLY RAUC's
+#    `rauc status mark-good boot.N`: RAUC dispatches `set-state <A|B> good`
+#    to the backend, which promotes there, and this script then confirms the
+#    promotion (stable == trial, no trial left). Nothing is promoted before
+#    RAUC accepts; a RAUC refusal leaves the stable slot untouched.
+#  - UEFI (no autoboot.txt): the trial marker is
+#    MUSE_EFI_TRIAL_FILE (default /var/lib/muse-update/efi-trial), written by
+#    the update agent at activation time (handoff OS2-RUNTIME) and holding one
+#    line, A or B. No marker means an ordinary or first boot: exit 0 without
+#    touching RAUC, even when the probe fails. With a marker the booted slot
+#    comes from the kernel command line (`muse.slot=A|B`, stamped per slot by
+#    OS1's UKI recipe, handoff OS2-OS1-UKI-SLOT) and must equal the trial
+#    slot; anything else fails closed without marking good.
+#
+# RAUC bookkeeping (`rauc status mark-good/mark-bad <slot>`) always names its
+# slot explicitly (boot.0/boot.1 on Pi, usr.0/usr.1 on EFI) so it can never
+# land on RAUC's `booted` default after a fallback. If RAUC is missing or
+# refuses mark-good, this script fails closed without marking anything good
+# or promoting anything.
+#
+# Exit status (the unit maps it; see muse-mark-good.service):
+#   0  marked good, or no trial pending (ordinary or first boot);
+#   3  trial failed and was HANDLED: recorded bad and either already running
+#      the stable slot (fallback) or a reboot into it was requested. The
+#      unit lists 3 in SuccessExitStatus so FailureAction=reboot does not
+#      reboot a machine that is already where it should be. A refused EFI
+#      mark-bad past its retry bound also exits 3 (see below): the trial is
+#      NOT recorded in RAUC, only in the unreconciled file, so it still
+#      needs an operator;
+#   1  anything unhandled (an unreadable state, a refusal, a failed reboot
+#      request): the unit fails and FailureAction=reboot reboots. A refused
+#      EFI mark-bad keeps the trial marker so the next run retries the
+#      mark, but only up to RAUC_BAD_MAX_RETRIES failures per trial: past
+#      that the run files the unreconciled record, clears the marker and
+#      exits 3, so a stable slot is never rebooted more than that many
+#      times for one trial. A reboot never re-arms a Pi trial (the firmware
+#      tryboot flag is one-shot) and the next run records the pending trial
+#      as fallen back.
+#
+# Bounds (H09/H15): the overall deadline runs on the monotonic clock
+# (MUSE_PROC_UPTIME, default /proc/uptime) and is checked before each probe
+# starts AND after each probe returns, so a probe that succeeds after the
+# deadline never passes; the loop also stops after MUSE_MARK_GOOD_MAX_ATTEMPTS
+# attempts. Every child (probe, backend, rauc, curl) runs under timeout(1)
+# (coreutils, always on the image): MUSE_MARK_GOOD_CALL_TIMEOUT_SEC seconds,
+# then TERM to the child's whole process group, then KILL after
+# MUSE_MARK_GOOD_KILL_GRACE_SEC more seconds, so a child that ignores TERM is
+# still bounded. After the call returns, any descendant left in that group
+# is killed too, so a leftover cannot hold a command-substitution pipe open.
+# A missing timeout(1) refuses before anything runs (no unbounded fallback).
+# The unit adds TimeoutStartSec with FailureAction=reboot; a kernel that
+# hangs before this script runs needs the hardware watchdog (qualification
+# gap Q-M110-OS2-WD, not claimed here).
+#
+# Environment: MUSE_TRYBOOT_BACKEND (default
+# /usr/lib/muse-update/pi-tryboot-backend), MUSE_PI_BOOT_DIR (default
+# /boot/firmware), MUSE_PI_DEVICE_TREE, MUSE_PI_LOCK_FILE, MUSE_PI_CTL_DEVICE
+# and MUSE_PROC_MOUNTINFO (passed through to the backend), MUSE_RAUC_CMD
+# (default rauc), MUSE_READYZ_PROBE (a probe command whose exit 0 passes;
+# default curls the port named by
+# MUSE_NODE_PORT_FILE, default /run/muse-node/port, with --max-time 5),
+# MUSE_MARK_GOOD_TIMEOUT_SEC (default 300), MUSE_MARK_GOOD_INTERVAL_SEC
+# (default 5), MUSE_MARK_GOOD_MAX_ATTEMPTS (default 100),
+# MUSE_MARK_GOOD_CALL_TIMEOUT_SEC (default 30),
+# MUSE_MARK_GOOD_KILL_GRACE_SEC (default 5), MUSE_PROC_UPTIME (default
+# /proc/uptime), MUSE_EFI_TRIAL_FILE (default
+# /var/lib/muse-update/efi-trial), MUSE_RAUC_BAD_MAX_RETRIES (default 3:
+# how many refused EFI mark-bad attempts one trial survives before the run
+# gives up, files the unreconciled record and exits handled),
+# MUSE_PROC_CMDLINE (default /proc/cmdline),
+# MUSE_REBOOT_CMD (default reboot). Tests inject the probe, rauc and reboot
+# as fakes; production never runs a fake.
+#
+# The EFI trial marker holds one line: the trial slot (A or B, written by
+# the update agent) plus, once RAUC has refused a mark-bad, the refused
+# attempt count ("B 2"). A plain "B" means zero attempts. The unreconciled
+# record lives beside it at "$MUSE_EFI_TRIAL_FILE.unreconciled" (one line,
+# "trial=B slot=usr.1 refused-mark-bad-attempts=4"); the journal line
+# "rauc-bad-gave-up slot=..." marks the same moment for the health surface.
+# Any later successful mark clears the stale record.
+
+set -u
+
+BACKEND="${MUSE_TRYBOOT_BACKEND:-/usr/lib/muse-update/pi-tryboot-backend}"
+RAUC="${MUSE_RAUC_CMD:-rauc}"
+REBOOT="${MUSE_REBOOT_CMD:-reboot}"
+TIMEOUT="${MUSE_MARK_GOOD_TIMEOUT_SEC:-300}"
+INTERVAL="${MUSE_MARK_GOOD_INTERVAL_SEC:-5}"
+MAX_ATTEMPTS="${MUSE_MARK_GOOD_MAX_ATTEMPTS:-100}"
+CALL_TIMEOUT="${MUSE_MARK_GOOD_CALL_TIMEOUT_SEC:-30}"
+KILL_GRACE="${MUSE_MARK_GOOD_KILL_GRACE_SEC:-5}"
+UPTIME_FILE="${MUSE_PROC_UPTIME:-/proc/uptime}"
+EFI_TRIAL_FILE="${MUSE_EFI_TRIAL_FILE:-/var/lib/muse-update/efi-trial}"
+UNRECONCILED_FILE="${EFI_TRIAL_FILE}.unreconciled"
+RAUC_BAD_MAX_RETRIES="${MUSE_RAUC_BAD_MAX_RETRIES:-3}"
+CMDLINE_FILE="${MUSE_PROC_CMDLINE:-/proc/cmdline}"
+
+log() {
+    echo "muse-mark-good: $1" >&2
+}
+
+fail() {
+    log "FAIL $1"
+    exit 1
+}
+
+# handled: the trial failed, it is recorded, and the machine is (or is about
+# to be) on the stable slot. Exit 3, which the unit treats as success.
+handled() {
+    log "TRIAL-FAILED-HANDLED $1"
+    exit 3
+}
+
+case "$TIMEOUT" in
+    '' | *[!0-9]*) fail "bad-timeout=$TIMEOUT" ;;
+esac
+case "$INTERVAL" in
+    '' | *[!0-9]*) fail "bad-interval=$INTERVAL" ;;
+esac
+case "$MAX_ATTEMPTS" in
+    '' | *[!0-9]*) fail "bad-max-attempts=$MAX_ATTEMPTS" ;;
+esac
+case "$CALL_TIMEOUT" in
+    '' | 0 | *[!0-9]*) fail "bad-call-timeout=$CALL_TIMEOUT" ;;
+esac
+case "$KILL_GRACE" in
+    '' | 0 | *[!0-9]*) fail "bad-kill-grace=$KILL_GRACE" ;;
+esac
+case "$RAUC_BAD_MAX_RETRIES" in
+    '' | *[!0-9]*) fail "bad-rauc-bad-retries=$RAUC_BAD_MAX_RETRIES" ;;
+esac
+command -v timeout >/dev/null 2>&1 || fail "no-timeout"
+
+# run_limited <seconds> <command> [args...]: runs the command under
+# timeout(1) and returns its status (124 on TERM, 137 on the KILL
+# escalation). timeout(1) puts itself and the command in a new process group
+# (its pid) and signals that whole group on expiry; once it has returned,
+# any descendant still in the group is killed so nothing outlives the call.
+run_limited() {
+    limit=$1
+    shift
+    timeout -k "$KILL_GRACE" "$limit" "$@" &
+    limited=$!
+    wait "$limited"
+    status=$?
+    kill -KILL -"$limited" 2>/dev/null
+    return "$status"
+}
+
+# backend runs the Pi backend under the per-call limit.
+backend() {
+    run_limited "$CALL_TIMEOUT" "$BACKEND" "$@"
+}
+
+probe_once() {
+    if [ -n "${MUSE_READYZ_PROBE:-}" ]; then
+        run_limited "$CALL_TIMEOUT" "$MUSE_READYZ_PROBE" >/dev/null 2>&1
+        return
+    fi
+    if [ ! -f "${MUSE_NODE_PORT_FILE:-/run/muse-node/port}" ]; then
+        return 1
+    fi
+    port=$(cat "${MUSE_NODE_PORT_FILE:-/run/muse-node/port}" 2>/dev/null) || return 1
+    # Dash-correct digit check: [!0-9] is the negated class ([^...] is not).
+    case "$port" in
+        '' | *[!0-9]*) return 1 ;;
+    esac
+    # TCP ports are 1..65535: bound the length first, strip leading zeros
+    # (some test builtins read them as octal), then range-check the value.
+    if [ "${#port}" -gt 5 ]; then
+        return 1
+    fi
+    port=$(printf '%s' "$port" | sed 's/^0*//') || return 1
+    if [ -z "$port" ]; then
+        return 1
+    fi
+    if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
+        return 1
+    fi
+    command -v curl >/dev/null 2>&1 || return 1
+    run_limited "$CALL_TIMEOUT" curl -fsS --max-time 5 "http://127.0.0.1:$port/readyz" >/dev/null 2>&1
+}
+
+# uptime_now prints whole seconds from the monotonic clock, or fails.
+uptime_now() {
+    if [ ! -f "$UPTIME_FILE" ] || [ -L "$UPTIME_FILE" ]; then
+        return 1
+    fi
+    line=$(cat "$UPTIME_FILE" 2>/dev/null) || return 1
+    up=${line%% *}
+    up=${up%%.*}
+    case "$up" in
+        '' | *[!0-9]*) return 1 ;;
+    esac
+    echo "$up"
+}
+
+# trial_expired is true once the monotonic deadline has passed.
+trial_expired() {
+    now=$(uptime_now) || fail "no-clock"
+    elapsed=$((now - start))
+    if [ "$elapsed" -lt 0 ]; then
+        elapsed=0
+    fi
+    [ "$elapsed" -ge "$TIMEOUT" ]
+}
+
+# probe_until_ready passes only for a probe that both started and returned
+# inside the trial window.
+probe_until_ready() {
+    start=$(uptime_now) || fail "no-clock"
+    attempts=0
+    while :; do
+        if trial_expired; then
+            log "deadline before-probe attempts=$attempts"
+            return 1
+        fi
+        attempts=$((attempts + 1))
+        probe_once
+        probed=$?
+        if trial_expired; then
+            log "deadline after-probe attempts=$attempts"
+            return 1
+        fi
+        if [ "$probed" = "0" ]; then
+            return 0
+        fi
+        if [ "$attempts" -ge "$MAX_ATTEMPTS" ]; then
+            return 1
+        fi
+        sleep "$INTERVAL" || fail "no-sleep"
+    done
+}
+
+# rauc_slot_for maps a trial slot to the RAUC slot name the mark commands
+# must name explicitly: boot slots on Pi, the bootname-carrying usr slots on
+# EFI. Never the `booted` default.
+rauc_slot_for() {
+    if [ "$1" = "pi" ]; then
+        if [ "$2" = "A" ]; then echo "boot.0"; else echo "boot.1"; fi
+    else
+        if [ "$2" = "A" ]; then echo "usr.0"; else echo "usr.1"; fi
+    fi
+}
+
+rauc_mark() {
+    if ! command -v "$RAUC" >/dev/null 2>&1 && [ ! -x "$RAUC" ]; then
+        log "no-rauc cmd=$RAUC"
+        return 1
+    fi
+    if run_limited "$CALL_TIMEOUT" "$RAUC" status "mark-$1" "$2" >/dev/null 2>&1; then
+        return 0
+    fi
+    log "rauc-refused mark=$1 slot=$2"
+    return 1
+}
+
+mark_bad_and_fall_back() {
+    # $1 is "pi" or "efi"; $2 is the trial slot; $3 is the RAUC slot name.
+    if [ "$1" = "pi" ]; then
+        backend set-state "$2" bad >/dev/null 2>&1 || fail "backend-bad slot=$2"
+    fi
+    rauc_mark bad "$3" || log "continuing-to-reboot-without-rauc-mark"
+    log "rebooting-to-stable"
+    "$REBOOT" >/dev/null 2>&1 || fail "no-reboot"
+    handled "probe-failed reboot-requested"
+}
+
+# efi_trial_state prints the pending EFI trial as "<slot> <refused>",
+# e.g. "B 0" for a fresh marker holding just "B", "B 2" after two refused
+# mark-bad attempts. Exit 1 means no trial is pending (ordinary or first
+# boot); exit 2 means the marker is corrupt, which fails closed. The count
+# is capped at 9 digits so the increment below can never overflow.
+efi_trial_state() {
+    if [ ! -f "$EFI_TRIAL_FILE" ] || [ -L "$EFI_TRIAL_FILE" ]; then
+        return 1
+    fi
+    content=$(cat "$EFI_TRIAL_FILE" 2>/dev/null) || return 2
+    set -- $content
+    if [ "$#" = "1" ]; then
+        set -- "$1" 0
+    fi
+    if [ "$#" != "2" ]; then
+        return 2
+    fi
+    case "$1" in
+        A | B) ;;
+        *) return 2 ;;
+    esac
+    case "$2" in
+        '' | *[!0-9]*) return 2 ;;
+    esac
+    if [ "${#2}" -gt 9 ]; then
+        return 2
+    fi
+    echo "$1 $2"
+}
+
+# efi_store_trial rewrites the marker atomically ("<slot> <refused>").
+efi_store_trial() {
+    tmp="$EFI_TRIAL_FILE.tmp.$$"
+    printf '%s %s\n' "$1" "$2" >"$tmp" || fail "efi-trial-retry-store"
+    mv "$tmp" "$EFI_TRIAL_FILE" || fail "efi-trial-retry-store"
+}
+
+# efi_reconciled drops the marker and any stale unreconciled record after
+# a mark RAUC accepted.
+efi_reconciled() {
+    rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
+    rm -f "$UNRECONCILED_FILE" || fail "efi-unreconciled-clear"
+}
+
+# refused_rauc_bad records one more refused EFI mark-bad for the pending
+# trial ($1 trial slot, $2 RAUC slot, $3 refused attempts so far). While
+# the bound holds it keeps the marker and fails (exit 1, never the handled
+# 3) so the next run retries the mark; past RAUC_BAD_MAX_RETRIES refused
+# attempts it files the durable unreconciled record, clears the marker and
+# exits handled (exit 3) so FailureAction stops rebooting the machine for
+# this trial. The record (and the "rauc-bad-gave-up slot=..." journal line)
+# is the operator's signal: RAUC was never told the trial is bad.
+refused_rauc_bad() {
+    next=$(( $3 + 1 ))
+    if [ "$next" -gt "$RAUC_BAD_MAX_RETRIES" ]; then
+        tmp="$UNRECONCILED_FILE.tmp.$$"
+        printf 'trial=%s slot=%s refused-mark-bad-attempts=%s\n' "$1" "$2" "$next" >"$tmp" || fail "efi-unreconciled-store"
+        mv "$tmp" "$UNRECONCILED_FILE" || fail "efi-unreconciled-store"
+        rm -f "$EFI_TRIAL_FILE" || fail "efi-trial-clear"
+        log "rauc-bad-gave-up slot=$2 trial=$1 attempts=$next"
+        handled "rauc-bad-gave-up slot=$2"
+    fi
+    efi_store_trial "$1" "$next"
+    log "keeping-trial-marker for-retry slot=$2 attempt=$next"
+    fail "rauc-bad slot=$2"
+}
+
+# efi_booted_slot prints the slot this boot runs, from the per-slot UKI
+# command line (muse.slot=A|B). Anything else fails closed.
+efi_booted_slot() {
+    if [ ! -f "$CMDLINE_FILE" ] || [ -L "$CMDLINE_FILE" ]; then
+        return 1
+    fi
+    line=$(cat "$CMDLINE_FILE" 2>/dev/null) || return 1
+    for param in $line; do
+        case "$param" in
+            muse.slot=A)
+                echo "A"
+                return 0
+                ;;
+            muse.slot=B)
+                echo "B"
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
+if [ -f "${MUSE_PI_BOOT_DIR:-/boot/firmware}/autoboot.txt" ]; then
+    trial=$(backend get-trial 2>/dev/null) || fail "backend-trial"
+    case "$trial" in
+        none) exit 0 ;;
+        A | B) ;;
+        *) fail "backend-trial=$trial" ;;
+    esac
+    current=$(backend get-current 2>/dev/null) || fail "backend-current"
+    case "$current" in
+        A | B) ;;
+        *) fail "backend-current=$current" ;;
+    esac
+    slot=$(rauc_slot_for pi "$trial")
+    if [ "$current" != "$trial" ]; then
+        # The trial fell back by itself (crash or reset): record bad.
+        log "fell-back trial=$trial current=$current"
+        backend set-state "$trial" bad >/dev/null 2>&1 || fail "backend-bad slot=$trial"
+        rauc_mark bad "$slot" || log "continuing-without-rauc-mark"
+        handled "fell-back"
+    fi
+    if probe_until_ready; then
+        # RAUC's mark-good dispatches `set-state <trial> good` to the
+        # backend, which promotes; nothing is promoted before RAUC accepts.
+        rauc_mark good "$slot" || fail "rauc-good"
+        primary=$(backend get-primary 2>/dev/null) || fail "backend-primary"
+        left=$(backend get-trial 2>/dev/null) || fail "backend-trial"
+        if [ "$primary" != "$trial" ] || [ "$left" != "none" ]; then
+            fail "promotion-unconfirmed primary=$primary trial=$left"
+        fi
+        log "marked-good trial=$trial"
+        exit 0
+    fi
+    log "probe-failed trial=$trial"
+    mark_bad_and_fall_back pi "$trial" "$slot"
+else
+    # NOTE: no `if ! state=$(...)` here: after a negated condition `$?` is
+    # the negated status (always 0 inside the branch), so the code must be
+    # captured from the plain substitution.
+    state=$(efi_trial_state 2>/dev/null)
+    code=$?
+    if [ "$code" != "0" ]; then
+        if [ "$code" = "1" ]; then
+            # Ordinary or first boot: never mark anything, even on failure.
+            exit 0
+        fi
+        fail "efi-trial-marker"
+    fi
+    trial=${state%% *}
+    refused=${state##* }
+    case "$trial" in
+        A | B) ;;
+        *) fail "efi-trial=$trial" ;;
+    esac
+    booted=$(efi_booted_slot 2>/dev/null) || fail "efi-booted"
+    case "$booted" in
+        A | B) ;;
+        *) fail "efi-booted=$booted" ;;
+    esac
+    slot=$(rauc_slot_for efi "$trial")
+    if [ "$booted" != "$trial" ]; then
+        # Not running the trial (fallback or BootOrder change): record bad,
+        # clear the consumed trial, stay on the running slot, no reboot. A
+        # refused mark keeps the marker (counting the attempt in it) and
+        # fails (exit 1, never the handled 3) so the next run retries the
+        # mark; past RAUC_BAD_MAX_RETRIES refusals the run files the
+        # unreconciled record and exits handled instead of rebooting the
+        # stable slot again.
+        log "fell-back trial=$trial booted=$booted"
+        if rauc_mark bad "$slot"; then
+            efi_reconciled
+            handled "fell-back"
+        else
+            refused_rauc_bad "$trial" "$slot" "$refused"
+        fi
+    fi
+    if probe_until_ready; then
+        rauc_mark good "$slot" || fail "rauc-good"
+        efi_reconciled
+        log "marked-good efi trial=$trial"
+        exit 0
+    fi
+    log "probe-failed efi trial=$trial"
+    # A refused mark keeps the marker (counting the attempt in it) and
+    # fails: the unit's FailureAction reboots off the failed trial, and the
+    # next run retries the mark from the stable slot. Past the bound the
+    # run gives up handled with the unreconciled record instead.
+    if rauc_mark bad "$slot"; then
+        efi_reconciled
+        log "rebooting-to-stable"
+        "$REBOOT" >/dev/null 2>&1 || fail "no-reboot"
+        handled "probe-failed reboot-requested"
+    else
+        refused_rauc_bad "$trial" "$slot" "$refused"
+    fi
+fi

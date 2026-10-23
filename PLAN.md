@@ -273,6 +273,9 @@ temp/planfix0190/d2-summary.txt Full record:
 | `playwright-core`                                                                                    | 1.63.0                            |
 | `mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown` | 2.0.3 / 3.0.0 / 3.1.0 / 2.1.2     |
 | `smol-toml`                                                                                          | 1.8.0                             |
+| `@xterm/xterm` / `addon-fit` / `headless`                                                            | 6.0.0 / 0.11.0 / 6.0.0            |
+| `string-width` / `wrap-ansi`                                                                         | 8.3.0 / 10.0.2                    |
+| `ink` / `ink-testing-library`                                                                        | 6.3.1 / 4.0.0                     |
 
 **`typescript`** — Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.
 
@@ -339,6 +342,12 @@ temp/planfix0190/d2-summary.txt Full record:
 **`mdast-util-from-markdown` / `micromark-extension-gfm` / `mdast-util-gfm` / `mdast-util-to-markdown`** — M79: the host reads a plan with the panel's own Markdown grammar (what react-markdown 10.1.0 and remark-gfm 4.0.1 resolve to; no peers; 0 advisories). Its own lazily loaded bundle, `dist/planMarkdown.js` (139.0 KiB with the brief writer, `character-entities` among it), so `dist/extension.js` carries none of it (464.8 KiB after merging `main`, D6).
 
 **`smol-toml`** — Codex `config.toml` for the import from other agents (M83): a TOML 1.0 parser with no dependencies, BSD-3-Clause, bundled only in the lazily loaded `dist/agentImport.js`. No peer dependencies; `npm audit` clean; 1.9.0 was inside the seven-day release window, and 1.8.0 was already in the lockfile through knip. A hand-written subset (the first draft) misread sub-tables such as `[mcp_servers.x.env]` and multi-line arrays, both in real Codex files.
+
+**`@xterm/xterm` / `@xterm/addon-fit` / `@xterm/headless`** — M110a0 U2: the node workspace's terminal tabs render a real emulator (xterm.js 6 with `screenReaderMode`, fitted by `addon-fit`); the session suite drives the headless build as its emulator. MIT; no dependencies; no peers; `npm audit` clean. Only the terminal's lazy chunk carries them (343.9 KiB of its 400 KiB budget); the workspace startup holds none.
+
+**`string-width` / `wrap-ansi`** — M110a0 TD: cell widths and word-wrap with the same libraries Ink itself uses (sindresorhus, MIT; no peers; `npm audit` clean), so components clip on real cell boundaries instead of a hand-rolled width table. `string-width` ships (the components and the art sizer import it); `wrap-ansi` is dev-only (the harness wraps one log line the way callers wrap theirs).
+
+**`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` ships with the agent; `ink-testing-library` is dev-only.
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
@@ -9932,6 +9941,23 @@ restore` checks versions and replays migrations. A schedule writes to a
       page's fetch, pull and push through an agent socket only its own user
       can open. Agents' git commands get no credential (M96's fence), so they
       work on local branches, and the person pushes from the git page.
+      **RVM110L0-1 boundary:** argv and a step-up do not make repository Git
+      configuration safe. N owns a closed Git runner: every node-initiated
+      Git uses `NODE_GIT_OPTIONS` and an allow-list environment with no
+      inherited `GIT_*`, system/global config or executable lookup from the
+      repository. Credentialed Git runs only against a service-owned gitdir
+      whose inert config passes `nodeGitRepositoryConfigSchema`, without
+      repository includes, hooks, filters, drivers or helpers and without a
+      check/use race on mutable configuration. The person approves the exact
+      SSH host/port/user/repository and verified host key exposed by git
+      status, plus remote/ref/head in the action digest. N rechecks that
+      binding immediately before using its socket and passes the resolved
+      destination, never a mutable alias. SSH has a trusted absolute wrapper,
+      pinned host key and no repository/user config, proxy, local command or
+      agent forwarding. Hooks are disabled by default; user-enabled hooks
+      execute separately as `muse-tools` without service identity/socket.
+      C/N/U1 must qualify the repository-program canary in A0-GIT; a list of
+      `-c` overrides alone is not a closed configuration boundary.
     - **Listening.** One TLS port on the interface the user chooses (with
       Docker, the published host address). Before sign-in it serves only the
       sign-in page. D80.2's firewall guidance applies, including Windows
@@ -15827,6 +15853,15 @@ observe the named tests fail, restore byte-exact and record the evidence in
   8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
      "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
      the images.
+  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
+     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
+     an owner-only CLI sign-in home. Directory permissions do not isolate
+     processes with the same UID. N/A1 must qualify how the trusted CLI
+     engine and its own sign-in are isolated from every terminal, check and
+     repository tool (including memory/ptrace), without passing credentials
+     to tools or disabling the CLI sandbox. **Default:** the Muse Code
+     backend remains unavailable under Q-M110.7 until this boundary and the
+     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
 
   **Owner answer (2026-10-06), items 1–8:** every default, accepted.
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions." The credentials and purchases in items 3 and 6 stay his
@@ -31187,14 +31222,217 @@ on the owner's server and domain, team mode on the terms decision
 (Q-M110, enforced by the admit gate), updates on the owner's key
 ceremony, and qualification on real hosts.
 
+**Lane T review fixes (FIXM110T, 2026-10-05).** Resolve RVM110T findings
+1–7 within the terminal surface and its owned tests: fresh focused approval
+keys after presentation, buffered/pasted decision rejection, complete approval
+viewports with choices withheld when they cannot fit, escape-sequence decoding
+with a standalone-Esc deadline, setup-time terminal closure, failed-output exit
+status, numeric chat outside asks, and native Windows named-pipe test fixtures
+with POSIX privacy checks exercised through filesystem seams. No socket policy
+is widened. Record each regression and byte-exact red drill in
+`docs/certification/m110-t.md`; the rig brief reserves full quality for the lead.
+
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned, documentation only. Nothing is implemented,
-and no lane is launched by this record. The research is
+and no lane is launched by this record.
+
+**M110a0 lane 0, 2026-10-05 (`m110/l0`).** The home-node contracts,
+strings, test fakes and phase-scoped threat model are implemented and locally verified;
+the service and listener remain other lanes' work. The threat-model review
+is recorded in `docs/certification/m110-threat-model.md` (Codex review;
+lead acceptance recorded below for M110a0 listener code). Platform receipts and
+named bindings are in `docs/certification/m110-captures.md`, tests/drills in
+`docs/certification/m110-0.md`. This base has no frozen M104 MHP definitions:
+the node method catalog is an independently validated extension behind an
+injected `NodeMethodPort`, bound by M104 lane 0 at integration. No production
+fake, MHP envelope guess or new dependency is authorized by that seam.
+Lane 0 adds no executable commands or manifest entries; the integration
+help-reference handoff lists the features once their owning lanes wire them.
+
+**Lead acceptance (2026-10-06).**
+
+Accepted for M110a0 by the lead on 2026-10-06, with two additions. H19 — physical and maker actions (D83) reached through the node require a fresh action-bound user-verification step-up for EACH action, bound to the exact payload digest (this is the node's form of OS user presence, matching the M103 lane R redesign); Stop is never gated and works over any authenticated session and from the console. H20 — sign-in lockout (H09) can never permanently lock the owner out: recovery is a new console setup code (H04 rules), and the lockout state is visible on the console. The listener may now be implemented within this table.
+
+**M110N continuation scope.** Implement the selected-interface HTTPS listener
+inside H01/H02/H06–H09/H19. A1 supplies an injected bearer verifier and atomic
+action-bound step-up consumption; no bound verifier means privileged routes
+refuse. N loads the configured pinned leaf and reports its full fingerprint
+to console/TUI. HTTP routes carry the existing catalog params directly,
+without guessing M104's absent envelope. Terminal frames use the shared
+method port (add write/resize/attach contracts), and a generic maker-action
+contract enforces H19 even before M103's runtime is integrated. All method
+params and results are parsed; no editor-specific dispatch. A1 owns H20's
+console recovery and lockout state, T its display, C/S0 the OS bind/firewall
+and issuance receipts. Tests cover binding, origin/metadata, header-only
+auth, first-frame deadline, size/admission limits, payload binding and Stop;
+every guard is deliberately broken and restored. No paid/live calls.
+
+**M110A1 implementation scope (2026-10-06).** Implement the accepted A1
+controls H02–H06, H08–H09 and H19–H20 under `runtime/node/auth`,
+`runtime/node/tls` and `webview/node/auth`. Use the pinned MIT
+`@simplewebauthn/server` 14.0.3 verifier, with required presence/UV, exact
+RP/origin/challenge and library counter checks. Serialize enrollment and
+durable lockout; keep all challenges, bearers and consumed action proofs in
+bounded process memory on monotonic deadlines. Recover only through a fresh
+console code, atomically replacing disabled passkeys. Bind N's verifier,
+state/audit and session lifecycle through explicit injected ports; missing
+M104 page/route and T console bindings remain named integration handoffs.
+Issue a non-CA self-signed leaf through installed OpenSSL, verify its names,
+key, validity and full fingerprint, and check local name resolution. Supply
+a lazy browser pairing/sign-in entry with OS trust instructions and no
+persistent credential storage. Browser/platform trust receipts remain
+qualification prerequisites; no trust store or firewall is changed here.
+
+**FIXM110A2 scope (RVM110A1B, 2026-10-09).** Close all six A1 review
+findings within H02/H04/H05/H08/H09/H15/H19/H20: bound challenge issuance
+by actual source and globally, with identifier-independent monotonic backoff
+and reserved console-enrollment capacity; refuse healthy-owner recovery
+before invalidating any capabilities; publish the TLS key and leaf in one
+fsynced directory rename and recover abandoned staging or the unchanged
+committed pair/pin at the next issuance. Retain refusal for existing legacy
+flat files and mismatched names; N uses the returned private pair root.
+Make the OpenSSL CA fixture portable to LibreSSL, prove the cross-origin
+guard with a correctly signed negative derivation accepted by the pinned SDK,
+and distinguish verified proofs from issued access in the append-only audit
+so expiry during persistence never records allowed access. Add baseline
+regressions and byte-exact SHA-256 red drills to the A1 certification. No
+dependency, paid/live call, host setting or gate change is in scope.
+
+**FIXM110A2 receipt.** All six RVM110A1B findings are closed. The original
+source reproduces the challenge, recovery, split-publication and audit
+regressions; counterfactual old/new test comparisons expose the test-only
+origin/LibreSSL gaps without claiming a new macOS receipt. **19** red drills
+restore byte-exact with final-source SHA-256 matches. **268** scoped tests
+pass with default timeouts, along with all five type projects, scoped
+lint/format, localization, deadcode, duplication and both production builds.
+Auth server/page sizes are **495.9/500** and **284.4/350 KiB**; every existing
+bundle cap remains green. The prior J-owned host API snapshot mismatch and
+aggregate/platform/audit handoffs remain §7 deferrals. See the A1 certification
+and its `fixm110a2-*.json` registers; no paid/live attempt occurred.
+
+**M110A3 redesign scope (RVM110A2, 2026-10-09).** Replace the
+fillable challenge table and global issuance backoff with stateless
+HMAC-SHA-256 challenges: purpose, 128-bit nonce, exact issuance/expiry,
+console-code hash or session/action/digest binding, and a process epoch.
+The WebAuthn challenge is the complete authenticated token, echoed as the
+opaque challenge id; dedicated bounded schemas admit it without widening
+other identifiers or bearers. Derive the per-node HMAC key with HKDF from
+the protected committed TLS private key and certificate fingerprint, so
+rotation and A2's atomic crash recovery cover both identities. N injects
+that key through the existing lazy auth factory. Keep only successfully
+verified consumed nonces until their monotonic expiry, never abandoned or
+failed issues. Preserve the SDK's signature-counter checks, epoch and
+post-persistence expiry barriers. Issuance does not enter proof admission. Proof-work admission and failure backoff
+are per source, with a bounded attempts window; remove shared account
+backoff, and pass the actual socket source through both listener dispatches.
+H20 recovery remains console-code-only and independent of challenge capacity;
+healthy-owner refusal still preserves sessions. Reproduce the reviewer's
+25-address steady-state flood on e5f11498b, prove owner sign-in and lockout
+recovery, replay/forgery/purpose/expiry and independent-source admission, and
+require verified plus denied audit rows on expiry. Record byte-exact guard
+drills, update challenge threat rows and scoped certification. No dependency,
+paid/live call, trust-store change, aggregate gate or cap change is authorized.
+
+**M110A3 receipt (2026-10-09).** The stateless redesign closes RVM110A2's
+P1 and both P3 findings. The exact e5f11498b stack fails four new service
+regressions while retaining 22 passing tests. All **29** guard drills fire
+and restore SHA-256-identical final source; the final **306** scoped tests
+pass with repository-default timeouts. All five type projects, scoped
+lint/format, localization, deadcode, duplication and both builds pass.
+Auth server/page are **497.0/500** and **284.4/350 KiB**; every existing cap
+stays green. Only missing locked dependency trees were added; all **31,224**
+existing files/symlinks match their pre-install bytes and metadata. The
+inherited generated-host-record, aggregate/platform/audit and named runtime
+bindings remain §7 lead handoffs. No paid/live model attempt occurred. See
+A1 certification's A3 section and `m110-a1/a3-*.json` registers.
+
+**A1 dependency pins.** `@simplewebauthn/server` 14.0.3 and
+`@simplewebauthn/browser` 14.0.0 are MIT, with no peer dependencies (checked
+2026-10-06). Server integrity:
+`sha512-D39/0fiDiYmGV+nraY9s63D1Ho2AX/waMLy22/9gUadTUuvbAnstfb4bpbHYbwZuV5ZLDYN1SmzDKuiHzKAA4Q==`;
+browser integrity:
+`sha512-1odWVqeEBTl7lJ9zMKLEsmTlnyrDO5iRcTvfMKKk1WThUnp/i8JJdffdj2icP+tty159s4PgwE3BiMoEW9NFow==`.
+The server verifies actual WebAuthn cryptography; the browser package handles
+the native credential API's binary/JSON conversion. Both remain confined to
+the A1 lazy artifacts. The manifest/lock pins are exact. The initial scratch
+installation was under this lane's `temp/`. On resume, the lead authorized
+adding only the 25 missing package directories from a fresh, script-free
+install under this lane's `TMPDIR`. The post-copy snapshot confirms all
+31,226 pre-existing files/symlinks retain their bytes, inode, mode, size and
+modification time. Normal Vitest subsequently updated its existing results
+cache, recorded in certification; no package bytes changed.
+
+**M110N listener receipt (2026-10-06).** N implements the accepted-table
+transport in the lazy node bundle: explicit private/loopback bind, pinned TLS
+and full console fingerprint, browser guards, memory-bearer verifier port,
+bounded HTTP/WebSocket handling and shared method dispatch, with an exact
+per-action UV-proof binding for physical/maker actions and ungated authenticated
+Stop. See `docs/certification/m110-n-node-service.md` for tests, byte-exact red
+drills and the named `N-A1-VERIFIER`, `N-A1-S0-TLS`, `N-C-LISTENER`,
+`N-M104-METHODS`, `N-U2-TERMINAL` and `N-M103-ACTION` handoffs. Production
+sign-in (including H20 console recovery), issuance, OS deployment and user
+surfaces remain their owners' integration work; unbound serve still refuses.
+
+**FIXM110N2 scope (RVM110NG, 2026-10-06).** Correct H07's WebSocket
+destination to `websocket` while HTTP keeps `empty`, with fixtures derived
+from Fetch Metadata and negative cases for both transports. Correct H08's
+attendance to track first verification and latest authenticated activity on
+the monotonic clock, bounded by the existing idle/absolute maxima; reject
+future or over-long public session metadata. Reverification never resets the
+absolute clock. Retain expired attachment records until A1 detaches/ends them
+so a repeated id cannot restart either limit; the existing session cap bounds
+that memory. Add before-fix regressions and byte-exact guard-fire receipts.
+The P3 packed replace-ref finding is the named §9 residual below. No guard is
+widened; no dependency, protocol shape or unrelated lane file changes.
+
+**FIXM110N2 receipt.** Both P2 findings are fixed. The nine scoped final
+suites pass **203 tests** with repository-default timeouts; the original
+source fails both regressions. **15** accepted red drills restore byte-exact
+and match the final source hashes. Detailed tests, metadata sources, A1's
+expired-identity detach handoff and the P3 follow-up are recorded in
+`docs/certification/m110-n-node-service.md` and
+`docs/certification/m110-n-review-drills.json`. The inherited J-owned host-API
+snapshot mismatch remains the §7 integration handoff; no gate is weakened.
+
+**RVM110L0 corrections (FIXM110L0).** Before freezing these contracts,
+close all three review findings: require a closed, service-owned Git
+configuration with fixed overrides/environment and immutable SSH destination
+and host-key binding; provide ordered, backpressured PTY output/exit delivery
+and disconnect disposal in `NodeToolHostPort`; preserve empty argv entries
+after a nonempty executable. Add regression tests, byte-exact red-drill
+receipts and updated schema/threat-model/integration records. N owns the
+actual Git runner and OS canary qualification; L0 adds no listener or runner.
+User-enabled repository hooks run separately as `muse-tools`, without the
+deploy-key socket, and never inside credentialed service Git.
+
+L0 fixes A0 bounds in `NODE_*`: setup 15 minutes, session idle 30 minutes,
+absolute session 12 hours, step-up 5 minutes, WebSocket authentication 5
+seconds, lockout at 100 failures, 1 MiB file/terminal-output cap, 16 KiB
+terminal input, 64 frames/s, 1,000 results per page, 100 sessions/challenges,
+10 MiB audit cap and 30-day retention. These are rejection limits, never
+permission grants. Config/state/audit reject unknown fields and expose no
+credential-valued fields; filesystem containment, cryptographic verification, expiry and hash-chain
+verification still require their runtime bindings and acceptance drills.
+
+**Status 2026-10-06 (historical; M110a0 threat model accepted): building.** N's service core is
+implemented (`docs/certification/m110-n-node-service.md`); the listener is
+authorized within the accepted table. Production sign-in, images and user
+surfaces still require their named lane bindings and platform receipts. The research is
 `docs/research/muse-node-2026-10-05.md`. Each phase's part of lane 0's threat
 model is reviewed and accepted before that phase's listener, relay or sign-in
 code is written. Listening on a network stays off until `node init` chooses
 it: D80's security exception to the enhancements-on ruling, applied again.
+
+**Status 2026-10-23 (S0 and J built on lane RLM110A0, awaiting integration): building.** S0's LAN installer profile (`deploy/install/`), production
+wipe binding, home guide and hosts proof (`docs/certification/m110a0-hosts.md`)
+are committed with their tests; J's operator guides (`docs/node/`), README /
+SECURITY / PRIVACY / AGENTS / ACP / CI / ide-compat rows and A0 attempt log
+are written. Proven on macmini: the packaged CLI and ACP `node` lifecycle,
+the stale-lock recovery, and the installer checks against real POSIX tools.
+Still open: the full Linux install, the attestation success path, every
+container runbook (Docker Desktop's socket never appeared on macmini), and
+the serve binding (A1/M104).
 
 **Amended by D91 (2026-10-05).** Muse Desktop (M111) is this node's
 graphical host edition. M111's shared lanes TH (theme), IN (languages), AX
@@ -31280,6 +31518,29 @@ and the headless installer ISO uses M111i's daemon and pages.
   secret. The runtime's settings store (M104 lane B) holds the shared
   settings; headless runs take flags as D65 does.
 
+**Lane C review fixes (FIXM110C, 2026-10-05).** RVM110C's two P2 findings
+are in scope: compare the current stable/preview channel's release tags by
+SemVer before promotion, so recovery and reruns cannot downgrade it; and
+apply OCI file/directory and opaque whiteouts against lower layers at every
+depth, including the root, before installing this layer's files. Each fix
+requires a failing regression on the reviewed code, a passing fixed suite,
+and deliberate guard mutations with byte-exact SHA-256 restoration recorded
+in `docs/certification/m110-c.md`. No rollback input is added to this release
+workflow; deliberate rollback requires a separate explicit audited workflow.
+J owns the CHANGELOG/operator documentation handoff. No dependency or gate
+changes, registry writes, live model calls, merges or pushes are authorized.
+
+**Lane C Windows test repair (FIXM110C3, 2026-10-09).** RVF110C2's remaining
+P2 is in scope: a `.cmd` stub cannot run through shell-free Node spawning.
+Make the channel helper's executable and argument prefix an explicit,
+zod-validated dependency. The workflow supplies `docker` with no prefix;
+tests supply the absolute Node executable and a fake `.mjs` script, and
+exercise the same shell-free inspection path without any Docker PATH lookup.
+Remove the simulated Windows resolution test. Record regression failures,
+red drills with byte-exact restoration, and the Node documentation's Windows
+spawning constraint in `docs/certification/m110-c.md`. No shell is enabled,
+and hosted Windows execution remains a lead qualification.
+
 **Roadmap.** Each phase lands on its own integration branch and ships in the
 train named. Estimates are lane-hours of implementation, review and
 certification at the fleet's usual split (Muse implements, Codex reviews by
@@ -31350,6 +31611,26 @@ or M109):
 | A1 Passkeys and the pinned certificate    | D90.11's first part and 23: the setup code; passkeys with a pinned WebAuthn library (SimpleWebAuthn, MIT); cookie-free sessions and bearers; step-up; throttling and lockout; the sign-in audit; the node's self-signed certificate and its fingerprint; the browser-pairing page with steps for each OS; the name checks                                                                                                                                                                                                                                                                                                                                                                    | new `src/runtime/node/auth/**`, `src/runtime/node/tls/**`, `src/webview/node/auth/**`                                                                                     | `src/runtime/companion/guard.ts` (a bearer issued from a sign-in; the WebSocket first-frame rule; with M104 lane C's owner)                                                                                                                                               | after N                                                           |
 | S0 Install on a home PC                   | D90.23: the native Linux installer's LAN profile (signature check, two systemd units, the node's port only); the Docker Desktop guides for Windows and macOS (published address, firewall prompt); `node wipe` for a home node; qualification on the owner's PCs                                                                                                                                                                                                                                                                                                                                                                                                                             | new `deploy/install/**` (LAN profile), `docs/node/home.md`, `docs/certification/m110a0-hosts.md`                                                                          | —                                                                                                                                                                                                                                                                         | after C                                                           |
 | J Docs and certification                  | README's "Muse Node" section for the home node and each phase's pages; the operator guide; SECURITY, PRIVACY, CHANGELOG; AGENTS.md (layout, rule 8's node row); the editor matrix rows; certification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | new `docs/node/**`, `docs/certification/m110*.md`                                                                                                                         | README; AGENTS.md; SECURITY; PRIVACY; CHANGELOG; `docs/acp.md`; `docs/ci.md`; `docs/ide-compatibility/**`; PLAN (D90 and M110 only)                                                                                                                                       | day 0 (throughout)                                                |
+
+**M110-B0 lane scope (2026-10-06).** The rig brief adds D90.27's base
+agent toolset: `deploy/toolset/**`, portable bundled-skills installation,
+first-boot preparation ports and `docs/certification/m110-b0-base-agent-toolset.md`.
+This base lacks D90.27 and the B0 row from the newer lead plan; the preceding
+D90.27 records the brief before implementation. Do not edit C's deployment,
+OS1's recipes, U2's help UI or N's boot wiring: deliver explicit injected
+ports and named handoffs. H09/H10/H11/H17 bind download integrity, bounded
+artifacts, installed-tool ownership, copy containment and supply chain.
+Final local verification follows the rig/common brief (scoped suites, default
+timeouts, no full quality run); the lead runs the complete quality gate.
+
+**M110-B0 review repair (RVM110B0, 2026-10-06).** Fix both P2 findings
+within B0: derive image-owned checksum inventories from the validated pinned
+manifest, verify them before installation and pass only their named Debian
+packages to dpkg (H17). Keep installer/build/skill asset copies inside the
+fresh-context cleanup scope so any staging failure aborts and permits a clean
+retry without deleting an existing context or cache (H09). Execute regression
+tests and byte-exact-restored red drills for both controls; no new dependency
+or wider lane scope. Record the results in the B0 certification.
 
 **The later phases' lanes:**
 
@@ -31759,6 +32040,72 @@ the hardware matrix waits for the owner's machines (Q-M111 item 5). The
 landing record is `docs/certification/rlm111.md`.
 
 **Status 2026-10-09: planned.** Threat model accepted as baseline; build lanes not started.
+
+**FIXM110T rig qualification (2026-10-05).** The rig/common briefs prohibit
+aggregate `npm run quality`; the lead runs integrated fleet quality. Scoped
+TUI regressions, deliberate failures with SHA-256 restoration, typecheck,
+lint/format, localization, deadcode, duplication and production build are
+required here. `check:host-api` still fails only the existing T-HOST-RECORD
+generated built-in delta documented in `docs/certification/m110-t.md`.
+The record is J's owned file; J/lead regenerates it before integration.
+No test, threshold, ignore or gate is relaxed.
+
+**FIXM110C bounded rig certification (2026-10-05).** The rig/shared brief
+prohibits aggregate `npm run quality` and full `npm test`; the lead retains
+those integration gates. Run the complete owned test files in batches of at
+most three with three workers, plus typecheck, changed-file lint/format,
+deadcode, duplication, localization, host API and production build directly
+on Kubuntu. Hooks remain enabled. No gate or threshold is weakened.
+
+**M110A3 gate boundary (2026-10-09).** The same scoped/lead-owned
+aggregate and platform handoff below applies to the A3 redesign. No merge,
+rebase, push or modification of existing shared dependency entries is allowed.
+
+**FIXM110A2 gate boundary (2026-10-09).** The brief reserves aggregate
+quality/coverage and platform certification for the lead and forbids merging,
+rebasing, pushing and modifying existing shared dependency entries. Run
+scoped whole files directly on Kubuntu with repository-default timeouts,
+at most three files per invocation and one worker. Run all five type projects,
+changed-file lint/format, localization, deadcode, duplication, host API and
+both production builds serially. Vitest's `--cache=false` avoids updating its
+shared results cache. Install the exact lockfile only in private scratch
+space, copying missing package directories without overwriting any entry.
+Retain the existing A1 generated-host-record and inherited dependency-audit
+handoffs below; no gate, cap, rule or hook is weakened. Final receipts and
+SHA-256 red drills are in the A1 certification and its `fixm110a2-*.json`
+registers.
+
+**M110 A1 scoped certification (2026-10-06).** The lane brief forbids the
+aggregate quality run and changes to other owners' files. A1 runs its own
+whole test files with default timeouts and at most three workers; the lead
+retains integrated `npm run quality`, OS/browser TLS/name qualification and
+binding the named N/M104/T/C/J ports. No cap, timeout, lint level, ignore or
+hook is weakened. See `docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md`
+for failures deliberately observed and restored, package/audit details and
+the documentation/reference integration patch.
+
+A1's same-scope base/current audit reports the same 13 vulnerable packages,
+with no new vulnerable dependency. The unchanged audit gate still refuses
+inherited `shell-quote` GHSA-pqg4-j6r4-53mv and `source-map-js`
+GHSA-68fv-2mgg-jv7q; their repair is deferred to the lead because A1 cannot
+upgrade other owners' dependencies. The generated host API record is also
+deferred to J's integration ownership. On 2026-10-09 the lead authorized
+adding only the 25 missing dependency directories; this resolves normal SDK
+resolution without changing pre-existing shared files or the installed hooks.
+The audit and generated-record conditions remain integration handoffs,
+not green gate claims or exceptions.
+
+**CIFIX14C bounded ACP packaging certification (2026-10-05).** The installed
+tarball passes the unchanged strict English fallback check and 382 distinct
+scoped tests. Typecheck, changed-file lint/format, localization (source and staged),
+deadcode, duplication, host API and production build gates pass. Shared rules
+prohibit aggregate `npm run quality` and replacing the existing dependency tree;
+fresh tarball installs use an offline scratch prefix. Kubuntu runs Node 24.18.0,
+not CI's requested Node 22, and lacks CI's downloaded compiled macOS helper.
+The exact universal VSIX listing therefore fails only that helper entry; hosted
+artifact operations and full integrated quality remain with the lead. No check
+is weakened. Receipts and deliberate failures are in
+`docs/certification/cifix14-acp-usage.md`.
 
 **Status 2026-10-05: planned.**
 
@@ -36934,6 +37281,46 @@ Node/VS Code importer. Z owns `docs/ide-compatibility/host-api.md`; refresh
 it with `npm run check:host-api -- --write`, review and rerun on the
 integrated tree. No inventory gate is weakened or claimed green.
 
+**M110B0 lane verification delegation and inherited record deferral
+(2026-10-06).** The rig/common briefs delegate full quality/coverage/platform
+gates to the lead. B0 runs default-timeout owned suites, all-project
+typecheck, scoped lint/format, deadcode, duplication, localization and
+production build, plus offline amd64 image build/smoke/compressed-size
+receipts. `check:host-api` reports the same eleven J-owned stale Node import
+counts as N, with no new VS Code dependency/API; B0-J-HOST-API binds the
+record regeneration to J after integration. Native ARM64 image/browser
+execution, composed-image sizing and help registry/package/boot bindings
+remain named handoffs in `docs/certification/m110-b0-base-agent-toolset.md`.
+No gate, budget, threshold, ignore or timeout is weakened.
+
+**M110N lane verification delegation (2026-10-06).** The rig brief and
+shared lane rules explicitly prohibit full quality/full-suite runs here.
+N runs its owned tests at the default timeout, scoped ESLint/Prettier,
+all-project typecheck, deadcode, duplication, localization, host-API and
+production build, with unchanged hooks and budgets. The lead runs full
+quality/coverage/a11y/integration on the integrated tree before acceptance.
+J owns the generated host-API snapshot; N records the exact stale import-count
+changes for integration rather than changing that lane's file.
+
+**FIXM98J bounded-lane gate delegation (2026-10-04).** The rig brief and
+shared lane rules prohibit a full `npm run quality` or full test suite in
+this worktree. Hook-on repair commits require the owning regression files,
+red drills, scoped lint/format and typecheck here; the final lane receipt
+also runs dead-code, duplication, localization, host API and production
+build. The lead retains full quality, coverage, accessibility and installed
+host certification on the integrated tree. No threshold or rule is changed.
+
+**FIXM98J host-API snapshot deferral.** `npm run check:host-api` ran and
+exited 1: `docs/ide-compatibility/host-api.md` needs the generated record of
+`paidHost.ts`'s shared-budget read (11 → 12 calls, adding that file to
+`WorkspaceConfiguration.get`) and lane J's `node:crypto` import (32 → 33).
+The rig brief limits edits to the findings' files plus tests/certification/
+localization, so this generated document is left for the lead's integrated
+refresh: run `npm run check:host-api -- --write`, review those three rows,
+then rerun the check. API policy is unchanged; the snapshot gate is neither
+weakened nor claimed green. This is a documentation gate deferral, not an
+unfixed RVM98J finding.
+
 **VAULTOPEN duplication deferral (2026-10-18, macmini).** `jscpd` is red on
 the untouched base: a scratch worktree at `f44f54120d` reports 37 clones
 (0.1%) over the 0.0% threshold, all in the stacked vault lanes' runtime and
@@ -37303,6 +37690,9 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | Location                                                        | Escape hatch                                                          | Reason                                                                                                                                                                                                                                                                        |
 | --------------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/shared/l10n/text.ts` (ACTDIET)                             | `as UiText` on the descriptor clone                                   | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement.                            |
+| `src/runtime/node/auth/methods.ts` (M110 A1)                    | `as NodeMethodResult<M>`                                              | The selected catalog's zod result parser validates the exact method result; TypeScript cannot preserve that generic key/result correlation across the switch.                                                                                                                 |
+| `src/webview/node/auth/client.ts` (M110 A1)                     | `as NodeMethodResult<M>`                                              | The selected catalog's zod result parser validates the HTTP response before use; TypeScript cannot preserve the generic catalog correlation.                                                                                                                                  |
+| `test/unit/helpers/node/listener.ts` (M110 A3 rework)           | `as NodeMethodResult<M>`                                              | The hand-written port double records method calls and replays queued behaviors; a scripted double cannot narrow a method result the way the real dispatcher does.                                                                                                             |
 | `native/windows/MuseSparkVault.cs` (FIXM109PW3, supervisor job) | Job handle deliberately retained until OS process exit                | Joining the supervisor before CreateProcess makes child job membership atomic. The non-inheritable kill-on-close handle stays in its OS handle table for this one-launch process; closing it at Launch return would terminate the supervisor before it reports its exit code. |
 | `native/windows/MuseSparkVault.cs` (FIXM109PW3)                 | `unchecked((uint)ace.AccessMask)` and checked OS exit-code conversion | CommonAce stores native unsigned masks in signed integers; preserving all bits is required for GENERIC_WRITE/ALL. The checked exit conversion refuses values outside the managed entry's int range.                                                                           |
 | `src/runtime/vault/vaultRuntime.ts` (M109 H)                    | `as Partial<RuntimeVaultModule>`                                      | The installed `dist/vault.js` factory is W/H's typed build contract. Runtime checks refuse absent exports and malformed binding methods; fake module tests prove fail-closed loading. No caller-supplied path or private wire format.                                         |
@@ -37678,6 +38068,20 @@ No new escape hatch is introduced.
 | `src/core/team/coordinator/advisories.ts` (`poll` grouping) | `eslint-disable-next-line unicorn/prefer-group-by` | `Map.groupBy` does not resolve under this repo's TS lib (the lint-suggested call fails type-aware rules with unresolvable-type errors, as `Iterator.toArray` does); the explicit grouping loop stays. Inline-reasoned. | A TS lib that resolves `Map.groupBy`. |
 
 ## 9. Security assumptions and accepted residual risk
+
+- **OS2-TUF (RVM110OS2I P2-12, RVM110OS2F F11) — REPLACED 2026-10-22
+  (RLM110A0, `1c5e49574`).** `os/update/channel.py` is now a real TUF
+  client: threshold roles over unique keys, root rotation under dual
+  thresholds, timestamp/snapshot/targets with version monotonicity, expiry
+  of every role against the channel start, rollback continuity against
+  persisted trusted metadata, SHA-256 length-plus-hash bindings, RSA-PSS
+  verification through the system openssl, a 2048-bit floor, canonical JSON
+  and recomputed keyids. Fixed topology by design: no delegations (refused),
+  no consistent snapshots, one scheme, one hash. What remains: no runtime
+  consumes the channel yet (OS2-RUNTIME is unbuilt), RAUC still verifies
+  every bundle's X.509 signature before writing, and the signing keys are
+  the owner's (Q-M110, OS2-SIGNING). 27 tests with an independent signer;
+  certification `docs/certification/m110-os2-image-update.md` round 6.
 
 - **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
   registration binds PID/UID/birth/image to owner-only files; it does not
@@ -40522,6 +40926,64 @@ review findings and terminal settlement-pricing failure.
   lane W/the lead. This repair changes shared core behavior in every editor,
   adds no parser or paid call, and does not certify those unbound features.
 
+- **M110-T integration qualification (FIXM110T, 2026-10-05).** RVM110T's
+  seven findings are fixed and regression-tested on win11. This base still
+  lacks the real Ink binding, launcher, MHP/node service and feature catalog;
+  T-INK must acknowledge flushed output and leave raw input to the shared
+  decoder, then qualify bracketed-paste mode and actual terminals/assistive
+  technology. T-LAUNCH/T-MHP/T-DOCS remain the named integration owners.
+  Safe for now: this code is not a shipped command and cannot spend or grant
+  permission itself; redirected input cannot answer asks. A terminal cannot
+  prove physical input provenance against a hostile terminal or another
+  process injecting indistinguishable bytes. This qualification does not
+  claim that protection. T-HOST-RECORD remains a stale generated-record gate
+  failure with exactly the previously recorded built-in delta; J/lead must
+  regenerate it before release. No admission guard or gate is weakened.
+
+- **FIXM110C / RVM110C (lane C, 2026-10-05).** Both review P2s are
+  resolved: automatic stable/preview promotion compares the current digest's
+  validated release aliases by SemVer before writing, and OCI reconstruction
+  applies every whiteout form to lower layers, including root opacity, before
+  adding current-layer files. No review finding remains as a residual. The
+  existing workflow concurrency group serializes channel writes and retention;
+  any future explicit audited rollback workflow must share that group.
+  Hosted GHCR/OIDC/retention and final-runtime/platform qualification remain
+  the named lead/N/0/J handoffs in `docs/certification/m110-c.md`; this repair
+  certifies crafted OCI layers and the actual promotion shell on local fakes.
+  No registry operation or model call runs here. J carries the CHANGELOG and
+  operator-documentation update at integration.
+
+- **M110B0 pinned installer inventory (RVM110B0, H17/H09).** The validated
+  manifest generates image-owned checksum lists outside the artifact mounts;
+  every named artifact is hashed before use and only listed Debian paths reach
+  dpkg. Artifact-directory additions or checksum-list edits cannot extend that
+  inventory. All fresh-context copies share cleanup; existing contexts and
+  caches are preserved. Both review P2s are fixed, with regression/red-drill
+  evidence in the B0 certification and no new accepted review residual. C still
+  owns final image signing, SBOM, scans and native ARM64 qualification; this
+  control does not protect against host/root changing the whole image (H16).
+
+- **M110N-packed-replace-ref (RVM110NG P3).** The private Git snapshot
+  rejects loose `refs/replace/*` but copies packed replacement refs as data.
+  Safe for now: every `NodeGitRunner` invocation prepends
+  `NODE_GIT_OPTIONS`, including `--no-replace-objects`, so those refs cannot
+  replace objects during any current operation. Follow-up: N/U1 reject packed
+  replacement refs in the bounded FD-held import, add a packed-ref regression
+  and red drill, and qualify it before expanding the Git invocation surface.
+  This is retained data, not permission to enable Git replacement objects.
+
+- **M110L0-Git-runtime-qualification (RVM110L0-1).** The closed configuration,
+  fixed Git policy and immutable SSH destination contracts are fixed in L0;
+  the actual service-owned snapshot/runner, trusted SSH wrapper, atomic
+  destination recheck and two-UID repository-program canary are N/C/U1's
+  unimplemented A0-GIT qualification. Safe for now: L0 has no listener,
+  credentialed Git child or node service, and threat-model acceptance and
+  A0-GIT are prerequisites to claiming support. Follow-up: bind the constants
+  and parsers, prove no hooks/helpers/filters/drivers/includes/config env can
+  execute with service privileges or its socket, and qualify alias/host-key
+  mutation before dispatch. This names the runtime evidence still needed,
+  not an exception to the closed runner requirement.
+
 - **M91-E-M74 (lane E, SoL-Pi rule 5).** M74's automatic compaction and its
   hidden follow-ups are not built (Q-M74). So M91 certifies only the
   compaction that exists, the manual one: PreCompact may block it, and
@@ -41491,6 +41953,35 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   stage; no further code change or mutation drill was needed. The exact exit
   metadata and aggregate security tail are recorded in the certification file.
   Platform/live release receipts remain separate requirements.
+- **FIXM110OS1-mkosi-tarball (RVM110OS1 P3).** The composer checks the
+  mkosi `--version` token for exit 0 and exact equality with the
+  `os/pins.json` pin; the source tarball digest beside it is not
+  re-verified. Safe for now: exact-token refusal plus the recipe's
+  `MinimumVersion` floor, and a substituted binary still faces the policy
+  gate and the deterministic recipe. Follow-up: OS6 verifies the tarball
+  digest when it owns publishing.
+
+- **FIXM110OS1-debian-keyring (RVM110OS1 P3).** Debian archive trust rests
+  on the build host's `debian-archive-keyring`; repositories are locked to
+  `main non-free-firmware` with no unsigned fallback. Safe for now: the
+  snapshot date is pinned and packages come from Debian's own archive.
+  Follow-up: OS6 pins the keyring by fingerprint.
+
+- **FIXM110OS1B-zstd-host (RVF110OS1 P2-3).** Pi `.deb` zstd data members
+  decode with the stdlib `compression.zstd` reader (a real zstd `.deb`
+  stages with no host tool; the `dpkg-deb` fallback is gone). A build host
+  whose Python predates 3.14 refuses with a named code (fail closed).
+  Safe for now: named refusal tested on both sides; build hosts run
+  Python 3.14+.
+- **FIXM110OS1B-pi-pin-rotation (RVF110OS1 P2-1).** The Pi Packages index
+  rotates on every archive publish; `packagesIndexSha256` names one
+  observed index (2026-10-08). Later builds fail closed at the
+  index-digest step and need refreshed pins. Follow-up: OS6 owns pin
+  refresh alongside publishing.
+- **FIXM110OS1B-non-anchoring-hosts (RVF110OS1 P2-2).** Tree copies anchor
+  with directory descriptors only where `os.open` supports `dir_fd`;
+  elsewhere the same checks run over joined paths. Pi staging is qualified
+  on Linux, where anchoring is complete.
 
 ## 10. Definition of done and release records
 

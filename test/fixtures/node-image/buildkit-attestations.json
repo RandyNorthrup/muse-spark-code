@@ -1,0 +1,31 @@
+{
+  "capture": "m110-clean-amd64.tar; pinned BuildKit OCI exporter; 2026-10-05; zero model attempts; validated fields excerpt",
+  "annotations": {
+    "vnd.docker.reference.digest": "sha256:a5d15f42ed333361d842952b1f75dd84bdf0f1e749bfd6b74269309ef6964c7a",
+    "vnd.docker.reference.type": "attestation-manifest"
+  },
+  "statements": [
+    {
+      "_type": "https://in-toto.io/Statement/v1",
+      "predicateType": "https://spdx.dev/Document",
+      "subject": [],
+      "predicate": {
+        "packages": [
+          {
+            "name": "@napi-rs/keyring"
+          }
+        ]
+      }
+    },
+    {
+      "_type": "https://in-toto.io/Statement/v1",
+      "predicateType": "https://slsa.dev/provenance/v1",
+      "subject": [],
+      "predicate": {
+        "buildDefinition": {
+          "buildType": "https://github.com/moby/buildkit/blob/master/docs/attestations/slsa-definitions.md"
+        }
+      }
+    }
+  ]
+}

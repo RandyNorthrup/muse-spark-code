@@ -1,0 +1,41 @@
+# Trial-boot mark-good unit (OS2, M110). Runs once per boot after the node
+# service, and marks the trial slot good only when /readyz passes inside
+# the bounded trial owned by /usr/lib/muse-update/mark-good
+# (MUSE_MARK_GOOD_TIMEOUT_SEC, default 300, on the monotonic clock, with a
+# per-call timeout and an attempt cap). On failure it marks the slot bad and
+# reboots into the stable slot; on an ordinary or first boot it marks
+# nothing. Enabled on the image by OS2-OS1-RECIPE; it is not started anywhere
+# else. TimeoutStartSec bounds the script itself and FailureAction reboots a
+# machine whose mark-good hung or hit an unhandled error (exit 1); a kernel
+# that hangs before this unit runs needs the hardware watchdog (gap
+# Q-M110-OS2-WD, not claimed here).
+#
+# Exit 3 is a HANDLED trial failure: the trial is recorded bad and the
+# machine already runs the stable slot (fallback) or has requested the
+# reboot into it. SuccessExitStatus=3 keeps FailureAction from rebooting a
+# healthy stable slot again; the journal still carries TRIAL-FAILED-HANDLED.
+# A refused EFI mark-bad past its retry bound (MUSE_RAUC_BAD_MAX_RETRIES,
+# default 3) also exits 3 with "rauc-bad-gave-up slot=..." in the journal
+# and the trial in efi-trial.unreconciled: RAUC was never told, so an
+# operator must reconcile it.
+#
+# The script handles both targets: with autoboot.txt present it drives the
+# Pi tryboot backend, otherwise it follows the EFI trial marker through
+# `rauc status mark-good/mark-bad <slot>`. No per-target unit is needed.
+
+[Unit]
+Description=Muse Node trial-boot mark-good (OS2)
+After=muse-node.service network-online.target
+Wants=network-online.target
+FailureAction=reboot
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/muse-update/mark-good
+SuccessExitStatus=3
+TimeoutStartSec=360
+NoNewPrivileges=yes
+PrivateTmp=yes
+
+[Install]
+WantedBy=multi-user.target

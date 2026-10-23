@@ -1,0 +1,28 @@
+services:
+  muse-node:
+    image: ${MUSE_NODE_IMAGE:?Set MUSE_NODE_IMAGE to the verified image@sha256 digest}
+    container_name: muse-spark-code-node
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    # Only the entrypoint needs these; both children drop their bounding sets.
+    cap_add: [CHOWN, SETUID, SETGID, SETPCAP]
+    tmpfs:
+      - /run:rw,nosuid,nodev,noexec,mode=0755
+      - /tmp:rw,nosuid,nodev,mode=1777
+    volumes:
+      - node-state:/var/lib/muse-spark-code-node
+      - node-workspaces:/workspaces
+    ports:
+      - '${MUSE_NODE_BIND_ADDRESS:?Choose the host LAN interface}:8443:8443'
+    restart: unless-stopped
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+volumes:
+  node-state:
+  node-workspaces:

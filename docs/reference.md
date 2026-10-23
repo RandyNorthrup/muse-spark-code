@@ -3992,6 +3992,8 @@ These are defaults; editor customizations take precedence.
 - `deferred.close`: `Escape`; when `deferred.close`; Close the dialog or move focus within it.
 - `bestOfN.close`: `Escape`; when `bestOfN.close`; Close the dialog or move focus within it.
 - `devices.unlink`: `Escape`; when `devices.unlink`; Close the dialog or move focus within it.
+- `node.tree`: `ArrowDown / ArrowUp / Home / End / Enter / Space / ArrowRight / ArrowLeft`; when `node.tree`; Move between files, expand or collapse a folder, or open the active file.
+- `node.editor`: `Ctrl+S / Cmd+S`; when `node.editor`; Save the open file.
 
 ## ACP / CLI commands
 

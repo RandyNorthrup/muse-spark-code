@@ -16,6 +16,7 @@ import { UnavailableSurface } from './components/DeferredSurface'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
+import { mountNodeSurface } from './bridges/nodeSurface'
 import { installEmbeddedTable } from './installTable'
 import { windowResourceLoader } from './resources/windowPort'
 import { installSurfaceRetry, retrySurface } from './surfaceRetry'
@@ -79,12 +80,24 @@ function CrashReportDialog({
   )
 }
 
-if (document.body.dataset['surface'] === 'devices') {
-  mountDevices(rootElement)
-} else if (document.body.dataset['surface'] === 'tasks') {
-  mountTasks(rootElement)
-} else {
-  mountChat(rootElement)
+switch (document.body.dataset['surface']) {
+  case 'devices': {
+    mountDevices(rootElement)
+    break
+  }
+  case 'node': {
+    const tableError = installEmbeddedTable(document)
+    if (tableError !== undefined) throw tableError
+    void mountNodeSurface(rootElement, ownScriptUrl)
+    break
+  }
+  case 'tasks': {
+    mountTasks(rootElement)
+    break
+  }
+  default: {
+    mountChat(rootElement)
+  }
 }
 
 function DevicesUnavailable() {

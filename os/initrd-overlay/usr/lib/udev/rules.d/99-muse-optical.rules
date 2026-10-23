@@ -1,0 +1,3 @@
+# Optical drives expose 2048-byte sectors and no partitions. A read-only,
+# 512-byte loop gives the GPT generator the same partitions as the raw disk.
+ACTION=="add", SUBSYSTEM=="block", KERNEL=="sr[0-9]*", RUN+="/usr/sbin/losetup --find --read-only --partscan --sector-size 512 $devnode"

@@ -1,0 +1,70 @@
+[
+  {
+    "drill": "private-opened-file-identity",
+    "source": "src/runtime/node/privateFiles.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H11 refuses another owner and a substituted opened file identity 12ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H11 refuses another owner and a substituted opened file identity"
+    ],
+    "sha256Before": "d0c3685799bbb7adf084dce0cf5ad2d4e012fc47ad66d7ea84118736b939daf2",
+    "sha256After": "d0c3685799bbb7adf084dce0cf5ad2d4e012fc47ad66d7ea84118736b939daf2"
+  },
+  {
+    "drill": "private-file-owner",
+    "source": "src/runtime/node/privateFiles.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H11 refuses another owner and a substituted opened file identity 11ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H11 refuses another owner and a substituted opened file identity"
+    ],
+    "sha256Before": "d0c3685799bbb7adf084dce0cf5ad2d4e012fc47ad66d7ea84118736b939daf2",
+    "sha256After": "d0c3685799bbb7adf084dce0cf5ad2d4e012fc47ad66d7ea84118736b939daf2"
+  },
+  {
+    "drill": "vault-failed-unlock-seals",
+    "source": "src/runtime/node/keyStore.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 a wrong unlock seals an already open store and unknown empty handles refuse 33ms",
+      "FAIL  test/unit/nodeKeyStore.test.ts > M110-N interim item encryption and slot handoff > H08 a wrong unlock seals an already open store and unknown empty handles refuse"
+    ],
+    "sha256Before": "32998cbb0a0500a1ed2482ba0facb90f6537d9cc4dd9bb20e2f8730c0a67a346",
+    "sha256After": "32998cbb0a0500a1ed2482ba0facb90f6537d9cc4dd9bb20e2f8730c0a67a346"
+  },
+  {
+    "drill": "control-opening-cancellation",
+    "source": "src/runtime/node/service.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 a wedged resource opener is aborted and lock fails within the kill deadline 13ms",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 a wedged resource opener is aborted and lock fails within the kill deadline",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 a wedged resource opener is aborted and lock fails within the kill deadline"
+    ],
+    "sha256Before": "7e7dff1d50a5d11df2835706a78c83787e55a1d3ec8e953311a1ee5efbd159fc",
+    "sha256After": "7e7dff1d50a5d11df2835706a78c83787e55a1d3ec8e953311a1ee5efbd159fc"
+  },
+  {
+    "drill": "control-bounded-deadline",
+    "source": "src/runtime/node/service.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 a wedged resource opener is aborted and lock fails within the kill deadline 5006ms",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 a wedged resource opener is aborted and lock fails within the kill deadline"
+    ],
+    "sha256Before": "7e7dff1d50a5d11df2835706a78c83787e55a1d3ec8e953311a1ee5efbd159fc",
+    "sha256After": "7e7dff1d50a5d11df2835706a78c83787e55a1d3ec8e953311a1ee5efbd159fc"
+  },
+  {
+    "drill": "control-unlock-epoch",
+    "source": "src/runtime/node/service.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H08 a queued unlock cannot reverse a later lock 22ms",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 a queued unlock cannot reverse a later lock",
+      "FAIL  test/unit/nodeService.test.ts > M110-N shared service binding > H08 a queued unlock cannot reverse a later lock"
+    ],
+    "sha256Before": "7e7dff1d50a5d11df2835706a78c83787e55a1d3ec8e953311a1ee5efbd159fc",
+    "sha256After": "7e7dff1d50a5d11df2835706a78c83787e55a1d3ec8e953311a1ee5efbd159fc"
+  }
+]

@@ -1,0 +1,648 @@
+{
+  "date": "2026-10-05",
+  "rig": "macmini",
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "name": "strict-fields",
+      "status": 1,
+      "failedTests": [
+        "home node records config rejects secret",
+        "home node records H06/H13 audit refuses payload field bearer",
+        "home node records H06/H13 audit refuses payload field setupCode",
+        "home node records H06/H13 audit refuses payload field key",
+        "home node records H06/H13 audit refuses payload field data",
+        "home node records H06/H13 audit refuses payload field stderr",
+        "home node records H06/H13 audit refuses payload field message",
+        "home node records H06/H13 audit refuses payload field path",
+        "home node records event rejects bearer",
+        "home node records H11 tool request rejects environment",
+        "node auth boundaries H04/H05 challenge rejects setup code leaked without throwing",
+        "node auth boundaries assertion rejects extension secret",
+        "node MHP method extension H14 network operations bind remote/ref/head and cannot carry a credential",
+        "node MHP method extension H04 setup code is confined to enrollment, never a sign-in reply",
+        "node MHP method extension rejects unknown payloads even for stop/lock and errors have no raw text"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        },
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "bounds",
+      "status": 1,
+      "failedTests": [
+        "home node records config rejects port zero",
+        "home node records config rejects port overflow",
+        "home node records config rejects label cap",
+        "home node records config rejects no names",
+        "home node records config rejects name cap",
+        "home node records config rejects root length",
+        "home node records config rejects audit size zero",
+        "home node records config rejects audit size cap",
+        "home node records config rejects audit retention zero",
+        "home node records config rejects audit retention cap",
+        "home node records state rejects generation",
+        "home node records state rejects workspaces cap",
+        "home node records state rejects passkey cap",
+        "home node records dashboard rejects cpu cap",
+        "home node records dashboard rejects cpu negative",
+        "home node records dashboard rejects session cap",
+        "home node records dashboard rejects challenge cap",
+        "home node records event rejects sequence",
+        "home node records event rejects time",
+        "home node records terminal frame rejects resize zero",
+        "home node records terminal frame rejects resize cap",
+        "home node records terminal frame rejects token short",
+        "home node records H09/H11 refuses listing length",
+        "home node records H11 tool request rejects empty argv",
+        "home node records H11 tool request rejects argv cap",
+        "home node records H11 tool request rejects arg cap",
+        "home node records fake tool host records exact calls, exits, cancellation and terminal cleanup",
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node auth boundaries auth scalar rejects token entropy",
+        "node auth boundaries auth scalar rejects token cap",
+        "node auth boundaries auth scalar rejects ID cap",
+        "node auth boundaries auth scalar rejects negative time",
+        "node auth boundaries assertion rejects proof cap",
+        "node auth boundaries H09 caps failures and requires lockout at the threshold",
+        "node MHP method extension H09 bounds upload decoded bytes, download replies and commit messages",
+        "node MHP method extension H14 refuses unsafe network git ref HEAD"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        },
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "patterns",
+      "status": 1,
+      "failedTests": [
+        "home node records H10 refuses unnormalized relative path ../x",
+        "home node records H10 refuses unnormalized relative path x/../y",
+        "home node records H10 refuses unnormalized relative path .",
+        "home node records H10 refuses unnormalized relative path ./x",
+        "home node records H10 refuses unnormalized relative path x/.",
+        "home node records H10 refuses unnormalized relative path /tmp/x",
+        "home node records H10 refuses unnormalized relative path x//y",
+        "home node records H10 refuses unnormalized relative path x/",
+        "home node records H10 refuses unnormalized relative path C:\\x",
+        "home node records H10 refuses unnormalized relative path x\u0000y",
+        "home node records H10 refuses unnormalized relative path x\ny",
+        "home node records H10 refuses unnormalized relative path ",
+        "home node records config rejects control label",
+        "home node records config rejects relative root",
+        "home node records config rejects traversal root",
+        "home node records event rejects identity digest",
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node auth boundaries H03 refuses non-domain or invalid RP 127.0.0.1",
+        "node auth boundaries H03 refuses non-domain or invalid RP -home.local",
+        "node auth boundaries H03 refuses non-domain or invalid RP home-.local",
+        "node auth boundaries H03 refuses non-domain or invalid RP home..local",
+        "node auth boundaries H03 refuses non-domain or invalid RP home.local.",
+        "node auth boundaries H03 refuses non-domain or invalid RP *",
+        "node auth boundaries H08 step-up rejects digest missing",
+        "node auth boundaries auth scalar rejects token alphabet",
+        "node auth boundaries auth scalar rejects ID alphabet",
+        "node auth boundaries auth scalar rejects digest",
+        "node auth boundaries assertion rejects proof alphabet",
+        "node MHP method extension H10 refuses file traversal ../secret",
+        "node MHP method extension H10 refuses file traversal /state",
+        "node MHP method extension H10 refuses file traversal src/../secret",
+        "node MHP method extension H10 refuses file traversal src\\secret",
+        "node MHP method extension H10 requires a digest precondition for writes and upload bytes",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/a..b",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/a.lock",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/@{x}",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/.hidden",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/a b",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/a\\b",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/a//b",
+        "node MHP method extension H14 refuses unsafe network git ref refs/heads/a/",
+        "node MHP method extension H14 network operations bind remote/ref/head and cannot carry a credential"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        },
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "invariants",
+      "status": 1,
+      "failedTests": [
+        "home node records H01 refuses unsafe bind 0.0.0.0",
+        "home node records H01 refuses unsafe bind ::",
+        "home node records H01 refuses unsafe bind 8.8.8.8",
+        "home node records H01 refuses unsafe bind 172.15.1.1",
+        "home node records H01 refuses unsafe bind 172.32.1.1",
+        "home node records H01 refuses unsafe bind 169.254.169.254",
+        "home node records H01 refuses unsafe bind 224.0.0.1",
+        "home node records H01 refuses unsafe bind ff02::1",
+        "home node records H01 refuses unsafe bind fd00:ec2::254",
+        "home node records H01 refuses unsafe bind fd00:0ec2:0:0:0:0:0:0254",
+        "home node records H01 refuses unsafe bind ::ffff:127.0.0.1",
+        "home node records config rejects duplicate names",
+        "home node records state rejects setup lifetime",
+        "home node records state rejects setup order",
+        "home node records state rejects owner mismatch",
+        "home node records state rejects setup after enrollment",
+        "home node records state rejects duplicate passkey",
+        "home node records state rejects duplicate workspace",
+        "home node records dashboard rejects unattended contradiction",
+        "home node records dashboard rejects locked contradiction",
+        "home node records dashboard rejects unsealed locked",
+        "home node records dashboard rejects memory order",
+        "home node records dashboard rejects disk order",
+        "home node records terminal frame rejects input UTF8 bytes",
+        "home node records H09/H11 refuses file UTF8",
+        "home node records H09/H11 refuses output UTF8",
+        "home node records H09/H11 refuses stdout UTF8",
+        "home node records H09/H11 refuses stderr UTF8",
+        "home node records H11 tool request rejects arg NUL",
+        "node auth boundaries H03 refuses non-domain or invalid RP 0x7f000001",
+        "node auth boundaries H03 refuses non-domain or invalid RP xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "node auth boundaries H04/H05 challenge rejects lifetime without throwing",
+        "node auth boundaries H04/H05 challenge rejects order without throwing",
+        "node auth boundaries H04/H05 challenge rejects origin host without throwing",
+        "node auth boundaries H04/H05 challenge rejects origin scheme without throwing",
+        "node auth boundaries H04/H05 challenge rejects origin slash without throwing",
+        "node auth boundaries H04/H05 challenge rejects origin auth without throwing",
+        "node auth boundaries H08 session rejects idle lifetime",
+        "node auth boundaries H08 session rejects absolute lifetime",
+        "node auth boundaries H08 session rejects idle order",
+        "node auth boundaries H08 session rejects absolute order",
+        "node auth boundaries H08 session rejects idle past absolute",
+        "node auth boundaries H08 step-up rejects lifetime",
+        "node auth boundaries H08 step-up rejects order",
+        "node auth boundaries H09 caps failures and requires lockout at the threshold",
+        "node MHP method extension H09 bounds upload decoded bytes, download replies and commit messages",
+        "node MHP method extension H09 refuses a git diff beyond the UTF8 preview cap"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        },
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "versions",
+      "status": 1,
+      "failedTests": [
+        "home node records config rejects version",
+        "home node records state rejects version",
+        "home node records event rejects version",
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node auth boundaries H04/H05 challenge rejects version without throwing"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "write-precondition",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension H10 requires a digest precondition for writes and upload bytes"
+      ],
+      "files": [
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "access-classes",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension publishes each home-node method with its required access class"
+      ],
+      "files": [
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "monotonic-clock",
+      "status": 1,
+      "failedTests": [
+        "node auth boundaries fake clock keeps monotonic elapsed time across backward wall-clock changes"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/clock.ts",
+          "sha256": "4ac573e452e1a85af2fec2370b4b94c392d72d559ee4aa700d883cb49bd0186d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "clock-input",
+      "status": 1,
+      "failedTests": [
+        "node auth boundaries fake clock keeps monotonic elapsed time across backward wall-clock changes"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/clock.ts",
+          "sha256": "4ac573e452e1a85af2fec2370b4b94c392d72d559ee4aa700d883cb49bd0186d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "fake-workspace",
+      "status": 1,
+      "failedTests": [
+        "home node records fake tool host records exact calls, exits, cancellation and terminal cleanup"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "92708a1ecdef4457cc7ce28e3062f0f3aadfd8a5bfc1f3b018e3fc84b85264b2"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "fake-terminal",
+      "status": 1,
+      "failedTests": [
+        "home node records fake tool host records exact calls, exits, cancellation and terminal cleanup"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "92708a1ecdef4457cc7ce28e3062f0f3aadfd8a5bfc1f3b018e3fc84b85264b2"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "fake-cancel",
+      "status": 1,
+      "failedTests": [
+        "home node records fake tool host records exact calls, exits, cancellation and terminal cleanup"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "92708a1ecdef4457cc7ce28e3062f0f3aadfd8a5bfc1f3b018e3fc84b85264b2"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "fake-script-required",
+      "status": 1,
+      "failedTests": [
+        "home node records fake tool host records exact calls, exits, cancellation and terminal cleanup"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "92708a1ecdef4457cc7ce28e3062f0f3aadfd8a5bfc1f3b018e3fc84b85264b2"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "uv-authenticator",
+      "status": 1,
+      "failedTests": [
+        "node auth boundaries virtual authenticator configures resident keys and UV without a TLS bypass"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/authenticator.ts",
+          "sha256": "315128294a4ae13187808d9f6e9f2392e1fb029925426e26c2c7eacdc4ace1d8"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "cdp-response",
+      "status": 1,
+      "failedTests": [
+        "node auth boundaries virtual authenticator refuses a malformed CDP response"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/authenticator.ts",
+          "sha256": "315128294a4ae13187808d9f6e9f2392e1fb029925426e26c2c7eacdc4ace1d8"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "integer-types",
+      "status": 1,
+      "failedTests": [
+        "home node records event rejects fractional sequence",
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node auth boundaries auth scalar rejects unsafe time"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "enum-values",
+      "status": 1,
+      "failedTests": [
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node auth boundaries accepts a step-up challenge only with its exact binding fields",
+        "node auth boundaries H08 step-up rejects unbound wildcard"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        },
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        },
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "5ae32bec1a00c89f335f7656ca5b086d4e0dc76c2858a6e5c47f4aba54be298d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "exact-mode",
+      "status": 1,
+      "failedTests": [
+        "home node records config rejects role",
+        "home node records versioned JSON schema documents match their canonical parsers"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "exact-tool-user",
+      "status": 1,
+      "failedTests": ["home node records H09/H11 refuses tool user"],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "ce235f4cd6eb0fe3c8937cb9a6400d82db2e184eca12b5f34a1771270ccd59cb"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "exact-proof-type",
+      "status": 1,
+      "failedTests": ["node auth boundaries assertion rejects proof type"],
+      "files": [
+        {
+          "file": "src/shared/nodeAuth.ts",
+          "sha256": "417f506a27044a43653588f99f7933ed9ea3364df9890645e6eb8b9ef0cb6006"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "bundle-purity",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension keeps unused node pattern initialization out of the existing runtime bundles"
+      ],
+      "files": [
+        {
+          "file": "src/shared/constants.ts",
+          "sha256": "cb4b9deb3146d4396950412e677404efd258150cf6d943552b6a656898407c9e"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "schema-drift",
+      "status": 1,
+      "failedTests": [
+        "home node records versioned JSON schema documents match their canonical parsers"
+      ],
+      "files": [
+        {
+          "file": "docs/schemas/node-event-v1.schema.json",
+          "sha256": "d1c79f2149704ff08c9776709d3379ec0e862dd63669e84d7d782089746e7aff"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "localization",
+      "status": 1,
+      "failedTests": ["check:l10n missing French nodeLabels.title"],
+      "files": [
+        {
+          "file": "l10n/ui.fr.json",
+          "sha256": "c3fb1e7b3efcc07650520f19ebaa009a4d770d5f2a7bf95ef72b2b40e72cd4b7"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-empty-argument",
+      "status": 1,
+      "failedTests": [
+        "home node records preserves empty arguments after the executable through validation and dispatch"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "46a19d6854c7c3502b2f92c3cd2c28528cd61eed9583c73305f4a7490eda1570"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-terminal-order",
+      "status": 1,
+      "failedTests": [
+        "home node records streams PTY output before spontaneous exit with backpressure and final disposal",
+        "home node records disposes PTYs and observers on disconnect, lock and rejected output delivery"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "19c134e6d88d2edcf00f62da0521a49299ad8f5c15265834d144e89d7194c34d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-terminal-disconnect",
+      "status": 1,
+      "failedTests": [
+        "home node records disposes PTYs and observers on disconnect, lock and rejected output delivery"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "19c134e6d88d2edcf00f62da0521a49299ad8f5c15265834d144e89d7194c34d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-terminal-buffer",
+      "status": 1,
+      "failedTests": [
+        "home node records bounds queued PTY output and requires scripts to wait for acknowledgement"
+      ],
+      "files": [
+        {
+          "file": "test/unit/helpers/node/toolHost.ts",
+          "sha256": "19c134e6d88d2edcf00f62da0521a49299ad8f5c15265834d144e89d7194c34d"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-config",
+      "status": 1,
+      "failedTests": [
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.fsmonitor",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.sshcommand",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.hookspath",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting core.askpass",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting filter.canary.smudge",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting filter.canary.clean",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting filter.canary.process",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting diff.canary.command",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting diff.canary.textconv",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting merge.canary.driver",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting credential.helper",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting include.path",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting includeif.gitdir:repo.path",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting protocol.allow",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting url.ssh://evil/.insteadof",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting remote.origin.uploadpack",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting remote.origin.receivepack",
+        "node MHP method extension H14 closed Git snapshot refuses repository program setting future.program"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "d742898e6145e0177fdadd3655a04e59d1ed847876b8280f15e6b9d9dac98a80"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-config-value",
+      "status": 1,
+      "failedTests": [
+        "home node records versioned JSON schema documents match their canonical parsers",
+        "node MHP method extension H14 fixes safe Git overrides and refuses configuration environment injection"
+      ],
+      "files": [
+        {
+          "file": "src/shared/node.ts",
+          "sha256": "d742898e6145e0177fdadd3655a04e59d1ed847876b8280f15e6b9d9dac98a80"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-destination",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension H14 requires the resolved SSH destination and host key before approving network Git"
+      ],
+      "files": [
+        {
+          "file": "src/shared/hostApi/nodeMethods.ts",
+          "sha256": "2adc268c00393aae2a2f4b2b237f538a03d1ab3b88ce81946329084f7969d7ac"
+        }
+      ],
+      "restored": true
+    },
+    {
+      "name": "RVM110L0-git-hooks",
+      "status": 1,
+      "failedTests": [
+        "node MHP method extension H14 fixes safe Git overrides and refuses configuration environment injection"
+      ],
+      "files": [
+        {
+          "file": "src/shared/constants.ts",
+          "sha256": "071ce3a08db55242eb9e5cfbd7f62d6c4b67387329c458ddf2c6515befde4dc7"
+        }
+      ],
+      "restored": true
+    }
+  ]
+}

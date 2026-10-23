@@ -2011,6 +2011,8 @@
     "vscode:prepublish": "npm run build",
     "package": "npm run build && node scripts/package-vsix.mjs",
     "package:acp": "node scripts/build.mjs --production && node scripts/exec-schema.mjs --check && node scripts/package-acp.mjs",
+    "package:node-image": "node scripts/package-node-image.mjs",
+    "check:node-image": "node scripts/check-node-image.mjs",
     "images": "node scripts/render-images.mjs",
     "prepare": "node scripts/install-git-hooks.mjs",
     "security:sast": "node scripts/sast.mjs",
@@ -2022,7 +2024,8 @@
     "real-life": "node scripts/real-life/run.mjs",
     "check:lazy-registry": "node scripts/gen-lazy-registry.mjs --check",
     "build:tokens": "node scripts/build-tokens.mjs",
-    "check:tokens": "node scripts/check-tokens.mjs"
+    "check:tokens": "node scripts/check-tokens.mjs",
+    "build:node-auth": "node scripts/build-node-auth.mjs"
   },
   "lint-staged": {
     "{*.{ts,tsx,mjs},!(vendor)/**/*.{ts,tsx,mjs}}": [
@@ -2039,6 +2042,8 @@
     "@agentclientprotocol/sdk": "2.0.1",
     "@eslint/js": "10.0.1",
     "@muse-code/sdk": "1.4.11",
+    "@simplewebauthn/browser": "14.0.0",
+    "@simplewebauthn/server": "14.0.3",
     "@testing-library/dom": "10.4.2",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.3",
@@ -2061,6 +2066,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-unicorn": "77.0.0",
     "husky": "9.1.7",
+    "ink-testing-library": "4.0.0",
     "jscpd": "5.4.1",
     "jsdom": "30.1.2",
     "knip": "6.41.0",
@@ -2077,6 +2083,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.1",
     "vitest": "5.0.3",
+    "wrap-ansi": "10.0.2",
     "yaml": "2.9.1",
     "zod": "4.6.5"
   },
@@ -2088,9 +2095,15 @@
     "vite": "8.3.4"
   },
   "dependencies": {
+    "@codemirror/merge": "6.12.2",
     "@napi-rs/keyring": "2.1.1",
+    "@xterm/addon-fit": "0.11.0",
+    "@xterm/headless": "6.0.0",
+    "@xterm/xterm": "6.0.0",
+    "codemirror": "6.0.2",
     "highlight.js": "11.12.0",
     "html-encoding-sniffer": "7.0.0",
+    "ink": "6.3.1",
     "jpeg-js": "0.4.4",
     "lz-string": "1.5.0",
     "mdast-util-from-markdown": "2.1.0",
@@ -2102,6 +2115,7 @@
     "qrcode-generator": "2.0.4",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
-    "smol-toml": "1.9.1"
+    "smol-toml": "1.9.1",
+    "string-width": "8.3.0"
   }
 }

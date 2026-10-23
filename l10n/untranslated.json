@@ -139,7 +139,11 @@
       "judgeSetupCli.scanCpu",
       "judgeSetupCli.scanGpu",
       "judgeSetupCli.setupProgress",
-      "devices.makerDigest"
+      "devices.makerDigest",
+      "nodeAudit.filterGit",
+      "nodeDashboard.sessionTui",
+      "referenceNodeTreeKeys",
+      "referenceNodeEditorKeys"
     ],
     "cs": [
       "groupModel",
@@ -165,7 +169,9 @@
       "devices.diskPressure",
       "judgeSetupCli.planLicence",
       "judgeSetupCli.planLicenceNoUrl",
-      "judgeSetupCli.planModel"
+      "judgeSetupCli.planModel",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "tr": [
       "groupModel",
@@ -180,7 +186,8 @@
       "teamCapabilityWarning",
       "devices.cpuPressure",
       "devices.diskPressure",
-      "judgeSetupCli.planModel"
+      "judgeSetupCli.planModel",
+      "nodeDashboard.sessionWeb"
     ],
     "pl": [
       "groupModel",
@@ -204,7 +211,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "judgeSetupCli.planModel"
+      "judgeSetupCli.planModel",
+      "nodeDashboard.sessionWeb"
     ],
     "de": [
       "groupSkills",
@@ -255,7 +263,11 @@
       "agentsCount.one",
       "openPullRequestRepository",
       "sessionListsHooks",
-      "devices.makerSimulator"
+      "devices.makerSimulator",
+      "nodeLabels.version",
+      "nodeAudit.filterTerminal",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "es": [
       "hooksItem",
@@ -276,7 +288,9 @@
       "reportLabels.total",
       "sessionListsHooks",
       "sessionListsPlugins",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "pt-br": [
       "agentTokens",
@@ -294,7 +308,9 @@
       "teamUsageTokens",
       "reportLabels.total",
       "devices.cpuPressure",
-      "judgeSetupCli.scanClasses"
+      "judgeSetupCli.scanClasses",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "fr": [
       "modesTitle",
@@ -331,7 +347,10 @@
       "judgeSetupCli.planLicenceNoUrl",
       "judgeSetupCli.planRuntime",
       "judgeSetupCli.scanClasses",
-      "devices.makerOperation"
+      "devices.makerOperation",
+      "nodeLabels.sessions",
+      "nodeLabels.version",
+      "nodeDashboard.sessionWeb"
     ],
     "it": [
       "usageAccount",
@@ -356,7 +375,9 @@
       "devices.cpuPressure",
       "openPullRequestRepository",
       "judgeSetupCli.planRuntime",
-      "judgeSetupCli.scanCores.one"
+      "judgeSetupCli.scanCores.one",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],
@@ -369,7 +390,8 @@
       "usageLimit",
       "teamIntensityLevels.max",
       "teamCapabilityWarning",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "nodeDashboard.sessionWeb"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning", "devices.cpuPressure"]

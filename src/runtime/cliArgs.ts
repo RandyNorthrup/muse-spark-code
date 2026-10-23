@@ -173,6 +173,7 @@ export type RuntimeCommand =
       readonly options: JudgeCliCommand['options']
       readonly surfaceArgs: JudgeCliCommand['surfaceArgs']
     }
+  | { readonly command: 'node'; readonly argv: readonly string[] }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
   | {
       readonly command: 'exec'
@@ -552,6 +553,8 @@ export function parseCommandLine<T>(
   // prompt parsing: an action's --help is malformed judge argv (exit 2),
   // and only the bare form answers help (parseJudgeArgs).
   if (argv[0] === 'judge') return parseJudgeArgs(argv)
+  // The node command answers its own --help through its dispatcher (A3).
+  if (argv[0] === 'node') return { command: 'node', argv: argv.slice(1) }
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
     // Bare `report --help` is the report command's own help, not the help
