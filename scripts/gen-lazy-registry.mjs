@@ -31,7 +31,10 @@ import { DEFERRED_OUTFILES } from './lib/deferredBundles.mjs'
 import {
   NAMED_NOT_LOADED,
   computedLoadFailures,
+  forwardSlashes,
   hasIdentifier,
+  knownBundleOutputs,
+  readMetafiles,
   resolveRequest,
   scanRequests,
 } from './lib/lazyRegistry.mjs'
@@ -77,65 +80,10 @@ export interface LazyBundleRow {
 
 const byName = (a, b) => a.localeCompare(b, 'en')
 
-function forwardSlashes(file) {
-  return file.replaceAll('\\', '/')
-}
-
 function fail(problems, summary) {
   for (const problem of problems) console.error(`lazy registry: ${problem}`)
   console.error(`lazy registry: ${summary}`)
   process.exit(EXIT_PROBLEMS)
-}
-
-function readMetafiles(directory, emitted, inputChunks, importEdges) {
-  const names = readdirSync(directory)
-  for (const name of names) {
-    if (!name.endsWith('.json')) continue
-    const meta = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
-    const outputs = Object.entries(meta.outputs)
-    const chunks = []
-    for (const [output] of outputs) {
-      const file = forwardSlashes(output)
-      if (file.startsWith('dist/') && file.endsWith('.js')) chunks.push(file)
-    }
-    for (const file of chunks) emitted.add(file)
-    for (const [output, details] of outputs) {
-      const file = forwardSlashes(output)
-      if (!chunks.includes(file)) continue
-      const imports = details.imports ?? []
-      for (const imported of imports) {
-        const joined = imported.path.startsWith('.')
-          ? path.posix.join(path.posix.dirname(file), imported.path)
-          : imported.path
-        const target = forwardSlashes(joined)
-        if (!target.startsWith('dist/') || !target.endsWith('.js')) continue
-        const edges = importEdges.get(file) ?? new Set()
-        edges.add(target)
-        importEdges.set(file, edges)
-      }
-    }
-    const inputs = Object.keys(meta.inputs ?? {})
-    for (const input of inputs) {
-      const file = forwardSlashes(input)
-      const containing = inputChunks.get(file) ?? new Set()
-      for (const chunk of chunks) containing.add(chunk)
-      inputChunks.set(file, containing)
-    }
-  }
-}
-
-function onDiskDist(distDir) {
-  const found = []
-  const walk = (directory) => {
-    const entries = readdirSync(directory, { withFileTypes: true })
-    for (const entry of entries) {
-      const file = path.join(directory, entry.name)
-      if (entry.isDirectory()) walk(file)
-      else if (entry.name.endsWith('.js')) found.push(forwardSlashes(path.relative(distDir, file)))
-    }
-  }
-  walk(distDir)
-  return found
 }
 
 async function vsixInventory() {
@@ -167,11 +115,6 @@ function sideName(sides) {
   return only
 }
 
-// A bundler-internal chunk (content-hashed, below a chunks/ folder) is never
-// loaded by file name and is not a row: the registry names stable bundles.
-// It still carries import edges and input attribution.
-const isStableBundle = (file) => !file.includes('/chunks/')
-
 // The solid webview archive's members below dist/webview/, as the packager
 // stages them (scripts/package-vsix.mjs): everything the build emits except
 // the ACP agent's voice companion, which was never allowlisted into the
@@ -195,17 +138,9 @@ async function buildRegistry() {
   const inputChunks = new Map()
   const importEdges = new Map()
   for (const directory of METAFILE_DIRECTORIES) {
-    readMetafiles(path.join(root, directory), emitted, inputChunks, importEdges)
+    readMetafiles(path.join(root, directory), root, emitted, inputChunks, importEdges)
   }
-  const onDisk = onDiskDist(path.join(root, 'dist'))
-  const known = new Set()
-  for (const file of emitted) {
-    if (isStableBundle(file)) known.add(file)
-  }
-  // Files the build writes without esbuild (dist/providerCatalog.js).
-  for (const file of onDisk) {
-    if (isStableBundle(file)) known.add(`dist/${file}`)
-  }
+  const known = knownBundleOutputs(emitted)
   const reachable = emitted.union(known)
   const scan = scanRequests(root, GENERATED)
   const unread = []

@@ -7649,8 +7649,8 @@
     {
       "route": "exec",
       "name": "exec: --provider <value>",
-      "description": "--provider <id>                   The provider the account belongs to (auth set/status/clear).",
-      "text": { "cli": "provider" },
+      "description": "Run on this provider (Model API backend); --model is then <provider>/<model>.",
+      "text": { "cli": "exec-provider" },
       "contract": { "type": "string", "repeatable": false, "purpose": "provider" }
     },
     {
@@ -8074,8 +8074,8 @@
     {
       "route": "scan-secrets",
       "name": "scan-secrets: --timeout <value>",
-      "description": "Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own.",
-      "text": { "cli": "timeout" },
+      "description": "Set the scan deadline in seconds; without it the scan runs until it finishes.",
+      "text": { "cli": "scan-timeout" },
       "contract": {
         "type": "string",
         "repeatable": false,

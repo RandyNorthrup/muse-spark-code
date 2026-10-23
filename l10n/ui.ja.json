@@ -613,7 +613,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: プランカタログのFastティアを使用します（2倍の速度、使用量増）。デフォルトではオフです。プランの使用量を多く消費します。"
+    "fast": "--fast: プランカタログのFastティアを使用します（2倍の速度、使用量増）。デフォルトではオフです。プランの使用量を多く消費します。",
+    "exec-provider": "このプロバイダーで実行します (Model API バックエンド)。--model は <provider>/<model> になります。",
+    "scan-timeout": "スキャンの期限を秒で設定します。設定しない場合、スキャンは終了するまで実行されます。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "ターミナルからユーザーごとの資格情報 Vault を操作します: 設定、復旧、リセット、状態、ロック解除、ロック、一覧、追加、付与、監査、インポート、監視。値は決して表示されません。ブローカーが保持します。 明示的に確認すると、リセットで所有者不明の書き込みロックも置き換えられます。",

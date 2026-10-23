@@ -443,6 +443,10 @@ happened, not what was planned; superseded entries are kept.
   the message names the id as typed, the provider or session that does
   not offer it, and what to do (for a provider entry, the command that
   lists its models; in a session, picking an offered model or effort).
+- **Each headless subcommand's help shows its own flag words.** `exec
+  --provider` now says it runs on that provider instead of naming the
+  account commands, and `scan-secrets --timeout` names the scan's
+  deadline instead of a run's.
 ### Added
 
 - **Model API on the Muse Code subscription** (C-M95-SUB). The Model API

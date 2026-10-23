@@ -617,7 +617,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: Die Fast-Stufe des Plankatalogs verwenden (2x Geschwindigkeit, erhöhte Nutzung). Standardmäßig ausgeschaltet: Es verbraucht mehr von Ihrem Plan-Kontingent."
+    "fast": "--fast: Die Fast-Stufe des Plankatalogs verwenden (2x Geschwindigkeit, erhöhte Nutzung). Standardmäßig ausgeschaltet: Es verbraucht mehr von Ihrem Plan-Kontingent.",
+    "exec-provider": "Auf diesem Anbieter ausführen (Model API-Backend); --model ist dann <provider>/<model>.",
+    "scan-timeout": "Die Scanzeitgrenze in Sekunden festlegen; andernfalls läuft der Scan bis zum Ende."
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Einrichtung, Wiederherstellung, Zurücksetzen, Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie. Nach ausdrücklicher Bestätigung kann Zurücksetzen auch eine unbekannte Schreibersperre ersetzen.",

@@ -4257,7 +4257,7 @@ These are defaults; editor customizations take precedence.
 - `authClear: --questions-defer-after <value>`: --questions-defer-after &lt;seconds&gt; Defer questions after this many seconds; no limit unless you set one (0, the default, never defers) `{"type":"string","repeatable":false,"purpose":"acceptedUnused"}`
 - `authClear: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `authClear: --version / -v`: Print the installed agent version. `{"type":"boolean","repeatable":false,"default":false}`
-- `exec: --provider <value>`: --provider &lt;id&gt; The provider the account belongs to (auth set/status/clear). `{"type":"string","repeatable":false,"purpose":"provider"}`
+- `exec: --provider <value>`: Run on this provider (Model API backend); --model is then &lt;provider&gt;/&lt;model&gt;. `{"type":"string","repeatable":false,"purpose":"provider"}`
 - `exec: --backend <value>`: --backend museCode|modelApi Who pays: Muse Code (the default) or the Model API key `{"type":"string","repeatable":false,"enum":["museCode","modelApi"],"default":"museCode","purpose":"backend"}`
 - `exec: --no-auto-compaction`: autoCompactionEvaluation: Disable automatic compaction `{"type":"boolean","repeatable":false,"purpose":"no-auto-compaction","effective":"evaluationPending","default":false}`
 - `exec: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false,"purpose":"cwd"}`
@@ -4297,7 +4297,7 @@ These are defaults; editor customizations take precedence.
 - `exec: --memory-max <value>`: resourceThreshold: --memory-max &lt;percent&gt;: Throttle when used memory stays above this percentage for two samples. `{"type":"string","repeatable":false,"purpose":"memory-max"}`
 - `exec: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false,"purpose":"help"}`
 - `scan-secrets: --key-stdin`: auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin. `{"type":"boolean","repeatable":false,"default":false}`
-- `scan-secrets: --timeout <value>`: Set the run deadline in seconds (any positive integer); without it the run has no deadline of its own. `{"type":"string","repeatable":false,"minimum":1,"maximum":2147483,"unit":"seconds"}`
+- `scan-secrets: --timeout <value>`: Set the scan deadline in seconds; without it the scan runs until it finishes. `{"type":"string","repeatable":false,"minimum":1,"maximum":2147483,"unit":"seconds"}`
 - `scan-secrets: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `report: --out <value>`: --out &lt;file&gt; Write the report to a file instead of stdout `{"type":"string","repeatable":false}`
 - `report: --description <value>`: --description &lt;text&gt; What was happening, in your own words `{"type":"string","repeatable":false}`

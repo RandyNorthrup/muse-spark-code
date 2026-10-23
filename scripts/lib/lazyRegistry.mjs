@@ -652,3 +652,85 @@ export function resolveRequest(root, deferredOutfiles, request) {
   }
   return { file: value.split('/').pop() ?? value }
 }
+
+export function forwardSlashes(file) {
+  return file.replaceAll('\\', '/')
+}
+
+// Files the production build writes below dist/ without esbuild
+// (scripts/build.mjs): named, never discovered by walking dist/, so a
+// leftover another run left there — dev test bundles, the traffic
+// harness, a removed bundle — never becomes a registry row (RLF-HYGIENE).
+export const NON_ESBUILD_OUTPUTS = Object.freeze(['dist/providerCatalog.js'])
+
+// A bundler-internal chunk (content-hashed, below a chunks/ folder) is never
+// loaded by file name and is not a row: the registry names stable bundles.
+// It still carries import edges and input attribution.
+export const isStableBundle = (file) => !file.includes('/chunks/')
+
+/**
+Every dist bundle the metafiles in `directory` emit: outputs below dist/
+ending in .js whose file is on disk. A metafile left by another build (a
+renamed or removed bundle) lists outputs the build did not emit; only an
+output on disk counts, so stale records never become rows (RLF-HYGIENE).
+Also gathers each output's import edges and the chunks containing each
+input, for side attribution.
+@param {string} directory absolute metafile directory
+@param {string} root repository root, which outputs are relative to
+@param {Set<string>} emitted gains every emitted output
+@param {Map<string, Set<string>>} inputChunks gains each input's chunks
+@param {Map<string, Set<string>>} importEdges gains each output's imports
+*/
+export function readMetafiles(directory, root, emitted, inputChunks, importEdges) {
+  const names = readdirSync(directory)
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue
+    const meta = JSON.parse(readFileSync(path.join(directory, name), 'utf8'))
+    const outputs = Object.entries(meta.outputs)
+    const chunks = []
+    for (const [output] of outputs) {
+      const file = forwardSlashes(output)
+      if (file.startsWith('dist/') && file.endsWith('.js') && existsSync(path.join(root, file)))
+        chunks.push(file)
+    }
+    for (const file of chunks) emitted.add(file)
+    for (const [output, details] of outputs) {
+      const file = forwardSlashes(output)
+      if (!chunks.includes(file)) continue
+      const imports = details.imports ?? []
+      for (const imported of imports) {
+        const joined = imported.path.startsWith('.')
+          ? path.posix.join(path.posix.dirname(file), imported.path)
+          : imported.path
+        const target = forwardSlashes(joined)
+        if (!target.startsWith('dist/') || !target.endsWith('.js')) continue
+        const edges = importEdges.get(file) ?? new Set()
+        edges.add(target)
+        importEdges.set(file, edges)
+      }
+    }
+    const inputs = Object.keys(meta.inputs ?? {})
+    for (const input of inputs) {
+      const file = forwardSlashes(input)
+      const containing = inputChunks.get(file) ?? new Set()
+      for (const chunk of chunks) containing.add(chunk)
+      inputChunks.set(file, containing)
+    }
+  }
+}
+
+/**
+Every bundle the registry names rows for: the stable emitted outputs plus
+the files the build writes without esbuild. Nothing is discovered by
+walking dist/, so leftovers there never become rows.
+@param {Set<string>} emitted outputs the metafiles emit
+@returns {Set<string>} stable outputs plus NON_ESBUILD_OUTPUTS
+*/
+export function knownBundleOutputs(emitted) {
+  const known = new Set()
+  for (const file of emitted) {
+    if (isStableBundle(file)) known.add(file)
+  }
+  for (const file of NON_ESBUILD_OUTPUTS) known.add(file)
+  return known
+}

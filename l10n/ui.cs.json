@@ -625,7 +625,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: Použít rychlou (Fast) úroveň katalogu plánu (2x rychlost, zvýšené využití). Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu."
+    "fast": "--fast: Použít rychlou (Fast) úroveň katalogu plánu (2x rychlost, zvýšené využití). Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu.",
+    "exec-provider": "Spustit na tomto poskytovateli (backend Model API); --model je pak <provider>/<model>.",
+    "scan-timeout": "Nastavit limit skenování v sekundách; jinak skenování běží až do konce."
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Pracujte s trezorem pověření pro jednotlivé uživatele z terminálu: nastavení, obnova, obnovení výchozího stavu, stav, odemknutí, uzamknutí, seznam, přidání, granty, audit, import a sledování. Hodnoty se nikdy netisknou; drží je zprostředkovatel. Reset může po výslovném potvrzení také nahradit neznámou vlastnickou blokaci zápisu.",

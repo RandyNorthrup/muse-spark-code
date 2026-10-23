@@ -1417,6 +1417,12 @@
       "id": "USAGEFIELDS",
       "public": false,
       "note": "provider usage and price fields (cached, reasoning, tiers, upstreams, credit balance)"
+    },
+    {
+      "id": "RLFHYGIENE",
+      "title": "Build and test defects found along the way",
+      "summary": "The release build ignores leftover downloads and bundles, the headless subcommands show their own flag words, and the integration suite passes on the oldest supported editor.",
+      "area": "platform"
     }
   ]
 }

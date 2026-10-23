@@ -16341,6 +16341,20 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### RLFHYGIENE — Build and test defects found along the way (2026-10-22)
+
+**Status 2026-10-22: built.** The build ignores gitignored leftovers
+(`.vscode-test/`, `dist/test`, stale `dist/` metafiles,
+`dist/traffic-harness/*`); the M80 subcommands show their own flag words;
+`connectorServe` waits on the terminal receipt (10/10 green); the
+integration suite is green on stable and minimum (both minimum-only
+`extension.test.ts` failures reproduce on main f3941b8548 and are gone on
+this base, no change needed). Record:
+`docs/certification/rlf-hygiene.md`. Pre-existing on the untouched base:
+three bundles over budget (resourceAdmission +39 B, modelApi +2,755 B,
+vaultActions +6 B); `check:plan` over budget (stays with the lead's
+archive pass).
+
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
 **Status 2026-10-22: built.** All five items fixed, each with a real-code
