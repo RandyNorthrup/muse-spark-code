@@ -467,16 +467,12 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     ],
     'src/extension.ts': [
       "isModelApi: () => paidBackend === 'modelApi'",
-      '...paidAvailability({ backend: () => paidBackend,',
+      "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
       "!paid.gate.isOn('voice')",
       "!usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')",
       "currentSettings().dictationEngine === 'system'",
       'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
       'return museVoiceSetup',
-    ],
-    'src/host/paid/paidHost.ts': [
-      'const isDefaultOn = (feature: PaidFeature) => !deps.hasUserValue(feature)',
-      "feature === 'tab' || deps.backend() === 'modelApi' || !isDefaultOn(feature),",
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],
   }

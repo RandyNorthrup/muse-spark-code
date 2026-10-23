@@ -224,25 +224,6 @@ export async function askPaidUse(
   return answer === always && canRemember ? 'always' : 'deny'
 }
 
-/**
-The window's paid-feature availability (D30): a feature with no user
-value is on by default, and a default-on feature runs only on the Model
-API key (Tab everywhere). It governs the Meta-billed features only; a
-separate judge route has its own availability (M98 phase 2).
-*/
-export function paidAvailability(deps: {
-  readonly backend: () => 'modelApi' | 'museCode' | undefined
-  /** Whether the feature's setting has a user (global) value. */
-  readonly hasUserValue: (feature: PaidFeature) => boolean
-}): Required<Pick<PaidFeaturesDeps, 'isAvailable' | 'isDefaultOn'>> {
-  const isDefaultOn = (feature: PaidFeature) => !deps.hasUserValue(feature)
-  return {
-    isAvailable: (feature) =>
-      feature === 'tab' || deps.backend() === 'modelApi' || !isDefaultOn(feature),
-    isDefaultOn,
-  }
-}
-
 export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
   const readAccepted = (): ReadonlySet<PaidFeature> => {
     const parsed = acceptedSchema.safeParse(
