@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Csatlakozás…",
-    "ended": "A terminál véget ért."
+    "ended": "A terminál véget ért.",
+    "chunkFailed": "A terminált nem sikerült betölteni.",
+    "retry": "Újra"
   },
   "nodeDashboard": {
     "noSessions": "Nincs munkamenet.",
-    "noWorkspaces": "Nincs munkaterület."
+    "noWorkspaces": "Nincs munkaterület.",
+    "pendingChallenges": "Függő kihívások",
+    "nodeId": "Csomópont-azonosító",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Szerkesztő",
+    "trusted": "Megbízható",
+    "untrusted": "Nem megbízható"
   },
   "nodeAudit": {
     "filterAll": "Minden esemény",
@@ -127,7 +136,29 @@
     "filterApproval": "Jóváhagyások",
     "allowed": "Engedélyezve",
     "refused": "Elutasítva",
-    "noEntries": "Nincs naplóbejegyzés."
+    "noEntries": "Nincs naplóbejegyzés.",
+    "more": "Továbbiak",
+    "signinEnroll": "Regisztrálva",
+    "signinSignin": "Bejelentkezve",
+    "signinSignout": "Kijelentkezve",
+    "signinLockout": "Zárolva",
+    "terminalStart": "Elindítva",
+    "terminalEnd": "Befejezve",
+    "terminalSizes": "{input} fogadva, {output} elküldve",
+    "keySet": "Tárolva",
+    "keyUnlock": "Feloldva",
+    "keyUse": "Használva",
+    "keySeal": "Lepecsételve",
+    "keyProvider": "Szolgáltatói kulcs",
+    "keyDeploy": "Telepítési kulcs",
+    "gitStage": "Előkészítve",
+    "gitCommit": "Commitolva",
+    "gitBranch": "Branch létrehozva",
+    "gitFetch": "Letöltve",
+    "gitPull": "Pullolva",
+    "gitPush": "Pusholva",
+    "approvalPaid": "Fizetve",
+    "kindStepUp": "Hitelesítés"
   },
   "nodeHelp": {
     "title": "Csomóponti súgó",

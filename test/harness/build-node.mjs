@@ -68,7 +68,7 @@ export async function buildNodeWorkspace(output = 'dist/webview/node', dependenc
   const constants = await build({
     stdin: {
       contents:
-        "export { NODE_WORKSPACE_BUDGET_KIB, NODE_EDITOR_BUDGET_KIB } from '../../src/shared/constants'",
+        "export { NODE_WORKSPACE_BUDGET_KIB, NODE_EDITOR_BUDGET_KIB, NODE_TERMINAL_BUDGET_KIB } from '../../src/shared/constants'",
       resolveDir: path.resolve('test/harness'),
       loader: 'ts',
     },
@@ -78,9 +78,10 @@ export async function buildNodeWorkspace(output = 'dist/webview/node', dependenc
     platform: 'node',
     logLevel: 'silent',
   })
-  const { NODE_WORKSPACE_BUDGET_KIB, NODE_EDITOR_BUDGET_KIB } = await import(
-    `data:text/javascript;base64,${Buffer.from(constants.outputFiles[0].contents).toString('base64')}`
-  )
+  const { NODE_WORKSPACE_BUDGET_KIB, NODE_EDITOR_BUDGET_KIB, NODE_TERMINAL_BUDGET_KIB } =
+    await import(
+      `data:text/javascript;base64,${Buffer.from(constants.outputFiles[0].contents).toString('base64')}`
+    )
   rmSync(output, { recursive: true, force: true })
   const result = await build({
     entryPoints: ['src/webview/node/files/main.tsx'],
@@ -137,13 +138,25 @@ export async function buildNodeWorkspace(output = 'dist/webview/node', dependenc
   }
   visit(main)
   const startup = sizeKiB([...staticFiles].filter((file) => file.endsWith('.js')))
+  // Each lazy feature is budgeted apart: the editor's cap keeps its
+  // meaning, and the terminal's growth cannot hide in it. A lazy chunk
+  // without a feature entry still counts, against the legacy bucket.
+  const lazy = Object.keys(outputs).filter((file) => file.endsWith('.js') && !staticFiles.has(file))
+  const terminalEntry = 'src/webview/node/terminal/Terminal.tsx'
+  const terminal = sizeKiB(
+    lazy.filter((file) => outputs[file]?.entryPoint?.replaceAll('\\', '/') === terminalEntry),
+  )
   const editor = sizeKiB(
-    Object.keys(outputs).filter((file) => file.endsWith('.js') && !staticFiles.has(file)),
+    lazy.filter((file) => outputs[file]?.entryPoint?.replaceAll('\\', '/') !== terminalEntry),
   )
   console.log(
-    `node workspace: ${startup.toFixed(1)}/${String(NODE_WORKSPACE_BUDGET_KIB)} KiB; editor: ${editor.toFixed(1)}/${String(NODE_EDITOR_BUDGET_KIB)} KiB`,
+    `node workspace: ${startup.toFixed(1)}/${String(NODE_WORKSPACE_BUDGET_KIB)} KiB; editor: ${editor.toFixed(1)}/${String(NODE_EDITOR_BUDGET_KIB)} KiB; terminal: ${terminal.toFixed(1)}/${String(NODE_TERMINAL_BUDGET_KIB)} KiB`,
   )
-  if (startup > NODE_WORKSPACE_BUDGET_KIB || editor > NODE_EDITOR_BUDGET_KIB)
+  if (
+    startup > NODE_WORKSPACE_BUDGET_KIB ||
+    editor > NODE_EDITOR_BUDGET_KIB ||
+    terminal > NODE_TERMINAL_BUDGET_KIB
+  )
     throw new Error('node browser budget exceeded')
   const packages = new Map()
   for (const input of Object.keys(result.metafile.inputs)) {

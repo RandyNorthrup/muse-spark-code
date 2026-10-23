@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client'
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { Component, lazy, Suspense, useCallback, useEffect, useState, type ReactNode } from 'react'
 import * as z from 'zod/mini'
 import {
   NODE_MAX_FILE_BYTES,
@@ -9,6 +9,7 @@ import {
 } from '../../../shared/constants'
 import { EN } from '../../../shared/l10n/en'
 import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
+import type { NodeTerminalSocketFactory } from '../../bridges/nodePort'
 import { nodeIdentifierSchema } from '../../../shared/nodeAuth'
 import { nodeRelativePathSchema } from '../../../shared/node'
 import { NodePageError, isNodePageError, validatedNodePort } from '../../bridges/nodePort'
@@ -17,6 +18,10 @@ import { FileTree } from './FileTree'
 import { useRequestRunner } from '../requestRunner'
 import { GitPage } from '../git/GitPage'
 import type { NodePageAuthPort } from '../git/network'
+import { DashboardPage } from '../dashboard/DashboardPage'
+import { HelpPage } from '../dashboard/HelpPage'
+import { WhatsNewPage } from '../dashboard/WhatsNewPage'
+import { AuditPage } from '../audit/AuditPage'
 import './workspace.css'
 
 const Editor = lazy(async () => {
@@ -27,11 +32,16 @@ const EditorDiff = lazy(async () => {
   const module = await import('../editor/Editor')
   return { default: module.EditorDiff }
 })
+const TerminalTabs = lazy(async () => {
+  const module = await import('../terminal/Terminal')
+  return { default: module.TerminalTabs }
+})
 
 export interface NodeWorkspaceBinding {
   readonly port: NodeMethodPort
   readonly auth: NodePageAuthPort
   readonly workspaceId: string
+  readonly connectTerminal: NodeTerminalSocketFactory
 }
 
 export function mountNodeWorkspace(element: Element, binding: NodeWorkspaceBinding): () => void {
@@ -65,8 +75,58 @@ export function mountNodeWorkspace(element: Element, binding: NodeWorkspaceBindi
   }
 }
 
-function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
-  const [page, setPage] = useState<'files' | 'git'>('files')
+/** The terminal chunk's boundary: a failed chunk load says so and offers
+a retry, which remounts the lazy page for another attempt. */
+class TerminalChunkBoundary extends Component<
+  { readonly children: ReactNode; readonly onRetry: () => void },
+  { readonly failed: boolean }
+> {
+  public static getDerivedStateFromError(): { readonly failed: boolean } {
+    return { failed: true }
+  }
+
+  public override state = { failed: false }
+
+  public override render(): ReactNode {
+    if (!this.state.failed) return this.props.children
+    return (
+      <>
+        <p role="alert">{UI_TEXT.nodeTerminal.chunkFailed}</p>
+        <button type="button" onClick={this.props.onRetry}>
+          {UI_TEXT.nodeTerminal.retry}
+        </button>
+      </>
+    )
+  }
+}
+
+function TerminalChunk(props: {
+  readonly port: NodeMethodPort
+  readonly auth: NodePageAuthPort
+  readonly workspaceId: string
+  readonly connect: NodeTerminalSocketFactory
+  readonly run: (work: (signal: AbortSignal) => Promise<void>) => void
+  readonly busy: boolean
+}) {
+  const [attempt, setAttempt] = useState(0)
+  return (
+    <TerminalChunkBoundary
+      key={attempt}
+      onRetry={() => {
+        setAttempt((previous) => previous + 1)
+      }}
+    >
+      <Suspense fallback={<p data-deferred-loading="true">{UI_TEXT.nodeLabels.terminal}</p>}>
+        <TerminalTabs {...props} />
+      </Suspense>
+    </TerminalChunkBoundary>
+  )
+}
+
+function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspaceBinding) {
+  const [page, setPage] = useState<
+    'files' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'help' | 'whatsnew'
+  >('files')
   const [opened, setOpened] = useState<NodeMethodResult<'node/files/read'>>()
   const [draft, setDraft] = useState('')
   const [path, setPath] = useState('')
@@ -74,6 +134,9 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
   const [generation, setGeneration] = useState(0)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  // The terminal mounts on its first visit (so its chunk stays lazy) and
+  // stays mounted after: its shells survive a look at another page.
+  const [terminalSeen, setTerminalSeen] = useState(false)
   // Open, save, upload and download serialize under `file`; every Git
   // page request under `git`. Both ride the one request runner: a second
   // request of a busy kind drops, and the lock clears only when the
@@ -99,7 +162,10 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
   }, [])
   const startRequests = requests.start
   const startKind = useCallback(
-    (kind: 'file' | 'git', work: (signal: AbortSignal) => Promise<void>) => {
+    (
+      kind: 'file' | 'git' | 'terminal' | 'dashboard' | 'audit' | 'whatsnew',
+      work: (signal: AbortSignal) => Promise<void>,
+    ) => {
       const pending = startRequests(kind, work)
       // A dropped start runs nothing and reports nothing: like the old
       // single-flight guard it leaves the current error and notice alone.
@@ -137,6 +203,30 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
   const run = useCallback(
     (work: (signal: AbortSignal) => Promise<void>) => {
       startKind('git', work)
+    },
+    [startKind],
+  )
+  const runTerminal = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('terminal', work)
+    },
+    [startKind],
+  )
+  const runDashboard = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('dashboard', work)
+    },
+    [startKind],
+  )
+  const runAudit = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('audit', work)
+    },
+    [startKind],
+  )
+  const runWhatsNew = useCallback(
+    (work: (signal: AbortSignal) => Promise<void>) => {
+      startKind('whatsnew', work)
     },
     [startKind],
   )
@@ -194,6 +284,52 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
           }}
         >
           {UI_TEXT.nodeLabels.git}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'terminal'}
+          onClick={() => {
+            setPage('terminal')
+            setTerminalSeen(true)
+          }}
+        >
+          {UI_TEXT.nodeLabels.terminal}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'dashboard'}
+          onClick={() => {
+            setPage('dashboard')
+          }}
+        >
+          {UI_TEXT.nodeLabels.dashboard}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'audit'}
+          onClick={() => {
+            setPage('audit')
+          }}
+        >
+          {UI_TEXT.nodeLabels.audit}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'help'}
+          onClick={() => {
+            setPage('help')
+          }}
+        >
+          {UI_TEXT.nodeHelp.title}
+        </button>
+        <button
+          type="button"
+          aria-pressed={page === 'whatsnew'}
+          onClick={() => {
+            setPage('whatsnew')
+          }}
+        >
+          {UI_TEXT.nodeWhatsNew.title}
         </button>
       </nav>
       {error !== '' && <p role="alert">{error}</p>}
@@ -397,6 +533,22 @@ function NodeWorkspace({ port, auth, workspaceId }: NodeWorkspaceBinding) {
       {page === 'git' && (
         <GitPage port={port} auth={auth} workspaceId={workspaceId} run={run} busy={isBusy} />
       )}
+      {(terminalSeen || page === 'terminal') && (
+        <div hidden={page !== 'terminal'}>
+          <TerminalChunk
+            port={port}
+            auth={auth}
+            workspaceId={workspaceId}
+            connect={connectTerminal}
+            run={runTerminal}
+            busy={isBusy}
+          />
+        </div>
+      )}
+      {page === 'dashboard' && <DashboardPage port={port} run={runDashboard} busy={isBusy} />}
+      {page === 'audit' && <AuditPage port={port} run={runAudit} busy={isBusy} />}
+      {page === 'help' && <HelpPage />}
+      {page === 'whatsnew' && <WhatsNewPage port={port} run={runWhatsNew} busy={isBusy} />}
     </main>
   )
 }

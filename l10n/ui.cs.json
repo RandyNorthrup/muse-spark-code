@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Připojování…",
-    "ended": "Terminál byl ukončen."
+    "ended": "Terminál byl ukončen.",
+    "chunkFailed": "Terminál se nepodařilo načíst.",
+    "retry": "Opakovat"
   },
   "nodeDashboard": {
     "noSessions": "Žádné relace.",
-    "noWorkspaces": "Žádné pracovní prostory."
+    "noWorkspaces": "Žádné pracovní prostory.",
+    "pendingChallenges": "Čekající výzvy",
+    "nodeId": "ID uzlu",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Editor",
+    "trusted": "Důvěryhodné",
+    "untrusted": "Nedůvěryhodné"
   },
   "nodeAudit": {
     "filterAll": "Všechny události",
@@ -127,7 +136,29 @@
     "filterApproval": "Schválení",
     "allowed": "Povoleno",
     "refused": "Odmítnuto",
-    "noEntries": "Žádné záznamy auditu."
+    "noEntries": "Žádné záznamy auditu.",
+    "more": "Zobrazit více",
+    "signinEnroll": "Registrováno",
+    "signinSignin": "Přihlášeno",
+    "signinSignout": "Odhlášeno",
+    "signinLockout": "Uzamčeno",
+    "terminalStart": "Spuštěno",
+    "terminalEnd": "Ukončeno",
+    "terminalSizes": "přijato {input}, odesláno {output}",
+    "keySet": "Uloženo",
+    "keyUnlock": "Odemčeno",
+    "keyUse": "Použito",
+    "keySeal": "Zapečetěno",
+    "keyProvider": "Klíč poskytovatele",
+    "keyDeploy": "Klíč pro nasazení",
+    "gitStage": "Připraveno",
+    "gitCommit": "Potvrzeno",
+    "gitBranch": "Větev vytvořena",
+    "gitFetch": "Načteno",
+    "gitPull": "Staženo",
+    "gitPush": "Odesláno",
+    "approvalPaid": "Zaplaceno",
+    "kindStepUp": "Ověření"
   },
   "nodeHelp": {
     "title": "Nápověda uzlu",

@@ -193,6 +193,9 @@ export const NODE_FILE_TREE_OVERSCAN_ROWS = 4
 export const NODE_WORKSPACE_ASSET = './node/files/main.js'
 export const NODE_WORKSPACE_BUDGET_KIB = 375
 export const NODE_EDITOR_BUDGET_KIB = 600
+/** U2: the lazy terminal chunk (xterm.js) is budgeted apart from the
+editor's, so neither feature's growth hides in the other's budget. */
+export const NODE_TERMINAL_BUDGET_KIB = 400
 export const NODE_DIGEST_RADIX = 16
 // M110-N: owner-only durable service files and bounded lifecycle.
 export const NODE_DIRECTORY_MODE = 0o700

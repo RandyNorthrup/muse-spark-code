@@ -267,9 +267,23 @@ function TerminalView({ tab, visible, onError }: TerminalViewProps) {
     const data = terminal.onData((input: string) => {
       session.write(input)
     })
+    // Refit off the frame the resize arrives on, and only when the
+    // host's own box changed: refitting synchronously inside the
+    // observer feeds it its own resize and loops the frame.
+    let lastWidth = 0
+    let lastHeight = 0
+    let frame = 0
     const resize = new ResizeObserver(() => {
-      fit.fit()
-      if (terminal.cols > 0 && terminal.rows > 0) session.resize(terminal.cols, terminal.rows)
+      const width = element.clientWidth
+      const height = element.clientHeight
+      if (width === lastWidth && height === lastHeight) return
+      lastWidth = width
+      lastHeight = height
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => {
+        fit.fit()
+        if (terminal.cols > 0 && terminal.rows > 0) session.resize(terminal.cols, terminal.rows)
+      })
     })
     resize.observe(element)
     let hasLiveOutput = false
@@ -295,6 +309,7 @@ function TerminalView({ tab, visible, onError }: TerminalViewProps) {
     return () => {
       release()
       resize.disconnect()
+      cancelAnimationFrame(frame)
       data.dispose()
       terminal.dispose()
     }

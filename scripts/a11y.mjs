@@ -43,7 +43,18 @@ import {
 const THEMES = ['light', 'dark', 'hc-dark', 'hc-light']
 const BUNDLE_PATH = 'dist/webview/main.js'
 const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
-const NODE_CASES = ['node-files', 'node-editor', 'node-diff', 'node-git', 'node-git-confirm']
+const NODE_CASES = [
+  'node-files',
+  'node-editor',
+  'node-diff',
+  'node-git',
+  'node-git-confirm',
+  'node-terminal',
+  'node-dashboard',
+  'node-audit',
+  'node-help',
+  'node-whatsnew',
+]
 const NODE_SCENARIOS = NODE_CASES.flatMap((name) => [name, `${name}-narrow`])
 const ALL_SCENARIOS = [...SCENARIOS, ...NODE_SCENARIOS]
 // The page the gate has always measured: what Chrome's 690x760 window left

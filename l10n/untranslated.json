@@ -116,7 +116,8 @@
       "vault.startHourHint",
       "vault.endHourHint",
       "vault.ceilingHint",
-      "nodeAudit.filterGit"
+      "nodeAudit.filterGit",
+      "nodeDashboard.sessionTui"
     ],
     "cs": [
       "groupModel",
@@ -137,7 +138,9 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "tr": [
       "groupModel",
@@ -149,7 +152,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "nodeDashboard.sessionWeb"
     ],
     "pl": [
       "groupModel",
@@ -171,7 +175,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "nodeDashboard.sessionWeb"
     ],
     "de": [
       "groupSkills",
@@ -220,7 +225,9 @@
       "agentsCount.one",
       "openPullRequestRepository",
       "nodeLabels.version",
-      "nodeAudit.filterTerminal"
+      "nodeAudit.filterTerminal",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "es": [
       "hooksItem",
@@ -238,7 +245,9 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "pt-br": [
       "agentTokens",
@@ -254,7 +263,9 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "fr": [
       "modesTitle",
@@ -285,7 +296,8 @@
       "teamIntensityLevels.minimal",
       "reportLabels.total",
       "nodeLabels.sessions",
-      "nodeLabels.version"
+      "nodeLabels.version",
+      "nodeDashboard.sessionWeb"
     ],
     "it": [
       "usageAccount",
@@ -304,7 +316,9 @@
       "teamCapabilityWarning",
       "teamTreeLabel",
       "teamUsageTitle",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "nodeDashboard.sessionWeb",
+      "nodeDashboard.sessionEditor"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
@@ -315,7 +329,8 @@
       "agentImportKindHook",
       "usageLimit",
       "teamIntensityLevels.max",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "nodeDashboard.sessionWeb"
     ],
     "ko": ["gitChangeCounts", "teamCapabilityWarning"],
     "ru": ["gitChangeCounts", "teamCapabilityWarning"]

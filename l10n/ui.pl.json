@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Łączenie…",
-    "ended": "Terminal zakończony."
+    "ended": "Terminal zakończony.",
+    "chunkFailed": "Nie można wczytać terminala.",
+    "retry": "Ponów"
   },
   "nodeDashboard": {
     "noSessions": "Brak sesji.",
-    "noWorkspaces": "Brak obszarów roboczych."
+    "noWorkspaces": "Brak obszarów roboczych.",
+    "pendingChallenges": "Oczekujące wyzwania",
+    "nodeId": "ID węzła",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Edytor",
+    "trusted": "Zaufane",
+    "untrusted": "Niezaufane"
   },
   "nodeAudit": {
     "filterAll": "Wszystkie zdarzenia",
@@ -127,7 +136,29 @@
     "filterApproval": "Zatwierdzenia",
     "allowed": "Dozwolone",
     "refused": "Odmówione",
-    "noEntries": "Brak wpisów inspekcji."
+    "noEntries": "Brak wpisów inspekcji.",
+    "more": "Pokaż więcej",
+    "signinEnroll": "Zarejestrowano",
+    "signinSignin": "Zalogowano",
+    "signinSignout": "Wylogowano",
+    "signinLockout": "Zablokowano",
+    "terminalStart": "Uruchomiono",
+    "terminalEnd": "Zakończono",
+    "terminalSizes": "odebrano {input}, wysłano {output}",
+    "keySet": "Zapisano",
+    "keyUnlock": "Odblokowano",
+    "keyUse": "Użyto",
+    "keySeal": "Zapieczętowano",
+    "keyProvider": "Klucz dostawcy",
+    "keyDeploy": "Klucz wdrożeniowy",
+    "gitStage": "Przygotowano",
+    "gitCommit": "Zatwierdzono",
+    "gitBranch": "Utworzono gałąź",
+    "gitFetch": "Pobrano",
+    "gitPull": "Ściągnięto",
+    "gitPush": "Wypchnięto",
+    "approvalPaid": "Opłacono",
+    "kindStepUp": "Weryfikacja"
   },
   "nodeHelp": {
     "title": "Pomoc węzła",

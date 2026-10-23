@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Conectando…",
-    "ended": "Terminal finalizado."
+    "ended": "Terminal finalizado.",
+    "chunkFailed": "No se pudo cargar la terminal.",
+    "retry": "Reintentar"
   },
   "nodeDashboard": {
     "noSessions": "No hay sesiones.",
-    "noWorkspaces": "No hay espacios de trabajo."
+    "noWorkspaces": "No hay espacios de trabajo.",
+    "pendingChallenges": "Desafíos pendientes",
+    "nodeId": "ID del nodo",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Editor",
+    "trusted": "Confiable",
+    "untrusted": "No confiable"
   },
   "nodeAudit": {
     "filterAll": "Todos los eventos",
@@ -127,7 +136,29 @@
     "filterApproval": "Aprobaciones",
     "allowed": "Permitido",
     "refused": "Denegado",
-    "noEntries": "No hay entradas de auditoría."
+    "noEntries": "No hay entradas de auditoría.",
+    "more": "Mostrar más",
+    "signinEnroll": "Registrado",
+    "signinSignin": "Conectado",
+    "signinSignout": "Desconectado",
+    "signinLockout": "Bloqueado",
+    "terminalStart": "Iniciado",
+    "terminalEnd": "Finalizado",
+    "terminalSizes": "{input} recibidos, {output} enviados",
+    "keySet": "Guardado",
+    "keyUnlock": "Desbloqueado",
+    "keyUse": "Usado",
+    "keySeal": "Sellado",
+    "keyProvider": "Clave del proveedor",
+    "keyDeploy": "Clave de despliegue",
+    "gitStage": "Preparado",
+    "gitCommit": "Confirmado",
+    "gitBranch": "Rama creada",
+    "gitFetch": "Obtenido",
+    "gitPull": "Extraído",
+    "gitPush": "Publicado",
+    "approvalPaid": "Pagado",
+    "kindStepUp": "Verificación"
   },
   "nodeHelp": {
     "title": "Ayuda del nodo",

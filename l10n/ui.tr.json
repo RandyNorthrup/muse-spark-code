@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Bağlanıyor…",
-    "ended": "Terminal sona erdi."
+    "ended": "Terminal sona erdi.",
+    "chunkFailed": "Terminal yüklenemedi.",
+    "retry": "Tekrar dene"
   },
   "nodeDashboard": {
     "noSessions": "Oturum yok.",
-    "noWorkspaces": "Çalışma alanı yok."
+    "noWorkspaces": "Çalışma alanı yok.",
+    "pendingChallenges": "Bekleyen doğrulamalar",
+    "nodeId": "Düğüm kimliği",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Düzenleyici",
+    "trusted": "Güvenilir",
+    "untrusted": "Güvenilmez"
   },
   "nodeAudit": {
     "filterAll": "Tüm olaylar",
@@ -127,7 +136,29 @@
     "filterApproval": "Onaylar",
     "allowed": "İzin verildi",
     "refused": "Reddedildi",
-    "noEntries": "Denetim kaydı yok."
+    "noEntries": "Denetim kaydı yok.",
+    "more": "Daha fazla göster",
+    "signinEnroll": "Kaydedildi",
+    "signinSignin": "Giriş yapıldı",
+    "signinSignout": "Çıkış yapıldı",
+    "signinLockout": "Kilitlendi",
+    "terminalStart": "Başlatıldı",
+    "terminalEnd": "Sonlandırıldı",
+    "terminalSizes": "{input} alındı, {output} gönderildi",
+    "keySet": "Saklandı",
+    "keyUnlock": "Kilidi açıldı",
+    "keyUse": "Kullanıldı",
+    "keySeal": "Mühürlendi",
+    "keyProvider": "Sağlayıcı anahtarı",
+    "keyDeploy": "Dağıtım anahtarı",
+    "gitStage": "Hazırlandı",
+    "gitCommit": "Commitlendi",
+    "gitBranch": "Dal oluşturuldu",
+    "gitFetch": "Alındı",
+    "gitPull": "Çekildi",
+    "gitPush": "Gönderildi",
+    "approvalPaid": "Ödendi",
+    "kindStepUp": "Doğrulama"
   },
   "nodeHelp": {
     "title": "Düğüm yardımı",

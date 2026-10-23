@@ -175,6 +175,7 @@ async function fixture(hasManyFiles = false) {
         port: validatedNodePort({ request }),
         auth: { verify },
         workspaceId: 'repo',
+        connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
       }),
     )
     await Promise.resolve()
@@ -246,6 +247,7 @@ describe('M110-U1 shared workspace UI', () => {
           workspaceId: 'repo',
           port: validatedNodePort({ request }),
           auth: { verify },
+          connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
         }),
       )
     }).toThrow()

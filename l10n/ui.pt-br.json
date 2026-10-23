@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Conectando…",
-    "ended": "Terminal encerrado."
+    "ended": "Terminal encerrado.",
+    "chunkFailed": "Não foi possível carregar o terminal.",
+    "retry": "Tentar novamente"
   },
   "nodeDashboard": {
     "noSessions": "Nenhuma sessão.",
-    "noWorkspaces": "Nenhum espaço de trabalho."
+    "noWorkspaces": "Nenhum espaço de trabalho.",
+    "pendingChallenges": "Desafios pendentes",
+    "nodeId": "ID do nó",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Editor",
+    "trusted": "Confiável",
+    "untrusted": "Não confiável"
   },
   "nodeAudit": {
     "filterAll": "Todos os eventos",
@@ -127,7 +136,29 @@
     "filterApproval": "Aprovações",
     "allowed": "Permitido",
     "refused": "Recusado",
-    "noEntries": "Nenhuma entrada de auditoria."
+    "noEntries": "Nenhuma entrada de auditoria.",
+    "more": "Mostrar mais",
+    "signinEnroll": "Registrado",
+    "signinSignin": "Conectado",
+    "signinSignout": "Desconectado",
+    "signinLockout": "Bloqueado",
+    "terminalStart": "Iniciado",
+    "terminalEnd": "Encerrado",
+    "terminalSizes": "{input} recebidos, {output} enviados",
+    "keySet": "Armazenado",
+    "keyUnlock": "Desbloqueado",
+    "keyUse": "Usado",
+    "keySeal": "Lacrado",
+    "keyProvider": "Chave do provedor",
+    "keyDeploy": "Chave de implantação",
+    "gitStage": "Preparado",
+    "gitCommit": "Commitado",
+    "gitBranch": "Branch criado",
+    "gitFetch": "Buscado",
+    "gitPull": "Puxado",
+    "gitPush": "Enviado",
+    "approvalPaid": "Pago",
+    "kindStepUp": "Verificação"
   },
   "nodeHelp": {
     "title": "Ajuda do nó",

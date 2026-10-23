@@ -110,11 +110,20 @@
   },
   "nodeTerminal": {
     "connecting": "Verbinden…",
-    "ended": "Terminal beendet."
+    "ended": "Terminal beendet.",
+    "chunkFailed": "Das Terminal konnte nicht geladen werden.",
+    "retry": "Wiederholen"
   },
   "nodeDashboard": {
     "noSessions": "Keine Sitzungen.",
-    "noWorkspaces": "Keine Arbeitsbereiche."
+    "noWorkspaces": "Keine Arbeitsbereiche.",
+    "pendingChallenges": "Offene Challenges",
+    "nodeId": "Knoten-ID",
+    "sessionWeb": "Web",
+    "sessionTui": "TUI",
+    "sessionEditor": "Editor",
+    "trusted": "Vertrauenswürdig",
+    "untrusted": "Nicht vertrauenswürdig"
   },
   "nodeAudit": {
     "filterAll": "Alle Ereignisse",
@@ -127,7 +136,29 @@
     "filterApproval": "Genehmigungen",
     "allowed": "Erlaubt",
     "refused": "Verweigert",
-    "noEntries": "Keine Prüfeinträge."
+    "noEntries": "Keine Prüfeinträge.",
+    "more": "Mehr anzeigen",
+    "signinEnroll": "Registriert",
+    "signinSignin": "Angemeldet",
+    "signinSignout": "Abgemeldet",
+    "signinLockout": "Gesperrt",
+    "terminalStart": "Gestartet",
+    "terminalEnd": "Beendet",
+    "terminalSizes": "{input} empfangen, {output} gesendet",
+    "keySet": "Gespeichert",
+    "keyUnlock": "Entsperrt",
+    "keyUse": "Verwendet",
+    "keySeal": "Versiegelt",
+    "keyProvider": "Anbieterschlüssel",
+    "keyDeploy": "Deploy-Schlüssel",
+    "gitStage": "Vorgemerkt",
+    "gitCommit": "Committet",
+    "gitBranch": "Verzweigt",
+    "gitFetch": "Abgerufen",
+    "gitPull": "Gepullt",
+    "gitPush": "Gepusht",
+    "approvalPaid": "Bezahlt",
+    "kindStepUp": "Verifizierung"
   },
   "nodeHelp": {
     "title": "Knoten-Hilfe",
