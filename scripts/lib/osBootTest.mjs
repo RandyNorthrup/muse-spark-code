@@ -1,9 +1,9 @@
 // M110os OS6: the QEMU boot-test driver. It composes the QEMU command
 // line per architecture, runs the guest with its serial console
 // captured, and passes when the boot marker appears. The marker is the
-// image's contract (OS1's images print NODE-OS-BOOT-OK); the timeout,
-// the marker and the memory size are required arguments with no
-// defaults, so no baked-in limit of ours stops a run. Node builtins
+// caller's (the images' serial getty prints `localhost login:`); the
+// timeout, the marker and the memory size are required arguments with
+// no defaults, so no baked-in limit of ours stops a run. Node builtins
 // only, so CI and any rig run it bare.
 import { spawn } from 'node:child_process'
 import { accessSync, constants, createWriteStream, mkdirSync, writeFileSync } from 'node:fs'
@@ -15,6 +15,8 @@ const X86_QEMU = 'qemu-system-x86_64'
 const AARCH64_QEMU = 'qemu-system-aarch64'
 const AARCH64_MACHINE = 'virt'
 const AARCH64_CPU = 'cortex-a72'
+const X86_MACHINE = 'q35'
+const X86_CPU = 'max'
 
 function isRecord(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -73,19 +75,25 @@ export function composeQemu(options) {
     return { ok: false, errors: ['kvm is on but /dev/kvm is not usable'] }
   }
   if (wantKvm) args.push('-enable-kvm', '-cpu', 'host')
-  if (arch === 'aarch64') {
+  if (arch === 'x86_64') {
+    // q35 on one vCPU, as OS1 qualified it: a two-vCPU TCG run
+    // panicked at the kernel timer/APIC check before initrd.
+    args.push('-machine', X86_MACHINE, '-smp', '1')
+    if (!wantKvm) args.push('-cpu', X86_CPU)
+    if (hasImage && hasOvmfCode) {
+      args.push(
+        '-drive',
+        `file=${options.ovmfCode},format=raw,if=pflash,readonly=on`,
+        '-drive',
+        `file=${options.ovmfVars},format=raw,if=pflash`,
+      )
+    }
+  } else {
     args.push('-M', AARCH64_MACHINE)
     if (!wantKvm) args.push('-cpu', AARCH64_CPU)
     if (hasImage && typeof options.aavmf === 'string' && options.aavmf !== '') {
       args.push('-bios', options.aavmf)
     }
-  } else if (hasImage && hasOvmfCode) {
-    args.push(
-      '-drive',
-      `file=${options.ovmfCode},format=raw,if=pflash,readonly=on`,
-      '-drive',
-      `file=${options.ovmfVars},format=raw,if=pflash`,
-    )
   }
   if (hasImage) {
     args.push('-drive', `file=${options.image},format=raw,if=virtio`)
