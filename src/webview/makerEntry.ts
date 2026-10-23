@@ -40,8 +40,9 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
     status.textContent = UI_TEXT.loadingOutput
     fallback.replaceChildren(stop, status)
     document.body.append(fallback)
-    void import('./maker/MakerSurface')
-      .then(async ({ mountMaker }) => {
+    void Promise.allSettled([
+      (async () => {
+        const { mountMaker } = await import('./maker/MakerSurface')
         if (isGone()) return
         const element = document.createElement('div')
         document.body.append(element)
@@ -61,25 +62,26 @@ export function listenForMaker(host: HostBridge<MakerSurfaceMessage>): void {
         for (const message of pending) receive(message)
         pending.length = 0
         fallback.remove()
+      })(),
+    ]).then(([attempt]) => {
+      if (attempt.status !== 'rejected') return
+      isLoading = false
+      if (isDisposed) return
+      status.textContent = UI_TEXT.makerLoadFailed
+      status.setAttribute('role', 'alert')
+      const retry = document.createElement('button')
+      retry.textContent = UI_TEXT.makerRetry
+      retry.addEventListener('click', () => {
+        reloadPanelSurface()
       })
-      .catch(() => {
-        isLoading = false
-        if (isDisposed) return
-        status.textContent = UI_TEXT.makerLoadFailed
-        status.setAttribute('role', 'alert')
-        const retry = document.createElement('button')
-        retry.textContent = UI_TEXT.makerRetry
-        retry.addEventListener('click', () => {
-          reloadPanelSurface()
-        })
-        const dismiss = document.createElement('button')
-        dismiss.textContent = UI_TEXT.usageClose
-        dismiss.addEventListener('click', () => {
-          fallback.replaceChildren(stop)
-          pending.length = 0
-        })
-        fallback.append(retry, dismiss)
+      const dismiss = document.createElement('button')
+      dismiss.textContent = UI_TEXT.usageClose
+      dismiss.addEventListener('click', () => {
+        fallback.replaceChildren(stop)
+        pending.length = 0
       })
+      fallback.append(retry, dismiss)
+    })
   }
   const listener = (event: MessageEvent<unknown>) => {
     const raw = event.data

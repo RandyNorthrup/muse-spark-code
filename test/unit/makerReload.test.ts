@@ -34,7 +34,8 @@ it('reload persists only UI position before notifying chat and refetching the do
 
 it('storage denial still reloads the document and malformed stored state is consumed', () => {
   Storage.prototype.setItem = () => {
-    throw new Error('Denied')
+    // The platform's denial shape: a SecurityError DOMException.
+    throw new DOMException('Denied', 'SecurityError')
   }
   try {
     reloadPanelSurface()
