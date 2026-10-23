@@ -74,7 +74,11 @@ export interface SystemOneClaim {
 
 export type SystemOneReserveResult =
   | { readonly reserved: true; readonly claim: SystemOneClaim }
-  | { readonly reserved: false; readonly reason: 'over-budget' | 'unpriced' | 'ledger-unavailable' }
+  | {
+      readonly reserved: false
+      readonly reason: 'over-budget' | 'unpriced' | 'ledger-unavailable'
+      readonly cause?: unknown
+    }
 
 /** Assembly injects these. Constructing the runtime touches none of them. */
 export interface SystemOneJudgeDependencies {

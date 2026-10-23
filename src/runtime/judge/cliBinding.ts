@@ -78,16 +78,16 @@ export async function cliJudgeBinding(deps: {
                     Usd.from(usd).toAmount(),
                     AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS),
                   )
-                } catch {
-                  return { reserved: false, reason: 'over-budget' }
+                } catch (error: unknown) {
+                  return { reserved: false, reason: 'over-budget', cause: error }
                 }
                 if (claim === undefined) return { reserved: false, reason: 'over-budget' }
                 const live = claim
                 try {
                   live.check()
-                } catch {
+                } catch (error: unknown) {
                   await live.settle(Usd.from(0).toAmount())
-                  return { reserved: false, reason: 'over-budget' }
+                  return { reserved: false, reason: 'over-budget', cause: error }
                 }
                 return {
                   reserved: true,
