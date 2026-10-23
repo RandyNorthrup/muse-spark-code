@@ -130,7 +130,8 @@ function statedFromText(request: ByoDecodeRequest, text: string, usage: ByoUsage
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return failure
   }
   const reading = materialForStated({

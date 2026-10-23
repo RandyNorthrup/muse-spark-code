@@ -54,8 +54,10 @@ async function readRequest(request: IncomingMessage): Promise<JudgeRequest | und
     )
     const parsed = judgeRequestSchema.safeParse(body)
     return parsed.success ? parsed.data : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return undefined
+    if (error instanceof TypeError) return undefined
+    throw error
   }
 }
 function isAligned(request: JudgeRequest, result: JudgeResult): boolean {

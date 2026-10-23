@@ -154,7 +154,8 @@ export async function systemOneKey(
   let value: unknown
   try {
     value = JSON.parse(stored)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const record = parseCredentialRecord(value)
@@ -214,7 +215,8 @@ async function boundedJson(response: PinnedResponse): Promise<unknown> {
   try {
     const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
     return parsed
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }

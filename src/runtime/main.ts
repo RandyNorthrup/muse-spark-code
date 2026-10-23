@@ -1539,7 +1539,8 @@ async function main(processResources: ProcessResources): Promise<number> {
         readFile: (file: string): string | undefined => {
           try {
             return readFileSync(file, 'utf8')
-          } catch {
+          } catch (error: unknown) {
+            if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
             return undefined
           }
         },

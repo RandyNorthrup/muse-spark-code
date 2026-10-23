@@ -30,7 +30,8 @@ import { judgeFeaturesLoader } from '../../runtime/judge/judgeBundle'
 function defaultReadFile(file: string): string | undefined {
   try {
     return readFileSync(file, 'utf8')
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
     return undefined
   }
 }
