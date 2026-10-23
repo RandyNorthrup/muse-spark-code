@@ -177,9 +177,9 @@ describe('account errors name their cause', () => {
       expect(JSON.parse(lines[0] ?? '')).toEqual([
         { id: 'default', label: UI_TEXT.accounts.defaultLabel, order: 0, thresholds: {} },
       ])
-      // A provider with no accounts entry names the missing row: the
-      // runtime is on the account service, so the connection sentence
-      // would lie.
+      // A provider with no accounts entry is named, never the connection:
+      // the runtime is on the account service, so that sentence would lie.
+      // The terminal reads the missing entry as the CLI's unknown id (RLM108).
       const errors: string[] = []
       const exit = await runAccountsCommand(
         { action: 'list', provider: 'testprov' },
@@ -193,11 +193,7 @@ describe('account errors name their cause', () => {
         },
       )
       expect(exit).toBe(1)
-      expect(errors).toEqual([
-        fill(UI_TEXT.accounts.unavailableReason, {
-          reason: fill(UI_TEXT.accounts.noAccountsEntry, { provider: 'testprov' }),
-        }),
-      ])
+      expect(errors).toEqual([fill(UI_TEXT.providerUnknown, { provider: 'testprov' })])
       // ACP keeps its fixed sentence for the same refusal (FIXM108H): the
       // cause never crosses that boundary.
       let failure: unknown

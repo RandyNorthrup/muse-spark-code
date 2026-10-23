@@ -60,13 +60,13 @@ entry that exists keeps the generic sentence (a lane-M product, a shut
 vault): the id is not the problem there. */
 function terminalAccountsFailure(
   provider: string,
-  entry: AccountProvider | undefined,
+  read: { readonly entry: AccountProvider | undefined } | undefined,
   error: unknown,
 ): string {
-  return entry?.id !== provider &&
+  return read !== undefined &&
+    read.entry?.id !== provider &&
     error instanceof AccountStoreError &&
-    error.code === 'unavailable' &&
-    error.cause === undefined
+    error.code === 'unavailable'
     ? fill(UI_TEXT.providerUnknown, { provider })
     : commandError(error)
 }
@@ -75,10 +75,10 @@ export async function runAccountsCommand(
   command: AccountsCommand,
   deps: AccountsCommandDeps,
 ): Promise<number> {
-  let entry: AccountProvider | undefined
+  let read: { readonly entry: AccountProvider | undefined } | undefined
   try {
     const { provider } = command
-    entry = await deps.metadata.read(provider)
+    read = { entry: await deps.metadata.read(provider) }
     switch (command.action) {
       case 'list': {
         deps.print(JSON.stringify(await deps.accounts.list(provider)))
@@ -109,7 +109,7 @@ export async function runAccountsCommand(
     }
     return 0
   } catch (error: unknown) {
-    deps.printError(terminalAccountsFailure(command.provider, entry, error))
+    deps.printError(terminalAccountsFailure(command.provider, read, error))
     return 1
   }
 }
@@ -121,11 +121,11 @@ export async function runAccountAuthSet(
   deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName' | 'confirmKeyUse'>,
 ): Promise<number> {
   const pending = { value: '' }
-  let entry: AccountProvider | undefined
+  let read: { readonly entry: AccountProvider | undefined } | undefined
   try {
-    entry = await deps.metadata.read(target.provider)
-    if (entry?.id !== target.provider) throw new AccountStoreError('unavailable')
-    const provider = entry
+    read = { entry: await deps.metadata.read(target.provider) }
+    const provider = read.entry
+    if (provider?.id !== target.provider) throw new AccountStoreError('unavailable')
     if (provider.auth !== 'apiKey') throw new AccountStoreError('notOffered')
     const binding = accountBindingSchema.parse({
       provider: target.provider,
@@ -181,7 +181,7 @@ export async function runAccountAuthSet(
     deps.print(fill(UI_TEXT.acpKeyStored, { store: deps.storeName }))
     return 0
   } catch (error: unknown) {
-    deps.printError(terminalAccountsFailure(target.provider, entry, error))
+    deps.printError(terminalAccountsFailure(target.provider, read, error))
     return 1
   } finally {
     pending.value = ''

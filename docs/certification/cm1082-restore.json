@@ -75,8 +75,8 @@
       "id": "WB-171",
       "kind": "text",
       "file": "docs/ci.md",
-      "held": "| --account-pool                      | off                    | Requires the profile-owned account pool, currently unavailable; refused with --key-stdin in CI.                                                                            |",
-      "restored": "| --account-pool                      | off                    | Opt into native Meta stored-key pooling at request boundaries; account caps and shared budgets bind. Refused with --key-stdin.                                             |"
+      "held": "| --account-pool                      | off                    | Requires the profile-owned account pool, currently unavailable; refused with --key-stdin in CI.                                                                                                                                                                                                                |",
+      "restored": "| --account-pool                      | off                    | Opt into native Meta stored-key pooling at request boundaries; account caps and shared budgets bind. Refused with --key-stdin.                                                                                                                                                                                 |"
     },
     {
       "id": "WB-175",
