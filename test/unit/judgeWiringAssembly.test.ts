@@ -1,23 +1,12 @@
-import path from 'node:path'
 import { describe, expect, inject, it } from 'vitest'
-import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
-import { createLogger } from '../../src/host/logger'
 import { assertCurrentProductionBuild } from './productionBuild'
-import { collectingLogger } from './helpers/collectingLogger'
 import { embeddedBinding, phase2Binding, surfaceInput } from './helpers/judgePhase2Rig'
+import { shippedJudgeP2Features } from './helpers/judgeP2Features'
 import { command, io, REQUEST } from './judgeCliFixtures'
 
 // The shipped lazy assembly, not a per-test build: these suites run
 // against the production dist/ the delivery gate proved current.
 assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
-
-function features() {
-  const messages: string[] = []
-  return judgeFeaturesLoader({
-    bundlePath: path.join(process.cwd(), 'dist/judgeP2.js'),
-    log: createLogger(collectingLogger(messages)),
-  })()
-}
 function embedded(locality: 'same-provider' | 'verified-local' = 'same-provider') {
   return embeddedBinding(locality)
 }
@@ -25,7 +14,7 @@ function embedded(locality: 'same-provider' | 'verified-local' = 'same-provider'
 describe('phase-2 paths through the shipped lazy assembly', () => {
   it('reaches cascade from the runtime factory with one distinct attempt per source', async () => {
     const fixture = phase2Binding()
-    const runtime = await features().createRuntime({ binding: () => fixture.value })
+    const runtime = await shippedJudgeP2Features().createRuntime({ binding: () => fixture.value })
     const result = await runtime.judge(
       { ...REQUEST, model: 'chosen' },
       new AbortController().signal,
@@ -41,7 +30,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
     'reaches cascade from the %s surface through the real command assembly',
     async (action) => {
       const fixture = phase2Binding()
-      const factory = features()
+      const factory = shippedJudgeP2Features()
       const deps = await factory.createCommandDeps({
         binding: () => fixture.value,
         billing: 'free',
@@ -78,7 +67,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
       },
     }
     // The surface's trigger identity changes; the plan is cancelled, never re-planned.
-    const runtime = await features().createRuntime({
+    const runtime = await shippedJudgeP2Features().createRuntime({
       binding: () => current,
       triggers: () => current.context,
     })
@@ -103,7 +92,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
       },
     }
     const value = { ...fixture.value, embedding }
-    const runtime = await features().createRuntime({
+    const runtime = await shippedJudgeP2Features().createRuntime({
       binding: () => value,
       embeddingStatus: (status: unknown) => {
         order.push('status')
@@ -134,7 +123,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
   })
   it('offers free verified-local embeddings only after explicit local opt-in', async () => {
     const fixture = embedded('verified-local')
-    const runtime = await features().createRuntime({ binding: () => fixture.value })
+    const runtime = await shippedJudgeP2Features().createRuntime({ binding: () => fixture.value })
     expect(await runtime.judge(REQUEST, new AbortController().signal)).toMatchObject({
       outcome: 'answered',
       result: { muse: { risk: { technique: 'embedding' } } },
@@ -146,7 +135,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
     const fixture = embedded()
     const statuses: unknown[] = []
     const value = { ...fixture.value, embedding: { ...fixture.embedding, capable: false } }
-    const runtime = await features().createRuntime({
+    const runtime = await shippedJudgeP2Features().createRuntime({
       binding: () => value,
       embeddingStatus: (status: unknown) => {
         statuses.push(status)
