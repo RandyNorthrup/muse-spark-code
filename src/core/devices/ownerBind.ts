@@ -255,6 +255,17 @@ export class DeviceOwnerGrants {
       grantId,
     })
   }
+  /**
+  The current grant for a (pair, owner, role) claim, in whatever state it
+  is in: authorize() below reads the precise outcome — expired, revoked
+  or superseded — rather than a lookup miss.
+  */
+  public find(pairId: string, ownerId: string, roleId: string): DeviceGrant | undefined {
+    for (const grant of this.grants.values())
+      if (grant.pairId === pairId && grant.ownerId === ownerId && grant.roleId === roleId)
+        return grant
+    return undefined
+  }
   public usedBy(ownerId: string): DeviceCaps {
     return { ...(this.used.get(ownerId) ?? zeroCaps()) }
   }
