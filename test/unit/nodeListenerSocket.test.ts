@@ -31,6 +31,13 @@ function stream() {
 }
 const auth = { type: 'auth', bearer: nodeBearer, terminalId: 'terminal-1' }
 
+async function expectDestroyedOpen(test: ReturnType<typeof stream>): Promise<void> {
+  test.open(maskedFrame(auth))
+  await flushListener()
+  expect(test.socket.destroyed).toBe(true)
+  expect(test.terminal.calls).toHaveLength(0)
+}
+
 describe('M110-N WebSocket first-frame boundary', () => {
   it(
     'H07 closes at the actual five-second first-frame deadline without dispatch',
@@ -181,10 +188,7 @@ describe('M110-N WebSocket first-frame boundary', () => {
   it('H08 ownership rejection and expired/revoked session never open or write a PTY', async () => {
     const test = stream()
     test.request.once(() => Promise.reject(new NodeListenerError('forbidden')))
-    test.open(maskedFrame(auth))
-    await flushListener()
-    expect(test.socket.destroyed).toBe(true)
-    expect(test.terminal.calls).toHaveLength(0)
+    await expectDestroyedOpen(test)
     expect(test.print.calls).toEqual([])
     const expired = stream()
     expired.open(maskedFrame(auth))
@@ -199,10 +203,7 @@ describe('M110-N WebSocket first-frame boundary', () => {
   it('H08 a non-protocol dispatch failure closes and reports without its text', async () => {
     const test = stream()
     test.request.use(() => Promise.reject(new Error('test dispatch bug with private text')))
-    test.open(maskedFrame(auth))
-    await flushListener()
-    expect(test.socket.destroyed).toBe(true)
-    expect(test.terminal.calls).toHaveLength(0)
+    await expectDestroyedOpen(test)
     expect(test.print.calls).toEqual([[UI_TEXT.nodeMessages.unexpectedFailure]])
     expect(JSON.stringify(test.print.calls)).not.toContain('private text')
   })

@@ -27,6 +27,17 @@ beforeAll(async () => {
 afterAll(async () => {
   if (built.directory !== '') await rm(built.directory, { recursive: true, force: true })
 })
+async function mainEntry() {
+  expect(built.error).toBeUndefined()
+  const entries = Object.entries(built.meta?.outputs ?? {})
+  const main = entries.find(
+    ([, item]) => item.entryPoint?.replaceAll('\\', '/') === 'src/webview/node/files/main.tsx',
+  )
+  expect(main).toBeDefined()
+  if (main === undefined) throw new Error('no workspace entry')
+  return { entries, text: await readFile(main[0], 'utf8') }
+}
+
 describe('M110-U1 independent browser budget', () => {
   it('H09 enforces the workspace, editor and terminal caps with the actual CodeMirror merge bundle', () => {
     expect(built.error).toBeUndefined()
@@ -56,14 +67,7 @@ describe('M110-U1 independent browser budget', () => {
     expect(notices).toContain('MIT')
   })
   it('keeps xterm out of the independent workspace startup and loads it through a dynamic chunk', async () => {
-    expect(built.error).toBeUndefined()
-    const entries = Object.entries(built.meta?.outputs ?? {})
-    const main = entries.find(
-      ([, item]) => item.entryPoint?.replaceAll('\\', '/') === 'src/webview/node/files/main.tsx',
-    )
-    expect(main).toBeDefined()
-    if (main === undefined) throw new Error('no workspace entry')
-    const text = await readFile(main[0], 'utf8')
+    const { entries, text } = await mainEntry()
     expect(text).not.toContain('xterm')
     expect(text).not.toContain('screenReaderMode')
     expect(
@@ -75,14 +79,7 @@ describe('M110-U1 independent browser budget', () => {
     ).toBe(true)
   })
   it('keeps CodeMirror out of the independent workspace startup and loads it through a dynamic chunk', async () => {
-    expect(built.error).toBeUndefined()
-    const entries = Object.entries(built.meta?.outputs ?? {})
-    const main = entries.find(
-      ([, item]) => item.entryPoint?.replaceAll('\\', '/') === 'src/webview/node/files/main.tsx',
-    )
-    expect(main).toBeDefined()
-    if (main === undefined) throw new Error('no workspace entry')
-    const text = await readFile(main[0], 'utf8')
+    const { entries, text } = await mainEntry()
     expect(text).not.toContain('cm-mergeViewEditors')
     expect(
       entries.some(([, item]) => item.imports.some((entry) => entry.kind === 'dynamic-import')),

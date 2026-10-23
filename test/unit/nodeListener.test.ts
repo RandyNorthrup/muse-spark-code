@@ -122,6 +122,21 @@ afterAll(async () => {
   if (built.root !== '') await rm(built.root, { recursive: true, force: true })
 })
 
+function requestHeaders(port: number, headers: Record<string, string | undefined>) {
+  const defaults: Record<string, string | undefined> = {
+    Host: `home.local:${String(port)}`,
+    Origin: `https://home.local:${String(port)}`,
+    'Sec-Fetch-Site': 'same-origin',
+    'Sec-Fetch-Mode': 'cors',
+    'Sec-Fetch-Dest': 'empty',
+    Authorization: `Bearer ${nodeBearer}`,
+    'Content-Type': 'application/json',
+  }
+  return Object.fromEntries(
+    Object.entries({ ...defaults, ...headers }).filter(([, value]) => value !== undefined),
+  )
+}
+
 async function post(
   route: string,
   body = '{}',
@@ -129,18 +144,7 @@ async function post(
   target = built.port,
   method = 'POST',
 ) {
-  const defaults: Record<string, string | undefined> = {
-    Host: `home.local:${String(target)}`,
-    Origin: `https://home.local:${String(target)}`,
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Dest': 'empty',
-    Authorization: `Bearer ${nodeBearer}`,
-    'Content-Type': 'application/json',
-  }
-  const actual = Object.fromEntries(
-    Object.entries({ ...defaults, ...headers }).filter(([, value]) => value !== undefined),
-  )
+  const actual = requestHeaders(target, headers)
   return await new Promise<{
     status: number
     body: string
@@ -187,18 +191,7 @@ async function postHuge(
   body: string,
   headers: Record<string, string | undefined> = {},
 ): Promise<number> {
-  const defaults: Record<string, string | undefined> = {
-    Host: `home.local:${String(built.port)}`,
-    Origin: `https://home.local:${String(built.port)}`,
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Dest': 'empty',
-    Authorization: `Bearer ${nodeBearer}`,
-    'Content-Type': 'application/json',
-  }
-  const actual = Object.fromEntries(
-    Object.entries({ ...defaults, ...headers }).filter(([, value]) => value !== undefined),
-  )
+  const actual = requestHeaders(built.port, headers)
   return await new Promise<number>((resolve, reject) => {
     let hasAnswered = false
     const req = httpsRequest(

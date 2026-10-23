@@ -10,6 +10,7 @@ import { runTui, type TuiTerminal } from '../../src/runtime/tui/run'
 import type { TuiAction, TuiConnect, TuiConnection, TuiEvent } from '../../src/runtime/tui/protocol'
 import { TUI_LIMITS, UI_TEXT } from '../../src/shared/constants'
 import { recordCalls } from './helpers/recordCalls'
+import { waitForTui } from './helpers/tuiWait'
 
 const toolEvent: TuiEvent = {
   type: 'ask',
@@ -25,30 +26,6 @@ const toolEvent: TuiEvent = {
 
 async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-/** The surface under its real timers: poll until the assertion holds, then fail loud. */
-async function waitForOutput(
-  description: string,
-  check: () => void,
-  timeoutMs = 5000,
-): Promise<void> {
-  const deadline = Date.now() + timeoutMs
-  for (;;) {
-    try {
-      check()
-      return
-    } catch (error) {
-      if (Date.now() > deadline)
-        throw new Error(
-          `${description}: ${error instanceof Error ? error.message : String(error)}`,
-          {
-            cause: error,
-          },
-        )
-      await sleep(10)
-    }
-  }
 }
 
 function fakeInk() {
@@ -240,7 +217,7 @@ describe('M110 T surfaces', () => {
       expect(c.sent).toEqual([])
       receive({ type: 'settled', id: 'p' })
       t.input('1\n')
-      await waitForOutput('settled numeric chat', () => {
+      await waitForTui('settled numeric chat', () => {
         expect(c.sent).toEqual([[{ type: 'message', text: '1' }]])
       })
     } finally {
@@ -252,7 +229,7 @@ describe('M110 T surfaces', () => {
     const t = fakeTerminal()
     const c = fakeConnection()
     const { run, receive } = observedSurface(t, c)
-    await waitForOutput('first line', () => {
+    await waitForTui('first line', () => {
       expect(t.output.length).toBe(1)
     })
     try {
@@ -292,7 +269,7 @@ describe('M110 T surfaces', () => {
       t.input('\u{1B}[201~')
       expect(c.sent).toEqual([])
       await focusedChoice(t)
-      await waitForOutput('focused answer', () => {
+      await waitForTui('focused answer', () => {
         expect(c.sent).toEqual([
           [
             {
@@ -306,7 +283,7 @@ describe('M110 T surfaces', () => {
         ])
       })
       t.input('/stop\n')
-      await waitForOutput('stop', () => {
+      await waitForTui('stop', () => {
         expect(c.sent.at(-1)).toEqual([{ type: 'stop', scope: 'all' }])
       })
       expect(c.sent).toHaveLength(2)
@@ -340,15 +317,7 @@ describe('M110 T surfaces', () => {
     expect(text).toContain(`1. ${UI_TEXT.allowOnce}`)
   })
   it('oversized prices and small real viewports hide choices and reject focused answers', () => {
-    const sent = recordCalls<[TuiAction]>()
-    const changed = recordCalls<[]>()
-    const lines = recordCalls<[string]>()
-    const controller = new TuiController({
-      send: sent.fn,
-      now: () => 0,
-      changed: changed.fn,
-      line: lines.fn,
-    })
+    const { controller, sent } = viewController()
     const ask = {
       kind: 'paid' as const,
       id: 'p',
@@ -373,7 +342,7 @@ describe('M110 T surfaces', () => {
       expect(rendered.join('')).not.toContain(`1. ${UI_TEXT.allowOnce}`)
       controller.key('', { tab: true })
       controller.key('1')
-      expect(sent.calls).toEqual([])
+      expect(sent).toEqual([])
     }
   })
   it('graphical approval cannot focus before renderer output is flushed', async () => {
@@ -400,7 +369,7 @@ describe('M110 T surfaces', () => {
       expect(c.sent).toEqual([])
       flush.resolve(undefined)
       await focusedChoice(t)
-      await waitForOutput('flushed graphical answer', () => {
+      await waitForTui('flushed graphical answer', () => {
         expect(c.sent).toEqual([[expect.objectContaining({ type: 'answer', id: 'p' })]])
       })
     } finally {
@@ -412,14 +381,14 @@ describe('M110 T surfaces', () => {
     const t = fakeTerminal(false)
     const c = fakeConnection()
     const run = runFakeSurface(t, c, fakeInk().ink)
-    await waitForOutput('first line', () => {
+    await waitForTui('first line', () => {
       expect(t.output.length).toBe(1)
     })
     try {
       t.input('\u{1B}[A\u{1B}OH\u{1B}[3~\u{1B}]0;title\u{7}\n')
       expect(c.sent).toEqual([])
       t.input('\u{1B}')
-      await waitForOutput('standalone Esc stops', () => {
+      await waitForTui('standalone Esc stops', () => {
         expect(c.sent).toEqual([[{ type: 'stop', scope: 'all' }]])
       })
     } finally {
@@ -439,7 +408,7 @@ describe('M110 T surfaces', () => {
     input.resume()
     input.end()
     try {
-      await waitForOutput('early EOF resolves', () => {
+      await waitForTui('early EOF resolves', () => {
         expect(result).toBe(0)
       })
     } finally {
@@ -499,7 +468,7 @@ describe('M110 T surfaces', () => {
     await sleep(10)
     input.end()
     try {
-      await waitForOutput(
+      await waitForTui(
         'stalled cleanup fails',
         () => {
           expect(result).toBe(1)
@@ -579,15 +548,7 @@ describe('M110 T surfaces', () => {
   })
   it('NO_COLOR keeps +/- and removes all colour props; Stop remains active', () => {
     const f = fakeInk()
-    const sent = recordCalls<[TuiAction]>()
-    const changed = recordCalls<[]>()
-    const lines = recordCalls<[string]>()
-    const controller = new TuiController({
-      send: sent.fn,
-      now: () => 0,
-      changed: changed.fn,
-      line: lines.fn,
-    })
+    const { controller, sent } = viewController()
     controller.view = 'diff'
     controller.receive({ type: 'diff', path: 'file.ts', patch: '-old\n+new' })
     const options = { controller, ink: f.ink, columns: 80, rows: 24, noColor: true }
@@ -596,7 +557,7 @@ describe('M110 T surfaces', () => {
     expect(html).toContain('+new')
     expect(f.texts.every((props) => props.color === undefined)).toBe(true)
     controller.key('', { escape: true })
-    expect(sent.calls).toContainEqual([{ type: 'stop', scope: 'all' }])
+    expect(sent).toContainEqual([{ type: 'stop', scope: 'all' }])
     f.texts.length = 0
     renderToStaticMarkup(tuiView(controller, f.ink, { ...options, noColor: false }))
     expect(f.texts.some((props) => props.color === 'red')).toBe(true)
@@ -616,7 +577,7 @@ describe('M110 T surfaces', () => {
         return Promise.resolve(c.connection)
       },
     })
-    await waitForOutput('first line', () => {
+    await waitForTui('first line', () => {
       expect(t.output.length).toBe(1)
     })
     receive?.({ type: 'chat', id: 'm', role: 'agent', text: '\u{1B}[2Jhello\nworld', delta: true })
@@ -628,14 +589,14 @@ describe('M110 T surfaces', () => {
     await sleep(2100)
     expect(t.output.length).toBe(count)
     t.input('hello\r\n')
-    await waitForOutput('chat send', () => {
+    await waitForTui('chat send', () => {
       expect(c.sent).toContainEqual([{ type: 'message', text: 'hello' }])
     })
     t.input('\u{1B}')
     t.interrupt()
     await sleep(TUI_LIMITS.escapeMs + 50)
     t.input('/status\n')
-    await waitForOutput('status line', () => {
+    await waitForTui('status line', () => {
       expect(t.output.at(-1)).toContain(UI_TEXT.tuiConnecting)
     })
     t.close()
@@ -647,7 +608,7 @@ describe('M110 T surfaces', () => {
     const c = fakeConnection()
     const f = fakeInk()
     const run = runFakeSurface(t, c, f.ink)
-    await waitForOutput('first line', () => {
+    await waitForTui('first line', () => {
       expect(t.output.length).toBe(1)
     })
     t.input(`x${'x'.repeat(TUI_LIMITS.inputChars)}tail\n`)
@@ -662,7 +623,7 @@ describe('M110 T surfaces', () => {
     const c = fakeConnection()
     const f = fakeInk()
     const run = runFakeSurface(t, c, f.ink)
-    await waitForOutput('first render', () => {
+    await waitForTui('first render', () => {
       expect(f.renders.length).toBe(1)
     })
     c.fail()
@@ -686,7 +647,7 @@ describe('M110 T surfaces', () => {
       now: () => 0,
       connect: () => Promise.resolve(c.connection),
     })
-    await waitForOutput('first line', () => {
+    await waitForTui('first line', () => {
       expect(t.output.length).toBe(1)
     })
     let result: number
@@ -711,7 +672,7 @@ describe('M110 T surfaces', () => {
       const output = new PassThrough()
       const c = fakeConnection()
       const run = runNative(input, output, Promise.resolve(c.connection))
-      await waitForOutput('first line', () => {
+      await waitForTui('first line', () => {
         expect(output.readableLength).toBeGreaterThan(0)
       })
       output.write = (): boolean => {

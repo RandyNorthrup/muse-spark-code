@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { UI_TEXT } from '../../../shared/constants'
 import type { NodeMethodPort } from '../../../shared/hostApi/nodeMethods'
+import { RefreshButton } from '../RefreshButton'
 
 /** What this node release added, headed by the node's own version: the
 version comes from the dashboard read, so the page never names a release
@@ -41,15 +42,12 @@ export function WhatsNewPage({
         <li>{UI_TEXT.nodeWhatsNew.sandbox}</li>
       </ul>
       <div className="node-actions">
-        <button
-          type="button"
-          disabled={busy}
+        <RefreshButton
+          busy={busy}
           onClick={() => {
             run(refresh)
           }}
-        >
-          {UI_TEXT.nodeWorkspace.refresh}
-        </button>
+        />
       </div>
     </section>
   )

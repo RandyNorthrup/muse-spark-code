@@ -15,9 +15,7 @@ import {
 } from '../../src/shared/constants'
 import type { NodeAudit } from '../../src/shared/node'
 import type { NodeSession } from '../../src/shared/nodeAuth'
-import { NodeStateStore } from '../../src/runtime/node/state'
-import { nodeState } from './helpers/node/records'
-import { NodeListenerError } from '../../src/runtime/node/listenerGuard'
+import { initializedPageStore, pageRefusal } from './helpers/node/pageMethods'
 import {
   createNodeDashboardMethods,
   type NodeDashboardPagePort,
@@ -46,10 +44,7 @@ function session(id: string): NodeSession {
 async function setup(overrides: Partial<NodeDashboardPagePort> = {}) {
   const root = mkdtempSync(path.join(tmpdir(), 'node-dashboard-'))
   folders.push(root)
-  const store = new NodeStateStore(path.join(root, 'state'), () => undefined)
-  const initial = nodeState()
-  initial.auditHead = { seq: 0, hash: '0'.repeat(64) }
-  await store.initialize(initial)
+  const { store, initial } = await initializedPageStore(root)
   const reported: unknown[] = []
   const port: NodeDashboardPagePort = {
     nodeId: initial.nodeId,
@@ -74,18 +69,6 @@ async function setup(overrides: Partial<NodeDashboardPagePort> = {}) {
     ...overrides,
   }
   return { store, methods: createNodeDashboardMethods(port), reported }
-}
-
-async function refusal(work: Promise<unknown>): Promise<NodeListenerError> {
-  let failure: unknown = 'resolved'
-  try {
-    await work
-  } catch (error: unknown) {
-    failure = error
-  }
-  expect(failure).toBeInstanceOf(NodeListenerError)
-  if (!(failure instanceof NodeListenerError)) throw new Error('expected a typed refusal')
-  return failure
 }
 
 describe('node dashboard methods', () => {
@@ -113,7 +96,7 @@ describe('node dashboard methods', () => {
   it('refuses a locked node that still holds sessions as unavailable, and files it', async () => {
     const test = await setup({ locked: () => Promise.resolve(true) })
     const signal = new AbortController().signal
-    const failed = await refusal(test.methods.read({}, signal))
+    const failed = await pageRefusal(test.methods.read({}, signal))
     expect(failed.code).toBe('unavailable')
     expect(test.reported).toHaveLength(1)
   })

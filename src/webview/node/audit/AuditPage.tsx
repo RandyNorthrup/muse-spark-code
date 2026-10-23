@@ -3,6 +3,7 @@ import { UI_TEXT } from '../../../shared/constants'
 import { fill, formatBytes, formatDateTime } from '../../../shared/l10n/text'
 import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
 import type { NodeAudit } from '../../../shared/node'
+import { RefreshButton } from '../RefreshButton'
 
 type AuditFilter = 'all' | 'signin' | 'enroll' | 'terminal' | 'key' | 'node' | 'git' | 'approval'
 
@@ -268,17 +269,14 @@ export function AuditPage({
             {filterLabel(option)}
           </button>
         ))}
-        <button
-          type="button"
-          disabled={busy}
+        <RefreshButton
+          busy={busy}
           onClick={() => {
             run(async (signal) => {
               await load(signal, null)
             })
           }}
-        >
-          {UI_TEXT.nodeWorkspace.refresh}
-        </button>
+        />
       </div>
       {shown.length === 0 ? (
         <p>{UI_TEXT.nodeAudit.noEntries}</p>

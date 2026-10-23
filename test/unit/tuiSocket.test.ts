@@ -18,6 +18,7 @@ import { runLocalTui } from '../../src/runtime/tui/entry'
 import { createTuiTerminal } from '../../src/runtime/tui/terminal'
 import { EN } from '../../src/shared/l10n/en'
 import { recordCalls } from './helpers/recordCalls'
+import { waitForTui } from './helpers/tuiWait'
 
 const isWindows = process.platform === 'win32'
 const directories: string[] = []
@@ -34,25 +35,6 @@ const binding: TuiWireBinding = {
 /** The peer side, not the product callback, observes these frames. */
 function ignoreEvent(): void {
   return undefined
-}
-
-async function waitForSocket(description: string, check: () => void): Promise<void> {
-  const deadline = Date.now() + 5000
-  for (;;) {
-    try {
-      check()
-      return
-    } catch (error) {
-      if (Date.now() > deadline)
-        throw new Error(
-          `${description}: ${error instanceof Error ? error.message : String(error)}`,
-          {
-            cause: error,
-          },
-        )
-      await new Promise((resolve) => setTimeout(resolve, 10))
-    }
-  }
 }
 
 async function socketFixture() {
@@ -95,7 +77,7 @@ async function socketFixture() {
     ) {
       const before = accepted.length
       const connection = await start(receive, wire, signal, report)
-      await waitForSocket('peer accepted', () => {
+      await waitForTui('peer accepted', () => {
         expect(accepted.length).toBeGreaterThan(before)
       })
       return connection
@@ -113,7 +95,7 @@ async function expectInvalidClose(pending: Promise<void>, send: () => void): Pro
     }
   })()
   send()
-  await waitForSocket('invalid frame closes', () => {
+  await waitForTui('invalid frame closes', () => {
     expect(reason).toMatchObject({ message: UI_TEXT.tuiInvalidFrame })
   })
   await observed
@@ -148,6 +130,39 @@ describe('M110 T local socket refusals', () => {
   })
 })
 
+function screenOutput() {
+  const output = Object.assign(new PassThrough(), { isTTY: true })
+  const signals = new EventEmitter()
+  let screen = ''
+  output.on('data', (bytes: Buffer) => {
+    screen += bytes.toString()
+  })
+  return { output, signals, screen: () => screen }
+}
+
+function startReaderRun(
+  input: Parameters<typeof createTuiTerminal>[0],
+  output: Parameters<typeof createTuiTerminal>[1],
+  signals: EventEmitter,
+  f: Awaited<ReturnType<typeof socketFixture>>,
+  env: Record<string, string>,
+  runBinding: typeof binding,
+) {
+  return runLocalTui({
+    argv: ['--screen-reader'],
+    env,
+    socketPath: f.socketPath,
+    uid: fixtureUid,
+    signal: new AbortController().signal,
+    binding: runBinding,
+    ink: undefined,
+    terminal: createTuiTerminal(input, output, signals),
+    table: EN,
+    locale: 'en',
+    now: () => 1000,
+  })
+}
+
 describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
   it('uses a native endpoint without widening POSIX socket admission', async () => {
     const f = await socketFixture()
@@ -170,7 +185,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     expect(peerSocket).toBeDefined()
     peerSocket?.write(bytes.subarray(0, split))
     peerSocket?.write(bytes.subarray(split))
-    await waitForSocket('fragmented frames arrive', () => {
+    await waitForTui('fragmented frames arrive', () => {
       expect(received.calls).toHaveLength(2)
     })
     expect(received.calls).toContainEqual([event])
@@ -323,27 +338,10 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
         rawModes.push(isRaw)
       },
     })
-    const output = Object.assign(new PassThrough(), { isTTY: true })
-    const signals = new EventEmitter()
-    let screen = ''
-    output.on('data', (bytes: Buffer) => {
-      screen += bytes.toString()
-    })
-    const run = runLocalTui({
-      argv: ['--screen-reader'],
-      env: { NO_COLOR: '' },
-      socketPath: f.socketPath,
-      uid: fixtureUid,
-      signal: new AbortController().signal,
-      binding,
-      ink: undefined,
-      terminal: createTuiTerminal(input, output, signals),
-      table: EN,
-      locale: 'en',
-      now: () => 1000,
-    })
-    await waitForSocket('line keys shown', () => {
-      expect(screen).toContain(UI_TEXT.tuiLineKeys)
+    const { output, signals, screen } = screenOutput()
+    const run = startReaderRun(input, output, signals, f, { NO_COLOR: '' }, binding)
+    await waitForTui('line keys shown', () => {
+      expect(screen()).toContain(UI_TEXT.tuiLineKeys)
     })
     const requests: unknown[] = []
     const peerSocket = f.peer()
@@ -354,8 +352,8 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     peerSocket?.write(
       `${JSON.stringify({ type: 'chat', id: 'm', role: 'agent', text: 'local reply', delta: true })}\n${JSON.stringify({ type: 'ask', ask: { kind: 'paid', id: 'paid', digest: 'exact', expiresAt: 5000, title: 'Image', detail: 'Draw', price: '$0.04', dailyBudgetUsd: 1 } })}\n`,
     )
-    await waitForSocket('paid ask shown', () => {
-      expect(screen).toContain(`3. ${UI_TEXT.paidDeny}`)
+    await waitForTui('paid ask shown', () => {
+      expect(screen()).toContain(`3. ${UI_TEXT.paidDeny}`)
     })
     input.write('\n')
     expect(requests).toEqual([])
@@ -368,7 +366,7 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     })
     input.write('3')
     input.write('\u{1B}')
-    await waitForSocket('answer and stop sent', () => {
+    await waitForTui('answer and stop sent', () => {
       expect(requests).toEqual([
         { type: 'answer', id: 'paid', digest: 'exact', expiresAt: 5000, choice: 'deny' },
         { type: 'stop', scope: 'all' },
@@ -376,9 +374,9 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
     })
     input.end()
     expect(await run).toBe(0)
-    expect(screen).not.toContain(UI_TEXT.tuiUnexpectedFailure)
-    expect(screen).toContain('Agent: local reply')
-    expect(screen.replaceAll('\u{1B}[?2004h', '').replaceAll('\u{1B}[?2004l', '')).not.toContain(
+    expect(screen()).not.toContain(UI_TEXT.tuiUnexpectedFailure)
+    expect(screen()).toContain('Agent: local reply')
+    expect(screen().replaceAll('\u{1B}[?2004h', '').replaceAll('\u{1B}[?2004l', '')).not.toContain(
       '\u{1B}',
     )
     expect(rawModes.length).toBeGreaterThan(0)
@@ -417,39 +415,29 @@ describe.runIf(!isWindows)('M110 T owner-only local socket admission', () => {
   it('the lazy entry reports a binding failure once, without its raw text', async () => {
     const f = await socketFixture()
     const input = Object.assign(new PassThrough(), { isTTY: true })
-    const output = Object.assign(new PassThrough(), { isTTY: true })
-    const signals = new EventEmitter()
-    let screen = ''
-    output.on('data', (bytes: Buffer) => {
-      screen += bytes.toString()
-    })
-    const run = runLocalTui({
-      argv: ['--screen-reader'],
-      env: {},
-      socketPath: f.socketPath,
-      uid: fixtureUid,
-      signal: new AbortController().signal,
-      binding: {
+    const { output, signals, screen } = screenOutput()
+    const run = startReaderRun(
+      input,
+      output,
+      signals,
+      f,
+      {},
+      {
         ...binding,
         decode: () => {
           throw new Error('test binding failure with account label')
         },
       },
-      ink: undefined,
-      terminal: createTuiTerminal(input, output, signals),
-      table: EN,
-      locale: 'en',
-      now: () => 1000,
-    })
-    await waitForSocket('line keys shown', () => {
-      expect(screen).toContain(UI_TEXT.tuiLineKeys)
+    )
+    await waitForTui('line keys shown', () => {
+      expect(screen()).toContain(UI_TEXT.tuiLineKeys)
     })
     const peerSocket = f.peer()
     expect(peerSocket).toBeDefined()
     peerSocket?.write('{}\n')
     expect(await run).toBe(1)
-    expect(screen).toContain(UI_TEXT.tuiUnexpectedFailure)
-    expect(screen).not.toContain('test binding failure')
+    expect(screen()).toContain(UI_TEXT.tuiUnexpectedFailure)
+    expect(screen()).not.toContain('test binding failure')
     input.destroy()
     output.destroy()
   })
@@ -516,7 +504,7 @@ describe.runIf(isWindows)('M110 T named pipe transport', () => {
     const peerSocket = f.peer()
     expect(peerSocket).toBeDefined()
     peerSocket?.write(`${JSON.stringify(event)}\n`)
-    await waitForSocket('pipe event arrives', () => {
+    await waitForTui('pipe event arrives', () => {
       expect(received).toEqual([event])
     })
     const seen = new Promise<string>((resolve) => {

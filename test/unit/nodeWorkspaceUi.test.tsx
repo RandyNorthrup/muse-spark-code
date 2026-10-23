@@ -1,7 +1,7 @@
 /** @vitest-environment jsdom */
 /** @vitest-environment-options {"pretendToBeVisual": true} */
-import { createHash, webcrypto } from 'node:crypto'
-import { act, fireEvent, within, waitFor } from '@testing-library/react'
+import { createHash } from 'node:crypto'
+import { act, fireEvent, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { EditorView } from 'codemirror'
 import { mountNodeWorkspace } from '../../src/webview/node/files/main'
@@ -14,9 +14,9 @@ import {
   UI_TEXT,
 } from '../../src/shared/constants'
 import type { NodeMethodName } from '../../src/shared/hostApi/nodeMethods'
-import type { NodePageAuthPort } from '../../src/webview/node/git/network'
 import { EN } from '../../src/shared/l10n/en'
 import { scripted } from './helpers/recordCalls'
+import { cleanupNodeUi, mountNodeUi } from './helpers/nodeUi'
 
 // The tests drive the real CodeMirror editor, whose view needs the layout
 // primitives jsdom leaves out. These complete the environment (as jsdom
@@ -80,16 +80,7 @@ function setEditorText(textbox: HTMLElement, text: string): void {
   })
 }
 const hash = (text: string) => createHash('sha256').update(text).digest('hex')
-const disposers: (() => void)[] = []
 async function fixture(hasManyFiles = false) {
-  // Web Crypto digests the verified tuple; jsdom's crypto has no subtle.
-  Object.defineProperty(globalThis, 'crypto', {
-    value: webcrypto,
-    configurable: true,
-    writable: true,
-  })
-  const container = document.createElement('div')
-  document.body.append(container)
   const state = { text: 'original\n', head: 'b'.repeat(40), wrongPath: false }
   const destination = {
     host: 'git.example.invalid',
@@ -155,41 +146,12 @@ async function fixture(hasManyFiles = false) {
       ? await Promise.resolve({ head: state.head, changed: true })
       : await Promise.reject(new NodePageError('unavailable'))
   }
-  const request = scripted<[NodeMethodName, unknown, AbortSignal], Promise<unknown>>(respond)
-  const verify = scripted<
-    Parameters<NodePageAuthPort['verify']>,
-    ReturnType<NodePageAuthPort['verify']>
-  >((action, actionDigest) =>
-    Promise.resolve({
-      id: 'proof',
-      sessionId: 'session',
-      action,
-      actionDigest,
-      verifiedAt: 1,
-      expiresAt: 2,
-    }),
-  )
-  await act(async () => {
-    disposers.push(
-      mountNodeWorkspace(container, {
-        port: validatedNodePort({ request }),
-        auth: { verify },
-        workspaceId: 'repo',
-        connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
-      }),
-    )
-    await Promise.resolve()
-  })
-  const ui = within(container)
+  const { container, ui, request, verify } = await mountNodeUi(respond)
   await ui.findAllByRole('treeitem')
   return { ui, request, verify, state, container, respond }
 }
 afterEach(async () => {
-  await act(async () => {
-    for (const dispose of disposers.splice(0)) dispose()
-    await Promise.resolve()
-  })
-  document.body.replaceChildren()
+  await cleanupNodeUi()
   document.querySelector(`#${WEBVIEW_L10N_ELEMENT_ID}`)?.remove()
   for (const restore of restorations.splice(0).toReversed()) restore()
   if (cryptoDescriptor === undefined) Reflect.deleteProperty(globalThis, 'crypto')
@@ -241,15 +203,15 @@ describe('M110-U1 shared workspace UI', () => {
     embedded.id = WEBVIEW_L10N_ELEMENT_ID
     embedded.textContent = JSON.stringify(input)
     document.head.append(embedded)
+    // The mount throws before returning a disposer; the detached div
+    // takes nothing with it.
     expect(() => {
-      disposers.push(
-        mountNodeWorkspace(document.createElement('div'), {
-          workspaceId: 'repo',
-          port: validatedNodePort({ request }),
-          auth: { verify },
-          connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
-        }),
-      )
+      mountNodeWorkspace(document.createElement('div'), {
+        workspaceId: 'repo',
+        port: validatedNodePort({ request }),
+        auth: { verify },
+        connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
+      })
     }).toThrow()
     expect(request.calls).toHaveLength(0)
   })

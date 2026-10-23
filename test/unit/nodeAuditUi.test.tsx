@@ -1,15 +1,10 @@
 /** @vitest-environment jsdom */
-import { webcrypto } from 'node:crypto'
-import { act, fireEvent, within, waitFor } from '@testing-library/react'
+import { fireEvent, within, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { mountNodeWorkspace } from '../../src/webview/node/files/main'
-import { NodePageError, validatedNodePort } from '../../src/webview/bridges/nodePort'
+import { NodePageError } from '../../src/webview/bridges/nodePort'
 import { NODE_PROTOCOL_VERSION, UI_TEXT } from '../../src/shared/constants'
 import type { NodeMethodName } from '../../src/shared/hostApi/nodeMethods'
-import type { NodePageAuthPort } from '../../src/webview/node/git/network'
-import { scripted } from './helpers/recordCalls'
-
-const disposers: (() => void)[] = []
+import { cleanupNodeUi, mountNodeUi } from './helpers/nodeUi'
 
 function base(seq: number, outcome: string) {
   return {
@@ -92,57 +87,26 @@ const PAGES: Record<string, { entries: unknown[]; nextCursor: string | null }> =
   },
 }
 
-async function fixture() {
-  Object.defineProperty(globalThis, 'crypto', {
-    value: webcrypto,
-    configurable: true,
-    writable: true,
-  })
-  const container = document.createElement('div')
-  document.body.append(container)
-  const respond = (method: NodeMethodName, input: unknown): Promise<unknown> => {
-    switch (method) {
-      case 'node/files/list': {
-        return Promise.resolve({ entries: [], nextCursor: null })
-      }
-      case 'node/audit/list': {
-        const cursor = (input as { cursor: string | null }).cursor
-        const page = PAGES[String(cursor)]
-        return page === undefined
-          ? Promise.reject(new NodePageError('invalidRequest'))
-          : Promise.resolve(page)
-      }
-      default: {
-        return Promise.reject(new NodePageError('unavailable'))
-      }
+function respond(method: NodeMethodName, input: unknown): Promise<unknown> {
+  switch (method) {
+    case 'node/files/list': {
+      return Promise.resolve({ entries: [], nextCursor: null })
+    }
+    case 'node/audit/list': {
+      const cursor = (input as { cursor: string | null }).cursor
+      const page = PAGES[String(cursor)]
+      return page === undefined
+        ? Promise.reject(new NodePageError('invalidRequest'))
+        : Promise.resolve(page)
+    }
+    default: {
+      return Promise.reject(new NodePageError('unavailable'))
     }
   }
-  const request = scripted<[NodeMethodName, unknown, AbortSignal], Promise<unknown>>(respond)
-  const verify = scripted<
-    Parameters<NodePageAuthPort['verify']>,
-    ReturnType<NodePageAuthPort['verify']>
-  >((action, actionDigest) =>
-    Promise.resolve({
-      id: 'proof',
-      sessionId: 'session',
-      action,
-      actionDigest,
-      verifiedAt: 1,
-      expiresAt: 2,
-    }),
-  )
-  await act(async () => {
-    disposers.push(
-      mountNodeWorkspace(container, {
-        port: validatedNodePort({ request }),
-        auth: { verify },
-        workspaceId: 'repo',
-        connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
-      }),
-    )
-    await Promise.resolve()
-  })
-  const ui = within(container)
+}
+
+async function fixture() {
+  const { ui, request } = await mountNodeUi(respond)
   fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.audit }))
   const section = ui.getByRole('region', { name: UI_TEXT.nodeLabels.audit })
   const view = within(section)
@@ -152,13 +116,20 @@ async function fixture() {
   return { ui, view, section, request }
 }
 
-afterEach(async () => {
-  await act(async () => {
-    for (const dispose of disposers.splice(0)) dispose()
-    await Promise.resolve()
+afterEach(cleanupNodeUi)
+
+type AuditView = Awaited<ReturnType<typeof fixture>>['view']
+
+async function pageTwice(view: AuditView): Promise<void> {
+  fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.more }))
+  await waitFor(() => {
+    expect(view.getAllByRole('listitem')).toHaveLength(6)
   })
-  document.body.replaceChildren()
-})
+  fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.more }))
+  await waitFor(() => {
+    expect(view.getAllByRole('listitem')).toHaveLength(9)
+  })
+}
 
 describe('node audit page', () => {
   it('lists newest first with the action, outcome and paid flag', async () => {
@@ -176,14 +147,7 @@ describe('node audit page', () => {
 
   it('pages older entries with the returned cursor', async () => {
     const { view, request } = await fixture()
-    fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.more }))
-    await waitFor(() => {
-      expect(view.getAllByRole('listitem')).toHaveLength(6)
-    })
-    fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.more }))
-    await waitFor(() => {
-      expect(view.getAllByRole('listitem')).toHaveLength(9)
-    })
+    await pageTwice(view)
     expect(view.queryByRole('button', { name: UI_TEXT.nodeAudit.more })).toBeNull()
     expect(
       request.calls.filter(([method]) => method === 'node/audit/list').map(([, input]) => input),
@@ -192,14 +156,7 @@ describe('node audit page', () => {
 
   it('filters to one stream without re-reading', async () => {
     const { view, request } = await fixture()
-    fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.more }))
-    await waitFor(() => {
-      expect(view.getAllByRole('listitem')).toHaveLength(6)
-    })
-    fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.more }))
-    await waitFor(() => {
-      expect(view.getAllByRole('listitem')).toHaveLength(9)
-    })
+    await pageTwice(view)
     const reads = request.calls.filter(([method]) => method === 'node/audit/list').length
 
     fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeAudit.filterTerminal }))
