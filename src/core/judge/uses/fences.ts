@@ -83,10 +83,13 @@ export async function readJudgeAtDeadline(
       finish(store.readLatch(handle))
     }
     // A synchronous source failure follows the same no-opinion path.
-    try {
-      void deps.run(stop.signal).then(receive).catch(cancelled)
-    } catch {
-      cancelled()
+    const start = (): Promise<unknown> => {
+      try {
+        return deps.run(stop.signal)
+      } catch (error: unknown) {
+        return Promise.reject(new Error('judge-deadline-start-failed', { cause: error }))
+      }
     }
+    void start().then(receive).catch(cancelled)
   })
 }

@@ -2,6 +2,7 @@
 // certified B/M75 policy; absent injection performs no work or paid prompt.
 import type { ReviewRequest } from '../../core/backends/modelapi/autoReviewer'
 import type { JudgeRuntime } from '../../core/judge/engine'
+import type { CoreLogger } from '../../core/logging'
 import { entryKey, type JudgeEntryParts, type JudgeReadyOutcome } from '../../core/judge/entries'
 import { judgeRequestSchema, type JudgeQuestion } from '../../core/judge/schema'
 import { judgeUseAdvice } from '../../core/judge/uses/advice'
@@ -29,6 +30,7 @@ export interface JudgeReviewUses {
 
 export interface JudgeReviewUsesDeps {
   readonly runtime: JudgeRuntime
+  readonly log?: CoreLogger | undefined
   readonly policy: () => JudgeUsePolicy
   /** Fresh object on any source/owner/policy/generation change, including change-back. */
   readonly binding: () => object
@@ -128,6 +130,7 @@ export class JudgeUses implements JudgeReviewUses {
           advice.kind === 'advisory' && advice.effect === 'caution' ? 'caution' : 'none'
       } catch {
         // A failed advisory has no opinion at any remaining holder's fence.
+        this.deps.log?.warn('A failed judge advisory has no opinion')
         entry.outcome = 'failed'
       }
     }
@@ -137,13 +140,12 @@ export class JudgeUses implements JudgeReviewUses {
     }
     return {
       read: () => {
+        // A failed policy/binding read throws to the holder's fence, which
+        // treats a broken latch as no opinion for the approval.
         try {
           return (
             isHeld && !entry.stop.signal.aborted && entry.isCurrent() && entry.outcome === 'caution'
           )
-        } catch {
-          // A failed policy/binding read is no opinion for this approval.
-          return false
         } finally {
           discard()
         }
