@@ -28,7 +28,7 @@ import { command, io } from './judgeCliFixtures'
 
 // The shipped lazy assembly, not a per-test build: this suite runs against
 // the production dist/ the delivery gate proved current.
-assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
+assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
 
 function features() {
   const messages: string[] = []

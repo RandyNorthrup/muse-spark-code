@@ -120,7 +120,7 @@ const targets = [
 // global setup outside every hook's deadline), refused when missing or built
 // from sources that changed since (RVM98P2R2 10). Checked while the file is
 // collected, before the controls below mutate dist/.
-assertCurrentProductionBuild(inject('productionBuild'), process.cwd())
+assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
 
 function output(file: string, bundle: string) {
   const meta = metaSchema.parse(JSON.parse(readFileSync(file, 'utf8')))
