@@ -66,9 +66,11 @@ It cannot run in this lane's sandbox: starting a signed-in session
 skill file at /Users/randy/.claude/skills: Operation not permitted`,
 with and without `--trust-workspace` (zero model calls either way; the
 read is unconditional at session start). The lane shell itself gets
-`Operation not permitted` on that path. No product flag avoids it, and
-copying the sign-in elsewhere is forbidden, so the lead reruns it
-outside the sandbox:
+`Operation not permitted` on that path. No product flag avoids it:
+the repo's `MUSE_*` env surface has no skills-dir option
+(`MUSE_CONFIG_DIR` is an unrelated dictation compile define;
+`MUSE_AUTH_PATH` is wrapper-only), and copying the sign-in elsewhere
+is forbidden, so the lead reruns it outside the sandbox:
 
 ```sh
 MUSE_LIVE_VIM=1 MUSE_LIVE_VIM_TARBALL=dist/muse-spark-code-acp-<version>-<target>.tgz \
