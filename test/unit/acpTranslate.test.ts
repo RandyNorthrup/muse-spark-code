@@ -728,6 +728,16 @@ describe('mcpServersFrom (M63c)', () => {
     ) as Parameters<typeof mcpServersFrom>[0][number]
     expect(mcpServersFrom([server]).servers).toEqual({ s: { command: 'c', args: [], env: {} } })
   })
+
+  it("forwards Xcode 26.3's bridge exactly as docs/acp.md configures it (M66)", () => {
+    const server = JSON.parse(
+      '{"type":"stdio","name":"xcode","command":"/usr/bin/xcrun","args":["mcpbridge"],"env":[]}',
+    ) as Parameters<typeof mcpServersFrom>[0][number]
+    expect(mcpServersFrom([server])).toEqual({
+      servers: { xcode: { command: '/usr/bin/xcrun', args: ['mcpbridge'], env: {} } },
+      skipped: [],
+    })
+  })
 })
 
 /** A form the user accepted with this content. */
