@@ -4165,6 +4165,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       sessionId: this.sessionId,
       workspaceRoot: this.deps.workspaceRoot,
       modelId: this.modelId,
+      // M95b acceptance 10: the envelope names the turn's own provider,
+      // like the sibling hookPayload, so a plan turn reports its plan.
+      providerId: replayProducer(this.modelId).provider,
       permissionMode: this.permissions.currentMode,
       ...(turnId !== undefined && { turnId }),
     }

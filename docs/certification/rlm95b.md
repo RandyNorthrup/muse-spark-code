@@ -78,13 +78,18 @@ means a real provider answer, which only the owner can produce.
    through `providerRegistry.ts` to `PlanUi.tsx`). Mistral lists (its
    capture is inherited); MiniMax and Alibaba stay unlisted until their
    captures land; Moonshot and Ollama Cloud are uncaptured cloud presets.
-10. **Hook events with provider id and qualified model: NOT MET.**
-    Extension-hook payloads carry `model` + `model_provider`
-    (`extensionHookPayload`), but the provider is hardcoded to `'meta'`
-    (`src/core/backends/modelapi/extensionHooks.ts`) and plan-route
-    turns emit no hook events at all. Plumbing the real provider through
-    and firing on the plan route is a follow-up design, not part of this
-    landing.
+10. **Hook events with provider id and qualified model: MET.**
+    Turn-bound extension events fire in the session's turn loop on
+    every model, plan turns included (the session client is the
+    subscription-aware chain; no plan bypass exists). The envelope now
+    carries the turn's own provider: `extensionHookContext` resolves it
+    through `replayProducer`, the same rule as the sibling payload
+    (bare stays Meta), and `extensionHookPayload` emits `model` +
+    `model_provider` only with both in hand. Proven by
+    `test/unit/extensionHookPayload.test.ts` (builder contract) and
+    `test/unit/extensionHookPlanProvider.test.ts` (a real session
+    firing into a real hook command for ChatGPT, Meta and Copilot
+    models).
 
 ## Waiting on the owner (named, not built)
 
@@ -105,20 +110,22 @@ means a real provider answer, which only the owner can produce.
 Each: break on purpose, red run with a non-zero exit, revert, green.
 All runs `npx vitest run <file> --maxWorkers=3` on this rig.
 
-| #   | Break                                                          | Suite                            | Red      | Green |
-| --- | -------------------------------------------------------------- | -------------------------------- | -------- | ----- |
-| D1  | `planRefusalFor` returns `undefined` (`codecs/responses.ts`)   | `chatgptResponsesCodec.test.ts`  | 6 failed | pass  |
-| D2  | `listedPlanKeyPresets` lists all (`presets.ts`)                | `planKeyPresets.test.ts`         | 1 failed | pass  |
-| D3  | `knownFlag` never `yes` (`modelPolicy.ts`)                     | `modelPolicyReasoning.test.ts`   | 1 failed | pass  |
-| D4  | `azureDeploymentError` returns `undefined` (`configured.ts`)   | `azureDeploymentRefusal.test.ts` | 1 failed | pass  |
-| D5  | `editorChat` required (`shared/modelsPanel.ts`)                | `modelsPanelSchemas.test.ts`     | 1 failed | pass  |
-| D6  | `planOfferedLevels` returns `[]` (`planFacts.ts`)              | `chatgptPlanFacts.test.ts`       | 6 failed | pass  |
-| D7  | tab settle always `true` (`host/tab/tabLedger.ts`)             | `tabLedgerFailures.test.ts`      | 2 failed | pass  |
-| D8  | journal image gate always true (`core/usage/journalRecord.ts`) | `journalRecord.test.ts`          | 5 failed | pass  |
-| D9  | limit sentence replaced (`planRefusals.ts`)                    | `chatgptPlanRefusals.test.ts`    | 1 failed | pass  |
-| D10 | limit-header parse returns `undefined` (`planUsage.ts`)        | `chatgptPlanUsageLimits.test.ts` | 2 failed | pass  |
-| D11 | `wireModelFor` returns the family (`presets.ts`)               | `providersPresets.test.ts`       | 1 failed | pass  |
-| D12 | authorize URL drops `scope` (`huggingface.ts`)                 | `huggingfaceOAuth.test.ts`       | 1 failed | pass  |
+| #   | Break                                                          | Suite                               | Red      | Green |
+| --- | -------------------------------------------------------------- | ----------------------------------- | -------- | ----- |
+| D1  | `planRefusalFor` returns `undefined` (`codecs/responses.ts`)   | `chatgptResponsesCodec.test.ts`     | 6 failed | pass  |
+| D2  | `listedPlanKeyPresets` lists all (`presets.ts`)                | `planKeyPresets.test.ts`            | 1 failed | pass  |
+| D3  | `knownFlag` never `yes` (`modelPolicy.ts`)                     | `modelPolicyReasoning.test.ts`      | 1 failed | pass  |
+| D4  | `azureDeploymentError` returns `undefined` (`configured.ts`)   | `azureDeploymentRefusal.test.ts`    | 1 failed | pass  |
+| D5  | `editorChat` required (`shared/modelsPanel.ts`)                | `modelsPanelSchemas.test.ts`        | 1 failed | pass  |
+| D6  | `planOfferedLevels` returns `[]` (`planFacts.ts`)              | `chatgptPlanFacts.test.ts`          | 6 failed | pass  |
+| D7  | tab settle always `true` (`host/tab/tabLedger.ts`)             | `tabLedgerFailures.test.ts`         | 2 failed | pass  |
+| D8  | journal image gate always true (`core/usage/journalRecord.ts`) | `journalRecord.test.ts`             | 5 failed | pass  |
+| D9  | limit sentence replaced (`planRefusals.ts`)                    | `chatgptPlanRefusals.test.ts`       | 1 failed | pass  |
+| D10 | limit-header parse returns `undefined` (`planUsage.ts`)        | `chatgptPlanUsageLimits.test.ts`    | 2 failed | pass  |
+| D11 | `wireModelFor` returns the family (`presets.ts`)               | `providersPresets.test.ts`          | 1 failed | pass  |
+| D12 | authorize URL drops `scope` (`huggingface.ts`)                 | `huggingfaceOAuth.test.ts`          | 1 failed | pass  |
+| D13 | session provider hardcoded `meta` (`ModelApiHost.ts`)          | `extensionHookPlanProvider.test.ts` | 1 failed | pass  |
+| D14 | envelope provider hardcoded `meta` (`extensionHooks.ts`)       | `extensionHookPayload.test.ts`      | 2 failed | pass  |
 
 No `DRILL-BREAK` marker remains in the tree (`grep` exit 1).
 Green totals: D1–D3 34 passed, D4–D6 27 passed, D7–D9 25 passed,
