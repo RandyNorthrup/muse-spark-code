@@ -37,6 +37,8 @@ import {
 } from '../../shared/team'
 import type { ReviewFinding } from '../../shared/reviewFindings'
 import type { TeamTreeData, TeamWorker } from '../../shared/teamView'
+import type { TeamHandoffRecord } from '../../shared/teamHandoff'
+import { chainMove } from './handoff'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
 import {
   TEAM_WORKSPACE_KEYS,
@@ -96,7 +98,10 @@ export interface TeamTaskRecord {
   childSessionId?: string | undefined
   hasStoppedHook?: boolean | undefined
   readonly taskId: string
-  readonly role: TeamRoleConfig
+  /** Move to… reassigns a queued task (M120 lane P); nothing else writes it. */
+  role: TeamRoleConfig
+  /** The task's handoff chain, oldest first; Move to… links it. */
+  handoff?: TeamHandoffRecord | undefined
   readonly brief: string
   readonly files: readonly string[]
   readonly reason: string
@@ -608,6 +613,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       outcome: task.outcome,
       failure: task.failure,
       continueFrom: task.continueFrom?.taskId,
+      handoff: task.handoff,
       writerModels: [...task.writerModels],
       reviewedHead: task.reviewedHead,
       review: task.review,
@@ -1792,6 +1798,35 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     },
     stopTask: async (taskId) => {
       await stop(known(taskId))
+    },
+    moveTask: async (taskId, roleId) => {
+      const task = known(taskId)
+      if (isActive(task.phase)) throw new Error(UI_TEXT.teamMoveRunning)
+      if (task.phase !== 'queued') throw new Error(UI_TEXT.teamMoveSettled)
+      const target = roles().find((role) => role.role === roleId)
+      if (target === undefined) throw new Error(fill(UI_TEXT.teamRoleUnknown, { role: roleId }))
+      if (target.role === task.role.role) throw new Error(UI_TEXT.teamMoveSettled)
+      const head = target.pool[0]
+      if (head === undefined) throw new Error(fill(UI_TEXT.teamPoolNotStaffed, { role: roleId }))
+      // Queued tasks hold no entry yet, so the old role names the move's
+      // from side; launch selection still picks by live headroom.
+      const from = task.entry?.id ?? task.role.role
+      task.role = target
+      task.handoff = chainMove(
+        task.handoff,
+        task.taskId,
+        roleId,
+        deps.now(),
+        'user',
+        from,
+        head.id,
+        {
+          commits: [],
+          newFiles: [],
+        },
+      )
+      await persist()
+      changed()
     },
     stopAllTasks: async () => {
       const open = allTasks().filter((task) => isActive(task.phase) || task.phase === 'queued')

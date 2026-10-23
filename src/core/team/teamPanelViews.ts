@@ -360,6 +360,16 @@ export function deriveTeamPanel(
     document.roles.some((role) => role.pool.filter((entry) => entry.agent === undefined).length > 1)
   )
     issues.push(UI_TEXT.teamEditor.invalid)
+  // The editor keeps assignments consistent on every edit; only a
+  // hand-written import can dangle one, and saving says so once.
+  const isDangling = (document.assignments ?? []).some((assignment) => {
+    const home = document.roles.find((role) => role.role === assignment.mainRole)
+    return (
+      home?.pool.every((entry) => entry.id !== assignment.candidateId) !== false ||
+      assignment.secondaryRoles.some((target) => !roleIds.includes(target))
+    )
+  })
+  if (isDangling) issues.push(UI_TEXT.teamSecondaryDangling)
   const orchestrator = document.orchestrator?.agent
   if (orchestrator !== undefined) {
     const offer = offers.find((item) => isSameAgent(item, orchestrator))

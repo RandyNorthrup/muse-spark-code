@@ -7,6 +7,7 @@ import {
   teamUsageSchema,
 } from '../../shared/team'
 import { teamReportSchema } from '../../shared/teamReport'
+import { teamHandoffRecordSchema } from '../../shared/teamHandoff'
 import { reviewFindingSchema } from '../../shared/reviewFindings'
 import { TEAM_LEARNED_RECENT_TASKS, UI_TEXT } from '../../shared/constants'
 import type { TeamRoleRecord } from './autofill'
@@ -64,6 +65,8 @@ const storedTaskSchema = z.object({
   reviewVerdict: z.optional(z.string()),
   reviewFindings: z.optional(z.array(reviewFindingSchema)),
   continueFrom: z.optional(z.string()),
+  // M120 lane P: the task's handoff chain, oldest first; Move to… links it.
+  handoff: z.optional(teamHandoffRecordSchema),
   writerModels: z.optional(z.array(z.string())),
   ordinal: z.optional(z.number()),
   isRaised: z.optional(z.boolean()),

@@ -1,5 +1,18 @@
-import { UI_TEXT, TEAM_EXPORT_FORMAT, TEAM_PANEL_EXPORT_VERSION } from '../../shared/constants'
+import {
+  UI_TEXT,
+  TEAM_BORROW_DEMAND_WAIT_MIN_MS,
+  TEAM_EXPORT_FORMAT,
+  TEAM_PANEL_EXPORT_VERSION,
+} from '../../shared/constants'
 import { TEAM_WORKSPACE_KEYS } from '../../shared/teamConversation'
+import {
+  teamBorrowTimersSchema,
+  teamPreferenceListSchema,
+  teamRoleAssignmentSchema,
+  type TeamBorrowTimers,
+} from '../../shared/teamPreference'
+import { defaultSecondaryRoles } from './codingRoles'
+import { setAutoOrder, setBorrowTimers, setSecondaryRoles } from './preferences'
 import {
   teamEditorDocumentSchema,
   teamPanelOfferSchema,
@@ -64,6 +77,25 @@ const entryOf = (role: TeamEditorRole, id: string) => {
   const entry = role.pool.find((item) => item.id === id)
   if (entry === undefined) throw new Error(UI_TEXT.teamEntryMissing)
   return entry
+}
+
+/** The role as the M120 preference writers read it: D75 pool entries are candidates. */
+const asPreferenceList = (role: TeamEditorRole) => teamPreferenceListSchema.parse(role)
+
+/**
+Validates the editor's timers through the preference writer. A below-floor
+demand wait is refused with its sentence; anything else invalid is invalid.
+*/
+const writeBorrowTimers = (role: TeamEditorRole, timers: TeamBorrowTimers): TeamBorrowTimers => {
+  const validated = teamBorrowTimersSchema.safeParse(timers)
+  if (!validated.success) {
+    throw new Error(
+      timers.demandWaitMs < TEAM_BORROW_DEMAND_WAIT_MIN_MS
+        ? UI_TEXT.teamBorrowDemandWaitFloor
+        : UI_TEXT.teamEditor.invalid,
+    )
+  }
+  return setBorrowTimers(asPreferenceList(role), validated.data).borrow ?? validated.data
 }
 
 /** One tab's draft. The panel host serializes calls; dispose invalidates async work. */
@@ -248,6 +280,24 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         result.pool.push(makeEntry(role.role, 'default'))
       return result
     })
+    // D212's out-of-the-box secondary roles, kept to the roles the
+    // template staffs; the editor can clear them.
+    const staffed = document.roles
+    document.assignments = []
+    for (const role of staffed) {
+      const secondary = defaultSecondaryRoles(role.role).filter((target) =>
+        staffed.some((other) => other.role === target),
+      )
+      if (secondary.length === 0) continue
+      for (const entry of role.pool) {
+        document.assignments = setSecondaryRoles(
+          document.assignments,
+          entry.id,
+          role.role,
+          secondary,
+        )
+      }
+    }
   }
   const handle = async (raw: TeamPanelMessage) => {
     assertOpen()
@@ -270,6 +320,14 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
       case 'roles/removeRole': {
         roleOf(message.role)
         draft.roles = draft.roles.filter((role) => role.role !== message.role)
+        // Assignments cannot outlive their roles: a removed main role takes
+        // its rows, and a removed secondary role leaves every order.
+        draft.assignments = (draft.assignments ?? [])
+          .filter((assignment) => assignment.mainRole !== message.role)
+          .map((assignment) => ({
+            ...assignment,
+            secondaryRoles: assignment.secondaryRoles.filter((target) => target !== message.role),
+          }))
         break
       }
       case 'roles/updateRole': {
@@ -281,7 +339,13 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
           assertOpen()
           confirmedInPlace.add(role.role)
         }
-        Object.assign(role, message.fields, { custom: true })
+        // The M120 preference fields validate through the preference
+        // writers; the rest assign as before.
+        const { borrow, autoOrder, ...rest } = message.fields
+        Object.assign(role, rest, { custom: true })
+        if (borrow !== undefined) role.borrow = writeBorrowTimers(role, borrow)
+        if (autoOrder !== undefined)
+          role.autoOrder = setAutoOrder(asPreferenceList(role), autoOrder).autoOrder
         break
       }
       case 'roles/addEntry': {
@@ -301,6 +365,9 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         const role = roleOf(message.role)
         entryOf(role, message.entryId)
         role.pool = role.pool.filter((entry) => entry.id !== message.entryId)
+        draft.assignments = (draft.assignments ?? []).filter(
+          (assignment) => assignment.candidateId !== message.entryId,
+        )
         role.custom = true
         break
       }
@@ -486,6 +553,28 @@ export function createTeamPanelController(deps: TeamPanelDeps): TeamPanelControl
         )
         assertOpen()
         return
+      }
+      case 'roles/secondaryRoles': {
+        const role = roleOf(message.role)
+        const entry = entryOf(role, message.entryId)
+        const unknown = message.secondaryRoles.find((target) =>
+          draft.roles.every((other) => other.role !== target),
+        )
+        if (unknown !== undefined) throw new Error(fill(UI_TEXT.teamRoleUnknown, { role: unknown }))
+        const validated = teamRoleAssignmentSchema.safeParse({
+          candidateId: entry.id,
+          mainRole: role.role,
+          secondaryRoles: message.secondaryRoles,
+        })
+        if (!validated.success) throw new Error(UI_TEXT.teamSecondaryInvalid)
+        draft.assignments = setSecondaryRoles(
+          draft.assignments ?? [],
+          entry.id,
+          role.role,
+          validated.data.secondaryRoles,
+        )
+        role.custom = true
+        break
       }
       default: {
         throw new Error(UI_TEXT.teamEditor.invalid)

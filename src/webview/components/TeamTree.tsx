@@ -27,6 +27,8 @@ export interface TeamTreeActions {
   }
   readonly onOpenTranscript: (taskId: string) => void
   readonly onStopTask: (taskId: string) => void
+  /** Move to… on a waiting task (M120 lane P): the host refuses anything else. */
+  readonly onMoveTask: (taskId: string, roleId: string) => void
   readonly onReviewDiff: (taskId: string) => void
   readonly onDecideMerge: (taskId: string, decision: TeamMergeDecision) => void
   readonly onEditRole: (roleId: string) => void
@@ -78,14 +80,72 @@ function WorkerMeta({ worker }: { readonly worker: TeamWorker }) {
   )
 }
 
+/** Move to… on a queued worker: one button per other role, then Cancel. */
+function MoveToTask({
+  worker,
+  roles,
+  onMove,
+}: {
+  readonly worker: TeamWorker
+  readonly roles: readonly { readonly id: string; readonly name: string }[]
+  readonly onMove: (taskId: string, roleId: string) => void
+}) {
+  const [isOpen, setOpen] = useState(false)
+  if (!isOpen) {
+    return (
+      <button
+        tabIndex={-1}
+        type="button"
+        className="tool-more"
+        onClick={() => {
+          setOpen(true)
+        }}
+      >
+        {UI_TEXT.teamMoveTask}
+      </button>
+    )
+  }
+  return (
+    <>
+      {roles.map((role) => (
+        <button
+          key={role.id}
+          tabIndex={-1}
+          type="button"
+          className="tool-more"
+          onClick={() => {
+            onMove(worker.taskId, role.id)
+            setOpen(false)
+          }}
+        >
+          {role.name}
+        </button>
+      ))}
+      <button
+        tabIndex={-1}
+        type="button"
+        className="tool-more"
+        onClick={() => {
+          setOpen(false)
+        }}
+      >
+        {UI_TEXT.questionCancel}
+      </button>
+    </>
+  )
+}
+
 function WorkerNode({
   worker,
   group,
   actions,
+  moveRoles,
 }: {
   readonly worker: TeamWorker
   readonly group: WorkerGroup
   readonly actions: TeamTreeActions | undefined
+  /** The other roles a queued worker can move to; empty everywhere else. */
+  readonly moveRoles: readonly { readonly id: string; readonly name: string }[]
 }) {
   const isRunning = group === 'entry' && isRunningTeamWorker(worker.status)
   const canMerge = group === 'unmerged' || FINISHED_WORKER_STATUSES.has(worker.status)
@@ -127,6 +187,9 @@ function WorkerNode({
             >
               {UI_TEXT.agentStop}
             </button>
+          ) : null}
+          {group === 'queued' && moveRoles.length > 0 ? (
+            <MoveToTask worker={worker} roles={moveRoles} onMove={actions.onMoveTask} />
           ) : null}
           {group === 'entry' || group === 'unmerged' ? (
             <button
@@ -278,6 +341,7 @@ function groupNodes(
   group: Exclude<WorkerGroup, 'entry'>,
   workers: readonly TeamWorker[],
   actions: TeamTreeActions | undefined,
+  siblings: readonly { readonly id: string; readonly name: string }[],
 ): FlatNode[] {
   if (workers.length === 0) {
     return []
@@ -308,7 +372,14 @@ function groupNodes(
       level: 4,
       label: `${worker.brief}, ${role.name}, ${teamWorkerStatusLabel(worker.status)}`,
       expandable: false,
-      body: <WorkerNode worker={worker} group={group} actions={actions} />,
+      body: (
+        <WorkerNode
+          worker={worker}
+          group={group}
+          actions={actions}
+          moveRoles={group === 'queued' ? siblings : []}
+        />
+      ),
     })),
   ]
 }
@@ -426,14 +497,17 @@ function buildNodes(tree: TeamTreeData, actions: TeamTreeActions | undefined): F
           level: 4,
           label: `${worker.brief}, ${role.name}, ${entryLabel}, ${teamWorkerStatusLabel(worker.status)}`,
           expandable: false,
-          body: <WorkerNode worker={worker} group="entry" actions={actions} />,
+          body: <WorkerNode worker={worker} group="entry" actions={actions} moveRoles={[]} />,
         })
       }
     }
+    const siblings = tree.roles
+      .filter((other) => other.id !== role.id)
+      .map((other) => ({ id: other.id, name: other.name }))
     nodes.push(
-      ...groupNodes(role, 'queued', role.queued, actions),
-      ...groupNodes(role, 'unmerged', role.unmerged, actions),
-      ...groupNodes(role, 'interrupted', role.interrupted, actions),
+      ...groupNodes(role, 'queued', role.queued, actions, siblings),
+      ...groupNodes(role, 'unmerged', role.unmerged, actions, siblings),
+      ...groupNodes(role, 'interrupted', role.interrupted, actions, siblings),
     )
   }
   return nodes

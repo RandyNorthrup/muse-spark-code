@@ -29,6 +29,9 @@ export function AgentsSection({ panelState, post, dispatch }: SectionProps) {
             onStopTask: (taskId) => {
               post({ type: 'agents/stopTask', taskId })
             },
+            onMoveTask: (taskId, roleId) => {
+              post({ type: 'agents/moveTask', taskId, role: roleId })
+            },
             onReviewDiff: (taskId) => {
               post({ type: 'agents/diff', taskId })
             },

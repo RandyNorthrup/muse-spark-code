@@ -16,6 +16,7 @@ import {
   teamRoleConfigSchema,
   teamSnapshotSchema,
 } from './team'
+import { teamBorrowTimersSchema, teamRoleAssignmentSchema } from './teamPreference'
 import { teamTreeSchema } from './teamView'
 
 const id = z.string().check(z.minLength(1))
@@ -39,6 +40,10 @@ const teamEditorRoleSchema = z.strictObject({
   done: z.optional(text),
   guidance: z.optional(z.string().check(z.maxLength(AGENT_FILE_MAX_BYTES))),
   custom: z.optional(z.boolean()),
+  // M120 lane P: the preference editor's per-role borrow timers and
+  // opt-in auto-order ride the role beside its pool.
+  borrow: z.optional(teamBorrowTimersSchema),
+  autoOrder: z.optional(z.boolean()),
 })
 export const teamEditorDocumentSchema = z
   .strictObject({
@@ -48,6 +53,8 @@ export const teamEditorDocumentSchema = z
       z.strictObject({ agent: z.optional(agent), settings: z.optional(settings) }),
     ),
     template: teamTemplateSchema,
+    // M120 lane P: each agent's main role and ordered secondary roles.
+    assignments: z.optional(z.array(teamRoleAssignmentSchema)),
   })
   .check(
     z.refine(
@@ -151,6 +158,19 @@ const roleFields = z.strictObject({
   purpose: teamEditorRoleSchema.shape.purpose,
   done: teamEditorRoleSchema.shape.done,
   guidance: teamEditorRoleSchema.shape.guidance,
+  autoOrder: teamEditorRoleSchema.shape.autoOrder,
+  // The timers arrive whole and unchecked: the controller validates them
+  // through the preference writers, so a below-floor demand wait is
+  // refused with its sentence instead of a generic invalid.
+  borrow: z.optional(
+    z.object({
+      demandWaitMs: z.int(),
+      lookaheadMs: z.int(),
+      finishGraceMs: z.int(),
+      recallWaitMs: z.int(),
+      cooldownMs: z.int(),
+    }),
+  ),
 })
 const entryFields = z.strictObject({
   concurrent: z.optional(z.int().check(z.gte(1))),
@@ -201,6 +221,14 @@ const teamPanelMessageSchemas = [
   z.strictObject({ type: z.literal('roles/reset') }),
   z.strictObject({ type: z.literal('roles/import') }),
   z.strictObject({ type: z.literal('roles/export') }),
+  // M120 lane P: an entry's ordered secondary roles, whole; `role` is
+  // the entry's main role, the pool that holds it.
+  z.strictObject({
+    type: z.literal('roles/secondaryRoles'),
+    role: id,
+    entryId: id,
+    secondaryRoles: z.array(z.string()),
+  }),
   z.strictObject({ type: z.literal('agents/stopTask'), taskId: id }),
   z.strictObject({ type: z.literal('agents/stopAll') }),
   z.strictObject({ type: z.literal('agents/resetEntry'), entryId: id }),
@@ -211,6 +239,8 @@ const teamPanelMessageSchemas = [
     taskId: id,
     decision: z.enum(['merge', 'discard']),
   }),
+  // M120 lane P: Move to… on a waiting task.
+  z.strictObject({ type: z.literal('agents/moveTask'), taskId: id, role: id }),
 ] as const
 export const teamPanelMessageSchema = z.discriminatedUnion('type', teamPanelMessageSchemas)
 export type TeamPanelMessage = z.infer<typeof teamPanelMessageSchema>
