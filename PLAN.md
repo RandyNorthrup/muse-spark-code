@@ -36717,6 +36717,10 @@ No new escape hatch is introduced.
 | `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
 | `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
 
+| RLF-M110OS location                                  | Escape hatch                                             | Reason                                                                                                                                                                          | Date       |
+| ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/nodeOsCrypt.test.ts` (Tang URLs, 4 sites) | `eslint-disable-next-line unicorn/prefer-https`, 4 sites | Tang serves HTTP by design; the thumbprint check is the trust anchor, not TLS, and the validator must accept the http shape the tests feed it. Inline-reasoned; no rule change. | 2026-10-23 |
+
 ## 9. Security assumptions and accepted residual risk
 
 - **OS2-TUF (RVM110OS2I P2-12, RVM110OS2F F11) — REPLACED 2026-10-22
