@@ -17,7 +17,14 @@ import { setUiText } from '../../src/shared/l10n/text'
 import { installEmbeddedTable } from '../../src/webview/installTable'
 import { WEBVIEW_L10N_ELEMENT_ID } from '../../src/shared/constants'
 import { makeState } from './modelsPanelFixtures'
-import { UI_TEXT } from '../../src/shared/constants'
+import {
+  TEAM_BORROW_COOLDOWN_MS,
+  TEAM_BORROW_FINISH_GRACE_MS,
+  TEAM_BORROW_LOOKAHEAD_MS,
+  TEAM_BORROW_RECALL_WAIT_MS,
+  UI_TEXT,
+} from '../../src/shared/constants'
+import { fill } from '../../src/shared/l10n/text'
 import type { TeamPanelSlice } from '../../src/shared/teamPanel'
 import type { PanelToHostMessage } from '../../src/shared/modelsPanel'
 import { teamPanelMessageSchema } from '../../src/shared/teamPanel'
@@ -667,6 +674,187 @@ describe('M96 U1 Roles UI', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.stopAll }))
     expect(posted).toContainEqual({ type: 'agents/stopAll' })
+  })
+})
+
+describe('M120 lane P preference editor UI', () => {
+  it('edits borrow timers in seconds and toggles auto-order through the controller', async () => {
+    const { posted, rig } = await roleEditorRig()
+    const demand = screen.getByRole('spinbutton', { name: UI_TEXT.teamBorrowDemandWait })
+    expect(demand).toHaveValue(60)
+    expect(demand).toHaveAttribute('min', '60')
+    fireEvent.change(demand, { target: { value: '90' } })
+    const last = posted.at(-1)
+    expect(last).toMatchObject({
+      type: 'roles/updateRole',
+      role: 'engineering',
+      fields: {
+        borrow: {
+          demandWaitMs: 90_000,
+          lookaheadMs: TEAM_BORROW_LOOKAHEAD_MS,
+          finishGraceMs: TEAM_BORROW_FINISH_GRACE_MS,
+          recallWaitMs: TEAM_BORROW_RECALL_WAIT_MS,
+          cooldownMs: TEAM_BORROW_COOLDOWN_MS,
+        },
+      },
+    })
+    if (last === undefined) throw new Error('No timer edit')
+    await rig.controller.handle(last)
+    expect(engineeringRole(await rig.read()).borrow?.demandWaitMs).toBe(90_000)
+    const auto = screen.getByRole('checkbox', { name: UI_TEXT.teamAutoOrder })
+    expect(auto).not.toBeChecked()
+    fireEvent.click(auto)
+    const toggle = posted.at(-1)
+    expect(toggle).toMatchObject({ type: 'roles/updateRole', fields: { autoOrder: true } })
+    if (toggle === undefined) throw new Error('No auto-order toggle')
+    await rig.controller.handle(toggle)
+    expect(engineeringRole(await rig.read()).autoOrder).toBe(true)
+  })
+
+  it('adds a secondary role from the picker', async () => {
+    const { posted, slice } = await roleEditorRig()
+    const entryId = engineeringRole(slice).pool[0]?.id
+    if (entryId === undefined) throw new Error('No entry')
+    const review = slice.roleViews.find((item) => item.role === 'code-review')
+    if (review === undefined) throw new Error('No review role')
+    const pickers = screen.getAllByRole('combobox', { name: UI_TEXT.teamSecondaryTitle })
+    const picker = pickers[0]
+    if (picker === undefined) throw new Error('No secondary picker')
+    fireEvent.focus(picker)
+    // The option's name joins its label and description; selection lands
+    // on mouse down, before the input's blur closes the list.
+    const option = within(screen.getByRole('listbox')).getByRole('option', {
+      name: new RegExp(`^${review.name}`),
+    })
+    fireEvent.mouseDown(option)
+    expect(posted.at(-1)).toMatchObject({
+      type: 'roles/secondaryRoles',
+      role: 'engineering',
+      entryId,
+      secondaryRoles: ['code-review'],
+    })
+  })
+
+  it('removes a seeded secondary role', async () => {
+    const { slice } = await pairSlice()
+    const { posted, post } = collectingPost()
+    const role = slice.document.roles.find((item) => item.role === 'code-review')
+    if (role === undefined) throw new Error('No review role')
+    render(<RoleEditor role={role} slice={slice} post={post} />)
+    const engineering = slice.roleViews.find((item) => item.role === 'engineering')
+    const reviewView = slice.roleViews.find((item) => item.role === 'code-review')
+    if (engineering === undefined || reviewView === undefined) throw new Error('No role views')
+    expect(
+      screen.getAllByText(fill(UI_TEXT.teamSecondaryMain, { role: reviewView.name })),
+    ).not.toHaveLength(0)
+    const remove = screen.getAllByRole('button', {
+      name: fill(UI_TEXT.teamSecondaryRemove, { role: engineering.name }),
+    })[0]
+    if (remove === undefined) throw new Error('No remove button')
+    fireEvent.click(remove)
+    expect(posted.at(-1)).toMatchObject({
+      type: 'roles/secondaryRoles',
+      role: 'code-review',
+      secondaryRoles: [],
+    })
+  })
+
+  it('reorders secondary roles from the keyboard', async () => {
+    const rig = panelRig()
+    await rig.read()
+    await rig.controller.handle({ type: 'roles/template', template: 'full' })
+    const entryId = engineeringRole(await rig.read()).pool[0]?.id
+    if (entryId === undefined) throw new Error('No entry')
+    await rig.controller.handle({
+      type: 'roles/secondaryRoles',
+      role: 'engineering',
+      entryId,
+      secondaryRoles: ['code-review', 'qa'],
+    })
+    const slice = await rig.read()
+    const { posted, post } = collectingPost()
+    render(<RoleEditor role={engineeringRole(slice)} slice={slice} post={post} />)
+    const qa = slice.roleViews.find((item) => item.role === 'qa')
+    if (qa === undefined) throw new Error('No qa role')
+    fireEvent.keyDown(screen.getByRole('button', { name: qa.name }), {
+      key: 'ArrowUp',
+      altKey: true,
+    })
+    expect(posted.at(-1)).toMatchObject({
+      type: 'roles/secondaryRoles',
+      role: 'engineering',
+      entryId,
+      secondaryRoles: ['qa', 'code-review'],
+    })
+  })
+
+  it('moves a waiting task from the Agent map, and only a waiting one', async () => {
+    const { slice } = await pairSlice()
+    const { posted, post } = collectingPost()
+    const props = sectionProps(slice, post)
+    render(
+      <AgentsSection
+        {...props}
+        panelState={makeState({
+          roles: slice,
+          agents: {
+            tree: teamTreeSchema.parse({
+              orchestrator: { model: 'main', backend: 'modelApi', slot: 'default' },
+              roles: [
+                {
+                  id: 'engineering',
+                  name: 'Engineering',
+                  mode: 'own-branch',
+                  toolGroups: [],
+                  entries: [
+                    {
+                      id: 'a',
+                      provider: 'meta',
+                      payKind: 'local',
+                      caps: [],
+                      running: 1,
+                      state: 'ready',
+                      warnings: [],
+                      workers: [{ taskId: 'task-1', brief: 'run it', status: 'running' }],
+                    },
+                  ],
+                  queued: [{ taskId: 'task-2', brief: 'queue it', status: 'queued' }],
+                  unmerged: [],
+                  interrupted: [],
+                },
+                {
+                  id: 'code-review',
+                  name: 'Code review',
+                  mode: 'read-only',
+                  toolGroups: [],
+                  entries: [],
+                  queued: [],
+                  unmerged: [],
+                  interrupted: [],
+                },
+              ],
+            }),
+          },
+        })}
+      />,
+    )
+    for (
+      let round = 0;
+      round < 3 && screen.queryByRole('button', { name: UI_TEXT.teamMoveTask }) === null;
+      round += 1
+    ) {
+      const collapsed = screen.queryAllByRole('button', { expanded: false })
+      for (const expander of collapsed) fireEvent.click(expander)
+    }
+    // The running worker offers no move: only the queued one does.
+    expect(screen.getAllByRole('button', { name: UI_TEXT.teamMoveTask })).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamMoveTask }))
+    fireEvent.click(screen.getByRole('button', { name: 'Code review' }))
+    expect(posted).toContainEqual({
+      type: 'agents/moveTask',
+      taskId: 'task-2',
+      role: 'code-review',
+    })
   })
 })
 
