@@ -521,6 +521,53 @@ export async function recordHoldRef(folder: string, entry: CleanupEntry): Promis
   })
 }
 
+/** Where a failed merge's work survives: a hold ref in the repo, or in place. */
+export type FailedMergePreservation =
+  { readonly kind: 'held'; readonly ref: string } | { readonly kind: 'kept' }
+
+/**
+Preserve a finished branch whose merge failed for any reason (finding 5):
+hold its head in the repository and record the hold when a run folder
+names the ledger. A git or filesystem failure to hold keeps the work in
+place instead of destroying it; anything else propagates so the caller
+keeps it loudly.
+*/
+export async function preserveFailedMerge(input: {
+  readonly git: TeamGit
+  readonly repo: string
+  readonly runFolder: string | undefined
+  readonly copyFolder: string
+  readonly role: string
+  readonly taskId: string
+  readonly head: string
+}): Promise<FailedMergePreservation> {
+  if (!HOLD_HEAD_PATTERN.test(input.head)) return { kind: 'kept' }
+  let ref: string
+  try {
+    ref = await createHoldRef(
+      input.git,
+      input.repo,
+      input.copyFolder,
+      input.role,
+      input.taskId,
+      input.head,
+    )
+  } catch (error: unknown) {
+    // The hold could not be created: the work stays where it is.
+    if (isTeamGitError(error) || isErrno(error)) return { kind: 'kept' }
+    throw error
+  }
+  if (input.runFolder !== undefined) {
+    await recordHoldRef(input.runFolder, {
+      repo: input.repo,
+      role: input.role,
+      taskId: input.taskId,
+      ref,
+    })
+  }
+  return { kind: 'held', ref }
+}
+
 /**
 A read that proves the ref is gone (unknown revision), never a failed
 read (RVCM96B2D P2-8): anything else (a lock, a timeout, a killed child)

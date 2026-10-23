@@ -40,6 +40,7 @@ import {
   createHoldRef,
   currentOwner,
   isGitTimeout,
+  preserveFailedMerge,
   predictedAgentsRef,
   pruneCleanupRef,
   recordCleanupOwner,
@@ -307,6 +308,9 @@ export async function createExecTeam(
   >()
   // RVCM96B2 P2-6: merges the merge card denies are held, never discarded.
   const deniedMerges = new Map<string, 'protected' | 'review'>()
+  // Finding 5: a failed merge whose branch could not be held keeps its work
+  // in the run folder, so close must not remove the folder.
+  let hasKeptWork = false
   let discardCopies: (() => Promise<void>) | undefined
   // The run's git handle for close-time reconciliation (set in prepare).
   let teamGit: TeamGit | undefined
@@ -378,7 +382,7 @@ export async function createExecTeam(
               isReconciled = false
             }
           }
-          if (folder !== undefined && isReconciled) {
+          if (folder !== undefined && isReconciled && !hasKeptWork) {
             try {
               await rm(folder, { recursive: true, force: true })
             } catch (error: unknown) {
@@ -569,6 +573,38 @@ export async function createExecTeam(
                   const outcomeHead = outcome.head
                   if (outcomeFolder === undefined || outcomeHead === undefined)
                     throw new Error(UI_TEXT.teamTaskUnknown)
+                  // Finding 5: every merge failure preserves the finished
+                  // branch first (a hold ref, or in place when no hold can
+                  // be created), then refuses naming where the work is.
+                  const failPreserved = async (detail: string, cause?: unknown): Promise<Error> => {
+                    let preservation: Awaited<ReturnType<typeof preserveFailedMerge>>
+                    try {
+                      preservation = await preserveFailedMerge({
+                        git: runGit,
+                        repo: deps.cwd,
+                        runFolder: folder,
+                        copyFolder: outcomeFolder,
+                        role: task.role.role,
+                        taskId: task.taskId,
+                        head: outcomeHead,
+                      })
+                    } catch (error: unknown) {
+                      deps.log.warn(failureForLog(error))
+                      preservation = { kind: 'kept' }
+                    }
+                    const options = cause === undefined ? undefined : { cause }
+                    if (preservation.kind === 'held')
+                      return new Error(
+                        fill(UI_TEXT.execTeamMergeFailedHeld, { ref: preservation.ref, detail }),
+                        options,
+                      )
+                    hasKeptWork = true
+                    copies.delete(task.taskId)
+                    return new Error(
+                      fill(UI_TEXT.execTeamMergeFailedKept, { folder: outcomeFolder, detail }),
+                      options,
+                    )
+                  }
                   const hold = needsMergeHold(
                     deniedMerges.get(task.taskId),
                     outcome.changedFiles ?? [],
@@ -585,13 +621,7 @@ export async function createExecTeam(
                         outcomeHead,
                       )
                     } catch (error: unknown) {
-                      throw new Error(
-                        fill(UI_TEXT.execTeamMergeBlocked, {
-                          entry: task.taskId,
-                          detail: gitFailureDetail(error, task.taskId),
-                        }),
-                        { cause: error },
-                      )
+                      throw await failPreserved(gitFailureDetail(error, task.taskId), error)
                     }
                     if (folder !== undefined) {
                       try {
@@ -623,24 +653,20 @@ export async function createExecTeam(
                       outcome.changedFiles ?? [],
                     )
                   } catch (error: unknown) {
-                    throw new Error(
-                      fill(UI_TEXT.execTeamMergeBlocked, {
-                        entry: task.taskId,
-                        detail: gitFailureDetail(error, outcomeHead),
-                      }),
-                      { cause: error },
-                    )
+                    throw await failPreserved(gitFailureDetail(error, outcomeHead), error)
                   }
                   if (scan.status === 'markers')
-                    throw new Error(fill(UI_TEXT.execTeamMergeMarkers, { detail: scan.detail }))
-                  if (scan.status === 'too-large')
-                    throw new Error(
-                      fill(UI_TEXT.execTeamMergeBlocked, {
-                        entry: task.taskId,
-                        detail: `${String(scan.bytes)} bytes`,
-                      }),
+                    throw await failPreserved(
+                      fill(UI_TEXT.execTeamMergeMarkers, { detail: scan.detail }),
                     )
-                  const merged = await ports.merges.merge(task, signal, { allowProtected: false })
+                  if (scan.status === 'too-large')
+                    throw await failPreserved(`${String(scan.bytes)} bytes`)
+                  let merged: Awaited<ReturnType<typeof ports.merges.merge>>
+                  try {
+                    merged = await ports.merges.merge(task, signal, { allowProtected: false })
+                  } catch (error: unknown) {
+                    throw await failPreserved(gitFailureDetail(error, task.taskId), error)
+                  }
                   if (merged.status === 'merged') {
                     copies.delete(task.taskId)
                     // RVCM96B2 P2-4: merged away; clear the record.

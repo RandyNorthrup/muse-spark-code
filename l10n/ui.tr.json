@@ -4059,6 +4059,8 @@
   "execTeamMergeHeldProtected": "Korumalı yollar onay gerektirir, bu yüzden dal {ref} konumunda bekletiliyor. Onaylayıp yeniden birleştirin ya da çalışmayı atmak için {ref} öğesini kaldırın.",
   "execTeamMergeHeldReview": "Gerekli inceleme tamamlanmadı, bu yüzden dal {ref} konumunda bekletiliyor. İncelemeyi toplayıp yeniden birleştirin ya da çalışmayı atmak için {ref} öğesini kaldırın.",
   "execTeamMergeBlocked": "{entry} görevi için birleştirme devam edemiyor: {detail}.",
+  "execTeamMergeFailedHeld": "Birleştirme başarısız oldu: {detail} Dal {ref} altında tutuluyor; düzelttikten sonra yeniden birleştirin ya da işi atmak için {ref} öğesini kaldırın.",
+  "execTeamMergeFailedKept": "Birleştirme başarısız oldu: {detail} Dalı tutulamadı, bu yüzden iş {folder} içinde kalıyor. Sonraki arayüzsüz çalıştırma eski çalıştırmaları temizlemeden önce işi oradan kurtarın.",
   "execMuseCodeOnly": "Bu seçenekler Muse Code arka ucunu gerektirir; --backend modelApi olmadan varsayılan budur: {options}.",
   "execModelUnpriced": "Bu modelin bilinen tarifesi yok.",
   "execPromptMissing": "Boş olmayan tek bir istem belirtin.",
