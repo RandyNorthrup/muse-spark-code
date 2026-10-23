@@ -1,5 +1,6 @@
 {
   "method": "workflow/childControl",
+  "commandId": "01a1674a-c45d-7000-a9c4-9d96e06d9dbf",
   "params": {
     "sessionId": "01a1674a-328b-7053-83c2-2f185e18ae19",
     "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",

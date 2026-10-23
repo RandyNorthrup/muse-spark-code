@@ -37,6 +37,7 @@ import {
   type SubagentAction,
   UI_TEXT,
   SLASH_COMMAND_NAMES,
+  type WorkflowControl,
 } from '../shared/constants'
 import {
   parseReviewPrompt,
@@ -2191,6 +2192,18 @@ export function App({
     },
     [postMessage],
   )
+  const onWorkflowControl = useCallback(
+    (workflowRunId: string, control: WorkflowControl, childId?: string, childLabel?: string) => {
+      postMessage({
+        type: 'workflowControl',
+        workflowRunId,
+        control,
+        ...(childId !== undefined && { childId }),
+        ...(childLabel !== undefined && { childLabel }),
+      })
+    },
+    [postMessage],
+  )
   const onMessageAgent = useCallback(
     (subagentId: string, body: string, isFollowup: boolean) => {
       postMessage({ type: 'subagentMessage', subagentId, body, isFollowup })
@@ -3268,6 +3281,7 @@ export function App({
         onOpenMuseSettings={onOpenMuseSettings}
         onClose={closeOverlay}
         workflows={workflows}
+        onWorkflowControl={onWorkflowControl}
         workflowTriggerMode={state.usageReport?.account?.workflowTriggerMode}
         team={state.teamTree}
         teamActions={teamTreeActions}

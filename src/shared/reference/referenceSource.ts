@@ -329,6 +329,7 @@ export const REFERENCE_ACTION_FEATURES = {
   requestSessionLists: 'conversation-actions',
   subagentControl: 'native-agents',
   subagentMessage: 'native-agents',
+  workflowControl: 'native-agents',
   resumeSession: 'conversation-actions',
   setSessionArchived: 'conversation-actions',
   deleteSession: 'conversation-actions',
