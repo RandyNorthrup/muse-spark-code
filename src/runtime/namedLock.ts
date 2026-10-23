@@ -89,6 +89,20 @@ export function personScope(): string {
   return createHash('sha256').update(who).digest('hex').slice(0, CHATGPT_GRANT_LOCK_SCOPE_CHARS)
 }
 
+/**
+The person-scoped names one grant lock is taken on. Both subscription
+wrappers build their rendezvous here, so the editor and the runtime can
+never drift onto different locks.
+*/
+export function grantLockNames(names: NamedLockNames): NamedLockNames {
+  const scope = personScope()
+  return {
+    pipe: `${names.pipe}-${scope}`,
+    folder: `${names.folder}-${scope}`,
+    file: names.file,
+  }
+}
+
 /** One contender's own socket file: the lock's file name, a dot, and a random suffix nobody else uses. */
 function socketEntryPath(directory: string, file: string, suffix: string): string {
   return path.join(directory, `${file}.${String(process.pid)}.${suffix}`)

@@ -35822,6 +35822,23 @@ all proven fixtures, 4 with draft ignore entries awaiting the owner's
 approval, 4 covered by entries on the M110OS branches, landing at
 their merge. Evidence: `docs/certification/rlf-secscan.md`.
 
+### RLFREFRESHLOCK — One refresh lock for the editor and the CLI (2026-10-23)
+
+**Status 2026-10-23: built.** Lane `rec/rlf-refreshlock` on rig `macbook`,
+base `int/recovery` at 0.19.0 (`d057bf2038`): merged RVSEC's fixes plus
+RLM109, then unified the shipped ChatGPT split RVSEC left as a residual.
+The editor's global-storage file lock and the runtime's named lock were
+different locks; both surfaces now take the same person-scoped named
+lock on the same names, built once in `grantLockNames`, for ChatGPT and
+Grok. Contention still fails closed as `lock-busy`; the loser waits,
+then re-reads the winner's rotated grant instead of refreshing. The
+sign-in cores and the runtime lock are untouched; the file-lock module
+is deleted. Proof is a two-process drill (editor holder plus runtime
+child, recorded Grok discovery, one standard-OAuth token answer): red
+before (both refresh), green after (one refreshes, the other reads the
+new grant). No live sign-in. Evidence:
+`docs/certification/rlf-refreshlock.md`.
+
 ---
 
 ## 7. Gates

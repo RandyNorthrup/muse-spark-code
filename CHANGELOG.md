@@ -270,6 +270,11 @@ happened, not what was planned; superseded entries are kept.
   cannot read the judge's status, or a stored judge record cannot be
   read or parsed, the log names the failure kind (never the content)
   and the surface answers "unavailable" as before.
+- **A ChatGPT or Grok refresh in the editor and the terminal at the same
+  moment no longer trips over itself.** Both sides now take the same
+  lock, so one refresh wins and the other side simply reads the new
+  sign-in instead of failing; a momentarily held lock waits instead of
+  failing, and still says it is busy past its wait.
 - A stray sign-in callback can no longer end a ChatGPT or Grok sign-in:
   a browser redirect carrying another attempt's state is turned away
   and the sign-in keeps waiting for its own, instead of failing at
