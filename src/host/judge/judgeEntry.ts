@@ -343,7 +343,7 @@ export function createWindowJudge(
             {
               feature: 'judge',
               modelId: route.model,
-              dailyBudgetUsd: Usd.from(deps.dailyBudgetUsd?.() ?? 0).toAmount(),
+              dailyBudgetUsd: deps.dailyBudgetUsd?.() ?? Usd.from(0).toAmount(),
               systemOne: {
                 worstCaseUsd: Usd.from(route.worstCaseUsd).toAmount(),
                 recipient: route.recipient,

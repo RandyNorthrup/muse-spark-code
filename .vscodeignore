@@ -76,7 +76,6 @@
 !dist/judge.js
 !dist/judgeP2.js
 !dist/judgeSources.js
-!dist/judgeLint.js
 !dist/judgeHook.js
 !dist/judgeLocal.js
 !dist/judgeUses.js

@@ -4,14 +4,16 @@ import { MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS, UI_TEXT } from '
 import { formatUsd } from './l10n/exactUsd'
 import { fill } from './l10n/text'
 import type { JudgePanelLabel, JudgePanelSnapshot, JudgePanelTechnique } from './judgePanelSchema'
+import type { UsdAmount } from './usdSchema'
 
 /**
 Exact dollars. The paid view quotes provider prices at the same scale
 (three decimals out to twenty significant digits), so a positive price or
 liability is never rounded to zero and no significant digit is dropped:
-$0.042 per million shows as $0.042.
+$0.042 per million shows as $0.042. Amounts arrive exact; rates arrive as
+the display dollars the projection filtered.
 */
-export function judgePanelMoney(amount: number): string {
+export function judgePanelMoney(amount: number | UsdAmount): string {
   return formatUsd(amount, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS)
 }
 
@@ -161,7 +163,7 @@ function priceDetail(snapshot: JudgePanelSnapshot): string | undefined {
 
 function moneyRow(
   term: string,
-  amount: number | undefined,
+  amount: UsdAmount | undefined,
   isPaid: boolean,
 ): JudgePanelRow | undefined {
   if (amount !== undefined) {

@@ -1380,9 +1380,9 @@ async function activateWindow(
     log,
   })
   const judge = judgeWindowPort({
-    // The window quotes the cap in display dollars; consent and the ledger
-    // behind it stay exact.
-    dailyBudgetUsd: () => Number(dailyPaid.capUsd()),
+    // The window passes the cap through exact; display dollars are formatted
+    // from the amount at the surface.
+    dailyBudgetUsd: () => dailyPaid.capUsd(),
     ledger: dailyPaid.judgeLedger,
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', JUDGE_BUNDLE_FILE).fsPath,
     engine: () => currentSettings()['judge.engine'],
