@@ -2,8 +2,9 @@
 
 Base: `int/recovery` at 3198954c91 (round 2: RLWINFIX2, RLMCPERA, RLHOSTS,
 RLM123, RLM114, RLM117, RLACP, RLM98P2, RLM100 merged onto 397aca3ddb, plus
-11 `fix(int):` commits). Reviewer with fix rights; three fix commits:
-7d006a7ec (catches), 0cec6b98a (dead code), 23480598b (test dedupe).
+11 `fix(int):` commits). Reviewer with fix rights; fix commits: 7d006a7ec
+(catches), 0cec6b98a (dead code), 23480598b (test dedupe), bda3312d1
+(reference witness).
 
 ## What was reviewed
 
