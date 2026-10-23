@@ -1280,6 +1280,11 @@
       "note": "Grok subscription sign-in (xAI OAuth), pending xAI's registration"
     },
     {
+      "id": "RLFSAFELIMITS",
+      "public": false,
+      "note": "recovery: safety limits the too-broad D121 reading removed, restored"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
