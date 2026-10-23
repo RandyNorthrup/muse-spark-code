@@ -580,6 +580,9 @@ const BUDGETS = [
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
   // M110-N: explicit node commands only; measured +15%, rounded to 25 KiB.
   { path: 'dist/node.js', budgetKiB: 75 },
+  // M110t TP2: the pack index verifier (sigstore), loaded on the first
+  // pack fetch. Measured 1450.0 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/packsVerify.js', budgetKiB: 1675 },
 ]
 
 // DIET1: independently emitted optional surfaces, measured on main, each plus

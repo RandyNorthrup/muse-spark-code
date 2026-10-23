@@ -1,0 +1,84 @@
+{
+  "name": "go",
+  "version": "1.0.0",
+  "description": "The Go toolchain with gofmt, go vet, Staticcheck, govulncheck and go test.",
+  "license": "BSD-3-Clause AND MIT",
+  "languages": ["go"],
+  "requires": [],
+  "checks": [
+    {
+      "name": "gofmt",
+      "command": ["gofmt", "-l", "."]
+    },
+    {
+      "name": "go-vet",
+      "command": ["go", "vet", "./..."]
+    },
+    {
+      "name": "staticcheck",
+      "command": ["staticcheck", "./..."]
+    },
+    {
+      "name": "govulncheck",
+      "command": ["govulncheck", "./..."]
+    },
+    {
+      "name": "go-test",
+      "command": ["go", "test", "./..."]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "go",
+      "version": "1.27.3",
+      "url": "https://go.dev/dl/go1.27.3.linux-amd64.tar.gz",
+      "license": "BSD-3-Clause",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "go",
+      "version": "1.27.3",
+      "url": "https://go.dev/dl/go1.27.3.linux-arm64.tar.gz",
+      "license": "BSD-3-Clause",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    }
+  ],
+  "managed": {
+    "go": [
+      {
+        "module": "honnef.co/go/tools/cmd/staticcheck",
+        "version": "2026.2.2",
+        "license": "MIT"
+      },
+      {
+        "module": "golang.org/x/vuln/cmd/govulncheck",
+        "version": "v1.9.0",
+        "license": "BSD-3-Clause"
+      }
+    ]
+  },
+  "smoke": [
+    {
+      "command": ["go", "version"]
+    },
+    {
+      "command": ["staticcheck", "--version"]
+    },
+    {
+      "command": ["govulncheck", "-help"]
+    }
+  ]
+}

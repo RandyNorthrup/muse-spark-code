@@ -1,0 +1,10 @@
+{
+  // Fault-injection scenarios (M110r Y4): TypeScript run by
+  // scripts/fault-rig.mjs through esbuild, never by vitest. Node only.
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2024"],
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"]
+}

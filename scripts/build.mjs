@@ -441,6 +441,9 @@ const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
+// M110t TP2: the pack index verifier (sigstore), loaded on the first pack fetch.
+const PACKS_VERIFY_ENTRY = 'src/runtime/node/packs/verifyEntry.ts'
+const PACKS_VERIFY_OUTFILE = 'dist/packsVerify.js'
 // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
 // headless runs, loaded on the first vault need; no `vscode` import.
 const VAULT_RUNTIME_ENTRY = 'src/runtime/vault/vaultRuntimeEntry.ts'
@@ -1714,6 +1717,11 @@ const runtimeAccountsOptions = {
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
   outfile: RUNTIME_ACCOUNTS_OUTFILE,
 }
+const packsVerifyOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [PACKS_VERIFY_ENTRY],
+  outfile: PACKS_VERIFY_OUTFILE,
+}
 const vaultRuntimeOptions = {
   ...acpQuestionsOptions,
   plugins: [...acpQuestionsOptions.plugins, sharedVaultStore, sharedVaultPosix, sharedVaultWindows],
@@ -2422,6 +2430,7 @@ if (isWatch) {
     ['fontInstall', () => esbuild.build(fontInstallOptions)],
     ['playbook', () => esbuild.build(playbookOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
+    ['packsVerify', () => esbuild.build(packsVerifyOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['node', () => esbuild.build(nodeOptions)],
   ]
@@ -2438,6 +2447,7 @@ if (isWatch) {
   let fontInstall
   let playbook
   let runtimeAccounts
+  let packsVerify
   let vaultRuntime
   let node
   try {
@@ -2452,6 +2462,7 @@ if (isWatch) {
       fontInstall,
       playbook,
       runtimeAccounts,
+      packsVerify,
       vaultRuntime,
       node,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
@@ -2487,6 +2498,7 @@ if (isWatch) {
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
+    const { metafile: packsVerifyMetafile } = await packsVerify
     const { metafile: vaultRuntimeMetafile } = await vaultRuntime
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'vaultRuntime.json'),
@@ -2499,6 +2511,10 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimeAccounts.json'),
       JSON.stringify(runtimeAccountsMetafile, null, 2),
+    )
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'packsVerify.json'),
+      JSON.stringify(packsVerifyMetafile, null, 2),
     )
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'acpQuestions.json'),
@@ -2622,4 +2638,5 @@ if (isWatch) {
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
   reportSize(NODE_OUTFILE)
+  reportSize(PACKS_VERIFY_OUTFILE)
 }

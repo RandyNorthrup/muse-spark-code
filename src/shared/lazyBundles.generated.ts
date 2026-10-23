@@ -764,6 +764,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'NATIVE_GIT_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
+  { file: 'packsVerify.js', side: 'acp', requestedBy: [] },
   {
     file: 'node.js',
     side: 'acp',
