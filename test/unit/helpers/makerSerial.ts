@@ -226,11 +226,11 @@ setTimeout(() => process.exit(0), 1500);
 `
 
 /**
- * An owner published by a build before FIXM103W10, still running: a real
- * socket named by the whole lease id, its version-1 claim in the head slot and
- * its Stop index record. It answers each Stop request as the old holder did
- * and records the request.
- */
+An owner published by a build before FIXM103W10, still running: a real
+socket named by the whole lease id, its version-1 claim in the head slot and
+its Stop index record. It answers each Stop request as the old holder did
+and records the request.
+*/
 export async function previousBuildOwner(directory: string, resource: string, startedAt: string) {
   const id = randomUUID()
   const generation = randomUUID()

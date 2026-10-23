@@ -86,8 +86,8 @@ export async function summarizePayload(
       )?.[1]
       return value === undefined ? undefined : Number(value)
     }
-    const highlight = (reason: PayloadHighlight['reason'], detail = head) => {
-      highlights.push({ line, reason, detail })
+    const highlight = (reason: PayloadHighlight['reason']) => {
+      highlights.push({ line, reason, detail: head })
       dangers.add(reason)
     }
     const heater = heaters[head]

@@ -46,11 +46,11 @@ function include(bounds: Bounds | undefined, next: Point): Bounds {
 }
 
 /**
- * Bounds are conservative: telemetry does not certify the active arc plane,
- * so arcs include complete circles in XY, XZ and YZ, plus helical endpoints.
- * R/K arcs, coordinate offsets, extrusion and opaque macros still have unknown
- * effects and cannot be sent. This is an analyser, not a firmware emulator.
- */
+Bounds are conservative: telemetry does not certify the active arc plane,
+so arcs include complete circles in XY, XZ and YZ, plus helical endpoints.
+R/K arcs, coordinate offsets, extrusion and opaque macros still have unknown
+effects and cannot be sent. This is an analyser, not a firmware emulator.
+*/
 export function analyseGcode(
   payload: string | readonly GcodeBlock[],
   dialect: GcodeDialect,

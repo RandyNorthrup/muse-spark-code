@@ -2,7 +2,7 @@
 export interface SerialMachinePort {
   request(command: string, signal: AbortSignal): Promise<string>
   /** After queue/preparation awaits, await beforeWrite's fresh state read,
-   * then invoke its returned guard synchronously at the actual write. */
+  then invoke its returned guard synchronously at the actual write. */
   send(
     bytes: Uint8Array,
     signal: AbortSignal,

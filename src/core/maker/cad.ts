@@ -170,7 +170,7 @@ async function boundedFile(file: string, maxBytes: number, root?: string): Promi
 const processResultSchema = z.object({ exitCode: z.int(), stdout: z.string(), stderr: z.string() })
 export interface CadRunner {
   /** Host implementation uses process-tree kill, a clean child environment and shell:false.
-   * Sets KICAD_CONFIG_HOME/XDG_CONFIG_HOME/XDG_CACHE_HOME under configurationDirectory. */
+  Sets KICAD_CONFIG_HOME/XDG_CONFIG_HOME/XDG_CACHE_HOME under configurationDirectory. */
   run(
     executable: string,
     args: readonly string[],

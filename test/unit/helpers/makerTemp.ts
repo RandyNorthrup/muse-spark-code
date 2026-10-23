@@ -5,11 +5,11 @@ import path from 'node:path'
 import type { RuntimeMakerServiceDeps } from '../../../src/runtime/maker/service'
 
 /**
- * A canonical, short temp root for maker fixtures (FIXM103W10). macOS's
- * TMPDIR lies under the /var symlink, which maker storage refuses, and its
- * length leaves no room for a lease's Stop socket under the 104-byte cap;
- * /private/tmp is neither.
- */
+A canonical, short temp root for maker fixtures (FIXM103W10). macOS's
+TMPDIR lies under the /var symlink, which maker storage refuses, and its
+length leaves no room for a lease's Stop socket under the 104-byte cap;
+/private/tmp is neither.
+*/
 export function makerTempRoot(): string {
   return process.platform === 'darwin' ? '/private/tmp' : tmpdir()
 }
@@ -28,10 +28,10 @@ export function runWindowsTool(name: string, args: readonly string[]): Promise<s
 }
 
 /**
- * Creates `directory` as a private lease folder: 0700 on POSIX; on Windows an
- * owner-only protected ACL, so a host's extra inherited entries (sandbox
- * groups) cannot make the production owner check refuse it.
- */
+Creates `directory` as a private lease folder: 0700 on POSIX; on Windows an
+owner-only protected ACL, so a host's extra inherited entries (sandbox
+groups) cannot make the production owner check refuse it.
+*/
 export async function makePrivateFolder(directory: string): Promise<void> {
   await mkdir(directory, { recursive: true, mode: 0o700 })
   if (process.platform !== 'win32') {
