@@ -1,6 +1,11 @@
 import * as z from 'zod/mini'
 import { handleMcpMessage, mcpRequestKeys, type McpTool } from '../../core/mcp'
-import { judgeOutcomeSchema, judgeRequestSchema, type JudgeOutcome } from '../../core/judge/schema'
+import {
+  isZodParseError,
+  judgeOutcomeSchema,
+  judgeRequestSchema,
+  type JudgeOutcome,
+} from '../../core/judge/schema'
 import {
   ACP_AGENT_NAME,
   EXEC_EXIT,
@@ -43,7 +48,13 @@ function judgeTool(judge: JudgeCall, fail: (code: number) => void): McpTool {
           fail(EXEC_EXIT.usage)
           throw error
         }
-        outcome = { outcome: 'no-answer', reason: signal.aborted ? 'cancelled' : 'engine-failure' }
+        if (signal.aborted) {
+          outcome = { outcome: 'no-answer', reason: 'cancelled' }
+        } else if (isZodParseError(error)) {
+          outcome = { outcome: 'no-answer', reason: 'engine-failure' }
+        } else {
+          throw error
+        }
       }
       if (outcome.outcome === 'no-answer') {
         fail(EXEC_EXIT.failed)

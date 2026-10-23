@@ -1,5 +1,7 @@
 import type { Readable } from 'node:stream'
 import type { JudgeRuntime } from '../../core/judge/engine'
+import type { Logger } from '../../host/logger'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   judgeOutcomeSchema,
   judgeRequestSchema,
@@ -58,6 +60,7 @@ interface OfflineCommand {
 }
 
 export interface JudgeCliDeps {
+  readonly log?: Logger | undefined
   initialize?(signal: AbortSignal): Promise<void>
   /**
   Resolve once per request: the returned source carries that request's
@@ -272,6 +275,7 @@ export async function runJudgeCommand(
           outcome = await untilAborted(judge(request, signal), signal)
         } catch (error: unknown) {
           if (error instanceof JudgeCliInputError) throw error
+          deps.log?.warn(`Judge request failed: ${failureForLog(error)}`)
           outcome = noAnswer(signal.aborted ? 'timeout' : 'engine-failure')
         }
         io.stdout.write(`${JSON.stringify(outcome)}\n`)
@@ -291,8 +295,9 @@ export async function runJudgeCommand(
         code = EXEC_EXIT.ok
       }
     }
-  } catch {
+  } catch (error: unknown) {
     // Fixed localized words only: no private stdin, model error or argv echo.
+    deps.log?.warn(`Judge command failed: ${failureForLog(error)}`)
     io.stderr.write(`${signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\n`)
     code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage
   } finally {

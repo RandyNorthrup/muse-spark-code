@@ -1580,6 +1580,7 @@ async function main(processResources: ProcessResources): Promise<number> {
         command,
         { stdin: process.stdin, stdout, stderr },
         {
+          log,
           initialize: async (signal) => {
             await loadDisplayLanguage(log)
             signal.throwIfAborted()
