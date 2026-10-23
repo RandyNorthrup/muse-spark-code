@@ -1,5 +1,6 @@
 import { TEAM_BOARD_MAX, TEAM_SCHED_HISTORY_MAX, UI_TEXT } from '../../../shared/constants'
 import {
+  teamAttemptUsageSchema,
   teamBoardSchema,
   teamBoardTaskSchema,
   teamRescheduleSchema,
@@ -7,12 +8,14 @@ import {
   teamSchedulerFieldsSchema,
   type TeamAttempt,
   type TeamBoard,
+  type TeamBoardOwner,
   type TeamBoardTask,
   type TeamSchedulerEvent,
   type TeamSchedulerFields,
   type TeamBoardTaskState,
 } from '../../../shared/team'
 import { fill } from '../../../shared/l10n/text'
+import { Usd } from '../../../shared/usd'
 import { teamHandoffRecordSchema, type TeamChainEntry } from '../../../shared/teamHandoff'
 
 export interface BoardSubmission {
@@ -29,7 +32,10 @@ export interface BoardContext {
   countAttempt(task: TeamBoardTask, attempt: TeamAttempt): boolean
   /**
   Refunds exactly the admission `countAttempt` counted for this attempt. The
-  scheduler calls it once, only for an attempt it closes before invoking its worker.
+  scheduler calls it once, only for an attempt that closes before its worker
+  is invoked: one it closes itself (see `cancelUnstarted`), one `restore`
+  interrupted while its launch journal was pending (see `cancelInterrupted`),
+  or one its owner already closed (see `refundUnspawned`).
   */
   refundAttempt(task: TeamBoardTask, attempt: TeamAttempt): void
   /** The team ledger keeps terminal rows beside the board; journal both before dispatch. */
@@ -74,12 +80,15 @@ export class BoardRefusal extends Error {
 /** Window-owned pure board; the caller journals snapshots before dispatch. */
 export class TaskBoard {
   private board: TeamBoard
+  /** This window's identity: restore never overwrites the stored one with it. */
+  private readonly mine: string
 
   constructor(
     workspaceId: string,
     windowInstanceId: string,
     private readonly context: BoardContext,
   ) {
+    this.mine = windowInstanceId
     this.board = teamBoardSchema.parse({ workspaceId, windowInstanceId, paused: false, tasks: [] })
   }
 
@@ -148,6 +157,28 @@ export class TaskBoard {
     for (const task of tasks) visit(task.id)
   }
 
+  /**
+  Refund a counted admission, drop its attempt and park the task ready with
+  no liability notice. The caller owns the guard: the attempt never spawned.
+  */
+  private reopenUnspawned(task: TeamBoardTask, attempt: TeamAttempt): void {
+    this.context.refundAttempt(structuredClone(task), structuredClone(attempt))
+    task.attempts.pop()
+    task.currentAttempt--
+    task.state = 'ready'
+    delete task.blockedReason
+    delete task.loan
+    delete task.recallAskedAtMs
+    if (task.handoff !== undefined) {
+      task.handoff.chain = task.handoff.chain.filter(
+        (link) =>
+          link.kind !== 'borrow' ||
+          link.candidateId !== attempt.entryId ||
+          link.atMs !== attempt.startedAt,
+      )
+    }
+  }
+
   snapshot(): TeamBoard {
     return structuredClone(this.board)
   }
@@ -168,7 +199,9 @@ export class TaskBoard {
     const restored = teamBoardSchema.parse(input)
     if (restored.workspaceId !== this.board.workspaceId) throw new BoardRefusal('workspace')
     this.validateEdges(restored.tasks)
-    restored.windowInstanceId = this.board.windowInstanceId
+    // Restore never overwrites the stored identity: the board keeps its
+    // stored window and ownership claim, so a second window cannot seize the
+    // board by reading it. Only a proven-gone owner is taken over, explicitly.
     restored.paused = true
     for (const task of restored.tasks) {
       let isInterrupted = false
@@ -256,7 +289,19 @@ export class TaskBoard {
     for (const id of change.task_ids) {
       const task = next.tasks.find((candidate) => candidate.id === id)
       if (!task) throw new BoardRefusal('unknownTask', [id])
-      if (task.state !== 'queued' && task.state !== 'ready') throw new BoardRefusal('state', [id])
+      if (task.state !== 'queued' && task.state !== 'ready') {
+        // A hold is a control signal, never a re-plan: an owner hold may
+        // land on live work (lead ruling 2026-10-11), where the launch gate
+        // refuses the launch before the worker starts. Anything else still
+        // needs a queued or ready task, and terminal tasks refuse everything.
+        const isHoldOnly =
+          change.hold !== undefined &&
+          change.priority === undefined &&
+          change.depends_on === undefined
+        if (!isHoldOnly || terminal.has(task.state)) throw new BoardRefusal('state', [id])
+        if (change.hold !== undefined) task.held = change.hold
+        continue
+      }
       if (change.priority !== undefined) task.priority = change.priority
       if (change.hold !== undefined) task.held = change.hold
       if (change.depends_on === undefined) {
@@ -368,20 +413,45 @@ export class TaskBoard {
     // Only the scheduler, before invoking start, can close this admission. The
     // refund comes first: if it fails, the counted attempt stays on the board.
     // No process retirement is claimed.
+    this.reopenUnspawned(task, attempt)
+  }
+
+  /**
+  Close an admission `restore` interrupted while its launch journal was
+  pending and refund it; preserve queue age. Only the scheduler's launch
+  gate calls it, for its own attempt number, when it can still prove the
+  worker was never invoked: the launch never left the journal await. The
+  "slots remain counted" notice goes with the admission, so the board no
+  longer says the slot is held. An attempt `restore` interrupts after a
+  crash or reload is not this path: reopening cannot know whether its
+  worker ran, so D75's uncertain liability stands there.
+  */
+  cancelInterrupted(id: string, number: number): void {
+    const task = this.requireTask(id)
+    const attempt = task.attempts.at(-1)
+    if (
+      task.state !== 'blocked' ||
+      number !== task.currentAttempt ||
+      attempt?.state !== 'interrupted'
+    )
+      throw new BoardRefusal('state', [id])
+    // Same ownership as `cancelUnstarted`: before the worker is invoked, and
+    // the refund comes first for the same reason.
+    this.reopenUnspawned(task, attempt)
+  }
+
+  /**
+  Refund the admission for an attempt its owner closed before the worker was
+  invoked; the board is unchanged. The scheduler calls it once per attempt,
+  only from its launch gate, which runs before the worker can start: an
+  attempt that already spawned must stay counted with its liability. A
+  second call refunds again, so the caller tracks what it refunded.
+  */
+  refundUnspawned(id: string, number: number): void {
+    const task = this.requireTask(id)
+    const attempt = task.attempts.find((candidate) => candidate.number === number)
+    if (attempt?.state !== 'retired') throw new BoardRefusal('state', [id])
     this.context.refundAttempt(structuredClone(task), structuredClone(attempt))
-    task.attempts.pop()
-    task.currentAttempt--
-    task.state = 'ready'
-    delete task.loan
-    delete task.recallAskedAtMs
-    if (task.handoff !== undefined) {
-      task.handoff.chain = task.handoff.chain.filter(
-        (link) =>
-          link.kind !== 'borrow' ||
-          link.candidateId !== attempt.entryId ||
-          link.atMs !== attempt.startedAt,
-      )
-    }
   }
 
   /**
@@ -460,6 +530,56 @@ export class TaskBoard {
     return true
   }
 
+  /** The request meter owns this exact attempt, including a late settlement. */
+  usage(id: string, number: number, input: TeamAttempt['usage']): boolean {
+    const task = this.requireTask(id)
+    const attempt = task.attempts.find((item) => item.number === number)
+    if (attempt === undefined) return false
+    attempt.usage = teamAttemptUsageSchema.parse(input)
+    if (this.board.tasks.every((item) => item.id !== id))
+      this.context.archive([structuredClone(task)])
+    return true
+  }
+
+  /**
+  Reload recovery for an attempt that provably never ran: restored as
+  interrupted, with zero usage, no retirement and no end time, it emitted
+  nothing, so dropping it loses no accounting and double-runs nothing.
+  Anything that may have run keeps its interrupted liability for an
+  explicit recovery instead.
+  */
+  reopenInterrupted(id: string, at: number): boolean {
+    if (this.board.tasks.every((task) => task.id !== id)) return false
+    const task = this.requireTask(id)
+    const previous = task.attempts.at(-1)
+    const isMissing = previous === undefined
+    if (
+      isMissing ||
+      previous.state !== 'interrupted' ||
+      previous.retirement !== undefined ||
+      previous.endedAt !== undefined ||
+      terminal.has(task.state)
+    )
+      return false
+    const usage = previous.usage
+    if (
+      usage.inputTokens !== 0 ||
+      usage.cachedInputTokens !== 0 ||
+      usage.outputTokens !== 0 ||
+      usage.reasoningTokens !== 0 ||
+      usage.modelCalls !== 0 ||
+      Usd.from(usage.costUsd).compare(Usd.from(0)) !== 0
+    )
+      return false
+    task.attempts.pop()
+    task.currentAttempt--
+    task.state = 'ready'
+    task.readyAt = at
+    delete task.blockedReason
+    this.refresh(at)
+    return true
+  }
+
   /** Trusted recovery, never a worker event, opens the next attempt. */
   prepareNext(
     id: string,
@@ -516,5 +636,33 @@ export class TaskBoard {
       return true
     }
     return event.attempt === task.currentAttempt && ['running', 'retiring'].includes(attempt.state)
+  }
+
+  /**
+  Whether this window currently holds the board (sync, in-memory only). A
+  free or released board, or one already naming this window, is claimed
+  with this window's birth and process lease; a live foreign owner refuses.
+  */
+  holdsOwnership(birth: { windowStartedAt: number; pid?: number; processStart?: string }): boolean {
+    const owner = this.board.owner
+    if (owner !== undefined && !owner.released && owner.windowInstanceId !== this.mine) return false
+    this.board.owner = { windowInstanceId: this.mine, released: false, ...birth }
+    return true
+  }
+
+  /** Release the claim cleanly (dispose): the next window claims without proof. */
+  releaseOwnership(): void {
+    if (this.board.owner?.windowInstanceId === this.mine)
+      this.board.owner = { ...this.board.owner, released: true }
+  }
+
+  /** Unconditional in-memory claim after the stored board proved claimable. */
+  takeOwnership(birth: { windowStartedAt: number; pid?: number; processStart?: string }): void {
+    this.board.owner = { windowInstanceId: this.mine, released: false, ...birth }
+  }
+
+  /** The stored ownership claim, if any window holds the board. */
+  owner(): TeamBoardOwner | undefined {
+    return this.board.owner === undefined ? undefined : { ...this.board.owner }
   }
 }

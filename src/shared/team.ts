@@ -577,6 +577,7 @@ export const teamSharedFileSchema = /* @__PURE__ */ z.strictObject({
   pattern: path,
   kind: z.enum(['text', 'json-table', 'changelog']),
 })
+export type TeamSharedFile = z.infer<typeof teamSharedFileSchema>
 
 // Missing `on` is resolved from the dependency's workspace mode by the board,
 // never guessed as `merged` for every task by the boundary parser.
@@ -691,6 +692,16 @@ export const teamBoardTaskSchema = /* @__PURE__ */ z
   )
 export type TeamBoardTask = z.infer<typeof teamBoardTaskSchema>
 
+/** The window that owns the board: its birth and process lease (M96c). */
+export const teamBoardOwnerSchema = /* @__PURE__ */ z.strictObject({
+  windowInstanceId: id,
+  windowStartedAt: count,
+  pid: z.optional(count),
+  processStart: z.optional(text),
+  released: z._default(z.boolean(), false),
+})
+export type TeamBoardOwner = z.infer<typeof teamBoardOwnerSchema>
+
 const terminalStates: ReadonlySet<string> = new Set([
   'merged',
   'done',
@@ -704,6 +715,7 @@ export const teamBoardSchema = /* @__PURE__ */ z
   .strictObject({
     workspaceId: id,
     windowInstanceId: id,
+    owner: z.optional(teamBoardOwnerSchema),
     paused: z.boolean(),
     tasks: z.array(teamBoardTaskSchema).check(z.maxLength(TEAM_SCHED_HISTORY_MAX)),
     borrowCooldowns: z.optional(
