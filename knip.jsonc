@@ -105,6 +105,7 @@
     // first paid consent, gate or usage read.
     "src/host/paid/paidEntry.ts",
     "src/host/models/modelsSubscriptionsEntry.ts",
+    "src/host/models/lmProviderEntry.ts",
 
     // The Node-only team schema proxy selected by the production resolver (M96, D6).
     "src/host/teamViewBundle.ts",

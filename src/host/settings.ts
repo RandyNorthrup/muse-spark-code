@@ -131,6 +131,7 @@ export interface ExtensionSettings extends SettingsSnapshot {
   /** The person's output cap per Tab request; 0 is the provider's maximum (M94 goal, D121). */
   readonly tabMaxOutputTokens: number
   /** The languages Tab suggests in, like `github.copilot.enable`. */
+  readonly editorChatModels: readonly string[]
   readonly tabLanguages: Readonly<Record<string, boolean>>
   /** When Tab adds surrounding context for multi-line completions. */
   readonly tabMultiline: TabMultiline
@@ -299,6 +300,7 @@ const settingSchemas = {
   // D121: 0 is the provider's maximum for the model (the default); a set
   // whole count caps the request at what the person set.
   tabMaxOutputTokens: z.number().check(z.int(), z.gte(0)),
+  editorChatModels: z.array(z.string().check(z.minLength(1))),
   tabLanguages: z.record(z.string(), z.boolean()),
   tabMultiline: z.enum(TAB_MULTILINE_MODES),
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
@@ -520,6 +522,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     tabModel: readSetting(config, 'tabModel', log),
     tabDailyBudgetUsd: readSetting(config, 'tabDailyBudgetUsd', log),
     tabMaxOutputTokens: readSetting(config, 'tabMaxOutputTokens', log),
+    editorChatModels: readSetting(config, 'editorChatModels', log),
     tabLanguages: readSetting(config, 'tabLanguages', log),
     tabMultiline: readSetting(config, 'tabMultiline', log),
     tabTrigger: readSetting(config, 'tabTrigger', log),

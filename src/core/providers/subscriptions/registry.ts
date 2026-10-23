@@ -8,14 +8,27 @@ import { isUserRefusal } from '../../refusal'
 import * as z from 'zod/mini'
 import type { ProviderClient } from '../../backends/modelapi/client'
 import { errorBodySchema, type StreamEvent, type Usage } from '../../backends/modelapi/schemas'
-import { responses, modelRef, recordPlanUsage } from '../../../host/backend/providersEntry'
+import {
+  responses,
+  modelRef,
+  recordPlanUsage,
+  parsePlanLimitHeaders,
+  planRefusals,
+} from '../../../host/backend/providersEntry'
 import { PLAN_MODEL_PROVIDERS } from '../../../shared/providerRouting'
 // RVCM1054D P2: the typed refusal comes from the leaf module, never the
 // codec bundle — the subscriptions bundle must not carry
 // src/core/backends/modelapi/codecs/* (they load only in dist/providers.js).
 import { isChatCodecError } from '../../media/codecRefusal'
-const { ChatgptPlanLimitError, createResponsesCodec, ResponsesDecodeError } = responses
+const { ChatgptPlanRefusalError, createResponsesCodec, ResponsesDecodeError } = responses
 const { parseModelRef } = modelRef
+import { USAGE_HEADER_ALLOW_LIST } from '../../../shared/usageJournal'
+// The limit windows and refusal sentences ride the providers bundle (D6):
+// the subscriptions bundle requires them across the seam, like the codec.
+import type { PlanLimits } from './planUsage'
+
+/** Response header names the plan route may keep, as a set for lookup. */
+const PLAN_HEADER_NAMES: ReadonlySet<string> = new Set<string>(USAGE_HEADER_ALLOW_LIST)
 import {
   CHATGPT_DIRECT_UNAVAILABLE_CODE,
   CHATGPT_PLAN_LIMIT_ERROR_KIND,
@@ -315,6 +328,24 @@ export async function planRequestError(response: Response): Promise<ChatgptPlanR
   if (code === CHATGPT_PLAN_NOT_ELIGIBLE_CODE) {
     return new ChatgptPlanRequestError(UI_TEXT.planUi.notEligible, code)
   }
+  // OPENAI-G27: the provider's further documented refusals each read as
+  // their own sentence. Limit, retryable and not-eligible answers keep
+  // their own sentences above; an unknown code keeps the provider's own
+  // words below.
+  if (
+    code !== undefined &&
+    code !== CHATGPT_PLAN_LIMIT_ERROR_KIND &&
+    code !== CHATGPT_PLAN_NOT_ELIGIBLE_CODE &&
+    envelope.success &&
+    !CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
+  ) {
+    const sentence = planRefusals.planRefusalMessage(
+      code,
+      undefined,
+      envelope.data.error.param ?? undefined,
+    )
+    if (sentence !== undefined) return new ChatgptPlanRequestError(sentence, code)
+  }
   const admission = directAdmissionSchema.safeParse(body)
   let detail = ''
   if (envelope.success) detail = envelope.data.error.message
@@ -352,6 +383,13 @@ function observePlanAnswer(guard: ResponseAttemptGuard | undefined, response: Re
 // The catalogue slug for one model reference. Bare ids read as slugs;
 // a qualified foreign provider reads as undescribed, so plan facts are
 // never fetched for a provider the catalogue does not describe.
+/**
+The shared codec-refusal verdict, read as a boolean: the predicate's
+false branch would narrow the plan catch's later checks to never.
+*/
+function isCodecRefused(cause: unknown): boolean {
+  return isChatCodecError(cause)
+}
 function planSlug(model: string): string | undefined {
   const ref = parseModelRef(model)
   return ref === undefined || ref.providerId === 'chatgpt' ? (ref?.modelId ?? model) : undefined
@@ -613,6 +651,7 @@ export function createSubscriptionClient(
       const notices = silentWaitNotices(deps.log, idleMs)
       let isDispatched = false
       let usage: Usage | undefined
+      let limits: PlanLimits | undefined
       const note = (event: StreamEvent) => {
         if ('response' in event && event.response.usage != null) usage = event.response.usage
       }
@@ -740,6 +779,14 @@ export function createSubscriptionClient(
         if (response.body === null) {
           throw new ChatgptPlanRequestError(UI_TEXT.planUi.noReply, 'request-failed')
         }
+        // OPENAI-G28: the plan's limit headers ride on the inference
+        // response. Only allow-listed names are kept; the parser reads the
+        // x-codex-* windows out of them.
+        const reported: Record<string, string> = {}
+        response.headers.forEach((value, name) => {
+          if (PLAN_HEADER_NAMES.has(name)) reported[name] = value
+        })
+        limits = parsePlanLimitHeaders(reported, Date.now()) ?? limits
         // The captured endpoint streams SSE without Content-Type. Never branch on that header.
         // No size or output cap of this app's own: the plan route takes no
         // `max_output_tokens` (SIWC preview limitations), so the reply ends
@@ -775,8 +822,12 @@ export function createSubscriptionClient(
               : event
           }
         } catch (error) {
-          if (error instanceof ChatgptPlanLimitError) {
-            yield { type: 'error', code: error.code, message: UI_TEXT.planUi.limitDetail }
+          if (error instanceof ChatgptPlanRefusalError) {
+            yield {
+              type: 'error',
+              code: error.code,
+              message: planRefusals.planRefusalMessage(error.code, error.message) ?? error.message,
+            }
           } else throw error
         }
       } catch (error) {
@@ -788,15 +839,15 @@ export function createSubscriptionClient(
         // video with no vendor capture) reaches the user as its own
         // sentence on both plan legs, never the generic retry text. One
         // shared helper decides; this client keeps no list of its own.
-        // Read only the verdict: the guard above already narrowed
-        // `error` to Error, and the predicate's false branch would
-        // narrow the checks below to never.
+        if (isCodecRefused(error)) {
+          yield { type: 'error', message: error.message }
+          return
+        }
         // A lapsed confirmation names the run (hook, schedule, review) with
         // its own guidance instead of the generic plan retry sentence, on
         // both plan branches: the gate throws above, and an admission guard
         // may throw a stale-model refusal with the same strings.
-        const isCodecRefusal: boolean = isChatCodecError(error)
-        if (isCodecRefusal || isStaleConfirmedError(error)) {
+        if (isStaleConfirmedError(error)) {
           yield { type: 'error', message: error.message }
           return
         }
@@ -851,6 +902,7 @@ export function createSubscriptionClient(
                 source: ref.providerId === 'copilot' ? 'estimated' : 'reported',
               },
             }),
+            ...(limits !== undefined && { limits }),
           })
           deps.saveUsage?.(tallies)
         }

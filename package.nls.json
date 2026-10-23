@@ -268,5 +268,6 @@
   "config.reports.keepHistory.description": "Keep the newest 50 reports per kind on this machine for history and comparison.",
   "config.reports.agentSources.description": "Opt in to reading your own Claude Code or Codex usage and limit files. Default: none. Conversation text and credential files are never read as report sources.",
   "config.reports.planMaxBytes.description": "Largest plan file reports read, in bytes. No limit unless you set one: 0 (the default) reads the whole plan however large, and a plan past a set value is refused with input-size drift naming your limit. Only this machine's setting is used.",
-  "config.linuxDictationModel.description": "Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged."
+  "config.linuxDictationModel.description": "Enable free offline English dictation on local Linux x64/arm64. First use asks before downloading the 74 MiB model. Turning this off stops dictation and removes the model and partial download; turn it on and reload the window to enable it again. Windows/macOS are unchanged.",
+  "config.editorChatModels.description": "Model references explicitly offered to editor chat. Any installed extension can spend your provider key through these models. Off by default; requires known prices or local models. Configure from Models & Agents."
 }

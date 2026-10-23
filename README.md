@@ -776,9 +776,14 @@ eligible model; the model picker can select another catalogue model.
 flow. The system browser signs in with OpenAI, with a local loopback callback;
 remote VS Code windows currently require signing in from a local window.
 Models come from your account's catalogue, rather than a fixed example model.
-The conversation, tools and tool results spend your ChatGPT plan. **Manage
+Each model runs with its own documented context window, output cap and
+effort levels. The conversation, tools and tool results spend your ChatGPT plan. **Manage
 usage** opens the provider's limits page. A limit reached inside a successful
-HTTP stream stops the turn and offers usage management. Remove revokes the
+HTTP stream stops the turn and offers usage management. Other plan refusals
+say what to do: an ineligible account names signing in with an eligible
+account or choosing an API-key model, and unavailable usage keeps the
+sign-in and asks for a later retry. Reported plan limit windows appear in
+Plan Usage. Remove revokes the
 grant and deletes this product's secret record.
 The plan notice is remembered for each verified account. Older grants without
 that identity keep showing it until a verified sign-in or refresh supplies it.
@@ -6751,6 +6756,13 @@ The Models & Agents panel and Start with my own model command are supplied by
 the provider lane. Provider capability records and captured transport bindings
 remain required before an agent-loop enhancement is enabled for a non-Meta
 model. A single-model setup retains its current selection and controls.
+
+### Editor chat
+
+Opt chosen priced or local models into VS Code chat; calls appear in Usage
+& cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace.
+Offering a model asks first and names its rates; all installed extensions
+can then call it on the stored key.
 
 ### Headless runs
 

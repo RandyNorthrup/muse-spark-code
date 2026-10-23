@@ -10,6 +10,7 @@ import {
   setUiText,
   providersFile,
   recordPlanUsage,
+  huggingface,
   OPENROUTER_ORIGIN,
   metaCapabilityRecord,
 } from '../backend/providersEntry'
@@ -138,7 +139,7 @@ export function createSubscriptionFeatures(options: {
       ...seam.catalog,
       get: (id: string) => {
         const preset = seam.catalog.get(id)
-        return preset?.id === 'openrouter'
+        return preset?.id === 'openrouter' || preset?.id === 'huggingface'
           ? { ...preset, connectLabel: fill(UI_TEXT.providerConnect, { provider: preset.name }) }
           : preset
       },
@@ -151,6 +152,25 @@ export function createSubscriptionFeatures(options: {
       }) => {
         const services = await configured()
         return await services.openRouterExchange(request.code, request.verifier, request.signal)
+      },
+    },
+    huggingfaceExchanger: {
+      exchange: async (request: {
+        readonly code: string
+        readonly verifier: string
+        readonly redirectUri: string
+        readonly signal?: AbortSignal
+      }) => {
+        const clientId = huggingface.HF_OAUTH_CLIENT_ID
+        if (clientId === undefined) throw new Error(UI_TEXT.huggingfaceOAuthNotRegistered)
+        const services = await configured()
+        return await services.huggingfaceExchange(
+          clientId,
+          request.code,
+          request.verifier,
+          request.redirectUri,
+          request.signal,
+        )
       },
     },
     usage: {
@@ -280,9 +300,13 @@ export function createSubscriptionFeatures(options: {
             },
           })
         : meta
-      if (entries.every((row) => row.auth === 'subscription')) return subscribed
       const services = await configured(subscribed)
-      return services.client
+      return entries.length > 0 && entries.every((row) => row.auth === 'subscription')
+        ? {
+            ...subscribed,
+            ...(services.client.models !== undefined && { models: services.client.models }),
+          }
+        : services.client
     },
     /**
     Connect ChatGPT. A saved registration is reused; `isNewAccount` registers

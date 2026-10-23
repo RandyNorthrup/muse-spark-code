@@ -16,6 +16,7 @@ import type { ProviderEntry } from './providerPorts'
 import { fill } from '../../shared/l10n/text'
 import { unlessAborted } from '../../core/timeouts'
 import { UI_TEXT } from '../../shared/constants'
+import { exchangeCodeForStoredKey } from './codeExchange'
 import { isOriginBound, type CredentialRecord } from './credentialRecords'
 import type { OAuthLoopback } from './oauthLoopback'
 import type { CodeExchanger, KeyUsageReader, KeyUsageSnapshot, PkceSource } from './providerPorts'
@@ -141,20 +142,16 @@ export async function connectOpenRouterAccount(
       deps.signal?.removeEventListener('abort', close)
     }
   }
-  deps.signal?.throwIfAborted()
-  const key = await deps.exchange.exchange({
+  return await exchangeCodeForStoredKey({
+    exchange: deps.exchange,
     code,
     verifier: pair.verifier,
     redirectUri,
+    origin: OPENROUTER_ORIGIN,
+    connectFailed: UI_TEXT.providerConnectFailed,
     ...(deps.signal !== undefined && { signal: deps.signal }),
+    ...(deps.onDiscardedKey !== undefined && { onDiscardedKey: deps.onDiscardedKey }),
   })
-  if (deps.signal?.aborted && key.trim() !== '') deps.onDiscardedKey?.()
-  deps.signal?.throwIfAborted()
-  if (key.trim() === '') {
-    throw new Error(UI_TEXT.providerConnectFailed)
-  }
-  const secret = key.trim()
-  return { key: secret, record: { v: 1, auth: 'apiKey', origin: OPENROUTER_ORIGIN, secret } }
 }
 
 function isValidUsage(value: number | string): boolean {

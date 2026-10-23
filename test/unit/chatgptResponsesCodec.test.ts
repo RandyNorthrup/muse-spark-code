@@ -299,6 +299,40 @@ describe('chatgpt Responses stream profile', () => {
     ])
   })
 
+  it('throws a typed refusal for a documented non-limit code in either frame', async () => {
+    const code = 'subscription_sharing_route_not_supported'
+    const error = { ...limitError, code, message: 'No route.' }
+    await expect(
+      Array.fromAsync(decode(stream(frame({ type: 'error', error })))),
+    ).rejects.toMatchObject({ name: 'ChatgptPlanRefusalError', code, message: 'No route.' })
+    const failedFrame = {
+      type: 'response.failed',
+      response: { id: 'resp_scrubbed', status: 'failed', output: [], error, usage: null },
+    }
+    await expect(Array.fromAsync(decode(stream(frame(failedFrame))))).rejects.toMatchObject({
+      name: 'ChatgptPlanRefusalError',
+      code,
+      message: 'No route.',
+    })
+  })
+
+  it('yields a retryable documented code as an error event instead of throwing', async () => {
+    const code = 'subscription_sharing_usage_unavailable'
+    const failedFrame = {
+      type: 'response.failed',
+      response: {
+        id: 'resp_scrubbed',
+        status: 'failed',
+        output: [],
+        error: { ...limitError, code, message: 'Usage availability could not be checked.' },
+        usage: null,
+      },
+    }
+    expect(await Array.fromAsync(decode(stream(frame(failedFrame))))).toEqual([
+      { type: 'error', code, message: 'Usage availability could not be checked.' },
+    ])
+  })
+
   // Finding F87 (2026-10-14): the plan's stream delivered a read_file call in
   // its own output_item.done frame and ended with `output: []` (the frame
   // shapes below are the measured ones; values scrubbed), so the call never
