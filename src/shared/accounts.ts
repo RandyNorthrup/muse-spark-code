@@ -51,6 +51,7 @@ export const accountSchema = /* @__PURE__ */ z.strictObject({
   ),
   order: count,
   limitGroup: z.optional(accountIdSchema),
+  credentialRevision: z.optional(z.uuid()),
   thresholds: accountThresholdsSchema,
 })
 export type Account = z.infer<typeof accountSchema>

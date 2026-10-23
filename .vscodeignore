@@ -6,6 +6,8 @@
 !dist/resourceProcess.js
 !dist/resourceJournal.js
 !dist/mcpVault.js
+!dist/accountPaid.js
+!dist/runtimeAccounts.js
 !dist/questionNotes.js
 !dist/approvalModes.js
 !dist/conversation.js

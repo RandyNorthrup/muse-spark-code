@@ -2,6 +2,20 @@ import { isRequestNotSent } from '../../refusal'
 import { UserRefusalError } from '../../refusal'
 import { isPaidStop } from '../../refusal'
 import { isSpendLedgerError } from '../../paid/spendLedgerError'
+import {
+  billingKeyDigest,
+  conversationOwnerSchema,
+  payerCredentialSchema,
+  resolveAttemptBillingRoute,
+  type AttemptFeature,
+  type BillingRoute,
+  type PayerCredential,
+  type ConversationOwner,
+} from './billingRoute'
+import { isCredentialReadError } from './subscriptionKey'
+import type { AccountRequestPort, AccountRequestLease } from '../../accounts/requestWriter'
+import { parseUsd as accountUsd } from '../../../shared/accountUsd'
+import { rateLimitResetAt } from '../../../shared/retryPolicy'
 import { StorageRefusalError } from '../../checkpoints/storageRefusal'
 import type { GitDraftOutputPort } from '../../git/gitText'
 import type * as CodeIntelEntry from './codeIntelEntry'
@@ -23,6 +37,7 @@ import {
   type SearchSettlement,
   modelApiPaidTier,
   type PaidUseRequest,
+  scheduledRunPrice,
   type SubagentTaskConfirmation,
   type SubagentUsage,
 } from '../../../shared/paid'
@@ -133,6 +148,8 @@ import {
   MODEL_API_HOOK_PROVIDER,
   MODEL_API_LEGACY_CONTEXT_MODELS,
   MODEL_API_MAX_OUTPUT_TOKENS,
+  ACCOUNT_DEFAULT_ID,
+  MODEL_API_BASE_URL,
   MODEL_API_MEDIA_PER_REQUEST,
   isModelApiModelId,
   MODEL_API_MODEL_TEXT,
@@ -285,7 +302,7 @@ import type { CheckAdmission } from '../../browser/browserRun'
 import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from './browserCalls'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
-import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
+import type { ModelApiJudgeConnection, ModelApiSideResponse } from '../../judge/same/modelApiSource'
 import { approvalHost } from '../../web/hostName'
 import type { PageUrlCheck } from '../../web/pageUrl'
 import {
@@ -399,7 +416,7 @@ import {
   wrapUpFailedLimit,
 } from './sessionBudget'
 
-import { formatUsd } from '../../usage/insights'
+import { estimateCostUsd, formatUsd } from '../../usage/insights'
 
 import { runLegalScanCall } from './legalScanTool'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
@@ -526,6 +543,7 @@ import {
   isFunctionCallItem,
   isMessageItem,
   isReasoningItem,
+  isTerminalResponseEvent,
   isWebSearchCallItem,
   messageText,
   type OutputItem,
@@ -668,11 +686,18 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly noteVaultTaint?: (sessionId: string, taint: VaultTaint) => void
   /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
+  readonly allowsAccountPaidUse?: ModelApiHostDeps['allowsPaidUse']
+  readonly accountRequests?: AccountRequestPort
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
   /** The gate's Meta-key probe says the credential store itself is dead. */
   readonly isCredentialStoreDown?: (() => boolean) | undefined
+  /** Stable sign-in identity permits provider transitions in both directions. */
+  readonly subscriptionAccountId?: ConversationOwner | undefined
+  readonly conversationOwner?: ConversationOwner | undefined
+  /** Resolve a frozen Meta route; paid extras use the pasted-key lane. */
+  readonly getBillingRoute?: ((isPaid?: boolean) => Promise<BillingRoute | undefined>) | undefined
   readonly autoCompaction?: (() => boolean) | undefined
   /** Lane E's bounded evaluation override; production uses the certified latch. */
   readonly autoCompactionEvaluated?: (() => boolean) | undefined
@@ -1168,6 +1193,7 @@ interface ChildRecord {
 
 /** One consented child task; only in memory, never in the session snapshot. */
 interface ChildTaskGrant {
+  readonly paidRequest?: PaidUseRequest
   /** Captured at task admission; never replaced by a later session's authority. */
   readonly scheduleAuthority?: {
     readonly owner: SessionOwner
@@ -1541,6 +1567,9 @@ interface ApprovalOutcome {
   readonly isApproved: boolean
   readonly feedback: string | undefined
   readonly deniedByHook?: boolean
+  /** An image spending question deferred to its lease carries this call's
+  forced-ask flag with the approval, never on a shared session field. */
+  readonly requiresImageAsking?: boolean
 }
 
 /** One wait in a child task's admission (a question, a hook, a popup): its refusal, if any. */
@@ -1739,6 +1768,34 @@ class RetryableStreamError extends Error {
     super(message)
     this.name = 'RetryableStreamError'
   }
+}
+
+// A vendor-limit failure on a leased attempt drops the payer pin, so the
+// retry re-admits and the pool fails over to a healthy account: the
+// transport already recorded the durable block that fences the dead
+// account. Without a lease or pooling the 429 keeps its existing path,
+// and the Judge keeps its deliberate pin. A helper, not inline: the retry
+// catch enumerates paths per branch, and this decision must not multiply
+// them. Reporting true drops the pin and implies the vendor check passed,
+// hence the error.
+function shouldFailOverAccount(
+  error: unknown,
+  hasPooling: boolean,
+  payer: { account?: string | undefined },
+): error is ModelApiError {
+  const shouldFailOver =
+    hasPooling &&
+    payer.account !== undefined &&
+    error instanceof ModelApiError &&
+    error.status === HTTP_TOO_MANY_REQUESTS
+  if (shouldFailOver) delete payer.account
+  return shouldFailOver
+}
+
+// A failed-over vendor limit names its status: the 429 reached the host
+// only after the transport refused or exhausted its own budget.
+function retryFailureName(error: RetryableStreamError | ModelApiError): string {
+  return error instanceof ModelApiError ? `HTTP ${String(error.status)}` : error.code
 }
 
 export class ContextOverflowError extends Error {
@@ -3077,6 +3134,7 @@ export class ModelApiSession implements ScheduledAgentSession {
   The model the request in flight was sent to (M82): its usage is priced
   at that model's rates, whatever the session switched to meanwhile.
   */
+  private accountLease: AccountRequestLease | undefined
   private sendingModelId: string | undefined
   private workerAttempt:
     | {
@@ -3096,12 +3154,21 @@ export class ModelApiSession implements ScheduledAgentSession {
   private sendingSearchQuote: PaidQuote | undefined
   private sendingSearchBound: number | undefined
   private chargedSearchCalls = 0
+  /** The request's last search settlement: its spend and whether its count is final. */
+  private sendingSearchSettlement: SearchSettlement | undefined
   private recordedCall: RecordedCall | undefined
   private wasCallSent = false
   private hasAmbiguousCallAttempt = false
   private hasRecordedCall = false
   private packedBaseline = 0
   private sendingModel: ResolvedModel | undefined
+  /**
+  The in-flight attempt's frozen credential/pricing snapshot. Cleared at
+  completion; journal availability never depends on this sending state.
+  */
+  private sendingRoute: BillingRoute | undefined
+  /** Persist verified plan-only history as an explicit zero, never unknown legacy spend. */
+  private hasSubscriptionUsage = false
   private sendingImageCount = 0
   /**
   The preview fields of the tools the request in flight offered, by
@@ -3384,11 +3451,20 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.client.isPlanModel?.(ref) === true
         ? await this.deps.client.planModelFacts?.(ref)
         : undefined
-    const model =
+    let model: ResolvedModel | undefined
+    if (
       ref.includes('/') &&
       (this.deps.models !== undefined || this.deps.client.isPlanModel?.(ref) !== true)
-        ? await this.deps.models?.resolve(ref)
-        : metaResolvedModel(ref, this.deps.client, planFacts)
+    )
+      model = await this.deps.models?.resolve(ref)
+    else if (this.accountLease === undefined)
+      model = metaResolvedModel(ref, this.deps.client, planFacts)
+    else
+      model = {
+        ...metaResolvedModel(ref, this.deps.client, planFacts),
+        client: this.accountLease.client,
+        isCurrent: this.accountLease.isCurrent,
+      }
     if (model?.ref !== ref) {
       // Unknown: the sentence names the id as typed, the entry that was
       // asked, and what the person can do. No request was sent.
@@ -4170,19 +4246,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         isHookModelsOn: () => this.deps.isPaidFeatureOn('hookModels'),
         allowsHookModelUse: async (request) =>
           this.active?.scheduleRun === undefined &&
-          (await this.deps.allowsPaidUse(
-            {
-              feature: 'hookModels',
-              event: request.event,
-              kind: request.kind,
-              modelId: request.modelId,
-              ...(this.deps.hookModelDailyBudget !== undefined && {
-                dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
-              }),
-            },
-            false,
-            this.askingSessionId,
-          )) === true,
+          ((this.deps.accountRequests?.paidClient !== undefined && !this.modelId.includes('/')) ||
+            (await this.deps.allowsPaidUse(
+              {
+                feature: 'hookModels',
+                event: request.event,
+                kind: request.kind,
+                modelId: request.modelId,
+                ...(this.deps.hookModelDailyBudget !== undefined && {
+                  dailyBudgetUsd: this.deps.hookModelDailyBudget.capUsd(),
+                }),
+              },
+              false,
+              this.askingSessionId,
+            )) === true),
         isTurnCallReserved: () => this.isWrapUpSlotReserved(),
         noteHookModelRun: () => {
           this.notifyUsage(() => {
@@ -4670,8 +4747,14 @@ export class ModelApiSession implements ScheduledAgentSession {
   smallest request does not fit: it is not sent, and the turn stops with
   the reason. With no limit the body goes as built. Either way nothing is
   written and nothing is held: the request's estimate is only compared.
+  A subscription-billed call draws on the plan, never on the dollar
+  budget, so it skips the fit like a plan model does.
   */
-  private budgeted(body: CreateResponseBody, selected: ResolvedModel): CreateResponseBody {
+  private budgeted(
+    body: CreateResponseBody,
+    selected: ResolvedModel,
+    route?: BillingRoute,
+  ): CreateResponseBody {
     const searchBound = this.webSearchBound()
     if (
       searchBound !== undefined &&
@@ -4680,7 +4763,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       body = { ...body, max_tool_calls: searchBound }
     }
     this.openRequest = undefined
-    if (this.deps.client.isPlanModel?.(body.model) === true) return body
+    if (this.deps.client.isPlanModel?.(body.model) === true || route?.kind === 'museCodePlan')
+      return body
     const capUsd = this.currentBudgetCap()
     const hasCap = isPositiveUsd(capUsd)
     const budgetParts = this.media?.budgetParts(body) ?? requestParts(body)
@@ -4746,13 +4830,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   The request about to be sent (M82): its model, which prices its usage,
   and its estimate, as the log keeps it.
   */
-  private sending(body: CreateResponseBody, resolved: ResolvedModel): OpenRequest | undefined {
+  private sending(
+    body: CreateResponseBody,
+    resolved: ResolvedModel,
+    route?: BillingRoute,
+  ): OpenRequest | undefined {
     this.sendingImageCount = requestImageCount(body)
     this.sendingModel = resolved
     this.sendingModelId = body.model
     this.sendingSearchQuote = this.approvedSearchQuote
     this.sendingSearchBound = body.max_tool_calls
     this.chargedSearchCalls = 0
+    this.sendingSearchSettlement = undefined
     this.hasRecordedCall = false
     this.wasCallSent = false
     this.hasAmbiguousCallAttempt = false
@@ -4768,17 +4857,24 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.offeredPreviewFields = offered
     const parentKind = this.isSideChat ? 'sideChat' : (this.deps.usageKind ?? 'turn')
     const kind = this.isSubagent ? 'subagent' : parentKind
+    const provider = this.sendingModel.policy.identity.provider
+    if (route !== undefined && (provider !== 'meta' || body.model.includes('/')))
+      throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+    // C-M95-SUB: a subscription-billed Meta call prices as plan, so the
+    // usage and cost surfaces label it "Muse Code plan" with no dollar price.
+    const planPricing: typeof this.sendingModel.policy.pricing | undefined =
+      route?.kind === 'museCodePlan' ? { kind: 'plan' } : undefined
+    // The settle math below prices this attempt the same way: plan means no
+    // dollar cost, no journal write and no reply-usd, like a plan model.
+    this.sendingRoute = route
     this.recordedCall = {
       backend: 'modelApi',
-      provider: this.sendingModel.policy.identity.provider,
+      provider,
       model: body.model,
       session: this.sessionId,
       startedAt: this.deps.now(),
       kind,
-      pricing:
-        this.sendingModel.policy.identity.provider === 'meta'
-          ? undefined
-          : this.sendingModel.policy.pricing,
+      pricing: planPricing ?? (provider === 'meta' ? undefined : this.sendingModel.policy.pricing),
       outcome: 'failed',
     }
     const open = this.openRequest
@@ -4815,6 +4911,23 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.getScheduledRun() !== undefined ||
       Usd.from(this.currentBudgetCap()).compare(Usd.from(0)) > 0
     )
+  }
+
+  /** Only Meta-direct requests may receive the subscription credential. */
+  private async attemptBillingRoute(
+    modelId = this.modelId,
+    feature: AttemptFeature = 'ordinary',
+  ): Promise<BillingRoute | undefined> {
+    const isMetaDirect =
+      !modelId.includes('/') && this.selectedModel(modelId).policy.identity.provider === 'meta'
+    if (!isMetaDirect) return
+    const result = await resolveAttemptBillingRoute({
+      feature,
+      paidFeature: this.deps.admitResponseAttempt?.paidFeature,
+      isMetaDirect,
+      resolve: this.deps.getBillingRoute,
+    })
+    return result.billing
   }
 
   /**
@@ -4949,6 +5062,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.sendingSearchBound = undefined
     this.sendingSearchQuote = undefined
     this.sendingModel = undefined
+    this.sendingRoute = undefined
     if (open === undefined || (!open.hasAmbiguousAttempt && (!open.isSent || open.isRefused)))
       return
     this.warnUnknownCharge()
@@ -5269,11 +5383,28 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** Opaque reasoning never crosses a producing provider/model boundary. */
   private requestReplay(): ReplayItem[] {
     const current = replayProducer(this.modelId)
-    return this.replay.filter(
-      (entry) =>
+    const replay: ReplayItem[] = []
+    for (const entry of this.replay) {
+      if (
         entry.item.type !== 'reasoning' ||
-        (entry.producer?.provider === current.provider && entry.producer.model === current.model),
-    )
+        (entry.producer?.provider === current.provider &&
+          entry.producer.model === current.model &&
+          (this.accountLease === undefined ||
+            (entry.producer.account === this.accountLease.account &&
+              entry.producer.origin === this.accountLease.origin)))
+      ) {
+        replay.push(entry)
+        continue
+      }
+      if (this.accountLease === undefined) continue
+      const text = entry.item.summary?.map((part) => part.text).join('\n') ?? ''
+      if (text === '') continue
+      replay.push({
+        ...entry,
+        item: { type: 'message', role: 'assistant', content: [{ type: OUTPUT_TEXT, text }] },
+      })
+    }
+    return replay
   }
 
   /**
@@ -5696,6 +5827,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     // An unattended scheduled fire never opens the popup and never searches.
     if (this.active?.scheduleRun !== undefined) return false
     while (!signal.aborted && this.deps.isPaidFeatureOn('webSearch')) {
+      if (
+        this.deps.getBillingRoute !== undefined &&
+        !this.modelId.includes('/') &&
+        (await this.deps.getBillingRoute(true)) === undefined
+      ) {
+        this.emit({
+          type: 'backendNotice',
+          level: 'warning',
+          text: UI_TEXT.subscriptionKey.paidNeedsKey,
+        })
+        return false
+      }
+      const searchBillingRoute = this.modelId.includes('/')
+        ? undefined
+        : await this.deps.getBillingRoute?.()
+      const isSubscriptionSearch = searchBillingRoute?.kind === 'museCodePlan'
       const priceUsd = this.deps.client.searchPriceUsd?.(this.modelId)
       if (priceUsd === undefined || !this.canOfferWebSearch()) {
         this.emit({
@@ -5708,6 +5855,8 @@ export class ModelApiSession implements ScheduledAgentSession {
       const quote = freezePaidQuote({
         id: this.deps.newId(),
         feature: 'webSearch',
+        payerKind: 'payAsYouGo',
+        ...(isSubscriptionSearch && { modelTokenBilling: scheduledRunPrice(this.modelId) }),
         conversationId: this.sessionId,
         ...(this.webSearchBound() !== undefined && { maxCalls: this.webSearchBound() }),
         provider:
@@ -5719,7 +5868,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         capturedAt: this.deps.now(),
       })
       let decision: PaidUseDecision
-      if (this.isSubagent) {
+      if (this.isSubagent && this.accountLease === undefined) {
         const parentQuote = this.childTaskGrant?.searchQuote
         decision =
           this.childTaskGrant?.isWebSearchAllowed === true &&
@@ -5734,6 +5883,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           this.deps.allowsPaidUse(
             {
               feature: 'webSearch',
+              ...(isSubscriptionSearch && { paidModelId: this.modelId }),
               priceUsd,
               quote,
               isCurrent: () =>
@@ -5824,6 +5974,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     isCompaction = false,
     turnId?: string,
     mediaAccounting?: MediaRequestAccounting,
+    route?: BillingRoute,
+    isPaidRoute = false,
   ): ResponseAttemptGuard {
     const token = this.owner.token()
     const active = this.active
@@ -5838,9 +5990,21 @@ export class ModelApiSession implements ScheduledAgentSession {
       !this.isDisposed
     const instructionMaterial = this.instructionMaterial()
     const open = directBudget === undefined ? this.openRequest : undefined
+    const lease = directBudget === undefined ? this.accountLease : undefined
     const expectedKeyDigest = this.modelKeyDigests.get(body.model)
     const revision = this.modelRevision
     const guard: ResponseAttemptGuard = (keyDigest) => {
+      if (
+        isPaidRoute &&
+        !isCompaction &&
+        directBudget === undefined &&
+        !this.isSubagent &&
+        this.deps.admitResponseAttempt?.paidFeature === undefined &&
+        body.tools.every((tool) => tool.type !== MODEL_API_WEB_SEARCH_TOOL)
+      )
+        throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+      if (route !== undefined && keyDigest !== billingKeyDigest(route.credential))
+        throw new Error(UI_TEXT.subscriptionKey.billingChanged)
       const turn = this.active
       if (
         !isCompaction &&
@@ -5867,6 +6031,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         revision !== this.modelRevision ||
         body.model !== requestModelId ||
         !resolved.isCurrent() ||
+        (lease !== undefined &&
+          (!lease.isCurrent() || this.accountLease !== lease || keyDigest !== lease.keyDigest)) ||
         (expectedKeyDigest !== undefined && keyDigest !== expectedKeyDigest)
       ) {
         throw this.staleRecordError(isCompaction)
@@ -5878,17 +6044,31 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.compacting?.abort()
         throw new AbortedError()
       }
-      if (this.deps.budgetScope?.isStillAllowed(keyDigest) === false) {
+      const unleasedDigest =
+        keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest)
+      const budgetDigest =
+        lease === undefined
+          ? unleasedDigest
+          : (this.deps.budgetScope?.accountId ?? this.budgetOwner().conversationAccountId)
+      if (this.deps.budgetScope?.isStillAllowed(budgetDigest) === false) {
         this.active?.abort.abort()
         this.compacting?.abort()
         throw new AbortedError()
       }
       if (this.isSubagent) {
-        this.admitChildAttempt(keyDigest, body)
+        this.admitChildAttempt(budgetDigest, body)
       }
       // The conversation's requests go out under one key: the first pins it.
+      // A routed call carries its own identity in the frozen route (the
+      // billingChanged fence above), so the pin covers routeless calls only.
+      // A leased call's identity is the lease's (checked above), not the pin's.
       const owner = this.budgetOwner()
-      if (keyDigest !== undefined && !body.model.includes('/')) {
+      if (
+        lease === undefined &&
+        route === undefined &&
+        keyDigest !== undefined &&
+        !body.model.includes('/')
+      ) {
         if (owner.conversationAccountId === undefined) owner.conversationAccountId = keyDigest
         else if (keyDigest !== owner.conversationAccountId)
           throw new Error(UI_TEXT.notSignedInReason)
@@ -5910,7 +6090,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       // The person's limit against this attempt's estimate, read live and
       // compared synchronously, immediately before the HTTP try (D208).
       if (directBudget !== undefined) {
-        if (directBudget.scope?.isStillAllowed(keyDigest) === false) {
+        if (
+          directBudget.scope?.isStillAllowed(
+            keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+          ) === false
+        ) {
           throw new AbortedError()
         }
         this.assertEstimateFits(body.model, directBudget.estimateUsd, false)
@@ -5934,7 +6118,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (required !== undefined) {
         throw required
       }
-      this.deps.admitResponseAttempt?.(keyDigest)
+      this.deps.admitResponseAttempt?.(budgetDigest)
     }
     let paidFeature = this.deps.admitResponseAttempt?.paidFeature
     if (this.isSubagent) paidFeature = 'subagents'
@@ -5950,6 +6134,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     let didAttemptSend = false
     return Object.assign(guard, {
+      beforeRequestStarted: () => lease?.beforeSend(),
       // A retry: the attempt before it went out and reported no usage, so its
       // cost is unknown and adds nothing; the guard checks the retry's own
       // estimate against the limit before it is sent.
@@ -5988,7 +6173,36 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (typeof claim === 'function')
           this.workerAttempt = { settle: claim, isSent: false, isRefused: false, hasStarted: false }
       },
+      // C-M95-SUB: the attempt's frozen route rides the guard, and the retry
+      // re-checks it before a send: a changed credential stops the send.
+      billingRoute: route,
+      confirmBillingRoute:
+        route === undefined
+          ? undefined
+          : async () => {
+              // Compare-only: the fresh credential can stop a send, never replace its snapshot.
+              let current: BillingRoute | undefined
+              try {
+                let feature: AttemptFeature = isCompaction ? 'compaction' : 'ordinary'
+                if (isPaidRoute) feature = paidFeature ?? 'webSearch'
+                current = await this.attemptBillingRoute(body.model, feature)
+              } catch (error: unknown) {
+                if (!isCredentialReadError(error)) throw error
+                throw new Error(UI_TEXT.subscriptionKey.billingChanged, { cause: error })
+              }
+              if (
+                current?.kind !== route.kind ||
+                current.accountId !== route.accountId ||
+                (route.kind === 'payAsYouGo' && current.payerCredential !== route.payerCredential)
+              )
+                throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+            },
       observe: (observation: ResponseObservation) => {
+        if (lease !== undefined && observation.rateLimited === true) {
+          lease.rateLimit(
+            rateLimitResetAt(observation.headers?.['retry-after'] ?? null, this.deps.now()),
+          )
+        }
         if (directBudget !== undefined || this.recordedCall === undefined) {
           return
         }
@@ -6025,6 +6239,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         this.recordedCall = {
           ...this.recordedCall,
           ...observation,
+          ...(lease !== undefined && { account: lease.account }),
           rateLimited: this.recordedCall.rateLimited === true || observation.rateLimited === true,
         }
       },
@@ -6376,9 +6591,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.log.warn(fill(UI_TEXT.promptCacheMiss, { tokens: missed }))
     }
     const sentModel = this.sendingModel ?? this.selectedModel(sentModelId)
-    const cost = sentModel.price.settle(billable, {
-      cost: usage.provider_cost_usd,
-    })
+    // A plan-priced attempt settles no dollar cost: like a plan model, its
+    // usage carries tokens but no price, so the journals, the spend
+    // accumulators and the reply line stay at zero dollars.
+    const cost =
+      this.sendingRoute?.kind === 'museCodePlan'
+        ? undefined
+        : sentModel.price.settle(billable, {
+            cost: usage.provider_cost_usd,
+          })
     const hasKnownPrice = cost !== undefined
     // The answer's cost is what the usage record computed for this request:
     // settled here at the model it was sent to and carried on the usage event
@@ -6429,15 +6650,21 @@ export class ModelApiSession implements ScheduledAgentSession {
       })
     }
     this.usage = nextUsage
+    // C-M95-SUB: a plan-billed call spends the subscription, not the
+    // person's dollar budget, so it never joins the running total (D208);
+    // the usage line below still shows its cost.
+    if (this.sendingRoute?.kind === 'museCodePlan') this.hasSubscriptionUsage = true
     const open = this.openRequest
     if (hasKnownPrice) {
       this.usageCostUsd = sumUsd(this.usageCostUsd, costUsd)
       this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     }
     // After the call, its reported cost joins the running total (D208).
-    this.chargeBudget(cost, open?.estimateUsd)
-    // An earlier HTTP attempt of this call that may have run: its cost is unknown.
-    if (open?.hasAmbiguousAttempt === true) this.chargeBudget(undefined)
+    if (this.sendingRoute?.kind !== 'museCodePlan') {
+      this.chargeBudget(cost, open?.estimateUsd)
+      // An earlier HTTP attempt of this call that may have run: its cost is unknown.
+      if (open?.hasAmbiguousAttempt === true) this.chargeBudget(undefined)
+    }
     this.settleEstimate(usage)
     if (this.isSubagent) {
       this.notifyUsage(() => {
@@ -6729,6 +6956,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       .toAmount()
     // Count the returned fees synchronously before any fallible observer or pricing lookup.
     this.chargedSearchCalls = count
+    this.sendingSearchSettlement = settlement
     this.turnCostUsd = sumUsd(this.turnCostUsd, costUsd)
     this.chargeBudget(costUsd)
     this.notifyUsage(() => {
@@ -7054,6 +7282,30 @@ export class ModelApiSession implements ScheduledAgentSession {
     step: number,
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
+    const requests = this.deps.accountRequests
+    return requests?.withinRequest === undefined
+      ? await this.streamRequest(turnId, signal, step, confirmedRequest)
+      : await requests.withinRequest(this.accountKind(), this.sessionId, () =>
+          this.streamRequest(turnId, signal, step, confirmedRequest),
+        )
+  }
+
+  private accountKind(): 'worker' | 'conversation' {
+    return this.isSubagent ||
+      this.deps.usageKind === 'bestOfN' ||
+      this.deps.usageKind === 'worker' ||
+      this.deps.usageKind === 'schedule'
+      ? 'worker'
+      : 'conversation'
+  }
+
+  private async streamRequest(
+    turnId: string,
+    signal: AbortSignal,
+    step: number,
+    confirmedRequest?: ConfirmedModelRequest,
+  ): Promise<StreamedCall> {
+    const payer: { account?: string } = {}
     const modelRevision = this.modelRevision
     const budget: RetryBudget = { retriesUsed: 0 }
     let hasRecoveredMedia = false
@@ -7062,8 +7314,28 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (this.modelRevision !== modelRevision) throw new AbortedError()
       const open = new Map<string, OpenItem>()
       try {
-        return await this.streamAttempt(turnId, signal, open, budget, step, confirmedRequest)
+        return await this.streamAttempt(
+          turnId,
+          signal,
+          open,
+          budget,
+          step,
+          confirmedRequest,
+          undefined,
+          payer,
+        )
       } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          !signal.aborted &&
+          budget.retriesUsed <=
+            (this.selectedModel().client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES) &&
+          this.deps.accountRequests !== undefined &&
+          'code' in error &&
+          error.code === 'accountRequestBoundary'
+        )
+          continue
         // What a failed attempt showed stays in the history, the last one's
         // too (the review of PR #28); a Stop is the turn's own business.
         if (signal.aborted) {
@@ -7080,6 +7352,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           await this.refreshSearchConsent(signal)
           continue
         }
+        const canFailOverAccount = shouldFailOverAccount(
+          error,
+          this.deps.accountRequests !== undefined,
+          payer,
+        )
         // Lane RETRYLIMITS: the selected model's own retry limit (the
         // provider's documented maximum, or the person's setting when set;
         // unbounded when neither sets one, so the provider governs). A
@@ -7114,7 +7391,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           continue
         }
         if (
-          !(error instanceof RetryableStreamError) ||
+          (!canFailOverAccount && !(error instanceof RetryableStreamError)) ||
           signal.aborted ||
           !canRetryWithinBudget(budget, budget.retriesUsed) ||
           budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
@@ -7125,16 +7402,17 @@ export class ModelApiSession implements ScheduledAgentSession {
         const attempt = budget.retriesUsed
         budget.retriesUsed += 1
         const delayMs = client.retryDelayMs(attempt)
+        const failureCode = retryFailureName(error)
         this.emit({
           type: 'turnRetry',
           turnId,
           attempt: attempt + 1,
           maxAttempts: allowed === undefined ? undefined : allowed + 1,
           retryDelayMs: delayMs,
-          reason: `${error.code}: ${error.message}`,
+          reason: `${failureCode}: ${error.message}`,
         })
         this.deps.log.warn(
-          `Model API stream ended with ${error.code}; sending the request again in ${String(delayMs)} ms`,
+          `Model API stream ended with ${failureCode}; sending the request again in ${String(delayMs)} ms`,
         )
         await client.waitBeforeRetry(delayMs, signal)
         // Lane PR225W1: the person's limit is live — a change mid-wait (to
@@ -7204,6 +7482,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     budget: RetryBudget,
     step: number,
     confirmedRequest?: ConfirmedModelRequest,
+    accountRequest?: {
+      readonly lease: AccountRequestLease
+      readonly receipt: (response: ResponseObject) => void
+    },
+    payer?: { account?: string },
   ): Promise<StreamedCall> {
     // The phase is decided where every request is built: first attempts,
     // HTTP-retry rebuilds, whole-stream retries, media recovery and overflow
@@ -7213,6 +7496,132 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (this.active !== undefined) {
       this.enterWrapUpPhase(this.active)
       this.active.lastRetryRateLimited = undefined
+    }
+    if (
+      accountRequest === undefined &&
+      !this.modelId.includes('/') &&
+      this.deps.accountRequests !== undefined &&
+      this.deps.client.isPlanModel?.(this.modelId) !== true
+    ) {
+      const requests = this.deps.accountRequests
+      const resolved = await this.resolveModel()
+      const body = this.body(resolved)
+      const inputTokens = estimateInput(
+        this.media?.budgetParts(body) ?? requestParts(body),
+        undefined,
+      ).inputTokens
+      const outputTokens = body.max_output_tokens
+      let costUsd = resolved.price.reserve({ inputTokens, outputTokens })
+      if (costUsd === undefined) throw new Error(UI_TEXT.execModelUnpriced)
+      const hasSearch = body.tools.some((tool) => tool.type === MODEL_API_WEB_SEARCH_TOOL)
+      let searchReserved = Usd.from(0).toAmount()
+      if (hasSearch) {
+        const bound = this.webSearchBound(),
+          price = this.deps.client.searchPriceUsd?.(body.model)
+        if (bound === undefined || price === undefined)
+          throw new Error(UI_TEXT.sessionBudgetSearchUnavailable)
+        searchReserved = multiplyUsd(price, bound)
+        costUsd = Usd.from(costUsd).add(Usd.from(searchReserved)).toAmount()
+      }
+      const kind = this.accountKind()
+      const token = this.owner.token()
+      const modelRevision = this.modelRevision
+      // The turn's lease is held only here: acquisition, the attempt and the
+      // release in a finally, in one place. No caller receives a bare lease.
+      return await requests.withLease(
+        {
+          retryAccount: payer?.account,
+          owner: this.sessionId,
+          budgetOwner: this.deps.budgetScope?.sessionId ?? this.budgetOwner().sessionId,
+          modelId: body.model,
+          kind,
+          account: requests.current(kind, this.sessionId) ?? ACCOUNT_DEFAULT_ID,
+          estimate: { costUsd: accountUsd(costUsd), inputTokens, outputTokens, requests: 1 },
+          isInteractive: true,
+          isCurrent: () =>
+            !signal.aborted &&
+            !this.isDisposed &&
+            !this.isHostClosing() &&
+            this.owner.matches(token) &&
+            this.modelRevision === modelRevision,
+          checkSharedCaps: () => {
+            this.assertEstimateFits(body.model, costUsd, false)
+          },
+        },
+        resolved.origin,
+        async (lease, report) => {
+          if (payer !== undefined) payer.account ??= lease.account
+          this.accountLease = lease
+          // Search authorization belongs to this lease's payer, including a user
+          // selection made before the first request. The consent service owns
+          // remembered grants; a turn quote never crosses account boundaries.
+          this.approvedSearchQuote = undefined
+          try {
+            return await requests.within(lease, async () => {
+              const grant = this.childTaskGrant
+              const paidRequest =
+                grant?.paidRequest ??
+                this.deps.admitResponseAttempt?.paidRequest ??
+                confirmedRequest?.paidRequest
+              if (
+                (kind === 'worker' || paidRequest !== undefined) &&
+                lease.account !== ACCOUNT_DEFAULT_ID
+              ) {
+                if (paidRequest === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+                const allows = this.deps.allowsAccountPaidUse ?? this.deps.allowsPaidUse
+                if (
+                  (await allows(paidRequest, false, this.askingSessionId)) !== true ||
+                  !lease.isCurrent()
+                )
+                  throw new Error(UI_TEXT.accounts.unavailable)
+                if (
+                  grant !== undefined &&
+                  (this.childTaskGrant !== grant ||
+                    this.parentSession?.childGrantRefusal(grant, grant.keyDigest, this.modelId) !==
+                      undefined)
+                )
+                  throw new Error(UI_TEXT.accounts.unavailable)
+                // The grant owns the unchanged parent budget identity; the lease
+                // separately owns the paying credential and its consent.
+              }
+              const confirmed =
+                confirmedRequest === undefined
+                  ? undefined
+                  : {
+                      ...confirmedRequest,
+                      keyDigest: lease.keyDigest,
+                      isStillAllowed: () => confirmedRequest.isStillAllowed() && lease.isCurrent(),
+                    }
+              return await this.streamAttempt(turnId, signal, open, budget, step, confirmed, {
+                lease,
+                receipt: (response) => {
+                  if (response.usage == null || !isCountedUsage(response.usage)) return
+                  const tokenCost =
+                    resolved.price.settle(modelPricedUsage(response.usage), {
+                      cost: response.usage.provider_cost_usd,
+                    }) ?? null
+                  const search = this.sendingSearchSettlement
+                  // Reported at once: a failed terminal still settles its
+                  // known cost when applyStreamEvent throws for it below.
+                  report(
+                    tokenCost === null ||
+                      (hasSearch && isPositiveUsd(searchReserved) && search?.isTerminal !== true)
+                      ? null
+                      : sumUsd(tokenCost, search?.costUsd ?? Usd.from(0).toAmount()),
+                    {
+                      inputTokens: response.usage.input_tokens,
+                      outputTokens: response.usage.output_tokens,
+                    },
+                  )
+                },
+              })
+            })
+          } finally {
+            this.accountLease = undefined
+            this.resolvedModels.delete(resolved.ref)
+          }
+        },
+      )
     }
     const revision = this.modelRevision
     const resolved = await this.resolveModel(this.active?.audioMessage?.modelId ?? this.modelId)
@@ -7233,6 +7642,17 @@ export class ModelApiSession implements ScheduledAgentSession {
     // A request that cannot fit a person-set limit is never sent (M82, D208),
     // nor shown to the hooks; the body sent is estimated afresh below, since
     // what it carries can change while the hooks run.
+    const isPaidAttempt =
+      this.isSubagent ||
+      this.active?.isWebSearchAllowed === true ||
+      this.deps.admitResponseAttempt?.paidFeature !== undefined
+    const route = await this.attemptBillingRoute(
+      this.modelId,
+      isPaidAttempt
+        ? (this.deps.admitResponseAttempt?.paidFeature ??
+            (this.isSubagent ? 'subagents' : 'webSearch'))
+        : 'ordinary',
+    )
     await this.media?.prepare(
       this.replay.map((entry) => entry.item),
       this.modelId,
@@ -7242,7 +7662,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     await this.refreshSearchConsent(signal)
     await this.beforeModelCall(
       turnId,
-      this.budgeted(this.body(resolved), resolved),
+      this.budgeted(this.body(resolved), resolved, route),
       requestId,
       attempt,
       step,
@@ -7293,9 +7713,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       signal,
     )
     if (run !== undefined) await this.checkScheduledReplay(run, this.body(resolved))
-    const body = this.budgeted(this.body(resolved), resolved)
+    const body = this.budgeted(this.body(resolved), resolved, route)
     this.lastJudgeBody = body
-    const inFlight = this.sending(body, resolved)
+    const inFlight = this.sending(body, resolved, route)
     if (confirmedRequest !== undefined && this.recordedCall !== undefined)
       this.recordedCall = { ...this.recordedCall, kind: 'schedule' }
     const requestReplay = this.requestReplay()
@@ -7333,6 +7753,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         false,
         turnId,
         mediaAccounting,
+        route,
+        isPaidAttempt,
       )
       const responseStream = this.scheduledModelClient(resolved).streamResponse(
         body,
@@ -7348,6 +7770,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           inFlight.hasStarted = true
         }
         if (this.workerAttempt !== undefined) this.workerAttempt.hasStarted = true
+        // A failed terminal response still carries its usage: settle the
+        // known cost before applyStreamEvent throws for it.
+        if (accountRequest !== undefined && 'response' in event)
+          accountRequest.receipt(event.response)
         final = (await this.applyStreamEvent(event, open, turnId, chargedGoalId)) ?? final
       }
       if (final === undefined) {
@@ -7358,6 +7784,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           undefined,
         )
       }
+      accountRequest?.receipt(final)
       const model = this.sendingContextModel
       const usage = final.usage
       const overflow =
@@ -7567,7 +7994,13 @@ export class ModelApiSession implements ScheduledAgentSession {
     // A reasoning item must be followed by a message or a call before the
     // next user message, or the next request is a 400 (protocols/responses).
     let isReasoningLast = false
-    const producer = replayProducer(this.sendingModelId ?? this.modelId)
+    const producer = {
+      ...replayProducer(this.sendingModelId ?? this.modelId),
+      ...(this.accountLease !== undefined && {
+        account: this.accountLease.account,
+        origin: this.accountLease.origin,
+      }),
+    }
     for (const [index, item] of response.output.entries()) {
       const wireId = item.id ?? String(index)
       if (isMessageItem(item)) {
@@ -7818,7 +8251,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         requiresUserApproval,
         hook.forceApproval,
       )
-      return { isApproved: isAllowed, feedback: undefined }
+      return {
+        isApproved: isAllowed,
+        feedback: undefined,
+        ...(this.imageDefersToLease(question.paid) && {
+          requiresImageAsking: requiresUserApproval || hook.forceApproval,
+        }),
+      }
     }
     if (this.active?.scheduleRun !== undefined) {
       const decision = await this.active.scheduleRun.decide(
@@ -7965,12 +8404,86 @@ export class ModelApiSession implements ScheduledAgentSession {
   come back as an ask with the reason; only the user's Stop throws.
   */
 
-  private paidModelObservers(turnId: string, resolved = this.selectedModel()) {
+  private isPaidBudgetAllowed(
+    scope: OwnedSessionBudgetScope | undefined,
+    keyDigest: string | undefined,
+  ): boolean {
+    return (
+      scope?.isStillAllowed(
+        keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+      ) ?? !isPositiveUsd(this.deps.sessionBudgetUsd())
+    )
+  }
+
+  /** Whether an image spending question is asked later, inside its own
+  lease under its own payer, rather than here under no account. */
+  private imageDefersToLease(paid: PaidUseRequest): boolean {
+    return (
+      paid.feature === 'imageGeneration' &&
+      this.deps.accountRequests?.paidClient !== undefined &&
+      !this.modelId.includes('/')
+    )
+  }
+
+  private accountPaidClient(
+    paid: PaidUseRequest,
+    requiresAsking = false,
+    askContext?: { readonly call?: FunctionCallItem; readonly signal?: AbortSignal },
+  ): ProviderClient {
+    if (this.modelId.includes('/') || this.deps.accountRequests?.paidClient === undefined)
+      return this.client
+    return this.deps.accountRequests.paidClient(
+      this.client,
+      {
+        owner: this.sessionId,
+        budgetOwner: this.budgetOwner().sessionId,
+        kind: 'conversation',
+        account: ACCOUNT_DEFAULT_ID,
+        modelId: this.modelId,
+        isInteractive: true,
+        estimate: { costUsd: accountUsd('0'), inputTokens: 0, outputTokens: 0, requests: 1 },
+        isCurrent: () =>
+          !this.isDisposed && !this.isHostClosing() && this.active?.abort.signal.aborted !== true,
+        checkSharedCaps: () => {
+          this.assertEstimateFits(this.modelId, Usd.from(0).toAmount(), false)
+        },
+      },
+      new URL(MODEL_API_BASE_URL).origin,
+      paid,
+      requiresAsking,
+      (question, asks) => {
+        // The in-lease spending question waits like the direct one: notified
+        // while it waits, ended by a Stop. Without a call or signal it asks
+        // as before.
+        const stopSignal = askContext?.signal
+        if (stopSignal === undefined) {
+          return this.deps.allowsPaidUse(question, asks, this.askingSessionId)
+        }
+        const stopCall = askContext?.call
+        const asking = this.deps.allowsPaidUse(question, asks, this.askingSessionId)
+        const stopNotifying =
+          stopCall === undefined ? NO_UNSUBSCRIBE : this.notifyWhileAsking(stopCall, stopSignal)
+        return (async () => {
+          try {
+            return await unlessStopped(asking, stopSignal)
+          } finally {
+            stopNotifying()
+          }
+        })()
+      },
+    )
+  }
+
+  private paidModelObservers(
+    turnId: string,
+    resolved = this.selectedModel(),
+    route?: BillingRoute,
+  ) {
     return {
       keyed: (request: Omit<CreateResponseBody, 'prompt_cache_key' | 'prompt_cache_retention'>) =>
         this.keyed(request),
       guard: (body: CreateResponseBody, budget: DirectResponseBudget) =>
-        this.responseAttemptGuard(body, resolved, budget),
+        this.responseAttemptGuard(body, resolved, budget, false, undefined, undefined, route),
       isCountedUsage,
       abortError: () => new AbortedError(),
       // D208: a refused request books nothing; a local refusal that never
@@ -8034,14 +8547,26 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.isPaidFeatureOn('autoReviewer') &&
       this.policy() === policy &&
       resolved.isCurrent()
+    let route: BillingRoute | undefined
     let keyDigest: string
     let budgetScope: OwnedSessionBudgetScope
     try {
-      keyDigest = await unlessStopped(resolved.client.currentKeyDigest(), signal)
-      budgetScope = await unlessStopped(this.ownedBudgetScope(), signal)
-    } catch {
+      route = await unlessStopped(this.attemptBillingRoute(modelId, 'autoReviewer'), signal)
+      keyDigest =
+        route === undefined
+          ? await unlessStopped(resolved.client.currentKeyDigest(), signal)
+          : billingKeyDigest(route.credential)
+      budgetScope = await unlessStopped(this.ownedBudgetScope(route), signal)
+    } catch (error: unknown) {
+      if (!isCredentialReadError(error)) throw error
       if (signal.aborted) throw new AbortedError()
-      return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
+      return {
+        decision: 'ask',
+        note:
+          error instanceof Error && error.message === UI_TEXT.subscriptionKey.paidNeedsKey
+            ? UI_TEXT.subscriptionKey.paidNeedsKey
+            : UI_TEXT.autoReviewerFailed,
+      }
     }
     if (!isCurrent() || !budgetScope.isStillAllowed(keyDigest)) {
       return { decision: 'ask', note: UI_TEXT.autoReviewerFailed }
@@ -8049,6 +8574,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const isAllowed =
       resolved.policy.pricing.kind === 'local' ||
       resolved.policy.pricing.kind === 'plan' ||
+      (this.deps.accountRequests?.paidClient !== undefined && !modelId.includes('/')) ||
       (await unlessStopped(
         this.deps.allowsPaidUse(
           {
@@ -8087,15 +8613,31 @@ export class ModelApiSession implements ScheduledAgentSession {
         outcome = await reviewPaidCall(
           {
             deps: this.deps,
-            resolved,
+            resolved:
+              this.deps.accountRequests?.paidClient !== undefined && !modelId.includes('/')
+                ? {
+                    ...resolved,
+                    client: this.accountPaidClient(
+                      {
+                        feature: 'autoReviewer',
+                        modelId,
+                        tool: call.name,
+                        action,
+                      },
+                      false,
+                      { call, signal },
+                    ),
+                  }
+                : resolved,
             table: UI_TEXT,
             locale: uiLocale(),
             breaker: this.reviewBreaker,
             userRequest: this.lastUserText(),
             recentCalls: this.recentCalls(turnId),
-            ...this.paidModelObservers(turnId, resolved),
+            ...this.paidModelObservers(turnId, resolved, route),
             keyed: (request) => this.keyed(request),
-            guard: (body, budget) => this.responseAttemptGuard(body, resolved, budget),
+            guard: (body, budget) =>
+              this.responseAttemptGuard(body, resolved, budget, false, undefined, undefined, route),
             isCountedUsage,
             abortError: () => new AbortedError(),
             // D208: a refused request books nothing; a local refusal that never
@@ -8121,7 +8663,7 @@ export class ModelApiSession implements ScheduledAgentSession {
             origin: resolved.origin,
             keyDigest,
             runKind: 'review',
-            isStillAllowed: () => isCurrent() && budgetScope.isStillAllowed(keyDigest),
+            isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
             onRequestStarted: () => {
               this.notifyUsage(() => {
                 this.deps.notePaidUse('autoReviewer', 1)
@@ -8224,6 +8766,15 @@ export class ModelApiSession implements ScheduledAgentSession {
         paid.feature,
         requiresUserApproval || shouldForceApproval,
       )
+    if (this.imageDefersToLease(paid)) {
+      // The image lease owns its paid request from choice to settlement: the
+      // spending question is asked once, inside that lease under its own
+      // payer, not here under no account. The approval card still proceeds;
+      // protected-path permission is enforced at dispatch. This call's
+      // forced-ask flag travels with its approval outcome, never on a shared
+      // session field, so one call cannot answer for a later one.
+      return true
+    }
     const stopNotifying = this.notifyWhileAsking(call, signal)
     try {
       return (
@@ -9221,6 +9772,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     plan: ImagePlan,
     signal: AbortSignal,
     admission: Admission,
+    call: FunctionCallItem,
+    requiresImageAsking: boolean,
   ): Promise<ToolOutcome> {
     // Images answer over the caller's ledger, like every other side call:
     // the take-or-refuse keeps the turn's last request for the wrap-up even
@@ -9284,7 +9837,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       try {
         const image = await this.imageFunctions()
         const outcome = await image.runImageCall(plan, {
-          client: this.client,
+          client: this.accountPaidClient(image.imageUseRequest(plan), requiresImageAsking, {
+            call,
+            signal,
+          }),
           io: this.scheduledIo(this.toolWrites()?.io ?? this.deps.io),
           signal,
           isStillOn: () => this.deps.isPaidFeatureOn('imageGeneration'),
@@ -10051,8 +10607,14 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.deps.isWorkspaceTrusted() &&
       this.deps.isPaidFeatureOn('hookModels') &&
       this.policy() === policy
+    const route = await this.attemptBillingRoute(modelId, 'hookModels')
     const [keyDigest, budgetScope] = await unlessStopped(
-      Promise.all([this.client.currentKeyDigest(), this.ownedBudgetScope()]),
+      Promise.all([
+        route === undefined
+          ? this.client.currentKeyDigest()
+          : Promise.resolve(billingKeyDigest(route.credential)),
+        this.ownedBudgetScope(route),
+      ]),
       signal,
     )
     if (!isCurrent() || !budgetScope.isStillAllowed(keyDigest)) {
@@ -10090,13 +10652,18 @@ export class ModelApiSession implements ScheduledAgentSession {
       const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
       return await runHookModel(
         {
-          deps: this.deps,
+          deps: {
+            ...this.deps,
+            client: this.accountPaidClient({ feature: 'hookModels', event, kind, modelId }, false, {
+              signal,
+            }),
+          },
           tools: kind === 'agent' ? this.hookModelTools() : [],
           table: UI_TEXT,
           locale: uiLocale(),
           executeReadOnlyTool: async (name, argsJson, toolSignal) =>
             await this.executeHookModelTool(name, argsJson, toolSignal),
-          ...this.paidModelObservers(turnId),
+          ...this.paidModelObservers(turnId, undefined, route),
         },
         { kind, system, user },
         event,
@@ -10106,7 +10673,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           modelId,
           keyDigest,
           runKind: 'hookModel',
-          isStillAllowed: () => isCurrent() && budgetScope.isStillAllowed(keyDigest),
+          isStillAllowed: () => isCurrent() && this.isPaidBudgetAllowed(budgetScope, keyDigest),
           onRequestStarted: () => {
             // Hook runs are counted by the consenting dispatcher.
           },
@@ -10420,7 +10987,11 @@ export class ModelApiSession implements ScheduledAgentSession {
       undefined,
     )
     if (verdict?.keepWorking !== true || !this.canContinueChild(child, grant)) return false
-    const keyDigest = await this.client.currentKeyDigest()
+    const route = await this.attemptBillingRoute(child.session.modelId, 'subagents')
+    const keyDigest =
+      route === undefined
+        ? await this.client.currentKeyDigest()
+        : billingKeyDigest(route.credential)
     if (
       this.childGrantRefusal(grant, keyDigest, child.session.modelId) !== undefined ||
       !this.canContinueChild(child, grant)
@@ -10705,10 +11276,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     const isWebSearchAllowed =
       this.active?.isWebSearchAllowed ?? this.deps.isPaidUseRemembered('webSearch')
     const resolved = await this.resolveModel(modelId)
+    const route = await this.attemptBillingRoute(modelId, 'subagents')
     return {
       modelId,
       parentModelId,
-      keyDigest: await resolved.client.currentKeyDigest(),
+      keyDigest:
+        route === undefined
+          ? await resolved.client.currentKeyDigest()
+          : billingKeyDigest(route.credential),
       ...(scheduleRun !== undefined && {
         scheduleAuthority: {
           owner: this.owner,
@@ -10738,7 +11313,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     let keyDigest: string | undefined
     try {
       const resolved = await this.resolveModel(grant.modelId)
-      keyDigest = await resolved.client.currentKeyDigest()
+      const route = await this.attemptBillingRoute(grant.modelId, 'subagents')
+      keyDigest =
+        route === undefined
+          ? await resolved.client.currentKeyDigest()
+          : billingKeyDigest(route.credential)
     } catch (error: unknown) {
       if (!(error instanceof MissingApiKeyError)) {
         throw error
@@ -10769,7 +11348,10 @@ export class ModelApiSession implements ScheduledAgentSession {
     agent: AgentDefinition | undefined,
     waits: readonly AdmissionWait[],
   ): Promise<ChildAdmission | { readonly refusal: ToolOutcome }> {
-    const grant = await this.newChildGrant(task.modelId)
+    const grant = {
+      ...(await this.newChildGrant(task.modelId)),
+      paidRequest: { feature: 'subagents' as const, task },
+    }
     let checked = await this.recheckAdmission(grant, agent)
     for (const wait of waits) {
       if ('refusal' in checked) {
@@ -11527,6 +12109,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     childGrant?: ChildTaskGrant,
     approvedTarget?: { readonly absolute: string; readonly checkedAbsolute: string },
     approvedImagePlan?: ImagePlan,
+    requiresImageAsking = false,
   ): Promise<Performed> {
     // M96 lane T: while an `in-place` worker task runs, the orchestrator's
     // writing tools are refused at call admission, in every mode.
@@ -11570,7 +12153,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           outcome:
             approvedImagePlan === undefined
               ? toolFailure(MODEL_TEXT.imageGenerationOff)
-              : await this.makeImage(approvedImagePlan, signal, admission),
+              : await this.makeImage(
+                  approvedImagePlan,
+                  signal,
+                  admission,
+                  call,
+                  requiresImageAsking,
+                ),
         }
       }
       case MODEL_API_TOOLS.createGoal:
@@ -13373,6 +13962,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     const { verdict } = judgement
     let childGrant: ChildTaskGrant | undefined
+    let requiresImageAsking = false
     if (childTask !== undefined) {
       // The same order as a spawn's (RV70x): the gates, then each wait
       // followed by a recheck. Only a spawn asks the contributor yes every
@@ -13415,6 +14005,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           isRejected: true,
         }
       }
+      // An image spending question deferred to its lease carries this call's
+      // forced-ask flag to dispatch with the approval, never shared.
+      requiresImageAsking = approval.requiresImageAsking ?? false
     }
     // A child task's grant was rechecked after its last wait (consentToChildTask).
     signal.throwIfAborted()
@@ -13474,6 +14067,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         childGrant,
         target?.ok === true ? target : undefined,
         approvedImagePlan,
+        requiresImageAsking,
       )
     } finally {
       completeEdit?.()
@@ -15914,7 +16508,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       turn.isWebSearchAllowed =
         !this.isReviewing() &&
         !this.isPlaybackTurn() &&
-        (await this.webSearchConsent(turn.abort.signal))
+        (this.deps.accountRequests !== undefined && !this.modelId.includes('/')
+          ? this.deps.isPaidFeatureOn('webSearch')
+          : await this.webSearchConsent(turn.abort.signal))
       if (
         this.deps.autoCompaction?.() === true &&
         !(this.deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED) &&
@@ -16277,6 +16873,9 @@ export class ModelApiSession implements ScheduledAgentSession {
               )
               await extraAdmission?.prepare?.()
             },
+            // C-M95-SUB: the compaction attempt carries the frozen route.
+            billingRoute: admitAttempt.billingRoute,
+            confirmBillingRoute: admitAttempt.confirmBillingRoute,
             onRequestStarted: () => {
               attemptState.didSend = true
               admitAttempt.onRequestStarted?.()
@@ -17530,6 +18129,209 @@ export class ModelApiSession implements ScheduledAgentSession {
     return Promise.resolve({ turnId: expectedTurnId, disposition: 'steered', userMessageId })
   }
 
+  /** The same-model Judge side request without account admission. */
+  private async judgeDirectSend(
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+  ): Promise<ModelApiSideResponse> {
+    const route = guard.billingRoute ?? (await this.attemptBillingRoute(body.model, 'judge'))
+    const payer =
+      route?.payerCredential ?? payerCredentialSchema.parse(await this.client.currentKeyDigest())
+    const admission: ResponseAttemptGuard = Object.assign(
+      (actual: string | undefined) => {
+        if (actual !== payer) throw new Error('Judge account changed')
+        guard(actual)
+      },
+      {
+        ...guard,
+        billingRoute: route,
+        paidFeature: 'judge' as const,
+        reservePaidRequest: guard.reservePaidRequest ?? (() => Promise.resolve(undefined)),
+        confirmBillingRoute:
+          route === undefined
+            ? undefined
+            : async () => {
+                const current = await this.attemptBillingRoute(body.model, 'judge')
+                if (
+                  current?.kind !== route.kind ||
+                  current.payerCredential !== route.payerCredential
+                )
+                  throw new Error(UI_TEXT.subscriptionKey.billingChanged)
+              },
+      },
+    )
+    let final: ResponseObject | undefined
+    // The judge names no retries: one send, then its verdict stands.
+    const stream = this.client.streamResponse(body, signal, undefined, noRetryBudget(), admission)
+    for await (const event of stream) {
+      if (event.type === 'response.completed') final = event.response
+    }
+    if (final?.status !== 'completed') throw new Error('Judge stream has no completed response')
+    return this.judgeSideResponse(final)
+  }
+
+  /**
+  The same-model Judge side request on the conversation's account: one
+  lease owns it from choice to settlement. The lease is chosen and
+  reserved in the reservation queue, carries the payer, the payer's 429
+  observations, the settlement from whichever terminal event has usage,
+  and the send-time prefix key of exactly what is sent. The Judge pays on
+  this turn's admitted payer — the live conversation lease first, else the
+  admitted choice ignoring a switch queued for the next request — pinned
+  so it stops rather than paying on an account nobody chose for it. The
+  send is transient: no sticky entry and no persisted selection per send.
+  The Judge's own once-per-use admission and consent stay outside the
+  conversation lease by design; this lease owns payer identity,
+  settlement and release for exactly that admitted use.
+  */
+  private async judgeLeasedSend(
+    requests: AccountRequestPort,
+    body: CreateResponseBody,
+    signal: AbortSignal,
+    guard: ResponseAttemptGuard,
+    turnId: string,
+  ): Promise<ModelApiSideResponse> {
+    // The side request is keyed at send time from exactly what it sends, on
+    // the paying lease: the main body's key never crosses to another payer.
+    const keyedBody = { ...body, prompt_cache_key: promptCacheKey(body) }
+    const price = modelPolicyFor(keyedBody.model).pricing
+    if (price.kind !== 'priced') throw new Error(UI_TEXT.execModelUnpriced)
+    const inputTokens = estimateInput(requestParts(keyedBody), undefined).inputTokens
+    const outputTokens = keyedBody.max_output_tokens
+    const reservation = Usd.from(price.card.input)
+      .times(inputTokens)
+      .add(Usd.from(price.card.output).times(outputTokens))
+      .toAmount()
+    const payer =
+      this.accountLease?.account ??
+      requests.currentWithoutNext(this.accountKind(), this.sessionId) ??
+      ACCOUNT_DEFAULT_ID
+    return await requests.withLease(
+      {
+        // One lease per paid request: each background batch send owns its
+        // payer from choice to settlement, never colliding with the turn.
+        owner: `${this.sessionId}:judge:${turnId}:${this.deps.newId()}`,
+        budgetOwner: this.budgetOwner().sessionId,
+        kind: 'conversation',
+        account: payer,
+        retryAccount: payer,
+        transient: true,
+        modelId: keyedBody.model,
+        isInteractive: true,
+        estimate: {
+          costUsd: accountUsd(reservation),
+          inputTokens,
+          outputTokens,
+          requests: 1,
+        },
+        isCurrent: () => !signal.aborted && !this.isDisposed && !this.isHostClosing(),
+        checkSharedCaps: () => {
+          this.assertEstimateFits(keyedBody.model, reservation, false)
+        },
+      },
+      new URL(MODEL_API_BASE_URL).origin,
+      async (lease, report) => {
+        let final: ResponseObject | undefined
+        await requests.within(lease, async () => {
+          const fence: ResponseAttemptGuard = Object.assign(
+            (actual: string | undefined) => {
+              if (actual !== lease.keyDigest || !lease.isCurrent())
+                throw new Error(UI_TEXT.accounts.invalidAccount)
+              // The admission check sees the key this send actually used,
+              // never a constant: a payer its own check did not admit refuses.
+              guard(actual)
+            },
+            {
+              ...guard,
+              beforeRequestStarted: () => {
+                lease.beforeSend()
+              },
+              observe: (observation: ResponseObservation) => {
+                if (observation.rateLimited === true) {
+                  lease.rateLimit(
+                    rateLimitResetAt(observation.headers?.['retry-after'] ?? null, this.deps.now()),
+                  )
+                }
+                guard.observe?.(observation)
+              },
+            },
+          )
+          const stream = lease.client.streamResponse(
+            keyedBody,
+            signal,
+            undefined,
+            noRetryBudget(),
+            fence,
+          )
+          try {
+            for await (const event of stream) {
+              if (!isTerminalResponseEvent(event)) continue
+              final = event.response
+              const counted = event.response.usage
+              if (counted == null || !isCountedUsage(counted)) continue
+              const priced = modelPricedUsage(counted)
+              report(
+                counted.provider_cost_usd === undefined
+                  ? estimateCostUsd(
+                      {
+                        inputTokens: priced.inputTokens,
+                        outputTokens: priced.outputTokens,
+                        cachedTokens: priced.cachedTokens ?? 0,
+                      },
+                      keyedBody.model,
+                    )
+                  : Usd.from(counted.provider_cost_usd).toAmount(),
+                {
+                  inputTokens: counted.input_tokens,
+                  outputTokens: counted.output_tokens,
+                },
+              )
+            }
+          } finally {
+            await stream.return(undefined)
+          }
+        })
+        if (final?.status !== 'completed') throw new Error('Judge stream has no completed response')
+        return this.judgeSideResponse(final)
+      },
+    )
+  }
+
+  /** The Judge side answer from its completed terminal response. */
+  private judgeSideResponse(final: ResponseObject): ModelApiSideResponse {
+    const text = final.output
+      .flatMap((item) =>
+        item.type === 'message' && 'content' in item
+          ? item.content.flatMap((part) =>
+              part.type === 'output_text' && 'text' in part ? part.text : [],
+            )
+          : [],
+      )
+      .join('')
+    const usage = final.usage
+    if (usage !== undefined && usage !== null && !isCountedUsage(usage))
+      throw new Error('Invalid Judge usage')
+    const cached = usage?.input_tokens_details?.cached_tokens
+    const reasoning = usage?.output_tokens_details?.reasoning_tokens
+    return {
+      text,
+      inputTokens: usage?.input_tokens,
+      outputTokens: usage?.output_tokens,
+      ...(usage !== undefined &&
+        usage !== null &&
+        cached !== undefined &&
+        reasoning !== undefined && {
+          usage: {
+            inputTokens: usage.input_tokens,
+            outputTokens: usage.output_tokens,
+            cachedTokens: cached,
+            reasoningTokens: reasoning,
+          },
+        }),
+    }
+  }
+
   /** Recording adapters use the nominal session, never an arbitrary callback. */
   public async runRecordedTool(
     ...args: Parameters<ModelApiSession['decideAndRun']>
@@ -17631,8 +18433,9 @@ export class ModelApiSession implements ScheduledAgentSession {
   transcript (a review, a hook model, a best-of-N attempt; D121): checked
   against the same limit and charged to the same total, under the same key.
   */
-  public async ownedBudgetScope(): Promise<OwnedSessionBudgetScope> {
+  public async ownedBudgetScope(route?: BillingRoute): Promise<OwnedSessionBudgetScope> {
     const modelRevision = this.modelRevision
+    const paidRoute = route ?? (await this.attemptBillingRoute(this.modelId, 'bestOfN'))
     const resolved = this.modelId.includes('/') ? await this.resolveModel() : this.selectedModel()
     const providerKeyDigest = this.modelId.includes('/')
       ? await resolved.client.currentKeyDigest()
@@ -17646,7 +18449,11 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (accountId === undefined) {
       throw new MissingApiKeyError()
     }
-    const expectedKeyDigest = resolved.ref.includes('/') ? providerKeyDigest : accountId
+    let expectedKeyDigest: PayerCredential | undefined =
+      paidRoute === undefined ? payerCredentialSchema.parse(accountId) : paidRoute.payerCredential
+    if (paidRoute === undefined && resolved.ref.includes('/'))
+      expectedKeyDigest =
+        providerKeyDigest === undefined ? undefined : payerCredentialSchema.parse(providerKeyDigest)
     const scope: OwnedSessionBudgetScope = Object.freeze({
       sessionId: source?.sessionId ?? owner.sessionId,
       accountId,
@@ -18711,7 +19518,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       transcript: [...this.transcript],
       outputs: Object.fromEntries(this.outputs),
       usage: { ...this.usage },
-      ...(isPositiveUsd(budgetSpentUsd) && { budgetSpentUsd }),
+      ...((isPositiveUsd(budgetSpentUsd) || this.hasSubscriptionUsage) && { budgetSpentUsd }),
       // New snapshots never count held money (D208): the total is settled
       // spend only, so a resume adopts it whole.
       spendSettledOnly: true,
@@ -18762,6 +19569,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   that actually carries external content (RVM109T 4).
   */
   public adopt(stored: StoredSession): void {
+    this.hasSubscriptionUsage =
+      stored.accountId === this.deps.subscriptionAccountId && stored.budgetSpentUsd !== undefined
     if (this.media === undefined && stored.replay.some((entry) => (entry.media?.length ?? 0) > 0))
       throw new Error(fill(UI_TEXT.media.attachmentUnknownType, { type: 'media replay' }))
     this.media?.restore(stored.replay)
@@ -19074,14 +19883,22 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /** Reads the actual main request; the side stream never enters this session's replay or tally. */
-  public judgeConnection(turnId: string, keyDigest: string): ModelApiJudgeConnection {
+  public judgeConnection(turnId: string): ModelApiJudgeConnection {
     const readMainBody = (): CreateResponseBody => {
       if (this.active?.turnId !== turnId || this.lastJudgeBody?.model !== this.modelId)
         throw new Error('Judge source changed')
       return this.lastJudgeBody
     }
     return {
-      keyDigest,
+      resolvePayer: async () => {
+        const route = await this.attemptBillingRoute(this.modelId, 'judge')
+        return {
+          route,
+          payerCredential:
+            route?.payerCredential ??
+            payerCredentialSchema.parse(await this.client.currentKeyDigest()),
+        }
+      },
       sideCallFormats: this.deps.sideCallFormats,
       forceSideCallTool: this.deps.forceSideCallTool,
       source: {
@@ -19094,44 +19911,10 @@ export class ModelApiSession implements ScheduledAgentSession {
       transport: {
         send: async (body, signal, guard) => {
           if (guard === undefined) throw new Error('Judge dispatch requires admission')
-          let final: ResponseObject | undefined
-          // The judge names no retries: one send, then its verdict stands.
-          const stream = this.client.streamResponse(body, signal, undefined, noRetryBudget(), guard)
-          for await (const event of stream) {
-            if (event.type === 'response.completed') final = event.response
-          }
-          if (final?.status !== 'completed')
-            throw new Error('Judge stream has no completed response')
-          const text = final.output
-            .flatMap((item) =>
-              item.type === 'message' && 'content' in item
-                ? item.content.flatMap((part) =>
-                    part.type === 'output_text' && 'text' in part ? part.text : [],
-                  )
-                : [],
-            )
-            .join('')
-          const usage = final.usage
-          if (usage !== undefined && usage !== null && !isCountedUsage(usage))
-            throw new Error('Invalid Judge usage')
-          const cached = usage?.input_tokens_details?.cached_tokens
-          const reasoning = usage?.output_tokens_details?.reasoning_tokens
-          return {
-            text,
-            inputTokens: usage?.input_tokens,
-            outputTokens: usage?.output_tokens,
-            ...(usage !== undefined &&
-              usage !== null &&
-              cached !== undefined &&
-              reasoning !== undefined && {
-                usage: {
-                  inputTokens: usage.input_tokens,
-                  outputTokens: usage.output_tokens,
-                  cachedTokens: cached,
-                  reasoningTokens: reasoning,
-                },
-              }),
-          }
+          const requests = this.deps.accountRequests
+          return requests === undefined || this.modelId.includes('/')
+            ? await this.judgeDirectSend(body, signal, guard)
+            : await this.judgeLeasedSend(requests, body, signal, guard, turnId)
         },
       },
     }
@@ -19213,7 +19996,8 @@ export class ModelApiHost implements AgentHost {
 
   private readonly workspaceEdits: WorkspaceEdits
   /** Pinned at first use; a host cannot serve a different stored-key account. */
-  private accountIdValue: string | undefined
+  private accountIdValue: ConversationOwner | undefined
+  private readonly sessionOwners = new Map<string, ConversationOwner>()
   /** What the store holds for this workspace, kept current as sessions change. */
   private readonly stored = new Map<string, StoredSessionHeader>()
   private readonly listListeners = new Set<(event: SessionListEvent) => void>()
@@ -19257,13 +20041,23 @@ export class ModelApiHost implements AgentHost {
     deps.mcpServers?.setElicitationHandler?.(() => Promise.resolve({ action: 'decline' as const }))
   }
 
-  private async requireAccountId(): Promise<string> {
-    const current = await this.deps.getAccountId()
+  private async requireAccountId(): Promise<ConversationOwner> {
+    const observed = await this.deps.getAccountId()
+    const current = observed === undefined ? undefined : conversationOwnerSchema.parse(observed)
     if (
       current === undefined ||
       (this.accountIdValue !== undefined && current !== this.accountIdValue)
     ) {
-      throw new Error(UI_TEXT.notSignedInReason)
+      if (
+        current !== undefined &&
+        this.deps.subscriptionAccountId !== undefined &&
+        (this.accountIdValue === this.deps.subscriptionAccountId ||
+          current === this.deps.subscriptionAccountId)
+      ) {
+        this.accountIdValue = undefined
+      } else {
+        throw new Error(UI_TEXT.notSignedInReason)
+      }
     }
     this.accountIdValue = current
     return current
@@ -19276,8 +20070,8 @@ export class ModelApiHost implements AgentHost {
     }
   }
 
-  private ownedSnapshot(snapshot: StoredSession): StoredSession {
-    const accountId = this.accountIdValue
+  private ownedSnapshot(snapshot: StoredSession, owner?: ConversationOwner): StoredSession {
+    const accountId = owner ?? this.sessionOwners.get(snapshot.sessionId) ?? this.accountIdValue
     if (accountId === undefined) {
       throw new Error(UI_TEXT.notSignedInReason)
     }
@@ -19287,7 +20081,7 @@ export class ModelApiHost implements AgentHost {
       ...(snapshot.children !== undefined && {
         children: snapshot.children.map((child) => ({
           ...child,
-          session: this.ownedSnapshot(child.session),
+          session: this.ownedSnapshot(child.session, accountId),
         })),
       }),
     }
@@ -19625,7 +20419,13 @@ export class ModelApiHost implements AgentHost {
       sessionId,
       modelId,
       approvalMode,
-      this.deps,
+      {
+        ...this.deps,
+        conversationOwner:
+          this.deps.budgetScope?.accountId === undefined
+            ? this.accountIdValue
+            : conversationOwnerSchema.parse(this.deps.budgetScope.accountId),
+      },
       () => {
         if (this.pendingSummaryForks.has(sessionId)) return
         void this.persist(session)
@@ -19648,6 +20448,7 @@ export class ModelApiHost implements AgentHost {
       false,
       extensionHooks,
     )
+    if (this.accountIdValue !== undefined) this.sessionOwners.set(sessionId, this.accountIdValue)
     this.sessions.set(sessionId, session)
     return session
   }
@@ -19804,7 +20605,7 @@ export class ModelApiHost implements AgentHost {
   public judgeConnection(sessionId: string, turnId: string): ModelApiJudgeConnection | undefined {
     const session = this.sessions.get(sessionId)
     if (session === undefined || this.accountIdValue === undefined) return
-    return session.judgeConnection(turnId, this.accountIdValue)
+    return session.judgeConnection(turnId)
   }
 
   public async importSession(
@@ -20042,10 +20843,12 @@ export class ModelApiHost implements AgentHost {
   }
 
   public async listSessions(options: ListSessionsOptions): Promise<SessionPage> {
-    await this.requireAccountId()
-    const records = Array.from(this.sessions.values(), (session) => session.record())
+    const owner = await this.requireAccountId()
+    const records = Array.from(this.sessions.values(), (session) =>
+      this.sessionOwners.get(session.sessionId) === owner ? session.record() : undefined,
+    ).filter((record) => record !== undefined)
     for (const [sessionId, stored] of this.stored) {
-      if (!this.sessions.has(sessionId)) {
+      if (stored.accountId === owner && !this.sessions.has(sessionId)) {
         records.push(recordOf(stored))
       }
     }

@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from './billingRoute'
 // M95-T: canonical client seam. Codecs/registry load only in the BYO bundle.
 import type { ModelCapabilities } from '../../providers/capabilities'
 import * as z from 'zod/mini'
@@ -217,7 +218,14 @@ export class CodecClient implements ProviderClient {
     // (Stop owns the wait; PR #214 review).
     const result = await this.transport.request(
       this.deps.codec.models.path,
-      { method: 'GET', accept: 'application/json' },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: false,
+        }),
+        method: 'GET',
+        accept: 'application/json',
+      },
       signal,
     )
     const models = await parseJsonResponse(result, (json) => this.deps.codec.models.parse(json))
@@ -240,6 +248,10 @@ export class CodecClient implements ProviderClient {
     const result = await this.transport.request(
       request.path,
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'tokenCount',
+          isMetaDirect: false,
+        }),
         method: 'POST',
         body: request.body,
         ...(request.headers !== undefined && { headers: request.headers }),
@@ -290,7 +302,6 @@ export class CodecClient implements ProviderClient {
       body,
       'scheduledPrompts',
       admitAttempt?.paidEstimatedInputTokens,
-      signal,
     )
     const paid = claim === undefined ? undefined : { claim, run, isSent: false }
     try {
@@ -298,6 +309,13 @@ export class CodecClient implements ProviderClient {
         const { response, redact, redactContent, eventParsed } = await this.transport.streamRequest(
           request.path,
           {
+            // C-M95-SUB: the attempt rides its frozen route, so billing and
+            // credential checks see the same decision the turn was admitted
+            // under.
+            billingRoute: await resolveAttemptBillingRoute({
+              feature: admitAttempt?.paidFeature ?? 'ordinary',
+              isMetaDirect: false,
+            }),
             body: request.body,
             ...(request.headers !== undefined && { headers: request.headers }),
             accept:

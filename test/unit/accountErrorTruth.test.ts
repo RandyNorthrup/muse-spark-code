@@ -9,7 +9,11 @@ import {
   isRevokeUnsupportedError,
 } from '../../src/acp/accountText'
 import { AccountStoreError } from '../../src/core/providers/accountCredentialRecord'
-import { commandError, runAccountsCommand } from '../../src/runtime/providers/accountsCommand'
+import {
+  commandError,
+  runAccountAuthSet,
+  runAccountsCommand,
+} from '../../src/runtime/providers/accountsCommand'
 import { fileAccountsMetadata } from '../../src/runtime/providers/providersFileStore'
 import {
   createRuntimeAccountServices,
@@ -253,6 +257,101 @@ describe('account errors name their cause', () => {
       await expect(accounts.command('/accounts list', () => true)).rejects.toThrow(
         UI_TEXT.accounts.notReady,
       )
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('names the unknown provider id instead of reporting a connection problem', async () => {
+    const folder = await scratch()
+    const services = offlineServices(folder)
+    try {
+      const lines: string[] = []
+      const errors: string[] = []
+      const deps = {
+        ...services.commands,
+        print: (line: string) => {
+          lines.push(line)
+        },
+        printError: (line: string) => {
+          errors.push(line)
+        },
+      }
+      // The merged store names the missing entry (RLTESTDRIVE2 15): the
+      // refusal carries the id by name, never the connection sentence.
+      const expected = fill(UI_TEXT.accounts.unavailableReason, {
+        reason: fill(UI_TEXT.accounts.noAccountsEntry, { provider: 'anthropic-s2' }),
+      })
+      const exit = await runAccountsCommand({ action: 'list', provider: 'anthropic-s2' }, deps)
+      expect(exit).toBe(1)
+      expect(lines).toEqual([])
+      expect(errors).toEqual([expected])
+      const secondExit = await runAccountsCommand(
+        {
+          action: 'add',
+          provider: 'anthropic-s2',
+          account: { id: 's2', label: 'S2', order: 0, thresholds: {} },
+        },
+        deps,
+      )
+      expect(secondExit).toBe(1)
+      expect(errors).toEqual([expected, expected])
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('lists the built-in Meta entry with no providers file', async () => {
+    const folder = await scratch()
+    const services = offlineServices(folder)
+    try {
+      const lines: string[] = []
+      const errors: string[] = []
+      const exit = await runAccountsCommand(
+        { action: 'list', provider: 'meta' },
+        {
+          ...services.commands,
+          print: (line: string) => {
+            lines.push(line)
+          },
+          printError: (line: string) => {
+            errors.push(line)
+          },
+        },
+      )
+      expect(exit).toBe(0)
+      expect(errors).toEqual([])
+      expect(lines).toHaveLength(1)
+      expect(JSON.parse(lines[0] ?? '[]')).toEqual([
+        { id: 'default', label: UI_TEXT.accounts.defaultLabel, order: 0, thresholds: {} },
+      ])
+    } finally {
+      services.dispose()
+    }
+  })
+
+  it('refuses auth set for an unknown provider before prompting for a key', async () => {
+    const folder = await scratch()
+    const services = offlineServices(folder)
+    try {
+      const errors: string[] = []
+      const exit = await runAccountAuthSet(
+        { provider: 'anthropic-s2', account: 'default' },
+        {
+          ...services.commands,
+          print: () => {
+            throw new Error('no success line is expected')
+          },
+          printError: (line: string) => {
+            errors.push(line)
+          },
+          readSecret: () => Promise.reject(new Error('must not prompt for a key')),
+          storeName: 'test-store',
+          confirmKeyUse: () => Promise.resolve(false),
+        },
+      )
+      expect(exit).toBe(1)
+      expect(errors).toEqual(['Unknown provider: anthropic-s2.'])
     } finally {
       services.dispose()
     }

@@ -2,6 +2,11 @@
 // unreachable, an unreadable list as unparseable, and only a parsed list
 // proves the key.
 import { describe, expect, it } from 'vitest'
+// The two static imports warm the probe's lazily loaded bundles at
+// collection time, so the assertion itself runs inside the repository's
+// own per-test timeout.
+import '../../src/host/backend/configuredProvidersEntry'
+import '../../src/host/backend/modelApiEntry'
 import { presetById } from '../../src/core/providers/presets'
 import type { ProviderEntry, ProvidersFile } from '../../src/core/providers/providersFile'
 import { resolveProvider, type ResolvedProvider } from '../../src/runtime/exec/providerExec'

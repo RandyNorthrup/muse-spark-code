@@ -164,6 +164,21 @@ export const EN = {
   modelApiServiceFailure: 'The service returned an error. Check its status or try again.',
   modelApiSendFailed:
     'The model request failed before a response arrived ({detail}). It was not sent again: a request over a pinned connection may already have reached the provider.',
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // refusals name the fix and never carry the key. (The opt-in's Title Case
+  // label comes from its setting id, `museSpark.useMuseCodeSubscription`.)
+  subscriptionKey: {
+    paidSearch: 'This response’s model tokens also bill your stored Model API key at {price}.',
+    billingChanged: 'The billing account changed. This attempt was refused; try again.',
+    signInAgain:
+      'Muse Code subscription is on, but the Muse Code CLI holds no subscription sign-in here. A pay-as-you-go key (`muse auth set`) does not count. Sign in with your Muse account (`muse login`), then try again — or use a Model API key instead.',
+    cannotRead:
+      'Muse Code subscription is on, but the Muse Code sign-in file cannot be read. Sign the Muse Code CLI in again, then try again — or use a Model API key instead.',
+    keychainBacked:
+      'Muse Code subscription is on, but this sign-in lives in the login keychain, which cannot be read here. Use a Model API key instead.',
+    paidNeedsKey:
+      'Muse Code subscription covers chat. This paid extra needs a stored Model API key: store one and try again.',
+  },
   feedbackFailed: 'Could not submit feedback.',
   feedbackUploaded: 'Feedback uploaded.',
   // C-M106-3R2: the restored feedback dialog offers exactly what the 1.4.4
@@ -601,6 +616,9 @@ export const EN = {
   estimateWaveStarted: 'Started {lanes}.',
   referenceAgentControls:
     'Agent controls; Interrupt; Stop; Resume; Close agent; Reopen agent; Mark result read; Send message; Follow-up task',
+  referenceMuseCodeSubscriptionName: 'Muse Code subscription',
+  referenceMuseCodeSubscriptionSummary:
+    'Meta chat uses the Muse Code plan; enabled paid extras require a stored Model API key and consent.',
 
   referenceBestOfNRequirements:
     'Candidates require Model API, the paid feature enabled, a trusted Git workspace, Git 2.36 or newer, and no configured Git filter or hook programs. A finite session budget requires an owned parent budget scope shared by candidates. Set attempt and request limits, compare results or cancel, then take selected changes by applying and staging without a commit.',
@@ -625,6 +643,8 @@ export const EN = {
     'Headless images require --image-generation, acceptEdits and an affordable hard budget. No price question is shown; requests requiring permission are refused.',
   referenceProviders:
     'List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.',
+  referenceProvidersUsage:
+    'Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.',
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
@@ -637,6 +657,8 @@ export const EN = {
     preset: '--preset: Provider',
     as: '--as: Provider',
     address: '--address: Address',
+    days: '--days <n>: Spend report period in days',
+    admin: '--admin: Use the admin report key instead of the inference key',
     format: '--format <format>: Export',
     privacy: '--privacy: Any provider may be used, including ones that train on data.',
     'private-ok':
@@ -656,6 +678,8 @@ export const EN = {
       '--trust-workspace                Load the folder’s rules, skills and memory',
     maintenance: 'Run the Setup maintenance event instead of init.',
     'muse-binary': '--muse-binary <path>             The Muse Code CLI to run',
+    subscription:
+      '--subscription                 Drive the Model API backend with the Muse Code subscription instead of a key (its calls count against the plan)',
     'shell-sandbox': '--shell-sandbox auto|muse|off    Muse Code’s shell sandbox',
     'allow-dangerously-skip-permissions':
       '--allow-dangerously-skip-permissions  Offer the Bypass permissions mode',
@@ -690,7 +714,7 @@ export const EN = {
       '--provider <id>                   The provider the account belongs to (auth set/status/clear).',
     account: '--account <id>                    The account to use (auth set, exec).',
     'account-pool':
-      '--account-pool                  Request account pooling. Requires a bound resource owner; excludes key-stdin in CI.',
+      '--account-pool                  Model API: pool at request boundaries; existing budgets still bind. Excludes key-stdin in CI.',
     effort: 'Choose how much effort Muse puts into each reply.',
     output: 'Choose the result format: text, json or jsonl.',
     'max-budget-usd': 'Set the spending reservation limit in USD for this run.',
@@ -758,9 +782,11 @@ export const EN = {
     'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
   referenceAuthGitHub:
     'Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.',
+  referenceAccountRequests:
+    'ACP native Meta requests select accounts at request boundaries. Headless --account-pool opts into pooling; account caps and shared budgets still bind.',
   referenceAccountsTitle: 'Several Accounts per Provider',
   referenceAccounts:
-    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid consent stays per workspace for now.',
+    'Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid uses billed to the default account keep this workspace’s consent; another account’s first paid use asks for that account, naming its price and the shared daily budget.',
   referenceDeveloper:
     'Show or unlock machine-local developer options. Profile operations require a connected resource owner.',
   referenceTabLanguages: 'Choose a language to switch Tab suggestions on or off for it.',
@@ -776,7 +802,7 @@ export const EN = {
   referenceInstallSkills:
     "Copy project_setup, feature_delivery and quality_retrofit into Muse Code's configuration and link them as skills.",
   referenceExecContract:
-    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
+    'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceKeyStdin:
@@ -4881,6 +4907,11 @@ export const EN = {
   acpCommandHelpNote: String.raw`A slash message the agent does not know is answered here, never sent to the model. /help <command> explains one command. To send a literal leading slash, start the message with \/.`,
   // {argument}: the paid feature's flag as typed.
   acpPaidNeedsModelApi: '{argument} needs --backend modelApi: paid features bill a Model API key.',
+  // {argument}: the subscription flag as typed.
+  acpSubscriptionNeedsModelApi:
+    '{argument} needs --backend modelApi: the Muse Code subscription pays for Model API calls.',
+  execSubscriptionStdin:
+    '--subscription and --key-stdin cannot be combined: one credential per run.',
   // {command}: the executable's name. The options and values stay as typed.
   acpFontUi: 'UI Font',
   acpFontCode: 'Code Font',
@@ -4914,6 +4945,8 @@ export const EN = {
     '  --web-search                     Offer paid web search (Model API backend; its price is asked first)',
     '  --image-generation               Offer paid image generation (Model API backend; its price is asked first)',
     '  --muse-voice                     Offer paid Muse Voice transcription of attached sound (Model API backend; its price is asked first)',
+    '  --subscription                   Drive the Model API backend with the Muse Code subscription instead of a key',
+    '  --no-auto-compaction             Disable automatic compaction',
     '  --verbose                        Log every detail on stderr',
     '  --help, --version',
     '  {command} --trust-workspace setup [--maintenance]  Run the Setup hooks and exit',
@@ -7594,9 +7627,12 @@ export const EN = {
   legalScanAgain: 'Scan Again',
   // M108: shared by the Models panel, usage page, ACP and runtime.
   accounts: {
+    certificationPending: 'Account switching and pooling await certification.',
     none: 'No Account Selected',
     id: 'Account ID',
     use: 'Use Account',
+    useScope:
+      "The chosen account serves this chat's own requests; background work spreads by headroom.",
     earlier: 'Move Earlier',
     later: 'Move Later',
     keyPrompt: '{provider} · {account} API key (not shown as you type): ',
@@ -7692,6 +7728,8 @@ export const EN = {
     spreadEvent: 'Work Spread',
     stopEvent: 'Work Stopped',
     sourceUndated: 'No source date shown',
+    selectedRemoved:
+      'The chosen account no longer exists. This chat will use the default account on its next request.',
     invalidAccount: 'Check the account id, label, order, limit group and thresholds.',
     removeConfirm:
       'Remove {account}? Its stored credential will be deleted and its sign-in revoked.',
@@ -7709,6 +7747,31 @@ export const EN = {
     usageEvents: 'Account Events',
     usageRateTokens: 'Tokens',
     usageUnavailable: 'No current usage snapshot.',
+    spendReported: 'Reported by {provider}, as of {date}.',
+    spendTokensByModel: '{model}: {input} input, {output} output.',
+    spendDollarsByDay: '{day}: {cost} spent.',
+    spendBalance: 'Balance: {balance}.',
+    spendKeyUsage: 'Spent {today} today, {week} this week, {month} this month.',
+    spendKeyLimit: 'Limit {limit}; {remaining} left.',
+    spendEstimate: 'Our estimate for the same period: {cost}.',
+    spendEstimateTokens: 'Estimated tokens: {input} input, {output} output.',
+    spendMatches: 'The provider figure matches our estimate within rounding.',
+    spendDiffers:
+      'The provider reports {reported} and we estimate {estimated} for the same period, a difference of {difference}. {reasons}',
+    spendReasonShared: 'The same key may also be used by other tools.',
+    spendReasonCatalogue: 'Our prices come from a catalogue dated {date}.',
+    spendReasonPriority: 'Priority Tier use is not in the provider cost figure.',
+    spendRefused: 'The provider refused the spend report request.',
+    spendPlanUnavailable: 'This account’s plan does not offer the report API.',
+    spendUnreadable: 'The provider’s report could not be read ({kind}).',
+    spendUnsupported: 'This provider offers no spend report.',
+    spendAdminMissing: 'No admin report key is stored for {provider}.',
+    spendAdminExplains:
+      'This key can read the whole organisation’s usage and members. It is stored separately and used only for read-only spend reports, never for model requests.',
+    spendAdminPrompt: 'Admin report key for {provider}: ',
+    spendAdminStored: 'Admin report key stored for {provider} in {store}.',
+    spendAdminCleared: 'Admin report key cleared for {provider}.',
+    spendRefreshWait: 'Spend reports refresh at most once a minute; showing the cached report.',
   },
   // M108 X: machine-local testing options; read after table installation.
   developer: {

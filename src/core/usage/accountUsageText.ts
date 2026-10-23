@@ -151,3 +151,19 @@ export function accountUsageText(report: AccountUsageReport): string {
     ),
   ].join('\n')
 }
+
+export function accountStopText(
+  event: Extract<AccountEvent, { type: 'stop' }>,
+  account = event.account,
+  // The earliest recovery across every account, when the stop names one
+  // account but several limited: the trigger alone names only its own reset.
+  resetAt: string | null = event.trigger.resetAt,
+): string {
+  return resetAt === null
+    ? fill(UI_TEXT.accounts.resetUnknown, { provider: event.provider, account })
+    : fill(UI_TEXT.accounts.stopped, {
+        provider: event.provider,
+        account,
+        reset: formatDateTime(Date.parse(resetAt)),
+      })
+}

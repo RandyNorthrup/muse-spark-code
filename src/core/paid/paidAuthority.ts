@@ -1,5 +1,7 @@
 import { UserRefusalError } from '../refusal'
 import { SpendLedgerError } from './spendLedgerError'
+import type { UiText } from '../../shared/l10n/en'
+import { setUiText, uiLocale } from '../../shared/l10n/text'
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { UI_TEXT } from '../../shared/constants'
@@ -72,7 +74,13 @@ export type PaidAuthorityEffect =
   | { readonly type: 'settled'; readonly claimId: string; readonly settlement: SearchSettlement }
 
 export function paidAuthorityKey(quote: PaidQuote): string {
-  return JSON.stringify([quote.feature, quote.provider, quote.model])
+  return JSON.stringify([
+    quote.feature,
+    quote.provider,
+    quote.model,
+    quote.payerKind,
+    quote.modelTokenBilling,
+  ])
 }
 function requestKey(quote: PaidQuote): string {
   return JSON.stringify([quote.conversationId ?? '', quote.id])
@@ -270,6 +278,9 @@ export class PaidAuthority {
   private state = initialPaidAuthorityState()
   private order = 0
   private readonly validators = new Map<string, () => boolean>()
+  public constructor(text: UiText = UI_TEXT, locale = uiLocale()) {
+    setUiText(text, locale)
+  }
   public nextOrder(_quote: PaidQuote, grant: PaidGrant | undefined): number {
     this.order = Math.max(this.order, grant?.order ?? 0) + 1
     return this.order

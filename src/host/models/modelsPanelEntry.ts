@@ -1,3 +1,4 @@
+import type { ModelsPanelDeps } from './modelsPanel'
 // The Models & Agents panel's bundle (M95 lane K, PLAN.md D6): esbuild
 // builds this file into dist/modelsPanel.js, which the activation bundle
 // requires on the first Models & Agents action, so the panel's host side
@@ -47,6 +48,7 @@ export interface ModelsPanelMemento {
 }
 
 export interface ModelsPanelHostDeps {
+  readonly accounts?: ModelsPanelDeps['accounts']
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly team?: TeamPanelBinding | undefined
@@ -76,6 +78,7 @@ export interface ModelsPanelHostDeps {
   readonly readImportFile?: () => Promise<string | undefined>
   readonly onWizardSaved?: (outcome: WizardSaveOutcome) => void | Promise<void>
   readonly onKeyUsage?: Parameters<typeof createProvidersHost>[0]['onKeyUsage']
+  readonly onSpend?: Parameters<typeof createProvidersHost>[0]['onSpend']
   /**
   The vault bundle loader and its dist/ directory (C-M109-1 P1): the entry
   builds the broker-backed binding factory around this panel's publisher
@@ -100,6 +103,7 @@ export interface ModelsPanelHostDeps {
 
 export interface ModelsPanelFeatures {
   /** Opens (or reveals) the Models & Agents panel. */
+  readonly accountsChanged: () => void
   readonly openPanel: (navigate?: ModelsPanelNavigate) => void
   /** The quick-pick fast path (`museSpark.addModelProvider`). */
   readonly runQuickPick: () => Promise<ProviderQuickPickOutcome | undefined>
@@ -358,6 +362,7 @@ export function createModelsPanelFeatures(
     exchanger: seam.exchanger,
     usage: seam.usage,
     ...(host.onKeyUsage !== undefined && { onKeyUsage: host.onKeyUsage }),
+    ...(host.onSpend !== undefined && { onSpend: host.onSpend }),
     pkce: seam.pkce,
     suggest: seam.suggest,
     scanStore: scanStoreOver(host.globalState),
@@ -423,6 +428,7 @@ export function createModelsPanelFeatures(
   const openPanel = (navigate?: ModelsPanelNavigate): void => {
     if (panel === undefined) {
       const created = createModelsPanel({
+        accounts: host.accounts,
         extensionUri: host.extensionUri,
         resolveWebviewBundle: host.resolveWebviewBundle,
         l10n: host.l10n,
@@ -551,6 +557,7 @@ export function createModelsPanelFeatures(
       }
       return outcome
     },
+    accountsChanged: () => panel?.accountsChanged(),
     completePendingRemovals: () => providers.completePendingRemovals(),
     suggestedPreset: () => providers.suggestedPreset(host.suggestedProviderSetting()),
   }

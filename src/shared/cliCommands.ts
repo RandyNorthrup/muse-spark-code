@@ -175,6 +175,12 @@ export function cliCommands(shouldIncludeHeld = false) {
       text: { ui: 'referenceProviders' },
     },
     {
+      route: 'providersUsage',
+      name: 'providers usage <id> [--days <n>] [--output json]',
+      description: UI_TEXT.referenceProvidersUsage,
+      text: { ui: 'referenceProvidersUsage' },
+    },
+    {
       route: 'helpTopic',
       name: 'help <command>',
       description: UI_TEXT.referenceBriefHelp,

@@ -513,6 +513,7 @@ async function runtimeFor(
   options: ServeOptions,
   log: Logger,
   questions?: { remove(sessionId: string): Promise<void> },
+  accounts?: RuntimeAccountServices,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
@@ -530,6 +531,10 @@ async function runtimeFor(
     sleep,
     log,
     ...(questions !== undefined && { questions }),
+    ...(accounts !== undefined && {
+      accountRequests: (client) => accounts.requests(client),
+      accountBilling: accounts.billing,
+    }),
   })
 }
 
@@ -1094,9 +1099,15 @@ async function serve(
     )
     const loadPlaybook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)
     const registries: { flush(): Promise<void>; dispose(): void }[] = []
-    const runtime = await runtimeFor(options, log, {
-      remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
-    })
+    const accountServices = options.backend === 'modelApi' ? loadAccounts() : undefined
+    const runtime = await runtimeFor(
+      options,
+      log,
+      {
+        remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
+      },
+      accountServices,
+    )
     const isUsageHistoryOn = options.usageHistory ?? true
     // H–C1: the process's one governor records the agent's samples and launches.
     const resources = processResources.configure({ isRecordingHistory: () => isUsageHistoryOn })
@@ -1751,7 +1762,10 @@ async function main(processResources: ProcessResources): Promise<number> {
       headlessCode = await runHeadless(
         lifecycle,
         {
-          ...((command.options.accountPool === true ||
+          ...(((command.options.backend === 'modelApi' &&
+            !command.options.keyFromStdin &&
+            command.options.provider === undefined) ||
+            command.options.accountPool === true ||
             execAccountSelection(command.options).account !== ACCOUNT_DEFAULT_ID) && {
             accounts: loadAccounts(log).exec,
           }),
@@ -2157,6 +2171,17 @@ async function main(processResources: ProcessResources): Promise<number> {
       })
     }
     case 'authSet': {
+      if (command.admin === true && command.provider !== undefined) {
+        const providersFile = await userProvidersFile()
+        const { runAuthSetProvider } = await import('./providerAuth')
+        return await runAuthSetProvider(
+          authDeps(),
+          command.provider,
+          providersFile.readUserFile,
+          providersFile.withUserFileLock,
+          { admin: true },
+        )
+      }
       // A provider-only set (`auth set --provider <id>`, the ACP paste-key
       // method) routes to the provider's own key shape, never Meta's.
       const providerId = authSetProviderId(command)
@@ -2267,7 +2292,12 @@ async function main(processResources: ProcessResources): Promise<number> {
             providersFile.withUserFileLock,
             providersFile.readUserFile,
           )
-        : await runAuthStatusProvider(deps, command.provider, providersFile.withUserFileLock)
+        : await runAuthStatusProvider(
+            deps,
+            command.provider,
+            providersFile.withUserFileLock,
+            command.admin === true ? { admin: true } : undefined,
+          )
     }
     case 'authClear': {
       if (command.provider === undefined) return await authClear(authDeps())
@@ -2277,6 +2307,7 @@ async function main(processResources: ProcessResources): Promise<number> {
         authDeps(),
         command.provider,
         providersFile.withUserFileLock,
+        command.admin === true ? { admin: true } : undefined,
       )
     }
     case 'providersList': {
@@ -2318,6 +2349,32 @@ async function main(processResources: ProcessResources): Promise<number> {
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)
+    }
+    case 'providersUsage': {
+      const { providersUsage, spendEstimateFromBreakdown } = await import('./providersSpend')
+      const { usageLocalDay } = await import('../core/usage/localDay')
+      const deps = await providersDeps()
+      return await providersUsage(
+        {
+          ...deps,
+          // Our own estimate comes from the local usage journal: the same
+          // provider-grouped read the usage page serves. A journal failure
+          // shows the provider's figures alone, never against a zero.
+          readSpendEstimate: (provider, startMs, endMs) =>
+            (async () => {
+              const access = usageFor(log).access()
+              const state = await access.read({
+                range: 'custom',
+                from: usageLocalDay(startMs),
+                to: usageLocalDay(endMs),
+                groupBy: 'provider',
+                metric: 'cost',
+              })
+              return spendEstimateFromBreakdown(state.breakdown, [provider])
+            })(),
+        },
+        { provider: command.provider, days: command.days, json: command.json },
+      )
     }
     case 'estimate': {
       return await runRuntimeEstimateCommand(command.argv, {

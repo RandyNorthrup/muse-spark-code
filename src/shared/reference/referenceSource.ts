@@ -6,7 +6,12 @@ export {
   referenceDescription,
   REFERENCE_IN_PROGRESS_FEATURES,
 } from '../featureCatalog'
-export { COMMAND_IDS, SCHEDULE_EDITOR_DELIVERY_CERTIFICATION } from '../constants'
+export {
+  COMMAND_IDS,
+  SCHEDULE_EDITOR_DELIVERY_CERTIFICATION,
+  ACCOUNT_REQUEST_CERTIFICATION,
+} from '../constants'
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../constants'
 export { buildPalette } from '../paletteRegistry'
 export { slashCommandsOf } from './slashReference'
 export { cliCommands } from '../cliCommands'
@@ -89,6 +94,9 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['headless-teams', ['acp:modelApi']],
   ['providers', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['usage', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
+  // PROVSPEND: the terminal report, the editor's recorded key-usage figures
+  // and the ACP usage summary read the same shared spend shape.
+  ['provider-spend', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal', ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi']],
   ['legal-explanation', ['vscode:museCode', 'vscode:modelApi']],
   ['team-workers', []],
@@ -167,10 +175,14 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ['mcp-connector', ['acp:museCode', 'acp:modelApi']],
   // M116: CLI/ACP journal commands work; the VS Code panel has no mount.
   ['orchestrator-playbook', ['acp:museCode', 'acp:modelApi']],
-  // M108 (CM108ACC): the terminal and ACP on the Model API backend list
-  // accounts, show the current one and its thresholds, and hold per-account
-  // keys; the editor's page, swapping and pooling are not bound.
-  ['accounts', ['acp:modelApi']],
+  // M108: several accounts per provider; the editor's page, swapping and
+  // pooling ride the certification switch (false until C-M108-2 closes).
+  [
+    'accounts',
+    ACCOUNT_REQUEST_CERTIFICATION.isComplete
+      ? ['vscode:modelApi', 'acp:modelApi']
+      : ['acp:modelApi'],
+  ],
   // MSM109: the broker-backed panel and commands stay dormant while M109 is
   // in progress: no published surface until the lead's complete receipts.
   ['vault', []],
@@ -184,6 +196,12 @@ const capabilityPairs: readonly (readonly [string, readonly string[]])[] = [
   ...['search'].map((id): [string, readonly string[]] => [id, ['vscode:modelApi', 'acp:modelApi']]),
   // TOOLCAP: the per-result bound on the Model API backend, every surface.
   ...['tool-result-bound'].map((id): [string, readonly string[]] => [
+    id,
+    ['vscode:modelApi', 'acp:modelApi'],
+  ]),
+  // C-M95-SUB: the subscription credential on the Model API backend, in VS
+  // Code and ACP alike.
+  ...['muse-code-subscription'].map((id): [string, readonly string[]] => [
     id,
     ['vscode:modelApi', 'acp:modelApi'],
   ]),

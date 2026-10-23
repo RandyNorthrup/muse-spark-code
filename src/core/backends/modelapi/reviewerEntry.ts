@@ -285,6 +285,8 @@ async function requestReviewer(
         required(actualKeyDigest)
       },
       {
+        billingRoute: required.billingRoute,
+        confirmBillingRoute: required.confirmBillingRoute,
         observe: (next: ResponseObservation) => {
           observation = {
             ...observation,

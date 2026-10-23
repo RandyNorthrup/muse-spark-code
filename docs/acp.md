@@ -48,6 +48,13 @@ The v3 ledger imports old history once without modifying it. Simultaneous spendi
 from an old build is outside the new shared-cap guarantee; upgrade both hosts
 before relying on one cap across versions.
 
+Account-bound interactive consent is revoked when another agent starts
+without the feature's flag: an open question's older answer cannot restore
+Always, and a previous Once cannot survive the changed generation. The
+agent's data-folder budget is user-owned; changing it keeps account Always
+while the hard daily cap still binds. Interactive non-default account
+selection remains unavailable until its account owner is connected.
+
 The configuration below names the command and its arguments. Where each
 editor keeps its agent settings is in that editor's documentation, linked
 from [the compatibility plan](https://github.com/RandyNorthrup/muse-spark-code/blob/main/docs/ide-compatibility.md#32-ides-and-editors-reached-through-a-shared-acp-agent);
@@ -163,10 +170,30 @@ remain. See [the receipt example](../README.md#legal-scan-m97).
 The agent runs on one backend, chosen when the editor starts it; it never
 switches on its own.
 
-| Backend                             | Arguments            | Who pays                     | Needs                                                    |
-| ----------------------------------- | -------------------- | ---------------------------- | -------------------------------------------------------- |
-| Muse Code (the default)             | (none)               | Your Muse Code subscription  | The Muse Code CLI, signed in                             |
-| Meta Model API (bring your own key) | `--backend modelApi` | Your Model API key, per call | A key stored with `muse-spark-code-acp auth set` (below) |
+| Backend                             | Arguments                           | Who pays                      | Needs                                                    |
+| ----------------------------------- | ----------------------------------- | ----------------------------- | -------------------------------------------------------- |
+| Muse Code (the default)             | (none)                              | Your Muse Code subscription   | The Muse Code CLI, signed in                             |
+| Meta Model API (bring your own key) | `--backend modelApi`                | Your Model API key, per call  | A key stored with `muse-spark-code-acp auth set` (below) |
+| Meta Model API (on your plan)       | `--backend modelApi --subscription` | Your Muse Code plan, per call | The Muse Code CLI, signed in with a subscription key     |
+
+`--subscription` reads the subscription key the Muse Code CLI already holds
+after a browser or device-code sign-in
+and bills Model API calls to the plan instead of a key: no `auth set`
+needed, nothing extra to store. A pay-as-you-go `muse auth set` key never
+counts: it is refused, never billed as plan. Usage records these calls as
+**Muse Code plan** with
+no dollar price. A missing or unreadable CLI sign-in refuses with the fix
+instead of billing a stored key; a macOS Keychain-only sign-in cannot be
+read, so turn off subscription mode to use a key there. Billing and the
+credential are bound per attempt; changing the billing account during
+admission refuses before sending. Rotation preserves saved-session ownership.
+Paid images, enabled search, subagents and Auto review need a stored Model API
+key and normal consent. Search also bills that response's model tokens to the
+key, disclosed before use; denial keeps chat on the plan. Disabled extras stay
+quiet. `exec --subscription` refuses with `--key-stdin` (one
+credential per run); a subscription run still needs `--max-budget-usd` and
+`--max-requests`, and its receipt reports `$0` billed for the plan-covered
+chat requests.
 
 Configure two agents in the editor if you want both.
 

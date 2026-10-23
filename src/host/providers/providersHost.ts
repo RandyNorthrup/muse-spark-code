@@ -15,10 +15,12 @@ import type {
 } from './credentialRecords'
 import { isOriginBound } from './credentialRecords'
 import {
-  createOpenRouterUsageReader,
   connectOpenRouterAccount,
+  createOpenRouterUsageReader,
   promptOpenRouterCode,
-} from '../backend/providersEntry'
+  readOpenRouterKeyUsage,
+} from './openRouter'
+import type { ProviderSpendReport } from '../../core/providers/providerSpend'
 import type { OAuthLoopback } from './oauthLoopback'
 import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
 import { promptForProviderKey } from './keyPrompt'
@@ -91,6 +93,13 @@ export interface ProvidersHostDeps {
       readonly observationId: string
     },
   ) => void
+  /**
+  The spend report consumer (PROVSPEND): the existing OpenRouter read as
+  the first shared-shape report. Present beats `onKeyUsage`; the journal
+  adaptation moves to the report and the snapshot callback stays as the
+  fallback.
+  */
+  readonly onSpend?: (report: ProviderSpendReport) => void
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
   readonly scanStore: ScanStore
@@ -215,6 +224,13 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
   })
   const confirmedAddresses = new Set<string>()
 
+  // The attributed key-usage read (journal attribution for the snapshot
+  // path): shared by the plain read and the spend report's failure fallback.
+  const attributedOpenRouterUsage = createOpenRouterUsageReader({
+    reader: deps.usage,
+    current: (id) => deps.credentials.getProviderCredential(id),
+    ...(deps.onKeyUsage !== undefined && { onKeyUsage: deps.onKeyUsage }),
+  })
   // Runs the key test, asking before a one-token check: declined answers
   // the paid state, so the panel can offer the test again.
   const runTest = async (entry: ProviderEntry, credential: string): Promise<KeyTestResult> => {
@@ -366,11 +382,37 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         throw new Error(UI_TEXT.providerConnectFailed)
       }
     },
-    openRouterUsage: createOpenRouterUsageReader({
-      reader: deps.usage,
-      current: (id) => deps.credentials.getProviderCredential(id),
-      ...(deps.onKeyUsage !== undefined && { onKeyUsage: deps.onKeyUsage }),
-    }),
+    openRouterUsage: async (credential, signal, entry) => {
+      if (deps.onSpend === undefined)
+        return await attributedOpenRouterUsage(credential, signal, entry)
+      if (deps.usage === undefined) return
+      const snapshot = await readOpenRouterKeyUsage(deps.usage, credential, signal)
+      // The report converts numbers only: a string amount falls back to
+      // the attributed snapshot path like any other unreadable report.
+      const { usedToday, usedThisWeek, usedThisMonth, limit, remaining } = snapshot
+      if (
+        typeof usedToday !== 'number' ||
+        typeof usedThisWeek !== 'number' ||
+        typeof usedThisMonth !== 'number' ||
+        (limit !== undefined && typeof limit !== 'number') ||
+        (remaining !== undefined && typeof remaining !== 'number')
+      )
+        return await attributedOpenRouterUsage(credential, signal, entry)
+      // The provider core loads with its bundle: the entry require runs
+      // here, on the key-usage read.
+      const { providerSpendKeyUsage } = await import('../backend/providersEntry')
+      const report = providerSpendKeyUsage.openRouterSpendReport(
+        { usedToday, usedThisWeek, usedThisMonth, limit, remaining },
+        new Date(deps.now()).toISOString(),
+      )
+      if (providerSpendKeyUsage.isSpendFailure(report)) {
+        // A failed report falls back to the attributed snapshot path, which
+        // re-reads under the rotation guard instead of trusting this one.
+        return await attributedOpenRouterUsage(credential, signal, entry)
+      }
+      deps.onSpend(report)
+      return snapshot
+    },
     probe: (preset) => probeLocalServers(preset.localProbes, deps.loopbackFetch),
     suggestDefaultModel: (candidates) => deps.suggest.defaultModel(candidates),
     suggestSessionBudget: (modelPrices) => deps.suggest.sessionBudget(modelPrices),

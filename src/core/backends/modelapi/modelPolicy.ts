@@ -30,6 +30,8 @@ import { planOfferedLevels, resolvePlanEffort, type ChatGptPlanFacts } from './p
 
 /** The configured provider and exact model that produced opaque reasoning. */
 export interface ReplayProducer {
+  readonly account?: string | undefined
+  readonly origin?: string | undefined
   readonly provider: string
   readonly model: string
 }

@@ -1,6 +1,10 @@
 // D88.9's terminal surface. The profile owner injects K's store and M95's
 // metadata adapter; this module never invents a providers-file envelope.
-import type { AccountStore, AccountsMetadataPort } from '../../core/providers/accounts'
+import type {
+  AccountProvider,
+  AccountStore,
+  AccountsMetadataPort,
+} from '../../core/providers/accounts'
 import {
   AccountStoreError,
   accountBindingSchema,
@@ -49,12 +53,32 @@ export function commandError(error: unknown): string {
     : UI_TEXT.accounts.unavailable
 }
 
+/** A causeless store outage against a missing entry is an unknown id,
+not a connection problem: the runtime is already on the account
+service, so the refusal names the id instead of the connection. An
+entry that exists keeps the generic sentence (a lane-M product, a shut
+vault): the id is not the problem there. */
+function terminalAccountsFailure(
+  provider: string,
+  entry: AccountProvider | undefined,
+  error: unknown,
+): string {
+  return entry?.id !== provider &&
+    error instanceof AccountStoreError &&
+    error.code === 'unavailable' &&
+    error.cause === undefined
+    ? fill(UI_TEXT.providerUnknown, { provider })
+    : commandError(error)
+}
+
 export async function runAccountsCommand(
   command: AccountsCommand,
   deps: AccountsCommandDeps,
 ): Promise<number> {
+  let entry: AccountProvider | undefined
   try {
     const { provider } = command
+    entry = await deps.metadata.read(provider)
     switch (command.action) {
       case 'list': {
         deps.print(JSON.stringify(await deps.accounts.list(provider)))
@@ -85,7 +109,7 @@ export async function runAccountsCommand(
     }
     return 0
   } catch (error: unknown) {
-    deps.printError(commandError(error))
+    deps.printError(terminalAccountsFailure(command.provider, entry, error))
     return 1
   }
 }
@@ -97,9 +121,12 @@ export async function runAccountAuthSet(
   deps: AccountsCommandDeps & Pick<AuthCommandDeps, 'readSecret' | 'storeName' | 'confirmKeyUse'>,
 ): Promise<number> {
   const pending = { value: '' }
+  let entry: AccountProvider | undefined
   try {
-    const provider = await deps.metadata.read(target.provider)
-    if (provider?.auth !== 'apiKey') throw new AccountStoreError('notOffered')
+    entry = await deps.metadata.read(target.provider)
+    if (entry?.id !== target.provider) throw new AccountStoreError('unavailable')
+    const provider = entry
+    if (provider.auth !== 'apiKey') throw new AccountStoreError('notOffered')
     const binding = accountBindingSchema.parse({
       provider: target.provider,
       account: target.account,
@@ -154,7 +181,7 @@ export async function runAccountAuthSet(
     deps.print(fill(UI_TEXT.acpKeyStored, { store: deps.storeName }))
     return 0
   } catch (error: unknown) {
-    deps.printError(commandError(error))
+    deps.printError(terminalAccountsFailure(target.provider, entry, error))
     return 1
   } finally {
     pending.value = ''

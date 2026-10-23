@@ -120,6 +120,7 @@
   "certaintyUncertain": "Bizonytalan",
   "reservedLabel": "Lefoglalva",
   "certaintyPlan": "Csomag",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "Helyi",
   "certaintyUnpriced": "Ár nélküli",
   "certaintyEstimated": "Becsült",

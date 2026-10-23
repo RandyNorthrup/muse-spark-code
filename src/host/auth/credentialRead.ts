@@ -131,6 +131,12 @@ export interface CredentialReadPort {
   readonly warn: (message: string) => void
   readonly storeName: string
   readonly providerIds?: () => PromiseLike<readonly CredentialProviderId[]>
+  /**
+  C-M95-SUB: an additional credential outside secret storage (the
+  opted-in CLI subscription key). Consulted for backend availability
+  only; the key itself is never stored here.
+  */
+  readonly hasSubscriptionCredential?: () => PromiseLike<boolean>
 }
 
 /** Stores whose unreadable notice the window already showed, once each. */
@@ -282,6 +288,22 @@ export async function readModelApiCredential(port: CredentialReadPort): Promise<
             `${port.storeName} could not be read for provider ${id}, so its credential is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
           )
       }
+    }
+  }
+  if (!isFound && port.hasSubscriptionCredential !== undefined) {
+    try {
+      // C-M95-SUB: the opted-in CLI subscription counts for availability;
+      // the key itself never enters the store.
+      if (await port.hasSubscriptionCredential()) isFound = true
+    } catch (error: unknown) {
+      // An unreadable subscription says nothing about presence, so the
+      // read answers unknown rather than absent (fail closed).
+      isFailed = true
+      unreadable ??= unreadableKindFor(error)
+      if (isScanWarnDue(port, 'subscription'))
+        port.warn(
+          `Subscription credential could not be read, so its presence is unknown (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
+        )
     }
   }
   if (!isFailed) scanWarningsShown.delete(port.owner)

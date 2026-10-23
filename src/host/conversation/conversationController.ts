@@ -3,6 +3,7 @@ import {
   estimateDiagnostic,
   estimateFailureText,
 } from '../../shared/estimateDiagnostic'
+import { payerCredentialSchema } from '../../core/backends/modelapi/billingRoute'
 import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
@@ -5413,7 +5414,10 @@ export class ConversationController implements DeferredSend {
     this.bestOfNManager ??= createBestOfNManager(
       {
         coordinator: this.deps.bestOfNCoordinator,
-        getAccountId: this.deps.modelApiAccountId,
+        getAccountId: async () => {
+          const payer = await this.deps.modelApiAccountId()
+          return payer === undefined ? undefined : payerCredentialSchema.parse(payer)
+        },
         getBudgetScope: async () => await this.deps.bestOfNBudgetScope?.(this.session?.sessionId),
         openWorktree: this.deps.openBestOfNWorktree,
         noteAttemptRequest: this.deps.noteBestOfNRequest,
@@ -11387,7 +11391,9 @@ export class ConversationController implements DeferredSend {
               this.sessionKind === 'modelApi' &&
               choice.engine === 'museVoice' &&
               choice.setup.isAvailable &&
-              scope.isStillAllowed(keyDigest)
+              scope.isStillAllowed(
+                keyDigest === undefined ? undefined : payerCredentialSchema.parse(keyDigest),
+              )
             )
           },
         })
@@ -11547,26 +11553,18 @@ export class ConversationController implements DeferredSend {
           throw new Error(UI_TEXT.sessionBudgetVoiceContextChanged)
         }
       }
-      // A press a newer one superseded stays quiet; a dead scope never
-      // does: the press had consent and a key, so it hears why it stopped.
-      if (!isCurrent()) {
-        this.postDictationState()
-        return
-      }
-      if (scope?.isStillAllowed(accountId) === false) {
-        this.notice('warning', UI_TEXT.sessionBudgetVoiceContextChanged)
+      if (!isCurrent() || scope?.isStillAllowed(payerCredentialSchema.parse(accountId)) === false) {
         this.postDictationState()
         return
       }
       consentFence(accountId, true)
       // Every paid recording asks; Allow once covers one recording (CM352).
       const isAllowed = (await this.deps.allowsPaidUse({ feature: 'voice' })) === true
-      if (!isAllowed || !isCurrent()) {
-        this.postDictationState()
-        return
-      }
-      if (scope?.isStillAllowed(accountId) === false) {
-        this.notice('warning', UI_TEXT.sessionBudgetVoiceContextChanged)
+      if (
+        !isAllowed ||
+        !isCurrent() ||
+        scope?.isStillAllowed(payerCredentialSchema.parse(accountId)) === false
+      ) {
         this.postDictationState()
         return
       }
