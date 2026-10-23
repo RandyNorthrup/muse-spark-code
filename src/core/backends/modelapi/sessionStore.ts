@@ -349,7 +349,14 @@ const storedSessionFields = {
       .object({
         turnId: z.string(),
         provenance: z.optional(vaultTaintSchema),
-        producer: z.optional(z.object({ provider: z.string(), model: z.string() })),
+        producer: z.optional(
+          z.object({
+            provider: z.string(),
+            model: z.string(),
+            account: z.optional(z.string()),
+            origin: z.optional(z.string()),
+          }),
+        ),
         item: storedInputItemSchema,
         userMessageId: z.optional(z.string()),
         backgroundTaskId: z.optional(z.string()),

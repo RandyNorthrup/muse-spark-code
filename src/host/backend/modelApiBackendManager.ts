@@ -5,6 +5,7 @@ import {
   type BillingRoute,
 } from '../../core/backends/modelapi/billingRoute'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import { ACCOUNT_REQUEST_CERTIFICATION } from '../../shared/constants'
 import { Usd, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, StreamEvent } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording, UsageScopeReader } from '../../core/usage/recording'
@@ -81,6 +82,7 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidAuthority?: ModelApiClientDeps['paidAuthority']
   readonly reservePaidRequest?: ModelApiClientDeps['reservePaidRequest']
   readonly judge?: ModelApiHostDeps['judge']
+  readonly createAccountRequests?: ModelApiBundleDeps['createAccountRequests']
   readonly createProviderClient?: ModelApiBundleDeps['createProviderClient']
   readonly getProviderAccountId?: () => Promise<string | undefined>
   /**
@@ -409,6 +411,10 @@ export class ModelApiBackendManager {
       ...(this.deps.createProviderClient !== undefined && {
         createProviderClient: this.deps.createProviderClient,
       }),
+      ...(ACCOUNT_REQUEST_CERTIFICATION.isComplete &&
+        this.deps.createAccountRequests !== undefined && {
+          createAccountRequests: this.deps.createAccountRequests,
+        }),
       client: {
         ...(this.deps.paidAuthority !== undefined && { paidAuthority: this.deps.paidAuthority }),
         ...(!variant.ownsPaidBudget &&
@@ -611,6 +617,7 @@ export class ModelApiBackendManager {
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,
         shellKeepsDirectory: this.deps.isShellKeepsDirectoryOn,
         allowsPaidUse: variant.allowsPaidUse,
+        allowsAccountPaidUse: this.deps.allowsPaidUse,
         isPaidUseRemembered: variant.isPaidUseRemembered,
         noteSubagentUsage: this.deps.noteSubagentUsage,
         isHooksEnabled: variant.isHooksEnabled,
@@ -762,6 +769,9 @@ export class ModelApiBackendManager {
           },
           {
             paidFeature: kind.paidFeature,
+            ...(admitRequest.paidRequest !== undefined && {
+              paidRequest: admitRequest.paidRequest,
+            }),
             ...(admitRequest.prepare !== undefined && { prepare: admitRequest.prepare }),
             ...(admitRequest.reserveUsage !== undefined && {
               reserveUsage: admitRequest.reserveUsage,

@@ -1036,11 +1036,13 @@ question open, even when interactive deferral is disabled.
 ## Several accounts per provider
 
 Accounts keep separate credentials, labels, order, limit groups and thresholds.
-The terminal manages their metadata and pins a headless run to one account,
-and an ACP session on the Model API backend lists them. Automatic swapping,
-pooled runs, placement on other devices and the editor's Accounts and usage
-pages are not part of this yet; the [roadmap](ROADMAP.md#in-progress) tracks
-them.
+Native Meta Model API requests in VS Code and ACP choose accounts at request
+boundaries. A choice made mid-request queues for the next request; the current
+request keeps its original payer. Automatic swaps and background admission
+respect each account's thresholds, provider terms and the shared budgets.
+`museSpark.accountSwap` and `museSpark.accountParallel` are machine-scoped
+and on by default. Device placement, isolated local profiles, foreign-provider
+billing joins and account usage mounts retain their separate pending owners.
 
 The installed CLI, ACP agent and headless runs share one account service
 over the runtime's providers file and the OS credential store. Meta's Model
@@ -1058,14 +1060,34 @@ never an argument or a file):
 - `muse-spark-code-acp auth set --provider <id> --account <id>` (then paste the key)
 - `muse-spark-code-acp exec --account <id> <prompt>` pins one run to one account
 
-ACP's `/accounts` (list, current, thresholds) and the `account` picker read
-the same live metadata on the Model API backend; the Muse Code backend runs
-on its subscription with no account picker. Choosing another account stays
-refused: moving a session credential needs the pooled owner, so the session
-keeps its current account and says so. A pooled headless run stays refused
-until that owner lands too. A vendor limit stops only its own account, and
-the stop names the blocked account and its reset even with no usage page
-bundled.
+ACP's `/accounts` and the `account` picker read the same live metadata on
+the Model API backend. Choosing another native Meta account queues it at the
+next request boundary. `exec --account-pool` explicitly opts a stored-key
+headless run into that pool; CI's `--key-stdin` never pools. The Muse Code
+backend stays on its subscription without a Meta account picker. A vendor
+limit stops its account or shared limit group, and the stop names the blocked
+account and reset even without a usage page.
+Second Muse Code accounts and cross-account native replay/cache evidence
+wait for the Q-M108 captures. The usage-page mount awaits M102's journal;
+it must keep outstanding reservations and uncertain charges across resets.
+The shared paid gate, daily budget and conversation cap never reset on a
+swap, and a different account needs its own first-charge consent. In VS Code
+and in ACP editors, a paid use billed to the default account keeps this
+workspace's consent, unchanged; another account's first paid use asks for
+that account, naming its price and the shared daily budget
+(`museSpark.paidDailyBudgetUsd`, or the agent's own), and its **Allow always**
+lapses with **Ask again** or the feature's price. Revocation in another
+window also ends **Allow once** and refuses an open question's old answer;
+ACP revokes account approval when another agent drops the feature's flag.
+User/machine budget changes keep **Allow always**; the user's daily cap
+still binds. A budget supplied by the repository re-asks with the new amount
+before the next first charge. The VS Code setting is machine-scoped, so a
+normal repository setting cannot change it; the agent's own setting is
+user-owned. The account adapter also checks workspace/folder and language
+override provenance for hosts that expose a repository budget.
+Native Meta VS Code and ACP requests can bill another account after that
+account's own first-charge consent. Headless `exec --account` retains its
+explicit paid flags and hard budget.
 
 ## Developer options
 
@@ -1078,6 +1100,14 @@ Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
 
 ## Permission modes
 

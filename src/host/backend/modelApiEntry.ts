@@ -360,6 +360,9 @@ export async function createModelApiHost(deps: ModelApiBundleDeps): Promise<Mode
     // own policy), so they fall through to the shared Meta default.
     // The `in` narrowings (not truthiness reads) carry the optional
     // members off the ModelApiClient | ProviderClient union.
+    ...(deps.createAccountRequests !== undefined && {
+      accountRequests: await deps.createAccountRequests(client),
+    }),
     autoCompactModel: hostDeps.autoCompactModel ?? resolveAutoCompactModel,
     admitAutoCompaction: hostDeps.admitAutoCompaction ?? autoCompactionAdmission(deps),
     modelFacts: hostDeps.modelFacts ?? metaModelFacts,

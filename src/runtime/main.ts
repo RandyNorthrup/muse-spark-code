@@ -549,6 +549,7 @@ async function runtimeFor(
   options: ServeOptions,
   log: Logger,
   questions?: { remove(sessionId: string): Promise<void> },
+  accounts?: RuntimeAccountServices,
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
@@ -566,6 +567,10 @@ async function runtimeFor(
     sleep,
     log,
     ...(questions !== undefined && { questions }),
+    ...(accounts !== undefined && {
+      accountRequests: (client) => accounts.requests(client),
+      accountBilling: accounts.billing,
+    }),
   })
 }
 
@@ -1130,9 +1135,15 @@ async function serve(
     )
     const loadPlaybook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)
     const registries: { flush(): Promise<void>; dispose(): void }[] = []
-    const runtime = await runtimeFor(options, log, {
-      remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
-    })
+    const accountServices = options.backend === 'modelApi' ? loadAccounts() : undefined
+    const runtime = await runtimeFor(
+      options,
+      log,
+      {
+        remove: (id) => loadQuestions().removeRuntimeQuestions(directory, id, UI_TEXT, uiLocale()),
+      },
+      accountServices,
+    )
     const isUsageHistoryOn = options.usageHistory ?? true
     // H–C1: the process's one governor records the agent's samples and launches.
     const resources = processResources.configure({ isRecordingHistory: () => isUsageHistoryOn })
@@ -1788,7 +1799,10 @@ async function main(processResources: ProcessResources): Promise<number> {
       headlessCode = await runHeadless(
         lifecycle,
         {
-          ...((command.options.accountPool === true ||
+          ...(((command.options.backend === 'modelApi' &&
+            !command.options.keyFromStdin &&
+            command.options.provider === undefined) ||
+            command.options.accountPool === true ||
             execAccountSelection(command.options).account !== ACCOUNT_DEFAULT_ID) && {
             accounts: loadAccounts(log).exec,
           }),

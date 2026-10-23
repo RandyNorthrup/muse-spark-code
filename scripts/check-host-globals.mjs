@@ -28,6 +28,7 @@ const HOST_BUNDLES = [
   'dist/resourceJournal.js',
   'dist/mcpVault.js',
   'dist/vaultBroker.js',
+  'dist/accountPaid.js',
   'dist/conversation.js',
   'dist/tab.js',
   'dist/usageService.js',

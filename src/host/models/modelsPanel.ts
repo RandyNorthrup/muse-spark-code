@@ -1,3 +1,7 @@
+import {
+  modelAccountsRequestSchema,
+  modelAccountsMessageSchema,
+} from '../../shared/modelAccountsProtocol'
 // Lane M's strict bridge is shared by both sides. Credentials stay in this
 // host-owned draft and never join state, exceptions, logs or postMessage.
 import * as vscode from 'vscode'
@@ -76,6 +80,7 @@ export interface ModelsPanelDeps {
   readonly editorChat?:
     | { available(): boolean; selected(ref: string): boolean; toggle(ref: string): Promise<void> }
     | undefined
+  readonly accounts?: { request(value: unknown): Promise<unknown> } | undefined
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
   readonly connectChatGpt?: ((isNewAccount: boolean) => Promise<void>) | undefined
   readonly team?: TeamPanelHost | undefined
@@ -157,6 +162,7 @@ function navigateSection(
   }
 }
 export interface ModelsPanel {
+  readonly accountsChanged: () => void
   readonly reveal: (navigate?: ModelsPanelNavigate) => void
   readonly onDidDispose: (run: () => void) => vscode.Disposable
   readonly dispose: () => void
@@ -238,6 +244,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       dispose: () => {
         panel.dispose()
       },
+      accountsChanged: () => {
+        // No verified bundle behind the panel: there is no accounts section to refresh.
+      },
     }
   }
   const root = vscode.Uri.file(resolved.dir)
@@ -303,6 +312,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   let connectionRequest: AbortController | undefined
   let usageRequest: AbortController | undefined
   let isUsageQueued = false
+  const isClosed = () => isDisposed
   let navigation: ModelsPanelNavigate | undefined
   let operations = Promise.resolve()
   const post = (message: HostToPanelMessage): void => {
@@ -629,7 +639,6 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
-  const isClosed = (): boolean => isDisposed
   const readTeamState = async (): Promise<void> => {
     // A failed fresh source read cannot leave an older balance or roster visible.
     state.roles = undefined
@@ -980,7 +989,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       return
     }
     switch (message.type) {
+      case 'modelAccounts/ready': {
+        return
+      }
       case 'modelsPanel/ready': {
+        if (deps.accounts !== undefined)
+          await panel.webview.postMessage({ type: 'modelAccounts/available' })
         const cachedScans = await providers.cachedScans()
         for (const cached of cachedScans) {
           rows.set(cached.providerId, cached.rows)
@@ -1721,6 +1735,33 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       })
       return
     }
+    const account = modelAccountsRequestSchema.safeParse(raw)
+    if (account.success) {
+      if (deps.accounts === undefined) return
+      if (account.data.type === 'modelAccounts/ready') {
+        void panel.webview.postMessage({ type: 'modelAccounts/available' })
+        return
+      }
+      const request = account.data
+      const previous = operations
+      operations = (async () => {
+        await previous
+        if (isDisposed) return
+        let value: unknown
+        try {
+          value = await deps.accounts?.request(request.request)
+        } catch {
+          value = { type: 'accounts/error', code: 'unavailable' }
+        }
+        const reply = modelAccountsMessageSchema.safeParse({
+          type: 'modelAccounts/reply',
+          requestId: request.requestId,
+          value,
+        })
+        if (reply.success && !isClosed()) await panel.webview.postMessage(reply.data)
+      })()
+      return
+    }
     const parsed = parsePanelToHostMessage(raw)
     if (!parsed.ok) {
       log.warn('Dropped malformed models panel message')
@@ -1758,6 +1799,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   }
   panel.onDidDispose(cleanup)
   return {
+    accountsChanged: () => {
+      if (!isDisposed && deps.accounts !== undefined)
+        void panel.webview.postMessage({ type: 'modelAccounts/available' })
+    },
     reveal: (navigate) => {
       panel.reveal(vscode.ViewColumn.One)
       navigation = navigate

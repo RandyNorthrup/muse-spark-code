@@ -2339,12 +2339,15 @@ class AcpSession {
     isOwnerCurrent: () => boolean,
     signal?: AbortSignal,
     request?: PaidUseRequest,
+    accountLine?: string,
   ): Promise<PaidUseAnswer> {
     const isCurrent = () => !this.isDisposed && signal?.aborted !== true && isOwnerCurrent()
     if (!isCurrent()) return 'deny'
     // Unique for the client's lifetime: a session loaded again starts afresh.
     const toolCallId = `${ACP_PAID_TOOL_CALL_PREFIX}${randomUUID()}`
-    const content = [{ type: 'content' as const, content: { type: 'text' as const, text: detail } }]
+    // M108 lane P: a use billed to another account names it, as the panel does.
+    const text = accountLine === undefined ? detail : `${detail}\n\n${accountLine}`
+    const content = [{ type: 'content' as const, content: { type: 'text' as const, text } }]
     this.send({
       sessionUpdate: 'tool_call',
       toolCallId,
@@ -2410,7 +2413,11 @@ class AcpSession {
     return answer
   }
 
-  public async askPaidUse(request: PaidUseRequest, canRemember: boolean): Promise<PaidUseAnswer> {
+  public async askPaidUse(
+    request: PaidUseRequest,
+    canRemember: boolean,
+    accountLine?: string,
+  ): Promise<PaidUseAnswer> {
     const pending = this.pending
     const preparing = this.preparing
     const { title, detail } = await paidUseQuestion(request)
@@ -2421,6 +2428,7 @@ class AcpSession {
       () => this.isCurrentPaidPrompt(pending, preparing),
       undefined,
       request,
+      accountLine,
     )
   }
 
@@ -2753,12 +2761,18 @@ class AcpSession {
     }
     if (configId === ACP_CONFIG_IDS.account) {
       if (this.accounts === undefined) throw refusalError(UI_TEXT.accounts.unavailable)
-      if (this.pending !== undefined || this.preparing !== undefined)
+      if (
+        !this.accounts.supportsNextRequestSelection &&
+        (this.pending !== undefined || this.preparing !== undefined)
+      )
         throw RequestError.invalidRequest(undefined, UI_TEXT.acpPromptBusy)
       try {
         await this.accounts.use(
           value,
-          () => !this.isDisposed && this.pending === undefined && this.preparing === undefined,
+          () =>
+            !this.isDisposed &&
+            (this.accounts?.supportsNextRequestSelection === true ||
+              (this.pending === undefined && this.preparing === undefined)),
         )
       } catch (error) {
         throw accountRequestError(error)
@@ -4250,6 +4264,7 @@ class AgentState {
     sessionId: string,
     request: PaidUseRequest,
     canRemember: boolean,
+    accountLine?: string,
   ): Promise<PaidUseAnswer> {
     const acp = this.sessions.get(sessionId)
     if (acp === undefined) {
@@ -4258,7 +4273,11 @@ class AgentState {
       )
       return 'deny'
     }
-    return await acp.askPaidUse(request, canRemember)
+    return await acp.askPaidUse(
+      request,
+      canRemember,
+      ...(accountLine === undefined ? [] : [accountLine]),
+    )
   }
 
   /** An "always" the session's answer gave but the store could not keep. */
@@ -4703,8 +4722,13 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
     }
   }
   deps.vault?.attach((sessionId, request) => state.askVaultUse(sessionId, request))
-  deps.paid.attach((sessionId, request, canRemember) =>
-    state.askPaidUse(sessionId, request, canRemember),
+  deps.paid.attach((sessionId, request, canRemember, accountLine) =>
+    state.askPaidUse(
+      sessionId,
+      request,
+      canRemember,
+      ...(accountLine === undefined ? [] : [accountLine]),
+    ),
   )
   deps.paid.attachNotify((sessionId, text) => {
     state.notePaidNotKept(sessionId, text)

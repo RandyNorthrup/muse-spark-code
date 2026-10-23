@@ -550,8 +550,13 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     screenRecordingMaxSeconds: readSetting(config, 'screenRecordingMaxSeconds', log),
     mediaAudioAction: readSetting(config, 'mediaAudioAction', log),
     mediaConverterPath: readSetting(config, 'mediaConverterPath', log),
-    accountSwap: SETTING_DEFAULTS.accountSwap,
-    accountParallel: SETTING_DEFAULTS.accountParallel,
+    // M108: swap and spread stay readable while uncertified, like the lane's
+    // certified state; the certification switch and unbound owners refuse
+    // every binding, so reading them enables nothing until C-M108-2 closes.
+    // The visible several-accounts toggle stays compatibility-only (main's
+    // neutering) until its own completion slice restores text and reading.
+    accountSwap: readSetting(config, 'accountSwap', log),
+    accountParallel: readSetting(config, 'accountParallel', log),
     'accounts.severalOnThisDevice': SETTING_DEFAULTS['accounts.severalOnThisDevice'],
     'github.useGhLogin': readSetting(config, 'github.useGhLogin', log),
     // The live switch (with its legacy precedence) resolves where the vault

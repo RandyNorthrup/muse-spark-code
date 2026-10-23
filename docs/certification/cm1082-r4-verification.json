@@ -1,0 +1,2228 @@
+{
+  "sources": [
+    "src/core/accounts/pool.ts",
+    "src/core/accounts/requestWriter.ts",
+    "src/core/backends/modelapi/ModelApiHost.ts",
+    "src/core/providers/configured.ts",
+    "src/host/models/modelsPanel.ts",
+    "src/runtime/providers/accountRequestJournal.ts",
+    "src/runtime/providers/accountRequestOwner.ts",
+    "src/shared/modelsPanel.ts",
+    "src/webview/models/panel.tsx"
+  ],
+  "hubs": ["src/shared/constants.ts", "src/shared/l10n/en.ts"],
+  "selected": [
+    "test/e2e/accountComposition.e2e.test.ts",
+    "test/e2e/accountRequests.e2e.test.ts",
+    "test/e2e/accounts.e2e.test.ts",
+    "test/e2e/acpStdio.e2e.test.ts",
+    "test/e2e/eval.live.e2e.test.ts",
+    "test/e2e/questions.e2e.test.ts",
+    "test/unit/accountAvailability.test.ts",
+    "test/unit/accountBoundary.test.ts",
+    "test/unit/accountPaidComposition.test.ts",
+    "test/unit/accountPaidConsent.test.ts",
+    "test/unit/accountPaidFiles.test.ts",
+    "test/unit/accountPaidHosts.test.ts",
+    "test/unit/accountPaidService.test.ts",
+    "test/unit/accountRequestJournal.test.ts",
+    "test/unit/accountRequestRecovery.test.ts",
+    "test/unit/accountRequestWriter.test.ts",
+    "test/unit/accountRestore.test.mjs",
+    "test/unit/accountsPanel.test.tsx",
+    "test/unit/accountsPanelHost.test.ts",
+    "test/unit/AccountsSection.test.tsx",
+    "test/unit/acpAccounts.test.ts",
+    "test/unit/acpAgent.test.ts",
+    "test/unit/acpEstimate.test.ts",
+    "test/unit/acpModelApi.test.ts",
+    "test/unit/acpPaid.test.ts",
+    "test/unit/acpQuestionDeferral.test.ts",
+    "test/unit/acpReportObserver.test.ts",
+    "test/unit/acpReports.test.ts",
+    "test/unit/acpResources.test.ts",
+    "test/unit/acpRuntime.test.ts",
+    "test/unit/acpSharing.test.ts",
+    "test/unit/acpUsage.test.ts",
+    "test/unit/acpVault.test.ts",
+    "test/unit/agentImportWorkspaceEdits.test.ts",
+    "test/unit/bestOfNAttempts.test.ts",
+    "test/unit/bundleSize.test.mjs",
+    "test/unit/chatgptResponsesCap.test.ts",
+    "test/unit/chatGptVsCode.test.ts",
+    "test/unit/checkpointModelApiStop.test.ts",
+    "test/unit/configuredProviders.test.ts",
+    "test/unit/conversationController.test.ts",
+    "test/unit/developerOptionsMachineId.test.ts",
+    "test/unit/deviceAccountReceiver.test.ts",
+    "test/unit/eval/evalDriver.test.ts",
+    "test/unit/eval/evalPacking.test.ts",
+    "test/unit/eval/evalRunner.test.ts",
+    "test/unit/eval/evalWorkspacePrivacy.test.ts",
+    "test/unit/execAccounts.test.ts",
+    "test/unit/execFetch.test.ts",
+    "test/unit/execProvider.test.ts",
+    "test/unit/execResources.test.ts",
+    "test/unit/execRun.test.ts",
+    "test/unit/execVault.test.ts",
+    "test/unit/geminiCodec.test.ts",
+    "test/unit/hookMcpToolHandlers.test.ts",
+    "test/unit/hookModelHandlers.test.ts",
+    "test/unit/judgeActivation.test.ts",
+    "test/unit/judgeConsent.test.ts",
+    "test/unit/judgeFences.test.ts",
+    "test/unit/judgeSharedBudget.test.ts",
+    "test/unit/judgeWindow.test.ts",
+    "test/unit/lateAnswer.test.ts",
+    "test/unit/legalExplanation.test.ts",
+    "test/unit/m106Wiring.test.ts",
+    "test/unit/macVaultSlot.test.ts",
+    "test/unit/mediaClient.test.ts",
+    "test/unit/modelAccountsSurface.test.tsx",
+    "test/unit/modelApiArgumentPreview.test.ts",
+    "test/unit/modelApiAttemptBudget.test.ts",
+    "test/unit/modelApiAttemptFiles.test.ts",
+    "test/unit/modelApiAttemptVerify.test.ts",
+    "test/unit/modelApiAudio.test.ts",
+    "test/unit/modelApiAutoCompact.test.ts",
+    "test/unit/modelApiBackendManager.test.ts",
+    "test/unit/modelApiBundle.test.ts",
+    "test/unit/modelApiCodeIntel.test.ts",
+    "test/unit/modelApiCutShort.test.ts",
+    "test/unit/modelApiElicitation.test.ts",
+    "test/unit/modelApiExtensionHooks.test.ts",
+    "test/unit/modelApiForeignHooks.test.ts",
+    "test/unit/modelApiGoldenRequests.test.ts",
+    "test/unit/modelApiHost.test.ts",
+    "test/unit/modelApiHostedSearch.test.ts",
+    "test/unit/modelApiImageIngress.test.ts",
+    "test/unit/modelApiLoopGuarantees.test.ts",
+    "test/unit/modelApiMedia.test.ts",
+    "test/unit/modelApiOverflow.test.ts",
+    "test/unit/modelApiPacking.test.ts",
+    "test/unit/modelApiPolicyFence.test.ts",
+    "test/unit/modelApiPrefix.test.ts",
+    "test/unit/modelApiProductionMedia.test.ts",
+    "test/unit/modelApiProviders.test.ts",
+    "test/unit/modelApiQuestionDeferral.test.ts",
+    "test/unit/modelApiReplayIdentity.test.ts",
+    "test/unit/modelApiShellDirectory.test.ts",
+    "test/unit/modelApiWireHosts.test.ts",
+    "test/unit/modelCapabilitiesBinding.test.ts",
+    "test/unit/modelsApp.test.tsx",
+    "test/unit/modelsMoneyLifecycle.test.tsx",
+    "test/unit/modelsPanel.test.ts",
+    "test/unit/modelsPanelEntry.test.ts",
+    "test/unit/modelsPanelSchemas.test.ts",
+    "test/unit/modelsWebviewEntry.test.tsx",
+    "test/unit/openQuestionNotices.test.ts",
+    "test/unit/paidConsent.test.ts",
+    "test/unit/paidDailyBudget.test.ts",
+    "test/unit/paidHookModels.test.ts",
+    "test/unit/paidHost.test.ts",
+    "test/unit/paidMoneyStructure.test.ts",
+    "test/unit/paidPortBoundaries.test.ts",
+    "test/unit/pool.test.ts",
+    "test/unit/providersX.test.ts",
+    "test/unit/providersXFix.test.ts",
+    "test/unit/providerTransport.test.ts",
+    "test/unit/questionRegistry.test.ts",
+    "test/unit/referenceGenerator.test.mjs",
+    "test/unit/remoteAccountPool.test.ts",
+    "test/unit/reportInvariants.test.ts",
+    "test/unit/runtimeAccountsService.test.ts",
+    "test/unit/runtimeChatGpt.test.ts",
+    "test/unit/runtimeServices.test.ts",
+    "test/unit/scheduledRunConfirmation.test.ts",
+    "test/unit/scheduleInterrupt.test.ts",
+    "test/unit/schedulePaid.test.ts",
+    "test/unit/secWinIdentity2.test.ts",
+    "test/unit/shellEnvironmentOrigins.test.ts",
+    "test/unit/structuredSideCalls.test.ts",
+    "test/unit/subscriptionIntegration.test.ts",
+    "test/unit/teamDeclaration.test.ts",
+    "test/unit/teamWorkersPaid.test.ts",
+    "test/unit/trafficHandlers.test.ts",
+    "test/unit/trafficHarness.test.tsx",
+    "test/unit/trafficView.test.tsx",
+    "test/unit/transcribeBatch.test.ts",
+    "test/unit/unattendedBackends.test.ts",
+    "test/unit/usageIntegration.test.ts",
+    "test/unit/usageRecording.test.ts",
+    "test/unit/vault/approvals.test.ts",
+    "test/unit/vault/audit.test.ts",
+    "test/unit/vault/backup.test.ts",
+    "test/unit/vault/boundaries.test.ts",
+    "test/unit/vault/broker.test.ts",
+    "test/unit/vault/channel.test.ts",
+    "test/unit/vault/contracts.test.ts",
+    "test/unit/vault/crypto.test.ts",
+    "test/unit/vault/delegation.test.ts",
+    "test/unit/vault/execAdapters.test.ts",
+    "test/unit/vault/execBrokerLease.test.ts",
+    "test/unit/vault/execSpawn.test.ts",
+    "test/unit/vault/fakes.test.ts",
+    "test/unit/vault/feeder.test.ts",
+    "test/unit/vault/fleet.test.ts",
+    "test/unit/vault/gitHelper.test.ts",
+    "test/unit/vault/importFile.test.ts",
+    "test/unit/vault/interleavings.test.ts",
+    "test/unit/vault/limits.test.ts",
+    "test/unit/vault/peer.test.ts",
+    "test/unit/vault/policy.test.ts",
+    "test/unit/vault/redemption.test.ts",
+    "test/unit/vault/remote.test.ts",
+    "test/unit/vault/requestTaint.test.ts",
+    "test/unit/vault/reviewFixes.test.ts",
+    "test/unit/vault/reviewRound2.test.ts",
+    "test/unit/vault/reviewRound3.test.ts",
+    "test/unit/vault/reviewRound4.test.ts",
+    "test/unit/vault/reviewRound5.test.ts",
+    "test/unit/vault/sshAgent.test.ts",
+    "test/unit/vault/sshBroker.test.ts",
+    "test/unit/vault/sshConnection.test.ts",
+    "test/unit/vault/sshTransport.test.ts",
+    "test/unit/vault/sudoFeed.test.ts",
+    "test/unit/vault/taint.test.ts",
+    "test/unit/vault/totp.test.ts",
+    "test/unit/vault/useDigest.test.ts",
+    "test/unit/vault/vaultExec.test.ts",
+    "test/unit/vault/vaultNativeEditor.test.ts",
+    "test/unit/vault/vaultPanel.test.tsx",
+    "test/unit/vault/vaultPanelHost.test.ts",
+    "test/unit/vault/vaultStore.test.ts",
+    "test/unit/vault/webCsvImport.test.ts",
+    "test/unit/vault/webFill.test.ts",
+    "test/unit/vault/webPageRead.test.ts",
+    "test/unit/vault/webSessions.test.ts",
+    "test/unit/vaultCommand.test.ts",
+    "test/unit/vaultSurface.test.ts",
+    "test/unit/verifyLoop.test.ts",
+    "test/unit/windowsVaultNative.test.ts"
+  ],
+  "blocked": ["test/e2e/eval.live.e2e.test.ts"],
+  "batches": [
+    [
+      {
+        "file": "test/e2e/accountComposition.e2e.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/e2e/accountRequests.e2e.test.ts",
+        "state": "pass",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/e2e/accounts.e2e.test.ts",
+        "state": "pass",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/e2e/acpStdio.e2e.test.ts",
+        "state": "pass",
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/e2e/questions.e2e.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountAvailability.test.ts",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/accountBoundary.test.ts",
+        "state": "pass",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountPaidComposition.test.ts",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountPaidConsent.test.ts",
+        "state": "pass",
+        "passed": 35,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/accountPaidFiles.test.ts",
+        "state": "pass",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountPaidHosts.test.ts",
+        "state": "pass",
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountPaidService.test.ts",
+        "state": "pass",
+        "passed": 16,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/accountRequestJournal.test.ts",
+        "state": "pass",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountRequestRecovery.test.ts",
+        "state": "pass",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountRequestWriter.test.ts",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/accountRestore.test.mjs",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountsPanel.test.tsx",
+        "state": "pass",
+        "passed": 29,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/accountsPanelHost.test.ts",
+        "state": "pass",
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/AccountsSection.test.tsx",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpAccounts.test.ts",
+        "state": "pass",
+        "passed": 38,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpAgent.test.ts",
+        "state": "pass",
+        "passed": 144,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/acpEstimate.test.ts",
+        "state": "pass",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpModelApi.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpPaid.test.ts",
+        "state": "pass",
+        "passed": 30,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/acpQuestionDeferral.test.ts",
+        "state": "pass",
+        "passed": 80,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpReportObserver.test.ts",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpReports.test.ts",
+        "state": "pass",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/acpResources.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpRuntime.test.ts",
+        "state": "pass",
+        "passed": 43,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpSharing.test.ts",
+        "state": "pass",
+        "passed": 27,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/acpUsage.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/acpVault.test.ts",
+        "state": "pass",
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/agentImportWorkspaceEdits.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/bestOfNAttempts.test.ts",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/bundleSize.test.mjs",
+        "state": "pass",
+        "passed": 61,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/chatgptResponsesCap.test.ts",
+        "state": "pass",
+        "passed": 22,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/chatGptVsCode.test.ts",
+        "state": "pass",
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/checkpointModelApiStop.test.ts",
+        "state": "pass",
+        "passed": 49,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/configuredProviders.test.ts",
+        "state": "pass",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/conversationController.test.ts",
+        "state": "pass",
+        "passed": 680,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/developerOptionsMachineId.test.ts",
+        "state": "pass",
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/deviceAccountReceiver.test.ts",
+        "state": "pass",
+        "passed": 25,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/eval/evalDriver.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/eval/evalPacking.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/eval/evalRunner.test.ts",
+        "state": "pass",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/eval/evalWorkspacePrivacy.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/execAccounts.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/execFetch.test.ts",
+        "state": "pass",
+        "passed": 35,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/execProvider.test.ts",
+        "state": "pass",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/execResources.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/execRun.test.ts",
+        "state": "pass",
+        "passed": 94,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/execVault.test.ts",
+        "state": "pass",
+        "passed": 25,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/geminiCodec.test.ts",
+        "state": "pass",
+        "passed": 67,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/hookMcpToolHandlers.test.ts",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/hookModelHandlers.test.ts",
+        "state": "pass",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/judgeActivation.test.ts",
+        "state": "pass",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/judgeConsent.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/judgeFences.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/judgeSharedBudget.test.ts",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/judgeWindow.test.ts",
+        "state": "pass",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/lateAnswer.test.ts",
+        "state": "pass",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/legalExplanation.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/m106Wiring.test.ts",
+        "state": "pass",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/macVaultSlot.test.ts",
+        "state": "pass",
+        "passed": 40,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/mediaClient.test.ts",
+        "state": "pass",
+        "passed": 22,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelAccountsSurface.test.tsx",
+        "state": "pass",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiArgumentPreview.test.ts",
+        "state": "pass",
+        "passed": 44,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiAttemptBudget.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiAttemptFiles.test.ts",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiAttemptVerify.test.ts",
+        "state": "pass",
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiAudio.test.ts",
+        "state": "pass",
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiAutoCompact.test.ts",
+        "state": "pass",
+        "passed": 40,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiBackendManager.test.ts",
+        "state": "pass",
+        "passed": 23,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiBundle.test.ts",
+        "state": "pass",
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiCodeIntel.test.ts",
+        "state": "pass",
+        "passed": 25,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiCutShort.test.ts",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiElicitation.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiExtensionHooks.test.ts",
+        "state": "pass",
+        "passed": 22,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiForeignHooks.test.ts",
+        "state": "pass",
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiGoldenRequests.test.ts",
+        "state": "pass",
+        "passed": 140,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiHost.test.ts",
+        "state": "pass",
+        "passed": 669,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiHostedSearch.test.ts",
+        "state": "pass",
+        "passed": 52,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiImageIngress.test.ts",
+        "state": "pass",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiLoopGuarantees.test.ts",
+        "state": "pass",
+        "passed": 42,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiMedia.test.ts",
+        "state": "pass",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiOverflow.test.ts",
+        "state": "pass",
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiPacking.test.ts",
+        "state": "pass",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiPolicyFence.test.ts",
+        "state": "pass",
+        "passed": 108,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiPrefix.test.ts",
+        "state": "pass",
+        "passed": 28,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiProductionMedia.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiProviders.test.ts",
+        "state": "fail",
+        "passed": 11,
+        "failed": 5,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: completed",
+            "errors": [
+              "expected { backend: 'modelApi', \u2026(10) } to match object { provider: 'team', \u2026(4) }\n(7 matching properties omitted from actual)"
+            ]
+          },
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: incomplete",
+            "errors": ["expected \"vi.fn()\" to be called 3 times, but got 4 times"]
+          },
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: failed",
+            "errors": ["expected [ Array(2) ] to have a length of 3 but got 2"]
+          },
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: refused",
+            "errors": [
+              "expected { backend: 'modelApi', \u2026(10) } to match object { provider: 'team', \u2026(3) }\n(7 matching properties omitted from actual)"
+            ]
+          },
+          {
+            "name": "retains the reviewer reservation as uncertain when its counted one-hour writes cannot settle",
+            "errors": [
+              "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            ]
+          }
+        ],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiQuestionDeferral.test.ts",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiReplayIdentity.test.ts",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiProviders.test.ts",
+        "state": "fail",
+        "passed": 11,
+        "failed": 5,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: completed",
+            "errors": [
+              "expected { backend: 'modelApi', \u2026(10) } to match object { provider: 'team', \u2026(4) }\n(7 matching properties omitted from actual)"
+            ]
+          },
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: incomplete",
+            "errors": ["expected \"vi.fn()\" to be called 3 times, but got 4 times"]
+          },
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: failed",
+            "errors": ["expected [ Array(2) ] to have a length of 3 but got 2"]
+          },
+          {
+            "name": "reviews on the resolved provider with its quote and a distinct profile accounting identity: refused",
+            "errors": [
+              "expected { backend: 'modelApi', \u2026(10) } to match object { provider: 'team', \u2026(3) }\n(7 matching properties omitted from actual)"
+            ]
+          },
+          {
+            "name": "retains the reviewer reservation as uncertain when its counted one-hour writes cannot settle",
+            "errors": [
+              "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            ]
+          }
+        ],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelApiShellDirectory.test.ts",
+        "state": "pass",
+        "passed": 32,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelApiWireHosts.test.ts",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelCapabilitiesBinding.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelsApp.test.tsx",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelsMoneyLifecycle.test.tsx",
+        "state": "pass",
+        "passed": 5,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelsPanel.test.ts",
+        "state": "pass",
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/modelsPanelEntry.test.ts",
+        "state": "pass",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelsPanelSchemas.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/modelsWebviewEntry.test.tsx",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/openQuestionNotices.test.ts",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/paidConsent.test.ts",
+        "state": "pass",
+        "passed": 37,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/paidDailyBudget.test.ts",
+        "state": "pass",
+        "passed": 36,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/paidHookModels.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/paidHost.test.ts",
+        "state": "pass",
+        "passed": 41,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/paidMoneyStructure.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/paidPortBoundaries.test.ts",
+        "state": "pass",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/pool.test.ts",
+        "state": "pass",
+        "passed": 29,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/providersX.test.ts",
+        "state": "pass",
+        "passed": 34,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/providersXFix.test.ts",
+        "state": "pass",
+        "passed": 16,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/providerTransport.test.ts",
+        "state": "pass",
+        "passed": 33,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/questionRegistry.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/referenceGenerator.test.mjs",
+        "state": "fail",
+        "passed": 112,
+        "failed": 4,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "omits credential-slot flags on routes the parser refuses (M108/W)",
+            "errors": ["expected false to be true // Object.is equality"]
+          },
+          {
+            "name": "accepts Windows evidence paths and still rejects a keyboard registry bypass",
+            "errors": [
+              "expected { Object (features, commands, ...) } to deeply equal { Object (features, commands, ...) }"
+            ]
+          },
+          {
+            "name": "accepts Windows recursive directory entries for the Composer IME check",
+            "errors": [
+              "expected { Object (features, commands, ...) } to deeply equal { Object (features, commands, ...) }"
+            ]
+          },
+          {
+            "name": "B12 accepts or explicitly refuses every parser option on its documented route",
+            "errors": ["exec: --account-pool: expected undefined to be defined"]
+          }
+        ],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/remoteAccountPool.test.ts",
+        "state": "pass",
+        "passed": 38,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/reportInvariants.test.ts",
+        "state": "pass",
+        "passed": 2,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/runtimeAccountsService.test.ts",
+        "state": "pass",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/runtimeChatGpt.test.ts",
+        "state": "pass",
+        "passed": 35,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/runtimeServices.test.ts",
+        "state": "pass",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/scheduledRunConfirmation.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/scheduleInterrupt.test.ts",
+        "state": "pass",
+        "passed": 9,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/schedulePaid.test.ts",
+        "state": "pass",
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/secWinIdentity2.test.ts",
+        "state": "pass",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 6,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/shellEnvironmentOrigins.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/structuredSideCalls.test.ts",
+        "state": "pass",
+        "passed": 11,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/subscriptionIntegration.test.ts",
+        "state": "pass",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/teamDeclaration.test.ts",
+        "state": "pass",
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/teamWorkersPaid.test.ts",
+        "state": "pass",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/trafficHandlers.test.ts",
+        "state": "pass",
+        "passed": 56,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/trafficHarness.test.tsx",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/trafficView.test.tsx",
+        "state": "pass",
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/transcribeBatch.test.ts",
+        "state": "pass",
+        "passed": 41,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/unattendedBackends.test.ts",
+        "state": "pass",
+        "passed": 87,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/usageIntegration.test.ts",
+        "state": "fail",
+        "passed": 2,
+        "failed": 1,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "settles two vendor host turns and one MSP subscription turn into exactly three calls, shared totals and an authenticated page",
+            "errors": [
+              "Test timed out in 5000ms.\nIf this is a long-running test, pass a timeout value as the last argument or configure it globally with \"testTimeout\"."
+            ]
+          }
+        ],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/usageIntegration.test.ts",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/usageRecording.test.ts",
+        "state": "pass",
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/approvals.test.ts",
+        "state": "pass",
+        "passed": 14,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/audit.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 1,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/backup.test.ts",
+        "state": "pass",
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/boundaries.test.ts",
+        "state": "pass",
+        "passed": 53,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/broker.test.ts",
+        "state": "pass",
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/channel.test.ts",
+        "state": "pass",
+        "passed": 54,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/contracts.test.ts",
+        "state": "pass",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/crypto.test.ts",
+        "state": "pass",
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/delegation.test.ts",
+        "state": "pass",
+        "passed": 19,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/execAdapters.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/execBrokerLease.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/execSpawn.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/fakes.test.ts",
+        "state": "pass",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/feeder.test.ts",
+        "state": "pass",
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/fleet.test.ts",
+        "state": "pass",
+        "passed": 20,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/gitHelper.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/importFile.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/interleavings.test.ts",
+        "state": "pass",
+        "passed": 35,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/limits.test.ts",
+        "state": "pass",
+        "passed": 3,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/peer.test.ts",
+        "state": "fail",
+        "passed": 0,
+        "failed": 1,
+        "skipped": 0,
+        "failures": [
+          {
+            "name": "owner-only socket denies another user and OS uid still refuses on a deliberately relaxed test socket",
+            "errors": [
+              "Command failed: /usr/bin/sudo -n -u nobody -- /private/tmp/m109-b-peer-uid-odyh0D/client /private/tmp/m109-b-peer-uid-odyh0D/broker.sock\nsudo: a password is required\n"
+            ]
+          }
+        ],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/policy.test.ts",
+        "state": "pass",
+        "passed": 21,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/redemption.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/remote.test.ts",
+        "state": "pass",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/requestTaint.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/reviewFixes.test.ts",
+        "state": "pass",
+        "passed": 16,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/reviewRound2.test.ts",
+        "state": "pass",
+        "passed": 17,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/reviewRound3.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/reviewRound4.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/reviewRound5.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/sshAgent.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/sshBroker.test.ts",
+        "state": "pass",
+        "passed": 13,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/sshConnection.test.ts",
+        "state": "pass",
+        "passed": 6,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/sshTransport.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/sudoFeed.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/taint.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/totp.test.ts",
+        "state": "pass",
+        "passed": 8,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/useDigest.test.ts",
+        "state": "pass",
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/vaultExec.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/vaultNativeEditor.test.ts",
+        "state": "pass",
+        "passed": 18,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/vaultPanel.test.tsx",
+        "state": "pass",
+        "passed": 26,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/vaultPanelHost.test.ts",
+        "state": "pass",
+        "passed": 23,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/vaultStore.test.ts",
+        "state": "pass",
+        "passed": 30,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/webCsvImport.test.ts",
+        "state": "pass",
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/webFill.test.ts",
+        "state": "pass",
+        "passed": 33,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vault/webPageRead.test.ts",
+        "state": "pass",
+        "passed": 4,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vault/webSessions.test.ts",
+        "state": "pass",
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/vaultCommand.test.ts",
+        "state": "pass",
+        "passed": 34,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      }
+    ],
+    [
+      {
+        "file": "test/unit/vaultSurface.test.ts",
+        "state": "pass",
+        "passed": 12,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/verifyLoop.test.ts",
+        "state": "pass",
+        "passed": 77,
+        "failed": 0,
+        "skipped": 0,
+        "failures": [],
+        "unhandled": []
+      },
+      {
+        "file": "test/unit/windowsVaultNative.test.ts",
+        "state": "pass",
+        "passed": 1,
+        "failed": 0,
+        "skipped": 33,
+        "failures": [],
+        "unhandled": []
+      }
+    ]
+  ],
+  "notRun": [],
+  "baseExecRun": {
+    "revision": "47ba74845",
+    "passed": 94,
+    "exit": 0
+  },
+  "productionSearchProbe": {
+    "status": "stopped after two repairs; finite-cap capability refusal, no paid charge",
+    "restoredFixtures": true
+  },
+  "finalChecks": [
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/pool.test.ts",
+        "test/unit/accountRequestJournal.test.ts",
+        "test/unit/accountRequestRecovery.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "log": "temp/r4-final-0.log"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelsApp.test.tsx",
+        "test/e2e/accountRequests.e2e.test.ts",
+        "test/unit/bundleSize.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "log": "temp/r4-final-1.log"
+    },
+    {
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/modelApiProviders.test.ts",
+        "test/unit/referenceGenerator.test.mjs",
+        "test/unit/accountPaidComposition.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "log": "temp/r4-final-2.log"
+    },
+    {
+      "command": ["npm", "run", "typecheck:host"],
+      "exit": 0,
+      "log": "temp/r4-final-3.log"
+    },
+    {
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "log": "temp/r4-final-4.log"
+    },
+    {
+      "command": ["node", "scripts/check-l10n.mjs"],
+      "exit": 0,
+      "log": "temp/r4-final-5.log"
+    },
+    {
+      "command": ["node", "scripts/gen-reference.mjs", "--check"],
+      "exit": 0,
+      "log": "temp/r4-final-6.log"
+    },
+    {
+      "command": ["node", "scripts/check-host-api.mjs", "--write"],
+      "exit": 0,
+      "log": "temp/r4-final-7.log"
+    },
+    {
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "log": "temp/r4-final-8.log"
+    },
+    {
+      "command": ["npx", "jscpd"],
+      "exit": 1,
+      "log": "temp/r4-final-9.log"
+    },
+    {
+      "command": ["node", "scripts/gen-roadmap.mjs", "--check"],
+      "exit": 0,
+      "log": "temp/r4-final-10.log"
+    }
+  ],
+  "finalCorrections": {
+    "modelApiProviders": {
+      "passed": 16,
+      "exit": 0
+    },
+    "referenceGenerator": {
+      "passed": 116,
+      "exit": 0
+    },
+    "dedupJournalRecovery": {
+      "passed": 13,
+      "exit": 0
+    },
+    "duplication": {
+      "clones": 0,
+      "exit": 0
+    },
+    "build": {
+      "exit": 0
+    },
+    "eslint": "hook validates final staged sources; prior explicit run found only method order, repaired"
+  }
+}

@@ -1,5 +1,6 @@
 import { UserRefusalError } from '../../refusal'
 import type { AttemptBillingRoute, BillingRoute } from './billingRoute'
+import type { PaidUseRequest } from '../../../shared/paid'
 import { notify } from '../../events/notify'
 import type { PaidAuthority } from '../../paid/paidAuthority'
 import type { PaidQuote, SearchSettlement, SubagentUsage } from '../../../shared/paid'
@@ -67,6 +68,7 @@ import type { AuthHeaders, AuthSource } from './authSource'
 import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 
 export interface TransportDeps {
+  readonly isCredentialCurrent?: () => boolean
   readonly vaultScrub?: SecretScrubPort
   readonly streamIdleMs?: number
   /**
@@ -543,6 +545,7 @@ export function noRetryBudget(): RetryBudget {
 
 /** In-memory identity of an explicitly confirmed scheduled Model API run. */
 export interface ConfirmedModelRequest {
+  readonly paidRequest?: PaidUseRequest
   readonly modelId: string
   readonly keyDigest: string
   readonly providerId?: string | undefined
@@ -653,6 +656,9 @@ export interface ResponseAttemptGuard {
   readonly billingRoute?: BillingRoute | undefined
   /** Compare-only after admission: a fresh route may refuse, never replace auth. */
   readonly confirmBillingRoute?: (() => Promise<void>) | undefined
+  /** The account lease's before-send fence (D88.7): runs adjacent to the send. */
+  readonly beforeRequestStarted?: () => void
+  readonly paidRequest?: PaidUseRequest
   readonly mediaAccounting?: MediaRequestAccounting
   readonly pacingClass?: PacingClass
   readonly searchQuote?: PaidQuote
@@ -1442,6 +1448,7 @@ export class RequestTransport {
       )
         throw new UserRefusalError(UI_TEXT.sessionBudgetSearchUnavailable, 'search_unbounded')
       admitAttempt?.mediaAccounting?.check()
+      if (this.deps.isCredentialCurrent?.() === false) throw new MissingApiKeyError()
       admitAttempt?.(credentials.keyDigest)
       if (isAborted(signal)) {
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
@@ -1490,6 +1497,9 @@ export class RequestTransport {
       const dispatch = () => {
         admitAttempt?.check?.()
         assertScheduleAuthority()
+        // The account lease's before-send fence (D88.7) runs adjacent to the
+        // send with the admission observer, exactly as before the consolidation.
+        admitAttempt?.beforeRequestStarted?.()
         noteConfirmedRequestStarted(confirmed, admitAttempt)
         if (init.paid !== undefined) {
           init.paid.isSent = true

@@ -250,6 +250,9 @@ class AttemptDriver implements BestOfNAttemptDriver {
             }
           },
           {
+            ...(this.attempt.admitRequest.paidRequest !== undefined && {
+              paidRequest: this.attempt.admitRequest.paidRequest,
+            }),
             onRequestStarted: () => {
               this.attempt.admitRequest.onRequestStarted?.()
               this.requestsMade += 1
