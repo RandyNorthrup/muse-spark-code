@@ -10924,7 +10924,7 @@ export class ConversationController implements DeferredSend {
         const request =
           message.type === 'estimateRun'
             ? message.request
-            : estimator.parseCommand?.(message.command, message.context)
+            : await estimator.parseCommand?.(message.command, message.context)
         if (request === undefined) throw new EstimateDiagnosticError('estimate-unavailable')
         const section = await estimator.estimate(request, pending.signal)
         if (

@@ -59,7 +59,7 @@ export const scheduleEventSchema = z.strictObject({
 })
 export type ScheduleEvent = z.infer<typeof scheduleEventSchema>
 
-export const scheduleEventFilterSchema = z.strictObject({
+const scheduleEventFilterSchema = z.strictObject({
   field: z.enum(['repository', 'branch', 'author', 'label', 'milestoneId', 'status']),
   equals: eventValue,
 })

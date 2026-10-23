@@ -199,7 +199,7 @@ export function parsePersistedState(raw: unknown): PersistedState {
 
 export type SettingsSnapshot = z.infer<typeof settingsSnapshotSchema>
 
-export const AUTH_STATUSES = [
+const AUTH_STATUSES = [
   'checking',
   'noCli',
   'installing',
@@ -456,11 +456,11 @@ export type ReportWebviewError = z.infer<typeof reportWebviewErrorSchema>
 // field (a message, a stack, a text) fails instead of riding along.
 
 /** Where a sealed draft goes: the issue page, the clipboard, a file, or the VS Code reporter. */
-export const REPORT_EXPORT_CHANNELS = ['copy', 'issue', 'save', 'vscodeReporter'] as const
+const REPORT_EXPORT_CHANNELS = ['copy', 'issue', 'save', 'vscodeReporter'] as const
 export type ReportExportChannel = (typeof REPORT_EXPORT_CHANNELS)[number]
 
 /** Why an export did not happen: stale (rebuild and try again), refused, or cancelled quietly. */
-export const REPORT_EXPORT_REASONS = [
+const REPORT_EXPORT_REASONS = [
   'stale',
   'cancelled',
   'copyFailed',
@@ -471,10 +471,10 @@ export const REPORT_EXPORT_REASONS = [
 export type ReportExportReason = (typeof REPORT_EXPORT_REASONS)[number]
 
 /** A sealed draft is SHA-256 over title and text: 64 hex characters. */
-export const REPORT_HASH_HEX_CHARS = 64
+const REPORT_HASH_HEX_CHARS = 64
 
 /** One removable row of the preview: the facts section or one journal event by index. */
-export const reportDraftItemSchema = z.object({
+const reportDraftItemSchema = z.object({
   kind: z.enum(['facts', 'event']),
   /** The journal entry's place, for `event` items only. */
   eventIndex: z.optional(z.int().check(z.gte(0))),

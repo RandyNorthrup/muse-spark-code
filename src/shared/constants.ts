@@ -3610,16 +3610,15 @@ export const NAT64_DISCOVERY_TRIES = 2
 //
 // Its tunables live in browserCheckConstants.ts, a module with no imports,
 // so the check's own bundle (dist/browserCheck.js, 50 KiB) and the runtime's
-// (dist/browserRuntime.js) do not carry the rest of this file; every other
-// module reads them from here.
-export * from './browserCheckConstants'
+// (dist/browserRuntime.js) do not carry the rest of this file. Every module
+// reads them from there directly: re-exporting them here would make every
+// bundle importing this file carry the satellite's initialization.
 // --- Linux offline dictation (M9, PLAN.md D140) ---
 //
 // Its tunables live in linuxDictationConstants.ts, a module with no imports,
 // so the dictation bundle (dist/dictation.js) and Linux's driver bundle
-// (dist/voiceLinux.js) read them without the rest of this file; every other
-// module reads them from here.
-export * from './linuxDictationConstants'
+// (dist/voiceLinux.js) read them without the rest of this file. Every module
+// reads them from there directly, for the same reason as the browser check.
 // The image tools the extension's `ide` session server offers Muse Code
 // while paid image generation is on and a Model API key is stored (M44):
 // billed to the key, never to the subscription (D1, D30).
@@ -6574,15 +6573,14 @@ export function darwinVaultSlotFile(arch: string): string {
   if (arch === 'x64') return 'muse-vault-x64'
   throw new Error(`Unsupported Mac architecture: ${arch}`)
 }
-export const DICTATION_HELPER_COMMANDS = { start: 'start', stop: 'stop', quit: 'quit' } as const
+// The helper-process tunables (DICTATION_HELPER_COMMANDS, DICTATION_STOP_GRACE_MS,
+// DICTATION_QUIT_GRACE_MS, DICTATION_STDERR_TAIL_CHARS) live in
+// dictationConstants.ts, a module with no imports, so the voice bundles read
+// them without the rest of this file. Every module reads them from there
+// directly.
 /** A press shorter than this is a tap (toggle); longer is push-to-talk. */
 export const DICTATION_HOLD_MS = 300
 export const DICTATION_KEY = 'd'
-/** After "stop", the helper has this long to deliver the phrase in flight. */
-export const DICTATION_STOP_GRACE_MS = 4000
-/** After "quit", the helper has this long to exit before it is killed. */
-export const DICTATION_QUIT_GRACE_MS = 2000
-export const DICTATION_STDERR_TAIL_CHARS = 400
 export const DICTATION_ACTIONS = ['start', 'stop'] as const
 export type DictationAction = (typeof DICTATION_ACTIONS)[number]
 export const DICTATION_UI_STATUSES = ['unavailable', 'idle', 'starting', 'listening'] as const

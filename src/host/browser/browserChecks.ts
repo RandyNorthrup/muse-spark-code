@@ -32,7 +32,7 @@ import {
   BROWSER_RUNTIME_CLEANUP_MS,
   BROWSER_RUNTIME_PREPARATION_MS,
   type BrowserRuntimeMode,
-} from '../../shared/constants'
+} from '../../shared/browserCheckConstants'
 import { forgetFile, requireFile } from '../lazyBundle'
 import type { Logger } from '../logger'
 

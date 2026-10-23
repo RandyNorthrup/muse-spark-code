@@ -65,6 +65,9 @@ const BUDGETS = [
   { path: 'dist/devices.js', budgetKiB: 125 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
+  // RLF-BUDGETS: the Windows job-object tree reader, off the governor.
+  // 11,007 bytes (10.7 KiB) measured +15% = 12.4 KiB, rounded up to 13 KiB.
+  { path: 'dist/resourceGovernorWindows.js', budgetKiB: 13 },
   // POSTSPAWN: the governed launcher, split from the governor; 35.6 KiB
   // measured, +15%, rounded up to 25 KiB. The governor's cap is unchanged.
   { path: 'dist/resourceProcess.js', budgetKiB: 50 },
@@ -218,9 +221,10 @@ const BUDGETS = [
   { path: 'dist/teamPanel.js', budgetKiB: 100 },
   { path: 'dist/team.js', budgetKiB: 75 },
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
-  // RLM107: 75.3 KiB with the M107 relocation/brand wiring landed; 75.3 x
-  // 1.15 = 86.6 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
-  { path: 'dist/teamRunners.js', budgetKiB: 100 },
+  // RLF-BUDGETS: the runners read the shared team schemas from the
+  // already-loaded dist/team.js instead of carrying second copies; 64.1 KiB
+  // measured, back under the original 75 KiB cap.
+  { path: 'dist/teamRunners.js', budgetKiB: 75 },
   // C-M96-3: the team host service with its engine worker and merge ports,
   // loaded only for a workspace that stores a team. Measured 114,909 bytes
   // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
@@ -433,9 +437,14 @@ const BUDGETS = [
   // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
   // first estimate: goal and DAG, calibration, schedule and simulation,
   // recommendations, dated prices and the first-wave starter with their
-  // shared contracts, plus M117's provision run and price catalogues.
-  // 77.1 KiB measured with the run; budget 80 KiB (PLAN.md D6).
-  { path: 'dist/estimator.js', budgetKiB: 80 },
+  // shared contracts. RLF-BUDGETS: composer parsing and the wave start
+  // moved to dist/estimateActions.js; 72.8 KiB measured, back under the
+  // original 75 KiB cap.
+  { path: 'dist/estimator.js', budgetKiB: 75 },
+  // RLF-BUDGETS: the estimator run's composer parsing and first-wave
+  // start, loaded on the first parse or wave start. 45,549 bytes
+  // (44.5 KiB) measured +15% = 51.2 KiB, rounded up to the KiB.
+  { path: 'dist/estimateActions.js', budgetKiB: 52 },
   // CIFIX161B: the sign-in gate (AuthService and the three-valued
   // credential read), loaded on the first credential, money or consent
   // read. 64.8 KiB when split out, plus 15%, rounded up to 25 KiB
@@ -493,10 +502,10 @@ const BUDGETS = [
   { path: 'dist/judgeLocal.js', budgetKiB: 75 },
   { path: 'dist/judgeUses.js', budgetKiB: 25 },
   // M98P2F: the authenticated serve factory loads only on an explicit
-  // serve action. 20.1 KiB + 15%, rounded up to 25 KiB.
-  // RLM98P2: merged judge schema grows the serve closure to 25.2 KiB;
-  // 25.2 KiB + 15%, rounded up to 25 KiB.
-  { path: 'dist/judgeServe.js', budgetKiB: 30 },
+  // serve action. RLF-BUDGETS: the POSIX supervisor script moved into
+  // runTreeSync, so bundles that never call it stop carrying it; 21.1 KiB
+  // measured, back under the original 25 KiB cap.
+  { path: 'dist/judgeServe.js', budgetKiB: 25 },
   // M98 integration: JSON Schema conversion loads only on explicit tool listing.
   { path: 'dist/validationSchema.js', budgetKiB: 50 },
   { path: 'dist/uiTextRuntime.js', budgetKiB: 25 },

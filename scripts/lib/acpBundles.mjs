@@ -59,6 +59,7 @@ export function acpUsageAssets(packageRoot = process.cwd()) {
 export const ACP_BUNDLES = [
   'acp.js',
   'estimator.js',
+  'estimateActions.js',
   'headless.js',
   'sharingRuntime.js',
   // M124 (D106): the MCP connector ships in the ACP package; `mcp` loads it on use.
@@ -90,6 +91,7 @@ export const ACP_BUNDLES = [
   'museCode.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
+  'resourceGovernorWindows.js',
   'resourceProcess.js',
   'resourceJournal.js',
   'modelApiHooks.js',

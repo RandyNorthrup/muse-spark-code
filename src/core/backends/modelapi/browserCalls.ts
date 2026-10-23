@@ -6,8 +6,8 @@
 
 import { Buffer } from 'node:buffer'
 import { randomBytes } from 'node:crypto'
+import { BROWSER_CHECK_MARKER_BYTES } from '../../../shared/browserCheckConstants'
 import {
-  BROWSER_CHECK_MARKER_BYTES,
   META_IMAGE_MAX_BYTES,
   MODEL_API_MODEL_TEXT,
   PNG_MEDIA_TYPE,

@@ -183,6 +183,10 @@ const MUSE_CODE_ENTRY = 'src/host/backend/museCodeEntry.ts'
 const MUSE_CODE_OUTFILE = 'dist/museCode.js'
 const RESOURCE_ENTRY = 'src/core/resources/resourceGovernorEntry.ts'
 const RESOURCE_OUTFILE = 'dist/resourceGovernor.js'
+// RLF-BUDGETS: the Windows job-object tree reader, beside (never inside)
+// the governor; it reads no `vscode`, so a stray import fails this build.
+const RESOURCE_WINDOWS_ENTRY = 'src/core/resources/trees/windowsEntry.ts'
+const RESOURCE_WINDOWS_OUTFILE = 'dist/resourceGovernorWindows.js'
 // POSTSPAWN: the governed launcher, beside (never inside) the governor.
 const RESOURCE_PROCESS_ENTRY = 'src/core/resources/resourceProcessEntry.ts'
 const RESOURCE_PROCESS_OUTFILE = 'dist/resourceProcess.js'
@@ -375,6 +379,11 @@ const ESTIMATE_PRICES_OUTFILE = 'dist/estimatePrices.js'
 // this build.
 const ESTIMATE_HISTORY_ENTRY = 'src/host/estimator/historyEntry.ts'
 const ESTIMATE_HISTORY_OUTFILE = 'dist/estimateHistory.js'
+// The estimator run's composer parsing and first-wave start, loaded the
+// first time an estimate parses a composer command or starts its first
+// wave; it reads no `vscode`, so a stray import fails this build.
+const ESTIMATE_ACTIONS_ENTRY = 'src/host/estimator/estimateActionsEntry.ts'
+const ESTIMATE_ACTIONS_OUTFILE = 'dist/estimateActions.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
@@ -591,6 +600,15 @@ const resourceGovernorOptions = {
   ...modelApiOptions,
   entryPoints: [RESOURCE_ENTRY],
   outfile: RESOURCE_OUTFILE,
+}
+// RLF-BUDGETS: the Windows job-object tree reader, required the first
+// time a Windows job launch binds its tree; it reads no `vscode`, so a
+// stray import fails this build.
+/** @type {import('esbuild').BuildOptions} */
+const resourceGovernorWindowsOptions = {
+  ...modelApiOptions,
+  entryPoints: [RESOURCE_WINDOWS_ENTRY],
+  outfile: RESOURCE_WINDOWS_OUTFILE,
 }
 const resourceProcessOptions = {
   ...modelApiOptions,
@@ -883,12 +901,22 @@ const reportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const estimatorOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [ESTIMATOR_ENTRY],
   outfile: ESTIMATOR_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+// The estimator run's composer parsing and first-wave start, loaded the
+// first time one is used; it reads no `vscode`, so a stray import fails
+// this build.
+/** @type {import('esbuild').BuildOptions} */
+const estimateActionsOptions = {
+  ...estimatorOptions,
+  entryPoints: [ESTIMATE_ACTIONS_ENTRY],
+  outfile: ESTIMATE_ACTIONS_OUTFILE,
 }
 
 // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
@@ -1968,6 +1996,7 @@ if (isWatch) {
     esbuild.context(connectorStoreGuardOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
+    esbuild.context(resourceGovernorWindowsOptions),
     esbuild.context(resourceProcessOptions),
     esbuild.context(resourceJournalOptions),
     esbuild.context(resourceAdmissionOptions),
@@ -2093,6 +2122,7 @@ if (isWatch) {
     esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
+    esbuild.context(estimateActionsOptions),
     esbuild.context(planSnapshotOptions),
     esbuild.context(estimatePricesOptions),
     esbuild.context(estimateHistoryOptions),
@@ -2168,6 +2198,7 @@ if (isWatch) {
     connectorStoreGuard: recorded('connectorStoreGuard', connectorStoreGuardOptions),
     modelApi: recorded('modelApi', modelApiOptions),
     resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
+    resourceGovernorWindows: recorded('resourceGovernorWindows', resourceGovernorWindowsOptions),
     resourceProcess: recorded('resourceProcess', resourceProcessOptions),
     resourceJournal: recorded('resourceJournal', resourceJournalOptions),
     resourceAdmission: recorded('resourceAdmission', resourceAdmissionOptions),
@@ -2315,6 +2346,7 @@ if (isWatch) {
     planSnapshot: recorded('planSnapshot', planSnapshotOptions),
     estimatePrices: recorded('estimatePrices', estimatePricesOptions),
     estimateHistory: recorded('estimateHistory', estimateHistoryOptions),
+    estimateActions: recorded('estimateActions', estimateActionsOptions),
     credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -2446,6 +2478,7 @@ if (isWatch) {
   reportSize(CONNECTOR_STORE_GUARD_OUTFILE)
   reportSize(MODEL_API_OUTFILE)
   reportSize(RESOURCE_OUTFILE)
+  reportSize(RESOURCE_WINDOWS_OUTFILE)
   reportSize(RESOURCE_ADMISSION_OUTFILE)
   reportSize(PROVIDERS_OUTFILE)
   reportSize(SUBSCRIPTIONS_OUTFILE)
@@ -2496,6 +2529,7 @@ if (isWatch) {
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
+  reportSize(ESTIMATE_ACTIONS_OUTFILE)
   reportSize(ESTIMATE_PRICES_OUTFILE)
   reportSize(ESTIMATE_HISTORY_OUTFILE)
   reportSize(RECORDER_OUTFILE)

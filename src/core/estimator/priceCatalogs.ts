@@ -1,7 +1,7 @@
 import * as z from 'zod/mini'
 import machineClasses from '../../shared/machineClasses.json'
 import { machineClassesSchema, type CatalogPrice } from '../../shared/estimate'
-import { compareEstimateIds } from './goal'
+import { compareCatalogRows, compareEstimateIds } from './goal'
 import { ESTIMATE_PRICE_CATALOG_URLS } from '../../shared/constants'
 import { EstimateDiagnosticError } from './diagnostic'
 
@@ -87,15 +87,6 @@ export type EstimateCatalogAdapter = (
   body: unknown,
   context: { catalogUrl: string },
 ) => EstimateCatalogRows
-type CatalogRow = EstimateCatalogRows['rows'][number]
-/** Code-unit order, so rows are deterministic no matter how the vendor orders
-its answer; prices.ts re-sorts identically through this same comparator. */
-export function compareCatalogRows(a: CatalogRow, b: CatalogRow): number {
-  return compareEstimateIds(
-    JSON.stringify([a.classId, a.price.providerId, a.price.sizeId]),
-    JSON.stringify([b.classId, b.price.providerId, b.price.sizeId]),
-  )
-}
 function refuse(detail: string): never {
   throw new EstimateDiagnosticError(detail)
 }

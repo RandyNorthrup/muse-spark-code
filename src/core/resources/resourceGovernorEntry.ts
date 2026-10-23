@@ -25,7 +25,7 @@ import { ResourceLaunchHost } from './launchHost'
 import type { ResourceProcessLaunch, ResourceTreeBinding } from './launch'
 import { createMachineResourceSampler } from './sampler/system'
 import { LinuxResourceTreeReader } from './trees/linux'
-import { WindowsResourceTreeReader } from './trees/windows'
+import type { WindowsResourceTreeReader } from './trees/windows'
 import type { ResourceAdmission, ResourceLaunchRequest } from './queue'
 // POSTSPAWN: the launcher and helper preparation live in dist/resourceProcess.js.
 import {
@@ -295,7 +295,12 @@ export function resourceGovernorHost(
       if (systemRoot === undefined) return null
       let reader = readers.get(launch.job.assemblyPath)
       if (reader === undefined) {
-        reader = new WindowsResourceTreeReader({
+        // The Windows reader rides its own bundle beside the governor's
+        // (dist/resourceGovernorWindows.js): the deferred cohort
+        // externalises this import the way admission's reaches the
+        // governor, so only a Windows job launch loads it.
+        const windows = await import('./trees/windowsEntry')
+        reader = windows.createWindowsResourceTreeReader({
           assemblyPath: launch.job.assemblyPath,
           systemRoot,
         })

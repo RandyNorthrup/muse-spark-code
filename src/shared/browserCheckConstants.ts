@@ -1,8 +1,8 @@
-// The browser check's tunables (M81, PLAN.md D49; A1, design spec v4),
-// re-exported by constants.ts. This module imports nothing: the check's own
-// bundle (dist/browserCheck.js, capped at 50 KiB) and the runtime's
+// The browser check's tunables (M81, PLAN.md D49; A1, design spec v4).
+// This module imports nothing: the check's own bundle
+// (dist/browserCheck.js, capped at 50 KiB) and the runtime's
 // (dist/browserRuntime.js) read it directly, without the rest of
-// constants.ts.
+// constants.ts, and every other module reads it from here too.
 //
 // The model opens a local page in the pinned Chrome-for-Testing headless
 // shell and gets back a screenshot (Model API only), the console errors and

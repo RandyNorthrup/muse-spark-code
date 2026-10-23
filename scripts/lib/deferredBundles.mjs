@@ -575,6 +575,16 @@ export const RESOURCE_PROCESS_ONLY = [
 ]
 // The MCP job launch, which the launcher shares with the window's activation.
 export const RESOURCE_PROCESS_SHARED = ['src/host/backend/mcpJobLaunch.ts']
+// RLF-BUDGETS: the Windows tree reader rides its own bundle beside the
+// governor's; run.ts and actions.ts ride along because the reader calls
+// them and no shared governor library carries them. The governor keeps
+// its copies; no other shipped bundle carries these.
+export const RESOURCE_WINDOWS_FILES = [
+  'src/core/resources/trees/windowsEntry.ts',
+  'src/core/resources/trees/windows.ts',
+  'src/core/resources/trees/run.ts',
+  'src/core/resources/trees/actions.ts',
+]
 // POSTSPAWN: launch and helper-preparation code the window's activation also
 // uses for its own helpers and MCP servers; the governor carries none of it,
 // so its 125 KiB cap measures policy alone. The helper preparation launches
@@ -632,6 +642,14 @@ export const ON_FIRST_USE = [
       // U–C1: the window's status item and pause notice, never at activation.
       'src/host/resources/resourceStatus.ts',
     ],
+  },
+  // RLF-BUDGETS: the Windows job-object tree reader, required the first
+  // time a Windows job launch binds its tree; the governor keeps its cap.
+  {
+    output: 'dist/resourceGovernorWindows.js',
+    metafile: 'dist/meta/resourceGovernorWindows.json',
+    use: "a Windows job launch's first tree bind",
+    files: ['src/core/resources/trees/windowsEntry.ts', 'src/core/resources/trees/windows.ts'],
   },
   RESOURCE_PROCESS_BUNDLE,
   // POSTSPAWN: the vault MCP launch (scrubber, leases, governed start); the
@@ -1132,6 +1150,18 @@ export const ON_FIRST_USE = [
       'src/core/estimator/bottleneck.ts',
       'src/core/estimator/recommend.ts',
       'src/core/estimator/prices.ts',
+    ],
+  },
+  // The estimator run's composer parsing and first-wave start (PLAN.md D6):
+  // the host, the CLI and the ACP agent require it the first time an
+  // estimate parses a composer command or starts its first wave.
+  {
+    output: 'dist/estimateActions.js',
+    metafile: 'dist/meta/estimateActions.json',
+    use: "an estimate's first composer parse or first-wave start",
+    files: [
+      'src/host/estimator/estimateActionsEntry.ts',
+      'src/runtime/estimator/command.ts',
       'src/core/estimator/provision/owner.ts',
       'src/core/estimator/provision/start.ts',
     ],
@@ -1589,6 +1619,7 @@ export function checkResourceBundles(inputsOf, bundles) {
       } else if (
         output !== 'dist/resourceGovernor.js' &&
         !(output === RESOURCE_PROCESS_BUNDLE.output && RESOURCE_PROCESS_ONLY.includes(file)) &&
+        !(output === 'dist/resourceGovernorWindows.js' && RESOURCE_WINDOWS_FILES.includes(file)) &&
         !['src/core/resources/launch.ts', 'src/core/resources/trees/processTable.ts'].includes(file)
       ) {
         problems.push(`${output} carries resource policy ${file} outside the lazy governor`)
@@ -1632,6 +1663,7 @@ export const sharedValidation = {
 /** @type {import('esbuild').Plugin} */
 export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/resources/resourceGovernorEntry.ts'), 'dist/resourceGovernor.js'],
+  [path.resolve('src/core/resources/trees/windowsEntry.ts'), 'dist/resourceGovernorWindows.js'],
   [path.resolve('src/core/resources/resourceProcessEntry.ts'), 'dist/resourceProcess.js'],
   [path.resolve('src/host/backend/mcpVaultEntry.ts'), 'dist/mcpVault.js'],
   [path.resolve('src/core/backends/musecode/modelEffortsEntry.ts'), 'dist/modelEfforts.js'],
@@ -1672,6 +1704,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/core/team/teamPanelEntry.ts'), 'dist/teamPanel.js'],
   [path.resolve('src/core/team/teamEntry.ts'), 'dist/team.js'],
   [path.resolve('src/core/team/teamSchedulerEntry.ts'), 'dist/teamScheduler.js'],
+  [path.resolve('src/host/estimator/estimateActionsEntry.ts'), 'dist/estimateActions.js'],
   [path.resolve('src/host/runners/teamRunnersEntry.ts'), 'dist/teamRunners.js'],
   [path.resolve('src/host/team/teamHostEntry.ts'), 'dist/teamHost.js'],
   [path.resolve('src/host/team/teamEngineEntry.ts'), 'dist/teamEngine.js'],
@@ -1731,6 +1764,19 @@ export const deferredCohort = {
         ? { path: './team.js', external: true }
         : undefined,
     )
+    // The runners load only through their team runtime, so the runners build
+    // reads the shared team schemas from the already-loaded team.js instead
+    // of carrying second copies. Only that build rewrites: every other
+    // bundle keeps bundling these modules locally.
+    build.onResolve({ filter: /\/(?:team|teamView)(?:\.[jt]s)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+      return path.resolve(build.initialOptions.outfile ?? '') ===
+        path.resolve('dist/teamRunners.js') &&
+        (source === path.resolve('src/shared/team.ts') ||
+          source === path.resolve('src/shared/teamView.ts'))
+        ? { path: './team.js', external: true }
+        : undefined
+    })
     // The shared request/framing implementations stay in the existing backend
     // bundle; providers and ACP require its exported API only when used.
     // The refusal classifier rides the lazy provider bundle: the Model API
@@ -1767,7 +1813,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
