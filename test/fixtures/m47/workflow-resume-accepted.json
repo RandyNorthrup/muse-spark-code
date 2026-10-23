@@ -1,0 +1,56 @@
+{
+  "method": "workflow/resume",
+  "params": {
+    "sessionId": "01a1674a-328b-7053-83c2-2f185e18ae19",
+    "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b"
+  },
+  "ack": {
+    "commandId": "01a1674b-042f-7000-9ba6-d860547b17f1",
+    "status": "accepted",
+    "turnId": "01a1674b-042f-7000-9ba6-d860547b17f1"
+  },
+  "outcome": {
+    "reemitted": {
+      "note": "item/started",
+      "at": "2026-10-23T05:45:41.390Z",
+      "item": {
+        "itemId": "fbe9f7ca-3b69-57e5-abad-6f5d4ff7a5ad",
+        "kind": "workflow",
+        "turnId": "01a1674b-042f-7000-9ba6-d860547b17f1",
+        "revision": 1,
+        "status": "inProgress",
+        "recordedAt": "2026-10-23T05:45:41.254426Z",
+        "fallbackText": "Workflow: Four throwaway essays",
+        "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "entryId": "Four throwaway essays",
+        "scriptId": "generated.workflow.Four_throwaway_essays",
+        "triggerSource": "guidanceAuto",
+        "resumeFromRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "children": [],
+        "stopAvailable": true
+      }
+    },
+    "reconciled": {
+      "note": "item/completed",
+      "at": "2026-10-23T05:45:43.481Z",
+      "item": {
+        "itemId": "fbe9f7ca-3b69-57e5-abad-6f5d4ff7a5ad",
+        "kind": "workflow",
+        "turnId": "01a1674b-042f-7000-9ba6-d860547b17f1",
+        "revision": 2,
+        "status": "completed",
+        "recordedAt": "2026-10-23T05:45:43.397466Z",
+        "fallbackText": "Workflow: Four throwaway essays",
+        "durationMs": 2143,
+        "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "entryId": "Four throwaway essays",
+        "scriptId": "generated.workflow.Four_throwaway_essays",
+        "triggerSource": "guidanceAuto",
+        "resumeFromRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b",
+        "children": [],
+        "message": "<workflow-launch-reconciled>{\"type\":\"workflow_launch_reconciled\",\"call_id\":\"call_01a1674b1e4375fdae3bd206c0695f54\",\"launch_command_id\":\"7924b552-3542-4295-afb0-3ac562befb42\",\"route\":\"runtime command admission -> #015 background task\",\"deferred_to_background\":true,\"launch_admitted\":true,\"production_owner_loop_started\":false,\"child_work_started\":false,\"provider_or_tool_io_started\":false,\"final_summary_instruction\":null,\"final_summary\":null,\"latest_failure\":{\"error\":\"workflow_child_recovered_route_already_settled; Agent \\\"alpha\\\" could not continue after Muse restarted: it had already ended before the restart and is not restarted automatically. Start the Workflow again to run it.\",\"recovery_hint\":\"Follow the step in the error above, then start the Workflow again as a new run. Resuming this run stops at the same agent again, unless the error says to switch the session's model back first.\"},\"recovery\":{\"instruction\":\"One agent call in this workflow stopped and cannot continue in this run. latest_failure.error names the agent, says why, and says what to do. Tell the user what happened and what they need to do. Do not call the workflow tool with resume_shape.arguments: resuming rebuilds the same saved facts and stops at the same agent call again, unless latest_failure.error says to switch the session's model back first and the user has done so. To retry, start a new run: call the workflow tool with scriptPath set to resume_shape.arguments.scriptPath and without resumeFromRunId. A new run starts every agent call again. resume_shape is kept only for that switch-back case. Internal opaque control handle for Workflow calls only. Pass this exact value only as resumeFromRunId; never repeat it in user-facing prose.\",\"resume_shape\":{\"tool\":\"workflow\",\"arguments\":{\"scriptPath\":\"/Users/randy/lanes/RLF-M47.app/home/Library/Application Support/Muse Spark Code/resource-created/trees/muse-tree-cfb3fdb0-04fa-4676-ae4d-bf8a8f3e2410/m47-live2/home/.local/share/muse/sessions/2026/10/22/01a1674a-328b-7053-83c2-2f185e18ae19/workflows/scripts/01a1674a-8afd-7d51-80a1-5b47c25012aa.js\",\"resumeFromRunId\":\"workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b\"}}}}</workflow-launch-reconciled>",
+        "stopAvailable": false
+      }
+    }
+  }
+}

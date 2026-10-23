@@ -1,0 +1,22 @@
+{
+  "method": "workflow/childControl",
+  "params": {
+    "sessionId": "01a1674d-7dee-7330-b894-b469c91bd3d2",
+    "workflowRunId": "workflow-run-model-tool-call_01a1674daee371c99cd61d624e0bed5c",
+    "childId": "01a1674d-bf47-77c1-aad7-a105ef8a3569",
+    "attempt": 1,
+    "action": "skip"
+  },
+  "error": {
+    "message": "workflow/childControl command 01a1674d-c2b6-7000-bac6-a95b0da33656 rejected: invalid_target",
+    "code": -32030,
+    "kind": "commandRejected",
+    "data": {
+      "kind": "commandRejected",
+      "retryable": false,
+      "commandId": "01a1674d-c2b6-7000-bac6-a95b0da33656",
+      "reason": "invalid_target"
+    },
+    "retryable": false
+  }
+}
