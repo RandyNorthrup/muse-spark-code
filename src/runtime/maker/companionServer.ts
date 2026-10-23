@@ -242,8 +242,9 @@ export async function startCompanion(deps: CompanionDeps) {
           return
         }
         if (request.url === '/presence') {
+          const { answer } = parsed.data
           const [attempt] = await Promise.allSettled([
-            (async () => await host?.authorize(parsed.data.answer))(),
+            (async () => await host?.authorize(answer))(),
           ])
           if (attempt.status === 'fulfilled') {
             const grant = attempt.value
