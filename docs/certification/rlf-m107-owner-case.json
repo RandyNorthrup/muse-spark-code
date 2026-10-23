@@ -1,0 +1,834 @@
+{
+  "lane": "RLF-M107",
+  "acceptance": 15,
+  "at": "2026-10-23T06:32:19.821Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "x64",
+    "release": "24.6.0",
+    "model": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+    "cores": 12,
+    "totalMemBytes": 34359738368,
+    "loadavg": [43.39697265625, 38.333984375, 28.9462890625],
+    "node": "v24.21.0",
+    "uv": "1.52.1"
+  },
+  "settings": {
+    "kind": "check",
+    "class": "background",
+    "checks": 15,
+    "cpuThreshold": 30,
+    "burners": 12,
+    "burnSeconds": 260,
+    "engageTimeoutMs": 240000
+  },
+  "baselineCpuPercent": 27.70444545592475,
+  "idleProbesMs": [97, 101, 107],
+  "phaseA": {
+    "wallMs": 16268,
+    "maxRunning": 15,
+    "settings": {
+      "enabled": true,
+      "cpuMaxPercent": null,
+      "memoryMaxPercent": null,
+      "memoryMinFreeGiB": null,
+      "gpuMaxPercent": null,
+      "diskBusyMaxPercent": null,
+      "diskMinFreeGiB": null,
+      "relocate": "off"
+    },
+    "checks": [
+      {
+        "id": 0,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 14789,
+        "stderrTail": ""
+      },
+      {
+        "id": 1,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 14070,
+        "stderrTail": ""
+      },
+      {
+        "id": 2,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 14440,
+        "stderrTail": ""
+      },
+      {
+        "id": 3,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15468,
+        "stderrTail": ""
+      },
+      {
+        "id": 4,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15372,
+        "stderrTail": ""
+      },
+      {
+        "id": 5,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 14836,
+        "stderrTail": ""
+      },
+      {
+        "id": 6,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15884,
+        "stderrTail": ""
+      },
+      {
+        "id": 7,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 14601,
+        "stderrTail": ""
+      },
+      {
+        "id": 8,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15969,
+        "stderrTail": ""
+      },
+      {
+        "id": 9,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15675,
+        "stderrTail": ""
+      },
+      {
+        "id": 10,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15861,
+        "stderrTail": ""
+      },
+      {
+        "id": 11,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15416,
+        "stderrTail": ""
+      },
+      {
+        "id": 12,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15487,
+        "stderrTail": ""
+      },
+      {
+        "id": 13,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15060,
+        "stderrTail": ""
+      },
+      {
+        "id": 14,
+        "exitCode": 0,
+        "timedOut": false,
+        "bytes": 26313741,
+        "checkMs": 15298,
+        "stderrTail": ""
+      }
+    ],
+    "eventLoopMs": {
+      "quantumMs": 10,
+      "count": 1480,
+      "p50Ms": 10.723,
+      "p95Ms": 12.108,
+      "p99Ms": 12.804,
+      "meanMs": 10.947,
+      "maxMs": 24.74
+    },
+    "cpuTrace": [
+      {
+        "tMs": 62,
+        "level": "normal",
+        "cpuPercent": null
+      },
+      {
+        "tMs": 1063,
+        "level": "normal",
+        "cpuPercent": 79.76686094920899
+      },
+      {
+        "tMs": 2064,
+        "level": "normal",
+        "cpuPercent": 94.99582985821517
+      },
+      {
+        "tMs": 3065,
+        "level": "normal",
+        "cpuPercent": 92.32053422370618
+      },
+      {
+        "tMs": 4066,
+        "level": "normal",
+        "cpuPercent": 90.83333333333333
+      },
+      {
+        "tMs": 5068,
+        "level": "normal",
+        "cpuPercent": 93.69294605809128
+      },
+      {
+        "tMs": 6069,
+        "level": "normal",
+        "cpuPercent": 94.5
+      },
+      {
+        "tMs": 7072,
+        "level": "normal",
+        "cpuPercent": 95.42429284525791
+      },
+      {
+        "tMs": 8074,
+        "level": "normal",
+        "cpuPercent": 94.83333333333334
+      },
+      {
+        "tMs": 9074,
+        "level": "normal",
+        "cpuPercent": 94.32387312186978
+      },
+      {
+        "tMs": 10077,
+        "level": "normal",
+        "cpuPercent": 94.1812136325852
+      },
+      {
+        "tMs": 11078,
+        "level": "normal",
+        "cpuPercent": 93.41666666666667
+      },
+      {
+        "tMs": 12080,
+        "level": "normal",
+        "cpuPercent": 95.00831946755409
+      },
+      {
+        "tMs": 13083,
+        "level": "normal",
+        "cpuPercent": 94.66666666666667
+      },
+      {
+        "tMs": 14085,
+        "level": "normal",
+        "cpuPercent": 95.09151414309484
+      },
+      {
+        "tMs": 15085,
+        "level": "normal",
+        "cpuPercent": 95.08333333333333
+      },
+      {
+        "tMs": 16087,
+        "level": "normal",
+        "cpuPercent": 93.99499582985823
+      }
+    ],
+    "peakCpuPercent": 95.42429284525791,
+    "probeAtPeak": {
+      "exitCode": 0,
+      "timedOut": false,
+      "wallMs": 2358,
+      "elapsedMs": 1841,
+      "level": "normal",
+      "stderrTail": ""
+    },
+    "hostErrors": []
+  },
+  "phaseB": {
+    "engaged": true,
+    "trip": {
+      "engaged": true,
+      "afterMs": 31052,
+      "warmup": [
+        {
+          "tMs": 8,
+          "level": "normal",
+          "cpuPercent": null
+        },
+        {
+          "tMs": 1009,
+          "level": "normal",
+          "cpuPercent": 64.68155500413565
+        },
+        {
+          "tMs": 2010,
+          "level": "normal",
+          "cpuPercent": 59.08333333333333
+        },
+        {
+          "tMs": 3010,
+          "level": "normal",
+          "cpuPercent": 57.130942452043364
+        },
+        {
+          "tMs": 4013,
+          "level": "normal",
+          "cpuPercent": 58.29858215179316
+        },
+        {
+          "tMs": 5014,
+          "level": "normal",
+          "cpuPercent": 56.96413678065054
+        },
+        {
+          "tMs": 6016,
+          "level": "normal",
+          "cpuPercent": 58.520365752285954
+        },
+        {
+          "tMs": 7019,
+          "level": "normal",
+          "cpuPercent": 60.68162926018288
+        },
+        {
+          "tMs": 8019,
+          "level": "normal",
+          "cpuPercent": 59.549624687239366
+        },
+        {
+          "tMs": 9020,
+          "level": "normal",
+          "cpuPercent": 61.26878130217028
+        },
+        {
+          "tMs": 10022,
+          "level": "normal",
+          "cpuPercent": 59.185369908561924
+        },
+        {
+          "tMs": 11023,
+          "level": "normal",
+          "cpuPercent": 58.98502495840267
+        },
+        {
+          "tMs": 12024,
+          "level": "normal",
+          "cpuPercent": 58.69565217391305
+        },
+        {
+          "tMs": 13025,
+          "level": "normal",
+          "cpuPercent": 58.368026644462944
+        },
+        {
+          "tMs": 14026,
+          "level": "normal",
+          "cpuPercent": 59.280936454849495
+        },
+        {
+          "tMs": 15027,
+          "level": "normal",
+          "cpuPercent": 60.33195020746888
+        },
+        {
+          "tMs": 16029,
+          "level": "normal",
+          "cpuPercent": 59.20066611157368
+        },
+        {
+          "tMs": 17031,
+          "level": "normal",
+          "cpuPercent": 59.78351373855121
+        },
+        {
+          "tMs": 18033,
+          "level": "normal",
+          "cpuPercent": 58.215179316096744
+        },
+        {
+          "tMs": 19034,
+          "level": "normal",
+          "cpuPercent": 59.85037406483791
+        },
+        {
+          "tMs": 20036,
+          "level": "normal",
+          "cpuPercent": 57.522859517871986
+        },
+        {
+          "tMs": 21038,
+          "level": "normal",
+          "cpuPercent": 59.71643035863219
+        },
+        {
+          "tMs": 22039,
+          "level": "normal",
+          "cpuPercent": 58.833333333333336
+        },
+        {
+          "tMs": 23041,
+          "level": "normal",
+          "cpuPercent": 57.68911055694098
+        },
+        {
+          "tMs": 24044,
+          "level": "normal",
+          "cpuPercent": 58.58333333333333
+        },
+        {
+          "tMs": 25044,
+          "level": "normal",
+          "cpuPercent": 59.5655806182122
+        },
+        {
+          "tMs": 26046,
+          "level": "normal",
+          "cpuPercent": 60.66666666666667
+        },
+        {
+          "tMs": 27047,
+          "level": "normal",
+          "cpuPercent": 62.04318936877077
+        },
+        {
+          "tMs": 28047,
+          "level": "normal",
+          "cpuPercent": 60.350584307178636
+        },
+        {
+          "tMs": 29048,
+          "level": "normal",
+          "cpuPercent": 59.31495405179616
+        },
+        {
+          "tMs": 30050,
+          "level": "normal",
+          "cpuPercent": 56.15640599001664
+        },
+        {
+          "tMs": 31052,
+          "level": "throttle",
+          "cpuPercent": 58.03497085761865
+        }
+      ],
+      "warmupPeakCpu": 64.68155500413565
+    },
+    "levelAtSubmit": "throttle",
+    "wallMs": 30074,
+    "maxRunning": 1,
+    "maxWhileNonNormal": 1,
+    "grants": 15,
+    "settings": {
+      "enabled": true,
+      "cpuMaxPercent": 30,
+      "memoryMaxPercent": null,
+      "memoryMinFreeGiB": null,
+      "gpuMaxPercent": null,
+      "diskBusyMaxPercent": null,
+      "diskMinFreeGiB": null,
+      "relocate": "off"
+    },
+    "checks": [
+      {
+        "id": 0,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1747,
+        "stderrTail": ""
+      },
+      {
+        "id": 1,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1753,
+        "stderrTail": ""
+      },
+      {
+        "id": 2,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1905,
+        "stderrTail": ""
+      },
+      {
+        "id": 3,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 2005,
+        "stderrTail": ""
+      },
+      {
+        "id": 4,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 2037,
+        "stderrTail": ""
+      },
+      {
+        "id": 5,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1849,
+        "stderrTail": ""
+      },
+      {
+        "id": 6,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 2025,
+        "stderrTail": ""
+      },
+      {
+        "id": 7,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1749,
+        "stderrTail": ""
+      },
+      {
+        "id": 8,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1782,
+        "stderrTail": ""
+      },
+      {
+        "id": 9,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1926,
+        "stderrTail": ""
+      },
+      {
+        "id": 10,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1644,
+        "stderrTail": ""
+      },
+      {
+        "id": 11,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1926,
+        "stderrTail": ""
+      },
+      {
+        "id": 12,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1910,
+        "stderrTail": ""
+      },
+      {
+        "id": 13,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1795,
+        "stderrTail": ""
+      },
+      {
+        "id": 14,
+        "exitCode": 0,
+        "timedOut": false,
+        "levelAtGrant": "throttle",
+        "bytes": 26313741,
+        "checkMs": 1861,
+        "stderrTail": ""
+      }
+    ],
+    "eventLoopMs": {
+      "quantumMs": 10,
+      "count": 2633,
+      "p50Ms": 11.035,
+      "p95Ms": 14.541,
+      "p99Ms": 18.137,
+      "meanMs": 11.416,
+      "maxMs": 20.431
+    },
+    "cpuTrace": [
+      {
+        "tMs": 2,
+        "level": "throttle",
+        "cpuPercent": 53.398058252427184
+      },
+      {
+        "tMs": 1002,
+        "level": "throttle",
+        "cpuPercent": 70.50960735171262
+      },
+      {
+        "tMs": 2003,
+        "level": "throttle",
+        "cpuPercent": 66.25
+      },
+      {
+        "tMs": 3005,
+        "level": "throttle",
+        "cpuPercent": 72.82608695652173
+      },
+      {
+        "tMs": 4006,
+        "level": "throttle",
+        "cpuPercent": 68.13643926788686
+      },
+      {
+        "tMs": 5007,
+        "level": "throttle",
+        "cpuPercent": null
+      },
+      {
+        "tMs": 6008,
+        "level": "throttle",
+        "cpuPercent": 80.09991673605329
+      },
+      {
+        "tMs": 7010,
+        "level": "throttle",
+        "cpuPercent": 81.48457047539617
+      },
+      {
+        "tMs": 8011,
+        "level": "throttle",
+        "cpuPercent": 82.0534223706177
+      },
+      {
+        "tMs": 9013,
+        "level": "throttle",
+        "cpuPercent": 80.26644462947544
+      },
+      {
+        "tMs": 10013,
+        "level": "throttle",
+        "cpuPercent": 85.71428571428571
+      },
+      {
+        "tMs": 11015,
+        "level": "throttle",
+        "cpuPercent": 77.73144286905755
+      },
+      {
+        "tMs": 12018,
+        "level": "throttle",
+        "cpuPercent": 82.44592346089851
+      },
+      {
+        "tMs": 13020,
+        "level": "throttle",
+        "cpuPercent": 76.14678899082568
+      },
+      {
+        "tMs": 14021,
+        "level": "throttle",
+        "cpuPercent": 82.65221017514595
+      },
+      {
+        "tMs": 15021,
+        "level": "throttle",
+        "cpuPercent": 58.82352941176471
+      },
+      {
+        "tMs": 16022,
+        "level": "throttle",
+        "cpuPercent": 76.44593461860855
+      },
+      {
+        "tMs": 17024,
+        "level": "throttle",
+        "cpuPercent": 70.41666666666667
+      },
+      {
+        "tMs": 18027,
+        "level": "throttle",
+        "cpuPercent": 79.70049916805324
+      },
+      {
+        "tMs": 19027,
+        "level": "throttle",
+        "cpuPercent": 77.71285475792989
+      },
+      {
+        "tMs": 20028,
+        "level": "throttle",
+        "cpuPercent": 82.6086956521739
+      },
+      {
+        "tMs": 21030,
+        "level": "throttle",
+        "cpuPercent": 70.48494983277592
+      },
+      {
+        "tMs": 22031,
+        "level": "throttle",
+        "cpuPercent": 77.16666666666666
+      },
+      {
+        "tMs": 23032,
+        "level": "throttle",
+        "cpuPercent": 79.6652719665272
+      },
+      {
+        "tMs": 24033,
+        "level": "throttle",
+        "cpuPercent": 82.18724109362054
+      },
+      {
+        "tMs": 25033,
+        "level": "throttle",
+        "cpuPercent": 65.51724137931035
+      },
+      {
+        "tMs": 26034,
+        "level": "throttle",
+        "cpuPercent": 82.62322472848788
+      },
+      {
+        "tMs": 27036,
+        "level": "throttle",
+        "cpuPercent": 68.69275603663614
+      },
+      {
+        "tMs": 28037,
+        "level": "throttle",
+        "cpuPercent": 78.1772575250836
+      },
+      {
+        "tMs": 29039,
+        "level": "throttle",
+        "cpuPercent": 71.90635451505017
+      },
+      {
+        "tMs": 30039,
+        "level": "throttle",
+        "cpuPercent": 58.06451612903226
+      }
+    ],
+    "peakCpuPercent": 85.71428571428571,
+    "transitions": [],
+    "probeUnderGovernor": {
+      "exitCode": 0,
+      "timedOut": false,
+      "wallMs": 298,
+      "elapsedMs": 137,
+      "level": "normal",
+      "stderrTail": ""
+    },
+    "hostErrors": []
+  },
+  "assertions": [
+    {
+      "name": "A-checks-pass",
+      "ok": true,
+      "detail": {
+        "failed": []
+      }
+    },
+    {
+      "name": "A-concurrent",
+      "ok": true,
+      "detail": {
+        "maxRunning": 15,
+        "checks": 15
+      }
+    },
+    {
+      "name": "B-throttle-engaged",
+      "ok": true,
+      "detail": {
+        "engaged": true,
+        "afterMs": 31052,
+        "level": "throttle",
+        "warmupPeakCpu": 64.68155500413565
+      }
+    },
+    {
+      "name": "B-submit-at-throttle",
+      "ok": true,
+      "detail": {
+        "levelAtSubmit": "throttle"
+      }
+    },
+    {
+      "name": "B-checks-pass",
+      "ok": true,
+      "detail": {
+        "failed": [],
+        "rejected": []
+      }
+    },
+    {
+      "name": "B-one-per-kind",
+      "ok": true,
+      "detail": {
+        "maxWhileNonNormal": 1,
+        "maxRunning": 1,
+        "grants": 15
+      }
+    },
+    {
+      "name": "B-held-throttle",
+      "ok": true,
+      "detail": {
+        "transitions": []
+      }
+    },
+    {
+      "name": "B-drained-at-throttle",
+      "ok": true,
+      "detail": {
+        "drainLevels": ["throttle"]
+      }
+    }
+  ],
+  "pass": true
+}
