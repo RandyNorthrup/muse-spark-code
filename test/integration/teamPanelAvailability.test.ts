@@ -9,7 +9,7 @@
 import * as assert from 'node:assert/strict'
 import { createTeamPanelHost } from '../../src/host/models/modelsPanelEntry'
 import { UI_TEXT } from '../../src/shared/constants'
-import { availabilityBinding } from '../unit/helpers/teamAvailabilityRig'
+import { availabilityBindingWithOpenRoles } from '../unit/helpers/teamAvailabilityRig'
 
 function silentUnsubscribe(): void {
   // The tree never changes in this proof; the binding requires the port.
@@ -19,21 +19,8 @@ function silentOnTreeChange(): () => void {
   return silentUnsubscribe
 }
 
-function noopShowDiff(): Promise<void> {
-  // Nothing to diff with no open task; the binding requires the port.
-  return Promise.resolve()
-}
-
 function binding(isTeamOn: boolean) {
-  const openRolesCalls: unknown[][] = []
-  const { bound, factoryCalls } = availabilityBinding(isTeamOn, {
-    openRoles: () => {
-      openRolesCalls.push([])
-      return Promise.resolve()
-    },
-    showDiff: noopShowDiff,
-  })
-  return { bound, factoryCalls, openRolesCalls }
+  return availabilityBindingWithOpenRoles(isTeamOn)
 }
 
 suite('team panel availability inside the extension host', () => {
