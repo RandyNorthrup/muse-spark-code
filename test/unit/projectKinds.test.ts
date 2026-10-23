@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { detectProjectKinds, type ProjectDetectIo } from '../../src/core/maker/detect/projectKinds'
 import { nodeProjectDetectIo } from '../../src/core/maker/detect/projectIo'
@@ -115,26 +115,41 @@ describe('maker project detection on fixture workspaces', () => {
     ).toBeUndefined()
   })
 
-  it('counts ignored entries and directories towards the name budget and limits depth', async () => {
-    const root = await workspace(
+  // Building the over-cap fixture tree is the expensive part (measured
+  // seconds of file creation); it is shared setup, not per-test work.
+  let budgetRoot = ''
+  let deepRoot = ''
+  beforeAll(async () => {
+    budgetRoot = await workspace(
       Object.fromEntries(
         Array.from({ length: MAKER_DETECT_MAX_FILES + 1 }, (_, i) => [
-          `node_modules/${String(i)}/part.scad`,
+          // Flat inside the ignored directory: the walk never lists ignored
+          // contents, so one directory proves the same counting.
+          `node_modules/part-${String(i)}.scad`,
           'cube(1);',
         ]),
       ),
     )
-    await writeFile(path.join(root, 'plain.txt'), 'hello')
-    const names: string[] = await Array.fromAsync(nodeProjectDetectIo.files(root, 1))
-    expect(names.length).toBeLessThanOrEqual(1)
-    expect(names.every((name) => !name.startsWith('node_modules/'))).toBe(true)
-    expect(await Array.fromAsync(nodeProjectDetectIo.files(root, MAKER_DETECT_MAX_FILES))).toEqual([
-      'plain.txt',
-    ])
-    const deep = await workspace({
+    await writeFile(path.join(budgetRoot, 'plain.txt'), 'hello')
+    deepRoot = await workspace({
       [`${'deep/'.repeat(MAKER_DETECT_MAX_DEPTH + 1)}part.scad`]: 'cube(1);',
     })
-    const deepResult = await detectProjectKinds(deep, process.platform)
+    // Keep both out of the per-test cleanup until the suite ends.
+    roots.length = 0
+  })
+  afterAll(async () => {
+    await rm(budgetRoot, { recursive: true, force: true })
+    await rm(deepRoot, { recursive: true, force: true })
+  })
+
+  it('counts ignored entries and directories towards the name budget and limits depth', async () => {
+    const names: string[] = await Array.fromAsync(nodeProjectDetectIo.files(budgetRoot, 1))
+    expect(names.length).toBeLessThanOrEqual(1)
+    expect(names.every((name) => !name.startsWith('node_modules/'))).toBe(true)
+    expect(
+      await Array.fromAsync(nodeProjectDetectIo.files(budgetRoot, MAKER_DETECT_MAX_FILES)),
+    ).toEqual(['plain.txt'])
+    const deepResult = await detectProjectKinds(deepRoot, process.platform)
     expect(deepResult.kinds).toEqual([])
   })
 
