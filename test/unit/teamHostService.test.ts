@@ -520,6 +520,28 @@ describe('the team host service', () => {
     })
     expect(await service.taskDiff('task-1')).toBe(`diff ${'b'.repeat(40)}`)
   })
+
+  it('plans before the merge card: a refused plan shows no decision card and merges nothing', async () => {
+    const h = harness(team([entry('e1', WORKER_MODEL)]))
+    const unplannable: TeamHostServiceDeps = {
+      ...h.deps,
+      merges: {
+        ...h.deps.merges,
+        plan: () => Promise.reject(new Error('refused a moved ref at plan')),
+      },
+    }
+    const service = createTeamHostService(unplannable)
+    await service.probeEntries()
+    await service.teamRunner.delegate(delegateOne, context())
+    h.finish(0)
+    await settle()
+    expect(await output(service.teamRunner.merge({ task_id: 'task-1' }, context()))).toContain(
+      'refused a moved ref at plan',
+    )
+    // No card ever waited for a decision, and nothing merged.
+    expect(h.cards.filter((card) => card.item.status === 'inProgress')).toEqual([])
+    expect(h.merged).toEqual([])
+  })
 })
 
 /** The binding hands these engine ports to dist/team.js; the window tests below never reach them. */

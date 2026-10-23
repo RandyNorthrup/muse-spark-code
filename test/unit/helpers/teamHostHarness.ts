@@ -8,6 +8,7 @@ import type {
   TeamTaskSpec,
   TeamWorkerOutcome,
 } from '../../../src/core/team/teamHostService'
+import { isProtectedPath } from '../../../src/core/protectedPaths'
 import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
 import { SETTING_DEFAULTS } from '../../../src/shared/constants'
 
@@ -122,6 +123,16 @@ export function harness(
       },
     },
     merges: {
+      plan: (task) =>
+        Promise.resolve(
+          (task.outcome.changedFiles ?? []).map((filePath) => ({
+            path: filePath,
+            change: 'modified' as const,
+            isBinary: false,
+            isProtected: isProtectedPath(filePath.toLowerCase()),
+            outsideWritePaths: false,
+          })),
+        ),
       merge: async (task, _signal, mergeOption): Promise<TeamMergeOutcome> => {
         merged.push(task.taskId)
         mergeOptions.push(mergeOption)
