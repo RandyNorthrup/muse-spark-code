@@ -6127,6 +6127,7 @@
   "makerStopPhysicalRequired": "La machine {machine} nécessite un arrêt d’urgence physique ; l’arrêt logiciel n’est pas disponible.",
   "makerTrustRequired": "Accordez votre confiance à cet espace de travail avant d’activer le matériel.",
   "makerEnableHardware": "Activer le matériel pour cet espace de travail",
+  "makerCliUsage": "Matériel maker depuis le terminal : activez ou désactivez le matériel pour un espace de travail, enregistrez et listez les machines, arrêtez une machine ou ouvrez le panneau maker. machines add lit --registration et, avec --key-stdin, la clé de la machine depuis l’entrée standard. Les actions physiques demandent la connexion à votre système d’exploitation et ne s’exécutent jamais sans surveillance.",
   "makerDisableHardware": "Désactiver le matériel pour cet espace de travail",
   "makerHardwareReason": "Indiquez une raison pour activer le matériel.",
   "makerSoftwareStopWarning": "Un arrêt logiciel ne remplace pas l’arrêt d’urgence physique de la machine.",

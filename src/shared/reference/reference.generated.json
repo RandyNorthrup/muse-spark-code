@@ -5254,28 +5254,28 @@
       "name": "hardware enable|disable|status",
       "description": "Enable hardware for this workspace",
       "text": { "ui": "makerEnableHardware" },
-      "invocations": [["maker"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
     },
     {
       "route": "maker",
       "name": "machines list|add|remove",
       "description": "Devices and machines",
       "text": { "ui": "makerDevicesTitle" },
-      "invocations": [["maker"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
     },
     {
       "route": "maker",
       "name": "stop-machine [id|--all]",
       "description": "A software stop does not replace the machine’s physical emergency stop.",
       "text": { "ui": "makerSoftwareStopWarning" },
-      "invocations": [["maker"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
     },
     {
       "route": "maker",
       "name": "panel",
       "description": "Open panel",
       "text": { "ui": "makerLaunchConnect" },
-      "invocations": [["maker"]]
+      "invocations": [["hardware"], ["machines"], ["stop-machine"], ["panel"]]
     },
     {
       "route": "providersAdd",

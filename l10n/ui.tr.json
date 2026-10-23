@@ -5967,6 +5967,7 @@
   "makerStopPhysicalRequired": "{machine} makinesi fiziksel acil durdurma gerektirir; yazılımla durdurma kullanılamıyor.",
   "makerTrustRequired": "Donanımı etkinleştirmeden önce bu çalışma alanına güvenin.",
   "makerEnableHardware": "Bu çalışma alanında donanımı etkinleştir",
+  "makerCliUsage": "Terminalden maker donanımı: bir çalışma alanı için donanımı etkinleştirin veya devre dışı bırakın, makineleri kaydedip listeleyin, bir makineyi durdurun veya maker panelini açın. machines add, --registration değerini ve --key-stdin ile makine anahtarını standart girdiden okur. Fiziksel eylemler işletim sisteminizde oturum açmanızı ister ve asla gözetimsiz çalışmaz.",
   "makerDisableHardware": "Bu çalışma alanında donanımı devre dışı bırak",
   "makerHardwareReason": "Donanımı etkinleştirme nedenini girin.",
   "makerSoftwareStopWarning": "Yazılımla durdurma, makinenin fiziksel acil durdurmasının yerini tutmaz.",

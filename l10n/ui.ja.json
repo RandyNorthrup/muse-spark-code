@@ -5807,6 +5807,7 @@
   "makerStopPhysicalRequired": "機械 {machine} は物理的な非常停止が必要です。ソフトウェアによる停止は利用できません。",
   "makerTrustRequired": "ハードウェアを有効にする前に、このワークスペースを信頼してください。",
   "makerEnableHardware": "このワークスペースでハードウェアを有効にする",
+  "makerCliUsage": "ターミナルからのメーカーハードウェア: ワークスペースのハードウェアを有効化または無効化し、マシンを登録・一覧表示し、マシンを停止するか、メーカーパネルを開きます。machines add は --registration と、--key-stdin 指定時は標準入力からマシンキーを読み取ります。物理的な操作ではオペレーティングシステムへのサインインを求め、無人では決して実行しません。",
   "makerDisableHardware": "このワークスペースでハードウェアを無効にする",
   "makerHardwareReason": "ハードウェアを有効にする理由を入力してください。",
   "makerSoftwareStopWarning": "ソフトウェアによる停止は、機械の物理的な非常停止の代わりにはなりません。",

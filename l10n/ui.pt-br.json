@@ -6127,6 +6127,7 @@
   "makerStopPhysicalRequired": "A máquina {machine} exige uma parada de emergência física; a parada por software não está disponível.",
   "makerTrustRequired": "Confie neste espaço de trabalho antes de habilitar o hardware.",
   "makerEnableHardware": "Habilitar hardware neste espaço de trabalho",
+  "makerCliUsage": "Hardware maker pelo terminal: ative ou desative o hardware para um workspace, registre e liste máquinas, pare uma máquina ou abra o painel maker. machines add lê --registration e, com --key-stdin, a chave da máquina da entrada padrão. Ações físicas pedem o login do seu sistema operacional e nunca são executadas sem supervisão.",
   "makerDisableHardware": "Desabilitar hardware neste espaço de trabalho",
   "makerHardwareReason": "Informe um motivo para habilitar o hardware.",
   "makerSoftwareStopWarning": "Uma parada por software não substitui a parada de emergência física da máquina.",

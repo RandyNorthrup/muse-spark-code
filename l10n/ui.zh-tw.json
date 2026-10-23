@@ -5807,6 +5807,7 @@
   "makerStopPhysicalRequired": "機器 {machine} 需要實體緊急停止；軟體停止無法使用。",
   "makerTrustRequired": "啟用硬體前，請信任此工作區。",
   "makerEnableHardware": "為此工作區啟用硬體",
+  "makerCliUsage": "從終端使用創客硬體: 為工作區啟用或停用硬體、註冊和列出機器、停止機器或開啟創客面板。machines add 讀取 --registration，並在使用 --key-stdin 時從標準輸入讀取機器金鑰。實體操作會要求您登入作業系統，且絕不在無人值守時執行。",
   "makerDisableHardware": "為此工作區停用硬體",
   "makerHardwareReason": "請輸入啟用硬體的原因。",
   "makerSoftwareStopWarning": "軟體停止無法取代機器的實體緊急停止。",
