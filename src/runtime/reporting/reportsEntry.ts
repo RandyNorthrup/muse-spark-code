@@ -5,7 +5,15 @@ import { tableProblems } from '../../shared/l10n/check'
 import { tableLocaleFor } from '../../shared/l10n/locales'
 import { REPORT_EXIT_CODES, REPORT_WORKING_KINDS } from '../../shared/constants'
 import type { AcpReportsPort } from '../../acp/reports'
-import { parseReportsArguments, reportArguments, reportsUsage } from './reportsArgs'
+import { fill } from '../../shared/l10n/text'
+import { reportScrubber } from '../../core/reporting/render/redaction'
+import {
+  parseReportsArguments,
+  reportArguments,
+  reportsHelp,
+  reportsUsage,
+  ReportUsageError,
+} from './reportsArgs'
 import { runReportsCommand, type ReportsCommandDeps, type ReportsServices } from './reportsCommand'
 
 export { createReportsHost } from './reportsHost'
@@ -46,6 +54,70 @@ function isTable(value: unknown, locale: string): value is UiText {
   return tableProblems(EN, value, { locale, isStrict: false }).length === 0
 }
 
+/** A display-table load that failed answers its scrubbed reason and the failure exit. */
+function tableFailureExit(
+  table: UiText,
+  stderr: (text: string) => void,
+  scrub: (text: string) => string,
+  error: unknown,
+): number {
+  stderr(
+    error instanceof Error && error.message !== ''
+      ? fill(table.reportUi.generationReason, { reason: scrub(error.message) })
+      : table.reportUi.generationFailed,
+  )
+  return REPORT_EXIT_CODES.failed
+}
+
+/**
+Report services that did not start answer why: the failure's own scrubbed
+reason, or the fixed sentence when it says nothing usable.
+*/
+function servicesFailureExit(
+  table: Pick<UiText, 'reportUi'>,
+  stderr: (text: string) => void,
+  scrub: (text: string) => string,
+  error: unknown,
+): number {
+  const reason =
+    error instanceof Error && error.message !== ''
+      ? scrub(error.message)
+      : 'the report services did not start'
+  stderr(fill(table.reportUi.generationReason, { reason }))
+  return REPORT_EXIT_CODES.failed
+}
+
+/** A session parse failure answers usage, naming the missing piece when the parser said which. */
+function usageFailureResult(
+  table: UiText,
+  error: unknown,
+): { readonly code: number; readonly text: string } {
+  const usage = reportsUsage(table)
+  return {
+    code: REPORT_EXIT_CODES.usage,
+    text: error instanceof ReportUsageError ? `${table.reportUi[error.code]}\n${usage}` : usage,
+  }
+}
+
+/** A session run failure answers its scrubbed reason and the failure result. */
+function runFailureResult(
+  table: UiText,
+  scrub: (text: string) => string,
+  error: unknown,
+): { readonly code: number; readonly text: string } {
+  const reason =
+    error instanceof Error && error.message !== ''
+      ? scrub(error.message)
+      : table.reportUi.generationFailed
+  return {
+    code: REPORT_EXIT_CODES.failed,
+    text:
+      reason === table.reportUi.generationFailed
+        ? reason
+        : fill(table.reportUi.generationReason, { reason }),
+  }
+}
+
 /** Loaded as dist/reporting.js on the first report, including ACP commands. */
 export function createRuntimeReports(input: RuntimeReportsInput) {
   const UI_TEXT = input.table
@@ -71,11 +143,16 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
       else {
         try {
           const value = await input.readTable(tableLocale)
-          if (!isTable(value, tableLocale)) throw new Error(UI_TEXT.reportUi.generationFailed)
+          if (!isTable(value, tableLocale))
+            throw new Error('the display language table failed its check')
           table = value
-        } catch {
-          stderr(UI_TEXT.reportUi.generationFailed)
-          return REPORT_EXIT_CODES.failed
+        } catch (error) {
+          return tableFailureExit(
+            UI_TEXT,
+            stderr,
+            reportScrubber({ workspaceRoot: cwd, localRoots: input.roots }),
+            error,
+          )
         }
       }
     }
@@ -89,9 +166,13 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
           request.options.failOn.length === 0)
           ? undefined
           : await input.servicesFor?.(cwd, sessionId, { table, locale })
-    } catch {
-      stderr(table.reportUi.generationFailed)
-      return REPORT_EXIT_CODES.failed
+    } catch (error) {
+      return servicesFailureExit(
+        table,
+        stderr,
+        reportScrubber({ workspaceRoot: cwd, localRoots: input.roots }),
+        error,
+      )
     }
     const deps: ReportsCommandDeps = {
       text: table,
@@ -147,10 +228,10 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
         try {
           argv = reportArguments(args)
           if (argv.includes('--help') || argv.includes('-h'))
-            return { code: REPORT_EXIT_CODES.generated, text: reportsUsage(UI_TEXT) }
+            return { code: REPORT_EXIT_CODES.generated, text: reportsHelp(UI_TEXT) }
           request = parseReportsArguments(argv)
-        } catch {
-          return { code: REPORT_EXIT_CODES.usage, text: reportsUsage(UI_TEXT) }
+        } catch (error) {
+          return usageFailureResult(UI_TEXT, error)
         }
         const format = request.formatExplicit ? request.format : context.format
         // Refuse unsupported formats before any source/history access or paid/model dispatch.
@@ -178,8 +259,14 @@ export function createRuntimeReports(input: RuntimeReportsInput) {
           context.signal,
         )
         return { code, text }
-      } catch {
-        return { code: REPORT_EXIT_CODES.failed, text: UI_TEXT.reportUi.generationFailed }
+      } catch (error) {
+        return context.signal.aborted
+          ? { code: REPORT_EXIT_CODES.failed, text: UI_TEXT.reportUi.generationFailed }
+          : runFailureResult(
+              UI_TEXT,
+              reportScrubber({ workspaceRoot: context.cwd, localRoots: input.roots }),
+              error,
+            )
       }
     },
   }

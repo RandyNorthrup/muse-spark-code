@@ -149,6 +149,98 @@ cycles 0; deadcode 0; build 0; audit 0; vitest related 1 (3 EPERM
 symlink setups, the brief's carve-out, left to hosted CI; extension and
 main closures: no test files import them, exit 0).
 
+## Landed: source 03, the reports work (REPORTTRUE)
+
+Merge `775a72eaf9` (branch `src/RLUSAGE/03-rv-reports-work`) with
+`--no-commit --no-ff`; twenty content conflicts resolved for current
+main, plus the branch's `problemReportBuilder.test.ts` edit dropped
+(main deleted that suite in the test-overhaul PASS 2a; its contributor
+coverage lives in the branch's new `problemReportDetails` suite).
+
+What landed: named, scrubbed report-failure reasons on the terminal,
+in sessions and over the editor protocol (`generationReason` with
+`reportScrubber`/`redactSecrets`; aborts stay the plain sentence);
+`ReportUsageError` missing-piece lines before usage; `report --help`
+naming the working kinds with their labels; the problem report's CLI
+contributor-mode fact (unknown when unobserved) with the settings
+reader moved host to core; expired/invalid stored-record skip counts
+aloud; resource warnings carrying the failure's cause
+(`src/shared/resourceCause.ts`); six new English keys in all 14
+tables.
+
+Reworked for current main: the branch's `section()` dedup is dropped
+for main's `dedupeRowKeys` (main's `collect.rowIdentity` suite pins
+that byte-identical pairs STAY visible, which contradicts the branch's
+collapse case, so that case is removed and the distinct-rows case is
+kept); the branch's `contributor_mode_enabled` reader joins main's
+`isContributorModeEnabled` in the core settings module with main's
+SyntaxError-only catches; `onError` keeps main's optional-error
+signatures with the branch's error-passing call sites; `report --help`
+keeps main's `helpTopic` route (main already routes `--help` to the
+reports engine above it); engine `LocalSourceError('unbound')` is kept
+over the branch's generic error; the reports fixture additions move
+into main's renamed `reportKindRenderFixtures.ts`; the standalone
+facts suite drives the host platform with its install layout (it
+assumed Linux paths); the CHANGELOG reports entry drops the
+already-true-on-main distinct-rows sentence and the shipped M101 P2
+hunk. The branch's fixed `services did not start` sentence now names
+the failure's scrubbed cause, falling back to the same fixed sentence
+when the error says nothing usable (the catch gate cannot express a
+fixed sentence plus an exit code; REPORTTRUE's direction).
+
+Catch gate: the branch's `onError(error)` forwarders are genuine
+reports (verified 2026-10-22: every production owner records — the
+extension, the agent and the runtime loader log via
+`warnResourceUnavailable`; the vault broker writes its fixed refusal
+line; the judge host logs its fixed batch line; entry, recorder and
+admission forward up the same channel — and a fixed-vocabulary owner
+on a void path is a report, not a replacement, by the gate's own
+definition), so the classifier now recognizes the owner error channel
+(`scripts/lib/catch-inventory.mjs`, `onError` with the error passed;
+a bare `onError()` is still not a sink). Sixteen sites move GENERIC
+to REPORTED, all verified; `governor.ts` (disposed path drops the
+error) correctly stays GENERIC and is pinned as the negative control
+in `test/unit/catchInventory.test.mjs`. The stderr/exit handlers are
+restructured into single `return helper(deps, error)` calls with
+identical bytes. Baseline regenerated on falls only (acp GENERIC 19
+to 18, core SWALLOW 72 to 68, core GENERIC 267 to 258, runtime
+GENERIC 203 to 188); no rise, no new debt identity.
+
+Security contract kept: the damaged-`--from` e2e pins the exact plain
+sentence (V8 syntax errors can quote their input, which no scrubber
+removes), so `failureText` answers the plain sentence for
+`SyntaxError` — the CLI and the session capture path both flow through
+it. The linked-import half of that e2e cannot run on this box (its
+setup `symlink()` throws EPERM, the brief's carve-out); CI owns it.
+
+Budget: no budget touched. `dist/usageService.js` 98.9 KiB,
+`dist/reportInputs.js` 82.8 KiB, `dist/usageExport.js` 31.0 KiB,
+`dist/reporting.js` 222.2 of 250 KiB.
+
+Proof: reportFailureReasons (2), reportUsageHelp (4), reportDuplicate-
+Identities (1 kept), resourceUnavailableCause (5), standaloneReportFacts
+(2), problemReportDetails, museSettings (incl. both contributor
+readers), collect.rowIdentity, catchInventory (15); reports e2e 26 of
+27 (1 EPERM setup). Red/green: classifier without the rule fails
+`check:catches` (exit 1, sixteen new GENERIC sites); restored green.
+`failureExit` printing the plain sentence fails reportFailureReasons
+(1 failed); restored green (exit 0). The `--from` e2e failed on the
+pre-fix tree (V8 message in stderr); the SyntaxError guard makes the
+exact-match pass. Real CLI on the built `dist/acp.js`: `report
+release` exits 2 with `A release report needs a version.` first;
+`report --help` exits 0 with usage plus `Available reports` labels.
+
+Gates (merge-03 tree): prettier 0; eslint 0; typecheck 0 (5 projects);
+l10n 0; reference 0; host-api 0; plan 0; roadmap 0; catches 0;
+duplication 0; cycles 0; deadcode 0; build 0; audit 0 (4 advisories,
+2 exceptions); SAST 1 (sandbox `semgrep-core rule validation
+failed`, same as merges 01-02, hosted CI owns the scan); vitest
+related exit 1 with 22021 passed and 7 failed — 4 EPERM symlink
+setups (importIo, reportSourceReasons x2, reports e2e linked half),
+the brief's carve-out, and 3 vault-broker suites pulled in by the
+related closure, not re-run per the vault prohibition; all left to
+hosted CI.
+
 ## Prior checkpoint
 
 On 2026-10-21 this lane stopped blocked at the 733-byte overage with the
@@ -159,11 +251,10 @@ the merge is committed, and every gate above ran on the final tree.
 
 ## Remaining
 
-Sources 02 (exec usage), 03 (reports work), 04 (report flow) and 05
-(M113 S) are unmerged. M102 still needs exec usage, headless BYO
-accounting, packed use and checklist reconciliation; M113 still needs
-REPORTTRUE fixes, the fleet kind's local-agents part, lane Q's reports
-port and schedule_report, and postReport to GitHub. The issues kind waits
+Sources 04 (report flow) and 05 (M113 S) are unmerged. M102 still needs
+headless BYO accounting, packed use and checklist reconciliation; M113
+still needs the fleet kind's local-agents part, lane Q's reports port
+and schedule_report, and postReport to GitHub. The issues kind waits
 for M115w; Gmail and Outlook sending wait for the owner's OAuth clients.
 No push, tag, reset, rebase, stash, credential read or model call
 occurred in this lane.

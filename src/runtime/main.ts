@@ -8,6 +8,8 @@ import { abortableSleep } from '../core/backends/modelapi/transport'
 // the log reads goes to stderr, except the sign-in commands' own output.
 // Exercised through the built `dist/acp.js` by the stdio e2e test.
 
+import { warnResourceUnavailable } from '../shared/resourceCause'
+import { redactSecrets } from '../shared/redact'
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
@@ -206,6 +208,19 @@ function exitHeadless(code: number, shouldForce = false): never {
 
 function writeLine(stream: NodeJS.WriteStream, line: string): void {
   stream.write(`${line}\n`)
+}
+
+/** A reports run that threw answers its scrubbed reason on stderr and the failure exit. */
+function reportsFailure(error: unknown): number {
+  const reason =
+    error instanceof Error && error.message !== '' ? redactSecrets(error.message) : undefined
+  writeLine(
+    process.stderr,
+    reason === undefined
+      ? UI_TEXT.reportUi.generationFailed
+      : fill(UI_TEXT.reportUi.generationReason, { reason }),
+  )
+  return EXIT_FAILED
 }
 
 // Lane PR225FIX2: a Stop clears the wait's own timer, so an abandoned
@@ -521,8 +536,14 @@ function resourcesFor(
     }),
     sleep,
     log,
-    onError: () => {
-      log.warn(UI_TEXT.resourceUnavailable)
+    onError: (error: unknown) => {
+      warnResourceUnavailable(
+        (message) => {
+          log.warn(message)
+        },
+        UI_TEXT,
+        error,
+      )
     },
     // A damaged usage-history choice on stderr once, with what is damaged,
     // what the product does, and what to do (the noter announces once per
@@ -2178,9 +2199,8 @@ async function main(): Promise<number> {
         return await runtimeReports(log, undefined, undefined, () =>
           readRuntimeDailyBudget({ dataFolder, now: () => Date.now() }),
         )().run(command.args)
-      } catch {
-        writeLine(process.stderr, UI_TEXT.reportUi.generationFailed)
-        return EXIT_FAILED
+      } catch (error) {
+        return reportsFailure(error)
       }
     }
     case 'version': {

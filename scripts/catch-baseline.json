@@ -3,12 +3,12 @@
   "counts": {
     "acp": {
       "SWALLOW": 0,
-      "GENERIC": 19,
+      "GENERIC": 18,
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 72,
-      "GENERIC": 267,
+      "SWALLOW": 68,
+      "GENERIC": 258,
       "CLEANUP": 234
     },
     "host": {
@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 34,
-      "GENERIC": 203,
+      "GENERIC": 188,
       "CLEANUP": 124
     },
     "shared": {
@@ -152,11 +152,6 @@
       "file": "src/acp/questionDeferral.ts",
       "identity": "3df87fb244e92d296e8dadb0c7d5a0490b0a7c35c6c4a99ccbaf1e9454514cbc",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/acp/reports.ts",
-      "identity": "be89ffbcde3c45b9ab8010a8f60a072ca1f5eb0082edd4cfd9eeb56052184722",
-      "class": "GENERIC"
     },
     {
       "file": "src/acp/uploads.ts",
@@ -1164,21 +1159,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/core/judge/same/batches.ts",
-      "identity": "ea9c481bd1fb7f2a7fa009ea2e4643a20e972527539ee9dfba51e40cac98f6e7",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/same/scheduler.ts",
-      "identity": "48c5ce7f1c8a524379b8ce659429eafc53088e4f8616d5897ca4c0ed55596a4b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/judge/use.ts",
-      "identity": "df4bff919899812ecba0ce6bd6e1ef041256b7d54276db5cc91e1017ed36af03",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/legal/licenseTemplates.ts",
       "identity": "e4624a6f6fbd64da4be886ce716ed9bcbb1a4d93ff14bfb930dcf5b48235b00a",
       "class": "SWALLOW"
@@ -2044,16 +2024,6 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/core/resources/admission.ts",
-      "identity": "5faff100671d895c5c1d709c4fad955931ae66bd346bc6ee52df7691061ae72a",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/admission.ts",
-      "identity": "84ed730e1bf945f7702887e42afe9820da0d94987b80251da965db57089c0e70",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/resources/commands.ts",
       "identity": "18f5262bab24b2dc4247c9a0cc3ebd790149c71425517cd04aea102313389bf3",
       "class": "GENERIC"
@@ -2094,39 +2064,14 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/core/resources/events.ts",
-      "identity": "deeabc9abaf6cd4ff6fd48a981401300f3d3c1db4bfff882533829938da765c6",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/core/resources/governor.ts",
       "identity": "382b1f750ae6c83dba8097d7e6460db78e1d6feeb6d8190e520ad88afde58532",
       "class": "GENERIC"
     },
     {
-      "file": "src/core/resources/governor.ts",
-      "identity": "fa9fee15665abf0cf1c134090f9c7aa75c50f697fc5fc2a07eab40a8b685c425",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/launchHost.ts",
-      "identity": "ff610b453a3cc03b72a4ba9aa3eaefe043324ea1b176b742498de79a4475e349",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/launchHost.ts",
-      "identity": "8a6ad18eeab72f85281461523fc85cc06a9e13a46321b21bf6428be7fc4019a3",
-      "class": "SWALLOW"
-    },
-    {
       "file": "src/core/resources/launchHost.ts",
       "identity": "6f7ac960544fa23dbb29a1914a9f146f03770ada0f8169286507db15f825742e",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/resources/launchHost.ts",
-      "identity": "c688656c4df31ec42b88f4ba374ddffc83e9a3b20500613a70f89436d6767629",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/resources/launchHost.ts",
@@ -2166,21 +2111,6 @@
     {
       "file": "src/core/resources/queue.ts",
       "identity": "8a7a25162489ab49c90b54f17e67c4ba3833c6394a259f28fa855c128ba9dc58",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/relocate.ts",
-      "identity": "d406c48c222b9c2a47e12e50af67aaf441b5977562ac56ca2e3e7e2e7b33bc7a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/relocate.ts",
-      "identity": "2814b0b45f842e596d3c110471ac04cb45b1c1a6d8a64f022b54d63c2d5bd78a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/resources/relocate.ts",
-      "identity": "c794c12846b0c436e96feb8c214da6861034657f5f0b7feebe99a517649c0f77",
       "class": "GENERIC"
     },
     {
@@ -4685,11 +4615,6 @@
     },
     {
       "file": "src/runtime/main.ts",
-      "identity": "3c703f5087f261257e265a3984346eae2d1ef6acc83250f6d09c450512484b01",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
       "identity": "637e4f0bee1e081b922ae288271eecf2437aeee4c5bdced3f56573423ded003d",
       "class": "GENERIC"
     },
@@ -5160,16 +5085,6 @@
     },
     {
       "file": "src/runtime/reporting/reportsCommand.ts",
-      "identity": "186e263876f19d36f3a63aec3f0b4b74bd38796f53a20d68a578ef2b7caa2f06",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsCommand.ts",
-      "identity": "f48897626a1c47cc960927d15f7331a72647a20743bfa55b23cbb96a98531fd6",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsCommand.ts",
       "identity": "e33889680931d070cfb4717ff15ee3352e7ed19cdd980ecd82443d1b3d7511b6",
       "class": "GENERIC"
     },
@@ -5177,51 +5092,6 @@
       "file": "src/runtime/reporting/reportsEntry.ts",
       "identity": "8ecf86b1c917f35815ee660afb35b0364a41589c0389c1e1204c4542ca76d4dd",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "16d64d8bac05a3ffe1d903863f8872cfdb44d5012477d8e787a4a9d3f0d8ef84",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "2aa34a2fee9c99fabcae99da41bbd037286b9788bab0ee9d6f8fef9c1659884f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "32fe053df2ab46ad0848f4a2827e54cd72fea19f7a21f84b6f5070017cf7af21",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsEntry.ts",
-      "identity": "65763e7adef590136426cb706299fb08e572a0f0d0a7a5fe711448c1546dcc04",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "bf314a155827ff0d218b472dbc11fc7885509b84a9764937a6556bfbb0ab878e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "31923d20f5447a234add2f5676f0bc3e612450a0daaa3ba946bcf23fac706a29",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "b4005097ff057e0b98948a4aeadeb1efa3e7c12683fc85a58cec9fe1c058710e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "2b8747bc192829ac1c2d2134aef03014ed6ad98bb6348954f7a7cb2c675264d1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reporting/reportsHost.ts",
-      "identity": "337b95e7f29f86c04521c81ed8b5ccb2021e7af11dc981448c72b1ab36f762f5",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/reporting/selections.ts",
@@ -5249,11 +5119,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/resources/entry.ts",
-      "identity": "f39901d0ee6db00c71db8114cc59413fceb3c6faa69aabba577469f94dc80763",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/resources/history.ts",
       "identity": "8a251a950297260bfb01b893c3edb1821734d0320bd33ef24bb071a8c5c4ad9c",
       "class": "GENERIC"
@@ -5271,16 +5136,6 @@
     {
       "file": "src/runtime/resources/history.ts",
       "identity": "c36a390a6fceec930aec3f00d7c29cb38cb691c1a666521a7eda662ae3957287",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/resources/host.ts",
-      "identity": "5336fd5a49ea0d6b74a1e71d44ca803b24d451b9933d3536724becce4caa5a8a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/resources/host.ts",
-      "identity": "67bf7329945d2281204dfa94f6baf2173695fec74eab45d24ea8688e989bbf68",
       "class": "GENERIC"
     },
     {

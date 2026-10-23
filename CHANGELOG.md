@@ -23,6 +23,17 @@ happened, not what was planned; superseded entries are kept.
   longer fails the whole page: the cost history still shows, with its own
   note in the attempts section; and when the cost history itself cannot be
   read, the attempts still show with their own note.
+- Reports say why when they cannot. A report that fails to generate
+  names its reason (scrubbed) instead of printing one sentence, on the
+  terminal, in a session and over the editor protocol.
+  `report release` (and milestone, estimate) without its scope
+  says what is missing before the usage. `report --help` shows the report
+  command's own help with its kinds. The problem report names the Muse Code
+  CLI version and its contributor mode (unknown when unobserved), reads recent
+  events from the agent's journal, and says when that record is unavailable.
+  Stored records that expired or do not validate are counted aloud on the
+  terminal and in the report dialog. Resource warnings name the failure's
+  cause when the reading gave one.
 
 ### Release infrastructure
 

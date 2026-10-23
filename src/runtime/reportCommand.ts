@@ -17,6 +17,9 @@ import {
 } from '../core/backends/musecode/credentialFile'
 import { realpathSync } from 'node:fs'
 import { credentialFilePath, resolveMuseLaunch } from '../core/backends/musecode/launch'
+import { MUSE_VERSION_FILE } from '../shared/constants'
+import { readContributorMode } from '../core/backends/musecode/museSettings'
+import { pathModule } from '../core/workspaceRoot'
 import {
   buildVaultProblemReportDraft,
   type ProblemReportFacts,
@@ -107,6 +110,22 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
   const isCliSignedIn = isSignedInByStructure(
     credentialText === undefined ? undefined : credentialFileVerdict(credentialText, deps.platform),
   )
+  // The version the installer recorded beside the CLI, as the extension reads
+  // it; the builder drops text that is not a version. Contributor mode is the
+  // CLI's own price tier flag; only its boolean speaks here, never the file.
+  const settingsInput = {
+    platform: deps.platform,
+    homeDir: deps.homeDir,
+    xdgConfigHome: deps.xdgConfigHome,
+    readTextFile: deps.readTextFile,
+  }
+  const contributorMode = readContributorMode(settingsInput)
+  const versionText = launch.ok
+    ? deps
+        .readTextFile(pathModule(deps.platform).join(launch.launch.installDir, MUSE_VERSION_FILE))
+        ?.trim()
+    : undefined
+  const cliVersion = versionText === '' || versionText === undefined ? undefined : versionText
   return {
     extensionVersion: deps.version,
     nodeVersion,
@@ -114,6 +133,8 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
     backend: 'auto',
     sandbox: 'auto',
     cliFound: launch.ok,
+    ...(cliVersion !== undefined && { cliVersion }),
+    ...(contributorMode !== undefined && { contributorMode }),
     cliSignIn: isCliSignedIn,
     hasStoredApiKey: deps.hasStoredApiKey,
     hasEnvironmentApiKey: deps.hasEnvironmentApiKey,

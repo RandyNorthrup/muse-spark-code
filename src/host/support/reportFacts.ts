@@ -67,6 +67,8 @@ export interface ExtensionReportFactsDeps {
   readonly sandbox: ShellSandboxMode
   /** Whether the CLI resolves, and the version its installer recorded (the CLI's own text). */
   readonly cli: { readonly isFound: boolean; readonly version: string | undefined }
+  /** The CLI's contributor mode (its price tier); absent prints as unknown, never guessed. */
+  readonly contributorMode?: boolean | undefined
   /** The credential file's structure, never a value in it. */
   readonly credentialFileVerdict: CredentialFileVerdict | 'absent'
   readonly hasStoredApiKey: boolean
@@ -98,6 +100,7 @@ export function extensionReportFacts(deps: ExtensionReportFactsDeps): unknown {
     sandbox: deps.sandbox,
     cliFound: deps.cli.isFound,
     ...(deps.cli.isFound && deps.cli.version !== undefined && { cliVersion: deps.cli.version }),
+    ...(deps.contributorMode !== undefined && { contributorMode: deps.contributorMode }),
     cliSignIn: isSignedInByStructure(
       deps.credentialFileVerdict === 'absent' ? undefined : deps.credentialFileVerdict,
     ),

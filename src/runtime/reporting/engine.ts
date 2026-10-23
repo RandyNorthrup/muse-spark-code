@@ -108,7 +108,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
     authorize: (scope) => {
       return scope.workspaceKey === workspaceKey
         ? Promise.resolve()
-        : Promise.reject(new Error(context.l10n.table.reportUi.generationFailed))
+        : Promise.reject(new Error('this report history belongs to another workspace'))
     },
   })
   const render = createReportRenderers({ textForLocale: () => context.l10n.table }, redaction)
@@ -123,7 +123,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
     data: null,
   })
   const requiredKey = () => {
-    if (workspaceKey === undefined) throw new Error(context.l10n.table.reportUi.generationFailed)
+    if (workspaceKey === undefined) throw new Error('this report needs a workspace')
     return workspaceKey
   }
   return {
@@ -430,7 +430,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
       const parsed = reportDiffSchema.parse(diff)
       const checked = verifyReport(to, redaction)
       if (parsed.to.contentHash !== checked.header.contentHash)
-        throw new Error(context.l10n.table.reportUi.generationFailed)
+        throw new Error('the compared report changed during the comparison')
       const notice = reportDiffNotice(parsed, context.l10n.table.reportUi.noChange)
       if (notice !== undefined && (format === 'text' || format === 'md')) return notice
       // The comparison keeps the verified report's own header, needs-you rows
@@ -450,10 +450,10 @@ export function createReportingGeneration(context: ReportingContext): ReportGene
   return {
     async generate(options) {
       const generate = services.generate
-      if (generate === undefined) throw new Error(context.l10n.table.reportUi.generationFailed)
+      if (generate === undefined) throw new Error('report generation is unavailable')
       const result = await generate(options)
       if (result.status !== 'generated')
-        throw new Error(context.l10n.table.reportUi.generationFailed)
+        throw new Error(`the report scope was not found: ${result.id}`)
       return result.document
     },
   }
@@ -480,17 +480,17 @@ export function createReportingEngine(
         return context.keepHistory
       },
       now: () => new Date().toISOString(),
-      readSaved: () => Promise.reject(new Error(context.l10n.table.reportUi.generationFailed)),
+      readSaved: () => Promise.reject(new Error('saved reports cannot be read here')),
       writeOut: () => Promise.reject(new Error(context.l10n.table.reportUi.saveFailed)),
       stdout: () => {
-        throw new Error(context.l10n.table.reportUi.generationFailed)
+        throw new Error('reports never print here')
       },
       stderr: () => {
-        throw new Error(context.l10n.table.reportUi.generationFailed)
+        throw new Error('reports never print diagnostics here')
       },
       workspaceKey: context.workspaceKey,
       authorize: (key) => Promise.resolve(key === context.workspaceKey),
-      open: () => Promise.reject(new Error(context.l10n.table.reportUi.generationFailed)),
+      open: () => Promise.reject(new Error('saved reports cannot be opened here')),
     }),
     render: createReportRenderers({ textForLocale: () => context.l10n.table }, redaction),
     verify: (value) => verifyReport(value, redaction),
@@ -504,7 +504,7 @@ export function createReportingCheckJournal(
 ) {
   setUiText(context.l10n.table, context.l10n.locale)
   const root = context.workspaceRoot
-  if (root === undefined) throw new Error(context.l10n.table.reportUi.generationFailed)
+  if (root === undefined) throw new Error('report checks need a workspace')
   const workspaceKey = reportWorkspaceKey(root, process.platform)
   const journal = new CheckRunJournal({
     storage: new ReportStorage(context.storageRoot),
@@ -518,7 +518,7 @@ export function createReportingCheckJournal(
         signal,
       )
       if (result.code !== 0 || !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/.test(result.stdout.trim()))
-        throw new Error(context.l10n.table.reportUi.generationFailed)
+        throw new Error('HEAD has no commit to record')
       return result.stdout.trim()
     },
     append: (record: CheckRunRecord) => journal.append(workspaceKey, record),

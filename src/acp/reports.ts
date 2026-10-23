@@ -1,5 +1,7 @@
 import type { ContentBlock } from '@agentclientprotocol/sdk'
 import { REPORT_EXIT_CODES, SLASH_COMMAND_NAMES, UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
+import { redactSecrets } from '../shared/redact'
 
 export interface AcpReportsPort {
   /** ACP defines text blocks, not a Markdown capability. The client adapter chooses this. */
@@ -72,6 +74,14 @@ export function acpReportArguments(blocks: readonly ContentBlock[]): string | un
   }
 }
 
+/** A thrown report failure as the session reads it: its reason, scrubbed, or the plain sentence. */
+function reportFailureText(error: Error): string {
+  const reason = error.message === '' ? undefined : redactSecrets(error.message)
+  return reason === undefined
+    ? UI_TEXT.reportUi.generationFailed
+    : fill(UI_TEXT.reportUi.generationReason, { reason })
+}
+
 /** An absent or failing integration is local failure, never a prompt sent to the backend. */
 export async function runAcpReport(
   args: string,
@@ -87,12 +97,14 @@ export async function runAcpReport(
       Object.values(REPORT_EXIT_CODES).every((code) => code !== result.code) ||
       typeof result.text !== 'string'
     )
-      throw new Error(UI_TEXT.reportUi.generationFailed)
+      throw new Error('the report integration answered outside the report protocol')
     return result.text
   } catch (error: unknown) {
-    // A failed report stays the fixed sentence (the caller drops it when the
-    // turn was cancelled): only a non-error keeps its kind past the boundary.
+    // Only a non-error keeps its kind past the boundary. A thrown failure
+    // names its reason, scrubbed of secrets and account ids (the port's own
+    // text is already scrubbed where it was rendered); a cancelled turn
+    // stays the fixed sentence.
     if (!(error instanceof Error)) throw error
-    return UI_TEXT.reportUi.generationFailed
+    return context.signal.aborted ? UI_TEXT.reportUi.generationFailed : reportFailureText(error)
   }
 }

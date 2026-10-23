@@ -188,7 +188,9 @@ export function resourceHistoryRecorder(
   const store = journal(binding.dataFolder, isConsented, {
     historyDays: binding.historyDays,
     onDropped: report,
-    onRetentionError: onError,
+    onRetentionError: () => {
+      onError(new Error('resource history retention failed'))
+    },
   })
   let records = new ResourceRecords(store, work)
   let boundary = readResourceReset(binding.dataFolder)
