@@ -12,12 +12,13 @@
 
 import {
   MILLISECONDS_PER_SECOND,
-  stopContinuationLimitFor,
+  PLAYBOOK_TEAM_RUNNER,
   TEAM_EXHAUSTED_DEFAULT,
   TEAM_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
   UI_TEXT,
+  stopContinuationLimitFor,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import { Usd, sumUsd } from '../../shared/usd'
@@ -35,6 +36,7 @@ import {
   type TeamSnapshot,
   type TeamUsage,
 } from '../../shared/team'
+import type { PlaybookWhyNote } from '../../shared/playbook'
 import type { ReviewFinding } from '../../shared/reviewFindings'
 import type { TeamTreeData, TeamWorker } from '../../shared/teamView'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
@@ -56,6 +58,16 @@ import {
 } from './teamPool'
 import { builtinRoles, type BuiltinRole } from './builtInRoles'
 import { isSameTeamModel } from './sameModel'
+import {
+  PlaybookRefusedError,
+  type ManagedPlaybookWork,
+} from '../orchestration/playbookIntegration'
+import { isRecordablePlaybookBrief } from '../orchestration/playbookBrief'
+import {
+  teamPlaybookWork,
+  type TeamPlaybookBranchState,
+  type TeamPlaybookEntryState,
+} from './teamPlaybookBoard'
 import { cancelArgs, collectArgs, delegateArgs, mergeArgs, type DelegateArgs } from './teamTools'
 import type {
   TeamDecisionSource,
@@ -199,6 +211,15 @@ function describeError(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
+/** The playbook's refusal of a task, in the model's English. */
+function playbookRefusalText(note: PlaybookWhyNote): string {
+  return fill(TEAM_MODEL_TEXT.hostPlaybookRefused, {
+    rule: note.rule,
+    code: note.code,
+    module: note.module ?? '',
+  })
+}
+
 function roleMode(role: TeamRoleConfig): 'read-only' | 'own-branch' | 'in-place' {
   return role.workspace ?? builtinRole(role.role)?.workspace ?? 'read-only'
 }
@@ -327,6 +348,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const probes = new Map<string, { readonly identity: string; readonly isReady: boolean }>()
   const probeGenerations = new Map<string, number>()
   const tasks = new Map<string, TeamTaskRecord>()
+  /** Admitted playbook work by task, released when the task ends (D212). */
+  const openPlaybookWork = new Map<string, ManagedPlaybookWork>()
   const leases = new Map<string, string>()
   const copyOwners = new Set<string>()
   let ordinal = 0
@@ -463,6 +486,93 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const entryState = (entry: StaffedEntry): string => {
     if (hasHeadroom(entry)) return 'ready'
     return isUsable(entry) ? 'capped' : 'unavailable'
+  }
+
+  /**
+  The team runner's playbook board facts (M116, PLAN.md D212), read live on
+  every lookup: the entry worker states, and each finished task's branch
+  with whether it merged into the working tree (the team's integration
+  target). The integration is built once; absent, dispatches run as before.
+  */
+  const playbookFacts = (): {
+    readonly entries: readonly TeamPlaybookEntryState[]
+    readonly branches: readonly TeamPlaybookBranchState[]
+  } => {
+    const seen = new Set<string>()
+    return {
+      entries: roles().flatMap((role) =>
+        pool(role)
+          .filter((entry) => {
+            if (seen.has(entry.id)) return false
+            seen.add(entry.id)
+            return true
+          })
+          .map((entry) => ({
+            id: entry.id,
+            running: running(entry.id),
+            usable: isUsable(entry),
+          })),
+      ),
+      branches: allTasks()
+        .map((task) =>
+          task.outcome?.branch === undefined
+            ? undefined
+            : { branch: task.outcome.branch, mergedIntoTarget: task.mergePhase === 'done' },
+        )
+        .filter((branch) => branch !== undefined),
+    }
+  }
+  const playbook = deps.playbook?.create(playbookFacts)
+
+  /**
+  Start the task's playbook work now that every admission passed (D212): the
+  dispatch base, the brief the policy records, then the round. A team
+  without the binding, or a task with no files, is ungoverned. A refusal
+  says so and the task does not start; anything else thrown is the
+  caller's. Launched work is released when the task ends; it is never
+  completed here, since verification receipts are the merge path's.
+  */
+  const startPlaybookWork = async (
+    task: TeamTaskRecord,
+  ): Promise<
+    { readonly started: true } | { readonly ungoverned: true } | { readonly refused: string }
+  > => {
+    if (playbook === undefined || deps.playbook === undefined || task.files.length === 0)
+      return { ungoverned: true }
+    const head = await deps.playbook.head(roleMode(task.role))
+    if ('refused' in head) return { refused: head.refused }
+    const work = teamPlaybookWork(
+      {
+        taskId: task.taskId,
+        brief: task.brief,
+        files: task.files,
+        reason: task.reason,
+        sessionId: task.sessionId,
+        teamId: PLAYBOOK_TEAM_RUNNER,
+      },
+      head,
+    )
+    if (work === undefined || !isRecordablePlaybookBrief(work.brief))
+      return { refused: TEAM_MODEL_TEXT.hostPlaybookBriefInvalid }
+    try {
+      openPlaybookWork.set(task.taskId, playbook.start(work))
+    } catch (error: unknown) {
+      if (error instanceof PlaybookRefusedError) return { refused: playbookRefusalText(error.note) }
+      throw error
+    }
+    return { started: true }
+  }
+
+  /** Release the task's admitted work, if any; a lost journal race only warns. */
+  const releasePlaybookWork = (task: TeamTaskRecord): void => {
+    const managed = openPlaybookWork.get(task.taskId)
+    if (managed === undefined) return
+    openPlaybookWork.delete(task.taskId)
+    try {
+      managed.cancel()
+    } catch (error: unknown) {
+      deps.log.warn(`Team playbook release failed for ${task.taskId}: ${failureForLog(error)}`)
+    }
   }
 
   const stableRoles = (): readonly TeamStableRole[] =>
@@ -820,18 +930,18 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     for (const cap of entry.caps) {
       if (cap.measure === 'tasks' || task.isRaised) continue
       const used = capUsed(entry, cap, cap.window === 'task' ? task : undefined)
+      const settled =
+        cap.measure === 'spendUsd'
+          ? claimsFor(entry, cap, cap.window === 'task' ? task : undefined)
+          : []
+      const spent: UsdAmount[] = []
+      for (const claim of settled) {
+        if (claim.usage.costUsd !== undefined) spent.push(claim.usage.costUsd)
+      }
       const isExceeded =
         cap.measure === 'spendUsd'
           ? checked.costUsd === undefined ||
-            compareUsdAmounts(
-              sumUsd(
-                ...claimsFor(entry, cap, cap.window === 'task' ? task : undefined)
-                  .map((claim) => claim.usage.costUsd)
-                  .filter((cost): cost is UsdAmount => cost !== undefined),
-                checked.costUsd,
-              ),
-              canonicalUsd(cap.amount),
-            ) > 0
+            compareUsdAmounts(sumUsd(...spent, checked.costUsd), canonicalUsd(cap.amount)) > 0
           : used + measureOf(checked, cap) > cap.amount
       if (isExceeded) {
         task.capped = `${String(cap.amount)} ${cap.measure}/${cap.window}`
@@ -1036,6 +1146,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     phase: TaskPhase,
     failure?: string,
   ): Promise<void> => {
+    // The round ends with the task, whatever ended it.
+    releasePlaybookWork(task)
     // Stop owns cancellation; a late handoff still owns its retained copy.
     if (task.controller.signal.aborted) task.phase = hasCopy(task) ? 'interrupted' : 'stopped'
     else task.phase = phase
@@ -1112,13 +1224,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         }
         let outcome = await deps.workers.run(taskSpec, task.controller.signal)
         let continuations = 0
+        // The person's own Stop-continuation bound (D121: 0 is no limit of
+        // ours); read once when the run starts, like the session's capture.
+        const stopLimit = stopContinuationLimitFor(deps.settings.maxStopContinuations?.() ?? 0)
         while (
           deps.hooks !== undefined &&
           outcome.isCeilingReached === false &&
           outcome.folder !== undefined &&
           task.capped === undefined &&
           !task.controller.signal.aborted &&
-          continuations < stopContinuationLimitFor(deps.settings.maxStopContinuations?.() ?? 0)
+          continuations < stopLimit
         ) {
           const siblings = allTasks().filter(
             (other) =>
@@ -1210,13 +1325,22 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       let isLaunched = false
       try {
         admit(task, entry)
+        const governed = await startPlaybookWork(task)
+        if ('refused' in governed) {
+          task.phase = 'failed'
+          task.failure = governed.refused
+          await persist()
+          deps.log.warn(`Team task ${task.taskId} refused by the playbook: ${governed.refused}`)
+          continue
+        }
         await launch(task)
         isLaunched = true
       } catch (error: unknown) {
         deps.log.warn(failureForLog(error))
+        const failure = describeError(error)
         if (task.lease !== undefined) {
           task.phase = 'failed'
-          task.failure = describeError(error)
+          task.failure = failure
           await persist()
         }
       } finally {
@@ -1517,7 +1641,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     context = { ...context, signal: AbortSignal.any([context.signal, task.controller.signal]) }
     // The flow loads lazily; the guard and phase claim above already ran here.
     const completion = (async (): Promise<TeamToolResult> => {
-      let runMergeFlow: typeof teamMergeFlow.runMergeFlow
+      let runMergeFlow: typeof teamMergeFlow.runMergeFlow | undefined
+      let loadFailure: string | undefined
       try {
         ;({ runMergeFlow } = await import('./teamMergeFlow'))
       } catch (error: unknown) {
@@ -1525,9 +1650,14 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         deps.log.warn(failureForLog(error))
         task.mergePhase = 'failed'
         task.failure = describeError(error)
+        deps.log.warn(`Team merge for ${task.taskId} refused: ${task.failure}`)
         task.mergeReady?.()
-        return refusal(task.failure)
+        loadFailure = task.failure
       }
+      // A thrown import always records its failure above; the fallback only
+      // shows the compiler the refusal is set.
+      if (runMergeFlow === undefined)
+        return refusal(loadFailure ?? TEAM_MODEL_TEXT.hostMergeNotReady)
       return await runMergeFlow(task, context, {
         record,
         admit,
@@ -1536,6 +1666,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         changed,
         discard,
         exclusive,
+        log: deps.log,
         checkOwner: checkMergeOwner,
         confirmReview: (entry) =>
           confirmationFor(REVIEW_ROLE, entry, deps.workers.rates?.(entry.agent)),
@@ -1612,15 +1743,17 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           task.pipelineId = pipelineId
           task.continueFrom = step.continueFrom
           task.isRaised = step.isRaised === true
+          let outcome: PlanStep = step
           try {
             admit(task, entry)
             reserved.set(step, task)
-            return step
           } catch (error: unknown) {
             deps.log.warn(failureForLog(error))
+            const failure = describeError(error)
             tasks.delete(task.taskId)
-            return { item: step.item, refused: describeError(error) }
+            outcome = { item: step.item, refused: failure }
           }
+          return outcome
         })
         await persist()
         const named = new Map<PlanStep, readonly StaffedEntry[]>()
@@ -1654,6 +1787,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           const task = reserved.get(step)
           if (task?.entry !== undefined) {
             task.consented = new Set([paidScope(task.entry.agent)])
+            const governed = await startPlaybookWork(task)
+            if ('refused' in governed) {
+              task.lease?.release()
+              if (task.continueFrom !== undefined) task.continueFrom.phase = 'done'
+              tasks.delete(task.taskId)
+              reserved.delete(step)
+              await persist()
+              started.push({ role: step.item.role, refused: governed.refused })
+              continue
+            }
             await launch(task)
             reserved.delete(step)
             started.push(taskView(task))
@@ -1871,8 +2014,10 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
         let isReady = false
         try {
           isReady = await deps.workers.probe(entry.agent)
-        } catch {
+        } catch (error: unknown) {
           // A failed current probe is unavailable; a stale failure has no owner.
+          const failure = describeError(error)
+          deps.log.info(`Team probe for ${entry.id} failed: ${failure}`)
         }
         if (isClosed()) return
         if (probeGenerations.get(entry.id) === generation)

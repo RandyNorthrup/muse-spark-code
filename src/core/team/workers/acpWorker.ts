@@ -24,6 +24,8 @@ import {
   type WorkerRootGrant,
   type WorkerFenceIo,
 } from './workerFence'
+import { isTypedCreateRefusal } from './workerTypes'
+import { WorkerRoleDeniedError } from './workerCreateEntry'
 /** @unwired M96 workerFence re-exports for ACP host consumers */
 export { AcpNativeServersError, answerAcpPermission, extractRequestPaths } from './workerFence'
 import type { WorkerPromptParts, WorkerRolePolicy, WorkerTask } from './workerTypes'
@@ -248,15 +250,14 @@ export async function acpFsWrite(
   given: string,
   content: string,
 ): Promise<{ readonly ok: true } | { readonly error: string }> {
+  // The role's own refusal words, shared by the precheck and the late
+  // create-time denial below.
+  const roleRefusal =
+    input.role.workspaceMode === 'read-only' ? 'the role is read-only' : 'outside the write paths'
   try {
     const confined = await confineWorkerPath(input, given)
     if (confined.ok && !isCheckedWorkerWriteAllowed(input.role, confined))
-      return {
-        error:
-          input.role.workspaceMode === 'read-only'
-            ? 'the role is read-only'
-            : 'outside the write paths',
-      }
+      return { error: roleRefusal }
     return await withWorkerFile(
       input,
       given,
@@ -268,11 +269,11 @@ export async function acpFsWrite(
       input.role,
     )
   } catch (error: unknown) {
-    // The fence's confinement refusal reads "outside the working copy"; a
-    // helper or native failure inside the copy reaches the caller as its own
-    // typed sentence. Anything else is not a refusal: rethrow it.
+    // The fence's refusals read as sentences: confinement, the role's
+    // policy, and the typed native failures. Anything else keeps its kind.
     if (error instanceof MuseWorkerFolderError) return { error: 'outside the working copy' }
-    if (error instanceof Error) return { error: error.message }
+    if (error instanceof WorkerRoleDeniedError) return { error: roleRefusal }
+    if (isTypedCreateRefusal(error)) return { error: error.message }
     throw error
   }
 }

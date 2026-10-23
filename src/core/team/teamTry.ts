@@ -11,6 +11,7 @@ import type { ResponseAttemptGuard } from '../backends/modelapi/client'
 import type { TeamEditorDocument, TeamPanelSlice } from '../../shared/teamPanel'
 import { teamEditorDocumentSchema } from '../../shared/teamPanel'
 import type { UsdAmount } from '../../shared/usd'
+import type { CoreLogger } from '../logging'
 import { Usd, sumUsd } from '../../shared/usd'
 import {
   UI_TEXT,
@@ -29,6 +30,8 @@ export interface TeamTryDeps {
   readonly isAllowed: () => boolean
   readonly modelId: string
   readonly workspaceRoot: string
+  /** Fixed-vocabulary planning notes; absent the turn stays silent. */
+  readonly log?: CoreLogger
   /** Hash-only identity of the account the quote bills; pinned across consent. */
   readonly keyDigest: () => Promise<string | undefined>
   readonly consent: () => Promise<boolean>
@@ -169,12 +172,14 @@ export async function tryTeam(
         ])
         .catch((error: unknown) => {
           lifetime.removeEventListener('abort', abort)
+          deps.log?.trace('Team try send failed; the tally reports it.')
           reject(error instanceof Error ? error : new Error(String(error)))
         })
       if (lifetime.aborted) abort()
     })
   } catch (error: unknown) {
     failure = error instanceof Error ? error.message : String(error)
+    deps.log?.trace(`Team try failed: ${failure}`)
   } finally {
     unsubscribe?.()
     await host.close()

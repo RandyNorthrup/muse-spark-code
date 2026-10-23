@@ -7,6 +7,27 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Merged
+
+- RLM116 recovery: the M116 panel playbook end to end over the certified
+  M96 orchestrator core (merge `1abea8ad7c`). The merged worker suites
+  prove refusals with real files and exact refusal sentences instead of
+  call watchers; the panel enforces the playbook at review turns,
+  `delegate` follow-ups, best-of-N starts, spawn requests and why-note
+  buttons. Cross-milestone bindings (planner/board facts, M107 capacity
+  admission, M113 row feeding, headless-run admission) remain owner
+  design: the team model carries no lane identity to join on. Record:
+  `docs/certification/rlm116.md`.
+
+### Release infrastructure
+
+- Harden hidden team surfaces for review: availability is the release latch
+  plus the switch (latch closed, nothing opens); effort defaults are sent
+  only where the model serves them; planning previews re-admit the quoted
+  account after host start; quota is stamped per provider credential;
+  saved settings validate against the model's current capability record;
+  the browser harness tree fixture sends exact-string dollars.
+
 ### Highlights
 
 - **Big files open a window at a time.** `read_file` and `edit_file` take
@@ -243,6 +264,135 @@ happened, not what was planned; superseded entries are kept.
   symlink aliases into shared source; non-file modules need one entry owner
   or an exact plugin ID exception (none is needed by the production build),
   including tree-shaken inputs and virtual modules behind real dependencies.
+- **`playbook run` headless check command** (M116, RLM116 D213). The ACP
+  agent runs one of the workspace's `museSpark.checkCommands` through the
+  same admission, journal and record as the panel: a paused resource
+  governor refuses with its why-note and the check never spawns, and the
+  record follows the outcome line either way. The command exits with the
+  check's own exit code. `/playbook` stays read-only.
+
+- **Governed `/agents` child resumes** (M116, RLM116 D215). In the ACP
+  agent, `/agents continue` and `/agents retry` go through the
+  playbook's child-work admission: while the resource governor
+  pauses new work the resume is refused with its reason and the
+  backend is never called, otherwise the control runs as before.
+
+- **Roles and Agents editor** (M96 U1, C-M96-2), kept hidden behind the team
+  worker availability gate. Strict workspace drafts support guided Pair
+  setup, editable charters, ordered pools, caps, model capability checks,
+  intensity, local suggestions and estimates, and credential-free import
+  and export. The shared Agent map forwards actions through the existing
+  team host. All 14 translations are included. Production worker/model
+  bindings and cross-editor certification remain prerequisites for exposing
+  the sections. New code and English text load lazily; the unchanged Models
+  panel body budget still needs the lead's integration repair.
+
+- **Resource chip in the VS Code chat** (M107 U–C1/W). After the window's
+  first governed launch, a **Resources** chip sits beside the heartbeat, or
+  above the composer between turns. Its popover shows CPU, memory in use and
+  available memory against your limits, what is waiting, any override, and
+  that relocation is not available on this build. Its buttons are **Resume
+  now**, **Open settings** and **Show resources** (the Usage & cost page). A
+  status bar item shows while the governor throttles or pauses. At pause, one
+  notice per conversation names the reading and its limit, with the same
+  actions. New commands: **Muse Spark: Show Resources** opens the popover in
+  the chat in view, and **Muse Spark: Resume Work Now** holds this window's
+  governor at normal for fifteen minutes. A governor you switched off stays
+  off. The governor, its status item and the chip still load on first use,
+  never at activation, and chat's first paint stays within its budget.
+  A status the chip cannot trust (unreadable, with unknown fields, or too
+  large) shows as **Resources: Unknown** with a short explanation, never as
+  an older reading. While the chip loads it says so in place, and if it
+  cannot load it offers **Try again** without disturbing the conversation.
+  JetBrains, Visual Studio, Eclipse and the companion page can reuse the same
+  chip and status adapter once their M104 bridges bind them; none does yet.
+  ACP and terminals keep `/resources` and `resources status|resume`.
+
+### Changed
+
+- **One playbook report ordering** (M116, RLM116 D214). Playbook,
+  milestone and fleet report rows order through the same engine
+  path — owner and residual rows first, then failures — and the
+  playbook CLI text reads that same order. Milestone reports merge
+  the journal's residual register into their rows.
+
+- Hidden team execution now preserves saved custom charter text and enforces its workspace and tool policy. New conversations read the Roles workspace orchestrator override, retain its confirmed backend, and Reset to Default restores the composer’s selection.
+
+- Joined team verification now shares the fresh production build before browser workers start, preserving the existing deadlines and bundle caps. Engine label assertions match the reviewed Roles editor labels.
+
+- Hidden team bindings now read the active composer model and attached backend, including Auto selection, instead of a fixed default model and the backend setting. The complete captured discovery registry remains a prerequisite for exposing Roles.
+
+- Hidden Roles configuration reads its remaining shared daily budget and durable task history afresh. Missing or damaged sources refuse; learned caps use the latest twelve settled terminal tasks per role, excluding interrupted or uncertain usage.
+
+- Hidden team setup now checks editor support, trust and the team switch independently of saved worker entries. Required configuration sources still gate the Roles and Agents sections.
+
+- Hidden M96 worker file creation now uses the packaged native helper on
+  POSIX and the Windows job-helper contract. Engine and ACP writers prove
+  root, parent and file identities, enforce role write paths before creation
+  and again before contents are written, and create exclusively. Reservations
+  fill binary bytes or release an unchanged empty file. Missing native support
+  refuses with its actual reason. The implementation loads on first creation;
+  teams remain unavailable pending integration and cross-platform certification.
+
+- Hidden M96 team-host correctness: each response settles its own reserved
+  claim with the sent model's known price, including bare Meta and zero-cost
+  plan models; transport retries reuse one live claim. Refused worker writes
+  are checked before opening a file, and portable native writes cannot create
+  pathname targets. Raise still requires the entry's concurrent slot. Teams
+  remain unavailable pending the remaining bindings and certification.
+
+- Hidden M96 team-host implementation: setup probes now retain per-entry
+  generations; stale results cannot replace a newer model's readiness, and
+  a finishing probe cannot start queued work after disposal. Teams remain
+  unavailable pending the milestone's remaining bindings and certification.
+
+- Hidden M96 team hook events (lane H): `TeamAgentSwitch` joins the
+  extension hook events with D75's payload (both agent profiles and models,
+  the cap, the task and the parent session; a refusal exhausts the role and
+  no answer can choose an entry), and `SubagentStart`, `SubagentStop` and
+  `TeammateIdle` carry D75's team fields. Nothing fires them yet; teams
+  remain unavailable pending the milestone's remaining bindings (lane X) and
+  certification.
+
+- `@muse-code/sdk` moves from 1.4.2 to 1.4.4 (SDK144). Muse Code 1.4.4
+  (1.4.4-R5419.1) serves the new pin's schema fingerprint, so it connects
+  without a mismatch warning; a 1.4.2 host now logs one, as older hosts did
+  after earlier bumps. The SDK now hides the `muse serve` window on Windows
+  itself (meta-models/muse-code-sdk#34). The extension's other Muse Code
+  workarounds were re-checked against 1.4.4 and are still needed
+  (`docs/certification/sdk144.md`).
+- `@agentclientprotocol/sdk` moves from 1.5.1 to 1.7.0 (SDK144). The ACP
+  agent, headless `exec` and team workers speak the same ACP v1; the SDK's
+  transport is unchanged, so the agent's 32 MiB line override and the
+  session-router seam carry over as they were.
+- **A sent message's menu is shorter and its pills fit their labels.**
+  **Fork conversation from here** is now **Fork Conversation**, and **Fork
+  conversation and rewind code** is now **Fork and Rewind**, in every
+  language. Every radial menu's pills stay one size, but that size is now
+  the longest label's own width instead of a fixed 272 px, so short menus
+  no longer carry empty blue space; only a label wider than the panel ends
+  in an ellipsis with the whole label in its tooltip.
+- The README's Resources screenshot is retaken with the rest of the set (the
+  same Linux Chrome build and fonts); the other 18 screenshots still match the
+  current UI and are unchanged.
+- README and `docs/acp.md` name all four places the project ships from (VS Code Marketplace, Open VSX, npm, GitHub Releases), add an npm version badge, and install the ACP agent with `npm install -g muse-spark-code-acp` first, the release `.tgz` second.
+- The npm package's README and the Marketplace/Open VSX page list the same four channels as the README (VS Code Marketplace, Open VSX, npm, GitHub Releases); the npm page adds the release `.tgz` install.
+- README adds a total downloads badge (all channels) and a GitHub app installs badge, both served by the project's Cloudflare Worker, now kept in `infra/marketplace-hook` (counters only; not part of any package).
+- README notes the project's unofficial GitHub OAuth app for M123 sign-in and that its GitHub Marketplace listing awaits GitHub's review; the privacy notice adds the app's device flow, `repo` scope, keychain or vault storage and revocation.
+- The working line is calmer: the heartbeat trace sweeps in about 1.4 s instead of
+  1.2 s, and the circle mark before the status text keeps its 0.16.0 loop at 75 % size
+  (12 px instead of 16 px).
+- Preserve exact decimal USD across schedule authorization, consent and agent caps,
+  rental cost estimates, reporting facts, account totals and voice consent. Read
+  historical numeric records at validated boundaries; saved reports verify their
+  original hashes before migration to exact money version 2.
+- The resource history journal is one shared bundle that the window's
+  governor and the usage page both load, instead of a copy in each; both stay
+  inside their size budgets. Usage records read the account id from a small
+  leaf instead of every account schema.
+- The Model API backend's session store loads with that backend instead of
+  at activation (its own `dist/modelApiSessions.js`), taking 24.5 KB off the
+  activation bundle; sessions are kept and read as before (ACTBUD017).
 
 ### Fixed
 
@@ -757,6 +907,313 @@ happened, not what was planned; superseded entries are kept.
 - M100 phase 2 records its SSH-limit rules (one paced channel per pair, the
   Windows worker context, one failed authentication stops) in G50–G52 rather
   than duplicate rows, and its verification rules as G60 (shard membership
+- Saved team role ids keep their canonical pattern: the schema move had
+  dropped the check while its regression stayed, so noncanonical ids
+  parsed. They are refused again.
+
+- The hidden team engine reads its file-grant authority and retry helper
+  through the shared host and Model API bundles that export them; without
+  those exports the lazy engine chunk would read undefined at run time.
+  The hidden Roles panel chunk ships in the package, as activation and
+  the Models panel require.
+
+- The hidden team configuration keeps its per-role editor lazy after the
+  Models split, with a separate measured budget and loading/retry UI.
+
+- The hidden Roles editor preserves pending composite edits across unrelated
+  host replies and manual Default concurrency across orchestrator edits. Tool
+  search matches translated labels; enabled-team navigation waits for its
+  English fallback. Pool filters support model families and fractional-price
+  saves, and option prices use the display language's currency rules. U1-only
+  English travels in its team chunk under the existing surface budget.
+
+- Models & Agents keeps the visible section during lazy navigation and reserves
+  its remembered height on reload. The first visit estimates its host rows.
+  Visual captures wait for money amounts, and filtered model tables now have
+  reviewed coverage across every theme, width and interaction state.
+
+- Hidden M96 worker admissions recheck their originating request after each
+  asynchronous wait. Cancellation or close during durable compaction admission
+  releases the late unsent claim exactly once, without attaching it to an ended
+  or replacement request. Teams remain unavailable pending integration.
+
+- Hidden M96 engine worker file creation ships its lazy chunks in the
+  installed extension, launches its native helper through resource admission
+  (one launch per file operation), creates missing folders only after the
+  write guard approves, removes empty files and folders a failed create made,
+  sweeps abandoned reservations at the next start, honors the process umask,
+  reports every refusal as the typed copy-relative sentence, and refuses
+  Windows-reserved names in the native helper too. Teams remain unavailable
+  pending integration.
+- Hidden M96 failed worker creates remove at most the folders the operation
+  itself made, so pre-existing and concurrently created folders survive. Every
+  refusal the Windows helper can produce now reaches the caller as its own
+  typed sentence exactly as on POSIX, through one refusal-code table shared
+  by both launchers, including the previously unmapped outside-root refusal.
+  Teams remain unavailable pending integration.
+- Hidden M96 Windows worker launcher now builds the helper arguments inside
+  its script as single-quoted literals and passes the whole script as one
+  encoded command, so worker-chosen file names can never become PowerShell
+  source text and no argument follows the script. An unexpected helper
+  failure surfaces as its own typed sentence naming the exception type
+  instead of the generic proof failure, and the last worker-reachable
+  generic refusals in the Windows helper carry their own reasons. Teams
+  remain unavailable pending integration.
+- Hidden M96 Windows worker file helper now judges every caller-supplied
+  path component with its own name rules before any framework path call
+  sees it, so names holding `<`, `>`, `|`, `"` or control characters refuse
+  with the typed cannot-create sentence instead of the helper-failed one; a
+  parent that is a plain file reports its own cannot-create reason instead
+  of the link sentence; and a helper binary that cannot load
+  (`FileNotFoundException`, `FileLoadException`, `BadImageFormatException`)
+  reports helper-unavailable instead of the generic proof failure. Teams
+  remain unavailable pending integration.
+- Hidden M96 worker file refusals always name the path relative to the
+  working copy as asked: the create proof carries that path and every
+  helper-launcher and preflight mapping prints it, so a refusal below a
+  nested ancestor no longer prints the ancestor-relative suffix. Teams
+  remain unavailable pending integration.
+
+- Hidden M96 engine workers reserve and settle each transport attempt separately.
+  Successful retries preserve earlier uncertain liability; refused and unsent
+  attempts release their claims, including admission revoked during a durable
+  save. Final outcomes close reservations without presenting unknown usage as
+  verified cost. Teams remain unavailable pending integration.
+- Hidden M96 team hook events (lane H review fixes): a `TeamAgentSwitch`
+  hook matcher now names every valid role id, including hyphenated ids
+  such as built-in `code-review` and custom role ids; an asynchronous
+  `TeamAgentSwitch` handler is refused at load because its dropped output
+  could never exhaust the role; and a team task's `working_copy_path`
+  reaches the wire with `/` separators on every platform. Nothing fires
+  these events yet; teams remain unavailable pending the milestone's
+  remaining bindings (lane X) and certification.
+
+- On macOS 26, a process that `ps` lists with an unknown state (`?`) while
+  it changes no longer voids every resource tree's membership read, which
+  could refuse Stop/kill for a tree while any process on the Mac was mid-transition.
+
+- The two-account Muse Code backend test waits for the usage event that
+  follows a turn instead of assuming both arrive together, and the estimator
+  browser harness pays the browser's first-navigation work once before its
+  matrix, keeping every case's two-second bound.
+
+- The estimator browser harness uses the same packed English fallback as
+  independent production pages, avoiding cold Windows navigation timeouts
+  while keeping its two-second bound and complete accessibility/keyboard matrix.
+
+- macOS UI regressions give each target-size scene its own test and await
+  the palette view's actual lazy-import rejection before checking its failure
+  row, retaining every assertion at the existing deadlines (CIR4MAC).
+
+- macOS runtimes with libuv older than 1.52 report unknown memory headroom
+  instead of counting only free pages, preventing false resource pauses and
+  ACP multi-workspace session timeouts on Node 22 (ACPM118).
+
+- Windows recorder destinations accept native 8.3 temporary-folder spelling
+  while still refusing traversal and existing destinations (CIFIX017W).
+
+- Companion uploads close their inspection handle and remove private bytes
+  before acknowledging the request, avoiding Windows cleanup races.
+  A failed inspection close returns a refusal with private diagnostics withheld.
+
+- Windows resource-history tests wait for durable disposal output before
+  checking or corrupting journal files.
+
+- Windows native probes avoid unnecessary PowerShell module startup;
+  packaging tests share one production build while retaining private outputs.
+
+- Visual capture waits for restored question rows to finish loading before
+  measuring the context-menu passage, preventing a timing-dependent 14 px
+  menu displacement in narrow captures. Pixel allowances are unchanged.
+
+- Schedule runtime tests cover Linux, Windows and macOS rearm ownership
+  explicitly; macOS wake shutdown retains its independent after-exit helper.
+
+- Reporting journal, history-engine and response-cache tests retain real OS
+  process-birth probes on macOS and Windows without requiring unrelated
+  resource-governor installation in their storage fixtures.
+- Windows: the ACP agent (`muse-spark-code-acp`) could not start a Muse
+  Code session. Its governed `muse serve` launch was missing the Windows job
+  helper the extension's launch already had, so every new session failed
+  with an internal error.
+
+- Windows: the npm package of the ACP agent now ships the C# of that job
+  helper's launcher (`MuseSparkMcpLauncher.cs`). An agent installed with
+  `npm install -g` still failed every new session with an internal error
+  without it (CIFIX017W2).
+
+- Windows: the trusted-path check behind background schedules reads each
+  folder's attributes and ACL through .NET alone. Its PowerShell no longer
+  loads the modules behind `Get-Item`, `Get-Acl` and `ConvertTo-Json`, which
+  took over 15 s per folder on machines with many PowerShell modules
+  installed, such as hosted CI runners (CIFIX017W2).
+
+- macOS with Node 22 (or an editor on its libuv): the resource governor read
+  free memory pages as headroom, judged an ordinary Mac critically short of
+  memory and held every later process start for 20 seconds, so a second ACP
+  session took over 20 s to open. That reading is now treated as unknown
+  (CIFIX017R3).
+
+- A report save could fail after two seconds when another save released
+  its lock while a third retired one: a lock file being deleted was taken
+  for an unsafe file, and the releasing save kept its lock (CIFIX017R3).
+
+- The report's plan reader no longer parses each plan line three times;
+  this repository's plan reads about 15% faster (CIFIX017R3).
+
+- Windows: `muse-spark-code-acp usage open` and sharing to the clipboard or
+  browser failed with "That did not work". The program lookup added `.exe`
+  to names that already had it (`rundll32.exe.exe`) and found nothing.
+
+- Linux: `muse-spark-code-acp usage open` waited 10 s and then reported
+  failure when `xdg-open` stayed open with the browser, as many handlers do.
+  The opener now counts as launched once it starts, in its own session, and
+  is never stopped. Any OS opener still running at the hand-off limit is
+  detached and counted as launched, not killed; one that exits with an
+  error still fails.
+
+- When a Windows job helper fails to compile, the log names the compiler's
+  errors and exit code again, not only "Bootstrap command failed".
+- Visual regression reconstructs the recorded schedule surface inside the
+  served historical revision, so clean CI can load its lazy schedule entry.
+  The current-source audit also records the accounts accessibility stylesheet.
+
+- Native schedules and helpers no longer refuse a Windows profile folder
+  that is a junction or redirected to another drive. Paths are now checked
+  from the folder the extension owns: links above it are accepted by their
+  resolved identity, and a link below it is still refused.
+
+- Scheduled prompts spend about half the time on their store per fire: the
+  store keeps one journal per workspace, so its validated snapshot and deltas
+  are reused between calls, and a read copies the folded state once instead
+  of every journal entry. Every read still rereads and checks the bytes.
+
+- Model API turns no longer reinstall the whole display-language table for
+  every recorded context read (about 4 ms each); the schedules bundle
+  installs it once per language.
+
+- ACP: an answer queued with `/answer` is sent with the next prompt once,
+  even when the backend finishes that turn before it confirms the start.
+  Before, such a turn released the answer instead of marking it sent, so the
+  following prompt carried it again.
+
+- Model API replies stream with less work per event: the stream's key
+  redaction builds its matcher once per reply (and again only when a stored
+  secret changes) instead of for every string in every event. A long reply
+  had spent most of its time there.
+
+- Contributors: a pre-commit hook that fails now stops the commit on Windows
+  even when nothing is reading Git's output any more (for example
+  `git commit … | Select-Object -First 5`). Before, husky's runtime was
+  killed by a broken pipe while reporting the failure, and Git for Windows
+  counted that as a pass. `npm run prepare` installs stubs that rule this
+  out on every OS, and the hook asks for `npm run prepare` in a worktree
+  that still has husky's own stubs.
+
+- Packaged translation tables round-trip byte-exact again: every language
+  table lists its keys in English's order, including the resource history
+  and Windows path strings merged for 0.17.0.
+
+- The dependency-cycle gate now covers every build entry, lazy import target,
+  entry-named module and knip entry, with a guard against root-list drift.
+  Remove the worker admission/environment/ref-fence cycle by sharing the
+  unchanged credential-free environment policy from the worker environment
+  module. The guard now shares integration-test discovery with the build,
+  so changes to its directory or filter also change the required cycle roots.
+
+- Start the team browser tests' card and tree deadline once the harness reports
+  the scene played, keeping bundle start-up, the ready handshake and the
+  steps' settle time outside that wait, and list still-open requests when a
+  team test's wait fails.
+
+- Settle quote-menu capture origins after final layout and isolate source-reconstruction fixtures from temporary-directory placement.
+- Capture settled share-view highlighting, usage-dialog account facts and status rows, and the palette's focus scroll so visual replays no longer race lazy renderers.
+
+- Complete integrated visual coverage through real optional UI scenes, decode packed update notes in replay, wrap narrow Models actions and use token focus rings.
+
+- Guard the lazy slash-command registration as a deferred chat entry without adding activation bytes.
+
+- Restore the Schedule Prompt, Schedules and Schedule Timeline editor commands, including panels opened on demand.
+- Reuse successful time-zone validation during repeated schedule journal reads, preserving storage checks and workload deadlines.
+- Resolve visual replay fixtures from the running gate when historical render sources predate them, and guard Help document IDs against duplication.
+- Prepare browser-English probe scratch space in fresh clones and include the merged Linux helper job in the visual CI test fixture.
+- Give plan-usage request counts localized singular/plural text so contrast checks can measure their visible content.
+- Refresh reviewed README captures from the combined UI and its real ready handshake, retaining the curated media budget.
+- Name and exercise report-root literal regex escaping across all operators and Windows separators.
+
+- Share ACP preparation cancellation and exact USD display helpers; align merged paid-ledger tests with the exact decimal contract.
+- Batch staged-file tool arguments below the Windows command-shim limit while retaining every hook check.
+
+- Include lazy account and developer surfaces in the browser English regression probe while preserving deferred fallback checks.
+
+- Remove the obsolete compact Node reference build plugin and its stale test; the production reference uses the current generated data loader.
+- Draw the independent reporting focus ring and the Models/account boundaries from the M114 token contract instead of direct host colours, so keyboard focus stays visible on low-contrast themes.
+- Give team traffic and Runners buttons the secondary-button token role instead of input-field colours, and draw their keyboard focus ring from the M114 token contract.
+- Draw Models buttons, the accounts picker and traffic buttons from a new assured boundary role that mixes the theme foreground into its background, keeping control boundaries at 3:1 or more in every captured theme.
+- Give the team merge card's path lists their own full-width row so long paths wrap instead of one character per line at narrow widths.
+
+- Media request tariffs accept exact USD amounts only and reject numeric
+  JavaScript callers before admission. Ordinary session reservations share the
+  atomic-admission lock, preventing competing owners from publishing during an
+  unfinished claim and preserving cap checks at the remaining headroom.
+
+- The Account & usage spend meter sums exact decimal amounts instead of
+  rounding through nano-USD, so sub-nano spend below a nearby cap reports
+  unreached exactly as admission evaluates it.
+
+- The media accounting core claims its calibrated upper bound
+  against both schedule and shared daily caps, including replayed file IDs,
+  settles the admitted media tariff once, and retains uncertain liabilities.
+  Above-reserve bills refuse settlement; daily claim transfers secure their
+  replacement before releasing held budget.
+  Production video/audio uploads remain unavailable in this version pending
+  the production upload and transcription bindings (PLAN D85.6, M105).
+  Scheduled reads now explain that limitation explicitly in every editor.
+  Media read-file references through a bound adapter carry their checked source
+  into the run ledger;
+  stopped reads cannot publish a new proof.
+
+- The 0.17.0 integration's daily-budget and durable schedule tests now assert
+  exact decimal money, including entered limits below nano precision, while
+  account consent fixtures persist quote ceilings and retain account refusal.
+  Account-bound paid consent carries exact decimal budgets through its popup.
+
+- Account-bound paid consent holds "Always" across instances and restarts for
+  the same workspace, provider, account and price through the binding-kept
+  grant when no host quote store is configured; it still asks again when any
+  of them changes, when the quote generation changes, or when only a
+  differently-keyed legacy grant exists.
+
+- Account-bound paid consent no longer fabricates quote approval from the
+  binding's feature grant: it requires an account-scoped quote store and
+  generation, persists the approved quote and generation per account, asks
+  again for a higher tariff or a different model on the same or a new
+  instance, and revoke() clears that account's quote grants too. No
+  production host constructs account-bound consent yet — paid approval stays
+  per workspace until M108 lane P wires it — and Help now says so.
+
+- Account-bound paid consent binds grant authority to a durable revocation
+  epoch persisted per account binding: revoke() advances the epoch before
+  clearing, so leftover grants from a failed clear stay stale on every
+  instance after a restart, and a failed advance rejects with the grants
+  still working. Every grant records its approval epoch; concurrent asks on
+  another instance cannot resurrect a revoked grant. Help says paid consent
+  stays per workspace in all fourteen translated tables.
+
+- Resource history now includes Windows contained and probe commands: the
+  helper's final CPU and memory use is recorded once in this window's
+  history (at most 512 waiting results between reads). The governed process
+  launcher and the start of vault-backed MCP servers now load on first use
+  in bundles of their own (`dist/resourceProcess.js`, new 50 KiB budget;
+  `dist/mcpVault.js`, new 25 KiB budget), so the resource governor is back
+  within its unchanged 125 KiB budget and activation no longer carries the
+  vault MCP start.
+
+- On Windows, two requests that reserve session spend at the same moment
+  could end one of them with "The session spend ledger could not be read or
+  saved", although nothing was wrong with the ledger. Windows answers a lock
+  that is just being released differently from one that is held; the product
+  now waits for both the same way, within the same one-second bound.
 
 ## [0.19.0] - 2026-10-21
 

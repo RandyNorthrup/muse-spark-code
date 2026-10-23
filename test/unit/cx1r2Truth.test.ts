@@ -64,8 +64,24 @@ describe('RVCX1B F1 after C-M106-2: live argument previews are published where t
   })
 })
 
-describe('RVCX1B F2: playbook panel claims are removed', () => {
-  it('README and current release highlights do not claim panel or Agent-map access', () => {
+// C-M116-6 (2026-10-11) inverted the first assertion: the VS Code panel now
+// reads the journal (`/playbook` in the composer, the Agent map's page), so
+// the catalogue lists it. The panel's enforcement claims stay removed until
+// the commit that routes its dispatches through the playbook.
+describe('RVCX1B F2: playbook panel claims say only what the panel does', () => {
+  it('catalog and generated Help advertise the journal surfaces: VS Code and ACP', () => {
+    for (const features of [featureCatalog(), help.features]) {
+      expect(features.find((feature) => feature.id === 'orchestrator-playbook')?.surfaces).toEqual([
+        'vscode:museCode',
+        'vscode:modelApi',
+        'acp:museCode',
+        'acp:modelApi',
+      ])
+    }
+  })
+
+  it('README claims the journal in the panel, and no enforcement there yet', () => {
+    expect(readme).toContain("journal's status, record and settings (**Playbook Settings**)")
     expect(readme).not.toContain('The panel, Agent map, ACP and CLI read the same journal')
     expect(readme).not.toContain('Nine rules govern orchestrated work')
     expect(readme).toContain('The CLI `playbook')
@@ -160,6 +176,9 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
 
   it('roadmap places dormant work in progress with no shipped note or capability claims', () => {
     const progress = roadmap.slice(roadmap.indexOf('## In progress'), roadmap.indexOf('## Planned'))
+    // M116 is mixed: its row names shipped parts beside its dormant panel
+    // integration, so it carries no blanket "in progress" sentence (mixed
+    // record below keeps the dormant cover).
     for (const id of [
       'M96',
       'M96b',
@@ -171,7 +190,6 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
       'M109',
       'M113',
       'M115',
-      'M116',
       'M117',
     ]) {
       const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))
@@ -199,7 +217,12 @@ describe('CX1R3 sibling sweep: dormant features have no published usage', () => 
         /native effort and feedback readers are in progress/,
       ],
       M113: [/\/report for project/, /First parts shipped in 0\.17\.0/, /additional report kinds/],
-      M116: [/\/playbook shows status/, /First parts shipped in 0\.17\.0/, /panel integration/],
+      M116: [
+        /CLI\/ACP journal commands ship/,
+        /First parts shipped in 0\.17\.0/,
+        /panel integration/,
+        /cannot stop their starts/,
+      ],
     }
     for (const [id, patterns] of Object.entries(mixed)) {
       const row = progress.split('\n').find((line) => line.includes(`<sub>${id}</sub>`))

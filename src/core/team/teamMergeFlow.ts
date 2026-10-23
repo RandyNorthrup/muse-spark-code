@@ -58,6 +58,11 @@ export interface TeamMergeFlowApi {
   readonly findRunningReview: (of: TeamTaskRecord) => TeamTaskRecord | undefined
   readonly answer: (value: unknown, visible: string) => TeamToolResult
   readonly refusal: (reason: string) => TeamToolResult
+  /**
+  Fixed-vocabulary merge notes; absent the flow stays silent. Warn-only so
+  every host service log shape satisfies it.
+  */
+  readonly log?: { warn(message: string): void }
   readonly describeError: (error: unknown) => string
   readonly paid: TeamPaidPort
   readonly cards: TeamCardPort
@@ -180,6 +185,7 @@ export const runMergeFlow = async (
   api: TeamMergeFlowApi,
 ): Promise<TeamToolResult> => {
   let cancel: (() => void) | undefined
+  let refused: TeamToolResult | undefined
   try {
     api.checkOwner(task, context)
     await api.persist()
@@ -237,17 +243,21 @@ export const runMergeFlow = async (
   } catch (error: unknown) {
     task.mergePhase = 'failed'
     task.failure = api.describeError(error)
+    api.log?.warn(`Team merge failed: ${task.failure}`)
     if (task.outcome !== undefined)
       api.cards.show(task.sessionId, {
         ...mergeCard(task, task.outcome),
         status: 'completed',
         teamDecision: task.failure,
       })
-    return api.refusal(task.failure)
+    refused = api.refusal(task.failure)
   } finally {
     if (cancel !== undefined) context.signal.removeEventListener('abort', cancel)
     task.awaiting = undefined
     task.mergeReady?.()
     api.changed()
   }
+  // The try above always returns or throws, and the catch always records
+  // its refusal, so the refusal is set here.
+  return refused
 }

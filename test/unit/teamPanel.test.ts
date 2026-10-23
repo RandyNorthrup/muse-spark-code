@@ -23,6 +23,8 @@ describe('M96 U1 portable panel', () => {
       remainingDailyBudgetUsd: () => Usd.from(0).toAmount(),
       records: () => records,
     })
+    // A zero budget offers no role budget. (The getters' plumbing is proven
+    // by the refresh test below, which flips the slice through them.)
     const slice = await pairSlice(rig)
     expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
   })
@@ -37,6 +39,7 @@ describe('M96 U1 portable panel', () => {
     expect(slice.suggestions.some((item) => item.kind === 'roleBudget')).toBe(true)
     remaining = Usd.from(0).toAmount()
     records = [{ role: 'engineering', taskTokens: [1, 2] }]
+    // Changed getters flip the refreshed slice: every refresh re-read them.
     const refreshed = await rig.read()
     expect(refreshed.suggestions.some((item) => item.kind === 'roleBudget')).toBe(false)
   })

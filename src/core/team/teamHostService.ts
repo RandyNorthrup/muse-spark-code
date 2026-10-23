@@ -27,6 +27,9 @@ import type {
   TeamToolContext,
   TeamToolRunner,
 } from './teamSeams'
+import type { PlaybookIntegration } from '../orchestration/playbookIntegration'
+import type { BoardSubmission } from './scheduler/board'
+import type { TeamPlaybookBranchState, TeamPlaybookEntryState } from './teamPlaybookBoard'
 
 /**
 What a conversation engine takes from the service: the Model API host
@@ -289,6 +292,36 @@ export interface TeamMergePort {
   readonly diff: (outcome: TeamWorkerOutcome) => Promise<string>
 }
 
+/**
+The team runner's playbook binding (M116, PLAN.md D212): the integration is
+built by the owner's factory over the workspace journal with the team's
+live facts; the head is the team's own governed git read of the dispatch
+base. Absent, the team runs exactly as before.
+*/
+export interface TeamPlaybookPort {
+  /**
+  Build the team's integration over its live facts. The host calls this
+  once; the readers stay live for every board lookup after. Undefined
+  keeps the team ungoverned.
+  */
+  readonly create: (
+    facts: () => {
+      readonly entries: readonly TeamPlaybookEntryState[]
+      readonly branches: readonly TeamPlaybookBranchState[]
+    },
+  ) => Pick<PlaybookIntegration, 'start' | 'pick' | 'merge'> | undefined
+  /**
+  The dispatch base: the orchestrator's HEAD for an in-place task, else
+  the base commit the task's copy branches from, with the branch ref when
+  the checkout has one. A refusal says so and the task does not start.
+  */
+  readonly head: (mode: BoardSubmission['workspaceMode']) => Promise<TeamPlaybookHead>
+}
+
+/** The dispatch base, or why it could not be read. */
+export type TeamPlaybookHead =
+  { readonly ref: string | undefined; readonly commit: string } | { readonly refused: string }
+
 /** Paid use (rule 12): one D48 popup per `delegate` call that starts key tasks. */
 export interface TeamPaidPort {
   readonly allowKeyTasks: (
@@ -319,6 +352,8 @@ export interface TeamHostServiceDeps {
   readonly merges: TeamMergePort
   readonly paid: TeamPaidPort
   readonly cards: TeamCardPort
+  /** The team runner's playbook (D212); absent, dispatches run as before. */
+  readonly playbook?: TeamPlaybookPort | undefined
   readonly newId: () => string
   readonly now: () => number
   readonly log: {

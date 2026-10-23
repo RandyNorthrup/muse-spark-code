@@ -412,6 +412,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       dist/whatsNew.json made from CHANGELOG.md by the build),
                       the search worker and web fetch's page converter worker
                       (dist/pageWorker.js, started for each page), the
+                      window's playbook (playbook/: dist/playbook.js, the
+                      window's client on the first playbook request and, as
+                      its worker thread, the governor with the Windows job
+                      runner for its git and hook calls; M116), the
                       browser check's processes (the verified pinned runtime
                       only, behind its own proxy; no system browser, no
                       policy reads) and bundle entry (dist/browserCheck.js,

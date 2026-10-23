@@ -890,6 +890,7 @@ export interface AgentSession {
   setModel(modelId: string): Promise<void>
   /** The session's standing reasoning-effort default (wire vocabulary). */
   setReasoningEffort(reasoningEffort: string): Promise<void>
+
   /**
   The conversation's Fast tier: the plan catalogue's priority tier id
   while on, undefined while off. Plan sessions only; sessions without it

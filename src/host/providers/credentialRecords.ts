@@ -7,6 +7,7 @@
 
 import { createHash } from 'node:crypto'
 import * as z from 'zod/mini'
+import type { CoreLogger } from '../../core/logging'
 import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import { CredentialStore } from '../auth/credentialStore'
 
@@ -139,10 +140,6 @@ export async function storedCredentialId(
 }
 
 /**
-Whether `requestOrigin` is the origin the record was entered for. Origins,
-not hosts: `http` and `https` on one host, or two ports on one host, are
-different origins, and either difference refuses the request (M95
-acceptance 5).
 Hash-only identity of a BYO apiKey record's secret (RVCM963JB P2-4): quota
 rows are stamped with the credential a response actually used, and offers
 compare against this. Undefined for anything but an apiKey record
@@ -153,13 +150,15 @@ this call: only its digest is returned, never logged or shown.
 export async function providerKeyDigest(
   secrets: RecordStore,
   id: string,
+  log?: CoreLogger,
 ): Promise<string | undefined> {
   let record
   try {
     record = await readProviderCredential(secrets, id)
   } catch {
-    // An unreadable credential has no digest; undefined keeps the legacy
-    // unattributed matching the doc comment above describes.
+    // A damaged record keeps legacy unattributed matching; the note names
+    // no provider and never the secret.
+    log?.warn('A provider credential record could not be read; continuing unattributed.')
     return undefined
   }
   return record?.auth === 'apiKey'
@@ -177,12 +176,13 @@ export async function providerIdentities(
   secrets: RecordStore,
   providers: Iterable<string>,
   metaAccount: string | undefined,
+  log?: CoreLogger,
 ): Promise<Map<string, string>> {
   const identities = new Map<string, string>()
   if (metaAccount !== undefined) identities.set('meta', metaAccount)
   for (const provider of providers) {
     if (provider === 'meta') continue
-    const digest = await providerKeyDigest(secrets, provider)
+    const digest = await providerKeyDigest(secrets, provider, log)
     if (digest !== undefined) identities.set(provider, digest)
   }
   return identities
@@ -200,12 +200,13 @@ export async function payingKeyDigest(
   secrets: RecordStore,
   modelId: string,
   metaAccount: () => Promise<string | undefined>,
+  log?: CoreLogger,
 ): Promise<string | undefined> {
   const slash = modelId.indexOf('/')
   const provider = slash === -1 ? 'meta' : modelId.slice(0, slash)
   return await (provider === '' || provider === 'meta'
     ? metaAccount()
-    : providerKeyDigest(secrets, provider))
+    : providerKeyDigest(secrets, provider, log))
 }
 
 /**

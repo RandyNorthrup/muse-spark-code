@@ -22,7 +22,6 @@ import type { TeamPanelSlice } from '../../src/shared/teamPanel'
 import type { PanelToHostMessage } from '../../src/shared/modelsPanel'
 import { teamPanelMessageSchema } from '../../src/shared/teamPanel'
 import { ModelsApp, ModelsPanel } from '../../src/webview/models/panel'
-import * as browserSchemas from '../../src/webview/models/teamPanelBrowser'
 import { INITIAL_PANEL_UI, panelUiReducer } from '../../src/webview/models/reducer'
 import { RolesSection } from '../../src/webview/models/sections/roles/RolesSection'
 import { AgentsSection } from '../../src/webview/models/sections/agents/AgentsSection'
@@ -183,26 +182,37 @@ describe('M96 U1 Roles UI', () => {
     expect(screen.getByRole('heading', { name: UI_TEXT.teamEditorRoles.research })).toBeDefined()
   })
   it('drops a pending deferred state when its document closes', async () => {
-    const reports: unknown[][] = []
-    const view = render(
-      <ModelsApp
-        host={{
-          post: () => undefined,
-          messages: window,
-          savedState: () => undefined,
-          saveState: () => undefined,
-        }}
-        report={(source, error) => {
-          reports.push([source, error])
-        }}
-      />,
+    // The document closes before the queued message is processed: closing
+    // reports nothing, while the same message on an open document loads
+    // through the real deferred schemas and renders. The pair proves the
+    // silence comes from the close, not from a broken path.
+    const reports: { readonly source: unknown; readonly error: unknown }[] = []
+    const bridge = {
+      post: () => undefined,
+      messages: window,
+      savedState: () => undefined,
+      saveState: () => undefined,
+    }
+    const report = (source: unknown, error: unknown) => {
+      reports.push({ source, error })
+    }
+    const { slice } = await pairSlice()
+    const state = makeState({ roles: slice, agents: {} })
+    const closed = render(<ModelsApp host={bridge} report={report} />)
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'modelsPanel/state', state } }),
     )
-    window.dispatchEvent(new MessageEvent('message', { data: { state: { roles: {} } } }))
-    // The deferred schema chunk cannot resolve before this synchronous
-    // unmount: the queued receive awaits at least one microtask first.
-    view.unmount()
-    await browserSchemas.loadTeamPanelSchemas({ state: { roles: {} } })
-    await Promise.resolve()
+    closed.unmount()
+    await waitFor(() => {
+      expect(reports).toEqual([])
+    })
+    render(<ModelsApp host={bridge} report={report} />)
+    window.dispatchEvent(
+      new MessageEvent('message', { data: { type: 'modelsPanel/state', state } }),
+    )
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: UI_TEXT.providersSectionTitle })).toBeDefined()
+    })
     expect(reports).toEqual([])
   })
   it('saves the first Pair in four clicks with found agents', async () => {

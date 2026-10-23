@@ -296,6 +296,11 @@ export const HOST_ACTIONS = [
   'manageModels',
   /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
   'showWhatsNew',
+  /**
+  A why-note's button (M116): what the conversation owes its playbook, asked
+  in VS Code's own pickers. The conversation controller answers it itself.
+  */
+  'openPlaybook',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -312,6 +317,7 @@ export const NOTICE_ACTIONS = [
   'installBundledSkills',
   'updateBundledSkills',
   'declineBundledSkills',
+  'openPlaybook',
 ] as const
 export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 
@@ -1026,6 +1032,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('reportWebviewError'),
     ...reportWebviewErrorSchema.shape,
   }),
+  // The playbook's own channel (M116): its lazy bundle parses what is inside.
+  z.object({ type: z.literal('playbook'), message: z.unknown() }),
 ])
 
 export type WebviewToHostMessage =
@@ -1566,6 +1574,8 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     accountId: z.optional(stringSchema),
     generation: z.optional(numberSchema),
   }),
+  // The playbook's own channel (M116): the Agent map's lazy chunk parses it.
+  z.object({ type: z.literal('playbook'), message: z.unknown() }),
 ])
 
 export type HostToWebviewMessage =

@@ -2,52 +2,33 @@
 // page. M104 binds these same schemas to its authenticated host API routes.
 import * as z from 'zod/mini'
 import { PLAYBOOK_BRIDGE_ID_BYTES, PLAYBOOK_ID_MAX_CHARS, UI_TEXT } from '../../shared/constants'
+import type { PlaybookChange, PlaybookSurfacePort } from '../../runtime/playbook/command'
 import {
-  playbookChangeSchema,
-  playbookSnapshotSchema,
-  type PlaybookChange,
-  type PlaybookSurfacePort,
-} from '../../runtime/playbook/command'
+  playbookRequestSchema,
+  playbookResponseSchema,
+  type PlaybookRequest,
+} from '../../runtime/playbook/panelWire'
 import type { MessageSource } from '../hostBridge'
 
-const requestId = z.int().check(z.gte(1))
-const scope = {
-  bridgeId: z.string().check(z.regex(/^[A-Za-z\d+/]{22}==$/u)),
-  workspaceId: z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS)),
-}
-export const playbookRequestSchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('playbookRead'), ...scope, requestId }),
-  z.strictObject({
-    type: z.literal('playbookChange'),
-    ...scope,
-    requestId,
-    change: playbookChangeSchema,
-  }),
-])
-export type PlaybookRequest = z.infer<typeof playbookRequestSchema>
-export const playbookResponseSchema = z.discriminatedUnion('type', [
-  z.strictObject({
-    type: z.literal('playbookState'),
-    ...scope,
-    requestId,
-    snapshot: playbookSnapshotSchema,
-  }),
-  z.strictObject({ type: z.literal('playbookUnavailable'), ...scope, requestId }),
-])
+export { playbookRequestSchema } from '../../runtime/playbook/panelWire'
+
+const workspace = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS))
 
 /** The caller owns the transport deadline (its normal host-request timeout).
-Dispose rejects in-flight reads/changes and removes its only listener. */
+Dispose rejects in-flight reads/changes and removes its only listener.
+`unwrap` takes a host's envelope off a message before it is parsed. */
 export function createPlaybookBridge(
   messages: MessageSource,
   postMessage: (message: PlaybookRequest) => void,
   timeoutMs: number,
   workspaceId: string,
+  unwrap: (data: unknown) => unknown = (data) => data,
 ): PlaybookSurfacePort & { dispose(): void } {
   z.int().check(z.gte(1)).parse(timeoutMs)
   const bridgeId = btoa(
     String.fromCodePoint(...crypto.getRandomValues(new Uint8Array(PLAYBOOK_BRIDGE_ID_BYTES))),
   )
-  const lifetime = { bridgeId, workspaceId: scope.workspaceId.parse(workspaceId) }
+  const lifetime = { bridgeId, workspaceId: workspace.parse(workspaceId) }
   let sequence = 0
   let isDisposed = false
   const pending = new Map<
@@ -60,7 +41,7 @@ export function createPlaybookBridge(
   >()
   const receive = (event: MessageEvent<unknown>) => {
     if (isDisposed) return
-    const parsed = playbookResponseSchema.safeParse(event.data)
+    const parsed = playbookResponseSchema.safeParse(unwrap(event.data))
     if (!parsed.success) return
     const response = parsed.data
     if (response.bridgeId !== lifetime.bridgeId || response.workspaceId !== lifetime.workspaceId)

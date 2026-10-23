@@ -40,7 +40,6 @@ export {
   redactModelApiError,
   rethrowStreamError,
   redactStreamDiagnostics,
-  retryAfterMs,
   providerWaitMs,
   ignoreClosingError,
   // Lane RETRYLIMITS: read by dist/configuredProviders.js
@@ -57,6 +56,7 @@ export {
   isStaleConfirmedError,
   noteConfirmedRequestStarted,
   canRetryWithinBudget,
+  retryAfterMs,
   whenAborted,
   // Lane RLACP: read by dist/runtimeEngine.js (the ACP agent's failure
   // log), same rule.

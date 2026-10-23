@@ -3,6 +3,7 @@ import type { MuseWorkerApprovalRequest, MuseWorkerApprovalAnswer } from './muse
 import type { AcpPermissionInput, AcpPermissionVerdict, AcpPreset, AcpPresetId } from './acpWorker'
 // One admission authority for every team worker (PLAN.md M96 W-F1-W-F3).
 // Names locate objects; only native identities establish containment.
+
 import type { RealPathIo } from '../../workspacePath'
 import { constants as fsFlags } from 'node:fs'
 import type { FileReservation } from '../../backends/modelapi/tools'
@@ -31,6 +32,11 @@ import { isGlobMatch } from '../../backends/modelapi/globLimits'
 import { commandShape, looseWords, type ShellDialect } from '../../backends/modelapi/shellSyntax'
 
 export interface WorkerFenceIo extends RealPathIo {
+  /**
+  Fixed-vocabulary cleanup notes (a raced check, a gone descriptor, a
+  retried record). Absent the cleanup stays silent, as before.
+  */
+  readonly debug?: (message: string) => void
   /** Windows volume serial + file index; POSIX device + inode. Never a path string. */
   readonly pathIdentity: (canonicalPath: string) => Promise<string>
   readonly openFile?: (absolute: string, isWrite: boolean) => Promise<WorkerFileHandle>

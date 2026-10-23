@@ -121,7 +121,14 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "playbookNotes.contributionBlocked",
+      "playbookNoChecks",
+      "playbookUnknownCheck",
+      "playbookSettingsInvalid",
+      "playbookChecksInvalid",
+      "playbookExits",
+      "agentResumePaused"
     ],
     "cs": [
       "groupModel",

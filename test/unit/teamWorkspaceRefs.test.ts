@@ -1,4 +1,3 @@
-import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -6,54 +5,16 @@ import { onTestFinished, describe, expect, it } from 'vitest'
 import { publishTaskRef, TeamWorkspaceError } from '../../src/core/team/teamWorkspaces'
 import { TeamGitError, type TeamGit } from '../../src/core/team/teamGit'
 import { teamAgentsRef } from '../../src/core/team/refFence'
+import { realTeamGit, scratchTeamRepo } from './helpers/teamGit'
 
 const BRANCH = 'agents/engineering/task-1'
 
-/** The real git binary behind the `TeamGit` contract. */
-const realGitImpl: TeamGit = (args, cwd) => {
-  try {
-    const out = execFileSync('git', [...args], { cwd, encoding: 'buffer' })
-    return Promise.resolve(new Uint8Array(out))
-  } catch (error) {
-    const status =
-      typeof error === 'object' &&
-      error !== null &&
-      'status' in error &&
-      typeof error.status === 'number'
-        ? error.status
-        : 128
-    const stderr =
-      typeof error === 'object' && error !== null && 'stderr' in error ? String(error.stderr) : ''
-    return Promise.reject(new TeamGitError(status, stderr, args.join(' ')))
-  }
-}
-
 function realGit(): TeamGit {
-  return realGitImpl
+  return realTeamGit
 }
 
 function scratchRepo(): string {
-  const root = mkdtempSync(path.join(tmpdir(), 'm116w-ref-'))
-  onTestFinished(() => {
-    rmSync(root, { recursive: true, force: true })
-  })
-  execFileSync('git', ['init', '-b', 'main'], { cwd: root })
-  execFileSync(
-    'git',
-    [
-      '-c',
-      'user.name=Test',
-      '-c',
-      'user.email=test@example.invalid',
-      'commit',
-      '--allow-empty',
-      '-m',
-      'base',
-    ],
-    {
-      cwd: root,
-    },
-  )
+  const root = scratchTeamRepo('m116w-ref-')
   mkdirSync(path.join(root, 'clone'), { recursive: true })
   return root
 }

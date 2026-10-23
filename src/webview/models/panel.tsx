@@ -69,32 +69,34 @@ export function ModelsApp({
     let isClosed = false
     const isDocumentOpen = () => !isClosed
     const receive = async (event: MessageEvent): Promise<void> => {
+      // Unknown payloads report synchronously: they never need the
+      // deferred schemas, which only valid states warm below.
+      const parsed = parseHostToPanelMessage(event.data)
+      if (!parsed.ok) {
+        const vault = vaultEnvelopeOf(event.data)
+        if (vault !== undefined) {
+          setVaultRaw(vault)
+          return
+        }
+        report('hostMessage', new Error(parsed.error))
+        return
+      }
       await loadTeamPanelSchemas(event.data)
       if (!isDocumentOpen()) return
-      const parsed = parseHostToPanelMessage(event.data)
-      if (parsed.ok) {
-        const message = parsed.message
-        if (message.type === 'modelsPanel/state') {
-          // Navigation reads the team labels too, before a deferred section
-          // opens. Install them only for a validated enabled-team state.
-          if (message.state.roles !== undefined) await loadTeamEnglish()
-          if (!isDocumentOpen()) return
-          setPanelState(message.state)
-          dispatch({ type: 'host-state', state: message.state })
-        } else {
-          setHostDestination(message.section)
-          startHostTransition(() => {
-            dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
-          })
-        }
-        return
+      const message = parsed.message
+      if (message.type === 'modelsPanel/state') {
+        // Navigation reads the team labels too, before a deferred section
+        // opens. Install them only for a validated enabled-team state.
+        if (message.state.roles !== undefined) await loadTeamEnglish()
+        if (!isDocumentOpen()) return
+        setPanelState(message.state)
+        dispatch({ type: 'host-state', state: message.state })
+      } else {
+        setHostDestination(message.section)
+        startHostTransition(() => {
+          dispatch({ type: 'host-navigate', section: message.section, itemId: message.itemId })
+        })
       }
-      const vault = vaultEnvelopeOf(event.data)
-      if (vault !== undefined) {
-        setVaultRaw(vault)
-        return
-      }
-      report('hostMessage', new Error(parsed.error))
     }
     let pending = Promise.resolve()
     const enqueue = async (previous: Promise<void>, event: MessageEvent): Promise<void> => {
@@ -108,6 +110,14 @@ export function ModelsApp({
       }
     }
     const onMessage = (event: MessageEvent): void => {
+      // Unknown payloads report without queueing: they never need the
+      // deferred schemas, and garbage cannot clog the queue behind a slow
+      // import. (receive repeats the check for the queued path.)
+      const parsed = parseHostToPanelMessage(event.data)
+      if (!parsed.ok && vaultEnvelopeOf(event.data) === undefined) {
+        report('hostMessage', new Error(parsed.error))
+        return
+      }
       pending = enqueue(pending, event)
     }
     host.messages.addEventListener('message', onMessage)

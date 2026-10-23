@@ -36,19 +36,23 @@ import { resolveTeamToolset } from '../../core/team/toolsets'
 import { applyTeamMerge } from '../../core/team/teamMerge'
 import {
   commitTaskBranch,
+  isTeamWorkspaceError,
   publishTaskRef,
+  readDispatchHead,
   removeTeamWorkspace,
   resolveBaseCommit,
   scratchBreach,
   startTeamWorkspace,
 } from '../../core/team/teamWorkspaces'
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
+import { redactSecrets } from '../../core/redact'
 import { runEngineWorker } from '../../core/team/workers/engineWorker'
 import { WORKER_NATIVE_IO } from '../../core/team/workers/workerFence'
 import type { WorkerReportOutcome } from '../../core/team/workers/report'
 import type {
   TeamHostServiceDeps,
   TeamMergePort,
+  TeamPlaybookPort,
   TeamTaskSpec,
   TeamWorkerOutcome,
   TeamWorkerPort,
@@ -104,8 +108,13 @@ export interface EngineTeamPortsDeps {
 }
 
 /** What dist/team.js takes from an editor: the service's ports and the engine's. */
-export interface TeamHostBundleDeps extends Omit<TeamHostServiceDeps, 'workers' | 'merges'> {
+export interface TeamHostBundleDeps extends Omit<
+  TeamHostServiceDeps,
+  'workers' | 'merges' | 'playbook'
+> {
   readonly engine: EngineTeamPortsDeps
+  /** The team runner's playbook factory (D212); the bundle adds the dispatch-base read. */
+  readonly playbook?: Pick<TeamPlaybookPort, 'create'> | undefined
 }
 
 /**
@@ -113,9 +122,9 @@ Binary-safe git with a credential-free environment unless the caller isolates fu
 The governed runner lives in the first-use worker-operations chunk beside the
 file adapter, so this entry keeps its budget; the inventory records that site.
 */
-async function defaultTeamGit(platform: NodeJS.Platform): Promise<TeamGit> {
+async function defaultTeamGit(platform: NodeJS.Platform, log?: CoreLogger): Promise<TeamGit> {
   const { processTeamGit } = await import('../../core/team/workers/workerOpsEntry')
-  return processTeamGit(platform)
+  return processTeamGit(platform, log)
 }
 
 function teamReport(outcome: WorkerReportOutcome, isCeilingReached: boolean): TeamReport {
@@ -201,13 +210,14 @@ const EMPTY_USAGE: TeamUsage = {
 export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   readonly workers: TeamWorkerPort
   readonly merges: TeamMergePort
+  readonly head: TeamPlaybookPort['head']
 } {
   let defaultGit: Promise<TeamGit> | undefined
   const runGit: TeamGit =
     deps.runGit ??
     (async (args, cwd, input, env) =>
       await (
-        await (defaultGit ??= defaultTeamGit(deps.platform))
+        await (defaultGit ??= defaultTeamGit(deps.platform, deps.log))
       )(args, cwd, input, env))
   /**
   The storage root as the file system resolves it: a linked profile or a
@@ -296,7 +306,8 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       // Completion and the next reservation await this write. The synchronous
       // usage observer cannot await it; the service already records a failure.
       void meterWrites.catch(() => {
-        /* Failure is surfaced by the next await. */
+        // Failure is surfaced by the next await.
+        deps.log.trace('Team meter write failed; the next await surfaces it.')
       })
     }
     try {
@@ -313,7 +324,12 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       const fenceInput = {
         folder: workspace.folder,
         platform: deps.platform,
-        io: WORKER_NATIVE_IO,
+        io: {
+          ...WORKER_NATIVE_IO,
+          debug: (message: string): void => {
+            deps.log.trace(message)
+          },
+        },
         workspaceRoot: repositoryRoot,
       }
       // The copy's identity is retained now: a replaced copy refuses every later call.
@@ -479,7 +495,12 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
           },
           prompt: { charter: charter.generated, body: charter.body, rulesAndSkills: '' },
           isTrusted: deps.isTrusted(),
-          io: WORKER_NATIVE_IO,
+          io: {
+            ...WORKER_NATIVE_IO,
+            debug: (message: string): void => {
+              deps.log.trace(message)
+            },
+          },
           platform: deps.platform,
           session: adapter,
           requestCeiling: (TEAM_TASK_MAX_REQUESTS_WRITER_ROLES as readonly string[]).includes(
@@ -565,6 +586,7 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
     } catch (error: unknown) {
       // A copy this task made and never handed back is removed; a reopened
       // task's copy stays with the finished task it came from.
+      deps.log.warn(`Team task ${spec.taskId} failed`)
       if (isNewCopy) {
         await removeUnreturnedCopy({
           runGit,
@@ -685,5 +707,21 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       )
     },
   }
-  return { workers, merges }
+  /**
+  The playbook's dispatch base (M116, PLAN.md D212), read over the engine's
+  own governed git: no repository, no base. A git or workspace failure
+  refuses with its words; anything else is the caller's to survive.
+  */
+  const head: TeamPlaybookPort['head'] = async (mode) => {
+    const root = deps.repositoryRoot()
+    if (root === undefined) return { refused: TEAM_MODEL_TEXT.hostNoRepository }
+    try {
+      return await readDispatchHead(runGit, root, mode)
+    } catch (error: unknown) {
+      if (isTeamGitError(error)) return { refused: redactSecrets(error.message) }
+      if (isTeamWorkspaceError(error)) return { refused: redactSecrets(error.message) }
+      throw error
+    }
+  }
+  return { workers, merges, head }
 }
