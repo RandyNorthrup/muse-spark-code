@@ -2,6 +2,7 @@
 // protocol's schema-validated decoder and encoder (docs/certification/m110-t.md).
 import { z } from 'zod'
 import { TUI_LIMITS } from '../../shared/constants'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 
 const id = z.string().min(1).max(TUI_LIMITS.inputChars)
 const text = z.string().max(TUI_LIMITS.transcriptChars)
@@ -14,7 +15,8 @@ const askSchema = z.discriminatedUnion('kind', [
     ...askIdentity,
     kind: z.literal('paid'),
     price: id,
-    dailyBudgetUsd: z.number().nonnegative(),
+    // Exact money (a number on the wire canonicalizes); never a float.
+    dailyBudgetUsd: legacyUsdSchema,
   }),
 ])
 

@@ -21,6 +21,7 @@ import { NODE_ZERO_DIGEST } from '../../src/shared/constants'
 import { nodeBearer, nodeSession, nodeState } from './helpers/node/records'
 import { listenerFixture } from './helpers/node/listener'
 import { FakeNodeClock } from './helpers/node/clock'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const directories: string[] = []
 async function directory() {
@@ -214,8 +215,9 @@ describe('M110-N attendance and headless floor', () => {
     { makerAction: 'program' },
     { makerAction: 'actuate' },
     { paid: true },
-    { paid: true, budgetUsd: 0 },
-    { paid: true, budgetUsd: NaN },
+    { paid: true, budgetUsd: canonicalUsd(0) },
+    // A budget below zero covers nothing either.
+    { paid: true, budgetUsd: canonicalUsd(-1) },
   ] satisfies Partial<NodeRunPolicy>[])('H12 refuses unattended unsafe policy %j', (change) => {
     const { people } = attendance()
     expect(() => {
@@ -225,7 +227,7 @@ describe('M110-N attendance and headless floor', () => {
       people.assertRunAllowed(policy)
     }).not.toThrow()
     expect(() => {
-      people.assertRunAllowed({ ...policy, paid: true, budgetUsd: 1 })
+      people.assertRunAllowed({ ...policy, paid: true, budgetUsd: canonicalUsd(1) })
     }).not.toThrow()
   })
   it('H12 an unanswered ask expires as refusal, never as approval', async () => {

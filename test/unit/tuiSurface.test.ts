@@ -11,6 +11,7 @@ import type { TuiAction, TuiConnect, TuiConnection, TuiEvent } from '../../src/r
 import { TUI_LIMITS, UI_TEXT } from '../../src/shared/constants'
 import { recordCalls } from './helpers/recordCalls'
 import { waitForTui } from './helpers/tuiWait'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const toolEvent: TuiEvent = {
   type: 'ask',
@@ -244,7 +245,7 @@ describe('M110 T surfaces', () => {
           title: 'Generate',
           detail: 'Draw',
           price: '$0.04 per image',
-          dailyBudgetUsd: 1,
+          dailyBudgetUsd: canonicalUsd(1),
         },
       })
       t.input('\n')
@@ -306,7 +307,7 @@ describe('M110 T surfaces', () => {
         title: 'Generate image',
         detail: 'Draw a tree',
         price: '$0.04 per image',
-        dailyBudgetUsd: 1,
+        dailyBudgetUsd: canonicalUsd(1),
       },
     })
     renderToStaticMarkup(tuiView(controller, f.ink, { columns: 80, rows: 24, noColor: true }))
@@ -326,7 +327,7 @@ describe('M110 T surfaces', () => {
       title: 'Generate image',
       detail: 'Draw a tree',
       price: '$0.04 '.repeat(1000),
-      dailyBudgetUsd: 1,
+      dailyBudgetUsd: canonicalUsd(1),
     }
     controller.receive({ type: 'ask', ask })
     controller.presentAsk(controller.state.asks[0])
@@ -494,7 +495,7 @@ describe('M110 T surfaces', () => {
         title: 'Generate',
         detail: 'long detail '.repeat(1000),
         price: '$0.04 per image',
-        dailyBudgetUsd: 1,
+        dailyBudgetUsd: canonicalUsd(1),
       },
     })
     renderToStaticMarkup(tuiView(controller, f.ink, { columns: 80, rows: 24, noColor: false }))

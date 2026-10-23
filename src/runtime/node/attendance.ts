@@ -7,12 +7,14 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import type { NodeClock } from '../../shared/node'
+import { canonicalUsd, compareUsdAmounts, type UsdAmount } from '../../shared/usdSchema'
 import { nodeSessionSchema, type NodeSession } from '../../shared/nodeAuth'
 
 export interface NodeRunPolicy {
   readonly mode: 'plan' | 'acceptEdits' | 'bypass'
   readonly paid: boolean
-  readonly budgetUsd: number | undefined
+  /** The run's exact spending budget (D121: none unless the person sets one). */
+  readonly budgetUsd: UsdAmount | undefined
   readonly protectedPath: boolean
   readonly requiresAsking: boolean
   readonly makerAction: 'offline' | 'observe' | 'connect' | 'program' | 'actuate'
@@ -116,8 +118,7 @@ export class NodeAttendance {
       !['offline', 'observe'].includes(policy.makerAction) ||
       (policy.paid &&
         (policy.budgetUsd === undefined ||
-          !Number.isFinite(policy.budgetUsd) ||
-          policy.budgetUsd <= 0))
+          compareUsdAmounts(policy.budgetUsd, canonicalUsd(0)) <= 0))
     )
       throw new Error(UI_TEXT.nodeErrors.forbidden)
   }
