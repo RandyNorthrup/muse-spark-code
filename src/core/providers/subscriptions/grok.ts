@@ -43,6 +43,8 @@ const {
 
 const ISSUER = 'https://auth.x.ai'
 const ORIGIN = 'https://api.x.ai'
+/** The registrable domain's label count (`x.ai` in `auth.x.ai`). */
+const DOMAIN_LABEL_COUNT = 2
 const CALLBACK_PATH = '/auth/callback'
 const DEVICE_CODE_GRANT = GROK_DEVICE_GRANT_TYPE
 
@@ -358,11 +360,15 @@ function verificationAddress(candidate: string): URL {
   const parsed = z.url().safeParse(candidate)
   if (!parsed.success) throw new GrokSignInError('verification-refused')
   const url = new URL(parsed.data)
-  // The exact verification host is pinned from the first live sign-in
-  // (owner present); until then only a secure, openable address is shown.
+  // The person types the user code at this address, so only xAI's own
+  // domain may receive it: the issuer's host or one of its subdomains.
+  // The exact host is pinned from the first live sign-in (owner present);
+  // a foreign or lookalike host refuses rather than being shown.
+  const issuerHost = new URL(ISSUER).hostname
+  const domain = issuerHost.split('.').slice(-DOMAIN_LABEL_COUNT).join('.')
   if (
     url.protocol !== 'https:' ||
-    url.hostname === '' ||
+    (url.hostname !== domain && !url.hostname.endsWith(`.${domain}`)) ||
     url.username !== '' ||
     url.password !== ''
   )
@@ -418,15 +424,18 @@ export function grokAccountIdHash(issuer: string, subject: string): string {
 
 /**
 Verify one ES256 identity token against the discovery JWKS. A browser
-grant binds its nonce; a device grant and every refresh carry none to
-check. Returns only a hash after verification; raw identity claims stay
-in this function.
+grant binds its nonce, on the first answer and on every refresh (which
+may omit it but never change it); a device grant carries none to check.
+Returns only a hash after verification; raw identity claims stay in
+this function.
 */
 export function verifyGrokIdToken(options: {
   readonly token: string
   readonly jwks: unknown
   readonly clientId: string
   readonly expectedNonce: string | undefined
+  /** OIDC permits a refresh ID token to omit the original nonce, never to change it. */
+  readonly isRefresh?: boolean
   readonly now: number
 }): string | undefined {
   const parts = splitJwt(options.token)
@@ -447,7 +456,12 @@ export function verifyGrokIdToken(options: {
   if (!isOidcAudience(claims, options.clientId, options.now)) {
     throw new GrokSignInError('invalid-id-token')
   }
-  if (options.expectedNonce !== undefined && claims.nonce !== options.expectedNonce) {
+  if (
+    options.expectedNonce !== undefined &&
+    (claims.nonce === undefined
+      ? options.isRefresh !== true
+      : claims.nonce !== options.expectedNonce)
+  ) {
     throw new GrokSignInError('invalid-id-token')
   }
   const keys = jwks.keys.filter((key) => key.kid === header.kid)
@@ -851,7 +865,8 @@ export class GrokSignIn {
             token: idToken,
             jwks,
             clientId: record.clientId,
-            expectedNonce: undefined,
+            expectedNonce: record.nonce,
+            isRefresh: true,
             now: this.host.now(),
           })
           if (accountIdHash !== undefined) {

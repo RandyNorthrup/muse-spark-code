@@ -26,8 +26,13 @@ export interface VaultMigrationFactoryDeps {
   /** The raw SecretStorage; the shell mirrors through the migration, never the reverse. */
   readonly secrets: SecretStore
   readonly shell: MigrationShell
-  /** Configured provider ids; chatgpt and grok stay with their lanes. */
+  /** Configured provider ids; the controller adds the stored ChatGPT slot itself, and grok stays with its lane. */
   readonly listProviderIds: () => Promise<readonly string[]>
+  /**
+  Pooled account ids per provider, from the host's account metadata.
+  Absent where the host binds no account pool yet.
+  */
+  readonly listAccounts?: (provider: string) => Promise<readonly string[]>
   /** The installed release's minor ordinal; patches do not advance it. */
   readonly minorRelease: () => number
   readonly now: () => number
