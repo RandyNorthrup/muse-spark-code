@@ -206,7 +206,11 @@ happened, not what was planned; superseded entries are kept.
   (44.5 KiB under 52) on first use (`dist/estimator.js` 72.8 KiB under 75).
   The POSIX tree supervisor script lives in the function that runs it, so
   bundles that never call it stop carrying it (`dist/judgeServe.js`
-  21.1 KiB under 25).
+  21.1 KiB under 25). The resource governor, the reporting panel, the
+  shared wire schemas and the estimate contracts fit their caps the same
+  way with no behavior change: the Windows tree reader loads lazily from
+  `dist/resourceGovernorWindows.js` on the first Windows job bind
+  (`dist/resourceGovernor.js` 123.5 KiB under 125).
 - Runner-route resource relocation joins the lazy check router to the
   existing governor, SSH admission and resource journal. Complete
   scheduler bindings supply approved routes, exclusive attempt ownership,

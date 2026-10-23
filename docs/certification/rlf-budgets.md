@@ -113,3 +113,140 @@ Restore and green: 2 passed.
   both base and lane, and pass in isolation on the lane.
 - `test/unit/pathGuardSpawns.test.ts`: 1 failure, pre-existing (identical
   six files on pristine base; RLM98P2's judge peers lack guard records).
+
+## Phase 2 — fit the remaining reachable blockers (2026-10-22)
+
+The first phase left seven pre-existing OVERs. Three belong to RLINTFIX
+(`modelApi.js`, `resourceAdmission.js`, `vaultActions.js`), which this
+lane must not touch. The other four are fitted here, with no budget
+raised and no behavior change.
+
+### What moved
+
+- Constants satellites converge: `shared/constants.ts` no longer
+  re-exports `browserCheckConstants` or `linuxDictationConstants`, so
+  bundles importing the barrel stop carrying both satellites'
+  initialization; every consumer imports the satellite directly. The
+  four dictation helper-process tunables move to a new import-free
+  `shared/dictationConstants.ts`, read the same way.
+- `dist/reportingPanel.js` (+39 B): the entry reads the settings
+  section through `SETTINGS_SECTION` instead of five `'museSpark'`
+  literals (constants, not literals).
+- `dist/wire.js` (+717 B): sixteen values no dist bundle reads and no
+  source outside their defining module references are unexported from
+  the wire modules (their code stays for internal users; only the
+  export entries leave). The `elicitationReplySchema` value is dead —
+  only its type is used — so it is replaced by its proven-identical
+  explicit type (exact-equality proof compiled under the repo config,
+  then removed).
+- `dist/resourceGovernor.js` (+1691 B): the Windows job-object tree
+  reader (3317 B in-output) rides new `dist/resourceGovernorWindows.js`
+  (13 KiB), required the first time a Windows job launch binds its
+  tree. The entry imports `trees/windowsEntry` dynamically and the
+  deferred cohort externalises it, the way admission's import reaches
+  the governor; the factory constructs the same reader class with the
+  same arguments. The split gate allows the chunk exactly the reader's
+  resource files (`RESOURCE_WINDOWS_FILES`).
+
+### Sizes before and after (`npm run -s build`)
+
+Before (phase-1 tree):
+
+- `OVER dist/reportingPanel.js`: 51,239 bytes (budget 51,200)
+- `OVER dist/resourceGovernor.js`: 129,691 bytes (budget 128,000)
+- `OVER dist/wire.js`: 77,517 bytes (budget 76,800)
+- `OVER dist/estimateContracts.js`: +30 B (budget 25 KiB)
+- `OVER dist/resourceAdmission.js`: +70 B (budget 25 KiB)
+- `OVER dist/vaultActions.js`: +37 B (budget 25 KiB)
+- `OVER dist/modelApi.js`: 545,025 bytes (budget 537,600)
+
+After:
+
+- `ok dist/reportingPanel.js`: 50.0 KiB (budget 50 KiB)
+- `ok dist/resourceGovernor.js`: 123.5 KiB (budget 125 KiB)
+- `ok dist/resourceGovernorWindows.js`: 10.7 KiB (budget 13 KiB)
+- `ok dist/wire.js`: 74.6 KiB (budget 75 KiB)
+- `ok dist/estimateContracts.js`: 24.9 KiB (budget 25 KiB)
+- `ok dist/resourceAdmission.js`: 25.0 KiB (budget 25 KiB)
+- `ok dist/vaultActions.js`: 24.9 KiB (budget 25 KiB)
+- `OVER dist/modelApi.js`: 532.3 KiB (budget 525 KiB, +7425 B) —
+  RLINTFIX's scope; this lane must not touch it.
+
+The convergence alone returned estimateContracts, resourceAdmission and
+vaultActions under budget; their modules are untouched. The build still
+exits 1 on modelApi only.
+
+### Drill 4 — wire export trim (red/green)
+
+Break: the five `agentEvents.ts` values re-exported
+(`approvalStageSchema`, `checkSummarySchema`, `questionOptionSchema`,
+`tokenUsageCompletionSchema`, and the dead `elicitationReplySchema`
+value back in the bundle).
+Red: `OVER dist/wire.js: 75.0 KiB (budget 75 KiB)` (76,851 bytes),
+`BUILD EXIT: 1`.
+Restore: byte-exact (`git status` clean apart from this record).
+Green: 74.6 KiB, ok.
+
+### Drill 5 — governor chunk (red/green)
+
+Break: `resourceGovernorEntry.ts` with the static
+`WindowsResourceTreeReader` import and inline construction back.
+Red: `OVER dist/resourceGovernor.js: 126.7 KiB (budget 125 KiB)`,
+`BUILD EXIT: 1`.
+Restore: byte-exact (`git status` clean). Green: 123.5 KiB, ok.
+
+### Drill 6 — new-test fire drill (red/green)
+
+`test/unit/governorWindowsBundle.test.ts` covers the chunk entry: the
+factory builds a `WindowsResourceTreeReader` instance, and relative
+helper paths throw the reader's sentence.
+Break: the factory returns `{}`.
+Red: 2 failed.
+Restore and green: 2 passed.
+
+### Drill 7 — gate-clause fire drills (red/green)
+
+- Break: the new `RESOURCE_WINDOWS_FILES` clause removed from
+  `checkResourceBundles`. Red: 4 × `carries resource policy …
+outside the lazy governor`, split-gate exit 1. Restore: exit 0.
+- Break: a bogus file added to the chunk's `ON_FIRST_USE` record.
+  Red: `dist/resourceGovernorWindows.js no longer carries
+src/core/resources/trees/nope.ts`, split-gate exit 1. Restore:
+  exit 0.
+
+### Phase-2 gates (final tree)
+
+- prettier --check on touched files: exit 0.
+- eslint --max-warnings 0 on touched files: exit 0 (after fixing 3
+  `unicorn/prefer-string-raw` errors in the new test).
+- `npm run typecheck`: exit 0.
+- `node scripts/check-l10n.mjs`: exit 0.
+- `npm run check:reference`: exit 0.
+- `npm run check:host-api`: exit 0.
+- `npm run check:plan`: exit 1, pre-existing (PLAN.md still over 85%;
+  this phase does not touch PLAN.md).
+- `npm run check:roadmap`: exit 0.
+- `npm run check:catches`: exit 1, pre-existing (counts identical to
+  base; this phase adds no try/catch).
+- `npm run duplication`: exit 1, pre-existing (the one clone is two
+  untouched judge test files).
+- `npm run cycles`: exit 0.
+- `npm run deadcode` (knip): exit 1, pre-existing (log byte-identical
+  to base; none of this phase's files flagged).
+- `npm run build`: exit 1 on `dist/modelApi.js` (+7425 B) only;
+  every budget this lane owns holds.
+- `node scripts/check-bundle-split.mjs`: exit 0.
+- `node scripts/gen-lazy-registry.mjs --check`: exit 0 (159 bundles).
+- Suites: questionContracts, mediaContracts, reportProblem,
+  scheduleTime, schedulesReportSource, teamProtocolLoading,
+  browserLaunch, helperLocation, dictationRefusedKill,
+  governorWindowsBundle (new), windowsTreeReader (win32-gated, skips
+  on Linux), resourceTreeFailures, evalFreezeLayout — all green with
+  the repository's own timeouts.
+- `npx vitest related` over the three governor sources (261 files):
+  232 passed, 18 skipped; the 11 failing files are the base set less
+  the playbookSchedulesInputs flake (passing now) — all environmental
+  (POSIX modes, browser, CPU sampler, shared-build setup), identical
+  to base. `evalFreezeLayout` failed mid-phase only because the new
+  entry file was still untracked (the freeze copies `git ls-files`);
+  it passes 4/4 on the committed tree.
