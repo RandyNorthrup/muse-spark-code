@@ -15974,6 +15974,11 @@ export class ModelApiSession implements ScheduledAgentSession {
           // Fixed words only: the reason carries the hook's stderr, which the
           // redactor would not catch (AGENTS.md rule 8).
           this.deps.log.warn(`Model API turn ${turn.turnId} cancelled by a hook`)
+        } else {
+          // A stop the person asked for is routine, but the turn's end is
+          // still recorded: without it this handler cannot say every path
+          // reports (catch REPORTED).
+          this.deps.log.info(`Model API turn ${turn.turnId} cancelled`)
         }
       } else {
         terminal = FAILED
@@ -16042,8 +16047,11 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (error instanceof ModelCallLimitError) {
           this.deps.log.warn(`Model API turn ${turn.turnId} reached its model-call limit`)
         } else {
+          // Hoisted out of the log call: the judgment reads the error, the
+          // record keeps only fixed words and the kind.
+          const wasStoppedByHook = error instanceof HookStoppedError
           this.deps.log.warn(
-            error instanceof HookStoppedError
+            wasStoppedByHook
               ? `Model API turn ${turn.turnId} stopped by a hook`
               : `Model API turn ${turn.turnId} failed: ${errorKind}`,
           )
