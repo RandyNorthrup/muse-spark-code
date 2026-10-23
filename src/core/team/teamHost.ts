@@ -2454,7 +2454,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     now: deps.now,
     limits: () => ({
       workers: deps.settings.maxWorkers(),
-      processWorkers: 0,
+      // Process-backed workers share the person's worker ceiling; a separate
+      // zero here would hard-code a limit no provider or setting chose.
+      processWorkers: deps.settings.maxWorkers(),
       role: () => deps.settings.maxWorkers(),
       entry: (id) =>
         roles()
