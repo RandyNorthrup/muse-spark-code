@@ -11,7 +11,6 @@ import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../../shared/
 import { nonnegativeUsdSchema, sumUsd, Usd, type UsdAmount } from '../../../shared/usd'
 import { isSecretFieldName, redactSecrets } from '../../redact'
 import { isPaidStop } from '../../refusal'
-import { JudgeLedgerError } from '../admission'
 import { entropyConfidence } from '../math'
 import {
   judgeOutcomeSchema,
@@ -114,12 +113,13 @@ input (cyclic data overflows the schema walk), a refused shape, a stale
 binding or refused admission, and the refused-inputs control throw.
 */
 function isEmbeddingStepError(error: unknown): boolean {
+  // Brand checks, never constructors: leg failures cross lazy bundles.
   return (
     isPaidStop(error) ||
-    error instanceof JudgeLedgerError ||
     error instanceof RangeError ||
     (error instanceof Error &&
       (error.name === '$ZodError' ||
+        error.name === 'JudgeLedgerError' ||
         error.message === 'judge-binding-changed' ||
         error.message === 'judge-admission-refused' ||
         (error instanceof TypeError &&
