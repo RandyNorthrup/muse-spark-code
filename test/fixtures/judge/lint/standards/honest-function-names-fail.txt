@@ -1,0 +1,3 @@
+function deleteReport(store, id) {
+  return store.has(id)
+}

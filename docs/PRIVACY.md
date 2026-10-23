@@ -215,6 +215,29 @@ so it does not claim deletion or forget ownership without its resource owner.
   the panel announces this, and local history still keeps the original bytes.
   Media read by a tool in a stopped or failed turn is removed from later
   replay; the next request gets a path-only explanation instead of its bytes.
+- **Muse Judge phase-2 library.** Offline calibration processes the labelled
+  predictions supplied by its caller without network access or a new store.
+  The separately packaged sampling/contrastive and loopback boundary functions
+  select no recipient. Explicit judge CLI/MCP dispatch loads the library;
+  missing source and offline/surface adapters refuse, and MCP initialization
+  and tool listing require no inference. A later admitted source must redact content before remote
+  sends and disclose its recipient.
+- **Experimental SystemOne judge (M98 phase 2, opt-in, untested).** Only when
+  you set `museSpark.judge.separate` (or `--separate`) to
+  `openrouter-jev:typesafe/jev-1.13` (or another captured route) and choose
+  the explicit `separate` or `both` engine in your user settings (a
+  repository's workspace settings cannot turn it on), the judged action's
+  state and the judge's question, with secrets redacted first, go to **OpenRouter**
+  (`https://openrouter.ai/api/v1/systemone`), billed to your own OpenRouter
+  key from Models & Providers. The window asks first, in the route's own
+  popup, with the price and the shared daily budget; the CLI sends only under
+  `--budget-usd` and the shared daily budget. The request travels over the
+  Models & Providers transport (in VS Code, through your proxy settings), and
+  any echo of your key in the reply is removed before it is shown, printed
+  or returned over MCP. It is never
+  sent in a confidential workspace, never chosen by `auto`, and its answer
+  only adds caution to your own model's judgment: it never answers you,
+  writes code or decides alone. Nothing is sent without that setting.
 - **Auto reviewer (Model API, available by default).** With
   `museSpark.modelApiAutoReviewer` enabled and its paid-use popup accepted,
   a separate request to Meta judges an eligible tool call. It includes your

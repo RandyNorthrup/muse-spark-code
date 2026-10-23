@@ -425,7 +425,6 @@ happened, not what was planned; superseded entries are kept.
   overrides. Session saves coalesce into one in-flight write plus the latest;
   parallel save failures are observed immediately while other sessions drain.
   History listing validates headers without replay/transcript validation.
-
 - The ACP agent reports product-defined refusals with their own message as
   invalid request (-32600) instead of internal error (-32603): unavailable
   accounts, a broker that cannot start, a backend that cannot run, no usable
@@ -486,6 +485,104 @@ happened, not what was planned; superseded entries are kept.
   lists. Nothing turns on yet: teams stay hidden until an enabled team
   really runs, and the README still says the feature remains unavailable
   until its integration is complete.
+
+### Muse Judge phase 2 (M98)
+
+- **M98 phase 2 judge redesign.** Each judge run is planned once: one
+  immutable plan holds the resolved mode, the dispatched sides with their
+  techniques, profiles and tariffs, the embedding route and its tariff, the
+  receipt that decided `auto`, and the whole run's worst-case cost. The CLI
+  and MCP run cap, paid admission and dispatch all read that plan, so a
+  receipt or tariff that changes mid-run can no longer widen what was
+  admitted. A configured separate id that cannot be built keeps the window's
+  own same-model judge (with its caution) and names the exact gap in the
+  status line in every UI language. The experimental, untested SystemOne
+  route `openrouter-jev:typesafe/jev-1.13` is the first buildable separate
+  source, on your own OpenRouter key, asked about first with its price; it
+  only adds caution. Explicit `separate` needs a verified, permitted source,
+  not fitted profiles; `both` and automatic `both` still need them. Profiles
+  are looked up under the technique the side's own selector chose, recorded
+  evidence lives directly under the evidence root (no doubled `judge`
+  folder), and every evidence file name is bounded with a hash of its full
+  identity.
+
+- **M98 phase 2 SystemOne route fixes.** The experimental SystemOne route
+  asks in its own popup (Allow once or Deny), bound to its recipient, model
+  and price: an "always" Judge grant never covers it, and Account & usage's
+  "Ask again" asks again. It is priced by its own captured ceiling, so it
+  needs no Meta Model API key. A change of owner, chat model or
+  `museSpark.judge.separate` while a request waits cancels it and refunds
+  the claim before anything is sent. Model API "Allow once" keeps the
+  same-model judge working when the configured separate id cannot be built,
+  and a key stored before the window opened serves the first action. Each
+  sent request is a paid Judge row at the route's own rates, travels over
+  the Models & Providers transport (pinned to a checked public address,
+  through VS Code's proxy settings in the window), and any echo of the key
+  in the reply is removed before results, CLI output or MCP replies. The CLI
+  refuses a missing key before any charge with `"gap":"key"` and settles the
+  charge into the shared daily budget on top of `--budget-usd`. Served dated
+  model names (`typesafe/jev-1.13-20260917`) are accepted by one rule in
+  `both` runs too. The route is gated by its own engine setting and key
+  alone, on the Muse Code backend as on the Model API: it never needs the
+  Meta judge's price acceptance, and an explicit `separate` run never shows
+  the Meta judge's popup. Set only in workspace settings, it is not used
+  (paid settings are read from user settings), and the status line and the
+  log say so in place of staying silent. Its popup says what its grant does:
+  "Allow in this window" covers the route until the window closes, and the
+  route has its own "Ask again every time" in Account & usage, where it is
+  shown with its own model, price and grant. A request waiting on the popup,
+  the key, name resolution or the connection is withdrawn unsent and
+  refunded when the owner, chat model, source or grant changes or the daily
+  budget stops; a revoked call's answer adds no caution. A sent call is a
+  paid row from the moment it is sent, failed or not. Credential-bearing
+  property names in a provider reply are dropped. Workspace settings files
+  are read within fixed bounds. The CLI's `--budget-usd` takes up to nine
+  decimals, and the shared daily budget's totals are exact to the
+  nano-dollar.
+
+- Judge phase-2 status now reports separate and cascade modes, explains automatic same-model fallback in every UI language, and refuses verdicts after endpoint, profile, owner or turn changes. Automatic cascade selection validates recorded independent profiles and held-out paired M75 evidence. One request-only judge runtime reaches the cascade from the window, CLI and MCP surfaces given a real binding; the experimental embedding fast path stays capability-gated with its attempt ceiling published before dispatch, paid consent asked once, and verified-local models behind explicit opt-in. The production phase-2 binding builds every surface's runtime from real C/E/J sides and recorded evidence; each missing input (unverified source, fitted profiles, adoption receipt, embedding labels) is named in the status line in all 14 languages instead of a silent phase-1 fallback. No live separate source or recorded evidence ships yet, so the production window (`src/extension.ts`), CLI and MCP (`src/runtime/main.ts`) report those gaps rather than dispatching separate, cascade or embedding runs.
+
+- **M98 phase 2 cascade settlement.** Every cascade outcome uses one
+  settlement path. Refuse foreign or unnamed per-question muses, keep honest
+  sibling verdicts, record skipped or failed follow-ups, and name the serving
+  model consistently. Preserve high-stakes dispatch and calibrated blending.
+  The published envelope carries only settled fields (serving model, answers,
+  muse, summed token counts, cascade facts); a side's other top-level or
+  usage keys are never copied onto it.
+
+- Use the shared redactor's field-name rules in the experimental embedding
+  judge, preserving ordinary token counts, limits and non-secret `auth`
+  objects while still replacing values under real secret names.
+
+- Replace the experimental embedding judge's per-shape secret checks with one
+  path-taint walk: any recognized secret key redacts its entire value,
+  including nested objects, arrays, numbers and booleans. Retain inline
+  redaction and refusal of a recognizable final serialized payload.
+
+- Close the experimental embedding judge's input boundary: refuse executable
+  or non-JSON data before serialization, redact actual named string values,
+  and retain the final payload refusal before embedding dispatch. Refuse
+  inherited getters before parsing fallback fields.
+
+- Redesign the experimental embedding judge's asynchronous pipeline so Stop
+  also settles rejected full-judge calls. Scrub structured inputs before JSON
+  escaping, refuse malformed embedding batches and missing numeric components,
+  and retain the separately admitted embedding and fallback legs.
+
+- Integrate the repaired SystemOne and BYO judge libraries and the Judge panel
+  on the 0.15.0 head. Share token protection, server startup and fixtures;
+  expose explicit source assembly with generation fences and bounded wording;
+  send real judge status to Account & usage. Native provider wrappers and
+  Models-panel source injection remain unavailable without their captures.
+  Refresh private package fixtures and share identical real VSIX inventories
+  while retaining the delivery checks' existing deadlines.
+  Include the source child in the support report's shipped-frame inventory.
+  Keep Judge projection and presentation outside chat's initial wire graph
+  to preserve the existing startup review baseline.
+  Build the parser/factory test's real entries in a private fixture so its
+  setup keeps the existing deadline without rebuilding unrelated surfaces.
+  Synchronize the Git cancellation fixture with child readiness instead of
+  copying Node and waiting for a timer.
 
 ## [0.19.0] - 2026-10-21
 
@@ -3428,6 +3525,39 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
   for their escaped workspace, home and username fragments.
 - Keep every long-reply accessibility delta while yielding through a task port,
   avoiding nested timer throttling within the existing readiness deadline.
+
+- **M98 phase 2 Judge panel review fixes.** Judge prices and liabilities
+  print exact ($0.042 shows as $0.042, tiny amounts never round to zero);
+  a verified local System One source is kept in a confidential workspace;
+  a paid source on Muse Code reads Paid with its price after consent;
+  Account & usage keeps the experimental warning beside any other status
+  and renders the facts list the narrow grid expects.
+
+- **M98 phase 2 on the 0.15.0 train.** The phase-2 judge libraries merged
+  so far (contract, calibration, loopback serve boundary, sampling and
+  contrastive framing, CLI/MCP, lint, local proofs, advisory uses and the
+  hook adapter) sit on the train that already has bring-your-own models.
+  They load on an explicit judge action. `auto` still uses the chat model
+  until a separate source is verified, calibrated and measured. Settings may
+  name `separate` and `both`; naming one does not enable a source or run
+  anything at startup. Service adapters, bring-your-own judge routing, the
+  models-panel section, the cascade, embeddings and final delivery remain
+  open.
+
+- Restore the inherited startup size ratchet by loading the legal report,
+  review comment form, optional English text and optional keyboard contexts
+  on demand. Keep complete translation validation, first-paint controls,
+  accessible loading and retry, and existing bundle caps.
+  Wait for workflow-map controls and its loaded tree in the accessibility
+  harness instead of timing the clicks.
+
+- Share chat, Models and Usage browser dependencies in one emitted graph;
+  load the optional panel bodies on demand with separate measured budgets.
+  Preserve the pages' specific failures and Models' host error reports.
+  The authenticated ACP companion resolves their dynamic shared chunks under
+  its existing nonce policy.
+  Set this train's universal VSIX cap to 2775 KiB from the measured package
+  plus 5%, rounded up to 25 KiB; existing individual bundle caps stay fixed.
 
 - Check every staged ACP help language in bounded parallel batches, keeping
   cold package certification within its existing deadline.

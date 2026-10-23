@@ -1,0 +1,1235 @@
+[
+  {
+    "drill": 1,
+    "guard": "reserve judge before ACP parsing",
+    "file": "src/runtime/cliArgs.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "if (argv[0] === 'judge') return parseJudgeArgs(argv)",
+      "after": "if (argv[0] === 'never-judge') return parseJudgeArgs(argv)",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > reserves all supported commands before ACP parsing",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > validates all declared options without accepting extension off",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses negative, nonfinite, imprecise and oversized budgets",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses zero, fractional and oversized deadlines",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > keeps decimal caps as exact integer microUSD",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > leaves CS and H flags to their injected parsers",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > does not echo arbitrary raw options or positional text"
+    ],
+    "restoreSha256": "bf0dc7ac2712c41f0b74e03859412daf23128a53507f9aca13391f5887aebd1a",
+    "greenExit": 0
+  },
+  {
+    "drill": 2,
+    "guard": "supported command dispatch",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "action !== 'ask' && action !== 'calibrate' && action !== 'report' && action !== 'mcp'",
+      "after": "action !== 'ask' && action !== 'calibrate' && action !== 'report'",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > reserves all supported commands before ACP parsing"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 3,
+    "guard": "strict flags",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "strict: true,",
+      "after": "strict: false,",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2",
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > does not echo arbitrary raw options or positional text"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 4,
+    "guard": "reject positional prompts",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "positionals.length > 0 ||",
+      "after": "false ||",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 5,
+    "guard": "reject duplicate options",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "new Set(names).size !== names.length",
+      "after": "false",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 6,
+    "guard": "reject extension off flag",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "engine === 'off' ||",
+      "after": "false ||",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > validates all declared options without accepting extension off"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 7,
+    "guard": "budget decimal grammar",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "!/^[0-9]+(?:\\.[0-9]+)?$/.test(value)",
+      "after": "false",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses negative, nonfinite, imprecise and oversized budgets"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 8,
+    "guard": "budget precision",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "fraction.length > EXEC_USD_DECIMALS",
+      "after": "false",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses negative, nonfinite, imprecise and oversized budgets"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 9,
+    "guard": "budget maximum",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "return units <= BigInt(EXEC_MAX_BUDGET_USD * EXEC_USD_UNITS) ? Number(units) : undefined",
+      "after": "return Number(units)",
+      "also": []
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses negative, nonfinite, imprecise and oversized budgets"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 10,
+    "guard": "exact microUSD cap",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "BigInt(fraction.padEnd(EXEC_USD_DECIMALS, '0'))",
+      "after": "BigInt(fraction)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > keeps decimal caps as exact integer microUSD"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 11,
+    "guard": "positive deadline",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "timeoutMs <= 0 ||",
+      "after": "false ||",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses zero, fractional and oversized deadlines"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 12,
+    "guard": "maximum deadline",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "timeoutMs > EXEC_MAX_TIMEOUT_SECONDS * MILLISECONDS_PER_SECOND ||",
+      "after": "false ||",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses zero, fractional and oversized deadlines"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 13,
+    "guard": "nonempty model selector",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "values.model?.trim() === '' ||",
+      "after": "false ||",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 14,
+    "guard": "nonempty separate selector",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "values.separate?.trim() === ''",
+      "after": "false",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 15,
+    "guard": "CS/H argument reservation",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "surfaceArgs: argv.slice(2)",
+      "after": "surfaceArgs: []",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > leaves CS and H flags to their injected parsers"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 16,
+    "guard": "keep parser errors private",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "return invalid('judge')\n  }\n}",
+      "after": "return invalid(argv.join(' '))\n  }\n}",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > does not echo arbitrary raw options or positional text"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 17,
+    "guard": "require explicit same model context",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (model === undefined && options.engine !== 'separate') return noAnswer('source-unavailable')",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses absent same context without resolving or switching models"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 18,
+    "guard": "honour explicit engine source",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "(source.source !== options.engine && options.engine !== 'auto') ||",
+      "after": "false ||",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unavailable and wrong-source or wrong-model contexts"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 19,
+    "guard": "refuse guessed context model",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "(source.model !== model && source.source !== 'separate')",
+      "after": "false",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unavailable and wrong-source or wrong-model contexts"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 20,
+    "guard": "zero and tiny cap forbid paid dispatch",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (remainingUnits <= 0) return noAnswer('over-budget')",
+      "after": "",
+      "also": ["if (reservedUnits > remainingUnits) return noAnswer('over-budget')", ""]
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses a paid source at budget zero and a batch above a tiny positive cap"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 21,
+    "guard": "paid route requires daily admission",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (source.billing === 'paid')",
+      "after": "if (source.billing === 'never-paid')",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses a paid source at budget zero and a batch above a tiny positive cap",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unpriced calls and calls without the daily ledger/consent adapter",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > routes paid dispatch exclusively through the durable admission adapter",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > preserves daily ledger and consent refusals without paid dispatch"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 22,
+    "guard": "known finite positive quote",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (cost === undefined || !Number.isFinite(cost) || cost <= 0) return noAnswer('unpriced')",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unpriced calls and calls without the daily ledger/consent adapter"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 23,
+    "guard": "missing daily adapter gives consent refusal",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (deps.admitPaid === undefined) return noAnswer('consent-needed')",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unpriced calls and calls without the daily ledger/consent adapter"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 24,
+    "guard": "retain run reservations across MCP calls",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "remainingUnits -= reservedUnits",
+      "after": "remainingUnits -= 0",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > shares the run cap across MCP calls and never bypasses admission",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > rounds fractional-microUSD reservations up before checking the run cap"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 25,
+    "guard": "round worst case upward",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "Math.ceil(cost * EXEC_USD_UNITS)",
+      "after": "Math.floor(cost * EXEC_USD_UNITS)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > rounds fractional-microUSD reservations up before checking the run cap"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 26,
+    "guard": "validate runtime outcome before success",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "const parsed = judgeOutcomeSchema.safeParse(rawOutcome)",
+      "after": "return rawOutcome\n    const parsed = judgeOutcomeSchema.safeParse(rawOutcome)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects options not offered and scores beyond the requested legend"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 27,
+    "guard": "align all answer ids",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "Object.keys(answers).length === ids.length &&",
+      "after": "true &&",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 28,
+    "guard": "align question and answer types",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (question === undefined || answer?.type !== question.type) return false",
+      "after": "if (question === undefined) return false",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 29,
+    "guard": "only offered choices",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "Object.hasOwn(question.criteria, answer.choice) &&",
+      "after": "true &&",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects options not offered and scores beyond the requested legend"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 30,
+    "guard": "only offered probability keys",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "Object.hasOwn(question.criteria, option)",
+      "after": "true",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects options not offered and scores beyond the requested legend"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 31,
+    "guard": "score lower legend bound",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "answer.score >= 0 &&",
+      "after": "true &&",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects options not offered and scores beyond the requested legend"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 32,
+    "guard": "score upper legend bound",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "answer.score <= question.criteria.length - 1",
+      "after": "true",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects options not offered and scores beyond the requested legend"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 33,
+    "guard": "bound source output bytes",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "Buffer.byteLength(JSON.stringify(parsed.data)) <= JUDGE_MAX_BODY_BYTES &&",
+      "after": "true &&",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 34,
+    "guard": "no source output model switch",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "parsed.data.result.model === source.model &&",
+      "after": "true &&",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 35,
+    "guard": "truthful source metadata",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "meta.source === source.source && meta.model === source.model",
+      "after": "true && meta.model === source.model",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 36,
+    "guard": "truthful model metadata",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "meta.source === source.source && meta.model === source.model",
+      "after": "meta.source === source.source && true",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 37,
+    "guard": "pass state unchanged",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "source.runtime.judge(request, signal)",
+      "after": "source.runtime.judge({ ...request, state: '' }, signal)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > answers only with the explicit available same model",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > dispatches explicit separate and both modes through the selected injected source"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 38,
+    "guard": "no-answer exit 4",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "code = outcome.outcome === 'answered' ? EXEC_EXIT.ok : EXEC_EXIT.failed",
+      "after": "code = outcome.outcome === 'answered' ? EXEC_EXIT.ok : EXEC_EXIT.ok",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses absent same context without resolving or switching models",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unavailable and wrong-source or wrong-model contexts",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses a paid source at budget zero and a batch above a tiny positive cap",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > refuses unpriced calls and calls without the daily ledger/consent adapter",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > preserves daily ledger and consent refusals without paid dispatch",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects empty, misaligned, wrong-type and oversized source output",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > keeps failures content-free and never returns empty success",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects options not offered and scores beyond the requested legend",
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > bounds stalled input and an engine that ignores cancellation"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 39,
+    "guard": "bounded input before schema stripping",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "readPromptStdin(io.stdin, JUDGE_MAX_BODY_BYTES, signal)",
+      "after": "readPromptStdin(io.stdin, JUDGE_MAX_BODY_BYTES * 2, signal)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects malformed stdin, wrong request shape and excess bytes before resolution"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 40,
+    "guard": "deadline covers ignored cancellation",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "AbortSignal.timeout(command.options.timeoutMs)",
+      "after": "AbortSignal.timeout(1000)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > bounds stalled input and an engine that ignores cancellation"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 41,
+    "guard": "closed output refuses before work",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "if (io.stdout.isClosed || io.stderr.isClosed) return EXEC_EXIT.failed",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > does no work when output is already closed and bounds localization setup"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 42,
+    "guard": "offline input validated before B",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "const input = offline.inputSchema.parse(raw)",
+      "after": "const input = raw",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > runs calibrate/report offline with B input and output schemas"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 43,
+    "guard": "offline output validated after B",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "const result = offline.outputSchema.parse(\n          await untilAborted(offline.run(input, signal), signal),\n        )",
+      "after": "const result = await untilAborted(offline.run(input, signal), signal)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > rejects missing offline/surface implementations and invalid offline results"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 44,
+    "guard": "offline output byte cap",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "typeof text !== 'string' || Buffer.byteLength(text) > JUDGE_MAX_BODY_BYTES",
+      "after": "typeof text !== 'string'",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > bounds validated offline output bytes"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 45,
+    "guard": "owned input cleaned up",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "io.stdin.destroy()",
+      "after": "io.stdin.pause()",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > dispatches CS/H only through their injected surfaces"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 46,
+    "guard": "failed output is never success",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "flushed.every(Boolean) && !io.stdout.isClosed && !io.stderr.isClosed",
+      "after": "true",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > fails closed on closed and stalled output delivery"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 47,
+    "guard": "MCP raw queue byte cap",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "chunk.length > JUDGE_MAX_BODY_BYTES - pending.length - queuedBytes",
+      "after": "false",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > bounds raw frames before unknown fields are stripped and rejects invalid UTF-8 inside JSON"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 48,
+    "guard": "MCP fatal UTF-8 decoding",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "new TextDecoder('utf-8', { fatal: true })",
+      "after": "new TextDecoder('utf-8', { fatal: false })",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > bounds raw frames before unknown fields are stripped and rejects invalid UTF-8 inside JSON"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 49,
+    "guard": "MCP rejects truncated frame",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "if (pending.length > 0) throw new Error(UI_TEXT.execRequestShape)",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > rejects malformed JSON-RPC and truncated or oversized byte streams",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > discards a pending response after malformed input closes the transport"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 50,
+    "guard": "MCP cancellation reaches active and queued calls",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "const controllers = active.get(keys.cancelled) ?? []\n      for (const controller of controllers) controller.abort()",
+      "after": "const controllers = active.get(keys.cancelled) ?? []\n      for (const controller of controllers) void controller",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > cancels queued calls before dispatch and does not leak the cancellation reason",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > interrupts an active engine that ignores its cancellation signal"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 51,
+    "guard": "MCP no-answer is a tool error",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "throw new Error(fill(UI_TEXT.judgeNoAnswer, { reason: outcome.reason }))",
+      "after": "return JSON.stringify(outcome)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > reports no-answer as a tool error and exits 4 without an empty success",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > validates injected MCP outcomes and bounds result bytes",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > shares the run cap across MCP calls and never bypasses admission"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 52,
+    "guard": "MCP never leaks provider errors",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "      } catch (error: unknown) {\n        if (error instanceof JudgeCliInputError)",
+      "after": "      } catch (error: unknown) {\n        fail(EXEC_EXIT.failed)\n        throw error\n        if (error instanceof JudgeCliInputError)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > classifies contradictory model context as input error before resolving a source",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > never forwards private provider failures as MCP tool text",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > cancels queued calls before dispatch and does not leak the cancellation reason",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > interrupts an active engine that ignores its cancellation signal"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 53,
+    "guard": "MCP validates outcome schema",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "outcome = judgeOutcomeSchema.parse(await judge(request.data, signal))",
+      "after": "outcome = await judge(request.data, signal)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > validates injected MCP outcomes and bounds result bytes"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 54,
+    "guard": "MCP output byte cap",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "if (Buffer.byteLength(text) > JUDGE_MAX_BODY_BYTES)",
+      "after": "if (false)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > validates injected MCP outcomes and bounds result bytes"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 55,
+    "guard": "MCP unknown method text sanitized",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "message: UI_TEXT.execRequestShape,",
+      "after": "message: z.object({ message: z.string() }).parse(body['error']).message,",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > refuses unknown methods and tools without echoing private names"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 56,
+    "guard": "MCP unknown tool names sanitized",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "if (toolResult.success && !hasToolFailed())",
+      "after": "if (false)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > refuses unknown methods and tools without echoing private names",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > sanitizes unknown tool failures after an earlier refusal"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 57,
+    "guard": "MCP output stall stops queued charges",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "if (hasOutputFailed()) return",
+      "after": "if (false) return",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > stops queued inference after an output pipe stalls"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 58,
+    "guard": "main never starts chat backend",
+    "file": "src/runtime/main.ts",
+    "testFile": "test/unit/judgeCliDispatch.test.ts",
+    "mutation": {
+      "before": "if (command.command === 'judge') {",
+      "after": "if (command.command === 'judge') {\n    createRuntimeBackend({})",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > reserves judge ask without any backend or ACP startup",
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > bounds stalled stdin in the real command process",
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > serves MCP stdio without ACP frames or a chat backend"
+    ],
+    "restoreSha256": "98acf4a4ce5cf0bb861c69655f05219233f5f51fc5f4f331085da946baa16f47",
+    "greenExit": 0
+  },
+  {
+    "drill": 59,
+    "guard": "main emits no ACP frames",
+    "file": "src/runtime/main.ts",
+    "testFile": "test/unit/judgeCliDispatch.test.ts",
+    "mutation": {
+      "before": "if (command.command === 'judge') {",
+      "after": "if (command.command === 'judge') {\n    process.stdout.write('ACP_STARTED\\n')",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > reserves judge ask without any backend or ACP startup",
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > bounds stalled stdin in the real command process",
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > serves MCP stdio without ACP frames or a chat backend"
+    ],
+    "restoreSha256": "98acf4a4ce5cf0bb861c69655f05219233f5f51fc5f4f331085da946baa16f47",
+    "greenExit": 0
+  },
+  {
+    "drill": 60,
+    "guard": "ordinary ACP keeps judge schemas lazy",
+    "file": "src/runtime/main.ts",
+    "testFile": "test/unit/judgeCliDispatch.test.ts",
+    "mutation": {
+      "before": "const { runJudgeCommand } = await import('./judge/commands')",
+      "after": "",
+      "also": [
+        "import { runSecretScan } from './exec/scanSecrets'",
+        "import { runSecretScan } from './exec/scanSecrets'\nimport { runJudgeCommand } from './judge/commands'"
+      ]
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliDispatch.test.ts > judge process dispatch > keeps judge schemas lazy for ordinary ACP commands"
+    ],
+    "restoreSha256": "98acf4a4ce5cf0bb861c69655f05219233f5f51fc5f4f331085da946baa16f47",
+    "greenExit": 0
+  },
+  {
+    "drill": 61,
+    "guard": "explicit separate and both route to selected source",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "let rawOutcome: unknown",
+      "after": "if (options.engine === 'separate' || options.engine === 'both') return noAnswer('source-unavailable')\n    let rawOutcome: unknown",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > dispatches explicit separate and both modes through the selected injected source"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 62,
+    "guard": "MCP drops responses after transport shutdown",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "        )\n        if (hasOutputFailed()) return\n        if (result.kind === 'response')",
+      "after": "        )\n        if (result.kind === 'response')",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > discards a pending response after malformed input closes the transport"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 63,
+    "guard": "MCP model conflict is input error",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "if (error instanceof JudgeCliInputError)",
+      "after": "if (false)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > classifies contradictory model context as input error before resolving a source"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 64,
+    "guard": "request model remains explicit context",
+    "file": "src/runtime/judge/commands.ts",
+    "testFile": "test/unit/judgeCliCommands.test.ts",
+    "mutation": {
+      "before": "const model = options.model ?? request.model",
+      "after": "const model = options.model",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliCommands.test.ts > judge CLI bounded advisory commands > accepts an explicit request model as context"
+    ],
+    "restoreSha256": "586dbbf68f34252f88baeab79aec8d0a4d489d371660007b0d884b2534f4f433",
+    "greenExit": 0
+  },
+  {
+    "drill": 65,
+    "guard": "ordinary command-looking prompt preserved",
+    "file": "src/runtime/cliArgs.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "if (argv[0] === 'judge') return parseJudgeArgs(argv)",
+      "after": "if (argv[0] === 'judge' || argv[0] === 'exec') return parseJudgeArgs(argv)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > keeps command-looking exec prompts as prompts"
+    ],
+    "restoreSha256": "bf0dc7ac2712c41f0b74e03859412daf23128a53507f9aca13391f5887aebd1a",
+    "greenExit": 0
+  },
+  {
+    "drill": 66,
+    "guard": "unknown engine flag refused",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "engine === undefined ||",
+      "after": "false ||",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses malformed, duplicate, unknown and prompt-shaped judge arguments at exit 2"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 67,
+    "guard": "deadline digit grammar",
+    "file": "src/runtime/judge/args.ts",
+    "testFile": "test/unit/judgeCliArgs.test.ts",
+    "mutation": {
+      "before": "(timeout !== undefined && !/^[0-9]+$/.test(timeout)) ||",
+      "after": "false ||",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeCliArgs.test.ts > judge command reservation > refuses zero, fractional and oversized deadlines"
+    ],
+    "restoreSha256": "ca6ae872567c830bf9a194dd76dbd1f26bc7fc576d7bf3c8bc335969117afc1e",
+    "greenExit": 0
+  },
+  {
+    "drill": 68,
+    "guard": "MCP error sanitation is per call, not earlier exit status",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "if (toolResult.success && !hasToolFailed())",
+      "after": "if (toolResult.success && code === EXEC_EXIT.ok)",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > sanitizes unknown tool failures after an earlier refusal"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 69,
+    "guard": "MCP resets known failure for each serialized call",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "        toolFailure.hasFailed = false\n",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > sanitizes unknown tool failures after an earlier refusal"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  },
+  {
+    "drill": 70,
+    "guard": "MCP preserves known advisory failure reasons",
+    "file": "src/runtime/judge/mcp.ts",
+    "testFile": "test/unit/judgeMcp.test.ts",
+    "mutation": {
+      "before": "      toolFailure.hasFailed = true\n",
+      "after": "",
+      "also": null
+    },
+    "redExit": 1,
+    "failures": [
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > reports no-answer as a tool error and exits 4 without an empty success",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > never forwards private provider failures as MCP tool text",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > validates injected MCP outcomes and bounds result bytes",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > shares the run cap across MCP calls and never bypasses admission",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > rounds fractional-microUSD reservations up before checking the run cap",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > cancels queued calls before dispatch and does not leak the cancellation reason",
+      "test/unit/judgeMcp.test.ts > judge MCP stdio > interrupts an active engine that ignores its cancellation signal"
+    ],
+    "restoreSha256": "af172e0bf3290cfc615673457848cdf874b39c3bca15064269a8f853a627a467",
+    "greenExit": 0
+  }
+]

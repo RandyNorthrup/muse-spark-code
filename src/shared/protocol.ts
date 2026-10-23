@@ -58,6 +58,7 @@ import {
   pullRequestFormSchema,
 } from './git'
 import { judgeStatusSchema } from './judge'
+import { judgePanelSnapshotSchema } from './judgePanelSchema'
 import { scheduleHostMessageSchema, scheduleWebviewMessageSchema } from './scheduleProtocol'
 import {
   scheduleDraftSchema,
@@ -1278,6 +1279,10 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     seq: resourceSeqSchema,
     nonce: documentNonceSchema,
   }),
+  // The Judge section's usage, for Account & usage (M98 lane FP). The same
+  // snapshot the Models panel validates. A subscription-only snapshot never
+  // asks for a charge; the host sends it, the dialog only renders it.
+  z.strictObject({ type: z.literal('judgeUsage'), usage: judgePanelSnapshotSchema }),
   // A message the host sent itself (M79: a plan's brief): the pending card,
   // as the composer's own Send would have made it. `turnAccepted` or
   // `sendFailed` follows with the same `localId`.

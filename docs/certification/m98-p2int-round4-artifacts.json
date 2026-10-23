@@ -1,0 +1,800 @@
+{
+  "artifacts": {
+    "dist/acp.js": {
+      "bytes": 837894,
+      "sha256": "546c4c8a0fa0f57364ff7cd5fbc20d31c6fd730e42370e45fc8c9d166c90b162"
+    },
+    "dist/agentImport.js": {
+      "bytes": 117789,
+      "sha256": "1090e44b3d729d0884b7e9a497fc63bdfa8f13c8b4b1baf63e682fd017ac6f55"
+    },
+    "dist/browserCheck.js": {
+      "bytes": 38524,
+      "sha256": "aa67a97b5d77d674d7d1b163929e265dbb49a1534d45acbca56bcf2139b03ac9"
+    },
+    "dist/browserRuntime.js": {
+      "bytes": 19762,
+      "sha256": "bf78122411d861a98d85678257a6b6abeeffbe603fa36baab018518ef3b2b75c"
+    },
+    "dist/bundledSkills.js": {
+      "bytes": 14766,
+      "sha256": "339388c116eb2cd64b920f8b120308be98ccd23bf5d239fe369ee9270f5d7a14"
+    },
+    "dist/checkpointStore.js": {
+      "bytes": 91575,
+      "sha256": "c47d2b0bf509a4302610c64a478c3975a4b2500069624dba421606cfd07f7bd1"
+    },
+    "dist/codeIntel.js": {
+      "bytes": 39638,
+      "sha256": "527c2afe27aa172771772f2816a0afd25ea5ff4b16e5bbb954ae84527ca0627e"
+    },
+    "dist/extension.js": {
+      "bytes": 612127,
+      "sha256": "063723a4cd308a50743851ebfdab037c7385ccff209ba90b0f5b6cfa36785542"
+    },
+    "dist/extensionHooks.js": {
+      "bytes": 35813,
+      "sha256": "f73ff8fba6453ddb422209378136e22e2376b116ccdfc4d9e8154531e31b530b"
+    },
+    "dist/foreignHooks.js": {
+      "bytes": 70086,
+      "sha256": "f9a0d745f66642ca033232fdb09e6772dcd2a831d53f4fad7e1c2f5768fe3d55"
+    },
+    "dist/hookRuntime.js": {
+      "bytes": 43202,
+      "sha256": "e267b85c5c2f97c3b23c0ee2cb2b54280e11384f04f47849d411784c2f682220"
+    },
+    "dist/judge.js": {
+      "bytes": 53390,
+      "sha256": "2d13567d7d556311b8ae7ccc004bdb492b91294710fc7179746432bb4da6ff66"
+    },
+    "dist/judgeHook.js": {
+      "bytes": 69745,
+      "sha256": "4595c6d3e8f911f1b00f7e15d82602acd8aad2aee23109575dbd84831b0ea5ca"
+    },
+    "dist/judgeLint.js": {
+      "bytes": 39301,
+      "sha256": "d2148d3edca1056c459db6c5c4a23dfb8facb82942797fd5c189aa3ae3db26dc"
+    },
+    "dist/judgeLocal.js": {
+      "bytes": 50563,
+      "sha256": "57f9bf4a418e8cff3959b3cfb8b78fca92181a06b155a65740b13c529838588d"
+    },
+    "dist/judgeUses.js": {
+      "bytes": 16202,
+      "sha256": "f47b7cafc8ffe747679e63669128977686ec2e398c53c87e808a778c6f4eed29"
+    },
+    "dist/modelApi.js": {
+      "bytes": 479307,
+      "sha256": "d25446959019003c4a0d0d85a5ac28ad59516708651b05d0daa3b86ac4da3931"
+    },
+    "dist/museCodeReviewer.js": {
+      "bytes": 23191,
+      "sha256": "64aaed8c273dd1192b03c82f65147c416860d5103ce7321883cdf0949f249413"
+    },
+    "dist/pageWorker.js": {
+      "bytes": 193171,
+      "sha256": "520bafa5a877928be07c6283b91ac1802780d3819168f511ec4b2d8aafbc156e"
+    },
+    "dist/planMarkdown.js": {
+      "bytes": 147608,
+      "sha256": "5d8760b833c795e1a0cf1d0398e3b5849c6743dadc53d9421fcd56035ec1ea31"
+    },
+    "dist/pluginHooks.js": {
+      "bytes": 34590,
+      "sha256": "dcf5ce1934b0a000614ee4f71e69017b1f3030a505931c41cd305a4b0e7ee2bb"
+    },
+    "dist/review.js": {
+      "bytes": 29343,
+      "sha256": "91266d26e57914307cb2593457ec1908b155fb2fe9abb24e851903b640a51149"
+    },
+    "dist/reviewer.js": {
+      "bytes": 22253,
+      "sha256": "cb123a34d7cf10abc0789601d3c273633a7754f10f7b6425b099fe5461444f03"
+    },
+    "dist/searchWorker.js": {
+      "bytes": 4969,
+      "sha256": "14338954deb1cc12c2b38c46b989a6a587e778f55812d2e2e007b5a3662d7058"
+    },
+    "dist/sessionBoard.js": {
+      "bytes": 53764,
+      "sha256": "7a093a478844c386838610540f45203c4df3a4cbeede157cc6033b499ebafaa6"
+    },
+    "dist/uiText.js": {
+      "bytes": 45133,
+      "sha256": "8eff4d7fe78b2bddb25a04ea38b99cc02d970fb376e17a88aa3c9690504e1ac7"
+    },
+    "dist/validation.js": {
+      "bytes": 41502,
+      "sha256": "b23e40f44efc546a1d8ca9c4d1514effc3802be533d39beae3505b71f3db8bdb"
+    },
+    "dist/validationSchema.js": {
+      "bytes": 22808,
+      "sha256": "cefd78400c22a4be6d861cde3497fef43255cc47c95dda086e6b331ad377212f"
+    },
+    "dist/voice.js": {
+      "bytes": 19003,
+      "sha256": "86cf2b1d52020f8906e35f8ff6217dfbd788756784bef21804186b928aaa8d74"
+    },
+    "dist/webFetch.js": {
+      "bytes": 37896,
+      "sha256": "167cafb2e3bc7468715d03771856d2b0c994f314f7ffb7df568e9d4957af5c59"
+    },
+    "dist/webview/chunks/AgentMap-HUIGNCXX.js": {
+      "bytes": 8009,
+      "sha256": "a4199151d4d932c7268c4e16c77ed95ebd6fbd82d72f5982b0fd92609ff30562"
+    },
+    "dist/webview/chunks/BestOfNDialog-EZJMWCQR.js": {
+      "bytes": 7043,
+      "sha256": "0ccc6222d9f9475d633ae9105eb3645a872afe6a66cc4b0408078506eaa79ee5"
+    },
+    "dist/webview/chunks/HistoryDialog-2C4WIQNJ.js": {
+      "bytes": 3433,
+      "sha256": "168e9a85ffdd7131592905db581d2dd68e8aa1af8bd25a076bdecfdea35087c9"
+    },
+    "dist/webview/chunks/ReviewPane-2C4KHR6S.js": {
+      "bytes": 5583,
+      "sha256": "de1b2a73c7fdbcbd827cd279a99f8fa2965f40ac981ddb868eba7c65d958167b"
+    },
+    "dist/webview/chunks/SessionBoardDialog-PU4DMHRE.js": {
+      "bytes": 2286,
+      "sha256": "b5cfc5499e117e4a27cc1ccd447312e26c7640c5971b21ae5c08801cafacce4a"
+    },
+    "dist/webview/chunks/UsageDialog-4XUXWJ5Y.js": {
+      "bytes": 11665,
+      "sha256": "9566bc1ca6631a12d8e5b129c47cc3d241aed28ba3cce328dcb8d20972ca1c98"
+    },
+    "dist/webview/chunks/chunk-5D2BWH4Q.js": {
+      "bytes": 210,
+      "sha256": "3fc150674b8ebb17db4994a971b4430fb23b0d04a705bfd64843af2a22e8ba0b"
+    },
+    "dist/webview/chunks/chunk-5D5OIGMZ.js": {
+      "bytes": 165,
+      "sha256": "6873114664b6dec213c2fad6eb84e4a99a011eb3d6e52a307325f0e0b1ff099f"
+    },
+    "dist/webview/chunks/chunk-5OYIARPN.js": {
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "dist/webview/chunks/chunk-AC4WH2BF.js": {
+      "bytes": 32467,
+      "sha256": "eabe9a399ce5a024eabcf9cb3c2c9ec7156a2e9c6e45e263b3449f0bd7fde71a"
+    },
+    "dist/webview/chunks/chunk-ACHHTTWN.js": {
+      "bytes": 1549,
+      "sha256": "9093e9983b754b3f36eab8fda632ba3f79ee32a40c6be224bed0aa5135ed29be"
+    },
+    "dist/webview/chunks/chunk-EUMRVF27.js": {
+      "bytes": 4040,
+      "sha256": "211fab1c767753dfcd330583eb71da5a8887bf63e02273e697eea4cb06ed3746"
+    },
+    "dist/webview/chunks/chunk-JMPLCRAW.js": {
+      "bytes": 8434,
+      "sha256": "f013b25a5ebb1f3ae381dd527e9802f5b39a8bc6d4482f9b05f39637320c9e14"
+    },
+    "dist/webview/chunks/chunk-LV2NIUF3.js": {
+      "bytes": 1877,
+      "sha256": "c268a491e27e7d02a079718b595ced7f605b9b752ad33152ada185d473129db2"
+    },
+    "dist/webview/chunks/chunk-OTUBQCWP.js": {
+      "bytes": 7051,
+      "sha256": "12e62a11d73696f395103d849f11fab4b15f5153310f593fd04c5e998c7cd1a5"
+    },
+    "dist/webview/chunks/chunk-PYRQOPQC.js": {
+      "bytes": 946,
+      "sha256": "9ab05b630f4cf15ae1a3b4518dbac655f993e79f29f5bddfd8d0711e98aa1875"
+    },
+    "dist/webview/chunks/chunk-QGWX7CSR.js": {
+      "bytes": 157421,
+      "sha256": "ac2667ad0e6f50f7d40b43b3cf170f30147c41836f69b7f1f7b73f0fb36c9769"
+    },
+    "dist/webview/chunks/chunk-RF5DZCWO.js": {
+      "bytes": 1143,
+      "sha256": "3f5d71e56952a0c051f8367263bc1f2463b630103a15983d0da1823e13f5e18d"
+    },
+    "dist/webview/chunks/chunk-SWJXSC3Z.js": {
+      "bytes": 74021,
+      "sha256": "538b99a3b628c084cbda49cd3b52c2e615dc9b36e98f96a9369b6f0f77312de8"
+    },
+    "dist/webview/chunks/chunk-T6XGVTFC.js": {
+      "bytes": 372,
+      "sha256": "a0de54563a2fdcbe6634b0186946f4219fe0b751fb6b2bb02b01895353c5e87a"
+    },
+    "dist/webview/chunks/chunk-V2PO3OWI.js": {
+      "bytes": 6079,
+      "sha256": "e32323542f9edc2a3c62a6e05285cd740a519c220bad51e6c99a770b0138204a"
+    },
+    "dist/webview/main.css": {
+      "bytes": 52404,
+      "sha256": "027a068b1727a443b118c9a98ec58d8e036c060696b2d6ea4fa8b435bee9f79a"
+    },
+    "dist/webview/main.js": {
+      "bytes": 625148,
+      "sha256": "e451d355e28757a9affd4ca76d30cc63a6d4b5bcacb45837e854aa8dcf5ff61c"
+    },
+    "dist/webview/whatsNew.css": {
+      "bytes": 2534,
+      "sha256": "01071c4365687b25df74aaa5daf19b97a406e37fbe927c77b16aa653e4cad74b"
+    },
+    "dist/webview/whatsNew.js": {
+      "bytes": 708,
+      "sha256": "a04a649fe4b1b856e5615d6842914e83d315c959117549cfa641fe5b7ec19cbf"
+    },
+    "dist/whatsNew.js": {
+      "bytes": 17655,
+      "sha256": "62146e62a04a3daf5e99ee1f2830eef40d525115d97e7306684996dc45ea07d8"
+    }
+  },
+  "comparisons": {
+    "round3": {
+      "baselineArtifacts": 54,
+      "currentArtifacts": 56,
+      "changed": {
+        "dist/judgeLint.js": {
+          "before": {
+            "bytes": 39301,
+            "sha256": "aa6dfe6e24e1907bd215819a1ff56dda1a80acb04e25b19dd6a38b036ca64d65"
+          },
+          "after": {
+            "bytes": 39301,
+            "sha256": "d2148d3edca1056c459db6c5c4a23dfb8facb82942797fd5c189aa3ae3db26dc"
+          },
+          "deltaBytes": 0
+        },
+        "dist/review.js": {
+          "before": {
+            "bytes": 29343,
+            "sha256": "0bc8fef2d2440d6fcedf80c2124cb06b6f84c4230773d4b149987dd8563a0be3"
+          },
+          "after": {
+            "bytes": 29343,
+            "sha256": "91266d26e57914307cb2593457ec1908b155fb2fe9abb24e851903b640a51149"
+          },
+          "deltaBytes": 0
+        },
+        "dist/museCodeReviewer.js": {
+          "before": {
+            "bytes": 22642,
+            "sha256": "145f85c86fd3767c214869b18e09096621cd2ebccfc4a9fe8e9a26aec82b0f77"
+          },
+          "after": {
+            "bytes": 23191,
+            "sha256": "64aaed8c273dd1192b03c82f65147c416860d5103ce7321883cdf0949f249413"
+          },
+          "deltaBytes": 549
+        },
+        "dist/sessionBoard.js": {
+          "before": {
+            "bytes": 53764,
+            "sha256": "0a610da5686f291199a1b84faa15f95f3f1b5ff9adfb8c107319719cf9ab1a7e"
+          },
+          "after": {
+            "bytes": 53764,
+            "sha256": "7a093a478844c386838610540f45203c4df3a4cbeede157cc6033b499ebafaa6"
+          },
+          "deltaBytes": 0
+        },
+        "dist/whatsNew.js": {
+          "before": {
+            "bytes": 17655,
+            "sha256": "90bf029a2494fdbd09c304ded9fa5a2cebcd450d4594af9ca16aa420822b3108"
+          },
+          "after": {
+            "bytes": 17655,
+            "sha256": "62146e62a04a3daf5e99ee1f2830eef40d525115d97e7306684996dc45ea07d8"
+          },
+          "deltaBytes": 0
+        },
+        "dist/pluginHooks.js": {
+          "before": {
+            "bytes": 34590,
+            "sha256": "ea02fb19551f3a89c9054ede81f31699a264ec8d77f8c14fd008335a19a9eef4"
+          },
+          "after": {
+            "bytes": 34590,
+            "sha256": "dcf5ce1934b0a000614ee4f71e69017b1f3030a505931c41cd305a4b0e7ee2bb"
+          },
+          "deltaBytes": 0
+        },
+        "dist/foreignHooks.js": {
+          "before": {
+            "bytes": 70086,
+            "sha256": "8374e389a0fcf54fdfbfad6901b4a7a460f1a415f4b9be95e6471c91a9daf554"
+          },
+          "after": {
+            "bytes": 70086,
+            "sha256": "f9a0d745f66642ca033232fdb09e6772dcd2a831d53f4fad7e1c2f5768fe3d55"
+          },
+          "deltaBytes": 0
+        },
+        "dist/webFetch.js": {
+          "before": {
+            "bytes": 37896,
+            "sha256": "d5d6c97c622db815650d48d14018a3cf4b6f06346d5dd6df4a37735fe0cbbe9f"
+          },
+          "after": {
+            "bytes": 37896,
+            "sha256": "167cafb2e3bc7468715d03771856d2b0c994f314f7ffb7df568e9d4957af5c59"
+          },
+          "deltaBytes": 0
+        },
+        "dist/judgeHook.js": {
+          "before": {
+            "bytes": 69745,
+            "sha256": "a733b8283b19187dd68269ba2c31d128b400c0cb2866927d6ac35a40dc0e3177"
+          },
+          "after": {
+            "bytes": 69745,
+            "sha256": "4595c6d3e8f911f1b00f7e15d82602acd8aad2aee23109575dbd84831b0ea5ca"
+          },
+          "deltaBytes": 0
+        },
+        "dist/validation.js": {
+          "before": {
+            "bytes": 41406,
+            "sha256": "6acf1ea164460985fb7df8fb56cacbb7fe209cd876424c9faf937623aebeba4b"
+          },
+          "after": {
+            "bytes": 41502,
+            "sha256": "b23e40f44efc546a1d8ca9c4d1514effc3802be533d39beae3505b71f3db8bdb"
+          },
+          "deltaBytes": 96
+        },
+        "dist/extensionHooks.js": {
+          "before": {
+            "bytes": 35813,
+            "sha256": "525b4e75ad00a3360cdc9cb94451aa1e26c5a49afba80c0bad620abc345558dd"
+          },
+          "after": {
+            "bytes": 35813,
+            "sha256": "f73ff8fba6453ddb422209378136e22e2376b116ccdfc4d9e8154531e31b530b"
+          },
+          "deltaBytes": 0
+        },
+        "dist/checkpointStore.js": {
+          "before": {
+            "bytes": 91575,
+            "sha256": "114b83bf36cc2cc7e2e34154124c633c32724095900e4e3dd24f775224f5e392"
+          },
+          "after": {
+            "bytes": 91575,
+            "sha256": "c47d2b0bf509a4302610c64a478c3975a4b2500069624dba421606cfd07f7bd1"
+          },
+          "deltaBytes": 0
+        },
+        "dist/bundledSkills.js": {
+          "before": {
+            "bytes": 14766,
+            "sha256": "dee40073a77fe4546b4515a931d56f5b154358628d9d93a47a41931c4cead617"
+          },
+          "after": {
+            "bytes": 14766,
+            "sha256": "339388c116eb2cd64b920f8b120308be98ccd23bf5d239fe369ee9270f5d7a14"
+          },
+          "deltaBytes": 0
+        },
+        "dist/voice.js": {
+          "before": {
+            "bytes": 19003,
+            "sha256": "a552a31c324709c44858fb70825396e33773eed972b1157605d094d2b9fafc5c"
+          },
+          "after": {
+            "bytes": 19003,
+            "sha256": "86cf2b1d52020f8906e35f8ff6217dfbd788756784bef21804186b928aaa8d74"
+          },
+          "deltaBytes": 0
+        },
+        "dist/hookRuntime.js": {
+          "before": {
+            "bytes": 43202,
+            "sha256": "62df7042fcb679e04c1dbc77c76632ffbbf3d488c683c49ca2f33f8d755d791f"
+          },
+          "after": {
+            "bytes": 43202,
+            "sha256": "e267b85c5c2f97c3b23c0ee2cb2b54280e11384f04f47849d411784c2f682220"
+          },
+          "deltaBytes": 0
+        },
+        "dist/judge.js": {
+          "before": {
+            "bytes": 52877,
+            "sha256": "970198c6171e45bd07c48356e975eb6db050f9412c6c97ee1219521cea37e940"
+          },
+          "after": {
+            "bytes": 53390,
+            "sha256": "2d13567d7d556311b8ae7ccc004bdb492b91294710fc7179746432bb4da6ff66"
+          },
+          "deltaBytes": 513
+        },
+        "dist/extension.js": {
+          "before": {
+            "bytes": 612062,
+            "sha256": "959096e55bde87b9931bd51f46ec9181af30e7725b30b46973cadbccf2b1953c"
+          },
+          "after": {
+            "bytes": 612127,
+            "sha256": "063723a4cd308a50743851ebfdab037c7385ccff209ba90b0f5b6cfa36785542"
+          },
+          "deltaBytes": 65
+        },
+        "dist/reviewer.js": {
+          "before": {
+            "bytes": 22253,
+            "sha256": "e2d80b4c42d080928760afb7046e4154f91286475ab597d3c13e5117390c109a"
+          },
+          "after": {
+            "bytes": 22253,
+            "sha256": "cb123a34d7cf10abc0789601d3c273633a7754f10f7b6425b099fe5461444f03"
+          },
+          "deltaBytes": 0
+        },
+        "dist/webview/main.js": {
+          "before": {
+            "bytes": 625148,
+            "sha256": "dd80600625ef36773109a7239c3e6d74c6fefdbe8cfaedf945b7212986de1bee"
+          },
+          "after": {
+            "bytes": 625148,
+            "sha256": "e451d355e28757a9affd4ca76d30cc63a6d4b5bcacb45837e854aa8dcf5ff61c"
+          },
+          "deltaBytes": 0
+        },
+        "dist/webview/chunks/chunk-HKYZ73H3.js": {
+          "before": {
+            "bytes": 157421,
+            "sha256": "7cbe3bd2eb65a2411a727c20e8c9422bdd599758058e9d0a2a302bc1dadbf347"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-FPHYU5NX.js": {
+          "before": {
+            "bytes": 8434,
+            "sha256": "75bd6aa887214dc2c8ff4891245dcb01030ad1e1965fae7a56d91a0d85af83dd"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/ReviewPane-XBORMAA3.js": {
+          "before": {
+            "bytes": 5583,
+            "sha256": "72f87828171b8c79169540b99170c8ba0aebd8e82399a534789d91b7d488cd73"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-DVFBWJJJ.js": {
+          "before": {
+            "bytes": 210,
+            "sha256": "63cd90d89c2ef178383e21c6e9e44961945813ed466328c69f355cb755787a83"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-HTXRPBTH.js": {
+          "before": {
+            "bytes": 946,
+            "sha256": "3800975ad007a2ab31b0194755bb180d060d75a891213645e8183cf7ac8f48cd"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/HistoryDialog-7TQ66PQA.js": {
+          "before": {
+            "bytes": 3433,
+            "sha256": "3eb9fc515400b66fdfaa438574d4a95ad3fac163c382f9290451b228561279d4"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-KAAVZYBL.js": {
+          "before": {
+            "bytes": 74021,
+            "sha256": "162eddefe2dbfb3814310d2ed62ec90381e1d1d585555625f949cdaef95d4f00"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/SessionBoardDialog-3Z73SRZO.js": {
+          "before": {
+            "bytes": 2286,
+            "sha256": "3923dabc87c321497cc3681eb6bb7ac9db0e1ca65d30dbf2826a8715e44ee985"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-YAZSGQ77.js": {
+          "before": {
+            "bytes": 6079,
+            "sha256": "009135ea741331b5a40faffdac34b4d722bbd4ea2140eedf483f763be34aaa1a"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/AgentMap-2R6DB76P.js": {
+          "before": {
+            "bytes": 8009,
+            "sha256": "5f3f643d844728d53eaf036c63d6f89ec7a330432fc9238d68fb65d256bface9"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-CNUQUFNK.js": {
+          "before": {
+            "bytes": 1877,
+            "sha256": "acfb6f5ea6d08cbb9ad33b23d2695a48fc7b1655b69a857862c35fceb8afee24"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-GY2UEMOM.js": {
+          "before": {
+            "bytes": 1549,
+            "sha256": "e37dcf5f406cd047bdcfa9fc320fd591e45b693f3ca1953c7f211d6dc89d1aa8"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-RBLEKKOC.js": {
+          "before": {
+            "bytes": 7051,
+            "sha256": "80f5870c281d5dfb66654a1582b320f6a192f39dc9bf160ce078c8e77ba032c0"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-JSBJNLRG.js": {
+          "before": {
+            "bytes": 1143,
+            "sha256": "4e7877150ee074bc09866d49607c6c1d940c2af3d183d370cfd5829b164a7af5"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/UsageDialog-Q4TZBUV4.js": {
+          "before": {
+            "bytes": 11665,
+            "sha256": "945e8a65e10c9fe8e8e90dc828418c4f57546586809415577ff3c411fe1dc649"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/BestOfNDialog-7JDPDAVM.js": {
+          "before": {
+            "bytes": 7043,
+            "sha256": "3047d641282b22a30183e6e0c6c7e700cb3326714bf21c3b809fe50b791c13e8"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-2AFJA6CY.js": {
+          "before": {
+            "bytes": 4040,
+            "sha256": "487e03757a98051f1be030c7c11455d8e92805555dea714d6e055ca6640f9253"
+          },
+          "after": null,
+          "deltaBytes": null
+        },
+        "dist/webview/chunks/chunk-5IKLA57U.js": {
+          "before": {
+            "bytes": 372,
+            "sha256": "6ed3c5559c222b854fbfd0d68cab2d2b95e662a4986a23595c5dbdfa369e164d"
+          },
+          "after": null,
+          "deltaBytes": null
+        }
+      },
+      "added": [
+        "dist/judgeLocal.js",
+        "dist/judgeUses.js",
+        "dist/webview/chunks/AgentMap-HUIGNCXX.js",
+        "dist/webview/chunks/BestOfNDialog-EZJMWCQR.js",
+        "dist/webview/chunks/HistoryDialog-2C4WIQNJ.js",
+        "dist/webview/chunks/ReviewPane-2C4KHR6S.js",
+        "dist/webview/chunks/SessionBoardDialog-PU4DMHRE.js",
+        "dist/webview/chunks/UsageDialog-4XUXWJ5Y.js",
+        "dist/webview/chunks/chunk-5D2BWH4Q.js",
+        "dist/webview/chunks/chunk-ACHHTTWN.js",
+        "dist/webview/chunks/chunk-EUMRVF27.js",
+        "dist/webview/chunks/chunk-JMPLCRAW.js",
+        "dist/webview/chunks/chunk-LV2NIUF3.js",
+        "dist/webview/chunks/chunk-OTUBQCWP.js",
+        "dist/webview/chunks/chunk-PYRQOPQC.js",
+        "dist/webview/chunks/chunk-QGWX7CSR.js",
+        "dist/webview/chunks/chunk-RF5DZCWO.js",
+        "dist/webview/chunks/chunk-SWJXSC3Z.js",
+        "dist/webview/chunks/chunk-T6XGVTFC.js",
+        "dist/webview/chunks/chunk-V2PO3OWI.js"
+      ],
+      "removed": [
+        "dist/webview/chunks/chunk-HKYZ73H3.js",
+        "dist/webview/chunks/chunk-FPHYU5NX.js",
+        "dist/webview/chunks/ReviewPane-XBORMAA3.js",
+        "dist/webview/chunks/chunk-DVFBWJJJ.js",
+        "dist/webview/chunks/chunk-HTXRPBTH.js",
+        "dist/webview/chunks/HistoryDialog-7TQ66PQA.js",
+        "dist/webview/chunks/chunk-KAAVZYBL.js",
+        "dist/webview/chunks/SessionBoardDialog-3Z73SRZO.js",
+        "dist/webview/chunks/chunk-YAZSGQ77.js",
+        "dist/webview/chunks/AgentMap-2R6DB76P.js",
+        "dist/webview/chunks/chunk-CNUQUFNK.js",
+        "dist/webview/chunks/chunk-GY2UEMOM.js",
+        "dist/webview/chunks/chunk-RBLEKKOC.js",
+        "dist/webview/chunks/chunk-JSBJNLRG.js",
+        "dist/webview/chunks/UsageDialog-Q4TZBUV4.js",
+        "dist/webview/chunks/BestOfNDialog-7JDPDAVM.js",
+        "dist/webview/chunks/chunk-2AFJA6CY.js",
+        "dist/webview/chunks/chunk-5IKLA57U.js"
+      ]
+    },
+    "merged-baseline": {
+      "baselineArtifacts": 54,
+      "currentArtifacts": 56,
+      "changed": {
+        "dist/judgeLint.js": {
+          "before": {
+            "bytes": 39301,
+            "sha256": "4fd7fd44db58f9f2979babcc2ed0b888ca54db325a5e4124dbeb3ec13c1844b1"
+          },
+          "after": {
+            "bytes": 39301,
+            "sha256": "d2148d3edca1056c459db6c5c4a23dfb8facb82942797fd5c189aa3ae3db26dc"
+          },
+          "deltaBytes": 0
+        },
+        "dist/review.js": {
+          "before": {
+            "bytes": 29343,
+            "sha256": "ba816ade9c96807fcc80d49f496bfa48c6a8fd024df107862adafb6aa36412a5"
+          },
+          "after": {
+            "bytes": 29343,
+            "sha256": "91266d26e57914307cb2593457ec1908b155fb2fe9abb24e851903b640a51149"
+          },
+          "deltaBytes": 0
+        },
+        "dist/pluginHooks.js": {
+          "before": {
+            "bytes": 34590,
+            "sha256": "8bd6f5d2657d229c78d7cbbf29c7e30b12cf1cf6eae7e012dc46e23ec988b7a8"
+          },
+          "after": {
+            "bytes": 34590,
+            "sha256": "dcf5ce1934b0a000614ee4f71e69017b1f3030a505931c41cd305a4b0e7ee2bb"
+          },
+          "deltaBytes": 0
+        },
+        "dist/validation.js": {
+          "before": {
+            "bytes": 41406,
+            "sha256": "6acf1ea164460985fb7df8fb56cacbb7fe209cd876424c9faf937623aebeba4b"
+          },
+          "after": {
+            "bytes": 41502,
+            "sha256": "b23e40f44efc546a1d8ca9c4d1514effc3802be533d39beae3505b71f3db8bdb"
+          },
+          "deltaBytes": 96
+        },
+        "dist/voice.js": {
+          "before": {
+            "bytes": 19003,
+            "sha256": "77d9f3b1c37e9b591286e1f92206e082aba2925cf21f5d25a58e137635d1eed5"
+          },
+          "after": {
+            "bytes": 19003,
+            "sha256": "86cf2b1d52020f8906e35f8ff6217dfbd788756784bef21804186b928aaa8d74"
+          },
+          "deltaBytes": 0
+        },
+        "dist/judge.js": {
+          "before": {
+            "bytes": 52877,
+            "sha256": "c13251e2a6905ae8668ddaa02b3e7cd24de3151da16e99e9abfaa643c2204eb7"
+          },
+          "after": {
+            "bytes": 53390,
+            "sha256": "2d13567d7d556311b8ae7ccc004bdb492b91294710fc7179746432bb4da6ff66"
+          },
+          "deltaBytes": 513
+        }
+      },
+      "added": ["dist/judgeLocal.js", "dist/judgeUses.js"],
+      "removed": []
+    }
+  },
+  "packages": [
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/judgeLocal.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/dist/judgeUses.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/native/windows/MuseSparkLocalJudgePeer.cs",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/native/linux/MuseSparkLocalJudgePeer.c",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "entry": "extension/native/darwin/muse-local-judge-peer",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f"
+    },
+    {
+      "archive": "muse-spark-code-0.13.0.vsix",
+      "bytes": 2418240,
+      "sha256": "aad503b77097a784c0844d9e34d7e56b60238afc4f7afb849384d142c596244f",
+      "entries": 160,
+      "inventoryExit": 0
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/judgeLocal.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/dist/judgeUses.js",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/native/windows/MuseSparkLocalJudgePeer.cs",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/native/linux/MuseSparkLocalJudgePeer.c",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "entry": "package/native/darwin/muse-local-judge-peer",
+      "redExit": 1,
+      "greenExit": 0,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a"
+    },
+    {
+      "archive": "dist/muse-spark-code-acp-0.13.0.tgz",
+      "bytes": 1280879,
+      "sha256": "bfc1e083df3211c96dfbf42541d9e984194ab874e3cacde4e6c9574729b1593a",
+      "entries": 41,
+      "inventoryExit": 0
+    }
+  ],
+  "packageBudget": {
+    "bytes": 2418240,
+    "capBytes": 2252800,
+    "overBytes": 165440,
+    "previousRoundBytes": 2382021,
+    "increaseBytes": 36219,
+    "gateExit": 1,
+    "owner": "lead / VSIXDIET2"
+  }
+}

@@ -132,6 +132,105 @@ import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
+const JUDGE = { output: 'dist/judgeP2.js', metafile: 'dist/meta/judgeP2.json' }
+const JUDGE_ONLY = [
+  'src/runtime/judge/judgeEntry.ts',
+  'src/core/judge/calibration/apply.ts',
+  'src/core/judge/calibration/fit.ts',
+  'src/core/judge/calibration/report.ts',
+  'src/core/judge/calibration/schema.ts',
+  'src/core/judge/sampling.ts',
+  'src/core/judge/contrastive.ts',
+  'src/runtime/judge/commands.ts',
+  'src/runtime/judge/mcp.ts',
+]
+const JUDGE_CHILDREN = [
+  {
+    output: 'dist/judgeSources.js',
+    metafile: 'dist/meta/judgeSources.json',
+    files: [
+      'src/runtime/judge/judgeSourcesEntry.ts',
+      'src/core/judge/routing.ts',
+      'src/core/judge/providers/run.ts',
+      'src/core/judge/providers/decide.ts',
+      'src/core/judge/providers/decode.ts',
+      'src/core/judge/systemone/source.ts',
+      'src/core/judge/systemone/wire.ts',
+      'src/core/judge/systemone/policy.ts',
+      'src/core/judge/systemone/side.ts',
+      'src/core/judge/sides.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeLocal.js',
+    metafile: 'dist/meta/judgeLocal.json',
+    files: [
+      'src/runtime/judge/judgeLocalEntry.ts',
+      'src/runtime/judge/localHelper.ts',
+      'src/host/judge/local.ts',
+      'src/core/judge/local/darwinPeer.ts',
+      'src/core/judge/local/executable.ts',
+      'src/core/judge/local/linuxPeer.ts',
+      'src/core/judge/local/linuxVolume.ts',
+      'src/core/judge/local/model.ts',
+      'src/core/judge/local/posixPeer.ts',
+      'src/core/judge/local/recommendations.ts',
+      'src/core/judge/local/snapshot.ts',
+      'src/core/judge/local/source.ts',
+      'src/core/judge/local/transport.ts',
+      'src/core/judge/local/windowsPeer.ts',
+      'src/core/judge/local/wire.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeUses.js',
+    metafile: 'dist/meta/judgeUses.json',
+    files: [
+      'src/runtime/judge/judgeUsesEntry.ts',
+      'src/host/judge/uses.ts',
+      'src/core/judge/uses/advice.ts',
+      'src/core/judge/uses/definitions.ts',
+      'src/core/judge/uses/fences.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeLint.js',
+    metafile: 'dist/meta/judgeLint.json',
+    files: [
+      'src/runtime/judge/judgeLintEntry.ts',
+      'src/runtime/judge/lint.ts',
+      'src/host/judge/lint.ts',
+      'src/core/judge/lint/cache.ts',
+      'src/core/judge/lint/config.ts',
+      'src/core/judge/lint/context.ts',
+      'src/core/judge/lint/evals.ts',
+      'src/core/judge/lint/evaluate.ts',
+      'src/core/judge/lint/formats.ts',
+      'src/core/judge/lint/report.ts',
+      'src/core/judge/lint/rules.ts',
+      'src/core/judge/lint/syntax.ts',
+      'src/core/judge/lint/units.ts',
+    ],
+  },
+  {
+    output: 'dist/judgeHook.js',
+    metafile: 'dist/meta/judgeHook.json',
+    files: ['src/runtime/judge/judgeHookEntry.ts', 'src/runtime/judge/hook.ts'],
+  },
+  {
+    // M98P2F: the authenticated serve factory and its token file, out of
+    // the judge parent bundle into their own explicit-action child.
+    // RLM98P2: the shared token lifecycle stays shared with companion voice
+    // on main, so only the judge wrapper below is exclusive to this child.
+    output: 'dist/judgeServe.js',
+    metafile: 'dist/meta/judgeServe.json',
+    files: [
+      'src/runtime/judge/judgeServeEntry.ts',
+      'src/runtime/judge/serve.ts',
+      'src/runtime/judge/tokenFile.ts',
+    ],
+  },
+]
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a
 // session holding one runs a hook.
@@ -696,6 +795,8 @@ for (const bundle of [
   SHARING_RUNTIME,
   CONNECTOR,
   REVIEW,
+  JUDGE,
+  ...JUDGE_CHILDREN,
   ...DEFERRED,
   AGENT_IMPORT,
   CONVERSATION_GIT,
@@ -1323,6 +1424,42 @@ const webviewReview = SHIPPED.filter(
 if (webviewReview.length !== 1) {
   problems.push('exactly one webview graph must carry ReviewPane')
 }
+// The shared parser exposes conversion lazily; no other shipped bundle may
+// carry the converter or its entry, even if a caller only lists tools.
+for (const file of ['src/host/validationSchemaEntry.ts']) {
+  for (const bundle of SHIPPED) {
+    if (bundle.output !== 'dist/validationSchema.js' && inputsOf(bundle).has(file))
+      problems.push(`${bundle.output} carries ${file}, which loads only for JSON Schema conversion`)
+  }
+  if (
+    !inputsOf({
+      output: 'dist/validationSchema.js',
+      metafile: 'dist/meta/validationSchema.json',
+    }).has(file)
+  )
+    problems.push(`dist/validationSchema.js no longer carries ${file}`)
+}
+
+// Phase-2 implementations belong only to the explicit-action factory. This
+// includes every other lazy bundle, so an accidental import cannot hide there.
+const judge = inputsOf(JUDGE)
+for (const file of JUDGE_ONLY) {
+  if (!judge.has(file)) problems.push(`${JUDGE.output} no longer carries ${file}`)
+  for (const bundle of SHIPPED) {
+    if (bundle.output !== JUDGE.output && inputsOf(bundle).has(file)) {
+      problems.push(`${bundle.output} carries ${file}, which belongs to the lazy judge bundle`)
+    }
+  }
+}
+for (const child of JUDGE_CHILDREN) {
+  for (const file of child.files) {
+    if (!inputsOf(child).has(file)) problems.push(`${child.output} no longer carries ${file}`)
+    for (const bundle of SHIPPED) {
+      if (bundle.output !== child.output && inputsOf(bundle).has(file))
+        problems.push(`${bundle.output} carries ${file}, which belongs to ${child.output}`)
+    }
+  }
+}
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
   const bundle = SHIPPED.find((entry) => entry.output === output)
@@ -1554,7 +1691,12 @@ const TEXT_BLOCKS = [
   {
     block: 'JUDGE_MODEL_TEXT',
     sentinels: ['judgeSystemInstruction', 'judgeStandaloneTurn'],
-    readers: ['dist/judge.js'],
+    readers: ['dist/judge.js', 'dist/judgeSources.js'],
+  },
+  {
+    block: 'JUDGE_PROVIDER_MODEL_TEXT',
+    sentinels: ['singleTokenInstruction'],
+    readers: ['dist/judgeSources.js'],
   },
   // M124: what another agent's model reads from the connector, `mcp` only.
   {
@@ -1874,6 +2016,9 @@ nodeMetafiles.push(
 const CLASSIC_ZOD_CARRIERS = new Set([
   'dist/meta/structuredSchema.json',
   'dist/meta/runtimeEngine.json',
+  // RLM98P2: JSON Schema conversion loads only on explicit MCP tool listing;
+  // its entry re-exports toJSONSchema from zod/v4/core by design.
+  'dist/meta/validationSchema.json',
 ])
 /** A zod module other than zod/mini's own; zod/mini's core comes from validation.js. */
 function isClassicZod(input) {
@@ -2071,6 +2216,7 @@ console.log('ok   webview: optional surfaces and highlighting load only in guard
 console.log(
   `ok   ${CONVERSATION_GIT.output}: carries the Git adapter and the window's ${String(GIT_ONLY.length - 2)} git and pull request files; activation keeps its checked loader`,
 )
+console.log(`ok   ${JUDGE.output}: B/D/CS/G load only on an explicit judge action`)
 for (const bundle of DEFERRED) console.log(`ok   ${bundle.output}: loads only on its first action`)
 for (const bundle of ON_FIRST_USE) {
   console.log(`ok   ${bundle.output}: loads only on ${bundle.use}, never at activation`)

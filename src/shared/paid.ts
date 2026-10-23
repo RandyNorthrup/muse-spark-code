@@ -264,7 +264,14 @@ export type PaidUseRequest =
       readonly modelId: string
       readonly dailyBudgetUsd: UsdAmount
     }
-  | { readonly feature: 'judge'; readonly modelId: string; readonly dailyBudgetUsd: UsdAmount }
+  | {
+      readonly feature: 'judge'
+      readonly modelId: string
+      readonly dailyBudgetUsd: UsdAmount
+      readonly embedding?: { readonly worstCaseUsd: UsdAmount }
+      /** An experimental SystemOne judge route: its per-request ceiling and recipient. */
+      readonly systemOne?: { readonly worstCaseUsd: UsdAmount; readonly recipient: string }
+    }
   | {
       readonly feature: 'webSearch'
       readonly priceUsd: UsdAmount

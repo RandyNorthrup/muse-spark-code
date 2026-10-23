@@ -1,0 +1,3 @@
+function hasReport(store, id) {
+  return store.has(id)
+}

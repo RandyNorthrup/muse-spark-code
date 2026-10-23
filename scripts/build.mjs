@@ -169,7 +169,7 @@ const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
 const UI_TEXT_ENTRY = 'src/shared/l10n/en.ts'
 const UI_TEXT_OUTFILE = 'dist/uiText.js'
-const VALIDATION_ENTRY = 'src/shared/validationEntry.ts'
+const VALIDATION_ENTRY = 'src/host/validationEntry.ts'
 const VALIDATION_OUTFILE = 'dist/validation.js'
 const MODEL_API_ENTRY = 'src/host/backend/modelApiEntry.ts'
 const MODEL_API_OUTFILE = 'dist/modelApi.js'
@@ -377,6 +377,20 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const JUDGE_P2_ENTRY = 'src/runtime/judge/judgeEntry.ts'
+const JUDGE_P2_OUTFILE = 'dist/judgeP2.js'
+const JUDGE_SOURCES_ENTRY = 'src/runtime/judge/judgeSourcesEntry.ts'
+const JUDGE_SOURCES_OUTFILE = 'dist/judgeSources.js'
+const JUDGE_LINT_ENTRY = 'src/runtime/judge/judgeLintEntry.ts'
+const JUDGE_LINT_OUTFILE = 'dist/judgeLint.js'
+const JUDGE_HOOK_ENTRY = 'src/runtime/judge/judgeHookEntry.ts'
+const JUDGE_HOOK_OUTFILE = 'dist/judgeHook.js'
+const JUDGE_LOCAL_ENTRY = 'src/runtime/judge/judgeLocalEntry.ts'
+const JUDGE_LOCAL_OUTFILE = 'dist/judgeLocal.js'
+const JUDGE_USES_ENTRY = 'src/runtime/judge/judgeUsesEntry.ts'
+const JUDGE_USES_OUTFILE = 'dist/judgeUses.js'
+const JUDGE_SERVE_ENTRY = 'src/runtime/judge/judgeServeEntry.ts'
+const JUDGE_SERVE_OUTFILE = 'dist/judgeServe.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
@@ -1095,6 +1109,45 @@ const extensionHooksOptions = {
 }
 
 /** @type {import('esbuild').BuildOptions} */
+const judgeP2Options = {
+  ...planMarkdownOptions,
+  entryPoints: [JUDGE_P2_ENTRY],
+  outfile: JUDGE_P2_OUTFILE,
+}
+
+const judgeSourcesOptions = {
+  ...judgeP2Options,
+  plugins: [...judgeP2Options.plugins, deferredCohort],
+  entryPoints: [JUDGE_SOURCES_ENTRY],
+  outfile: JUDGE_SOURCES_OUTFILE,
+}
+
+const judgeLintOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_LINT_ENTRY],
+  outfile: JUDGE_LINT_OUTFILE,
+}
+const judgeLocalOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_LOCAL_ENTRY],
+  outfile: JUDGE_LOCAL_OUTFILE,
+}
+const judgeUsesOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_USES_ENTRY],
+  outfile: JUDGE_USES_OUTFILE,
+}
+const judgeHookOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_HOOK_ENTRY],
+  outfile: JUDGE_HOOK_OUTFILE,
+}
+const judgeServeOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_SERVE_ENTRY],
+  outfile: JUDGE_SERVE_OUTFILE,
+}
+
 const judgeOptions = {
   ...planMarkdownOptions,
   entryPoints: [JUDGE_ENTRY],
@@ -1652,6 +1705,12 @@ const estimateContractsOptions = {
   outfile: 'dist/estimateContracts.js',
 }
 
+const validationSchemaOptions = {
+  ...validationOptions,
+  entryPoints: ['src/host/validationSchemaEntry.ts'],
+  outfile: 'dist/validationSchema.js',
+}
+
 const wireOptions = {
   ...modelApiOptions,
   plugins: [sharedUiText, sharedValidation, deferredTeamView, sharedModelApiBoundaries],
@@ -1999,6 +2058,14 @@ if (isWatch) {
     esbuild.context(whatsNewOptions),
     esbuild.context(judgeOptions),
     esbuild.context(scheduleBackgroundOptions),
+    esbuild.context(judgeP2Options),
+    esbuild.context(judgeSourcesOptions),
+    esbuild.context(judgeLintOptions),
+    esbuild.context(judgeHookOptions),
+    esbuild.context(judgeLocalOptions),
+    esbuild.context(judgeUsesOptions),
+    esbuild.context(judgeServeOptions),
+    esbuild.context(validationSchemaOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
     esbuild.context(validationOptions),
@@ -2167,6 +2234,14 @@ if (isWatch) {
     recorder: recorded('recorder', recorderOptions),
     whatsNew: recorded('whatsNew', whatsNewOptions),
     judge: recorded('judge', judgeOptions),
+    judgeP2: recorded('judgeP2', judgeP2Options),
+    judgeSources: recorded('judgeSources', judgeSourcesOptions),
+    judgeLint: recorded('judgeLint', judgeLintOptions),
+    judgeHook: recorded('judgeHook', judgeHookOptions),
+    judgeLocal: recorded('judgeLocal', judgeLocalOptions),
+    judgeUses: recorded('judgeUses', judgeUsesOptions),
+    judgeServe: recorded('judgeServe', judgeServeOptions),
+    validationSchema: recorded('validationSchema', validationSchemaOptions),
     scheduleBackground: recorded('scheduleBackground', scheduleBackgroundOptions),
     uiText: recorded('uiText', uiTextOptions),
     museCode: recorded('museCode', museCodeOptions),
@@ -2379,6 +2454,13 @@ if (isWatch) {
   reportSize(WHATS_NEW_OUTFILE)
   reportSize(WHATS_NEW_CONTENT_OUTFILE)
   reportSize(JUDGE_OUTFILE)
+  reportSize(JUDGE_P2_OUTFILE)
+  reportSize(JUDGE_SOURCES_OUTFILE)
+  reportSize(JUDGE_LINT_OUTFILE)
+  reportSize(JUDGE_HOOK_OUTFILE)
+  reportSize(JUDGE_LOCAL_OUTFILE)
+  reportSize(JUDGE_USES_OUTFILE)
+  reportSize('dist/validationSchema.js')
   reportSize(UI_TEXT_OUTFILE)
   for (const region of UI_TEXT_REGIONS) reportSize(region.output)
   reportSize(VALIDATION_OUTFILE)

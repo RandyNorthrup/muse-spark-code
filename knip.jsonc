@@ -60,6 +60,7 @@
     // Help data: separate lazy runtime and generator build entries.
     "src/shared/reference/referenceEntry.ts",
     "src/shared/reference/referenceSource.ts",
+    "src/host/validationEntry.ts",
     "src/shared/wireEntry.ts",
     // M106 actual production lazy entries, called through their emitted bundles.
     "src/shared/structuredSchemaEntry.ts",
@@ -87,6 +88,8 @@
     // The legal header-fix planner, built as dist/legalFix.js (D6), loaded by path.
     "src/core/legal/legalFixEntry.ts",
     "src/host/prompts/promptEntry.ts",
+
+    "src/host/validationSchemaEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
     "src/host/backend/modelApiEntry.ts",
     // The Muse Code backend's own bundle (PR206), required by path on its first start.
@@ -209,6 +212,14 @@
     "src/runtime/playbook/playbookEntry.ts",
     "src/core/questions/deferralEntry.ts",
     "src/runtime/fonts/fontsEntry.ts",
+    "src/runtime/judge/judgeEntry.ts",
+    "src/runtime/judge/judgeSourcesEntry.ts",
+    "src/runtime/judge/judgeLintEntry.ts",
+    "src/runtime/judge/judgeHookEntry.ts",
+    "src/runtime/judge/judgeLocalEntry.ts",
+    "src/runtime/judge/judgeUsesEntry.ts",
+    "src/runtime/judge/judgeServeEntry.ts",
+    "src/runtime/judge/judgeBundle.ts",
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
     "src/host/vault/vaultPanelEntry.ts",
@@ -279,6 +290,8 @@
     // M116 playbook scenes: the axe runner (an npm script knip already sees)
     // bundles this scene file with esbuild, which knip does not trace.
     "test/harness/playbook.mjs",
+    // M98 local-judge TCP owner/relay fixtures, started by path in the tests.
+    "test/unit/helpers/localJudgeRelay.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.

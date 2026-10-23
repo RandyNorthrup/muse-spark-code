@@ -388,6 +388,80 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'judgeHook.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/judge/judgeEntry.ts',
+        symbol: 'createJudgeFeatures',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'judgeLint.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/judge/judgeEntry.ts',
+        symbol: 'createJudgeFeatures',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'judgeLocal.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/judge/judgeEntry.ts',
+        symbol: 'createJudgeFeatures',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'judgeP2.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
+      { importer: 'src/shared/constants.ts', symbol: 'JUDGE_P2_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
+  {
+    file: 'judgeServe.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/judge/judgeEntry.ts',
+        symbol: 'createJudgeFeatures',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'judgeSources.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/judge/judgeEntry.ts',
+        symbol: 'createJudgeFeatures',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'judgeUses.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/judge/judgeEntry.ts',
+        symbol: 'createJudgeFeatures',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'legalFix.js',
     side: 'both',
     requestedBy: [
@@ -1301,6 +1375,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   { file: 'validation.js', side: 'both', requestedBy: [] },
+  { file: 'validationSchema.js', side: 'both', requestedBy: [] },
   {
     file: 'vault.js',
     side: 'vscode',

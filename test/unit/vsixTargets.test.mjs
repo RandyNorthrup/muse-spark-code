@@ -26,7 +26,13 @@ const WINDOWS_FILES = [
   'native/windows/MuseSparkVaultHello.cs',
   'native/windows/MuseSparkVaultLock.cs',
   'native/windows/MuseSparkVaultPipe.cs',
+  // The local judge's peer compiles its C# source on first judge use (M98).
+  'native/windows/MuseSparkLocalJudgePeer.cs',
 ]
+// The local judge's peer (M98): one C source for both Linux architectures,
+// one universal binary for both Mac architectures.
+const JUDGE_LINUX_SOURCE = 'native/linux/MuseSparkLocalJudgePeer.c'
+const JUDGE_DARWIN_BINARY = 'native/darwin/muse-local-judge-peer'
 // One thin binary per Mac architecture (D209): each darwin target ships
 // only its own architecture's slices.
 const DARWIN_FILES = {
@@ -79,6 +85,8 @@ describe('per-platform VSIX inventory', () => {
         for (const file of files) expect(isVsixTargetFile(target, file)).toBe(target === owner)
       for (const [owner, files] of Object.entries(LINUX_HELPERS))
         for (const file of files) expect(isVsixTargetFile(target, file)).toBe(target === owner)
+      expect(isVsixTargetFile(target, JUDGE_LINUX_SOURCE)).toBe(platform === 'linux')
+      expect(isVsixTargetFile(target, JUDGE_DARWIN_BINARY)).toBe(platform === 'darwin')
       for (const file of SHARED_FILES) expect(isVsixTargetFile(target, file)).toBe(true)
     }
   })
@@ -140,6 +148,8 @@ describe('per-platform VSIX inventory', () => {
     expect(isVsixTargetFile(undefined, String.raw`dist\native\darwin\muse-vault`)).toBe(false)
     for (const files of Object.values(LINUX_HELPERS))
       for (const file of files) expect(isVsixTargetFile(undefined, file)).toBe(true)
+    expect(isVsixTargetFile(undefined, JUDGE_LINUX_SOURCE)).toBe(true)
+    expect(isVsixTargetFile(undefined, JUDGE_DARWIN_BINARY)).toBe(false)
     expect(isVsixTargetFile(undefined, String.raw`native\linux\arm64\muse-created`)).toBe(true)
     for (const file of SHARED_FILES) expect(isVsixTargetFile(undefined, file)).toBe(true)
   })
@@ -149,8 +159,14 @@ describe('per-platform VSIX inventory', () => {
       'native/linux/x64/muse-created',
       'native/linux/arm64/muse-created',
     ])
-    expect(requiredNativeFiles('linux-x64')).toEqual(['native/linux/x64/muse-created'])
-    expect(requiredNativeFiles('linux-arm64')).toEqual(['native/linux/arm64/muse-created'])
+    expect(requiredNativeFiles('linux-x64')).toEqual([
+      'native/linux/x64/muse-created',
+      'native/linux/MuseSparkLocalJudgePeer.c',
+    ])
+    expect(requiredNativeFiles('linux-arm64')).toEqual([
+      'native/linux/arm64/muse-created',
+      'native/linux/MuseSparkLocalJudgePeer.c',
+    ])
     expect(requiredNativeFiles('win32-x64')).toEqual([
       'native/windows/dictate.ps1',
       'native/windows/MuseSparkVault.cs',
@@ -158,6 +174,7 @@ describe('per-platform VSIX inventory', () => {
       'native/windows/MuseSparkVaultHello.cs',
       'native/windows/MuseSparkVaultLock.cs',
       'native/windows/MuseSparkVaultPipe.cs',
+      'native/windows/MuseSparkLocalJudgePeer.cs',
     ])
     expect(requiredNativeFiles('win32-arm64')).toEqual([
       'native/windows/dictate.ps1',
@@ -166,6 +183,7 @@ describe('per-platform VSIX inventory', () => {
       'native/windows/MuseSparkVaultHello.cs',
       'native/windows/MuseSparkVaultLock.cs',
       'native/windows/MuseSparkVaultPipe.cs',
+      'native/windows/MuseSparkLocalJudgePeer.cs',
     ])
     // The darwin helpers are git-ignored CI builds, held by the CI content check.
     expect(requiredNativeFiles('darwin-x64')).toEqual([])

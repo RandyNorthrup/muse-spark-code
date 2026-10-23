@@ -147,6 +147,7 @@ export async function referenceSources(root) {
     'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
+    'src/host/paid/paidHost.ts',
     'src/acp/agent.ts',
     ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
       .filter((name) => /\.tsx?$/.test(name))
@@ -472,6 +473,10 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       "currentSettings().dictationEngine === 'system'",
       'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
       'return museVoiceSetup',
+    ],
+    'src/host/paid/paidHost.ts': [
+      'const isDefaultOn = (feature: PaidFeature) => !deps.hasUserValue(feature)',
+      "feature === 'tab' || deps.backend() === 'modelApi' || !isDefaultOn(feature),",
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],
   }

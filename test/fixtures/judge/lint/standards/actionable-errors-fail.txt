@@ -1,0 +1,4 @@
+function parseReport(parseJson, text) {
+  try { return parseJson(text) }
+  catch { throw new Error('Something went wrong') }
+}

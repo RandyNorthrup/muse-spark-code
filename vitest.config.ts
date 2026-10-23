@@ -33,7 +33,9 @@ const config = defineConfig({
     environment: 'node',
     setupFiles: ['test/unit/setup.ts'],
     // Once-per-run artefacts shared by suites (inject()), built before workers start.
-    globalSetup: ['test/unit/globalSetup.mjs'],
+    // The judge delivery suite serves dist/ itself, so the production build
+    // setup runs alongside it; each setup builds only for its own suites.
+    globalSetup: ['test/unit/globalSetup.mjs', 'test/unit/productionBuild.ts'],
     // Windows MCP process suites start PowerShell job helpers. On the small
     // hosted runner, concurrent files delayed launches past real MCP deadlines.
     fileParallelism: process.platform !== 'win32' && !IS_HOSTED_MAC,

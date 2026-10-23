@@ -193,8 +193,12 @@ export async function secureOwnerOnly(
 }
 
 /** One private directory and one exclusive write per start; no reusable token. */
-export async function createTokenFile(parent: string, acl?: TokenWindowsAcl) {
-  const directory = await mkdtemp(path.join(await realpath(parent), 'muse-token-'))
+export async function createTokenFile(
+  parent: string,
+  acl?: TokenWindowsAcl,
+  prefix = 'muse-token-',
+) {
+  const directory = await mkdtemp(path.join(await realpath(parent), prefix))
   const file = path.join(directory, 'bearer')
   let isRemoved = false
   async function remove() {

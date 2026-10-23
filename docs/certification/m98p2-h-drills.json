@@ -1,0 +1,52 @@
+[
+  {
+    "finding": "P2-1",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": ".toSorted((left, right) => left.id.localeCompare(right.id)) -> ",
+    "test": "keeps cached decisions bound to numeric rule IDs after reordering",
+    "exit": 1,
+    "before": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "after": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "restored": true
+  },
+  {
+    "finding": "P2-2",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "(probability ?? 0) > chosenProbability -> false",
+    "test": "rejects a choice below the maximum probability",
+    "exit": 1,
+    "before": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "after": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "restored": true
+  },
+  {
+    "finding": "P2-3",
+    "file": "src/runtime/judge/lint.ts",
+    "mutation": "Reflect.get(deps.evaluator.identity, key) !== value -> false",
+    "test": "discards stale findings when identity changes during corroboration",
+    "exit": 1,
+    "before": "8d074c347b348cc83c0c5542c96ac4f443e000cd41adc4cfcd4b7983748b6107",
+    "after": "8d074c347b348cc83c0c5542c96ac4f443e000cd41adc4cfcd4b7983748b6107",
+    "restored": true
+  },
+  {
+    "finding": "P2-4",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "offset + JUDGE_QUESTION_MAX -> offset + group.length",
+    "test": "splits large valid rule sets while preserving complete state and per-rule outcomes",
+    "exit": 1,
+    "before": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "after": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "restored": true
+  },
+  {
+    "finding": "P2-4-bytes",
+    "file": "src/core/judge/lint/evaluate.ts",
+    "mutation": "if (batch.length === 1) throw parsed.error -> if (batch.length >= 1) throw parsed.error",
+    "test": "splits question bytes without fragmenting state or bypassing the body bound",
+    "exit": 1,
+    "before": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "after": "ba3b5f280f76fddff118b87ba2c8a8c71b813fe8480ab51db95029d15c03bffc",
+    "restored": true
+  }
+]

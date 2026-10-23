@@ -646,6 +646,15 @@ Malformed configured provider records refuse before any fallback key read.
 
 More detail: `docs/PRIVACY.md` and PLAN.md §9.
 
+The packaged Muse Judge phase-2 factory starts no service at activation.
+Explicit CLI/MCP dispatch loads it without a chat backend; unavailable source
+and offline/surface adapters refuse before inference. Its loopback boundary
+requires exact Host, rejects every Origin, authenticates every request with
+a fresh private bearer and bounds streamed input before calling an injected
+runtime. macOS extended ACLs refuse startup. Installed Windows ACL and
+integrated admitted-source receipts remain required before that surface is
+supported; fake boundary tests do not certify durable paid admission.
+
 ## Headless CI boundary (M80, PLAN D65)
 
 The frozen M80 contract adds memory-only stdin authentication to exec and a

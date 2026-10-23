@@ -30,6 +30,20 @@ export const JOB_SOURCES = [
 export const DARWIN_PEERS = ['arm64', 'x64'].map((arch) =>
   path.join('native', 'darwin', `muse-vault-peer-${arch}`),
 )
+// The local judge's peer helper (M98 phase 2, src/runtime/judge/localHelper.ts):
+// Windows and Linux ship its source and compile it on first judge use; macOS
+// ships the CI-built universal binary (native/darwin/build-local-judge.sh).
+export const JUDGE_PEER_SOURCES = [
+  path.join('native', 'windows', 'MuseSparkLocalJudgePeer.cs'),
+  path.join('native', 'linux', 'MuseSparkLocalJudgePeer.c'),
+  path.join('native', 'darwin', 'muse-local-judge-peer'),
+]
+/** The judge peer pieces for one platform: sources where compiled on first use. */
+function judgePeerFor(platform) {
+  if (!['darwin', 'linux', 'win32'].includes(platform)) return []
+  const dir = platform === 'win32' ? 'windows' : platform
+  return JUDGE_PEER_SOURCES.filter((file) => file.split(path.sep).includes(dir))
+}
 export const LINUX_HELPERS = ['x64', 'arm64'].flatMap((arch) =>
   ['muse-created', 'muse-vault-peer'].map((helper) => path.join('native', 'linux', arch, helper)),
 )
@@ -74,13 +88,21 @@ universal package, which keeps every platform's helpers.
 */
 export function acpNativeFiles(target) {
   if (target === undefined)
-    return [...JOB_SOURCES, ...DARWIN_PEERS, ...LINUX_HELPERS, ...VOICE_WINDOWS_HELPERS]
+    return [
+      ...JOB_SOURCES,
+      ...JUDGE_PEER_SOURCES,
+      ...DARWIN_PEERS,
+      ...LINUX_HELPERS,
+      ...VOICE_WINDOWS_HELPERS,
+    ]
   if (!VSIX_TARGETS.includes(target)) throw new Error(`Unknown ACP target: ${target}`)
   const [platform, arch] = target.split('-', 2)
   const linuxFiles = LINUX_HELPERS.filter((helper) => helper.split(path.sep).includes(arch))
-  if (platform === 'linux') return linuxFiles
+  if (platform === 'linux') return [...linuxFiles, ...judgePeerFor(platform)]
   const darwinFiles = DARWIN_PEERS.filter((helper) =>
     helper.split(path.sep).at(-1).endsWith(`-${arch}`),
   )
-  return platform === 'darwin' ? darwinFiles : [...JOB_SOURCES, ...VOICE_WINDOWS_HELPERS]
+  return platform === 'darwin'
+    ? [...darwinFiles, ...judgePeerFor(platform)]
+    : [...JOB_SOURCES, ...judgePeerFor(platform), ...VOICE_WINDOWS_HELPERS]
 }

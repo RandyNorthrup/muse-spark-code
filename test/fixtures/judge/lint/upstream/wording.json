@@ -1,0 +1,9 @@
+{
+  "pass": "The code complies with the rule, or an explicit exception applies.",
+  "fail": "The code violates the rule, and no explicit exception applies.",
+  "skip": "The rule's subject is not present in this unit; the rule does not apply.",
+  "abstain": "The rule is relevant, but the supplied code does not contain enough context to decide pass or fail.",
+  "instructionPrefix": "Determine whether the supplied code complies with this rule:\n",
+  "localizedInstructionPrefix": "Determine whether state.source violates this rule. Use state.parentSource only as surrounding context:\n",
+  "exceptionsPrefix": "\n\nExplicit exceptions:"
+}

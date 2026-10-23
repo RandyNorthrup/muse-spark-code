@@ -1,0 +1,2165 @@
+[
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "parseJson",
+            "Path": ""
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return parseJson(text)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 8,
+            "endColumn": 30,
+            "startByte": 48,
+            "endByte": 70
+          },
+          {
+            "category": "statement",
+            "kind": "throw_statement",
+            "source": "throw new Error('Something went wrong')",
+            "startLine": 3,
+            "endLine": 3,
+            "startColumn": 10,
+            "endColumn": 49,
+            "startByte": 83,
+            "endByte": 122
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "parseReport",
+          "language": "javascript",
+          "path": "standards/actionable-errors-fail.txt",
+          "source": "function parseReport(parseJson, text) {\n  try { return parseJson(text) }\n  catch { throw new Error('Something went wrong') }\n}",
+          "startLine": 1,
+          "endLine": 4,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 126
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/actionable-errors-fail.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 127,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 126,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 20,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 9
+        },
+        {
+          "endByte": 37,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 20
+        },
+        {
+          "endByte": 30,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 21
+        },
+        {
+          "endByte": 36,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 32
+        },
+        {
+          "endByte": 126,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 38
+        },
+        {
+          "endByte": 124,
+          "kind": "try_statement",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 42
+        },
+        {
+          "endByte": 72,
+          "kind": "statement_block",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 46
+        },
+        {
+          "endByte": 70,
+          "kind": "return_statement",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 48
+        },
+        {
+          "endByte": 70,
+          "kind": "call_expression",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 55
+        },
+        {
+          "endByte": 64,
+          "kind": "identifier",
+          "parent": 10,
+          "previous": -1,
+          "startByte": 55
+        },
+        {
+          "endByte": 70,
+          "kind": "arguments",
+          "parent": 10,
+          "previous": 11,
+          "startByte": 64
+        },
+        {
+          "endByte": 69,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": -1,
+          "startByte": 65
+        },
+        {
+          "endByte": 124,
+          "kind": "catch_clause",
+          "parent": 7,
+          "previous": 8,
+          "startByte": 75
+        },
+        {
+          "endByte": 124,
+          "kind": "statement_block",
+          "parent": 14,
+          "previous": -1,
+          "startByte": 81
+        },
+        {
+          "endByte": 122,
+          "kind": "throw_statement",
+          "parent": 15,
+          "previous": -1,
+          "startByte": 83
+        },
+        {
+          "endByte": 122,
+          "kind": "new_expression",
+          "parent": 16,
+          "previous": -1,
+          "startByte": 89
+        },
+        {
+          "endByte": 98,
+          "kind": "identifier",
+          "parent": 17,
+          "previous": -1,
+          "startByte": 93
+        },
+        {
+          "endByte": 122,
+          "kind": "arguments",
+          "parent": 17,
+          "previous": 18,
+          "startByte": 98
+        },
+        {
+          "endByte": 121,
+          "kind": "string",
+          "parent": 19,
+          "previous": -1,
+          "startByte": 99
+        },
+        {
+          "endByte": 120,
+          "kind": "string_fragment",
+          "parent": 20,
+          "previous": -1,
+          "startByte": 100
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 11
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "function parseReport(parseJson, text) {\n  try { return parseJson(text) }\n  catch { throw new Error('Something went wrong') }\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "parseJson",
+            "Path": ""
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return parseJson(text)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 8,
+            "endColumn": 30,
+            "startByte": 48,
+            "endByte": 70
+          },
+          {
+            "category": "statement",
+            "kind": "throw_statement",
+            "source": "throw new Error('Report JSON is invalid. Repair its syntax and retry the import.')",
+            "startLine": 3,
+            "endLine": 3,
+            "startColumn": 10,
+            "endColumn": 92,
+            "startByte": 83,
+            "endByte": 165
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "parseReport",
+          "language": "javascript",
+          "path": "standards/actionable-errors-pass.txt",
+          "source": "function parseReport(parseJson, text) {\n  try { return parseJson(text) }\n  catch { throw new Error('Report JSON is invalid. Repair its syntax and retry the import.') }\n}",
+          "startLine": 1,
+          "endLine": 4,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 169
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/actionable-errors-pass.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 170,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 169,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 20,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 9
+        },
+        {
+          "endByte": 37,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 20
+        },
+        {
+          "endByte": 30,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 21
+        },
+        {
+          "endByte": 36,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 32
+        },
+        {
+          "endByte": 169,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 38
+        },
+        {
+          "endByte": 167,
+          "kind": "try_statement",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 42
+        },
+        {
+          "endByte": 72,
+          "kind": "statement_block",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 46
+        },
+        {
+          "endByte": 70,
+          "kind": "return_statement",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 48
+        },
+        {
+          "endByte": 70,
+          "kind": "call_expression",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 55
+        },
+        {
+          "endByte": 64,
+          "kind": "identifier",
+          "parent": 10,
+          "previous": -1,
+          "startByte": 55
+        },
+        {
+          "endByte": 70,
+          "kind": "arguments",
+          "parent": 10,
+          "previous": 11,
+          "startByte": 64
+        },
+        {
+          "endByte": 69,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": -1,
+          "startByte": 65
+        },
+        {
+          "endByte": 167,
+          "kind": "catch_clause",
+          "parent": 7,
+          "previous": 8,
+          "startByte": 75
+        },
+        {
+          "endByte": 167,
+          "kind": "statement_block",
+          "parent": 14,
+          "previous": -1,
+          "startByte": 81
+        },
+        {
+          "endByte": 165,
+          "kind": "throw_statement",
+          "parent": 15,
+          "previous": -1,
+          "startByte": 83
+        },
+        {
+          "endByte": 165,
+          "kind": "new_expression",
+          "parent": 16,
+          "previous": -1,
+          "startByte": 89
+        },
+        {
+          "endByte": 98,
+          "kind": "identifier",
+          "parent": 17,
+          "previous": -1,
+          "startByte": 93
+        },
+        {
+          "endByte": 165,
+          "kind": "arguments",
+          "parent": 17,
+          "previous": 18,
+          "startByte": 98
+        },
+        {
+          "endByte": 164,
+          "kind": "string",
+          "parent": 19,
+          "previous": -1,
+          "startByte": 99
+        },
+        {
+          "endByte": 163,
+          "kind": "string_fragment",
+          "parent": 20,
+          "previous": -1,
+          "startByte": 100
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 11
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "function parseReport(parseJson, text) {\n  try { return parseJson(text) }\n  catch { throw new Error('Report JSON is invalid. Repair its syntax and retry the import.') }\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": null,
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return elapsed > 3000",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 23,
+            "startByte": 38,
+            "endByte": 59
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "requestTimedOut",
+          "language": "javascript",
+          "path": "standards/explained-values-fail.txt",
+          "source": "function requestTimedOut(elapsed) {\n  return elapsed > 3000\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 61
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/explained-values-fail.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 62,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 61,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 24,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 9
+        },
+        {
+          "endByte": 33,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 24
+        },
+        {
+          "endByte": 32,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 25
+        },
+        {
+          "endByte": 61,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 34
+        },
+        {
+          "endByte": 59,
+          "kind": "return_statement",
+          "parent": 5,
+          "previous": -1,
+          "startByte": 38
+        },
+        {
+          "endByte": 59,
+          "kind": "binary_expression",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 45
+        },
+        {
+          "endByte": 52,
+          "kind": "identifier",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 45
+        },
+        {
+          "endByte": 59,
+          "kind": "number",
+          "parent": 7,
+          "previous": 8,
+          "startByte": 55
+        }
+      ],
+      "queries": {
+        "call": [],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "function requestTimedOut(elapsed) {\n  return elapsed > 3000\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": null,
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return elapsedMs > REQUEST_TIMEOUT_MS",
+            "startLine": 3,
+            "endLine": 3,
+            "startColumn": 2,
+            "endColumn": 39,
+            "startByte": 118,
+            "endByte": 155
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "requestTimedOut",
+          "language": "javascript",
+          "path": "standards/explained-values-pass.txt",
+          "source": "function requestTimedOut(elapsedMs) {\n  return elapsedMs > REQUEST_TIMEOUT_MS\n}",
+          "startLine": 2,
+          "endLine": 4,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 78,
+          "endByte": 157
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/explained-values-pass.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 158,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 77,
+          "kind": "lexical_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 31,
+          "kind": "variable_declarator",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 6
+        },
+        {
+          "endByte": 24,
+          "kind": "identifier",
+          "parent": 2,
+          "previous": -1,
+          "startByte": 6
+        },
+        {
+          "endByte": 31,
+          "kind": "number",
+          "parent": 2,
+          "previous": 3,
+          "startByte": 27
+        },
+        {
+          "endByte": 77,
+          "kind": "comment",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 32
+        },
+        {
+          "endByte": 157,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": 1,
+          "startByte": 78
+        },
+        {
+          "endByte": 102,
+          "kind": "identifier",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 87
+        },
+        {
+          "endByte": 113,
+          "kind": "formal_parameters",
+          "parent": 6,
+          "previous": 7,
+          "startByte": 102
+        },
+        {
+          "endByte": 112,
+          "kind": "identifier",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 103
+        },
+        {
+          "endByte": 157,
+          "kind": "statement_block",
+          "parent": 6,
+          "previous": 8,
+          "startByte": 114
+        },
+        {
+          "endByte": 155,
+          "kind": "return_statement",
+          "parent": 10,
+          "previous": -1,
+          "startByte": 118
+        },
+        {
+          "endByte": 155,
+          "kind": "binary_expression",
+          "parent": 11,
+          "previous": -1,
+          "startByte": 125
+        },
+        {
+          "endByte": 134,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": -1,
+          "startByte": 125
+        },
+        {
+          "endByte": 155,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": 13,
+          "startByte": 137
+        }
+      ],
+      "queries": {
+        "call": [],
+        "context": [],
+        "function": [
+          {
+            "function": 6,
+            "name": 7
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "const REQUEST_TIMEOUT_MS = 3000 // Maximum duration admitted for one request.\nfunction requestTimedOut(elapsedMs) {\n  return elapsedMs > REQUEST_TIMEOUT_MS\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "has",
+            "Path": "store"
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return store.has(id)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 22,
+            "startByte": 37,
+            "endByte": 57
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "deleteReport",
+          "language": "javascript",
+          "path": "standards/honest-function-names-fail.txt",
+          "source": "function deleteReport(store, id) {\n  return store.has(id)\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 59
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/honest-function-names-fail.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 60,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 59,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 21,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 9
+        },
+        {
+          "endByte": 32,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 21
+        },
+        {
+          "endByte": 27,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 22
+        },
+        {
+          "endByte": 31,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 29
+        },
+        {
+          "endByte": 59,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 33
+        },
+        {
+          "endByte": 57,
+          "kind": "return_statement",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 37
+        },
+        {
+          "endByte": 57,
+          "kind": "call_expression",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 44
+        },
+        {
+          "endByte": 53,
+          "kind": "member_expression",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 44
+        },
+        {
+          "endByte": 49,
+          "kind": "identifier",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 44
+        },
+        {
+          "endByte": 53,
+          "kind": "property_identifier",
+          "parent": 9,
+          "previous": 10,
+          "startByte": 50
+        },
+        {
+          "endByte": 57,
+          "kind": "arguments",
+          "parent": 8,
+          "previous": 9,
+          "startByte": 53
+        },
+        {
+          "endByte": 56,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": -1,
+          "startByte": 54
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 9
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "function deleteReport(store, id) {\n  return store.has(id)\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "has",
+            "Path": "store"
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return store.has(id)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 22,
+            "startByte": 34,
+            "endByte": 54
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "hasReport",
+          "language": "javascript",
+          "path": "standards/honest-function-names-pass.txt",
+          "source": "function hasReport(store, id) {\n  return store.has(id)\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 56
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/honest-function-names-pass.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 57,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 56,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 18,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 9
+        },
+        {
+          "endByte": 29,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 18
+        },
+        {
+          "endByte": 24,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 19
+        },
+        {
+          "endByte": 28,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 26
+        },
+        {
+          "endByte": 56,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 30
+        },
+        {
+          "endByte": 54,
+          "kind": "return_statement",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 34
+        },
+        {
+          "endByte": 54,
+          "kind": "call_expression",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 41
+        },
+        {
+          "endByte": 50,
+          "kind": "member_expression",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 41
+        },
+        {
+          "endByte": 46,
+          "kind": "identifier",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 41
+        },
+        {
+          "endByte": 50,
+          "kind": "property_identifier",
+          "parent": 9,
+          "previous": 10,
+          "startByte": 47
+        },
+        {
+          "endByte": 54,
+          "kind": "arguments",
+          "parent": 8,
+          "previous": 9,
+          "startByte": 50
+        },
+        {
+          "endByte": 53,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": -1,
+          "startByte": 51
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 9
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "function hasReport(store, id) {\n  return store.has(id)\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": null,
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return { copied: true }",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 25,
+            "startByte": 61,
+            "endByte": 84
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "copyReport",
+          "language": "javascript",
+          "path": "standards/no-placeholder-production-code-fail.txt",
+          "source": "async function copyReport(copyFile, source, destination) {\n  return { copied: true }\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 86
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/no-placeholder-production-code-fail.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 87,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 86,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 25,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 15
+        },
+        {
+          "endByte": 56,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 25
+        },
+        {
+          "endByte": 34,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 26
+        },
+        {
+          "endByte": 42,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 36
+        },
+        {
+          "endByte": 55,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 5,
+          "startByte": 44
+        },
+        {
+          "endByte": 86,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 57
+        },
+        {
+          "endByte": 84,
+          "kind": "return_statement",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 61
+        },
+        {
+          "endByte": 84,
+          "kind": "object",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 68
+        },
+        {
+          "endByte": 82,
+          "kind": "pair",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 70
+        },
+        {
+          "endByte": 76,
+          "kind": "property_identifier",
+          "parent": 10,
+          "previous": -1,
+          "startByte": 70
+        },
+        {
+          "endByte": 82,
+          "kind": "true",
+          "parent": 10,
+          "previous": 11,
+          "startByte": 78
+        }
+      ],
+      "queries": {
+        "call": [],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "async function copyReport(copyFile, source, destination) {\n  return { copied: true }\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "copyFile",
+            "Path": ""
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "expression_statement",
+            "source": "await copyFile(source, destination)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 37,
+            "startByte": 61,
+            "endByte": 96
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "copyReport",
+          "language": "javascript",
+          "path": "standards/no-placeholder-production-code-pass.txt",
+          "source": "async function copyReport(copyFile, source, destination) {\n  await copyFile(source, destination)\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 98
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/no-placeholder-production-code-pass.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 99,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 98,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 25,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 15
+        },
+        {
+          "endByte": 56,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 25
+        },
+        {
+          "endByte": 34,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 26
+        },
+        {
+          "endByte": 42,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 36
+        },
+        {
+          "endByte": 55,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 5,
+          "startByte": 44
+        },
+        {
+          "endByte": 98,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 57
+        },
+        {
+          "endByte": 96,
+          "kind": "expression_statement",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 61
+        },
+        {
+          "endByte": 96,
+          "kind": "await_expression",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 61
+        },
+        {
+          "endByte": 96,
+          "kind": "call_expression",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 67
+        },
+        {
+          "endByte": 75,
+          "kind": "identifier",
+          "parent": 10,
+          "previous": -1,
+          "startByte": 67
+        },
+        {
+          "endByte": 96,
+          "kind": "arguments",
+          "parent": 10,
+          "previous": 11,
+          "startByte": 75
+        },
+        {
+          "endByte": 82,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": -1,
+          "startByte": 76
+        },
+        {
+          "endByte": 95,
+          "kind": "identifier",
+          "parent": 12,
+          "previous": 13,
+          "startByte": 84
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 11
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "async function copyReport(copyFile, source, destination) {\n  await copyFile(source, destination)\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": null,
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return [{ item: 'example-item', available: 10 }]",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 50,
+            "startByte": 43,
+            "endByte": 91
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "loadInventory",
+          "language": "javascript",
+          "path": "standards/no-production-mock-data-fail.txt",
+          "source": "async function loadInventory(database) {\n  return [{ item: 'example-item', available: 10 }]\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 93
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/no-production-mock-data-fail.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 94,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 93,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 28,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 15
+        },
+        {
+          "endByte": 38,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 28
+        },
+        {
+          "endByte": 37,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 29
+        },
+        {
+          "endByte": 93,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 39
+        },
+        {
+          "endByte": 91,
+          "kind": "return_statement",
+          "parent": 5,
+          "previous": -1,
+          "startByte": 43
+        },
+        {
+          "endByte": 91,
+          "kind": "array",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 50
+        },
+        {
+          "endByte": 90,
+          "kind": "object",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 51
+        },
+        {
+          "endByte": 73,
+          "kind": "pair",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 53
+        },
+        {
+          "endByte": 57,
+          "kind": "property_identifier",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 53
+        },
+        {
+          "endByte": 73,
+          "kind": "string",
+          "parent": 9,
+          "previous": 10,
+          "startByte": 59
+        },
+        {
+          "endByte": 72,
+          "kind": "string_fragment",
+          "parent": 11,
+          "previous": -1,
+          "startByte": 60
+        },
+        {
+          "endByte": 88,
+          "kind": "pair",
+          "parent": 8,
+          "previous": 9,
+          "startByte": 75
+        },
+        {
+          "endByte": 84,
+          "kind": "property_identifier",
+          "parent": 13,
+          "previous": -1,
+          "startByte": 75
+        },
+        {
+          "endByte": 88,
+          "kind": "number",
+          "parent": 13,
+          "previous": 14,
+          "startByte": 86
+        }
+      ],
+      "queries": {
+        "call": [],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "async function loadInventory(database) {\n  return [{ item: 'example-item', available: 10 }]\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "listInventory",
+            "Path": "database"
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return await database.listInventory()",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 39,
+            "startByte": 43,
+            "endByte": 80
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "loadInventory",
+          "language": "javascript",
+          "path": "standards/no-production-mock-data-pass.txt",
+          "source": "async function loadInventory(database) {\n  return await database.listInventory()\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 82
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/no-production-mock-data-pass.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 83,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 82,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 28,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 15
+        },
+        {
+          "endByte": 38,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 28
+        },
+        {
+          "endByte": 37,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 29
+        },
+        {
+          "endByte": 82,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 39
+        },
+        {
+          "endByte": 80,
+          "kind": "return_statement",
+          "parent": 5,
+          "previous": -1,
+          "startByte": 43
+        },
+        {
+          "endByte": 80,
+          "kind": "await_expression",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 50
+        },
+        {
+          "endByte": 80,
+          "kind": "call_expression",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 56
+        },
+        {
+          "endByte": 78,
+          "kind": "member_expression",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 56
+        },
+        {
+          "endByte": 64,
+          "kind": "identifier",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 56
+        },
+        {
+          "endByte": 78,
+          "kind": "property_identifier",
+          "parent": 9,
+          "previous": 10,
+          "startByte": 65
+        },
+        {
+          "endByte": 80,
+          "kind": "arguments",
+          "parent": 8,
+          "previous": 9,
+          "startByte": 78
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 9
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "async function loadInventory(database) {\n  return await database.listInventory()\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "readText",
+            "Path": ""
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return await readText(path)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 8,
+            "endColumn": 35,
+            "startByte": 52,
+            "endByte": 79
+          },
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return ''",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 46,
+            "endColumn": 55,
+            "startByte": 90,
+            "endByte": 99
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "readReport",
+          "language": "javascript",
+          "path": "standards/no-silent-fallback-fail.txt",
+          "source": "async function readReport(readText, path) {\n  try { return await readText(path) } catch { return '' }\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 103
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/no-silent-fallback-fail.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 104,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 103,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 25,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 15
+        },
+        {
+          "endByte": 41,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 25
+        },
+        {
+          "endByte": 34,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 26
+        },
+        {
+          "endByte": 40,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 36
+        },
+        {
+          "endByte": 103,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 42
+        },
+        {
+          "endByte": 101,
+          "kind": "try_statement",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 46
+        },
+        {
+          "endByte": 81,
+          "kind": "statement_block",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 50
+        },
+        {
+          "endByte": 79,
+          "kind": "return_statement",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 52
+        },
+        {
+          "endByte": 79,
+          "kind": "await_expression",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 59
+        },
+        {
+          "endByte": 79,
+          "kind": "call_expression",
+          "parent": 10,
+          "previous": -1,
+          "startByte": 65
+        },
+        {
+          "endByte": 73,
+          "kind": "identifier",
+          "parent": 11,
+          "previous": -1,
+          "startByte": 65
+        },
+        {
+          "endByte": 79,
+          "kind": "arguments",
+          "parent": 11,
+          "previous": 12,
+          "startByte": 73
+        },
+        {
+          "endByte": 78,
+          "kind": "identifier",
+          "parent": 13,
+          "previous": -1,
+          "startByte": 74
+        },
+        {
+          "endByte": 101,
+          "kind": "catch_clause",
+          "parent": 7,
+          "previous": 8,
+          "startByte": 82
+        },
+        {
+          "endByte": 101,
+          "kind": "statement_block",
+          "parent": 15,
+          "previous": -1,
+          "startByte": 88
+        },
+        {
+          "endByte": 99,
+          "kind": "return_statement",
+          "parent": 16,
+          "previous": -1,
+          "startByte": 90
+        },
+        {
+          "endByte": 99,
+          "kind": "string",
+          "parent": 17,
+          "previous": -1,
+          "startByte": 97
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 12
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "async function readReport(readText, path) {\n  try { return await readText(path) } catch { return '' }\n}\n"
+  },
+  {
+    "expected": [
+      {
+        "callees": null,
+        "calls": [
+          {
+            "Name": "readText",
+            "Path": ""
+          }
+        ],
+        "regions": [
+          {
+            "category": "statement",
+            "kind": "return_statement",
+            "source": "return await readText(path)",
+            "startLine": 2,
+            "endLine": 2,
+            "startColumn": 2,
+            "endColumn": 29,
+            "startByte": 46,
+            "endByte": 73
+          }
+        ],
+        "unit": {
+          "kind": "function",
+          "name": "readReport",
+          "language": "javascript",
+          "path": "standards/no-silent-fallback-pass.txt",
+          "source": "async function readReport(readText, path) {\n  return await readText(path)\n}",
+          "startLine": 1,
+          "endLine": 3,
+          "startColumn": 0,
+          "endColumn": 1,
+          "startByte": 0,
+          "endByte": 75
+        }
+      }
+    ],
+    "language": "javascript",
+    "path": "standards/no-silent-fallback-pass.txt",
+    "raw": {
+      "hasError": false,
+      "nodes": [
+        {
+          "endByte": 76,
+          "kind": "program",
+          "parent": -1,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 75,
+          "kind": "function_declaration",
+          "parent": 0,
+          "previous": -1,
+          "startByte": 0
+        },
+        {
+          "endByte": 25,
+          "kind": "identifier",
+          "parent": 1,
+          "previous": -1,
+          "startByte": 15
+        },
+        {
+          "endByte": 41,
+          "kind": "formal_parameters",
+          "parent": 1,
+          "previous": 2,
+          "startByte": 25
+        },
+        {
+          "endByte": 34,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": -1,
+          "startByte": 26
+        },
+        {
+          "endByte": 40,
+          "kind": "identifier",
+          "parent": 3,
+          "previous": 4,
+          "startByte": 36
+        },
+        {
+          "endByte": 75,
+          "kind": "statement_block",
+          "parent": 1,
+          "previous": 3,
+          "startByte": 42
+        },
+        {
+          "endByte": 73,
+          "kind": "return_statement",
+          "parent": 6,
+          "previous": -1,
+          "startByte": 46
+        },
+        {
+          "endByte": 73,
+          "kind": "await_expression",
+          "parent": 7,
+          "previous": -1,
+          "startByte": 53
+        },
+        {
+          "endByte": 73,
+          "kind": "call_expression",
+          "parent": 8,
+          "previous": -1,
+          "startByte": 59
+        },
+        {
+          "endByte": 67,
+          "kind": "identifier",
+          "parent": 9,
+          "previous": -1,
+          "startByte": 59
+        },
+        {
+          "endByte": 73,
+          "kind": "arguments",
+          "parent": 9,
+          "previous": 10,
+          "startByte": 67
+        },
+        {
+          "endByte": 72,
+          "kind": "identifier",
+          "parent": 11,
+          "previous": -1,
+          "startByte": 68
+        }
+      ],
+      "queries": {
+        "call": [
+          {
+            "call": 10
+          }
+        ],
+        "context": [],
+        "function": [
+          {
+            "function": 1,
+            "name": 2
+          }
+        ],
+        "type": []
+      },
+      "regionKinds": {
+        "comment": "comment",
+        "expression_statement": "statement",
+        "field_definition": "field",
+        "lexical_declaration": "statement",
+        "public_field_definition": "field",
+        "return_statement": "statement",
+        "throw_statement": "statement",
+        "variable_declaration": "statement"
+      }
+    },
+    "source": "async function readReport(readText, path) {\n  return await readText(path)\n}\n"
+  }
+]

@@ -1,0 +1,922 @@
+[
+  {
+    "id": 1,
+    "name": "label-truth",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      [
+        "['independent-hand', 'm75', 'm75-routing']",
+        "['independent-hand', 'm75', 'm75-routing', 'approval', 'test-success', 'reviewer', 'logprob', 'model-belief', 'suggestion-accepted']"
+      ],
+      ["if (!isPermitted)", "if (false)"]
+    ],
+    "expectedFailure": "excludes approval as factual labels",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:61 > calibration family labels and grouped splits > uses independent family labels even when a destructive command was approved",
+      " FAIL  test/unit/judgeCalibration.test.ts:93 > calibration family labels and grouped splits > excludes approval as factual labels",
+      " FAIL  test/unit/judgeCalibration.test.ts:93 > calibration family labels and grouped splits > excludes test-success as factual labels",
+      " FAIL  test/unit/judgeCalibration.test.ts:93 > calibration family labels and grouped splits > excludes reviewer as factual labels",
+      " FAIL  test/unit/judgeCalibration.test.ts:93 > calibration family labels and grouped splits > excludes logprob as factual labels",
+      " FAIL  test/unit/judgeCalibration.test.ts:93 > calibration family labels and grouped splits > excludes model-belief as factual labels",
+      " FAIL  test/unit/judgeCalibration.test.ts:93 > calibration family labels and grouped splits > excludes suggestion-accepted as factual labels"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 2,
+    "name": "family-label-source",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["if (!isPermitted)", "if (false)"]],
+    "expectedFailure": "uses independent family labels",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:61 > calibration family labels and grouped splits > uses independent family labels even when a destructive command was approved"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 3,
+    "name": "outcome-fields",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["z.strictObject(", "z.object("]],
+    "expectedFailure": "rejects outcome/content fields",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:102 > calibration family labels and grouped splits > rejects outcome/content fields instead of mixing optional signals with labels"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 4,
+    "name": "dataset-identity-bounds",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["!isValidIdentity(dataset.identity, limits)", "false"]],
+    "expectedFailure": "bounds datasets, identifiers",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:144 > calibration family labels and grouped splits > bounds datasets, identifiers, finite probabilities and binary labels"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 5,
+    "name": "dataset-sample-cap",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["dataset.samples.length > limits.maxSamples", "false"]],
+    "expectedFailure": "bounds datasets, identifiers",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:144 > calibration family labels and grouped splits > bounds datasets, identifiers, finite probabilities and binary labels"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 6,
+    "name": "dataset-identifier-bounds",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["(id) => !isValidIdentifier(id, limits)", "(_id) => false"]],
+    "expectedFailure": "bounds datasets, identifiers",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:144 > calibration family labels and grouped splits > bounds datasets, identifiers, finite probabilities and binary labels"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 7,
+    "name": "independent-label-count",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["ids.has(sample.id) || labels.has(sample.labelId)", "false"]],
+    "expectedFailure": "counts an independent",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:132 > calibration family labels and grouped splits > counts an independent id once",
+      " FAIL  test/unit/judgeCalibration.test.ts:132 > calibration family labels and grouped splits > counts an independent labelId once"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 8,
+    "name": "task-split-leak",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["taskSplit !== undefined && taskSplit !== sample.split", "false"]],
+    "expectedFailure": "refuses an evaluation taskGroup",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:116 > calibration family labels and grouped splits > refuses an evaluation taskGroup reused in fit or tuning"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 9,
+    "name": "repository-split-leak",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["repositorySplit !== undefined && repositorySplit !== sample.split", "false"]],
+    "expectedFailure": "refuses an evaluation repositoryGroup",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:116 > calibration family labels and grouped splits > refuses an evaluation repositoryGroup reused in fit or tuning"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 10,
+    "name": "missing-split",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["['fit', 'tuning', 'evaluation'].some((split) => !splits.has(split))", "false"]],
+    "expectedFailure": "refuses a missing",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:138 > calibration family labels and grouped splits > refuses a missing fit split",
+      " FAIL  test/unit/judgeCalibration.test.ts:138 > calibration family labels and grouped splits > refuses a missing tuning split",
+      " FAIL  test/unit/judgeCalibration.test.ts:138 > calibration family labels and grouped splits > refuses a missing evaluation split"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 11,
+    "name": "unsupported-family",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      ["identity.family !== 'risk.destructive' && identity.family !== 'skill.fit'", "false"]
+    ],
+    "expectedFailure": "refuses unsupported families",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:175 > calibration family labels and grouped splits > refuses unsupported families and techniques explicitly",
+      " FAIL  test/unit/judgeCalibration.test.ts:460 > evaluation-only reports and runtime profiles > refuses partial, approximate, unsupported and corrupt runtime probabilities"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 12,
+    "name": "unsupported-technique",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["identity.technique !== 'logprob' && identity.technique !== 'stated'", "false"]],
+    "expectedFailure": "refuses unsupported families",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:175 > calibration family labels and grouped splits > refuses unsupported families and techniques explicitly",
+      " FAIL  test/unit/judgeCalibration.test.ts:460 > evaluation-only reports and runtime profiles > refuses partial, approximate, unsupported and corrupt runtime probabilities"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 13,
+    "name": "injected-isotonic-floor",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["z.minimum(2 * 100)", "z.minimum(199)"]],
+    "expectedFailure": "refuses invalid injected limits",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:196 > calibration family labels and grouped splits > refuses invalid injected limits, including a lowered 200-label floor"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 14,
+    "name": "epsilon-floor",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      [
+        "probabilityEpsilon: z.number().check(z.gte(Number.EPSILON), z.lt(1 / 2))",
+        "probabilityEpsilon: z.number().check(z.gt(0), z.lt(1 / 2))"
+      ]
+    ],
+    "expectedFailure": "refuses invalid injected limits",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:196 > calibration family labels and grouped splits > refuses invalid injected limits, including a lowered 200-label floor"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 15,
+    "name": "weight-floor",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      [
+        "weightFloor: z.number().check(z.gte(Number.EPSILON), z.lte(1))",
+        "weightFloor: z.number().check(z.gt(0), z.lte(1))"
+      ]
+    ],
+    "expectedFailure": "refuses invalid injected limits",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:196 > calibration family labels and grouped splits > refuses invalid injected limits, including a lowered 200-label floor"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 16,
+    "name": "invalid-limits",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["if (!limitsSchema.safeParse(limits).success)", "if (false)"]],
+    "expectedFailure": "refuses invalid injected limits",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:196 > calibration family labels and grouped splits > refuses invalid injected limits, including a lowered 200-label floor",
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 17,
+    "name": "fit-evaluation-leak",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["row.split === 'fit'", "row.split !== 'tuning'"]],
+    "expectedFailure": "never fits evaluation or tuning labels",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:219 > binary fitting > fits the known overconfident distribution with Platt scaling",
+      " FAIL  test/unit/judgeCalibration.test.ts:231 > binary fitting > never fits evaluation or tuning labels; weights use tuning only",
+      " FAIL  test/unit/judgeCalibration.test.ts:244 > binary fitting > learns an intercept and can correct an inverted binary predictor",
+      " FAIL  test/unit/judgeCalibration.test.ts:274 > binary fitting > refuses one-class or constant-probability fit data",
+      " FAIL  test/unit/judgeCalibration.test.ts:289 > binary fitting > refuses isotonic at 199 fit labels even with more labels in other splits",
+      " FAIL  test/unit/judgeCalibration.test.ts:307 > binary fitting > pools decreasing blocks and aggregates ties before pooling",
+      " FAIL  test/unit/judgeCalibration.test.ts:395 > evaluation-only reports and runtime profiles > allows an independently evaluated exact profile and keeps the technique label"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 18,
+    "name": "isotonic-199",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["rows.length < limits.isotonicMinimumLabels", "false"]],
+    "expectedFailure": "refuses isotonic at 199 fit labels",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:289 > binary fitting > refuses isotonic at 199 fit labels even with more labels in other splits"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 19,
+    "name": "degenerate-fit",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [
+      ["new Set(rows.map((row) => row.label)).size < 2", "false"],
+      ["new Set(rows.map((row) => row.probability)).size < 2", "false"]
+    ],
+    "expectedFailure": "refuses one-class or constant-probability fit data",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:274 > binary fitting > refuses one-class or constant-probability fit data"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 20,
+    "name": "platt-slope",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["slope = candidateA", "slope = 1"]],
+    "expectedFailure": "fits the known overconfident distribution",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:61 > calibration family labels and grouped splits > uses independent family labels even when a destructive command was approved",
+      " FAIL  test/unit/judgeCalibration.test.ts:219 > binary fitting > fits the known overconfident distribution with Platt scaling",
+      " FAIL  test/unit/judgeCalibration.test.ts:231 > binary fitting > never fits evaluation or tuning labels; weights use tuning only",
+      " FAIL  test/unit/judgeCalibration.test.ts:244 > binary fitting > learns an intercept and can correct an inverted binary predictor",
+      " FAIL  test/unit/judgeCalibration.test.ts:256 > binary fitting > bounds endpoint predictions and keeps separated data finite",
+      " FAIL  test/unit/judgeCalibration.test.ts:330 > evaluation-only reports and runtime profiles > reports ECE/Brier from evaluation only, with counts and the uncalibrated arm",
+      " FAIL  test/unit/judgeCalibration.test.ts:355 > evaluation-only reports and runtime profiles > puts p=1 in the last ECE bin and refuses invalid bin counts",
+      " FAIL  test/unit/judgeCalibration.test.ts:369 > evaluation-only reports and runtime profiles > refuses a changed evaluation partition or overlapping profile groups",
+      " FAIL  test/unit/judgeCalibration.test.ts:382 > evaluation-only reports and runtime profiles > keeps a fitted or synthetic-evaluated profile uncalibrated",
+      " FAIL  test/unit/judgeCalibration.test.ts:395 > evaluation-only reports and runtime profiles > allows an independently evaluated exact profile and keeps the technique label",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after model changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after modelVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after endpoint changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after source changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after technique changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after family changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after promptVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after criteriaVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after fitVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:460 > evaluation-only reports and runtime profiles > refuses partial, approximate, unsupported and corrupt runtime probabilities",
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use",
+      " FAIL  test/unit/judgeCalibration.test.ts:580 > evaluation-only reports and runtime profiles > reports explicit invalid input/profile failures and ignores JSON key order"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 21,
+    "name": "platt-intercept",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["intercept = candidateB", "intercept = 0"]],
+    "expectedFailure": "learns an intercept",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:244 > binary fitting > learns an intercept and can correct an inverted binary predictor"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 22,
+    "name": "optimizer-bounds",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["iteration < limits.maxIterations", "iteration < 100"]],
+    "expectedFailure": "returns an explicit failure when optimization",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:282 > binary fitting > returns an explicit failure when optimization cannot converge"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 23,
+    "name": "isotonic-pooling",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["left.sum / left.count <= right.sum / right.count", "true"]],
+    "expectedFailure": "pools decreasing blocks",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:307 > binary fitting > pools decreasing blocks and aggregates ties before pooling"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 24,
+    "name": "isotonic-ties",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["group.sum += row.label", "group.sum = row.label"]],
+    "expectedFailure": "refuses isotonic at 199 fit labels",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:289 > binary fitting > refuses isotonic at 199 fit labels even with more labels in other splits",
+      " FAIL  test/unit/judgeCalibration.test.ts:307 > binary fitting > pools decreasing blocks and aggregates ties before pooling"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 25,
+    "name": "tuning-weight",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [
+      [
+        "profile.combinationWeight = 1 / Math.max(limits.weightFloor, tuningBrier)",
+        "profile.combinationWeight = 1"
+      ]
+    ],
+    "expectedFailure": "never fits evaluation or tuning labels",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:231 > binary fitting > never fits evaluation or tuning labels; weights use tuning only"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 26,
+    "name": "evaluation-only-metrics",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [["row.split === 'evaluation'", "row.split !== 'tuning'"]],
+    "expectedFailure": "reports ECE/Brier from evaluation only",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:330 > evaluation-only reports and runtime profiles > reports ECE/Brier from evaluation only, with counts and the uncalibrated arm",
+      " FAIL  test/unit/judgeCalibration.test.ts:355 > evaluation-only reports and runtime profiles > puts p=1 in the last ECE bin and refuses invalid bin counts",
+      " FAIL  test/unit/judgeCalibration.test.ts:382 > evaluation-only reports and runtime profiles > keeps a fitted or synthetic-evaluated profile uncalibrated",
+      " FAIL  test/unit/judgeCalibration.test.ts:395 > evaluation-only reports and runtime profiles > allows an independently evaluated exact profile and keeps the technique label"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 27,
+    "name": "brier-math",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [["brier += (p - row.label) ** 2", "brier += Math.abs(p - row.label)"]],
+    "expectedFailure": "reports ECE/Brier from evaluation only",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:330 > evaluation-only reports and runtime profiles > reports ECE/Brier from evaluation only, with counts and the uncalibrated arm"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 28,
+    "name": "ece-math",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [["Math.abs(bin.sum - bin.labels)", "0"]],
+    "expectedFailure": "reports ECE/Brier from evaluation only",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:330 > evaluation-only reports and runtime profiles > reports ECE/Brier from evaluation only, with counts and the uncalibrated arm"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 29,
+    "name": "p-one-bin",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [["Math.min(binCount - 1, Math.floor(p * binCount))", "Math.floor(p * binCount)"]],
+    "expectedFailure": "puts p=1 in the last ECE bin",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:355 > evaluation-only reports and runtime profiles > puts p=1 in the last ECE bin and refuses invalid bin counts"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 30,
+    "name": "report-bin-bounds",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [["!Number.isSafeInteger(bins) || bins < 1 || bins > limits.maxBins", "false"]],
+    "expectedFailure": "puts p=1 in the last ECE bin",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:355 > evaluation-only reports and runtime profiles > puts p=1 in the last ECE bin and refuses invalid bin counts"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 31,
+    "name": "exact-profile-identity",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      ["Object.entries(a).every(([key, value]) => Reflect.get(b, key) === value)", "true"]
+    ],
+    "expectedFailure": "never inherits a profile after",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after model changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after modelVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after endpoint changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after source changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after technique changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after family changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after promptVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after criteriaVersion changes",
+      " FAIL  test/unit/judgeCalibration.test.ts:423 > evaluation-only reports and runtime profiles > never inherits a profile after fitVersion changes"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 32,
+    "name": "report-partition-binding",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [
+      [
+        "JSON.stringify(profile.partitions) !== JSON.stringify(calibrationPartitions(dataset.samples))",
+        "false"
+      ]
+    ],
+    "expectedFailure": "refuses a changed evaluation partition",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:369 > evaluation-only reports and runtime profiles > refuses a changed evaluation partition or overlapping profile groups"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 33,
+    "name": "independent-activation",
+    "file": "src/core/judge/calibration/apply.ts",
+    "mutations": [["profile.evaluation?.evidence !== 'independent'", "false"]],
+    "expectedFailure": "keeps a fitted or synthetic-evaluated profile uncalibrated",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:382 > evaluation-only reports and runtime profiles > keeps a fitted or synthetic-evaluated profile uncalibrated"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f49ff018777fe0912b4d4245348c37a25a28ac6a9efd483546c857a49518e6a3",
+    "afterSha256": "f49ff018777fe0912b4d4245348c37a25a28ac6a9efd483546c857a49518e6a3",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 34,
+    "name": "synthetic-report-status",
+    "file": "src/core/judge/calibration/report.ts",
+    "mutations": [
+      ["activationEligible: dataset.evidence === 'independent'", "activationEligible: true"]
+    ],
+    "expectedFailure": "reports ECE/Brier from evaluation only",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:330 > evaluation-only reports and runtime profiles > reports ECE/Brier from evaluation only, with counts and the uncalibrated arm"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "afterSha256": "f3a87c7a4808b3c8f8bac8c12ba7300b033502c9285d312d726bcfdd91fab914",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 35,
+    "name": "partial-exclusion",
+    "file": "src/core/judge/calibration/apply.ts",
+    "mutations": [["if (isPartial)", "if (false)"]],
+    "expectedFailure": "refuses partial, approximate",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:460 > evaluation-only reports and runtime profiles > refuses partial, approximate, unsupported and corrupt runtime probabilities"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f49ff018777fe0912b4d4245348c37a25a28ac6a9efd483546c857a49518e6a3",
+    "afterSha256": "f49ff018777fe0912b4d4245348c37a25a28ac6a9efd483546c857a49518e6a3",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 36,
+    "name": "runtime-probability",
+    "file": "src/core/judge/calibration/apply.ts",
+    "mutations": [["!Number.isFinite(probability) || probability < 0 || probability > 1", "false"]],
+    "expectedFailure": "refuses partial, approximate",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:460 > evaluation-only reports and runtime profiles > refuses partial, approximate, unsupported and corrupt runtime probabilities"
+    ],
+    "redExit": 1,
+    "beforeSha256": "f49ff018777fe0912b4d4245348c37a25a28ac6a9efd483546c857a49518e6a3",
+    "afterSha256": "f49ff018777fe0912b4d4245348c37a25a28ac6a9efd483546c857a49518e6a3",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 37,
+    "name": "offline-probability",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [["!Number.isFinite(probability) || probability < 0 || probability > 1", "false"]],
+    "expectedFailure": "bounds endpoint predictions",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:256 > binary fitting > bounds endpoint predictions and keeps separated data finite"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 38,
+    "name": "persisted-fit-parameters",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["slope: z.number()", "slope: z.custom<number>(() => true)"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 39,
+    "name": "persisted-total-cap",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      [
+        "partitions.reduce((sum, partition) => sum + partition.ids.length, 0) > limits.maxSamples",
+        "false"
+      ]
+    ],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 40,
+    "name": "persisted-nonempty-splits",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["if (values.length === 0)", "if (false)"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 41,
+    "name": "persisted-group-isolation",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["seen.has(id)", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:369 > evaluation-only reports and runtime profiles > refuses a changed evaluation partition or overlapping profile groups",
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 42,
+    "name": "persisted-identifiers",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["!isValidIdentifier(id, limits)", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:144 > calibration family labels and grouped splits > bounds datasets, identifiers, finite probabilities and binary labels",
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 43,
+    "name": "persisted-isotonic-floor",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["profile.partitions.fit.labels.length < limits.isotonicMinimumLabels", "false"]],
+    "expectedFailure": "rejects empty, nonmonotonic or undersized",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:544 > evaluation-only reports and runtime profiles > rejects empty, nonmonotonic or undersized persisted isotonic fits"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 44,
+    "name": "persisted-knot-bounds",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      ["knots.length === 0 || knots.length > profile.partitions.fit.labels.length", "false"]
+    ],
+    "expectedFailure": "rejects empty, nonmonotonic or undersized",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:544 > evaluation-only reports and runtime profiles > rejects empty, nonmonotonic or undersized persisted isotonic fits"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 45,
+    "name": "persisted-knot-order",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["current.probability <= previous.probability", "false"]],
+    "expectedFailure": "rejects empty, nonmonotonic or undersized",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:544 > evaluation-only reports and runtime profiles > rejects empty, nonmonotonic or undersized persisted isotonic fits"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 46,
+    "name": "persisted-monotonicity",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["current.calibratedProbability < previous.calibratedProbability", "false"]],
+    "expectedFailure": "rejects empty, nonmonotonic or undersized",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:544 > evaluation-only reports and runtime profiles > rejects empty, nonmonotonic or undersized persisted isotonic fits"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 47,
+    "name": "evaluation-bin-binding",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["profile.evaluation.bins > limits.maxBins", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 48,
+    "name": "evaluation-evidence-binding",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["profile.evaluation.evidence !== profile.evidence", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 49,
+    "name": "evaluation-calibrated-count",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      [
+        "profile.evaluation.calibrated.sampleCount !== profile.partitions.evaluation.ids.length",
+        "false"
+      ]
+    ],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 50,
+    "name": "evaluation-uncalibrated-count",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [
+      [
+        "profile.evaluation.uncalibrated.sampleCount !== profile.partitions.evaluation.ids.length",
+        "false"
+      ]
+    ],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 51,
+    "name": "partition-label-count",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["partition.ids.length !== partition.labels.length", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 52,
+    "name": "partition-task-count",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["partition.tasks.length > partition.ids.length", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 53,
+    "name": "partition-repository-count",
+    "file": "src/core/judge/calibration/schema.ts",
+    "mutations": [["partition.repositories.length > partition.ids.length", "false"]],
+    "expectedFailure": "validates persisted parameters",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:481 > evaluation-only reports and runtime profiles > validates persisted parameters, partitions, evaluation and identity before use"
+    ],
+    "redExit": 1,
+    "beforeSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "afterSha256": "3f0c40d71cfabaa9958c23eb278de5b53071398f029cc437f7381794688479ac",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  },
+  {
+    "id": 54,
+    "name": "empty-isotonic-transform",
+    "file": "src/core/judge/calibration/fit.ts",
+    "mutations": [
+      [
+        "if (value === undefined) throw new RangeError('invalid-profile')",
+        "if (value === undefined) return 0"
+      ]
+    ],
+    "expectedFailure": "rejects empty, nonmonotonic or undersized",
+    "failedAssertions": [
+      " FAIL  test/unit/judgeCalibration.test.ts:544 > evaluation-only reports and runtime profiles > rejects empty, nonmonotonic or undersized persisted isotonic fits"
+    ],
+    "redExit": 1,
+    "beforeSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "afterSha256": "b38658af1802809dde3237f6f9362ed1648ae07fff18ad8d5fd66fabccb556d7",
+    "greenExit": 0,
+    "greenSummary": ["      Tests  44 passed (44)"]
+  }
+]

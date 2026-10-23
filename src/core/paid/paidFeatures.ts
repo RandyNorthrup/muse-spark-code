@@ -495,7 +495,17 @@ export class PaidUsage {
 
   /** One paid judge receipt, apart from main-thread tokens; unmatched receipts do nothing. */
   public addJudgeUsage(modelId: string, usage: SubagentUsage): void {
-    const cost = reviewerCost(modelId, usage)
+    this.addJudgeReceipt(usage, reviewerCost(modelId, usage))
+  }
+
+  /**
+  One paid judge receipt already priced by its own source (a separate
+  judge's settled cost at its route's rates), apart from main-thread tokens.
+  */
+  public addJudgeReceipt(
+    usage: Pick<SubagentUsage, 'inputTokens' | 'outputTokens'>,
+    cost: UsdAmount,
+  ): void {
     const unknown = this.tally.judgeUnknownRequests ?? 0
     if (unknown === 0) return
     this.tally = {

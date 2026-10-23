@@ -1,0 +1,111 @@
+{
+  "workspace": "C:/lanes/FIXM98J2",
+  "model": "qwen3:4b-instruct-2507-q4_K_M",
+  "endpoint": "http://127.0.0.1:11434",
+  "inferenceCeiling": 4,
+  "plannedAttempts": 3,
+  "inferenceAttempts": 3,
+  "metadataAttempts": 5,
+  "paidCostUsd": 0,
+  "records": [
+    {
+      "attempt": 1,
+      "status": "returned",
+      "diskMs": 29651.248000000003,
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+      "weightBytes": 2497280480,
+      "verifyMs": 30495.081400000003,
+      "totalMs": 40189.1829,
+      "httpMs": 9694.101499999997,
+      "modelMs": 9686.5771,
+      "loadMs": 8659.6744,
+      "cpuResidence": {
+        "models": [
+          {
+            "name": "qwen3:4b-instruct-2507-q4_K_M",
+            "size_vram": 0,
+            "model": "qwen3:4b-instruct-2507-q4_K_M",
+            "size": 3184001022,
+            "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+            "details": {
+              "parent_model": "",
+              "format": "gguf",
+              "family": "qwen3",
+              "families": ["qwen3"],
+              "parameter_size": "4.0B",
+              "quantization_level": "Q4_K_M"
+            },
+            "expires_at": "2026-10-05T12:21:42.2643994-07:00",
+            "context_length": 4096
+          }
+        ]
+      }
+    },
+    {
+      "attempt": 2,
+      "status": "returned",
+      "diskMs": 14892.560700000002,
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+      "weightBytes": 2497280480,
+      "verifyMs": 16513.9772,
+      "totalMs": 17204.312899999997,
+      "httpMs": 690.335699999996,
+      "modelMs": 681.8155,
+      "loadMs": 63.6757,
+      "cpuResidence": {
+        "models": [
+          {
+            "name": "qwen3:4b-instruct-2507-q4_K_M",
+            "size_vram": 0,
+            "model": "qwen3:4b-instruct-2507-q4_K_M",
+            "size": 3184001022,
+            "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+            "details": {
+              "parent_model": "",
+              "format": "gguf",
+              "family": "qwen3",
+              "families": ["qwen3"],
+              "parameter_size": "4.0B",
+              "quantization_level": "Q4_K_M"
+            },
+            "expires_at": "2026-10-05T12:22:00.1976946-07:00",
+            "context_length": 4096
+          }
+        ]
+      }
+    },
+    {
+      "attempt": 3,
+      "status": "returned",
+      "diskMs": 14800.8082,
+      "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+      "weightBytes": 2497280480,
+      "verifyMs": 15625.361700000001,
+      "totalMs": 16279.626400000001,
+      "httpMs": 654.2646999999997,
+      "modelMs": 645.7539,
+      "loadMs": 5.0155,
+      "cpuResidence": {
+        "models": [
+          {
+            "name": "qwen3:4b-instruct-2507-q4_K_M",
+            "size_vram": 0,
+            "model": "qwen3:4b-instruct-2507-q4_K_M",
+            "size": 3184001022,
+            "digest": "0edcdef34593eac1aa2be9c7d06c432dcf81945adca5eca2f27662c18f168ba0",
+            "details": {
+              "parent_model": "",
+              "format": "gguf",
+              "family": "qwen3",
+              "families": ["qwen3"],
+              "parameter_size": "4.0B",
+              "quantization_level": "Q4_K_M"
+            },
+            "expires_at": "2026-10-05T12:22:16.7700375-07:00",
+            "context_length": 4096
+          }
+        ]
+      }
+    }
+  ]
+}

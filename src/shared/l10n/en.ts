@@ -3418,6 +3418,8 @@ export const EN = {
   announceStoppedListening: 'Stopped listening',
   // Model API backend (M7).
   allowOnce: 'Allow Once',
+  // A separate judge route's grant: it covers that route until the window closes.
+  paidAllowInWindow: 'Allow in this window',
   allowSessionPrefix: 'Always allow in this session:',
   reject: 'Reject',
   modelApiStalled:
@@ -5635,6 +5637,8 @@ export const EN = {
   usagePaidOnAlways: 'on, allowed always in this workspace',
   usagePaidAlwaysNote: 'Allowed always in this workspace, without asking: {features}.',
   usagePaidAskAgain: 'Ask Again Every Time',
+  // A separate judge route's window grant (its own popup's Allow in this window).
+  usagePaidRouteNote: 'Allowed in this window: the separate judge {model}.',
   usagePaidSearches: forms({ one: '{count} search', other: '{count} searches' }),
   usagePaidImages: forms({ one: '{count} image', other: '{count} images' }),
   usagePaidAudio: '{duration} of audio',
@@ -5936,12 +5940,41 @@ export const EN = {
   paidConfirmJudge:
     'Your own chat model judges each risky Auto action that no rule settles, and can only add caution: a ready caution turns an allow into a question, or into a note on the approval card. Each judgment is billed to your Model API key at the conversation model’s token rates:\n{price}\nThe judge asks once before the first charge, with these prices and the shared daily budget: {budget}. Switching from a free source to a paid one asks again. On Muse Code the same calls run on your subscription instead.',
   usagePaidJudgeCalls: forms({ one: '{count} judgment', other: '{count} judgments' }),
+  // Phase-2 source/status labels; runtime availability is supplied by the source lanes.
+  paidConfirmJudgeEmbedding:
+    'An embedding request to {model} costs at most {price}, billed to your provider key. The shared daily budget is {budget}. Your subscription does not pay for this request. Allow once covers this window; switching from a free source or changing the price asks again.',
+  paidConfirmJudgeSystemOne:
+    'Experimental and untested: a SystemOne judge request to {model} at {recipient} costs at most {price}, billed to your own provider key. The judged action is sent there; the result only adds caution to your own model’s judgment and never answers you or decides alone. The shared daily budget is {budget}. Your subscription does not pay for this request. Allow in this window covers every request on this route until this window closes; Ask again every time in Account & usage, or a changed price, asks again.',
+  judgeSeparateNeedsKey: 'Separate judge needs its provider key in Models & Providers',
+  judgeSeparateNeedsCapture:
+    'Separate judge: this provider model needs a captured structured or logprob judge request first',
+  judgeSeparateNeedsInstall:
+    'Separate judge: the local judge needs a vetted install on a certified platform',
+  judgeSeparateUnknown: 'Separate judge: the configured id names no known source',
+  judgeSeparateUserSettingsOnly:
+    'Separate judge is set in workspace settings; paid settings are read from user settings only',
+  judgeSourceSame: 'Own chat model',
+  judgeSourceSeparate: 'Separate judge',
+  judgeSourceBoth: 'Own model and separate judge',
+  judgeLocalUnverified: 'Unverified local endpoint',
+  judgeSourceUntested: 'Experimental, untested; explicit opt-in required',
+  judgeNoAnswer: 'No judge answer ({reason}). Existing checks and approvals still apply.',
   judgeCaution: 'Muse Judge suggests caution. You decide; it cannot approve this action.',
   judgeAdvisoryMissing:
     'The background safety check did not finish, so no advisory is attached to this approval.',
   judgeSubscriptionNotice:
     'Muse Judge uses your chat model on your Muse subscription and counts against its limits. Each batch uses a fresh isolated Plan session. A tool-item guard cancels the session, but cannot prove that no tool ran. It can only add caution.',
   judgeStatusSame: 'Same Model',
+  judgeStatusSeparate: 'Separate model',
+  judgeStatusBoth: 'Both models',
+  judgeStatusUntested: 'Off: separate source has not been verified',
+  judgeStatusProfiles: 'Off: fitted profiles are missing',
+  judgeAutoNoSource: 'Same model: no separate source is available',
+  judgeAutoUntested: 'Same model: separate source has not been verified',
+  judgeAutoNoProfiles: 'Same model: fitted profiles are missing',
+  judgeAutoNoEvidence: 'Same model: held-out paired evaluation evidence is missing',
+  judgeEmbedNoLabels:
+    'The embedding shortcut needs hundreds of independent labels for this family; none recorded yet, so the full judge runs instead',
   judgeStatusOff: 'Off',
   judgeStatusUnavailable: 'Off: source unavailable or standing allow rules',
   judgeStatusConsent: 'Waiting for first-charge consent',
@@ -5949,6 +5982,45 @@ export const EN = {
   judgeStatusSlow: 'Off by default: too few results ready at the reviewer fence',
   judgeStatusSubscription: 'Subscription',
   judgeStatusPaid: 'Paid',
+  // The Models panel's Judge section (M98 phase 2, lane FP). Amounts are filled
+  // with the display language's money format; an unknown amount is not shown as zero.
+  judgePanel: {
+    source: 'Source',
+    model: 'Model',
+    technique: 'Technique',
+    calibration: 'Calibration',
+    partial: 'Distribution',
+    partialYes: 'Partial',
+    price: 'Price',
+    priceInput: '{input} per million input tokens',
+    priceCached: '{cached} per million cached input tokens',
+    priceOutput: '{output} per million output tokens',
+    reserved: 'Reserved',
+    settled: 'Settled',
+    uncertain: 'Uncertain, still a possible charge',
+    dailyBudget: 'Shared daily budget',
+    spentToday: 'Spent today',
+    notKnown: 'Not known',
+    unpriced: 'No price is known, so a paid call is not sent.',
+    askOnce: 'Review the price',
+    freeLocal: 'Free on this computer',
+    techniques: {
+      logprob: 'Log probabilities',
+      top1: 'Approximate, from the top token',
+      stated: 'Stated confidence',
+      systemone: 'System One answer',
+      sampling: 'Several samples',
+      contrastive: 'Question and its opposite',
+      cascade: 'Own model, then the separate judge',
+      embedding: 'Embedding shortcut',
+    },
+    labels: {
+      logprob: 'Calibrated from log probabilities',
+      stated: 'Calibrated from stated confidence',
+      uncalibrated: 'Uncalibrated',
+      top1: 'Approximate, from the top token',
+    },
+  },
   // Problems in the permission settings, each said once in the conversation.
   // {setting}: the setting's name; {index}: the rule's place in it, from 1;
   // {pattern}: the rule's words; {detail}: the error, or the failing example.
