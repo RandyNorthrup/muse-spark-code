@@ -3026,7 +3026,6 @@
   "autoCompactionName": "Automatische Komprimierung",
   "paidConfirmAutoCompaction": "Die automatische Komprimierung verwendet das gewählte Modell für {price}. Das Abonnement übernimmt diese Kosten nicht.",
   "autoCompactionAwaitingEvaluation": "Die automatische Komprimierung wartet auf die Auswertung und ist inaktiv.",
-
   "autoCompactionFailed": "Die automatische Komprimierung ist fehlgeschlagen; der ursprüngliche Kontext wird weiterverwendet.",
   "autoCompactionBudgetRefused": "Die automatische Komprimierung wurde nicht ausgeführt: Das Tagesbudget für kostenpflichtige Extras hat sie abgelehnt. Erhöhen Sie das Budget oder versuchen Sie es morgen erneut; der ursprüngliche Kontext wird weiterverwendet.",
   "contextWindowFull": "Kontextfenster voll: /compact oder /handoff",
@@ -6573,6 +6572,72 @@
     "grantsCount": {
       "one": "{count} Freigabe",
       "other": "{count} Freigaben"
+    }
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "Passwort",
+    "pin": "PIN",
+    "securityKey": "Sicherheitsschlüssel",
+    "fingerprint": "Fingerabdruck",
+    "orSignInWith": "Oder anmelden mit",
+    "capsLockOn": "Feststelltaste ist aktiviert",
+    "session": "Sitzung",
+    "sessionDesktop": "Desktop",
+    "sessionTerminal": "Terminal",
+    "accessibility": "Barrierefreiheit",
+    "recovery": "Wiederherstellung",
+    "recoveryHint": "Erfordert ein Administratorpasswort oder den Wiederherstellungsschlüssel",
+    "secureAttentionGreeter": "Drücken Sie jederzeit Strg+Alt+Entf, um den echten Anmeldebildschirm zu erreichen.",
+    "secureAttentionLock": "Drücken Sie jederzeit Strg+Alt+Entf, um zu prüfen, dass dies der echte Sperrbildschirm ist.",
+    "secureAttentionPrompt": "Nicht sicher, ob das echt ist? Drücken Sie Strg+Alt+Entf.",
+    "notificationsCount": {
+      "one": "{count} Benachrichtigung",
+      "other": "{count} Benachrichtigungen"
+    },
+    "agentsRunning": {
+      "one": "{count} Agent läuft",
+      "other": "{count} Agenten laufen"
+    },
+    "worksWithoutSignIn": "Funktioniert ohne Anmeldung",
+    "stopEverything": "Alles stoppen",
+    "stopEverythingDetail": "Agenten, Admin-Aktionen und Entwicklungsserver",
+    "lockAdmin": "Admin sperren",
+    "lockAdminDetail": "Agenten verlieren den Admin-Zugriff, bis Sie ihn entsperren",
+    "stopMachine": "Computer stoppen",
+    "administratorPassword": "Administratorpasswort",
+    "authenticate": "Authentifizieren",
+    "cancel": "Abbrechen",
+    "agentAdminRequest": "Admin-Anfrage eines Agenten",
+    "taintAskNote": "Dies fragt auch bei „Immer erlauben“: {agent} hat vor der Anfrage eine Webseite gelesen.",
+    "writtenToAdminAudit": "Wird in das Admin-Protokoll geschrieben",
+    "touchKeyToAllow": "Berühren Sie zum Erlauben Ihren Sicherheitsschlüssel",
+    "deny": "Ablehnen",
+    "allowOnce": "Einmal erlauben",
+    "wifiPassword": "WLAN-Passwort",
+    "connectAutomatically": "Automatisch verbinden",
+    "connect": "Verbinden",
+    "bluetoothPairing": "Bluetooth-Kopplung",
+    "launcherCalculateLocal": "Auf diesem Computer berechnet. Es wird nichts gesendet.",
+    "launcherSymbolSearch": "Emoji oder Symbol finden",
+    "onboardingTitle": "Muse Desktop einrichten",
+    "onboardingStep": "Schritt {step} von {total}",
+    "packsForYourWork": "Pakete für Ihre Arbeit",
+    "recommendedPacks": {
+      "one": "Empfohlen · {count}",
+      "other": "Empfohlen · {count}"
+    },
+    "allPacks": "Alle Pakete · {count}",
+    "fromSignedIndex": "Aus dem Muse-Paketindex, signiert",
+    "downloadSize": "Download",
+    "onDiskSize": "Auf der Platte",
+    "details": "Details",
+    "setUpLater": "Später einrichten",
+    "back": "Zurück",
+    "install": "Installieren",
+    "installingPacks": {
+      "one": "{count} Paket wird installiert",
+      "other": "{count} Pakete werden installiert"
     }
   }
 }

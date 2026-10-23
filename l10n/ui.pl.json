@@ -3150,7 +3150,6 @@
   "autoCompactionName": "Automatyczna kompakcja",
   "paidConfirmAutoCompaction": "Automatyczna kompakcja używa wybranego modelu w cenie {price}. Subskrypcja nie pokrywa tego kosztu.",
   "autoCompactionAwaitingEvaluation": "Automatyczna kompakcja oczekuje na ocenę i jest nieaktywna.",
-
   "autoCompactionFailed": "Automatyczna kompakcja nie powiodła się; kontynuowanie z pierwotnym kontekstem.",
   "autoCompactionBudgetRefused": "Automatyczna kompresja nie została wykonana: dzienny płatny budżet ją odrzucił. Zwiększ budżet lub spróbuj ponownie jutro; pierwotny kontekst zostanie zachowany.",
   "contextWindowFull": "Okno kontekstu jest pełne: /compact lub /handoff",
@@ -6923,6 +6922,80 @@
       "other": "{count} uprawnień",
       "few": "{count} uprawnienia",
       "many": "{count} uprawnień"
+    }
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "Hasło",
+    "pin": "PIN",
+    "securityKey": "Klucz bezpieczeństwa",
+    "fingerprint": "Odcisk palca",
+    "orSignInWith": "Lub zaloguj się za pomocą",
+    "capsLockOn": "Caps Lock jest włączony",
+    "session": "Sesja",
+    "sessionDesktop": "Pulpit",
+    "sessionTerminal": "Terminal",
+    "accessibility": "Dostępność",
+    "recovery": "Odzyskiwanie",
+    "recoveryHint": "Wymaga hasła administratora lub klucza odzyskiwania",
+    "secureAttentionGreeter": "W każdej chwili naciśnij Ctrl+Alt+Del, aby przejść do prawdziwego ekranu logowania.",
+    "secureAttentionLock": "W każdej chwili naciśnij Ctrl+Alt+Del, aby sprawdzić, czy to prawdziwy ekran blokady.",
+    "secureAttentionPrompt": "Nie masz pewności, czy to prawdziwe? Naciśnij Ctrl+Alt+Del.",
+    "notificationsCount": {
+      "one": "{count} powiadomienie",
+      "few": "{count} powiadomienia",
+      "many": "{count} powiadomień",
+      "other": "{count} powiadomień"
+    },
+    "agentsRunning": {
+      "one": "Działa {count} agent",
+      "few": "Działają {count} agenci",
+      "many": "Działa {count} agentów",
+      "other": "Działa {count} agentów"
+    },
+    "worksWithoutSignIn": "Działa bez logowania",
+    "stopEverything": "Zatrzymaj wszystko",
+    "stopEverythingDetail": "Agenci, działania administratora i serwery deweloperskie",
+    "lockAdmin": "Zablokuj administrację",
+    "lockAdminDetail": "Agenci tracą dostęp administratora, dopóki go nie odblokujesz",
+    "stopMachine": "Wyłącz komputer",
+    "administratorPassword": "Hasło administratora",
+    "authenticate": "Uwierzytelnij",
+    "cancel": "Anuluj",
+    "agentAdminRequest": "Żądanie administracyjne agenta",
+    "taintAskNote": "Pyta nawet przy „Zawsze zezwalaj”: {agent} przeczytał stronę internetową przed żądaniem.",
+    "writtenToAdminAudit": "Zapisywane w dzienniku administratora",
+    "touchKeyToAllow": "Dotknij klucza bezpieczeństwa, aby zezwolić",
+    "deny": "Odmów",
+    "allowOnce": "Zezwól raz",
+    "wifiPassword": "Hasło Wi-Fi",
+    "connectAutomatically": "Łącz automatycznie",
+    "connect": "Połącz",
+    "bluetoothPairing": "Parowanie Bluetooth",
+    "launcherCalculateLocal": "Obliczone na tym komputerze. Nic nigdzie nie jest wysyłane.",
+    "launcherSymbolSearch": "Znajdź emoji lub symbol",
+    "onboardingTitle": "Konfiguracja Muse Desktop",
+    "onboardingStep": "Krok {step} z {total}",
+    "packsForYourWork": "Pakiety do Twojej pracy",
+    "recommendedPacks": {
+      "one": "Polecane · {count}",
+      "few": "Polecane · {count}",
+      "many": "Polecane · {count}",
+      "other": "Polecane · {count}"
+    },
+    "allPacks": "Wszystkie pakiety · {count}",
+    "fromSignedIndex": "Z podpisanego indeksu pakietów Muse",
+    "downloadSize": "Pobieranie",
+    "onDiskSize": "Na dysku",
+    "details": "Szczegóły",
+    "setUpLater": "Skonfiguruj później",
+    "back": "Wstecz",
+    "install": "Zainstaluj",
+    "installingPacks": {
+      "one": "Instalowanie {count} pakietu",
+      "few": "Instalowanie {count} pakietów",
+      "many": "Instalowanie {count} pakietów",
+      "other": "Instalowanie {count} pakietów"
     }
   }
 }

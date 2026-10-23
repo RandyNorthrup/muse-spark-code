@@ -128,7 +128,9 @@
       "trafficSuggestDeclareSharedFile",
       "trafficSuggestAddRunner",
       "trafficSuggestLowerIntensity",
-      "trafficSuggestUserWaiters"
+      "trafficSuggestUserWaiters",
+      "desktop.greeterTitle",
+      "desktop.pin"
     ],
     "cs": [
       "groupModel",
@@ -165,7 +167,8 @@
       "teamTemplates.solo",
       "teamCapabilityWarning",
       "devices.cpuPressure",
-      "devices.diskPressure"
+      "devices.diskPressure",
+      "desktop.sessionTerminal"
     ],
     "pl": [
       "groupModel",
@@ -188,7 +191,8 @@
       "usageLimit",
       "teamTemplates.solo",
       "teamCapabilityWarning",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "desktop.sessionTerminal"
     ],
     "de": [
       "groupSkills",
@@ -238,7 +242,11 @@
       "gitPullRequestFormLabel",
       "agentsCount.one",
       "openPullRequestRepository",
-      "sessionListsHooks"
+      "sessionListsHooks",
+      "desktop.sessionDesktop",
+      "desktop.sessionTerminal",
+      "desktop.downloadSize",
+      "desktop.details"
     ],
     "es": [
       "hooksItem",
@@ -259,7 +267,8 @@
       "reportLabels.total",
       "sessionListsHooks",
       "sessionListsPlugins",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "desktop.sessionTerminal"
     ],
     "pt-br": [
       "agentTokens",
@@ -276,7 +285,9 @@
       "teamCapabilityWarning",
       "teamUsageTokens",
       "reportLabels.total",
-      "devices.cpuPressure"
+      "devices.cpuPressure",
+      "desktop.sessionTerminal",
+      "desktop.downloadSize"
     ],
     "fr": [
       "modesTitle",
@@ -308,7 +319,12 @@
       "teamIntensityLevels.minimal",
       "reportLabels.total",
       "sessionListsHooks",
-      "devices.grantQuota"
+      "devices.grantQuota",
+      "desktop.session",
+      "desktop.sessionTerminal",
+      "desktop.notificationsCount.one",
+      "desktop.notificationsCount.other",
+      "desktop.notificationsCount.many"
     ],
     "it": [
       "usageAccount",
@@ -331,7 +347,10 @@
       "devices.grantRepository",
       "devices.grantQuota",
       "devices.cpuPressure",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "desktop.password",
+      "desktop.sessionDesktop",
+      "desktop.downloadSize"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],

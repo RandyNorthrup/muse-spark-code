@@ -2964,7 +2964,6 @@
   "autoCompactionName": "自动压缩",
   "paidConfirmAutoCompaction": "自动压缩以 {price} 的费率使用所选模型。订阅不承担此费用。",
   "autoCompactionAwaitingEvaluation": "自动压缩正在等待评估，目前未启用。",
-
   "autoCompactionFailed": "自动压缩失败；继续使用原始上下文。",
   "autoCompactionBudgetRefused": "自动压缩未运行：每日付费预算拒绝了该请求。请提高预算或明天重试；将继续使用原始上下文。",
   "contextWindowFull": "上下文窗口已满：/compact 或 /handoff",
@@ -6398,6 +6397,68 @@
     },
     "grantsCount": {
       "other": "{count} 个授权"
+    }
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "密码",
+    "pin": "PIN 码",
+    "securityKey": "安全密钥",
+    "fingerprint": "指纹",
+    "orSignInWith": "或使用以下方式登录",
+    "capsLockOn": "大写锁定已开启",
+    "session": "会话",
+    "sessionDesktop": "桌面",
+    "sessionTerminal": "终端",
+    "accessibility": "辅助功能",
+    "recovery": "恢复",
+    "recoveryHint": "需要管理员密码或恢复密钥",
+    "secureAttentionGreeter": "随时按 Ctrl+Alt+Del 可到达真正的登录屏幕。",
+    "secureAttentionLock": "随时按 Ctrl+Alt+Del 可确认这是真正的锁定屏幕。",
+    "secureAttentionPrompt": "不确定这是真的?按 Ctrl+Alt+Del。",
+    "notificationsCount": {
+      "other": "{count} 条通知"
+    },
+    "agentsRunning": {
+      "other": "{count} 个代理正在运行"
+    },
+    "worksWithoutSignIn": "无需登录即可使用",
+    "stopEverything": "全部停止",
+    "stopEverythingDetail": "代理、管理员操作和开发服务器",
+    "lockAdmin": "锁定管理",
+    "lockAdminDetail": "在您解锁之前,代理将失去管理员访问权限",
+    "stopMachine": "关机",
+    "administratorPassword": "管理员密码",
+    "authenticate": "验证",
+    "cancel": "取消",
+    "agentAdminRequest": "代理管理请求",
+    "taintAskNote": "即使在“始终允许”下也会询问:{agent} 在发出请求前读取了一个网页。",
+    "writtenToAdminAudit": "已写入管理员审计日志",
+    "touchKeyToAllow": "轻触您的安全密钥以允许",
+    "deny": "拒绝",
+    "allowOnce": "允许一次",
+    "wifiPassword": "Wi-Fi 密码",
+    "connectAutomatically": "自动连接",
+    "connect": "连接",
+    "bluetoothPairing": "蓝牙配对",
+    "launcherCalculateLocal": "在本机上计算,不会发送到任何地方。",
+    "launcherSymbolSearch": "查找表情符号或符号",
+    "onboardingTitle": "设置 Muse Desktop",
+    "onboardingStep": "第 {step} 步,共 {total} 步",
+    "packsForYourWork": "适合您工作的软件包",
+    "recommendedPacks": {
+      "other": "推荐 · {count}"
+    },
+    "allPacks": "全部软件包 · {count}",
+    "fromSignedIndex": "来自已签名的 Muse 软件包索引",
+    "downloadSize": "下载",
+    "onDiskSize": "磁盘占用",
+    "details": "详细信息",
+    "setUpLater": "稍后设置",
+    "back": "返回",
+    "install": "安装",
+    "installingPacks": {
+      "other": "正在安装 {count} 个软件包"
     }
   }
 }
