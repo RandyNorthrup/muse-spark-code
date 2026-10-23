@@ -121,13 +121,15 @@ describe("the hold's race", () => {
   })
 
   it('treats a closed window as a veto', async () => {
-    const { ports } = scheduledPorts({
+    const { ports, signals } = scheduledPorts({
       vetoAfterMs: 500,
       inspectAfterMs: 500,
       reviewerAfterMs: 80,
     })
     const outcome = await raceApproval(ports, 40)
     expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    expect(signals.veto.aborted).toBe(true)
+    expect(signals.inspect.aborted).toBe(true)
   })
 
   it('does not let a late non-veto win even with B1 delivered', async () => {
