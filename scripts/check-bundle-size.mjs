@@ -74,6 +74,9 @@ const BUDGETS = [
   // POSTSPAWN (C-M106-3R2): the 1.4.4 effort catalogue reader, off
   // activation; ~1 KiB measured, rounded up to 25 KiB like its neighbours.
   { path: 'dist/modelEfforts.js', budgetKiB: 25 },
+  // M108 lane P: another account's paid consent and its store, off activation
+  // and the ACP engine; 41.6 KiB measured, +15%, rounded up to 25 KiB.
+  { path: 'dist/accountPaid.js', budgetKiB: 50 },
   { path: 'dist/resourceAdmission.js', budgetKiB: 25 },
   // INT0170: M107 W2's journal, shared by the governor and the usage service;
   // 41.1 KiB measured, +15%, rounded up to 25 KiB.
@@ -614,7 +617,7 @@ for (const { path, budgetKiB } of BUDGETS) {
 // TRAIN15H: optional surfaces' English has its own measured closure cap in
 // webviewBundles.mjs, following measured +15%, rounded up to 25 KiB.
 const webview = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-for (const { name, page, source, budgetKiB } of [
+for (const { name, page, source, budgetKiB, label = name } of [
   // TRAIN15G: full lazy closure 56.3 KiB +15%, rounded up to 25 KiB.
   { name: 'models', page: 'models', source: 'src/webview/models/panel.tsx', budgetKiB: 75 },
   // CM954R4: first-use table closure, measured +15%, rounded up to 25 KiB.
@@ -626,13 +629,31 @@ for (const { name, page, source, budgetKiB } of [
   },
   // TRAIN15G: full lazy closure 35.4 KiB +15%, rounded up to 25 KiB.
   { name: 'usage', page: 'usage', source: 'src/webview/usage/UsageApp.tsx', budgetKiB: 50 },
+  // C-M108-2: 134,934 B measured closure +15%, rounded to 25 KiB.
+  // The original Models body and every startup/deferred cap stay unchanged.
+  {
+    name: 'models',
+    label: 'model accounts',
+    page: 'models',
+    source: [
+      'src/webview/models/ModelAccounts.tsx',
+      'src/webview/models/sections/accounts/AccountsSurface.tsx',
+    ],
+    budgetKiB: 175,
+  },
 ]) {
   const meta = JSON.parse(readFileSync(`dist/meta/${page}Webview.json`, 'utf8'))
-  const files = webviewPanelOutputs(meta, `dist/webview/${page}.js`, source)
+  const files = [
+    ...new Set(
+      (Array.isArray(source) ? source : [source]).flatMap((entry) =>
+        webviewPanelOutputs(meta, `dist/webview/${page}.js`, entry),
+      ),
+    ),
+  ]
   const sizeKiB = files.reduce((sum, file) => sum + statSync(file).size, 0) / BYTES_PER_KIB
   if (sizeKiB > budgetKiB) hasFailure = true
   console.log(
-    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${name} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+    `${sizeKiB <= budgetKiB ? 'ok  ' : 'OVER'} dist/webview ${label} body: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
   )
 }
 // MODELSPLIT: the Models panel's deferred sections have their own measured

@@ -28,6 +28,7 @@ export interface AccountRequestEstimate {
   readonly requests: number
 }
 export interface AccountPoolClaim {
+  readonly started?: () => void
   /** Excludes this owned pending projection only. Already-sent attempts and
   settled/uncertain liability (including earlier retries) remain visible. */
   readonly journal: AccountJournalReader
@@ -37,6 +38,8 @@ export interface AccountPoolClaim {
   readonly settle: (actualUsd: Usd | null, hasSent: boolean) => Promise<void>
 }
 export interface AccountPoolDeps {
+  readonly readSelection?: (owner: string) => string | undefined
+  readonly writeSelection?: (owner: string, account: string) => void
   readonly provider: string
   readonly policy: () => AccountPolicy | undefined
   readonly accounts: () => readonly Account[]
@@ -46,6 +49,7 @@ export interface AccountPoolDeps {
   readonly now: () => number
   readonly usageUrl: string
   readonly settings?: () => { readonly isSwapOn: boolean; readonly isParallelOn: boolean }
+  readonly isHeld?: () => boolean
   /** Comparable integer capacity, incorporating outstanding reservations. */
   readonly headroom: (account: Account, request: AccountPoolRequest) => bigint
   /** M95's account-specific model scan/capability record for the selected model. */
@@ -61,10 +65,18 @@ export interface AccountPoolDeps {
   readonly record: (event: AccountEvent) => Promise<void>
   /** Owner transaction: call adopt and publish the event synchronously together.
   A thrown fence/I/O refusal commits neither. No await or reentry between them. */
-  readonly commit: (event: AccountEvent, adopt: () => void) => void
+  readonly commit: (
+    event: AccountEvent,
+    adopt: () => () => void,
+    request?: AccountPoolRequest,
+  ) => void
   readonly sharedGroupNotice: (account: string) => Promise<void>
 }
 export interface AccountPoolRequest {
+  readonly retryAccount?: string | undefined
+  /** A per-send owner (the Judge) that must leave no sticky entry or
+  persisted selection behind: admission and settlement still apply. */
+  readonly transient?: boolean | undefined
   readonly owner: string
   /** Original conversation, including children/candidates/schedules; never the chosen account. */
   readonly budgetOwner: string
@@ -75,6 +87,8 @@ export interface AccountPoolRequest {
   readonly isInteractive: boolean
   /** H enables this only with --account-pool; CI stdin-key callers never set it. */
   readonly hasPoolFlag?: boolean
+  readonly checkSharedCaps?: () => void
+  readonly isCurrent?: () => boolean
   readonly hasOfferedRecovery?: boolean
 }
 
@@ -128,7 +142,9 @@ export class AccountPool {
     }
   >()
   private readonly active = new Set<string>()
+  private readonly next = new Map<string, string>()
   private admission: Promise<void> = Promise.resolve()
+  private readonly boundaries = new Set<string>()
 
   public constructor(public readonly deps: AccountPoolDeps) {}
 
@@ -213,8 +229,20 @@ export class AccountPool {
   private async select(request: AccountPoolRequest, isEligible: (account: Account) => boolean) {
     const rows = this.rows()
     const owner = this.owner(request)
-    const held = this.sticky.get(owner)
-    const current = rows.find((row) => row.id === (held?.account ?? request.account))
+    const saved = this.deps.readSelection?.(owner)
+    const held =
+      this.sticky.get(owner) ??
+      (saved === undefined
+        ? undefined
+        : { account: saved, trigger: undefined, decision: undefined })
+    const chosen = request.retryAccount ?? held?.account ?? request.account
+    const current = rows.find((row) => row.id === chosen)
+    if (current === undefined && saved !== undefined && request.retryAccount === undefined) {
+      this.next.delete(owner)
+      this.sticky.set(owner, { account: request.account, trigger: undefined, decision: undefined })
+      this.deps.writeSelection?.(owner, request.account)
+      throw new Error(UI_TEXT.accounts.selectedRemoved)
+    }
     if (current === undefined || !accountIdSchema.safeParse(this.deps.provider).success)
       throw new Error(UI_TEXT.accounts.invalidAccount)
     const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
@@ -235,7 +263,10 @@ export class AccountPool {
       if (refreshed.kind !== 'allow') return await this.stop(current, triggers, refreshed)
       heldDecision = refreshed
     }
-    if ((!isCurrentEligible || triggers.length > 0) && (!canPool || !settings.isSwapOn))
+    if (
+      (!isCurrentEligible || triggers.length > 0) &&
+      (!canPool || !settings.isSwapOn || request.retryAccount !== undefined)
+    )
       return await this.stop(current, triggers)
     if (triggers.length > 0 && rows.length === 1) return await this.stop(current, triggers)
     const isSpread =
@@ -243,6 +274,7 @@ export class AccountPool {
       settings.isParallelOn &&
       rows.length > 1 &&
       request.kind === 'worker' &&
+      request.retryAccount === undefined &&
       held === undefined
     if (!isSpread && isCurrentEligible && triggers.length === 0)
       return {
@@ -253,6 +285,7 @@ export class AccountPool {
         coldCacheUsd: parseUsd(0),
         decision: heldDecision,
         policyTrigger: held?.trigger,
+        spread: false,
       }
     const decision = await this.deps.gate.authorize({
       policy: this.deps.policy,
@@ -263,14 +296,7 @@ export class AccountPool {
     if (decision.kind !== 'allow') return await this.stop(current, triggers, decision)
     const start = rows.indexOf(current) + 1
     const candidates = isSpread
-      ? rows.toSorted((a, b) => {
-          const left = this.deps.headroom(a, request),
-            right = this.deps.headroom(b, request)
-          if (left < parseUsd(0) || right < parseUsd(0))
-            throw new Error(UI_TEXT.accounts.invalidAccount)
-          if (left === right) return a.order - b.order
-          return left > right ? -1 : 1
-        })
+      ? this.spreadOrder(rows, request)
       : [...rows.slice(start), ...rows.slice(0, start)]
     const allTriggers = [...triggers]
     const recoveries = [this.reset(triggers)]
@@ -303,54 +329,133 @@ export class AccountPool {
           coldCacheUsd,
           decision,
           policyTrigger: triggers[0],
+          spread: isSpread,
         }
     }
     return await this.stop(current, allTriggers, undefined, recoveries)
   }
 
-  private async admit(request: AccountPoolRequest, isEligible: (account: Account) => boolean) {
-    const selected = await this.select(request, isEligible)
-    const claim = await this.deps.reserve(selected.account, selected.estimate, request)
-    const check = () => {
-      const account = this.rows().find((row) => row.id === selected.account.id)
-      const row = this.deps.policy()
-      if (
-        account === undefined ||
-        row === undefined ||
-        !isEligible(account) ||
-        !this.deps.canUseModel(account, request) ||
-        row.pooling === 'notOffered' ||
-        !row.isCredentialHeld ||
-        selected.decision?.isCurrent(row) === false
-      )
+  /** A hint confirmed while holding the queue slot: same shape as selection. */
+  private confirm(
+    request: AccountPoolRequest,
+    isEligible: (account: Account) => boolean,
+    hint: Awaited<ReturnType<AccountPool['select']>>,
+  ): Awaited<ReturnType<AccountPool['select']>> | undefined {
+    const row = this.deps.policy()
+    if (row === undefined || row.pooling === 'notOffered' || !row.isCredentialHeld) return undefined
+    if (hint.decision?.isCurrent(row) === false) return undefined
+    const account = this.rows().find((entry) => entry.id === hint.account.id)
+    if (account === undefined || !isEligible(account) || !this.deps.canUseModel(account, request))
+      return undefined
+    if (this.triggers(account, hint.estimate, this.deps.journal, request).length > 0)
+      return undefined
+    // A worker that chose at equal headroom sees a concurrent reservation
+    // here and reranks instead of joining it.
+    return hint.spread && this.spreadOrder(this.rows(), request)[0]?.id !== account.id
+      ? undefined
+      : { ...hint, account }
+  }
+
+  private spreadOrder(rows: Account[], request: AccountPoolRequest): Account[] {
+    return rows.toSorted((a, b) => {
+      const left = this.deps.headroom(a, request),
+        right = this.deps.headroom(b, request)
+      if (left < parseUsd(0) || right < parseUsd(0))
         throw new Error(UI_TEXT.accounts.invalidAccount)
-      if (selected.previousAccount !== account.id) {
-        const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
+      if (left === right) return a.order - b.order
+      return left > right ? -1 : 1
+    })
+  }
+
+  private async admit(
+    request: AccountPoolRequest,
+    isEligible: (account: Account) => boolean,
+    hasSent: () => boolean = () => false,
+  ): Promise<
+    Awaited<ReturnType<AccountPool['select']>> & { claim: AccountPoolClaim; check: () => void }
+  > {
+    // The lease owns its paid request from choice to settlement. Choice
+    // starts outside the reservation queue, so one owner's policy
+    // confirmation never blocks another owner's admission; it is confirmed
+    // inside the queue, so a second worker at equal headroom sees the first
+    // reservation and reranks instead of joining it.
+    const hint = await this.select(request, isEligible)
+    const previous = this.admission
+    const operation = (async () => {
+      await previous
+      const selected =
+        this.confirm(request, isEligible, hint) ?? (await this.select(request, isEligible))
+      if (this.triggers(selected.account, selected.estimate, this.deps.journal, request).length > 0)
+        return
+      const claim = await this.deps.reserve(selected.account, selected.estimate, request)
+      const check = () => {
+        if (this.deps.isHeld?.() === true) throw new AccountPoolBusyError()
+        if (request.isCurrent?.() === false) throw new Error(UI_TEXT.accounts.invalidAccount)
+        const account = this.rows().find((row) => row.id === selected.account.id)
+        const row = this.deps.policy()
         if (
-          !(request.kind === 'worker' && selected.trigger === undefined
-            ? settings.isParallelOn
-            : settings.isSwapOn)
+          account === undefined ||
+          row === undefined ||
+          !isEligible(account) ||
+          !this.deps.canUseModel(account, request) ||
+          row.pooling === 'notOffered' ||
+          !row.isCredentialHeld ||
+          selected.decision?.isCurrent(row) === false
         )
           throw new Error(UI_TEXT.accounts.invalidAccount)
-        const previous = this.rows().find((entry) => entry.id === selected.previousAccount)
-        if (previous === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
-        const vendor = this.triggers(previous, request.estimate, this.deps.journal, request).find(
-          (entry) => entry.kind === 'vendorLimit',
-        )
-        if (vendor !== undefined && selected.trigger?.kind !== 'vendorLimit')
-          throw new AccountThresholdExceededError(vendor)
+        if (selected.previousAccount !== account.id) {
+          const settings = this.deps.settings?.() ?? ACCOUNT_DEFAULTS
+          if (
+            !(request.kind === 'worker' && selected.trigger === undefined
+              ? settings.isParallelOn
+              : settings.isSwapOn)
+          )
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          const previous = this.rows().find((entry) => entry.id === selected.previousAccount)
+          if (previous === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const vendor = this.triggers(previous, request.estimate, this.deps.journal, request).find(
+            (entry) => entry.kind === 'vendorLimit',
+          )
+          if (vendor !== undefined && selected.trigger?.kind !== 'vendorLimit')
+            throw new AccountThresholdExceededError(vendor)
+        }
+        claim.checkSharedCaps()
+        const triggers = this.triggers(account, selected.estimate, claim.journal, request)
+        // A retry is a continuation of this admission's own send on its
+        // reservation: the transport owns its backoff and retry budget, and
+        // the durable block still fences every new admission through select.
+        // Caps, credentials, policy and the swap fence above still refuse it.
+        const blocking = hasSent()
+          ? triggers.filter((trigger) => trigger.kind !== 'vendorLimit')
+          : triggers
+        if (blocking[0] !== undefined) throw new AccountThresholdExceededError(blocking[0])
       }
-      claim.checkSharedCaps()
-      const triggers = this.triggers(account, selected.estimate, claim.journal, request)
-      if (triggers[0] !== undefined) throw new AccountThresholdExceededError(triggers[0])
-    }
-    try {
-      check()
-      return { ...selected, claim, check }
-    } catch (error: unknown) {
-      await claim.settle(parseUsd(0), false)
-      throw error
-    }
+      try {
+        check()
+        return { ...selected, claim, check }
+      } catch (error: unknown) {
+        await claim.settle(parseUsd(0), false)
+        throw error
+      }
+    })()
+    this.admission = (async () => {
+      try {
+        await operation
+      } catch {
+        /* Caller receives the refusal. */
+      }
+    })()
+    const admitted = await operation
+    return admitted ?? (await this.admit(request, isEligible, hasSent))
+  }
+
+  private release(owner: string): void {
+    this.active.delete(owner)
+    if (this.boundaries.has(owner)) return
+    const next = this.next.get(owner)
+    this.next.delete(owner)
+    if (next !== undefined)
+      this.sticky.set(owner, { account: next, trigger: undefined, decision: undefined })
   }
 
   /** Offers consult the same full-group limits as admission, before reservation. */
@@ -361,6 +466,96 @@ export class AccountPool {
     )
   }
 
+  /** Select/reserve once; the caller owns completion even after failure or abort. */
+  public async acquire(
+    request: AccountPoolRequest,
+    isEligible: (account: Account) => boolean = () => true,
+  ) {
+    request = Object.freeze({ ...request, estimate: Object.freeze({ ...request.estimate }) })
+    if (this.deps.isHeld?.() === true) throw new AccountPoolBusyError()
+    const owner = this.owner(request)
+    if (this.active.has(owner)) throw new AccountPoolBusyError()
+    this.active.add(owner)
+    const sent = { value: false }
+    const operation = this.admit(request, isEligible, () => sent.value)
+    try {
+      const admitted = await operation
+      const didSend = () => sent.value
+      let isSettled = false
+      return {
+        account: admitted.account.id,
+        estimate: admitted.estimate,
+        check: () => {
+          if (isSettled) throw new Error(UI_TEXT.accounts.invalidAccount)
+          admitted.check()
+        },
+        beforeSend: () => {
+          if (isSettled) throw new Error(UI_TEXT.accounts.invalidAccount)
+          const adopt = () => {
+            admitted.check()
+            admitted.claim.started?.()
+            const previous = this.sticky.get(owner)
+            const wasSent = sent.value
+            // A transient per-send owner (the Judge) adopts no sticky entry
+            // and persists no selection: the send still checks and settles.
+            if (request.transient !== true) {
+              if (!this.next.has(owner)) this.deps.writeSelection?.(owner, admitted.account.id)
+              this.sticky.set(owner, {
+                account: admitted.account.id,
+                decision: admitted.decision,
+                trigger: admitted.policyTrigger,
+              })
+            }
+            sent.value = true
+            return () => {
+              if (request.transient !== true) {
+                if (previous === undefined) this.sticky.delete(owner)
+                else this.sticky.set(owner, previous)
+              }
+              sent.value = wasSent
+            }
+          }
+          if (sent.value || admitted.previousAccount === admitted.account.id) adopt()
+          else {
+            const trigger = admitted.trigger
+            this.deps.commit(
+              accountEventSchema.parse({
+                provider: this.deps.provider,
+                account: admitted.account.id,
+                time: new Date(this.deps.now()).toISOString(),
+                ...(trigger === undefined
+                  ? { type: 'spread', workerId: request.owner }
+                  : {
+                      type: 'swap',
+                      previousAccount: admitted.previousAccount,
+                      trigger,
+                      coldCacheUsd: usdDecimal(admitted.coldCacheUsd),
+                    }),
+              }),
+              adopt,
+              request,
+            )
+            if (!didSend()) throw new Error(UI_TEXT.accounts.invalidAccount)
+          }
+        },
+        settle: async (actualUsd: Usd | null, didDispatch = sent.value) => {
+          if (isSettled) throw new Error(UI_TEXT.accounts.invalidAccount)
+          if (actualUsd !== null && actualUsd < parseUsd(0))
+            throw new Error(UI_TEXT.accounts.invalidAccount)
+          isSettled = true
+          try {
+            await admitted.claim.settle(didDispatch ? actualUsd : parseUsd(0), didDispatch)
+          } finally {
+            this.release(owner)
+          }
+        },
+      }
+    } catch (error: unknown) {
+      this.release(owner)
+      throw error
+    }
+  }
+
   /** Only admissions serialize. Requests already sent keep their client and liability. */
   public async run<T>(
     request: AccountPoolRequest,
@@ -368,85 +563,91 @@ export class AccountPool {
       readonly account: string
       readonly estimate: AccountRequestEstimate
       readonly check: () => void
-      /** Call synchronously immediately before EVERY send/retry, after credential lookup. */
       readonly beforeSend: () => void
     }) => Promise<{ readonly value: T; readonly actualUsd: Usd | null }>,
     isEligible: (account: Account) => boolean = () => true,
   ): Promise<T> {
-    request = Object.freeze({ ...request, estimate: Object.freeze({ ...request.estimate }) })
-    const owner = this.owner(request)
-    if (this.active.has(owner)) throw new AccountPoolBusyError()
-    this.active.add(owner)
-    const previous = this.admission
-    const operation = (async () => {
-      await previous
-      return await this.admit(request, isEligible)
-    })()
-    this.admission = (async () => {
-      try {
-        await operation
-      } catch {
-        /* Caller receives the refusal. */
-      }
-    })()
+    const admitted = await this.acquire(request, isEligible)
+    let actualUsd: Usd | null = null
+    const sent = { value: false }
     try {
-      const admitted = await operation
-      const state = { hasSent: false }
-      const hasSent = () => state.hasSent
-      let actualUsd: Usd | null = null
-      try {
-        const result = await dispatch({
-          account: admitted.account.id,
-          estimate: admitted.estimate,
-          check: admitted.check,
-          beforeSend: () => {
-            const adopt = () => {
-              admitted.check()
-              this.sticky.set(owner, {
-                account: admitted.account.id,
-                decision: admitted.decision,
-                trigger: admitted.policyTrigger,
-              })
-              state.hasSent = true
-            }
-            if (state.hasSent || admitted.previousAccount === admitted.account.id) adopt()
-            else {
-              const trigger = admitted.trigger
-              this.deps.commit(
-                accountEventSchema.parse({
-                  provider: this.deps.provider,
-                  account: admitted.account.id,
-                  time: new Date(this.deps.now()).toISOString(),
-                  ...(trigger === undefined
-                    ? { type: 'spread', workerId: request.owner }
-                    : {
-                        type: 'swap',
-                        previousAccount: admitted.previousAccount,
-                        trigger,
-                        coldCacheUsd: usdDecimal(admitted.coldCacheUsd),
-                      }),
-                }),
-                adopt,
-              )
-              if (!hasSent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-            }
-          },
-        })
-        if (!hasSent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-        if (result.actualUsd !== null && result.actualUsd < parseUsd(0))
-          throw new Error(UI_TEXT.accounts.invalidAccount)
-        actualUsd = result.actualUsd
-        return result.value
-      } finally {
-        await admitted.claim.settle(state.hasSent ? actualUsd : parseUsd(0), state.hasSent)
-      }
+      const result = await dispatch({
+        ...admitted,
+        beforeSend: () => {
+          admitted.beforeSend()
+          sent.value = true
+        },
+      })
+      if (!sent.value) throw new Error(UI_TEXT.accounts.invalidAccount)
+      if (result.actualUsd !== null && result.actualUsd < parseUsd(0))
+        throw new Error(UI_TEXT.accounts.invalidAccount)
+      actualUsd = result.actualUsd
+      return result.value
     } finally {
-      this.active.delete(owner)
+      await admitted.settle(actualUsd)
     }
   }
 
+  public async withinRequest<T>(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    const key = JSON.stringify([kind, owner])
+    if (this.boundaries.has(key)) throw new AccountPoolBusyError()
+    this.boundaries.add(key)
+    try {
+      return await run()
+    } finally {
+      this.boundaries.delete(key)
+      this.release(key)
+    }
+  }
+
+  /** A user's explicit selection is fenced against an active request. */
+  public use(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    account: string,
+    canCommit: () => boolean,
+  ): void {
+    const key = JSON.stringify([kind, owner])
+    if (this.active.has(key)) throw new AccountPoolBusyError()
+    if (this.rows().every((row) => row.id !== account) || !canCommit())
+      throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.deps.writeSelection?.(key, account)
+    this.sticky.set(key, { account, trigger: undefined, decision: undefined })
+  }
+
+  /** Queue an explicit selection without changing an admitted request's payer. */
+  public useNext(
+    kind: AccountPoolRequest['kind'],
+    owner: string,
+    account: string,
+    canCommit: () => boolean,
+  ): void {
+    const key = JSON.stringify([kind, owner])
+    if (!this.active.has(key) && !this.boundaries.has(key)) {
+      this.use(kind, owner, account, canCommit)
+      return
+    }
+    if (this.rows().every((row) => row.id !== account) || !canCommit())
+      throw new Error(UI_TEXT.accounts.invalidAccount)
+    this.deps.writeSelection?.(key, account)
+    this.next.set(key, account)
+  }
+
   public current(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
-    return this.sticky.get(JSON.stringify([kind, owner]))?.account
+    const key = JSON.stringify([kind, owner])
+    return this.next.get(key) ?? this.sticky.get(key)?.account ?? this.deps.readSelection?.(key)
+  }
+
+  /** The admitted payer, ignoring a choice queued for the next request: a
+  side request of this turn pays on this turn's payer, never on the queued
+  switch. */
+  public currentWithoutNext(kind: AccountPoolRequest['kind'], owner: string): string | undefined {
+    const key = JSON.stringify([kind, owner])
+    return this.sticky.get(key)?.account ?? this.deps.readSelection?.(key)
   }
 }
 

@@ -8,7 +8,12 @@
 // the providers bundle carries in `FormatQuirks`. `FormatQuirks` references
 // these tables; it adds nothing of its own.
 
-import { MODEL_API_RETRY_BASE_MS, PROVIDER_RETRY_HTTP_STATUS } from './constants'
+import {
+  ACCOUNT_REMOTE_LIMIT_DEFAULT_MS,
+  MILLISECONDS_PER_SECOND,
+  MODEL_API_RETRY_BASE_MS,
+  PROVIDER_RETRY_HTTP_STATUS,
+} from './constants'
 
 /** The wire formats with a retry table; mirrors `ProviderFormat`. */
 export type RetryFormat = 'responses' | 'chat' | 'anthropic' | 'gemini' | 'ollama'
@@ -275,4 +280,25 @@ export function classifyRetry(tables: RetryTables, failure: RetryFailure): Retry
   return tables.statuses.includes(failure.status)
     ? { retry: true }
     : { retry: false, reason: 'not-retryable' }
+}
+
+/**
+When a 429 block lifts, as an ISO instant: the `Retry-After` seconds, an
+HTTP date, or the shared remote-limit default. The paying lease records
+exactly this reset for its durable block and known-429 refund.
+*/
+export function rateLimitResetAt(retryAfter: string | null | undefined, now: number): string {
+  if (retryAfter !== null && retryAfter !== undefined && retryAfter.trim() !== '') {
+    const seconds = Number(retryAfter)
+    // A numeric value is seconds like the wire parser reads them: negative
+    // means no usable wait, so the shared default, never a date parse of the
+    // digits. Only a non-numeric value can be an HTTP date.
+    if (Number.isFinite(seconds))
+      return seconds >= 0
+        ? new Date(now + seconds * MILLISECONDS_PER_SECOND).toISOString()
+        : new Date(now + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS).toISOString()
+    const at = Date.parse(retryAfter)
+    if (!Number.isNaN(at)) return new Date(at).toISOString()
+  }
+  return new Date(now + ACCOUNT_REMOTE_LIMIT_DEFAULT_MS).toISOString()
 }

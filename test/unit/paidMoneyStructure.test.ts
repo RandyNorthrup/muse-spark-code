@@ -199,6 +199,7 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'shared/constants.ts:tabDailyBudgetUsd': SETTING,
   'shared/constants.ts:modelApiSessionBudgetUsd': SETTING,
   'runtime/runtimeAccountingEntry.ts:paidDailyBudgetUsd': SETTING,
+  'runtime/dailyBudgetSetting.ts:paidDailyBudgetUsd': SETTING,
   // --- sanctioned: the connector's integer micro-USD amounts (M124).
   'shared/connector.ts:paidCapMicrousd': MICROS,
   'shared/connector.ts:priceMicrousd': MICROS,

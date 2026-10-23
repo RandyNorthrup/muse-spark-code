@@ -1,0 +1,106 @@
+[
+  {
+    "name": "p1-payer",
+    "source": "src/core/backends/modelapi/ModelApiHost.ts",
+    "test": "test/e2e/accountRequests.e2e.test.ts",
+    "exit": 1,
+    "sha256": "64ed20e739a6982364a0461a34a41d98d31dae421c405c06fa894afdeb79e09d",
+    "restored": true
+  },
+  {
+    "name": "paid-extras",
+    "source": "src/core/accounts/requestWriter.ts",
+    "test": "test/e2e/accountRequests.e2e.test.ts",
+    "exit": 1,
+    "sha256": "286b3616276d1c0bb697a345322d36624a5cac8e2e18dec8e9db172f15aa6c4b",
+    "restored": true
+  },
+  {
+    "name": "retry-boundary",
+    "source": "src/core/accounts/pool.ts",
+    "test": "test/unit/pool.test.ts",
+    "exit": 1,
+    "sha256": "a9dc0b1ad81680e600b07856eb668dc8309352cbd14bf71dca22dc5cdc0c2839",
+    "restored": true
+  },
+  {
+    "name": "liability-period",
+    "source": "src/runtime/providers/accountRequestJournal.ts",
+    "test": "test/unit/accountRequestJournal.test.ts",
+    "exit": 1,
+    "sha256": "57a05e793ae08fbf14374334a75b574ab751c2230530e9a4eefdf7fc2e8be969",
+    "restored": true
+  },
+  {
+    "name": "dead-recovery",
+    "source": "src/runtime/providers/accountRequestJournal.ts",
+    "test": "test/unit/accountRequestJournal.test.ts",
+    "exit": 1,
+    "sha256": "57a05e793ae08fbf14374334a75b574ab751c2230530e9a4eefdf7fc2e8be969",
+    "restored": true
+  },
+  {
+    "name": "retention",
+    "source": "src/runtime/providers/accountRequestJournal.ts",
+    "test": "test/unit/accountRequestJournal.test.ts",
+    "exit": 1,
+    "sha256": "57a05e793ae08fbf14374334a75b574ab751c2230530e9a4eefdf7fc2e8be969",
+    "restored": true
+  },
+  {
+    "name": "selection-reload",
+    "source": "src/runtime/providers/accountRequestJournal.ts",
+    "test": "test/e2e/accountRequests.e2e.test.ts",
+    "exit": 1,
+    "sha256": "57a05e793ae08fbf14374334a75b574ab751c2230530e9a4eefdf7fc2e8be969",
+    "restored": true
+  },
+  {
+    "name": "hidden-bootstrap",
+    "source": "src/webview/models/panel.tsx",
+    "test": "test/unit/modelsApp.test.tsx",
+    "exit": 1,
+    "sha256": "e5d1cbc7e09e0753d0125b48f3781fb64cceb6ee377ed4ba49dd9a9e28d8ce11",
+    "restored": true
+  },
+  {
+    "name": "ready-contract",
+    "source": "src/shared/modelsPanel.ts",
+    "test": "test/unit/modelsApp.test.tsx",
+    "exit": 1,
+    "sha256": "f6aab26e7389e47912e68a76c292cc55cd0d4e93c638a876a4d53419a5959d75",
+    "restored": true
+  },
+  {
+    "name": "closure-cap",
+    "source": "scripts/check-bundle-size.mjs",
+    "test": "test/unit/bundleSize.test.mjs",
+    "exit": 1,
+    "sha256": "03e952209567e01e86abfa2d91f6835f8e85e822102b8d71b36163cddb7c1a4f",
+    "restored": true
+  },
+  {
+    "name": "live-concurrency",
+    "source": "test/unit/helpers/accountCrashProcess.ts",
+    "test": "test/unit/accountRequestRecovery.test.ts",
+    "exit": 1,
+    "sha256": "b085a0277f0216cb9f15097f4b47802c3f605a25c99d217841942bbae3f41865",
+    "restored": true
+  },
+  {
+    "name": "policy-isolation",
+    "source": "src/core/accounts/pool.ts",
+    "test": "test/unit/pool.test.ts",
+    "exit": 1,
+    "sha256": "a9dc0b1ad81680e600b07856eb668dc8309352cbd14bf71dca22dc5cdc0c2839",
+    "restored": true
+  },
+  {
+    "name": "picker-scope",
+    "source": "src/webview/models/sections/accounts/AccountsSection.tsx",
+    "test": "test/unit/accountsPanel.test.tsx",
+    "exit": 1,
+    "sha256": "853f4cd88b26c92c3cbf3bd63f386b093b43069837a9ce9bfefff99fb9f0194c",
+    "restored": true
+  }
+]

@@ -29,6 +29,14 @@ export interface LazyBundleRow {
 }
 
 export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
+  {
+    file: 'accountPaid.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/acp/paid.ts', symbol: 'AcpPaidUse.loadAccountService', side: ['acp'] },
+      { importer: 'src/host/paid/paidHost.ts', symbol: 'createPaidFeatures', side: ['vscode'] },
+    ],
+  },
   { file: 'acp.js', side: 'acp', requestedBy: [] },
   {
     file: 'acpPlaybook.js',
@@ -1059,12 +1067,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'runtimeAccounts.js',
-    side: 'acp',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'RUNTIME_ACCOUNTS_BUNDLE_FILE',
-        side: ['acp'],
+        side: ['acp', 'vscode'],
       },
     ],
   },

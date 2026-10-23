@@ -1,0 +1,1356 @@
+{
+  "sourceCommit": "58b8be148",
+  "availability": false,
+  "rows": [
+    {
+      "name": "dist/reporting.js",
+      "bytes": 149661,
+      "capBytes": 179200,
+      "remainingBytes": 29539,
+      "files": ["dist/reporting.js"]
+    },
+    {
+      "name": "dist/reportingNetwork.js",
+      "bytes": 54966,
+      "capBytes": 76800,
+      "remainingBytes": 21834,
+      "files": ["dist/reportingNetwork.js"]
+    },
+    {
+      "name": "dist/reportingDestinations.js",
+      "bytes": 56334,
+      "capBytes": 76800,
+      "remainingBytes": 20466,
+      "files": ["dist/reportingDestinations.js"]
+    },
+    {
+      "name": "dist/reportingPanel.js",
+      "bytes": 46298,
+      "capBytes": 51200,
+      "remainingBytes": 4902,
+      "files": ["dist/reportingPanel.js"]
+    },
+    {
+      "name": "dist/acpQuestions.js",
+      "bytes": 15794,
+      "capBytes": 25600,
+      "remainingBytes": 9806,
+      "files": ["dist/acpQuestions.js"]
+    },
+    {
+      "name": "dist/acpPlaybook.js",
+      "bytes": 69834,
+      "capBytes": 102400,
+      "remainingBytes": 32566,
+      "files": ["dist/acpPlaybook.js"]
+    },
+    {
+      "name": "dist/runtimeQuestions.js",
+      "bytes": 22778,
+      "capBytes": 25600,
+      "remainingBytes": 2822,
+      "files": ["dist/runtimeQuestions.js"]
+    },
+    {
+      "name": "dist/questionNotes.js",
+      "bytes": 7249,
+      "capBytes": 25600,
+      "remainingBytes": 18351,
+      "files": ["dist/questionNotes.js"]
+    },
+    {
+      "name": "dist/extension.js",
+      "bytes": 566447,
+      "capBytes": 614400,
+      "remainingBytes": 47953,
+      "files": ["dist/extension.js"]
+    },
+    {
+      "name": "dist/resourceGovernor.js",
+      "bytes": 108802,
+      "capBytes": 128000,
+      "remainingBytes": 19198,
+      "files": ["dist/resourceGovernor.js"]
+    },
+    {
+      "name": "dist/resourceProcess.js",
+      "bytes": 25548,
+      "capBytes": 51200,
+      "remainingBytes": 25652,
+      "files": ["dist/resourceProcess.js"]
+    },
+    {
+      "name": "dist/mcpVault.js",
+      "bytes": 13737,
+      "capBytes": 25600,
+      "remainingBytes": 11863,
+      "files": ["dist/mcpVault.js"]
+    },
+    {
+      "name": "dist/accountPaid.js",
+      "bytes": 43921,
+      "capBytes": 51200,
+      "remainingBytes": 7279,
+      "files": ["dist/accountPaid.js"]
+    },
+    {
+      "name": "dist/resourceAdmission.js",
+      "bytes": 3260,
+      "capBytes": 25600,
+      "remainingBytes": 22340,
+      "files": ["dist/resourceAdmission.js"]
+    },
+    {
+      "name": "dist/resourceJournal.js",
+      "bytes": 42085,
+      "capBytes": 51200,
+      "remainingBytes": 9115,
+      "files": ["dist/resourceJournal.js"]
+    },
+    {
+      "name": "dist/webview/resourceSurface.js",
+      "bytes": 4808,
+      "capBytes": 25600,
+      "remainingBytes": 20792,
+      "files": ["dist/webview/resourceSurface.js"]
+    },
+    {
+      "name": "dist/webview/resourceHistory.js",
+      "bytes": 10836,
+      "capBytes": 25600,
+      "remainingBytes": 14764,
+      "files": ["dist/webview/resourceHistory.js"]
+    },
+    {
+      "name": "dist/webview/resourceHistory.css",
+      "bytes": 2673,
+      "capBytes": 25600,
+      "remainingBytes": 22927,
+      "files": ["dist/webview/resourceHistory.css"]
+    },
+    {
+      "name": "docs/schemas/exec-event-v2.schema.json",
+      "bytes": 42720,
+      "capBytes": 51200,
+      "remainingBytes": 8480,
+      "files": ["docs/schemas/exec-event-v2.schema.json"]
+    },
+    {
+      "name": "dist/conversation.js",
+      "bytes": 249811,
+      "capBytes": 256000,
+      "remainingBytes": 6189,
+      "files": ["dist/conversation.js"]
+    },
+    {
+      "name": "dist/tab.js",
+      "bytes": 58403,
+      "capBytes": 76800,
+      "remainingBytes": 18397,
+      "files": ["dist/tab.js"]
+    },
+    {
+      "name": "dist/prompts.js",
+      "bytes": 164973,
+      "capBytes": 204800,
+      "remainingBytes": 39827,
+      "files": ["dist/prompts.js"]
+    },
+    {
+      "name": "dist/sharingRuntime.js",
+      "bytes": 162889,
+      "capBytes": 179200,
+      "remainingBytes": 16311,
+      "files": ["dist/sharingRuntime.js"]
+    },
+    {
+      "name": "dist/modelApi.js",
+      "bytes": 534700,
+      "capBytes": 537600,
+      "remainingBytes": 2900,
+      "files": ["dist/modelApi.js"]
+    },
+    {
+      "name": "dist/exec.js",
+      "bytes": 1407,
+      "capBytes": 972800,
+      "remainingBytes": 971393,
+      "files": ["dist/exec.js"]
+    },
+    {
+      "name": "dist/modelApiCodeIntel.js",
+      "bytes": 65544,
+      "capBytes": 102400,
+      "remainingBytes": 36856,
+      "files": ["dist/modelApiCodeIntel.js"]
+    },
+    {
+      "name": "dist/mcpPool.js",
+      "bytes": 52609,
+      "capBytes": 76800,
+      "remainingBytes": 24191,
+      "files": ["dist/mcpPool.js"]
+    },
+    {
+      "name": "dist/structuredSchema.js",
+      "bytes": 22808,
+      "capBytes": 51200,
+      "remainingBytes": 28392,
+      "files": ["dist/structuredSchema.js"]
+    },
+    {
+      "name": "dist/modelApiHooks.js",
+      "bytes": 29145,
+      "capBytes": 51200,
+      "remainingBytes": 22055,
+      "files": ["dist/modelApiHooks.js"]
+    },
+    {
+      "name": "dist/modelApiMcp.js",
+      "bytes": 52592,
+      "capBytes": 76800,
+      "remainingBytes": 24208,
+      "files": ["dist/modelApiMcp.js"]
+    },
+    {
+      "name": "dist/runtimeAccounting.js",
+      "bytes": 31845,
+      "capBytes": 51200,
+      "remainingBytes": 19355,
+      "files": ["dist/runtimeAccounting.js"]
+    },
+    {
+      "name": "dist/providerPolicy.js",
+      "bytes": 8193,
+      "capBytes": 25600,
+      "remainingBytes": 17407,
+      "files": ["dist/providerPolicy.js"]
+    },
+    {
+      "name": "dist/runtimeEngine.js",
+      "bytes": 648493,
+      "capBytes": 896000,
+      "remainingBytes": 247507,
+      "files": ["dist/runtimeEngine.js"]
+    },
+    {
+      "name": "dist/modelApiBoundaries.js",
+      "bytes": 33103,
+      "capBytes": 51200,
+      "remainingBytes": 18097,
+      "files": ["dist/modelApiBoundaries.js"]
+    },
+    {
+      "name": "dist/providers.js",
+      "bytes": 137346,
+      "capBytes": 153600,
+      "remainingBytes": 16254,
+      "files": ["dist/providers.js"]
+    },
+    {
+      "name": "dist/subscriptions.js",
+      "bytes": 30397,
+      "capBytes": 51200,
+      "remainingBytes": 20803,
+      "files": ["dist/subscriptions.js"]
+    },
+    {
+      "name": "dist/configuredProviders.js",
+      "bytes": 26324,
+      "capBytes": 51200,
+      "remainingBytes": 24876,
+      "files": ["dist/configuredProviders.js"]
+    },
+    {
+      "name": "dist/modelsPanel.js",
+      "bytes": 114490,
+      "capBytes": 128000,
+      "remainingBytes": 13510,
+      "files": ["dist/modelsPanel.js"]
+    },
+    {
+      "name": "dist/usageService.js",
+      "bytes": 91506,
+      "capBytes": 102400,
+      "remainingBytes": 10894,
+      "files": ["dist/usageService.js"]
+    },
+    {
+      "name": "dist/usageCompanion.js",
+      "bytes": 45085,
+      "capBytes": 51200,
+      "remainingBytes": 6115,
+      "files": ["dist/usageCompanion.js"]
+    },
+    {
+      "name": "dist/usagePanel.js",
+      "bytes": 76495,
+      "capBytes": 76800,
+      "remainingBytes": 305,
+      "files": ["dist/usagePanel.js"]
+    },
+    {
+      "name": "dist/webview/usage.js",
+      "bytes": 397911,
+      "capBytes": 512000,
+      "remainingBytes": 114089,
+      "files": [
+        "dist/webview/usage.js",
+        "dist/webview/chunks/JWAVHZQA.js",
+        "dist/webview/chunks/VY3P4MBA.js",
+        "dist/webview/chunks/KD2BVE2V.js",
+        "dist/webview/chunks/STLPJADK.js",
+        "dist/webview/chunks/OCKONGBH.js",
+        "dist/webview/chunks/YUYCQAER.js",
+        "dist/webview/chunks/N6BELK7J.js",
+        "dist/webview/chunks/OMGFRT2N.js",
+        "dist/webview/chunks/RPRRFXSE.js",
+        "dist/webview/chunks/7QPX4DYH.js",
+        "dist/webview/chunks/FGQV62GZ.js",
+        "dist/webview/chunks/LQ3TRYCC.js",
+        "dist/webview/chunks/UZOOCQFL.js",
+        "dist/webview/chunks/I4KJ4UUW.js",
+        "dist/webview/chunks/FWNC6A5K.js",
+        "dist/webview/chunks/7KG6AR4V.js",
+        "dist/webview/chunks/HLK2X6MJ.js",
+        "dist/webview/chunks/FNI5YF2R.js",
+        "dist/webview/chunks/HNAVJJM6.js",
+        "dist/webview/chunks/IKLU5OTY.js"
+      ]
+    },
+    {
+      "name": "dist/webview/usage.css",
+      "bytes": 14393,
+      "capBytes": 25600,
+      "remainingBytes": 11207,
+      "files": ["dist/webview/usage.css"]
+    },
+    {
+      "name": "dist/webview/models.js",
+      "bytes": 345512,
+      "capBytes": 512000,
+      "remainingBytes": 166488,
+      "files": [
+        "dist/webview/models.js",
+        "dist/webview/chunks/LIM5EVZ2.js",
+        "dist/webview/chunks/KD2BVE2V.js",
+        "dist/webview/chunks/STLPJADK.js",
+        "dist/webview/chunks/OCKONGBH.js",
+        "dist/webview/chunks/FGQV62GZ.js",
+        "dist/webview/chunks/LQ3TRYCC.js",
+        "dist/webview/chunks/UZOOCQFL.js",
+        "dist/webview/chunks/I4KJ4UUW.js",
+        "dist/webview/chunks/FWNC6A5K.js",
+        "dist/webview/chunks/7KG6AR4V.js",
+        "dist/webview/chunks/HLK2X6MJ.js",
+        "dist/webview/chunks/OMGFRT2N.js",
+        "dist/webview/chunks/FNI5YF2R.js",
+        "dist/webview/chunks/HNAVJJM6.js",
+        "dist/webview/chunks/7QPX4DYH.js",
+        "dist/webview/chunks/IKLU5OTY.js"
+      ]
+    },
+    {
+      "name": "dist/schedules.js",
+      "bytes": 158315,
+      "capBytes": 204800,
+      "remainingBytes": 46485,
+      "files": ["dist/schedules.js"]
+    },
+    {
+      "name": "dist/review.js",
+      "bytes": 39312,
+      "capBytes": 51200,
+      "remainingBytes": 11888,
+      "files": ["dist/review.js"]
+    },
+    {
+      "name": "dist/sessionBoard.js",
+      "bytes": 50928,
+      "capBytes": 76800,
+      "remainingBytes": 25872,
+      "files": ["dist/sessionBoard.js"]
+    },
+    {
+      "name": "dist/reviewer.js",
+      "bytes": 48204,
+      "capBytes": 76800,
+      "remainingBytes": 28596,
+      "files": ["dist/reviewer.js"]
+    },
+    {
+      "name": "dist/team.js",
+      "bytes": 49647,
+      "capBytes": 76800,
+      "remainingBytes": 27153,
+      "files": ["dist/team.js"]
+    },
+    {
+      "name": "dist/teamRunners.js",
+      "bytes": 68640,
+      "capBytes": 76800,
+      "remainingBytes": 8160,
+      "files": ["dist/teamRunners.js"]
+    },
+    {
+      "name": "dist/teamScheduler.js",
+      "bytes": 60878,
+      "capBytes": 76800,
+      "remainingBytes": 15922,
+      "files": ["dist/teamScheduler.js"]
+    },
+    {
+      "name": "dist/foreignHooks.js",
+      "bytes": 73670,
+      "capBytes": 102400,
+      "remainingBytes": 28730,
+      "files": ["dist/foreignHooks.js"]
+    },
+    {
+      "name": "dist/hookRuntime.js",
+      "bytes": 43330,
+      "capBytes": 51200,
+      "remainingBytes": 7870,
+      "files": ["dist/hookRuntime.js"]
+    },
+    {
+      "name": "dist/pluginHooks.js",
+      "bytes": 37863,
+      "capBytes": 51200,
+      "remainingBytes": 13337,
+      "files": ["dist/pluginHooks.js"]
+    },
+    {
+      "name": "dist/planMarkdown.js",
+      "bytes": 147608,
+      "capBytes": 153600,
+      "remainingBytes": 5992,
+      "files": ["dist/planMarkdown.js"]
+    },
+    {
+      "name": "dist/checkpointStore.js",
+      "bytes": 89366,
+      "capBytes": 230400,
+      "remainingBytes": 141034,
+      "files": ["dist/checkpointStore.js"]
+    },
+    {
+      "name": "dist/media.js",
+      "bytes": 18325,
+      "capBytes": 25600,
+      "remainingBytes": 7275,
+      "files": ["dist/media.js"]
+    },
+    {
+      "name": "dist/screenRecord.js",
+      "bytes": 26148,
+      "capBytes": 51200,
+      "remainingBytes": 25052,
+      "files": ["dist/screenRecord.js"]
+    },
+    {
+      "name": "dist/agentImport.js",
+      "bytes": 134107,
+      "capBytes": 153600,
+      "remainingBytes": 19493,
+      "files": ["dist/agentImport.js"]
+    },
+    {
+      "name": "dist/browserCheck.js",
+      "bytes": 54657,
+      "capBytes": 76800,
+      "remainingBytes": 22143,
+      "files": ["dist/browserCheck.js"]
+    },
+    {
+      "name": "dist/browserRuntime.js",
+      "bytes": 19158,
+      "capBytes": 51200,
+      "remainingBytes": 32042,
+      "files": ["dist/browserRuntime.js"]
+    },
+    {
+      "name": "dist/conversationGit.js",
+      "bytes": 91084,
+      "capBytes": 153600,
+      "remainingBytes": 62516,
+      "files": ["dist/conversationGit.js"]
+    },
+    {
+      "name": "dist/modelApiSessions.js",
+      "bytes": 38067,
+      "capBytes": 51200,
+      "remainingBytes": 13133,
+      "files": ["dist/modelApiSessions.js"]
+    },
+    {
+      "name": "dist/bundledSkills.js",
+      "bytes": 17147,
+      "capBytes": 51200,
+      "remainingBytes": 34053,
+      "files": ["dist/bundledSkills.js"]
+    },
+    {
+      "name": "dist/legalScan.js",
+      "bytes": 115527,
+      "capBytes": 153600,
+      "remainingBytes": 38073,
+      "files": ["dist/legalScan.js"]
+    },
+    {
+      "name": "dist/codeIntel.js",
+      "bytes": 42137,
+      "capBytes": 102400,
+      "remainingBytes": 60263,
+      "files": ["dist/codeIntel.js"]
+    },
+    {
+      "name": "dist/voice.js",
+      "bytes": 34872,
+      "capBytes": 51200,
+      "remainingBytes": 16328,
+      "files": ["dist/voice.js"]
+    },
+    {
+      "name": "dist/webFetch.js",
+      "bytes": 34958,
+      "capBytes": 76800,
+      "remainingBytes": 41842,
+      "files": ["dist/webFetch.js"]
+    },
+    {
+      "name": "dist/museCodeReviewer.js",
+      "bytes": 23840,
+      "capBytes": 76800,
+      "remainingBytes": 52960,
+      "files": ["dist/museCodeReviewer.js"]
+    },
+    {
+      "name": "dist/extensionHooks.js",
+      "bytes": 35910,
+      "capBytes": 76800,
+      "remainingBytes": 40890,
+      "files": ["dist/extensionHooks.js"]
+    },
+    {
+      "name": "dist/vault.js",
+      "bytes": 18211,
+      "capBytes": 51200,
+      "remainingBytes": 32989,
+      "files": ["dist/vault.js"]
+    },
+    {
+      "name": "dist/vaultBoundaries.js",
+      "bytes": 37006,
+      "capBytes": 51200,
+      "remainingBytes": 14194,
+      "files": ["dist/vaultBoundaries.js"]
+    },
+    {
+      "name": "dist/report.js",
+      "bytes": 20297,
+      "capBytes": 76800,
+      "remainingBytes": 56503,
+      "files": ["dist/report.js"]
+    },
+    {
+      "name": "dist/estimator.js",
+      "bytes": 68647,
+      "capBytes": 76800,
+      "remainingBytes": 8153,
+      "files": ["dist/estimator.js"]
+    },
+    {
+      "name": "dist/estimateContracts.js",
+      "bytes": 19410,
+      "capBytes": 25600,
+      "remainingBytes": 6190,
+      "files": ["dist/estimateContracts.js"]
+    },
+    {
+      "name": "dist/recorder.js",
+      "bytes": 22277,
+      "capBytes": 76800,
+      "remainingBytes": 54523,
+      "files": ["dist/recorder.js"]
+    },
+    {
+      "name": "dist/whatsNew.js",
+      "bytes": 21421,
+      "capBytes": 51200,
+      "remainingBytes": 29779,
+      "files": ["dist/whatsNew.js"]
+    },
+    {
+      "name": "dist/whatsNew.json",
+      "bytes": 25411,
+      "capBytes": 40960,
+      "remainingBytes": 15549,
+      "files": ["dist/whatsNew.json"]
+    },
+    {
+      "name": "dist/judge.js",
+      "bytes": 46188,
+      "capBytes": 102400,
+      "remainingBytes": 56212,
+      "files": ["dist/judge.js"]
+    },
+    {
+      "name": "dist/uiText.js",
+      "bytes": 95395,
+      "capBytes": 128000,
+      "remainingBytes": 32605,
+      "files": ["dist/uiText.js"]
+    },
+    {
+      "name": "dist/uiTextRuntime.js",
+      "bytes": 4762,
+      "capBytes": 25600,
+      "remainingBytes": 20838,
+      "files": ["dist/uiTextRuntime.js"]
+    },
+    {
+      "name": "dist/uiTextHooks.js",
+      "bytes": 4778,
+      "capBytes": 25600,
+      "remainingBytes": 20822,
+      "files": ["dist/uiTextHooks.js"]
+    },
+    {
+      "name": "dist/uiTextSurfaces.js",
+      "bytes": 8274,
+      "capBytes": 25600,
+      "remainingBytes": 17326,
+      "files": ["dist/uiTextSurfaces.js"]
+    },
+    {
+      "name": "dist/uiTextMedia.js",
+      "bytes": 2306,
+      "capBytes": 25600,
+      "remainingBytes": 23294,
+      "files": ["dist/uiTextMedia.js"]
+    },
+    {
+      "name": "dist/validation.js",
+      "bytes": 47820,
+      "capBytes": 51200,
+      "remainingBytes": 3380,
+      "files": ["dist/validation.js"]
+    },
+    {
+      "name": "dist/wire.js",
+      "bytes": 70339,
+      "capBytes": 76800,
+      "remainingBytes": 6461,
+      "files": ["dist/wire.js"]
+    },
+    {
+      "name": "dist/searchWorker.js",
+      "bytes": 5184,
+      "capBytes": 51200,
+      "remainingBytes": 46016,
+      "files": ["dist/searchWorker.js"]
+    },
+    {
+      "name": "dist/imageResizeWorker.js",
+      "bytes": 60240,
+      "capBytes": 76800,
+      "remainingBytes": 16560,
+      "files": ["dist/imageResizeWorker.js"]
+    },
+    {
+      "name": "dist/pageWorker.js",
+      "bytes": 193171,
+      "capBytes": 307200,
+      "remainingBytes": 114029,
+      "files": ["dist/pageWorker.js"]
+    },
+    {
+      "name": "dist/webview/main.js",
+      "bytes": 760196,
+      "capBytes": 921600,
+      "remainingBytes": 161404,
+      "files": [
+        "dist/webview/main.js",
+        "dist/webview/chunks/CIYCYLJ4.js",
+        "dist/webview/chunks/2TEO5AI5.js",
+        "dist/webview/chunks/6GP2EZ5G.js",
+        "dist/webview/chunks/KD2BVE2V.js",
+        "dist/webview/chunks/STLPJADK.js",
+        "dist/webview/chunks/OCKONGBH.js",
+        "dist/webview/chunks/TO4IPJIV.js",
+        "dist/webview/chunks/ZSMVPGYG.js",
+        "dist/webview/chunks/OMGFRT2N.js",
+        "dist/webview/chunks/FNI5YF2R.js",
+        "dist/webview/chunks/HLK2X6MJ.js",
+        "dist/webview/chunks/LQ3TRYCC.js",
+        "dist/webview/chunks/UZOOCQFL.js",
+        "dist/webview/chunks/I4KJ4UUW.js",
+        "dist/webview/chunks/FWNC6A5K.js",
+        "dist/webview/chunks/7KG6AR4V.js",
+        "dist/webview/chunks/JQXKHSTX.js",
+        "dist/webview/chunks/DXM4WB4G.js",
+        "dist/webview/chunks/CRJQKXK6.js",
+        "dist/webview/chunks/USYVKIPY.js",
+        "dist/webview/chunks/EZNAASV3.js",
+        "dist/webview/chunks/BKC5VRTI.js",
+        "dist/webview/chunks/4DK3J44F.js",
+        "dist/webview/chunks/NN6PEMXT.js",
+        "dist/webview/chunks/F2B6ORFX.js",
+        "dist/webview/chunks/YVY7WVWS.js",
+        "dist/webview/chunks/5JELZNTX.js",
+        "dist/webview/chunks/XZ2PKDFW.js",
+        "dist/webview/chunks/B7ZCKQWF.js",
+        "dist/webview/chunks/7HKMCSD5.js",
+        "dist/webview/chunks/G4P2YIOH.js",
+        "dist/webview/chunks/6OAP42IU.js",
+        "dist/webview/chunks/RKPVRR3I.js",
+        "dist/webview/chunks/W6BZWVMU.js",
+        "dist/webview/chunks/OL7QT5AY.js",
+        "dist/webview/chunks/RPRRFXSE.js",
+        "dist/webview/chunks/TQLJSCE6.js",
+        "dist/webview/chunks/UD7KMHZ2.js",
+        "dist/webview/chunks/5O5YCHDM.js",
+        "dist/webview/chunks/TATA4L5S.js",
+        "dist/webview/chunks/KSCI5ZYW.js",
+        "dist/webview/chunks/NWU7RRBB.js",
+        "dist/webview/chunks/KMVLFSGD.js",
+        "dist/webview/chunks/DQF35P4Y.js",
+        "dist/webview/chunks/5SVPJNZ7.js",
+        "dist/webview/chunks/IA3CJJT7.js",
+        "dist/webview/chunks/X6TYFDXG.js",
+        "dist/webview/chunks/ZN5VVFQ4.js",
+        "dist/webview/chunks/N6INZH65.js",
+        "dist/webview/chunks/LIM5EVZ2.js",
+        "dist/webview/chunks/FGQV62GZ.js",
+        "dist/webview/chunks/HNAVJJM6.js",
+        "dist/webview/chunks/7QPX4DYH.js",
+        "dist/webview/chunks/IKLU5OTY.js"
+      ]
+    },
+    {
+      "name": "dist/webview/whatsNew.js",
+      "bytes": 1351,
+      "capBytes": 25600,
+      "remainingBytes": 24249,
+      "files": ["dist/webview/whatsNew.js", "dist/webview/chunks/OMGFRT2N.js"]
+    },
+    {
+      "name": "dist/webview/referencePage.js",
+      "bytes": 23114,
+      "capBytes": 51200,
+      "remainingBytes": 28086,
+      "files": ["dist/webview/referencePage.js"]
+    },
+    {
+      "name": "dist/reference.js",
+      "bytes": 57584,
+      "capBytes": 128000,
+      "remainingBytes": 70416,
+      "files": ["dist/reference.js"]
+    },
+    {
+      "name": "dist/acp.js",
+      "bytes": 243772,
+      "capBytes": 870400,
+      "remainingBytes": 626628,
+      "files": ["dist/acp.js"]
+    },
+    {
+      "name": "dist/headless.js",
+      "bytes": 100893,
+      "capBytes": 102400,
+      "remainingBytes": 1507,
+      "files": ["dist/headless.js"]
+    },
+    {
+      "name": "dist/fontsInstall.js",
+      "bytes": 12022,
+      "capBytes": 25600,
+      "remainingBytes": 13578,
+      "files": ["dist/fontsInstall.js"]
+    },
+    {
+      "name": "dist/scheduleBackground.js",
+      "bytes": 39348,
+      "capBytes": 51200,
+      "remainingBytes": 11852,
+      "files": ["dist/scheduleBackground.js"]
+    },
+    {
+      "name": "dist/runtimeAccounts.js",
+      "bytes": 124397,
+      "capBytes": 307200,
+      "remainingBytes": 182803,
+      "files": ["dist/runtimeAccounts.js"]
+    },
+    {
+      "name": "models body",
+      "bytes": 76327,
+      "capBytes": 76800,
+      "remainingBytes": 473,
+      "files": [
+        "dist/webview/chunks/UQX42D4S.js",
+        "dist/webview/chunks/XACAPD6D.js",
+        "dist/webview/chunks/EKD4GH3T.js",
+        "dist/webview/chunks/VY3P4MBA.js",
+        "dist/webview/chunks/RPRRFXSE.js",
+        "dist/webview/chunks/OG5P2JVS.js",
+        "dist/webview/chunks/CRJQKXK6.js",
+        "dist/webview/chunks/BKC5VRTI.js",
+        "dist/webview/chunks/RKPVRR3I.js"
+      ]
+    },
+    {
+      "name": "usage body",
+      "bytes": 41635,
+      "capBytes": 51200,
+      "remainingBytes": 9565,
+      "files": [
+        "dist/webview/chunks/F45DORS3.js",
+        "dist/webview/chunks/BKC5VRTI.js",
+        "dist/webview/chunks/5O5YCHDM.js",
+        "dist/webview/chunks/5I5HAILS.js"
+      ]
+    },
+    {
+      "name": "model import body",
+      "bytes": 2128,
+      "capBytes": 25600,
+      "remainingBytes": 23472,
+      "files": ["dist/webview/chunks/AZKR4YOQ.js", "dist/webview/chunks/XACAPD6D.js"]
+    },
+    {
+      "name": "model accounts body",
+      "bytes": 136048,
+      "capBytes": 179200,
+      "remainingBytes": 43152,
+      "files": [
+        "dist/webview/chunks/7TC5PBU2.js",
+        "dist/webview/chunks/OG5P2JVS.js",
+        "dist/webview/chunks/ZAL27NNX.js",
+        "dist/webview/chunks/EKD4GH3T.js",
+        "dist/webview/chunks/VY3P4MBA.js",
+        "dist/webview/chunks/RPRRFXSE.js",
+        "dist/webview/chunks/NN6PEMXT.js",
+        "dist/webview/chunks/TO4IPJIV.js",
+        "dist/webview/chunks/ZSMVPGYG.js"
+      ]
+    },
+    {
+      "name": "LegalReport",
+      "bytes": 10405,
+      "capBytes": 25600,
+      "remainingBytes": 15195,
+      "files": ["dist/webview/chunks/NQH5B7BH.js"]
+    },
+    {
+      "name": "ReviewCommentForm",
+      "bytes": 2117,
+      "capBytes": 25600,
+      "remainingBytes": 23483,
+      "files": ["dist/webview/chunks/HBFJLLTS.js"]
+    },
+    {
+      "name": "SignIn",
+      "bytes": 4378,
+      "capBytes": 25600,
+      "remainingBytes": 21222,
+      "files": ["dist/webview/chunks/HYV67MSE.js"]
+    },
+    {
+      "name": "GoalPanel",
+      "bytes": 3594,
+      "capBytes": 25600,
+      "remainingBytes": 22006,
+      "files": ["dist/webview/chunks/6SESWEE7.js"]
+    },
+    {
+      "name": "SchedulePanel",
+      "bytes": 1792,
+      "capBytes": 25600,
+      "remainingBytes": 23808,
+      "files": ["dist/webview/chunks/GDDMPOKY.js"]
+    },
+    {
+      "name": "Palette",
+      "bytes": 8250,
+      "capBytes": 25600,
+      "remainingBytes": 17350,
+      "files": ["dist/webview/chunks/4KGXN44G.js"]
+    },
+    {
+      "name": "PopoverMenu",
+      "bytes": 3034,
+      "capBytes": 25600,
+      "remainingBytes": 22566,
+      "files": ["dist/webview/chunks/SLMEZRE7.js"]
+    },
+    {
+      "name": "GooeyMenuContent",
+      "bytes": 5994,
+      "capBytes": 25600,
+      "remainingBytes": 19606,
+      "files": ["dist/webview/chunks/V6CDTNXW.js"]
+    },
+    {
+      "name": "UsageDialogContent",
+      "bytes": 12441,
+      "capBytes": 25600,
+      "remainingBytes": 13159,
+      "files": ["dist/webview/chunks/H2I3ZNFM.js"]
+    },
+    {
+      "name": "AgentMapContent",
+      "bytes": 12175,
+      "capBytes": 25600,
+      "remainingBytes": 13425,
+      "files": ["dist/webview/chunks/SXINLV2Q.js"]
+    },
+    {
+      "name": "deferred JS",
+      "bytes": 32648,
+      "capBytes": 51200,
+      "remainingBytes": 18552,
+      "files": [
+        "dist/webview/chunks/IFQ6YPWA.js",
+        "dist/webview/chunks/A7QJXKJ6.js",
+        "dist/webview/chunks/SB6GEM3I.js",
+        "dist/webview/chunks/JYDCMTZK.js",
+        "dist/webview/chunks/XGM6DGAO.js",
+        "dist/webview/chunks/NSXCNUTR.js",
+        "dist/webview/chunks/7ALJW4OG.js",
+        "dist/webview/chunks/2MT6K2E6.js",
+        "dist/webview/chunks/5MSWWRFC.js",
+        "dist/webview/chunks/NOWLUNTH.js",
+        "dist/webview/chunks/DIONQITJ.js"
+      ]
+    },
+    {
+      "name": "resource controls",
+      "bytes": 40207,
+      "capBytes": 51200,
+      "remainingBytes": 10993,
+      "files": [
+        "dist/webview/resourceSurface.js",
+        "dist/webview/chunks/JYDCMTZK.js",
+        "dist/webview/chunks/PUT2C6HG.js",
+        "dist/webview/chunks/N6BELK7J.js"
+      ]
+    },
+    {
+      "name": "resource history",
+      "bytes": 50620,
+      "capBytes": 51200,
+      "remainingBytes": 580,
+      "files": [
+        "dist/webview/resourceHistory.js",
+        "dist/webview/chunks/PUT2C6HG.js",
+        "dist/webview/chunks/YUYCQAER.js",
+        "dist/webview/chunks/N6BELK7J.js",
+        "dist/webview/resourceHistory.css"
+      ]
+    },
+    {
+      "name": "SetupBanner",
+      "bytes": 687,
+      "capBytes": 25600,
+      "remainingBytes": 24913,
+      "files": ["dist/webview/chunks/QJ2JSERU.js"]
+    },
+    {
+      "name": "surface English",
+      "bytes": 24982,
+      "capBytes": 25600,
+      "remainingBytes": 618,
+      "files": ["dist/webview/chunks/ROZF2BKB.js"]
+    },
+    {
+      "name": "account English",
+      "bytes": 3997,
+      "capBytes": 25600,
+      "remainingBytes": 21603,
+      "files": ["dist/webview/chunks/CXBAXBYI.js"]
+    },
+    {
+      "name": "schedule English",
+      "bytes": 4949,
+      "capBytes": 25600,
+      "remainingBytes": 20651,
+      "files": ["dist/webview/chunks/F6LXBTIX.js"]
+    },
+    {
+      "name": "help reference",
+      "bytes": 36005,
+      "capBytes": 51200,
+      "remainingBytes": 15195,
+      "files": [
+        "dist/webview/chunks/427ANVSQ.js",
+        "dist/webview/referencePage.js",
+        "dist/webview/referencePage.css"
+      ]
+    },
+    {
+      "name": "paid usage",
+      "bytes": 15980,
+      "capBytes": 25600,
+      "remainingBytes": 9620,
+      "files": [
+        "dist/webview/chunks/AFZZ74FO.js",
+        "dist/webview/chunks/QXOQHQQX.js",
+        "dist/webview/chunks/5I5HAILS.js",
+        "dist/webview/chunks/R34NTPPL.js"
+      ]
+    },
+    {
+      "name": "provider usage",
+      "bytes": 13418,
+      "capBytes": 25600,
+      "remainingBytes": 12182,
+      "files": [
+        "dist/webview/chunks/6ND4HGVA.js",
+        "dist/webview/chunks/KIO4C7QB.js",
+        "dist/webview/chunks/QXOQHQQX.js",
+        "dist/webview/chunks/5I5HAILS.js",
+        "dist/webview/chunks/R34NTPPL.js"
+      ]
+    },
+    {
+      "name": "report destinations",
+      "bytes": 4652,
+      "capBytes": 25600,
+      "remainingBytes": 20948,
+      "files": ["dist/webview/reportingDestinations.js", "dist/webview/reportingDestinations.css"]
+    },
+    {
+      "name": "reporting UI",
+      "bytes": 18917,
+      "capBytes": 25600,
+      "remainingBytes": 6683,
+      "files": [
+        "dist/webview/chunks/XB6VSKS6.js",
+        "dist/webview/reportingPage.js",
+        "dist/webview/chunks/5I5HAILS.js",
+        "dist/webview/reportingPage.css"
+      ]
+    },
+    {
+      "name": "ToolBodies",
+      "bytes": 11702,
+      "capBytes": 25600,
+      "remainingBytes": 13898,
+      "files": [
+        "dist/webview/chunks/ZKM6E25F.js",
+        "dist/webview/chunks/JR4FKI6Y.js",
+        "dist/webview/chunks/5R6YRAOK.js",
+        "dist/webview/chunks/CVXXRF3A.js",
+        "dist/webview/chunks/5I5HAILS.js"
+      ]
+    },
+    {
+      "name": "ToolRow",
+      "bytes": 12759,
+      "capBytes": 25600,
+      "remainingBytes": 12841,
+      "files": ["dist/webview/chunks/Y6N3IZ2V.js", "dist/webview/chunks/2O2DASC5.js"]
+    },
+    {
+      "name": "ReviewFindings",
+      "bytes": 1882,
+      "capBytes": 25600,
+      "remainingBytes": 23718,
+      "files": ["dist/webview/chunks/7QYSVMDI.js"]
+    },
+    {
+      "name": "HistoryPromptRow",
+      "bytes": 4648,
+      "capBytes": 25600,
+      "remainingBytes": 20952,
+      "files": [
+        "dist/webview/chunks/GES2WNNJ.js",
+        "dist/webview/chunks/NSXCNUTR.js",
+        "dist/webview/chunks/SB6GEM3I.js",
+        "dist/webview/chunks/JYDCMTZK.js"
+      ]
+    },
+    {
+      "name": "SignIn",
+      "bytes": 4378,
+      "capBytes": 25600,
+      "remainingBytes": 21222,
+      "files": ["dist/webview/chunks/HYV67MSE.js"]
+    },
+    {
+      "name": "GoalPanel",
+      "bytes": 4252,
+      "capBytes": 25600,
+      "remainingBytes": 21348,
+      "files": ["dist/webview/chunks/6SESWEE7.js", "dist/webview/chunks/JR4FKI6Y.js"]
+    },
+    {
+      "name": "SchedulePanel",
+      "bytes": 1792,
+      "capBytes": 25600,
+      "remainingBytes": 23808,
+      "files": ["dist/webview/chunks/GDDMPOKY.js"]
+    },
+    {
+      "name": "Palette",
+      "bytes": 22929,
+      "capBytes": 25600,
+      "remainingBytes": 2671,
+      "files": [
+        "dist/webview/chunks/4KGXN44G.js",
+        "dist/webview/chunks/SQVW6JDY.js",
+        "dist/webview/chunks/SB6GEM3I.js",
+        "dist/webview/chunks/JYDCMTZK.js",
+        "dist/webview/chunks/XMI7H2LA.js",
+        "dist/webview/chunks/IFQ6YPWA.js",
+        "dist/webview/chunks/HQCM4L7G.js"
+      ]
+    },
+    {
+      "name": "PopoverMenu",
+      "bytes": 3034,
+      "capBytes": 25600,
+      "remainingBytes": 22566,
+      "files": ["dist/webview/chunks/SLMEZRE7.js"]
+    },
+    {
+      "name": "GooeyMenuContent",
+      "bytes": 5994,
+      "capBytes": 25600,
+      "remainingBytes": 19606,
+      "files": ["dist/webview/chunks/V6CDTNXW.js"]
+    },
+    {
+      "name": "UsageDialogContent",
+      "bytes": 24446,
+      "capBytes": 25600,
+      "remainingBytes": 1154,
+      "files": [
+        "dist/webview/chunks/H2I3ZNFM.js",
+        "dist/webview/chunks/KIO4C7QB.js",
+        "dist/webview/chunks/QXOQHQQX.js",
+        "dist/webview/chunks/5I5HAILS.js",
+        "dist/webview/chunks/R34NTPPL.js"
+      ]
+    },
+    {
+      "name": "AgentMapContent",
+      "bytes": 21653,
+      "capBytes": 25600,
+      "remainingBytes": 3947,
+      "files": [
+        "dist/webview/chunks/SXINLV2Q.js",
+        "dist/webview/chunks/MV7PKMQO.js",
+        "dist/webview/chunks/NCOCGHV6.js"
+      ]
+    },
+    {
+      "name": "LegalReport",
+      "bytes": 10405,
+      "capBytes": 25600,
+      "remainingBytes": 15195,
+      "files": ["dist/webview/chunks/NQH5B7BH.js"]
+    },
+    {
+      "name": "ReviewCommentForm",
+      "bytes": 2117,
+      "capBytes": 25600,
+      "remainingBytes": 23483,
+      "files": ["dist/webview/chunks/HBFJLLTS.js"]
+    },
+    {
+      "name": "question UI",
+      "bytes": 21600,
+      "capBytes": 25600,
+      "remainingBytes": 4000,
+      "files": ["dist/webview/chunks/E5T7SN4F.js"]
+    },
+    {
+      "name": "workflow details",
+      "bytes": 9015,
+      "capBytes": 25600,
+      "remainingBytes": 16585,
+      "files": ["dist/webview/chunks/JYOPU6FT.js", "dist/webview/chunks/MV7PKMQO.js"]
+    },
+    {
+      "name": "code highlighting",
+      "bytes": 90277,
+      "capBytes": 128000,
+      "remainingBytes": 37723,
+      "files": ["dist/webview/chunks/BM2MTZEI.js", "dist/webview/chunks/2C6CMX2H.js"]
+    },
+    {
+      "name": "tool cards",
+      "bytes": 5804,
+      "capBytes": 25600,
+      "remainingBytes": 19796,
+      "files": ["dist/webview/chunks/ZKM6E25F.js", "dist/webview/chunks/JR4FKI6Y.js"]
+    },
+    {
+      "name": "action dialogs",
+      "bytes": 20253,
+      "capBytes": 25600,
+      "remainingBytes": 5347,
+      "files": [
+        "dist/webview/chunks/GBEM5YFJ.js",
+        "dist/webview/chunks/X4R55GV3.js",
+        "dist/webview/chunks/6MQP2SQZ.js",
+        "dist/webview/chunks/QJ2JSERU.js",
+        "dist/webview/chunks/RRTIDYQJ.js",
+        "dist/webview/chunks/IGSNQTGE.js",
+        "dist/webview/chunks/PEPSKC6E.js",
+        "dist/webview/chunks/SB6GEM3I.js",
+        "dist/webview/chunks/JYDCMTZK.js",
+        "dist/webview/chunks/IFQ6YPWA.js",
+        "dist/webview/chunks/YPW3SAEZ.js",
+        "dist/webview/chunks/RUMJDXK4.js",
+        "dist/webview/chunks/2O2DASC5.js"
+      ]
+    },
+    {
+      "name": "prompt library",
+      "bytes": 11785,
+      "capBytes": 25600,
+      "remainingBytes": 13815,
+      "files": [
+        "dist/webview/chunks/EUOQE7UF.js",
+        "dist/webview/chunks/DLL3IHSU.js",
+        "dist/webview/chunks/7P2F6VZS.js",
+        "dist/webview/chunks/H3YW3OC2.js",
+        "dist/webview/chunks/7P7XYOHY.css"
+      ]
+    },
+    {
+      "name": "chat sharing",
+      "bytes": 15595,
+      "capBytes": 25600,
+      "remainingBytes": 10005,
+      "files": [
+        "dist/webview/chunks/JF34AUFY.js",
+        "dist/webview/chunks/H3YW3OC2.js",
+        "dist/webview/chunks/RUMJDXK4.js",
+        "dist/webview/chunks/2O2DASC5.js",
+        "dist/webview/chunks/2C6CMX2H.js",
+        "dist/webview/chunks/I4AAXOFB.css"
+      ]
+    },
+    {
+      "name": "tasks tab",
+      "bytes": 3021,
+      "capBytes": 25600,
+      "remainingBytes": 22579,
+      "files": ["dist/webview/chunks/JOIRJJA7.js", "dist/webview/chunks/EPOFN7DO.js"]
+    },
+    {
+      "name": "playbook UI",
+      "bytes": 19373,
+      "capBytes": 25600,
+      "remainingBytes": 6227,
+      "files": [
+        "dist/webview/chunks/ITZLQBIL.js",
+        "dist/webview/chunks/NCOCGHV6.js",
+        "dist/webview/chunks/M4JM3T5M.js",
+        "dist/webview/chunks/QRQVVZVH.js",
+        "dist/webview/chunks/XCL5Y2RF.js",
+        "dist/webview/chunks/SC76M3C7.js",
+        "dist/webview/chunks/A4S2AIJI.js"
+      ]
+    },
+    {
+      "name": "schedule surface",
+      "bytes": 41588,
+      "capBytes": 51200,
+      "remainingBytes": 9612,
+      "files": [
+        "dist/webview/chunks/7P4576TO.js",
+        "dist/webview/chunks/CVXXRF3A.js",
+        "dist/webview/chunks/5I5HAILS.js",
+        "dist/webview/chunks/ORPLWLMI.js",
+        "dist/webview/chunks/GFLT3JOU.js"
+      ]
+    },
+    {
+      "name": "exact money",
+      "bytes": 12836,
+      "capBytes": 25600,
+      "remainingBytes": 12764,
+      "files": [
+        "dist/webview/chunks/SYRBTTG6.js",
+        "dist/webview/chunks/R34NTPPL.js",
+        "dist/webview/chunks/5I5HAILS.js",
+        "dist/webview/chunks/63NZZRXG.js",
+        "dist/webview/chunks/QXOQHQQX.js"
+      ]
+    },
+    {
+      "name": "deferred overlays",
+      "bytes": 6816,
+      "capBytes": 10240,
+      "remainingBytes": 3424,
+      "files": [
+        "dist/webview/chunks/XQUZIISJ.js",
+        "dist/webview/chunks/IFQ6YPWA.js",
+        "dist/webview/chunks/YACDNNZJ.js",
+        "dist/webview/chunks/HIE3QW3B.js",
+        "dist/webview/chunks/T75YY2MJ.js",
+        "dist/webview/chunks/P337UD7M.js",
+        "dist/webview/chunks/XMI7H2LA.js",
+        "dist/webview/chunks/NJYI2XFU.js",
+        "dist/webview/chunks/EPOFN7DO.js"
+      ]
+    },
+    {
+      "name": "media",
+      "bytes": 4406,
+      "capBytes": 25600,
+      "remainingBytes": 21194,
+      "files": ["dist/webview/chunks/EJUDKEOZ.js", "dist/webview/chunks/5I5HAILS.js"]
+    },
+    {
+      "name": "estimator panel",
+      "bytes": 25479,
+      "capBytes": 25600,
+      "remainingBytes": 121,
+      "files": [
+        "dist/webview/chunks/H46TCL5R.js",
+        "dist/webview/chunks/A6B3ZPNT.js",
+        "dist/webview/chunks/6FLDF4OA.js",
+        "dist/webview/chunks/DILRDA7S.js",
+        "dist/webview/chunks/2C6CMX2H.js",
+        "dist/webview/chunks/UWAEJOB6.css"
+      ]
+    },
+    {
+      "name": "argument preview JS",
+      "bytes": 928,
+      "capBytes": 25600,
+      "remainingBytes": 24672,
+      "files": ["dist/webview/chunks/ESJ472RD.js"]
+    },
+    {
+      "name": "pacing/status JS",
+      "bytes": 1178,
+      "capBytes": 25600,
+      "remainingBytes": 24422,
+      "files": ["dist/webview/chunks/B7D2CIVF.js"]
+    },
+    {
+      "name": "team UI",
+      "bytes": 16974,
+      "capBytes": 25600,
+      "remainingBytes": 8626,
+      "files": ["dist/webview/chunks/ZWVZD5XR.js"]
+    },
+    {
+      "name": "pacing JS",
+      "bytes": 1178,
+      "capBytes": 25600,
+      "remainingBytes": 24422,
+      "files": ["dist/webview/chunks/B7D2CIVF.js"]
+    }
+  ],
+  "sourceTreeSha256": "a689f3a73b7a4f207db3e0dc44d82f86f58300816580077e5586aeffa6cbfd72"
+}

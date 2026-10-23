@@ -235,8 +235,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     options: [
       ...SERVE_FAMILY_OPTIONS,
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
-      { name: 'scheduled-prompts', shape: '' },
       { name: 'subscription', shape: '' },
+      { name: 'scheduled-prompts', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
     ],

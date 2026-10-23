@@ -37,7 +37,9 @@ it('rejects missing terminal topics even when the README mentions them elsewhere
   for (const name of ['serve', 'login', 'auth', 'providers']) {
     const missing =
       readme.slice(0, start) +
-      readme.slice(start, end).replace(`\`${name}\``, '') +
+      // A missing topic means zero mentions: the section may legitimately
+      // name a topic twice (serve's own usage plus its prose).
+      readme.slice(start, end).replaceAll(`\`${name}\``, '') +
       readme.slice(end)
     expect(() => buildReference(manifest, nls, source, runtime, missing)).toThrow(
       `README terminal section lacks ${name}`,

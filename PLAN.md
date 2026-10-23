@@ -29869,6 +29869,166 @@ trees on this rig); M100–R and M96–C2 stay open.
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
 
+**RLM108 recovery (2026-10-22, macmini).** Re-merged msm108 onto main at
+0.19.0 after RLM95 and RLM106 (`git merge --no-ff` throughout; paid-consent
+epochs, `selectedModel` host and the retry-budget API kept from main) and
+opened `ACCOUNT_REQUEST_CERTIFICATION`: runtime pools admit, editor turns
+take request leases, the Models panel mounts accounts, session switching
+and `exec --account-pool` serve, and Help/reference publish the accounts
+surfaces via the cm1082 walk-back register (two dropped README newlines in
+the register's restored texts fixed in the same change).
+`accounts.severalOnThisDevice` stays held for C-M108-7/C-M126-INT: its
+isolated-profile effect needs M109's broker. Lead note answered: an
+unknown provider id refuses by name instead of the connection sentence,
+and a 429 on a leased attempt drops the payer pin and retries within
+budget so the pool fails over mid-turn (the Judge keeps its deliberate
+pin). Proof is real-code suites (pool 14, consent 6, truth 14, restore,
+help/catalog pins) with red/green drills; the host failover wiring awaits
+the packed drill. Activation growth is -112,290 B against the 3,072 B
+lane-K cap (see §7). Still waiting: Q-M108 captures (M, replay/cache),
+lane D (M100/M107), X profiles and M95 foreign joins. Record:
+`docs/certification/rlm108.md`.
+
+**MSM108 main integration (2026-10-17, macmini).** Merged `main-now`
+3d30a7321 (568 commits) into the lane tip a79ed4c1f with `git merge
+--no-ff`; all 45 conflicted files resolved by meaning and main's test
+overhaul deletions kept deleted. Main's newer designs win where they
+supersede the lane (paid-consent epochs, `selectedModel` host, section-lazy
+panel, fake-based suite removals); the lane's account wiring survives on
+top (leases, per-account consent route, restore register, composition
+e2e). Notable adaptations: duplicate `@unwired` M58 per-account block
+removed from `paidConsent` (the lane's wired module is the single
+definition); `REFERENCE_SURFACES.accounts` static pin removed so catalog
+surfaces ride the certification switch; README/restore held texts narrowed
+to main's published contract (refusal prose stays; pool-flag and settings
+sentences out); `dist/runtimeAccounts.js` ships in the VSIX. All static
+gates green; touched suites and the 4-test production composition e2e
+pass. `ACCOUNT_REQUEST_CERTIFICATION.isComplete` stays false; pooling,
+swaps, placement, devices and usage mounts wait on their recorded owners
+(Q-M108 captures, M100/M102/M107, Linux B42). Record:
+`docs/certification/msm108.md`.
+
+**RVMSM108 review (2026-10-17, macmini).** The composition e2e and crash-recovery suites the paragraph above cites were deleted under the owner's testing rules (scripted provider, editor stand-ins, certification switch flipped on in tests); their claims are withdrawn until real-module or packed-product proofs replace them. The packed terminal account drills in `docs/certification/msm108.md` §9 stand. One product fix: a held account switch after the current account's removal no longer names the removed account as current. The lane-K activation budget overage (§7) is unchanged and still blocks a green unit gate.
+
+**MSM108 gate triage (2026-10-17, macmini).** The 12 full-suite failures were triaged file-by-file against pristine `main-now`: fixed the lane's l10n key order (13-locale archive round-trip), the paid allow-list site move, three dpdm roots, the dispatch inventory (one candidate, three fences, one comment), and two warm-up imports; `fileLease`/`treesLifecycleNative`/`treesMacNative` fail identically on main (rig syscalls), and `execStdio`/`checkSlots`/`runtimeChatGptPackage` pass alone (load flakes). One merge-caused failure stays open: the lane-K activation budget (see §7); no cap changed.
+
+**CM1082R4 verification (2026-10-11).** Logical requests retain their payer through retries; durable conversation selection reports removal before fallback; day-indexed claims recover dead owners at their own time and prune 62-day history. Hidden Models bootstrap is typed and gated; policy modals do not block other eligible owners. Native image/reviewer/hook requests ask under their leased payer. 186 dependent suites ran at repository deadlines; sudo uid, browser/editor and the production search/Judge paid-kind joins remain unproved, so availability stays false and full closure is not claimed. See `docs/certification/cm1082.md` and its R4 receipt; next slice remains C-M108-2 certification.
+
+**CM1082R4 review scope (2026-10-11).** Fix every RVCM1082 finding: lease-bound paid consent, retry payer continuity, period-scoped recovery and bounded day-indexed journal, durable conversation selection with removed-account notice, typed hidden panel bootstrap, concurrent processes, measured closure receipt and policy admission isolation. D88.5 explicitly spreads subagents, best-of-N, team workers and scheduled runs by headroom; those workers retain independent sticky owners. Confirmed requests on the conversation retain its selection. Availability stays false; no browser on this rig. Certification records each regression and byte-exact red drill.
+
+**C-M108-2 continuation timebox (2026-10-11).** Original Models body now passes at 76,329/76,800 B; Model API is unchanged at 533,136/537,600 B. All required scoped static/build gates pass. 124 dependent suites ran before the timebox, with 187 still unrun after manual owning receipts; exact list and observed load-related/bounded-bootstrap failures are in `docs/certification/cm1082-verification.json`. `ACCOUNT_REQUEST_CERTIFICATION.isComplete` remains false. Next slice stays C-M108-2 dependent/failure/external visual/editor/review closure, then C-M108-3; no milestone completion or release certification is claimed.
+
+**C-M108-2 restore map bound (2026-10-11).** The supplied WB-153/154/159/165/167/171/175/251 list now drives reference generation's setting/release-text synchronization and an exact in-memory flip test across English plus fourteen locales. Historical release text, local profile/placement holds and CI stdin exclusions survive the flip. Help advertises native Meta Model API account surfaces only. The optional M126 Settings registry is handled on integration without restoring `accounts.severalOnThisDevice`. Four byte-exact restore-map drills prove omissions, extra claims, localization loss and held Help exposure fail. The owner flag remains false; final dependent/static/build and external GUI/review receipts retain their separate gates.
+
+**C-M108-2 base-comparison receipts (2026-10-11).** `scheduleMigrate` reproduces four failures on `47ba74845`, left inherited. `scheduleFs` passes 14/14 on both base and lane in isolation. Real-CLI resource proof's serial fixture build/reads caused 5 s misses; shared build setup plus parallel independent reads preserves all assertions and default deadlines, with a new cold-help regression. Scope follows the rig's explicit slow-setup repair guidance; production sources of all three paths remain unchanged.
+
+**C-M108-2 release-readiness continuation (2026-10-11).** Remove Models first-paint overage by deferring its optional import editor with section loading/failure/retry; preserve all caps. Compare three red suites against `47ba74845`, bind the supplied WB-153/154/159/165/167/171/175/251 restore list to the certification switch, and execute non-hub dependents plus identifier-owning hub suites in three-file batches. Keep the switch false; no browser/GUI or paid/live call.
+
+**C-M108-2 production composition; availability held (2026-10-11).**
+Accepted lane P merged first (`327e1b1e9`). Native Meta request ownership now
+binds VS Code's manager and lazy Models account surface as well as CLI/ACP.
+Queued selections preserve the in-flight payer; held pools refuse admission
+and final send. Durable receipts survive the close/crash window exactly once.
+Composition tests cover headers, settlement, French notices, paid consent and
+actual second-process reservation recovery; five typechecks pass. Retained
+and new guards have byte-exact red drills, and the eleven fixture clones are
+removed. `ACCOUNT_REQUEST_CERTIFICATION.isComplete` remains false; external
+visual/editor, platform and independent reviews are not inferred from fakes.
+The continuation's full dependent/static/build receipts and restore register
+are in `docs/certification/cm1082.md`. No existing gate/cap was weakened.
+Next slice: finish those receipts and the lead's availability decision, then
+C-M108-3's companion/usage mounts. C-M108-6/7 still own placement/profiles,
+C-M108-8 the vault, and M95 the foreign-provider billing joins.
+
+**C-M108-2 completion scope (2026-10-11, owner order).** Certify retained
+request guards with red drills, repair exact-receipt crash projections, and
+bind the portable owner into VS Code's existing Models panel and native Meta
+backend as well as CLI/ACP. Explicit selections made during a request queue
+for its next boundary; the admitted payer never changes. A held owner denies
+both admission and final dispatch. Keep one default-false availability switch
+for all request bindings and the account UI, with an exact restore register.
+Production-composition tests fake only model responses and platform secret
+storage; one recovery case must launch a second real process. No wire parser,
+paid call, browser, new dependency or existing cap increase. The account UI
+has an independent 175 KiB closure cap (134,934 B measured plus 15%, rounded
+to 25 KiB); the original Models body remains 75 KiB. GUI, external reviews and
+hosted platform receipts remain explicitly unproved on this headless rig.
+
+**M108P2 review repair (2026-10-09).** RVM108P's two P2 findings are in
+scope before non-default billing is enabled. Each question captures the
+binding's durable epoch, shared feature/quote revocation generation and
+price-acceptance generation when asked. Held answers, Once, window grants
+and persisted Always must match all captures at use; persistence never
+samples replacement generations at write time. This includes Forget from
+a window that never loaded account consent and ACP `forgetUnflagged()`.
+User/machine budget changes retain Always: the user's ceiling still binds.
+A repository-supplied budget changes both memory and persisted consent
+keys and re-asks before the next first charge, naming the new amount.
+`museSpark.paidDailyBudgetUsd` is declared `machine`; the VS Code reader uses
+merged `get`, so the lazy adapter also checks workspace/folder (including
+language override) provenance. ACP's own data-folder setting is user-owned.
+Caller regressions, byte-exact red drills and scoped gates are recorded in
+`docs/certification/m108.md`; aggregate quality remains the lead's gate.
+Final scoped tests: 797 passed across 19 complete files, default timeouts.
+The fix adds 48 B at activation (564,340 B); lane K's guard is 2,988/3,072 B.
+`accountPaid` measures 43,763 B within its unchanged 50 KiB cap. Default
+consent emitted code and Model API/ACP/headless bytes match the base.
+
+**M108P paid consent per account (2026-10-09, `m108/p` from 0.17.0's
+`8f0a75ea1`).** Lane P closes RVCONSENT017D's three prerequisites (§9) and
+binds `AccountPaidUseConsent` into the production callers: VS Code's paid
+features (`createPaidFeatures`, behind every `paid.consent.allows`) and the
+ACP agent's `AcpPaidUse` (every ACP editor), with the runtime naming the
+account its key reads through. Choices where this plan left one open:
+
+- **Prerequisite 1:** every use hands the inner consent a fresh request
+  object, and the popup wrapper captures the durable epoch for that question
+  alone (a `WeakMap`); the inner `decide()` refuses, caches nothing and keeps
+  nothing when `isAnswerCurrent(question)` is false. No capture means no
+  grant, never the epoch found now.
+- **Prerequisite 2:** the clear ports carry the revocation's epoch as a
+  cutoff (`clearGrantsBefore`, `revokeQuoteGrants(binding, before)`), rather
+  than a store-owned advance-plus-clear transaction, so a failed clear still
+  rejects honestly with every leftover stale.
+- **Prerequisite 3:** window-once authority includes the durable epoch and
+  every shared feature/quote and price generation, so revocation from even
+  an unloaded window ends it. A held answer from a revoked question is
+  refused for every use that shared it and never persisted under new generations.
+- **Routing:** the provider's default account keeps the workspace consent
+  exactly as before (a single-account user's popup, grants and stores are
+  unchanged, and `dist/accountPaid.js` never loads); any other billing
+  account asks D48's question again for that account, with the account line
+  (`accounts.paidConsent`: provider · account, price, shared daily budget).
+- **Binding:** grants are keyed by language-neutral tariff data
+  (`PaidAccountBinding.tariff`), so a display-language change never asks
+  again; user/machine shared-budget changes keep Always because the user's
+  ceiling still binds; a repository-supplied budget is part of both memory
+  and persisted keys and re-quotes the next first-charge question with its
+  new amount;
+  an account's Always lapses with the feature's price acceptance and with
+  Account & usage's **Ask again**. Team Always is not offered for another
+  account until account-scoped team grants exist.
+- **Store:** one file store for both editors (`host/paid/accountPaidFiles.ts`):
+  exclusive `epoch-<n>` markers make the advance a cross-process
+  compare-and-set that only grows; every record is named for its approval
+  epoch, so reads see only the current epoch and clears remove only older
+  ones. VS Code keeps it in the workspace's storage folder; the agent in its
+  data folder per workspace key.
+- **Lazy:** the consent, its store and the tariff map load as
+  `dist/accountPaid.js` (41.6 KiB, new 50 KiB budget) on the first use billed
+  to another account; activation and the ACP engine carry only the shared
+  route (`core/paid/accountPaidRoute.ts`). The seam adds 944 B to
+  `dist/extension.js` (563,348 to 564,292 B of the unchanged 600 KiB cap; lane
+  K's pre-K activation guard read 2,940 of its 3,072 B before M108P2). `dist/modelApi.js`,
+  `dist/acp.js` and `dist/headless.js` are byte-identical in size.
+
+C-M108-2 now binds this consent to native Meta runtime request leases and
+account credential revisions, with per-account model claims and held-answer
+revocation checks. VS Code's graphical binding and the other billing-route
+joins remain their named owners; headless keeps its explicit paid policy.
+The receipt below records lane P's original pre-binding base.
+Receipts: `docs/certification/m108.md` (M108P).
+
 **FIXM108DX3 (2026-10-07):** replace the remote pool's transient vendor-limit
 filter with one durable, sender-local block per provider and conversation/worker
 owner. Capture the blocked account, its group and the effective scope from the
@@ -36048,6 +36208,32 @@ answered by D140; the RVM94KR3G clone stays in its deferral below; aggregate
 quality stays the lead gate. Full record:
 [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
+**RLM108 activation-budget resolution (2026-10-22, macmini).** The overage
+above is resolved without touching any cap: on the recovery tree
+(main at 0.19.0 plus RLM95/RLM106/msm108) the same test measures growth
+-112,290 B (current 443,470 B, immutable pre-K baseline 555,760 B),
+against the unchanged 3,072 B lane-K cap. Main's diet work since October
+carries the margin; the lane's wiring fits by weight. No owner decision
+remains. Receipts: `docs/certification/rlm108.md`.
+
+**C-M108-2 build overage resolved (2026-10-11, continuation).** Deferring the optional provider import editor reduces the original Models body from 77,698 to 76,274 B under its unchanged 76,800 B cap. Its new lazy closure measures 2,128 B under an independent 25 KiB cap; loading, failure, retry and dismissal retain the section label. Account chunk failures now use the same section boundary. Production build passes without adding Model API bytes. Availability stays false pending complete dependents and external visual/editor/review receipts. See `docs/certification/cm1082.md`.
+
+**RLM108 modelApi.js build overage (2026-10-22, macmini, open, justified
+deferral).** `dist/modelApi.js` measures 543,965 B (531.2 KiB) against its
+unchanged 525 KiB cap: 6,365 B over. Main at 0.19.0 builds 533,481 B
+(521.0 KiB), so the recovery stack adds 10,444 B, all per-turn hot path by
+esbuild metafile: `ModelApiHost.ts` +12,682 B (request leases, attempt
+billing routes, retry budgets), `client.ts` +1,189 B, new `billingRoute.ts`
+982 B, `accountUsd.ts` 624 B, `tokenRatePrice.ts` 132 B, minus shrunk
+modules. The account pool, owner, journal, writer and policy modules
+already live outside this bundle (extension side, 433.1/600 KiB); what
+remains in `modelApi.js` is call sites every turn executes, so no honest
+deferrable slice of 6,365 B exists in this lane's scope — a lazy split
+would only move hot bytes to a new budget. No cap, threshold or assertion
+changed. Owner decision pending: raise the 525 KiB cap or schedule a
+VERIFYCHUNK-style split of a lead-chosen conditional bundle part.
+Receipts: `docs/certification/rlm108.md`, `dist/meta/modelApi.json`.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
@@ -36962,6 +37148,28 @@ paid-call fence is weakened. Final scoped gate results are recorded in
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
+**M108P2 bounded-lane certification (2026-10-09).** The fix-round rig brief
+prohibits aggregate `quality` and assigns it to the lead. This lane runs
+complete scoped paid/account/default-consent and bundle tests, typecheck,
+changed-file ESLint/Prettier, l10n/plan/reference/roadmap checks, deadcode,
+duplication, host-API and the unmodified production build. The inherited
+What's New decoded-content failure remains release-lead owned; comparable
+in-memory production builds measure sizes without changing the script or
+cap. Its two released notes are 79,510 decoded bytes on base and head, over
+76,800 B. `jscpd` retains only the inherited `windowsTrustedPath.test.ts`
+clone (that file is byte-identical to `cd362298e`); the lane's test clones
+were removed. Neither gate was relaxed. These two inherited failures are
+deferred to the release lead outside this bounded repair.
+`docs/certification/m108.md` records results and byte-exact red drills.
+
+**C-M108-2 bounded-rig verification (2026-10-11).** The rig brief and shared
+lane rules explicitly prohibit aggregate `npm run quality` and the full test
+suite here. Run the owning files at repository timeouts, changed-file lint
+and formatting, typecheck, deadcode/duplication, localization/reference,
+host API, roadmap and production split/size gates directly on macbook. The
+lead retains aggregate quality, fresh Codex/Grok review and cross-platform
+closure. This is a lane gate deferral, not a reduced gate or a milestone
+completion claim. Receipts: `docs/certification/cm1082.md`.
 **B-W-host-api** deferral: its W-owned generated Node totals still need
 child_process 13 → 14, crypto 46 → 53, fs 33 → 36, fs/promises 47 → 49,
 net 7 → 10 and path 84 → 89. This repair adds no Node import or host API;
@@ -38264,11 +38472,13 @@ before a repaired one loads (2026-09-30).
 | `test/unit/providersPolicy.test.ts` (`checkEndpointUrl`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately supplies insecure HTTP to prove off-loopback transport is refused. | 2026-10-05 |
 | `test/unit/providersPolicy.test.ts` (`isCredentialBound`) | `eslint-disable-next-line unicorn/prefer-https` | The regression deliberately changes HTTPS to HTTP to prove credentials bind the scheme as well as host and port. | 2026-10-05 |
 
-| M95 lane K file                               | Construct                                                                           | Reason                                                                                                                                                                                                                                                      | Added      |
-| --------------------------------------------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/providerImportExport.test.ts`      | `as { version: number; providers: ProviderEntry[] }` on this lane's own export text | `JSON.parse` returns `any`; the text is `exportProviders` output, so the cast names its document shape for the field assertions. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only. | 2026-10-05 |
-| `test/unit/modelsPanel.test.ts`               | `as { providers: readonly unknown[] }` on this lane's own export text               | `JSON.parse` returns `any`; the text is the round-tripped export, so the cast names its document shape for the count assertion. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.  | 2026-10-05 |
-| `test/unit/providerCredentialRecords.test.ts` | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion     | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                             | 2026-10-05 |
+| M95 lane K file                                    | Construct                                                                                 | Reason                                                                                                                                                                                                                                                                                                                                        | Added      |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/providerImportExport.test.ts`           | `as { version: number; providers: ProviderEntry[] }` on this lane's own export text       | `JSON.parse` returns `any`; the text is `exportProviders` output, so the cast names its document shape for the field assertions. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.                                                                                   | 2026-10-05 |
+| `test/unit/modelsPanel.test.ts`                    | `as { providers: readonly unknown[] }` on this lane's own export text                     | `JSON.parse` returns `any`; the text is the round-tripped export, so the cast names its document shape for the count assertion. A foreign shape never reaches this cast: the malformed-import tests exercise `parseProvidersDocument` directly. Test-only.                                                                                    | 2026-10-05 |
+| `test/unit/providerCredentialRecords.test.ts`      | `eslint-disable-next-line unicorn/prefer-https` on one origin-binding assertion           | The test proves a downgraded `http:` scheme is refused as a different origin; an `https:` URL cannot exercise that leg. One literal, test-only.                                                                                                                                                                                               | 2026-10-05 |
+| `src/core/accounts/requestWriter.ts` (`withLease`) | `run as (...) => AsyncGenerator` and `run as (...) => Promise` (two overload-shape casts) | The constructor-name check selects the lease-body overload at runtime; TypeScript cannot narrow a function type by `constructor.name`, so each branch asserts its body shape. A wrong shape fails loudly at first use (no `next` / no `then`), and the lease suites drive both shapes through every body. Inline comments name the invariant. | 2026-10-12 |
+| `test/unit/helpers/accounts/writer.ts`             | `(lease as { settle: ... }).settle = counted`                                             | The live-lease counter wraps the lease's readonly `settle`; production code never reassigns it. Test-only.                                                                                                                                                                                                                                    | 2026-10-12 |
 
 CM1012R7 removes both CM1012R3 dependency-key test assertions through
 `Object.entries` and a typed `Set<string>`, and deletes the scanner containing
@@ -40387,6 +40597,15 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   1. Capture the durable epoch per individual question and answer, including forced `requiresAsking` questions. A feature-keyed map can hand a revoked answer the epoch of a different popup. Never fall back to the current epoch for an answer whose capture was lost. Add the held-answer plus forced-question regression.
   2. Fence the clear paths against the owning revocation. An older revoke's `revokeQuoteGrants()` must not purge grants approved under a newer epoch: either the clear port carries an epoch cutoff, or the store owns advance plus clear as one transaction. Add the held-clear regression (post-advance interleaving).
   3. Window-once authority must be invalidated on durable revocation. Inner `decide()` must not cache an answer the outer epoch fence refused. Add the held-Once regression.
+
+  **Closed by M108P (2026-10-09).** All three hold in
+  `src/core/paid/accountPaidConsent.ts`, each with a regression that failed
+  on `8f0a75ea1` and a byte-exact guard drill (`docs/certification/m108.md`,
+  M108P). The production store (`src/host/paid/accountPaidFiles.ts`) gives
+  the atomic port contract across processes with exclusive epoch markers and
+  epoch-named records, so no in-process queue is relied on. Residual: account
+  consent is bound in VS Code and ACP but dormant until a non-default account
+  can bill an interactive request (M95/M109's per-request selection).
 
 - **FIXM108P-EVENT-TRANSACTION (P-M95-PER-REQUEST / U / H / J / W).**
   `AccountPoolDeps.commit(event, adopt)` is a required synchronous owner

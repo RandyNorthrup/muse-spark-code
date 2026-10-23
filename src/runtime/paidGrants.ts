@@ -218,6 +218,8 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       return generation.id
     },
     quoteGeneration: () => read(generationFile('webSearch'), generationSchema)?.id ?? 'missing',
+    // An account's Always (M108 lane P) lapses with the feature's revocation.
+    generation: (feature) => read(generationFile(feature), generationSchema)?.id ?? 'missing',
     readQuote: (workspaceRoot, quote) => {
       const generation = read(generationFile('webSearch'), generationSchema)
       if (generation === undefined) {

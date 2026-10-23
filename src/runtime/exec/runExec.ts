@@ -772,6 +772,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw new Error(UI_TEXT.accounts.museCodeUnavailable)
     if (requiresAccounts && deps.accounts === undefined)
       throw new Error(UI_TEXT.accounts.unavailable)
+    const shouldBindAccounts =
+      requiresAccounts ||
+      (!options.keyFromStdin &&
+        options.backend === 'modelApi' &&
+        options.provider === undefined &&
+        deps.accounts !== undefined)
     if (options.provider !== undefined) {
       const result = await runWithProvider()
       if (result !== undefined) return result
@@ -1153,7 +1159,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
       }
       let accounts: AccountsSessionPort | undefined
-      if (requiresAccounts) {
+      if (shouldBindAccounts) {
         const configured = deps.accounts?.create(runtimeDeps, selection, createRuntimeBackend)
         if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
         runtime = configured.runtime

@@ -494,6 +494,12 @@ export class BestOfNRunner {
                 throw new BestOfNError('attemptNotDone')
               },
               {
+                paidRequest: bestOfNPaidRequest(
+                  start.modelId,
+                  start.prompt,
+                  run.attemptsCount,
+                  start.requestCeilingPerAttempt,
+                ),
                 pacingClass: 'bestOfN' as const,
                 onRequestStarted: () => {
                   this.requireCurrent(run)
