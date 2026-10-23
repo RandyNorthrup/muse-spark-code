@@ -14,7 +14,7 @@
     "host": {
       "SWALLOW": 19,
       "GENERIC": 109,
-      "CLEANUP": 92
+      "CLEANUP": 91
     },
     "root": {
       "SWALLOW": 1,
@@ -3936,11 +3936,6 @@
     {
       "file": "src/host/tab/tabLedger.ts",
       "identity": "20f7ef0227efca3107f625aefab9a54097ee6d62caac3b04cb9f2fe034306592",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/tab/tabProvider.ts",
-      "identity": "1a7f745e27eabc97f2c55682ff4eb6417c17e49f536cd637168058cd478df271",
       "class": "CLEANUP"
     },
     {

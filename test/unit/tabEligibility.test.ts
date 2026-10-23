@@ -2,7 +2,7 @@ import { existsSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { createTabHooks } from '../../src/core/tab/tabHooks'
-import { REDACTED_MARK, TAB_FILE_MAX_BYTES } from '../../src/shared/constants'
+import { GLOB_MAX_LENGTH, REDACTED_MARK, TAB_FILE_MAX_BYTES } from '../../src/shared/constants'
 import {
   chooseTabMode,
   inferTabPartialAccept,
@@ -78,6 +78,11 @@ describe('isFilesExcluded', () => {
   it('excludes nothing for a refusal or an uncompilable pattern', () => {
     expect(isFilesExcluded('a.ts', { '*.ts': false })).toBe(false)
     expect(isFilesExcluded('a.ts', { '[': true })).toBe(false)
+  })
+
+  it('excludes nothing for a pattern past the compiler limits', () => {
+    const overLimit = `${'a'.repeat(GLOB_MAX_LENGTH + 1)}.ts`
+    expect(isFilesExcluded('a.ts', { [overLimit]: true })).toBe(false)
   })
 })
 
