@@ -29,8 +29,9 @@ Options (set before `:MuseSpark`):
 
 - `g:muse_spark_command`: the agent (`muse-spark-code-acp`, or a full argv
   list such as `['node', '/path/to/dist/acp.js']`).
-- `g:muse_spark_args`: extra agent arguments, e.g. `['--model',
-'muse-spark-1.3', '--trust-workspace']`.
+- `g:muse_spark_args`: extra agent arguments, e.g. `['--trust-workspace']`
+  (the serve options from docs/acp.md; pick the model with `:MuseSparkModel`,
+  and list contributor models with `'--allow-contributor-models'`).
 - `g:muse_spark_mcp_servers`: MCP servers the session offers the agent,
   e.g. Xcode 26.3's bridge (docs/acp.md, "Xcode 26.3").
 

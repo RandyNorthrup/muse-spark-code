@@ -390,11 +390,14 @@ where `<agent-package>` is the installed `muse-spark-code-acp` folder
 chat and starts the agent; write each prompt below the last `You:` line
 and run `:MuseSparkSend`. A permission prompt lists its numbered options
 in the chat; answer with `:MuseSparkAllow {n}` or `:MuseSparkDeny`.
-`:MuseSparkModel` and `:MuseSparkMode` switch the running session.
-Before `:MuseSpark`, `g:muse_spark_args` takes extra agent arguments
-(e.g. `['--model', 'muse-spark-1.3', '--trust-workspace']`), and
-`g:muse_spark_command` the agent itself when it is not on `PATH`.
-`:help muse_spark` lists every command and option.
+`:MuseSparkModel` and `:MuseSparkMode` switch the running session (pick a
+contributor model only with `--allow-contributor-models` in
+`g:muse_spark_args`, which lists them). Before `:MuseSpark`,
+`g:muse_spark_args` takes extra agent arguments (e.g.
+`['--trust-workspace']`; the interactive options above, never `--model`,
+which only `exec` takes), and `g:muse_spark_command` the agent itself
+when it is not on `PATH`. `:help muse_spark` lists every command and
+option.
 
 In JupyterLab 4, [Jupyter AI](https://github.com/jupyterlab/jupyter-ai) 3
 (`pip install jupyter-ai`; tested with 3.2.0 and JupyterLab 4.6.3) runs
