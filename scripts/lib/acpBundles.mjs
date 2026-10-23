@@ -118,6 +118,10 @@ export const ACP_BUNDLES = [
   'judgeLocal.js',
   'judgeUses.js',
   'judgeServe.js',
+  'judgeSetup.js',
+  // M125 lane W: the judged-models table the setup flow validates and
+  // reads beside its bundle; data, never code, so no lazy-registry row.
+  'judgeModels.json',
   'team.js',
   'teamRunners.js',
   'teamScheduler.js',

@@ -229,6 +229,14 @@ const JUDGE_CHILDREN = [
       'src/runtime/judge/tokenFile.ts',
     ],
   },
+  {
+    // M125 lane W: the scan/setup/remove text steps, out of the judge
+    // parent bundle into their own explicit-action child. The flow and
+    // H's modules stay shared with the wizard's host controller.
+    output: 'dist/judgeSetup.js',
+    metafile: 'dist/meta/judgeSetup.json',
+    files: ['src/runtime/judge/judgeSetupEntry.ts', 'src/runtime/judge/setupCli.ts'],
+  },
 ]
 // M91 lane W: the adapters for hooks imported in another agent's format (lane
 // P's contracts and engine), dist/foreignHooks.js, loaded the first time a

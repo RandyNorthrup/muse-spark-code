@@ -403,6 +403,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'judgeSetup.js',
+    side: 'acp',
+    requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
+  },
+  {
     file: 'judgeSources.js',
     side: 'both',
     requestedBy: [

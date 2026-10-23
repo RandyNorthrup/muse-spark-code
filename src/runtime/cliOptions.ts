@@ -389,6 +389,7 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       'providers accounts': table.accounts.cliUsage,
       chatGptProvider: table.acpChatGpt.usage,
       reports: table.reportCliUsage,
+      judge: table.referenceJudgeUsage,
       help: table.referenceBriefHelp,
       share: sharingCliHelp(table, command),
       prompts: sharingCliHelp(table, command),

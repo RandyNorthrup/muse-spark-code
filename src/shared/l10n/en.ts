@@ -536,6 +536,8 @@ export const EN = {
     'Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.',
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
+  referenceJudgeUsage:
+    'Usage: {command} judge ask|calibrate|report|mcp [options] < request.json; {command} judge serve|lint|scan|setup|remove [options]. Setup and removal change nothing without --yes. Exit codes: 0 done, 2 usage, 4 failed.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -5730,6 +5732,44 @@ export const EN = {
     noneUnfit: 'No local judge fits this computer: nothing fast enough fits in memory and on disk.',
     noneUncalibrated: 'No local judge is ready yet: the fitting models still need calibration.',
     cpuOnly: 'No usable GPU was found; judging CPU-only options.',
+  },
+  // M125 lane W (D107 §8.1): the `judge scan|setup|remove` text
+  // steps. Codes (backends, classes, phases, reasons) stay codes;
+  // counts use forms; bytes and lists arrive formatted.
+  judgeSetupCli: {
+    scanOs: 'OS: {os} {arch} ({version})',
+    scanRam: 'RAM: {total} ({free} free)',
+    scanCpu: 'CPU: {model} ({cores}, {features})',
+    scanCores: forms({ one: '{count} core', other: '{count} cores' }),
+    scanGpu: 'GPU: {vendor} ({backend}): {reason}',
+    scanDiskFree: 'Disk: {free} free at {path}',
+    scanDiskUnknown: 'Disk: unreadable at {path}',
+    scanOllamaAbsent: 'Ollama: not installed',
+    scanOllama: 'Ollama: {version} at {path}, {state}',
+    ollamaRunning: 'running',
+    ollamaStopped: 'stopped',
+    unknownValue: 'unknown',
+    scanPick: 'Recommendation: {model} ({digest}, {backend}, p95 {p95})',
+    scanClasses: 'Classes: {classes}',
+    scanFitting: 'Also fits: {models}',
+    scanFitsNothing: 'Recommendation: fits nothing on this machine.',
+    planModel: 'Model: {model} ({digest})',
+    planSize: 'Download: about {bytes} plus the runtime archive',
+    planLicence: 'Licence: {name} ({url})',
+    planLicenceNoUrl: 'Licence: {name}',
+    planRuntime: 'Runtime: {version} ({url})',
+    planNoRuntime: 'Runtime: no pinned archive for {platform} ({backend})',
+    planPath: 'Installs to: {path}',
+    needsYes: 'Re-run with --yes to download and install.',
+    setupDone: 'Installed {model}: smoke {correct}/{total} correct.',
+    cannotSetup: 'Cannot set up ({reason}).',
+    setupFailed: 'Setup failed ({phase}/{reason}).',
+    setupProgress: '{phase} {done}/{total}',
+    removeNone: 'No local judge installed.',
+    removePlan: 'Installed: {model} at {path}. Re-run with --yes to remove.',
+    removeDone: 'Removed: {paths}.',
+    setupUsage:
+      'Usage: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes',
   },
   // M125 lane F1b (D107 §9.4, §9.6): the B1 skip's transcript row. The
   // allow line is the design's exact words; the count fills {count}.

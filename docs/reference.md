@@ -3750,6 +3750,7 @@ These are defaults; editor customizations take precedence.
 ## ACP / CLI commands
 
 - `judge ask|calibrate|report|mcp|serve|lint`: Muse Judge suggests caution. You decide; it cannot approve this action.
+- `judge scan|setup|remove`: Scan this machine and install a local judge model.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.

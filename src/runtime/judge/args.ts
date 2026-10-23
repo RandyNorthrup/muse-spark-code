@@ -31,10 +31,18 @@ export class JudgeCliInputError extends Error {
 
 export interface JudgeCliCommand {
   readonly command: 'judge'
-  readonly action: 'ask' | 'calibrate' | 'report' | 'mcp' | 'serve' | 'lint'
+  readonly action:
+    'ask' | 'calibrate' | 'report' | 'mcp' | 'serve' | 'lint' | 'scan' | 'setup' | 'remove'
   readonly options: JudgeCliOptions
   /** CS/H validate their own flags; G reserves their dispatch without guessing them. */
   readonly surfaceArgs: readonly string[]
+}
+
+/** M125 lane W: the local-judge text steps, which validate their own flags. */
+export function isSetupAction(
+  action: unknown,
+): action is Extract<JudgeCliCommand['action'], 'scan' | 'setup' | 'remove'> {
+  return typeof action === 'string' && ['scan', 'setup', 'remove'].includes(action)
 }
 
 const DEFAULT_OPTIONS: JudgeCliOptions = {
@@ -83,7 +91,7 @@ export function parseJudgeArgs(argv: readonly string[]):
       readonly exitCode: number
     } {
   const action = argv[1]
-  if (action === 'serve' || action === 'lint') {
+  if (action === 'serve' || action === 'lint' || isSetupAction(action)) {
     return { command: 'judge', action, options: DEFAULT_OPTIONS, surfaceArgs: argv.slice(2) }
   }
   if (action !== 'ask' && action !== 'calibrate' && action !== 'report' && action !== 'mcp') {

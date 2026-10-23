@@ -18,6 +18,7 @@
 // pin lands (the asker port refuses loudly until its wire is
 // captured, and the blob URLs below name the deferred layout).
 import { gunzipSync } from 'node:zlib'
+import { isErrno } from '../../fs/errno'
 import {
   BYTES_PER_MIB,
   JUDGE_REQUEST_TIMEOUT_MS,
@@ -32,6 +33,7 @@ import type { JudgeSetupRecord } from './register'
 import { parseRegistryManifest, planModelBlobs } from './models'
 import { runtimePaths } from './runtime'
 import type { JudgeModelRow, JudgeModelsTable } from '../../../shared/judgeModels/schema'
+import type { JudgeSetupPhase } from '../../../shared/judgeSetupSchema'
 
 /** One committed smoke question: a crisp micro-decision, five yes, five no. */
 export interface JudgeSmokeQuestion {
@@ -208,10 +210,13 @@ export async function extractTarGzip(
     tar = gunzipSync(bytes, { maxOutputLength: maxBytes })
   } catch (error: unknown) {
     // NARROW: the cap throws RangeError; a corrupt stream throws
-    // Error; anything else is not ours to name.
-    if (error instanceof RangeError) return 'too-large'
-    if (error instanceof Error) return 'invalid'
-    throw error
+    // Errno (measured: a numeric errno with a Z_ code); anything else
+    // is not ours to name.
+    if (error instanceof RangeError) {
+      return 'too-large'
+    }
+    if (!isErrno(error)) throw error
+    return 'invalid'
   }
   let offset = 0
   let total = 0
@@ -249,7 +254,8 @@ export interface JudgeSetupFlowPaths {
 }
 
 export interface JudgeSetupProgress {
-  readonly phase: 'fetch' | 'verify' | 'install' | 'register' | 'preload' | 'health' | 'smoke'
+  /** The wizard's install phases, shared so the two can never drift apart. */
+  readonly phase: JudgeSetupPhase
   readonly doneBytes?: number | undefined
   readonly totalBytes?: number | undefined
 }
@@ -374,6 +380,8 @@ export type JudgeSetupRunResult =
       readonly ok: false
       readonly phase: JudgeSetupProgress['phase']
       readonly reason: JudgeSetupRunReason
+      /** The port's refusal, when a port threw it; never printed, never logged. */
+      readonly cause?: unknown
     }
 
 export interface JudgeSetupRunOptions {
@@ -389,8 +397,9 @@ export interface JudgeSetupRunOptions {
 function fail(
   phase: JudgeSetupProgress['phase'],
   reason: JudgeSetupRunReason,
+  cause?: unknown,
 ): JudgeSetupRunResult {
-  return { ok: false, phase, reason }
+  return cause === undefined ? { ok: false, phase, reason } : { ok: false, phase, reason, cause }
 }
 
 /** A blob fetch's outcome as the run's reason, honouring an abort first. */
@@ -495,9 +504,10 @@ export async function runJudgeSetupFlow(
     try {
       started = ports.startRuntime(layout.bin, port, layout.models)
     } catch (error: unknown) {
-      // NARROW: a spawn failure fails the phase; a non-Error is not ours.
+      // REPORTED: a spawn failure fails the phase with the port's own
+      // refusal attached; a non-Error is not ours to name.
       if (!(error instanceof Error)) throw error
-      return fail('preload', 'start-failed')
+      return fail('preload', 'start-failed', error)
     }
     if (!(await ports.waitForVersion(started.port, signal))) {
       return fail('preload', isAborted() ? 'aborted' : 'version-timeout')
@@ -514,10 +524,10 @@ export async function runJudgeSetupFlow(
     try {
       answers = await ports.askSmoke(JUDGE_SMOKE_QUESTIONS, endpoint, plan.row.model)
     } catch (error: unknown) {
-      // NARROW: the asker refuses until its wire is captured; a
-      // non-Error is not ours to name.
+      // REPORTED: the asker refuses until its wire is captured, and its
+      // refusal rides the failure; a non-Error is not ours to name.
       if (!(error instanceof Error)) throw error
-      return fail('smoke', 'ask-unavailable')
+      return fail('smoke', 'ask-unavailable', error)
     }
     const verdict = smokeVerdict(answers)
     return verdict.passed ? { ok: true, record, verdict } : fail('smoke', 'smoke-failed')

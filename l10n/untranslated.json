@@ -115,7 +115,10 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "judgeSetupCli.scanCpu",
+      "judgeSetupCli.scanGpu",
+      "judgeSetupCli.setupProgress"
     ],
     "cs": [
       "groupModel",
@@ -136,7 +139,10 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "judgeSetupCli.planLicence",
+      "judgeSetupCli.planLicenceNoUrl",
+      "judgeSetupCli.planModel"
     ],
     "tr": [
       "groupModel",
@@ -148,7 +154,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "judgeSetupCli.planModel"
     ],
     "pl": [
       "groupModel",
@@ -170,7 +177,8 @@
       "modelColumns.name",
       "usageLimit",
       "teamTemplates.solo",
-      "teamCapabilityWarning"
+      "teamCapabilityWarning",
+      "judgeSetupCli.planModel"
     ],
     "de": [
       "groupSkills",
@@ -251,7 +259,8 @@
       "teamSetupSteps.pools",
       "teamCapabilityWarning",
       "teamUsageTokens",
-      "reportLabels.total"
+      "reportLabels.total",
+      "judgeSetupCli.scanClasses"
     ],
     "fr": [
       "modesTitle",
@@ -280,7 +289,11 @@
       "teamSetupSteps.pools",
       "teamTemplateSolo",
       "teamIntensityLevels.minimal",
-      "reportLabels.total"
+      "reportLabels.total",
+      "judgeSetupCli.planLicence",
+      "judgeSetupCli.planLicenceNoUrl",
+      "judgeSetupCli.planRuntime",
+      "judgeSetupCli.scanClasses"
     ],
     "it": [
       "usageAccount",
@@ -299,7 +312,9 @@
       "teamCapabilityWarning",
       "teamTreeLabel",
       "teamUsageTitle",
-      "openPullRequestRepository"
+      "openPullRequestRepository",
+      "judgeSetupCli.planRuntime",
+      "judgeSetupCli.scanCores.one"
     ],
     "zh-cn": ["toolLabels.shell"],
     "zh-tw": ["toolLabels.shell"],
