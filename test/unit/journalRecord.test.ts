@@ -77,6 +77,28 @@ function completed(events: StreamEvent[]): Usage {
 }
 
 describe('journal records', () => {
+  it('includes priced input images once while preserving computed and reported certainty', () => {
+    const priced = {
+      ...context,
+      kind: 'vscodeChat' as const,
+      units: { images: 2 },
+      pricing: { kind: 'priced' as const, card: { ...card, image: 0.6 } },
+    }
+    expect(createUsageRecord(usage, priced).cost).toMatchObject({
+      certainty: 'computed',
+      usd: '179.7',
+    })
+    expect(
+      createUsageRecord(usage, { ...priced, providerCostUsd: Usd.from(100).toAmount() }).cost,
+    ).toEqual({ certainty: 'reported', usd: '100' })
+    expect(
+      createUsageRecord(usage, {
+        ...priced,
+        uncertain: true,
+        retainedLiabilityUsd: Usd.from(200).toAmount(),
+      }).cost,
+    ).toMatchObject({ certainty: 'uncertain', usd: '200' })
+  })
   it('prices one-hour writes as a subset, including tier rates and invalid splits', () => {
     const billable = {
       inputTokens: 100,

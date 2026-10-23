@@ -10,6 +10,7 @@ import type * as vscode from 'vscode'
 import { PROVIDER_SECRET_PREFIX, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
+import type { Logger } from '../logger'
 import type {
   CredentialRecord,
   ProviderCredentialStore as CredentialStore,
@@ -21,6 +22,7 @@ import {
   promptOpenRouterCode,
   readOpenRouterKeyUsage,
 } from './openRouter'
+import { huggingface } from '../backend/providersEntry'
 import type { ProviderSpendReport } from '../../core/providers/providerSpend'
 import type { OAuthLoopback } from './oauthLoopback'
 import { inspectProviderKey, providerKeyNoticeText } from '../../core/providers/keyInspection'
@@ -78,6 +80,7 @@ export interface ProvidersHostUi {
 }
 
 export interface ProvidersHostDeps {
+  readonly log: Logger
   readonly credentials: CredentialStore
   readonly secrets: SecretStore
   readonly store: ProvidersStore
@@ -86,6 +89,7 @@ export interface ProvidersHostDeps {
   readonly tester: KeyTester
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger | undefined
+  readonly huggingfaceExchanger?: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
   readonly onKeyUsage?: (
     snapshot: KeyUsageSnapshot & {
@@ -156,6 +160,14 @@ export interface ProvidersHost {
   ) => Promise<number>
   readonly discardOpenRouterKey: () => void
   readonly connectOpenRouter: (
+    isRemote: boolean,
+    signal?: AbortSignal,
+  ) => Promise<{ key: string } | undefined>
+  /**
+  Hugging Face OAuth connect. Refuses closed until the owner registers
+  the OAuth app, naming that step; undefined when the user cancelled.
+  */
+  readonly connectHuggingFace: (
     isRemote: boolean,
     signal?: AbortSignal,
   ) => Promise<{ key: string } | undefined>
@@ -371,6 +383,36 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
       ),
     discardOpenRouterKey: () => {
       deps.ui.onDiscardedKey?.()
+    },
+    connectHuggingFace: async (isRemote, signal) => {
+      // Closed until the owner registers the OAuth app: the refusal names
+      // that step and is thrown before the flow, never wrapped.
+      const refusal = huggingface.huggingfaceConnectRefusal(
+        huggingface.HF_OAUTH_CLIENT_ID,
+        isRemote,
+      )
+      if (refusal !== undefined) throw new Error(refusal)
+      const clientId = huggingface.HF_OAUTH_CLIENT_ID
+      const exchanger = deps.huggingfaceExchanger
+      if (clientId === undefined || exchanger === undefined)
+        throw new Error(UI_TEXT.huggingfaceConnectFailed)
+      try {
+        const connection = await huggingface.connectHuggingFaceAccount({
+          clientId,
+          log: deps.log,
+          pkce: deps.pkce,
+          exchange: exchanger,
+          openBrowser: deps.ui.openBrowser,
+          startServer: deps.startLoopback,
+          isRemote,
+          ...(deps.ui.onDiscardedKey !== undefined && { onDiscardedKey: deps.ui.onDiscardedKey }),
+          ...(signal !== undefined && { signal }),
+        })
+        return { key: connection.key }
+      } catch (error) {
+        if (signal?.aborted) return
+        throw new Error(UI_TEXT.huggingfaceConnectFailed, { cause: error })
+      }
     },
     connectOpenRouter: async (isRemote, signal) => {
       const exchanger = deps.exchanger

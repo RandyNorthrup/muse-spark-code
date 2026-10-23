@@ -12,6 +12,8 @@ import { EN } from '../../src/shared/l10n/en'
 import { makeDraft, makeState } from './modelsPanelFixtures.js'
 import {
   type HostToPanelMessage,
+  modelRowSchema,
+  type ModelRow,
   parseHostToPanelMessage,
   parseModelsPanelState,
   type ModelsPanelState,
@@ -69,6 +71,7 @@ const messages: readonly PanelToHostMessage[] = [
     ref: 'ollama/qwen3:8b',
     ticked: false,
   },
+  { type: 'models/tick', scope: { scope: 'editorChat' }, ref: 'ollama/qwen3:8b', ticked: true },
   { type: 'models/pin', providerId: 'ollama', ref: 'ollama/qwen3:8b', pinned: true },
   {
     type: 'models/filter',
@@ -190,6 +193,26 @@ describe('modelsPanel schemas', () => {
         sort: { key: 'price', direction: 'asc' },
       }).ok,
     ).toBe(false)
+  })
+
+  it('carries the editor-chat opt-in on model rows, absent without the native API', () => {
+    const row: ModelRow = {
+      ref: 'openai/gpt-5',
+      providerId: 'openai',
+      modelId: 'gpt-5',
+      toolCalling: true,
+      vision: true,
+      reasoning: false,
+      freeOrLocal: false,
+      ticked: true,
+      pinned: false,
+      priceNote: 'priced',
+      badges: { recommended: false, cheapestCapable: false, largestContext: false, isNew: false },
+    }
+    expect(modelRowSchema.safeParse({ ...row, editorChat: true }).success).toBe(true)
+    expect(modelRowSchema.safeParse({ ...row, editorChat: false }).success).toBe(true)
+    expect(modelRowSchema.safeParse(row).success).toBe(true)
+    expect(modelRowSchema.safeParse({ ...row, editorChat: 'yes' }).success).toBe(false)
   })
 })
 

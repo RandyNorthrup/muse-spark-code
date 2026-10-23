@@ -35,6 +35,10 @@ const contextWindowSchema = z.int().check(z.positive())
 const panelModelLimitsSchema = z
   .strictObject({ contextTokens: contextWindowSchema, outputTokens: contextWindowSchema })
   .check(z.refine((limits) => limits.outputTokens <= limits.contextTokens))
+
+// One immutable boundary schema keeps the Models first-use bundle within its cap.
+const optionalBoolean = z.optional(z.boolean())
+
 /**
 The panel's sections; M96 registers `roles` and `agents` beside these.
 `vault` (C-M109-1 P1) is always present (RLTESTDRIVE 10); without a host
@@ -175,6 +179,8 @@ One Models-table row: the host's filtered, sorted rows with their badges
 (lane P's `filterModels`, `sortModels` and `badgesFor` run host-side).
 */
 export const modelRowSchema = z.strictObject({
+  /** Undefined when the host has no native provider API. */
+  editorChat: optionalBoolean,
   /** The qualified reference (`<providerId>/<modelId>`). */
   ref: z.string(),
   providerId: z.string(),
@@ -190,10 +196,10 @@ export const modelRowSchema = z.strictObject({
   outputPerMillion: z.optional(z.number()),
   cachedPerMillion: z.optional(z.number()),
   freeOrLocal: z.boolean(),
-  recommended: z.optional(z.boolean()),
-  serverless: z.optional(z.boolean()),
+  recommended: optionalBoolean,
+  serverless: optionalBoolean,
   /** New since the last scan (from the scan diff). */
-  isNew: z.optional(z.boolean()),
+  isNew: optionalBoolean,
   /** Offered in the composer's picker. */
   ticked: z.boolean(),
   pinned: z.boolean(),
@@ -212,15 +218,15 @@ export type ModelRow = z.infer<typeof modelRowSchema>
 /** Every filter the table offers, each alone or combined (mirrors lane P's `ModelFilter`). */
 export const modelFilterSchema = z.strictObject({
   search: z.optional(z.string()),
-  toolCalling: z.optional(z.boolean()),
-  vision: z.optional(z.boolean()),
-  reasoning: z.optional(z.boolean()),
+  toolCalling: optionalBoolean,
+  vision: optionalBoolean,
+  reasoning: optionalBoolean,
   contextMin: z.optional(z.number()),
   contextMax: z.optional(z.number()),
   maxInputPerMillion: z.optional(z.number()),
   maxOutputPerMillion: z.optional(z.number()),
   maxCachedPerMillion: z.optional(z.number()),
-  freeOrLocal: z.optional(z.boolean()),
+  freeOrLocal: optionalBoolean,
   providerId: z.optional(z.string()),
   family: z.optional(z.string()),
 })
@@ -239,7 +245,7 @@ export const scanStateSchema = z.strictObject({
   status: z.enum(['idle', 'scanning', 'done', 'failed']),
   scannedAtMs: z.optional(z.number()),
   /** A cached scan older than `PROVIDER_SCAN_STALE_MS` (lane P's rule). */
-  stale: z.optional(z.boolean()),
+  stale: optionalBoolean,
   newCount: z.optional(z.number()),
   removedCount: z.optional(z.number()),
   repricedCount: z.optional(z.number()),
@@ -440,19 +446,19 @@ export const modelsPanelStateSchema = z.strictObject({
   importPreview: z.optional(importPreviewSchema),
   /** A transient host confirmation (an export done, a save applied). */
   notice: z.optional(z.string()),
-  subscriptionsAvailable: z.optional(z.boolean()),
-  copilotAvailable: z.optional(z.boolean()),
+  subscriptionsAvailable: optionalBoolean,
+  copilotAvailable: optionalBoolean,
   /**
   True while the host holds the vault binding (C-M109-1 P1): the broker
   is composed and live states follow. Absent or false leaves the tab
   present with the binding failure's reason (RLTESTDRIVE 10), never
   hidden and never connecting for ever.
   */
-  vaultOffered: z.optional(z.boolean()),
+  vaultOffered: optionalBoolean,
   /** True in a remote window: ChatGPT sign-in is refused there. */
-  remoteWindow: z.optional(z.boolean()),
+  remoteWindow: optionalBoolean,
   /** True where the workspace is confidential: Copilot is hidden and refused. */
-  confidentialWorkspace: z.optional(z.boolean()),
+  confidentialWorkspace: optionalBoolean,
   /** The Judge section. Absent only on a host that has not reported one yet. */
   judge: z.optional(judgePanelSnapshotSchema),
 })
@@ -463,8 +469,8 @@ export const prefillFieldsSchema = z.strictObject({
   ...endpointFields,
   privacy: z.optional(openRouterPrivacySchema),
   providerOrder: z.optional(z.array(z.string())),
-  allowFallbacks: z.optional(z.boolean()),
-  privateConfirmed: z.optional(z.boolean()),
+  allowFallbacks: optionalBoolean,
+  privateConfirmed: optionalBoolean,
   defaultModel: z.optional(z.string()),
   sessionBudgetUsd: z.optional(legacyUsdSchema),
   /** A custom server's per-model limits (replaces the draft's set). */
@@ -472,9 +478,9 @@ export const prefillFieldsSchema = z.strictObject({
 })
 export type PrefillFields = z.infer<typeof prefillFieldsSchema>
 
-/** Which ticked set a `models/tick` updates: the wizard's draft or a saved provider. */
+/** The wizard draft, saved provider picker, or machine-owned editor-chat opt-in. */
 export const tickScopeSchema = z.strictObject({
-  scope: z.enum(['wizard', 'provider']),
+  scope: z.enum(['wizard', 'provider', 'editorChat']),
   providerId: z.optional(z.string()),
 })
 export type TickScope = z.infer<typeof tickScopeSchema>
@@ -877,7 +883,7 @@ export const trafficMessageSchema = z.discriminatedUnion('type', [
     recoveryId: id,
     expected: trafficSliceSchema.shape.recovery.def.element,
     action: recoveryAction,
-    includeEdits: z.optional(z.boolean()),
+    includeEdits: optionalBoolean,
   }),
   z.strictObject({
     type: z.literal('traffic/conflict'),

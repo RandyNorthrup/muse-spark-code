@@ -263,6 +263,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'DICTATION_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
+  {
+    file: 'editorChat.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'EDITOR_CHAT_BUNDLE_FILE', side: ['vscode'] },
+    ],
+  },
   { file: 'estimateContracts.js', side: 'both', requestedBy: [] },
   {
     file: 'estimateHistory.js',

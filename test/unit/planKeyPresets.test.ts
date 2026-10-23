@@ -1,5 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { PLAN_KEY_PRESETS, planKeyPresetById, presetById } from '../../src/core/providers/presets'
+import {
+  listedPlanKeyPresets,
+  PLAN_KEY_PRESETS,
+  planKeyPresetById,
+  presetById,
+} from '../../src/core/providers/presets'
 
 import fr from '../../l10n/ui.fr.json'
 import { EN } from '../../src/shared/l10n/en'
@@ -40,17 +45,51 @@ describe('captured plan-key presets', () => {
     expect(plan?.label).not.toBe(api?.label)
     expect(plan?.keyHint).toBe(fill(fr.providerText.hints.site, { site: 'console.mistral.ai' }))
   })
-  it('ships no uncaptured MiniMax or Alibaba plan wire, or prohibited plan sign-in', () => {
-    expect(PLAN_KEY_PRESETS.every((preset) => preset.wireCapture)).toBe(true)
-    for (const id of [
+  it('defines MiniMax and Alibaba plan keys uncaptured, with limits links and plan pricing', () => {
+    for (const [id, limitsUrl] of [
+      ['minimax-plan', 'https://platform.minimax.io/console/usage'],
+      ['alibaba-plan', 'https://www.alibabacloud.com/help/en/model-studio/coding-plan-faq'],
+    ] as const) {
+      const plan = planKeyPresetById(id)
+      expect(plan).toMatchObject({
+        auth: 'apiKey',
+        format: 'chat',
+        wireCapture: false,
+        pricing: { kind: 'plan' },
+        limitsUrl,
+      })
+      expect(plan?.label.trim()).not.toBe('')
+      expect(plan?.description.trim()).not.toBe('')
+      expect(plan?.keyHint.trim()).not.toBe('')
+      if (plan === undefined) throw new Error(`missing ${id}`)
+      expect(Object.keys(plan.pricing)).toEqual(['kind'])
+    }
+    expect(planKeyPresetById('minimax-plan')?.origin).toEqual({
+      kind: 'fixed',
+      origin: 'https://api.minimax.io',
+    })
+    expect(planKeyPresetById('alibaba-plan')?.origin).toEqual({
+      kind: 'fixed',
+      origin: 'https://coding-intl.dashscope.aliyuncs.com',
+    })
+  })
+  it('lists only captured plan keys in the panel, and never a prohibited plan sign-in', () => {
+    expect(listedPlanKeyPresets().map((preset) => preset.id)).toEqual(['mistral-plan'])
+    expect(PLAN_KEY_PRESETS.map((preset) => preset.id)).toEqual([
       'minimax-plan',
       'alibaba-plan',
-      'anthropic-plan',
-      'gemini-plan',
-      'zai-plan',
-      'kimi-plan',
-    ]) {
+      'mistral-plan',
+    ])
+    for (const id of ['anthropic-plan', 'gemini-plan', 'zai-plan', 'kimi-plan']) {
       expect(planKeyPresetById(id)).toBeUndefined()
     }
+  })
+  it('gives every plan key its documented key page for the wizard link', () => {
+    for (const preset of PLAN_KEY_PRESETS) {
+      expect(preset.keyPage, preset.id).toMatch(/^https:\/\//)
+    }
+    expect(planKeyPresetById('minimax-plan')?.keyPage).toBe(
+      'https://platform.minimax.io/console/plan',
+    )
   })
 })

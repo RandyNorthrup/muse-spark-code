@@ -602,6 +602,12 @@ export const RESOURCE_PROCESS_BUNDLE = {
 // The Model API backend keeps its own copy of code intelligence.
 export const ON_FIRST_USE = [
   {
+    output: 'dist/editorChat.js',
+    metafile: 'dist/meta/editorChat.json',
+    use: 'the first editor-chat opt-in action or model call',
+    files: ['src/host/models/lmProvider.ts', 'src/host/models/lmProviderEntry.ts'],
+  },
+  {
     output: 'dist/resourceGovernor.js',
     metafile: 'dist/meta/resourceGovernor.json',
     use: 'the first governed spawn',
@@ -1453,6 +1459,11 @@ export function checkDeferredBundles(inputsOf, metafileOf) {
             (file) => source === `src/core/providers/${file}`,
           )
         ) &&
+        // RLM95B (2026-10-22): the editor-chat provider validates the
+        // editor's model ref with the shared parse, like providerPolicy.
+        // The ref must not fork validation, and the bundle must not wait
+        // on the providers bundle: the tiny module rides along.
+        !(source === 'src/core/providers/modelRef.ts' && bundle.output === 'dist/editorChat.js') &&
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
         ) &&

@@ -109,9 +109,15 @@ function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage 
   }
 }
 
-function cardCost(card: PriceCard, tokens: UsageTokens): UsdAmount | undefined {
+function cardCost(card: PriceCard, tokens: UsageTokens, images = 0): UsdAmount | undefined {
   const billable = pricedUsage(tokens, true)
-  return billable === undefined ? undefined : settleUsageAmount(card, billable)
+  const cost = billable === undefined ? undefined : settleUsageAmount(card, billable)
+  if (cost === undefined) return undefined
+  return images === 0
+    ? cost
+    : Usd.from(cost)
+        .add(Usd.from(card.image ?? 0).times(images))
+        .toAmount()
 }
 
 function hasMetaPrice(context: UsageRecordContext): boolean {
@@ -224,7 +230,9 @@ function settleCost(context: UsageRecordContext, tokens: UsageTokens): UsageCost
   }
   const card = pricing?.kind === 'priced' ? pricing.card : undefined
   const tool = paidCost(context)
-  const computed = tool ?? (card === undefined ? metaCost(context, tokens) : cardCost(card, tokens))
+  const computed =
+    tool ??
+    (card === undefined ? metaCost(context, tokens) : cardCost(card, tokens, context.units?.images))
   if (computed === undefined) {
     return {
       certainty:

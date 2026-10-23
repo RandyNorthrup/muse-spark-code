@@ -27,6 +27,19 @@ export const EN = {
     'Dictate in the browser and review before sending to your owning ACP session or terminal. System recognition is free on Windows and macOS; paid Muse Voice asks for consent and shares the daily budget.',
   companionVoiceReview: 'Review transcript before sending',
   companionVoiceTitle: 'Dictate',
+  editorChatTitle: 'Editor chat',
+  editorChatModel: 'Offer {model} to editor chat',
+  editorChatRefused:
+    'Editor chat request refused. Check model opt-in, known prices, token limits and workspace trust.',
+  editorChatEnable: 'Enable',
+  editorChatRates:
+    '{input} input / {output} output (including reasoning) per million tokens; {cached} cache read / {write} cache write / {write1h} 1-hour cache write per million tokens',
+  editorChatFees: '{request} per request / {image} per image',
+  editorChatTier: 'From {tokens} input tokens: {rates}',
+  editorChatConsent:
+    'Offer {model} to editor chat? {rates}. All installed extensions can call this model using your key. The subscription pays none of this.',
+  referenceEditorChat:
+    'Opt chosen priced or local models into VS Code chat; calls appear in Usage & cost. Requires VS Code 1.104+ and a trusted, non-confidential workspace. Native Muse needs no BYO provider; recorded confirmation covers all rates before spending.',
   // M107 / D87: resource surfaces and manifest-ready settings text.
   resourceTitle: 'Resources',
   resourceHarnessInTree:
@@ -1558,6 +1571,28 @@ export const EN = {
     grokNoticeTitle: 'You’re Using Your Grok Subscription',
     grokNoticeDetail:
       'SuperGrok or X Premium requests share your subscription allowance; they add none.',
+    // OPENAI-G27: one true sentence per documented plan refusal.
+    chatGptNotEligible:
+      'Your ChatGPT plan cannot be used for this account. Sign in with an eligible account, or choose an API-key model.',
+    chatGptUsageUnavailable:
+      'ChatGPT could not check plan usage. Your sign-in is kept. Try again later.',
+    // {detail}: the provider's error.param (or message), a technical name.
+    chatGptUnsupportedCapability:
+      'ChatGPT refused this request ({detail}). Change the request and try again.',
+    chatGptRouteNotSupported:
+      'This ChatGPT request used an unsupported route. Try again, and report it if it persists.',
+    chatGptInvalidUser: 'ChatGPT could not confirm this account. Sign in again.',
+    chatGptGrantNotAuthorized:
+      'ChatGPT did not permit this request for the current sign-in. Sign in again, or choose an API-key model.',
+    // OPENAI-G28: the plan's reported limit windows; absent when unreported.
+    planPrimaryWindow: 'Primary window',
+    planSecondaryWindow: 'Secondary window',
+    // {percent}: the used share, already formatted.
+    planLimitUsed: '{percent} used',
+    // {minutes}: the window length, already formatted.
+    planLimitWindow: '{minutes}-minute window',
+    // {when}: the reset moment, already formatted.
+    planLimitResets: 'Resets {when}',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -6416,6 +6451,10 @@ export const EN = {
   providerCreatedKeyDiscarded:
     'OpenRouter created a key labelled {label}. It was not kept here. Remove it at {url}.',
   providerConnectFailed: 'OpenRouter connection failed. Try connecting again.',
+  huggingfaceOAuthNotRegistered:
+    'Hugging Face sign-in is not open yet: its OAuth app must be registered on huggingface.co first (a publisher step).',
+  huggingfaceConnectFailed: 'Hugging Face connection failed. Try connecting again.',
+  huggingfaceRemoteWindow: 'Hugging Face sign-in needs a local window.',
   providerConnectBusy: 'Another provider change is in progress. Try again when it finishes.',
   providerConnectRecoveredStored:
     'A previous OpenRouter connection already stored its key. It is kept.',
@@ -6807,6 +6846,10 @@ export const EN = {
       fireworks: 'Fast open-model inference on Fireworks',
       huggingface: 'The Hugging Face router across many providers',
       zai: 'GLM models on Z.ai pay-as-you-go',
+      moonshot: 'Kimi models on the Moonshot API',
+      ollamaCloud: 'Ollama Cloud models through an API key',
+      minimaxPlan: 'MiniMax models on an M Plan key',
+      alibabaPlan: 'Alibaba models on a Coding Plan key',
       ollama: 'Models on this computer through Ollama',
       lmstudio: 'Models on this computer through LM Studio',
       vllm: 'A vLLM server, here or on your network over HTTPS',
@@ -6950,6 +6993,9 @@ export const EN = {
   ollamaDuplicateCall: 'Ollama history contains a duplicate tool call id.',
   ollamaResponseIdRequired: 'Ollama needs a unique response id for this request.',
   ollamaMissingFinal: 'Ollama closed the stream without a final answer.',
+  // Azure OpenAI (M95): a 404 on the resource names a deployment that is not there.
+  azureDeploymentInvalid:
+    'Azure OpenAI has no such deployment on this resource. Check the deployment name.',
   ollamaMalformedFrame: 'Malformed Ollama stream frame.',
   ollamaStreamLimit: 'Ollama exceeded the stream size or item limit.',
   ollamaFinishReason: 'Ollama finished with reason "{reason}".',
