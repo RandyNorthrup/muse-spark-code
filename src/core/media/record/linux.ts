@@ -5,6 +5,7 @@ import * as z from 'zod/mini'
 import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
+  MEDIA_MAX_UPLOAD_MIB,
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../../shared/constants'
@@ -19,11 +20,21 @@ import type {
   ScreenRecordingRun,
 } from './driver'
 
+/**
+Video carries the portal's file descriptor with its node; audio connects to
+the default PipeWire daemon itself (`pipewiresrc path=` with no `fd`), so
+audio sources carry only the node id the port discovered. The portal governs
+no microphone on Linux: the gate for sound is the person's explicit
+per-recording selection.
+*/
 const sourceSchema = z.strictObject({
-  fd: z.int().check(z.gte(0)),
+  fd: z.optional(z.int().check(z.gte(0))),
   nodeId: z.int().check(z.gt(0)),
 })
 type PipeWireSource = z.infer<typeof sourceSchema>
+
+/** The native helper's own output bound (RLF-RECORDING's portal recorder). */
+export const LINUX_RECORDING_HELPER_MAX_BYTES = MEDIA_MAX_UPLOAD_MIB * MEDIA_FILE_ID_MIN_BYTES
 
 interface PortalSession {
   /** D-Bus adapter returns untrusted identities; the driver validates them. */
@@ -54,8 +65,15 @@ export interface LinuxRecordingPort {
   readonly localScreen: () => boolean
   /** Owner aborts on close, disconnect and sleep, including during the picker. */
   readonly signal: AbortSignal
-  /** Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4/AAC plugins probed. */
-  readonly findEncoder: () => Promise<string | undefined>
+  /**
+  Absolute gst-launch-1.0 path, with pipewiresrc/H.264/mp4 probed, plus the
+  AAC audio plugins when sound is selected (a video-only recording never
+  refuses for a missing audio codec).
+  */
+  readonly findEncoder: (audio: {
+    readonly microphone: boolean
+    readonly systemAudio: boolean
+  }) => Promise<string | undefined>
   /** A user/OS permission refusal rejects with an Error named NotAllowedError;
   transport, compositor and other portal failures keep their own identity. */
   readonly openPortal: (
@@ -78,6 +96,12 @@ export interface LinuxRecordingPort {
   }) => Promise<EncoderRun>
   /** M1's bounded byte sniffer, never metadata inferred from the filename. */
   readonly sniff: (file: string) => Promise<unknown>
+  /**
+  The recording file's byte bound: the person's upload cap when set, else
+  the helper's own bound. Refused unless a whole number from 1 to the
+  helper's bound.
+  */
+  readonly maxBytes: number
 }
 
 function unavailable(reason: string): string {
@@ -95,7 +119,9 @@ function refused(reason: string): ScreenRecordingRun {
 function sourceArgs(source: PipeWireSource): string[] {
   return [
     'pipewiresrc',
-    `fd=${String(source.fd)}`,
+    // Audio connects to the default daemon itself; only video takes the
+    // portal's descriptor.
+    ...(source.fd === undefined ? [] : [`fd=${String(source.fd)}`]),
     `path=${String(source.nodeId)}`,
     'do-timestamp=true',
   ]
@@ -154,7 +180,7 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
     if (!port.localScreen()) return { ok: false, reason: UI_TEXT.media.recordingRemote }
     let command: string | undefined
     try {
-      command = await port.findEncoder()
+      command = await port.findEncoder({ microphone: false, systemAudio: false })
     } catch {
       return { ok: false, reason: unavailable('GStreamer / pipewiresrc') }
     }
@@ -169,6 +195,12 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
       const options = screenRecordingOptionsSchema.safeParse(input)
       if (isBusy || port.signal.aborted || !options.success)
         return refused(UI_TEXT.execStatus.cancelled)
+      if (
+        !Number.isSafeInteger(port.maxBytes) ||
+        port.maxBytes <= 0 ||
+        port.maxBytes > LINUX_RECORDING_HELPER_MAX_BYTES
+      )
+        return refused(UI_TEXT.media.recordingFailed)
       isBusy = true
       let isHandedOff = false
       const lifecycle = new AbortController()
@@ -182,7 +214,10 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
       let file: PrivateRecording | undefined
       try {
         if (!port.localScreen()) return refused(UI_TEXT.media.recordingRemote)
-        const command = await port.findEncoder()
+        const command = await port.findEncoder({
+          microphone: options.data.microphone,
+          systemAudio: options.data.systemAudio,
+        })
         if (command === undefined || !path.posix.isAbsolute(command.replaceAll('\\', '/'))) {
           return refused(unavailable('GStreamer / pipewiresrc / H.264 / AAC'))
         }
@@ -199,6 +234,8 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
         }
         void session.closed.then(closeSetup).catch(closeSetup)
         const video = sourceSchema.parse(session.video)
+        // Only video takes the portal's descriptor; without it there is no capture.
+        if (video.fd === undefined) return refused(unavailable('GStreamer / pipewiresrc'))
         const audio: PipeWireSource[] = []
         if (options.data.microphone) audio.push(sourceSchema.parse(session.microphone))
         if (options.data.systemAudio) audio.push(sourceSchema.parse(session.systemAudio))
@@ -216,7 +253,7 @@ export function linuxRecordingDriver(port: LinuxRecordingPort): ScreenRecordingD
           args: pipeline(file.path, video, audio),
           sources: [video, ...audio],
           output: file.path,
-          maxBytes: MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES,
+          maxBytes: port.maxBytes,
           maxSeconds: options.data.maxSeconds,
           signal: lifecycle.signal,
         })
@@ -349,7 +386,7 @@ function recordingRun(
           info.kind !== 'video' ||
           info.mediaType !== 'video/mp4' ||
           info.sizeBytes === 0 ||
-          info.sizeBytes > MEDIA_MAX_UPLOAD_DEFAULT_MIB * MEDIA_FILE_ID_MIN_BYTES ||
+          info.sizeBytes > port.maxBytes ||
           info.durationSeconds === null ||
           (options.maxSeconds > 0 && info.durationSeconds > options.maxSeconds) ||
           info.hasSoundtrack !== (options.microphone || options.systemAudio)
