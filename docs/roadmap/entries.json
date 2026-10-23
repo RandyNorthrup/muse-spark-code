@@ -1290,6 +1290,11 @@
       "note": "recovery: the five SAST findings fixed, the secret-scan history triaged"
     },
     {
+      "id": "RVSEC",
+      "public": false,
+      "note": "security review: Grok sign-in, connector grants, vault anchors and migration"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
