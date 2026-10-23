@@ -15,7 +15,9 @@ function usage() {
   return 'usage: node scripts/inspect-capture.mjs [--helper <path>] [--json <file>]'
 }
 
-function argument(flag, args) {
+const args = process.argv.slice(2)
+
+function argument(flag) {
   const index = args.indexOf(flag)
   if (index === -1) return
   const value = args[index + 1]
@@ -24,13 +26,12 @@ function argument(flag, args) {
   return value
 }
 
-const args = process.argv.slice(2)
 for (const word of args) {
   if (word !== '--helper' && word !== '--json' && word.startsWith('--'))
     throw new Error(`${usage()}: unknown flag ${word}`)
 }
-const helperFlag = argument('--helper', args)
-const jsonFlag = argument('--json', args)
+const helperFlag = argument('--helper')
+const jsonFlag = argument('--json')
 
 let helper = helperFlag
 if (helper === undefined) {

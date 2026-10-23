@@ -10,7 +10,7 @@ const prefix = `m110-${randomUUID()}`
 const containers = []
 const volumes = []
 const docker = (args) => execFileSync('docker', args, { encoding: 'utf8', stdio: 'pipe' })
-const run = (extra = []) => {
+const run = () => {
   const name = `${prefix}-${containers.length}`
   containers.push(name)
   const state = `${name}-state`
@@ -54,7 +54,6 @@ const run = (extra = []) => {
           `type=bind,src=${process.env.M110_TEST_BOOTSTRAP},dst=/run/bootstrap.sh,readonly`,
         ]
       : []),
-    ...extra,
     image,
     ...(process.env.M110_TEST_BOOTSTRAP ? ['/run/bootstrap.sh', 'serve'] : []),
   ]).trim()

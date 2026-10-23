@@ -115,6 +115,11 @@ async function probe(
   return answer?.stdout ?? null
 }
 
+/** macOS's AppleInterfaceStyle answer: "Dark" names dark, anything else light. */
+function macAppearance(style: string): 'dark' | 'light' {
+  return style === 'Dark' ? 'dark' : 'light'
+}
+
 /** Runs the capability probes and resolves the tier, theme, motion and
 font. Never throws for a missing tool: a silent probe degrades. */
 export async function detectCapabilities(options: {
@@ -144,7 +149,7 @@ export async function detectCapabilities(options: {
     nerdFont: options.nerdFont,
     env: options.env,
     termColors: termColors === null || Number.isNaN(termColors) ? null : termColors,
-    macTheme: macStyle === undefined ? null : macStyle === 'Dark' ? 'dark' : 'light',
+    macTheme: macStyle === undefined ? null : macAppearance(macStyle),
     macReducedMotion: macMotion === null ? null : macMotion.trim() === '1',
   })
 }

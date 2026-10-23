@@ -353,7 +353,7 @@ describe.skipIf(noFlock)(`M110-OS2 Pi tryboot backend: ${writes}`, () => {
     // with status 0, which fails this test.
     const holder = spawn('flock', [h.lock, 'sleep', '30'], { stdio: 'ignore' })
     holder.unref()
-    await new Promise((resolve) => globalThis.setTimeout(resolve, 500))
+    await new Promise((resolve) => setTimeout(resolve, 500))
     try {
       const blocked = spawnSync(shell, [posixPath(backend), 'set-primary', 'B'], {
         encoding: 'utf8',
