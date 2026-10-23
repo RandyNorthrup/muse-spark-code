@@ -72,6 +72,9 @@ Notice/Traffic/Send`), builds one target per linked offer (repository
   the panel and every execution: the entry factory takes the live
   surface the snapshot already carries. The loader's words are their
   own `MAKER_MODEL_TEXT` block, read only by `dist/devices.js`.
+- `484037978` — records (PLAN status + D6 maker cap, CHANGELOG, roadmap,
+  devices reference, host-API record, this file and the look shots) plus
+  the clean-tree lazy-registry regen (159 bundles, maker row only).
 
 Deliberately not in this lane: M103's tool paths (no caller sends yet —
 the engine, surfaces and simulators are assembled and exposed for them),
