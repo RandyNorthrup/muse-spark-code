@@ -32,12 +32,12 @@ describe('M100 result store', () => {
     const directory = path.join(fixture.parent, 'results')
     const store = await FileResultStore.create(directory, fixture.storage)
     await store.save(resultRecord('2'.repeat(32), [1]))
-    const ownerOnly = process.platform === 'win32' ? 'owner-only' : '700'
-    await expect(ownerOnlyEvidence(directory, true)).resolves.toBe(ownerOnly)
-    const fileOnly = process.platform === 'win32' ? 'owner-only' : '600'
+    // The evidence reads Windows' owner-only ACL as 700/600, so one
+    // expectation holds on every OS.
+    await expect(ownerOnlyEvidence(directory, true)).resolves.toBe('700')
     await expect(
       ownerOnlyEvidence(path.join(directory, `${'2'.repeat(32)}.json`), false),
-    ).resolves.toBe(fileOnly)
+    ).resolves.toBe('600')
   })
 
   it('refuses a record opened to another principal, then works after restore', async () => {

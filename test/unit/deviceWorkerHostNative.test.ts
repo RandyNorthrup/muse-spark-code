@@ -51,6 +51,9 @@ function driver() {
     sourceFile: path.resolve('native/windows/MuseSparkDeviceWorker.cs'),
     environment: process.env,
     log,
+    // The real program runner compiles the worker, as the job suites do;
+    // bootstrap admission has its own suite and no window configures it here.
+    compile: runProgram,
   })
 }
 function launchScript(native: DeviceWorkerDriver, script: string, attempt = admitted(2)) {
@@ -129,7 +132,13 @@ describe.skipIf(process.platform !== 'win32')('M100/H real Windows scheduled wor
       'job-limit-probe',
       jobFileName(probeBuild, jobLimitProbe),
     )
-    await compileJob(probeBuild, probe.file, jobLimitProbe, process.env['SystemRoot'] ?? '')
+    await compileJob(
+      probeBuild,
+      probe.file,
+      jobLimitProbe,
+      process.env['SystemRoot'] ?? '',
+      runProgram,
+    )
   })
   afterAll(async () => {
     const powershell = windowsPowerShell(process.env['SystemRoot'] ?? '')
