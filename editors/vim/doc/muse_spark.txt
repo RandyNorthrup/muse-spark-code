@@ -1,0 +1,57 @@
+*muse_spark.txt*  Muse Spark Code (Unofficial) for classic Vim (M66)
+
+An ACP client in pure Vimscript for Vim 8.1 and later (+job, +channel).
+It runs the packed `muse-spark-code-acp` agent beside Vim and holds the
+conversation in a chat buffer. No Python, Lua or remote plugin.
+
+See docs/acp.md ("Classic Vim") for the full guide, including the Xcode
+26.3 bridge servers this client can offer a session.
+
+1. Commands					|muse-spark-commands|
+2. Options					|muse-spark-options|
+3. Chat buffer				|muse-spark-buffer|
+
+==============================================================================
+1. COMMANDS					*muse-spark-commands*
+
+:MuseSpark			Open the chat and start the agent (initialize,
+				then a session in the current directory).
+:MuseSparkSend		Send the lines below the last `You:` marker as
+				the prompt. One turn at a time.
+:MuseSparkNew		Close the session and start a fresh one.
+:MuseSparkClose		Close the session and stop the agent.
+:MuseSparkCancel		Cancel the running turn.
+:MuseSparkModel {id}	Run this session on another listed model.
+:MuseSparkMode {id}	Run this session in another offered mode.
+:MuseSparkAllow {n}	Answer the oldest waiting permission with
+				option n. An unknown n refuses.
+:MuseSparkDeny		Refuse the oldest waiting permission.
+
+==============================================================================
+2. OPTIONS					*muse-spark-options*
+
+g:muse_spark_command	Default: 'muse-spark-code-acp'. The agent to run;
+				a list is the full argv (e.g. ['node',
+				'/path/to/dist/acp.js']).
+g:muse_spark_args	Default: []. Extra agent arguments, e.g.
+				['--model', 'muse-spark-1.3',
+				'--trust-workspace']. Contributor models need
+				'--allow-contributor-models' beside the
+				'--model' that names one.
+g:muse_spark_mcp_servers	Default: []. MCP servers the session offers
+				the agent (ACP mcpServers), e.g. Xcode 26.3's
+				bridge while Xcode runs with a project open: >
+	[{'type': 'stdio', 'name': 'xcode',
+	  'command': '/usr/bin/xcrun', 'args': ['mcpbridge'],
+	  'env': []}]
+
+==============================================================================
+3. CHAT BUFFER				*muse-spark-buffer*
+
+The buffer is append-only transcript: `# Muse Spark — model (mode)`
+header, `Muse:` replies streamed in, `[tool ...]` calls, plans, and
+`[permission]` prompts answered with |:MuseSparkAllow| or |:MuseSparkDeny|.
+Write each prompt below the last `You:` line and run |:MuseSparkSend|.
+Anything the wire adds later shows raw; nothing is dropped silently.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:
