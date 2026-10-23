@@ -947,6 +947,7 @@ const MINIMAX_PLAN_PRESET: PlanKeyPreset = {
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  spend: 'none',
   quirks: {},
   // No capture yet: defined but unlisted (rule 13).
   wireCapture: false,
@@ -976,6 +977,7 @@ const ALIBABA_PLAN_PRESET: PlanKeyPreset = {
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  spend: 'none',
   quirks: {},
   // No capture yet: defined but unlisted (rule 13).
   wireCapture: false,
@@ -1207,6 +1209,7 @@ const MOONSHOT_PRESET: ProviderPreset = {
   },
   keyTest: { kind: 'models-list' },
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  spend: 'none',
   quirks: {},
   wireCapture: false,
 }
@@ -1233,6 +1236,7 @@ const OLLAMA_CLOUD_PRESET: ProviderPreset = {
   keyTest: { kind: 'models-list' },
   // Provisional until the lead's capture: the OpenAI-compat shim's list.
   modelsList: { path: '/v1/models', priceSource: 'catalogue' },
+  spend: 'none',
   quirks: {},
   wireCapture: false,
 }
