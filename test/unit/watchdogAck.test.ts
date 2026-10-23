@@ -14,7 +14,9 @@ import {
   findEmbeddedInstructions,
   resolvePostApproval,
 } from '../../src/core/watchdog/guard'
-import { serveGithub, watchdogCaptured, watchdogLogger } from './helpers/watchdog/servedGithub'
+import { collectingLogger } from './helpers/collectingLogger'
+import { capturedComments } from './helpers/watchdog/fixtures'
+import { serveGithub, watchdogCaptured } from './helpers/watchdog/servedGithub'
 
 const REPOSITORY = { owner: 'owner', name: 'name' }
 const BASE = 'https://api.github.com/repos/owner/name'
@@ -99,9 +101,7 @@ describe('acknowledgement', () => {
   it('labels before it comments', async () => {
     // The POST answers reuse the captured GET objects per the documented
     // create-response equivalence; the test pins the request order.
-    const comments = watchdogCaptured('github-issue-comments')
-    if (!Array.isArray(comments) || comments.length === 0)
-      throw new TypeError('the capture holds comments')
+    const comments = capturedComments()
     const { fetch, calls } = serveGithub({
       [`GET ${BASE}/issues/146/comments`]: { status: 200, body: comments },
       [`POST ${BASE}/issues/146/labels`]: { status: 200, body: watchdogCaptured('github-labels') },
@@ -110,7 +110,7 @@ describe('acknowledgement', () => {
     const client = new GitHubClient({
       fetch,
       userAgent: 'muse-spark-code/test',
-      log: watchdogLogger([]),
+      log: collectingLogger([]),
     })
     const [existing] = await client.issueComments('token', REPOSITORY, 146)
     const ack = await postAck(

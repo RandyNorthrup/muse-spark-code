@@ -4,16 +4,12 @@
 // test/fixtures/m115w/github-issues/ must match its receipt's SHA-256 and
 // byte count, proving the copy is byte-exact. `.prettierignore` keeps
 // formatters from rewriting the bodies.
-import { createHash } from 'node:crypto'
-import { readFile, readdir } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { expectCaptureFolders, expectReceiptHash } from './helpers/captureReceipts'
 
 const ISSUES = path.join(__dirname, '..', 'fixtures', 'm115w', 'github-issues')
-
-function byName(left: string, right: string): number {
-  return Number(left > right) - Number(left < right)
-}
 
 const CAPTURES = [
   'github-issue',
@@ -29,13 +25,7 @@ const CAPTURES = [
 
 describe('watchdog issue capture fixtures', () => {
   it('holds exactly the nine captured folders', async () => {
-    const entries = await readdir(ISSUES, { withFileTypes: true })
-    expect(
-      entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => entry.name)
-        .toSorted(byName),
-    ).toEqual(CAPTURES.toSorted(byName))
+    await expectCaptureFolders(ISSUES, CAPTURES)
   })
 
   it('captured the watched issue, its comment and the search row for it', async () => {
@@ -73,17 +63,6 @@ describe('watchdog issue capture fixtures', () => {
   })
 
   it.each(CAPTURES)('matches the receipt hash for %s', async (capture) => {
-    const folder = path.join(ISSUES, capture)
-    const receipt = JSON.parse(await readFile(path.join(folder, 'receipt.json'), 'utf8')) as {
-      httpStatus: number
-      credentialsSent: string
-      body: { file: string; bytes: number; sha256: string }
-    }
-    expect(receipt.httpStatus).toBe(200)
-    expect(receipt.credentialsSent).toBe('none')
-    expect(receipt.body.file).toBe('response.body.json')
-    const body = await readFile(path.join(folder, receipt.body.file))
-    expect(body.byteLength).toBe(receipt.body.bytes)
-    expect(createHash('sha256').update(body).digest('hex')).toBe(receipt.body.sha256)
+    await expectReceiptHash(ISSUES, capture, 'none')
   })
 })

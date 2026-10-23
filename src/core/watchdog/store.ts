@@ -11,6 +11,7 @@ import {
   watchdogPolicySchema,
 } from '../../shared/watchdog'
 import { repositoryFromFullName } from '../git/github'
+import type { GitHubRepository } from '../git/githubRemote'
 import type { ScheduleFsPort } from '../schedules/journal'
 
 const repoDataSchema = z.strictObject({
@@ -32,6 +33,19 @@ export interface WatchdogStore {
     ) => Promise<WatchdogExclusiveOutcome<T>> | WatchdogExclusiveOutcome<T>,
   ): Promise<T>
   list(): Promise<readonly WatchdogRepoData[]>
+}
+
+/** Every step's opening: the named repository, the clock, and the
+live snapshot, with a bad name refused before anything is read. */
+export async function snapshotWatchdogRepository(
+  deps: { store: WatchdogStore; now(): number },
+  repository: string,
+): Promise<{ named: GitHubRepository; nowMs: number; snapshot: WatchdogRepoData }> {
+  const named = repositoryFromFullName(repository)
+  if (named === undefined) throw new Error(UI_TEXT.watchdog.cli.invalidRepository)
+  const nowMs = deps.now()
+  const snapshot = await deps.store.exclusive(repository, (data) => ({ data, result: data }))
+  return { named, nowMs, snapshot }
 }
 
 function repoFile(repository: string): string {

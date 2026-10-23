@@ -25,11 +25,9 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
   close(): Promise<void>
 }
 
-export type CreateRuntimeSchedulesArgs = [
-  table: UiText,
-  locale: string,
-  // Failures the person gets as fixed sentences keep their kind here.
-  log: Logger,
+/** The optional tail the args tuple and the binding factory share: one
+list, so the two can never drift apart. */
+type RuntimeSchedulesTail = [
   delivery?: ScheduleEditorDeliveryPorts,
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   migration?: { source: ScheduleMigrationSource; zone: string },
@@ -40,6 +38,14 @@ export type CreateRuntimeSchedulesArgs = [
   // Hosts whose workspace trust can refuse git observation (VS Code).
   // Absent trusts the process's own machine (the CLI, ACP).
   isWorkspaceTrusted?: (root: string) => boolean,
+]
+
+export type CreateRuntimeSchedulesArgs = [
+  table: UiText,
+  locale: string,
+  // Failures the person gets as fixed sentences keep their kind here.
+  log: Logger,
+  ...tail: RuntimeSchedulesTail,
 ]
 
 interface RuntimeSchedulesModule {
@@ -59,15 +65,18 @@ export function runtimeSchedulesBinding(
   bundlePath: string,
   log: Logger,
   loadBundle?: (file: string) => unknown,
-  delivery?: ScheduleEditorDeliveryPorts,
-  runtimeDelivery?: RuntimeScheduleDeliveryPorts,
-  migration?: { source: ScheduleMigrationSource; zone: string },
-  scheduleEngine?: RuntimeScheduleEngineModule,
-  // D121: the person's pause-after-failures count (0 never pauses), read
-  // live on every settlement when it is a function. Absent never pauses.
-  pauseAfterFailures?: number | (() => number),
-  isWorkspaceTrusted?: (root: string) => boolean,
+  ...tail: RuntimeSchedulesTail
 ): () => Promise<RuntimeSchedulesBinding> {
+  const [
+    deliveryArg,
+    runtimeDeliveryArg,
+    migration,
+    scheduleEngine,
+    pauseAfterFailures,
+    isWorkspaceTrusted,
+  ] = tail
+  let delivery = deliveryArg
+  let runtimeDelivery = runtimeDeliveryArg
   const load = lazyBundleLoader({
     bundlePath,
     log,

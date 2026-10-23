@@ -4,7 +4,6 @@
 // presence and parsed body. Nothing here touches the network.
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import type { CoreLogger } from '../../../../src/core/logging'
 
 const FIXTURES = path.join(__dirname, '..', '..', '..', 'fixtures', 'm115w', 'github-issues')
 
@@ -67,21 +66,4 @@ export function serveGithub(routes: Readonly<Record<string, { status: number; bo
     return Promise.resolve(Response.json(route?.body ?? { message: 'Not Found' }, { status }))
   }
   return { fetch: fetcher, calls }
-}
-
-export function watchdogLogger(logged: string[]): CoreLogger {
-  return {
-    trace: (message) => {
-      logged.push(message)
-    },
-    info: (message) => {
-      logged.push(message)
-    },
-    warn: (message) => {
-      logged.push(message)
-    },
-    error: (message) => {
-      logged.push(message)
-    },
-  }
 }

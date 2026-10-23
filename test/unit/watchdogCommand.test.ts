@@ -4,10 +4,9 @@
 // evidence, apply, decide and resolve drive the served captures end to
 // end; refusals (unsigned, unknown, unready, GitHub's own) are said,
 // and only a store that cannot be bound fails the command.
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { acpWatchdog } from '../../src/acp/watchdog'
 import { GitHubClient } from '../../src/core/git/github'
 import { createWatchdogStore } from '../../src/core/watchdog/store'
@@ -22,31 +21,27 @@ import { WATCHDOG_ACK_MARKER } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import {
   defaultWatchdogPolicy,
-  triageFindingsSchema,
   watchdogIssueSchema,
   type TriageFindings,
   type WatchdogIssue,
 } from '../../src/shared/watchdog'
+import { collectingLogger } from './helpers/collectingLogger'
+import { fileRoots } from './helpers/tempDirs'
+import {
+  WATCHDOG_BASE,
+  WATCHDOG_NOW,
+  WATCHDOG_REPOSITORY,
+  findingsFor,
+  releaseRoutes,
+} from './helpers/watchdog/fixtures'
 import {
   capturedObjects,
   capturedSearchIssues,
   serveGithub,
   watchdogCaptured,
-  watchdogLogger,
 } from './helpers/watchdog/servedGithub'
 
-const REPOSITORY = 'RandyNorthrup/muse-spark-code'
-const BASE = 'https://api.github.com/repos/RandyNorthrup/muse-spark-code'
-const NOW = 1_700_000_000_000
-
-const folders: string[] = []
-afterEach(async () => {
-  while (folders.length > 0) {
-    const folder = folders.pop()
-    if (folder !== undefined) await rm(folder, { recursive: true, force: true })
-  }
-})
-
+const roots = fileRoots()
 type Routes = Record<string, { status: number; body: unknown }>
 
 async function surface(
@@ -55,8 +50,7 @@ async function surface(
   isSigned = true,
 ) {
   const served = serveGithub(routes)
-  const folder = await mkdtemp(path.join(tmpdir(), 'watchdog-surface-'))
-  folders.push(folder)
+  const folder = await roots.fresh('watchdog-surface-')
   const store = createWatchdogStore(createNodeScheduleFs(folder))
   if (seed !== undefined) await seed(store)
   let runs = 0
@@ -66,29 +60,17 @@ async function surface(
       ? new GitHubClient({
           fetch: served.fetch,
           userAgent: 'muse-spark-code/test',
-          log: watchdogLogger([]),
+          log: collectingLogger([]),
         })
       : undefined,
     token: isSigned ? 'token' : undefined,
-    now: () => NOW,
+    now: () => WATCHDOG_NOW,
     newRunId: () => {
       runs += 1
       return `run-${String(runs)}`
     },
   }
   return { port, calls: served.calls, folder }
-}
-
-function findingsFor(verdict: TriageFindings['verdict']): TriageFindings {
-  return triageFindingsSchema.parse({
-    version: 1,
-    verdict,
-    summary: 'Same title as #3.',
-    questions: verdict === 'needsInfo' ? ['What did you do?'] : [],
-    ...(verdict === 'duplicate' && { duplicateOf: 3 }),
-    ...(verdict === 'alreadyFixed' && { fixedIn: '0.19.0' }),
-    ...(verdict === 'inHand' && { inHandRef: 'PLAN.md M115' }),
-  })
 }
 
 function recordFor(
@@ -98,14 +80,14 @@ function recordFor(
   outcome?: WatchdogIssue['outcome'],
 ): WatchdogIssue {
   return watchdogIssueSchema.parse({
-    repository: REPOSITORY,
+    repository: WATCHDOG_REPOSITORY,
     issueNumber: number,
     issueId: number,
     state,
     runId: 'run-1',
     seenAtMs: 1,
     labelsApplied: [],
-    ...(verdict !== undefined && { findings: findingsFor(verdict) }),
+    ...(verdict !== undefined && { findings: findingsFor(verdict, 'Same title as #3.') }),
     ...(outcome !== undefined && { outcome }),
     lastTitle: 't',
     lastCommentCount: 0,
@@ -115,10 +97,39 @@ function recordFor(
 }
 
 async function seedIssues(store: ReturnType<typeof createWatchdogStore>, issues: WatchdogIssue[]) {
-  await store.exclusive(REPOSITORY, (data) => ({
+  await store.exclusive(WATCHDOG_REPOSITORY, (data) => ({
     data: { policy: data.policy, issues },
     result: undefined,
   }))
+}
+
+async function seedPlanned(store: ReturnType<typeof createWatchdogStore>): Promise<void> {
+  await store.exclusive(WATCHDOG_REPOSITORY, (_data) => ({
+    data: {
+      policy: { ...defaultWatchdogPolicy(WATCHDOG_REPOSITORY), closePolicy: 'onReply' },
+      issues: [recordFor(146, 'planned', 'valid', 'planEntry')],
+    },
+    result: undefined,
+  }))
+}
+
+function commandRunner(port: WatchdogSurfacePort, what: string) {
+  return async (argv: string[]) => {
+    const parsed = parseWatchdogCommand(argv)
+    if (parsed === undefined) throw new TypeError(what)
+    return await runWatchdogCommand(parsed, port)
+  }
+}
+
+function commentRoutes(extra?: Routes): Routes {
+  const comments = capturedObjects('github-issue-comments')
+  const [first] = comments
+  if (first === undefined) throw new TypeError('the capture holds comments')
+  return {
+    [`GET ${WATCHDOG_BASE}/issues/146/comments`]: { status: 200, body: [] },
+    [`POST ${WATCHDOG_BASE}/issues/146/comments`]: { status: 201, body: first },
+    ...extra,
+  }
 }
 
 function searchList(): unknown {
@@ -129,51 +140,51 @@ describe('watchdog command grammar', () => {
   it('parses the nine verbs', () => {
     expect(parseWatchdogCommand(['list'])).toEqual({ verb: 'list' })
     expect(parseWatchdogCommand(['status'])).toEqual({ verb: 'status' })
-    expect(parseWatchdogCommand(['status', REPOSITORY])).toEqual({
+    expect(parseWatchdogCommand(['status', WATCHDOG_REPOSITORY])).toEqual({
       verb: 'status',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
     })
-    expect(parseWatchdogCommand(['status', REPOSITORY, '146'])).toEqual({
+    expect(parseWatchdogCommand(['status', WATCHDOG_REPOSITORY, '146'])).toEqual({
       verb: 'status',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
       number: '146',
     })
-    expect(parseWatchdogCommand(['pause', REPOSITORY])).toEqual({
+    expect(parseWatchdogCommand(['pause', WATCHDOG_REPOSITORY])).toEqual({
       verb: 'pause',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
     })
-    expect(parseWatchdogCommand(['poll', REPOSITORY])).toEqual({
+    expect(parseWatchdogCommand(['poll', WATCHDOG_REPOSITORY])).toEqual({
       verb: 'poll',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
     })
-    expect(parseWatchdogCommand(['evidence', REPOSITORY, '146'])).toEqual({
+    expect(parseWatchdogCommand(['evidence', WATCHDOG_REPOSITORY, '146'])).toEqual({
       verb: 'evidence',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
       number: '146',
     })
-    expect(parseWatchdogCommand(['apply', REPOSITORY, '146', '{"a":', '1}'])).toEqual({
+    expect(parseWatchdogCommand(['apply', WATCHDOG_REPOSITORY, '146', '{"a":', '1}'])).toEqual({
       verb: 'apply',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
       number: '146',
       json: '{"a": 1}',
     })
-    expect(parseWatchdogCommand(['decide', REPOSITORY, '146'])).toEqual({
+    expect(parseWatchdogCommand(['decide', WATCHDOG_REPOSITORY, '146'])).toEqual({
       verb: 'decide',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
       number: '146',
       isApproved: false,
     })
-    expect(parseWatchdogCommand(['decide', REPOSITORY, '146', '--approve'])).toEqual({
+    expect(parseWatchdogCommand(['decide', WATCHDOG_REPOSITORY, '146', '--approve'])).toEqual({
       verb: 'decide',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
       number: '146',
       isApproved: true,
     })
     expect(
-      parseWatchdogCommand(['resolve', REPOSITORY, '146', '{"a":', '1}', '--approve']),
+      parseWatchdogCommand(['resolve', WATCHDOG_REPOSITORY, '146', '{"a":', '1}', '--approve']),
     ).toEqual({
       verb: 'resolve',
-      repository: REPOSITORY,
+      repository: WATCHDOG_REPOSITORY,
       number: '146',
       evidence: '{"a": 1}',
       isApproved: true,
@@ -183,15 +194,15 @@ describe('watchdog command grammar', () => {
   it('refuses bad shapes as usage', () => {
     expect(parseWatchdogCommand([])).toBeUndefined()
     expect(parseWatchdogCommand(['watch'])).toBeUndefined()
-    expect(parseWatchdogCommand(['list', REPOSITORY])).toBeUndefined()
-    expect(parseWatchdogCommand(['status', REPOSITORY, '146', 'extra'])).toBeUndefined()
+    expect(parseWatchdogCommand(['list', WATCHDOG_REPOSITORY])).toBeUndefined()
+    expect(parseWatchdogCommand(['status', WATCHDOG_REPOSITORY, '146', 'extra'])).toBeUndefined()
     expect(parseWatchdogCommand(['pause'])).toBeUndefined()
-    expect(parseWatchdogCommand(['evidence', REPOSITORY])).toBeUndefined()
-    expect(parseWatchdogCommand(['apply', REPOSITORY, '146'])).toBeUndefined()
+    expect(parseWatchdogCommand(['evidence', WATCHDOG_REPOSITORY])).toBeUndefined()
+    expect(parseWatchdogCommand(['apply', WATCHDOG_REPOSITORY, '146'])).toBeUndefined()
     expect(
-      parseWatchdogCommand(['decide', REPOSITORY, '146', '--approve', 'extra']),
+      parseWatchdogCommand(['decide', WATCHDOG_REPOSITORY, '146', '--approve', 'extra']),
     ).toBeUndefined()
-    expect(parseWatchdogCommand(['resolve', REPOSITORY, '146'])).toBeUndefined()
+    expect(parseWatchdogCommand(['resolve', WATCHDOG_REPOSITORY, '146'])).toBeUndefined()
   })
 })
 
@@ -204,7 +215,7 @@ describe('watchdog list, status, pause and resume', () => {
     if (parsed === undefined) throw new TypeError('list parses')
     const listed = await runWatchdogCommand(parsed, port)
     expect(listed.ok).toBe(true)
-    expect(listed.text).toContain(REPOSITORY)
+    expect(listed.text).toContain(WATCHDOG_REPOSITORY)
     expect(listed.text).toContain('1 issue')
     const bare = await surface({})
     const bareParsed = parseWatchdogCommand(['list'])
@@ -217,25 +228,21 @@ describe('watchdog list, status, pause and resume', () => {
     const { port } = await surface({}, (store) =>
       seedIssues(store, [recordFor(146, 'triaged', 'needsInfo')]),
     )
-    const run = async (argv: string[]) => {
-      const parsed = parseWatchdogCommand(argv)
-      if (parsed === undefined) throw new TypeError('status parses')
-      return await runWatchdogCommand(parsed, port)
-    }
-    const repo = await run(['status', REPOSITORY])
+    const run = commandRunner(port, 'status parses')
+    const repo = await run(['status', WATCHDOG_REPOSITORY])
     expect(repo.ok).toBe(true)
     expect(repo.text).toContain('#146')
     expect(repo.text).toContain(UI_TEXT.watchdog.states.triaged)
-    const issue = await run(['status', REPOSITORY, '146'])
+    const issue = await run(['status', WATCHDOG_REPOSITORY, '146'])
     expect(issue.ok).toBe(true)
-    expect(issue.text).toContain(`${REPOSITORY}#146`)
+    expect(issue.text).toContain(`${WATCHDOG_REPOSITORY}#146`)
     expect(issue.text).toContain(UI_TEXT.watchdog.verdicts.needsInfo)
     expect(issue.text).toContain('What did you do?')
     const foreign = await run(['status', 'someone/else'])
     expect(foreign.text).toBe(UI_TEXT.watchdog.cli.notWatched)
-    const missing = await run(['status', REPOSITORY, '999'])
+    const missing = await run(['status', WATCHDOG_REPOSITORY, '999'])
     expect(missing).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.unknownIssue })
-    const malformed = await run(['status', REPOSITORY, 'nope'])
+    const malformed = await run(['status', WATCHDOG_REPOSITORY, 'nope'])
     expect(malformed).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.invalidIssue })
   })
 
@@ -248,15 +255,15 @@ describe('watchdog list, status, pause and resume', () => {
     }
     const foreign = await run(['pause', 'someone/else'])
     expect(foreign.text).toBe(UI_TEXT.watchdog.cli.notWatched)
-    const paused = await run(['pause', REPOSITORY])
-    expect(paused.text).toContain(REPOSITORY)
-    const again = await run(['pause', REPOSITORY])
-    expect(again.text).toContain(REPOSITORY)
-    const resumedBack = await run(['resume', REPOSITORY])
-    expect(resumedBack.text).toContain(REPOSITORY)
-    const resumed = await run(['resume', REPOSITORY])
+    const paused = await run(['pause', WATCHDOG_REPOSITORY])
+    expect(paused.text).toContain(WATCHDOG_REPOSITORY)
+    const again = await run(['pause', WATCHDOG_REPOSITORY])
+    expect(again.text).toContain(WATCHDOG_REPOSITORY)
+    const resumedBack = await run(['resume', WATCHDOG_REPOSITORY])
+    expect(resumedBack.text).toContain(WATCHDOG_REPOSITORY)
+    const resumed = await run(['resume', WATCHDOG_REPOSITORY])
     expect(resumed.ok).toBe(false)
-    expect(resumed.text).toContain(REPOSITORY)
+    expect(resumed.text).toContain(WATCHDOG_REPOSITORY)
     const listed = await runWatchdogCommand({ verb: 'list' }, port)
     expect(listed.text).toContain('0 issues')
   })
@@ -268,19 +275,25 @@ describe('watchdog poll and evidence', () => {
     const [first] = comments
     if (first === undefined) throw new TypeError('the capture holds comments')
     const { port, calls } = await surface({
-      [`GET ${BASE}/issues`]: { status: 200, body: searchList() },
-      [`GET ${BASE}/issues/146/comments`]: { status: 200, body: [] },
-      [`GET ${BASE}/issues/157/comments`]: { status: 200, body: [] },
-      [`POST ${BASE}/issues/146/comments`]: { status: 201, body: first },
-      [`POST ${BASE}/issues/157/comments`]: { status: 201, body: first },
-      [`POST ${BASE}/issues/146/labels`]: { status: 200, body: watchdogCaptured('github-labels') },
-      [`POST ${BASE}/issues/157/labels`]: { status: 200, body: watchdogCaptured('github-labels') },
+      [`GET ${WATCHDOG_BASE}/issues`]: { status: 200, body: searchList() },
+      [`GET ${WATCHDOG_BASE}/issues/146/comments`]: { status: 200, body: [] },
+      [`GET ${WATCHDOG_BASE}/issues/157/comments`]: { status: 200, body: [] },
+      [`POST ${WATCHDOG_BASE}/issues/146/comments`]: { status: 201, body: first },
+      [`POST ${WATCHDOG_BASE}/issues/157/comments`]: { status: 201, body: first },
+      [`POST ${WATCHDOG_BASE}/issues/146/labels`]: {
+        status: 200,
+        body: watchdogCaptured('github-labels'),
+      },
+      [`POST ${WATCHDOG_BASE}/issues/157/labels`]: {
+        status: 200,
+        body: watchdogCaptured('github-labels'),
+      },
     })
-    const parsed = parseWatchdogCommand(['poll', REPOSITORY])
+    const parsed = parseWatchdogCommand(['poll', WATCHDOG_REPOSITORY])
     if (parsed === undefined) throw new TypeError('poll parses')
     const result = await runWatchdogCommand(parsed, port)
     expect(result.ok).toBe(true)
-    expect(result.text).toContain(REPOSITORY)
+    expect(result.text).toContain(WATCHDOG_REPOSITORY)
     expect(result.text).toContain(UI_TEXT.watchdog.poll.ackPosted)
     const posts = calls.filter((call) => call.method === 'POST' && call.url.endsWith('/comments'))
     expect(posts).toHaveLength(2)
@@ -294,9 +307,9 @@ describe('watchdog poll and evidence', () => {
 
   it('says GitHub’s own refusal and the missing sign-in', async () => {
     const refused = await surface({
-      [`GET ${BASE}/issues`]: { status: 404, body: { message: 'Not Found' } },
+      [`GET ${WATCHDOG_BASE}/issues`]: { status: 404, body: { message: 'Not Found' } },
     })
-    const parsed = parseWatchdogCommand(['poll', REPOSITORY])
+    const parsed = parseWatchdogCommand(['poll', WATCHDOG_REPOSITORY])
     if (parsed === undefined) throw new TypeError('poll parses')
     const stopped = await runWatchdogCommand(parsed, refused.port)
     expect(stopped.ok).toBe(false)
@@ -311,19 +324,17 @@ describe('watchdog poll and evidence', () => {
   it('prints the charter and the evidence pack for a tracked issue', async () => {
     const { port } = await surface(
       {
-        [`GET ${BASE}/issues/146`]: { status: 200, body: watchdogCaptured('github-issue') },
-        [`GET ${BASE}/issues`]: { status: 200, body: searchList() },
-        [`GET ${BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
-        [`GET ${BASE}/releases`]: { status: 200, body: watchdogCaptured('github-releases') },
-        [`GET ${BASE}/tags`]: { status: 200, body: watchdogCaptured('github-tags') },
-        ['GET https://api.github.com/search/commits']: {
+        [`GET ${WATCHDOG_BASE}/issues/146`]: {
           status: 200,
-          body: watchdogCaptured('github-search-commits'),
+          body: watchdogCaptured('github-issue'),
         },
+        [`GET ${WATCHDOG_BASE}/issues`]: { status: 200, body: searchList() },
+        [`GET ${WATCHDOG_BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
+        ...releaseRoutes(),
       },
       (store) => seedIssues(store, [recordFor(146, 'acknowledged')]),
     )
-    const parsed = parseWatchdogCommand(['evidence', REPOSITORY, '146'])
+    const parsed = parseWatchdogCommand(['evidence', WATCHDOG_REPOSITORY, '146'])
     if (parsed === undefined) throw new TypeError('evidence parses')
     const result = await runWatchdogCommand(parsed, port)
     expect(result.ok).toBe(true)
@@ -331,7 +342,7 @@ describe('watchdog poll and evidence', () => {
     expect(result.text).toContain('Issue #146')
     expect(result.text).toContain('main')
     expect(result.text).toContain('- v0.19.0 (2026-10-22T04:05:46Z)')
-    const untracked = parseWatchdogCommand(['evidence', REPOSITORY, '999'])
+    const untracked = parseWatchdogCommand(['evidence', WATCHDOG_REPOSITORY, '999'])
     if (untracked === undefined) throw new TypeError('evidence parses')
     expect(await runWatchdogCommand(untracked, port)).toEqual({
       ok: false,
@@ -356,47 +367,37 @@ describe('watchdog apply, decide and resolve', () => {
       summary: 'No steps.',
       questions: ['What did you do?'],
     })
-    const applied = await run(['apply', REPOSITORY, '146', findings])
+    const applied = await run(['apply', WATCHDOG_REPOSITORY, '146', findings])
     expect(applied.ok).toBe(true)
     expect(applied.text).toContain(UI_TEXT.watchdog.verdicts.needsInfo)
-    expect(await run(['apply', REPOSITORY, '146', 'not findings'])).toEqual({
+    expect(await run(['apply', WATCHDOG_REPOSITORY, '146', 'not findings'])).toEqual({
       ok: false,
       text: UI_TEXT.watchdog.triage.unreadable,
     })
-    expect(await run(['apply', REPOSITORY, '157', findings])).toEqual({
+    expect(await run(['apply', WATCHDOG_REPOSITORY, '157', findings])).toEqual({
       ok: false,
       text: UI_TEXT.watchdog.cli.applyNeedsAck,
     })
   })
 
   it('decides through the approval flag and holds spam without a post', async () => {
-    const comments = capturedObjects('github-issue-comments')
-    const [first] = comments
-    if (first === undefined) throw new TypeError('the capture holds comments')
-    const routes: Routes = {
-      [`GET ${BASE}/issues/146/comments`]: { status: 200, body: [] },
-      [`POST ${BASE}/issues/146/comments`]: { status: 201, body: first },
-    }
+    const routes = commentRoutes()
     const { port, calls } = await surface(routes, (store) =>
       seedIssues(store, [recordFor(146, 'triaged', 'needsInfo')]),
     )
-    const run = async (argv: string[]) => {
-      const parsed = parseWatchdogCommand(argv)
-      if (parsed === undefined) throw new TypeError('decide parses')
-      return await runWatchdogCommand(parsed, port)
-    }
-    const held = await run(['decide', REPOSITORY, '146'])
+    const run = commandRunner(port, 'decide parses')
+    const held = await run(['decide', WATCHDOG_REPOSITORY, '146'])
     expect(held.ok).toBe(true)
     expect(held.text).toContain(UI_TEXT.watchdog.refusal.approvalRequired)
     expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0)
-    const allowed = await run(['decide', REPOSITORY, '146', '--approve'])
+    const allowed = await run(['decide', WATCHDOG_REPOSITORY, '146', '--approve'])
     expect(allowed.ok).toBe(true)
     expect(allowed.text).toContain(UI_TEXT.watchdog.cli.posted)
     expect(allowed.text).toContain(UI_TEXT.watchdog.verdicts.needsInfo)
     const spam = await surface(routes, (store) =>
       seedIssues(store, [recordFor(146, 'triaged', 'spam')]),
     )
-    const spamParsed = parseWatchdogCommand(['decide', REPOSITORY, '146', '--approve'])
+    const spamParsed = parseWatchdogCommand(['decide', WATCHDOG_REPOSITORY, '146', '--approve'])
     if (spamParsed === undefined) throw new TypeError('decide parses')
     const held2 = await runWatchdogCommand(spamParsed, spam.port)
     expect(held2.text).toContain(UI_TEXT.watchdog.refusal.spamHeld)
@@ -405,36 +406,22 @@ describe('watchdog apply, decide and resolve', () => {
   })
 
   it('resolves on passing verification and refuses the rest', async () => {
-    const comments = capturedObjects('github-issue-comments')
-    const [first] = comments
-    if (first === undefined) throw new TypeError('the capture holds comments')
-    const routes: Routes = {
-      [`GET ${BASE}/issues/146/comments`]: { status: 200, body: [] },
-      [`POST ${BASE}/issues/146/comments`]: { status: 201, body: first },
-      [`PATCH ${BASE}/issues/146`]: { status: 200, body: watchdogCaptured('github-issue') },
-    }
-    const { port, calls } = await surface(routes, async (store) => {
-      await store.exclusive(REPOSITORY, (_data) => ({
-        data: {
-          policy: { ...defaultWatchdogPolicy(REPOSITORY), closePolicy: 'onReply' },
-          issues: [recordFor(146, 'planned', 'valid', 'planEntry')],
-        },
-        result: undefined,
-      }))
+    const routes = commentRoutes({
+      [`PATCH ${WATCHDOG_BASE}/issues/146`]: {
+        status: 200,
+        body: watchdogCaptured('github-issue'),
+      },
     })
-    const run = async (argv: string[]) => {
-      const parsed = parseWatchdogCommand(argv)
-      if (parsed === undefined) throw new TypeError('resolve parses')
-      return await runWatchdogCommand(parsed, port)
-    }
+    const { port, calls } = await surface(routes, seedPlanned)
+    const run = commandRunner(port, 'resolve parses')
     const evidence = JSON.stringify({
       pullRequestNumber: 1,
-      pullRequestUrl: `${BASE.replace('api.github.com/repos', 'github.com')}/pull/1`,
+      pullRequestUrl: `${WATCHDOG_BASE.replace('api.github.com/repos', 'github.com')}/pull/1`,
       version: 'v0.19.0',
       passed: true,
       notes: 'The reproduction passes on the fix.',
     })
-    const resolved = await run(['resolve', REPOSITORY, '146', evidence, '--approve'])
+    const resolved = await run(['resolve', WATCHDOG_REPOSITORY, '146', evidence, '--approve'])
     expect(resolved.ok).toBe(true)
     expect(resolved.text).toContain(UI_TEXT.watchdog.cli.posted)
     expect(resolved.text).toContain(UI_TEXT.watchdog.cli.closedNote)
@@ -448,23 +435,11 @@ describe('watchdog apply, decide and resolve', () => {
       notes: 'Still crashes.',
     })
     // A fresh record: the resolved one already moved on.
-    const { port: port2 } = await surface(routes, async (store) => {
-      await store.exclusive(REPOSITORY, (_data) => ({
-        data: {
-          policy: { ...defaultWatchdogPolicy(REPOSITORY), closePolicy: 'onReply' },
-          issues: [recordFor(146, 'planned', 'valid', 'planEntry')],
-        },
-        result: undefined,
-      }))
-    })
-    const run2 = async (argv: string[]) => {
-      const parsed = parseWatchdogCommand(argv)
-      if (parsed === undefined) throw new TypeError('resolve parses')
-      return await runWatchdogCommand(parsed, port2)
-    }
-    const unverified = await run2(['resolve', REPOSITORY, '146', failing, '--approve'])
+    const { port: port2 } = await surface(routes, seedPlanned)
+    const run2 = commandRunner(port2, 'resolve parses')
+    const unverified = await run2(['resolve', WATCHDOG_REPOSITORY, '146', failing, '--approve'])
     expect(unverified.text).toContain('Still crashes.')
-    expect(await run2(['resolve', REPOSITORY, '146', 'oops', '--approve'])).toEqual({
+    expect(await run2(['resolve', WATCHDOG_REPOSITORY, '146', 'oops', '--approve'])).toEqual({
       ok: false,
       text: UI_TEXT.watchdog.cli.invalidEvidence,
     })
@@ -486,7 +461,7 @@ describe('watchdog CLI exits and ACP answers', () => {
         printError: (text) => {
           stderr.push(text)
         },
-        log: watchdogLogger(logged),
+        log: collectingLogger(logged),
       })
       return { code, stdout, stderr, logged }
     }
@@ -511,7 +486,7 @@ describe('watchdog CLI exits and ACP answers', () => {
       printError: (text) => {
         stderr.push(text)
       },
-      log: watchdogLogger([]),
+      log: collectingLogger([]),
     })
     expect(missing).toBe(1)
     expect(stdout).toHaveLength(0)
@@ -519,8 +494,7 @@ describe('watchdog CLI exits and ACP answers', () => {
   })
 
   it('fails a bound store out loud, with the kind on the record', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'watchdog-broken-'))
-    folders.push(folder)
+    const folder = await roots.fresh('watchdog-broken-')
     const file = path.join(folder, 'file.json')
     await writeFile(file, '{}')
     const store = createWatchdogStore(createNodeScheduleFs(file))
@@ -528,14 +502,20 @@ describe('watchdog CLI exits and ACP answers', () => {
     const stderr: string[] = []
     const logged: string[] = []
     const code = await runWatchdogCli(['list'], {
-      port: { store, client: undefined, token: undefined, now: () => NOW, newRunId: () => 'run-1' },
+      port: {
+        store,
+        client: undefined,
+        token: undefined,
+        now: () => WATCHDOG_NOW,
+        newRunId: () => 'run-1',
+      },
       writeStdout: (text) => {
         stdout.push(text)
       },
       printError: (text) => {
         stderr.push(text)
       },
-      log: watchdogLogger(logged),
+      log: collectingLogger(logged),
     })
     expect(code).toBe(1)
     expect(stdout).toHaveLength(0)
@@ -547,7 +527,7 @@ describe('watchdog CLI exits and ACP answers', () => {
     const { port } = await surface({}, (store) =>
       seedIssues(store, [recordFor(146, 'acknowledged')]),
     )
-    const quiet = watchdogLogger([])
+    const quiet = collectingLogger([])
     expect(
       await acpWatchdog(
         [{ type: 'text' as const, text: 'hello there' }],
@@ -571,7 +551,7 @@ describe('watchdog CLI exits and ACP answers', () => {
       quiet,
     )
     expect(listed?.ok).toBe(true)
-    expect(listed?.text).toContain(REPOSITORY)
+    expect(listed?.text).toContain(WATCHDOG_REPOSITORY)
     const missing = await acpWatchdog(
       [{ type: 'text' as const, text: '/watchdog list' }],
       () => Promise.resolve(undefined),
@@ -581,8 +561,7 @@ describe('watchdog CLI exits and ACP answers', () => {
   })
 
   it('fails a bound store out loud at the ACP layer too', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'watchdog-acp-broken-'))
-    folders.push(folder)
+    const folder = await roots.fresh('watchdog-acp-broken-')
     const file = path.join(folder, 'file.json')
     await writeFile(file, '{}')
     const store = createWatchdogStore(createNodeScheduleFs(file))
@@ -594,10 +573,10 @@ describe('watchdog CLI exits and ACP answers', () => {
           store,
           client: undefined,
           token: undefined,
-          now: () => NOW,
+          now: () => WATCHDOG_NOW,
           newRunId: () => 'run-1',
         }),
-      watchdogLogger(logged),
+      collectingLogger(logged),
     )
     expect(answer).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.commandFailed })
     expect(logged.some((line) => line.includes('The watchdog command failed:'))).toBe(true)

@@ -3,16 +3,16 @@
 // drain into the scheduler exactly once across two processes, and bursts
 // clear on discard. Manual triggers never travel the intake.
 import { existsSync } from 'node:fs'
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import {
   scheduleEventRunId,
   scheduleEventSchema,
   type ScheduleEvent,
+  type ScheduleEventSource,
   type ScheduleHistoryRange,
   type SchedulePollingEventSource,
 } from '../../src/shared/scheduleEvents'
@@ -28,20 +28,9 @@ import { localGitRefs, ScheduleGitSource } from '../../src/core/schedules/events
 import { scheduleStorageHash } from '../../src/core/schedules/store'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { scheduleFixture } from './helpers/scheduleFixtures'
+import { fileRoots } from './helpers/tempDirs'
 
-const folders: string[] = []
-afterEach(async () => {
-  while (folders.length > 0) {
-    const folder = folders.pop()
-    if (folder !== undefined) await rm(folder, { recursive: true, force: true })
-  }
-})
-
-async function storeRoot(): Promise<string> {
-  const folder = await mkdtemp(path.join(tmpdir(), 'schedule-event-intake-'))
-  folders.push(folder)
-  return folder
-}
+const roots = fileRoots()
 
 interface IntakeHarness {
   readonly intake: ScheduleEventIntake
@@ -58,22 +47,30 @@ function eventTrigger(
   return { kind: 'event', source, event, conditions: [] }
 }
 
-async function harness(root: string, schedules: readonly ScheduleV2[]): Promise<IntakeHarness> {
-  const workspace = 'workspace-1'
-  const fs = createNodeScheduleFs(root)
-  const store = createScheduleStore(fs)
-  for (const schedule of schedules) await store.create(schedule)
-  let nowMs = 1_700_000_000_000
-  const fired: IntakeHarness['fired'] = []
-  const reported: unknown[] = []
-  const hub = hostEventHub(workspace, 'agents', ['turnFinished'])
-  const intake = new ScheduleEventIntake({
+function agentsJob(id: string): ScheduleV2 {
+  return scheduleFixture({
+    id,
+    workspaceKey: 'workspace-1',
+    trigger: eventTrigger('agents', 'turnFinished'),
+  })
+}
+
+function openIntake(
+  root: string,
+  fs: ReturnType<typeof createNodeScheduleFs>,
+  store: ReturnType<typeof createScheduleStore>,
+  sources: readonly ScheduleEventSource[],
+  fired: IntakeHarness['fired'],
+  reported: unknown[],
+  now: () => number,
+): ScheduleEventIntake {
+  return new ScheduleEventIntake({
     store,
-    workspaceKey: workspace,
-    sources: [hub, new ScheduleManualSource(workspace, () => nowMs)],
+    workspaceKey: 'workspace-1',
+    sources,
     engine: new ScheduleEventEngine(
-      () => nowMs,
-      createEventClaimStore(fs, workspace),
+      now,
+      createEventClaimStore(fs, 'workspace-1'),
       new ScheduleEventPrivacy(
         [root],
         { mark: (block) => block },
@@ -84,11 +81,31 @@ async function harness(root: string, schedules: readonly ScheduleV2[]): Promise<
       fired.push({ schedule, event, occurrenceMs })
       return Promise.resolve()
     },
-    now: () => nowMs,
+    now,
     report: (error: unknown) => {
       reported.push(error)
     },
   })
+}
+
+async function harness(root: string, schedules: readonly ScheduleV2[]): Promise<IntakeHarness> {
+  const workspace = 'workspace-1'
+  const fs = createNodeScheduleFs(root)
+  const store = createScheduleStore(fs)
+  for (const schedule of schedules) await store.create(schedule)
+  let nowMs = 1_700_000_000_000
+  const fired: IntakeHarness['fired'] = []
+  const reported: unknown[] = []
+  const hub = hostEventHub(workspace, 'agents', ['turnFinished'])
+  const intake = openIntake(
+    root,
+    fs,
+    store,
+    [hub, new ScheduleManualSource(workspace, () => nowMs)],
+    fired,
+    reported,
+    () => nowMs,
+  )
   return {
     intake,
     fired,
@@ -159,7 +176,7 @@ class DirectoryPollSource implements SchedulePollingEventSource {
 
 describe('production event intake', () => {
   it('polls a polling source and fires what it finds', async () => {
-    const root = await storeRoot()
+    const root = await roots.fresh('schedule-event-intake-')
     const watched = path.join(root, 'watched')
     await mkdir(watched, { recursive: true })
     const fs = createNodeScheduleFs(root)
@@ -173,28 +190,15 @@ describe('production event intake', () => {
     let nowMs = 1_700_000_000_000
     const fired: IntakeHarness['fired'] = []
     const reported: unknown[] = []
-    const intake = new ScheduleEventIntake({
+    const intake = openIntake(
+      root,
+      fs,
       store,
-      workspaceKey: 'workspace-1',
-      sources: [new DirectoryPollSource(watched, () => nowMs)],
-      engine: new ScheduleEventEngine(
-        () => nowMs,
-        createEventClaimStore(fs, 'workspace-1'),
-        new ScheduleEventPrivacy(
-          [root],
-          { mark: (block) => block },
-          UI_TEXT.scheduleV2.messages.eventUntrusted,
-        ),
-      ),
-      fire: (schedule, event, occurrenceMs) => {
-        fired.push({ schedule, event, occurrenceMs })
-        return Promise.resolve()
-      },
-      now: () => nowMs,
-      report: (error: unknown) => {
-        reported.push(error)
-      },
-    })
+      [new DirectoryPollSource(watched, () => nowMs)],
+      fired,
+      reported,
+      () => nowMs,
+    )
     try {
       await intake.poll()
       expect(fired).toEqual([])
@@ -213,12 +217,8 @@ describe('production event intake', () => {
   })
 
   it('fires a subscribed event once after its burst matures', async () => {
-    const root = await storeRoot()
-    const job = scheduleFixture({
-      id: 'schedule-b',
-      workspaceKey: 'workspace-1',
-      trigger: eventTrigger('agents', 'turnFinished'),
-    })
+    const root = await roots.fresh('schedule-event-intake-')
+    const job = agentsJob('schedule-b')
     const { intake, fired, reported, advance, hub } = await harness(root, [job])
     try {
       await intake.poll()
@@ -243,40 +243,23 @@ describe('production event intake', () => {
   })
 
   it('claims the same deterministic event once across two processes', async () => {
-    const root = await storeRoot()
-    const job = scheduleFixture({
-      id: 'schedule-b',
-      workspaceKey: 'workspace-1',
-      trigger: eventTrigger('agents', 'turnFinished'),
-    })
+    const root = await roots.fresh('schedule-event-intake-')
+    const job = agentsJob('schedule-b')
     const first = await harness(root, [job])
     const fs = createNodeScheduleFs(root)
     const store = createScheduleStore(fs)
     let nowMs = 1_700_000_000_000
     const fired: IntakeHarness['fired'] = []
     const secondReported: unknown[] = []
-    const second = new ScheduleEventIntake({
+    const second = openIntake(
+      root,
+      fs,
       store,
-      workspaceKey: 'workspace-1',
-      sources: [hostEventHub('workspace-1', 'agents', ['turnFinished'])],
-      engine: new ScheduleEventEngine(
-        () => nowMs,
-        createEventClaimStore(fs, 'workspace-1'),
-        new ScheduleEventPrivacy(
-          [root],
-          { mark: (block) => block },
-          UI_TEXT.scheduleV2.messages.eventUntrusted,
-        ),
-      ),
-      fire: (schedule, event, occurrenceMs) => {
-        fired.push({ schedule, event, occurrenceMs })
-        return Promise.resolve()
-      },
-      now: () => nowMs,
-      report: (error: unknown) => {
-        secondReported.push(error)
-      },
-    })
+      [hostEventHub('workspace-1', 'agents', ['turnFinished'])],
+      fired,
+      secondReported,
+      () => nowMs,
+    )
     try {
       await first.intake.poll()
       await second.poll()
@@ -299,12 +282,8 @@ describe('production event intake', () => {
   })
 
   it('clears open bursts on discard', async () => {
-    const root = await storeRoot()
-    const job = scheduleFixture({
-      id: 'schedule-b',
-      workspaceKey: 'workspace-1',
-      trigger: eventTrigger('agents', 'turnFinished'),
-    })
+    const root = await roots.fresh('schedule-event-intake-')
+    const job = agentsJob('schedule-b')
     const { intake, fired, advance, hub } = await harness(root, [job])
     try {
       await intake.poll()
@@ -321,12 +300,8 @@ describe('production event intake', () => {
   })
 
   it('never fires a schedule on its own settlement', async () => {
-    const root = await storeRoot()
-    const job = scheduleFixture({
-      id: 'schedule-b',
-      workspaceKey: 'workspace-1',
-      trigger: eventTrigger('agents', 'turnFinished'),
-    })
+    const root = await roots.fresh('schedule-event-intake-')
+    const job = agentsJob('schedule-b')
     const { intake, fired, advance } = await harness(root, [job])
     try {
       await intake.poll()
@@ -343,7 +318,7 @@ describe('production event intake', () => {
   })
 
   it('never routes manual triggers through the intake', async () => {
-    const root = await storeRoot()
+    const root = await roots.fresh('schedule-event-intake-')
     const job = scheduleFixture({
       id: 'schedule-m',
       workspaceKey: 'workspace-1',
@@ -368,18 +343,14 @@ describe('production event intake', () => {
   })
 
   it('reports a failing polling source and still enqueues the others', async () => {
-    const root = await storeRoot()
+    const root = await roots.fresh('schedule-event-intake-')
     // A .git directory that is not a repository: capability reads
     // available, the read itself fails for real.
     const broken = path.join(root, 'repo')
     await mkdir(path.join(broken, '.git'), { recursive: true })
     const fs = createNodeScheduleFs(root)
     const store = createScheduleStore(fs)
-    const job = scheduleFixture({
-      id: 'schedule-b',
-      workspaceKey: 'workspace-1',
-      trigger: eventTrigger('agents', 'turnFinished'),
-    })
+    const job = agentsJob('schedule-b')
     await store.create(job)
     const reported: unknown[] = []
     const fired: IntakeHarness['fired'] = []
@@ -389,28 +360,7 @@ describe('production event intake', () => {
       () => 1_700_000_000_000,
     )
     let nowMs = 1_700_000_000_000
-    const intake = new ScheduleEventIntake({
-      store,
-      workspaceKey: 'workspace-1',
-      sources: [git, hub],
-      engine: new ScheduleEventEngine(
-        () => nowMs,
-        createEventClaimStore(fs, 'workspace-1'),
-        new ScheduleEventPrivacy(
-          [root],
-          { mark: (block) => block },
-          UI_TEXT.scheduleV2.messages.eventUntrusted,
-        ),
-      ),
-      fire: (schedule, event, occurrenceMs) => {
-        fired.push({ schedule, event, occurrenceMs })
-        return Promise.resolve()
-      },
-      now: () => nowMs,
-      report: (error: unknown) => {
-        reported.push(error)
-      },
-    })
+    const intake = openIntake(root, fs, store, [git, hub], fired, reported, () => nowMs)
     try {
       await intake.poll()
       hub.publish(turnFinished('run-4', 'schedule-a'))
@@ -429,12 +379,8 @@ describe('production event intake', () => {
   })
 
   it('drops a drained burst when its schedule is gone', async () => {
-    const root = await storeRoot()
-    const job = scheduleFixture({
-      id: 'schedule-gone',
-      workspaceKey: 'workspace-1',
-      trigger: eventTrigger('agents', 'turnFinished'),
-    })
+    const root = await roots.fresh('schedule-event-intake-')
+    const job = agentsJob('schedule-gone')
     const { intake, fired, advance, hub } = await harness(root, [job])
     try {
       await intake.poll()
@@ -454,7 +400,7 @@ describe('production event intake', () => {
 
 describe('durable event claims', () => {
   it('persists receipts across instances and lists claimed schedules', async () => {
-    const root = await storeRoot()
+    const root = await roots.fresh('schedule-event-intake-')
     const first = createEventClaimStore(createNodeScheduleFs(root), 'workspace-1')
     const isAdmitted = await first.transact('schedule-1', (state) => {
       state.receipts.add(scheduleEventRunId('schedule-1', { source: 'git', eventKey: 'abc' }))
@@ -471,7 +417,7 @@ describe('durable event claims', () => {
   })
 
   it('refuses a corrupt claim file instead of firing from it', async () => {
-    const root = await storeRoot()
+    const root = await roots.fresh('schedule-event-intake-')
     const claims = createEventClaimStore(createNodeScheduleFs(root), 'workspace-1')
     await claims.transact('schedule-1', () => 'ok')
     await mkdir(path.join(root, 'workspace-1', 'events'), { recursive: true })

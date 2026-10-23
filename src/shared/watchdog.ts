@@ -66,7 +66,6 @@ export const triageFindingsSchema = z
 export type TriageFindings = z.infer<typeof triageFindingsSchema>
 
 export const watchdogApprovalSchema = z.enum(['ask', 'always', 'never'])
-export type WatchdogApproval = z.infer<typeof watchdogApprovalSchema>
 
 export const watchdogClosePolicySchema = z.enum(['never', 'onReply', 'onFixRelease'])
 export type WatchdogClosePolicy = z.infer<typeof watchdogClosePolicySchema>

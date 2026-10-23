@@ -3,10 +3,8 @@
 // adapter's pending refusal until M113's backend binds, the structural
 // destination verdicts, and schedule_report through the shared creation
 // funnel.
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { AGENT_SCHEDULE_MIN_INTERVAL_MS, UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 import type { ReportDeliveryPayload } from '../../src/core/reporting/destinations/types'
@@ -39,20 +37,9 @@ import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs
 import { createAuthorityStore } from '../../src/runtime/schedules/authorityStore'
 import { scheduleFixture, runContextFixture } from './helpers/scheduleFixtures'
 import { reportDocument } from './helpers/reporting/kindFixtures'
+import { fileRoots } from './helpers/tempDirs'
 
-const folders: string[] = []
-afterEach(async () => {
-  while (folders.length > 0) {
-    const folder = folders.pop()
-    if (folder !== undefined) await rm(folder, { recursive: true, force: true })
-  }
-})
-
-async function tempDir(prefix: string): Promise<string> {
-  const folder = await mkdtemp(path.join(tmpdir(), prefix))
-  folders.push(folder)
-  return folder
-}
+const roots = fileRoots()
 
 const OCCURRENCE = '2026-10-22T12:00:00.000Z'
 
@@ -75,6 +62,17 @@ function reportSchedule(id: string): ScheduleV2 & { action: ScheduleReportAction
   })
   if (job.action.kind !== 'report') throw new Error('fixture must run a report')
   return { ...job, action: job.action }
+}
+
+async function grantedStore(prefix: string) {
+  const root = await roots.fresh(prefix)
+  const fs = createNodeScheduleFs(root)
+  const store = createScheduleStore(fs)
+  const authorityStore = createAuthorityStore(store, fs, 'runtime/grant-audits.json')
+  const editor = new ScheduleGrantEditor(authorityStore, Date.now)
+  const job = reportSchedule('schedule-1')
+  await editor.create(job)
+  return { root, fs, store, authorityStore, editor, job }
 }
 
 function runnerAction(ids: readonly string[]): RunnerReportAction {
@@ -123,7 +121,7 @@ function occurrencePayload(): ReportDeliveryPayload {
 
 describe('durable report occurrences', () => {
   it('round-trips a frozen payload across instances', async () => {
-    const root = await tempDir('schedule-report-occ-')
+    const root = await roots.fresh('schedule-report-occ-')
     const fs = createNodeScheduleFs(root)
     const first = createReportOccurrencePort(fs)
     await first.exclusive('schedule-1', OCCURRENCE, async () => {
@@ -141,7 +139,7 @@ describe('durable report occurrences', () => {
   })
 
   it('serializes concurrent occurrence writers', async () => {
-    const root = await tempDir('schedule-report-serial-')
+    const root = await roots.fresh('schedule-report-serial-')
     const port = createReportOccurrencePort(createNodeScheduleFs(root))
     const order: string[] = []
     const gate = Promise.withResolvers<boolean>()
@@ -181,7 +179,7 @@ describe('durable report occurrences', () => {
   })
 
   it('refuses a corrupt occurrence file instead of running from it', async () => {
-    const root = await tempDir('schedule-report-corrupt-')
+    const root = await roots.fresh('schedule-report-corrupt-')
     const port = createReportOccurrencePort(createNodeScheduleFs(root))
     await port.write('schedule-1', OCCURRENCE, {
       actionKey: 'b'.repeat(64),
@@ -206,7 +204,7 @@ describe('durable report occurrences', () => {
 
 describe('live report authority', () => {
   it('authorizes covered destinations with live roots and no network', async () => {
-    const root = await tempDir('schedule-report-auth-')
+    const root = await roots.fresh('schedule-report-auth-')
     const fs = createNodeScheduleFs(root)
     const store = createScheduleStore(fs)
     const authorityStore = createAuthorityStore(store, fs, 'runtime/grant-audits.json')
@@ -235,13 +233,7 @@ describe('live report authority', () => {
   })
 
   it('denies paused, revoked, uncovered and unknown schedules', async () => {
-    const root = await tempDir('schedule-report-deny-')
-    const fs = createNodeScheduleFs(root)
-    const store = createScheduleStore(fs)
-    const authorityStore = createAuthorityStore(store, fs, 'runtime/grant-audits.json')
-    const editor = new ScheduleGrantEditor(authorityStore, Date.now)
-    const job = reportSchedule('schedule-1')
-    await editor.create(job)
+    const { root, store, authorityStore, editor } = await grantedStore('schedule-report-deny-')
     const authority = createScheduleReportAuthority({
       authority: authorityStore,
       workspaceKey: 'workspace-1',
@@ -268,7 +260,7 @@ describe('live report authority', () => {
 
 describe('report adapter without a backend', () => {
   it('reports pending availability and the runner refuses with its sentence', async () => {
-    const root = await tempDir('schedule-report-pending-')
+    const root = await roots.fresh('schedule-report-pending-')
     const fs = createNodeScheduleFs(root)
     const store = createScheduleStore(fs)
     const authorityStore = createAuthorityStore(store, fs, 'runtime/grant-audits.json')
@@ -306,7 +298,7 @@ describe('report adapter without a backend', () => {
   })
 
   it('throws for unknown schedules and edited-away report actions', async () => {
-    const root = await tempDir('schedule-report-throw-')
+    const root = await roots.fresh('schedule-report-throw-')
     const fs = createNodeScheduleFs(root)
     const store = createScheduleStore(fs)
     const authorityStore = createAuthorityStore(store, fs, 'runtime/grant-audits.json')
@@ -336,13 +328,7 @@ describe('report adapter without a backend', () => {
 
 describe('report adapter with a bound backend', () => {
   it('translates the live action and honors a revoked grant without generating', async () => {
-    const root = await tempDir('schedule-report-bound-')
-    const fs = createNodeScheduleFs(root)
-    const store = createScheduleStore(fs)
-    const authorityStore = createAuthorityStore(store, fs, 'runtime/grant-audits.json')
-    const editor = new ScheduleGrantEditor(authorityStore, Date.now)
-    const job = reportSchedule('schedule-1')
-    await editor.create(job)
+    const { root, fs, store, authorityStore, editor } = await grantedStore('schedule-report-bound-')
     const translated: { action: ScheduleReportAction; locale: string }[] = []
     const unreachable = () => Promise.reject(new Error('must not run while revoked'))
     const port = createScheduleReportPort({
@@ -587,7 +573,7 @@ function draft(): ScheduleDraft {
 
 describe('schedule_report through the agent tools', () => {
   it('lists schedule_report only when the report port is bound', async () => {
-    const root = await tempDir('schedule-report-tools-')
+    const root = await roots.fresh('schedule-report-tools-')
     const committed = { current: true }
     const transcripts: TranscriptRow[] = []
     const { tools, deps } = harness(root, committed, transcripts)
@@ -611,7 +597,7 @@ describe('schedule_report through the agent tools', () => {
   })
 
   it('creates a report schedule through the shared funnel', async () => {
-    const root = await tempDir('schedule-report-create-')
+    const root = await roots.fresh('schedule-report-create-')
     const committed = { current: true }
     const transcripts: TranscriptRow[] = []
     const { store, tools, deps } = harness(root, committed, transcripts)
@@ -638,7 +624,7 @@ describe('schedule_report through the agent tools', () => {
   })
 
   it('refuses opaque destinations, prompt drafts and missing ports', async () => {
-    const root = await tempDir('schedule-report-refuse-')
+    const root = await roots.fresh('schedule-report-refuse-')
     const committed = { current: true }
     const transcripts: TranscriptRow[] = []
     const { tools, deps } = harness(root, committed, transcripts)
@@ -680,7 +666,7 @@ describe('schedule_report through the agent tools', () => {
   })
 
   it('maps admission through the standalone port', async () => {
-    const root = await tempDir('schedule-report-admit-')
+    const root = await roots.fresh('schedule-report-admit-')
     const committed = { current: true }
     const transcripts: TranscriptRow[] = []
     const { tools } = harness(root, committed, transcripts)

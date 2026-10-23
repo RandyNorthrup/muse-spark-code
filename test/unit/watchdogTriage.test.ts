@@ -4,10 +4,7 @@
 // collector reads the served captures end to end; findings apply to an
 // acknowledged record and anything else-shaped refuses. One commit
 // message is a marked synthetic modification of its captured body.
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { GitHubClient } from '../../src/core/git/github'
 import { createWatchdogStore } from '../../src/core/watchdog/store'
 import {
@@ -24,19 +21,17 @@ import {
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { watchdogIssueSchema } from '../../src/shared/watchdog'
-import { serveGithub, watchdogCaptured, watchdogLogger } from './helpers/watchdog/servedGithub'
+import { collectingLogger } from './helpers/collectingLogger'
+import { fileRoots } from './helpers/tempDirs'
+import {
+  WATCHDOG_BASE,
+  WATCHDOG_NAMED,
+  WATCHDOG_REPOSITORY,
+  releaseRoutes,
+} from './helpers/watchdog/fixtures'
+import { serveGithub, watchdogCaptured } from './helpers/watchdog/servedGithub'
 
-const REPOSITORY = 'RandyNorthrup/muse-spark-code'
-const NAMED = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
-const BASE = 'https://api.github.com/repos/RandyNorthrup/muse-spark-code'
-
-const folders: string[] = []
-afterEach(async () => {
-  while (folders.length > 0) {
-    const folder = folders.pop()
-    if (folder !== undefined) await rm(folder, { recursive: true, force: true })
-  }
-})
+const roots = fileRoots()
 
 function triageClient(routes: Record<string, { status: number; body: unknown }>) {
   const served = serveGithub(routes)
@@ -45,8 +40,17 @@ function triageClient(routes: Record<string, { status: number; body: unknown }>)
     client: new GitHubClient({
       fetch: served.fetch,
       userAgent: 'muse-spark-code/test',
-      log: watchdogLogger([]),
+      log: collectingLogger([]),
     }),
+  }
+}
+
+function searchIssuesRoute(): Record<string, { status: number; body: unknown }> {
+  return {
+    ['GET https://api.github.com/search/issues']: {
+      status: 200,
+      body: watchdogCaptured('github-search-issues'),
+    },
   }
 }
 
@@ -60,13 +64,8 @@ describe('watchdog triage', () => {
   })
 
   it('matches the captured same-title pair as duplicates, and nothing else', async () => {
-    const { client } = triageClient({
-      ['GET https://api.github.com/search/issues']: {
-        status: 200,
-        body: watchdogCaptured('github-search-issues'),
-      },
-    })
-    const search = await client.searchIssues('token', `repo:${REPOSITORY} type:issue`)
+    const { client } = triageClient(searchIssuesRoute())
+    const search = await client.searchIssues('token', `repo:${WATCHDOG_REPOSITORY} type:issue`)
     const four = search.issues.find((item) => item.number === 4)
     const oneFourtySix = search.issues.find((item) => item.number === 146)
     if (four === undefined || oneFourtySix === undefined)
@@ -84,7 +83,7 @@ describe('watchdog triage', () => {
         body: watchdogCaptured('github-search-commits'),
       },
     })
-    const search = await client.searchCommits('token', `repo:${REPOSITORY} 146`)
+    const search = await client.searchCommits('token', `repo:${WATCHDOG_REPOSITORY} 146`)
     expect(search.totalCount).toBe(4)
     // The captured rows say `146 passed` and `WB-146`: broad search, no
     // `#146` citation, so nothing counts yet.
@@ -121,24 +120,16 @@ describe('watchdog triage', () => {
 
   it('collects and formats the evidence from the served captures', async () => {
     const { client, calls } = triageClient({
-      [`GET ${BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
-      [`GET ${BASE}/releases`]: { status: 200, body: watchdogCaptured('github-releases') },
-      [`GET ${BASE}/tags`]: { status: 200, body: watchdogCaptured('github-tags') },
-      ['GET https://api.github.com/search/commits']: {
-        status: 200,
-        body: watchdogCaptured('github-search-commits'),
-      },
-      ['GET https://api.github.com/search/issues']: {
-        status: 200,
-        body: watchdogCaptured('github-search-issues'),
-      },
+      [`GET ${WATCHDOG_BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
+      ...releaseRoutes(),
+      ...searchIssuesRoute(),
     })
-    const search = await client.searchIssues('token', `repo:${REPOSITORY} type:issue`)
+    const search = await client.searchIssues('token', `repo:${WATCHDOG_REPOSITORY} type:issue`)
     const four = search.issues.find((item) => item.number === 4)
     if (four === undefined) throw new TypeError('the capture holds issue 4')
     const evidence = await collectTriageEvidence(
       { client, token: 'token' },
-      NAMED,
+      WATCHDOG_NAMED,
       four,
       search.issues,
       [],
@@ -160,15 +151,14 @@ describe('watchdog triage', () => {
   })
 
   it('applies proven findings and refuses anything else-shaped', async () => {
-    const folder = await mkdtemp(path.join(tmpdir(), 'watchdog-triage-'))
-    folders.push(folder)
+    const folder = await roots.fresh('watchdog-triage-')
     const store = createWatchdogStore(createNodeScheduleFs(folder))
-    await store.exclusive(REPOSITORY, (data) => ({
+    await store.exclusive(WATCHDOG_REPOSITORY, (data) => ({
       data: {
         policy: data.policy,
         issues: [
           watchdogIssueSchema.parse({
-            repository: REPOSITORY,
+            repository: WATCHDOG_REPOSITORY,
             issueNumber: 4,
             issueId: 4,
             state: 'acknowledged',
@@ -187,20 +177,20 @@ describe('watchdog triage', () => {
     const deps = { store, now: () => 1_700_000_000_000 }
     // Refusals first: the record is still acknowledged, so the answer is
     // what refuses, and the record is untouched afterwards.
-    await expect(triageWatchdogIssue(deps, REPOSITORY, 4, 'not findings')).rejects.toThrow(
+    await expect(triageWatchdogIssue(deps, WATCHDOG_REPOSITORY, 4, 'not findings')).rejects.toThrow(
       UI_TEXT.watchdog.triage.unreadable,
     )
     await expect(
       triageWatchdogIssue(
         deps,
-        REPOSITORY,
+        WATCHDOG_REPOSITORY,
         4,
         JSON.stringify({ version: 1, verdict: 'duplicate', summary: 'x', questions: [] }),
       ),
     ).rejects.toThrow(UI_TEXT.watchdog.triage.unreadable)
     const applied = await triageWatchdogIssue(
       deps,
-      REPOSITORY,
+      WATCHDOG_REPOSITORY,
       4,
       JSON.stringify({
         version: 1,
@@ -212,7 +202,7 @@ describe('watchdog triage', () => {
     )
     expect(applied.state).toBe('triaged')
     expect(applied.findings.duplicateOf).toBe(3)
-    await expect(triageWatchdogIssue(deps, REPOSITORY, 9, '{}')).rejects.toThrow(
+    await expect(triageWatchdogIssue(deps, WATCHDOG_REPOSITORY, 9, '{}')).rejects.toThrow(
       'watchdog cannot triage issue 9 before its acknowledgement',
     )
   })
