@@ -65,12 +65,12 @@ export function chooseCoordinatorMode(
 // the store-identity and epoch checks at open.
 function syncRoots(platform: NodeJS.Platform, home: string): readonly string[] {
   const normal = platform === 'win32' ? path.win32 : path.posix
+  if (platform === 'darwin')
+    return ['Library/Mobile Documents', 'Library/CloudStorage', 'Dropbox', 'OneDrive'].map((name) =>
+      normal.join(home, name),
+    )
   const names =
-    platform === 'darwin'
-      ? ['Library/Mobile Documents', 'Library/CloudStorage', 'Dropbox', 'OneDrive']
-      : platform === 'win32'
-        ? ['OneDrive', 'Dropbox']
-        : ['Dropbox', 'Nextcloud', 'ownCloud']
+    platform === 'win32' ? ['OneDrive', 'Dropbox'] : ['Dropbox', 'Nextcloud', 'ownCloud']
   return names.map((name) => normal.join(home, name))
 }
 
