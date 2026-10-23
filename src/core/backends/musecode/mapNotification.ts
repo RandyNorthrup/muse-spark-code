@@ -17,6 +17,7 @@ import {
   todoItemSchema,
 } from '../../../shared/agentEvents'
 import {
+  AUTH_REQUIRED_ERROR_KIND,
   QUESTION_OUTCOME_CLARIFIED,
   QUESTION_OUTCOME_DEFERRED,
   UI_TEXT,
@@ -106,7 +107,16 @@ const schemas = {
     terminal: z.string(),
     reason: z.optional(z.string()),
     durationMs: z.optional(z.number()),
-    error: z.optional(z.object({ kind: z.string(), message: z.string() })),
+    // The CLI's own retry judgment rides beside the kind (captured
+    // 2026-10-04, m91-captures/05-linux-msp-failure/turn-completed.jsonl);
+    // absent on older hosts, which never sent it.
+    error: z.optional(
+      z.object({
+        kind: z.string(),
+        message: z.string(),
+        retryable: z.optional(z.boolean()),
+      }),
+    ),
   }),
   'turn/retryScheduled': z.object({
     ...sessionScoped,
@@ -369,6 +379,13 @@ function rawNotification(notification: WireNotification): MapOutcome {
       const { sessionId, turnId, terminal, reason, durationMs, error } = params as z.infer<
         (typeof schemas)['turn/completed']
       >
+      // A failed turn carries whether resubmitting may work (RLF-ACPTURNS):
+      // the CLI's own judgment where it spoke, else retryable unless the
+      // failure is the lost sign-in, which a resubmit cannot clear.
+      const retryable =
+        terminal === 'failed'
+          ? (error?.retryable ?? error?.kind !== AUTH_REQUIRED_ERROR_KIND)
+          : undefined
       return {
         sessionId,
         event: {
@@ -378,6 +395,7 @@ function rawNotification(notification: WireNotification): MapOutcome {
           ...(reason !== undefined && { reason }),
           ...(error !== undefined && { errorKind: error.kind }),
           ...(durationMs !== undefined && { durationMs }),
+          ...(retryable !== undefined && { retryable }),
         },
       }
     }

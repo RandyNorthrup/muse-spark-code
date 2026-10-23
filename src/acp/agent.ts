@@ -315,7 +315,19 @@ function observeError(deps: AcpAgentDeps, code: string): void {
 type ApprovalRequest = Extract<AgentEvent, { type: 'approvalRequested' }>
 type QuestionRequest = Extract<AgentEvent, { type: 'questionRequested' }>
 type ElicitationRequest = Extract<AgentEvent, { type: 'elicitationRequested' }>
-type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
+export type TurnCompleted = Extract<AgentEvent, { type: 'turnCompleted' }>
+
+/**
+A failed turn's prompt error (RLF-ACPTURNS): the backend's retry judgment
+rides the error's `data`, so the client can offer to send the prompt
+again. Absent judgment never reads as retryable.
+*/
+export function turnFailureError(event: TurnCompleted): RequestError {
+  return RequestError.internalError(
+    { retryable: event.retryable === true },
+    event.reason ?? event.errorKind ?? event.terminal,
+  )
+}
 
 interface PendingPrompt {
   readonly resolve: (reason: StopReason) => void
@@ -1389,9 +1401,7 @@ class AcpSession {
         pending.reject(loud)
         return
       }
-      pending.reject(
-        RequestError.internalError(undefined, event.reason ?? event.errorKind ?? event.terminal),
-      )
+      pending.reject(turnFailureError(event))
       return
     }
     // A turn that ran to completion proves the host: no later failure blames

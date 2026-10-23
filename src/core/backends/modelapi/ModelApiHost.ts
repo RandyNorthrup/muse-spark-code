@@ -1938,6 +1938,34 @@ function isAuthFailure(error: unknown): boolean {
   )
 }
 
+/**
+Whether a failed Model API turn may be resubmitted (RLF-ACPTURNS): only
+durable state the turn itself cannot clear says no — a spent session
+budget, an overflowing context, a plan limit, a ledger refusal or a lost
+sign-in. Per-attempt conditions (a refused child, a hook stop, a provider
+or network failure in flight) say yes: the next attempt re-evaluates
+them. A model-call limit completes rather than fails, so it carries no
+judgment.
+*/
+export function modelApiFailureRetryable(error: unknown): boolean | undefined {
+  if (error instanceof ModelCallLimitError) {
+    return undefined
+  }
+  if (error instanceof ChildTaskRefusedError) {
+    return true
+  }
+  // Only durable state the turn itself cannot clear says no: a spent
+  // session budget, an overflowing context, a plan limit, a ledger
+  // refusal or a lost sign-in.
+  return !(
+    error instanceof ContextOverflowError ||
+    (isModelApiError(error) && error.code === CHATGPT_PLAN_LIMIT_ERROR_KIND) ||
+    isSpendLedgerError(error) ||
+    error instanceof SessionBudgetExceededError ||
+    isAuthFailure(error)
+  )
+}
+
 function pressureFor(used: number, window: number): string {
   const fraction = used / window
   if (fraction >= CONTEXT_PRESSURE_HIGH) {
@@ -15659,6 +15687,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     let terminal = COMPLETED
     let reason: string | undefined
     let errorKind: string | undefined
+    let retryable: boolean | undefined
     try {
       // An unattended fire is background schedule work under the M107
       // governor, as a confirmed scheduled prompt is (runSchedule).
@@ -15913,6 +15942,10 @@ export class ModelApiSession implements ScheduledAgentSession {
           else if (isSpendLedgerError(error)) errorKind = `ledger_${error.kind}`
           else errorKind = isAuthFailure(error) ? AUTH_REQUIRED_ERROR_KIND : MODEL_API_ERROR_KIND
         }
+        // Whether resubmitting may work (RLF-ACPTURNS): only durable
+        // state says no. A limit completed rather than failed, so the
+        // predicate carries no judgment for it.
+        retryable = modelApiFailureRetryable(error)
         // Fixed words and a reason code only: the user-facing reason can
         // carry an attachment's file name (RVM105 4), which never reaches a
         // log. The detailed sentence still reaches the user with the turn.
@@ -16019,6 +16052,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       terminal,
       ...(reason !== undefined && { reason }),
       ...(errorKind !== undefined && { errorKind }),
+      ...(retryable !== undefined && { retryable }),
       durationMs: this.deps.now() - startedAt,
     })
     this.emit({ type: 'sessionStatus', status: IDLE })

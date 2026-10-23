@@ -225,6 +225,75 @@ describe('mapNotification', () => {
         terminal: 'failed',
         reason: 'not logged in',
         errorKind: 'authRequired',
+        retryable: false,
+      },
+    ],
+    // RLF-ACPTURNS: a failed turn carries the CLI's own retry judgment
+    // (m91-captures/05-linux-msp-failure/turn-completed.jsonl); an older
+    // host that omits it reads retryable unless the sign-in was lost.
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'refused by exit 2',
+        error: { kind: 'modelError', message: 'refused by exit 2', retryable: true },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'refused by exit 2',
+        errorKind: 'modelError',
+        retryable: true,
+      },
+    ],
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        error: { kind: 'modelError', message: 'broke' },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        errorKind: 'modelError',
+        retryable: true,
+      },
+    ],
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'not logged in',
+        error: { kind: 'authRequired', message: 'not logged in' },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'not logged in',
+        errorKind: 'authRequired',
+        retryable: false,
+      },
+    ],
+    [
+      'turn/completed',
+      { sessionId, turnId: 't1', terminal: 'failed', reason: 'broke' },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        retryable: true,
       },
     ],
     [

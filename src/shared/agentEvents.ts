@@ -432,6 +432,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     reason: optionalString,
     errorKind: optionalString,
     durationMs: optionalNumber,
+    // Whether resubmitting the turn may work (RLF-ACPTURNS): the CLI's
+    // own `retryable` on its failures, the Model API backend's judgment
+    // on its. Absent where the producer cannot judge (a cancelled turn,
+    // a background turn no surface resubmits): never read as retryable.
+    retryable: optionalBoolean,
   }),
   z.object({
     type: z.literal('turnRetry'),

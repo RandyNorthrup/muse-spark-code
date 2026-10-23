@@ -638,6 +638,22 @@ export type UiAction =
       /** When it was sent (M87): the card's time until the host's arrives. */
       readonly at?: number | undefined
     }
+  /**
+  Retry on a failed turn's error row (RLF-ACPTURNS): the failed turn's
+  user card resent under a fresh id. The composer is untouched: its
+  draft, reference and chips stay exactly as the user left them. The
+  chips are the failed card's display copies: the host resends its own
+  remembered parts, so nothing here is tracked as unsent.
+  */
+  | {
+      readonly type: 'retried'
+      readonly localId: string
+      readonly text: string
+      readonly attachments: Extract<TranscriptEntry, { kind: 'user' }>['attachments']
+      readonly contextLabel: string | undefined
+      readonly referenceLabel: string | undefined
+      readonly at?: number | undefined
+    }
   /** The secret dialog closed for editing (M92e): the draft is already back. */
   | { readonly type: 'secretPromptDismissed' }
   /** The composer now replies to an output or quotes a passage (M17). */
@@ -2001,6 +2017,7 @@ function completeTurn(
             text: event.reason ?? event.errorKind ?? UI_TEXT.turnFailed,
             ...(reportRef !== undefined && { reportRef }),
             ...(event.errorKind !== undefined && { errorKind: event.errorKind }),
+            ...(event.retryable === true && { retryTurnId: event.turnId }),
           },
         ]
       : []
@@ -2466,8 +2483,8 @@ function reviewHunkSettled(
 
 /**
 A pending user card at the end of the transcript, its chips kept until
-the host accepts or refuses it: the composer's Send, or a message the host
-sent itself (M79).
+the host accepts or refuses it: the composer's Send, a message the host
+sent itself (M79), or a Retry resending a failed turn's card.
 */
 function withPendingCard(
   state: UiState,
@@ -2477,10 +2494,17 @@ function withPendingCard(
     readonly attachments: readonly AttachmentSummary[]
     readonly contextLabel?: string | undefined
     readonly reference?: ChatReference | undefined
+    /**
+    A retry's copied reply-to label (RLF-ACPTURNS): the failed card kept
+    the label, not the reference, while the host resends the parts.
+    */
+    readonly referenceLabel?: string | undefined
     readonly isPlanTurn?: boolean
     readonly at?: number | undefined
   },
 ): UiState {
+  const shownReference =
+    card.reference === undefined ? card.referenceLabel : referenceLabel(card.reference)
   return {
     ...state,
     unsentAttachments:
@@ -2498,7 +2522,7 @@ function withPendingCard(
         status: 'pending',
         attachments: card.attachments,
         ...(card.contextLabel !== undefined && { contextLabel: card.contextLabel }),
-        ...(card.reference !== undefined && { referenceLabel: referenceLabel(card.reference) }),
+        ...(shownReference !== undefined && { referenceLabel: shownReference }),
         ...(card.isPlanTurn === true && { isPlanTurn: true }),
         ...(card.at !== undefined && { atMs: card.at }),
       },
@@ -4088,6 +4112,38 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
           isPlanTurn: state.permissionMode === 'plan',
         },
       )
+    }
+    case 'retried': {
+      const next = withPendingCard(
+        {
+          ...state,
+          pendingSendDrafts: {
+            ...state.pendingSendDrafts,
+            [action.localId]: {
+              localId: action.localId,
+              text: action.text,
+              revision: state.draftRevision,
+            },
+          },
+        },
+        {
+          localId: action.localId,
+          text: redactSecrets(action.text),
+          attachments: [],
+          ...(action.contextLabel !== undefined && { contextLabel: action.contextLabel }),
+          ...(action.referenceLabel !== undefined && { referenceLabel: action.referenceLabel }),
+          isPlanTurn: state.permissionMode === 'plan',
+          ...(action.at !== undefined && { at: action.at }),
+        },
+      )
+      // The resent card shows the failed card's chips, but tracks nothing
+      // as unsent: the host holds no bytes for this send.
+      return {
+        ...next,
+        transcript: updateEntry(next.transcript, action.localId, (entry) =>
+          entry.kind === 'user' ? { ...entry, attachments: action.attachments } : entry,
+        ),
+      }
     }
     case 'secretPromptDismissed': {
       const prompt = state.secretPrompt
