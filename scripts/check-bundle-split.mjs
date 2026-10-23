@@ -1364,6 +1364,10 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             // The ref must not fork validation, and the bundle must not wait
             // on the providers bundle: the tiny module rides along.
             !(output === 'dist/editorChat.js' && input === 'src/core/providers/modelRef.ts') &&
+            // RLF-M95B2 (2026-10-23): the provider's pure conversion moved
+            // beside the ref parse so unit tests drive the real code. It
+            // rides only in the editor-chat bundle, like the parse.
+            !(output === 'dist/editorChat.js' && input === 'src/core/providers/editorChat.ts') &&
             !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
             !(
               output === 'dist/subscriptionCommands.js' &&
