@@ -27,7 +27,7 @@ import {
   type TabProviderDeps,
   type TabQuietReason,
 } from '../../src/host/tab/tabBundle'
-import type { TabConsentScope } from '../../src/host/tab/tabConsent'
+import type { TabConsentDeps, TabConsentScope } from '../../src/host/tab/tabConsent'
 import { createTabLedger } from '../../src/host/tab/tabLedger'
 import { createTabProvider } from '../../src/host/tab/tabProvider'
 import { createTabSpendGate } from '../../src/host/tab/tabSpendGate'
@@ -35,10 +35,10 @@ import { createTabStatusItem } from '../../src/host/tab/tabStatusItem'
 import {
   EXTENSION_QUALIFIED_ID,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
-  UI_TEXT,
 } from '../../src/shared/constants'
 import { Usd, type UsdAmount } from '../../src/shared/usd'
 import { fixtureHookRun } from '../unit/helpers/tabHookScripts'
+import { queuedTabAsk, quietTabServices } from '../unit/helpers/tabQuietFixtures'
 import { realGit } from '../unit/helpers/realGit'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
 
@@ -112,6 +112,24 @@ interface ProviderWorld {
   dispose: () => void
 }
 
+/** The paid-on consent fixture, asking from the state's queued answers. */
+function consentDepsOf(
+  asked: string[],
+  answers: (TabConsentScope | undefined)[],
+  log: Logger,
+): Omit<TabConsentDeps, 'priceOf'> {
+  return {
+    ask: queuedTabAsk(asked, answers),
+    isOn: () => true,
+    isRemembered: () => false,
+    windowOnceToken: () => 'token-1',
+    revocations: () => 0,
+    readAlways: () => undefined,
+    writeAlways: () => Promise.resolve(),
+    log,
+  }
+}
+
 function providerFor(
   root: string,
   spendRoot: string,
@@ -180,21 +198,7 @@ function providerFor(
     onDidChangeTextDocument: (listener) => vscode.workspace.onDidChangeTextDocument(listener),
     engine,
     spend,
-    consentDeps: {
-      ask: (model) => {
-        asked.push(model)
-        return state.answers.length === 0
-          ? Promise.reject(new Error('no queued answer'))
-          : Promise.resolve(state.answers.shift())
-      },
-      isOn: () => true,
-      isRemembered: () => false,
-      windowOnceToken: () => 'token-1',
-      revocations: () => 0,
-      readAlways: () => undefined,
-      writeAlways: () => Promise.resolve(),
-      log,
-    },
+    consentDeps: consentDepsOf(asked, state.answers, log),
     hooks,
     onOutcome: (outcome) => {
       outcomes.push(outcome)
@@ -591,13 +595,7 @@ suite('Tab activation in a real editor (M94)', () => {
       onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
       onDidChangeTextDocument: (listener) => vscode.workspace.onDidChangeTextDocument(listener),
       activeLanguageId: () => vscode.window.activeTextEditor?.document.languageId,
-      knownLanguages: () => Promise.resolve([]),
-      confirmCopilotDisable: () => Promise.resolve(false),
-      disableCopilotFor: () => Promise.resolve(),
-      openAccountUsage: () => Promise.resolve(),
-      runCommand: () => Promise.resolve(),
-      table: () => UI_TEXT,
-      locale: () => 'en',
+      ...quietTabServices(),
       snoozeStore: {
         readSnoozedUntil: () => snoozeStore.end,
         writeSnoozedUntil: (endMs) => {
@@ -614,21 +612,7 @@ suite('Tab activation in a real editor (M94)', () => {
         onSent: () => undefined,
         onUsage: () => undefined,
       },
-      consentDeps: {
-        ask: (model) => {
-          state.asked.push(model)
-          return state.answers.length === 0
-            ? Promise.reject(new Error('no queued answer'))
-            : Promise.resolve(state.answers.shift())
-        },
-        isOn: () => true,
-        isRemembered: () => false,
-        windowOnceToken: () => 'token-1',
-        revocations: () => 0,
-        readAlways: () => undefined,
-        writeAlways: () => Promise.resolve(),
-        log: silentLog,
-      },
+      consentDeps: consentDepsOf(state.asked, state.answers, silentLog),
       createStatus: (statusDeps, showMenu) => createTabStatusItem(statusDeps, showMenu),
       notifyBudgetReached: () => undefined,
     }

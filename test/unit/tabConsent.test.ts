@@ -3,9 +3,11 @@ import {
   createTabConsent,
   tabPriceFingerprint,
   type TabConsentDeps,
+  type TabConsentGrant,
   type TabConsentScope,
   type TabUseConsent,
 } from '../../src/host/tab/tabConsent'
+import { queuedTabAsk } from './helpers/tabQuietFixtures'
 
 // M94 acceptance 11 (the first request asks; Allow once covers the window;
 // Always persists for the workspace and is voided by a price change; Deny
@@ -45,12 +47,7 @@ function gateOf(): { state: GateState; deps: TabConsentDeps; consent: TabUseCons
   }
   const deps: TabConsentDeps = {
     priceOf: (model) => state.prices.get(model),
-    ask: (model) => {
-      state.asked.push(model)
-      return state.answers.length === 0
-        ? Promise.reject(new Error('no queued answer'))
-        : Promise.resolve(state.answers.shift())
-    },
+    ask: queuedTabAsk(state.asked, state.answers),
     isOn: () => state.isOn,
     isRemembered: () => state.isRemembered,
     windowOnceToken: () => state.windowToken,
@@ -68,6 +65,17 @@ function gateOf(): { state: GateState; deps: TabConsentDeps; consent: TabUseCons
     },
   }
   return { state, deps, consent: createTabConsent(deps) }
+}
+
+/** A voided grant asks again and the re-ask grants once, the second question. */
+async function expectOnceAfterVoid(
+  gate: { state: GateState; consent: TabUseConsent },
+  grant: TabConsentGrant | undefined,
+): Promise<void> {
+  expect(grant?.isCurrent()).toBe(false)
+  const next = await gate.consent.requestUse(MODEL)
+  expect(next?.scope).toBe('once')
+  expect(gate.state.asked).toEqual([MODEL, MODEL])
 }
 
 describe('tabPriceFingerprint', () => {
@@ -122,10 +130,7 @@ describe('createTabConsent', () => {
     const grant = await consent.requestUse(MODEL)
     expect(grant?.isCurrent()).toBe(true)
     state.windowToken = 'token-2'
-    expect(grant?.isCurrent()).toBe(false)
-    const next = await consent.requestUse(MODEL)
-    expect(next?.scope).toBe('once')
-    expect(state.asked).toEqual([MODEL, MODEL])
+    await expectOnceAfterVoid({ state, consent }, grant)
   })
 
   it('persists Always for the workspace; a new window asks nothing', async () => {
@@ -153,10 +158,7 @@ describe('createTabConsent', () => {
     const grant = await consent.requestUse(MODEL)
     expect(grant?.scope).toBe('always')
     state.prices.set(MODEL, 'price-new')
-    expect(grant?.isCurrent()).toBe(false)
-    const next = await consent.requestUse(MODEL)
-    expect(next?.scope).toBe('once')
-    expect(state.asked).toEqual([MODEL, MODEL])
+    await expectOnceAfterVoid({ state, consent }, grant)
   })
 
   it('asks the migration question for a legacy grant with no record; Allow once records nothing', async () => {
