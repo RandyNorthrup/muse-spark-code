@@ -1,3 +1,4 @@
+import { resolveAttemptBillingRoute } from '../backends/modelapi/billingRoute'
 // Shared configured-provider transport. Hosts supply their own secret store;
 // every send rechecks configuration, credential origin and pinned DNS answers.
 import { createHash, randomUUID } from 'node:crypto'
@@ -608,7 +609,26 @@ export function createConfiguredProviderServices(
   // delegate; a provider set without Meta keeps the established refusal.
   const filesTransport = meta?.requestFile?.bind(meta)
   const transcription = meta?.requestTranscription?.bind(meta)
+  const searchPrice = meta?.searchPriceUsd?.bind(meta)
+  const inheritSearch = meta?.inheritSearchQuote?.bind(meta)
+  const releaseSearch = meta?.releaseSearchQuotes?.bind(meta)
+  const status = meta?.readServiceStatus?.bind(meta)
+  const providerId = meta?.providerId?.bind(meta)
+  const withKey = meta?.withAccountKey?.bind(meta)
   const base: ProviderClient = {
+    ...(searchPrice !== undefined && {
+      searchPriceUsd: (model) => (model.includes('/') ? undefined : searchPrice(model)),
+    }),
+    ...(inheritSearch !== undefined && { inheritSearchQuote: inheritSearch }),
+    ...(releaseSearch !== undefined && { releaseSearchQuotes: releaseSearch }),
+    ...(status !== undefined && { readServiceStatus: status }),
+    ...(providerId !== undefined && {
+      providerId: (model) =>
+        model.includes('/')
+          ? (modelRef.parseModelRef(model)?.providerId ?? providerId(model))
+          : providerId(model),
+    }),
+    ...(withKey !== undefined && { withAccountKey: withKey }),
     hasPaidDailyBudget: meta?.hasPaidDailyBudget ?? false,
     currentKeyDigest: () => delegate().currentKeyDigest(),
     listModels: (signal) => delegate().listModels(signal),
@@ -982,7 +1002,16 @@ export function createConfiguredProviderServices(
     }
     const result = await transport.request(
       address.path,
-      { method: 'GET', accept: 'application/json', headers, retries: 'rateLimitOnly' },
+      {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: false,
+        }),
+        method: 'GET',
+        accept: 'application/json',
+        headers,
+        retries: 'rateLimitOnly',
+      },
       signal,
     )
     if (isExact) {
@@ -1577,6 +1606,10 @@ export function createConfiguredProviderServices(
             const result = await transport.request(
               count.path,
               {
+                billingRoute: await resolveAttemptBillingRoute({
+                  feature: 'tokenCount',
+                  isMetaDirect: false,
+                }),
                 method: 'POST',
                 body: count.body,
                 ...(encoded.headers !== undefined && { headers: encoded.headers }),

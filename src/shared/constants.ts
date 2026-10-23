@@ -233,7 +233,21 @@ export const DEVICE_MODEL_TEXT = {
     'Bind each pair and grant to its owner; a device serves two orchestrators only with separate grants and quotas per owner. Authorize security-relevant actions per message by role under least-privilege time-bounded revocable grants, and audit each one. Never carry secrets in the clear: brokered uses go through the vault. Windows pair keys rest under OS store protection.',
 } as const
 // M108: local account configuration and policy. Credentials are never fields.
+export const ACCOUNT_PANEL_REQUEST_TIMEOUT_MS = 10_000
 export const ACCOUNT_DEFAULT_ID = 'default'
+// Owner gate: C-M108-2 stays hidden until its remaining certification passes.
+export const ACCOUNT_REQUEST_CERTIFICATION = { isComplete: true }
+export const ACCOUNT_HEADROOM_ZERO = 0n
+export const ACCOUNT_HEADROOM_ONE = 1n
+export const ACCOUNT_HEADROOM_SCALE = 1_000_000
+export const ACCOUNT_REQUEST_STORE = {
+  directory: 'account-requests',
+  // Covers current local month/week, including UTC bucket boundaries.
+  retentionDays: 62,
+  maxRowBytes: 16_384,
+  directoryMode: 0o700,
+  fileMode: 0o600,
+} as const
 export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
 export const ACCOUNT_LABEL_MAX_LENGTH = 128
 // D121: a provider holds any number of accounts — the removed 64-per-provider
@@ -248,6 +262,15 @@ export const ACCOUNT_POLICY_VERSION = '2026-10-05.1'
 // `[counter, hostGeneration]` array, so an instance-counter-era grant can
 // never match a durable revocation epoch.
 export const ACCOUNT_QUOTE_GRANT_VERSION = 2
+// M108 lane P: account-bound paid consent's store, one owner-only folder per
+// workspace (host/paid/accountPaidFiles.ts). Bindings and quote keys are named
+// by the start of their SHA-256, never by an account's label or a credential.
+export const ACCOUNT_PAID_STORE = {
+  folder: 'paid-accounts',
+  digestChars: 32,
+  folderMode: 0o700,
+  fileMode: 0o600,
+} as const
 
 // Must match package.json `publisher` and `name`.
 export const EXTENSION_PUBLISHER = 'RandyNorthrup'
@@ -403,6 +426,21 @@ export const MODELS_TABLE_ROW_PX = 48
 export const PROVIDER_HARNESS_MIN_CONTEXT_TOKENS = 32_000
 /** SecretStorage account names are `museSpark.provider.<id>` (D74). */
 export const PROVIDER_SECRET_PREFIX = 'museSpark.provider.'
+/**
+Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
+(PROVSPEND): an admin key can read a whole organisation, so it is never
+stored where an inference read looks, and removing the provider removes it.
+*/
+export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
+/** `providers usage` reports this many days back unless `--days n` says otherwise. */
+export const PROVIDER_SPEND_DAYS_DEFAULT = 30
+/**
+The vendored models.dev price snapshot's date (PROVSPEND): the spend
+reconciliation names it as the catalogue our estimate's prices come
+from. Pinned by test against `vendor/models-dev/VENDOR.json`
+(`fetchedAt`); bump both together when the snapshot refreshes.
+*/
+export const MODELS_DEV_CATALOGUE_DATE = '2026-10-22'
 /** The OAuth loopback's one-shot callback lasts ten minutes (D74). */
 export const OAUTH_LOOPBACK_TIMEOUT_MS = 10 * 60 * 1000
 /**
@@ -932,6 +970,10 @@ export const SETTING_DEFAULTS = {
   // (M82): 0 is no cap. Kept by reservation (sessionBudget.ts); machine
   // scoped, since a repository must not set what is billed.
   modelApiSessionBudgetUsd: 0,
+  // C-M95-SUB: drive the Model API backend from the Muse Code subscription
+  // instead of a pay-as-you-go key. Off until the user turns it on; machine
+  // scoped, since a repository must not choose what is billed.
+  useMuseCodeSubscription: false,
   // M105 (PLAN.md D85): multimodal input caps (literals: this map runs
   // before the media block below); machine scoped, since a repository must
   // not set what is uploaded, kept or billed on the key. D121: no cap of
@@ -1095,6 +1137,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accountSwap',
   'accountParallel',
   'accounts.severalOnThisDevice',
+  // C-M95-SUB: opting the machine into subscription billing is the user's
+  // choice (D15: what is billed is machine-scoped).
+  'useMuseCodeSubscription',
   // Reading the user's `gh` token is the user's choice (M123, D104 source c).
   'github.useGhLogin',
   // Tab chooses what runs, what is billed and how much is approved (M94,

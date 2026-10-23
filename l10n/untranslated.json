@@ -362,7 +362,7 @@
     "it": ["views.chatView.name"]
   },
   "usage": {
-    "*": ["chartBucket"],
+    "*": ["chartBucket", "certaintyMuseCodePlan"],
     "cs": ["editor", "kindHook", "model"],
     "de": [
       "editor",

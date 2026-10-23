@@ -4,7 +4,7 @@
 import path from 'node:path'
 import * as z from 'zod/mini'
 import type { AccountLimitsReader, AccountLimitsSnapshot } from '../../accounts/thresholds'
-import type { PaidAccountBinding } from '../../paid/paidConsent'
+import type { PaidAccountBinding } from '../../paid/accountPaidConsent'
 import { type MuseLaunch } from './launch'
 import { buildChildEnvironment, type ChildEnvironmentInput } from '../../execGuard'
 import { accountIdSchema } from '../../../shared/accounts'

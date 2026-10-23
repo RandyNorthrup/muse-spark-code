@@ -11,7 +11,12 @@ import type { StartSessionOptions } from './core/agent/agentBackend'
 import type { ScheduleV2 } from './shared/scheduleV2'
 import { isChildTurn } from './shared/agentEvents'
 import { unlessAborted } from './core/timeouts'
+import { formatDate } from './shared/l10n/text'
+import { runtimeAccountsLoader } from './runtime/providers/accountsBundle'
+import { ACCOUNT_REQUEST_CERTIFICATION, RUNTIME_ACCOUNTS_BUNDLE_FILE } from './shared/constants'
 import {
+  ACCOUNT_DEFAULT_ID,
+  ACCOUNT_PAID_STORE,
   PAID_APPROVAL_ORDER_DIRECTORY,
   LEGAL_EXPLANATION_BUNDLE_FILE,
   REFERENCE_BUNDLE_FILE,
@@ -21,7 +26,6 @@ import {
   PROVIDERS_CONFIG_DIR_NAME,
   PROVIDERS_FILE_NAME,
   LEGAL_REGISTRY_NOTICE_KEY,
-  BACKEND_SETTING,
   BYPASS_SETTING,
   CLI_PROCESS_SETTINGS,
   HTTP_POSTURE_SETTINGS,
@@ -40,7 +44,6 @@ import {
   CONTEXT_KEYS,
   DEFAULT_MODEL_ID,
   CONTRIBUTOR_MODEL_SUFFIX,
-  ACCOUNT_DEFAULT_ID,
   EXTENSION_NAME,
   EXTENSION_QUALIFIED_ID,
   DICTATION_HELPER_DIR,
@@ -179,6 +182,8 @@ import {
   resolveAgainstRoot,
   rootRelativePath,
 } from './core/workspaceRoot'
+import { SubscriptionCredential } from './host/auth/subscriptionCredential'
+import { SubscriptionKeySource } from './core/backends/modelapi/subscriptionKey'
 import type { QuestionStore } from './shared/questions'
 import type { TeamSettingCapabilities } from './core/team/modelSettings'
 import type { KeyUsageSnapshot } from './host/providers/providerPorts'
@@ -407,7 +412,12 @@ import { OutputDocumentStore } from './host/outputDocuments'
 import { loggedPopups } from './host/popups'
 import { pickMentionFile } from './host/mention/mentionQuickPick'
 import { createWorkspaceFileLister, findRootFiles } from './host/mention/workspaceFiles'
-import { permissionSettingsOf, readSettings, toSettingsSnapshot } from './host/settings'
+import {
+  requiresBackendRestart,
+  permissionSettingsOf,
+  readSettings,
+  toSettingsSnapshot,
+} from './host/settings'
 import { ChatViewProvider, SIDEBAR_SURFACE_ID } from './host/views/ChatViewProvider'
 import { openChatPanel, restoreChatPanel } from './host/views/chatPanel'
 import { TasksPanel } from './host/views/tasksPanel'
@@ -1258,16 +1268,109 @@ async function activateWindow(
       },
     }))
   const providersSeamBundle = () => subscriptionFeatures().seam
-  const credentials = providerCredentials(secrets, log, async () => {
-    const features = subscriptionFeatures()
-    const entries = await features.seam.store.list()
-    // Only a live, non-confidential host grant supplies credential-free readiness.
-    return entries.map((entry) =>
-      entry.id === 'copilot' && features.hasCopilotAccess()
-        ? { ...entry, auth: 'none' as const }
-        : entry,
-    )
+  // C-M95-SUB: the Model API backend on the Muse Code subscription. The
+  // source reads only the CLI's auth file (never SecretStorage); the
+  // setting is the one opt-in, so the store gate counts the subscription
+  // only while the user has it on.
+  const subscriptionSource = new SubscriptionKeySource({
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
   })
+  const credentials = providerCredentials(
+    secrets,
+    log,
+    async () => {
+      const features = subscriptionFeatures()
+      const entries = await features.seam.store.list()
+      // Only a live, non-confidential host grant supplies credential-free readiness.
+      return entries.map((entry) =>
+        entry.id === 'copilot' && features.hasCopilotAccess()
+          ? { ...entry, auth: 'none' as const }
+          : entry,
+      )
+    },
+    async () => currentSettings().useMuseCodeSubscription && (await subscriptionSource.isReady()),
+  )
+  const subscription = new SubscriptionCredential({
+    credentials,
+    isEnabled: () => currentSettings().useMuseCodeSubscription,
+    platform: process.platform,
+    homeDir: homedir(),
+    xdgConfigHome: process.env['XDG_CONFIG_HOME'],
+    source: subscriptionSource,
+  })
+  let editorAccounts:
+    | ReturnType<
+        NonNullable<
+          ReturnType<
+            ReturnType<typeof runtimeAccountsLoader>
+          >['createEditorAccountServicesForLocale']
+        >
+      >
+    | undefined
+  const accountServices = () => {
+    if (editorAccounts !== undefined) return editorAccounts
+    const create = runtimeAccountsLoader({
+      bundlePath: path.join(context.extensionPath, 'dist', RUNTIME_ACCOUNTS_BUNDLE_FILE),
+      log,
+    })().createEditorAccountServicesForLocale
+    if (create === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+    editorAccounts = create(l10n.table, l10n.locale, {
+      dataDir: path.join(context.globalStorageUri.fsPath, 'accounts'),
+      secrets: context.secrets,
+      session: () => {
+        const active = registry.active
+        const selected =
+          active === undefined ? undefined : controllers.get(active.id)?.boardSession()
+        return selected?.backend === 'modelApi' ? selected.sessionId : undefined
+      },
+      settings: () => ({
+        isSwapOn: currentSettings().accountSwap,
+        isParallelOn: currentSettings().accountParallel,
+      }),
+      promptForApiKey,
+      askPolicy: async (row) => {
+        const answer = await vscode.window.showWarningMessage(
+          fill(UI_TEXT.accounts.confirmWarning, { provider: row.provider }),
+          {
+            modal: true,
+            detail: [
+              UI_TEXT.accounts.legitimate,
+              fill(UI_TEXT.accounts.checked, {
+                date: formatDate(Date.parse(`${row.checkedAt}T12:00:00`)),
+              }),
+              ...row.sources.map((source) => `${source.quote}\n${source.url}`),
+            ].join('\n\n'),
+          },
+          UI_TEXT.accounts.confirm,
+          UI_TEXT.accounts.ownCapsOnly,
+          UI_TEXT.accounts.cancel,
+        )
+        switch (answer) {
+          case UI_TEXT.accounts.confirm: {
+            return 'confirm'
+          }
+          case UI_TEXT.accounts.ownCapsOnly: {
+            return 'ownCapsOnly'
+          }
+          default: {
+            return 'cancel'
+          }
+        }
+      },
+      notice: (sessionId, text) => {
+        for (const controller of controllers.values()) {
+          if (controller.boardSession()?.sessionId !== sessionId) continue
+          void vscode.window.showInformationMessage(text)
+          break
+        }
+        modelsFeatures?.accountsChanged()
+      },
+    })
+    return editorAccounts
+  }
+  context.subscriptions.push({ dispose: () => editorAccounts?.dispose() })
   // The paid Model API features (M33–M35, PLAN.md D30): on only with the
   // setting on and the price accepted; every panel shows which are on.
   // Whether a Model API key is stored (M44): the Muse Code backend then
@@ -1357,6 +1460,18 @@ async function activateWindow(
         budgetUsd: currentSettings().tabDailyBudgetUsd,
         todayUsd: tab.todayTotalUsd(),
       }),
+      // M108 lane P (D88.7): the stored Model API key is Meta's default account
+      // (D88.2), so every use here keeps this workspace's consent; a use billed
+      // to another account asks for that account, kept in this workspace's
+      // storage. Per-request selection binds this port when it lands (M95/M109).
+      accountPaid: {
+        billing: () =>
+          editorAccounts?.billing() ?? { provider: 'meta', account: ACCOUNT_DEFAULT_ID },
+        folder: path.join(
+          (context.storageUri ?? context.globalStorageUri).fsPath,
+          ACCOUNT_PAID_STORE.folder,
+        ),
+      },
       log,
       l10n: { table: UI_TEXT, locale: uiLocale() },
     }))
@@ -3455,6 +3570,9 @@ async function activateWindow(
     ...(windowsMcpJob !== undefined && { mediaJobExecutable: windowsMcpJob }),
     // Each conversion's owner-only folder sits in this private root (VB).
     mediaPrivateRoot: path.join(storageRoot, MEDIA_PRIVATE_ROOT_DIR),
+    ...(ACCOUNT_REQUEST_CERTIFICATION.isComplete && {
+      createAccountRequests: (client) => accountServices().requests(client),
+    }),
     onServiceFailure: () => {
       notify(
         Array.from(controllers.values(), (controller) => () => {
@@ -3486,7 +3604,11 @@ async function activateWindow(
       prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log, top),
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
-    getApiKey: () => credentials.getApiKey(),
+    getApiKey: () => subscription.getApiKey(),
+    // Paid extras bill the stored key even while chat bills the plan.
+    getPaidApiKey: () => credentials.getApiKey(),
+    subscriptionAccountId: subscription.accountId(),
+    getBillingRoute: (isPaid) => subscription.route(isPaid),
     workspaceRoot,
     io: checkpointedIo,
     listAttemptFiles: (attemptRoot) =>
@@ -4913,7 +5035,7 @@ async function activateWindow(
           accountFacts: async (kind) => {
             const resolution = backend.resolveLaunch()
             const isCliSession = await hasCliSession()
-            const hasKey = (await credentials.getApiKey()) !== undefined
+            const hasKey = await subscription.hasCredential()
             const signInMethod = signInMethodFor(kind, isCliSession, hasKey)
             const cliVersion = resolution.ok
               ? backend.installedVersion(resolution.launch.installDir)
@@ -5532,6 +5654,9 @@ async function activateWindow(
       const seam = providersSeamBundle()
       modelsFeatures = bundle.createModelsPanelFeatures(
         {
+          ...(ACCOUNT_REQUEST_CERTIFICATION.isComplete && {
+            accounts: { request: (value: unknown) => accountServices().request(value) },
+          }),
           connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
@@ -5768,6 +5893,34 @@ async function activateWindow(
                 }),
                 ...(snapshot.remaining !== undefined && {
                   remainingUsd: Usd.from(snapshot.remaining).toAmount(),
+                }),
+              },
+            })
+          },
+          // PROVSPEND: the same read as the first shared-shape report; the
+          // journal entry is identical to the snapshot path above (the
+          // report's exact decimals stringify to the same amounts).
+          onSpend: (report) => {
+            if (report.capability !== 'key-usage') return
+            const producer = usageRecording.scopeLimits?.({
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+              backend: 'modelApi',
+            })
+            producer?.limit({
+              backend: 'modelApi',
+              provider: 'openrouter',
+              source: 'openRouter',
+              observedAt: Date.parse(report.asOf),
+              windows: [],
+              account: {
+                usedUsd: Usd.from(report.usedThisMonthUsd).toAmount(),
+                period: 'month',
+                ...(report.limitUsd !== undefined && {
+                  limitUsd: Usd.from(report.limitUsd).toAmount(),
+                }),
+                ...(report.remainingUsd !== undefined && {
+                  remainingUsd: Usd.from(report.remainingUsd).toAmount(),
                 }),
               },
             })
@@ -6096,8 +6249,7 @@ async function activateWindow(
       // A host keeps its sandbox posture, its environment and its binary for
       // life, and the backend choice is made per host: drop them so the next
       // message spawns afresh (and resumes the conversation, D25).
-      const isBackendSetting = event.affectsConfiguration(BACKEND_SETTING)
-      if (isBackendSetting) {
+      if (requiresBackendRestart((key) => event.affectsConfiguration(key))) {
         if (isSubscriptionConnecting) return
         void restartBackend('the backend setting changed')
           .then(() => auth.refresh())

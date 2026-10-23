@@ -3,6 +3,7 @@
 // panel's refresh and headless refresh on use share this one read, so the
 // list keeps a single parser and a single request shape.
 import * as z from 'zod/mini'
+import { resolveAttemptBillingRoute } from '../../core/backends/modelapi/billingRoute'
 import type { TransportDeps } from '../../core/backends/modelapi/transport'
 import type { ProviderPreset } from '../../core/providers/presets'
 import { presets } from '../../host/backend/providersEntry'
@@ -14,6 +15,8 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { uiLocale } from '../../shared/l10n/text'
+import { isErrno } from '../../core/fs/errno'
+import { isStoreUnavailable } from '../keyStore'
 import {
   allowedProviderPaths,
   pinProviderFetch,
@@ -121,11 +124,25 @@ export async function readProviderJson(
     },
   })
   const signal = AbortSignal.timeout(PROVIDER_PROBE_TIMEOUT_MS)
+  // A failed dial, for the caller to map: a transport failure, a lost
+  // fetch, a mid-probe endpoint rebind, a pin refusal, an unreadable
+  // store or a system failure under the transport. Anything else is a
+  // bug in the dial itself and stays loud.
+  const isDialFailure = (error: unknown): boolean =>
+    shared.isModelApiError(error) ||
+    error instanceof TypeError ||
+    isErrno(error) ||
+    isStoreUnavailable(error) ||
+    (error instanceof Error && (error.message === 'rebinding' || error.name === 'UserRefusalError'))
   let result: Awaited<ReturnType<typeof client.request>>
   try {
     result = await client.request(
       url.slice(origin.length),
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'catalogue',
+          isMetaDirect: false,
+        }),
         method: 'GET',
         headers,
         accept: 'application/json',
@@ -134,6 +151,7 @@ export async function readProviderJson(
       signal,
     )
   } catch (error: unknown) {
+    if (!isDialFailure(error)) throw error
     return { error, signal }
   }
   try {

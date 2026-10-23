@@ -45,6 +45,8 @@ export const paidQuoteSchema = /* @__PURE__ */ (() =>
   z.object({
     id: z.string().check(z.minLength(1)),
     feature: z.literal('webSearch'),
+    payerKind: z.optional(z.enum(['payAsYouGo', 'museCodePlan'])),
+    modelTokenBilling: z.optional(z.string()),
     conversationId: z.optional(z.string()),
     maxCalls: z.optional(z.int().check(z.positive())),
     provider: z.string().check(z.minLength(1)),
@@ -61,6 +63,8 @@ export function freezePaidQuote(quote: PaidQuote): PaidQuote {
 export function isSamePaidQuote(left: PaidQuote, right: PaidQuote): boolean {
   return (
     left.id === right.id &&
+    left.payerKind === right.payerKind &&
+    left.modelTokenBilling === right.modelTokenBilling &&
     left.provider === right.provider &&
     left.model === right.model &&
     left.modelRevision === right.modelRevision &&
@@ -275,6 +279,9 @@ export type PaidUseRequest =
     }
   | {
       readonly feature: 'webSearch'
+      /** A subscription search response also bills its model tokens to the pasted key. */
+      readonly paidModelId?: string | undefined
+      readonly payerKind?: 'payAsYouGo' | 'museCodePlan' | undefined
       readonly priceUsd: UsdAmount
       readonly quote?: PaidQuote
       readonly quoteNotice?: PaidQuoteNotice

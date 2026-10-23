@@ -1077,6 +1077,12 @@
           "description": "%config.modelApiSessionBudgetUsd.description%",
           "scope": "machine"
         },
+        "museSpark.useMuseCodeSubscription": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.useMuseCodeSubscription.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiRepoMap": {
           "type": "boolean",
           "default": false,
@@ -1737,15 +1743,13 @@
           "type": "boolean",
           "default": true,
           "description": "%config.accountSwap.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.accountSwap.description%"
+          "scope": "machine"
         },
         "museSpark.accountParallel": {
           "type": "boolean",
           "default": true,
           "description": "%config.accountParallel.description%",
-          "scope": "machine",
-          "deprecationMessage": "%config.accountParallel.description%"
+          "scope": "machine"
         },
         "museSpark.accounts.severalOnThisDevice": {
           "type": "boolean",

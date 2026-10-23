@@ -44,6 +44,7 @@ export function admittedModelApiJudge(deps: {
       try {
         const verified = await verifyJudgeDispatch(claim, deps.binding, deps.ledger)
         if (!verified.proceed) throw new Error(`Judge dispatch refused: ${verified.reason}`)
+        const payer = await deps.connection.resolvePayer()
         const check = () => {
           signal.throwIfAborted()
           if (dispatch.hasSent || !rebindJudgeClaim(claim, deps.binding()).rebound)
@@ -52,10 +53,13 @@ export function admittedModelApiJudge(deps: {
         }
         const guard: ResponseAttemptGuard = Object.assign(
           (keyDigest: string | undefined) => {
-            if (keyDigest !== deps.connection.keyDigest) throw new Error('Judge account changed')
+            if (keyDigest !== payer.payerCredential) throw new Error('Judge account changed')
             check()
           },
           {
+            billingRoute: payer.route,
+            paidFeature: 'judge' as const,
+            reservePaidRequest: () => Promise.resolve(undefined),
             onRequestStarted: () => {
               check()
               dispatch.hasSent = true

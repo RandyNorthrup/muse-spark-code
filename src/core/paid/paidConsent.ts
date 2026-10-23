@@ -22,16 +22,8 @@ export {
 // words are here, so VS Code's modal and the ACP agent's permission request
 // (D62) say the same.
 
-import {
-  ACCOUNT_ID_PATTERN,
-  ACCOUNT_QUOTE_GRANT_VERSION,
-  PAID_FEATURES,
-  type PaidFeature,
-  UI_TEXT,
-  DEFAULT_MODEL_ID,
-} from '../../shared/constants'
-import { fill, uiLocale } from '../../shared/l10n/text'
-import { formatDailyBudget } from '../../shared/l10n/exactUsd'
+import { PAID_FEATURES, type PaidFeature, UI_TEXT, DEFAULT_MODEL_ID } from '../../shared/constants'
+import { uiLocale } from '../../shared/l10n/text'
 import {
   freezePaidQuote,
   paidStoreFailureKind,
@@ -40,14 +32,12 @@ import {
   type PaidStoreFailureKind,
   type PaidUseDecision,
   type PaidUseRequest,
+  scheduledRunPrice,
 } from '../../shared/paid'
 import { Usd, minUsd, nonnegativeUsdSchema, type UsdAmount } from '../../shared/usd'
 import type { CreateResponseBody, CreateImageBody } from '../backends/modelapi/schemas'
 import type { SpendClaim } from './spendClaim'
 
-// zod/mini, which the Node bundles read from dist/validation.js: classic zod
-// carried 444 KiB and its `navigator` sniff into dist/extension.js (INT0170).
-import * as z from 'zod/mini'
 import { type CoreLogger, wireWordForLog } from '../logging'
 import { PaidAuthority, paidAuthorityKey, type PaidGrant } from './paidAuthority'
 import {
@@ -331,7 +321,7 @@ export interface PaidUseConsentDeps {
   generation it was given under is current, so a price withdrawn and
   accepted again in another window makes this window ask again.
   */
-  readonly windowOnceGeneration?: (feature: PaidFeature) => number
+  readonly windowOnceGeneration?: (feature: PaidFeature) => number | string
   /** Judge defaults on; its first actual paid use accepts price in this same popup. */
   readonly isJudgeEnabled?: (() => boolean) | undefined
   readonly acceptJudgePrice?: (() => Promise<boolean>) | undefined
@@ -345,8 +335,20 @@ export interface PaidUseConsentDeps {
   */
   readonly readTeamGrants?: () => ReadonlySet<string>
   readonly writeTeamGrants?: (grants: ReadonlySet<string>) => Promise<void>
-  /** Account owner performs the read/merge/write inside its serialized mutation. */
-  readonly rememberGrant?: (feature: PaidFeature) => Promise<void>
+  /**
+  Account owner performs the read/merge/write inside its serialized
+  mutation. `question` is the very request object the answer's popup was
+  asked with, so the owner keeps it under that question's own capture.
+  */
+  readonly rememberGrant?: (feature: PaidFeature, question: PaidUseRequest) => Promise<void>
+  /**
+  Account consent only (M108 lane P): whether the answer to `question` may
+  still be honoured. It is read after the answer and before anything is
+  cached or kept, and again before the use is allowed; false refuses the
+  use and every use sharing its question. Workspace consent leaves it
+  unset, so its answers are honoured exactly as before.
+  */
+  readonly isAnswerCurrent?: (question: PaidUseRequest) => boolean
   /** The popup; "always" is offered only when `canRemember` is true. */
   readonly ask: (request: PaidUseRequest, canRemember: boolean) => Promise<PaidUseAnswer>
   /**
@@ -363,6 +365,19 @@ export interface PaidUseConsentDeps {
   readonly readQuoteGrant?: (quote: PaidQuote) => PaidGrant | undefined
   readonly writeQuoteGrant?: (grant: PaidGrant) => Promise<void>
   readonly revokeQuoteGrants?: () => Promise<void>
+  /**
+  M108 lane P (D88.7): a use billed to another account than the provider's
+  default goes to that account's own consent. `route` returns undefined for
+  the default account, so this workspace consent answers exactly as before;
+  `forget` takes every account's grants back with Ask again.
+  */
+  readonly accounts?: {
+    readonly route: (
+      request: PaidUseRequest,
+      requiresAsking: boolean,
+    ) => Promise<PaidUseDecision> | undefined
+    readonly forget: () => Promise<void>
+  }
   readonly log: CoreLogger
 }
 
@@ -373,7 +388,7 @@ export class PaidUseConsent {
   Window-once grants this instance gave, each with the price-acceptance
   generation it was given under: memory only, never stored.
   */
-  private readonly windowOnce = new Map<PaidFeature, number | undefined>()
+  private readonly windowOnce = new Map<PaidFeature, number | string | undefined>()
   /** Each feature's local revocations; Ask again also moves the shared `revocation`. */
   private readonly windowOnceRevocations = new Map<PaidFeature, number>()
   /**
@@ -414,7 +429,7 @@ export class PaidUseConsent {
   public readonly authority: PaidAuthority
 
   public constructor(private readonly deps: PaidUseConsentDeps) {
-    this.authority = deps.authority ?? new PaidAuthority()
+    this.authority = deps.authority ?? new PaidAuthority(UI_TEXT, uiLocale())
   }
 
   private quoteGeneration(): string {
@@ -462,14 +477,21 @@ export class PaidUseConsent {
     }
   }
 
-  private async remember(feature: PaidFeature, notifySession?: string): Promise<boolean> {
+  private async remember(
+    feature: PaidFeature,
+    question: PaidUseRequest,
+    notifySession?: string,
+  ): Promise<boolean> {
     try {
       if (this.deps.rememberGrant === undefined)
         await this.deps.writeGrants(new Set([...this.deps.readGrants(), feature]))
-      else await this.deps.rememberGrant(feature)
+      else await this.deps.rememberGrant(feature, question)
       return true
     } catch (error: unknown) {
-      if (error instanceof StaleEpochError) {
+      // A stale account-grant epoch, read by the error's brand, never
+      // `instanceof`: the class lives in `accountPaidConsent.ts`, which
+      // already imports this module, so importing it back would cycle.
+      if (error instanceof Error && error.name === 'StaleEpochError') {
         // Carried past the outer account fence
         // (`AccountPaidUseConsent.allows`): a revocation that landed while
         // the popup was open refuses there, and must not be described as
@@ -532,6 +554,11 @@ export class PaidUseConsent {
     this.routeOnce.clear()
   }
 
+  /** Whether the answer to `question` may still be honoured (account consent's fence). */
+  private isAnswerCurrent(question: PaidUseRequest): boolean {
+    return this.deps.isAnswerCurrent?.(question) ?? true
+  }
+
   /** Asks in the popup now and keeps what the answer grants. */
   private async decide(
     request: PaidUseRequest,
@@ -564,21 +591,33 @@ export class PaidUseConsent {
       (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
       return undefined
+    // An answer whose question was revoked is never cached or kept, and every
+    // use sharing that question is refused with it.
+    if (!this.isAnswerCurrent(request)) {
+      this.deps.log.info(`Paid use of ${feature}: revoked while the popup was open`)
+      return undefined
+    }
     if (
       answer === 'always' &&
       canRemember &&
       this.deps.canRemember() &&
-      (await this.remember(feature, notifySession))
+      (await this.remember(feature, request, notifySession))
     ) {
+      // Keeping "always" awaited the store: a revocation meanwhile refuses.
+      if (!this.isAnswerCurrent(request)) return undefined
       this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
       this.notify()
       return 'always'
     }
     if (answer === 'once' && this.isWindowOnceFeature(feature)) {
       this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
+      // A revocation that landed while asking refuses the downgraded once.
+      if (!this.isAnswerCurrent(request)) return undefined
       this.deps.log.info(`Paid use of ${feature}: allowed once in this window`)
       return 'window'
     }
+    // Keeping "once" awaited nothing, but a revoked question still refuses.
+    if (!this.isAnswerCurrent(request)) return undefined
     this.deps.log.info(`Paid use of ${feature}: allowed once`)
     return 'once'
   }
@@ -600,8 +639,8 @@ export class PaidUseConsent {
       storedGeneration !== (this.deps.quoteGeneration?.() ?? 'initial')
     )
       return undefined
-    const quote = freezePaidQuote(
-      request.quote ?? {
+    const quote = freezePaidQuote({
+      ...(request.quote ?? {
         id: randomUUID(),
         feature: 'webSearch',
         provider: 'meta',
@@ -610,8 +649,12 @@ export class PaidUseConsent {
         tariffUsd: Usd.from(request.priceUsd).toAmount(),
         unit: 'search',
         capturedAt: Date.now(),
-      },
-    )
+      }),
+      ...(request.payerKind !== undefined && { payerKind: request.payerKind }),
+      ...(request.paidModelId !== undefined && {
+        modelTokenBilling: scheduledRunPrice(request.paidModelId),
+      }),
+    })
     const generation = JSON.stringify([localGeneration, storedGeneration])
     const priceGeneration = this.deps.windowOnceGeneration?.('webSearch')
     const windowKey = JSON.stringify([
@@ -717,7 +760,7 @@ export class PaidUseConsent {
         else if (this.deps.rememberGrant === undefined) {
           await this.deps.writeGrants(new Set([...this.deps.readGrants(), 'webSearch']))
         } else {
-          await this.deps.rememberGrant('webSearch')
+          await this.deps.rememberGrant('webSearch', request)
         }
         isOk = true
       } catch (error: unknown) {
@@ -840,6 +883,9 @@ export class PaidUseConsent {
       signal.throwIfAborted()
       return decision
     }
+    // Another account's use asks that account's own consent (D88.7).
+    const routed = this.deps.accounts?.route(request, requiresAsking)
+    if (routed !== undefined) return await routed
     if (request.feature === 'webSearch')
       return await this.allowSearch(request, requiresAsking, ask, notifySession)
     const { feature } = request
@@ -989,6 +1035,7 @@ export class PaidUseConsent {
     this.revocation += 1
     this.authority.revokeAll(this.quoteGeneration())
     await this.deps.revokeQuoteGrants?.()
+    await this.deps.accounts?.forget()
     if (this.deps.readGrants().size === 0 && (this.deps.readTeamGrants?.().size ?? 0) === 0) {
       if (hasWindowOnce) {
         this.deps.log.info('Paid uses ask again in this window')
@@ -1000,405 +1047,5 @@ export class PaidUseConsent {
     await this.deps.writeTeamGrants?.(new Set())
     this.deps.log.info('Paid uses ask again in this workspace')
     this.notify()
-  }
-}
-
-/** D88.7: verified local tariff and opaque billing identity; never a credential. */
-export interface PaidAccountBinding {
-  readonly provider: string
-  readonly account: string
-  readonly price: string
-  readonly dailyBudgetUsd: UsdAmount
-}
-/** An account binding's kept features with the revocation epoch approved under. */
-export interface AccountBindingGrants {
-  readonly epoch: number
-  readonly features: ReadonlySet<PaidFeature>
-}
-
-/**
-The store lost a grant race: the durable revocation epoch moved under an
-in-flight ask or revoke. Consent code retries `advanceEpoch` by re-reading
-and refuses a stale `saveGrantIf`/`saveQuoteGrantIf` instead of downgrading
-it to Allow once. Stores throw exactly this class on an epoch conflict, so
-consent code can tell a revocation from a disk failure; any other failure
-keeps the previous behaviour (Allow once, honest revoke error).
-*/
-export class StaleEpochError extends Error {
-  public constructor(bindingKey: string) {
-    super(`Paid grant store raced for binding ${bindingKey}`)
-    this.name = 'StaleEpochError'
-  }
-}
-
-export interface AccountPaidUseConsentDeps extends Omit<
-  PaidUseConsentDeps,
-  | 'readGrants'
-  | 'writeGrants'
-  | 'rememberGrant'
-  | 'ask'
-  | 'windowOnceFeatures'
-  | 'windowOnceGeneration'
-> {
-  readonly readGrants: (bindingKey: string) => AccountBindingGrants | undefined
-  /**
-  The account's durable revocation epoch, persisted per binding in the
-  same store as the grants. `revoke()` advances it before clearing, so a
-  leftover grant from a failed clear stays stale on every instance, after
-  a restart too. Missing means never revoked.
-  */
-  readonly readRevocationEpoch: (bindingKey: string) => number | undefined
-  /**
-  Atomic compare-and-set for the revocation epoch: moves the durable epoch
-  from `expected` to `expected + 1`, and throws `StaleEpochError` when the
-  durable epoch is no longer `expected`. The future production store must
-  serialize this per binding against `saveGrantIf`, `saveQuoteGrantIf`
-  and the clears, so concurrent revokes produce strictly increasing epochs
-  and a delayed writer can never move the epoch backwards or republish an
-  older value. Consent code never reads the epoch and writes it back
-  itself; it retries only by re-reading and calling this again.
-  */
-  readonly advanceEpoch: (bindingKey: string, expected: number) => Promise<void>
-  /**
-  Atomic conditional grant write: persists `grants` only while the durable
-  epoch still equals `epoch`, and throws `StaleEpochError` otherwise. The
-  future production store must serialize this per binding against
-  `advanceEpoch`, so a grant approved under a revoked epoch is never
-  stored. Consent code always passes the epoch captured before its popup,
-  never a freshly re-read one.
-  */
-  readonly saveGrantIf: (
-    bindingKey: string,
-    epoch: number,
-    grants: AccountBindingGrants,
-  ) => Promise<void>
-  readonly ask: (
-    request: PaidUseRequest,
-    binding: PaidAccountBinding,
-    canRemember: boolean,
-  ) => Promise<PaidUseAnswer>
-  /** Registry checks account membership/credential generation and the accepted tariff. */
-  readonly isCurrent: (binding: PaidAccountBinding) => boolean
-  /**
-  The account's approved search quotes. Required: an unversioned grant
-  cannot prove its vintage (0.18 rule), so no account consent exists
-  without a store and a generation. The host scopes all three to this
-  account binding; grants for another account must never be visible here.
-  */
-  readonly readQuoteGrant: (quote: PaidQuote) => PaidGrant | undefined
-  /**
-  Atomic conditional quote-grant write: persists `grant` only while the
-  binding's durable epoch still equals `epoch`, throwing
-  `StaleEpochError` otherwise. Same per-binding serialization requirement
-  as `saveGrantIf`.
-  */
-  readonly saveQuoteGrantIf: (bindingKey: string, epoch: number, grant: PaidGrant) => Promise<void>
-  readonly quoteGeneration: () => string
-  /** Clears this account's quote grants. `revoke()` runs it in the owner queue. */
-  readonly revokeQuoteGrants: () => Promise<void>
-}
-
-/** @unwired M58 account paid-use question */
-export function paidAccountQuestion(binding: PaidAccountBinding): string {
-  return fill(UI_TEXT.accounts.paidConsent, {
-    provider: binding.provider,
-    account: binding.account,
-    price: binding.price,
-    budget: formatDailyBudget(binding.dailyBudgetUsd),
-  })
-}
-
-/**
-The revocation epoch a persisted quote generation was approved under.
-Only the versioned durable encoding counts: an instance-counter-era
-`[counter, hostGeneration]` array (or anything else unversioned) fails the
-schema, so a legacy grant can never match a durable epoch and is asked
-again instead.
-*/
-const durableQuoteGenerationSchema = z.object({
-  v: z.literal(ACCOUNT_QUOTE_GRANT_VERSION),
-  epoch: z.number(),
-  hostGeneration: z.string(),
-})
-
-function quoteGrantEpoch(generation: string): number | undefined {
-  try {
-    const parsed: unknown = JSON.parse(generation)
-    const result = durableQuoteGenerationSchema.safeParse(parsed)
-    return result.success ? result.data.epoch : undefined
-  } catch (error: unknown) {
-    // Only malformed text fails here; a parsed but unversioned generation
-    // answers undefined above. A corrupt generation is invalid, never an
-    // epoch: its callers refuse it. Anything else keeps its kind.
-    if (!(error instanceof SyntaxError)) throw error
-    return undefined
-  }
-}
-
-/**
-One instance per account/tariff. Legacy single-account consent stays
-unchanged. No production host constructs this yet: per-account wiring is
-M108 lane P's, so hosts keep their workspace-scoped consent until then.
-
-Grant authority is bound to a durable revocation epoch persisted per
-account binding: `revoke()` advances it first with an atomic
-compare-and-set and every grant is saved only under the epoch captured
-before its popup, so a failed clear leaves only stale grants and a
-concurrent revoke can never be overwritten with an older value. The final
-decision is fenced against the captured epoch too, so a revocation during
-the ask refuses even when persistence downgrades to Allow once. The
-instance-local generation fences in-flight asks inside one instance only.
-@unwired M58 account paid-use consent
-*/
-export class AccountPaidUseConsent {
-  private readonly binding: PaidAccountBinding
-  private readonly key: string
-  private generation = 0
-  private isRevoking = false
-  private revocations = 0
-  private shouldIgnoreStored = false
-  /**
-  The durable epoch captured before each open popup, keyed by feature so
-  concurrent answers for different features carry their own. One ask per
-  feature is in flight at a time (the inner consent shares a concurrent
-  same-feature question), so the entry a `rememberGrant` consumes is the
-  one its own answer was asked under.
-  */
-  private readonly askEpochs = new Map<PaidFeature, number>()
-  private writes: Promise<void> = Promise.resolve()
-  private consent: PaidUseConsent
-
-  public constructor(
-    private readonly deps: AccountPaidUseConsentDeps,
-    binding: PaidAccountBinding,
-  ) {
-    if (
-      !ACCOUNT_ID_PATTERN.test(binding.provider) ||
-      !ACCOUNT_ID_PATTERN.test(binding.account) ||
-      binding.price.trim() === '' ||
-      Usd.from(binding.dailyBudgetUsd).compare(Usd.from(0)) < 0
-    )
-      throw new Error(UI_TEXT.accounts.invalidAccount)
-    this.binding = Object.freeze({ ...binding })
-    this.key = JSON.stringify([binding.provider, binding.account, binding.price])
-    this.consent = this.createConsent()
-  }
-
-  private async write(use: () => Promise<void>): Promise<void> {
-    const previous = this.writes
-    const operation = (async () => {
-      try {
-        await previous
-      } catch {
-        // A failed prior owner must not block this mutation; its caller received the error.
-      }
-      await use()
-    })()
-    this.writes = operation
-    await operation
-  }
-
-  /** The durable revocation epoch: missing means never revoked. */
-  private durableEpoch(): number {
-    return this.deps.readRevocationEpoch(this.key) ?? 0
-  }
-
-  /** The binding's kept features: empty while revoked, stale or ignored. */
-  private bindingGrants(generation: number): ReadonlySet<PaidFeature> {
-    if (!this.isCurrent(generation) || this.shouldIgnoreStored) return new Set()
-    const stored = this.deps.readGrants(this.key)
-    return stored?.epoch === this.durableEpoch() ? stored.features : new Set()
-  }
-
-  /**
-  Merges one feature into the binding's kept set inside the owner queue,
-  under the epoch captured before the popup. The conditional save is the
-  fence: when another instance revoked meanwhile it throws
-  `StaleEpochError` and nothing is stored, so the answer can never be
-  persisted as approval under the new epoch.
-  */
-  private async keepBindingFeature(
-    feature: PaidFeature,
-    generation: number,
-    epoch: number,
-  ): Promise<void> {
-    await this.write(async () => {
-      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
-      const stored = this.shouldIgnoreStored ? undefined : this.deps.readGrants(this.key)
-      const base = stored?.epoch === epoch ? stored.features : new Set<PaidFeature>()
-      await this.deps.saveGrantIf(this.key, epoch, {
-        epoch,
-        features: new Set([...base, feature]),
-      })
-      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
-      this.shouldIgnoreStored = false
-    })
-  }
-
-  /**
-  Persists an approved search quote inside the owner queue, under the
-  epoch its generation was approved under. A save from a revoked epoch
-  throws `StaleEpochError` instead of resurrecting the grant after
-  `revoke()` advanced past it, on this instance or another sharing the
-  store. A legacy unversioned generation is refused outright.
-  */
-  private async keepQuoteGrant(grant: PaidGrant, generation: number): Promise<void> {
-    await this.write(async () => {
-      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
-      const epoch = quoteGrantEpoch(grant.generation)
-      if (epoch === undefined) throw new Error(UI_TEXT.accounts.invalidAccount)
-      await this.deps.saveQuoteGrantIf(this.key, epoch, grant)
-      if (!this.isCurrent(generation)) throw new Error(UI_TEXT.accounts.invalidAccount)
-    })
-  }
-
-  private createConsent(): PaidUseConsent {
-    const generation = this.generation
-    const isCurrent = () =>
-      !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
-    // The persisted quote generation carries this account's durable
-    // revocation epoch beside the host's in a versioned encoding: a revoke
-    // asks again everywhere, even when its store clear failed and after a
-    // restart, and a host generation change asks again as before. The old
-    // `[counter, hostGeneration]` array never matches this shape.
-    const composedGeneration = () =>
-      JSON.stringify({
-        v: ACCOUNT_QUOTE_GRANT_VERSION,
-        epoch: this.durableEpoch(),
-        hostGeneration: this.deps.quoteGeneration(),
-      })
-    return new PaidUseConsent({
-      ...this.deps,
-      isOn: (feature) => isCurrent() && this.deps.isOn(feature),
-      ...(this.deps.isJudgeEnabled !== undefined && {
-        isJudgeEnabled: () => isCurrent() && this.deps.isJudgeEnabled?.() === true,
-      }),
-      // Owner ruling: ask once before the first charge; Always remains workspace-scoped.
-      windowOnceFeatures: new Set(PAID_FEATURES),
-      windowOnceGeneration: () => this.generation,
-      readGrants: () => this.bindingGrants(generation),
-      writeGrants: async (grants) => {
-        if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-        await this.write(async () => {
-          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-          // Unreachable while `rememberGrant` is defined (`remember()` never
-          // calls this): kept only because the inner port requires it.
-          const epoch = this.durableEpoch()
-          await this.deps.saveGrantIf(this.key, epoch, { epoch, features: grants })
-          if (!isCurrent()) throw new Error(UI_TEXT.accounts.invalidAccount)
-          this.shouldIgnoreStored = false
-        })
-      },
-      rememberGrant: async (feature) => {
-        // The epoch captured before this answer's popup, so a revocation
-        // that landed while it was open fails the conditional save instead
-        // of persisting under the new epoch. Falls back to a fresh read only
-        // when no popup preceded this call, which `decide()` never does.
-        const epoch = this.askEpochs.get(feature) ?? this.durableEpoch()
-        this.askEpochs.delete(feature)
-        await this.keepBindingFeature(feature, generation, epoch)
-      },
-      // A host without a preparation step keeps the synchronous capture, so
-      // concurrent first questions still share one popup.
-      ...(this.deps.prepareQuoteGeneration !== undefined && {
-        prepareQuoteGeneration: async () => {
-          await this.deps.prepareQuoteGeneration?.()
-          return composedGeneration()
-        },
-      }),
-      quoteGeneration: composedGeneration,
-      writeQuoteGrant: async (grant) => {
-        await this.keepQuoteGrant(grant, generation)
-      },
-      ask: async (request, canRemember) => {
-        // Capture the durable epoch before the popup opens and carry it with
-        // the answer: every persistence path below saves under this epoch.
-        this.askEpochs.set(request.feature, this.durableEpoch())
-        try {
-          return await this.deps.ask(request, this.binding, canRemember)
-        } catch (error: unknown) {
-          this.askEpochs.delete(request.feature)
-          throw error
-        }
-      },
-    })
-  }
-
-  private isCurrent(generation: number): boolean {
-    return !this.isRevoking && generation === this.generation && this.deps.isCurrent(this.binding)
-  }
-
-  public async allows(request: PaidUseRequest, requiresAsking = false): Promise<boolean> {
-    if (this.isRevoking || !this.deps.isCurrent(this.binding)) return false
-    const generation = this.generation
-    const epoch = this.durableEpoch()
-    const consent = this.consent
-    const decision = await consent.allows(request, requiresAsking)
-    // A search decision is its frozen quote; any non-refusal counts as allowed here.
-    if (decision === undefined || decision === false || !this.isCurrent(generation)) {
-      consent.settleStaleNotKept(false, request.feature)
-      return false
-    }
-    // Fence the final decision against the captured epoch, not only the
-    // local generation: when a revocation landed while the popup was open,
-    // the conditional save already refused to store, and a downgraded
-    // Allow-once from a failed persistence must not approve either. A
-    // stale-epoch save carried out of `remember()` is settled here: only a
-    // fence that passes tells the person the choice applied.
-    if (this.durableEpoch() !== epoch) {
-      consent.settleStaleNotKept(false, request.feature)
-      return false
-    }
-    consent.settleStaleNotKept(true, request.feature)
-    return true
-  }
-
-  /**
-  Advances the durable revocation epoch first, then removes the
-  account/tariff's workspace grant and its quote grants, in the owner
-  queue. The advance is a compare-and-set: a concurrent revoke that moved
-  the epoch first makes this one re-read and advance again, so concurrent
-  revokes produce strictly increasing epochs and a delayed writer can
-  never move the epoch backwards or republish an older value. A failed
-  clear still leaves every leftover grant stale, on every instance and
-  after a restart. A failed advance rejects honestly with nothing cleared
-  and the grants still working.
-  */
-  public async revoke(): Promise<void> {
-    this.revocations++
-    this.isRevoking = true
-    try {
-      await this.write(async () => {
-        for (;;) {
-          const expected = this.deps.readRevocationEpoch(this.key) ?? 0
-          try {
-            await this.deps.advanceEpoch(this.key, expected)
-          } catch (error: unknown) {
-            // Another instance revoked first: re-read and advance past it.
-            // Any other failure (a disk error) rejects honestly below.
-            if (!(error instanceof StaleEpochError)) throw error
-            continue
-          }
-          const epoch = expected + 1
-          this.generation++
-          this.shouldIgnoreStored = true
-          try {
-            await this.deps.saveGrantIf(this.key, epoch, { epoch, features: new Set() })
-          } catch (error: unknown) {
-            // A concurrent revoke advanced further meanwhile: its clear owns
-            // the grants now, and ours must not overwrite them with an older
-            // empty record. Any other failure rejects with the epoch already
-            // advanced, so leftovers stay stale.
-            if (!(error instanceof StaleEpochError)) throw error
-          }
-          await this.deps.revokeQuoteGrants()
-          return
-        }
-      })
-    } finally {
-      this.revocations--
-      this.isRevoking = this.revocations > 0
-      this.consent = this.createConsent()
-    }
   }
 }

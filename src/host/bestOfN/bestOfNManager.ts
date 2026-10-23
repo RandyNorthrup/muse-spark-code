@@ -1,3 +1,4 @@
+import type { PayerCredential } from '../../core/backends/modelapi/billingRoute'
 // Best-of-N's host side (M77, PLAN.md D49): each attempt runs a Model API
 // conversation of its own, rooted in its worktree, through the core
 // `WorktreeConversationHost` (the ceiling, the declines, the confinement)
@@ -42,7 +43,7 @@ export interface BestOfNManagerDeps extends Pick<
   'isBestOfNOn' | 'allowsPaidUse' | 'notePaidUse' | 'noteAttemptRequest' | 'noteAttemptUsage'
 > {
   readonly coordinator: BestOfNCoordinator
-  readonly getAccountId: () => Promise<string | undefined>
+  readonly getAccountId: () => Promise<PayerCredential | undefined>
   readonly getBudgetScope?: () => Promise<OwnedSessionBudgetScope | undefined>
   readonly hasDirtyEditors: () => boolean
   readonly contextId: () => string
@@ -249,6 +250,9 @@ class AttemptDriver implements BestOfNAttemptDriver {
             }
           },
           {
+            ...(this.attempt.admitRequest.paidRequest !== undefined && {
+              paidRequest: this.attempt.admitRequest.paidRequest,
+            }),
             onRequestStarted: () => {
               this.attempt.admitRequest.onRequestStarted?.()
               this.requestsMade += 1

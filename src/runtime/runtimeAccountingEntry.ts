@@ -505,6 +505,8 @@ export function withRuntimeAccounting(
           forwardRefusal(error)
           throw error
         }
+        const isPlanBilling = guard?.billingRoute?.kind === 'museCodePlan'
+        const zeroUsd = Usd.from(0).toAmount()
         const mediaTokens = guard?.mediaAccounting?.inputTokens
         const canCount =
           accounting === undefined ||
@@ -558,10 +560,14 @@ export function withRuntimeAccounting(
           outputTokens: body.max_output_tokens,
           images: requestImageCount(body),
         })
-        const reserveUsd =
-          requestedUsd === undefined || countCostUsd === undefined
-            ? requestedUsd
-            : Usd.from(requestedUsd).add(Usd.from(countCostUsd)).toAmount()
+        // A plan-billed turn reserves $0: the subscription covered it.
+        let reserveUsd: UsdAmount | undefined = zeroUsd
+        if (!isPlanBilling) {
+          reserveUsd =
+            requestedUsd === undefined || countCostUsd === undefined
+              ? requestedUsd
+              : Usd.from(requestedUsd).add(Usd.from(countCostUsd)).toAmount()
+        }
         if (
           inputCost === undefined ||
           reserveUsd === undefined ||
@@ -608,7 +614,14 @@ export function withRuntimeAccounting(
                   cost: response.usage.provider_cost_usd,
                 })
               : undefined
-          let cost = actual === undefined ? undefined : ceilUsd(actual)
+          // A plan-billed turn settles $0 even when the wire reports usage:
+          // the subscription covered it, so the run ledger keeps no dollar.
+          let cost: UsdAmount | undefined
+          if (isPlanBilling) {
+            cost = zeroUsd
+          } else if (actual !== undefined) {
+            cost = ceilUsd(actual)
+          }
           const isRefused =
             httpStatus !== undefined &&
             !hasResponseFrame &&
@@ -885,6 +898,12 @@ export function withRuntimeAccounting(
     return wrap(model)
   }
   return {
+    ...(client.withAccountKey !== undefined && {
+      withAccountKey: (apiKey: () => Promise<string>, isCurrent?: () => boolean) => {
+        if (client.withAccountKey === undefined) throw new Error(UI_TEXT.accounts.unavailable)
+        return withRuntimeAccounting(client.withAccountKey(apiKey, isCurrent), daily, accounting)
+      },
+    }),
     currentKeyDigest: client.currentKeyDigest.bind(client),
     ...(client.withScheduleAuthority !== undefined && {
       withScheduleAuthority: client.withScheduleAuthority.bind(client),

@@ -488,6 +488,7 @@ const providerPanelMessageSchema = z.discriminatedUnion('type', [
     contextTokens: contextWindowSchema,
   }),
   z.strictObject({ type: z.literal('modelsPanel/ready') }),
+  z.strictObject({ type: z.literal('modelAccounts/ready') }),
   // The shared shape with protocol.ts: http(s) opens in the browser
   // through the host, anything else is refused there.
   z.strictObject({ type: z.literal('openExternal'), url: z.string() }),

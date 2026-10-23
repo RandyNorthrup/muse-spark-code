@@ -110,6 +110,18 @@ export async function runProviderKeyTest(
 /** Where a scan reads models, windows and prices. */
 export type ListPriceSource = 'list' | 'catalogue' | 'user' | 'none-local'
 
+/**
+What a provider's own API offers about spend (PROVSPEND, 2026-10-12; shapes
+from the providers' documented report APIs, UNVERIFIED against a live
+account until the lead's capture): `none` (no account spend endpoint found:
+Gemini, Groq, Mistral, Together, Fireworks, Hugging Face, Z.ai, xAI, Azure
+and every local/custom server), `key-usage` (the inference key reads its
+own usage: OpenRouter `GET /api/v1/key`), `balance` (the inference key
+reads a balance: DeepSeek `GET /user/balance`), `admin-report` (a separate
+admin key reads organisation reports: Anthropic, OpenAI).
+*/
+export type ProviderSpendCapability = 'none' | 'key-usage' | 'balance' | 'admin-report'
+
 export interface ModelsListSpec {
   readonly path: string
   /** The field carrying the context window where the list gives one. */
@@ -349,6 +361,8 @@ export interface ProviderPreset {
   readonly keyHint: string
   readonly keyTest: KeyTest
   readonly modelsList: ModelsListSpec
+  /** What the provider's own API offers about spend (one capability per preset). */
+  readonly spend: ProviderSpendCapability
   readonly quirks: Partial<FormatQuirks>
   /**
   Doc-cited per-model reasoning facts the pinned catalogue snapshot
@@ -460,6 +474,7 @@ export function customQuirksFor(
 const OPENAI_PRESET: ProviderPreset = {
   id: 'openai',
   label: 'OpenAI',
+  spend: 'admin-report',
   get description() {
     return UI_TEXT.providerText.descriptions.openai
   },
@@ -496,6 +511,7 @@ const OPENAI_PRESET: ProviderPreset = {
 const AZURE_PRESET: ProviderPreset = {
   id: 'azure',
   label: 'Azure OpenAI',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.azure
   },
@@ -528,6 +544,8 @@ const AZURE_PRESET: ProviderPreset = {
 const XAI_PRESET: ProviderPreset = {
   id: 'xai',
   label: 'xAI',
+  // Per-request cost rides the response; xAI documents no billing endpoint.
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.xai
   },
@@ -581,6 +599,7 @@ const XAI_PRESET: ProviderPreset = {
 const ANTHROPIC_PRESET: ProviderPreset = {
   id: 'anthropic',
   label: 'Anthropic',
+  spend: 'admin-report',
   get description() {
     return UI_TEXT.providerText.descriptions.anthropic
   },
@@ -707,6 +726,7 @@ const ANTHROPIC_PRESET: ProviderPreset = {
 const GEMINI_PRESET: ProviderPreset = {
   id: 'gemini',
   label: 'Google Gemini',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.gemini
   },
@@ -730,6 +750,7 @@ const GEMINI_PRESET: ProviderPreset = {
 const OPENROUTER_PRESET: ProviderPreset = {
   id: 'openrouter',
   label: 'OpenRouter',
+  spend: 'key-usage',
   get description() {
     return UI_TEXT.providerText.descriptions.openrouter
   },
@@ -773,6 +794,7 @@ const OPENROUTER_PRESET: ProviderPreset = {
 const GROQ_PRESET: ProviderPreset = {
   id: 'groq',
   label: 'Groq',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.groq
   },
@@ -802,6 +824,7 @@ const GROQ_PRESET: ProviderPreset = {
 const DEEPSEEK_PRESET: ProviderPreset = {
   id: 'deepseek',
   label: 'DeepSeek',
+  spend: 'balance',
   get description() {
     return UI_TEXT.providerText.descriptions.deepseek
   },
@@ -867,6 +890,7 @@ const DEEPSEEK_PRESET: ProviderPreset = {
 const MISTRAL_PRESET: ProviderPreset = {
   id: 'mistral',
   label: 'Mistral',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.mistral
   },
@@ -918,6 +942,7 @@ export const PLAN_KEY_PRESETS: readonly PlanKeyPreset[] = [
       return MISTRAL_PRESET.keyHint
     },
     keyTest: MISTRAL_PRESET.keyTest,
+    spend: MISTRAL_PRESET.spend,
     modelsList: MISTRAL_PRESET.modelsList,
     quirks: MISTRAL_PRESET.quirks,
     wireCapture: MISTRAL_PRESET.wireCapture,
@@ -934,6 +959,7 @@ export function planKeyPresetById(id: string): PlanKeyPreset | undefined {
 const TOGETHER_PRESET: ProviderPreset = {
   id: 'together',
   label: 'Together',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.together
   },
@@ -987,6 +1013,7 @@ const TOGETHER_PRESET: ProviderPreset = {
 const FIREWORKS_PRESET: ProviderPreset = {
   id: 'fireworks',
   label: 'Fireworks',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.fireworks
   },
@@ -1016,6 +1043,7 @@ const FIREWORKS_PRESET: ProviderPreset = {
 const HUGGINGFACE_PRESET: ProviderPreset = {
   id: 'huggingface',
   label: 'Hugging Face',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.huggingface
   },
@@ -1042,6 +1070,7 @@ const HUGGINGFACE_PRESET: ProviderPreset = {
 const ZAI_PRESET: ProviderPreset = {
   id: 'zai',
   label: 'Z.ai',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.zai
   },
@@ -1091,6 +1120,7 @@ const ZAI_PRESET: ProviderPreset = {
 const OLLAMA_PRESET: ProviderPreset = {
   id: 'ollama',
   label: 'Ollama',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.ollama
   },
@@ -1110,6 +1140,7 @@ const OLLAMA_PRESET: ProviderPreset = {
 const LMSTUDIO_PRESET: ProviderPreset = {
   id: 'lmstudio',
   label: 'LM Studio',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.lmstudio
   },
@@ -1138,6 +1169,7 @@ const LMSTUDIO_PRESET: ProviderPreset = {
 const VLLM_PRESET: ProviderPreset = {
   id: 'vllm',
   label: 'vLLM',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.vllm
   },
@@ -1162,6 +1194,7 @@ const VLLM_PRESET: ProviderPreset = {
 const LLAMACPP_PRESET: ProviderPreset = {
   id: 'llamacpp',
   label: 'llama.cpp',
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.llamacpp
   },
@@ -1197,6 +1230,7 @@ const CUSTOM_PRESET: ProviderPreset = {
   get label() {
     return UI_TEXT.providerText.labels.custom
   },
+  spend: 'none',
   get description() {
     return UI_TEXT.providerText.descriptions.custom
   },

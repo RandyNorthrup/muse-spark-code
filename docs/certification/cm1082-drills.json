@@ -1,0 +1,449 @@
+[
+  {
+    "name": "writer-lifetime",
+    "exit": 1,
+    "failed": [
+      "fences a released owner before any send and refunds its reservation 36ms",
+      "revocation and replacement fence held clients and prevent dispatch 5ms",
+      "unwinds failed client construction and permits later admission by same owner 10ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/accounts/requestWriter.ts",
+        "sha256": "049db5deb0c0ff1e6025efc2f3ad42e3d97b9e8a97c882778b239e9561500cb7"
+      }
+    ]
+  },
+  {
+    "name": "writer-refund",
+    "exit": 1,
+    "failed": ["unwinds failed client construction and permits later admission by same owner 16ms"],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/accounts/requestWriter.ts",
+        "sha256": "049db5deb0c0ff1e6025efc2f3ad42e3d97b9e8a97c882778b239e9561500cb7"
+      }
+    ]
+  },
+  {
+    "name": "billing-context",
+    "exit": 1,
+    "failed": [
+      "keeps concurrent billing contexts isolated through waits and clears after completion 25ms",
+      "paid worker spread uses B consent and original shared budget, allow=true 149ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/accounts/requestWriter.ts",
+        "sha256": "049db5deb0c0ff1e6025efc2f3ad42e3d97b9e8a97c882778b239e9561500cb7"
+      }
+    ]
+  },
+  {
+    "name": "journal-liability",
+    "exit": 1,
+    "failed": [
+      "retains outstanding liability across day reset and restart without double counting its own projection 18ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "ce7dd679ba81aa76162392f1c8685d597e446dc7ac88432dbfbfa2d4041df416"
+      }
+    ]
+  },
+  {
+    "name": "journal-exact",
+    "exit": 1,
+    "failed": [
+      "settles exact receipt money and counters while refunded nonsends charge nothing 34ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "ce7dd679ba81aa76162392f1c8685d597e446dc7ac88432dbfbfa2d4041df416"
+      }
+    ]
+  },
+  {
+    "name": "journal-start",
+    "exit": 1,
+    "failed": [
+      "keeps pending counters across midnight and attributes the send to its actual day 56ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "ce7dd679ba81aa76162392f1c8685d597e446dc7ac88432dbfbfa2d4041df416"
+      }
+    ]
+  },
+  {
+    "name": "journal-link",
+    "exit": 1,
+    "failed": [
+      "refuses linked or damaged rows with fixed error text, without reading linked content 16ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "ce7dd679ba81aa76162392f1c8685d597e446dc7ac88432dbfbfa2d4041df416"
+      }
+    ]
+  },
+  {
+    "name": "journal-group",
+    "exit": 1,
+    "failed": [
+      "retains deleted-account group limits and concurrent reset records through restart 20ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "ce7dd679ba81aa76162392f1c8685d597e446dc7ac88432dbfbfa2d4041df416"
+      }
+    ]
+  },
+  {
+    "name": "journal-headroom",
+    "exit": 1,
+    "failed": [
+      "ranks configured request headroom and outstanding work, keeping original shared cap callback 13ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "ce7dd679ba81aa76162392f1c8685d597e446dc7ac88432dbfbfa2d4041df416"
+      }
+    ]
+  },
+  {
+    "name": "consent-revision",
+    "exit": 1,
+    "failed": [
+      "ends kept account consent after credential revision changes, including restart 86ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/paid/accountPaidConsent.ts",
+        "sha256": "c5692fa339e9d177c4fb3697ac2450a379a15cc76cf7b89567cdfebd2d536e51"
+      }
+    ]
+  },
+  {
+    "name": "consent-held",
+    "exit": 1,
+    "failed": [
+      "refuses a held answer when its payer credential is revoked and stores no grant 44ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/host/paid/accountPaidEntry.ts",
+        "sha256": "ab77069fc3f4f4a1beb7853a665121730a0ab3bc0b9fc1f35068e73dd06eceb5"
+      }
+    ]
+  },
+  {
+    "name": "payer-header",
+    "exit": 1,
+    "failed": [
+      "refuses a miswired A client for admitted B before any model frame or adoption 1087ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/backends/modelapi/ModelApiHost.ts",
+        "sha256": "a1310f1e7cc591d8c57704c2f7d73bc2474cb263ef03b184d790e457444e9272"
+      }
+    ]
+  },
+  {
+    "name": "headless-opt-in",
+    "exit": 1,
+    "failed": ["headless account caps stay active and pooling requires its flag: false 141ms"],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/accounts/requestWriter.ts",
+        "sha256": "049db5deb0c0ff1e6025efc2f3ad42e3d97b9e8a97c882778b239e9561500cb7"
+      }
+    ]
+  },
+  {
+    "name": "metadata-fence",
+    "exit": 1,
+    "failed": ["sees external cap and credential-revision edits before a held lease can send 46ms"],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/providers/accounts.ts",
+        "sha256": "84cfa040dc03f3671675e06b9254cc40a9acd6745212c479973cf2913b5abd2b"
+      },
+      {
+        "file": "src/runtime/providers/accountRequestOwner.ts",
+        "sha256": "8bba126fa519486ad62eab4a2e01f38722729f697ed127153282fa613813b6f0"
+      }
+    ]
+  },
+  {
+    "name": "budget-owner",
+    "exit": 1,
+    "failed": ["paid worker spread uses B consent and original shared budget, allow=true 140ms"],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/backends/modelapi/ModelApiHost.ts",
+        "sha256": "a1310f1e7cc591d8c57704c2f7d73bc2474cb263ef03b184d790e457444e9272"
+      }
+    ]
+  },
+  {
+    "name": "retry-after-valid",
+    "exit": 1,
+    "failed": [
+      "actual Meta policy stops a vendor-limit swap without a machine grant and names reset 86ms",
+      "honours A 429 and Retry-After by moving next boundary to B without resending A 84ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/core/accounts/requestWriter.ts",
+        "sha256": "049db5deb0c0ff1e6025efc2f3ad42e3d97b9e8a97c882778b239e9561500cb7"
+      }
+    ]
+  },
+  {
+    "name": "crash-receipt-projection",
+    "exit": 1,
+    "failed": [
+      "recovers an exact durable receipt before claim closure without reserving or charging twice 28ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "8f8e8286e725e2afc53baf66e05121144c803dc0668dbd5ad873c2a163fe94bc"
+      }
+    ]
+  },
+  {
+    "name": "crash-receipt-retention",
+    "exit": 1,
+    "failed": [
+      "recovers an exact durable receipt before claim closure without reserving or charging twice 26ms",
+      "settles exact receipt money and counters while refunded nonsends charge nothing 14ms"
+    ],
+    "restoredByteExact": true,
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "8f8e8286e725e2afc53baf66e05121144c803dc0668dbd5ad873c2a163fe94bc"
+      }
+    ]
+  },
+  {
+    "name": "queued-choice",
+    "exit": 1,
+    "failed": [
+      "queues manual choice while admitted A keeps its payer through final send and settlement 24ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "queued-settlement",
+    "exit": 1,
+    "failed": [
+      "queues manual choice while admitted A keeps its payer through final send and settlement 26ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "held-admission",
+    "exit": 1,
+    "failed": [
+      "holds admission and final dispatch, refunds nonsends, and rejects stale queued selection 15ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "held-final-send",
+    "exit": 1,
+    "failed": [
+      "holds admission and final dispatch, refunds nonsends, and rejects stale queued selection 12ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/accounts/pool.ts",
+        "sha256": "aeb32173dfd475e6a1659695f0a26146cc52d3c7ae4f585291d8ca9c07f1ff38"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "acp-queued-selection",
+    "exit": 1,
+    "failed": [
+      "ACP config selection during a live prompt keeps A settlement and chooses B at next request 184ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/acp/agent.ts",
+        "sha256": "70dde4c6d4fd20c7cff42cafaf033d40d6763e1ad32bde816e7c4792d6628ddb"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "configured-native-rebinding",
+    "exit": 1,
+    "failed": [
+      "VS Code Models panel queues an in-flight switch; original payer settles and next request uses B 5026ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/core/providers/configured.ts",
+        "sha256": "da1d5c47a81ae57706a47611b8a27413de07359379d3a62a03af328724399d4c"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "panel-request-route",
+    "exit": 1,
+    "failed": [
+      "VS Code Models panel queues an in-flight switch; original payer settles and next request uses B 1251ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/host/models/modelsPanel.ts",
+        "sha256": "8ee9326dbbbd412ee65c9b51f676054635facba40db8de70a9aca6d1e7ab6c52"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "reply-correlation",
+    "exit": 1,
+    "failed": [
+      "rejects mismatched or secret-bearing replies and gives an honest request failure at its unchanged bound 103ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/webview/models/sections/accounts/AccountsSurface.tsx",
+        "sha256": "3bb8fe710e4625cc3e55092448015005efa49ffc950c65bf78056fe2a7a2b118"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "strict-account-envelope",
+    "exit": 1,
+    "failed": [
+      "rejects mismatched or secret-bearing replies and gives an honest request failure at its unchanged bound 24ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/shared/modelAccountsProtocol.ts",
+        "sha256": "b4226b04c6c6bf5f6f42218681c4c305029c03b533fb15a88bcbcc3683740f86"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "independent-durable-claims",
+    "exit": 1,
+    "failed": [
+      "real second process recovers a lost send reservation once and sends next admitted request on B 956ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/runtime/providers/accountRequestJournal.ts",
+        "sha256": "8f8e8286e725e2afc53baf66e05121144c803dc0668dbd5ad873c2a163fe94bc"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "closed-admission",
+    "exit": 1,
+    "failed": [
+      "one default-off switch hides installed request admission and its Help detail, then fences a held lease when closed 61ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/runtime/providers/runtimeServices.ts",
+        "sha256": "c05dc143994dc54d7920cc7673869f1e76bfaed54a4f1f3ac67a116268f07794"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "closed-held-lease",
+    "exit": 1,
+    "failed": [
+      "one default-off switch hides installed request admission and its Help detail, then fences a held lease when closed 193ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/runtime/providers/runtimeServices.ts",
+        "sha256": "c05dc143994dc54d7920cc7673869f1e76bfaed54a4f1f3ac67a116268f07794"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "closed-help-detail",
+    "exit": 1,
+    "failed": [
+      "one default-off switch hides installed request admission and its Help detail, then fences a held lease when closed 28ms"
+    ],
+    "restoration": [
+      {
+        "file": "src/shared/featureCatalog.ts",
+        "sha256": "3b25bce816ae472e71df6c249e6d7bebbbbba40d54dfc67f204fe0e679b4bca9"
+      }
+    ],
+    "restoredByteExact": true
+  },
+  {
+    "name": "new-account-ui-budget",
+    "exit": 1,
+    "failed": ["bounds the complete lazy model accounts body at 175 KiB 29ms"],
+    "restoration": [
+      {
+        "file": "scripts/check-bundle-size.mjs",
+        "sha256": "d9d4845c4ff3ec5b517712e62570a9d2c76717a079d192e7b33447c115ff6d78"
+      }
+    ],
+    "restoredByteExact": true
+  }
+]

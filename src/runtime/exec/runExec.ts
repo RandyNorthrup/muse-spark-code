@@ -45,16 +45,24 @@ import {
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   MODEL_API_PRICES_PER_MILLION,
+  MUSE_CREDENTIAL_FILE_MAX_BYTES,
   SECRET_KEYS,
   THINKING_OFF_EFFORT,
   PROVIDER_SECRET_PREFIX,
   UI_TEXT,
 } from '../../shared/constants'
 import { effortLevelsFor } from '../../shared/effort'
+import { isErrno } from '../../core/fs/errno'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { effortNotForModelText } from '../../core/unknownModel'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
+import {
+  isMissing,
+  readSubscriptionKeyText,
+  subscriptionKeyRefusal,
+} from '../../core/backends/modelapi/subscriptionKey'
+import { credentialFilePath } from '../../core/backends/musecode/credentialPath'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
 import { isHeadlessPaidUseAllowed, serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
@@ -764,6 +772,12 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw new Error(UI_TEXT.accounts.museCodeUnavailable)
     if (requiresAccounts && deps.accounts === undefined)
       throw new Error(UI_TEXT.accounts.unavailable)
+    const shouldBindAccounts =
+      requiresAccounts ||
+      (!options.keyFromStdin &&
+        options.backend === 'modelApi' &&
+        options.provider === undefined &&
+        deps.accounts !== undefined)
     if (options.provider !== undefined) {
       const result = await runWithProvider()
       if (result !== undefined) return result
@@ -843,6 +857,46 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         literals.push(key.key)
         secrets = memory
       }
+      // C-M95-SUB: the subscription key joins the scrubbed literals like a
+      // pasted key; a missing sign-in refuses with its fix, like stdin's.
+      // Read through the run's own bounded file reader (never the secret
+      // store); the key lives in the literals the run already clears. (The
+      // backend is always modelApi here: both argv layers reject the
+      // opt-in anywhere else.)
+      if (providerRun === undefined && options.subscription) {
+        const file = credentialFilePath({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        })
+        let text: string
+        try {
+          const bytes = await lifecycle.race(
+            deps.readFile(file, MUSE_CREDENTIAL_FILE_MAX_BYTES, lifecycle.signal),
+          )
+          text = new TextDecoder().decode(bytes)
+        } catch (readError: unknown) {
+          // A missing sign-in refuses with its fix; an unreadable file
+          // refuses too. Anything else (including the run's own
+          // interruption) is not this read's answer to give.
+          if (isMissing(readError)) {
+            status = 'auth_required'
+            error = subscriptionKeyRefusal('missing')
+            return await finish()
+          }
+          if (!isErrno(readError)) throw readError
+          status = 'auth_required'
+          error = subscriptionKeyRefusal('unreadable')
+          return await finish()
+        }
+        const read = readSubscriptionKeyText(text)
+        if (read.status !== 'ready') {
+          status = 'auth_required'
+          error = subscriptionKeyRefusal(read.status)
+          return await finish()
+        }
+        literals.push(read.key)
+      }
       const watchedSecrets: SecretStore = {
         async get(name) {
           const value = await lifecycle.race(Promise.resolve(secrets.get(name)))
@@ -920,6 +974,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           get selectedModel() {
             return model ?? ''
           },
+          // Meta-only, fixed-model one-shot: subscription preflight is plan or
+          // refusal. Provider runs use runtimeAccounting's per-attempt route.
+          // The flag is safe here; paid images remain separately dollar-billed.
+          planBilling: options.subscription,
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
           responsesThroughEngine: options.team,
           lifecycle,
@@ -1104,7 +1162,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
       }
       let accounts: AccountsSessionPort | undefined
-      if (requiresAccounts) {
+      if (shouldBindAccounts) {
         const configured = deps.accounts?.create(runtimeDeps, selection, createRuntimeBackend)
         if (configured === undefined) throw new Error(UI_TEXT.accounts.unavailable)
         runtime = configured.runtime
@@ -1419,9 +1477,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 }
                 // Ask the ledger's exact arithmetic for the start reservation, in a
                 // separate un-dispatched ledger. No request belongs to this run yet.
-                const preview = previewResponseReservation(ledger, model ?? '', price)
+                // C-M95-SUB: a plan-billed run holds no dollar reservation; the
+                // required --max-budget-usd still bounds paid image spend and
+                // the ledger below still counts requests.
+                const preview = options.subscription
+                  ? undefined
+                  : previewResponseReservation(ledger, model ?? '', price)
                 const minimum =
-                  microUsd(preview.reserveUsd) +
+                  (preview === undefined ? ZERO_MICRO_USD : microUsd(preview.reserveUsd)) +
                   (options.paidFeatures.includes('imageGeneration')
                     ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
                     : ZERO_MICRO_USD)
