@@ -10,8 +10,10 @@
 
 import {
   ACCOUNT_REMOTE_LIMIT_DEFAULT_MS,
+  INDUSTRY_RETRY_BASE_MS,
+  INDUSTRY_RETRY_MAX_MS,
+  INDUSTRY_RETRY_MAX_RETRIES,
   MILLISECONDS_PER_SECOND,
-  MODEL_API_RETRY_BASE_MS,
   PROVIDER_RETRY_HTTP_STATUS,
 } from './constants'
 
@@ -52,74 +54,62 @@ const QUOTA_ERROR_KINDS: readonly string[] = [
 ]
 
 /**
+The industry-standard retryable statuses (D217): both official SDKs retry
+408, 409, 429 and 5xx (`_should_retry` in openai-python and
+anthropic-sdk-python `_base_client.py`, read 2026-10-23), and the owner
+decided the product follows them. Every format carries the full set: no
+provider studied forbids retrying 408, 409 or 529 (Meta's do-not-retry
+list is 400, 401, 402, 403, 404 and 413; dev.meta.ai/docs/error-handling,
+read 2026-10-23), so the statuses no longer vary by format. What still
+varies is each format's envelope vocabulary below.
+*/
+const INDUSTRY_RETRY_STATUSES: readonly number[] = [
+  PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
+  PROVIDER_RETRY_HTTP_STATUS.conflict,
+  PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
+  PROVIDER_RETRY_HTTP_STATUS.internalServerError,
+  PROVIDER_RETRY_HTTP_STATUS.badGateway,
+  PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
+  PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
+  PROVIDER_RETRY_HTTP_STATUS.overloaded,
+]
+
+/**
 Per-format tables. `responses` is Meta's documented set (429 and the
-server errors; dev.meta.ai/docs/error-handling), unchanged from the
-constants this replaces; `chat` adds the compatible APIs' documented
-timeout/conflict retries; `anthropic` adds its 529 overload and 504
-gateway with `overloaded_error`; `gemini` retries what Google lists as
-transient ("429, 408, or 5xx"; ai.google.dev/gemini-api/docs/
-troubleshooting, read 2026-10-17, lane PROVERRORS); `ollama` keeps the
-conservative base set; nothing priced locally retries billing.
+server errors, plus its documented retryable 503 codes `service_overloaded`,
+`backend_unavailable` and `server_shutting_down`;
+dev.meta.ai/docs/error-handling, read 2026-10-23); `chat` adds the
+compatible APIs' documented timeout/conflict retries; `anthropic` adds
+its 529 overload and 504 gateway with `overloaded_error`; `gemini`
+retries what Google lists as transient ("429, 408, or 5xx";
+ai.google.dev/gemini-api/docs/troubleshooting, read 2026-10-17, lane
+PROVERRORS); `ollama` keeps the conservative base set; nothing priced
+locally retries billing. D217: the statuses are the industry set on every
+format (above); only the envelope kinds still vary.
 */
 export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
   responses: {
-    statuses: [
-      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
-      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
-      PROVIDER_RETRY_HTTP_STATUS.badGateway,
-      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
-      PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
-    ],
-    errorKinds: [],
+    statuses: INDUSTRY_RETRY_STATUSES,
+    errorKinds: ['service_overloaded', 'backend_unavailable', 'server_shutting_down'],
     quotaKinds: QUOTA_ERROR_KINDS,
   },
   chat: {
-    statuses: [
-      PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
-      PROVIDER_RETRY_HTTP_STATUS.conflict,
-      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
-      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
-      PROVIDER_RETRY_HTTP_STATUS.badGateway,
-      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
-      PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
-    ],
+    statuses: INDUSTRY_RETRY_STATUSES,
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
   },
   anthropic: {
-    statuses: [
-      PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
-      PROVIDER_RETRY_HTTP_STATUS.conflict,
-      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
-      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
-      PROVIDER_RETRY_HTTP_STATUS.badGateway,
-      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
-      PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
-      PROVIDER_RETRY_HTTP_STATUS.overloaded,
-    ],
+    statuses: INDUSTRY_RETRY_STATUSES,
     errorKinds: ['overloaded_error'],
     quotaKinds: QUOTA_ERROR_KINDS,
   },
   gemini: {
-    statuses: [
-      PROVIDER_RETRY_HTTP_STATUS.requestTimeout,
-      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
-      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
-      PROVIDER_RETRY_HTTP_STATUS.badGateway,
-      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
-      PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
-    ],
+    statuses: INDUSTRY_RETRY_STATUSES,
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
   },
   ollama: {
-    statuses: [
-      PROVIDER_RETRY_HTTP_STATUS.tooManyRequests,
-      PROVIDER_RETRY_HTTP_STATUS.internalServerError,
-      PROVIDER_RETRY_HTTP_STATUS.badGateway,
-      PROVIDER_RETRY_HTTP_STATUS.serviceUnavailable,
-      PROVIDER_RETRY_HTTP_STATUS.gatewayTimeout,
-    ],
+    statuses: INDUSTRY_RETRY_STATUSES,
     errorKinds: [],
     quotaKinds: QUOTA_ERROR_KINDS,
   },
@@ -128,9 +118,9 @@ export const RETRY_TABLES: Record<RetryFormat, RetryTables> = {
 /**
 One provider's documented retry bounds (lane RETRYLIMITS, owner's binding
 rule: the only hard-coded limits are each provider's own). Every field a
-provider does not document stays absent: no limit of ours applies, the
-person's `museSpark.modelApiMaxRetries` setting decides, and with none
-set the provider's own Retry-After (or stop answer) governs.
+provider does not document stays absent: the person's
+`museSpark.modelApiMaxRetries` setting decides, and with none set the
+industry-standard default governs (D217).
 */
 export interface RetryLimits {
   /** Documented maximum retries after the first try (attempts minus one). */
@@ -147,13 +137,14 @@ is `docs/certification/provider-refusals.md`, "Lane RETRYLIMITS").
 `responses` and `chat` carry none at the format level: OpenAI's API docs
 say only "limit retries" (openai.md §4; its SDK's documented 2 retries
 ride on the OpenAI preset's own override in `presets.ts`) and the other
-chat providers name no count or bounds, so presets on those formats
-retry unbounded unless the person sets a limit or the preset documents
-one of its own.
+chat providers name no count or bounds, so presets on those formats fall
+back to the industry-standard default unless the person sets a limit or
+the preset documents one of its own (D217).
 `anthropic` retries twice (the official SDK default, "twice by default";
-its backoff has no documented bounds). `gemini` retries four times from
-~1 s up to 60 s (the official SDK default). `ollama` serves local models
-that document no retry bounds at all.
+its backoff has no documented bounds, so the industry 0.5 s base and 8 s
+ceiling govern it). `gemini` retries four times from ~1 s up to 60 s
+(the official SDK default). `ollama` serves local models that document
+no retry bounds at all, so the industry default governs them.
 */
 export const PROVIDER_RETRY_LIMITS: Record<RetryFormat, RetryLimits> = {
   responses: {},
@@ -173,20 +164,30 @@ their preset's quirks instead.
 export const META_DOCUMENTED_RETRY_LIMITS: RetryLimits = { maxRetries: 4 }
 
 /**
+The industry-standard bounds (D217): the official SDK defaults, governing
+only where a provider documents none of its own.
+*/
+export const INDUSTRY_RETRY_LIMITS: RetryLimits = {
+  maxRetries: INDUSTRY_RETRY_MAX_RETRIES,
+  baseMs: INDUSTRY_RETRY_BASE_MS,
+  maxMs: INDUSTRY_RETRY_MAX_MS,
+}
+
+/**
 The retries one call may use: the person's setting caps the provider's
 documented maximum (it reduces that provider-defined limit but never
-raises it), the person's value decides alone where the provider
-documents none, and undefined (unbounded: the provider's own Retry-After
-waits and stop answers govern the loop) where neither sets one.
+raises it); where the provider documents none, the person's value
+decides alone, or the industry-standard default governs (D217).
 */
 export function effectiveMaxRetries(
   personCap: number | undefined,
   documented: RetryLimits | undefined,
-): number | undefined {
+): number {
   const providerMaxRetries = documented?.maxRetries
-  return personCap !== undefined && providerMaxRetries !== undefined
-    ? Math.min(personCap, providerMaxRetries)
-    : (personCap ?? providerMaxRetries)
+  if (providerMaxRetries === undefined) {
+    return personCap ?? INDUSTRY_RETRY_MAX_RETRIES
+  }
+  return personCap === undefined ? providerMaxRetries : Math.min(personCap, providerMaxRetries)
 }
 
 /**
@@ -207,9 +208,9 @@ export function isPersonRetryCap(
 /**
 The wait before try number `attempt` (0-based): the provider's own wait
 whole when it named one (never shortened to our backoff), else
-exponential from the documented base (1 s is the only documented initial
-wait: Gemini's SDK and xAI's examples) doubling per try, up to the
-documented maximum when the provider sets one and uncapped otherwise.
+exponential from the documented base doubling per try, up to the
+documented maximum. Where the provider documents no base or maximum,
+the industry-standard 0.5 s base and 8 s ceiling govern (D217).
 `jitterSample` is the transport's 0 ≤ n < 1 draw, added whole.
 */
 export function retryDelayMs(
@@ -221,8 +222,8 @@ export function retryDelayMs(
 ): number {
   const jitter = Math.floor(jitterSample * jitterMs)
   if (suggestedMs !== undefined) return suggestedMs + jitter
-  const baseMs = documented?.baseMs ?? MODEL_API_RETRY_BASE_MS
-  const maxMs = documented?.maxMs ?? Infinity
+  const baseMs = documented?.baseMs ?? INDUSTRY_RETRY_BASE_MS
+  const maxMs = documented?.maxMs ?? INDUSTRY_RETRY_MAX_MS
   const exponential = Math.min(baseMs * 2 ** attempt, maxMs)
   return Math.min(exponential + jitter, maxMs)
 }

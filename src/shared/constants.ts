@@ -3145,11 +3145,13 @@ export const MODEL_API_RETRYABLE_STREAM_CODES: ReadonlySet<string> = new Set([
 // `META_DOCUMENTED_RETRY_LIMITS` for Meta's own 3–5 attempts) with
 // per-preset overrides in `src/core/providers/presets.ts` (`FormatQuirks.retryLimits`);
 // the person's `museSpark.modelApiMaxRetries` setting wins when set. What
-// remains here is mechanism, not a limit: the default initial wait (1 s is
-// the only documented base: Gemini's SDK and xAI's examples) used while the
-// provider names no wait and documents no base, and the anti-herd jitter.
-// `MODEL_API_RETRY_MAX_MS` below is pacing's assumed 429 wait when the
-// answer names none (lane PROVM95's area), never a retry cap.
+// remains here is mechanism, not a limit: the pacing fallback wait (1 s,
+// kept for pacing's assumed 429 wait when the answer names none, lane
+// PROVM95's area) and the anti-herd jitter. D217 (owner 2026-10-23:
+// "obviously there needs to be limits for things like fail retries")
+// adds the industry-standard fallback beside them (`INDUSTRY_RETRY_*`,
+// below): where a provider documents no bounds, the SDK default governs
+// instead of retrying unbounded.
 /** Meta's retry codes and the ChatGPT plan's documented retry answers ride one bounded retry. */
 export function isRetryableStreamCode(code: string): boolean {
   return MODEL_API_RETRYABLE_STREAM_CODES.has(code) || CHATGPT_PLAN_RETRYABLE_CODES.includes(code)
@@ -3157,6 +3159,21 @@ export function isRetryableStreamCode(code: string): boolean {
 export const MODEL_API_RETRY_BASE_MS = 1000
 export const MODEL_API_RETRY_MAX_MS = 60_000
 export const MODEL_API_RETRY_JITTER_MS = 1000
+// The industry-standard retry bounds (D217, owner 2026-10-23: "auto resend
+// we should follow the industry standard"): the official SDK defaults,
+// governing only where a provider documents none of its own (the
+// provider's documented bounds still win, and the person's setting still
+// decides). Both major SDKs retry twice from 0.5 s doubling to 8 s
+// (`DEFAULT_MAX_RETRIES`, `INITIAL_RETRY_DELAY`, `MAX_RETRY_DELAY` in
+// openai-python and anthropic-sdk-python `_constants.py`, read
+// 2026-10-23); Meta documents the same shape (0.5–1 s start, doubling,
+// 3–5 attempts, dev.meta.ai/docs/error-handling).
+/** Retries after the first try where the provider documents no maximum. */
+export const INDUSTRY_RETRY_MAX_RETRIES = 2
+/** First backoff wait where the provider documents no base. */
+export const INDUSTRY_RETRY_BASE_MS = 500
+/** Backoff ceiling where the provider documents none. */
+export const INDUSTRY_RETRY_MAX_MS = 8000
 // The longest delay one timer holds: "When `delay` is larger than
 // `2147483647` … the `delay` will be set to `1`" (nodejs.org/api/timers.html,
 // Node.js v26.12.0, read 2026-10-17). A longer retry wait (an uncapped
