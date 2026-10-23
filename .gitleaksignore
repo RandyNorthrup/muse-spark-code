@@ -21,3 +21,11 @@ test/fixtures/webfetch/wiki-internet.body:generic-api-key:6
 test/unit/nodeSignin.test.ts:generic-api-key:28
 # Example ACME challenge token in a unit test; invented for the test, no credential.
 test/unit/nodeSignin.test.ts:generic-api-key:151
+# SHA-256 source digest in the M125 certification record's sourceSha256 map; the ModelApiHost.ts filename tripped the detector, no credential.
+878ef7ffaff3c753a384a650863b0bf11b7e6c58:docs/certification/m125-f1-linux.json:generic-api-key:131
+# Synthetic migration-test key placeholder; sequential-hex value beside an explicit not-a-real-key record, absent from the current tree.
+1cbebd98c3b089a9451164303f7eb64d31084466:test/unit/vault/credentialMigration.test.ts:generic-api-key:20
+# Synthetic migration-test key placeholder; sequential-hex value beside an explicit not-a-real-key record, absent from the current tree.
+1cbebd98c3b089a9451164303f7eb64d31084466:test/unit/vault/credentialMigrationStore.test.ts:generic-api-key:28
+# RFC 6455 section 1.3's documented example handshake key ("the sample nonce"); a public spec vector in a WIP snapshot, absent from the current tree.
+5b0f3290b8c4581b734cbbab6b8f036b344fabfc:test/unit/voiceProxy.test.ts:generic-api-key:252
