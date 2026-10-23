@@ -150,7 +150,7 @@ export interface DeviceProductionContext {
 
 export interface DeviceProductionDeps extends Omit<
   DeviceServiceDeps,
-  'snapshot' | 'publish' | 'report'
+  'snapshot' | 'publish' | 'report' | 'reveal'
 > {
   /**
   Closes the pairing store (releasing its `.pairing.lock`), then ends the

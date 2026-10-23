@@ -154,3 +154,11 @@
 .device-fingerprint > span > span {
   white-space: nowrap;
 }
+
+.device-maker-payload {
+  max-height: 240px;
+  overflow: auto;
+  font-family: monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

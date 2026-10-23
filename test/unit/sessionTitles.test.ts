@@ -15,6 +15,7 @@ import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { createAcpAgent } from '../../src/acp/agent'
+import { AcpMakerSurface } from '../../src/acp/maker'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { SessionListEvent, SessionRecord } from '../../src/core/agent/agentBackend'
 import { toSessionRow } from '../../src/core/agent/sessionRows'
@@ -186,6 +187,7 @@ describe('Muse Code session titles, end to end', () => {
         }),
         log,
       }),
+      maker: new AcpMakerSurface({ log }),
       log,
       questions: 'decline',
     })

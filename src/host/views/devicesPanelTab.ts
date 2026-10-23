@@ -171,6 +171,16 @@ export function devicesWindow(options: {
 }): vscode.Disposable & { open(): void } {
   const { log } = options
   let tab: DevicesPanelTab | undefined
+  const open = (): void => {
+    tab ??= new DevicesPanelTab(
+      options.hostContext,
+      () => methods.service(),
+      () => {
+        tab = undefined
+      },
+    )
+    tab.open()
+  }
   const methods = deviceMethods({
     bundlePath: options.bundlePath,
     log,
@@ -187,6 +197,9 @@ export function devicesWindow(options: {
       return {
         ...deps,
         snapshot: () => Promise.resolve({ enabled: false as const }),
+        reveal: () => {
+          open()
+        },
         publish: (message) => {
           tab?.publish(message)
         },
@@ -197,16 +210,7 @@ export function devicesWindow(options: {
     },
   })
   return {
-    open(): void {
-      tab ??= new DevicesPanelTab(
-        options.hostContext,
-        () => methods.service(),
-        () => {
-          tab = undefined
-        },
-      )
-      tab.open()
-    },
+    open,
     dispose(): void {
       tab?.dispose()
       tab = undefined

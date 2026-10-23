@@ -1585,6 +1585,13 @@ const TEXT_BLOCKS = [
     sentinels: ['deviceTaskContext', 'deviceApprovalWait'],
     readers: ['dist/devices.js'],
   },
+  // RLF-DEVICES: the maker executors' loader words; only dist/devices.js
+  // (the loader) reads them, never the maker bundle itself.
+  {
+    block: 'MAKER_MODEL_TEXT',
+    sentinels: ['makerBundleUnavailable'],
+    readers: ['dist/devices.js'],
+  },
   {
     block: 'QUESTION_MODEL_TEXT',
     sentinels: ['deferredClarification'],

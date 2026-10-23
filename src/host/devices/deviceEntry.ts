@@ -1,10 +1,11 @@
 // Required only by an explicit Devices action. No editor API or runtime fallback.
 import { randomBytes, X509Certificate } from 'node:crypto'
+import path from 'node:path'
 import { DevicePanel } from '../../core/devices/devicePanel'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { DevicePairingError } from '../../core/devices/pairing'
 import type { AttemptJournal } from '../../core/devices/attemptJournal'
-import { DEVICE_LIMITS, DEVICE_MODEL_TEXT } from '../../shared/constants'
+import { DEVICE_LIMITS, DEVICE_MODEL_TEXT, MAKER_BUNDLE_FILE } from '../../shared/constants'
 import {
   deviceWebviewMessageSchema,
   type DeviceHostMessage,
@@ -14,6 +15,8 @@ import type { DeviceFrame, DEVICE_FAILURES } from '../../shared/devices'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { DevicePairing, type DevicePairingDeps } from './devicePairing'
+import { makerLoader } from './makerBundle'
+import { PanelMakerSurface } from './makerSurface'
 import { assertLocalDeviceHost } from './deviceSecrets'
 import {
   DeviceReceiver,
@@ -51,6 +54,8 @@ export interface DeviceServiceDeps extends Omit<DevicePairingDeps, 'disconnectPa
   readonly policy: Omit<DeviceReceiverPolicy, 'currentGrant'>
   readonly source: DeviceChannelPort
   readonly snapshot: () => Promise<DevicesPanelState>
+  /** Opens or reveals the Devices panel for a waiting maker prompt. */
+  readonly reveal: () => void
   readonly publish: (message: DeviceHostMessage) => void
   readonly report: (reason: Failure) => void
   readonly log: Logger
@@ -88,16 +93,6 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     },
     deps.log,
   )
-  const panel = new DevicePanel({
-    perform: (request) => {
-      if (lifetime.isDisposed) throw new DevicePairingError('revoked')
-      return pairing.handle(request)
-    },
-    snapshot: deps.snapshot,
-    publish(message) {
-      if (!isDisposed()) deps.publish(message)
-    },
-  })
   async function observe(): Promise<void> {
     if (isDisposed()) return
     const message = await panel.observe()
@@ -129,6 +124,37 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     })()
     return observation
   }
+  const makerSurface = new PanelMakerSurface({
+    publish: () => {
+      void observed()
+    },
+    reveal: deps.reveal,
+  })
+  // The executors stay out of this bundle (dist/maker.js, on the first
+  // maker execution): M103's tool paths load them and hand in this
+  // surface, the same one the snapshot carries.
+  const loadMaker = makerLoader({
+    bundlePath: path.join(__dirname, MAKER_BUNDLE_FILE),
+    log: deps.log,
+  })
+  const panel = new DevicePanel({
+    perform: async (request) => {
+      if (lifetime.isDisposed) throw new DevicePairingError('revoked')
+      if (request.action.kind === 'answerMakerApproval') {
+        makerSurface.answer(request.action)
+        return { viewId: request.viewId, requestId: request.requestId }
+      }
+      return await pairing.handle(request)
+    },
+    snapshot: async () => {
+      const base = await deps.snapshot()
+      const makerApproval = makerSurface.pendingPrompt()
+      return makerApproval === undefined ? base : { ...base, makerApproval }
+    },
+    publish(message) {
+      if (!isDisposed()) deps.publish(message)
+    },
+  })
   const receiverPort: DeviceChannelPort = {
     connected(channel) {
       void (async () => {
@@ -192,6 +218,8 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     panel,
     pairing,
     receiver,
+    makerSurface,
+    loadMaker,
     observe,
     async request(input: unknown, signal?: AbortSignal): Promise<DeviceHostMessage> {
       const parsed = deviceWebviewMessageSchema.safeParse(input)
@@ -226,6 +254,7 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     },
     dispose() {
       lifetime.isDisposed = true
+      makerSurface.dispose()
       for (const pairId of active) {
         receiver.disconnect('revoked', pairId)
         transport.revoke(pairId)
