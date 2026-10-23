@@ -207,6 +207,16 @@ export class WriteSetLeases {
     return { kind: 'acquired', lease: held.lease }
   }
 
+  /** The scheduler withdraws only a reservation whose worker was never invoked. */
+  withdraw(holder: Attempt): boolean {
+    const held = this.held.get(holder.taskId)
+    if (held === undefined || !isSame(held.lease.holder, holder)) return false
+    this.held.delete(holder.taskId)
+    this.latest.delete(holder.taskId)
+    this.families.delete(holder.taskId)
+    return true
+  }
+
   release(holder: Attempt, retirement: z.infer<typeof teamRetirementSchema>): boolean {
     teamRetirementSchema.parse(retirement)
     const held = this.held.get(holder.taskId)
