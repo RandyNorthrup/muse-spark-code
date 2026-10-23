@@ -73,6 +73,14 @@ restored byte-exact, exit 0.
   Deleted.
 - `test/unit/helpers/judgeApprovalFixtures.ts` imported by no suite at the
   lane tip or after the merge. Deleted.
+- The reference gate's host-capability witness for `paidHost.ts`
+  (`scripts/lib/reference.mjs`) guarded two fragments inside the deleted
+  `paidAvailability`; the live availability rule in `src/extension.ts` is
+  already witnessed there, so the stale paidHost entry was removed and the
+  reference regenerated unchanged. Drill: breaking the extension.ts
+  fragment still fails `check:reference` with
+  `Host capability witness changed: src/extension.ts` (exit 1); restored,
+  exit 0.
 
 Remaining knip output is 5 configuration hints (stale `vendor/**`,
 `axe-core`, `readelf`/`cc`/`c++` ignores) and 2 tag hints; hints do not
