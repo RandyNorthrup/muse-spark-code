@@ -1,0 +1,38 @@
+{
+  "name": "nvidia",
+  "kind": "sysext",
+  "architectures": ["amd64", "arm64"],
+  "vendor": "NVIDIA Corporation",
+  "terms": "https://www.nvidia.com/en-us/drivers/nvidia-license/",
+  "install": "user-click",
+  "osRelease": {
+    "id": "debian",
+    "versionId": "13"
+  },
+  "buildLane": "device",
+  "sources": {
+    "amd64": {
+      "apt": {
+        "uri": "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64",
+        "packages": ["nvidia-open", "nvidia-driver"],
+        "version": "595.45.04-1"
+      }
+    },
+    "arm64": {
+      "apt": {
+        "uri": "https://developer.download.nvidia.com/compute/cuda/repos/debian13/sbsa",
+        "packages": ["nvidia-open", "nvidia-driver"],
+        "version": "595.58.03-1"
+      }
+    }
+  },
+  "keyring": {
+    "url": "https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/8793F200.pub",
+    "fingerprints": "fingerprints.txt"
+  },
+  "kernelModules": {
+    "open": true,
+    "proprietary": true,
+    "mokSign": true
+  }
+}

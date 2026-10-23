@@ -5,13 +5,12 @@
 // Exits 0 when the keyring carries every pinned fingerprint, 1 on a
 // mismatch, 2 on a usage, input or tool error.
 import { readFileSync } from 'node:fs'
+import { findGpg, listKeyringFingerprints } from './lib/checkKey.mjs'
 import {
   checkFingerprints,
-  findGpg,
   fingerprintsFromColons,
-  listKeyringFingerprints,
   parseFingerprintsFile,
-} from './lib/checkKey.mjs'
+} from '../lib/fingerprints.mjs'
 
 function usage() {
   console.log(

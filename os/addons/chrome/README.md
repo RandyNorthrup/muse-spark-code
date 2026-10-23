@@ -18,7 +18,7 @@ Result: a good signature from `Google Inc. (Linux Packages Signing
 Authority)`, subkey `0E225917414670F4442C250DFD533C07C264648F`,
 and `Architectures: amd64 arm64` — the plan's two architectures.
 
-## Build (runs in OS6 CI and on the device, after OS1)
+## Build (runs on the device, after OS1; D90.24 keeps licensed add-ons off CI)
 
 1. Fetch the keyring and check it: `check-key.mjs --keyring <file>
 --fingerprints fingerprints.txt`.

@@ -1,0 +1,1044 @@
+{
+  "_comment": "foo",
+  "binary": "firmware-atheros",
+  "result": [
+    {
+      "binary_version": "20260916-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260916-1"
+    },
+    {
+      "binary_version": "20260916-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260916-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260810-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260810-1"
+    },
+    {
+      "binary_version": "20260810-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260810-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260622-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260622-1"
+    },
+    {
+      "binary_version": "20260622-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260622-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260519-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260519-1"
+    },
+    {
+      "binary_version": "20260519-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260519-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260410-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260410-1"
+    },
+    {
+      "binary_version": "20260410-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260410-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260309-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260309-1"
+    },
+    {
+      "binary_version": "20260309-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260309-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260221-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260221-1"
+    },
+    {
+      "binary_version": "20260221-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260221-1~bpo13+1"
+    },
+    {
+      "binary_version": "20260110-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260110-1"
+    },
+    {
+      "binary_version": "20260110-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20260110-1~bpo13+1"
+    },
+    {
+      "binary_version": "20251125-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20251125-1"
+    },
+    {
+      "binary_version": "20251111-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20251111-1"
+    },
+    {
+      "binary_version": "20251111-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20251111-1~bpo13+1"
+    },
+    {
+      "binary_version": "20251021-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20251021-1"
+    },
+    {
+      "binary_version": "20251021-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20251021-1~bpo13+1"
+    },
+    {
+      "binary_version": "20251011-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20251011-1"
+    },
+    {
+      "binary_version": "20250917-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250917-1"
+    },
+    {
+      "binary_version": "20250808-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250808-1"
+    },
+    {
+      "binary_version": "20250808-1~bpo13+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250808-1~bpo13+1"
+    },
+    {
+      "binary_version": "20250708-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250708-1"
+    },
+    {
+      "binary_version": "20250613-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250613-1"
+    },
+    {
+      "binary_version": "20250509-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250509-1"
+    },
+    {
+      "binary_version": "20250410-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250410-2"
+    },
+    {
+      "binary_version": "20250410-2~bpo12+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250410-2~bpo12+1"
+    },
+    {
+      "binary_version": "20250410-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250410-1"
+    },
+    {
+      "binary_version": "20250311-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250311-1"
+    },
+    {
+      "binary_version": "20250211-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250211-1"
+    },
+    {
+      "binary_version": "20250109-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20250109-1"
+    },
+    {
+      "binary_version": "20241210-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20241210-1"
+    },
+    {
+      "binary_version": "20241210-1~bpo12+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20241210-1~bpo12+1"
+    },
+    {
+      "binary_version": "20240909-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240909-2"
+    },
+    {
+      "binary_version": "20240909-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240909-1"
+    },
+    {
+      "binary_version": "20240811-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240811-1"
+    },
+    {
+      "binary_version": "20240709-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240709-2"
+    },
+    {
+      "binary_version": "20240709-2~bpo12+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240709-2~bpo12+1"
+    },
+    {
+      "binary_version": "20240709-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240709-1"
+    },
+    {
+      "binary_version": "20240610-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20240610-1"
+    },
+    {
+      "binary_version": "20230625-3~exp3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230625-3~exp3"
+    },
+    {
+      "binary_version": "20230625-3~exp2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230625-3~exp2"
+    },
+    {
+      "binary_version": "20230625-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230625-2"
+    },
+    {
+      "binary_version": "20230625-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230625-1"
+    },
+    {
+      "binary_version": "20230515-4",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230515-4"
+    },
+    {
+      "binary_version": "20230515-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230515-3"
+    },
+    {
+      "binary_version": "20230515-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230515-2"
+    },
+    {
+      "binary_version": "20230515-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230515-1"
+    },
+    {
+      "binary_version": "20230404-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230404-1"
+    },
+    {
+      "binary_version": "20230310-1~exp2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230310-1~exp2"
+    },
+    {
+      "binary_version": "20230310-1~exp1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230310-1~exp1"
+    },
+    {
+      "binary_version": "20230210-5",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-5"
+    },
+    {
+      "binary_version": "20230210-5~bpo11+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-5~bpo11+1"
+    },
+    {
+      "binary_version": "20230210-4",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-4"
+    },
+    {
+      "binary_version": "20230210-4~bpo11+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-4~bpo11+1"
+    },
+    {
+      "binary_version": "20230210-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-3"
+    },
+    {
+      "binary_version": "20230210-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-2"
+    },
+    {
+      "binary_version": "20230210-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230210-1"
+    },
+    {
+      "binary_version": "20230117-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230117-2"
+    },
+    {
+      "binary_version": "20230117-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20230117-1"
+    },
+    {
+      "binary_version": "20221214-5",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221214-5"
+    },
+    {
+      "binary_version": "20221214-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221214-3"
+    },
+    {
+      "binary_version": "20221214-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221214-2"
+    },
+    {
+      "binary_version": "20221214-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221214-1"
+    },
+    {
+      "binary_version": "20221109-4",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221109-4"
+    },
+    {
+      "binary_version": "20221109-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221109-3"
+    },
+    {
+      "binary_version": "20221109-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221109-2"
+    },
+    {
+      "binary_version": "20221109-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221109-1"
+    },
+    {
+      "binary_version": "20221012-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20221012-1"
+    },
+    {
+      "binary_version": "20220913-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20220913-1"
+    },
+    {
+      "binary_version": "20210818-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210818-1"
+    },
+    {
+      "binary_version": "20210818-1~bpo11+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210818-1~bpo11+1"
+    },
+    {
+      "binary_version": "20210716-1~exp1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210716-1~exp1"
+    },
+    {
+      "binary_version": "20210511-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210511-1"
+    },
+    {
+      "binary_version": "20210511-1~exp1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210511-1~exp1"
+    },
+    {
+      "binary_version": "20210427-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210427-1"
+    },
+    {
+      "binary_version": "20210322-1~exp1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210322-1~exp1"
+    },
+    {
+      "binary_version": "20210315-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210315-3"
+    },
+    {
+      "binary_version": "20210315-3~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210315-3~bpo10+1"
+    },
+    {
+      "binary_version": "20210315-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210315-2"
+    },
+    {
+      "binary_version": "20210315-2~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210315-2~bpo10+1"
+    },
+    {
+      "binary_version": "20210315-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210315-1"
+    },
+    {
+      "binary_version": "20210315-1~exp1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210315-1~exp1"
+    },
+    {
+      "binary_version": "20210208-4",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210208-4"
+    },
+    {
+      "binary_version": "20210208-4~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210208-4~bpo10+1"
+    },
+    {
+      "binary_version": "20210208-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210208-3"
+    },
+    {
+      "binary_version": "20210208-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210208-2"
+    },
+    {
+      "binary_version": "20210208-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20210208-1"
+    },
+    {
+      "binary_version": "20201218-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20201218-3"
+    },
+    {
+      "binary_version": "20201218-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20201218-2"
+    },
+    {
+      "binary_version": "20201218-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20201218-1"
+    },
+    {
+      "binary_version": "20201118-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20201118-1"
+    },
+    {
+      "binary_version": "20201022-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20201022-1"
+    },
+    {
+      "binary_version": "20200918-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200918-1"
+    },
+    {
+      "binary_version": "20200918-1~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200918-1~bpo10+1"
+    },
+    {
+      "binary_version": "20200817-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200817-1"
+    },
+    {
+      "binary_version": "20200817-1~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200817-1~bpo10+1"
+    },
+    {
+      "binary_version": "20200721-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200721-1"
+    },
+    {
+      "binary_version": "20200721-1~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200721-1~bpo10+1"
+    },
+    {
+      "binary_version": "20200619-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200619-1"
+    },
+    {
+      "binary_version": "20200619-1~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200619-1~bpo10+1"
+    },
+    {
+      "binary_version": "20200421-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20200421-1"
+    },
+    {
+      "binary_version": "20190717-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190717-2"
+    },
+    {
+      "binary_version": "20190717-2~bpo10+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190717-2~bpo10+1"
+    },
+    {
+      "binary_version": "20190717-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190717-1"
+    },
+    {
+      "binary_version": "20190502-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190502-1"
+    },
+    {
+      "binary_version": "20190114+really20220913-0+deb10u2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114+really20220913-0+deb10u2"
+    },
+    {
+      "binary_version": "20190114+really20220913-0+deb10u1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114+really20220913-0+deb10u1"
+    },
+    {
+      "binary_version": "20190114-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114-2"
+    },
+    {
+      "binary_version": "20190114-2~deb9u1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114-2~deb9u1"
+    },
+    {
+      "binary_version": "20190114-2~bpo9+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114-2~bpo9+1"
+    },
+    {
+      "binary_version": "20190114-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114-1"
+    },
+    {
+      "binary_version": "20190114-1~bpo9+2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20190114-1~bpo9+2"
+    },
+    {
+      "binary_version": "20180825+dfsg-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20180825+dfsg-1"
+    },
+    {
+      "binary_version": "20180825+dfsg-1~bpo9+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20180825+dfsg-1~bpo9+1"
+    },
+    {
+      "binary_version": "20180825-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20180825-1"
+    },
+    {
+      "binary_version": "20180518-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20180518-1"
+    },
+    {
+      "binary_version": "20180518-1~bpo9+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20180518-1~bpo9+1"
+    },
+    {
+      "binary_version": "20170823-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20170823-1"
+    },
+    {
+      "binary_version": "20170823-1~bpo9+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20170823-1~bpo9+1"
+    },
+    {
+      "binary_version": "20161130-5",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-5"
+    },
+    {
+      "binary_version": "20161130-5~deb8u1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-5~deb8u1"
+    },
+    {
+      "binary_version": "20161130-4",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-4"
+    },
+    {
+      "binary_version": "20161130-4~deb8u1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-4~deb8u1"
+    },
+    {
+      "binary_version": "20161130-3",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-3"
+    },
+    {
+      "binary_version": "20161130-3~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-3~bpo8+1"
+    },
+    {
+      "binary_version": "20161130-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-2"
+    },
+    {
+      "binary_version": "20161130-2~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-2~bpo8+1"
+    },
+    {
+      "binary_version": "20161130-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20161130-1"
+    },
+    {
+      "binary_version": "20160824-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20160824-1"
+    },
+    {
+      "binary_version": "20160824-1~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20160824-1~bpo8+1"
+    },
+    {
+      "binary_version": "20160110-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20160110-1"
+    },
+    {
+      "binary_version": "20160110-1~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20160110-1~bpo8+1"
+    },
+    {
+      "binary_version": "20151207-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20151207-1"
+    },
+    {
+      "binary_version": "20151207-1~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20151207-1~bpo8+1"
+    },
+    {
+      "binary_version": "20151018-2",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20151018-2"
+    },
+    {
+      "binary_version": "20151018-2~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20151018-2~bpo8+1"
+    },
+    {
+      "binary_version": "20151018-1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "20151018-1"
+    },
+    {
+      "binary_version": "0.44",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.44"
+    },
+    {
+      "binary_version": "0.44~bpo8+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.44~bpo8+1"
+    },
+    {
+      "binary_version": "0.43",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.43"
+    },
+    {
+      "binary_version": "0.43~bpo70+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.43~bpo70+1"
+    },
+    {
+      "binary_version": "0.42",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.42"
+    },
+    {
+      "binary_version": "0.41",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.41"
+    },
+    {
+      "binary_version": "0.41~bpo70+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.41~bpo70+1"
+    },
+    {
+      "binary_version": "0.40",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.40"
+    },
+    {
+      "binary_version": "0.40~bpo70+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.40~bpo70+1"
+    },
+    {
+      "binary_version": "0.39",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.39"
+    },
+    {
+      "binary_version": "0.39~bpo70+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.39~bpo70+1"
+    },
+    {
+      "binary_version": "0.38",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.38"
+    },
+    {
+      "binary_version": "0.38~bpo70+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.38~bpo70+1"
+    },
+    {
+      "binary_version": "0.37",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.37"
+    },
+    {
+      "binary_version": "0.36+wheezy.1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.36+wheezy.1"
+    },
+    {
+      "binary_version": "0.36+wheezy.1~bpo60+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.36+wheezy.1~bpo60+1"
+    },
+    {
+      "binary_version": "0.36",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.36"
+    },
+    {
+      "binary_version": "0.35",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.35"
+    },
+    {
+      "binary_version": "0.35~bpo60+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.35~bpo60+1"
+    },
+    {
+      "binary_version": "0.34",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.34"
+    },
+    {
+      "binary_version": "0.33",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.33"
+    },
+    {
+      "binary_version": "0.32",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.32"
+    },
+    {
+      "binary_version": "0.32~bpo60+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.32~bpo60+1"
+    },
+    {
+      "binary_version": "0.31",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.31"
+    },
+    {
+      "binary_version": "0.30",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.30"
+    },
+    {
+      "binary_version": "0.29",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.29"
+    },
+    {
+      "binary_version": "0.28+squeeze1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.28+squeeze1"
+    },
+    {
+      "binary_version": "0.28",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.28"
+    },
+    {
+      "binary_version": "0.27",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.27"
+    },
+    {
+      "binary_version": "0.27~bpo50+1",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.27~bpo50+1"
+    },
+    {
+      "binary_version": "0.26",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.26"
+    },
+    {
+      "binary_version": "0.25",
+      "name": "firmware-atheros",
+      "source": "firmware-nonfree",
+      "version": "0.25"
+    }
+  ]
+}
