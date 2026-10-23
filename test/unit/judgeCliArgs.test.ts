@@ -89,20 +89,21 @@ describe('judge command reservation', () => {
     }
   })
   it('refuses zero, fractional and oversized deadlines', () => {
-    for (const value of [
-      '0',
-      '-1',
-      '1.5',
-      'Infinity',
-      '1e2',
-      '21600001',
-      '99999999999999999999999',
-    ]) {
+    for (const value of ['0', '-1', '1.5', 'Infinity', '1e2', '99999999999999999999999']) {
       expect(parseCommandLine(['judge', 'ask', '--timeout-ms', value])).toMatchObject({
         command: 'invalid',
         exitCode: 2,
       })
     }
+  })
+  it('accepts any positive safe integer deadline (D121: no run deadline of ours)', () => {
+    // No provider publishes a run deadline, so a set --timeout-ms is any
+    // positive safe integer (AUDITCLIFIX): the six-hour exec ceiling this
+    // value once probed was removed as invented with EXEC_MAX_TIMEOUT_SECONDS.
+    expect(parseCommandLine(['judge', 'ask', '--timeout-ms', '21600001'])).toMatchObject({
+      command: 'judge',
+      options: { timeoutMs: 21_600_001 },
+    })
   })
   it('keeps decimal caps as exact integer nano-USD, nine decimals (RVM98P2R2 8)', () => {
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.016249'])).toMatchObject({

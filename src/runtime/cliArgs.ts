@@ -479,6 +479,10 @@ export function parseCommandLine<T>(
   const argv = hoistLeadingCommand(args)
   const divider = argv.indexOf('--')
   const flags = divider === -1 ? argv : argv.slice(0, divider)
+  // Reserve judge before help routing, as legal-scan and usage are before
+  // prompt parsing: an action's --help is malformed judge argv (exit 2),
+  // and only the bare form answers help (parseJudgeArgs).
+  if (argv[0] === 'judge') return parseJudgeArgs(argv)
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
     // Bare `report --help` is the report command's own help, not the help
@@ -578,8 +582,6 @@ export function parseCommandLine<T>(
       }
     }
   }
-  // Reserve judge before ordinary prompt parsing, as legal-scan and usage are.
-  if (argv[0] === 'judge') return parseJudgeArgs(argv)
   if (argv[0] === 'exec' && argv[1] === 'legal-scan')
     return parseLegalCommand(['legal', ...argv.slice(2)])
   if (argv[0] === '--usage') return parseUsage(['--json', ...argv.slice(1)])

@@ -223,6 +223,18 @@ export const CLI_OPTION_REGISTRY = {
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
   fontsInstall: { options: FONTS_OPTIONS },
   estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
+  // The judge's one help screen: the ask-family flags its strict parser
+  // accepts (serve and lint take their own surface flags instead).
+  judge: {
+    options: {
+      engine: { type: 'string' },
+      model: { type: 'string' },
+      separate: { type: 'string' },
+      'budget-usd': { type: 'string' },
+      'timeout-ms': { type: 'string' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
   // Help-only routes: parseCommandLine hands sharing argv to the owner
   // parser before its own strict parse, so these entries drive help, the
   // reference and the guard. The flags are the owner's own tables, spread
@@ -288,6 +300,10 @@ export const CLI_OPTION_TEXT = {
   record: 'record',
   'permission-mode': 'permission-mode',
   model: 'model',
+  engine: 'engine',
+  separate: 'separate',
+  'budget-usd': 'budget-usd',
+  'timeout-ms': 'timeout-ms',
   provider: 'provider',
   account: 'account',
   'account-pool': 'account-pool',
@@ -344,6 +360,7 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
     | keyof typeof ESTIMATE_OPTIONS
+    | keyof typeof CLI_OPTION_REGISTRY.judge.options
     | keyof typeof CLI_OPTION_REGISTRY.share.options
     | keyof typeof CLI_OPTION_REGISTRY.prompts.options,
     keyof UiText['referenceCliOptions']
