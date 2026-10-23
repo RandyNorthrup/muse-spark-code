@@ -1,0 +1,7 @@
+# Muse Node OS encrypted /var entry (OS4). Installed as /etc/crypttab alongside
+# any other entries. Unlock order: TPM2 (bound at enroll time to PCR 7 and
+# the signed policy) first, then the console passphrase prompt.
+#
+# Fields: name, device, password, options. The password field is "-" so the
+# passphrase is always queried on the console, never read from a file.
+var	/dev/disk/by-partlabel/muse-var	-	tpm2-device=auto,tpm2-pcrs=7,x-initrd.attach

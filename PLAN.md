@@ -38130,6 +38130,10 @@ No new escape hatch is introduced.
 | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `test/unit/deviceMessageHandler.test.ts`: forged adapter reply `as unknown as DeviceHostMessage` | The malformed-response probe deliberately violates the typed port so the handler's runtime refusal executes; the typed port cannot express a secret-bearing reply. Test-only cast; production validation unchanged. |
 
+| RLF-M110OS location                                  | Escape hatch                                             | Reason                                                                                                                                                                          | Date       |
+| ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/nodeOsCrypt.test.ts` (Tang URLs, 4 sites) | `eslint-disable-next-line unicorn/prefer-https`, 4 sites | Tang serves HTTP by design; the thumbprint check is the trust anchor, not TLS, and the validator must accept the http shape the tests feed it. Inline-reasoned; no rule change. | 2026-10-23 |
+
 ## 9. Security assumptions and accepted residual risk
 
 - **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
