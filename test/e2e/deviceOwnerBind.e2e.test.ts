@@ -3,21 +3,13 @@
 // every claim is audited; and the scrub detector proves itself red on a
 // planted sentinel and green on the real traffic.
 import { randomBytes } from 'node:crypto'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, rmSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { fileURLToPath } from 'node:url'
 import { VaultScrubber } from '../../src/core/vault/scrub'
 import type { DeviceOwnerAuditRecord } from '../../src/core/devices/ownerBind'
-import {
-  RIG_DRILL_TIMEOUT_MS,
-  rigBundleDriver,
-  rigFreePort,
-  rigSpawnSide,
-  rigWaitForExit,
-  rigWaitForLine,
-} from './deviceRig'
+import { RIG_DRILL_TIMEOUT_MS, rigFinishPair, rigStartPair, rigWaitForLine } from './deviceRig'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 
@@ -31,35 +23,13 @@ describe('M100 lane K owner-bind drills', () => {
   it(
     'refuses the wrong owner and the expired replay, and audits every claim',
     async () => {
-      const outdir = mkdtempSync(path.join(tmpdir(), 'device-owner-driver-'))
-      scratch.push(outdir)
-      const driverJs = path.join(outdir, 'driver.mjs')
-      await rigBundleDriver(path.join(here, 'deviceTwoProcessDriver.ts'), driverJs)
-      const root = mkdtempSync(path.join(tmpdir(), 'device-owner-run-'))
-      scratch.push(root)
-      const dirA = path.join(root, 'a')
-      const dirB = path.join(root, 'b')
-      mkdirSync(dirA)
-      mkdirSync(dirB)
-      const port = await rigFreePort()
-      const extra = ['--scenario', 'owner-bind']
-      const listener = rigSpawnSide(driverJs, {
-        dir: dirA,
-        role: 'listen',
-        port,
-        own: path.join(dirA, 'invitation.json'),
-        peer: path.join(dirB, 'invitation.json'),
-        extra,
-      })
-      const dialer = rigSpawnSide(driverJs, {
-        dir: dirB,
-        role: 'dial',
-        port,
-        own: path.join(dirB, 'invitation.json'),
-        peer: path.join(dirA, 'invitation.json'),
-        ready: path.join(dirA, 'ready'),
-        extra,
-      })
+      const pair = await rigStartPair(
+        path.join(here, 'deviceTwoProcessDriver.ts'),
+        'device-owner',
+        scratch,
+        ['--scenario', 'owner-bind'],
+      )
+      const { listener, dialer, dirA, dirB } = pair
       const listening = rigWaitForLine(listener, 'LISTENING')
       const ownerAllowed = rigWaitForLine(dialer, 'OWNER-ALLOWED')
       const ownerRefused = rigWaitForLine(dialer, 'OWNER-REFUSED')
@@ -67,28 +37,17 @@ describe('M100 lane K owner-bind drills', () => {
       const replayRefused = rigWaitForLine(dialer, 'GRANT-REPLAY-REFUSED')
       const listenerDone = rigWaitForLine(listener, 'LISTENER-DONE')
       const dialerDone = rigWaitForLine(dialer, 'DIALER-DONE')
-      // Attached up front: a side can exit between its last signal and the
-      // parent's next await, and a late exit listener misses it.
-      const listenerExit = rigWaitForExit(listener)
-      const dialerExit = rigWaitForExit(dialer)
-      try {
+      const { listenerCode, dialerCode } = await rigFinishPair(pair, async () => {
         await listening
-        try {
-          await ownerAllowed
-          await ownerRefused
-          await grantAllowed
-          await replayRefused
-          await dialerDone
-          await listenerDone
-          const [listenerCode, dialerCode] = await Promise.all([listenerExit, dialerExit])
-          expect(listenerCode).toBe(0)
-          expect(dialerCode).toBe(0)
-        } finally {
-          dialer.kill()
-        }
-      } finally {
-        listener.kill()
-      }
+        await ownerAllowed
+        await ownerRefused
+        await grantAllowed
+        await replayRefused
+        await dialerDone
+        await listenerDone
+      })
+      expect(listenerCode).toBe(0)
+      expect(dialerCode).toBe(0)
       // Every security-relevant action audited, in claim order.
       const audit = readFileSync(path.join(dirA, 'audit.jsonl'), 'utf8')
         .trim()

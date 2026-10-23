@@ -17,6 +17,9 @@ export const BUNDLES = {
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
   'src/core/providers/subscriptions/chatgptHostId.ts',
+  // RLM109: the stored ChatGPT record schema, re-exported by chatgpt.ts
+  // beside it so one copy serves the subscription dispatch.
+  'src/core/providers/subscriptions/chatgptRecord.ts',
   // D207 (2026-10-17): the Copilot adapter's failure rides with the
   // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The
   // host adapter reads it through subscriptionsEntry so both bundles share

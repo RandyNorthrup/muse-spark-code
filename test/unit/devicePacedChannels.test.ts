@@ -17,6 +17,7 @@ import { type DeviceReady, type DeviceThrottled } from '../../src/shared/devices
 import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 import { deviceTlsIdentity, type DeviceTlsIdentity } from './helpers/deviceTls'
 import {
+  closePacedServers,
   listenEphemeral,
   pacedReadyFor,
   pinnedDialer,
@@ -82,10 +83,7 @@ describe('M100 paced channels', () => {
   const log = levelLogger(logged)
   afterEach(async () => {
     for (const pacer of pacers.splice(0)) pacer.close()
-    for (const server of servers.splice(0)) {
-      server.close()
-      await new Promise((resolve) => server.once('close', resolve))
-    }
+    await closePacedServers(servers)
   })
 
   function trackPacer(pacing: {

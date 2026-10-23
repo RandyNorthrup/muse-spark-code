@@ -1354,6 +1354,12 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
                 (file) => input === `src/core/providers/${file}`,
               )
             ) &&
+            // RLM109: the migration codec parses the installed ChatGPT
+            // subscription record, so the chunk carries its schema too.
+            !(
+              input === 'src/core/providers/subscriptions/chatgptRecord.ts' &&
+              output === VAULT_MIGRATION.output
+            ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal
             // through its store, whose static record import carries the card.

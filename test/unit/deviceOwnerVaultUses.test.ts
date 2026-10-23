@@ -29,7 +29,11 @@ import { VaultLockEpoch } from '../../src/core/vault/broker/epoch'
 import { VaultSlotUnlock, VaultStoreRepository } from '../../src/core/vault/broker/repository'
 import { VaultScrubService } from '../../src/core/vault/scrub'
 import { NodeVaultFiles } from '../../src/core/vault/store'
-import { VaultRemoteOwner, type VaultRemotePorts } from '../../src/core/vault/remote'
+import {
+  VaultRemoteOwner,
+  type VaultRemoteConsumerPorts,
+  type VaultRemotePorts,
+} from '../../src/core/vault/remote'
 import {
   PacedDeviceChannels,
   type MultiplexedDevicePort,
@@ -55,6 +59,7 @@ import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 import { completeDevicePair } from './helpers/devicePairs'
 import { deviceTlsIdentity } from './helpers/deviceTls'
 import {
+  closePacedServers,
   listenEphemeral,
   pacedReadyFor,
   pinnedDialer,
@@ -305,10 +310,7 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
       await fixture.broker?.dispose()
       for (const channel of live.splice(0)) channel.close()
       for (const pacer of pacers.splice(0)) pacer.close()
-      for (const server of servers.splice(0)) {
-        server.close()
-        await new Promise((resolve) => server.once('close', resolve))
-      }
+      await closePacedServers(servers)
       if (fixture.root !== '') await rm(fixture.root, { recursive: true, force: true })
     })
 
@@ -386,6 +388,38 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
       return { owner, ownerBinding, requesterBinding, peer, pairId }
     }
 
+    function trackServes(
+      ownerSide: DeviceOwnerChannel,
+      audit: DeviceOwnerAudit,
+    ): Promise<'allowed' | 'denied'>[] {
+      const { owner, ownerBinding, peer } = ready()
+      const serving: Promise<'allowed' | 'denied'>[] = []
+      ownerSide.subscribe((message) => {
+        if (message.kind !== 'vaultRequest') return
+        serving.push(serveOwnerBrokeredUse(owner, ownerSide, ownerBinding, peer, message, audit))
+      })
+      return serving
+    }
+
+    function consumeUse(
+      requesterSide: DeviceOwnerChannel,
+      request: ReturnType<typeof totpRequest>,
+      deliver: VaultRemoteConsumerPorts['deliver'],
+      signal: AbortSignal,
+      audit: DeviceOwnerAudit,
+    ): Promise<boolean> {
+      const { requesterBinding, peer } = ready()
+      return hasConsumedOwnerBrokeredUse(
+        requesterSide,
+        requesterBinding,
+        peer,
+        request,
+        deliver,
+        signal,
+        audit,
+      )
+    }
+
     it('serves channel facts from the binding, never the payload', async () => {
       const { ownerBinding, peer } = ready()
       const channel = ownerVaultChannel(ownerBinding, peer, silentOwnerChannel)
@@ -404,23 +438,16 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
     })
 
     it('denies a brokered use against the locked broker, both sides audited', async () => {
-      const { owner, ownerBinding, requesterBinding, peer } = ready()
       const records: DeviceOwnerAuditRecord[] = []
       const audit = audited(records)
       const { ownerSide, requesterSide } = await pairedEnds()
-      const serving: Promise<'allowed' | 'denied'>[] = []
-      ownerSide.subscribe((message) => {
-        if (message.kind !== 'vaultRequest') return
-        serving.push(serveOwnerBrokeredUse(owner, ownerSide, ownerBinding, peer, message, audit))
-      })
+      const serving = trackServes(ownerSide, audit)
       const delivered: Uint8Array[] = []
       const before = { ...userCalls }
-      const isConsumed = await hasConsumedOwnerBrokeredUse(
+      const isConsumed = await consumeUse(
         requesterSide,
-        requesterBinding,
-        peer,
         totpRequest(OWNER_DEVICE, hexId(201)),
-        (kind, bytes) => {
+        (_kind, bytes) => {
           delivered.push(bytes)
           return Promise.resolve()
         },
@@ -445,15 +472,10 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
     })
 
     it('denies a use for the wrong owning device before the broker', async () => {
-      const { owner, ownerBinding, peer } = ready()
       const records: DeviceOwnerAuditRecord[] = []
       const audit = audited(records)
       const { ownerSide, requesterSide } = await pairedEnds()
-      const serving: Promise<'allowed' | 'denied'>[] = []
-      ownerSide.subscribe((message) => {
-        if (message.kind !== 'vaultRequest') return
-        serving.push(serveOwnerBrokeredUse(owner, ownerSide, ownerBinding, peer, message, audit))
-      })
+      const serving = trackServes(ownerSide, audit)
       const answers: MultiplexedDeviceMessage[] = []
       const answered = new Promise<void>((resolve) => {
         requesterSide.subscribe((message) => {
@@ -486,41 +508,19 @@ describe.runIf(process.platform === 'linux' || process.platform === 'darwin')(
     })
 
     it('denies a replayed request without reselecting', async () => {
-      const { owner, ownerBinding, requesterBinding, peer } = ready()
       const records: DeviceOwnerAuditRecord[] = []
       const audit = audited(records)
       const { ownerSide, requesterSide } = await pairedEnds()
-      const serving: Promise<'allowed' | 'denied'>[] = []
-      ownerSide.subscribe((message) => {
-        if (message.kind !== 'vaultRequest') return
-        serving.push(serveOwnerBrokeredUse(owner, ownerSide, ownerBinding, peer, message, audit))
-      })
+      const serving = trackServes(ownerSide, audit)
       const before = { ...userCalls }
       const request = totpRequest(OWNER_DEVICE, hexId(203))
       const deliver = () => Promise.resolve()
       const signal = new AbortController().signal
-      await expect(
-        hasConsumedOwnerBrokeredUse(
-          requesterSide,
-          requesterBinding,
-          peer,
-          request,
-          deliver,
-          signal,
-          audit,
-        ),
-      ).resolves.toBe(false)
-      await expect(
-        hasConsumedOwnerBrokeredUse(
-          requesterSide,
-          requesterBinding,
-          peer,
-          request,
-          deliver,
-          signal,
-          audit,
-        ),
-      ).resolves.toBe(false)
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        await expect(consumeUse(requesterSide, request, deliver, signal, audit)).resolves.toBe(
+          false,
+        )
+      }
       await Promise.all(serving)
       // The replay died on the owner's seen-set, before local selection.
       expect(userCalls.select - before.select).toBe(1)
