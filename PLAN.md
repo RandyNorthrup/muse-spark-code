@@ -2522,7 +2522,7 @@ milestone that closes each gap (the rows updated on 2026-09-27 to what
 | Goals                             | MSP `goal/*`, `session/goalChanged` and the resumed snapshot's goal: the goal strip and `/goal` (M45)                                                                                                     | Muse Code's four goal tools, stored, pinned; no loop turns of its own (M45, D38)                                                                   | M45 (merged)        |
 | Background work, stop             | MSP `task/background`, `task/stop`, `task/stopAll` wired to rows, Agent map and Ctrl+B (M46)                                                                                                              | shell calls can move to the background and be stopped; output reaches the next request (M46)                                                       | M46 (merged)        |
 | `!` user shell                    | MSP `session/userShell` with the `userShell` grant; `!` prompt and row (M46)                                                                                                                              | the shell runner, outside turns, with output in replay (M46)                                                                                       | M46 (merged)        |
-| Workflows                         | captured run and agents render as a read-only card (M47, D40); owner controls wait for a live accepted-command capture                                                                                    | none (Muse Code's own engine)                                                                                                                      | M47 (merged)        |
+| Workflows                         | captured run and agents render as a card (M47, D40); owner controls Cancel, Skip, Retry and Pause wired to the session wraps on live accepted captures (RLF-M47)                                          | none (Muse Code's own engine)                                                                                                                      | M47 (merged)        |
 | Subagents                         | map and controls (M14, M18); native `reopen` and `readResult` wait for live success captures                                                                                                              | opt-in paid child tasks with one-use consent and four-request cap (M48, D45)                                                                       | M48 (merged)        |
 | Memory                            | Muse Code memory tools and the shared Memory view (M49, D41)                                                                                                                                              | memory tools and snapshot over the same notes; native writer-lock parity remains unproved                                                          | M49 (merged)        |
 | MCP servers                       | loaded by Muse Code; read-only view (M31)                                                                                                                                                                 | extension MCP client and Windows job containment built; merged as PR #37 after local and hosted gates                                              | M50 (merged)        |
@@ -18999,6 +18999,15 @@ deferred** (`docs/certification/m47.md`). PR #34 merged into main as
 `34002ab` after exact-tree local quality, all seven hosted checks and review.
 Live capture proved the run card and one child's updates plus rejected
 owner commands; accepted control shapes remain uncaptured.
+
+**Status 2026-10-23 (RLF-M47): built.** Live capture on Muse Code
+1.4.11 accepted `workflow/cancel`, `workflow/childControl` skip and retry,
+`workflow/pause` and `workflow/resume`, each with its outcome (22 model
+attempts on muse-spark-1.3-contributor;
+`test/fixtures/m47/provenance.json`): the card offers Cancel, Pause and
+Resume on a live run and Skip and Retry on a running agent, the host
+re-keys the in-flight attempt from served history and refuses the rest in
+words. Evidence: `docs/certification/rlf-m47.md`.
 
 - **Archived.** The full section is in [docs/plan-archive/milestones.md](docs/plan-archive/milestones.md).
 

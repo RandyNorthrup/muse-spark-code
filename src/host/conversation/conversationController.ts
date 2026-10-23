@@ -8,6 +8,7 @@ import type { UsageRecording } from '../../core/usage/recording'
 import type { ProviderUsageRow, AccountFacts, SubscriptionUsage } from '../../shared/usage'
 import type { ChatShareSource } from '../../core/sharing/chatShare'
 import { panelRecoveryRefusal } from '../../shared/agentRecovery'
+import { workflowChildSchema } from '../../shared/workflowChild'
 import { markedDamagedIds } from './damagedSessions'
 import type { ReportQuestionsReader } from '../../core/reporting/sources/questions'
 import type { SessionHistoryInput } from '../../runtime/reporting/reportInputs'
@@ -188,6 +189,8 @@ import {
   SHELL_TOOLS,
   type SubagentAction,
   TEXT_ATTACHMENT_EXTENSIONS,
+  WORKFLOW_CHILD_RUNNING_STATUSES,
+  type WorkflowControl,
   TEXT_FILE_DISPLAY_MARKER,
   UNSUPPORTED_BINARY_ATTACHMENT_EXTENSIONS,
   REPORT_UNKNOWN_ERROR_CODE,
@@ -880,6 +883,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'readChildSession',
   'subagentControl',
   'subagentMessage',
+  'workflowControl',
   'resumeSession',
   'setSessionArchived',
   'deleteSession',
@@ -938,6 +942,52 @@ export function isUploadDeleteFailed(error: unknown): error is Error & { fileNam
 
 // The two tables below are built when used, never at module load: the
 // display language's table is installed at activation, after this loads.
+
+/**
+A workflow child's in-flight attempt from served history, for a skip or
+retry (RLF-M47): the highest attempt still running in the latest
+revision that names the child (captured live 2026-10-23, an accepted
+retry schedules N+1 beside terminal N, and a resumed run re-emits the
+item childless). `gone` when no row names the child, `idle` when none
+runs: a scheduled or ended child has no attempt to drive.
+*/
+/** Exported for the RLF-M47 capture tests: re-keys the in-flight attempt. */
+export function workflowChildAttempt(
+  items: readonly ItemSnapshot[],
+  workflowRunId: string,
+  childId: string,
+): number | 'gone' | 'idle' {
+  let hasRow = false
+  let attempt = 0
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const item = items[index]
+    if (item?.kind !== 'workflow' || item.workflowRunId !== workflowRunId) {
+      continue
+    }
+    const rows = item.children ?? []
+    for (const raw of rows) {
+      const child = workflowChildSchema.safeParse(raw).data
+      if (child?.childId !== childId) {
+        continue
+      }
+      hasRow = true
+      if (
+        typeof child.terminal === 'string' ||
+        !WORKFLOW_CHILD_RUNNING_STATUSES.has(child.status)
+      ) {
+        continue
+      }
+      attempt = Math.max(attempt, child.attempt)
+    }
+    if (hasRow) {
+      break
+    }
+  }
+  if (!hasRow) {
+    return 'gone'
+  }
+  return attempt > 0 ? attempt : 'idle'
+}
 
 /** A decision or answer that arrived after its prompt had moved (PLAN.md D26). */
 function promptSettledText(reason: PromptSettledReason): string {
@@ -11036,6 +11086,118 @@ export class ConversationController implements DeferredSend {
     }
   }
 
+  /**
+  An owner control on a workflow run from its card (RLF-M47): cancel,
+  pause and resume drive the run, skip and retry its in-flight attempt.
+  The run's item updates carry the outcome. Retry re-runs the agent, so
+  it confirms first, like a subagent recovery; the rest go at once, like
+  a task stop.
+  */
+  private async controlWorkflow(
+    workflowRunId: string,
+    control: WorkflowControl,
+    childId: string | undefined,
+    childLabel: string | undefined,
+  ): Promise<void> {
+    const session = this.session
+    const generation = this.sendInvalidationEpoch
+    if (!this.isCurrentSessionAction(session, generation)) {
+      return
+    }
+    try {
+      switch (control) {
+        case 'skip':
+        case 'retry': {
+          await this.controlWorkflowChild(
+            session,
+            generation,
+            workflowRunId,
+            control,
+            childId,
+            childLabel,
+          )
+          break
+        }
+        case 'cancel': {
+          if (session.cancelWorkflowRun === undefined) throw new Error(UI_TEXT.workflowUnsupported)
+          await session.cancelWorkflowRun(workflowRunId)
+          break
+        }
+        case 'pause': {
+          if (session.pauseWorkflowRun === undefined) throw new Error(UI_TEXT.workflowUnsupported)
+          await session.pauseWorkflowRun(workflowRunId)
+          if (this.isCurrentSessionAction(session, generation)) {
+            this.post({ type: 'workflowPaused', workflowRunId, paused: true })
+          }
+          break
+        }
+        case 'resume': {
+          if (session.resumeWorkflowRun === undefined) throw new Error(UI_TEXT.workflowUnsupported)
+          await session.resumeWorkflowRun(workflowRunId)
+          if (this.isCurrentSessionAction(session, generation)) {
+            this.post({ type: 'workflowPaused', workflowRunId, paused: false })
+          }
+          break
+        }
+      }
+    } catch (error: unknown) {
+      this.deps.log.warn(`A workflow could not be controlled: ${failureForLog(error)}`)
+      if (this.isCurrentSessionAction(session, generation)) {
+        this.notice(
+          'error',
+          `${UI_TEXT.workflowControlFailed}: ${describe(error)}`,
+          undefined,
+          error,
+        )
+      }
+    }
+  }
+
+  /**
+  Skip or retry one workflow agent (RLF-M47): the host re-reads the run
+  and keys the in-flight attempt itself, never trusting the panel's,
+  and re-keys once more past the retry's confirmation.
+  */
+  private async controlWorkflowChild(
+    session: AgentSession,
+    generation: number,
+    workflowRunId: string,
+    control: 'skip' | 'retry',
+    childId: string | undefined,
+    childLabel: string | undefined,
+  ): Promise<void> {
+    if (session.controlWorkflowChild === undefined) throw new Error(UI_TEXT.workflowUnsupported)
+    if (childId === undefined) throw new Error(UI_TEXT.agentGone)
+    const host = await this.ensureHost()
+    const readAttempt = async (): Promise<number> => {
+      const history = await host.readSession(session.sessionId)
+      const attempt = workflowChildAttempt(history.items, workflowRunId, childId)
+      if (attempt === 'gone') throw new Error(UI_TEXT.agentGone)
+      if (attempt === 'idle') throw new Error(UI_TEXT.workflowChildNotRunning)
+      return attempt
+    }
+    let attempt = await readAttempt()
+    if (!this.isCurrentSessionAction(session, generation)) return
+    if (control === 'retry') {
+      const title = UI_TEXT.agentRetry
+      if (
+        !(await this.deps.confirmFileAction(
+          title,
+          fill(UI_TEXT.agentRecoveryConfirm, {
+            action: title,
+            objective: childLabel ?? childId,
+          }),
+          title,
+        )) ||
+        !this.isCurrentSessionAction(session, generation)
+      )
+        return
+      attempt = await readAttempt()
+      if (!this.isCurrentSessionAction(session, generation)) return
+    }
+    await session.controlWorkflowChild({ workflowRunId, childId, attempt, action: control })
+  }
+
   /** "Export conversation…" (M30): nothing to export before the first message. */
   private async exportConversation(format: ExportFormat): Promise<void> {
     const { session } = this
@@ -12500,6 +12662,15 @@ export class ConversationController implements DeferredSend {
       }
       case 'subagentMessage': {
         await this.messageSubagent(message.subagentId, message.body, message.isFollowup)
+        break
+      }
+      case 'workflowControl': {
+        await this.controlWorkflow(
+          message.workflowRunId,
+          message.control,
+          message.childId,
+          message.childLabel,
+        )
         break
       }
       case 'resumeSession': {

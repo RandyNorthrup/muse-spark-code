@@ -226,6 +226,11 @@ happened, not what was planned; superseded entries are kept.
   died with its host resubmits once the host restarts. Through the
   editor protocol the judgment rides the prompt error's
   `data.retryable`. Nothing resubmits by itself.
+- A workflow run's card offers its owner controls: Cancel, Pause and Resume
+  on a live run, Skip and Retry on a running agent. Skip and Retry reach
+  the in-flight attempt only, Retry confirms first, and every refusal
+  arrives in words; a run paused through the panel offers Resume, since
+  the wire reports it running still (M47).
 
 ### Changed
 

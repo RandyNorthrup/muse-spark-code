@@ -1,0 +1,53 @@
+{
+  "lane": "RLF-M47",
+  "capturedAt": "2026-10-23T05:41:32.105Z",
+  "cli": "Muse Code 1.4.11 (1.4.11-R6667.1)",
+  "sdk": "@muse-code/sdk 1.4.11",
+  "model": "muse-spark-1.3-contributor",
+  "host": "macmini (darwin)",
+  "workspace": "empty scratch dir per round, still empty afterwards",
+  "commands": [
+    "node temp/m47-capture.mjs $TMPDIR/m47-live (round 1: pause first, then children, resume, cancel)",
+    "node temp/m47-capture2.mjs $TMPDIR/m47-live2 (round 2: children first, then pause, resume, cancel)",
+    "node temp/m47-capture3.mjs $TMPDIR/m47-live3 (round 3: reactive skip probe, then cancel)",
+    "each script spawns: muse serve --disable-sandbox --contributor-mode on --trust-workspace (cwd: the empty workspace)",
+    "each script speaks MSP over stdio: initialize, session/start (model muse-spark-1.3-contributor, approvalMode allowAll), turn/start asking for a 4-parallel-essay workflow, then the control commands above"
+  ],
+  "isolation": "HOME and XDG_DATA_HOME pointed at the scratch dir (sessions and traces stay out of the owner store); XDG_CONFIG_HOME pointed at the real config home so the CLI reads its own sign-in; no credential value read, printed or stored by the lane; the owner settings file carries no run block (checked boolean-only), so the Workflow tool was offered by default",
+  "attemptBudget": {
+    "expected": 150,
+    "cap": 250
+  },
+  "rounds": [
+    {
+      "round": 1,
+      "startedAt": "2026-10-23T05:41:32.105Z",
+      "attempts": 6,
+      "runId": "workflow-run-model-tool-call_01a167478c8674b6a8bef7c1105e9070"
+    },
+    {
+      "round": 2,
+      "startedAt": "2026-10-23T05:44:33.948Z",
+      "attempts": 9,
+      "runId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b"
+    },
+    {
+      "round": 3,
+      "startedAt": "2026-10-23T05:48:09.020Z",
+      "attempts": 7,
+      "runId": "workflow-run-model-tool-call_01a1674daee371c99cd61d624e0bed5c"
+    }
+  ],
+  "totalAttempts": 22,
+  "countSource": "the CLI trace in the scratch home (model.attempt.lifecycle phase=admission lines naming the session), read after each host exited; each round ran in a fresh scratch dir holding exactly one session",
+  "notes": [
+    "workflow/childControl targets the in-flight attempt: skip and retry on started/usage children are accepted; skip on a scheduled child is refused -32030 commandRejected invalid_target (rounds 1-3), as is any childControl while paused on a scheduled child (round 1)",
+    "an accepted skip ends the attempt terminal/cancelled with no new attempt (round 3, rev15-16)",
+    "an accepted retry ends attempt N terminal/cancelled and schedules attempt N+1 under the same childId (round 2, rev16-18, rev25)",
+    "an accepted pause keeps the run inProgress with no paused status on the item; every in-flight attempt drains to terminal/cancelled while scheduled children stay scheduled (round 2, rev13-27); the launching turn had already completed, so the pause is the only cause",
+    "an accepted resume drives a turn (ack turnId) and re-emits the item under it; round 2 reconciled the run to completed with a latest_failure recovery note",
+    "an accepted cancel drains every attempt to terminal/cancelled, then item/completed status=cancelled with a reconciled message (final_summary null); round 3 retains the children, round 1 re-emitted the item childless under the resume turn first",
+    "a cancel past settlement is refused -32030 commandRejected missing_run (round 2)",
+    "no child carried a phase field in any revision (M47 left-out item stays open)"
+  ]
+}

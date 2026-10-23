@@ -3667,6 +3667,15 @@
   "workflowTriggerHowTo": "変更するには、Muse Code の設定ファイルで run.workflow_trigger_mode を \"auto\"、\"explicit\"、\"off\" のいずれかに設定してください。拡張機能がこのファイルを編集することはありません。",
   "workflowLaunched": "開始しました: バックグラウンドで実行され、結果はこの会話に報告されます。",
   "workflowScriptSaved": "スクリプトの保存先: {path}",
+  "workflowCancel": "キャンセル",
+  "workflowPause": "一時停止",
+  "workflowSkip": "スキップ",
+  "workflowPaused": "一時停止中",
+  "workflowControlFailed": "ワークフローのコマンドは拒否されました",
+  "workflowRunEnded": "そのワークフローの実行はもう実行されていません",
+  "workflowChildNotRunning": "そのワークフローのエージェントは現在実行されていません",
+  "workflowChildMovedOn": "そのエージェントは先に進みました。もう一度お試しください",
+  "workflowUnsupported": "このバックエンドではワークフローを実行しません",
   "backgroundTasksCount": {
     "other": "{count} 個のバックグラウンド タスク"
   },

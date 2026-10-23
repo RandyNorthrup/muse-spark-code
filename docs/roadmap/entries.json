@@ -344,7 +344,7 @@
     {
       "id": "M47",
       "title": "Workflow progress cards",
-      "summary": "Multi-agent workflows that Muse Code runs appear as live, read-only cards with each agent's state, time, tokens and result, without Cancel, Skip or Retry controls yet.",
+      "summary": "Multi-agent workflows that Muse Code runs appear as live cards with each agent's state, time, tokens and result, with Cancel, Pause and Resume on a live run and Skip and Retry on a running agent.",
       "area": "agents",
       "release": "0.9.0"
     },
