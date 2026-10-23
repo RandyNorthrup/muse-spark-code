@@ -136,9 +136,10 @@ export interface TabLedger {
   /**
   Replaces the reservation's worst case with the reported `actualUsd`
   in the reservation's own day's file, also after midnight. A request
-  that never reports keeps its whole reservation. Never throws.
+  that never reports keeps its whole reservation. Returns true only after
+  the durable write succeeds; false retains the reservation. Never throws.
   */
-  readonly settle: (reservation: TabLedgerReservation, actualUsd: UsdAmount) => Promise<void>
+  readonly settle: (reservation: TabLedgerReservation, actualUsd: UsdAmount) => Promise<boolean>
 }
 
 export function createTabLedger(
@@ -320,16 +321,19 @@ export function createTabLedger(
     return { admitted: true, totalUsd: total.totalUsd, reservation: { date, worstCaseUsd } }
   }
 
-  const settle = async (reservation: TabLedgerReservation, actualUsd: UsdAmount): Promise<void> => {
+  const didSettleReservation = async (
+    reservation: TabLedgerReservation,
+    actualUsd: UsdAmount,
+  ): Promise<boolean> => {
     if (!isUsableAmount(reservation.worstCaseUsd) || !isUsableAmount(actualUsd)) {
       deps.log.warn('Tab ledger ignored settlement with an unusable amount')
-      return
+      return false
     }
     if (!DATE_PATTERN.test(reservation.date)) {
       deps.log.warn(
         'Tab ledger ignored settlement for a day it cannot name, keeping its reservation',
       )
-      return
+      return false
     }
     // The reservation's own day, not today's: a request admitted before
     // midnight settles into the day that holds its reservation.
@@ -337,7 +341,7 @@ export function createTabLedger(
     const current = await readOwn(date)
     if (current === undefined) {
       deps.log.warn(`Tab ledger ${fileName} is unreadable, keeping its reservation`)
-      return
+      return false
     }
     const didSettle = await didWriteOwn(date, {
       reservedUsd: nonnegativeDifference(current.reservedUsd, reservation.worstCaseUsd),
@@ -346,6 +350,7 @@ export function createTabLedger(
     if (!didSettle) {
       deps.log.warn(`Tab ledger ${fileName} could not settle, keeping its reservation`)
     }
+    return didSettle
   }
 
   // `work` once every step queued before it has settled (writeJournal's queue).
@@ -363,6 +368,7 @@ export function createTabLedger(
     todayTotal: (date) => dayTotal(date ?? tabLocalDate(deps.now())),
     todayUsage: () => dayTotal(tabLocalDate(deps.now()), true),
     admit: (worstCaseUsd, budgetUsd) => exclusive(() => admit(worstCaseUsd, budgetUsd)),
-    settle: (reservation, actualUsd) => exclusive(() => settle(reservation, actualUsd)),
+    settle: (reservation, actualUsd) =>
+      exclusive(() => didSettleReservation(reservation, actualUsd)),
   }
 }

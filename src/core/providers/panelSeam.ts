@@ -11,7 +11,7 @@ import {
   readProvidersFile,
   writeProvidersFileAtomic,
 } from './providersFile'
-import { listedPresets, PRESETS, PLAN_KEY_PRESETS } from './presets'
+import { listedPlanKeyPresets, listedPresets, PRESETS, PLAN_KEY_PRESETS } from './presets'
 import { checkEndpointUrl } from './endpointPolicy'
 import { createPkcePair } from './pkce'
 import { UI_TEXT } from '../../shared/constants'
@@ -154,7 +154,8 @@ export function createModelsPanelSeam(options: {
   for (const preset of [
     ...listedPresets(),
     ...PRESETS.filter((row) => row.id === 'custom'),
-    ...PLAN_KEY_PRESETS,
+    // Plan keys join the panel only once their own capture is recorded.
+    ...listedPlanKeyPresets(),
   ]) {
     const origin = preset.origin.kind === 'fixed' ? preset.origin.origin : ''
     let kind: PresetInfo['kind'] = preset.category === 'custom' ? 'cloud' : preset.category

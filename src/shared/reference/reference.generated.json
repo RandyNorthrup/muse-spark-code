@@ -99,6 +99,21 @@
       "cliRoutes": ["providersModels"]
     },
     {
+      "id": "editor-chat",
+      "name": { "ui": "editorChatTitle" },
+      "summary": { "ui": "referenceEditorChat" },
+      "description": { "ui": "referenceEditorChat" },
+      "commands": ["museSpark.modelsAndAgents"],
+      "settings": ["museSpark.editorChatModels"],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#editor-chat",
+      "backends": ["museCode", "modelApi"],
+      "paid": true,
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "reports",
       "name": { "ui": "reportShowCommand" },
       "summary": { "ui": "reportSlashDescription" },
@@ -4804,6 +4819,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "boolean", "default": true }
+    },
+    {
+      "id": "museSpark.editorChatModels",
+      "name": "museSpark.editorChatModels",
+      "description": "Model references explicitly offered to editor chat. Any installed extension can spend your provider key through these models. Off by default; requires known prices or local models. Configure from Models & Agents.",
+      "descriptionKey": "config.editorChatModels.description",
+      "type": "array",
+      "default": [],
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "array", "items": { "type": "string" }, "default": [] }
     }
   ],
   "slash": [

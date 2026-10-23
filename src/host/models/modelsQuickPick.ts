@@ -185,7 +185,10 @@ export async function runAddProviderQuickPick(
   let wasKeyKept = false
   try {
     if (preset.auth !== 'none') {
-      if (preset.id === 'openrouter' && preset.connectLabel !== undefined) {
+      if (
+        (preset.id === 'openrouter' || preset.id === 'huggingface') &&
+        preset.connectLabel !== undefined
+      ) {
         const method = await ui.pickOne(
           [
             { id: 'connect', label: preset.connectLabel },
@@ -198,7 +201,10 @@ export async function runAddProviderQuickPick(
           return undefined
         }
         if (method === 'connect') {
-          const connection = await providers.connectOpenRouter(deps.isRemote)
+          const connection =
+            preset.id === 'huggingface'
+              ? await providers.connectHuggingFace(deps.isRemote)
+              : await providers.connectOpenRouter(deps.isRemote)
           if (connection === undefined) {
             return undefined
           }

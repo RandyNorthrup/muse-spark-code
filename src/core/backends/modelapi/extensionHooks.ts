@@ -608,6 +608,13 @@ export interface ExtensionHookContext {
   readonly sessionId: string
   readonly workspaceRoot: string
   readonly modelId?: string | undefined
+  /**
+  The modelId's provider (M95b acceptance 10): the session resolves it
+  through the same rule as the sibling payload, so a plan turn reports
+  its plan provider instead of Meta. It always rides with modelId; the
+  payload carries neither without both.
+  */
+  readonly providerId?: string | undefined
   readonly permissionMode?: string | undefined
   readonly turnId?: string | undefined
 }
@@ -623,7 +630,11 @@ export function extensionHookPayload(
     ...(context.turnId !== undefined && { turn_id: context.turnId }),
     cwd: context.workspaceRoot,
     transcript_path: null,
-    ...(context.modelId !== undefined && { model: context.modelId, model_provider: 'meta' }),
+    ...(context.modelId !== undefined &&
+      context.providerId !== undefined && {
+        model: context.modelId,
+        model_provider: context.providerId,
+      }),
     ...(context.permissionMode !== undefined && { permission_mode: context.permissionMode }),
     ...fields,
   }

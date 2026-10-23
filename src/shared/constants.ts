@@ -391,6 +391,9 @@ export const COMMAND_IDS = {
 // side and the quick pick build to dist/modelsPanel.js; activation keeps only
 // the command registrations and the loader.
 export const MODELS_PANEL_VIEW_TYPE = 'museSpark.modelsPanel'
+export const EDITOR_CHAT_VENDOR = 'muse-spark-code'
+export const EDITOR_CHAT_BUNDLE_FILE = 'editorChat.js'
+export const EDITOR_CHAT_PROMPT_CACHE_RETENTION = 'in_memory'
 export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
 export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
@@ -535,6 +538,7 @@ export const GLOBAL_STATE_KEYS = {
   used, and turning a setting off removes its entry.
   */
   paidConfirmations: 'museSpark.paidConfirmations',
+  editorChatConfirmations: 'museSpark.editorChatConfirmations',
   subagentPriceAcceptance: 'museSpark.subagentPriceAcceptance',
   /**
   Each paid feature's grant generation (M58): every change to its price
@@ -1016,6 +1020,7 @@ export const SETTING_DEFAULTS = {
   // for the model (M94 goal, D121); anything else caps the request and
   // its worst-case reservation at what the person set.
   tabMaxOutputTokens: 0,
+  editorChatModels: [],
   // Shaped like Copilot's `github.copilot.enable` with the same default
   // (V12): every language on except plaintext, markdown and scminput.
   tabLanguages: { '*': true, plaintext: false, markdown: false, scminput: false },
@@ -1160,6 +1165,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   // settings cannot change what Tab spends.
   'modelApiTab',
   'tabModel',
+  'editorChatModels',
   'tabDailyBudgetUsd',
   'tabMaxOutputTokens',
   'tabLanguages',
@@ -8777,6 +8783,8 @@ export const CHATGPT_PLAN_LIMIT_ERROR_KIND = 'subscription_sharing_usage_limit_e
 // SIWC errors and recovery (2026-10-17), HTTP 403: plan use is unavailable for
 // the user, workspace or policy. Explained once; never retried, never OAuth again.
 export const CHATGPT_PLAN_NOT_ELIGIBLE_CODE = 'subscription_sharing_user_not_eligible'
+// OPENAI-G27: provider refusal text is shown as sent, never pasted whole.
+export const PLAN_REFUSAL_TEXT_MAX_CHARS = 500
 export const SUBSCRIPTION_STREAM_MAX_BYTES = 16 * 1024 * 1024
 // A credential record's version (`{v, auth, origin, …}`, bound to the exact
 // origin it was obtained for).

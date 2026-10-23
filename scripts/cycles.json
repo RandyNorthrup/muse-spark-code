@@ -70,6 +70,7 @@
     "src/shared/validationEntry.ts",
     "src/host/models/modelsPanelEntry.ts",
     "src/host/models/modelsSubscriptionsEntry.ts",
+    "src/host/models/lmProviderEntry.ts",
     "src/webview/models/models.tsx",
     "src/host/teamViewBundle.ts",
     "src/core/team/teamEntry.ts",
