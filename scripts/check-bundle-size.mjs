@@ -199,9 +199,10 @@ const BUDGETS = [
   { path: 'dist/teamPanel.js', budgetKiB: 100 },
   { path: 'dist/team.js', budgetKiB: 75 },
   // M96c X2: runner adapters 44.6 KiB; D6's 15%, rounded to 25 KiB.
-  // RLM107: 75.3 KiB with the M107 relocation/brand wiring landed; 75.3 x
-  // 1.15 = 86.6 KiB, rounded up to the next 25 KiB multiple (PLAN.md D6).
-  { path: 'dist/teamRunners.js', budgetKiB: 100 },
+  // RLF-BUDGETS: the runners read the shared team schemas from the
+  // already-loaded dist/team.js instead of carrying second copies; 64.1 KiB
+  // measured, back under the original 75 KiB cap.
+  { path: 'dist/teamRunners.js', budgetKiB: 75 },
   // C-M96-3: the team host service with its engine worker and merge ports,
   // loaded only for a workspace that stores a team. Measured 114,909 bytes
   // (112.2 KiB, production build on Kubuntu, 2026-10-10) x 1.15 = 132,145
