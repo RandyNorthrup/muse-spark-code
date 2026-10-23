@@ -36709,20 +36709,19 @@ No new escape hatch is introduced.
 
 ## 9. Security assumptions and accepted residual risk
 
-- **OS2-TUF (RVM110OS2I P2-12, RVM110OS2F F11).** `os/update/channel.py` is
-  a signed channel with a single key, not TUF: one detached RSA signature
-  over the metadata plus no-downgrade, expiry and increasing
-  metadata-version policy, with strict installed state. There are no roles,
-  thresholds, root rotation, timestamp/snapshot/targets metadata or
-  persisted trusted-metadata continuity, so one compromised channel key can
-  sign any policy-conforming channel. Safe for now: no runtime consumes the
-  channel yet (OS2-RUNTIME is unbuilt), RAUC still verifies every bundle's
-  X.509 signature against the owner's keyring before writing, and the
-  signing keys are the owner's (Q-M110, OS2-SIGNING). Follow-up: replace the
-  verify-and-policy step with a real TUF client (threshold role checks,
-  continuity against persisted trusted metadata, rotation) before RAUC ever
-  trusts a bundle selected by the channel; certification
-  `docs/certification/m110-os2-image-update.md` §7.
+- **OS2-TUF (RVM110OS2I P2-12, RVM110OS2F F11) — REPLACED 2026-10-22
+  (RLM110A0, `1c5e49574`).** `os/update/channel.py` is now a real TUF
+  client: threshold roles over unique keys, root rotation under dual
+  thresholds, timestamp/snapshot/targets with version monotonicity, expiry
+  of every role against the channel start, rollback continuity against
+  persisted trusted metadata, SHA-256 length-plus-hash bindings, RSA-PSS
+  verification through the system openssl, a 2048-bit floor, canonical JSON
+  and recomputed keyids. Fixed topology by design: no delegations (refused),
+  no consistent snapshots, one scheme, one hash. What remains: no runtime
+  consumes the channel yet (OS2-RUNTIME is unbuilt), RAUC still verifies
+  every bundle's X.509 signature before writing, and the signing keys are
+  the owner's (Q-M110, OS2-SIGNING). 27 tests with an independent signer;
+  certification `docs/certification/m110-os2-image-update.md` round 6.
 
 - **CM109JOINB installed POSIX binding handoffs (2026-10-11).** Native host
   registration binds PID/UID/birth/image to owner-only files; it does not
