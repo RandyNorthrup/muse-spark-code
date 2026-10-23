@@ -382,7 +382,12 @@ export const nodeGitProcesses: GitProcessPort = {
   },
   start: async (file, args, options) => {
     try {
-      const signal = AbortSignal.any([options.signal, AbortSignal.timeout(options.timeout)])
+      // A caller's own deadline joins the signal; absent, git runs until it
+      // exits or the signal fires (D121, RLF-NOLIMITS).
+      const signal =
+        options.timeout === undefined
+          ? options.signal
+          : AbortSignal.any([options.signal, AbortSignal.timeout(options.timeout)])
       const call = {
         cwd: options.cwd,
         env: options.env,
