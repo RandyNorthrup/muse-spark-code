@@ -30,6 +30,16 @@ describe('migration key list', () => {
     ])
   })
 
+  it('leaves the grok subscription slot with its own lane', () => {
+    expect(listMigrationKeys(['openrouter', 'grok'])).toEqual([
+      SECRET_KEYS.modelApiKey,
+      'museSpark.provider.openrouter',
+    ])
+    expect(buildMigrationCredentials(['grok'], now).map((entry) => entry.key)).toEqual([
+      SECRET_KEYS.modelApiKey,
+    ])
+  })
+
   it('builds one codec per key with matching item ids', () => {
     const credentials = buildMigrationCredentials(['openrouter'], now)
     expect(credentials.map((entry) => entry.key)).toEqual([

@@ -513,6 +513,18 @@ happened, not what was planned; superseded entries are kept.
 - The reasoning effort slider offers each model only the tiers it
   serves: `max` where the docs serve it, `ultra` on the Muse Code
   backend only.
+### Added
+
+- **Continue With Grok (awaiting xAI's registration).** A SuperGrok or X
+  Premium subscription signs in with xAI and Grok models run on that
+  subscription, no API key: a browser flow with a local loopback callback
+  in Models & Agents, the command palette and the terminal
+  (`providers add grok`), plus a device-code flow for SSH and remote hosts
+  (`providers add grok --device`). The app's xAI OAuth client id lives in
+  the Muse Spark: Grok Client Id setting (or `--client-id`); until xAI
+  issues one, sign-in refuses before any request and says so. Tokens stay
+  in the credential store under their own lane, refreshed in the
+  background, and usage spends the subscription allowance.
 
 ### Release infrastructure
 

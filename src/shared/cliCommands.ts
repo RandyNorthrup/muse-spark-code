@@ -24,6 +24,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     providersRefresh: [['providers', 'refresh']],
     providersRemove: [['providers', 'remove']],
     chatGptProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'chatgpt']),
+    grokProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'grok']),
     serve: [[]],
     login: [['login']],
     setup: [['setup']],
@@ -183,6 +184,12 @@ export function cliCommands(shouldIncludeHeld = false) {
     {
       route: 'chatGptProvider',
       name: 'providers add|remove|status chatgpt [--new-account]',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'grokProvider',
+      name: 'providers add|remove|status grok [--device] [--client-id <id>] [--scopes <scopes>]',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
     },

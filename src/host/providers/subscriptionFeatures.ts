@@ -1,9 +1,10 @@
 import path from 'node:path'
 // Production subscriptions live in the lazy Models panel bundle. Core and
 // codecs are supplied by providers.js, shared with the ACP runtime.
-import type * as vscode from 'vscode'
+import * as vscode from 'vscode'
 import type { ProviderClient } from '../../core/backends/modelapi/client'
 import { createChatGptSignIn } from './chatgptSignIn'
+import { createGrokSignIn } from './grokSignIn'
 import { connectCopilotFromClick } from './copilotClient'
 import {
   createModelsPanelSeam,
@@ -13,14 +14,17 @@ import {
   OPENROUTER_ORIGIN,
   metaCapabilityRecord,
 } from '../backend/providersEntry'
+import { ChatGptSignInError } from '../backend/subscriptionsEntry'
 import {
-  ChatGptSignInError,
   createSubscriptionClient,
   chatGptModels,
   chatGptAccountId,
   chatGptPlanAccount,
+  grokModels,
+  grokAccountId,
+  grokPlanAccount,
   setUiText as setSubscriptionUiText,
-} from '../backend/subscriptionsEntry'
+} from '../backend/subscriptionCommandsEntry'
 import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'
@@ -36,6 +40,13 @@ import {
   type ProviderUsageRow,
 } from '../../shared/usage'
 import { fill, setUiText as setHostUiText } from '../../shared/l10n/text'
+
+/** The subscription sign-ins' API origins, beside their panel entries. */
+const SUBSCRIPTION_ADDRESS = {
+  chatgpt: 'https://api.openai.com',
+  grok: 'https://api.x.ai',
+  copilot: 'https://github.com/copilot',
+} as const
 
 export function createSubscriptionFeatures(options: {
   readonly log: CoreLogger
@@ -53,6 +64,8 @@ export function createSubscriptionFeatures(options: {
     update(key: string, value: unknown): Thenable<void>
   }
   readonly isRemote: boolean
+  /** This app's own xAI client id setting, read fresh for every sign-in. */
+  readonly grokClientId: () => string
   readonly isConfidential: () => boolean
   readonly access: vscode.LanguageModelAccessInformation
   readonly connected: (ref: string) => Promise<void>
@@ -72,12 +85,37 @@ export function createSubscriptionFeatures(options: {
           globalStorageUri: options.globalStorageUri,
           isRemote: options.isRemote,
           fetch: fetcher,
+          log: (message) => {
+            options.log.info(message)
+          },
         })
       } catch (error) {
         signIn = undefined
         throw error
       }
     })())
+  // The Grok sign-in is rebuilt when the client id setting changes, so a
+  // sign-in that refused as unconfigured succeeds after the person sets it.
+  let grokSignIn: { clientId: string; core: ReturnType<typeof createGrokSignIn> } | undefined
+  const grok = (): ReturnType<typeof createGrokSignIn> => {
+    const clientId = options.grokClientId()
+    const cached = grokSignIn
+    if (cached?.clientId === clientId) return cached.core
+    const core = createGrokSignIn({
+      secrets: options.secrets,
+      globalStoragePath: options.globalStorageUri.fsPath,
+      isRemote: options.isRemote,
+      clientId,
+      scopes: undefined,
+      fetch: fetcher,
+      openExternal: async (url) => await vscode.env.openExternal(vscode.Uri.parse(url)),
+      log: (message) => {
+        options.log.info(message)
+      },
+    })
+    grokSignIn = { clientId, core }
+    return core
+  }
   const copilot = new Map<string, Awaited<ReturnType<typeof connectCopilotFromClick>>[number]>()
   const previous = planUsageReportSchema.safeParse(options.globalState.get('subscriptionUsage'))
   let tallies = previous.success ? previous.data : []
@@ -107,10 +145,11 @@ export function createSubscriptionFeatures(options: {
       ...(options.personCap !== undefined && { personCap: options.personCap }),
       ...(options.promptCacheTtl !== undefined && { promptCacheTtl: options.promptCacheTtl }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
-      loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
+      loadUsage: () =>
+        tallies.filter((row) => !['chatgpt', 'copilot', 'grok'].includes(row.providerId)),
       saveUsage: (rows) => {
         persist([
-          ...tallies.filter((row) => ['chatgpt', 'copilot'].includes(row.providerId)),
+          ...tallies.filter((row) => ['chatgpt', 'copilot', 'grok'].includes(row.providerId)),
           ...rows,
         ])
       },
@@ -120,6 +159,7 @@ export function createSubscriptionFeatures(options: {
     configFile: options.configFile,
     subscriptionModels: async (id) => {
       if (id === 'chatgpt') return await chatGptModels(await chatgpt(), fetcher)
+      if (id === 'grok') return await grokModels(grok(), fetcher)
       const ids: string[] = []
       if (!options.isConfidential())
         copilot.forEach((_client, key) => {
@@ -188,18 +228,19 @@ export function createSubscriptionFeatures(options: {
   const accountId = async () => {
     if (copilot.size > 0 && !options.isConfidential()) return 'copilot-host-grant'
     const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
+    const grokStored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}grok`)
     const services = await configured()
-    return chatGptAccountId(stored) ?? (await services.accountId())
+    return chatGptAccountId(stored) ?? grokAccountId(grokStored) ?? (await services.accountId())
   }
-  const save = async (id: 'chatgpt' | 'copilot', models: readonly string[]) => {
+  const save = async (id: 'chatgpt' | 'copilot' | 'grok', models: readonly string[]) => {
     if (models.length === 0) throw new Error(UI_TEXT.actionFailed)
     await seam.store.restore({
       id,
       preset: id,
       auth: 'subscription',
       models,
-      address: id === 'chatgpt' ? 'https://api.openai.com' : 'https://github.com/copilot',
-      format: id === 'chatgpt' ? 'responses' : 'chat',
+      address: SUBSCRIPTION_ADDRESS[id],
+      format: id === 'copilot' ? 'chat' : 'responses',
     })
     const ref = `${id}/${models[0] ?? ''}`
     await seam.store.setDefaultModel(ref)
@@ -258,7 +299,8 @@ export function createSubscriptionFeatures(options: {
     accountId,
     planAccount: async () => {
       const stored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)
-      return chatGptPlanAccount(stored)
+      const grokStored = await options.secrets.get(`${PROVIDER_SECRET_PREFIX}grok`)
+      return chatGptPlanAccount(stored) ?? grokPlanAccount(grokStored)
     },
     createClient: async (meta: ProviderClient): Promise<ProviderClient> => {
       const entries = await seam.store.list()
@@ -271,6 +313,7 @@ export function createSubscriptionFeatures(options: {
               personCap: options.personCap,
             }),
             chatgpt,
+            grok: () => Promise.resolve(grok()),
             accountId,
             // Indefinite ChatGPT stream waits say so on the product log
             // (PR #214 review) instead of looking hung until Stop.
@@ -309,6 +352,22 @@ export function createSubscriptionFeatures(options: {
         throw error
       }
     },
+    /**
+    Connect Grok through the browser. A stored grant is reused and only
+    the models are saved again; without the client id setting the
+    sign-in refuses before any request goes out.
+    */
+    connectGrok: async () => {
+      const core = grok()
+      const isNew = (await options.secrets.get(`${PROVIDER_SECRET_PREFIX}grok`)) === undefined
+      if (isNew) await core.signIn()
+      try {
+        await save('grok', await grokModels(core, fetcher))
+      } catch (error) {
+        if (isNew) await core.remove()
+        throw error
+      }
+    },
     connectCopilot: async () => {
       const clients = await connectCopilotFromClick({
         justification: () => UI_TEXT.planUi.aiContent,
@@ -339,11 +398,25 @@ export function createSubscriptionFeatures(options: {
     },
     removeSubscription: async (id: string) => {
       try {
-        if (id === 'chatgpt') {
-          const core = await chatgpt()
-          await core.remove()
-        } else if (id === 'copilot') copilot.clear()
-        else throw new Error(UI_TEXT.actionFailed)
+        switch (id) {
+          case 'chatgpt': {
+            const core = await chatgpt()
+            await core.remove()
+            break
+          }
+          case 'grok': {
+            const core = grok()
+            await core.remove()
+            break
+          }
+          case 'copilot': {
+            copilot.clear()
+            break
+          }
+          default: {
+            throw new Error(UI_TEXT.actionFailed)
+          }
+        }
       } finally {
         await seam.store.remove(id)
         await options.disconnected()

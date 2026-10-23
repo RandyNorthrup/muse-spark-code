@@ -1236,6 +1236,7 @@ async function activateWindow(
       personCap,
       promptCacheTtl,
       isRemote: vscode.env.remoteName !== undefined,
+      grokClientId: () => currentSettings().grokClientId,
       isConfidential: () => currentSettings().confidentialWorkspace,
       access: context.languageModelAccessInformation,
       disconnected: async () => {
@@ -2184,7 +2185,8 @@ async function activateWindow(
       l10n: { table: UI_TEXT, locale: uiLocale() },
       getPlanAccount: async () =>
         subscriptions === undefined &&
-        (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined
+        (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}chatgpt`)) === undefined &&
+        (await context.secrets.get(`${PROVIDER_SECRET_PREFIX}grok`)) === undefined
           ? undefined
           : await subscriptionFeatures().planAccount(),
       backend: {
@@ -5550,6 +5552,7 @@ async function activateWindow(
         {
           connectChatGpt: (isNewAccount) => subscriptionFeatures().connectChatGpt(isNewAccount),
           connectCopilot: () => subscriptionFeatures().connectCopilot(),
+          connectGrok: () => subscriptionFeatures().connectGrok(),
           removeSubscription: (id) => subscriptionFeatures().removeSubscription(id),
           isConfidential: () => currentSettings().confidentialWorkspace,
           secrets: bundle.credentialLeaseSecrets(context.secrets),
@@ -6263,6 +6266,7 @@ async function activateWindow(
     registerLoggedCommand(log, COMMAND_IDS.connectChatGpt, () =>
       subscriptionFeatures().connectChatGpt(),
     ),
+    registerLoggedCommand(log, COMMAND_IDS.connectGrok, () => subscriptionFeatures().connectGrok()),
     registerLoggedCommand(log, COMMAND_IDS.connectCopilot, () =>
       subscriptionFeatures().connectCopilot(),
     ),

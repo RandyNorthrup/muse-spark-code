@@ -34,8 +34,12 @@ import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
 import { withMigrationLock, type MigrationMirror } from './migrationShell'
 
-/** The ChatGPT subscription record owns its codec in its own lane; never taken here. */
+/**
+The ChatGPT and Grok subscription records own their codecs in their own
+lanes; never taken here.
+*/
 const CHATGPT_PROVIDER_ID = 'chatgpt'
+const GROK_PROVIDER_ID = 'grok'
 /**
 Never dereferenced or fetched: the private channel compares it for
 equality only, binding journal rows the way a provider origin binds a key.
@@ -49,7 +53,7 @@ const JOURNAL_SOURCE_ID = 'vscode-secret-storage'
 export function listMigrationKeys(providerIds: readonly string[]): string[] {
   const keys: string[] = [SECRET_KEYS.modelApiKey]
   for (const id of providerIds) {
-    if (id === CHATGPT_PROVIDER_ID) continue
+    if (id === CHATGPT_PROVIDER_ID || id === GROK_PROVIDER_ID) continue
     const key = providerSecretKey(id)
     if (!keys.includes(key)) keys.push(key)
   }
@@ -63,7 +67,7 @@ export function buildMigrationCredentials(
 ): MigrationCredential[] {
   const credentials = [modelApiMigrationCredential(now)]
   for (const id of providerIds) {
-    if (id === CHATGPT_PROVIDER_ID) continue
+    if (id === CHATGPT_PROVIDER_ID || id === GROK_PROVIDER_ID) continue
     credentials.push(providerCredentialMigrationCredential(id, now))
   }
   return credentials

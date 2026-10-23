@@ -298,6 +298,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   legalScan: { description: { ui: 'legalScanItemDetail' }, canRun: false },
   connectChatGpt: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   connectCopilot: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
+  connectGrok: { description: { ui: 'startWithOwnModelDetail' }, canRun: false },
   openInSidebar: { description: { ui: 'referenceSidebar' }, canRun: true },
   openInNewTab: { description: { ui: 'referenceNewTab' }, canRun: true },
   focusInput: { description: { ui: 'referenceFocus' }, canRun: false },
@@ -477,6 +478,7 @@ export function featureCatalog(): readonly Feature[] {
         'addModelProvider',
         'connectChatGpt',
         'connectCopilot',
+        'connectGrok',
       ],
       // OpenRouter Connect is composed with the pinned exchange transport;
       // local callbacks need no paste and remote/ACP terminal flows paste an
@@ -505,7 +507,7 @@ export function featureCatalog(): readonly Feature[] {
       // client survives sign-out); "Use a Different ChatGPT Account" (the
       // panel, the ACP sign-in method, `providers add chatgpt --new-account`)
       // registers another account instead.
-      ['suggestedProvider', 'modelApiSessionBudgetUsd'],
+      ['suggestedProvider', 'modelApiSessionBudgetUsd', 'grokClientId'],
       'backends',
       ['museCode', 'modelApi'],
       false,

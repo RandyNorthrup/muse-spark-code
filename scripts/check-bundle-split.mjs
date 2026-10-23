@@ -97,6 +97,7 @@ import { createRequire } from 'node:module'
 import {
   BUNDLES,
   SUBSCRIPTION_ONLY,
+  SUBSCRIPTION_COMMANDS_ONLY,
   DEFERRED,
   ON_FIRST_USE,
   DEFERRED_ONLY,
@@ -1337,6 +1338,10 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
               )
             ) &&
             !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
+            !(
+              output === 'dist/subscriptionCommands.js' &&
+              SUBSCRIPTION_COMMANDS_ONLY.includes(input)
+            ) &&
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output
             ) &&

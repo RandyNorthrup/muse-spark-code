@@ -8,13 +8,13 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 262,
+      "GENERIC": 258,
       "CLEANUP": 241
     },
     "host": {
-      "SWALLOW": 19,
-      "GENERIC": 106,
-      "CLEANUP": 91
+      "SWALLOW": 18,
+      "GENERIC": 102,
+      "CLEANUP": 90
     },
     "root": {
       "SWALLOW": 1,
@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 32,
-      "GENERIC": 194,
+      "GENERIC": 192,
       "CLEANUP": 130
     },
     "shared": {
@@ -1700,21 +1700,6 @@
     },
     {
       "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "8dc2b91469c546face0d6e2ffd81d65b813c1f0e910773a8f537a8da50c57dac",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "c81997a0bee51522b46c8dd82e5af61f941cc8d7174b98709112bb6bb55b778a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
-      "identity": "3caf2ceee86701aeade4df474269650377a60007f6f3be1bb88dc3a636095772",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/subscriptions/chatgpt.ts",
       "identity": "738c6ae11080b8b2d2254816381f2c01455468641b8b8017a6906e20544ab28b",
       "class": "CLEANUP"
     },
@@ -1737,11 +1722,6 @@
       "file": "src/core/providers/subscriptions/registry.ts",
       "identity": "69999f4e9aacf384dfc982ad98741aeeed705e74507855fdcbc790bf62aaeeac",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/core/providers/subscriptions/registry.ts",
-      "identity": "1caa30864940acf94e7fc433d4296bd8ba820d3919b38d9c5cfd79c505a6532a",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/questions/registry.ts",
@@ -3575,38 +3555,8 @@
     },
     {
       "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "f6955d02e12d3547b83408de2476f23ab048a923df835313d4a4304931830a5d",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "00f21f64877bf0eeddb88d0ff6d7e758b5d988bf90c0722463a4c3e5ee257e1f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "9dede8f15ac764ef2ce9fb2e5372785152ad528a3a8c208c9c74bf922a0d6ee0",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "8aab9ff36da0a6e5cc2f2d874e5ceb9257485aa97a41c5e73e91e078682fa71f",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "6f41f2bcf93948356f284630f2042094ca2b1f376a330021139a39e18ccf62d1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
       "identity": "34b38da4748c26821b2c02611590e55ce5d7f6468fd4ab384a68d5832f10f876",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/host/providers/chatgptSignIn.ts",
-      "identity": "0f67ca60af04af049118a67beb221dc48bf0e5fe8ce2a6c48988f4a197370031",
-      "class": "GENERIC"
     },
     {
       "file": "src/host/providers/copilotClient.ts",
@@ -4184,26 +4134,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "f6955d02e12d3547b83408de2476f23ab048a923df835313d4a4304931830a5d",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "553ed6f4c3c14bb7887501357376035220ffbdb1e0858152c1c5a4bb784c92fd",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "86a7be2f6a492e011740ab930c90f3a93ab6196e0a7f96a4a451cc41cb80034d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptCallback.ts",
-      "identity": "d9124284e0292f016d02fdaac687eb57d842b733d73860b32ae4818126431cde",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/chatGptHost.ts",
       "identity": "28d558af9425173a00d448c69705743739f797f040129f8edf8580dee8ebfcb7",
       "class": "GENERIC"
@@ -4211,26 +4141,6 @@
     {
       "file": "src/runtime/chatGptHost.ts",
       "identity": "ccc1d2647bed433bf9c8865ce07ca62f8448a0ed24cdc4a38adcc1e0ee2db8a8",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "4d0560b48ecea3fb7908e2de7d87a1849d96fd4d7aed009e53022ba966f7b124",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "45b98d59692e3639fc217c59b126748d12905213eacda82e4c45d6075f9b1e3b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptProviderCommands.ts",
-      "identity": "28103178ba9797a370463da6196895efe913d2d13856f6f941423ec3423756c5",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/chatGptRefreshLock.ts",
-      "identity": "900de73130640819c3c926860d54554228b653418c600a7a768a352d0b46e217",
       "class": "GENERIC"
     },
     {
@@ -5351,6 +5261,36 @@
     {
       "file": "src/runtime/schedules/surface.ts",
       "identity": "bcffe5165959a08cbff699309189539cc0f3b41f5a02cfb1bf834a709da29c5a",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/subscriptionCallback.ts",
+      "identity": "c41d58120ce1bd15816ed34a129e8cccc228f99020c25d8684804cfcb3f7c827",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/subscriptionCallback.ts",
+      "identity": "1975ca03e24a1096b40d9601e2cc7ed177e18f30631ba9b59902268d400ea45a",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/subscriptionCallback.ts",
+      "identity": "322edffa91dd68d3b25158a05bae2e2daecdf549dfee85c977d06602eaecee65",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/subscriptionProviderCommands.ts",
+      "identity": "a0c8da57f63097a32c584c0d681cb6bca977b737c9d20e2e4265ff52086aafc2",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/subscriptionProviderCommands.ts",
+      "identity": "849afc42fe896ebe333121cbae6ccff03df7ccf1724d3ef316e0c0c91230fbd3",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/subscriptionProviderCommands.ts",
+      "identity": "aca1f66842949fd04a51f16f0f97b460c11eef2adb66569a95ecc96ab0d0436c",
       "class": "GENERIC"
     },
     {

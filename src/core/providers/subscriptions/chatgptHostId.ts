@@ -58,8 +58,13 @@ export class ChatGptSignInError extends Error {
     `invalid`, `io-error`).
     */
     public readonly reason?: string,
+    /**
+    The cause behind a translated failure, for debugging only; hosts show
+    the code's sentence plus `reason`, never this chain.
+    */
+    options?: { readonly cause?: unknown },
   ) {
-    super(`chatgpt.${code}`)
+    super(`chatgpt.${code}`, options)
     this.name = 'ChatGptSignInError'
   }
 }

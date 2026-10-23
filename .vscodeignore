@@ -28,6 +28,7 @@
 !dist/legal-data/**
 !dist/legal-data.json.br
 !dist/subscriptions.js
+!dist/subscriptionCommands.js
 !dist/configuredProviders.js
 !dist/credentialLease.js
 !dist/sessionBoard.js
