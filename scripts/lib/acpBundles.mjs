@@ -88,6 +88,7 @@ export const ACP_BUNDLES = [
   'museCode.js',
   'resourceAdmission.js',
   'resourceGovernor.js',
+  'resourceGovernorWindows.js',
   'resourceProcess.js',
   'resourceJournal.js',
   'modelApiHooks.js',

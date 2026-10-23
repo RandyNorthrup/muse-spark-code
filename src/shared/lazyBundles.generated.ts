@@ -960,6 +960,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'resourceGovernorWindows.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/resources/resourceGovernorEntry.ts',
+        symbol: 'bindTree',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
   { file: 'resourceJournal.js', side: 'both', requestedBy: [] },
   {
     file: 'resourceProcess.js',
