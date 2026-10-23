@@ -55,6 +55,12 @@ function commandOf(name: string): CommandFrame {
   return fixture(name) as CommandFrame
 }
 
+/** The recorded ack parses and echoes the send's commandId. */
+function acceptedAck(frame: CommandFrame): void {
+  const ack = workflowControlResultSchema.parse(frame.ack)
+  expect(ack).toEqual({ commandId: frame.commandId, status: 'accepted' })
+}
+
 function itemOf(frame: CommandFrame, key: string): ItemSnapshot {
   return itemSnapshotSchema.parse(frame.outcome[key]?.item)
 }
@@ -81,8 +87,7 @@ describe('accepted workflow controls and their outcomes', () => {
   it('pairs the recorded cancel ack with its cancelled settlement by commandId', () => {
     const frame = commandOf('workflow-cancel-accepted.json')
     expect(frame.method).toBe('workflow/cancel')
-    const ack = workflowControlResultSchema.parse(frame.ack)
-    expect(ack).toEqual({ commandId: frame.commandId, status: 'accepted' })
+    acceptedAck(frame)
     const terminal = itemOf(frame, 'terminal')
     expect(frame.outcome['terminal']?.note).toBe('item/completed')
     expect(terminal.status).toBe('cancelled')
@@ -97,8 +102,7 @@ describe('accepted workflow controls and their outcomes', () => {
   it('ends the skipped attempt with no new one', () => {
     const frame = commandOf('workflow-childControl-skip.json')
     expect(frame.params).toMatchObject({ action: 'skip', attempt: 1 })
-    const ack = workflowControlResultSchema.parse(frame.ack)
-    expect(ack).toEqual({ commandId: frame.commandId, status: 'accepted' })
+    acceptedAck(frame)
     const childId = frame.params['childId'] as string
     // The attempt was in flight when the control landed.
     expect(childRows(itemOf(frame, 'before'), childId)).toEqual([{ attempt: 1, status: 'started' }])
@@ -114,8 +118,7 @@ describe('accepted workflow controls and their outcomes', () => {
   it('reschedules the retried child under the same id', () => {
     const frame = commandOf('workflow-childControl-retry.json')
     expect(frame.params).toMatchObject({ action: 'retry', attempt: 1 })
-    const ack = workflowControlResultSchema.parse(frame.ack)
-    expect(ack).toEqual({ commandId: frame.commandId, status: 'accepted' })
+    acceptedAck(frame)
     const childId = frame.params['childId'] as string
     expect(childRows(itemOf(frame, 'attemptCancelled'), childId)).toEqual([
       { attempt: 1, status: 'cancelled' },
@@ -133,8 +136,7 @@ describe('accepted workflow controls and their outcomes', () => {
   it('holds the paused run inProgress with no paused status', () => {
     const frame = commandOf('workflow-pause-accepted.json')
     expect(frame.method).toBe('workflow/pause')
-    const ack = workflowControlResultSchema.parse(frame.ack)
-    expect(ack).toEqual({ commandId: frame.commandId, status: 'accepted' })
+    acceptedAck(frame)
     for (const key of ['before', 'draining', 'settled'] as const) {
       expect(itemOf(frame, key).status).toBe('inProgress')
     }

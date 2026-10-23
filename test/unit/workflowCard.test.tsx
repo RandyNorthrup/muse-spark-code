@@ -47,18 +47,22 @@ function paused(entry: WorkflowEntry): WorkflowEntry {
   return { ...entry, pausedByUser: true }
 }
 
+function renderCard(entry: WorkflowEntry, calls: unknown[][]): void {
+  render(
+    <WorkflowRunView
+      entry={entry}
+      onWorkflowControl={(...args) => {
+        calls.push(args)
+      }}
+    />,
+  )
+}
+
 describe('the workflow card’s owner controls', () => {
   it('drives a live run with Pause and Cancel', () => {
     const entry = entryFor(revision('workflow-pause-accepted.json', 'before'))
     const calls: unknown[][] = []
-    render(
-      <WorkflowRunView
-        entry={entry}
-        onWorkflowControl={(...args) => {
-          calls.push(args)
-        }}
-      />,
-    )
+    renderCard(entry, calls)
     fireEvent.click(screen.getByText(UI_TEXT.workflowPause))
     fireEvent.click(screen.getByText(UI_TEXT.workflowCancel))
     expect(calls).toEqual([
@@ -70,14 +74,7 @@ describe('the workflow card’s owner controls', () => {
   it('offers Resume on a paused run and says so', () => {
     const entry = paused(entryFor(revision('workflow-pause-accepted.json', 'before')))
     const calls: unknown[][] = []
-    render(
-      <WorkflowRunView
-        entry={entry}
-        onWorkflowControl={(...args) => {
-          calls.push(args)
-        }}
-      />,
-    )
+    renderCard(entry, calls)
     expect(screen.queryByText(UI_TEXT.workflowPause)).toBeNull()
     expect(screen.getByText(UI_TEXT.workflowPaused, { exact: false })).not.toBeNull()
     fireEvent.click(screen.getByText(UI_TEXT.agentResume))
@@ -87,14 +84,7 @@ describe('the workflow card’s owner controls', () => {
   it('drives a running agent with Skip and Retry', () => {
     const entry = entryFor(revision('workflow-pause-accepted.json', 'before'))
     const calls: unknown[][] = []
-    render(
-      <WorkflowRunView
-        entry={entry}
-        onWorkflowControl={(...args) => {
-          calls.push(args)
-        }}
-      />,
-    )
+    renderCard(entry, calls)
     const running: WorkflowChild | undefined = entry.children.find(
       (child) => child.terminal === undefined && child.status === 'started',
     )
@@ -110,14 +100,7 @@ describe('the workflow card’s owner controls', () => {
   it('renders both attempts of a retried child, driving the running one', () => {
     const entry = entryFor(revision('workflow-childControl-retry.json', 'attemptRunning'))
     const calls: unknown[][] = []
-    render(
-      <WorkflowRunView
-        entry={entry}
-        onWorkflowControl={(...args) => {
-          calls.push(args)
-        }}
-      />,
-    )
+    renderCard(entry, calls)
     // Five rows: three terminal first attempts, one scheduled, the
     // retried child beside its terminal first attempt. Only attempt 2 is
     // numbered (a first attempt shows no number).
