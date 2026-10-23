@@ -132,6 +132,7 @@ export class InspectRunner {
   private readonly active = new Set<Promise<InspectResult>>()
   private readiness: Promise<boolean> | undefined
   private offReason: Refusal = 'selfTest'
+  private verifiedAbi: number | undefined
 
   constructor(private readonly options: InspectExecOptions) {}
 
@@ -311,15 +312,13 @@ export class InspectRunner {
       const binding = { root: workspace, identity }
       const probe = await this.process(['probe'], root, this.lifetime.signal)
       const probeSchemaForHost = process.platform === 'darwin' ? darwinProbeSchema : probeSchema
-      if (
-        probe.refusal !== undefined ||
-        probe.exitCode !== 0 ||
-        !probeSchemaForHost.safeParse(json(probe.stdout.trim())).success
-      ) {
+      const verified = probeSchemaForHost.safeParse(json(probe.stdout.trim()))
+      if (probe.refusal !== undefined || probe.exitCode !== 0 || !verified.success) {
         const native = nativeRefusalSchema.safeParse(json(probe.stderr.trim()))
         if (native.success) this.offReason = native.data.refused
         return false
       }
+      this.verifiedAbi = verified.data.abi
       const allowed = 'B1_ALLOWED_CANARY',
         forbidden = 'B1_FORBIDDEN_CANARY'
       await writeFile(path.join(workspace, 'allowed.txt'), allowed)
@@ -413,6 +412,15 @@ export class InspectRunner {
       if (home !== undefined) await rm(home, { recursive: true, force: true })
     }
   }
+  /**
+  The confinement version the session's probe reported (F1b's audit):
+  the Landlock ABI on Linux, 1 on macOS. Unknown until a probe passes;
+  a failed probe leaves the last verified value alone.
+  */
+  public get probedAbi(): number | undefined {
+    return this.verifiedAbi
+  }
+
   run(command: string, workspace: InspectWorkspace, signal?: AbortSignal): Promise<InspectResult> {
     const task = (async () => {
       try {

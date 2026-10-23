@@ -10,8 +10,9 @@
 // text. macOS waits for Q-D107-B1-MAC, Windows is off by §9.2, and no
 // platform is certified until its receipt and the harm bound land.
 import type { ApprovalMode } from '../../../shared/permissionModes'
-import { JUDGE_FAST_VETO_WINDOW_MS } from '../../../shared/constants'
+import { JUDGE_FAST_VETO_POLL_MS, JUDGE_FAST_VETO_WINDOW_MS } from '../../../shared/constants'
 import type { SettledBy } from '../../backends/modelapi/permissions'
+import { isErrno } from '../../fs/errno'
 import type { InspectResult } from './inspectExec'
 import { parseInspectCommand, type InspectCommand } from './inspectGrammar'
 
@@ -187,9 +188,50 @@ export function b1Eligible(conditions: B1Conditions): B1ConditionVerdict {
     : { eligible: false, reason: 'confinement' }
 }
 
+/**
+The veto pipeline's own numbers (§9.6's audit), when the veto ran one:
+the engine that answered, its calibrated p(yes) and the bar it passed,
+in permille. A veto read from M98's fence carries none — the fence
+hides its engine and probabilities by contract — and the audit omits
+them until a veto pipeline that exposes them lands.
+*/
+export interface VetoPipelineDetail {
+  readonly engine: string
+  readonly pYesMilli: number
+  readonly thresholdMilli: number
+}
+
 export interface VetoAnswer {
-  /** The fence asked 7.1's question through a fast-enough calibrated engine. */
+  /** The judge's 7.1 answer over the command: caution reads veto. */
   readonly veto: boolean
+  readonly detail?: VetoPipelineDetail | undefined
+}
+
+/** The judge fence's read side, polled until it settles or aborts. */
+export interface VetoFenceReader {
+  readonly read: () => 'caution' | 'none' | undefined
+}
+
+/**
+Read the veto from the judge fence (§9.3.5): caution is a veto, a
+settled none is a non-veto, and an abort throws so the race discards
+the fast path. The race's window turns a fence that never settles
+into a veto; this read never times out on its own.
+*/
+export async function readVetoFence(
+  fence: VetoFenceReader,
+  signal: AbortSignal,
+  pollMs: number = JUDGE_FAST_VETO_POLL_MS,
+): Promise<VetoAnswer> {
+  for (;;) {
+    signal.throwIfAborted()
+    const outcome = fence.read()
+    if (outcome === 'caution') return { veto: true }
+    if (outcome === 'none') return { veto: false }
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, pollMs)
+    })
+  }
 }
 
 /**
@@ -213,8 +255,53 @@ export type ApprovalRaceOutcome<R> =
       readonly exitCode: number
       readonly excluded: number
       readonly vetoLatencyMs: number
+      readonly detail?: VetoPipelineDetail | undefined
     }
   | { readonly kind: 'reviewer'; readonly verdict: R }
+
+/**
+The helper's fixed program table (native/confine/MuseSparkConfine.c
+program_path), mirrored for the audit's resolved executable: no PATH
+search on either side, so a planted program never runs. stat runs no
+program and maps to nothing. A test holds this table against the C
+source so the two cannot drift.
+*/
+const B1_PROGRAM_PATHS: Readonly<Record<string, string>> = {
+  ls: '/bin/ls',
+  cat: '/bin/cat',
+  head: '/usr/bin/head',
+  tail: '/usr/bin/tail',
+  wc: '/usr/bin/wc',
+  du: '/usr/bin/du',
+  grep: '/bin/grep',
+  find: '/usr/bin/find',
+}
+
+/** The fixed path the helper execs for the program, if it execs one. */
+export function b1ProgramPath(program: string): string | undefined {
+  return B1_PROGRAM_PATHS[program]
+}
+
+/**
+The resolved executable for the audit (§9.6): the fixed path through
+realpath, as the helper's own system_file resolves it before execve.
+A path that cannot be resolved audits as absent, never guessed. The
+helper re-verifies ownership at run time; a root-level swap between
+this resolution and the run is outside the threat model.
+*/
+export function resolveB1Executable(
+  program: string,
+  realpath: (filePath: string) => string,
+): string | undefined {
+  const fixed = b1ProgramPath(program)
+  if (fixed === undefined) return undefined
+  try {
+    return realpath(fixed)
+  } catch (error: unknown) {
+    if (!isErrno(error)) throw error
+    return undefined
+  }
+}
 
 type Settled<T> =
   | { readonly status: 'fulfilled'; readonly value: T }
@@ -268,13 +355,13 @@ export async function raceApproval<R>(
       return { kind: 'reviewer', verdict: first.settled.value }
     }
     const answer = first.kind === 'timeout' ? undefined : first.settled
-    const isNonVeto = answer?.status === 'fulfilled' && !answer.value.veto
-    if (!isNonVeto) {
+    if (answer?.status !== 'fulfilled' || answer.value.veto) {
       inspectAbort.abort()
       const settled = await reviewer
       if (settled.status === 'rejected') throw settled.cause
       return { kind: 'reviewer', verdict: settled.value }
     }
+    const vetoDetail = answer.value.detail
     const vetoLatencyMs = Date.now() - heldAt
     const awaitInspect = async () => ({ kind: 'inspect', settled: await inspect }) as const
     const second = await Promise.race([awaitInspect(), awaitReviewer()])
@@ -297,6 +384,7 @@ export async function raceApproval<R>(
       exitCode: delivered.value.exitCode,
       excluded: delivered.value.excluded,
       vetoLatencyMs,
+      ...(vetoDetail !== undefined && { detail: vetoDetail }),
     }
   } finally {
     if (windowId !== undefined) clearTimeout(windowId)

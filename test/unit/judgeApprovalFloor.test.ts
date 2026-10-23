@@ -5,19 +5,41 @@
 // (empty until a receipt and the harm bound land), Auto-only mode,
 // and the live conditions. The confinement itself is F1a's, proven
 // there; the drills run it in docs/certification/m125-f1.md.
+import { realpathSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { ApprovalMode } from '../../src/shared/permissionModes'
 import { JUDGE_FAST_B1_READY_PLATFORMS } from '../../src/shared/constants'
 import {
   b1Eligible,
   b1Floor,
+  b1ProgramPath,
   canonicalB1Line,
+  resolveB1Executable,
   type B1Conditions,
   type B1FloorContext,
 } from '../../src/core/judge/fast/approval'
 import { parseInspectCommand } from '../../src/core/judge/fast/inspectGrammar'
 
 const SECRET_CANARY = 'password = "synthetic-sensitive-canary"'
+
+function quotedWords(group: string): string[] {
+  const words: string[] = []
+  for (const match of group.matchAll(/"([^"]*)"/gu)) {
+    if (match[1] !== undefined && match[1] !== '') words.push(match[1])
+  }
+  return words
+}
+
+function missingRealpath(): string {
+  throw Object.assign(new Error('no such file'), { code: 'ENOENT', errno: -2 })
+}
+
+function brokenRealpath(): string {
+  throw new Error('boom')
+}
 
 function floorContext(overrides: Partial<B1FloorContext> = {}): B1FloorContext {
   return {
@@ -173,6 +195,48 @@ describe('B1 floor', () => {
       if (first === undefined) continue
       expect(parseInspectCommand(canonicalB1Line(first), 'linux')).toEqual(first)
     }
+  })
+})
+
+describe('B1 program table', () => {
+  it('maps the eight execed programs to the helper fixed paths', () => {
+    expect(b1ProgramPath('ls')).toBe('/bin/ls')
+    expect(b1ProgramPath('cat')).toBe('/bin/cat')
+    expect(b1ProgramPath('head')).toBe('/usr/bin/head')
+    expect(b1ProgramPath('tail')).toBe('/usr/bin/tail')
+    expect(b1ProgramPath('wc')).toBe('/usr/bin/wc')
+    expect(b1ProgramPath('du')).toBe('/usr/bin/du')
+    expect(b1ProgramPath('grep')).toBe('/bin/grep')
+    expect(b1ProgramPath('find')).toBe('/usr/bin/find')
+    expect(b1ProgramPath('stat')).toBeUndefined()
+    expect(b1ProgramPath('rg')).toBeUndefined()
+  })
+
+  it('matches the C helper table it mirrors, pair for pair', async () => {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
+    const source = await readFile(
+      path.join(root, 'native', 'confine', 'MuseSparkConfine.c'),
+      'utf8',
+    )
+    const names = /static const char \*names\[\] = \{([^}]*)\}/u.exec(source)
+    const paths = /static const char \*paths\[\] = \{([^}]*)\}/u.exec(source)
+    expect(names?.[1]).toBeDefined()
+    expect(paths?.[1]).toBeDefined()
+    const cNames = quotedWords(names?.[1] ?? '')
+    const cPaths = quotedWords(paths?.[1] ?? '')
+    expect(cNames.length).toBe(cPaths.length)
+    expect(cNames.length).toBeGreaterThan(0)
+    for (const [index, name] of cNames.entries()) {
+      expect(b1ProgramPath(name)).toBe(cPaths[index])
+    }
+  })
+
+  it('resolves through realpath and audits the missing as absent', () => {
+    const resolved = resolveB1Executable('cat', realpathSync)
+    expect(resolved?.endsWith('/cat')).toBe(true)
+    expect(resolveB1Executable('stat', realpathSync)).toBeUndefined()
+    expect(resolveB1Executable('cat', missingRealpath)).toBeUndefined()
+    expect(() => resolveB1Executable('cat', brokenRealpath)).toThrow('boom')
   })
 })
 
