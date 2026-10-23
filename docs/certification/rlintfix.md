@@ -208,7 +208,8 @@ locked-folder pattern.
 - A full-battery run left `%SystemDrive%/ProgramData/.../Caches`
   font-cache databases in the worktree (a stripped-env child letting
   the Windows font subsystem resolve its cache path against the
-  checkout). Deleted; the exact suite is UNMEASURED (connectorStdio,
+  checkout). Deleted; recreated once during a later full run and
+  deleted again. The exact suite is UNMEASURED (connectorStdio,
   reports and schedules e2e re-runs do not recreate it). Untracked
   debris only; no gate reads it.
 - `npm run package:acp` (universal) fails on Windows for the
