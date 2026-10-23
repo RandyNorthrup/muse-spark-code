@@ -121,7 +121,8 @@
       "vault.daysHint",
       "vault.startHourHint",
       "vault.endHourHint",
-      "vault.ceilingHint"
+      "vault.ceilingHint",
+      "devices.makerDigest"
     ],
     "cs": [
       "groupModel",
@@ -231,7 +232,8 @@
       "gitPullRequestFormLabel",
       "agentsCount.one",
       "openPullRequestRepository",
-      "sessionListsHooks"
+      "sessionListsHooks",
+      "devices.makerSimulator"
     ],
     "es": [
       "hooksItem",
@@ -301,7 +303,8 @@
       "teamIntensityLevels.minimal",
       "reportLabels.total",
       "sessionListsHooks",
-      "devices.grantQuota"
+      "devices.grantQuota",
+      "devices.makerOperation"
     ],
     "it": [
       "usageAccount",
