@@ -13,6 +13,8 @@ import type { Logger } from '../logger'
 import type {
   TabBundleTable,
   TabLanguagesCommandDeps,
+  TabLoadedHandle,
+  TabLoadedWiring,
   TabProviderDeps,
   TabProviderHandle,
   TabServices,
@@ -21,10 +23,11 @@ import type {
 } from './tabBundle'
 import type { TabSnooze } from './tabSnooze'
 
-/** What tabEntry.ts exports: the services, the provider, the status and the menu commands. */
+/** What tabEntry.ts exports: the services, the provider, the wiring, the status and the menu commands. */
 export interface TabBundle {
   createTabServices(deps: TabServicesDeps): TabServices
   createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle
+  createTabLoaded(wiring: TabLoadedWiring): TabLoadedHandle
   showTabMenu(deps: TabStatusDeps & TabBundleTable): Promise<void>
   snoozeTabCommand(snooze: TabSnooze, table: UiText, locale: string): Promise<void>
   tabLanguagesCommand(deps: TabLanguagesCommandDeps & TabBundleTable): Promise<void>
@@ -39,6 +42,8 @@ export function isTabBundle(value: unknown): value is TabBundle {
     typeof value.createTabServices === 'function' &&
     'createTabProvider' in value &&
     typeof value.createTabProvider === 'function' &&
+    'createTabLoaded' in value &&
+    typeof value.createTabLoaded === 'function' &&
     'showTabMenu' in value &&
     typeof value.showTabMenu === 'function' &&
     'snoozeTabCommand' in value &&
