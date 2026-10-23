@@ -52,6 +52,9 @@ function hasSessionBus(): boolean {
 describe.skipIf(
   process.platform === 'win32' || !hasBrokerSocketFit() || !hasProcessListing() || !hasSessionBus(),
 )('POSIX vault through the panel', () => {
+  // The native helper builds and broker starts take as long as the machine
+  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
+  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     fixture.current = await startPosixPanelFixture('vs-ppanel-')
     // One-time OS costs belong in hooks, never in a case: the first exec
@@ -71,7 +74,7 @@ describe.skipIf(
         ['proc-identity', String(process.pid)],
         { stdio: 'ignore' },
       )
-  })
+  }, 0)
   afterAll(async () => {
     await fixture.current?.dispose()
   })

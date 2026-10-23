@@ -1,0 +1,1 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"><modelVersion>4.0.0</modelVersion><parent><groupId>io.musespark</groupId><artifactId>eclipse-parent</artifactId><version>0.18.2-SNAPSHOT</version></parent><artifactId>io.musespark.eclipse.repository</artifactId><packaging>eclipse-repository</packaging></project>

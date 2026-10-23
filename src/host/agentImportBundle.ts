@@ -14,7 +14,7 @@ import { uiLocale } from '../shared/l10n/text'
 import type { AgentImportHost } from './commands/agentImportCommands'
 import { fixedMessageLog, lazyBundleLoader } from './lazyBundle'
 import type { Logger } from './logger'
-import type { AgentImportHostDeps } from './agentImportHost'
+import type { AgentImportHostDeps } from './vscode/agentImportHost'
 
 /** Activation's shim; the UI adapter and its config schema load only with the bundle. */
 export async function runAgentImport(deps: AgentImportHostDeps): Promise<void> {

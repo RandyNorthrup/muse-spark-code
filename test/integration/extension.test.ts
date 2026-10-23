@@ -4,7 +4,7 @@ import * as assert from 'node:assert/strict'
 import { mkdtemp, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as vscode from 'vscode'
-import { loadGitApi, repositoryAt } from '../../src/host/git/gitExtension'
+import { loadGitApi, repositoryAt } from '../../src/host/vscode/git/gitExtension'
 import { processGitRunner } from '../../src/host/git'
 import { planMarkdownLoader } from '../../src/host/planMarkdownBundle'
 import {

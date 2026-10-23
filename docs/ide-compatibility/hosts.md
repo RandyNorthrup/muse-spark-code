@@ -8,6 +8,14 @@ not the claim. **Route**: _VSIX_ (the VS Code extension as it is), _ACP_
 plugin that embeds the Muse panel), _External_ (a terminal or adjacent
 window with a limited link to the editor).
 
+M104's [qualification inventory](../certification/m104-pf-inventory.md) covers
+all 56 feature rows and 25 editor IDs equally. Older status/evidence entries
+below retain their original scope; they are not full M104 row receipts. The
+Xcode 26.3 component build/tests use a native SwiftUI/XcodeKit prototype on
+macOS 15.7.4 Intel, with ad-hoc universal binaries. Installed extension
+enablement, complete editor services and production backend/provider parity
+remain unqualified, as do Xcode 26.6/27 and arm64 execution.
+
 Where it can be tested: this project's cloud container reaches npm, PyPI,
 Maven Central, Gradle, NuGet, Ubuntu's archive and download.eclipse.org,
 and not JetBrains, Microsoft's VS Code downloads, Open VSX, Zed's site or

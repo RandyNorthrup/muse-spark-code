@@ -1,0 +1,142 @@
+[
+  {
+    "label": "cancelled listener startup",
+    "file": "hosts/xcode/Shared/NativeChannel.swift",
+    "test": "testCancelledBeforeStartupNeverCreatesACommandListener",
+    "exit": 65,
+    "sha256": "58ebc6c5d600dbe2d4597dc99fb3650372d196806784800954a773d9e8edbfc5"
+  },
+  {
+    "label": "single command listener owner",
+    "file": "hosts/xcode/Shared/NativeChannel.swift",
+    "test": "testRepeatedListenerStartupPreservesTheFirstOwner",
+    "exit": 65,
+    "sha256": "58ebc6c5d600dbe2d4597dc99fb3650372d196806784800954a773d9e8edbfc5"
+  },
+  {
+    "label": "closed command client",
+    "file": "hosts/xcode/Shared/NativeChannel.swift",
+    "test": "testClosedClientCannotRestartAnAuthenticatedCommandExchange",
+    "exit": 65,
+    "sha256": "58ebc6c5d600dbe2d4597dc99fb3650372d196806784800954a773d9e8edbfc5"
+  },
+  {
+    "label": "buffer commit admission",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testRetiredCommandCannotCommitAnApprovedBufferReply",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "atomic command transaction",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testCancellationWaitsForAnAlreadyAdmittedCommandTransaction",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "navigation line admission",
+    "file": "hosts/xcode/Shared/RuntimeLauncher.swift",
+    "test": "testNavigationResolvesOnlyRegularWorkspaceFiles",
+    "exit": 65,
+    "sha256": "15964bae959b2aa82d591cac12c6aaecf8e24468c488d8fdb9bbc394156b7239"
+  },
+  {
+    "label": "navigation workspace containment",
+    "file": "hosts/xcode/Shared/RuntimeLauncher.swift",
+    "test": "testNavigationResolvesOnlyRegularWorkspaceFiles",
+    "exit": 65,
+    "sha256": "15964bae959b2aa82d591cac12c6aaecf8e24468c488d8fdb9bbc394156b7239"
+  },
+  {
+    "label": "navigation regular file",
+    "file": "hosts/xcode/Shared/RuntimeLauncher.swift",
+    "test": "testNavigationResolvesOnlyRegularWorkspaceFiles",
+    "exit": 65,
+    "sha256": "15964bae959b2aa82d591cac12c6aaecf8e24468c488d8fdb9bbc394156b7239"
+  },
+  {
+    "label": "bound window focus",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testFocusRequiresTheBoundWindowAndApplicationActivity",
+    "exit": 65,
+    "sha256": "407d5ba57bbe052e8603a47e626b2b0e32264b369d680838903aa6f8e1d1e2ae"
+  },
+  {
+    "label": "retired native UI owner",
+    "file": "hosts/xcode/App/NativeUi.swift",
+    "test": "testCancelledServiceCannotPublishOrAnswerInAnotherOwner",
+    "exit": 65,
+    "sha256": "407d5ba57bbe052e8603a47e626b2b0e32264b369d680838903aa6f8e1d1e2ae"
+  },
+  {
+    "label": "voice Tab and editor capability admission",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testUnadvertisedServiceRefusesBeforeSideEffect",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "union type array",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testFrozenUnionTypesAndArrayLimitsAreEnforced",
+    "exit": 65,
+    "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+  },
+  {
+    "label": "oneOf exclusive union",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testFrozenUnionTypesAndArrayLimitsAreEnforced",
+    "exit": 65,
+    "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+  },
+  {
+    "label": "array maximum",
+    "file": "hosts/xcode/Shared/MhpSchema.swift",
+    "test": "testFrozenUnionTypesAndArrayLimitsAreEnforced",
+    "exit": 65,
+    "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+  },
+  {
+    "label": "panel header validation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testUnboundPanelFaultsDoNotCloseTheCompanionRelay",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "panel lifecycle validation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testUnboundPanelFaultsDoNotCloseTheCompanionRelay",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "request fault isolation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testRequestFaultsPreserveUnrelatedNativeWork",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "request id retirement",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testRequestIdWindowEvictsOnlyCompletedIdsAndRetainsTypedIdentity",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "permission error code",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  },
+  {
+    "label": "native result validation",
+    "file": "hosts/xcode/Shared/MhpSession.swift",
+    "test": "testNativeFailuresAndMalformedResultsUseTheFrozenErrorCodes",
+    "exit": 65,
+    "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+  }
+]

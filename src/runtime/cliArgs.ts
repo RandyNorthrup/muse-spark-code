@@ -1,4 +1,4 @@
-import type { UsdAmount } from '../shared/usdSchema'
+import { Usd, type UsdAmount } from '../shared/usd'
 // The agent's command line (PLAN.md D62): serve ACP on stdio, or one of the
 // sign-in commands the editors' terminal sign-ins run (D61). Pure: the
 // arguments in, what to do out, with the reason when they make no sense.
@@ -24,6 +24,9 @@ import {
   TIMER_MAX_DELAY_MS,
   UI_TEXT,
   REPORT_KINDS,
+  TAB_MODELS,
+  TAB_DAILY_BUDGET_MIN_USD,
+  TAB_NO_BUDGET_USD,
 } from '../shared/constants'
 import { COMPANION_VOICE_RELEASE } from '../shared/companionVoice'
 import { modelRef } from '../host/backend/providerPolicyEntry'
@@ -128,6 +131,14 @@ export interface ProvidersModelsOptions {
   readonly force: string | undefined
 }
 
+export interface LspOptions extends ServeOptions {
+  readonly workspace: string
+  readonly tabOn: boolean
+  readonly tabModel: string
+  readonly tabBudgetUsd: UsdAmount
+  readonly brokerWorker: boolean
+}
+
 /** `providers add` flags (M95, PLAN.md D74): the terminal runs the same checks as the wizard. */
 export interface ProvidersAddOptions {
   /** The preset to add from (or a configured provider id for `custom --as`). */
@@ -152,6 +163,9 @@ export interface ProvidersAddOptions {
 
 export type RuntimeCommand =
   | { readonly command: 'dictate'; readonly paid: boolean; readonly trustWorkspace: boolean }
+  | { readonly command: 'lsp'; readonly options: LspOptions }
+  | { readonly command: 'supervise'; readonly args: readonly string[] }
+  | { readonly command: 'stop' }
   | { readonly command: 'usage'; readonly options: UsageCommand }
   | { readonly command: 'schedule'; readonly options: ScheduleCommandOptions }
   | { readonly command: 'vault'; readonly options: VaultCommandOptions }
@@ -185,6 +199,11 @@ export type RuntimeCommand =
   | { readonly command: 'playbook'; readonly argv: readonly string[] }
   | { readonly command: 'mcp'; readonly argv: readonly string[] }
   | { readonly command: 'estimate'; readonly argv: readonly string[] }
+  | {
+      readonly command: 'panel'
+      readonly options: ServeOptions
+      readonly transport: 'stdio' | 'companion'
+    }
   | { readonly command: 'serve'; readonly options: ServeOptions }
   | { readonly command: 'login'; readonly options: ServeOptions }
   | {
@@ -542,6 +561,18 @@ export function parseCommandLine<T>(
     return resolved === undefined ? { command: 'help' } : { command: 'help', route: resolved }
   }
 
+  if (argv[0] === 'stop') {
+    // Shims preserve configured runtime flags after the verb; validate without starting a backend.
+    const parsed = parseCommandLine(argv.slice(1))
+    return parsed.command === 'serve' ? { command: 'stop' } : invalid('stop')
+  }
+  if (argv[0] === 'supervise') {
+    const args = argv.slice(1)
+    return args[0] === 'supervise' || args[0] === 'stop'
+      ? invalid(args[0])
+      : { command: 'supervise', args }
+  }
+  if (argv[0] === 'lsp') return parseLsp(argv.slice(1))
   // M118-X-CLI: main's owner injects the local parser/runner once P/C bind.
   // Without that binding these reserved commands fail explicitly, never serve.
   if (argv[0] === 'share' || argv[0] === 'prompts') {
@@ -779,6 +810,12 @@ export function parseCommandLine<T>(
   const refusedServeFlag = NON_SERVE_OPTIONS.find((name) => values[name] !== undefined)
   if (values.account !== undefined && (first !== 'auth' || second !== 'set' || rest.length > 0))
     return invalid('--account')
+  if (first === 'panel' && second === undefined) {
+    if ((values.stdio === true) === (values.companion === true))
+      return invalid('panel (--stdio | --companion)')
+    return { command: 'panel', options, transport: values.stdio === true ? 'stdio' : 'companion' }
+  }
+  if (values.stdio === true || values.companion === true) return invalid('--stdio | --companion')
   if (first === 'setup' && second === undefined) {
     if (values.provider !== undefined) return invalid('--provider')
     return options.trustWorkspace
@@ -1404,7 +1441,8 @@ function parseCommandLineStrictly(argv: readonly string[]) {
     args: [...argv],
     allowPositionals: true,
     strict: true,
-    options: CLI_OPTION_REGISTRY.serve.options,
+    // `panel` shares the serve flags and adds its transport choice (M104).
+    options: { ...CLI_OPTION_REGISTRY.serve.options, ...CLI_OPTION_REGISTRY.panel.options },
   })
 }
 
@@ -1444,5 +1482,52 @@ function parseFonts(argv: readonly string[]): RuntimeCommand {
     get reason() {
       return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })
     },
+  }
+}
+
+function parseLsp(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values } = parseArgs({
+      args: [...argv],
+      strict: true,
+      allowPositionals: false,
+      options: CLI_OPTION_REGISTRY.lsp.options,
+    })
+    if (values.help === true) return { command: 'help' }
+    const tabModel = values['tab-model'] ?? SETTING_DEFAULTS.tabModel
+    const budget = Usd.from(values['tab-daily-budget-usd'] ?? SETTING_DEFAULTS.tabDailyBudgetUsd)
+    if (
+      !isOneOf(TAB_MODELS, tabModel) ||
+      (budget.compare(Usd.from(TAB_NO_BUDGET_USD)) !== 0 &&
+        budget.compare(Usd.from(TAB_DAILY_BUDGET_MIN_USD)) < 0) ||
+      (values['tab-daily-budget-usd'] ?? '1').trim() === ''
+    )
+      return invalid('lsp')
+    const baseArgs: string[] = []
+    for (const name of ['backend', 'muse-binary', 'shell-sandbox'] as const) {
+      const value = values[name]
+      if (typeof value === 'string') baseArgs.push(`--${name}`, value)
+    }
+    for (const name of ['trust-workspace', 'allow-contributor-models', 'verbose'] as const) {
+      if (values[name] === true) baseArgs.push(`--${name}`)
+    }
+    // Parse common flags independently: no paid feature is silently enabled by LSP.
+    const base = parseCommandLine(baseArgs)
+    if (base.command !== 'serve') return invalid('lsp')
+    if (tabModel !== SETTING_DEFAULTS.tabModel && !base.options.allowsContributorModels)
+      return invalid('--allow-contributor-models')
+    return {
+      command: 'lsp',
+      options: {
+        ...base.options,
+        workspace: values.workspace ?? process.cwd(),
+        tabOn: values.tab === true,
+        tabModel,
+        tabBudgetUsd: budget.toAmount(),
+        brokerWorker: values['broker-worker'] === true,
+      },
+    }
+  } catch {
+    return invalid('lsp')
   }
 }

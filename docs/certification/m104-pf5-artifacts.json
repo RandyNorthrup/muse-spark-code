@@ -1,0 +1,1197 @@
+{
+  "checkpointParent": "47fe256621d8b6ddce5791d07bc239e5606dc016",
+  "machine": "macmini",
+  "os": "macOS 15.7.4 (24G517)",
+  "editor": "Xcode 26.3 (17C529)",
+  "executedArchitecture": "x86_64",
+  "compiledReleaseArchitectures": ["x86_64", "arm64"],
+  "node": "v24.21.0",
+  "protocol": "mhp/1.3.0",
+  "modelAttempts": 0,
+  "installedExtensionReceipt": false,
+  "consoleReceipt": "needs owner at the console",
+  "core": {
+    "scheme": "NativeCore",
+    "tests": 65,
+    "outcome": "passed after all 11 native controls",
+    "inventory": [
+      {
+        "path": "Contents/Info.plist",
+        "bytes": 1194,
+        "sha256": "01d55bb3722e02cf830eaefb728bce3b62327fea4dbf5de0805b4ac8d92321fb"
+      },
+      {
+        "path": "Contents/MacOS/NativeHostTests",
+        "bytes": 2107776,
+        "sha256": "f3b62fc8d73b29323e4e7e8c67fbeeb6e776400b91a608f8ddc7465ad5cf8e3d"
+      },
+      {
+        "path": "Contents/Resources/mhp.json",
+        "bytes": 977290,
+        "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+      },
+      {
+        "path": "Contents/Resources/ui.cs.json",
+        "bytes": 1914,
+        "sha256": "8e80af8d1be41fe6355469b6e7f04d01f857e376c7ec86b4e8ea10173072b5d7"
+      },
+      {
+        "path": "Contents/Resources/ui.de.json",
+        "bytes": 2022,
+        "sha256": "56ca8d1726fb8abcd8d733c6c464d8511c6041cf3c76ea5061fcf7b9f9775e48"
+      },
+      {
+        "path": "Contents/Resources/ui.en.json",
+        "bytes": 1729,
+        "sha256": "bc1d95eb5bb6cf0d92159e5ba3e65c6c0ca430c3c806879e8159f1975077f4de"
+      },
+      {
+        "path": "Contents/Resources/ui.es.json",
+        "bytes": 1986,
+        "sha256": "b83e7bc6667c0344a3b7c7adba0b86d20d5ab3c0ae99e449003d16c8f19aee33"
+      },
+      {
+        "path": "Contents/Resources/ui.fr.json",
+        "bytes": 2066,
+        "sha256": "253871bcd820a0cdd45e64c7a27046cae87321d49b0b0a7f639771b9b72f7693"
+      },
+      {
+        "path": "Contents/Resources/ui.hu.json",
+        "bytes": 2088,
+        "sha256": "28ee450846af7ef85d66754ebdb73f32300f23d6676340e14a86c5a0471563ae"
+      },
+      {
+        "path": "Contents/Resources/ui.it.json",
+        "bytes": 2011,
+        "sha256": "6732d7e5d2aca739703cc5e331105bfab627ad035367159d948ba7eddd9642f8"
+      },
+      {
+        "path": "Contents/Resources/ui.ja.json",
+        "bytes": 2378,
+        "sha256": "0374e8220f8e29cc4524b9dfb08e42b0baf75edb9d1a83479ae6d1294c569c41"
+      },
+      {
+        "path": "Contents/Resources/ui.ko.json",
+        "bytes": 2079,
+        "sha256": "693148e175d58043481aded16d7e59a1dbd51c88c967f9136659776d3a3c13f6"
+      },
+      {
+        "path": "Contents/Resources/ui.pl.json",
+        "bytes": 1933,
+        "sha256": "634056af31fcaea03df3c683308eb61e4a1741b7e087b37179acf8a1f5242f38"
+      },
+      {
+        "path": "Contents/Resources/ui.pt-br.json",
+        "bytes": 1989,
+        "sha256": "d31548765d56495130d12e2007962c4a1093b528e112fb57eb6b58ee77c539fc"
+      },
+      {
+        "path": "Contents/Resources/ui.ru.json",
+        "bytes": 2718,
+        "sha256": "aef1ed7ce266ae99f970abdbb371f75ea9ca8341a8f39a4c8de5395c730d7f92"
+      },
+      {
+        "path": "Contents/Resources/ui.tr.json",
+        "bytes": 1971,
+        "sha256": "53d2abcb60dc886c1b28da561a42a5e273ceadd05666722ebabcb44970661bb9"
+      },
+      {
+        "path": "Contents/Resources/ui.zh-cn.json",
+        "bytes": 1735,
+        "sha256": "9f79f591a028634eaf52816358a5952f3fe0a4aa3aef6e0f9128bce35871bb1a"
+      },
+      {
+        "path": "Contents/Resources/ui.zh-tw.json",
+        "bytes": 1758,
+        "sha256": "9d6bc4e2e0fc1040aab0d4ba548cebab9498bdfed77bcdc1d532451c38391f25"
+      }
+    ]
+  },
+  "compileOnly": "Debug app/extension/all test bundles; no UI runner launched",
+  "runtime": {
+    "files": 129,
+    "portableModules": 69,
+    "keyringPin": "2.1.0",
+    "installedRuntimeReceipt": false,
+    "bundledOfficialNodePin": "absent, owning-lane request",
+    "inventory": [
+      {
+        "path": "LICENSE",
+        "bytes": 1071,
+        "sha256": "33c1de52600aa788c54cc819e905e20a62b37d4ea4b33fffb71d389e5198d752"
+      },
+      {
+        "path": "README.md",
+        "bytes": 10889,
+        "sha256": "9f4f309d3922c042dcb968211be7d2fc7417c14530f75ab045ec6a2965741935"
+      },
+      {
+        "path": "THIRD_PARTY_NOTICES.txt",
+        "bytes": 19686,
+        "sha256": "23a1bc510f4f265bb52d6aed458abc803737a83f4c2ecaae81c036a0eddb387b"
+      },
+      {
+        "path": "dist/acp.js",
+        "bytes": 850058,
+        "sha256": "a4a504f9ef3a1ffe491a5923c19dfe454dd7b5324d1f09737cb0baf89173ba0a"
+      },
+      {
+        "path": "dist/browserCheck.js",
+        "bytes": 43573,
+        "sha256": "acde104319accef7d21ac60a102448365f67ae8f9d35c5d5f3e0928ba45bc16a"
+      },
+      {
+        "path": "dist/browserRuntime.js",
+        "bytes": 19762,
+        "sha256": "bf78122411d861a98d85678257a6b6abeeffbe603fa36baab018518ef3b2b75c"
+      },
+      {
+        "path": "dist/checkpointStore.js",
+        "bytes": 79181,
+        "sha256": "363a7e25d7f94d658e84990ef18422fff9de6d424985e91d7d5f3fbd3b31590c"
+      },
+      {
+        "path": "dist/conversation.js",
+        "bytes": 200255,
+        "sha256": "9de8595cb5500fe0ef3449d12534d2a1d577e70e948b466406c6eb0b83b67703"
+      },
+      {
+        "path": "dist/extensionHooks.js",
+        "bytes": 36914,
+        "sha256": "ef8ab6715ca1ad06b66cfd58eb88a140487992f24b366034e8b9bf4a6fb4ba19"
+      },
+      {
+        "path": "dist/foreignHooks.js",
+        "bytes": 71145,
+        "sha256": "2241b02d60ca78e750b073ad21089904677c4b7ea1c11d15d8c33c05fdf71a4d"
+      },
+      {
+        "path": "dist/hookRuntime.js",
+        "bytes": 44325,
+        "sha256": "6dd35c2ed6ae7158e2d5aeac5aece87a46ecf540ffc607c4498900fb113e7780"
+      },
+      {
+        "path": "dist/hostProtocol.js",
+        "bytes": 24770,
+        "sha256": "d8573489906e04860ba70ff5af9bd2c531c1b05246eb25417f25e65d37bddafd"
+      },
+      {
+        "path": "dist/judge.js",
+        "bytes": 48778,
+        "sha256": "97bc587692ca6e576a56c579e20daa020f9b4f197f2011654613abd5ee2ca58e"
+      },
+      {
+        "path": "dist/modelApi.js",
+        "bytes": 458282,
+        "sha256": "6d2a9398b35094e64313b47767401b80ea044c1a3f1f8f3302c33dcd85f3008c"
+      },
+      {
+        "path": "dist/pageWorker.js",
+        "bytes": 193171,
+        "sha256": "520bafa5a877928be07c6283b91ac1802780d3819168f511ec4b2d8aafbc156e"
+      },
+      {
+        "path": "dist/planMarkdown.js",
+        "bytes": 147608,
+        "sha256": "5d8760b833c795e1a0cf1d0398e3b5849c6743dadc53d9421fcd56035ec1ea31"
+      },
+      {
+        "path": "dist/recorder.js",
+        "bytes": 24874,
+        "sha256": "965e1725e185d511e05e0a2c8d4a74346cab8969cb534a764f23b08fd1150c70"
+      },
+      {
+        "path": "dist/reviewer.js",
+        "bytes": 23277,
+        "sha256": "c9fb56736ad536187a36522dd3dc874e2ac5df81266301d90ebd171b9b394702"
+      },
+      {
+        "path": "dist/runtimeBackendServices.js",
+        "bytes": 141630,
+        "sha256": "365f206ee47534c58107a943f44f2134a436a3622873621c106943a760d38e46"
+      },
+      {
+        "path": "dist/runtimeContext.js",
+        "bytes": 22615,
+        "sha256": "9b67d81266b35e45c502c01b747f9dd552d908946461426ebc1aec5a762cb9af"
+      },
+      {
+        "path": "dist/runtimeEngines.js",
+        "bytes": 136596,
+        "sha256": "fa2bf2135da31edb6e84ac422048bcb183df38d3ab73f158ecb5f5bcef8b0e30"
+      },
+      {
+        "path": "dist/runtimePanel.js",
+        "bytes": 98597,
+        "sha256": "43e401296c28d46f4aeb180501621f4de5df6a3182f63116fe5271a3a685df2c"
+      },
+      {
+        "path": "dist/runtimePanelPorts.js",
+        "bytes": 58354,
+        "sha256": "74d89c0252aa06439eaee0c9a711009b77ee9467bcb19e79e2901c6adab7e4e5"
+      },
+      {
+        "path": "dist/runtimePresentation.js",
+        "bytes": 45633,
+        "sha256": "0d35f01de197c90cb2ad469c36c24c1fa1824b280ca1a0c264f92ca27d890dd3"
+      },
+      {
+        "path": "dist/searchWorker.js",
+        "bytes": 4969,
+        "sha256": "14338954deb1cc12c2b38c46b989a6a587e778f55812d2e2e007b5a3662d7058"
+      },
+      {
+        "path": "dist/sessionBoard.js",
+        "bytes": 46324,
+        "sha256": "62b2af35eaf8e9f3744bfe1119fdb36a128f2f4a2a29c2719751e138b7930b58"
+      },
+      {
+        "path": "dist/uiText.js",
+        "bytes": 49774,
+        "sha256": "e63e91ad931c5cf2067005ea982e96cff2032200702cd7e43907e3be28b1d589"
+      },
+      {
+        "path": "dist/uiTextHooks.js",
+        "bytes": 4746,
+        "sha256": "ffca4813c8958d878805ed33b0d062dc1126bb73f86c944ad1853d1ecab662c7"
+      },
+      {
+        "path": "dist/uiTextRuntime.js",
+        "bytes": 3558,
+        "sha256": "f8bfb7c8dfefdabb0be75791ba3d7258f64d84bddfa4064d70bbfac9137a5aa9"
+      },
+      {
+        "path": "dist/uiTextSurfaces.js",
+        "bytes": 2510,
+        "sha256": "bb5e221aa512b7fb886ba5cc914ee56f6922ee4dd4d3b1e1bc78380d29d973ab"
+      },
+      {
+        "path": "dist/validation.js",
+        "bytes": 40795,
+        "sha256": "6551c657a3515b705baca0e8ce417eec64995aaa7cf49ba5a2f8006d7e754a04"
+      },
+      {
+        "path": "dist/webview/portable/bridge.css",
+        "bytes": 1775,
+        "sha256": "e3a5e7cbf30581d548de274dcd302921d43f27aada6169c78f626db28d04a3af"
+      },
+      {
+        "path": "dist/webview/portable/bridge.js",
+        "bytes": 1282,
+        "sha256": "5249e981a6be874e6bc0ffbbe6cb74b1ff3ffaffdaa1216e318a0d072060dfcb"
+      },
+      {
+        "path": "dist/webview/portable/chunks/2PL7UMDD.js",
+        "bytes": 1698,
+        "sha256": "555778d871810b744983dd318ad3c469ff149cacf70ec0ac4849ea231f56f559"
+      },
+      {
+        "path": "dist/webview/portable/chunks/2TEO5AI5.js",
+        "bytes": 549,
+        "sha256": "4e766cd11d666a4a56ba6c3b28fbe5fb748cdff2b7761fe23d6a1cbf6371574b"
+      },
+      {
+        "path": "dist/webview/portable/chunks/3HDBBAKS.js",
+        "bytes": 1564,
+        "sha256": "2f1255b4efedc96948d23aabe4bd328d2627d9106874d2822ec14cadf67b5c31"
+      },
+      {
+        "path": "dist/webview/portable/chunks/446HBDWJ.js",
+        "bytes": 4839,
+        "sha256": "02739e571b6127c8edad9fa091e6587283527b0bd31ce5ef0b36f257041f395d"
+      },
+      {
+        "path": "dist/webview/portable/chunks/4D73ZFXY.js",
+        "bytes": 1131,
+        "sha256": "cd3432ed58a4dc4c29ac76d4130835a16ccc6181459c33298cb19c5b8cdd4b0e"
+      },
+      {
+        "path": "dist/webview/portable/chunks/4HJZ7PMG.js",
+        "bytes": 230,
+        "sha256": "578e89658a9a31e0632d259d96600da8f9c7ed3e04ecbe6036e5d6237ee47e60"
+      },
+      {
+        "path": "dist/webview/portable/chunks/4RMM3L7L.js",
+        "bytes": 7071,
+        "sha256": "20e1f4acfb9a6d6f91d32dcbc203391f82c382e739fb5f0f4e5c76fa6d14c6d6"
+      },
+      {
+        "path": "dist/webview/portable/chunks/532RNTU2.js",
+        "bytes": 60448,
+        "sha256": "4f619254cc3b18db2c1293504ec08bd4d0813e9f5f2e1c7a0b2415bdf7d946af"
+      },
+      {
+        "path": "dist/webview/portable/chunks/546DMFNU.js",
+        "bytes": 8242,
+        "sha256": "e0fc3034429cbc1fcedd90f979502dbdd7bdebef1edb38a1f3de114257fa9501"
+      },
+      {
+        "path": "dist/webview/portable/chunks/5BD2LGM3.js",
+        "bytes": 3554,
+        "sha256": "8637042c8fde8031be1037757346ffa385e4592837a360d23144e8db678a916e"
+      },
+      {
+        "path": "dist/webview/portable/chunks/5PE7DDFG.js",
+        "bytes": 5726,
+        "sha256": "951078f668ab8890b4f45c2676c7a30336f425ca3f6319df328fd2ee39633612"
+      },
+      {
+        "path": "dist/webview/portable/chunks/6KZCDLAW.js",
+        "bytes": 159,
+        "sha256": "ad2673e07a4aeb170135ff05268f165794b08f244b87e918e039d2b151d4b769"
+      },
+      {
+        "path": "dist/webview/portable/chunks/6LXRE7Q4.js",
+        "bytes": 143,
+        "sha256": "a87877f0c939d2d501280de891c822aad7e85935d8033dbc58b0db0141e89e5b"
+      },
+      {
+        "path": "dist/webview/portable/chunks/6YIOWI4H.js",
+        "bytes": 1104,
+        "sha256": "9fb77c95d077f1e3413f39984c690833c4552606f4f579a77b0e0b50041e4550"
+      },
+      {
+        "path": "dist/webview/portable/chunks/762OPLHE.js",
+        "bytes": 299,
+        "sha256": "895645fb84b159e9319de5e04448572bf39c03e2a5bb83cf26ce7faac9197adc"
+      },
+      {
+        "path": "dist/webview/portable/chunks/7UMPB4SZ.js",
+        "bytes": 1202,
+        "sha256": "dfa7ef5933fb9a0a770f08987d07bcdeb8e51b52c35de7b7821948fd15f4c00d"
+      },
+      {
+        "path": "dist/webview/portable/chunks/A3EKW7MU.js",
+        "bytes": 3028,
+        "sha256": "c6829dc5527679e25b346cfd8738ca1218d2515f1864f5f872c4c7d54c719afe"
+      },
+      {
+        "path": "dist/webview/portable/chunks/A6EYSOZV.js",
+        "bytes": 231,
+        "sha256": "1d25038b110a84107a4f43366d93b7951119feb7ef3eaf40d74c90e4ee2ae623"
+      },
+      {
+        "path": "dist/webview/portable/chunks/AGYKRELK.js",
+        "bytes": 780,
+        "sha256": "f0df16d26e2f04886a841b7e251360400a9c2f36d0ae2960db736a2e759a336b"
+      },
+      {
+        "path": "dist/webview/portable/chunks/AJ4GTXEL.js",
+        "bytes": 8161,
+        "sha256": "40e490a75dc5727adb6da934e12e3de90eb7bbafcc20b3d90100e67034e215f5"
+      },
+      {
+        "path": "dist/webview/portable/chunks/AMNJXB3P.js",
+        "bytes": 1423,
+        "sha256": "80e0e6f3b23a56abc586a1d16a173aeeb0a06d24c362be89595f05ccfb06871f"
+      },
+      {
+        "path": "dist/webview/portable/chunks/AMTOLUB6.js",
+        "bytes": 121,
+        "sha256": "b14946f7f63c3f8aed05ef6475b63be46ae180ad7306fbd51b02e9f50109a47b"
+      },
+      {
+        "path": "dist/webview/portable/chunks/AWPCSYQK.js",
+        "bytes": 3340,
+        "sha256": "1eb4761c68dfd922369f7efacd5a0db86c8503e9c185ccc80e5ea979d9f0d931"
+      },
+      {
+        "path": "dist/webview/portable/chunks/AXRNJJXU.js",
+        "bytes": 480,
+        "sha256": "d9f7bc09e777d7884866e78899ac258d21ab090de1923a9d09fe9239294c3168"
+      },
+      {
+        "path": "dist/webview/portable/chunks/CJWB6WEW.js",
+        "bytes": 945,
+        "sha256": "2813e3b026592f107e95ca6f8209fa5e952353a977a366b78fab7ca13a44ebda"
+      },
+      {
+        "path": "dist/webview/portable/chunks/CR56YKKE.js",
+        "bytes": 4988,
+        "sha256": "4e11880de93e6f366ad8691f0498538087ef7b64b13c39be0aa763b4b358ce1d"
+      },
+      {
+        "path": "dist/webview/portable/chunks/DMN74QMS.js",
+        "bytes": 3673,
+        "sha256": "c637509d490f1463ae1fef6c91152447e17fca12726fb6163f618702116d86fc"
+      },
+      {
+        "path": "dist/webview/portable/chunks/ECXZEBDC.js",
+        "bytes": 393,
+        "sha256": "ec37e5a79cb6f5ee1291910d4379c56cc53aea5cc5f1da13a9481583b1a66884"
+      },
+      {
+        "path": "dist/webview/portable/chunks/EWFV7IAK.js",
+        "bytes": 9025,
+        "sha256": "8750698e4e13912c2f16e37da9a715a253c38d42a2b937da47cc9cfaccf60ac1"
+      },
+      {
+        "path": "dist/webview/portable/chunks/EXPY5MZW.js",
+        "bytes": 1549,
+        "sha256": "3ffafe0ffe9bfc364b4c44efde5ee2ffa9db430ffd31934d305fe48c4de3c014"
+      },
+      {
+        "path": "dist/webview/portable/chunks/FDUTIIX7.js",
+        "bytes": 1688,
+        "sha256": "436168db03f929672bfe9ac4e723d9a9f2b752cfdffe051e04c5a1e9dbd870a7"
+      },
+      {
+        "path": "dist/webview/portable/chunks/GH5FZRWY.js",
+        "bytes": 323,
+        "sha256": "bab4a2879f29ccaa2f2f1b4276b354376ea1ccacd18bfaad83af7040ee1bb16e"
+      },
+      {
+        "path": "dist/webview/portable/chunks/GQCUWIRP.js",
+        "bytes": 816,
+        "sha256": "4fdfc21c089e2d60e6fcce6290eaf2702e64605353a3efc21f6e31f8739466b6"
+      },
+      {
+        "path": "dist/webview/portable/chunks/H5DQ6LGM.js",
+        "bytes": 115132,
+        "sha256": "784b4a754970b8269f932392140dbd1b780241f734aa6dabfca7ba3ae459b117"
+      },
+      {
+        "path": "dist/webview/portable/chunks/HLP3ZYR4.js",
+        "bytes": 791,
+        "sha256": "a2a493e8951d4f8cc707d9be8f506291432096ffeeed60c48b1ca5b6547e37a1"
+      },
+      {
+        "path": "dist/webview/portable/chunks/IKIEGVT3.js",
+        "bytes": 4115,
+        "sha256": "572a1e7d49632ee53718053e211d553346795b87c5e9db93f25a670a43909469"
+      },
+      {
+        "path": "dist/webview/portable/chunks/KABD6L2J.js",
+        "bytes": 270,
+        "sha256": "78c5ef993b0ce0cb324e3ac988ed24bcbe635e8e8d183927ad48b4787958168b"
+      },
+      {
+        "path": "dist/webview/portable/chunks/KCRM4K3N.js",
+        "bytes": 1911,
+        "sha256": "7405acc65a8d7faf9f7c1e249446c9715dca92b07692736fa1730a77420feb59"
+      },
+      {
+        "path": "dist/webview/portable/chunks/L4JVXOPT.js",
+        "bytes": 163385,
+        "sha256": "eb429beaf2f05a2f27565915c2d6d42e5b1ae93338a23eeeac30057797a71c3d"
+      },
+      {
+        "path": "dist/webview/portable/chunks/M25NLKMS.js",
+        "bytes": 95393,
+        "sha256": "29f923621aac782a4fa76259a98d99c026e99a174925cb88bac576715c5334f2"
+      },
+      {
+        "path": "dist/webview/portable/chunks/MQEIEY3K.js",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "dist/webview/portable/chunks/MUXF33GL.js",
+        "bytes": 2119,
+        "sha256": "4a221434a6d43a2eff8e40ff747f374830e8b7fa212ceaeb1f5456f48001876e"
+      },
+      {
+        "path": "dist/webview/portable/chunks/NGFUDFHK.js",
+        "bytes": 8899,
+        "sha256": "afbd17baca03f5a68557615ab28a7b7e9a62b2b677900e2582ee3080b3c1ace2"
+      },
+      {
+        "path": "dist/webview/portable/chunks/NJDHEZNR.js",
+        "bytes": 140,
+        "sha256": "09904d3ad529ac480261db1919dd417ed98e6cee0537ed75b75840a3cdeeb8af"
+      },
+      {
+        "path": "dist/webview/portable/chunks/OEIHKZDU.js",
+        "bytes": 13550,
+        "sha256": "42c2448fe5cc225045142ca5498ba82c6394c7f3957d24c2ca9301ced1fc50c8"
+      },
+      {
+        "path": "dist/webview/portable/chunks/OMGFRT2N.js",
+        "bytes": 638,
+        "sha256": "9dbaaa1b267ebd74b96fc498735a78d76804f1e96e532871291c937cf83694e7"
+      },
+      {
+        "path": "dist/webview/portable/chunks/QKVWTXRW.js",
+        "bytes": 7116,
+        "sha256": "4433911e4b2ed8df72f9b566e1d04c48645710d69584c5049fde737f09fd9ed4"
+      },
+      {
+        "path": "dist/webview/portable/chunks/QYMNV23N.js",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "dist/webview/portable/chunks/S2CIND7O.js",
+        "bytes": 5279,
+        "sha256": "a90d8550f670577558171e8400b84e6aefb94f79442d666f15aee5416faebabb"
+      },
+      {
+        "path": "dist/webview/portable/chunks/S7MLAKI5.js",
+        "bytes": 715,
+        "sha256": "3bdfc854ff45ec7ecca39dfc93907147a2d5e32a99f4736561e740c5c92b839f"
+      },
+      {
+        "path": "dist/webview/portable/chunks/SDGDJUWQ.js",
+        "bytes": 35341,
+        "sha256": "9c8970385fabf198f3867b9516c2c0b128163f247f64097fe53f6d4d30ec5938"
+      },
+      {
+        "path": "dist/webview/portable/chunks/SLMMHKTJ.js",
+        "bytes": 2067,
+        "sha256": "7216ef6946330dea4538b50318b4d1bdef1790502b7d2291479e5068f147ad1e"
+      },
+      {
+        "path": "dist/webview/portable/chunks/T5Y437E2.js",
+        "bytes": 8325,
+        "sha256": "e29b5a336e29a48bc306ee01e199ec5472c13054f5d72937368640545c7f7825"
+      },
+      {
+        "path": "dist/webview/portable/chunks/T6SCZGWY.js",
+        "bytes": 2329,
+        "sha256": "0acdb58f5d207857d37c7e7c87ec437209765f800a154adfb88edc689365ade5"
+      },
+      {
+        "path": "dist/webview/portable/chunks/TUHVF5KR.js",
+        "bytes": 213824,
+        "sha256": "d9de00c006cf2a324aea13a303218fd473e7dc3c367c0c7720e29099e47c97a2"
+      },
+      {
+        "path": "dist/webview/portable/chunks/U7VVHRJJ.js",
+        "bytes": 1437,
+        "sha256": "54a8875a19443e5993add29b20c7de024d6eec2d3e6c54e3eeddcb71772a7d2e"
+      },
+      {
+        "path": "dist/webview/portable/chunks/UWWPGJTW.js",
+        "bytes": 3464,
+        "sha256": "e34dd73d4bd9ef0acf9103d3c784eef366080c31f31ee300f3e007bb4b1ff700"
+      },
+      {
+        "path": "dist/webview/portable/chunks/V6OR2AKI.js",
+        "bytes": 2290,
+        "sha256": "5c90f75f6a3308ff296cfd332af29feccaca9836477bb5e10ee464bb3eed3f68"
+      },
+      {
+        "path": "dist/webview/portable/chunks/W7C7L3IE.css",
+        "bytes": 1775,
+        "sha256": "e3a5e7cbf30581d548de274dcd302921d43f27aada6169c78f626db28d04a3af"
+      },
+      {
+        "path": "dist/webview/portable/chunks/WXGCAH3Z.js",
+        "bytes": 15865,
+        "sha256": "87e6472156045f2f9750942226901c025511e9bc91791de25cd8e2cf231c6939"
+      },
+      {
+        "path": "dist/webview/portable/chunks/XL65K5MV.js",
+        "bytes": 501,
+        "sha256": "831d8a04881545045a96e7d7f58f69a980f4cda941215bb67193ef0f7975bd38"
+      },
+      {
+        "path": "dist/webview/portable/chunks/XNULNJ2T.js",
+        "bytes": 1433,
+        "sha256": "f5e2a2576bc6c200f931758e6f4534f5609796ed8f4fd119b8a32231986cfcc9"
+      },
+      {
+        "path": "dist/webview/portable/chunks/XQNJKGLH.js",
+        "bytes": 4106,
+        "sha256": "137e1046042a6fc29c44e21ae6752ccb3928866f5c456374d73fb877c4c1fd66"
+      },
+      {
+        "path": "dist/webview/portable/chunks/YN2B66NV.js",
+        "bytes": 12979,
+        "sha256": "5757cf3bb0974bf9ff192e375d5c51d01ac2eda047e2995dd104850765901c5d"
+      },
+      {
+        "path": "dist/webview/portable/chunks/ZW6DMDQU.js",
+        "bytes": 1699,
+        "sha256": "f4fdd14969cc1e517ce0572d3a9e4e55a59b9b4097e07d97f56a1c603f74b82e"
+      },
+      {
+        "path": "dist/webview/portable/fallbacks.css",
+        "bytes": 1775,
+        "sha256": "e3a5e7cbf30581d548de274dcd302921d43f27aada6169c78f626db28d04a3af"
+      },
+      {
+        "path": "dist/webview/portable/fallbacks.js",
+        "bytes": 9149,
+        "sha256": "7d095a4e95d5b98fc90dcf56a8b1238dfc8230d8ce33c361a70f8657abbd2c31"
+      },
+      {
+        "path": "dist/webview/portable/loader.js",
+        "bytes": 24327,
+        "sha256": "3b1b68a87d00d7a1f1acea0c61f13338f2744a6da791e99bbf2171719201da70"
+      },
+      {
+        "path": "dist/webview/portable/main.css",
+        "bytes": 71056,
+        "sha256": "32dd7008fb2a17775ab50bb5367f68b548206ceaddd52f62232d7fa7ec056787"
+      },
+      {
+        "path": "dist/webview/portable/main.js",
+        "bytes": 146583,
+        "sha256": "dd18a58fe4f229f281f1ec3381b3a65b47cbc67c6fb5d03c9834faa2145e9084"
+      },
+      {
+        "path": "dist/webview/portable/modules.json",
+        "bytes": 60802,
+        "sha256": "cc26323fddda0825944e09e89cdec2d6176c0998b0191519f631b3beea8a08e6"
+      },
+      {
+        "path": "dist/webview/portable/presentation.css",
+        "bytes": 71056,
+        "sha256": "32dd7008fb2a17775ab50bb5367f68b548206ceaddd52f62232d7fa7ec056787"
+      },
+      {
+        "path": "dist/webview/portable/presentation.js",
+        "bytes": 3832,
+        "sha256": "db0319a8321c070a1cfe9d00b3f6992460db9002e3c9fe286691367c9ded0021"
+      },
+      {
+        "path": "dist/webview/portable/whatsNew.css",
+        "bytes": 19847,
+        "sha256": "f338d144bdfde917fa36a3cb3942345f0bde0458f8c209b75393fa26f4026bc9"
+      },
+      {
+        "path": "dist/webview/portable/whatsNew.js",
+        "bytes": 1000,
+        "sha256": "35b7ceca89309403db51af9f1e9007a4f1ea3a7cfe4fccd75f4d413bafb4d71f"
+      },
+      {
+        "path": "dist/whatsNew.json",
+        "bytes": 28899,
+        "sha256": "2cb2f657bc152cdcb3c2b47873faef127b6cca7fd62e21612c49de7a7e239739"
+      },
+      {
+        "path": "dist/wire.js",
+        "bytes": 47432,
+        "sha256": "eea521132b2fd6fe16cdeab0d672b6e9b11f607625cd92c3c3ef036fd03d0ac0"
+      },
+      {
+        "path": "l10n/ui.cs.json",
+        "bytes": 190743,
+        "sha256": "909c00a48395afaef6155f10e04270e2ab12b3b85ba9e7065ba4742ff69131ac"
+      },
+      {
+        "path": "l10n/ui.de.json",
+        "bytes": 191427,
+        "sha256": "ba7b256b7fff4a7a500753a6ecdfae2d59a029b098f1199c6d8fe74caac6c764"
+      },
+      {
+        "path": "l10n/ui.es.json",
+        "bytes": 189041,
+        "sha256": "5d99d77fef3c515b9a000ab6bddb2d6c90e96a63414515f782499b3a553aae70"
+      },
+      {
+        "path": "l10n/ui.fr.json",
+        "bytes": 199478,
+        "sha256": "a39102da61e407d65b5832249a09ac7b1ce81156ef6d895ddcc67518cdae4888"
+      },
+      {
+        "path": "l10n/ui.hu.json",
+        "bytes": 192751,
+        "sha256": "e23bcc14201b60ac3e6c3669803d8410c4b869d0e5d8d4152e323b3f7dcb0b13"
+      },
+      {
+        "path": "l10n/ui.it.json",
+        "bytes": 192515,
+        "sha256": "cbcb3ff8247aa24210837c2e31f0716cb95669ad6aaae37ddd8b8a2d90a9887d"
+      },
+      {
+        "path": "l10n/ui.ja.json",
+        "bytes": 214641,
+        "sha256": "9903d33b37d3b0df683fadcdb918c0cdfdb55184e2f20acfe4272b7fe9a95d86"
+      },
+      {
+        "path": "l10n/ui.ko.json",
+        "bytes": 190599,
+        "sha256": "5183b6b66554d121fc3c31ef03cf6c45cd7c89d10477cc76f9bdbaf59ba829f6"
+      },
+      {
+        "path": "l10n/ui.pl.json",
+        "bytes": 192674,
+        "sha256": "ef1bc571f6b2cfe51fc5a094b3dc77db89450360dfe938be258cfb4980dfd2f6"
+      },
+      {
+        "path": "l10n/ui.pt-br.json",
+        "bytes": 188125,
+        "sha256": "b0695bf2d543111eeaf998d099cfa93b3c569ba80f2c397b35058c3b34307d1f"
+      },
+      {
+        "path": "l10n/ui.ru.json",
+        "bytes": 272557,
+        "sha256": "d64dd2a64bb5c8dbb3c3364b4270f43d24bbda613a996a1a228b10e928ffdb7d"
+      },
+      {
+        "path": "l10n/ui.tr.json",
+        "bytes": 182696,
+        "sha256": "167070f1a12886507cb8982c57690314313369f7c45a7b0426d4dbb9f932ec13"
+      },
+      {
+        "path": "l10n/ui.zh-cn.json",
+        "bytes": 158928,
+        "sha256": "44e1f526c2219deba6926eafa4d95b61b551073a1ab5fcb5daf9cb62f0d529f6"
+      },
+      {
+        "path": "l10n/ui.zh-tw.json",
+        "bytes": 160683,
+        "sha256": "1a3c6b16f217a044eb77644bd52371d82c7c77462a8dc782a065e0136a9b25cc"
+      },
+      {
+        "path": "native/windows/MuseSparkJob.cs",
+        "bytes": 2388,
+        "sha256": "6e8cb27e1c068fd5a6df3476739a3b9ac9247602ce051486c54dd2d526033176"
+      },
+      {
+        "path": "native/windows/MuseSparkMcpJob.cs",
+        "bytes": 13182,
+        "sha256": "0a67f93cfdfd1799443aae69cc76d487a706b3b3589950be8905dcf45c2cd2cb"
+      },
+      {
+        "path": "package.json",
+        "bytes": 1082,
+        "sha256": "5f715ddfa5062fa63d62d77a3d744b2e3b67c261e65aae486aff791c0a49b9b4"
+      },
+      {
+        "path": "schemas/exec-event-v1.schema.json",
+        "bytes": 33725,
+        "sha256": "2b26e87d8704296af69de06001de3cc77e84e9ed50c9a7cbbee045e7ab871ec5"
+      },
+      {
+        "path": "schemas/exec-result-v1.schema.json",
+        "bytes": 12444,
+        "sha256": "e9053065796173255d97d42829c7b666db5f345cb90f259bdf1ec994648b21c4"
+      }
+    ]
+  },
+  "nativeRelease": {
+    "files": 41,
+    "signing": "ad-hoc, local only, not notarized/published",
+    "extractedSignatureVerification": "deep/strict passed",
+    "exactExtractedBytes": "identical to build product",
+    "inventory": [
+      {
+        "path": "Contents/Info.plist",
+        "bytes": 1758,
+        "sha256": "ad3901f97f7bd0436c163e740bba5861637eb5cb0af73cf8c2537a582453cb5f"
+      },
+      {
+        "path": "Contents/MacOS/Muse Spark for Xcode",
+        "bytes": 2673584,
+        "sha256": "7a19b56f8c81d3799fd0d6166fcbd1c916dc305c6cfd3fac3a0103adfc14b4a4"
+      },
+      {
+        "path": "Contents/PkgInfo",
+        "bytes": 8,
+        "sha256": "82502191c9484b04d685374f9879a0066069c49b8acae7a04b01d38d07e8eca0"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Info.plist",
+        "bytes": 3357,
+        "sha256": "2bff3661e87ebc29835d3cac1da41690abba730431fc364e89e7c79f25ee91db"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/MacOS/MuseSparkEditor",
+        "bytes": 1672912,
+        "sha256": "5714869e98e9864c6ab98758e2998b3a0a6c5e2ac65ab3b7c90eacdad903f73a"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/description.html",
+        "bytes": 786,
+        "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/mhp.json",
+        "bytes": 977290,
+        "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.cs.json",
+        "bytes": 1914,
+        "sha256": "8e80af8d1be41fe6355469b6e7f04d01f857e376c7ec86b4e8ea10173072b5d7"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.de.json",
+        "bytes": 2022,
+        "sha256": "56ca8d1726fb8abcd8d733c6c464d8511c6041cf3c76ea5061fcf7b9f9775e48"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.en.json",
+        "bytes": 1729,
+        "sha256": "bc1d95eb5bb6cf0d92159e5ba3e65c6c0ca430c3c806879e8159f1975077f4de"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.es.json",
+        "bytes": 1986,
+        "sha256": "b83e7bc6667c0344a3b7c7adba0b86d20d5ab3c0ae99e449003d16c8f19aee33"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.fr.json",
+        "bytes": 2066,
+        "sha256": "253871bcd820a0cdd45e64c7a27046cae87321d49b0b0a7f639771b9b72f7693"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.hu.json",
+        "bytes": 2088,
+        "sha256": "28ee450846af7ef85d66754ebdb73f32300f23d6676340e14a86c5a0471563ae"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.it.json",
+        "bytes": 2011,
+        "sha256": "6732d7e5d2aca739703cc5e331105bfab627ad035367159d948ba7eddd9642f8"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.ja.json",
+        "bytes": 2378,
+        "sha256": "0374e8220f8e29cc4524b9dfb08e42b0baf75edb9d1a83479ae6d1294c569c41"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.ko.json",
+        "bytes": 2079,
+        "sha256": "693148e175d58043481aded16d7e59a1dbd51c88c967f9136659776d3a3c13f6"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.pl.json",
+        "bytes": 1933,
+        "sha256": "634056af31fcaea03df3c683308eb61e4a1741b7e087b37179acf8a1f5242f38"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.pt-br.json",
+        "bytes": 1989,
+        "sha256": "d31548765d56495130d12e2007962c4a1093b528e112fb57eb6b58ee77c539fc"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.ru.json",
+        "bytes": 2718,
+        "sha256": "aef1ed7ce266ae99f970abdbb371f75ea9ca8341a8f39a4c8de5395c730d7f92"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.tr.json",
+        "bytes": 1971,
+        "sha256": "53d2abcb60dc886c1b28da561a42a5e273ceadd05666722ebabcb44970661bb9"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.zh-cn.json",
+        "bytes": 1735,
+        "sha256": "9f79f591a028634eaf52816358a5952f3fe0a4aa3aef6e0f9128bce35871bb1a"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/ui.zh-tw.json",
+        "bytes": 1758,
+        "sha256": "9d6bc4e2e0fc1040aab0d4ba548cebab9498bdfed77bcdc1d532451c38391f25"
+      },
+      {
+        "path": "Contents/PlugIns/MuseSparkEditor.appex/Contents/_CodeSignature/CodeResources",
+        "bytes": 6084,
+        "sha256": "f9ac9b1e9ab2941c329d73abbaf6ee1e86b1592edb255bc6b0ac7e15a512dfcf"
+      },
+      {
+        "path": "Contents/Resources/description.html",
+        "bytes": 786,
+        "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
+      },
+      {
+        "path": "Contents/Resources/mhp.json",
+        "bytes": 977290,
+        "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+      },
+      {
+        "path": "Contents/Resources/ui.cs.json",
+        "bytes": 1914,
+        "sha256": "8e80af8d1be41fe6355469b6e7f04d01f857e376c7ec86b4e8ea10173072b5d7"
+      },
+      {
+        "path": "Contents/Resources/ui.de.json",
+        "bytes": 2022,
+        "sha256": "56ca8d1726fb8abcd8d733c6c464d8511c6041cf3c76ea5061fcf7b9f9775e48"
+      },
+      {
+        "path": "Contents/Resources/ui.en.json",
+        "bytes": 1729,
+        "sha256": "bc1d95eb5bb6cf0d92159e5ba3e65c6c0ca430c3c806879e8159f1975077f4de"
+      },
+      {
+        "path": "Contents/Resources/ui.es.json",
+        "bytes": 1986,
+        "sha256": "b83e7bc6667c0344a3b7c7adba0b86d20d5ab3c0ae99e449003d16c8f19aee33"
+      },
+      {
+        "path": "Contents/Resources/ui.fr.json",
+        "bytes": 2066,
+        "sha256": "253871bcd820a0cdd45e64c7a27046cae87321d49b0b0a7f639771b9b72f7693"
+      },
+      {
+        "path": "Contents/Resources/ui.hu.json",
+        "bytes": 2088,
+        "sha256": "28ee450846af7ef85d66754ebdb73f32300f23d6676340e14a86c5a0471563ae"
+      },
+      {
+        "path": "Contents/Resources/ui.it.json",
+        "bytes": 2011,
+        "sha256": "6732d7e5d2aca739703cc5e331105bfab627ad035367159d948ba7eddd9642f8"
+      },
+      {
+        "path": "Contents/Resources/ui.ja.json",
+        "bytes": 2378,
+        "sha256": "0374e8220f8e29cc4524b9dfb08e42b0baf75edb9d1a83479ae6d1294c569c41"
+      },
+      {
+        "path": "Contents/Resources/ui.ko.json",
+        "bytes": 2079,
+        "sha256": "693148e175d58043481aded16d7e59a1dbd51c88c967f9136659776d3a3c13f6"
+      },
+      {
+        "path": "Contents/Resources/ui.pl.json",
+        "bytes": 1933,
+        "sha256": "634056af31fcaea03df3c683308eb61e4a1741b7e087b37179acf8a1f5242f38"
+      },
+      {
+        "path": "Contents/Resources/ui.pt-br.json",
+        "bytes": 1989,
+        "sha256": "d31548765d56495130d12e2007962c4a1093b528e112fb57eb6b58ee77c539fc"
+      },
+      {
+        "path": "Contents/Resources/ui.ru.json",
+        "bytes": 2718,
+        "sha256": "aef1ed7ce266ae99f970abdbb371f75ea9ca8341a8f39a4c8de5395c730d7f92"
+      },
+      {
+        "path": "Contents/Resources/ui.tr.json",
+        "bytes": 1971,
+        "sha256": "53d2abcb60dc886c1b28da561a42a5e273ceadd05666722ebabcb44970661bb9"
+      },
+      {
+        "path": "Contents/Resources/ui.zh-cn.json",
+        "bytes": 1735,
+        "sha256": "9f79f591a028634eaf52816358a5952f3fe0a4aa3aef6e0f9128bce35871bb1a"
+      },
+      {
+        "path": "Contents/Resources/ui.zh-tw.json",
+        "bytes": 1758,
+        "sha256": "9d6bc4e2e0fc1040aab0d4ba548cebab9498bdfed77bcdc1d532451c38391f25"
+      },
+      {
+        "path": "Contents/_CodeSignature/CodeResources",
+        "bytes": 6371,
+        "sha256": "b98ba7d7a5a39e6ce524a3250a3324be0a9d60bb36fd5886465b06e6dbfc1b22"
+      }
+    ]
+  },
+  "archives": [
+    {
+      "path": "dist/muse-spark-code-acp-0.14.1.tgz",
+      "bytes": 2049251,
+      "sha256": "28c0f34f4139868b30c777b31d4e0eb02e6349944c8597850c021fc5815dc62c"
+    },
+    {
+      "path": "temp/m104x/Muse-Spark-for-Xcode.zip",
+      "bytes": 1327138,
+      "sha256": "41fa2794b08a8621efb9ed5f0cf9742f87cb680b9e328810fb4196d8f8038865"
+    }
+  ],
+  "sources": [
+    {
+      "path": "hosts/xcode/App/MuseSparkApp.swift",
+      "bytes": 5407,
+      "sha256": "b5d969185922c043e9c3f5774edd9c0aa102a394b9d751db0ce97beddd15c69e"
+    },
+    {
+      "path": "hosts/xcode/App/NativeUi.swift",
+      "bytes": 9786,
+      "sha256": "407d5ba57bbe052e8603a47e626b2b0e32264b369d680838903aa6f8e1d1e2ae"
+    },
+    {
+      "path": "hosts/xcode/App/PanelModel.swift",
+      "bytes": 11569,
+      "sha256": "ada66e952e620643682f6fc41a1db282831e99238f1d5d2350f5a14a2b37acc2"
+    },
+    {
+      "path": "hosts/xcode/App/PanelWebView.swift",
+      "bytes": 2509,
+      "sha256": "5489dc17eb4f2c66463b53b0a831594dc933123cfa65fd77c9d35d7f5cd14519"
+    },
+    {
+      "path": "hosts/xcode/Extension/SourceEditorCommand.swift",
+      "bytes": 3333,
+      "sha256": "716609cb2d08f130443fec1e75167b23b387cb40747ffc6544f0f8e3e2ac3e1b"
+    },
+    {
+      "path": "hosts/xcode/Extension/SourceEditorExtension.swift",
+      "bytes": 608,
+      "sha256": "53bbe088267a6dbbc38005c17e58b0faa52d383eda9e62ed0c7a9d7df7fc4630"
+    },
+    {
+      "path": "hosts/xcode/MuseSpark.xcodeproj/project.pbxproj",
+      "bytes": 36687,
+      "sha256": "84d8969b2af7dcb4acb17221d5fc14ca32d53f924164dfe9d662e95338db1fc1"
+    },
+    {
+      "path": "hosts/xcode/MuseSpark.xcodeproj/xcshareddata/xcschemes/NativeCore.xcscheme",
+      "bytes": 2440,
+      "sha256": "d52f478d1b672f9082008a58893b2b7771f83bc882e2ed118498b8b7ef5fd6a6"
+    },
+    {
+      "path": "hosts/xcode/Scripts/generate.mjs",
+      "bytes": 6745,
+      "sha256": "80df79e9dcab141e1ddb3928af71cf5c040c80712c292c4c082204e6dda6638c"
+    },
+    {
+      "path": "hosts/xcode/Scripts/nativeTables.ts",
+      "bytes": 510,
+      "sha256": "92d02493942f27929415352a956b9ae9681f4a0cf5fb31e900eb9c8dfd044f2b"
+    },
+    {
+      "path": "hosts/xcode/Shared/BufferEdit.swift",
+      "bytes": 4689,
+      "sha256": "ad8df0601b435e33548be5286be224714a5c27d611b93e76d1a63edca3f4041d"
+    },
+    {
+      "path": "hosts/xcode/Shared/LaunchLink.swift",
+      "bytes": 3222,
+      "sha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6"
+    },
+    {
+      "path": "hosts/xcode/Shared/MhpSchema.swift",
+      "bytes": 7830,
+      "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+    },
+    {
+      "path": "hosts/xcode/Shared/MhpSession.swift",
+      "bytes": 11311,
+      "sha256": "1232b0905b7bc480ef30d15cfc6a44314086854865c1875028925e6951977350"
+    },
+    {
+      "path": "hosts/xcode/Shared/NativeChannel.swift",
+      "bytes": 13250,
+      "sha256": "58ebc6c5d600dbe2d4597dc99fb3650372d196806784800954a773d9e8edbfc5"
+    },
+    {
+      "path": "hosts/xcode/Shared/NativeText.swift",
+      "bytes": 1317,
+      "sha256": "cfd2b40578fd193ad4e85a7ae14a2339eee497b5b659119098872765e399eccc"
+    },
+    {
+      "path": "hosts/xcode/Shared/RuntimeLauncher.swift",
+      "bytes": 12539,
+      "sha256": "15964bae959b2aa82d591cac12c6aaecf8e24468c488d8fdb9bbc394156b7239"
+    },
+    {
+      "path": "hosts/xcode/description.html",
+      "bytes": 786,
+      "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
+    },
+    {
+      "path": "l10n/ui.cs.json",
+      "bytes": 190743,
+      "sha256": "909c00a48395afaef6155f10e04270e2ab12b3b85ba9e7065ba4742ff69131ac"
+    },
+    {
+      "path": "l10n/ui.de.json",
+      "bytes": 191427,
+      "sha256": "ba7b256b7fff4a7a500753a6ecdfae2d59a029b098f1199c6d8fe74caac6c764"
+    },
+    {
+      "path": "l10n/ui.es.json",
+      "bytes": 189041,
+      "sha256": "5d99d77fef3c515b9a000ab6bddb2d6c90e96a63414515f782499b3a553aae70"
+    },
+    {
+      "path": "l10n/ui.fr.json",
+      "bytes": 199478,
+      "sha256": "a39102da61e407d65b5832249a09ac7b1ce81156ef6d895ddcc67518cdae4888"
+    },
+    {
+      "path": "l10n/ui.hu.json",
+      "bytes": 192751,
+      "sha256": "e23bcc14201b60ac3e6c3669803d8410c4b869d0e5d8d4152e323b3f7dcb0b13"
+    },
+    {
+      "path": "l10n/ui.it.json",
+      "bytes": 192515,
+      "sha256": "cbcb3ff8247aa24210837c2e31f0716cb95669ad6aaae37ddd8b8a2d90a9887d"
+    },
+    {
+      "path": "l10n/ui.ja.json",
+      "bytes": 214641,
+      "sha256": "9903d33b37d3b0df683fadcdb918c0cdfdb55184e2f20acfe4272b7fe9a95d86"
+    },
+    {
+      "path": "l10n/ui.ko.json",
+      "bytes": 190599,
+      "sha256": "5183b6b66554d121fc3c31ef03cf6c45cd7c89d10477cc76f9bdbaf59ba829f6"
+    },
+    {
+      "path": "l10n/ui.pl.json",
+      "bytes": 192674,
+      "sha256": "ef1bc571f6b2cfe51fc5a094b3dc77db89450360dfe938be258cfb4980dfd2f6"
+    },
+    {
+      "path": "l10n/ui.pt-br.json",
+      "bytes": 188125,
+      "sha256": "b0695bf2d543111eeaf998d099cfa93b3c569ba80f2c397b35058c3b34307d1f"
+    },
+    {
+      "path": "l10n/ui.ru.json",
+      "bytes": 272557,
+      "sha256": "d64dd2a64bb5c8dbb3c3364b4270f43d24bbda613a996a1a228b10e928ffdb7d"
+    },
+    {
+      "path": "l10n/ui.tr.json",
+      "bytes": 182696,
+      "sha256": "167070f1a12886507cb8982c57690314313369f7c45a7b0426d4dbb9f932ec13"
+    },
+    {
+      "path": "l10n/ui.zh-cn.json",
+      "bytes": 158928,
+      "sha256": "44e1f526c2219deba6926eafa4d95b61b551073a1ab5fcb5daf9cb62f0d529f6"
+    },
+    {
+      "path": "l10n/ui.zh-tw.json",
+      "bytes": 160683,
+      "sha256": "1a3c6b16f217a044eb77644bd52371d82c7c77462a8dc782a065e0136a9b25cc"
+    },
+    {
+      "path": "package.json",
+      "bytes": 44077,
+      "sha256": "1895dac32c586603c029370767dd04ca734752b4b34879dd8e384c4333e0b7c2"
+    },
+    {
+      "path": "src/shared/constants.ts",
+      "bytes": 283287,
+      "sha256": "1635917f13c493427a6df03e3930e7729b5ab4ba0c24641ee65c31edb4646b37"
+    },
+    {
+      "path": "src/shared/hostApi/mhp-v1.1.schema.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    },
+    {
+      "path": "src/shared/l10n/en.ts",
+      "bytes": 183784,
+      "sha256": "9c3b591bbcf04e898821e1e9acdd797ed171b76878a7c3d94526078d173606eb"
+    },
+    {
+      "path": "test/hosts/xcode/Unit/NativeHostTests.swift",
+      "bytes": 25611,
+      "sha256": "ccd79476dd93dc2b68a898fd29c74b3cf46d972f056301194b61c099174c391c"
+    },
+    {
+      "path": "test/m104/mac/EditorServiceTests.swift",
+      "bytes": 14754,
+      "sha256": "92a94115378b8b51770729e306876ca585af43f5926cac3301771d22088fe6b3"
+    },
+    {
+      "path": "test/m104/mac/MhpHostTests.swift",
+      "bytes": 25624,
+      "sha256": "ddf9bc16e76dae190496c8189e5adfea8f8c92afdf12027b8bdff192a459c672"
+    },
+    {
+      "path": "test/m104/mac/NativeUiTests.swift",
+      "bytes": 12889,
+      "sha256": "97268b6c72dc9b921833e9b62f26cce83e46ed6f10bb2f545eb8445ecd4d7b4b"
+    },
+    {
+      "path": "test/unit/xcodeHost.test.ts",
+      "bytes": 4622,
+      "sha256": "84dd0bec2eeeba62b4cbf6d7c3df639122ed5e07570d6eba6a705a95fc6b4ec8"
+    }
+  ]
+}

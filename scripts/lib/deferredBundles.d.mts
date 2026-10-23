@@ -33,6 +33,7 @@ export function checkResourceBundles(
 export const sharedUiText: Plugin
 export const sharedResourceAdmission: Plugin
 export const sharedWire: Plugin
+export const sharedHostProtocol: Plugin
 export const sharedValidation: Plugin
 export const sharedRedaction: Plugin
 export const sharedVaultStore: Plugin

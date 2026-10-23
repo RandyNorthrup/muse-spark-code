@@ -1,0 +1,227 @@
+{
+  "rig": "macmini",
+  "maxWorkers": 3,
+  "testTimeout": 120000,
+  "filesPerBatchMaximum": 3,
+  "passed": 1199,
+  "existingPlatformSkips": 2,
+  "batches": [
+    {
+      "files": [
+        "test/e2e/acpStdio.e2e.test.ts",
+        "test/e2e/cliAccount.e2e.test.ts",
+        "test/e2e/museCode.e2e.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  41 passed (41)",
+        "   Duration  11.16s (tests 87%, transform 7%, import 4%, setup 2%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/ChatViewProvider.test.ts",
+        "test/unit/agentImportWorkspaceEdits.test.ts",
+        "test/unit/browserCheckConfirm.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  28 passed (28)",
+        "   Duration  3.02s (transform 53%, tests 22%, import 15%, setup 9%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/chatPanel.test.ts",
+        "test/unit/checkpointMemory.test.ts",
+        "test/unit/checkpointNativeCommands.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  42 passed (42)",
+        "   Duration  32.45s (tests 93%, transform 4%, import 2%, setup 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/checkpointWorktrees.test.ts",
+        "test/unit/cliFeatures.test.ts",
+        "test/unit/conversationBundle.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  25 passed (25)",
+        "   Duration  4.81s (tests 47%, transform 37%, import 10%, setup 6%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/conversationCheckpoints.test.ts",
+        "test/unit/conversationComposition.test.ts",
+        "test/unit/conversationController.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  605 passed (605)",
+        "   Duration  19.45s (tests 80%, transform 14%, import 5%, setup 2%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/conversationGitBundle.test.ts",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/dictationHost.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  45 passed | 1 skipped (46)",
+        "   Duration  1.66s (tests 35%, transform 28%, import 23%, setup 13%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/gitActivationWiring.test.ts",
+        "test/unit/gitPhysicalOwner.test.ts",
+        "test/unit/gitWindowFileSystem.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  22 passed | 1 skipped (23)",
+        "   Duration  1.82s (tests 40%, transform 32%, setup 15%, import 13%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/githubSession.test.ts",
+        "test/unit/judgeActivation.test.ts",
+        "test/unit/judgeConsent.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  18 passed (18)",
+        "   Duration  821ms (transform 40%, setup 24%, import 23%, tests 13%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/judgeSharedBudget.test.ts",
+        "test/unit/judgeWindow.test.ts",
+        "test/unit/languageServices.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  24 passed (24)",
+        "   Duration  2.17s (transform 41%, tests 36%, import 14%, setup 9%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/memoryFeatures.test.ts",
+        "test/unit/mentionQuickPick.test.ts",
+        "test/unit/paidDailyBudget.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  25 passed (25)",
+        "   Duration  2.79s (transform 49%, tests 26%, import 12%, setup 12%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/paidHost.test.ts",
+        "test/unit/pullRequestCheckoutGit.test.ts",
+        "test/unit/reportProblemExport.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  57 passed (57)",
+        "   Duration  13.68s (tests 77%, transform 13%, import 5%, setup 5%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/reportProblemHandler.test.ts",
+        "test/unit/reportRecorder.test.ts",
+        "test/unit/runtimeConsent.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  44 passed (44)",
+        "   Duration  1.04s (transform 45%, import 22%, setup 18%, tests 14%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/scheduledRunConfirmation.test.ts",
+        "test/unit/surfaceRegistry.test.ts",
+        "test/unit/tabBundle.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  41 passed (41)",
+        "   Duration  1.24s (transform 49%, import 21%, setup 21%, tests 8%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/tabProvider.test.ts",
+        "test/unit/tabStatus.test.ts",
+        "test/unit/tasksPanel.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  87 passed (87)",
+        "   Duration  1.12s (transform 44%, setup 28%, import 20%, tests 7%, worker 1%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/transferDialogs.test.ts",
+        "test/unit/verifyEditor.test.ts",
+        "test/unit/vscodeHostServices.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  50 passed (50)",
+        "   Duration  4.03s (transform 44%, tests 34%, import 11%, setup 11%)"
+      ]
+    },
+    {
+      "files": [
+        "test/unit/webFetchConfirm.test.ts",
+        "test/unit/webviewSetup.test.ts",
+        "test/unit/whatsNew.test.ts"
+      ],
+      "exit": 0,
+      "result": [
+        " Test Files  3 passed (3)",
+        "      Tests  33 passed (33)",
+        "   Duration  1.41s (transform 48%, setup 30%, import 16%, tests 5%, worker 1%)"
+      ]
+    },
+    {
+      "files": ["test/unit/whatsNewPanel.test.ts", "test/unit/worktreeFeatures.test.ts"],
+      "exit": 0,
+      "result": [
+        " Test Files  2 passed (2)",
+        "      Tests  12 passed (12)",
+        "   Duration  941ms (transform 52%, import 23%, setup 22%, tests 3%, worker 1%)"
+      ]
+    }
+  ]
+}

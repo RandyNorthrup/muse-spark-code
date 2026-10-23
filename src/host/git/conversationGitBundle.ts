@@ -13,7 +13,7 @@ import type { ConversationGitPort, GitSurface } from '../conversation/conversati
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { ConversationGitErrorTypes, GitWindow } from './conversationGit'
-import type { GitFeaturesDeps, GitWindowFeatures } from './gitWindow'
+import type { GitFeaturesDeps, GitWindowFeatures } from '../vscode/git/gitWindow'
 
 interface ConversationGitBundle {
   readonly createConversationGit: (

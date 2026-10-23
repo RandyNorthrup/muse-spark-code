@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin>
+ <extension point="org.eclipse.ui.views"><category id="io.musespark" name="%displayName"/><view id="io.musespark.panel" name="%displayName" category="io.musespark" class="io.musespark.eclipse.MuseView" allowMultiple="true" restorable="true"/></extension>
+ <extension point="org.eclipse.ui.commands"><command id="io.musespark.open" name="%command.openInNewTab.title"/><command id="io.musespark.complete" name="%complete"/><command id="io.musespark.trust" name="%trust"/></extension>
+ <extension point="org.eclipse.ui.handlers"><handler commandId="io.musespark.open" class="io.musespark.eclipse.OpenHandler"/><handler commandId="io.musespark.complete" class="io.musespark.eclipse.CompleteHandler"/><handler commandId="io.musespark.trust" class="io.musespark.eclipse.TrustHandler"/></extension>
+ <extension point="org.eclipse.ui.menus"><menuContribution locationURI="menu:window?after=additions"><command commandId="io.musespark.open" style="push"/><command commandId="io.musespark.complete" style="push"/><command commandId="io.musespark.trust" style="push"/></menuContribution></extension>
+ <extension point="org.eclipse.ui.bindings"><key commandId="io.musespark.complete" sequence="M3+\" schemeId="org.eclipse.ui.defaultAcceleratorConfiguration"/></extension>
+</plugin>

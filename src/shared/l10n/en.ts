@@ -405,6 +405,44 @@ export const EN = {
   paletteUsagePage: 'Track cost, tokens and limits across editors.',
   openUsagePage: 'Open Usage Page',
   acpUsageDescription: 'Show usage and cost across models, or open the usage page.',
+  // M104 PA: React fallbacks for portable panels, and the Xcode companion.
+  paidProviderUseDetail:
+    '{subject}\n\nUp to {price} for this use, billed to your {provider} key. Shared daily budget: {budget}. Your subscription does not pay for this use.',
+  presentationRolesTitle: 'Roles',
+  presentationTrafficTitle: 'Message Traffic',
+  presentationRulesTitle: 'Rules',
+  presentationAgentsTitle: 'Custom Agents',
+  fallbackContinue: 'Continue',
+  fallbackNoMatches: 'No matching items',
+  fallbackNotifications: 'Notifications',
+  fallbackStatus: 'Status',
+  fallbackSettings: 'Settings',
+  fallbackTerminal: 'Terminal Output',
+  fallbackBefore: 'Before',
+  fallbackAfter: 'After',
+  fallbackEmpty: 'No entries',
+  fallbackWorktrees: 'Worktrees',
+  fallbackActionFailed: 'The action failed. Try again.',
+
+  xcodeTitle: 'Xcode Companion — Muse Spark Code (Unofficial)',
+  xcodeOpenWorkspace: 'Open Workspace',
+  xcodeRuntime: 'Runtime Executable',
+  xcodeOpenPanel: 'Open Panel',
+  xcodeAsk: 'Ask Muse About Selection',
+  xcodeExplain: 'Explain Selection',
+  xcodeFix: 'Fix Selection',
+  xcodeTab: 'Insert Tab Completion',
+  xcodeApprove: 'Approve Buffer Edit',
+  xcodeReplacement: 'Proposed replacement (paste code from the panel)',
+  xcodeUnavailable: 'This runtime does not provide this command yet.',
+  xcodeStartFailed:
+    'Could not start the companion panel. Check the runtime and reopen the workspace.',
+  xcodeEditRefused: 'The buffer changed or the selection is invalid. No edit was applied.',
+  xcodeRuntimeNeeded: 'Choose a runtime that supports panel --companion.',
+  xcodeOpenFile: 'Open in Xcode',
+  xcodeWorkspaceRequired: 'Open an Xcode project or workspace folder first.',
+  xcodeChooseRuntime: 'Choose Runtime',
+  xcodeDenied: 'Edit denied.',
   companionLaunchFailed:
     'Could not open the panel. Return to your editor and open Muse Spark Code again to get a fresh launch link.',
   // M118: prompt library and local sharing; read UI_TEXT at use time.
@@ -627,6 +665,11 @@ export const EN = {
   referenceCliOptions: {
     'context-window':
       '--context-window <tokens>: Enter the context window loaded on the local server. Manual values override scanned limits.',
+    workspace: 'Workspace root for the language server.',
+    tab: 'Opt into paid Tab completions with consent.',
+    'tab-model': 'Model for paid Tab completions.',
+    'tab-daily-budget-usd': 'Shared daily Tab budget in USD.',
+    'broker-worker': 'Internal workspace broker worker.',
     'resource-governor':
       '--resource-governor on|off: Keep this machine responsive by throttling or deferring harness work. On by default.',
     'cpu-max': '--cpu-max <percent>: Throttle when CPU stays above this percentage for 30 seconds.',
@@ -647,6 +690,10 @@ export const EN = {
     json: '--json: Versioned JSON',
     csv: '--csv: Summary CSV',
     stdio: 'usage serve --stdio: Serve usage over standard input and standard output',
+    'panel-stdio':
+      'panel --stdio: Serve the portable panel over standard input and standard output',
+    'panel-companion':
+      'panel --companion: Serve the portable panel as a loopback browser companion',
     registry:
       '--registry: Before the first lookup: {hosts}. Only package names and versions are sent over HTTPS; no source, paths or lockfile contents are uploaded. Turn off Legal Registry Lookups for offline scans.',
     backend:
@@ -4809,6 +4856,7 @@ export const EN = {
   acpFontsUsage: 'Usage: {command} fonts install [--from <directory>]',
   acpUsage: [
     'Usage:',
+    '  {command} panel --stdio|--companion [options]',
     '  {command} [options]              Serve the Agent Client Protocol on stdin and stdout',
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
@@ -4898,6 +4946,8 @@ export const EN = {
     purposeResources: 'Show machine pressure and recent history.',
     purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
     purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    purposeLsp: 'Serve the language server on stdin and stdout, with paid Tab opt-in.',
+    purposePanel: 'Serve the portable panel to native editors.',
     // {entry}: the provider entry id.
     modelsList: 'Models for {entry}:',
     // {reason}: the user's one-line reason for forcing the model.
@@ -5460,6 +5510,20 @@ export const EN = {
   // and the Account & usage row. {price} is a dollar amount in the display
   // language's money format.
   paidTabName: 'Tab Completions',
+  referenceLsp: 'Stdio language server with paid Tab opt-in and editor consent.',
+  referenceSupervise: 'Run the runtime with independent authenticated Stop control.',
+  referenceStop: 'Stop verified runtime owners in this workspace.',
+  superviseUsage:
+    '{command} supervise [agent arguments]\nRuns its arguments as a supervised runtime; Stop stays available through the authenticated registry.',
+  stopUsage:
+    '{command} stop [serve options]\nStops the verified runtimes of this workspace; its flags are validated as serve flags.',
+  lspUsage:
+    'muse-spark-code-acp lsp [--workspace PATH] [--tab --trust-workspace] [--tab-model MODEL] [--tab-daily-budget-usd USD]\nLanguage server: explicit paid Tab opt-in; trusted workspace and consent required.',
+  acpStopUnverified: 'Cannot verify Stop — processes may still be running. Observed PIDs: {pids}',
+  acpSupervisorSignal: 'Supervised workload terminated by {signal}.',
+  lspFix: 'Ask Muse to Fix',
+  lspExplain: 'Explain',
+  lspApply: 'Apply Suggested Edit',
   paidConfirmTab:
     'Tab completions send the code around your cursor to Meta as you type, billed to your Model API key. {price} At typical typing that is about $0.80 an hour on Standard and about $0.05 on the contributor model. You can set a daily budget in settings; with none set, Tab spending is uncapped. The contributor model is cheaper, and Meta trains on the code it is sent. Copilot, if on, is yielded to: automatic Tab suggestions pause for its languages unless you run both. Tab asks once per window before its first suggestion.',
   paidUseTabTitle: 'Let Tab suggest in this window?',

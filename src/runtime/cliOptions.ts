@@ -37,6 +37,7 @@ export function formatAcpUsage(table: UiText, command: string): string {
     ...(SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
       ? [table.scheduleV2.runtime.usage, table.referenceCliOptions['scheduled-prompts']]
       : []),
+    table.lspUsage,
     fill(table.acpChatGpt.usage, { command }),
     sharingCliHelp(table, command),
     table.referenceCliOptions['context-window'],
@@ -115,6 +116,12 @@ const SERVE_OPTIONS = {
   'max-budget-usd': { type: 'string' },
 } as const satisfies CliParserOptions
 
+// `panel --stdio|--companion` (M104): its transport, beside the serve flags.
+const PANEL_OPTIONS = {
+  stdio: { type: 'boolean' },
+  companion: { type: 'boolean' },
+} as const satisfies CliParserOptions
+
 const EXEC_OPTIONS = {
   provider: { type: 'string' },
 
@@ -178,7 +185,23 @@ const FONTS_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+const LSP_OPTIONS = {
+  backend: { type: 'string' },
+  'trust-workspace': { type: 'boolean' },
+  'muse-binary': { type: 'string' },
+  'shell-sandbox': { type: 'string' },
+  'allow-contributor-models': { type: 'boolean' },
+  verbose: { type: 'boolean' },
+  workspace: { type: 'string' },
+  tab: { type: 'boolean' },
+  'tab-model': { type: 'string' },
+  'tab-daily-budget-usd': { type: 'string' },
+  'broker-worker': { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
+  lsp: { options: LSP_OPTIONS },
   providersAdd: { options: PROVIDER_OPTIONS },
   providersModels: {
     options: {
@@ -211,6 +234,7 @@ export const CLI_OPTION_REGISTRY = {
     },
   },
   serve: { options: SERVE_OPTIONS },
+  panel: { options: PANEL_OPTIONS, text: { stdio: 'panel-stdio', companion: 'panel-companion' } },
   login: { options: COMMON_OPTIONS },
   setup: { options: COMMON_OPTIONS },
   authSet: { options: COMMON_OPTIONS },
@@ -246,6 +270,11 @@ export const CLI_OPTION_REGISTRY = {
 // chooses an English usage line or a failure message by matching its contents.
 export const CLI_OPTION_TEXT = {
   'context-window': 'context-window',
+  workspace: 'workspace',
+  tab: 'tab',
+  'tab-model': 'tab-model',
+  'tab-daily-budget-usd': 'tab-daily-budget-usd',
+  'broker-worker': 'broker-worker',
   'usage-history': 'usage-history',
   preset: 'preset',
   as: 'as',
@@ -260,6 +289,7 @@ export const CLI_OPTION_TEXT = {
 
   csv: 'csv',
   stdio: 'stdio',
+  companion: 'panel-companion',
   registry: 'registry',
   backend: 'backend',
   'auto-compaction': 'auto-compaction',
@@ -332,8 +362,10 @@ export const CLI_OPTION_TEXT = {
   'check-plan': 'estimate-check-plan',
 } as const satisfies Readonly<
   Record<
+    | keyof typeof LSP_OPTIONS
     | keyof typeof COMMON_OPTIONS
     | keyof typeof SERVE_OPTIONS
+    | keyof typeof PANEL_OPTIONS
     | keyof typeof EXEC_OPTIONS
     | keyof typeof SCAN_OPTIONS
     | keyof typeof REPORT_OPTIONS
@@ -389,6 +421,8 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       'providers accounts': table.accounts.cliUsage,
       chatGptProvider: table.acpChatGpt.usage,
       reports: table.reportCliUsage,
+      supervise: table.superviseUsage,
+      stop: table.stopUsage,
       help: table.referenceBriefHelp,
       share: sharingCliHelp(table, command),
       prompts: sharingCliHelp(table, command),

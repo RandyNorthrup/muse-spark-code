@@ -58,6 +58,17 @@ export function createWindowJudge(
   setUiText(table, locale)
   const cache = new JudgeResultCache()
   const sideSessions = new Set<string>()
+  const pending = new Set<Promise<void>>()
+  const track = (work: Promise<void>) => {
+    pending.add(work)
+    void (async () => {
+      try {
+        await Promise.allSettled([work])
+      } finally {
+        pending.delete(work)
+      }
+    })()
+  }
   const uses = new Map<string, { action: JudgeEntryParts; use: JudgeUse }>()
   let sourceKey: string | undefined
   let hasNotice = false
@@ -147,6 +158,7 @@ export function createWindowJudge(
           }),
           onError,
           onFence: deps.onFence,
+          onTask: track,
           onStatus: (status) => {
             deps.status(action, status)
           },
@@ -172,6 +184,7 @@ export function createWindowJudge(
             const runner = {
               entries,
               cache,
+              onTask: track,
               modelId: initial.modelId,
               signal: lifetime,
               measureTokens: (text: string) => Buffer.byteLength(text),
@@ -198,6 +211,7 @@ export function createWindowJudge(
                   turnId: action.turnId,
                   signal: lifetime,
                   contextLimit: limit,
+                  priceOf: deps.priceOf,
                 }),
                 redact: redactSecrets,
               })
@@ -225,6 +239,7 @@ export function createWindowJudge(
                   binding: binding(signal),
                   currentBinding: () => binding(signal),
                   billing: { kind: 'subscription' },
+                  ...(deps.priceOf !== undefined && { priceOf: deps.priceOf }),
                   estimatedInputTokens: Buffer.byteLength(JSON.stringify(parts)),
                   maxOutputTokens: MODEL_API_MAX_OUTPUT_TOKENS,
                 })
@@ -266,6 +281,9 @@ export function createWindowJudge(
       drop((action) => action.sessionId === session)
     },
     isSideSession: (id) => sideSessions.has(id),
+    settled: async () => {
+      while (pending.size > 0) await Promise.allSettled(pending)
+    },
     dispose: () => {
       drop(() => true)
       cache.clear()

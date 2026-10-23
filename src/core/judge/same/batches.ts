@@ -35,6 +35,8 @@ export interface SameJudgeRunnerDeps {
   readonly measureTokens: (text: string) => number
   readonly contextTokenLimit?: number | undefined
   readonly onError: (error: unknown) => void
+  /** The owner drains background calls before its sources and ledger are released. */
+  readonly onTask?: ((work: Promise<void>) => void) | undefined
 }
 
 /** What the runner reads with defaults applied. */
@@ -142,8 +144,8 @@ export function launchJudgeBatch(
   run: (signal: AbortSignal) => Promise<void>,
   tuning: { readonly timeoutMs: number },
   onError: (error: unknown) => void,
-): void {
-  runJudgeInBackground(run, { timeoutMs: tuning.timeoutMs, onError })
+): Promise<void> {
+  return runJudgeInBackground(run, { timeoutMs: tuning.timeoutMs, onError })
 }
 
 export interface CommitSettledInputs {
@@ -206,7 +208,7 @@ export function judgeHeldAction(inputs: JudgeHeldActionInputs): void {
         inputs.runner.contextTokenLimit,
       ),
     launch: (batch) => {
-      launchJudgeBatch(
+      const work = launchJudgeBatch(
         (signal) =>
           inputs.runBatch(
             batch,
@@ -218,6 +220,7 @@ export function judgeHeldAction(inputs: JudgeHeldActionInputs): void {
         tuning,
         inputs.runner.onError,
       )
+      inputs.runner.onTask?.(work)
     },
     onError: inputs.runner.onError,
   })

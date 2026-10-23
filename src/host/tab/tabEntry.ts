@@ -19,15 +19,15 @@ import {
   type TabServicesDeps,
   type TabSnooze,
   type TabStatusDeps,
-} from './tabBundle'
+} from '../vscode/tab/tabBundle'
 import { createTabLedger } from './tabLedger'
-import { createTabProvider as createProvider } from './tabProvider'
+import { createTabProvider as createProvider } from '../vscode/tab/tabProvider'
 import { createTabSpendGate } from './tabSpendGate'
 import {
   showTabMenu as showMenu,
   snoozeTabCommand as runSnoozeCommand,
   tabLanguagesCommand as runLanguagesCommand,
-} from './tabStatus'
+} from '../vscode/tab/tabStatus'
 
 function now(): number {
   return Date.now()

@@ -40,7 +40,7 @@ import { mkdir } from 'node:fs/promises'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { canonicalPath } from '../canonicalPath'
 import { createFileExclusively } from '../fsAtomic'
-import { GitUnavailableError } from './gitExtension'
+import { GitUnavailableError } from '../vscode/git/gitExtension'
 import { UNTRUSTED_CHECKOUT_OPTIONS } from './untrustedGit'
 
 export interface HeldCheckoutDeps {

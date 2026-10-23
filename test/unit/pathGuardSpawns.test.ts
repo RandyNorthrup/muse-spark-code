@@ -107,6 +107,18 @@ const KNOWN: Record<string, KnownSpawn> = {
     anchor: 'verifyWindowsVaultFileSync',
     reason: 'digest-pinned helper verified before the one-shot sync start; SystemRoot-only env',
   },
+  'src/runtime/lsp/processAuthority.ts': {
+    kind: 'reviewed',
+    anchor: 'workspaceChildEnvironment',
+    reason:
+      'current-process node only (process.execPath at every call site) with the branded workspace child env; exact registry proof precedes admission',
+  },
+  'src/runtime/privateDirectory.ts': {
+    kind: 'reviewed',
+    anchor: 'noWorkspaceChildEnvironment',
+    reason:
+      'packaged darwin helper (absolute under packageRoot, held-fd probe) with the branded no-workspace env + absolute System32 powershell with its branded env; no workspace command',
+  },
 }
 
 const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
@@ -187,7 +199,7 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: 'windowsPowerShell',
     reason: 'absolute SystemRoot PowerShell + fixed /bin/ls only',
   },
-  'src/host/git/githubSession.ts': {
+  'src/host/vscode/git/githubSession.ts': {
     kind: 'guarded',
     anchor: 'execResourceFile',
     reason:
@@ -203,6 +215,18 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'guarded',
     anchor: 'execResourceFile',
     reason: 'digest-pinned native peer identity probe with an empty env through the governed exec',
+  },
+  'src/runtime/lsp/registry.ts': {
+    kind: 'guarded',
+    anchor: 'noWorkspaceChildEnvironment',
+    reason:
+      'absolute System32 powershell via the guarded helper + fixed /bin/ls, both through runProgram with branded child envs',
+  },
+  'src/runtime/privateDirectory.ts': {
+    kind: 'guarded',
+    anchor: 'noWorkspaceChildEnvironment',
+    reason:
+      'packaged darwin helper (absolute under packageRoot) + absolute System32 powershell, both through runProgram with branded child envs',
   },
 }
 

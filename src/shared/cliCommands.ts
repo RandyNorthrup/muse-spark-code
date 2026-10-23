@@ -115,6 +115,25 @@ export function cliCommands(shouldIncludeHeld = false) {
         ]
       : []),
     {
+      route: 'lsp',
+      name: 'lsp [options]',
+      description: UI_TEXT.referenceLsp,
+      text: { ui: 'referenceLsp' },
+    },
+    {
+      route: 'supervise',
+      name: 'supervise <runtime arguments>',
+      description: UI_TEXT.referenceSupervise,
+      text: { ui: 'referenceSupervise' },
+    },
+    {
+      route: 'stop',
+      name: 'stop [runtime options]',
+      description: UI_TEXT.referenceStop,
+      text: { ui: 'referenceStop' },
+    },
+
+    {
       route: 'usage',
       name: 'usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json',
       description: UI_TEXT.acpUsageDescription,

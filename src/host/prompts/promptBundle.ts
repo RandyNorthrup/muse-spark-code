@@ -1,7 +1,7 @@
 import type { Logger } from '../logger'
 import { lazyBundleLoader } from '../lazyBundle'
 import { UI_TEXT } from '../../shared/constants'
-import type * as Entry from './promptEntry'
+import type * as Entry from '../vscode/prompts/promptEntry'
 
 interface PromptBundle {
   readonly createPromptHost: typeof Entry.createPromptHost

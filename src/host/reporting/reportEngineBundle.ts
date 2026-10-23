@@ -1,6 +1,6 @@
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader, type LazyBundleLoaderOptions } from '../lazyBundle'
-import type { ReportPanelEngine } from './reportPanel'
+import type { ReportPanelEngine } from '../vscode/reporting/reportPanel'
 import type { ReportingContext as importContext } from '../../runtime/reporting/engine'
 
 /** W binds this factory in the lazy engine using K/S/H's real implementations and R's renderers. */

@@ -25,7 +25,7 @@ import {
   MUSE_USER_ACTION_ANSWER_REUSE_MS,
 } from '../../shared/constants'
 import type { Logger } from '../logger'
-import { type AccountState, isCapturedSignedOut, isStoredSignIn } from './accountHost'
+import { type AccountState, isCapturedSignedOut, isStoredSignIn } from './accountState'
 
 export interface CredentialFileReading {
   /** `<size>:<mtime>`: a write changes it. */

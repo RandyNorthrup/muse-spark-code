@@ -90,7 +90,7 @@
 //
 //   node scripts/check-bundle-split.mjs
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import ts from 'typescript'
 import { createRequire } from 'node:module'
@@ -123,11 +123,16 @@ import {
   ADDITIONAL_WEBVIEW_BUDGETS,
   RESOURCE_WEBVIEW_ENTRIES,
   checkResourceWebview,
+  PORTABLE_PRESENTATION_BUDGETS,
   DEFERRED_WEBVIEW_SURFACES,
   webviewStartupOutputs,
   webviewTeamOutputs,
+  portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
+import { measurePortableStartup } from './lib/portableStartup.mjs'
 import { UI_TEXT_REGIONS } from './lib/uiTextRegions.mjs'
+
+const BYTES_PER_KIB = 1024
 
 const MODEL_API_DIR = 'src/core/backends/modelapi'
 const ENTRY = 'src/host/backend/modelApiEntry.ts'
@@ -380,10 +385,10 @@ for (const source of [
 }
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
-  'src/host/prompts/promptEntry.ts',
+  'src/host/vscode/prompts/promptEntry.ts',
   'src/core/prompts/promptStore.ts',
   'src/core/sharing/chatShare.ts',
-  'src/host/prompts/chatSharing.ts',
+  'src/host/vscode/prompts/chatSharing.ts',
 ]) {
   if (!promptInputs.has(source)) problems.push(`${PROMPTS.output} no longer carries ${source}`)
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
@@ -742,7 +747,7 @@ for (const file of REVIEW_ONLY) {
 // loads on the first vault command. Only types and the loader
 // (vaultPanelBundle.ts) stay at activation.
 const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
-const VAULT_ONLY = ['src/host/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPanelHost.ts']
+const VAULT_ONLY = ['src/host/vscode/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPanelHost.ts']
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native editor,
 // the write-only crypto, the action dialogs) loads on the first action that
 // needs it as dist/vaultActions.js. The fault class moved to its own small
@@ -750,7 +755,8 @@ const VAULT_ONLY = ['src/host/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPa
 const VAULT_ACTIONS = { output: 'dist/vaultActions.js', metafile: 'dist/meta/vaultActions.json' }
 const VAULT_ACTIONS_ONLY = [
   'src/host/vault/vaultActionsEntry.ts',
-  'src/host/vault/vaultActionDialogs.ts',
+  'src/host/vscode/vault/vaultActionDialogs.ts',
+
   'src/host/vault/vaultNativeEditor.ts',
   'src/core/vault/crypto.ts',
 ]
@@ -849,8 +855,8 @@ if (vault.has('src/core/vault/migrate/ports.ts')) {
 // refusal is the marker) or the consent's question (its one reader).
 const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
 const mediaHost = inputsOf(MEDIA_HOST)
-if (activation.has('src/host/media/mediaHostEntry.ts'))
-  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+if (activation.has('src/host/vscode/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/vscode/media/mediaHostEntry.ts`)
 for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
   if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
 const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
@@ -890,7 +896,7 @@ for (const file of VAULT_MIGRATION_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
-  'src/host/agentImportHost.ts',
+  'src/host/vscode/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -938,9 +944,9 @@ for (const prefix of IMPORT_ONLY) {
 const GIT_ONLY = [
   'src/host/git/conversationGit.ts',
   'src/host/git/conversationGitEntry.ts',
-  'src/host/git/gitWindow.ts',
-  'src/host/git/gitExtension.ts',
-  'src/host/git/githubSession.ts',
+  'src/host/vscode/git/gitWindow.ts',
+  'src/host/vscode/git/gitExtension.ts',
+  'src/host/vscode/git/githubSession.ts',
   'src/host/git/nativeGitBundle.ts',
   'src/host/git/nativeRepository.ts',
   'src/core/git/githubSignIn.ts',
@@ -1123,6 +1129,13 @@ for (const file of readdirSync('src/core/tab')) {
     problems.push(`src/core/tab/${file} is absent from the deferred Tab inventory`)
 }
 problems.push(...checkDeferredBundles(inputsOf))
+const hostProtocol = { output: 'dist/hostProtocol.js', metafile: 'dist/meta/hostProtocol.json' }
+for (const file of ['src/shared/hostApi/methods.ts', 'src/shared/hostApi/panel.ts']) {
+  if (!inputsOf(hostProtocol).has(file))
+    problems.push(`${hostProtocol.output} no longer carries ${file}`)
+  for (const bundle of [...Object.values(BUNDLES), ...DEFERRED, ...ON_FIRST_USE])
+    if (inputsOf(bundle).has(file)) problems.push(`${bundle.output} duplicates ${file}`)
+}
 
 // ACTDIET: ACP shares the journal before session initialization or report reading.
 const acpMeta = JSON.parse(readFileSync(BUNDLES.acp.metafile, 'utf8'))
@@ -1292,6 +1305,7 @@ function shippedBundles() {
                   'dist/webview/models.js',
                   'dist/webview/usage.js',
                   'dist/webview/whatsNew.js',
+                  'dist/webview/portable/main.js',
                 ].includes(output)),
           )
           .map((output) => ({ output, metafile }))
@@ -1300,13 +1314,31 @@ function shippedBundles() {
 }
 const SHIPPED = shippedBundles()
 problems.push(...checkResourceBundles(inputsOf, SHIPPED))
-// The chat ESM graph carries the review template in a shared chunk. Models
-// is a separate graph and may also use constants, but never this template.
-// textOf(main) checks every chunk in its graph; require its actual reader.
+// The authenticated classic bootstrap is compiled independently of either
+// ESM graph. It validates the manifest before those graphs can execute.
+const PORTABLE_LOADER = {
+  output: 'dist/webview/portable/loader.js',
+  metafile: 'dist/meta/portable.json',
+}
+const loaderInputs = inputsOf(PORTABLE_LOADER)
+for (const source of [
+  'src/webview/bridges/moduleLoader.ts',
+  'src/shared/hostApi/portableAssets.ts',
+]) {
+  if (!loaderInputs.has(source))
+    problems.push(`${PORTABLE_LOADER.output} no longer carries ${source}`)
+}
+if (loaderInputs.has(ENGLISH_TABLE))
+  problems.push(`${PORTABLE_LOADER.output} carries an unused English fallback`)
+// The chat ESM graphs (VS Code's and the portable one) carry the review
+// template in a shared chunk. Models is a separate graph and may also use
+// constants, but never this template. textOf(main) checks every chunk in its
+// graph; require each graph's actual reader.
 const webviewReview = SHIPPED.filter(
   ({ output, metafile }) =>
     output.startsWith('dist/webview/') &&
     (metafile !== 'dist/meta/webview.json' || output === 'dist/webview/main.js') &&
+    (metafile !== 'dist/meta/portable.json' || output === 'dist/webview/portable/main.js') &&
     Object.hasOwn(
       JSON.parse(readFileSync(metafile, 'utf8')).inputs,
       'src/webview/components/ReviewPane.tsx',
@@ -1327,8 +1359,12 @@ for (const bundle of SHIPPED) {
       problems.push(`${bundle.output} carries the isolated node service: ${input}`)
   }
 }
-if (webviewReview.length !== 1) {
-  problems.push('exactly one webview graph must carry ReviewPane')
+for (const isPortable of [false, true]) {
+  const carrying = webviewReview.filter(
+    ({ output }) => output.startsWith('dist/webview/portable/') === isPortable,
+  )
+  if (carrying.length !== 1)
+    problems.push('each chat webview graph must carry ReviewPane in exactly one page')
 }
 /** The shipped bundle that `output` names; a missing one is a problem. */
 function shipped(output) {
@@ -1402,7 +1438,7 @@ const TEXT_BLOCKS = [
   {
     block: 'TAB_MODEL_TEXT',
     sentinels: ['tabSystem', 'tabUserTemplate'],
-    readers: ['dist/tab.js'],
+    readers: ['dist/tab.js', 'dist/runtimeBackendServices.js', 'dist/lsp.js'],
   },
   {
     block: 'HOOK_MODEL_TEXT',
@@ -1482,22 +1518,29 @@ const TEXT_BLOCKS = [
     block: 'GIT_MODEL_TEXT',
     sentinels: ['gitCommitInstructions', 'gitPullRequestInstructions'],
     // M123's native route builds the same drafts' prompts where vscode.git is missing.
-    readers: [CONVERSATION_GIT.output, NATIVE_GIT.output],
+    readers: [CONVERSATION_GIT.output, NATIVE_GIT.output, 'dist/runtimeEngines.js'],
   },
   // The review turn's text (M70): the review's bundle, the Model API's
   // built-in Reviewer. The pane's one comment template has its own block.
   {
     block: 'REVIEW_MODEL_TEXT',
     sentinels: ['reviewerRole', 'reviewMuseCodeRole'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output],
+    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngines.js'],
   },
   // The playback turn's text (D203): the review bundle builds it for the
-  // panel, the Model API's built-in no-tools turn reads it, and the runtime
-  // engine's ACP agent (editors and headless runs) sends it.
+  // panel, the Model API's built-in no-tools turn reads it, the runtime
+  // engine's ACP agent (editors and headless runs) sends it, and the runtime
+  // panel's engine composition (RLM104: native editors' review feature)
+  // exposes it to its hosts.
   {
     block: 'PLAYBACK_MODEL_TEXT',
     sentinels: ['playbackRole', 'playbackNoTools'],
-    readers: [REVIEW.output, BUNDLES.modelApi.output, 'dist/runtimeEngine.js'],
+    readers: [
+      REVIEW.output,
+      BUNDLES.modelApi.output,
+      'dist/runtimeEngine.js',
+      'dist/runtimeEngines.js',
+    ],
   },
   // M116 K's charter is read through the existing lazy skills bundle only.
   {
@@ -1591,6 +1634,7 @@ function textOf(output) {
       'dist/webview/models.js': 'dist/meta/modelsWebview.json',
       'dist/webview/usage.js': 'dist/meta/usageWebview.json',
       'dist/webview/whatsNew.js': 'dist/meta/whatsNewPage.json',
+      'dist/webview/portable/main.js': 'dist/meta/portable.json',
     }[output]
     const files = metafile
       ? Object.keys(JSON.parse(readFileSync(metafile, 'utf8')).outputs).filter((file) =>
@@ -1624,7 +1668,25 @@ for (const { block, sentinels, readers, others } of TEXT_BLOCKS) {
 }
 // Every model text block beside MODEL_TEXT is guarded: a new one needs an
 // entry above (or is FILE_REFUSAL_MODEL_TEXT, pinned below).
-const guarded = new Set([...TEXT_BLOCKS.map(({ block }) => block), FILE_REFUSAL.block])
+// The Xcode host is packaged independently. Its generator carries the whole native
+// block; it must never ride into any JavaScript bundle shipped by this build.
+const nativeModelBlock = 'XCODE_MODEL_TEXT'
+const nativeReader = 'hosts/xcode/Scripts/nativeTables.ts'
+if (!readFileSync(nativeReader, 'utf8').includes(nativeModelBlock)) {
+  problems.push(`${nativeReader} no longer reads ${nativeModelBlock}`)
+}
+for (const key of blockKeys(nativeModelBlock)) {
+  for (const { output } of SHIPPED) {
+    if (new RegExp(`[{,]${key}:`).test(textOf(output))) {
+      problems.push(`${output} carries ${nativeModelBlock}, which only ${nativeReader} reads`)
+    }
+  }
+}
+const guarded = new Set([
+  ...TEXT_BLOCKS.map(({ block }) => block),
+  FILE_REFUSAL.block,
+  nativeModelBlock,
+])
 for (const [, block] of constantsSource.matchAll(/^export const (\w+_MODEL_TEXT) = \{/gm)) {
   if (!guarded.has(block)) {
     problems.push(
@@ -1691,23 +1753,30 @@ for (const key of modelTextKeys) {
 
 // All optional surfaces must remain behind dynamic imports. Every
 // emitted JS chunk must be reachable and packaged; stale output is refused.
-const webviewMeta = JSON.parse(readFileSync('dist/meta/webview.json', 'utf8'))
-webviewMeta.outputs = Object.fromEntries(
-  Object.entries(webviewMeta.outputs).map(([file, output]) => [
-    file.replaceAll('\\', '/'),
-    {
-      ...output,
-      entryPoint: output.entryPoint?.replaceAll('\\', '/'),
-      inputs: Object.fromEntries(
-        Object.entries(output.inputs).map(([source, details]) => [
-          source.replaceAll('\\', '/'),
-          details,
-        ]),
-      ),
-      imports: output.imports.map((item) => ({ ...item, path: item.path.replaceAll('\\', '/') })),
-    },
-  ]),
-)
+/** A webview metafile with forward-slash output, entry, input and import paths. */
+function normalWebviewMeta(meta) {
+  meta.outputs = Object.fromEntries(
+    Object.entries(meta.outputs).map(([file, output]) => [
+      file.replaceAll('\\', '/'),
+      {
+        ...output,
+        entryPoint: output.entryPoint?.replaceAll('\\', '/'),
+        inputs: Object.fromEntries(
+          Object.entries(output.inputs).map(([source, details]) => [
+            source.replaceAll('\\', '/'),
+            details,
+          ]),
+        ),
+        imports: output.imports.map((item) => ({
+          ...item,
+          path: item.path.replaceAll('\\', '/'),
+        })),
+      },
+    ]),
+  )
+  return meta
+}
+const webviewMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/webview.json', 'utf8')))
 const eagerWebview = new Set(webviewStartupOutputs(webviewMeta))
 for (const file of eagerWebview) {
   const sources = Object.keys(webviewMeta.outputs[file].inputs)
@@ -1829,6 +1898,125 @@ for (const file of webviewStartupOutputs(webviewMeta)) {
     problems.push('Reference page or data entered chat startup')
 }
 
+// M104D: native hosts and the companion load an independent graph from
+// dist/webview/portable. VS Code's graph never carries its bridges or
+// fallbacks; the portable graph keeps the chat's deferred surfaces deferred,
+// and every chunk it emits is reachable and packaged. The reporting pages are
+// VS Code-only entries, never part of the chat graph.
+const BRIDGE_ENTRIES = new Set([
+  'src/webview/bridges/moduleLoader.ts',
+  'src/webview/bridges/companionUi.ts',
+  'src/webview/whatsNew/portable.ts',
+  'src/shared/browser/presentation.ts',
+  'src/webview/whatsNew/whatsNewPage.ts',
+  'src/webview/bridges/native.ts',
+  'src/webview/bridges/companion.ts',
+  'src/webview/bridges/select.ts',
+  'src/webview/fallbacks/index.ts',
+  'src/webview/TasksApp.tsx',
+  'src/shared/tasksProtocol.ts',
+  'src/shared/whatsNewMessages.ts',
+  'src/shared/hostApi/panel.ts',
+])
+const FALLBACK_COMPONENTS = [
+  'Confirm',
+  'Picker',
+  'Input',
+  'Dialog',
+  'Toasts',
+  'StatusStrip',
+  'SettingsPage',
+  'Walkthrough',
+  'DiffPage',
+  'TerminalOutput',
+  'ManagerPage',
+  'services',
+]
+const VSCODE_ONLY_WEBVIEW_SOURCES = new Set([
+  'src/webview/reporting/main.tsx',
+  'src/webview/reporting/destinations/DestinationPicker.tsx',
+])
+// The usage page's resource history: every editor gets it from the usage
+// companion, which serves dist/webview/usage.js, never the portable chat graph.
+const USAGE_PAGE_WEBVIEW_SOURCES = new Set(['src/webview/usage/ResourcesSection.tsx'])
+for (const source of Object.keys(webviewMeta.inputs)) {
+  const normal = source.replaceAll('\\', '/')
+  if (normal.startsWith('src/webview/bridges/') || normal.startsWith('src/webview/fallbacks/'))
+    problems.push(`VS Code's webview carries portable-only source ${normal}`)
+}
+const portableMeta = normalWebviewMeta(JSON.parse(readFileSync('dist/meta/portable.json', 'utf8')))
+const portableStartup = await measurePortableStartup(portableMeta)
+const eagerPortable = new Set(portableStartup.flatMap(({ outputs }) => outputs))
+for (const file of eagerPortable) {
+  const sources = Object.keys(portableMeta.outputs[file].inputs)
+  for (const source of sources) {
+    if (source.startsWith('node_modules/highlight.js/'))
+      problems.push(`highlight.js must stay deferred: ${source}`)
+  }
+}
+const reachablePortable = new Set()
+const visitPortable = (file) => {
+  if (reachablePortable.has(file)) return
+  reachablePortable.add(file)
+  const output = portableMeta.outputs[file]
+  if (!output) {
+    problems.push(`Missing portable webview chunk ${file}`)
+    return
+  }
+  for (const imported of output.imports) if (!imported.external) visitPortable(imported.path)
+}
+for (const entry of [
+  'dist/webview/portable/main.js',
+  'dist/webview/portable/whatsNew.js',
+  'dist/webview/portable/presentation.js',
+  'dist/webview/portable/loader.js',
+])
+  visitPortable(entry)
+const portableDeferredSources = [
+  ...deferredWebviewSources.filter(
+    (source) => !VSCODE_ONLY_WEBVIEW_SOURCES.has(source) && !USAGE_PAGE_WEBVIEW_SOURCES.has(source),
+  ),
+  ...PORTABLE_PRESENTATION_BUDGETS.flatMap(({ entries }) => entries),
+  ...FALLBACK_COMPONENTS.map((component) => `src/webview/fallbacks/${component}.tsx`),
+]
+for (const source of portableDeferredSources) {
+  const outputs = Object.entries(portableMeta.outputs).filter(([, output]) =>
+    Object.hasOwn(output.inputs, source),
+  )
+  if (outputs.length !== 1 || eagerPortable.has(outputs[0]?.[0])) {
+    problems.push(`${source} must occur in exactly one deferred portable webview chunk`)
+  }
+}
+for (const [file, output] of Object.entries(portableMeta.outputs)) {
+  if (!file.endsWith('.js')) continue
+  if (!reachablePortable.has(file) || !existsSync(file))
+    problems.push(`Unreachable or missing portable webview chunk ${file}`)
+  if (
+    output.entryPoint &&
+    output.entryPoint !== 'src/webview/portable.tsx' &&
+    !BRIDGE_ENTRIES.has(output.entryPoint) &&
+    !portableDeferredSources.includes(output.entryPoint)
+  ) {
+    problems.push(`Unlisted deferred portable webview surface ${output.entryPoint}`)
+  }
+}
+// M104 F4: the same startup/total caps and measurement evidence as the size
+// gate. Preserve missing-output diagnostics above instead of statting absence.
+for (const { name, budgetKiB, outputs } of portableWebviewBudgetGroups(
+  portableMeta,
+  portableStartup,
+)) {
+  if (outputs.some((file) => !existsSync(file))) continue
+  const bytes = outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > budgetKiB * BYTES_PER_KIB)
+    problems.push(`portable ${name} exceeds ${budgetKiB} KiB: ${bytes} bytes`)
+}
+const portableChunks = 'dist/webview/portable/chunks'
+for (const file of readdirSync(portableChunks)) {
+  if (file.endsWith('.js') && !reachablePortable.has(`${portableChunks}/${file}`))
+    problems.push(`Stale portable webview chunk ${file}`)
+}
+
 // TRAIN13B: Node consumers share exactly the mini-parser API they read.
 const validationMeta = JSON.parse(readFileSync('dist/meta/validation.json', 'utf8'))
 const validationExports = new Set(
@@ -1840,6 +2028,7 @@ const nodeMetafiles = readdirSync('dist/meta')
       ![
         'validation.json',
         'webview.json',
+        'portable.json',
         'whatsNewPage.json',
         'referencePage.json',
         'modelsWebview.json',
@@ -1861,7 +2050,7 @@ nodeMetafiles.push(
 // INT0170: classic zod stays out of the Node bundles that read zod/mini from
 // dist/validation.js. CONSENT017's paidConsent.ts imported 'zod', and
 // dist/extension.js carried 444 KiB of it with its `navigator` sniff
-// (extension.ts -> host/paid/paidHost.ts -> core/paid/paidConsent.ts).
+// (extension.ts -> host/vscode/paid/paidHost.ts -> core/paid/paidConsent.ts).
 // dist/structuredSchema.js shares zod/v4/core by design; the ACP engine
 // carries the ACP SDK's classic zod (englishZodLocales trims its locales).
 const CLASSIC_ZOD_CARRIERS = new Set([
@@ -2007,7 +2196,6 @@ if (problems.length > 0) {
   }
   process.exit(1)
 }
-const BYTES_PER_KIB = 1024
 const carried = [...activation]
   .filter(([input]) => input.startsWith(`${MODEL_API_DIR}/`))
   .toSorted(([a], [b]) => a.localeCompare(b, 'en'))

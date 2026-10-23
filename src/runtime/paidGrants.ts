@@ -45,13 +45,26 @@ const GENERATION_FILE = 'generation.json'
 const generationSchema = z.object({ id: z.uuid(), isInitial: z.boolean() })
 const grantSchema = z.uuid()
 type Generation = z.infer<typeof generationSchema>
+export interface RuntimePaidGrantStore extends PaidGrantStore {
+  readonly forgetWorkspace: (root: string) => Promise<void>
+}
 
-export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
+export function paidGrantFile(deps: PaidGrantFileDeps): RuntimePaidGrantStore {
   const featureFolder = (feature: PaidFeature) => path.join(`${deps.file}.d`, feature)
   const generationFile = (feature: PaidFeature) =>
     path.join(featureFolder(feature), GENERATION_FILE)
-  const grantFile = (workspaceRoot: string, feature: PaidFeature, generation: string) =>
-    path.join(featureFolder(feature), `${workspaceKey(workspaceRoot)}.${generation}.json`)
+  const workspaceGenerationFile = (root: string, feature: PaidFeature) =>
+    path.join(featureFolder(feature), `${workspaceKey(root)}.generation.json`)
+  const grantFile = (
+    workspaceRoot: string,
+    feature: PaidFeature,
+    generation: string,
+    workspaceGeneration?: string,
+  ) =>
+    path.join(
+      featureFolder(feature),
+      `${workspaceKey(workspaceRoot)}.${generation}${workspaceGeneration === undefined ? '' : `.${workspaceGeneration}`}.json`,
+    )
 
   /** A missing record grants nothing; damaged or unreadable records fail closed. */
   const read = <T>(file: string, schema: z.ZodMiniType<T>, isChanging = false): T | undefined => {
@@ -131,10 +144,12 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
   }
 
   const add = async (workspaceRoot: string, feature: PaidFeature): Promise<void> => {
+    // Capture before the first await: a writer racing workspace revocation keeps its old lane.
+    const local = read(workspaceGenerationFile(workspaceRoot, feature), generationSchema, true)
     const generation = await generationFor(feature)
     // The generation came through zod (or randomUUID) before entering a path.
     // A stale writer cannot replace a newer generation's explicit grant.
-    await write(grantFile(workspaceRoot, feature, generation.id), generation.id)
+    await write(grantFile(workspaceRoot, feature, generation.id, local?.id), generation.id)
   }
 
   const quoteSchema = z.object({
@@ -142,8 +157,16 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     quote: paidQuoteSchema,
     order: z.optional(z.number().check(z.int(), z.gte(0))),
   })
+  // Search quotes live in the workspace's own revocation lane too, so Ask again forgets them.
+  const searchGrantFile = (workspaceRoot: string, generation: string) =>
+    grantFile(
+      workspaceRoot,
+      'webSearch',
+      generation,
+      read(workspaceGenerationFile(workspaceRoot, 'webSearch'), generationSchema, true)?.id,
+    )
   const quotePrefix = (workspaceRoot: string, generation: string, key: string) =>
-    `${grantFile(workspaceRoot, 'webSearch', generation)}.${workspaceKey(key)}.${PAID_APPROVAL_ORDER_DIRECTORY}.`
+    `${searchGrantFile(workspaceRoot, generation)}.${workspaceKey(key)}.${PAID_APPROVAL_ORDER_DIRECTORY}.`
   // The last quote-folder read failure's kind, while saved Always quotes
   // cannot be listed. Consent carries it in the question it then asks.
   let quoteNotice: PaidQuoteNotice | undefined
@@ -191,7 +214,7 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
     }
     quoteListNoter.noteHealthy()
     quoteNotice = undefined
-    const prefix = `${path.basename(grantFile(workspaceRoot, 'webSearch', generation))}.`
+    const prefix = `${path.basename(searchGrantFile(workspaceRoot, generation))}.`
     return names
       .filter(
         (name) =>
@@ -251,15 +274,23 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
         PAID_FEATURES.filter((feature) => {
           const file = generationFile(feature)
           const before = read(file, generationSchema)
+          const localFile = workspaceGenerationFile(workspaceRoot, feature)
+          // The read path has no change in flight: a damaged workspace lane
+          // reads as no grant with its warning, like the global generation.
+          const local = read(localFile, generationSchema)
           if (
             before === undefined ||
             (!(feature === 'webSearch' && readQuotes(workspaceRoot, before.id).length > 0) &&
-              read(grantFile(workspaceRoot, feature, before.id), grantSchema) !== before.id)
+              read(grantFile(workspaceRoot, feature, before.id, local?.id), grantSchema) !==
+                before.id)
           ) {
             return false
           }
           // Another process may revoke while the grant is read.
-          return read(file, generationSchema)?.id === before.id
+          return (
+            read(file, generationSchema)?.id === before.id &&
+            read(localFile, generationSchema)?.id === local?.id
+          )
         }),
       ),
     add: async (workspaceRoot, features) => {
@@ -269,6 +300,13 @@ export function paidGrantFile(deps: PaidGrantFileDeps): PaidGrantStore {
       await Promise.all(
         features.map((feature) =>
           write(generationFile(feature), { id: randomUUID(), isInitial: false }),
+        ),
+      )
+    },
+    forgetWorkspace: async (root) => {
+      await Promise.all(
+        PAID_FEATURES.map((feature) =>
+          write(workspaceGenerationFile(root, feature), { id: randomUUID(), isInitial: false }),
         ),
       )
     },

@@ -1,0 +1,145 @@
+# M104-I: PRs select changed hosts; shared changes and the weekly run select all.
+# Native harness commands come from each host's strict distribution manifest.
+# No registry or signing credential reaches build or conformance jobs.
+name: Native hosts
+
+on:
+  pull_request:
+    paths:
+      - 'hosts/**'
+      - 'src/**'
+      - 'native/**'
+      - 'l10n/**'
+      - 'scripts/**'
+      - 'test/hostApi/**'
+      - 'test/m104/mac/**'
+      - 'test/unit/mhp*.test.ts'
+      - 'package*.json'
+      - '.github/workflows/hosts-native.yml'
+      - '.github/workflows/release.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'hosts/**'
+      - 'src/**'
+      - 'native/**'
+      - 'l10n/**'
+      - 'scripts/**'
+      - 'test/hostApi/**'
+      - 'test/m104/mac/**'
+      - 'test/unit/mhp*.test.ts'
+      - 'package*.json'
+      - '.github/workflows/hosts-native.yml'
+  schedule:
+    - cron: '43 7 * * 1'
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      present:
+        description: Existing host ids selected for this build
+        value: ${{ jobs.discover.outputs.present }}
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      present: ${{ steps.matrix.outputs.present }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit
+      - id: matrix
+        env:
+          MUSE_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}
+        run: node scripts/package-hosts/ci.mjs
+
+  contract:
+    name: MHP 1.2 shared contract and distribution guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - run: npm ci --ignore-scripts --no-audit
+      - run: node scripts/mhp-schema.mjs --check
+      - run: npx vitest run --config test/hostApi/vitest.config.mjs test/hostApi/distribution.test.mjs test/hostApi/release.test.mjs test/hostApi/workflow.test.mjs --maxWorkers=3
+      - run: npx vitest run test/unit/mhpContract.test.ts test/unit/mhpPanelContract.test.ts --maxWorkers=3
+      - run: npx vitest run --config test/m104/mac/vitest.config.mjs test/m104/mac/distributionProtocol.test.mjs --maxWorkers=3
+
+  host:
+    name: ${{ matrix.host }} native build and conformance
+    needs: [discover, contract]
+    if: needs.discover.outputs.matrix != '{"include":[]}'
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.discover.outputs.matrix) }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: detect host; name an absent-folder skip
+        id: folder
+        env:
+          HOST_ID: ${{ matrix.host }}
+        run: |
+          if [ -e "hosts/$HOST_ID" ] || [ -L "hosts/$HOST_ID" ]; then
+            echo 'present=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'present=false' >> "$GITHUB_OUTPUT"
+            echo "::notice::skipped-host-absent: hosts/$HOST_ID is absent"
+            echo "$HOST_ID: skipped-host-absent — hosts/$HOST_ID is absent" >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        if: steps.folder.outputs.present == 'true'
+        with:
+          node-version: 22
+      - name: JDK for JetBrains and Eclipse
+        if: steps.folder.outputs.present == 'true' && (matrix.host == 'jetbrains' || matrix.host == 'eclipse')
+        run: echo "JAVA_HOME=$JAVA_HOME_21_X64" >> "$GITHUB_ENV"
+      - name: install locked tools without scripts
+        if: steps.folder.outputs.present == 'true'
+        run: npm ci --ignore-scripts --no-audit
+      - name: frozen MHP contract
+        if: steps.folder.outputs.present == 'true'
+        run: node scripts/mhp-schema.mjs --check
+      - name: shared production runtime
+        if: steps.folder.outputs.present == 'true'
+        run: npm run package:acp
+      - name: native checks and archive
+        if: steps.folder.outputs.present == 'true'
+        env:
+          HOST_ID: ${{ matrix.host }}
+        run: node scripts/package-hosts/package.mjs "$HOST_ID"
+      - name: all MHP 1.2 scenarios in the real host harness
+        if: steps.folder.outputs.present == 'true'
+        env:
+          HOST_ID: ${{ matrix.host }}
+        run: node test/hostApi/run.mjs "$HOST_ID"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: steps.folder.outputs.present == 'true'
+        with:
+          name: m104-native-${{ matrix.host }}
+          path: |
+            dist/hosts/${{ matrix.host }}/muse-spark-code-*
+            dist/hosts/${{ matrix.host }}/receipt.json
+          if-no-files-found: error
+          retention-days: 30

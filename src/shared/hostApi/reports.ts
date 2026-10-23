@@ -1,6 +1,6 @@
 // M113's method family. M104 binds these payload schemas to its MHP envelope
 // and capability negotiation; this module makes no host or transport calls.
-// MHP 1.2 is host-initiated. get/compare require the same workspace/kind
+// MHP 1.5 is host-initiated. get/compare require the same workspace/kind
 // authorization as history; ids select saved documents inside that scope.
 import * as z from 'zod/mini'
 import {

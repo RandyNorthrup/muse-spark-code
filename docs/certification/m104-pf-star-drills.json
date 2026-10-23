@@ -1,0 +1,44 @@
+[
+  {
+    "file": "README.md",
+    "failures": [
+      "owned package listing descriptions README.md includes the exact linked owner sentence"
+    ],
+    "sha256": "da5d8e861559cfa4d21f118f65f64ee8d726361dd17027fc928361da077036ee"
+  },
+  {
+    "file": "docs/npm-readme.md",
+    "failures": [
+      "owned package listing descriptions docs/npm-readme.md includes the exact linked owner sentence"
+    ],
+    "sha256": "dc6421d34edff6a9c681ceb0aee3b870bf35662eeadb8430dad386d8f118bef1"
+  },
+  {
+    "file": "docs/acp.md",
+    "failures": [
+      "owned package listing descriptions docs/acp.md includes the exact linked owner sentence"
+    ],
+    "sha256": "17c5d9a5999ca0aceb7e178136e7f00d1109af41ea3832c392dfa84f851881ff"
+  },
+  {
+    "file": "hosts/xcode/README.md",
+    "failures": [
+      "owned package listing descriptions hosts/xcode/README.md includes the exact linked owner sentence"
+    ],
+    "sha256": "c3953c885732574c9a2e11364d91e17e7209e0eb22026c5b89844f8801d1b038"
+  },
+  {
+    "file": "scripts/package-hosts/README.md",
+    "failures": [
+      "owned package listing descriptions scripts/package-hosts/README.md includes the exact linked owner sentence"
+    ],
+    "sha256": "2c363afc31ef838b5b6a63648b28282205e3b5d480347f037e1c4fb68f718f73"
+  },
+  {
+    "file": "hosts/xcode/description.html",
+    "failures": [
+      "owned package listing descriptions ships the exact linked sentence in the native app and extension description"
+    ],
+    "sha256": "2bacb26e6e08a16ab25e2bc4a0cf8b7f438e01a56deb99cf8cb1fd1d480456e4"
+  }
+]

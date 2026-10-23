@@ -74,13 +74,8 @@ import type {
   GitSurface,
   NewPullRequestRequest,
 } from '../conversation/conversationController'
-import {
-  GitUnavailableError,
-  openOwnedRepository,
-  type CaptureGitOwner,
-  type GitChange,
-  type GitRepository,
-} from './gitExtension'
+import type { CaptureGitOwner, GitChange, GitRepository } from './repositoryPort'
+import { GitUnavailableError, openOwnedRepository } from './ownedRepository'
 import type { NativeGitBundle } from './nativeGitBundle'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 
@@ -464,6 +459,7 @@ export class ConversationGit implements ConversationGitPort {
       this.window.repository,
       this.window.captureGitOwner,
       check,
+      this.errorTypes.GitUnavailableError,
     )
   }
 

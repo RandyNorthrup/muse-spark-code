@@ -1,0 +1,370 @@
+{
+  "successfulTestOrGateDrills": 30,
+  "separateCompilerCatch": 1,
+  "receipts": [
+    {
+      "drill": "approval",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testUnapprovedEditDoesNotApply"]
+    },
+    {
+      "drill": "buffer-digest",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testChangedBufferRefusesEdit"]
+    },
+    {
+      "drill": "selection-digest",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testChangedSelectionRefusesEdit"]
+    },
+    {
+      "drill": "invocation-id",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testReplyCannotTargetAnotherInvocation"]
+    },
+    {
+      "drill": "snapshot-digest",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testSnapshotDigestIsValidated"]
+    },
+    {
+      "drill": "utf16-boundary",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testSurrogatePairCannotBeSplit"]
+    },
+    {
+      "drill": "cursor-only-tab",
+      "source": "hosts/xcode/Shared/BufferEdit.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "restoredSha256": "1761f3052a7785691b9a2091fb53a1f43cc14b8da2b404fb9a546b963a322f2a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testTabRequiresCursor"]
+    },
+    {
+      "drill": "launch-loopback",
+      "source": "hosts/xcode/Shared/LaunchLink.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6",
+      "restoredSha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "NativeHostTests.NativeHostTests testLaunchLinkRejectsForeignOrCredentialRoutes"
+      ]
+    },
+    {
+      "drill": "same-origin",
+      "source": "hosts/xcode/Shared/LaunchLink.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6",
+      "restoredSha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "NativeHostTests.NativeHostTests testLaunchLinkAllowsOnlyItsOwnOriginAndRedactsDescription"
+      ]
+    },
+    {
+      "drill": "token-hex",
+      "source": "hosts/xcode/Shared/LaunchLink.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6",
+      "restoredSha256": "4a0484612b67398399844e53ee7dfa164896674139dae56f25c35d9cc47584c6",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testCallbackLinkStrictAndRedacted"]
+    },
+    {
+      "drill": "frame-additions-compiler-attempt",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": false,
+      "failedTests": [],
+      "compilerFinding": "Warnings-as-errors rejected an unused variable; repeated as a compiling mutation."
+    },
+    {
+      "drill": "frame-size",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testFramesRoundTripAndRejectAdditions"]
+    },
+    {
+      "drill": "listener-loopback",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testListenerBindsOnlyIPv4Loopback"]
+    },
+    {
+      "drill": "one-use-code",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testConsumedLaunchCodeCannotBeReplayed"]
+    },
+    {
+      "drill": "launch-code-auth",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testWrongLaunchCodeCannotReadBuffer"]
+    },
+    {
+      "drill": "reply-bearer-auth",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testWrongBearerCannotApproveEdit"]
+    },
+    {
+      "drill": "credential-env",
+      "source": "hosts/xcode/Shared/RuntimeLauncher.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "59f37f21acaa947c2e98b8bb98c45d8e4ff065aa65638ea1947256a8ff49b802",
+      "restoredSha256": "59f37f21acaa947c2e98b8bb98c45d8e4ff065aa65638ea1947256a8ff49b802",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "NativeHostTests.NativeHostTests testEnvironmentScrubsCredentialsCaseInsensitively",
+        "NativeHostTests.NativeHostTests testRuntimeLaunchUsesWorkspaceAndScrubbedEnvironment"
+      ]
+    },
+    {
+      "drill": "closed-descriptors",
+      "source": "hosts/xcode/Shared/RuntimeLauncher.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "59f37f21acaa947c2e98b8bb98c45d8e4ff065aa65638ea1947256a8ff49b802",
+      "restoredSha256": "59f37f21acaa947c2e98b8bb98c45d8e4ff065aa65638ea1947256a8ff49b802",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "NativeHostTests.NativeHostTests testRuntimeDoesNotInheritUnrelatedDescriptors"
+      ]
+    },
+    {
+      "drill": "stop-escalation",
+      "source": "hosts/xcode/Shared/RuntimeLauncher.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "59f37f21acaa947c2e98b8bb98c45d8e4ff065aa65638ea1947256a8ff49b802",
+      "restoredSha256": "59f37f21acaa947c2e98b8bb98c45d8e4ff065aa65638ea1947256a8ff49b802",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testStopIsOutOfBandAndKillsProcessGroup"]
+    },
+    {
+      "drill": "tab-refusal",
+      "source": "hosts/xcode/App/PanelModel.swift",
+      "scope": "MuseSpark (all 37 core + 3 app-hosted UI tests)",
+      "exitCode": 65,
+      "beforeSha256": "a3a452e457299ebac1177e4cc181351a69e2a664a8317deaa08f8a293b32900b",
+      "restoredSha256": "a3a452e457299ebac1177e4cc181351a69e2a664a8317deaa08f8a293b32900b",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["PanelUITests.PanelUITests testTabRefusesBeforeRuntimeLaunchOrPaidDispatch"]
+    },
+    {
+      "drill": "stopped-handshake",
+      "source": "hosts/xcode/App/PanelModel.swift",
+      "scope": "MuseSpark (all 37 core + 3 app-hosted UI tests)",
+      "exitCode": 65,
+      "beforeSha256": "a3a452e457299ebac1177e4cc181351a69e2a664a8317deaa08f8a293b32900b",
+      "restoredSha256": "a3a452e457299ebac1177e4cc181351a69e2a664a8317deaa08f8a293b32900b",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "PanelUITests.PanelUITests testStoppedHandshakeCannotReviveSelectionOrSetAnError"
+      ]
+    },
+    {
+      "drill": "stop-clears-panel",
+      "source": "hosts/xcode/App/PanelWebView.swift",
+      "scope": "MuseSpark (all 37 core + 3 app-hosted UI tests)",
+      "exitCode": 65,
+      "beforeSha256": "36a4fc9f64ae8e78629f7d8c958d6153e4ce5ef07c27bb5d70f56d7f79edf744",
+      "restoredSha256": "36a4fc9f64ae8e78629f7d8c958d6153e4ce5ef07c27bb5d70f56d7f79edf744",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "PanelUITests.PanelUITests testAuthenticatedPanelRendersAndStopRemainsAvailable"
+      ]
+    },
+    {
+      "drill": "native-model-split",
+      "source": "dist/extension.js",
+      "scope": "full bundle-split gate",
+      "exitCode": 1,
+      "beforeSha256": "20c877dd5cced3d096e1b980b2e0b8d9948a9a6743586bf5f5f283a7d4e4615b",
+      "restoredSha256": "20c877dd5cced3d096e1b980b2e0b8d9948a9a6743586bf5f5f283a7d4e4615b",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["bundle-split: rejects XCODE_MODEL_TEXT in dist/extension.js"]
+    },
+    {
+      "drill": "frame-additions",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "NativeHostTests.NativeHostTests testFramesRoundTripAndRejectAdditions",
+        "NativeHostTests.NativeHostTests testNestedFrameAdditionsRejected"
+      ]
+    },
+    {
+      "drill": "frame-version",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testFramesRoundTripAndRejectAdditions"]
+    },
+    {
+      "drill": "ack-no-payload",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testFramesRoundTripAndRejectAdditions"]
+    },
+    {
+      "drill": "launch-code-expiry",
+      "source": "hosts/xcode/Shared/NativeChannel.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "restoredSha256": "a7b9f2c587014bfb02216c451a2408f3ec4744aadffe7bf70dc1d4a8105b540a",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testUnexchangedLaunchCodeExpires"]
+    },
+    {
+      "drill": "generated-limits",
+      "source": "hosts/xcode/Scripts/generate.mjs",
+      "scope": "Vitest (all 4 tests in test/unit/xcodeHost.test.ts)",
+      "exitCode": 1,
+      "beforeSha256": "8fd6832423f363273d06c8c3e7937e0d86cf2d477af985e796903dc9193802d8",
+      "restoredSha256": "8fd6832423f363273d06c8c3e7937e0d86cf2d477af985e796903dc9193802d8",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "FAIL  test/unit/xcodeHost.test.ts > Xcode host shared boundary > ships current tunables and the credential exclusions to Swift"
+      ]
+    },
+    {
+      "drill": "generated-model-text",
+      "source": "hosts/xcode/Scripts/generate.mjs",
+      "scope": "Vitest (all 4 tests in test/unit/xcodeHost.test.ts)",
+      "exitCode": 1,
+      "beforeSha256": "8fd6832423f363273d06c8c3e7937e0d86cf2d477af985e796903dc9193802d8",
+      "restoredSha256": "8fd6832423f363273d06c8c3e7937e0d86cf2d477af985e796903dc9193802d8",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "FAIL  test/unit/xcodeHost.test.ts > Xcode host shared boundary > ships the English native-only prompts without duplicating model text in Swift"
+      ]
+    },
+    {
+      "drill": "generated-languages",
+      "source": "hosts/xcode/Scripts/generate.mjs",
+      "scope": "Vitest (all 4 tests in test/unit/xcodeHost.test.ts)",
+      "exitCode": 1,
+      "beforeSha256": "8fd6832423f363273d06c8c3e7937e0d86cf2d477af985e796903dc9193802d8",
+      "restoredSha256": "8fd6832423f363273d06c8c3e7937e0d86cf2d477af985e796903dc9193802d8",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": [
+        "FAIL  test/unit/xcodeHost.test.ts > Xcode host shared boundary > ships each native label in every installed-language table"
+      ]
+    },
+    {
+      "drill": "selected-workspace-exists",
+      "source": "hosts/xcode/Shared/RuntimeLauncher.swift",
+      "scope": "NativeCore (all 37 tests)",
+      "exitCode": 65,
+      "beforeSha256": "fb838284fa667614dc16fded93f855314ec5cbffd1fd8745f20e30f699e5b7dc",
+      "restoredSha256": "fb838284fa667614dc16fded93f855314ec5cbffd1fd8745f20e30f699e5b7dc",
+      "byteExactRestored": true,
+      "testOrGateProof": true,
+      "failedTests": ["NativeHostTests.NativeHostTests testProjectAndWorkspaceResolveToTheirFolder"]
+    }
+  ]
+}
