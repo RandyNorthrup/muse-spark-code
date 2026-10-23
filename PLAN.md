@@ -29870,6 +29870,8 @@ or helper-only-access certification.
 
 **Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
+**Status 2026-10-22: building.** Lanes Y1, Y2, Y3, Y4, TQ, TP1, TP2, TA, TV, R1, F1, P, W1, W2 and K built on RLM110B, in review (drill record `docs/certification/rlm110b-drills.md`); TJ blocked on M125 lane H.
+
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned, documentation only. Nothing is implemented,

@@ -10,16 +10,21 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   absolutizeMountSource,
+  checkDevcontainerVersion,
+  devcontainerExec,
   devcontainerExecArgv,
   devcontainerResolvedSchema,
+  devcontainerUp,
   devcontainerUpArgv,
   devcontainerUpResultSchema,
+  DevcontainerError,
   DevcontainerRefusedError,
   gateDevcontainerConfig,
   gateMount,
   isPathInside,
   mergeDevcontainerConfig,
   parseMountString,
+  readDevcontainerConfig,
   type DevcontainerResolved,
 } from '../../src/runtime/node/workspaces/devcontainer'
 
@@ -317,6 +322,52 @@ describe('devcontainer argv', () => {
       '-c',
       'echo hi',
     ])
+  })
+})
+
+describe('devcontainer runners, red paths', () => {
+  // The runners shell to a wrong binary on purpose: node itself, which
+  // answers --version with its own (skew), runs no read-configuration
+  // (no JSON), and runs no up (no JSON) — every failure typed.
+  const NODE = process.execPath
+  const WS = FIXTURES
+  it('refuses a CLI whose version is not the pin', async () => {
+    let reason = ''
+    try {
+      await checkDevcontainerVersion(NODE, WS)
+    } catch (error: unknown) {
+      if (error instanceof DevcontainerRefusedError) reason = error.reason
+    }
+    expect(reason).toBe('version-skew')
+  })
+  it('types a version run that exits failing', async () => {
+    let reason = ''
+    try {
+      await checkDevcontainerVersion(path.join('definitely', 'not', 'a', 'cli'), WS)
+    } catch (error: unknown) {
+      if (error instanceof DevcontainerError) reason = error.reason
+    }
+    expect(reason).toBe('cli-failed')
+  })
+  it('types non-JSON from read-configuration and up', async () => {
+    let readReason = ''
+    try {
+      await readDevcontainerConfig(NODE, WS)
+    } catch (error: unknown) {
+      if (error instanceof DevcontainerError) readReason = error.reason
+    }
+    expect(readReason).toBe('bad-output')
+    let upReason = ''
+    try {
+      await devcontainerUp(NODE, { workspaceDir: WS, overrideConfig: 'o.json', idLabels: {} })
+    } catch (error: unknown) {
+      if (error instanceof DevcontainerError) upReason = error.reason
+    }
+    expect(upReason).toBe('bad-output')
+  })
+  it('carries a failing exec exit instead of throwing', async () => {
+    const ran = await devcontainerExec(NODE, WS, { containerId: 'abc', command: ['false'] })
+    expect(ran.exitCode).not.toBe(0)
   })
 })
 
