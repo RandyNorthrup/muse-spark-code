@@ -143,6 +143,10 @@ const HOST_ENTRY = 'src/extension.ts'
 const HOST_OUTFILE = 'dist/extension.js'
 const DEVICES_ENTRY = 'src/host/devices/deviceEntry.ts'
 const DEVICES_OUTFILE = 'dist/devices.js'
+// RLF-DEVICES: the maker executors and their simulators, beside
+// dist/devices.js, required on the first maker execution.
+const MAKER_ENTRY = 'src/host/devices/makerEntry.ts'
+const MAKER_OUTFILE = 'dist/maker.js'
 const CONVERSATION_ENTRY = 'src/host/conversation/conversationEntry.ts'
 // SCHEDULESURFACES: the conversation's schedule surfaces (delivery target
 // readout, scheduled-question settlement, schedules panel commands), loaded
@@ -625,6 +629,13 @@ const devicesOptions = {
   ...modelApiOptions,
   entryPoints: [DEVICES_ENTRY],
   outfile: DEVICES_OUTFILE,
+}
+
+/** @type {import('esbuild').BuildOptions} */
+const makerOptions = {
+  ...modelApiOptions,
+  entryPoints: [MAKER_ENTRY],
+  outfile: MAKER_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1932,6 +1943,7 @@ if (isWatch) {
     esbuild.context(conversationTransferOptions),
     esbuild.context(scheduleSurfacesOptions),
     esbuild.context(devicesOptions),
+    esbuild.context(makerOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
@@ -2129,6 +2141,7 @@ if (isWatch) {
     conversation: recorded('conversation', conversationOptions),
     scheduleSurfaces: recorded('scheduleSurfaces', scheduleSurfacesOptions),
     devices: recorded('devices', devicesOptions),
+    maker: recorded('maker', makerOptions),
     tab: recorded('tab', tabOptions),
     prompts: recorded('prompts', promptsOptions),
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
@@ -2404,6 +2417,7 @@ if (isWatch) {
   reportSize(CONVERSATION_OUTFILE)
   reportSize(CONVERSATION_TRANSFER_OUTFILE)
   reportSize(DEVICES_OUTFILE)
+  reportSize(MAKER_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)

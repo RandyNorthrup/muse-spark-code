@@ -6,7 +6,8 @@
 // bytes, reject sends nothing.
 import { describe, expect, it } from 'vitest'
 import { DevicePanel } from '../../src/core/devices/devicePanel'
-import { MakerService, PanelMakerSurface } from '../../src/host/devices/makerService'
+import { MakerService } from '../../src/host/devices/makerService'
+import { PanelMakerSurface } from '../../src/host/devices/makerSurface'
 import type { MakerApprovalPrompt } from '../../src/shared/maker'
 import {
   parseDeviceWebviewRequest,
@@ -113,10 +114,12 @@ describe('panel maker surface', () => {
 
 function harness(): {
   service: MakerService
+  surface: PanelMakerSurface
   panel: DevicePanel
   published: DeviceHostMessage[]
 } {
-  const service = new MakerService({ publish: () => undefined, reveal: () => undefined })
+  const surface = new PanelMakerSurface({ publish: () => undefined, reveal: () => undefined })
+  const service = new MakerService({ surface })
   const published: DeviceHostMessage[] = []
   const panel = new DevicePanel({
     perform: (request) => {
@@ -138,7 +141,7 @@ function harness(): {
       published.push(message)
     },
   })
-  return { service, panel, published }
+  return { service, surface, panel, published }
 }
 
 async function answerThroughPanel(
@@ -192,7 +195,7 @@ async function connectAndHome(
 
 describe('panel approval round trip', () => {
   it('sends the exact bytes after the panel approves', async () => {
-    const { service, panel } = harness()
+    const { service, surface, panel } = harness()
     const signal = new AbortController().signal
     const printer = service.simulators.printer
     await connectAndHome(service, panel, signal)
@@ -209,11 +212,11 @@ describe('panel approval round trip', () => {
     expect(result.ok).toBe(true)
     const after = await panel.observe()
     expect(after.state).not.toHaveProperty('makerApproval')
-    service.dispose()
+    surface.dispose()
   })
 
   it('sends nothing when the panel rejects', async () => {
-    const { service, panel } = harness()
+    const { service, surface, panel } = harness()
     const signal = new AbortController().signal
     const printer = service.simulators.printer
     await connectAndHome(service, panel, signal)
@@ -231,6 +234,6 @@ describe('panel approval round trip', () => {
     const result = await sendFlight
     expect(result).toMatchObject({ ok: false, reason: 'approval-rejected' })
     expect(printer.readState().fingerprint).toBe(before)
-    service.dispose()
+    surface.dispose()
   })
 })

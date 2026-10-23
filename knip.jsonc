@@ -195,6 +195,7 @@
     "src/shared/featureCatalog.ts",
     "src/host/devices/deviceEntry.ts",
     "src/host/devices/deviceBundle.ts",
+    "src/host/devices/makerEntry.ts",
     "src/webview/main.tsx",
     "src/webview/resources/ResourceSurface.tsx",
     "src/webview/usage/ResourcesSection.tsx",
