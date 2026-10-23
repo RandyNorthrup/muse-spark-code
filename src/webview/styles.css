@@ -4576,12 +4576,12 @@ li:focus-within > .row-actions .row-actions-button,
 }
 
 :is(.menu-item-active, .palette-item-active)
-  :is(.menu-item-detail, .menu-item-icon, .palette-item-detail, .palette-value) {
+  :is(.menu-item-detail, .menu-item-icon, .palette-item-detail, .palette-value, .icon-button) {
   color: inherit;
 }
 
 :is(.menu-item, .palette-item):active
-  :is(.menu-item-detail, .menu-item-icon, .palette-item-detail, .palette-value) {
+  :is(.menu-item-detail, .menu-item-icon, .palette-item-detail, .palette-value, .icon-button) {
   color: inherit;
 }
 

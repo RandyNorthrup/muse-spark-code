@@ -267,7 +267,7 @@ interface FlatNode {
   readonly id: string
   readonly parentId: string | undefined
   readonly level: number
-  /** The screen-reader name: role, model and status (D75). */
+  /** Type-ahead text: role, model and status (D75). The row's name comes from its content. */
   readonly label: string
   readonly expandable: boolean
   readonly body: ReactNode
@@ -605,7 +605,6 @@ export function TeamTree({ tree, actions }: TeamTreeProps) {
           role="treeitem"
           aria-level={node.level}
           aria-expanded={node.expandable ? expanded.has(node.id) : undefined}
-          aria-label={node.label}
           tabIndex={node.id === activeId ? 0 : -1}
           className="team-node"
           data-level={node.level}

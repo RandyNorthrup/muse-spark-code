@@ -301,6 +301,14 @@ export function BackIcon(props: IconProps) {
   )
 }
 
+export function ForwardIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6 3l5 5-5 5" />
+    </Svg>
+  )
+}
+
 /** The disclosure mark on a row that opens: pointing right closed, down open (M15). */
 export function ExpandChevron({ isOpen }: { readonly isOpen: boolean }) {
   return (

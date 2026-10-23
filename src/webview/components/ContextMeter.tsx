@@ -21,11 +21,17 @@ export function ContextMeter({ context, onCompact }: ContextMeterProps) {
   } else if (share >= CONTEXT_PRESSURE_MEDIUM) {
     level = 'medium'
   }
-  const number =
-    percent === 0 && share > 0
+  const isUnderOne = percent === 0 && share > 0
+  const number = isUnderOne
+    ? UI_TEXT.contextMeterUnderOne
+    : formatNumber(Math.min(100, Math.max(0, percent)))
+  // The name says the number the ring shows: a clamped 100 past the
+  // window, `<1` under one percent. The detail keeps the exact figures.
+  const label = fill(UI_TEXT.contextMeterLabel, {
+    percent: isUnderOne
       ? UI_TEXT.contextMeterUnderOne
-      : formatNumber(Math.min(100, Math.max(0, percent)))
-  const label = fill(UI_TEXT.contextMeterLabel, { percent: formatPercent(percent) })
+      : formatPercent(Math.min(100, Math.max(0, percent))),
+  })
   const detail = fill(UI_TEXT.contextDetail, {
     used: formatTokenWindow(context.usedTokens),
     window: formatTokenWindow(context.windowTokens),
