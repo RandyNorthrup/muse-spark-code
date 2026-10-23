@@ -13,6 +13,7 @@ import {
   devicePairingConfirmationSchema,
   deviceThrottledSchema,
 } from './devices'
+import { legacyUsdSchema } from './usdSchema'
 
 const devicePanelId = z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/))
 const label = z.string().check(z.minLength(1))
@@ -43,7 +44,7 @@ export const devicesPanelStateSchema = z.discriminatedUnion('enabled', [
         lastObservedAt: z.optional(z.int().check(z.gte(0), z.lte(DEVICE_LIMITS.observationMaxMs))),
         waitingApprovals: z.int().check(z.gte(0)),
         unresolvedAttempts: z.int().check(z.gte(0)),
-        retainedLiabilityUsd: z.number().check(z.gte(0)),
+        retainedLiabilityUsd: legacyUsdSchema,
         offers: z.array(deviceOfferSchema),
       }),
     ),

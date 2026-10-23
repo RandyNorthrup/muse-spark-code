@@ -5,6 +5,7 @@
 // grants refuse without prompting.
 import { describe, expect, it } from 'vitest'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 import {
   deviceActionDigest,
   DeviceActionGrants,
@@ -83,7 +84,14 @@ function stateFor(local: DeviceLocalAction): DeviceReceiverActionState {
     trusted: true,
     protectedPaths: [],
     approval: { mode: 'manual', quota: deviceCaps, allowed: true },
-    used: { workers: 0, processes: 0, heavyChecks: 0, tokens: 0, spendUsd: 0, artifactBytes: 0 },
+    used: {
+      workers: 0,
+      processes: 0,
+      heavyChecks: 0,
+      tokens: 0,
+      spendUsd: canonicalUsd(0),
+      artifactBytes: 0,
+    },
     action: local,
   }
 }

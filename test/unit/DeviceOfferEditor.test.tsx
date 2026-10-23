@@ -105,7 +105,7 @@ describe('M100 offer editor', () => {
           processes: 1_000_000,
           heavyChecks: 1_000_000,
           tokens: 2_000_000,
-          spendUsd: 999_999.99,
+          spendUsd: '999999.99',
           artifactBytes: 100_000_000,
         },
       },

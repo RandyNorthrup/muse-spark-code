@@ -4,6 +4,7 @@ import { realpathSync } from 'node:fs'
 import { mkdtemp, readdir, rm, readFile, access, writeFile } from 'node:fs/promises'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../src/core/execGuard'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 import { deviceWorkerNative } from '../../src/host/backend/deviceWorkerNative'
 import { compileJob } from '../../src/host/backend/jobBuild'
 import { jobFileName, type JobBuild } from '../../src/host/backend/staleJobs'
@@ -34,8 +35,8 @@ const usage = {
   certainty: 'known',
   inputTokens: 0,
   outputTokens: 0,
-  returnedUsd: 0,
-  retainedLiabilityUsd: 0,
+  returnedUsd: canonicalUsd(0),
+  retainedLiabilityUsd: canonicalUsd(0),
 } as const
 const scratch = { directory: '' }
 const check = deviceCheck(deviceGrant('a'.repeat(32)))

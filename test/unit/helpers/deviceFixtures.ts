@@ -9,6 +9,7 @@ import type { DeviceStorageProtection } from '../../../src/core/devices/storageP
 import { startWindowsStorageProtection } from '../../../src/host/devices/windowsStorageProtection'
 import { runProgram } from '../../../src/host/processTree'
 import { DEVICE_LIMITS } from '../../../src/shared/constants'
+import { Usd } from '../../../src/shared/usd'
 import type { DeviceGrant } from '../../../src/core/devices/grants'
 import type { DeviceDispatch } from '../../../src/shared/devices'
 
@@ -17,7 +18,7 @@ export const deviceCaps = {
   processes: 2,
   heavyChecks: 1,
   tokens: 100,
-  spendUsd: 1,
+  spendUsd: Usd.from(1).toAmount(),
   artifactBytes: 100,
 }
 export function deviceGrant(pairId: string, deviceId = 'a'.repeat(32)): DeviceGrant {

@@ -4,6 +4,7 @@ import * as z from 'zod/mini'
 import { UI_TEXT } from '../../../../shared/constants'
 import { deviceRouteSchema } from '../../../../shared/devices'
 import { formatUsd } from '../../../../shared/l10n/exactUsd'
+import { legacyUsdSchema } from '../../../../shared/usdSchema'
 
 const taskView = z.strictObject({
   taskId: z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/)),
@@ -12,7 +13,7 @@ const taskView = z.strictObject({
   branch: z.optional(z.string().check(z.minLength(1))),
   usage: z.strictObject({
     kind: z.enum(['known', 'estimated', 'uncertain']),
-    amountUsd: z.number().check(z.gte(0)),
+    amountUsd: legacyUsdSchema,
   }),
 })
 export type DeviceTaskView = z.infer<typeof taskView>
