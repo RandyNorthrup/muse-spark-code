@@ -4738,7 +4738,9 @@ export const JUDGE_FAST_B2_SNAPSHOT_MAX_MS = 3000
 export const JUDGE_FAST_B2_SNAPSHOT_MAX_MIB = 4096
 // D107 §9.5 (3): the system calls a check may make on x86_64, in the
 // design's list order. Every other call is reported and refused, and
-// any refused call discards the run.
+// any refused call discards the run. 193: the design's 188 plus the
+// capture's 5 (clone3, io_uring_setup, io_uring_enter, socket, bind),
+// each observed in all four fixture checks on 2026-10-23 (m125-f2.md).
 export const JUDGE_FAST_B2_SYSCALLS_X86_64: readonly string[] = [
   'read',
   'write',
@@ -4835,6 +4837,7 @@ export const JUDGE_FAST_B2_SYSCALLS_X86_64: readonly string[] = [
   'pkey_free',
   'pkey_mprotect',
   'clone',
+  'clone3',
   'fork',
   'vfork',
   'execve',
@@ -4917,7 +4920,11 @@ export const JUDGE_FAST_B2_SYSCALLS_X86_64: readonly string[] = [
   'pselect6',
   'eventfd',
   'eventfd2',
+  'io_uring_setup',
+  'io_uring_enter',
   'socketpair',
+  'socket',
+  'bind',
   'sendmsg',
   'recvmsg',
   'sendto',
@@ -4929,9 +4936,9 @@ export const JUDGE_FAST_B2_SYSCALLS_X86_64: readonly string[] = [
   'getpeername',
   'getrandom',
 ]
-// The 26 of the 188 with no arm64 number in the installed
+// The 26 of the 193 with no arm64 number in the installed
 // asm-generic table (each superseded there, except arch_prctl,
-// which is x86-only), so 162 on arm64. D107 §9.5 says 28; the
+// which is x86-only), so 167 on arm64. D107 §9.5 says 28; the
 // mismatch is an open question (see m125-f2.md).
 export const JUDGE_FAST_B2_SYSCALLS_ARM64_ABSENT: readonly string[] = [
   'open',

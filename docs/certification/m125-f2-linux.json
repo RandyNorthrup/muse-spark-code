@@ -1,0 +1,102 @@
+{
+  "allowList": {
+    "arm64Absent": 26,
+    "arm64Count": 167,
+    "arm64DeltaOpen": "design D107 §9.5 says 28; measured 26 against the installed asm-generic table",
+    "captureAdditions": ["bind", "clone3", "io_uring_enter", "io_uring_setup", "socket"],
+    "designCount": 188,
+    "total": 193
+  },
+  "bubblewrap": "0.11.0",
+  "capture": "m125-f2-linux-linuxlt-2026-10-23",
+  "capturedAt": "2026-10-23T03:50:15+0000",
+  "drills": {
+    "gateFire": [
+      {
+        "break": "script admission always true",
+        "failed": 1,
+        "file": "src/core/judge/fast/b2Closure.ts",
+        "firstFailure": "refuses other commands, scripts and options",
+        "id": "closure-admit-all",
+        "suite": "test/unit/judgeB2Closure.test.ts"
+      },
+      {
+        "break": "safe key set emptied",
+        "failed": 1,
+        "file": "src/core/judge/fast/b2Config.ts",
+        "firstFailure": "admits only keys that name no program, file or code",
+        "id": "config-safe-empty",
+        "suite": "test/unit/judgeB2Config.test.ts"
+      },
+      {
+        "break": "closure comparison always unequal",
+        "failed": 1,
+        "file": "src/core/judge/fast/baseline.ts",
+        "firstFailure": "matches the live tree to its own commit",
+        "id": "baseline-equality",
+        "suite": "test/unit/judgeB2Baseline.test.ts"
+      },
+      {
+        "break": "copy loop drops the first entry",
+        "failed": 2,
+        "file": "src/core/judge/fast/b2Snapshot.ts",
+        "firstFailure": "copies files, links and modes without .git",
+        "id": "snapshot-skip-first",
+        "suite": "test/unit/judgeB2Snapshot.test.ts"
+      }
+    ],
+    "nonFiringBreaks": [
+      {
+        "finding": "Digest sort order is self-consistent: both sides digest the same way, so equality is unaffected.",
+        "id": "digest-order"
+      },
+      {
+        "finding": "Opening the pnpm-direct branch to npm still refuses downstream at the script list.",
+        "id": "parse-pnpm-branch"
+      }
+    ],
+    "restoredSha256": {
+      "src/core/judge/fast/b2Closure.ts": "22eb7d8f28293d6e6e5ca8af517befe7b1f7da3d235873f0b83ee8df51ebf6e2",
+      "src/core/judge/fast/b2Config.ts": "1de08641bdc12572d29521afff8f0ef4eb79e816c4f6044c4e23b9ce1035a394",
+      "src/core/judge/fast/baseline.ts": "19c623dca75ac6b81a727ba4ed188ac538e48152ced8734ccdfda816a0174782",
+      "src/core/judge/fast/b2Snapshot.ts": "fa34c2c4437751c3ec1b3be45806bfde0ab28add258ab004e953dd779c1409d1"
+    }
+  },
+  "method": "Unit suites at repository default timeouts with --maxWorkers=3; deliberate one-line breaks each restored byte-exact with SHA-256 verified; strace -f -c over the four check shapes (vitest, eslint, tsc, prettier) from a private TMPDIR fixture with real node_modules.",
+  "modelAttempts": 0,
+  "node": "v24.21.0",
+  "platform": { "architecture": "x86_64", "os": "Linux", "release": "6.17.0-12-generic" },
+  "sourceSha256": {
+    "src/core/judge/fast/b2Closure.ts": "22eb7d8f28293d6e6e5ca8af517befe7b1f7da3d235873f0b83ee8df51ebf6e2",
+    "src/core/judge/fast/b2Config.ts": "1de08641bdc12572d29521afff8f0ef4eb79e816c4f6044c4e23b9ce1035a394",
+    "src/core/judge/fast/baseline.ts": "19c623dca75ac6b81a727ba4ed188ac538e48152ced8734ccdfda816a0174782",
+    "src/core/judge/fast/b2Snapshot.ts": "fa34c2c4437751c3ec1b3be45806bfde0ab28add258ab004e953dd779c1409d1",
+    "src/shared/constants.ts": "9122a8434a454c18e6a03f86f1a5fff95ee903b9cb37c6cbd1ea3f6854681401",
+    "test/unit/judgeB2AllowList.test.ts": "a733be92431883c7187c3f8e473e96a29935501210b548d43028961e296f91af",
+    "test/unit/judgeB2Baseline.test.ts": "ed2368ea2c7116ca3ab3577849c384b56643968789da4c1a64cc08e7e5b8e8dd",
+    "test/unit/judgeB2Closure.test.ts": "81c3024663976077282729918a43650730deac64d9d029676d3caa0cc2004918709",
+    "test/unit/judgeB2Config.test.ts": "82bacb007495614407275e6f16c3d7e2a991320fae6317d3caa0cc2004918709",
+    "test/unit/judgeB2Snapshot.test.ts": "0096501ed7dd2bed655d637006b61dafdb753593f8f2a5713c0d7247391de523"
+  },
+  "strace": {
+    "calls": 11846,
+    "errors": 1488,
+    "observedDistinct": 81,
+    "observedNotInList": [],
+    "runs": [
+      "npm test (vitest 5.0.3)",
+      "npm run lint (eslint)",
+      "npm run typecheck (tsc)",
+      "npm run format (prettier --check)"
+    ],
+    "version": "6.16"
+  },
+  "suites": {
+    "judgeB2AllowList": 2,
+    "judgeB2Baseline": 7,
+    "judgeB2Closure": 16,
+    "judgeB2Config": 6,
+    "judgeB2Snapshot": 6
+  },
+  "workspace": "<lane-private-TMPDIR>/b2fixture"
+}
