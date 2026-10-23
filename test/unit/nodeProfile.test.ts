@@ -5,8 +5,11 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
+  buildProfile,
   parseStackTable,
   personaPacks,
+  previewPacks,
+  QUESTION_STEPS,
   STRICTNESS_GATES,
   suggestPacks,
 } from '../../src/shared/profile'
@@ -114,5 +117,86 @@ describe('parseStackTable', () => {
     const end = markdown.indexOf('### Required red drills')
     if (start === -1 || end === -1 || end <= start) throw new Error('skill sections moved')
     expect(parseStackTable(markdown.slice(start, end))).toEqual([])
+  })
+
+  it('asks personas, languages, level and strictness in that order', () => {
+    expect(QUESTION_STEPS.map((step) => step.key)).toEqual([
+      'personas',
+      'languages',
+      'level',
+      'strictness',
+    ])
+    expect(QUESTION_STEPS.filter((step) => step.multi).map((step) => step.key)).toEqual([
+      'personas',
+      'languages',
+    ])
+  })
+
+  it('files answers as a stamped versioned profile, validated', () => {
+    const profile = buildProfile(
+      {
+        personas: ['web'],
+        languages: ['TypeScript'],
+        level: 'comfortable',
+        strictness: 'standard',
+      },
+      '2026-10-22T00:00:00.000Z',
+    )
+    expect(profile).toEqual({
+      version: 1,
+      personas: ['web'],
+      languages: ['TypeScript'],
+      level: 'comfortable',
+      strictness: 'standard',
+      updatedAt: '2026-10-22T00:00:00.000Z',
+    })
+    expect(() =>
+      buildProfile(
+        { personas: [], languages: [], level: 'expert', strictness: 'strict' },
+        '2026-10-22T00:00:00.000Z',
+      ),
+    ).toThrow()
+  })
+
+  it('previews each suggestion with its tools, licence, size and click-through', () => {
+    const suggestions = suggestPacks({ personas: ['mobile'], languages: [] })
+    const packs = new Map([
+      [
+        'mobile',
+        {
+          version: '1.0.0',
+          description: 'Mobile.',
+          license: 'Apache-2.0',
+          tools: [{ name: 'kotlin', version: '2.0.0' }],
+          sizeBytes: 1024,
+          clickThrough: true,
+        },
+      ],
+      [
+        'shell',
+        {
+          version: '1.0.0',
+          description: 'Shell.',
+          license: 'MIT',
+          tools: [],
+          clickThrough: false,
+        },
+      ],
+      [
+        'crosscutting',
+        {
+          version: '1.0.0',
+          description: 'Crosscutting.',
+          license: 'MIT',
+          tools: [],
+          clickThrough: false,
+        },
+      ],
+    ])
+    const rows = previewPacks(suggestions, packs)
+    expect(rows.map((row) => row.pack)).toEqual(suggestions.map((suggestion) => suggestion.pack))
+    const mobile = rows.find((row) => row.pack === 'mobile')
+    expect(mobile).toMatchObject({ version: '1.0.0', sizeBytes: 1024, clickThrough: true })
+    expect(() => previewPacks(suggestions, new Map())).toThrow(/no definition previews/)
   })
 })

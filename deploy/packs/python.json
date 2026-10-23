@@ -1,0 +1,134 @@
+{
+  "name": "python",
+  "version": "1.0.0",
+  "description": "CPython through uv (3.15.1, the newest stable uv builds) with ruff, mypy, vulture, deptry, bandit, pip-audit and pytest.",
+  "license": "Apache-2.0 AND MIT AND PSF-2.0",
+  "languages": ["python"],
+  "requires": [],
+  "checks": [
+    {
+      "name": "ruff-format",
+      "command": ["ruff", "format", "--check", "."]
+    },
+    {
+      "name": "ruff-check",
+      "command": ["ruff", "check", "."]
+    },
+    {
+      "name": "mypy",
+      "command": ["mypy", "."]
+    },
+    {
+      "name": "vulture",
+      "command": ["vulture", "."]
+    },
+    {
+      "name": "deptry",
+      "command": ["deptry", "."]
+    },
+    {
+      "name": "bandit",
+      "command": ["bandit", "-r", "."]
+    },
+    {
+      "name": "pip-audit",
+      "command": ["pip-audit"]
+    },
+    {
+      "name": "pytest",
+      "command": ["pytest"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "uv",
+      "version": "0.13.5",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "uv",
+      "version": "0.13.5",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-gnu.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    }
+  ],
+  "managed": {
+    "uvPythons": [
+      {
+        "name": "python",
+        "version": "3.15.1",
+        "license": "PSF-2.0"
+      }
+    ],
+    "uvTools": [
+      {
+        "name": "ruff",
+        "version": "0.17.2",
+        "license": "MIT"
+      },
+      {
+        "name": "mypy",
+        "version": "2.4.0",
+        "license": "MIT"
+      },
+      {
+        "name": "vulture",
+        "version": "2.16",
+        "license": "MIT"
+      },
+      {
+        "name": "deptry",
+        "version": "0.25.1",
+        "license": "MIT"
+      },
+      {
+        "name": "bandit",
+        "version": "1.9.4",
+        "license": "Apache-2.0"
+      },
+      {
+        "name": "pip-audit",
+        "version": "2.10.1",
+        "license": "Apache-2.0"
+      },
+      {
+        "name": "pytest",
+        "version": "9.1.1",
+        "license": "MIT"
+      }
+    ]
+  },
+  "smoke": [
+    {
+      "command": ["uv", "--version"]
+    },
+    {
+      "command": ["python", "--version"]
+    },
+    {
+      "command": ["ruff", "--version"]
+    },
+    {
+      "command": ["mypy", "--version"]
+    },
+    {
+      "command": ["pytest", "--version"]
+    }
+  ]
+}

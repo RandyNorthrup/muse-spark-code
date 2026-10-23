@@ -1,0 +1,65 @@
+{
+  "name": "csharp",
+  "version": "1.0.0",
+  "description": "The .NET SDK (LTS) with dotnet format, the analyzers at latest-all, NuGetAudit and dotnet test. Unity's editor has its own licence and is not a pack.",
+  "license": "MIT AND ICU",
+  "languages": ["csharp", "dotnet"],
+  "requires": [],
+  "checks": [
+    {
+      "name": "dotnet-format",
+      "command": ["dotnet", "format", "--verify-no-changes"]
+    },
+    {
+      "name": "dotnet-build",
+      "command": ["dotnet", "build", "--nologo"]
+    },
+    {
+      "name": "dotnet-test",
+      "command": ["dotnet", "test"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "dotnet-sdk",
+      "version": "10.0.402",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.402/dotnet-sdk-10.0.402-linux-x64.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "dotnet-sdk",
+      "version": "10.0.402",
+      "url": "https://builds.dotnet.microsoft.com/dotnet/Sdk/10.0.402/dotnet-sdk-10.0.402-linux-arm64.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    }
+  ],
+  "smoke": [
+    {
+      "command": ["dotnet", "--version"]
+    }
+  ],
+  "apt": {
+    "snapshot": "20261022T000000Z",
+    "packages": [
+      {
+        "name": "libicu76",
+        "license": "ICU"
+      }
+    ]
+  }
+}

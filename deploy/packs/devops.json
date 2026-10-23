@@ -1,0 +1,246 @@
+{
+  "name": "devops",
+  "version": "1.0.0",
+  "description": "Containers and delivery: podman-remote (the host runs the engine), Helm, kubectl, OpenTofu, actionlint, zizmor and hadolint.",
+  "license": "Apache-2.0 AND GPL-3.0-or-later AND MIT AND MPL-2.0",
+  "languages": [],
+  "requires": [],
+  "checks": [
+    {
+      "name": "actionlint",
+      "command": ["actionlint"]
+    },
+    {
+      "name": "zizmor",
+      "command": ["zizmor", "."]
+    },
+    {
+      "name": "hadolint",
+      "command": ["hadolint"]
+    },
+    {
+      "name": "helm-lint",
+      "command": ["helm", "lint"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "podman-remote",
+      "version": "6.1.4",
+      "url": "https://github.com/podman-container-tools/podman/releases/download/v6.1.4/podman-remote-static-linux_amd64.tar.gz",
+      "license": "Apache-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "podman-remote-static-*",
+          "as": "podman-remote"
+        }
+      ]
+    },
+    {
+      "name": "podman-remote",
+      "version": "6.1.4",
+      "url": "https://github.com/podman-container-tools/podman/releases/download/v6.1.4/podman-remote-static-linux_arm64.tar.gz",
+      "license": "Apache-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "podman-remote-static-*",
+          "as": "podman-remote"
+        }
+      ]
+    },
+    {
+      "name": "helm",
+      "version": "4.3.1",
+      "url": "https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz",
+      "license": "Apache-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "helm",
+      "version": "4.3.1",
+      "url": "https://get.helm.sh/helm-v4.3.1-linux-arm64.tar.gz",
+      "license": "Apache-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "kubectl",
+      "version": "1.37.1",
+      "url": "https://dl.k8s.io/release/v1.37.1/bin/linux/amd64/kubectl",
+      "license": "Apache-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "kubectl",
+      "version": "1.37.1",
+      "url": "https://dl.k8s.io/release/v1.37.1/bin/linux/arm64/kubectl",
+      "license": "Apache-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "opentofu",
+      "version": "1.13.2",
+      "url": "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_amd64.zip",
+      "license": "MPL-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "opentofu",
+      "version": "1.13.2",
+      "url": "https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_arm64.zip",
+      "license": "MPL-2.0",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "actionlint",
+      "version": "1.7.12",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "actionlint",
+      "version": "1.7.12",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_arm64.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "zizmor",
+      "version": "1.31.1",
+      "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.31.1/zizmor-x86_64-unknown-linux-gnu.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "zizmor",
+      "version": "1.31.1",
+      "url": "https://github.com/zizmorcore/zizmor/releases/download/v1.31.1/zizmor-aarch64-unknown-linux-gnu.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "hadolint",
+      "version": "2.15.1",
+      "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-Linux-x86_64",
+      "license": "GPL-3.0-or-later",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "hadolint-*",
+          "as": "hadolint"
+        }
+      ]
+    },
+    {
+      "name": "hadolint",
+      "version": "2.15.1",
+      "url": "https://github.com/hadolint/hadolint/releases/download/v2.15.1/hadolint-Linux-arm64",
+      "license": "GPL-3.0-or-later",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "hadolint-*",
+          "as": "hadolint"
+        }
+      ]
+    }
+  ],
+  "smoke": [
+    {
+      "command": ["podman-remote", "--version"]
+    },
+    {
+      "command": ["helm", "version"]
+    },
+    {
+      "command": ["kubectl", "version", "--client"]
+    },
+    {
+      "command": ["tofu", "--version"]
+    },
+    {
+      "command": ["actionlint", "--version"]
+    },
+    {
+      "command": ["zizmor", "--version"]
+    },
+    {
+      "command": ["hadolint", "--version"]
+    }
+  ]
+}

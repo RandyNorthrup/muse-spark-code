@@ -1,0 +1,154 @@
+{
+  "name": "makers",
+  "version": "1.0.0",
+  "description": "Makers and embedded: PlatformIO, esptool, arduino-cli, picotool and mpremote with the QEMU and Renode emulators. Python rides the python pack; Wokwi needs the person's own token and is not a pack.",
+  "license": "Apache-2.0 AND BSD-3-Clause AND GPL-2.0-only AND GPL-2.0-or-later AND GPL-3.0-or-later AND MIT",
+  "languages": ["python"],
+  "requires": ["python"],
+  "checks": [
+    {
+      "name": "platformio-check",
+      "command": ["pio", "check"]
+    },
+    {
+      "name": "arduino-compile",
+      "command": ["arduino-cli", "compile", "--warnings", "all"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "uv",
+      "version": "0.13.5",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-x86_64-unknown-linux-gnu.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "uv",
+      "version": "0.13.5",
+      "url": "https://github.com/astral-sh/uv/releases/download/0.13.5/uv-aarch64-unknown-linux-gnu.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "arduino-cli",
+      "version": "1.5.1",
+      "url": "https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_64bit.tar.gz",
+      "license": "GPL-3.0-or-later",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "arduino-cli",
+      "version": "1.5.1",
+      "url": "https://github.com/arduino/arduino-cli/releases/download/v1.5.1/arduino-cli_1.5.1_Linux_ARM64.tar.gz",
+      "license": "GPL-3.0-or-later",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "renode",
+      "version": "1.17.0",
+      "url": "https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-portable.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "renode",
+      "version": "1.17.0",
+      "url": "https://github.com/renode/renode/releases/download/v1.17.0/renode-1.17.0.linux-arm64-portable.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    }
+  ],
+  "managed": {
+    "uvTools": [
+      {
+        "name": "platformio",
+        "version": "6.2.0",
+        "license": "Apache-2.0"
+      },
+      {
+        "name": "esptool",
+        "version": "5.6.0",
+        "license": "GPL-2.0-or-later"
+      },
+      {
+        "name": "mpremote",
+        "version": "1.29.0",
+        "license": "MIT"
+      }
+    ]
+  },
+  "apt": {
+    "snapshot": "20261022T000000Z",
+    "packages": [
+      {
+        "name": "picotool",
+        "license": "BSD-3-Clause"
+      },
+      {
+        "name": "qemu-system-arm",
+        "license": "GPL-2.0-only"
+      },
+      {
+        "name": "qemu-system-misc",
+        "license": "GPL-2.0-only"
+      }
+    ]
+  },
+  "smoke": [
+    {
+      "command": ["arduino-cli", "version"]
+    },
+    {
+      "command": ["renode", "--version"]
+    },
+    {
+      "command": ["pio", "--version"]
+    },
+    {
+      "command": ["esptool", "version"]
+    },
+    {
+      "command": ["mpremote", "--version"]
+    },
+    {
+      "command": ["picotool", "version"]
+    },
+    {
+      "command": ["qemu-system-arm", "--version"]
+    }
+  ]
+}

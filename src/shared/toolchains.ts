@@ -10,11 +10,17 @@ export const TOOLCHAINS_VERSION = 1
 /** The file's name beside the pack store. */
 export const TOOLCHAINS_FILE = 'toolchains.json'
 
-/** One installed pack's capability: its gates and languages. */
+/** One installed pack's capability: its tools, gates and languages. */
 export const toolchainPackSchema = z.strictObject({
   name: z.string().check(z.minLength(1)),
   version: z.string().check(z.minLength(1)),
   languages: z.array(z.string().check(z.minLength(1))),
+  tools: z.array(
+    z.strictObject({
+      name: z.string().check(z.minLength(1)),
+      version: z.string().check(z.minLength(1)),
+    }),
+  ),
   checks: z.array(
     z.strictObject({
       name: z.string().check(z.minLength(1)),

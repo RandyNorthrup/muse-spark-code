@@ -349,6 +349,11 @@ export const LOCAL_PROBE_TIMEOUT_MS = 3 * 1000
 export const LOCAL_PROBE_SNIPPET_CHARS = 500
 /** A loopback probe answer past this is refused rather than read (M95 step 1). */
 export const LOOPBACK_FETCH_MAX_BODY_BYTES = 64 * 1024
+// M110b W1 (PLAN.md D90.5): the CONNECT head the egress proxy reads
+// before answering. CONNECT heads are a hundred bytes; past this the
+// client is probing, and is refused. Structural abuse guard, listed
+// for the lead (D121): it never stops legit work.
+export const EGRESS_CONNECT_HEAD_MAX_BYTES = 8 * 1024
 /** The probe dials `http:` loopback; an empty port means this one. */
 export const LOOPBACK_FETCH_DEFAULT_PORT = 80
 /**
@@ -2912,6 +2917,8 @@ export const MODEL_API_TOOLS = {
   // M81 (PLAN.md D49): a local page in a headless browser, seen as it renders.
   browserCheck: 'browser_check',
   legalScan: 'legal_scan',
+  // M110t TA (PLAN.md D90.27): the installed toolchains, read-only.
+  toolchains: 'toolchains',
 } as const
 // --- Inline completions (Tab) (M94, PLAN.md D73) ---
 
@@ -4977,6 +4984,18 @@ export const NODE_ADDRESS_POLL_MS = 30_000
 export const PACKS_SIGN_ISSUER = 'https://token.actions.githubusercontent.com'
 export const PACKS_SIGN_IDENTITY =
   'https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/node-packs.yml@refs/heads/main'
+// M110b K (PLAN.md D90.22): Live peek's view bounds. These shape the
+// read-only view only — the ring ages view data out, pacing spaces
+// viewer updates — and never stop, slow or refuse the agent (D121):
+// offer() never blocks, and a lagging viewer gets a skip marker, never
+// backpressure. No viewer count is capped: phase-b viewers are the
+// owner on their own machine (a viewer cap stays a phase-e question
+// with share links).
+export const PEEK_BUFFER_EVENTS = 500
+export const PEEK_BUFFER_BYTES = 1024 * 1024
+export const PEEK_MAX_UPDATES_PER_S = 4
+/** How many recent events a one-shot peek (`/peek`) prints. */
+export const PEEK_DEFAULT_TAIL_EVENTS = 20
 // D121 (owner 2026-10-16): no auto-pause of ours — a schedule pauses
 // after failures only at the count the person sets in
 // `museSpark.schedulePauseAfterFailures` (0, the default, never pauses).
@@ -9129,6 +9148,19 @@ export const LEGAL_SCAN_TOOL_MODEL_TEXT = {
   invalidResult: 'the legal scan returned an invalid result',
   legalScanRestrictedMode:
     'the legal scan is off while the workspace is in Restricted Mode; trust the workspace to enable it',
+} as const
+
+// M110t TA (PLAN.md D90.27): the `toolchains` tool and the one stable
+// context line. Only the Model API boundaries read this block.
+export const TOOLCHAINS_MODEL_TEXT = {
+  description:
+    'Read the installed toolchains (toolchains.json): packs, tools, versions and gate commands. Read-only: it changes nothing and installs nothing. It takes no arguments.',
+  unknownTool: 'unknown tool',
+  invalidArguments: 'invalid arguments',
+  invalidResult: 'the toolchains file is invalid; reinstall the packs to repair it',
+  noToolchains: 'no toolchains are installed',
+  cancelled: 'the toolchains read was cancelled',
+  toolchainsContextLine: 'Toolchains: {tools}. The toolchains tool has the full file.',
 } as const
 
 export const MCP_POOL_MODEL_TEXT = {

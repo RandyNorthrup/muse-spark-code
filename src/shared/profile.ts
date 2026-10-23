@@ -290,3 +290,84 @@ export function parseStackTable(skillMarkdown: string): StackTableRow[] {
   }
   return rows
 }
+
+/** One questionnaire question: its answer key and whether it takes several. */
+export interface QuestionStep {
+  readonly key: 'personas' | 'languages' | 'level' | 'strictness'
+  readonly multi: boolean
+}
+
+/**
+The questionnaire's order, shared by every surface (first boot, Settings,
+the launcher, the TUI): personas, then languages, experience level and
+strictness. Prompts and labels are the surfaces' own words.
+*/
+export const QUESTION_STEPS: readonly QuestionStep[] = [
+  { key: 'personas', multi: true },
+  { key: 'languages', multi: true },
+  { key: 'level', multi: false },
+  { key: 'strictness', multi: false },
+]
+
+/** The questionnaire's answers, before they are filed as a profile. */
+export interface ProfileAnswers {
+  readonly personas: readonly Persona[]
+  readonly languages: readonly string[]
+  readonly level: Level
+  readonly strictness: Strictness
+}
+
+/**
+File the answers as profile.json: validated, stamped, versioned. The
+stamp rides the caller's clock so tests pin it; surfaces pass now.
+*/
+export function buildProfile(answers: ProfileAnswers, updatedAt: string): NodeProfile {
+  return profileSchema.parse({ ...answers, version: PROFILE_VERSION, updatedAt })
+}
+
+/** One pack's pre-install facts, as the definitions and index carry them. */
+export interface PackPreviewInput {
+  readonly version: string
+  readonly description: string
+  readonly license: string
+  readonly tools: readonly { readonly name: string; readonly version: string }[]
+  readonly sizeBytes?: number
+  readonly clickThrough: boolean
+}
+
+/** One pack's row in the pre-install list: structured, surfaces format. */
+export interface PackPreviewRow {
+  readonly pack: PackName
+  readonly reason: string
+  readonly version: string
+  readonly description: string
+  readonly license: string
+  readonly tools: readonly { readonly name: string; readonly version: string }[]
+  readonly sizeBytes?: number
+  readonly clickThrough: boolean
+}
+
+/**
+The pack list with tools, versions, licences, sizes and sources before
+**Install**: each suggestion joined to its definition. A suggestion
+without a definition is a caller bug — suggestions name known packs.
+*/
+export function previewPacks(
+  suggestions: readonly PackSuggestion[],
+  packs: ReadonlyMap<string, PackPreviewInput>,
+): PackPreviewRow[] {
+  return suggestions.map((suggestion) => {
+    const input = packs.get(suggestion.pack)
+    if (input === undefined) throw new Error(`no definition previews ${suggestion.pack}`)
+    return {
+      pack: suggestion.pack,
+      reason: suggestion.reason,
+      version: input.version,
+      description: input.description,
+      license: input.license,
+      tools: input.tools,
+      ...(input.sizeBytes !== undefined && { sizeBytes: input.sizeBytes }),
+      clickThrough: input.clickThrough,
+    }
+  })
+}

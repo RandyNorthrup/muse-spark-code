@@ -1,0 +1,175 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "description": "Docs and writing: prettier, markdownlint-cli2, Vale and lychee. The npm gates ride the TypeScript pack's Node.",
+  "license": "MIT AND (Apache-2.0 OR MIT)",
+  "languages": [],
+  "requires": ["typescript"],
+  "checks": [
+    {
+      "name": "prettier",
+      "command": ["prettier", "--check", "."]
+    },
+    {
+      "name": "markdownlint",
+      "command": ["markdownlint-cli2", "**/*.md"]
+    },
+    {
+      "name": "vale",
+      "command": ["vale", "."]
+    },
+    {
+      "name": "lychee",
+      "command": ["lychee", "."]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "node-24",
+      "version": "24.22.1",
+      "url": "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-x64.tar.xz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "node",
+          "as": "node"
+        },
+        {
+          "name": "node",
+          "as": "node-24"
+        },
+        {
+          "name": "npm",
+          "as": "npm"
+        },
+        {
+          "name": "npx",
+          "as": "npx"
+        },
+        {
+          "name": "corepack",
+          "as": "corepack"
+        }
+      ]
+    },
+    {
+      "name": "node-24",
+      "version": "24.22.1",
+      "url": "https://nodejs.org/dist/v24.22.1/node-v24.22.1-linux-arm64.tar.xz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "node",
+          "as": "node"
+        },
+        {
+          "name": "node",
+          "as": "node-24"
+        },
+        {
+          "name": "npm",
+          "as": "npm"
+        },
+        {
+          "name": "npx",
+          "as": "npx"
+        },
+        {
+          "name": "corepack",
+          "as": "corepack"
+        }
+      ]
+    },
+    {
+      "name": "vale",
+      "version": "3.24.0",
+      "url": "https://github.com/vale-cli/vale/releases/download/v3.24.0/vale_3.24.0_Linux_64-bit.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "vale",
+      "version": "3.24.0",
+      "url": "https://github.com/vale-cli/vale/releases/download/v3.24.0/vale_3.24.0_Linux_arm64.tar.gz",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    },
+    {
+      "name": "lychee",
+      "version": "0.24.2",
+      "url": "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-x86_64-unknown-linux-gnu.tar.gz",
+      "license": "Apache-2.0 OR MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "lychee",
+      "version": "0.24.2",
+      "url": "https://github.com/lycheeverse/lychee/releases/download/lychee-v0.24.2/lychee-aarch64-unknown-linux-gnu.tar.gz",
+      "license": "Apache-2.0 OR MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    }
+  ],
+  "managed": {
+    "npm": [
+      {
+        "name": "prettier",
+        "version": "3.9.10",
+        "license": "MIT"
+      },
+      {
+        "name": "markdownlint-cli2",
+        "version": "0.24.0",
+        "license": "MIT"
+      }
+    ]
+  },
+  "smoke": [
+    {
+      "command": ["vale", "--version"]
+    },
+    {
+      "command": ["lychee", "--version"]
+    },
+    {
+      "command": ["prettier", "--version"]
+    },
+    {
+      "command": ["markdownlint-cli2", "--version"]
+    }
+  ]
+}
