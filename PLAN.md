@@ -18348,10 +18348,11 @@ plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
 (M62b tried for real where installable; M63c refreshed for PR #661; M65
 waits on RLM104; M66 assessed; `docs/certification/rlhosts.md`).
 
-**Status 2026-10-22 (RLF-HOSTS2): building**
-(M66: Vim plugin shipped and host-checked, its live drill awaits the
-lead's unsandboxed run; Xcode 26.3's bridge is dyld-dead on this Mac, so
-no Xcode session is possible here; `docs/certification/rlf-hosts2.md`).
+**Status 2026-10-22 (RLF-HOSTS2): built**
+(M66: Vim plugin shipped and host-checked, live drill held 3 turns in
+4 contributor requests; Xcode 26.3's bridge is dyld-dead on this Mac,
+so no Xcode session is possible here;
+`docs/certification/rlf-hosts2.md`).
 
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |

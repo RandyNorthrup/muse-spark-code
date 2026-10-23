@@ -50,38 +50,49 @@ Two findings from the red drills, both fixed in the lane:
   early live attempt died at startup (exit 2). The model is picked with
   `:MuseSparkModel` after the session starts; every guide now says so.
 
-## M66 — Classic Vim: the live conversation is sandbox-blocked
+## M66 — Classic Vim: live contributor conversation held (4 requests)
 
-The committed drill `test/e2e/vim.live.e2e.test.ts` (`MUSE_LIVE_VIM=1`,
-never CI) holds the 3-turn contributor conversation through real Vim
-and the packed plugin — READY, the `notes.txt` quote through an
-allow-once read permission, DONE — then counts model attempts from the
-CLI's own trace log (`test/e2e/liveCli.ts`, budget 200 for three turns
-at the measured 25–45 attempts each) and asserts every completed
-request's model from the session log (verified against real 0- and
-1-response logs). It skips cleanly without the flag (4 skipped).
+Correction: the earlier "sandbox-blocked" verdict was the lane's own
+probe fault. The probe overrode `HOME=/Users/randy`, and the CLI reads
+`$HOME/.claude/skills`, so the probe manufactured its own
+`Operation not permitted`; the lane shell genuinely cannot read that
+path, but nothing in the live path needs it. The committed drill
+`test/e2e/vim.live.e2e.test.ts` (`MUSE_LIVE_VIM=1`, never CI) inherits
+the lane home and runs in-sandbox: real Vim 9.1 drove the packed
+plugin through `dist/acp.js --backend museCode`, switched to
+`muse-spark-1.3-contributor` via `:MuseSparkModel` (the driver refuses
+to continue otherwise), and held the 3 turns — READY, the `notes.txt`
+quote through an allow-once read permission, DONE — to 3 `[stop:
+end_turn]` (`LIVE stop stop stop`, 2026-10-22).
 
-It cannot run in this lane's sandbox: starting a signed-in session
-(`HOME=/Users/randy`) fails inside `muse serve` with `failed to read
-skill file at /Users/randy/.claude/skills: Operation not permitted`,
-with and without `--trust-workspace` (zero model calls either way; the
-read is unconditional at session start). The lane shell itself gets
-`Operation not permitted` on that path. No product flag avoids it:
-the repo's `MUSE_*` env surface has no skills-dir option
-(`MUSE_CONFIG_DIR` is an unrelated dictation compile define;
-`MUSE_AUTH_PATH` is wrapper-only), and copying the sign-in elsewhere
-is forbidden, so the lead reruns it outside the sandbox:
+Receipts: session `01a166e5-2daf-7c90-b831-ad8d3225e801`, 4
+`model_response_created` / 4 `model_completed`, every completed
+request on `muse-spark-1.3-contributor`, zero error/refusal events,
+and the answers (`READY`, `second line is bravo`, `DONE`) in the
+session log — 3 prompts, 4 requests, exactly at the brief's cap, all
+on the contributor tier. An audit of every same-day lane session
+found no other requests. The CLI wrote no `local-tracing` log on
+this host, so the drill counts requests from the session log (the
+brief's unit), not trace attempts: `sends at most four model
+requests` (2/4 passed live; the 2 failures were drill bugs, fixed
+below, not conversation failures).
+
+The live run caught two drill bugs, fixed in-tree: the model was
+read from the `[session]` open line (default `muse-wonder-1.0`)
+instead of the `# Muse Spark — <model>` header after the switch,
+and the trace-attempt counter depended on a log this host never
+writes. Both fixes are validated offline against run #1's real
+artifacts (header shapes, session log: 4 ≤ 4); no second live run
+was spent, keeping the lane at the stated cap. The lead's rerun for
+full green:
 
 ```sh
 MUSE_LIVE_VIM=1 MUSE_LIVE_VIM_TARBALL=dist/muse-spark-code-acp-<version>-<target>.tgz \
   npx vitest run test/e2e/vim.live.e2e.test.ts
 ```
 
-with the owner's sign-in and Vim on `PATH` (or `VIM_BIN`). Expected: 3
-prompts, at most 4 model requests, counted afterwards from the CLI's
-trace log and session records as the drill does (a request here is one
-model turn; the CLI's bundled reminder agents add their own attempts
-inside the 200 budget).
+with the owner's sign-in and Vim on `PATH` (or `VIM_BIN`). Without
+the flag the drill skips cleanly (4 skipped).
 
 ## M66 — Xcode 26.3: installed, route broken, our side built
 
