@@ -10,6 +10,13 @@ import { makerMeshMessageSchema } from '../../shared/makerProtocolPreview'
 import type { HostBridge } from '../hostBridge'
 import { createMeshRenderer } from './meshRenderer'
 
+/** The renderer's own fixed refusal words for an unusable WebGL surface. */
+function isRenderFailure(error: unknown): boolean {
+  return (
+    error instanceof RangeError || (error instanceof Error && error.message.startsWith('webgl'))
+  )
+}
+
 /** Host supplies localized HTML and CSP; this page never reads files or URLs. */
 export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfaceMessage>) {
   const canvas = document.querySelector<HTMLCanvasElement>('#maker-canvas')
@@ -84,7 +91,8 @@ export function wireMakerPreview(document: Document, host: HostBridge<MakerSurfa
         renderer = createMeshRenderer(canvas, parsed)
         unavailable.hidden = true
         canvas.dataset['rendered'] = 'true'
-      } catch {
+      } catch (error: unknown) {
+        if (!isRenderFailure(error)) throw error
         fail()
       }
     }

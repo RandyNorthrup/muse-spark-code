@@ -37,6 +37,11 @@ function lowerBound(values: readonly { readonly line: number }[], line: number):
   return low
 }
 
+/** A worker or object URL the platform refuses to start (CSP, no workers). */
+function isWorkerStartFailure(error: unknown): boolean {
+  return error instanceof DOMException || error instanceof TypeError
+}
+
 /** Prepare immutable worker data in bounded slices before enabling search. */
 async function searchRowsBlob(payload: CanonicalPayload, signal: AbortSignal): Promise<Blob> {
   const parts = ['[']
@@ -167,23 +172,25 @@ export function PayloadReview({
       }
       return size
     }
-    void (async () => {
-      const bytes = outgoingPayloadBytes(content, encoding)
-      const payload = await canonicalPayload(bytes, width, measure, controller.signal)
-      const summary = await summarizePayload(bytes, request, limits, controller.signal)
-      const searchRows = await searchRowsBlob(payload, controller.signal)
-      controller.signal.throwIfAborted()
-      setFailed(false)
-      setReachedEnd(false)
-      setConfirmed(false)
-      setAcknowledged(false)
-      setStart(0)
-      setMatch(-1)
-      setHighlightIndex(0)
-      setPrepared({ content, encoding, width, request, limits, payload, summary, searchRows })
-      callbacks.current.onRendered?.(payload.digest)
-    })().catch(() => {
-      if (!controller.signal.aborted) setFailed(true)
+    void Promise.allSettled([
+      (async () => {
+        const bytes = outgoingPayloadBytes(content, encoding)
+        const payload = await canonicalPayload(bytes, width, measure, controller.signal)
+        const summary = await summarizePayload(bytes, request, limits, controller.signal)
+        const searchRows = await searchRowsBlob(payload, controller.signal)
+        controller.signal.throwIfAborted()
+        setFailed(false)
+        setReachedEnd(false)
+        setConfirmed(false)
+        setAcknowledged(false)
+        setStart(0)
+        setMatch(-1)
+        setHighlightIndex(0)
+        setPrepared({ content, encoding, width, request, limits, payload, summary, searchRows })
+        callbacks.current.onRendered?.(payload.digest)
+      })(),
+    ]).then(([attempt]) => {
+      if (attempt.status === 'rejected' && !controller.signal.aborted) setFailed(true)
     })
     return () => {
       controller.abort()
@@ -267,7 +274,8 @@ export function PayloadReview({
         cancelSearch()
         setFailed(true)
       })
-    } catch {
+    } catch (error: unknown) {
+      if (!isWorkerStartFailure(error)) throw error
       cancelSearch()
       setFailed(true)
     } finally {
