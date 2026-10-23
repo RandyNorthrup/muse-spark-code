@@ -1,11 +1,5 @@
 [
   {
-    "advisory": "GHSA-vfj7-8cjw-p6xm",
-    "package": "braces",
-    "reason": "Stack exhaustion from deeply nested brace patterns (<=3.0.3; no fixed release exists on 2026-10-02). Development tooling only: stylelint's micromatch and fast-glob, and secretlint under @vscode/vsce and ovsx. Nothing in the VSIX or the ACP package imports braces, micromatch, fast-glob or globby, and these tools only expand patterns from this repository's own configuration, never input from a user or a model. Remove when braces publishes a fix (then update or override) or when npm stops reporting it.",
-    "expires": "2026-11-01"
-  },
-  {
     "advisory": "GHSA-gfr2-rv44-r23c",
     "package": "markdown-it",
     "reason": "Quadratic-time rendering of one multi-line link reference definition (>=14.1.0 <14.3.3). The fixed 14.3.3 was published 2026-10-16 and is inside .npmrc's seven-day release-age rule until 2026-10-23. Development tooling only: @vscode/vsce under ovsx renders this repository's own README and CHANGELOG while packaging. Nothing in the VSIX or the ACP package imports markdown-it, and no user or model input reaches it. Pin 14.3.3 through overrides once it passes the release-age rule, then remove this exception.",
