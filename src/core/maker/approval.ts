@@ -17,6 +17,7 @@ import {
 } from '../../shared/maker'
 import type { DeviceLocalAction, DevicePresencePort } from '../devices/actionGrants'
 import type { DEVICE_STEP_UP_METHODS } from '../../shared/devices'
+import type { MakerAnalysisOutcome } from './analysis'
 import { DEVICE_LIMITS } from '../../shared/constants'
 
 const BYTE_TAB = 0x09
@@ -84,6 +85,8 @@ export interface MakerVerifiedApproval {
   readonly operation: MakerOperation
   readonly stateAtMint: string
   readonly verifiedAt: number
+  /** The analysis the person saw with the bytes, when the mint showed one. */
+  readonly analysis?: MakerAnalysis
 }
 
 export type MakerAnswerVerdict =
@@ -122,6 +125,7 @@ export class MakerPendingApproval {
         operation: this.prompt.operation,
         stateAtMint: this.stateAtMint,
         verifiedAt: at,
+        ...(this.prompt.analysis !== undefined && { analysis: this.prompt.analysis }),
       }),
     }
   }
@@ -191,8 +195,12 @@ export interface MakerPresenceBindings {
   readonly target: MakerTarget
   /** Fresh machine state, read when the prompt opens (D83.3). */
   readonly readState: () => string
-  /** Exact analysis for an actuation payload, from the executor's reader. */
-  readonly analyze?: (payload: Uint8Array) => MakerAnalysis | undefined
+  /**
+  Exact analysis for an actuation payload, from the executor's reader.
+  Actuation prompts only with a bound analysis: without one the grant
+  refuses as presence-unverified instead of asking blind (D83.3).
+  */
+  readonly analyze?: (payload: Uint8Array) => MakerAnalysisOutcome | undefined
   /** The granting authority's own deadline for the held approval. */
   readonly expiresAt?: number
 }
@@ -231,8 +239,10 @@ export class MakerPresencePort implements DevicePresencePort {
     this.prune()
     const operation = input.action.operation
     if (operation !== 'connect' && operation !== 'program' && operation !== 'actuate') return false
-    const analysis =
+    const analysed =
       operation === 'actuate' ? this.bindings.analyze?.(input.action.payload) : undefined
+    if (operation === 'actuate' && !analysed?.ok) return false
+    const analysis = analysed?.ok ? analysed.analysis : undefined
     const verdict = await requestMakerApproval(
       this.approvals,
       this.asker,

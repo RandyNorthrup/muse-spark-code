@@ -11,6 +11,7 @@ import {
   renderMakerPreview,
   requestMakerApproval,
 } from '../../src/core/maker/approval'
+import { analyzeMakerPayload } from '../../src/core/maker/analysis'
 import type { DeviceLocalAction } from '../../src/core/devices/actionGrants'
 
 const TARGET: MakerTarget = {
@@ -169,7 +170,11 @@ describe('maker presence port', () => {
         seen.push(prompt)
         return Promise.resolve(answerFor(prompt, 'send'))
       },
-      { target: TARGET, readState: () => 'state-1' },
+      {
+        target: TARGET,
+        readState: () => 'state-1',
+        analyze: (payload) => analyzeMakerPayload('printer', payload, { x: 0, y: 0, z: 0 }),
+      },
       () => 1000,
     )
     const isConfirmed = await port.confirm({
@@ -224,13 +229,39 @@ describe('maker presence port', () => {
     expect(port.takeApproval('digest-3')).toBeUndefined()
   })
 
+  it('refuses to prompt an actuation it cannot analyse', async () => {
+    const approvals = new MakerApprovals({ now: () => 1000 })
+    let didAsk = false
+    const port = new MakerPresencePort(
+      approvals,
+      () => {
+        didAsk = true
+        return Promise.resolve(null)
+      },
+      { target: TARGET, readState: () => 'state-1' },
+    )
+    const isConfirmed = await port.confirm({
+      actionDigest: 'digest-5',
+      action: presenceAction('actuate'),
+      method: 'local-confirm',
+      signal: new AbortController().signal,
+    })
+    expect(isConfirmed).toBe(false)
+    expect(didAsk).toBe(false)
+  })
+
   it('prunes a held approval past the granting authority expiry', async () => {
     let at = 1000
     const approvals = new MakerApprovals({ randomId: () => 'c'.repeat(32), now: () => at })
     const port = new MakerPresencePort(
       approvals,
       (prompt) => Promise.resolve(answerFor(prompt, 'send')),
-      { target: TARGET, readState: () => 'state-1', expiresAt: 2000 },
+      {
+        target: TARGET,
+        readState: () => 'state-1',
+        expiresAt: 2000,
+        analyze: (payload) => analyzeMakerPayload('printer', payload, { x: 0, y: 0, z: 0 }),
+      },
       () => at,
     )
     const isConfirmed = await port.confirm({

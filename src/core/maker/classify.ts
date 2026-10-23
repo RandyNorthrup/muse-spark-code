@@ -16,6 +16,8 @@ words, never user sentences.
 export type MakerRefusalReason =
   | 'refused-command'
   | 'empty-payload'
+  | 'unbounded-motion'
+  | 'target-mismatch'
   | 'cnc-delivery'
   | 'outside-limits'
   | 'no-limits'
@@ -131,6 +133,63 @@ function firstWord(line: string): string {
 
 function hasToken(upper: string, token: string): boolean {
   return upper.includes(token.toUpperCase())
+}
+
+export interface MakerWord {
+  readonly letter: string
+  /** Null when the letters carry no parseable number. */
+  readonly value: number | null
+}
+
+/**
+Splits a comment-free line into letter words (`G1`, `X10.5`, `F1500`).
+Unparseable numbers stay null so the analyser fails closed on them.
+*/
+/**
+The line's command word (`G1`, `M104`, `$H`, `?`): the first letter
+word with its number, so compact `G1X10` reads as `G1` too.
+*/
+export function makerLineCommand(line: string): string {
+  const words = parseMakerWords(line)
+  const first = words[0]
+  if (first === undefined) return ''
+  if (['G', 'M'].includes(first.letter) && first.value !== null)
+    return `${first.letter}${String(first.value)}`
+  return first.letter === '$' ? `$${words[1]?.letter ?? ''}` : first.letter
+}
+
+/** Uppercase axis letters to their lowercase state keys. */
+export const MAKER_AXIS_KEY = { X: 'x', Y: 'y', Z: 'z' } as const
+
+/** A letter word's number, or undefined when the letter never appears. */
+export function makerWordValue(
+  words: readonly MakerWord[],
+  letter: string,
+): number | null | undefined {
+  return words.find((word) => word.letter === letter)?.value
+}
+
+const MAKER_WORD_PATTERN = /([A-Za-z$?])([-+]?(?:\d+\.?\d*|\.\d+)?)/g
+
+export function parseMakerWords(line: string): MakerWord[] {
+  // A Marlin line number and checksum carry no words of their own.
+  const cleaned = stripComments(line)
+    .replace(/^N\d+\s*/i, '')
+    .replace(/\*.*$/, '')
+  if (cleaned === '') return []
+  const words: MakerWord[] = []
+  for (const match of cleaned.matchAll(MAKER_WORD_PATTERN)) {
+    const letter = (match[1] ?? '').toUpperCase()
+    if (letter === '') continue
+    const raw = match[2] ?? ''
+    if (raw === '') {
+      words.push({ letter, value: null })
+      continue
+    }
+    const value = Number(raw)
+    words.push({ letter, value: Number.isFinite(value) ? value : null })
+  }
+  return words
 }
 
 function refusedChipOp(line: string): string | undefined {
