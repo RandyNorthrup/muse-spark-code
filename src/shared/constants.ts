@@ -5101,10 +5101,10 @@ export const POSIX_TREE_EXIT_POLL_MS = 20
 // is compiled once into the extension's storage. Where no job is possible,
 // the shell is given this long to exit after taskkill, and then its orphans
 // are looked up by their dead parent's id and killed, one generation per
-// round, until none remains or the stop fires (D121, RLF-NOLIMITS: no round
-// count of ours). A helper run itself (PowerShell, the process table,
-// taskkill) has no deadline of ours: Windows PowerShell's first start on a
-// slow machine outlasted the old 20 s and was killed.
+// round, until none remains, the stop fires, or the rounds below run out.
+// A helper run itself (PowerShell, the process table, taskkill) has no
+// deadline of ours: Windows PowerShell's first start on a slow machine
+// outlasted the old 20 s and was killed.
 export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
 // .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
@@ -5116,6 +5116,13 @@ export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.3
 // eslint-disable-next-line unicorn/prefer-string-raw -- as above.
 export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
+// Safety limit (D121 clarification, RLF-SAFELIMITS): the orphan sweep
+// reaps at most this many generations. taskkill /T itself makes a single
+// enumeration pass (Microsoft Learn, "taskkill"); five identity-checked
+// generations already exceed the platform tool and every spawn chain the
+// 0.6.0 gate observed, and a respawning child ends the sweep with words
+// instead of sweeping forever.
+export const ORPHAN_SWEEP_ROUNDS = 5
 /**
 The usage-page opener's own wait bound (D121): the terminal must not wait on
 a stuck OS opener past this; the page, once handed off, is the OS's. Every
