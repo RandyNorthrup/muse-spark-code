@@ -551,6 +551,16 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     turnId: z.string().check(z.minLength(1)),
     userMessageId: z.optional(z.string().check(z.minLength(1))),
   }),
+  // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
+  // the webview rendered the optimistic card under `localId` from the
+  // failed turn's user card, and the host resubmits that turn's own
+  // parts. Answered `turnAccepted` or `sendFailed` for `localId`, as a
+  // send is. Never an automatic resubmit: only this press sends it.
+  z.object({
+    type: z.literal('retryTurn'),
+    localId: z.string().check(z.minLength(1)),
+    turnId: z.string().check(z.minLength(1)),
+  }),
   // The user pressed Stop.
   z.object({ type: z.literal('runManualHook'), name: z.string().check(z.minLength(1)) }),
   z.object({ type: z.literal('cancelTurn') }),

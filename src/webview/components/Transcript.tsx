@@ -167,6 +167,14 @@ export interface TranscriptProps {
   Rows offer it only while they carry a reference.
   */
   readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
+  /**
+  Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
+  resends the turn's own message. Rows offer it only while they carry
+  the failed turn and this panel holds its user card.
+  */
+  readonly onRetryTurn?: ((entryId: string, turnId: string) => void) | undefined
+  /** The turns whose user card this panel holds, so Retry can resend it. */
+  readonly resendableTurnIds?: ReadonlySet<string> | undefined
   /** Why the menu offers no file restore (Restricted Mode, the setting), or none. */
   readonly restoreNote?: string | undefined
   /** Why the menu offers no conversation rewind (Muse Code on Windows, D26), or none. */
@@ -981,9 +989,45 @@ function SubagentRow({
   )
 }
 
+/**
+Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
+resends the turn's own message. Nothing renders without a handler, a
+retryable turn, or the turn's user card; the button waits while a turn
+runs, since a retry is a new turn, never a steer.
+*/
+function RetryTurnButton({
+  entryId,
+  turnId,
+  canRetry,
+  isDisabled,
+  onRetryTurn,
+}: {
+  readonly entryId: string
+  readonly turnId: string | undefined
+  readonly canRetry: boolean
+  readonly isDisabled: boolean
+  readonly onRetryTurn: ((entryId: string, turnId: string) => void) | undefined
+}) {
+  return onRetryTurn === undefined || turnId === undefined || !canRetry ? null : (
+    <button
+      type="button"
+      className="notice-action chat-control"
+      disabled={isDisabled}
+      onClick={() => {
+        onRetryTurn(entryId, turnId)
+      }}
+    >
+      {UI_TEXT.turnRetryAction}
+    </button>
+  )
+}
+
 function OtherRow({
   entry,
   onReportProblem,
+  onRetryTurn,
+  canRetryTurn,
+  isRetryDisabled,
 }: {
   readonly entry: Exclude<
     TranscriptEntry,
@@ -1002,6 +1046,9 @@ function OtherRow({
       }
   >
   readonly onReportProblem?: ((entryId: string, ref: ReportEventRef) => void) | undefined
+  readonly onRetryTurn?: ((entryId: string, turnId: string) => void) | undefined
+  readonly canRetryTurn?: boolean | undefined
+  readonly isRetryDisabled?: boolean | undefined
 }) {
   switch (entry.kind) {
     case 'subagent': {
@@ -1019,6 +1066,13 @@ function OtherRow({
       return (
         <li className="message message-error-card">
           {entry.text}
+          <RetryTurnButton
+            entryId={entry.id}
+            turnId={entry.retryTurnId}
+            canRetry={canRetryTurn === true}
+            isDisabled={isRetryDisabled === true}
+            onRetryTurn={onRetryTurn}
+          />
           <ReportThisButton entry={entry} onReportProblem={onReportProblem} />
         </li>
       )
@@ -1199,6 +1253,8 @@ function TranscriptList(props: TranscriptProps) {
     onRedo,
     onNoticeAction,
     onReportProblem,
+    onRetryTurn,
+    resendableTurnIds,
     restoreNote,
     conversationNote,
     activeTurnId,
@@ -1354,9 +1410,23 @@ function TranscriptList(props: TranscriptProps) {
         )
       }
       case 'subagent':
-      case 'item':
-      case 'error': {
+      case 'item': {
         return <MemoOtherRow key={entry.id} entry={entry} onReportProblem={onReportProblem} />
+      }
+      case 'error': {
+        return (
+          <MemoOtherRow
+            key={entry.id}
+            entry={entry}
+            onReportProblem={onReportProblem}
+            onRetryTurn={onRetryTurn}
+            canRetryTurn={
+              entry.retryTurnId !== undefined &&
+              (resendableTurnIds?.has(entry.retryTurnId) ?? false)
+            }
+            isRetryDisabled={activeTurnId !== undefined}
+          />
+        )
       }
       case 'notice': {
         if (onNoticeAction !== undefined && entry.actions !== undefined) {
