@@ -31073,6 +31073,8 @@ or helper-only-access certification.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
+**Status 2026-10-23: building.** RLF-M110OS built OS3–OS7, in review; OS1, OS2, A1 and M110a still open; threat-model acceptance, the signing ceremony and owner hardware waiting.
+
 **Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
 **Status 2026-10-05: planned.**

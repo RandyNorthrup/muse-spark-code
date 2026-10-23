@@ -28,6 +28,17 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Muse Node OS lanes OS3–OS7 (in review, waiting on OS1/OS2): the
+  LAN first-boot setup (network, disk, setup code, SSH key, Chrome
+  and NVIDIA choices), hardening (firewall defaults, sysctl knobs,
+  the `systemd-analyze security` threshold gate), LUKS2 `/var`
+  enrollment (TPM2 with signed policy, recovery key, console
+  fallback, Tang binding) and boot signing hooks, the
+  system-extension add-on layer with machine-checked manifests
+  (Chrome and NVIDIA with pinned vendor keys, per-arch driver
+  pins, MOK signing), the base firmware set resolver, the QEMU
+  boot-test driver with a proving guest, the reproducibility
+  comparison, and the `node-os` CI pipeline (RLF-M110OS).
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
