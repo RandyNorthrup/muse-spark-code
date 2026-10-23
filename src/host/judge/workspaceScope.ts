@@ -21,21 +21,22 @@ export interface WorkspaceSettingsRead {
   readonly skipped: number
 }
 
-/** An absent file is normal (most folders have no settings file); anything unreadable is skipped. */
-const ABSENT = new Set(['ENOENT', 'ENOTDIR'])
-
-function errorCode(error: unknown): string | undefined {
-  const parsed = z.object({ code: z.string() }).safeParse(error)
-  return parsed.success ? parsed.data.code : undefined
-}
-
 /** One bounded read: the text, no such file, or a file skipped (irregular, too large, unreadable). */
 type BoundedRead =
   | { readonly kind: 'text'; readonly text: string }
   | { readonly kind: 'absent' }
-  | { readonly kind: 'skipped' }
+  | { readonly kind: 'skipped'; readonly cause?: unknown }
 
 const SKIPPED: BoundedRead = { kind: 'skipped' }
+
+/** A missing path: no file here, or no directory above it. */
+function isAbsentPath(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    (error.code === 'ENOENT' || error.code === 'ENOTDIR')
+  )
+}
 
 /**
 O_NONBLOCK keeps a FIFO's open from waiting for a writer. POSIX defines it;
@@ -46,14 +47,15 @@ const NON_BLOCKING = z.optional(z.number()).parse(Reflect.get(constants, 'O_NONB
 /**
 One file's text when it is a regular file of at most `limit` bytes, opened
 without blocking (a FIFO or device, or a link to one, is refused after
-opening, before any read).
+opening, before any read). An absent file is normal (most folders have no
+settings file); anything unreadable is skipped with its cause.
 */
 function boundedRegularFile(file: string, limit: number): BoundedRead {
   let descriptor: number
   try {
     descriptor = openSync(file, constants.O_RDONLY | NON_BLOCKING)
   } catch (error: unknown) {
-    return ABSENT.has(errorCode(error) ?? '') ? { kind: 'absent' } : SKIPPED
+    return isAbsentPath(error) ? { kind: 'absent' } : { kind: 'skipped', cause: error }
   }
   try {
     const stat = fstatSync(descriptor)
@@ -68,8 +70,8 @@ function boundedRegularFile(file: string, limit: number): BoundedRead {
       if (length > limit) return SKIPPED
     }
     return { kind: 'text', text: buffer.subarray(0, length).toString('utf8') }
-  } catch {
-    return SKIPPED
+  } catch (error: unknown) {
+    return { kind: 'skipped', cause: error }
   } finally {
     closeSync(descriptor)
   }
