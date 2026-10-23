@@ -6280,6 +6280,7 @@
     "summaryTitle": "검토",
     "setupDone": "설정이 완료되었습니다. 머신에서 노드를 시작하고 있습니다.",
     "setupFailed": "설정을 마칠 수 없습니다: {reason}",
+    "seedRefused": "카드의 설정 파일을 사용하지 않았습니다: {reason}",
     "continueButton": "계속"
   }
 }

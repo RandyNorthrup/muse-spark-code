@@ -6280,6 +6280,7 @@
     "summaryTitle": "確認",
     "setupDone": "セットアップが完了しました。マシンがノードを起動しています。",
     "setupFailed": "セットアップを完了できませんでした：{reason}",
+    "seedRefused": "カードのセットアップファイルは使用されませんでした：{reason}",
     "continueButton": "続ける"
   }
 }

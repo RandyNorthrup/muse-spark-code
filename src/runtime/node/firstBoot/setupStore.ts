@@ -6,8 +6,9 @@ import { createHash, timingSafeEqual } from 'node:crypto'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
-import { setupChoicesSchema, type SetupChoices } from './schemas'
-import { normalizeSetupCode } from './setupCode'
+import { setupChoicesSchema, setupNetworkSchema, type SetupChoices } from './schemas'
+import { issueRecoveryKey, normalizeSetupCode } from './setupCode'
+import type { SeedOutcome } from './seed'
 
 const setupStateSchema = z.strictObject({
   version: z.literal(1),
@@ -15,6 +16,12 @@ const setupStateSchema = z.strictObject({
   codeConsumed: z.boolean(),
   choices: z.nullable(setupChoicesSchema),
   completed: z.boolean(),
+  seedHostname: z.nullable(z.string()),
+  seedNetwork: z.nullable(setupNetworkSchema),
+  seedSshKeys: z.array(z.string()),
+  seedIgnored: z.array(z.string()),
+  seedRefusal: z.nullable(z.string()),
+  recoveryKey: z.nullable(z.string()),
 })
 
 export type SetupState = z.infer<typeof setupStateSchema>
@@ -34,6 +41,25 @@ export function createSetupState(code: string): SetupState {
     codeConsumed: false,
     choices: null,
     completed: false,
+    seedHostname: null,
+    seedNetwork: null,
+    seedSshKeys: [],
+    seedIgnored: [],
+    seedRefusal: null,
+    recoveryKey: null,
+  }
+}
+
+/** Fold a consumed seed into a fresh setup: prefill, notes and refusal. */
+export function applySeed(state: SetupState, outcome: SeedOutcome): SetupState {
+  if (state.codeConsumed || state.completed) throw new Error('setup already started')
+  if (!outcome.ok) return { ...state, seedRefusal: outcome.code }
+  return {
+    ...state,
+    seedHostname: outcome.user.hostname ?? null,
+    seedNetwork: outcome.network.network,
+    seedSshKeys: [...outcome.user.sshKeys],
+    seedIgnored: [...outcome.network.ignored, ...outcome.user.ignored],
   }
 }
 
@@ -65,8 +91,12 @@ export function loadSetupState(dir: string): SetupState | null {
 
 /** Save the state owner-only. */
 export function saveSetupState(dir: string, state: SetupState): void {
-  mkdirSync(dir, { recursive: true, mode: 0o700 })
-  writeFileSync(stateFile(dir), JSON.stringify(state), { mode: 0o600 })
+  try {
+    mkdirSync(dir, { recursive: true, mode: 0o700 })
+    writeFileSync(stateFile(dir), JSON.stringify(state), { mode: 0o600 })
+  } catch (error: unknown) {
+    throw new Error('setup state is not writable', { cause: error })
+  }
 }
 
 export type AcceptCodeResult =
@@ -85,11 +115,22 @@ export function acceptSetupCode(state: SetupState, candidate: string): AcceptCod
     : { ok: true, state: { ...state, codeConsumed: true } }
 }
 
-/** Record the wizard's choices once the code has opened the setup. */
+/**
+Record the wizard's choices once the code has opened the setup, with a
+fresh recovery key for the disk enrollment to consume.
+*/
 export function recordChoices(state: SetupState, choices: SetupChoices): SetupState {
   if (state.completed) throw new Error('setup is already complete')
   if (!state.codeConsumed) throw new Error('setup code not accepted')
-  return { ...state, choices }
+  return { ...state, choices, recoveryKey: issueRecoveryKey() }
+}
+
+/** Whether a presented code opens a setup already past its gate. */
+export function isCodeHolder(state: SetupState, candidate: string): boolean {
+  if (state.completed || !state.codeConsumed || state.codeSha256 === null) return false
+  const expected = Buffer.from(state.codeSha256, 'utf8')
+  const actual = Buffer.from(hashSetupCode(candidate), 'utf8')
+  return expected.length === actual.length && timingSafeEqual(expected, actual)
 }
 
 /** Finish the setup: the code hash is wiped and never verified again. */
