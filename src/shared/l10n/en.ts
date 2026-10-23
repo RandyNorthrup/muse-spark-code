@@ -681,6 +681,10 @@ export const EN = {
     record: 'Refused for headless runs: nobody is there to preview a recording.',
     'permission-mode': 'Choose how Muse asks before it acts.',
     model: 'Choose the model for this run.',
+    engine: 'Which judge answers: auto, same, separate or both.',
+    separate: 'The separate source id, without a credential.',
+    'budget-usd': 'Run cap in USD, exact to nine decimals.',
+    'timeout-ms': 'Request timeout in milliseconds.',
     add: '--add <model>: Offer this model on the entry; repeat the option for more models.',
     remove:
       '--remove <model>: Stop offering this model on the entry; repeat the option for more models.',
@@ -4975,6 +4979,9 @@ export const EN = {
     purposeResources: 'Show machine pressure and recent history.',
     purposeShare: 'Share a conversation: copy it, save it to a file, or open it in a browser.',
     purposePrompts: 'Save, list, use and share reusable prompt templates.',
+    purposeJudge: 'Ask Muse Judge for verdicts on standard input.',
+    judgeServeLintNote:
+      'serve and lint take their own flags; the options below belong to ask, calibrate, report and mcp.',
     // {entry}: the provider entry id.
     modelsList: 'Models for {entry}:',
     // {reason}: the user's one-line reason for forcing the model.
@@ -6101,6 +6108,7 @@ export const EN = {
   judgeSourceUntested: 'Experimental, untested; explicit opt-in required',
   judgeNoAnswer: 'No judge answer ({reason}). Existing checks and approvals still apply.',
   judgeCaution: 'Muse Judge suggests caution. You decide; it cannot approve this action.',
+  judgeCliDescription: 'Muse Judge: verdicts, calibration, reports, serving and lint.',
   judgeAdvisoryMissing:
     'The background safety check did not finish, so no advisory is attached to this approval.',
   judgeSubscriptionNotice:

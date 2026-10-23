@@ -561,6 +561,29 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     ],
     ...SHARING_EXITS,
   },
+  {
+    name: 'judge',
+    purpose: (table) => table.cliHelp.purposeJudge,
+    note: (table) => table.cliHelp.judgeServeLintNote,
+    usage: [
+      (command) => `${command} judge ask|calibrate|report|mcp [options] < request.json`,
+      (command) => `${command} judge serve|lint [options]`,
+    ],
+    routes: ['judge'],
+    options: [
+      { name: 'engine', shape: '<engine>' },
+      { name: 'model', shape: '<model>' },
+      { name: 'separate', shape: '<id>' },
+      { name: 'budget-usd', shape: '<usd>' },
+      { name: 'timeout-ms', shape: '<ms>' },
+      { name: 'help', shape: '' },
+    ],
+    examples: [
+      (command) => `${command} judge ask --engine separate --separate local:tev1 < request.json`,
+      (command) => `${command} judge lint --changed`,
+    ],
+    ...GENERIC_EXITS,
+  },
 ]
 
 /** Every topic by its command name. */

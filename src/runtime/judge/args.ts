@@ -84,15 +84,23 @@ function invalid() {
   }
 }
 
-/** Reserved before ACP/prompt parsing, including malformed and future judge commands. */
+/**
+Reserved before ACP/prompt parsing, including malformed and future judge
+commands. An action's `--help` is malformed judge argv (exit 2): the strict
+parser below owns every action form. Only the bare form answers help, so the
+command table's walk can describe the one judge screen.
+*/
 export function parseJudgeArgs(argv: readonly string[]):
   | JudgeCliCommand
   | {
       readonly command: 'invalid'
       readonly reason: string
       readonly exitCode: number
-    } {
+    }
+  | { readonly command: 'help'; readonly route: string } {
   const action = argv[1]
+  if (argv.length === 2 && (action === '--help' || action === '-h'))
+    return { command: 'help', route: 'judge' }
   if (action === 'serve' || action === 'lint') {
     return { command: 'judge', action, options: DEFAULT_OPTIONS, surfaceArgs: argv.slice(2) }
   }

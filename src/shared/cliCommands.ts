@@ -111,8 +111,8 @@ export function cliCommands(shouldIncludeHeld = false) {
     {
       route: 'judge',
       name: 'judge ask|calibrate|report|mcp|serve|lint',
-      description: UI_TEXT.judgeCaution,
-      text: { ui: 'judgeCaution' },
+      description: UI_TEXT.judgeCliDescription,
+      text: { ui: 'judgeCliDescription' },
     },
     {
       route: 'usage',

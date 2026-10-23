@@ -5029,8 +5029,8 @@
     {
       "route": "judge",
       "name": "judge ask|calibrate|report|mcp|serve|lint",
-      "description": "Muse Judge suggests caution. You decide; it cannot approve this action.",
-      "text": { "ui": "judgeCaution" },
+      "description": "Muse Judge: verdicts, calibration, reports, serving and lint.",
+      "text": { "ui": "judgeCliDescription" },
       "invocations": [["judge"]]
     },
     {
@@ -7719,6 +7719,48 @@
     {
       "route": "fontsInstall",
       "name": "fontsInstall: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "judge",
+      "name": "judge: --engine <value>",
+      "description": "Which judge answers: auto, same, separate or both.",
+      "text": { "cli": "engine" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "judge",
+      "name": "judge: --model <value>",
+      "description": "Choose the model for this run.",
+      "text": { "cli": "model" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "judge",
+      "name": "judge: --separate <value>",
+      "description": "The separate source id, without a credential.",
+      "text": { "cli": "separate" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "judge",
+      "name": "judge: --budget-usd <value>",
+      "description": "Run cap in USD, exact to nine decimals.",
+      "text": { "cli": "budget-usd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "judge",
+      "name": "judge: --timeout-ms <value>",
+      "description": "Request timeout in milliseconds.",
+      "text": { "cli": "timeout-ms" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "judge",
+      "name": "judge: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }
