@@ -254,7 +254,7 @@ export async function runJudgeCommand(
     signal.throwIfAborted()
     if (deps.initialize !== undefined) await untilAborted(deps.initialize(signal), signal)
     if (command.action === 'mcp') {
-      code = await untilAborted(runJudgeMcp(io, judge, signal), signal)
+      code = await untilAborted(runJudgeMcp(io, judge, signal, deps.log), signal)
     } else if (command.action === 'serve' || command.action === 'lint') {
       const surface = deps[command.action]
       if (surface === undefined) throw new Error(UI_TEXT.execUnknownModel)

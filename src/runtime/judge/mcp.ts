@@ -1,4 +1,6 @@
 import * as z from 'zod/mini'
+import { failureForLog } from '../../core/backends/musecode/logText'
+import type { Logger } from '../../host/logger'
 import { handleMcpMessage, mcpRequestKeys, type McpTool } from '../../core/mcp'
 import {
   isZodParseError,
@@ -78,6 +80,7 @@ export async function runJudgeMcp(
   io: JudgeCliIo,
   judge: JudgeCall,
   signal: AbortSignal,
+  log?: Logger,
 ): Promise<number> {
   let code: number = EXEC_EXIT.ok
   const output = { hasFailed: false }
@@ -163,7 +166,8 @@ export async function runJudgeMcp(
             io.stdin.destroy()
           }
         }
-      } catch {
+      } catch (error: unknown) {
+        log?.warn(`Judge MCP line failed: ${failureForLog(error)}`)
         fail(EXEC_EXIT.failed)
       } finally {
         queuedBytes -= size
@@ -198,8 +202,9 @@ export async function runJudgeMcp(
     await work
     return code
   } catch (error: unknown) {
-    if (output.hasFailed) return EXEC_EXIT.failed
-    throw error
+    if (!output.hasFailed) throw error
+    log?.warn(`Judge MCP loop failed: ${failureForLog(error)}`)
+    return EXEC_EXIT.failed
   } finally {
     output.hasFailed = true
     signal.removeEventListener('abort', abort)

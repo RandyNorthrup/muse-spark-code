@@ -1,5 +1,7 @@
 import * as z from 'zod/mini'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import type { GlobLimits } from '../../core/backends/modelapi/glob'
+import type { Logger } from '../../host/logger'
 import {
   evaluateLintUnit,
   type LintEvaluator,
@@ -30,6 +32,7 @@ export interface JudgeLintOptions {
 }
 
 export interface JudgeLintDependencies {
+  readonly log?: Logger | undefined
   /** Pinned, strict config/pack decoding; no alternate Muse keys in jevlint.json. */
   rules(): Promise<readonly LintRule[]>
   files(isChanged: boolean): Promise<readonly LintFile[]>
@@ -274,6 +277,7 @@ export async function runJudgeLint(
   } catch (error_: unknown) {
     isIncomplete = true
     // Never echo provider/tool exceptions, which can contain source or credentials.
+    deps.log?.warn(`Judge lint run failed: ${failureForLog(error_)}`)
     error =
       error_ instanceof Error && errorCodes.has(error_.message) ? error_.message : 'lint-run-failed'
     if (error === 'lint-source-changed') {
