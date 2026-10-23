@@ -4729,6 +4729,16 @@
     "noneUncalibrated": "Žádný místní posuzovatel zatím není připraven: vyhovující modely ještě potřebují kalibraci.",
     "cpuOnly": "Nebyla nalezena použitelná GPU; posuzují se pouze možnosti CPU."
   },
+  "judgeB1": {
+    "allowRow": "Povoleno bez kontroly: příkaz inspect",
+    "excluded": {
+      "one": "{count} nepřečtený záznam",
+      "few": "{count} nepřečtené záznamy",
+      "other": "{count} nepřečtených záznamů",
+      "many": "{count} nepřečtených záznamů"
+    },
+    "resolver": "Rychlá cesta B1"
+  },
   "judgePanel": {
     "source": "Zdroj",
     "model": "Model posouzení",

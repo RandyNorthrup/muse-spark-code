@@ -1,8 +1,11 @@
 // Internal F1a API. F1b owns eligibility, reviewer racing and editor integration.
 import { mkdir, mkdtemp, realpath, rm, writeFile, symlink, link } from 'node:fs/promises'
+import { existsSync, realpathSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { fileIdentityKey, statIdentity } from '../../fs/fileIdentity'
+import { isErrno } from '../../fs/errno'
 import * as z from 'zod/mini'
 import type { ResourcePipedProcess, ResourceProcessOptions } from '../../resources/launch'
 import { probeChildEnvironment } from '../../executables'
@@ -442,4 +445,70 @@ export class InspectRunner {
       ...(this.readiness === undefined ? [] : [this.readiness]),
     ])
   }
+}
+
+/** D107 §9.3: a session's B1 runner, its proven workspace, and its scratch. */
+export interface InspectSessionBinding {
+  readonly runner: InspectRunner
+  readonly workspace: InspectWorkspace
+  readonly confinement: 'landlock' | 'seatbelt'
+  readonly storage: string
+}
+
+/**
+D107 §9.3: open the session's B1 runner. Undefined keeps today's
+reviewer: no helper, no confinement, no race. One binding per
+session; the runner latches a failed self-test until a new session.
+*/
+export async function openInspectSession(
+  helper: string | undefined,
+  workspaceRoot: string,
+  start: InspectExecOptions['start'],
+): Promise<InspectSessionBinding | undefined> {
+  if (helper === undefined) return undefined
+  if (process.platform !== 'linux' && process.platform !== 'darwin') return undefined
+  if (process.getuid?.() === 0 || process.geteuid?.() === 0) return undefined
+  if (!existsSync(helper)) return undefined
+  let storage: string
+  try {
+    storage = await mkdtemp(path.join(tmpdir(), 'b1-'))
+  } catch (error: unknown) {
+    if (!isErrno(error)) throw error
+    return undefined
+  }
+  let identity: string | undefined
+  try {
+    identity = fileIdentityKey(await statIdentity(workspaceRoot))
+  } catch (error: unknown) {
+    if (!isErrno(error)) throw error
+    identity = undefined
+  }
+  if (identity === undefined) {
+    try {
+      await rm(storage, { recursive: true, force: true })
+    } catch (error: unknown) {
+      if (!isErrno(error)) throw error
+    }
+    return undefined
+  }
+  return {
+    runner: new InspectRunner({ helper, storage, start }),
+    workspace: { root: workspaceRoot, identity },
+    confinement: process.platform === 'darwin' ? 'seatbelt' : 'landlock',
+    storage,
+  }
+}
+
+/** D107 §9.6: the audit's executable resolution over the real filesystem. */
+export function b1Realpath(filePath: string): string {
+  return realpathSync(filePath)
+}
+
+/** D107 §9.3: the session's B1 runner and its scratch go with it. */
+export async function closeInspectSession(
+  binding: InspectSessionBinding | undefined,
+): Promise<void> {
+  if (binding === undefined) return
+  await binding.runner.dispose()
+  await rm(binding.storage, { recursive: true, force: true })
 }

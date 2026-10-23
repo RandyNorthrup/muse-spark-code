@@ -4729,6 +4729,16 @@
     "noneUncalibrated": "Żaden lokalny oceniający nie jest jeszcze gotowy: pasujące modele wymagają kalibracji.",
     "cpuOnly": "Nie znaleziono użytecznego GPU; oceniane są tylko opcje CPU."
   },
+  "judgeB1": {
+    "allowRow": "Dozwolone bez przeglądu: polecenie inspect",
+    "excluded": {
+      "one": "{count} nieprzeczytany wpis",
+      "few": "{count} nieprzeczytane wpisy",
+      "other": "{count} nieprzeczytanych wpisów",
+      "many": "{count} nieprzeczytanych wpisów"
+    },
+    "resolver": "Szybka ścieżka B1"
+  },
   "judgePanel": {
     "source": "Źródło",
     "model": "Model sędziego",

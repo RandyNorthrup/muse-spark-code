@@ -4507,6 +4507,14 @@
     "noneUncalibrated": "Egyetlen helyi értékelő sem kész még: a megfelelő modelleknek még kalibrálásra van szükségük.",
     "cpuOnly": "Nem található használható GPU; csak CPU-lehetőségek értékelése."
   },
+  "judgeB1": {
+    "allowRow": "Felülvizsgálat nélkül engedélyezve: inspect parancs",
+    "excluded": {
+      "one": "{count} bejegyzés nem lett beolvasva",
+      "other": "{count} bejegyzés nem lett beolvasva"
+    },
+    "resolver": "B1 gyors út"
+  },
   "judgePanel": {
     "source": "Forrás",
     "model": "Modell",

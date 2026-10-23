@@ -4396,6 +4396,13 @@
     "noneUncalibrated": "로컬 판단자 준비가 아직 안 됐습니다. 맞는 모델은 보정이 필요합니다.",
     "cpuOnly": "사용 가능한 GPU를 찾지 못했습니다. CPU 옵션만 판단합니다."
   },
+  "judgeB1": {
+    "allowRow": "검토 없이 허용: inspect 명령",
+    "excluded": {
+      "other": "읽지 않은 항목 {count}개"
+    },
+    "resolver": "B1 고속 경로"
+  },
   "judgePanel": {
     "source": "출처",
     "model": "모델",

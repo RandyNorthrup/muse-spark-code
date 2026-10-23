@@ -4507,6 +4507,14 @@
     "noneUncalibrated": "Henüz hiçbir yerel değerlendirici hazır değil: uyan modellerin kalibrasyona ihtiyacı var.",
     "cpuOnly": "Kullanılabilir GPU bulunamadı; yalnızca CPU seçenekleri değerlendiriliyor."
   },
+  "judgeB1": {
+    "allowRow": "İnceleme olmadan izin verildi: inspect komutu",
+    "excluded": {
+      "one": "{count} girdi okunmadı",
+      "other": "{count} girdi okunmadı"
+    },
+    "resolver": "B1 hızlı yol"
+  },
   "judgePanel": {
     "source": "Kaynak",
     "model": "Model adı",

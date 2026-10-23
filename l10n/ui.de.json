@@ -4507,6 +4507,14 @@
     "noneUncalibrated": "Noch kein lokaler Beurteiler bereit: die passenden Modelle brauchen erst eine Kalibrierung.",
     "cpuOnly": "Keine nutzbare GPU gefunden; nur CPU-Optionen werden geprüft."
   },
+  "judgeB1": {
+    "allowRow": "Ohne Prüfung erlaubt: inspect-Befehl",
+    "excluded": {
+      "one": "{count} Eintrag nicht gelesen",
+      "other": "{count} Einträge nicht gelesen"
+    },
+    "resolver": "B1-Schnellpfad"
+  },
   "judgePanel": {
     "source": "Quelle",
     "model": "Modell",
