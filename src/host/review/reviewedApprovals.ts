@@ -150,8 +150,9 @@ export class ReviewedApprovals {
         },
         stop.signal,
       )
-    } catch {
+    } catch (error: unknown) {
       // A failed optional use has no opinion; the shipped judge and reviewer continue.
+      this.deps.log.warn(`Judge review use could not start: ${failureForLog(error)}`)
       useCaution = undefined
     }
     const held: Held = { event, stop, caution, useCaution }
@@ -190,8 +191,9 @@ export class ReviewedApprovals {
     let hasUseCaution = false
     try {
       hasUseCaution = held.useCaution?.read() ?? false
-    } catch {
+    } catch (error: unknown) {
       // A broken injected latch has no opinion at the synchronous reviewer fence.
+      this.deps.log.warn(`Judge review use could not be read: ${failureForLog(error)}`)
       held.useCaution?.discard()
     }
     if (hasJudgeCaution) held.event = { ...held.event, judgeCaution: true }

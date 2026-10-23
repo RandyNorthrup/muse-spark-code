@@ -116,6 +116,7 @@ export function createHostPhase2(deps: HostPhase2BindingInputs): {
         if (isChanged) deps.onKeyChange?.()
       })
       .catch(() => {
+        deps.log.warn('Judge separate-source key could not be checked')
         keyReady.set(separateId, false)
       })
   }

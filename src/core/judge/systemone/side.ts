@@ -154,8 +154,11 @@ export async function systemOneKey(
   let value: unknown
   try {
     value = JSON.parse(stored)
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A stored value that is not JSON holds no credential record;
+    // JSON.parse throws only SyntaxError, and anything else rethrows.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
   const record = parseCredentialRecord(value)
   const secret = storedSecretSchema.safeParse(value)
@@ -214,8 +217,11 @@ async function boundedJson(response: PinnedResponse): Promise<unknown> {
   try {
     const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
     return parsed
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A response body that is not JSON carries no verdict; JSON.parse
+    // throws only SyntaxError, and anything else rethrows.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
 }
 

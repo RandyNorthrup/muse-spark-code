@@ -326,8 +326,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     try {
       return projectJudgePanel(deps.judge.read())
-    } catch {
-      log.warn('Judge panel status could not be read')
+    } catch (error: unknown) {
+      log.warn(
+        `Judge panel status could not be read: ${wireWordForLog(error instanceof Error ? error.name : 'failure')}`,
+      )
       return unavailableJudgePanel()
     }
   }

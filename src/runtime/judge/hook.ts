@@ -265,8 +265,11 @@ export async function runJudgeHookCommand(
           let rawOutcome: unknown
           try {
             rawOutcome = JSON.parse(chunk)
-          } catch {
-            return
+          } catch (error: unknown) {
+            // A chunk that is not JSON carries no outcome; JSON.parse
+            // throws only SyntaxError, and anything else rethrows.
+            if (error instanceof SyntaxError) return
+            throw error
           }
           const outcome = judgeOutcomeSchema.safeParse(rawOutcome)
           if (!outcome.success || outcome.data.outcome === 'no-answer') return
