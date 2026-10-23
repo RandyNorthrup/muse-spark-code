@@ -1257,6 +1257,11 @@
       "note": "recovery: the owner's 0.19.0 test-drive defects, fixed"
     },
     {
+      "id": "RLINTFIX",
+      "public": false,
+      "note": "recovery: int/recovery gates, build and unit suite green on the owner PC"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

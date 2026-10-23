@@ -76,7 +76,6 @@ import type {
 import type * as teamMergeFlow from './teamMergeFlow'
 
 import { TEAM_TASKS_STATE_KEY, storedTasksSchema, type TaskPhase } from './teamTaskState'
-export { TEAM_TASKS_STATE_KEY } from './teamTaskState'
 const REVIEW_ROLE = 'code-review'
 
 export type StaffedEntry = TeamPoolEntry & {
