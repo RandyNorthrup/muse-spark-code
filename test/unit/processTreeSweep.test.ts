@@ -74,7 +74,7 @@ describe('sweepExitedTree', () => {
         Date.now(),
         {
           platform: process.platform,
-          systemRoot: process.platform === 'win32' ? process.env.SystemRoot : undefined,
+          systemRoot: process.platform === 'win32' ? process.env['SystemRoot'] : undefined,
           log: logger(messages).warn,
         },
         undefined,

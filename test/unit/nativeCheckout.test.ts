@@ -295,7 +295,6 @@ function batchAnswers(): BlobAnswers {
 
 function batchOptions(signal?: AbortSignal): Parameters<typeof runBatchChild>[2] {
   return {
-    deadlineMs: 10_000,
     killGraceMs: 2000,
     drainGraceMs: 2000,
     platform: process.platform,
@@ -330,6 +329,15 @@ describe('runBatchChild', () => {
     const pending = runBatchChild(child, batchAnswers(), batchOptions(abort.signal))
     abort.abort()
     await expect(pending).rejects.toThrow()
+  })
+
+  // No deadline of ours (D121, RLF-NOLIMITS): a batch child slower than
+  // any bound still runs its course — no deadline fails it mid-wait.
+  it('waits for a slow batch child past any removed deadline', async () => {
+    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 300)'], {
+      stdio: 'pipe',
+    })
+    await expect(runBatchChild(child, batchAnswers(), batchOptions())).resolves.toBeUndefined()
   })
 })
 
