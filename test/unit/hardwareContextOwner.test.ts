@@ -70,6 +70,23 @@ describe('single composition-root hardware owner', () => {
     owner.startSession()
     expect(owner.current().isHardwareWorkspace).toBe(true)
   })
+  it('unknown evidence latches commands without becoming positive resume evidence', () => {
+    const missing = createHardwareContexts(() => ({}))(path.join(workspace(), 'missing'))
+    expect(missing.current().isHardwareWorkspace).toBe(true)
+    expect(missing.isPositivelyHardware()).toBe(false)
+
+    const unknownInventory = createHardwareContexts(() => ({ isInventoryKnown: false }))(
+      workspace(),
+    )
+    expect(unknownInventory.current().isHardwareWorkspace).toBe(true)
+    expect(unknownInventory.isPositivelyHardware()).toBe(false)
+
+    const markedRoot = workspace()
+    writeFileSync(path.join(markedRoot, 'sketch.ino'), 'void setup() {}')
+    const marked = createHardwareContexts(() => ({}))(markedRoot)
+    expect(marked.current().isHardwareWorkspace).toBe(true)
+    expect(marked.isPositivelyHardware()).toBe(true)
+  })
   it('Windows separators share one owner instead of separate latches', () => {
     const contexts = createHardwareContexts(() => ({ hardwareSessionLatched: false }))
     expect(contexts(String.raw`C:\boards\fixture`)).toBe(contexts('C:/boards/fixture'))
