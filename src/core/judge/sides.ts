@@ -10,7 +10,7 @@ import type { Phase2SeparateSource } from './binding'
 import type { JudgeRuntime } from './engine'
 import { chooseByoTechnique } from './providers/decide'
 import type { JudgeCapability, JudgeProfileIdentity, JudgeQuestion } from './schema'
-import { compareUsdAmounts } from '../../shared/usd'
+import { compareUsdAmounts, Usd } from '../../shared/usd'
 import type { UsdAmount } from '../../shared/usdSchema'
 import * as z from 'zod/mini'
 import {
@@ -282,7 +282,7 @@ export function buildSeparateSource(
         technique: judgeSideTechnique({ capability: local.capability, record: local.record, kind }),
       },
       // Local inference is free; judged state stays on the loopback endpoint.
-      worstCaseUsd: 0,
+      worstCaseUsd: Usd.from(0).toAmount(),
       recipient: local.capability.endpoint,
       model: local.model,
     }

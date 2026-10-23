@@ -5142,8 +5142,9 @@ export const PERMILLE_MAX = 1000
 // reviewer — a platform receipt (drills, m125-f1.md) AND the harm bound
 // (lane V) behind each entry. Empty until both land anywhere: Linux's
 // receipt is F1b's, its harm bound lane V's; macOS waits for
-// Q-D107-B1-MAC; Windows is off by §9.2.
-export const JUDGE_FAST_B1_READY_PLATFORMS: readonly NodeJS.Platform[] = []
+// Q-D107-B1-MAC; Windows is off by §9.2. Named as Node's own platform
+// words; this table is shared with the webview, which has no Node types.
+export const JUDGE_FAST_B1_READY_PLATFORMS: readonly ('linux' | 'darwin' | 'win32')[] = []
 // D107 §9.5: the B2 check scripts a contained run may start. No
 // option; after `--`, only plain workspace-relative path operands.
 export const JUDGE_FAST_B2_SCRIPTS: readonly string[] = [

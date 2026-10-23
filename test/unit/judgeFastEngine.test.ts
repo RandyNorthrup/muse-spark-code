@@ -18,6 +18,7 @@ import type { Phase2SeparateSource } from '../../src/core/judge/binding'
 import type { JudgeRuntime } from '../../src/core/judge/engine'
 import { buildSeparateSource } from '../../src/core/judge/sides'
 import type { JudgeCapability, JudgeOutcome } from '../../src/core/judge/schema'
+import { Usd } from '../../src/shared/usd'
 
 const engine = (
   overrides: Partial<FastEngineDescriptor> & { id: string },
@@ -422,7 +423,7 @@ describe('verified local separate sides', () => {
     expect(built.source.locality).toBe('verified-local')
     expect(built.source.technique).toBe('systemone')
     expect(built.source.runtime).toBe(runtime)
-    expect(built.worstCaseUsd).toBe(0)
+    expect(built.worstCaseUsd).toBe(Usd.from(0).toAmount())
     expect(built.model).toBe('tev1:4b')
   })
 })

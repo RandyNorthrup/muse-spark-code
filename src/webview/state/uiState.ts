@@ -2453,8 +2453,14 @@ function applyAgentEvent(
       }
     }
     case 'viewGap':
-    case 'backendNotice': {
-      // The controller's own (PLAN.md D26): it reloads or posts a notice instead.
+    case 'backendNotice':
+    case 'judgeStuck':
+    case 'judgeFastSkip':
+    case 'judgeFastTurn': {
+      // The controller's own (PLAN.md D26): it reloads or posts a notice
+      // instead; the fast judge's stuck chip is its notice, the skip audit
+      // goes to the report recorder and the turn record to the judge usage
+      // snapshot it posts (M125, D107).
       return state
     }
   }
