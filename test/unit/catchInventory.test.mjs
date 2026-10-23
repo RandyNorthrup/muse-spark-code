@@ -85,6 +85,13 @@ describe('catch-inventory classifier', () => {
         report('hostMessage', error)
       }`),
     ).toEqual(['REPORTED'])
+    expect(classesOf('try { a() } catch (error: unknown) { onError(error) }')).toEqual(['REPORTED'])
+    expect(classesOf('try { a() } catch (error) { this.options.onError(error) }')).toEqual([
+      'REPORTED',
+    ])
+    expect(classesOf('try { a() } catch (error) { configured.onError(error) }')).toEqual([
+      'REPORTED',
+    ])
     expect(
       classesOf(`try { a() } catch {
         observeError(deps, 'updateNotSent')
@@ -131,6 +138,9 @@ describe('catch-inventory classifier', () => {
     expect(classesOf('try { a() } catch { return undefined }')).toEqual(['SWALLOW'])
     expect(classesOf('doomed.catch(() => null)')).toEqual(['SWALLOW'])
     expect(classesOf('doomed.catch(() => {})')).toEqual(['SWALLOW'])
+    // The owner channel without the error reports nothing.
+    expect(classesOf('try { a() } catch { onError() }')).toEqual(['SWALLOW'])
+    expect(classesOf('try { a() } catch (error) { options.onError() }')).toEqual(['SWALLOW'])
   })
 
   it('names GENERIC when a fixed sentence replaces every cause', () => {
@@ -179,6 +189,15 @@ describe('catch-inventory classifier', () => {
     expect(
       classesOf(`try { a() } catch (error: unknown) {
         setStatus(error instanceof Error ? error.message : 'failed')
+      }`),
+    ).toEqual(['GENERIC'])
+  })
+
+  it('names GENERIC when the owner channel misses a branch', () => {
+    // governor.ts: a disposed host drops the error instead of forwarding it.
+    expect(
+      classesOf(`try { a() } catch (error: unknown) {
+        if (!this.disposed) this.options.onError(error)
       }`),
     ).toEqual(['GENERIC'])
   })

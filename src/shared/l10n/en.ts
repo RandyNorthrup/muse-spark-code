@@ -51,6 +51,7 @@ export const EN = {
   resourceRelocationNoRoute:
     'Relocation requires a paired device or runner route. Work stays on this machine.',
   resourceUnavailable: 'This reading is unavailable on this machine.',
+  resourceUnavailableWhy: 'This reading is unavailable on this machine: {cause}',
   resourceGovernorOff: 'Resource limits are off on this machine.',
   resourceStatusRefused: 'The latest resource status could not be read, so no readings are shown.',
   resourceTransport: 'Transport Failures',
@@ -2485,6 +2486,11 @@ export const EN = {
     footer: 'Renderer {version}; ICU {icu}; locale {locale}',
     notFound: 'Not found: {id}. Nearest matches: {nearest}',
     generationFailed: 'The report could not be generated.',
+    generationReason: 'The report could not be generated: {reason}',
+    releaseNeedsVersion: 'A release report needs a version.',
+    milestoneNeedsId: 'A milestone report needs a milestone id.',
+    estimateNeedsScope: 'An estimate report needs a scope.',
+    reportKindsHeading: 'Available reports:',
     gitXcodeStub:
       'Git cannot run on this Mac: it resolves to Apple’s Xcode stub, whose developer tools cannot start. Install the Command Line Tools (xcode-select --install), or switch to the installed tools (sudo xcode-select --switch /Library/Developer/CommandLineTools), then try again.',
     noHistory: 'No report history yet.',

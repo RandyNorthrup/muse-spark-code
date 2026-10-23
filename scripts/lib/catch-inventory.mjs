@@ -45,8 +45,17 @@ export const CLASSES = ['NARROW', 'REPORTED', 'SWALLOW', 'GENERIC', 'CLEANUP']
 const REDACTING_FNS = new Set(['failureForLog', 'stderrForLog', 'wireWordForLog'])
 /** A call that records the failure under a fixed-vocabulary code. */
 const CODE_RECORD_FNS = new Set(['observeError', 'recordError', 'reportError'])
-/** A `report(x, error)`-shaped call posts the failure to the host's record. */
-const ERROR_SINK_FNS = new Set(['report', 'notify', 'record'])
+/**
+A `report(x, error)`-shaped call posts the failure to the host's record.
+`onError` is the repository's owner error channel (verified 2026-10-22: every
+production owner records — the extension, the agent and the runtime loader log
+through warnResourceUnavailable; the vault broker writes its fixed refusal
+line; the judge host logs its fixed batch line; the entry, recorder and
+admission owners forward up the same channel — and every one returns nothing
+to the person, so a fixed-vocabulary owner is a report, not a replacement).
+The error must be passed: a bare `onError()` call is not a sink.
+*/
+const ERROR_SINK_FNS = new Set(['report', 'notify', 'record', 'onError'])
 /**
 A formatter whose result reaches the failure record with the error: the
 webview's M39 host channel (`postMessage(webviewErrorReport(source, error))`).

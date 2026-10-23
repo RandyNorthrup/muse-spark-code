@@ -21,8 +21,8 @@ import {
   isSealedDraftCurrent,
   sealReportDraft,
   ReportBuildError,
+  problemReportEventSelection,
   reportAge,
-  selectProblemReportEvents,
   type ReportScrubContext,
   type SealedReportDraft,
   type SelectedReportEvent,
@@ -121,6 +121,8 @@ async function openVscodeReporter(
 /** The snapshot one dialog builds from: facts, the selected records, scrub and clock, frozen at open. */
 interface ReportData {
   readonly facts: unknown
+  /** Expired or invalid journal records, counted at selection: the draft names the count. */
+  readonly skippedStoredRecords: number
   /** The records the draft can carry: the builder's validated, capped selection. */
   readonly events: readonly SelectedReportEvent[]
   readonly scrub: ReportScrubContext
@@ -153,6 +155,10 @@ async function buildChoiceDraft(
   choice: ReportChoice,
   vaultScrub?: SecretScrubPort,
 ): Promise<SealedReportDraft> {
+  // The builder sees exactly the listed records minus what the user removed,
+  // plus the skip count taken at selection: removing a listed record never
+  // pulls an older, unlisted one into the draft, and the preview matches the
+  // sealed draft byte for byte.
   return await buildVaultProblemReportDraft(
     {
       description: choice.description,
@@ -160,6 +166,7 @@ async function buildChoiceDraft(
       includeEvents: choice.isEventsIncluded,
       facts: data.facts,
       events: keptEvents(data, choice).map((selected) => selected.event),
+      skippedStoredRecords: data.skippedStoredRecords,
       recordingUnavailable: data.isRecordingUnavailable,
       nowMs: data.nowMs,
       scrub: data.scrub,
@@ -245,9 +252,11 @@ async function snapshot(source: ReportDataSource): Promise<ReportData> {
   const facts = await source.readFacts()
   const journal = await source.readJournal()
   const canUseVscodeReporter = await source.canUseVscodeReporter()
+  const selection = problemReportEventSelection(journal.entries)
   return {
     facts,
-    events: selectProblemReportEvents(journal.entries),
+    skippedStoredRecords: selection.skippedStoredRecords,
+    events: selection.events,
     scrub: source.readScrub(),
     nowMs: source.nowMs(),
     isRecordingUnavailable: journal.recordingUnavailable,

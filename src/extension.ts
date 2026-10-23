@@ -169,6 +169,7 @@ import {
 import type { QuestionStore } from './shared/questions'
 import {
   museSettingsPath,
+  readContributorMode,
   readDelegationMode,
   readWorkflowTriggerMode,
 } from './host/backend/museSettings'
@@ -357,6 +358,7 @@ import { createPlanFiles, createPlanIo } from './host/planFeatures'
 import { planMarkdownLoader } from './host/planMarkdownBundle'
 import { extensionHooksBundle, type ExtensionHooksModule } from './host/extensionHooksBundle'
 import { showPickOne } from './host/quickPick'
+import { warnResourceUnavailable } from './shared/resourceCause'
 import { createResourceWindow } from './host/resources/resourceWindow'
 import { checkpointStoreLoader } from './host/checkpoints/checkpointStoreBundle'
 import { type CheckpointLocation, checkpointLocation } from './host/checkpoints/checkpointLocation'
@@ -823,10 +825,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // The cause, when there is one: a usage-history write failure once
       // read as an unavailable sampler every 30 seconds.
       onError: (error?: unknown) => {
-        log.warn(
-          error === undefined
-            ? 'Resource tree or sampler reading is unavailable'
-            : `The resource governor carried on after a failure: ${errorDetail(error)}`,
+        warnResourceUnavailable(
+          (message) => {
+            log.warn(message)
+          },
+          UI_TEXT,
+          error,
         )
       },
       windowsJob: async () => {
@@ -3420,6 +3424,7 @@ async function activateWindow(
         cli: resolution.ok
           ? { isFound: true, version: backend.installedVersion(resolution.launch.installDir) }
           : { isFound: false, version: undefined },
+        contributorMode: readContributorMode({ ...museConfig(), readTextFile: readTextFileSync }),
         credentialFileVerdict: backend.credentialFileVerdict(),
         hasStoredApiKey: (await credentials.getApiKey()) !== undefined,
         hasEnvironmentApiKey: backend.hasEnvironmentKey(),
