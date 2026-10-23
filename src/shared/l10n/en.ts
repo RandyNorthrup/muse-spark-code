@@ -7222,7 +7222,8 @@ export const EN = {
   // {cost}: the labelled cost of one orchestrator turn.
   teamTryTally: 'Paid preview: {attempts}; charged {charged}; retained liability {retained}.',
   teamTryDenied: 'Paid planning preview denied. No charge was made.',
-  teamNotReleased: 'Agent teams are not available in this build.',
+  teamNeedsSecondModel: 'Agent teams need a second model: set up another model to turn them on.',
+  teamSwitchedOff: 'Agent teams are turned off: set museSpark.team to true to turn them on.',
   teamTryWithOrchestrator: 'Try With the Orchestrator ({cost})',
   teamImportDraft: 'Opened as a draft: entries you lack show as missing.',
   teamEntryMissing: 'Missing: map it to one of your agents or remove it.',

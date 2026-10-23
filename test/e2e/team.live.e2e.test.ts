@@ -31,7 +31,6 @@ import { z } from 'zod/mini'
 import {
   CONTRIBUTOR_MODEL_SUFFIX,
   DEFAULT_MODEL_ID,
-  OPTIONAL_RUNTIME_AVAILABILITY,
   type TeamToolGroup,
 } from '../../src/shared/constants'
 import type { TeamAgentRef } from '../../src/shared/team'
@@ -536,14 +535,12 @@ function answerText(result: { output: string }): Record<string, unknown> {
 }
 
 describe.skipIf(!isLiveEnabled)('live enabled team on the contributor model', () => {
-  let wasLatchOpen = false
+  // D217: no release latch stands before teams any more.
   let workspace = ''
   let ports: LivePorts | undefined
   let liveSessionId = process.env['TEAM_LIVE_SESSION'] ?? ''
 
   beforeAll(async () => {
-    wasLatchOpen = OPTIONAL_RUNTIME_AVAILABILITY.team
-    OPTIONAL_RUNTIME_AVAILABILITY.team = true
     workspace = await mkdtemp(path.join(tmpdir(), 'team-live-'))
     await execFileAsync('git', ['init', '-b', 'main'], { cwd: workspace })
     await execFileAsync('git', ['config', 'user.email', 'drill@example.invalid'], {
@@ -568,7 +565,6 @@ describe.skipIf(!isLiveEnabled)('live enabled team on the contributor model', ()
   }, DRILL_TIMEOUT_MS)
 
   afterAll(async () => {
-    OPTIONAL_RUNTIME_AVAILABILITY.team = wasLatchOpen
     if (workspace !== '') await rm(workspace, { recursive: true, force: true })
     if (ports !== undefined && ports.storageRoot !== '') {
       await rm(ports.storageRoot, { recursive: true, force: true })

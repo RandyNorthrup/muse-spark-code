@@ -1,6 +1,7 @@
 // M96b: keep CLI/headless admission independent of ACP mapping schemas.
 import * as z from 'zod/mini'
 import { UI_TEXT } from '../shared/constants'
+import { checkTeamAvailability, type TeamAvailabilityCandidate } from '../shared/teamAvailability'
 
 /** A caller value cannot be represented by the frozen team contract. */
 export class TeamContractError extends Error {
@@ -31,26 +32,6 @@ export function parseInput<Schema extends z.ZodMiniType>(
 const teamExecAdmissionInputSchema = z.strictObject({ mode: z.string(), backend: z.string() })
 
 /**
-Headless engine teams sit behind the agent-teams availability switch
-(`museSpark.team` for the editor surfaces) like every other team surface.
-The headless side is this in-memory certification flag, off until the
-runner lane is certified: with it off `exec` has no `--team` flag, and no
-run reaches the team money path. Tests flip it with
-`setHeadlessTeamsAvailable`; production leaves it off.
-*/
-// Holder object (the `setUiText` shape in shared/l10n/text.ts): the setter
-// mutates the holder, never a top-level binding.
-const headlessTeamsState: { isAvailable: boolean } = { isAvailable: false }
-
-export function areHeadlessTeamsAvailable(): boolean {
-  return headlessTeamsState.isAvailable
-}
-
-export function setHeadlessTeamsAvailable(isAvailable: boolean): void {
-  headlessTeamsState.isAvailable = isAvailable
-}
-
-/**
 Exec validates its hard budget first. Team dispatch additionally requires
 the Model API engine and acceptEdits; every other mode refuses explicitly.
 */
@@ -63,4 +44,51 @@ export function teamExecAdmission(input: {
   return parsed.mode === 'acceptEdits'
     ? { ok: true }
     : { ok: false, reason: UI_TEXT.execTeamNeedsEdits }
+}
+
+const teamSessionAdmissionInputSchema = z.strictObject({
+  sessionModelId: z.string().check(z.minLength(1)),
+  customEntries: z.array(
+    z.strictObject({
+      modelId: z.string().check(z.minLength(1)),
+      billsKey: z.boolean(),
+      isAvailable: z.boolean(),
+    }),
+  ),
+  teamSwitchOff: z.boolean(),
+  teamWorkersOn: z.boolean(),
+})
+
+/**
+D217: the ACP session's team admission, on the one availability rule. The
+session's own model leads; the workspace entries (read from the agent's
+data folder, as M96b wires them) are the worker candidates. A refusal
+names the rule, never a budget or a missing flag. The same-model
+comparison rides beside the input, as `TeamDecisionSource` carries it.
+*/
+export function teamSessionAdmission(
+  input: {
+    readonly sessionModelId: string
+    readonly customEntries: readonly TeamAvailabilityCandidate[]
+    readonly teamSwitchOff: boolean
+    readonly teamWorkersOn: boolean
+  },
+  isSameModel: (a: string, b: string) => boolean,
+): { readonly ok: true } | { readonly ok: false; readonly reason: string } {
+  const parsed = parseInput(teamSessionAdmissionInputSchema, input, 'team session admission')
+  const availability = checkTeamAvailability({
+    isSwitchedOff: parsed.teamSwitchOff,
+    leadModelId: parsed.sessionModelId,
+    candidates: parsed.customEntries,
+    isSameModel,
+    teamWorkersOn: parsed.teamWorkersOn,
+  })
+  if (availability.isAvailable) return { ok: true }
+  return {
+    ok: false,
+    reason:
+      availability.reason === 'switched-off'
+        ? UI_TEXT.teamSwitchedOff
+        : UI_TEXT.teamNeedsSecondModel,
+  }
 }

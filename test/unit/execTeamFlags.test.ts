@@ -1,22 +1,16 @@
 // M96b exec --team flags (C-M96b-0, PLAN.md D75): grammar, validation and the
 // headless engine admission after all ordinary argument checks.
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { parseExec } from '../../src/runtime/exec/execArgs'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
-import { setHeadlessTeamsAvailable } from '../../src/acp/teamAdmission'
 
 const BUDGET = { backend: 'modelApi', 'max-budget-usd': '1' }
 
-// Headless teams sit behind the agent-teams availability switch: the
-// on-state tests below flip it; the off-state test proves both directions.
-beforeEach(() => {
-  setHeadlessTeamsAvailable(true)
-})
-afterEach(() => {
-  setHeadlessTeamsAvailable(false)
-})
+// D217: no availability switch stands before --team. The parser admits the
+// flag on its own checks; the two-model rule at run start refuses a team
+// run without a second runnable model (teamAvailability.test.ts).
 
 describe('M96b exec --team flags', () => {
   it('parses without --team exactly as before', () => {
@@ -101,34 +95,4 @@ it('requires the hard run budget before admitting a headless team', () => {
     ok: false,
     reason: UI_TEXT.execBudgetRequired,
   })
-})
-
-it('hides --team behind the agent-teams availability switch', () => {
-  setHeadlessTeamsAvailable(false)
-  try {
-    expect(
-      parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits' }, ['task']),
-    ).toEqual({
-      ok: false,
-      reason: fill(UI_TEXT.acpUnknownArgument, { argument: '--team' }),
-    })
-    expect(
-      parseCommandLine([
-        'exec',
-        '--team',
-        '--backend',
-        'modelApi',
-        '--max-budget-usd',
-        '1',
-        '--permission-mode',
-        'acceptEdits',
-        'task',
-      ]),
-    ).toMatchObject({ command: 'invalid' })
-  } finally {
-    setHeadlessTeamsAvailable(true)
-  }
-  expect(
-    parseExec({ ...BUDGET, team: true, 'permission-mode': 'acceptEdits' }, ['task']),
-  ).toMatchObject({ ok: true, options: { team: true } })
 })
