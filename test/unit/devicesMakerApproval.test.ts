@@ -34,6 +34,21 @@ function prompt(): MakerApprovalPrompt {
   })
 }
 
+function parseAnswer(decision: string, digest: string) {
+  return parseDeviceWebviewRequest({
+    type: 'deviceRequest',
+    viewId: 'c'.repeat(32),
+    requestId: 'd'.repeat(32),
+    revision: 4,
+    action: {
+      kind: 'answerMakerApproval',
+      requestId: REQUEST_ID,
+      decision,
+      digest,
+    },
+  })
+}
+
 describe('maker approval protocol', () => {
   it('carries a prompt over the off state', () => {
     const parsed = parseDeviceHostMessage({
@@ -87,34 +102,12 @@ describe('maker approval protocol', () => {
   })
 
   it('refuses an answer with a malformed echo', () => {
-    const parsed = parseDeviceWebviewRequest({
-      type: 'deviceRequest',
-      viewId: 'c'.repeat(32),
-      requestId: 'd'.repeat(32),
-      revision: 4,
-      action: {
-        kind: 'answerMakerApproval',
-        requestId: REQUEST_ID,
-        decision: 'send',
-        digest: 'e'.repeat(63),
-      },
-    })
+    const parsed = parseAnswer('send', 'e'.repeat(63))
     expect(parsed.ok).toBe(false)
   })
 
   it('refuses an answer with an unknown decision', () => {
-    const parsed = parseDeviceWebviewRequest({
-      type: 'deviceRequest',
-      viewId: 'c'.repeat(32),
-      requestId: 'd'.repeat(32),
-      revision: 4,
-      action: {
-        kind: 'answerMakerApproval',
-        requestId: REQUEST_ID,
-        decision: 'always',
-        digest: DIGEST,
-      },
-    })
+    const parsed = parseAnswer('always', DIGEST)
     expect(parsed.ok).toBe(false)
   })
 })

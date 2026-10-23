@@ -160,6 +160,29 @@ function presenceAction(operation: DeviceLocalAction['operation']): DeviceLocalA
   }
 }
 
+async function confirmWithoutPrompt(
+  digest: string,
+  operation: DeviceLocalAction['operation'],
+): Promise<{ isConfirmed: boolean; didAsk: boolean }> {
+  const approvals = new MakerApprovals({ now: () => 1000 })
+  let didAsk = false
+  const port = new MakerPresencePort(
+    approvals,
+    () => {
+      didAsk = true
+      return Promise.resolve(null)
+    },
+    { target: TARGET, readState: () => 'state-1' },
+  )
+  const isConfirmed = await port.confirm({
+    actionDigest: digest,
+    action: presenceAction(operation),
+    method: 'local-confirm',
+    signal: new AbortController().signal,
+  })
+  return { isConfirmed, didAsk }
+}
+
 describe('maker presence port', () => {
   it('holds one verified approval per gesture for the executor', async () => {
     const approvals = new MakerApprovals({ randomId: () => 'a'.repeat(32), now: () => 1000 })
@@ -192,22 +215,7 @@ describe('maker presence port', () => {
   })
 
   it('never prompts for a non-physical operation', async () => {
-    const approvals = new MakerApprovals({ now: () => 1000 })
-    let didAsk = false
-    const port = new MakerPresencePort(
-      approvals,
-      () => {
-        didAsk = true
-        return Promise.resolve(null)
-      },
-      { target: TARGET, readState: () => 'state-1' },
-    )
-    const isConfirmed = await port.confirm({
-      actionDigest: 'digest-2',
-      action: presenceAction('read'),
-      method: 'local-confirm',
-      signal: new AbortController().signal,
-    })
+    const { isConfirmed, didAsk } = await confirmWithoutPrompt('digest-2', 'read')
     expect(isConfirmed).toBe(false)
     expect(didAsk).toBe(false)
   })
@@ -230,22 +238,7 @@ describe('maker presence port', () => {
   })
 
   it('refuses to prompt an actuation it cannot analyse', async () => {
-    const approvals = new MakerApprovals({ now: () => 1000 })
-    let didAsk = false
-    const port = new MakerPresencePort(
-      approvals,
-      () => {
-        didAsk = true
-        return Promise.resolve(null)
-      },
-      { target: TARGET, readState: () => 'state-1' },
-    )
-    const isConfirmed = await port.confirm({
-      actionDigest: 'digest-5',
-      action: presenceAction('actuate'),
-      method: 'local-confirm',
-      signal: new AbortController().signal,
-    })
+    const { isConfirmed, didAsk } = await confirmWithoutPrompt('digest-5', 'actuate')
     expect(isConfirmed).toBe(false)
     expect(didAsk).toBe(false)
   })

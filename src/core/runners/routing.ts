@@ -562,97 +562,72 @@ export class ResourceRunnerRouter {
     receipt: (result: 'admitted' | 'refused' | 'uncertain') => void,
     state: { sawBusy: boolean; reportedBusy: boolean },
   ): Promise<RunnerDispatch> {
-    const withdrawal = new AbortController()
-    const withdraw = () => {
-      withdrawal.abort()
-    }
-    relocationSignal.addEventListener('abort', withdraw, { once: true })
-    if (relocationSignal.aborted) withdraw()
-    const detach = () => {
-      relocationSignal.removeEventListener('abort', withdraw)
-    }
-    const dispatchSignal = AbortSignal.any([signal, withdrawal.signal])
-    const sendState = { sent: false }
-    try {
-      dispatchSignal.throwIfAborted()
-      const relocation = this.options.port.status().settings.relocate
-      const isOffered = target.hasOffer(job.cwd, 'check')
-      dispatchSignal.throwIfAborted()
-      const final = this.options.port.status()
-      if (
-        !isOffered ||
-        !final.settings.enabled ||
-        final.level !== metadata.level ||
-        final.settings.relocate === 'off' ||
-        final.settings.relocate !== relocation
-      ) {
-        // A pressure or setting change before sending is a refusal, never
-        // an unreachable runner: Offline is produced only by the transport.
-        receipt('refused')
-        return { kind: 'busy' }
-      }
-      // The only sent fact: fired immediately before the start command is
-      // written, by the transport itself. Every stop before it reads refused.
-      const answer = await deps.remote(runner, {
-        ...job,
-        signal: dispatchSignal,
-        relocation: metadata,
-        onSent: () => {
-          sendState.sent = true
-          job.onSent?.()
-        },
-        onAdmitted: () => {
-          detach()
-          receipt('admitted')
-          job.onAdmitted?.()
-        },
-      })
-      if (answer.kind === 'finished' && answer.result.runId === job.runId) receipt('admitted')
-      else receipt(answer.kind === 'offline' || answer.kind === 'busy' ? 'refused' : 'uncertain')
-      // A target that became busy keeps the check on the source and says
-      // why: the known refusal reason reaches the source observer while the
-      // proved refusal still runs locally once. A reason-less busy (a full
-      // receiver, a busy cache) reports the busy sentence itself.
-      if (answer.kind === 'busy') {
-        state.sawBusy = true
-        this.options.onError(new Error(refusalSentence(answer.reason)))
-        state.reportedBusy = true
-      }
-      return answer
-    } catch (error: unknown) {
-      receipt(sendState.sent ? 'uncertain' : 'refused')
-      // The length refusal is always pre-send: refused, reported, offline.
-      if (error instanceof WindowsCommandTooLongError) {
-        this.options.onError(error)
-        return { kind: 'offline' }
-      }
-      // Cancel reads refused before sending, uncertain after.
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        this.options.onError(error)
-        return { kind: sendState.sent ? 'uncertain' : 'offline' }
-      }
-      // The transport proves only the above by throw; anything else is not
-      // a dispatch outcome.
-      throw error
-    } finally {
-      detach()
-    }
+    return await this.dispatchLeg(
+      job,
+      target,
+      metadata,
+      signal,
+      relocationSignal,
+      receipt,
+      (error) => {
+        // The length refusal is always pre-send: refused, reported, offline.
+        if (error instanceof WindowsCommandTooLongError) return { kind: 'offline' } as const
+        return
+      },
+      async (dispatchSignal, sendState, detach) => {
+        // The only sent fact: fired immediately before the start command is
+        // written, by the transport itself. Every stop before it reads refused.
+        const answer = await deps.remote(runner, {
+          ...job,
+          signal: dispatchSignal,
+          relocation: metadata,
+          onSent: () => {
+            sendState.sent = true
+            job.onSent?.()
+          },
+          onAdmitted: () => {
+            detach()
+            receipt('admitted')
+            job.onAdmitted?.()
+          },
+        })
+        if (answer.kind === 'finished' && answer.result.runId === job.runId) receipt('admitted')
+        else receipt(answer.kind === 'offline' || answer.kind === 'busy' ? 'refused' : 'uncertain')
+        // A target that became busy keeps the check on the source and says
+        // why: the known refusal reason reaches the source observer while the
+        // proved refusal still runs locally once. A reason-less busy (a full
+        // receiver, a busy cache) reports the busy sentence itself.
+        if (answer.kind === 'busy') {
+          state.sawBusy = true
+          this.options.onError(new Error(refusalSentence(answer.reason)))
+          state.reportedBusy = true
+        }
+        return answer
+      },
+    )
   }
 
   /**
-  M100-R: the paired-device send under the decision snapshot. The offer,
-  setting and level are rechecked before sending; admission wins over a
-  late abort. An admitted send carries the finished check: M100 owns the
-  attempt from admission, so the result arrives with it, never inferred.
+  The send skeleton both legs share: the withdrawal scope, the
+  decision-snapshot recheck, the leg's send and the outcome mapping. A
+  pressure or setting change before sending is a refusal, never an
+  unreachable target: Offline is produced only by the transport. The
+  leg maps its own thrown failures first; cancel reads refused before
+  sending, uncertain after.
   */
-  private async dispatchDevice(
+  private async dispatchLeg(
     job: CheckJob,
-    link: DeviceCheckLink,
     target: ResourceRelocationTarget,
     metadata: NonNullable<CheckJob['relocation']>,
     signal: AbortSignal,
     relocationSignal: AbortSignal,
     receipt: (result: 'admitted' | 'refused' | 'uncertain') => void,
+    mapError: (error: unknown) => RunnerDispatch | undefined,
+    send: (
+      dispatchSignal: AbortSignal,
+      sendState: { sent: boolean },
+      detach: () => void,
+    ) => Promise<RunnerDispatch>,
   ): Promise<RunnerDispatch> {
     const withdrawal = new AbortController()
     const withdraw = () => {
@@ -678,24 +653,17 @@ export class ResourceRunnerRouter {
         final.settings.relocate === 'off' ||
         final.settings.relocate !== relocation
       ) {
-        // A pressure or setting change before sending is a refusal, never
-        // an unreachable device: Offline is produced only by the transport.
         receipt('refused')
         return { kind: 'busy' }
       }
-      const answer = await this.options.deviceSend(job, link, metadata, dispatchSignal)
-      sendState.sent = answer.admission !== 'refused'
-      if (answer.admission === 'admitted') {
-        receipt('admitted')
-        job.onSent?.()
-        job.onAdmitted?.()
-        return { kind: 'finished', result: answer.result }
-      }
-      receipt(answer.admission)
-      return { kind: answer.admission === 'refused' ? 'busy' : 'uncertain' }
+      return await send(dispatchSignal, sendState, detach)
     } catch (error: unknown) {
       receipt(sendState.sent ? 'uncertain' : 'refused')
-      // Cancel reads refused before sending, uncertain after.
+      const mapped = mapError(error)
+      if (mapped !== undefined) {
+        this.options.onError(error)
+        return mapped
+      }
       if (error instanceof DOMException && error.name === 'AbortError') {
         this.options.onError(error)
         return { kind: sendState.sent ? 'uncertain' : 'offline' }
@@ -706,6 +674,47 @@ export class ResourceRunnerRouter {
     } finally {
       detach()
     }
+  }
+
+  /**
+  M100-R: the paired-device send. An admitted send carries the finished
+  check: M100 owns the attempt from admission, so the result arrives
+  with it, never inferred.
+  */
+  private async dispatchDevice(
+    job: CheckJob,
+    link: DeviceCheckLink,
+    target: ResourceRelocationTarget,
+    metadata: NonNullable<CheckJob['relocation']>,
+    signal: AbortSignal,
+    relocationSignal: AbortSignal,
+    receipt: (result: 'admitted' | 'refused' | 'uncertain') => void,
+  ): Promise<RunnerDispatch> {
+    return await this.dispatchLeg(
+      job,
+      target,
+      metadata,
+      signal,
+      relocationSignal,
+      receipt,
+      // The device send maps no error: anything it throws is not a
+      // dispatch outcome, so dispatchLeg rethrows.
+      () => {
+        return
+      },
+      async (dispatchSignal, sendState) => {
+        const answer = await this.options.deviceSend(job, link, metadata, dispatchSignal)
+        sendState.sent = answer.admission !== 'refused'
+        if (answer.admission === 'admitted') {
+          receipt('admitted')
+          job.onSent?.()
+          job.onAdmitted?.()
+          return { kind: 'finished', result: answer.result }
+        }
+        receipt(answer.admission)
+        return { kind: answer.admission === 'refused' ? 'busy' : 'uncertain' }
+      },
+    )
   }
 
   isBusy(runId: string): boolean {

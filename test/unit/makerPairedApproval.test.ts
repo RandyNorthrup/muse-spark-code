@@ -5,117 +5,90 @@
 // anywhere sends nothing to the machine.
 import { describe, expect, it } from 'vitest'
 import type { MakerApprovalAnswer, MakerApprovalPrompt } from '../../src/shared/maker'
-import { DEVICE_LIMITS } from '../../src/shared/constants'
-import {
-  deviceGrantRequestSchema,
-  deviceGrantSchema,
-  type DeviceGrant,
-  type DeviceGrantRequest,
-} from '../../src/shared/devices'
 import {
   DeviceActionGrants,
   deviceActionDigest,
   type DeviceLocalAction,
-  type DeviceReceiverActionState,
 } from '../../src/core/devices/actionGrants'
 import { MakerApprovals, MakerPresencePort } from '../../src/core/maker/approval'
 import { analyzeMakerPayload } from '../../src/core/maker/analysis'
 import { PrinterExecutor } from '../../src/core/maker/executors'
 import { PrinterSimulator, printerSimRecord } from '../../src/core/maker/simulators'
 import { deviceCaps, deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import {
+  GRANT_HARNESS_IDS,
+  harnessGrantRequest,
+  harnessReceiverState,
+} from './helpers/deviceGrants'
 
-const PAIR_ID = 'a'.repeat(32)
-const OWNER_ID = 'b'.repeat(32)
-const ROLE_ID = 'c'.repeat(32)
-const REPOSITORY_ID = 'd'.repeat(32)
-const GRANT_ID = 'e'.repeat(32)
+const { pairId: PAIR_ID } = GRANT_HARNESS_IDS
+// False on purpose: actuation forces step-up by operation alone.
+const PAIRED_GRANT = { requiresStepUp: false, checks: true, grantRevision: 1 }
 const approvals = new MakerApprovals()
 
 function answer(prompt: MakerApprovalPrompt, decision: 'send' | 'reject'): MakerApprovalAnswer {
   return { requestId: prompt.requestId, decision, digest: prompt.digest }
 }
 
-function request(): DeviceGrantRequest {
-  return deviceGrantRequestSchema.parse({
-    version: DEVICE_LIMITS.protocolVersion,
-    pairId: PAIR_ID,
-    ownerId: OWNER_ID,
-    roleId: ROLE_ID,
-    mode: 'manual',
-    repositoryId: REPOSITORY_ID,
-    lanes: true,
-    checks: false,
-    quota: deviceCaps,
-  })
-}
-
-function grant(): DeviceGrant {
-  const issuedAt = Date.now()
-  return deviceGrantSchema.parse({
-    version: DEVICE_LIMITS.protocolVersion,
-    grantId: GRANT_ID,
-    grantRevision: 1,
-    pairId: PAIR_ID,
-    ownerId: OWNER_ID,
-    roleId: ROLE_ID,
-    mode: 'manual',
-    repositoryId: REPOSITORY_ID,
-    lanes: true,
-    checks: true,
-    quota: deviceCaps,
-    issuedAt,
-    expiresAt: issuedAt + DEVICE_LIMITS.grantValidityMs - 1,
-    // False on purpose: actuation forces step-up by operation alone.
-    requiresStepUp: false,
-  })
+function request() {
+  return harnessGrantRequest()
 }
 
 function actionFor(payload: Uint8Array): DeviceLocalAction {
   return { operation: 'actuate', tool: 'printer-send', paths: [], payload }
 }
 
-function stateFor(action: DeviceLocalAction): DeviceReceiverActionState {
-  return {
-    grant: grant(),
-    revoked: false,
-    repository: request(),
-    role: { mode: 'manual', quota: deviceCaps, roleId: ROLE_ID, tools: ['printer-send'] },
-    trusted: true,
-    protectedPaths: [],
-    approval: { mode: 'manual', quota: deviceCaps, allowed: true },
-    used: { workers: 0, processes: 0, heavyChecks: 0, tokens: 0, spendUsd: 0, artifactBytes: 0 },
-    action,
+function stateFor(action: DeviceLocalAction) {
+  return harnessReceiverState(action, ['printer-send'], PAIRED_GRANT)
+}
+
+function pairedHarness(
+  decision: 'send' | 'reject',
+  payloadText: string,
+): {
+  sim: PrinterSimulator
+  executor: PrinterExecutor
+  asker: (prompt: MakerApprovalPrompt) => Promise<MakerApprovalAnswer>
+  seen: MakerApprovalPrompt[]
+  presence: MakerPresencePort
+  grants: DeviceActionGrants
+  local: DeviceLocalAction
+} {
+  const sim = new PrinterSimulator(printerSimRecord())
+  const executor = new PrinterExecutor({ approvals })
+  const seen: MakerApprovalPrompt[] = []
+  const asker = (prompt: MakerApprovalPrompt) => {
+    seen.push(prompt)
+    return Promise.resolve(answer(prompt, decision))
   }
+  const position = sim.readState().position
+  if (position === undefined) throw new Error('sim reports no position')
+  const presence = new MakerPresencePort(
+    approvals,
+    asker,
+    {
+      target: sim.target,
+      readState: () => sim.readState().fingerprint,
+      analyze: (payload) => analyzeMakerPayload('printer', payload, position),
+    },
+    () => Date.now(),
+  )
+  const local = actionFor(new TextEncoder().encode(payloadText))
+  const grants = new DeviceActionGrants({
+    senderCeiling: () => ({ mode: 'manual', quota: deviceCaps }),
+    current: () => stateFor(local),
+    presence,
+    now: () => Date.now(),
+  })
+  return { sim, executor, asker, seen, presence, grants, local }
 }
 
 describe('paired maker approval', () => {
   it('admits and sends after the exact-payload gesture', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const seen: MakerApprovalPrompt[] = []
-    const asker = (prompt: MakerApprovalPrompt) => {
-      seen.push(prompt)
-      return Promise.resolve(answer(prompt, 'send'))
-    }
-    const position = sim.readState().position
-    if (position === undefined) throw new Error('sim reports no position')
-    const presence = new MakerPresencePort(
-      approvals,
-      asker,
-      {
-        target: sim.target,
-        readState: () => sim.readState().fingerprint,
-        analyze: (payload) => analyzeMakerPayload('printer', payload, position),
-      },
-      () => Date.now(),
+    const { sim, executor, asker, seen, presence, grants, local } = pairedHarness(
+      'send',
+      'G1 X10 Y10\n',
     )
-    const local = actionFor(new TextEncoder().encode('G1 X10 Y10\n'))
-    const grants = new DeviceActionGrants({
-      senderCeiling: () => ({ mode: 'manual', quota: deviceCaps }),
-      current: () => stateFor(local),
-      presence,
-      now: () => Date.now(),
-    })
     // Connect and home through the local path first: the paired send
     // needs an open, homed machine.
     const signal = new AbortController().signal
@@ -155,31 +128,7 @@ describe('paired maker approval', () => {
   })
 
   it('sends nothing when the person rejects the step-up', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const seen: MakerApprovalPrompt[] = []
-    const asker = (prompt: MakerApprovalPrompt) => {
-      seen.push(prompt)
-      return Promise.resolve(answer(prompt, 'reject'))
-    }
-    const position = sim.readState().position
-    if (position === undefined) throw new Error('sim reports no position')
-    const presence = new MakerPresencePort(
-      approvals,
-      asker,
-      {
-        target: sim.target,
-        readState: () => sim.readState().fingerprint,
-        analyze: (payload) => analyzeMakerPayload('printer', payload, position),
-      },
-      () => Date.now(),
-    )
-    const local = actionFor(new TextEncoder().encode('G1 X10\n'))
-    const grants = new DeviceActionGrants({
-      senderCeiling: () => ({ mode: 'manual', quota: deviceCaps }),
-      current: () => stateFor(local),
-      presence,
-      now: () => Date.now(),
-    })
+    const { sim, seen, presence, grants, local } = pairedHarness('reject', 'G1 X10\n')
     const dispatch = deviceCheck(deviceGrant(PAIR_ID))
     const attempt = {
       identity: dispatch.identity,

@@ -149,6 +149,25 @@ abstract class MakerExecutorBase {
     this.now = deps.now ?? Date.now
   }
 
+  protected logBody(
+    connection: MakerMachineConnection,
+    payload: Uint8Array,
+    operation: MakerLogClass,
+    approvalId: string | undefined,
+  ): Pick<
+    MakerLogRecord,
+    'atMs' | 'machine' | 'class' | 'payloadSha256' | 'payloadByteLength' | 'approvalId'
+  > {
+    return {
+      atMs: this.now(),
+      machine: connection.target.name,
+      class: operation,
+      payloadSha256: makerPayloadDigest(payload),
+      payloadByteLength: payload.byteLength,
+      ...(approvalId !== undefined && { approvalId }),
+    }
+  }
+
   protected refusal(
     connection: MakerMachineConnection,
     payload: Uint8Array,
@@ -162,12 +181,7 @@ abstract class MakerExecutorBase {
       reason,
       ...(detail !== undefined && { detail }),
       log: {
-        atMs: this.now(),
-        machine: connection.target.name,
-        class: operation,
-        payloadSha256: makerPayloadDigest(payload),
-        payloadByteLength: payload.byteLength,
-        ...(approvalId !== undefined && { approvalId }),
+        ...this.logBody(connection, payload, operation, approvalId),
         outcome: 'refused',
         reason,
         ...(detail !== undefined && { detail }),
@@ -186,12 +200,7 @@ abstract class MakerExecutorBase {
       ok: true,
       response,
       log: {
-        atMs: this.now(),
-        machine: connection.target.name,
-        class: operation,
-        payloadSha256: makerPayloadDigest(payload),
-        payloadByteLength: payload.byteLength,
-        ...(approvalId !== undefined && { approvalId }),
+        ...this.logBody(connection, payload, operation, approvalId),
         outcome: 'sent',
         response,
       },

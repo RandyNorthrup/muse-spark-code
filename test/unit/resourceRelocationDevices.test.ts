@@ -40,16 +40,20 @@ const PAIR_ID = 'a'.repeat(32)
 const DEVICE_ID = 'b'.repeat(32)
 const REPO = '/work/repo'
 
+const OFFER_IDENTITY = {
+  deviceId: DEVICE_ID,
+  receiverIncarnationId: 'c'.repeat(32),
+  poolId: 'd'.repeat(32),
+  repositoryId: 'e'.repeat(32),
+  grantId: 'f'.repeat(32),
+  grantRevision: 1,
+  platform: 'darwin',
+  toolchainDigest: '0'.repeat(64),
+}
+
 function checksOffer(): DeviceOffer {
   return deviceOfferSchema.parse({
-    deviceId: DEVICE_ID,
-    receiverIncarnationId: 'c'.repeat(32),
-    poolId: 'd'.repeat(32),
-    repositoryId: 'e'.repeat(32),
-    grantId: 'f'.repeat(32),
-    grantRevision: 1,
-    platform: 'darwin',
-    toolchainDigest: '0'.repeat(64),
+    ...OFFER_IDENTITY,
     lanes: false,
     checks: true,
     caps: { workers: 0, processes: 1, heavyChecks: 1, tokens: 0, spendUsd: 0, artifactBytes: 0 },
@@ -60,14 +64,7 @@ function checksOffer(): DeviceOffer {
 
 function lanesOffer(): DeviceOffer {
   return deviceOfferSchema.parse({
-    deviceId: DEVICE_ID,
-    receiverIncarnationId: 'c'.repeat(32),
-    poolId: 'd'.repeat(32),
-    repositoryId: 'e'.repeat(32),
-    grantId: 'f'.repeat(32),
-    grantRevision: 1,
-    platform: 'darwin',
-    toolchainDigest: '0'.repeat(64),
+    ...OFFER_IDENTITY,
     lanes: true,
     checks: false,
     caps: { workers: 1, processes: 1, heavyChecks: 0, tokens: 0, spendUsd: 0, artifactBytes: 0 },
@@ -106,6 +103,13 @@ function linkFor(offer: DeviceOffer, repositoryPath = REPO): DeviceCheckLink {
     offer,
     repositoryPath,
     resource: () => Promise.resolve({ level: 'normal', headroom: 'ample' }),
+  }
+}
+
+function admittedDeviceSend(): DeviceCheckSend {
+  return {
+    admission: 'admitted',
+    result: { runId: 'run-1', exitCode: 0, output: 'device-check-output', location: 'paired' },
   }
 }
 
@@ -357,10 +361,7 @@ describe('device check relocation', () => {
   it('moves a queued check to the linked offer', async () => {
     const { result, calls } = await routeOnDevices({
       links: [linkFor(checksOffer())],
-      send: {
-        admission: 'admitted',
-        result: { runId: 'run-1', exitCode: 0, output: 'device-check-output', location: 'paired' },
-      },
+      send: admittedDeviceSend(),
     })
     expect(result.output).toBe('device-check-output')
     expect(calls.settled).toEqual(['admitted'])
@@ -378,10 +379,7 @@ describe('device check relocation', () => {
   it('asks first when the setting says ask', async () => {
     const { result, calls } = await routeOnDevices({
       links: [linkFor(checksOffer())],
-      send: {
-        admission: 'admitted',
-        result: { runId: 'run-1', exitCode: 0, output: 'device-check-output', location: 'paired' },
-      },
+      send: admittedDeviceSend(),
       relocate: 'ask',
     })
     expect(result.output).toBe('device-check-output')
@@ -405,10 +403,7 @@ describe('device check relocation', () => {
   it('keeps the check local when no offer covers the repository', async () => {
     const { result, calls } = await routeOnDevices({
       links: [linkFor(checksOffer(), '/work/other')],
-      send: {
-        admission: 'admitted',
-        result: { runId: 'run-1', exitCode: 0, output: 'device-check-output', location: 'paired' },
-      },
+      send: admittedDeviceSend(),
     })
     expect(result.output).toBe('local-check-output')
     expect(calls.settled).toEqual(['kept'])
@@ -421,10 +416,7 @@ describe('device check relocation', () => {
   it('moves across separators', async () => {
     const { result, calls } = await routeOnDevices({
       links: [linkFor(checksOffer(), 'C:/work/repo')],
-      send: {
-        admission: 'admitted',
-        result: { runId: 'run-1', exitCode: 0, output: 'device-check-output', location: 'paired' },
-      },
+      send: admittedDeviceSend(),
       cwd: String.raw`C:\work\repo`,
     })
     expect(result.output).toBe('device-check-output')
