@@ -4,77 +4,24 @@ import * as vscode from 'vscode'
 import * as z from 'zod/mini'
 import type { Logger } from '../logger'
 import type { ModelResolver, ResolvedModel } from '../../core/backends/modelapi/modelPolicy'
-import type { CreateResponseBody, InputItem, Usage } from '../../core/backends/modelapi/schemas'
+import type { Usage } from '../../core/backends/modelapi/schemas'
 import type { UsageRecording } from '../../core/usage/recording'
 import { Usd, type UsdAmount } from '../../shared/usd'
+import { EDITOR_CHAT_VENDOR, MODEL_API_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
 import {
-  ANTHROPIC_MAX_IMAGE_BYTES,
-  EDITOR_CHAT_VENDOR,
-  META_IMAGE_MAX_BYTES,
-  MODEL_API_EFFORT_OFF,
-  MODEL_API_REQUEST_TIMEOUT_MS,
-  TOKENS_PER_MILLION,
-  EDITOR_CHAT_PROMPT_CACHE_RETENTION,
-  UI_TEXT,
-} from '../../shared/constants'
-import { boundToolResultText } from '../../core/backends/modelapi/toolResultBound'
-import { parseModelRef } from '../../core/providers/modelRef'
-import { fill, formatNumber } from '../../shared/l10n/text'
-import { formatUsd } from '../../shared/l10n/exactUsd'
+  EditorChatRefusalError,
+  editorChatBody,
+  editorChatConfirmationEvidence,
+  editorChatLimits,
+  editorChatMessageSchema,
+  editorChatRates,
+  editorChatReasoningEffort,
+  type EditorChatWireValues,
+} from '../../core/providers/editorChat'
 
 const selectedSchema = z.array(z.string().check(z.minLength(1)))
 const confirmationsSchema = z.record(z.string(), z.string())
-const modelOptionsSchema = z.strictObject({ reasoningEffort: z.optional(z.string()) })
-const textSchema = z.object({ value: z.string() })
-const callSchema = z.object({
-  callId: z.string(),
-  name: z.string(),
-  input: z.record(z.string(), z.unknown()),
-})
-const resultSchema = z.object({ callId: z.string(), content: z.array(textSchema) })
-const imageSchema = z.object({
-  mimeType: z.enum(['image/png', 'image/jpeg', 'image/webp', 'image/gif']),
-  data: z.instanceof(Uint8Array).check(z.refine((value) => value.byteLength > 0)),
-})
-
-/**
-The provider's own documented image bound for editor-sent pictures, or
-undefined where the provider states none: only documented bounds are
-enforced locally (D121); other providers' own refusals reach the caller
-in words.
-*/
-const IMAGE_MAX_BYTES_BY_PROVIDER: Readonly<Record<string, number>> = {
-  anthropic: ANTHROPIC_MAX_IMAGE_BYTES,
-  meta: META_IMAGE_MAX_BYTES,
-}
-const imageMaxBytesFor = (providerId: string): number | undefined =>
-  IMAGE_MAX_BYTES_BY_PROVIDER[providerId]
-const messageSchema = z.object({
-  role: z.union([
-    z.literal(vscode.LanguageModelChatMessageRole.User),
-    z.literal(vscode.LanguageModelChatMessageRole.Assistant),
-  ]),
-  content: z.array(z.union([callSchema, resultSchema, textSchema, imageSchema])),
-})
-const messagesSchema = z.array(messageSchema)
-const optionsSchema = z.object({
-  tools: z.optional(
-    z.array(
-      z.object({
-        name: z.string(),
-        description: z.string(),
-        inputSchema: z.optional(z.record(z.string(), z.unknown())),
-      }),
-    ),
-  ),
-  toolMode: z.optional(
-    z.union([
-      z.literal(vscode.LanguageModelChatToolMode.Auto),
-      z.literal(vscode.LanguageModelChatToolMode.Required),
-    ]),
-  ),
-  modelOptions: z.optional(z.record(z.string(), z.unknown())),
-})
 const idSchema = z.object({ id: z.string() })
 
 export interface EditorChatDeps {
@@ -120,225 +67,26 @@ function isCancelled(token: vscode.CancellationToken): boolean {
   return token.isCancellationRequested
 }
 
-/**
-The provider's own refusal, distinct from anything unexpected: callers
-skip a refused model and rethrow anything else. The cause stays on the
-thrown refusal for the record; only the fixed sentence reaches the person.
-*/
-class EditorChatRefusalError extends Error {
-  constructor(cause?: unknown) {
-    super(UI_TEXT.editorChatRefused, cause === undefined ? undefined : { cause })
-  }
-}
+/** The shared refusal (the class lives in core): only the fixed sentence reaches the person. */
 function fail(cause?: unknown): never {
   throw new EditorChatRefusalError(cause)
 }
-function limits(model: ResolvedModel): { input: number; output: number } {
-  const input = model.contextTokens
-  const output = model.policy.output.maxTokens
-  return input === undefined ||
-    output === undefined ||
-    !Number.isSafeInteger(input) ||
-    !Number.isSafeInteger(output) ||
-    input <= 0 ||
-    output <= 0
-    ? fail()
-    : { input, output }
-}
-function bodyFor(
-  ref: string,
-  messages: unknown,
-  options: unknown,
-  output: number,
-  effort: string,
-  inputWindow: number,
-): CreateResponseBody {
-  const parsed = messagesSchema.safeParse(messages)
-  const opts = optionsSchema.safeParse(options)
-  const providerId = parseModelRef(ref)?.providerId
-  if (
-    providerId === undefined ||
-    !parsed.success ||
-    !opts.success ||
-    (opts.data.toolMode !== undefined &&
-      opts.data.toolMode !== vscode.LanguageModelChatToolMode.Auto) ||
-    !modelOptionsSchema.safeParse(opts.data.modelOptions ?? {}).success
-  )
-    return fail()
-  const maxImageBytes = imageMaxBytesFor(providerId)
-  const input: InputItem[] = []
-  for (const message of parsed.data) {
-    for (const part of message.content) {
-      if ('data' in part) {
-        if (message.role !== vscode.LanguageModelChatMessageRole.User) return fail()
-        if (maxImageBytes !== undefined && part.data.byteLength > maxImageBytes) return fail()
-        input.push({
-          type: 'message',
-          role: 'user',
-          content: [
-            {
-              type: 'input_image',
-              image_url: `data:${part.mimeType};base64,${Buffer.from(part.data).toString('base64')}`,
-              detail: 'auto',
-            },
-          ],
-        })
-      } else if ('input' in part) {
-        if (message.role !== vscode.LanguageModelChatMessageRole.Assistant) return fail()
-        input.push({
-          type: 'function_call',
-          call_id: part.callId,
-          name: part.name,
-          arguments: JSON.stringify(part.input),
-        })
-      } else if ('content' in part) {
-        if (message.role !== vscode.LanguageModelChatMessageRole.User) return fail()
-        // TOOLCAP: the editor's tool text enters the request through the
-        // one bound, sized by the model's own window. No spill writer
-        // runs here, so text over its share fails loudly instead of
-        // riding unbounded into a paid call.
-        const bounded = boundToolResultText(part.content.map((text) => text.value).join('\n'), {
-          maxBytes: Infinity,
-          windowTokens: inputWindow,
-        })
-        if (bounded.cut !== undefined) return fail()
-        input.push({
-          type: 'function_call_output',
-          call_id: part.callId,
-          output: bounded.text,
-        })
-      } else
-        input.push({
-          type: 'message',
-          role: message.role === vscode.LanguageModelChatMessageRole.User ? 'user' : 'assistant',
-          content: [
-            {
-              type:
-                message.role === vscode.LanguageModelChatMessageRole.User
-                  ? 'input_text'
-                  : 'output_text',
-              text: part.value,
-            },
-          ],
-        })
-    }
-  }
-  return {
-    model: ref,
-    input,
-    instructions: '',
-    tools: (opts.data.tools ?? []).map((tool) => ({
-      type: 'function',
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.inputSchema ?? { type: 'object', properties: {} },
-      strict: false,
-    })),
-    tool_choice: 'auto',
-    reasoning: { effort },
-    stream: true,
-    store: false,
-    include: [],
-    prompt_cache_key: '',
-    prompt_cache_retention: EDITOR_CHAT_PROMPT_CACHE_RETENTION,
-    max_output_tokens: output,
-  }
-}
-
-const confirmationEvidence = (model: ResolvedModel) =>
-  JSON.stringify({
-    model: model.ref,
-    origin: model.origin,
-    pricing: model.policy.pricing,
-  })
-
-const pricePerMillion = (rate: number) =>
-  formatUsd(Usd.from(rate).times(TOKENS_PER_MILLION).toAmount(), 2)
-
-const modelRates = (model: ResolvedModel) => {
-  const pricing = model.policy.pricing
-  if (pricing.kind === 'local') return UI_TEXT.modelLocal
-  if (pricing.kind !== 'priced') return fail()
-  const card = pricing.card
-  const tokenRates = (tier: typeof card.longContextTier) => {
-    const input = tier?.input ?? card.input
-    const output = tier?.output ?? card.output
-    const cached = tier?.cachedInput ?? card.cachedInput ?? input
-    const write = tier?.cacheWrite ?? card.cacheWrite ?? input
-    const write1h = tier?.cacheWrite1h ?? card.cacheWrite1h ?? write
-    return fill(UI_TEXT.editorChatRates, {
-      input: pricePerMillion(input),
-      output: pricePerMillion(output),
-      cached: pricePerMillion(cached),
-      write: pricePerMillion(write),
-      write1h: pricePerMillion(write1h),
-    })
-  }
-  const base = tokenRates(undefined)
-  const fees = fill(UI_TEXT.editorChatFees, {
-    request: formatUsd(card.request ?? 0, 2),
-    image: formatUsd(card.image ?? 0, 2),
-  })
-  const tier = card.longContextTier
-  return [
-    base,
-    fees,
-    ...(tier === undefined
-      ? []
-      : [
-          fill(UI_TEXT.editorChatTier, {
-            tokens: formatNumber(tier.fromTokens),
-            rates: tokenRates(tier),
-          }),
-        ]),
-  ].join('\n')
-}
-
-const reasoningEffortFor = (model: ResolvedModel, options: unknown) => {
-  const opts = optionsSchema.parse(options)
-  const requested = modelOptionsSchema.parse(opts.modelOptions ?? {}).reasoningEffort
-  const { supported, effortLevels, canDisable } = model.policy.reasoning
-  // Reasoning off bills no reasoning level: a listed `none` level and a
-  // recorded disable capability each run without reasoning, even when the
-  // catalogue records only one of them.
-  const canRunWithoutReasoning =
-    canDisable.state === 'yes' ||
-    (effortLevels.state === 'yes' && effortLevels.value.includes('none'))
-  // Meta's thinking-off wire value is `minimal` (`none` is a 400); every
-  // other provider runs without reasoning on `none`.
-  const offEffort = model.policy.identity.provider === 'meta' ? MODEL_API_EFFORT_OFF : 'none'
-  if (requested !== undefined) {
-    // An explicit off request runs on the same terms as the default below:
-    // it is honoured whenever the catalogue shows the model can run without
-    // reasoning, even when `none` is not a listed level, and it is sent on
-    // the provider's off wire value.
-    if (requested === 'none') {
-      if (supported.state === 'no') return 'none'
-      return canRunWithoutReasoning ? offEffort : fail()
-    }
-    return supported.state !== 'no' &&
-      effortLevels.state === 'yes' &&
-      effortLevels.value.includes(requested)
-      ? requested
-      : fail()
-  }
-  if (supported.state === 'no') return 'none'
-  if (effortLevels.state === 'yes') {
-    if (canRunWithoutReasoning) return offEffort
-    const level = effortLevels.value.find((value) => value !== 'none')
-    if (level !== undefined) return level
-  }
-  return canDisable.state === 'yes' ? offEffort : fail()
-}
-
 export function createEditorChat(deps: EditorChatDeps) {
   const active = new Set<AbortController>()
   const confirming = new Map<string, Promise<void>>()
+  // The editor's own values for the core conversion: the real enums.
+  const wire: EditorChatWireValues = {
+    userRole: vscode.LanguageModelChatMessageRole.User,
+    assistantRole: vscode.LanguageModelChatMessageRole.Assistant,
+    autoToolMode: vscode.LanguageModelChatToolMode.Auto,
+    requiredToolMode: vscode.LanguageModelChatToolMode.Required,
+  }
   const resolveModel = async (ref: string) =>
     await deps.models.resolve(ref.startsWith('meta/') ? ref.slice('meta/'.length) : ref)
   const selected = () => selectedSchema.parse(deps.selected())
   const isConfirmed = (ref: string, model: ResolvedModel) =>
-    confirmationsSchema.safeParse(deps.confirmations()).data?.[ref] === confirmationEvidence(model)
+    confirmationsSchema.safeParse(deps.confirmations()).data?.[ref] ===
+    editorChatConfirmationEvidence(model)
   const confirm = async (ref: string, model: ResolvedModel, requiresSelected: boolean) => {
     if (isConfirmed(ref, model)) return
     const prior = confirming.get(ref)
@@ -351,7 +99,7 @@ export function createEditorChat(deps: EditorChatDeps) {
       const answer = await vscode.window.showWarningMessage(
         fill(UI_TEXT.editorChatConsent, {
           model: ref,
-          rates: modelRates(model),
+          rates: editorChatRates(model),
         }),
         { modal: true },
         UI_TEXT.editorChatEnable,
@@ -359,7 +107,7 @@ export function createEditorChat(deps: EditorChatDeps) {
       if (answer !== UI_TEXT.editorChatEnable) return fail()
       if (!deps.allowed() || !model.isCurrent()) return fail()
       if (requiresSelected && !selected().includes(ref)) return fail()
-      await deps.saveConfirmation(ref, confirmationEvidence(model))
+      await deps.saveConfirmation(ref, editorChatConfirmationEvidence(model))
       // A removal that lands with the grant write must not leave a revoked
       // grant behind: recheck presence in the same step and withdraw instead.
       if (!requiresSelected || selected().includes(ref)) return
@@ -381,8 +129,8 @@ export function createEditorChat(deps: EditorChatDeps) {
       (model.policy.pricing.kind !== 'priced' && model.policy.pricing.kind !== 'local')
     )
       return fail()
-    limits(model)
-    reasoningEffortFor(model, {})
+    editorChatLimits(model)
+    editorChatReasoningEffort(model, {}, wire)
     return model
   }
   const provider: EditorChatProvider = {
@@ -392,7 +140,7 @@ export function createEditorChat(deps: EditorChatDeps) {
       for (const ref of selected()) {
         try {
           const model = await resolve(ref)
-          const bound = limits(model)
+          const bound = editorChatLimits(model)
           rows.push({
             id: ref,
             name: ref,
@@ -415,21 +163,25 @@ export function createEditorChat(deps: EditorChatDeps) {
     async provideTokenCount(rawModel, input, token) {
       if (isCancelled(token)) return fail()
       await resolve(idSchema.parse(rawModel).id)
-      const text = typeof input === 'string' ? input : JSON.stringify(messageSchema.parse(input))
+      const text =
+        typeof input === 'string'
+          ? input
+          : JSON.stringify(editorChatMessageSchema(wire).parse(input))
       // Conservative offline bound; token counting must never purchase inference.
       return Buffer.byteLength(text, 'utf8')
     },
     async provideLanguageModelChatResponse(rawModel, messages, options, progress, token) {
       const ref = idSchema.parse(rawModel).id
       const model = await resolve(ref)
-      const bound = limits(model)
-      const body = bodyFor(
+      const bound = editorChatLimits(model)
+      const body = editorChatBody(
         model.ref,
         messages,
         options,
         bound.output,
-        reasoningEffortFor(model, options),
+        editorChatReasoningEffort(model, options, wire),
         bound.input,
+        wire,
       )
       const images = body.input.reduce(
         (count, item) =>
@@ -585,8 +337,8 @@ export function createEditorChat(deps: EditorChatDeps) {
       const model = await resolveModel(ref)
       const pricing = model.policy.pricing
       if (pricing.kind !== 'local' && pricing.kind !== 'priced') return fail()
-      limits(model)
-      reasoningEffortFor(model, {})
+      editorChatLimits(model)
+      editorChatReasoningEffort(model, {}, wire)
       try {
         await confirm(ref, model, false)
       } catch (error) {
