@@ -443,10 +443,27 @@ export async function killTree(
   await sweepOrphans(pid, diedAt, startedAt, systemRoot, deps)
 }
 
-// The journal reducer is synchronous. A separate trusted supervisor keeps
-// enumerating while its caller is in spawnSync, before timeout reparents any
-// detached descendants. This is the POSIX fallback to a governed cgroup/job.
-const POSIX_TREE_SUPERVISOR = String.raw`
+/**
+POSIX synchronous caller, asynchronous tree supervision. The supplied
+environment is always the guarded child environment for the effect's
+working directory (only `workspaceChildEnvironment` can produce one), and
+`cwd` is required; no shell parses the effect. Only the caller's own
+`timeout` (positive, as spawnSync reads one) ends the effect early; without
+one it runs to its end.
+*/
+export function runTreeSync(
+  command: string,
+  args: readonly string[],
+  options: Omit<SpawnSyncOptions, 'env' | 'cwd'> & {
+    readonly env: GuardedChildEnv
+    readonly cwd: string
+  },
+): SpawnSyncReturns<Buffer> {
+  // The journal reducer is synchronous. A separate trusted supervisor keeps
+  // enumerating while its caller is in spawnSync, before timeout reparents any
+  // detached descendants. This is the POSIX fallback to a governed cgroup/job.
+  // Function-local so bundles that never call this shake the script out with it.
+  const POSIX_TREE_SUPERVISOR = String.raw`
 const { spawn, execFileSync } = require('node:child_process');
 const { readFileSync } = require('node:fs');
 const spec = JSON.parse(readFileSync(0, 'utf8'));
@@ -561,23 +578,6 @@ if (Number.isFinite(spec.timeout) && spec.timeout > 0) deadline = setTimeout(() 
   endTree();
 }, spec.timeout);
 `
-
-/**
-POSIX synchronous caller, asynchronous tree supervision. The supplied
-environment is always the guarded child environment for the effect's
-working directory (only `workspaceChildEnvironment` can produce one), and
-`cwd` is required; no shell parses the effect. Only the caller's own
-`timeout` (positive, as spawnSync reads one) ends the effect early; without
-one it runs to its end.
-*/
-export function runTreeSync(
-  command: string,
-  args: readonly string[],
-  options: Omit<SpawnSyncOptions, 'env' | 'cwd'> & {
-    readonly env: GuardedChildEnv
-    readonly cwd: string
-  },
-): SpawnSyncReturns<Buffer> {
   const { timeout: callerTimeout, ...spawnOptions } = options
   const timeout = callerTimeout !== undefined && callerTimeout > 0 ? callerTimeout : undefined
   const maxBuffer = options.maxBuffer ?? GIT_OUTPUT_MAX_BYTES
