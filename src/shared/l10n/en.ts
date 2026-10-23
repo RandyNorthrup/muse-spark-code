@@ -153,6 +153,9 @@ export const EN = {
     'Output schema validation: local (the selected model has no structured-output format).',
   outputSchemaReadFailed: 'Could not read the output schema: {detail}',
   modelApiPacingWaiting: 'Waiting for rate limit headroom…',
+  modelApiPacingConcurrencyWaiting:
+    'Waiting for a DeepSeek request slot (account concurrency {limit})…',
+  modelApiPacingBurstWaiting: "Spreading requests evenly for Azure's small-window rate evaluation…",
   modelApiStatusLabel: 'Meta API Status',
   modelApiStatusUnavailable: 'Status unavailable',
   modelApiStatusOpen: 'Open Service Status',
@@ -6268,6 +6271,10 @@ export const EN = {
   chatCodecThinkingOffUnsupported: 'Thinking cannot be turned off for the selected model.',
   anthropicCodecEmptyTurn: 'Anthropic requires at least one message.',
   anthropicCodecLimitExceeded: 'The Anthropic response exceeded a decoding limit.',
+  anthropicCodecManyImagesDimensions:
+    'Anthropic allows at most {maxPixels} px per image side in requests with more than {maxImages} images ({count} images, largest side {pixels} px).',
+  anthropicCodecRequestTooLarge:
+    'Anthropic allows requests up to {maxSize} (this request is {size}).',
   // M95-M (the Models panel's framework, PLAN.md D74): the table, filter
   // and form labels the panel's shared components read. Lane 0 tabled the
   // M95 flows above; these rows are the panel's own.

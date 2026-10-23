@@ -103,6 +103,8 @@
   "outputSchemaLocalValidation": "Ověření výstupního schématu: místní (vybraný model nemá formát strukturovaného výstupu).",
   "outputSchemaReadFailed": "Výstupní schéma se nepodařilo přečíst: {detail}",
   "modelApiPacingWaiting": "Čekání na dostupnou kapacitu v limitu požadavků…",
+  "modelApiPacingConcurrencyWaiting": "Čekání na slot požadavku DeepSeek (konkurence účtu {limit})…",
+  "modelApiPacingBurstWaiting": "Rovnoměrné rozkládání požadavků pro vyhodnocení limitu Azure v krátkém okně…",
   "modelApiStatusLabel": "Stav API Meta",
   "modelApiStatusUnavailable": "Stav není dostupný",
   "modelApiStatusOpen": "Otevřít stav služby",
@@ -5137,6 +5139,8 @@
   "chatCodecThinkingOffUnsupported": "U vybraného modelu nelze uvažování vypnout.",
   "anthropicCodecEmptyTurn": "Anthropic vyžaduje alespoň jednu zprávu.",
   "anthropicCodecLimitExceeded": "Odpověď Anthropic překročila limit dekódování.",
+  "anthropicCodecManyImagesDimensions": "Anthropic povoluje nejvýše {maxPixels} px na stranu obrázku v požadavcích s více než {maxImages} obrázky ({count} obrázků, nejdelší strana {pixels} px).",
+  "anthropicCodecRequestTooLarge": "Anthropic povoluje požadavky do {maxSize} (tento požadavek má {size}).",
   "modelsEmpty": "Zatím žádní poskytovatelé modelů. Přidejte jednoho, abyste mohli používat vlastní modely.",
   "panelNoMatches": "Žádné shody.",
   "modelFilterLabels": {

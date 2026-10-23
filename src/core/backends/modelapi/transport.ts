@@ -8,6 +8,7 @@ import {
   metaPacingLimits,
   type PacingClass,
   type PacingProvider,
+  type PacingWaitLimit,
   type RequestPacer,
 } from './pacing'
 import {
@@ -31,7 +32,7 @@ import { createHash } from 'node:crypto'
 
 import type { SpendClaim } from '../../paid/spendClaim'
 import type { MediaRequestAccounting } from '../../media/mediaCost'
-import { fill, formatDateTime } from '../../../shared/l10n/text'
+import { fill, formatDateTime, formatNumber } from '../../../shared/l10n/text'
 import {
   classifyRetry,
   effectiveMaxRetries,
@@ -475,6 +476,73 @@ export function isPacingGoverned(
   provider: string,
 ): boolean {
   return modelId !== undefined && (path === '/responses' || provider !== 'meta')
+}
+
+/**
+The pacing wait's sentence: the provider-documented limit when one binds
+the wait, else the established headroom reason. Pure — admission calls
+this per wait — so the telling is provable with descriptor values as
+plain input and no provider answering.
+*/
+export function pacingWaitReason(limit: PacingWaitLimit): string {
+  switch (limit.kind) {
+    case 'burst': {
+      return UI_TEXT.modelApiPacingBurstWaiting
+    }
+    case 'concurrency': {
+      return fill(UI_TEXT.modelApiPacingConcurrencyWaiting, {
+        limit: formatNumber(limit.limit),
+      })
+    }
+    default: {
+      return UI_TEXT.modelApiPacingWaiting
+    }
+  }
+}
+
+/**
+A response body that frees the admission's held concurrency slot when it
+settles: read to the end, cancelled, or errored. The release runs exactly
+once; the bytes pass through untouched.
+*/
+export function releaseSlotOnSettled(
+  body: ReadableStream<Uint8Array>,
+  release: () => void,
+): ReadableStream<Uint8Array> {
+  let hasReleased = false
+  const done = (): void => {
+    if (hasReleased) return
+    hasReleased = true
+    release()
+  }
+  const reader = body.getReader()
+  return new ReadableStream<Uint8Array>({
+    pull: async (controller) => {
+      try {
+        const next = await reader.read()
+        if (next.done) {
+          reader.releaseLock()
+          done()
+          controller.close()
+        } else {
+          controller.enqueue(next.value)
+        }
+      } catch (error: unknown) {
+        // The read failed: cancel the source and free the slot, then
+        // rethrow so the wrapper errors with the same reason a direct
+        // read would have raised.
+        void reader.cancel(error).catch(ignoreClosingError)
+        reader.releaseLock()
+        done()
+        throw error
+      }
+    },
+    cancel: (reason) => {
+      done()
+      void reader.cancel(reason).catch(ignoreClosingError)
+      reader.releaseLock()
+    },
+  })
 }
 
 /** One retry the client is about to make, for the transcript's notice. */
@@ -1342,34 +1410,10 @@ export class RequestTransport {
           throw new UserRefusalError(UI_TEXT.paidDailyLedgerUnavailable, 'daily_ledger')
       }
       assertScheduleAuthority()
-      const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
-      const kind = init.pacingClass ?? 'foreground'
-      if (isGoverned) {
-        // No admission deadline of our own (owner 2026-10-16): the wait
-        // ends at headroom, a 429 pause, or Stop, saying so while it lasts.
-        await this.pacing.acquire(
-          account,
-          kind,
-          init.estimatedTokens ?? 0,
-          signal ?? new AbortController().signal,
-          (delayMs) => {
-            const allowed = this.maxRetries()
-            onRetry?.({
-              phase: 'pacing',
-              attempt,
-              maxAttempts: allowed === undefined ? undefined : allowed + 1,
-              delayMs,
-              reason: UI_TEXT.modelApiPacingWaiting,
-            })
-          },
-        )
-        admitAttempt?.check?.()
-        if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
-          throw new Error(UI_TEXT.notSignedInReason)
-      }
       if (isAborted(signal))
         throw new ModelApiError('cancelled', NETWORK_FAILURE_STATUS, undefined, undefined)
-      assertScheduleAuthority()
+      const account = `${provider.identity.provider}:${this.deps.baseUrl}:${credentials.keyDigest}`
+      const kind = init.pacingClass ?? 'foreground'
       // Local consent refusal is outside the transport retry catch: it never
       // becomes another billable attempt.
       await admitAttempt?.prepare?.()
@@ -1444,12 +1488,54 @@ export class RequestTransport {
         dispatchState.isStarted = true
         return this.fetchWithIdleDeadline(url, requestInit)
       }
+      // No admission deadline of our own (owner 2026-10-16): the wait
+      // ends at headroom, a 429 pause, or Stop, saying so while it lasts.
+      // Admission sits adjacent to dispatch, so every held concurrency
+      // slot has a release on every exit below: the checks' catch, the
+      // dispatch catch, the failure path past describeFailure, and the
+      // settled-body wrapper on success.
+      let releaseSlot: (() => void) | undefined
+      if (isGoverned) {
+        releaseSlot = await this.pacing.acquire(
+          account,
+          kind,
+          init.estimatedTokens ?? 0,
+          signal ?? new AbortController().signal,
+          (delayMs, limit) => {
+            const allowed = this.maxRetries()
+            onRetry?.({
+              phase: 'pacing',
+              attempt,
+              maxAttempts: allowed === undefined ? undefined : allowed + 1,
+              delayMs,
+              reason: limit === undefined ? UI_TEXT.modelApiPacingWaiting : pacingWaitReason(limit),
+            })
+          },
+          { model: init.modelId, provider: provider.identity.provider },
+        )
+        // The checks after the wait re-read live state a rotation,
+        // revocation or schedule change may have moved while waiting; any
+        // refusal here frees the slot the wait just held, since nothing
+        // is sent.
+        try {
+          assertScheduleAuthority()
+          admitAttempt?.check?.()
+          if (kind !== 'foreground' && credentials.keyDigest !== (await this.currentKeyDigest()))
+            throw new Error(UI_TEXT.notSignedInReason)
+        } catch (error: unknown) {
+          releaseSlot?.()
+          throw error
+        }
+      }
       const sent = this.pacing.snapshot(account)
       let response: Response
       try {
         const run = this.deps.scheduledRun?.()
         response = await (run === undefined ? dispatch() : run.dispatch(dispatch))
       } catch (error: unknown) {
+        // Nothing answers on this attempt: its held slot (if any) frees
+        // with it, whether dispatch started or a fence refused first.
+        releaseSlot?.()
         // A scheduled run that refused before dispatch never started: its
         // error passes on raw, before any send-failure handling.
         if (!dispatchState.isStarted) throw error
@@ -1543,8 +1629,22 @@ export class RequestTransport {
             ),
           )
           .map(([, value]) => (value.startsWith('Bearer ') ? value.slice('Bearer '.length) : value))
+        // A held slot spans send to completion: the wrapper frees it when
+        // the caller settles the body, so streaming answers stay counted
+        // while they stream. A null body is already complete: its slot
+        // frees at once.
+        let settled = response
+        if (releaseSlot !== undefined) {
+          if (response.body === null) releaseSlot()
+          else
+            settled = new Response(releaseSlotOnSettled(response.body, releaseSlot), {
+              status: response.status,
+              statusText: response.statusText,
+              headers: response.headers,
+            })
+        }
         return {
-          response,
+          response: settled,
           redact: credentials.redact,
           redactContent: secretRedactor(secrets, false),
         }
@@ -1555,6 +1655,9 @@ export class RequestTransport {
         credentials.redact,
         this.deps.now(),
       )
+      // The failure read consumed the answer: the attempt's slot frees
+      // here, whether the failure retries or ends the request.
+      releaseSlot?.()
       if (NON_BILLABLE_HTTP_REJECTIONS.has(response.status)) {
         admitAttempt?.mediaAccounting?.refused()
         admitAttempt?.onRefused?.(response.status)

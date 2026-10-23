@@ -103,6 +103,8 @@
   "outputSchemaLocalValidation": "Validación del esquema de salida: local (el modelo seleccionado no tiene formato de salida estructurada).",
   "outputSchemaReadFailed": "No se pudo leer el esquema de salida: {detail}",
   "modelApiPacingWaiting": "Esperando capacidad disponible dentro del límite de solicitudes…",
+  "modelApiPacingConcurrencyWaiting": "Esperando un espacio de solicitud de DeepSeek (concurrencia de cuenta {limit})…",
+  "modelApiPacingBurstWaiting": "Distribuyendo solicitudes uniformemente para la evaluación de frecuencia de Azure en ventana corta…",
   "modelApiStatusLabel": "Estado de la API de Meta",
   "modelApiStatusUnavailable": "Estado no disponible",
   "modelApiStatusOpen": "Abrir el estado del servicio",
@@ -5013,6 +5015,8 @@
   "chatCodecThinkingOffUnsupported": "El modelo seleccionado no permite desactivar el razonamiento.",
   "anthropicCodecEmptyTurn": "Anthropic requiere al menos un mensaje.",
   "anthropicCodecLimitExceeded": "La respuesta de Anthropic superó un límite de decodificación.",
+  "anthropicCodecManyImagesDimensions": "Anthropic permite como máximo {maxPixels} px por lado de imagen en solicitudes con más de {maxImages} imágenes ({count} imágenes, lado mayor {pixels} px).",
+  "anthropicCodecRequestTooLarge": "Anthropic permite solicitudes de hasta {maxSize} (esta solicitud es de {size}).",
   "modelsEmpty": "Todavía no hay proveedores de modelos. Agregue uno para usar sus propios modelos.",
   "panelNoMatches": "Sin resultados.",
   "modelFilterLabels": {

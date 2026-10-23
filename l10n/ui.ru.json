@@ -103,6 +103,8 @@
   "outputSchemaLocalValidation": "Проверка схемы вывода: локальная (у выбранной модели нет формата структурированного вывода).",
   "outputSchemaReadFailed": "Не удалось прочитать схему вывода: {detail}",
   "modelApiPacingWaiting": "Ожидание свободной ёмкости в пределах лимита запросов…",
+  "modelApiPacingConcurrencyWaiting": "Ожидание слота запроса DeepSeek (параллелизм учётной записи {limit})…",
+  "modelApiPacingBurstWaiting": "Равномерное распределение запросов для оценки частоты Azure на коротком окне…",
   "modelApiStatusLabel": "Состояние API Meta",
   "modelApiStatusUnavailable": "Состояние недоступно",
   "modelApiStatusOpen": "Открыть состояние сервиса",
@@ -5137,6 +5139,8 @@
   "chatCodecThinkingOffUnsupported": "Для выбранной модели рассуждения нельзя отключить.",
   "anthropicCodecEmptyTurn": "Anthropic требуется хотя бы одно сообщение.",
   "anthropicCodecLimitExceeded": "Ответ Anthropic превысил ограничение декодирования.",
+  "anthropicCodecManyImagesDimensions": "Anthropic допускает не более {maxPixels} пкс на сторону изображения в запросах с более чем {maxImages} изображениями (изображений: {count}, наибольшая сторона: {pixels} пкс).",
+  "anthropicCodecRequestTooLarge": "Anthropic допускает запросы размером до {maxSize} (размер этого запроса — {size}).",
   "modelsEmpty": "Поставщиков моделей пока нет. Добавьте поставщика, чтобы использовать собственные модели.",
   "panelNoMatches": "Нет совпадений.",
   "modelFilterLabels": {
