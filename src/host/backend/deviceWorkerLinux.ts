@@ -11,6 +11,7 @@ import { UI_TEXT } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { deviceAttemptIdentitySchema } from '../../shared/devices'
+import { canonicalUsd } from '../../shared/usdSchema'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { workerEnvironment } from '../../core/team/refFence'
 import {
@@ -642,7 +643,14 @@ export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriv
     const id = randomUUID().replaceAll('-', '')
     const attempt: DeviceWorkerAttempt = {
       identity: { pairId: id, receiverIncarnationId: id, boardId: id, taskId: id, attemptId: id },
-      caps: { workers: 0, processes: 1, heavyChecks: 0, tokens: 0, spendUsd: 0, artifactBytes: 0 },
+      caps: {
+        workers: 0,
+        processes: 1,
+        heavyChecks: 0,
+        tokens: 0,
+        spendUsd: canonicalUsd(0),
+        artifactBytes: 0,
+      },
     }
     let job: DeviceWorkerJob | undefined
     try {

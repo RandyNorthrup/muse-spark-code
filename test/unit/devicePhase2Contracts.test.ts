@@ -43,6 +43,7 @@ import {
   type DeviceStepUpApproval,
   type DeviceThrottled,
 } from '../../src/shared/devices'
+import { sumUsd, Usd } from '../../src/shared/usd'
 
 const ID = 'a'.repeat(32)
 const OTHER_ID = 'b'.repeat(32)
@@ -95,7 +96,7 @@ const grantRequest: DeviceGrantRequest = {
     processes: 2,
     heavyChecks: 1,
     tokens: 100,
-    spendUsd: 1,
+    spendUsd: Usd.from(1).toAmount(),
     artifactBytes: 1024,
   },
 }
@@ -417,7 +418,8 @@ describe('M100 phase-2 grant ceiling (lanes A and K read)', () => {
     expect(fields).toHaveLength(6)
     for (const field of fields) {
       const quota = { ...grantRequest.quota }
-      quota[field] += 1
+      if (field === 'spendUsd') quota.spendUsd = sumUsd(quota.spendUsd, Usd.from(1).toAmount())
+      else quota[field] += 1
       const widened: DeviceGrantRequest = { ...grantRequest, quota }
       const refusal: DeviceGrantRefusal | null = grantCeilingRefusal(widened, ceiling)
       expect(refusal?.reason).toBe('scope-denied')

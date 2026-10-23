@@ -29,6 +29,8 @@ import {
   type DevicePairingConfirmation,
   type DeviceRoute,
 } from '../../src/shared/devices'
+import { Usd } from '../../src/shared/usd'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 
 const ID = 'a'.repeat(32)
 const OTHER_ID = 'b'.repeat(32)
@@ -46,7 +48,7 @@ const caps: DeviceCaps = {
   processes: 2,
   heavyChecks: 1,
   tokens: 100,
-  spendUsd: 1,
+  spendUsd: Usd.from(1).toAmount(),
   artifactBytes: 1024,
 }
 const route: DeviceRoute = {
@@ -144,8 +146,8 @@ const usage = {
   certainty: 'uncertain',
   inputTokens: 1,
   outputTokens: 1,
-  returnedUsd: 0,
-  retainedLiabilityUsd: 1,
+  returnedUsd: canonicalUsd(0),
+  retainedLiabilityUsd: Usd.from(1).toAmount(),
 } as const
 const checkReport: DeviceFrame['body'] = {
   kind: 'checkReport',
@@ -561,7 +563,7 @@ describe('M100 frame, artifact and durable-state boundaries', () => {
       ).toBe(false)
     }
     expect(unresolved.occupied).toEqual(caps)
-    expect(unresolved.usage.retainedLiabilityUsd).toBe(1)
+    expect(unresolved.usage.retainedLiabilityUsd).toBe(Usd.from(1).toAmount())
   })
   it('bounds reconciliation batches and artifact chunks; offers and reports run free', () => {
     const oversized: DeviceFrame['body'][] = [

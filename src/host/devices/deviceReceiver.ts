@@ -26,6 +26,7 @@ import {
   type DeviceFrame,
   type DeviceJournalRecord,
 } from '../../shared/devices'
+import { canonicalUsd } from '../../shared/usdSchema'
 import type { DeviceActionGrants } from '../../core/devices/actionGrants'
 import type { PaidUseRequest } from '../../shared/paid'
 import type { PaidFeatureGate } from '../../core/paid/paidFeatures'
@@ -350,7 +351,7 @@ export class DeviceReceiver implements DeviceExecutionPort {
                       processes: 0,
                       heavyChecks: 0,
                       tokens: 0,
-                      spendUsd: 0,
+                      spendUsd: canonicalUsd(0),
                       artifactBytes: 0,
                     },
                     usage: result.usage,

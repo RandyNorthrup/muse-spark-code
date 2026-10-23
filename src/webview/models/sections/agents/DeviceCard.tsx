@@ -3,6 +3,7 @@ import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { deviceCapsSchema, deviceEndpointSchema, type DeviceCaps } from '../../../../shared/devices'
 import { fill, formatBytes, formatNumber, plural } from '../../../../shared/l10n/text'
 import { formatUsd } from '../../../../shared/l10n/exactUsd'
+import { usdInputSchema, type UsdAmount } from '../../../../shared/usdSchema'
 import type {
   DeviceActionResult,
   DeviceHostMessage,
@@ -341,7 +342,14 @@ function OfferEditor({
         const hasLanes = form.has('lanes')
         const hasChecks = form.has('checks')
         const parsed = deviceCapsSchema.safeParse(
-          Object.fromEntries(CAP_KEYS.map((key) => [key, Number(form.get(key))])),
+          Object.fromEntries(
+            CAP_KEYS.map((key) => {
+              const raw = form.get(key) ?? ''
+              if (key !== 'spendUsd') return [key, Number(raw)]
+              const amount = usdInputSchema.safeParse(raw)
+              return [key, amount.success ? amount.data : raw]
+            }),
+          ),
         )
         const isValid =
           (hasLanes || hasChecks) &&
@@ -386,7 +394,7 @@ function OfferEditor({
   )
 }
 
-function formatCap(key: string, value: number): string {
-  if (key === 'spendUsd') return formatUsd(value, 2)
+function formatCap(key: string, value: number | UsdAmount): string {
+  if (key === 'spendUsd' || typeof value !== 'number') return formatUsd(value, 2)
   return key === 'artifactBytes' ? formatBytes(value) : formatNumber(value)
 }
