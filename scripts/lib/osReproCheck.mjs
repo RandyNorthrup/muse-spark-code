@@ -9,7 +9,8 @@ import path from 'node:path'
 
 /** Every file under dir as a sorted list of /-separated relative paths. */
 function compareStrings(one, other) {
-  return one < other ? -1 : one > other ? 1 : 0
+  if (one === other) return 0
+  return one < other ? -1 : 1
 }
 
 export function listFiles(dir) {
