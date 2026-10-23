@@ -5703,6 +5703,9 @@ export const EN = {
   judgeStatusPaid: 'Paid',
   // M125 lane 0 (D107): the fast judge's status line and setup command.
   judgeFastOff: 'Fast path off',
+  // M125 lane C (D107): the stuck chip's text; Stop and Steer reuse their own labels.
+  judgeLooksStuck: 'Looks stuck — the last tool calls are not making progress.',
+  judgeSteerTurn: 'Steer',
   judgeNotSetUp: 'Judge: Not Set Up — Set Up',
   judgeInstalling: 'Judge: Installing ({percent})',
   referenceJudgeSetup: 'Scan this machine and install a local judge model.',

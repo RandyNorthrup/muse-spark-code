@@ -4596,6 +4596,8 @@
   "judgeStatusSubscription": "Abbonamento",
   "judgeStatusPaid": "A pagamento",
   "judgeFastOff": "Percorso rapido disattivato",
+  "judgeLooksStuck": "Sembra bloccato — le ultime chiamate agli strumenti non fanno progressi.",
+  "judgeSteerTurn": "Reindirizza",
   "judgeNotSetUp": "Valutatore: non configurato — Configura",
   "judgeInstalling": "Valutatore: installazione ({percent})",
   "referenceJudgeSetup": "Analizza questo computer e installa un modello di valutazione locale.",

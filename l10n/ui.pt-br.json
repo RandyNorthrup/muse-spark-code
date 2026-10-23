@@ -4596,6 +4596,8 @@
   "judgeStatusSubscription": "Assinatura",
   "judgeStatusPaid": "Pago",
   "judgeFastOff": "Caminho rápido desativado",
+  "judgeLooksStuck": "Parece travado — as últimas chamadas de ferramenta não estão progredindo.",
+  "judgeSteerTurn": "Redirecionar",
   "judgeNotSetUp": "Avaliador: não configurado — Configurar",
   "judgeInstalling": "Avaliador: instalando ({percent})",
   "referenceJudgeSetup": "Verifica esta máquina e instala um modelo de avaliação local.",

@@ -4374,6 +4374,8 @@
   "judgeStatusSubscription": "订阅",
   "judgeStatusPaid": "付费",
   "judgeFastOff": "快速路径已关闭",
+  "judgeLooksStuck": "似乎卡住了——最近的工具调用没有取得进展。",
+  "judgeSteerTurn": "引导",
   "judgeNotSetUp": "评判器：未设置 — 设置",
   "judgeInstalling": "评判器：正在安装 ({percent})",
   "referenceJudgeSetup": "扫描本机并安装本地评判器模型。",

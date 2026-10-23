@@ -4374,6 +4374,8 @@
   "judgeStatusSubscription": "訂閱",
   "judgeStatusPaid": "付費",
   "judgeFastOff": "快速路徑已關閉",
+  "judgeLooksStuck": "似乎卡住了——最近的工具呼叫沒有取得進展。",
+  "judgeSteerTurn": "引導",
   "judgeNotSetUp": "評判器：未設定 — 設定",
   "judgeInstalling": "評判器：正在安裝 ({percent})",
   "referenceJudgeSetup": "掃描本機並安裝本機評判器模型。",

@@ -1860,6 +1860,7 @@ async function activateWindow(
     isWorkspaceTrusted: isProjectTrusted,
     getProxySettings: () =>
       readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
+    isFastPathOff: () => currentSettings()['judge.fastPathOff'],
   })
   // The sandbox-off warning (musecode-write-asks): once per window, in the
   // first Muse Code conversation that starts on a host without the sandbox.

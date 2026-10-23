@@ -4374,6 +4374,8 @@
   "judgeStatusSubscription": "サブスクリプション",
   "judgeStatusPaid": "有料",
   "judgeFastOff": "高速パスオフ",
+  "judgeLooksStuck": "行き詰まっているようです — 直近のツール呼び出しが進んでいません。",
+  "judgeSteerTurn": "方向転換",
   "judgeNotSetUp": "ジャッジ：未セットアップ — セットアップ",
   "judgeInstalling": "ジャッジ：インストール中 ({percent})",
   "referenceJudgeSetup": "このマシンをスキャンしてローカルジャッジモデルをインストールします。",
