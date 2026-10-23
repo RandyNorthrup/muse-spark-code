@@ -203,10 +203,21 @@ export async function createLegalSnapshot(
   // A deadline only when the caller names one: unnamed, the walk runs until
   // it is done or the signal aborts (owner 2026-10-16: no arbitrary limits).
   deadline?: number,
+  // Caller-named tool artifacts the walk never enters (RLF-HYGIENE): the
+  // release build's own check names its regenerable directories here, so a
+  // checkout's downloads and leftovers cannot blow the entry budget.
+  exclude?: readonly string[],
 ): Promise<LegalWorkspaceSnapshot> {
   if (signal?.aborted === true) throw new LegalScanError(UI_TEXT.legalScanner.m111)
   const root = realpathSync(rootPath)
   if (!lstatSync(root).isDirectory()) throw new LegalScanError(UI_TEXT.legalScanner.m137)
+  // Excluded subtrees, as the walk spells them: forward slashes, no
+  // trailing slash. An empty entry excludes nothing.
+  const excluded = (exclude ?? [])
+    .map((entry) => entry.replaceAll('\\', '/').replace(/\/+$/u, ''))
+    .filter((entry) => entry !== '')
+  const isExcluded = (local: string): boolean =>
+    excluded.some((entry) => local === entry || local.startsWith(`${entry}/`))
   const admitted = new Map<string, BigIntStats>()
   const hashes = new Map<string, string>()
   const incompleteChecks: string[] = []
@@ -392,6 +403,10 @@ export async function createLegalSnapshot(
       // `node_modules` was admitted first, from the build records.
       if (name === '.git' || name === 'node_modules') continue
       const local = localDirectory === '' ? name : `${localDirectory}/${name}`
+      // Caller-named tool artifacts (see `exclude`): expected and skipped
+      // like the two above, never incomplete reasons, their entries
+      // outside the directory-entry budget (RLF-HYGIENE).
+      if (isExcluded(local)) continue
 
       try {
         assertWorkspaceRelative(local)

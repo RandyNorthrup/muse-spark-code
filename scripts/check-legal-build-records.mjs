@@ -49,10 +49,24 @@ try {
   }
   // The whole repository, scanned as any user's workspace is (scan-scope
   // ruling 2026-10-10): it must complete (exit 0, or 1 with blockers),
-  // never stay incomplete (exit 2).
+  // never stay incomplete (exit 2). The checkout's own regenerable tool
+  // artifacts are named, not walked (RLF-HYGIENE): VS Code downloads,
+  // dev test bundles, harness output, the agent package stage and the
+  // report temp folders broke the build's scan on three rigs by blowing
+  // the directory-entry budget. All are gitignored (.gitignore); none is
+  // distribution, and the build records above still admit what ships.
   const { result } = await scanner.runLegalScan({
     workspaceRoot: process.cwd(),
     input: { headerPolicy: 'optional' },
+    exclude: [
+      '.vscode-test',
+      'coverage',
+      'dist/acp-package',
+      'dist/test',
+      'dist/traffic-harness',
+      'harness-shots',
+      'temp',
+    ],
   })
   const blockers = result.findings.filter((finding) => finding.severity === 'blocker')
   const shouldFix = result.findings.filter((finding) => finding.severity === 'should-fix')
