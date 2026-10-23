@@ -7,6 +7,22 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **The issue watchdog keeps an eye on your GitHub issues.** On a watched
+  repository it acknowledges each new issue once, in the issue's own
+  language or English, then triages it — duplicates, already-fixed,
+  in-hand and needs-information cases each get their own reply — and
+  shows its findings and plan to you. Until its safety review lands it
+  is report-only: it posts the acknowledgement and nothing else, and
+  anything beyond that asks for your approval first.
+- **In a terminal: `muse-spark-code-acp watchdog
+  list|status|pause|resume|poll|evidence|apply|decide|resolve`, and
+  `/watchdog` in ACP editors.** List and check the watched issues, pause
+  and resume watching, and re-run the poll, evidence, triage, decision
+  and resolve steps by hand. Anything that would post beyond the
+  acknowledgement needs `--approve`.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
