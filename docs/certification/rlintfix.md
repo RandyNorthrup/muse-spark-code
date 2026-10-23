@@ -167,6 +167,20 @@ GREEN (suites): `usingPrivateDir` locks each store to this user,
 SYSTEM and Administrators, and the e2e locks its stage down — 8/8,
 14/14 and 7/7 on the default `%TEMP%`.
 
+RED (media root, found by the real-TEMP full run): with the default
+`%TEMP%`, `mediaConvert` fails 1/1 — `openPrivateRoot` under the raw
+shared folder refuses with `EPRIVATE_ROOT` before conversion runs,
+so the cause is not the expected `ENOENT`
+(`temp/f-full-realtenv.txt`). Production never stages conversion in
+a shared temporary folder (`productionAudioEntry.ts`: "a fresh
+owner-only folder inside the host's verified private root (its own
+storage, never a shared temporary folder)"), so the test staged it
+wrong.
+
+GREEN (media root): `mediaConvert.test.ts` uses `usingPrivateDir` —
+passes under the real `%TEMP%` (`temp/f-mediagreen.txt`, exit 0),
+and the final full run below is green with it.
+
 PACKED (this PC, `muse-spark-code-acp` win32-x64 pack of this
 lane, `temp/probe-item8.mjs`, `temp/probe8.txt`):
 
@@ -199,7 +213,35 @@ locked-folder pattern.
   debris only; no gate reads it.
 - `npm run package:acp` (universal) fails on Windows for the
   missing darwin helper, as expected; the win32-x64 target packs.
+- This lane's shells run with `TEMP`/`TMP` redirected by the harness
+  to a 114-character tree path, not the default `%TEMP%`. A full run
+  under it failed only `lintStagedBatching` (absolute paths over
+  MAX_PATH, `Filename too long`); under the real default `%TEMP%`
+  that suite passes. All proof runs below use the real default.
+- SAST fails on this PC independent of the tree: `semgrep-core rule
+validation failed` before any file is analyzed, identically for a
+  trivial one-line file, on scanner 1.177.0 and the pinned 1.180.0
+  (the fetched registry `auto` rules vs the local core). Hosted CI's
+  semgrep job is the real gate.
 
-## Gates
+## Gates (final tree, real default `%TEMP%`)
 
-(Gate table appended after the final-tree runs.)
+- typecheck (all 5 projects): 0 (`temp/f-typecheck.txt`)
+- eslint (src+scripts, test, touched files): 0
+- prettier: 0 (after fixing the new record's style)
+- deadcode: 0 (after removing the re-export item 5 orphaned)
+- cycles: 0, duplication: 0 (0 clones)
+- check:l10n, check:reference, check:host-api, check:plan
+  (227 milestones, 0 drift), check:roadmap (227 entries), check:catches: 0
+- build: 0 — modelApi.js 524.2/525 KiB, resourceAdmission.js
+  21.3/25 KiB, vaultActions.js 20.8/25 KiB (`temp/f-build.txt`)
+- security:audit: 0; security:sast: FAILS (tree-independent, above)
+- vitest related (9 changed sources): 0 — 81 files, 1575 passed,
+  33 skipped (`temp/f-related.txt`)
+- touched suites: 0 — 20 files, 220 passed (`temp/f-touched.txt`)
+- full suite, `test/unit/vault/**` excluded, real default `%TEMP%`:
+  0 — 890 files passed, 13 skipped; 23,786 tests passed, 179
+  skipped, 0 failed (`temp/f-full-final2.txt`, exit 0). The prior
+  final run showed one load-marginal timeout (connectorStdio.e2e
+  first case, 15 s deadline, no assertion failed); the file is green
+  alone and under synthetic load, and green in this run.
