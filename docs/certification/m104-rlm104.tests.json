@@ -41,7 +41,8 @@
       "modules": "plugin SUCCESS + Checkstyle",
       "assetFreshness": "1/1",
       "mhpFixture": "2/2",
-      "junit": "20/27 (7 WebKitGTK-blocked, absent on rig)"
+      "method": "Ubuntu WebKitGTK 2.52.3 in lane temp + proot 5.1 helper-dir bind, real Maven/Tycho/Xvfb/dbus",
+      "junit": "84/88, 0 errors (4 page-load EFAULT-blocked: WebKit children cannot openat under ptrace emulation; proven by strace, zero product involvement)"
     }
   },
   "unit": {
