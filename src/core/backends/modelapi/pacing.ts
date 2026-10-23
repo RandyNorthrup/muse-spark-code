@@ -539,6 +539,24 @@ export class ModelApiPacing implements RequestPacer {
       const bucket = this.bucket(account)
       const now = this.deps.now()
       const pause = Math.max(0, bucket.pausedUntil - now)
+      // A concurrency ceiling gates background admission ahead of every
+      // other check: no free slot waits for a release, saying which
+      // provider limit holds it. The gate runs before the unobserved
+      // bypass below on purpose — DeepSeek sends no limit headers at
+      // all, so its buckets never observe and the documented ceiling is
+      // the only gate. The slot itself is held only at admission, never
+      // across a headroom wait: held slots with nothing sent would starve
+      // the requests whose completions free them.
+      if (
+        kind !== 'foreground' &&
+        concurrency !== undefined &&
+        model !== undefined &&
+        (bucket.inflight.get(model) ?? 0) >= concurrency
+      ) {
+        onWait?.(0, { kind: 'concurrency', limit: concurrency })
+        await this.untilReleased(bucket, model, signal)
+        continue
+      }
       // Foreground never joins the fan-out queue. Otherwise only what the
       // provider reported shapes the wait (owner 2026-10-16): no observed
       // limits means no queue at all — the first requests go out freely —
@@ -551,20 +569,6 @@ export class ModelApiPacing implements RequestPacer {
         return concurrency !== undefined && model !== undefined
           ? this.hold(account, model)
           : undefined
-      }
-      // A concurrency ceiling gates admission before the headroom math: no
-      // free slot waits for a release, saying which provider limit holds
-      // it. The slot itself is held only at admission below, never across
-      // a headroom wait: held slots with nothing sent would starve the
-      // requests whose completions free them.
-      if (
-        concurrency !== undefined &&
-        model !== undefined &&
-        (bucket.inflight.get(model) ?? 0) >= concurrency
-      ) {
-        onWait?.(0, { kind: 'concurrency', limit: concurrency })
-        await this.untilReleased(bucket, model, signal)
-        continue
       }
       // Keep one request for the foreground. A one-RPM key can still run
       // background work once full; foreground always bypasses this check.
