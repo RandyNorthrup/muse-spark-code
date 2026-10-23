@@ -18,6 +18,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { z } from 'zod'
 import { scanTranscript } from '../../scripts/lib/osBootTest.mjs'
 
 const BOOT_TEST = fileURLToPath(new URL('../../scripts/os-boot-test.mjs', import.meta.url))
@@ -88,10 +89,12 @@ function scratch(prefix: string): string {
   return mkdtempSync(path.join(tmpdir(), prefix))
 }
 
-function dryRun(args: string[]): unknown {
+const dryRunResult = z.object({ program: z.string(), args: z.array(z.string()) })
+
+function dryRun(args: string[]): z.infer<typeof dryRunResult> {
   const run = spawnSync(process.execPath, [BOOT_TEST, ...args, '--dry-run'], { encoding: 'utf8' })
   expect(run.status).toBe(0)
-  return JSON.parse(run.stdout)
+  return dryRunResult.parse(JSON.parse(run.stdout))
 }
 
 /** One newc cpio entry: 110 bytes of ASCII header, the name, the data. */
