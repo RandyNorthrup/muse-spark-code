@@ -8,5 +8,9 @@ vendor/** -text whitespace=cr-at-eol
 
 # M114 F: preserve pinned OFL bytes and WOFF2 payloads on every platform.
 design/fonts/pack/** -text whitespace=cr-at-eol
+
+# Lane RLF-M110OS recorded serial transcripts: CRLF wire bytes with
+# pinned hashes; never normalize.
+test/fixtures/nodeos-boot/** -text whitespace=cr-at-eol
 *.woff2 binary
 src/core/legal/legal-data/** -text whitespace=cr-at-eol

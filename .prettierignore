@@ -18,6 +18,10 @@ vendor/
 # comparison).
 test/fixtures/golden-requests/
 
+# Lane RLF-M110OS recorded API responses: raw wire bytes with pinned
+# hashes; prettier would reflow them and break the drift pins.
+test/fixtures/nodeos-firmware/
+
 # Lane M106 live Meta receipts (RVCM1062B): byte-exact collector output
 # (`JSON.stringify` expands short arrays; prettier would collapse them and
 # break both the live-manifest SHA-256 and the fixture pins).

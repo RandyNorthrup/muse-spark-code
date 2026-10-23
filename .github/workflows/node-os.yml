@@ -1,0 +1,320 @@
+# The Node OS image pipeline (M110os OS6): every image for both
+# architectures on each change, the QEMU boot tests (x86-64 with KVM,
+# aarch64 `virt` emulated), the reproducibility comparison, and the
+# release assets with checksums, signatures and provenance.
+#
+# The image jobs wait for OS1's recipe: the `pre` job reports whether
+# os/images/ exists, and build, boot, repro and publish run only then,
+# skipping visibly until it lands. OS1 owns os/images/ (the mkosi
+# recipe, the image names, the SOURCES package lists, the
+# NODE-OS-BOOT-OK serial marker); the conventions it must meet are in
+# the steps below. The static job runs on every trigger.
+#
+# Waiting, named: image signing waits for the owner's key ceremony
+# (the publish job warns loudly and records the assets unsigned);
+# the SPDX SBOM waits for OS1's build to expose the package set.
+# The reproducibility comparison starts recorded and blocks once two
+# builds match (REPRO_ENFORCE below).
+name: Node OS
+
+on:
+  pull_request:
+    paths:
+      - 'os/**'
+      - 'scripts/os-boot-test.mjs'
+      - 'scripts/os-repro-check.mjs'
+      - 'scripts/lib/osBootTest.mjs'
+      - 'scripts/lib/osReproCheck.mjs'
+      - 'test/unit/nodeOs*.test.ts'
+      - 'test/fixtures/nodeos-*/**'
+      - '.github/workflows/node-os.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'os/**'
+      - 'scripts/os-boot-test.mjs'
+      - 'scripts/os-repro-check.mjs'
+      - 'scripts/lib/osBootTest.mjs'
+      - 'scripts/lib/osReproCheck.mjs'
+      - 'test/unit/nodeOs*.test.ts'
+      - 'test/fixtures/nodeos-*/**'
+      - '.github/workflows/node-os.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A pull request's newer push replaces its older run. A push to main
+# keeps its own run to the end, in a group of its own commit, so the
+# release door (scripts/rule2-gate.mjs) reads this run of the tagged
+# commit and a merge that follows never cancels it.
+concurrency:
+  group: node-os-${{ github.event_name == 'push' && github.sha || github.ref }}
+  cancel-in-progress: true
+
+# The reproducibility comparison records until two builds match, then
+# this flips to 'true' and the compare step blocks the pipeline.
+env:
+  REPRO_ENFORCE: 'false'
+
+jobs:
+  static:
+    name: static OS checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: shell syntax of the OS scripts
+        shell: bash
+        run: |
+          for script in os/hardening/security-threshold.sh os/crypt/enroll-var.sh os/crypt/sign-boot.sh os/crypt/tang/bind-tang.sh; do
+            bash -n "$script"
+          done
+      - name: add-on manifests
+        shell: bash
+        run: |
+          node os/addons/check-addon.mjs --manifest os/addons/chrome/addon.json
+          node os/addons/check-addon.mjs --manifest os/addons/nvidia/addon.json
+      - name: base firmware set, live
+        shell: bash
+        run: node os/firmware/check-firmware.mjs --firmware os/firmware/firmware.json
+      - name: vendor key pins, recorded transcripts
+        shell: bash
+        run: |
+          node os/addons/chrome/check-key.mjs --transcript test/fixtures/nodeos-chrome/colons.txt --fingerprints os/addons/chrome/fingerprints.txt
+          node os/addons/chrome/check-key.mjs --transcript test/fixtures/nodeos-nvidia/colons.txt --fingerprints os/addons/nvidia/fingerprints.txt
+      - name: security-threshold gate fires both ways
+        shell: bash
+        run: |
+          root="$RUNNER_TEMP/threshold-root"
+          mkdir -p "$root/usr/lib/systemd/system"
+          printf '[Unit]\nDescription=deliberately insecure CI unit\n[Service]\nExecStart=/bin/true\n' > "$root/usr/lib/systemd/system/insecure-ci.service"
+          os/hardening/security-threshold.sh --root "$root" --threshold 100 insecure-ci.service
+          if os/hardening/security-threshold.sh --root "$root" --threshold 0 insecure-ci.service; then
+            echo '::error::the threshold gate passed a zero threshold on an insecure unit' >&2
+            exit 1
+          fi
+
+  pre:
+    name: images present (OS1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      have-images: ${{ steps.check.outputs.have-images }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: check
+        shell: bash
+        run: |
+          if [ -n "${{ hashFiles('os/images/**') }}" ]; then
+            echo 'have-images=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'have-images=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::os/images/ is absent (OS1 has not landed): build, boot, repro and publish skip'
+          fi
+
+  build:
+    name: build images twice
+    needs: pre
+    if: needs.pre.outputs.have-images == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: install the image toolchain
+        shell: bash
+        run: sudo apt-get install -y mkosi qemu-system-x86 qemu-system-arm ovmf qemu-efi-aarch64
+      # OS1 owns os/images/ and these flags: two builds of the same
+      # recipe and commit, one raw image per architecture per build,
+      # named muse-node-<arch>.raw, with a .sources package list beside
+      # each image when the recipe records one.
+      - name: first build
+        shell: bash
+        run: |
+          mkdir -p build-a
+          (cd os/images && mkosi --output-directory "$GITHUB_WORKSPACE/build-a" build)
+      - name: second build
+        shell: bash
+        run: |
+          mkdir -p build-b
+          (cd os/images && mkosi --output-directory "$GITHUB_WORKSPACE/build-b" build)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: node-os-images
+          path: |
+            build-a/
+            build-b/
+          retention-days: 90
+
+  boot:
+    name: boot ${{ matrix.arch }} in QEMU
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86-64
+            qemu-arch: x86_64
+            kvm: 'on'
+            memory: '2048'
+            timeout: '900'
+          - arch: aarch64
+            qemu-arch: aarch64
+            kvm: 'off'
+            memory: '2048'
+            timeout: '1800'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: node-os-images
+      - name: install QEMU and the firmware
+        shell: bash
+        run: sudo apt-get install -y qemu-system-x86 qemu-system-arm ovmf qemu-efi-aarch64
+      - name: boot the first build and wait for the marker
+        shell: bash
+        env:
+          ARCH: ${{ matrix.arch }}
+          QEMU_ARCH: ${{ matrix.qemu-arch }}
+          KVM: ${{ matrix.kvm }}
+          MEMORY: ${{ matrix.memory }}
+          TIMEOUT: ${{ matrix.timeout }}
+        run: |
+          image="build-a/muse-node-$ARCH.raw"
+          if [ ! -f "$image" ]; then
+            echo "::error::OS1 names the images muse-node-<arch>.raw; $image is missing" >&2
+            exit 1
+          fi
+          firmware_args=()
+          if [ "$QEMU_ARCH" = x86_64 ]; then
+            cp /usr/share/OVMF/OVMF_VARS_4M.fd "$RUNNER_TEMP/OVMF_VARS.fd"
+            firmware_args=(--ovmf-code /usr/share/OVMF/OVMF_CODE_4M.fd --ovmf-vars "$RUNNER_TEMP/OVMF_VARS.fd")
+          else
+            firmware_args=(--aavmf /usr/share/AAVMF/AAVMF_CODE.fd)
+          fi
+          node scripts/os-boot-test.mjs --arch "$QEMU_ARCH" --out "boot-$ARCH" \
+            --marker NODE-OS-BOOT-OK --timeout "$TIMEOUT" --memory "$MEMORY" \
+            --image "$image" --kvm "$KVM" "${firmware_args[@]}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: node-os-boot-${{ matrix.arch }}
+          path: boot-${{ matrix.arch }}/
+          retention-days: 90
+
+  repro:
+    name: reproducibility comparison
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: node-os-images
+      - name: record both builds
+        shell: bash
+        run: |
+          node scripts/os-repro-check.mjs --record build-a --out hashes-a.json
+          node scripts/os-repro-check.mjs --record build-b --out hashes-b.json
+      - name: compare the builds
+        if: env.REPRO_ENFORCE == 'true'
+        shell: bash
+        run: node scripts/os-repro-check.mjs --compare build-a build-b
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: node-os-hashes
+          path: hashes-*.json
+          retention-days: 90
+
+  publish:
+    name: release assets
+    needs: [boot, repro]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: node-os-images
+      - name: checksums and the asset manifest
+        shell: bash
+        run: |
+          mkdir -p assets
+          cp build-a/muse-node-*.raw assets/
+          cp build-a/*.sources assets/ 2>/dev/null || echo '::notice::no SOURCES package lists from the build (OS1 records them when the recipe can)'
+          (cd assets && sha256sum muse-node-*.raw > SHA256SUMS)
+          node -e "
+            const fs = require('node:fs');
+            const sums = fs.readFileSync('assets/SHA256SUMS', 'utf8').trim().split('\n');
+            const manifest = {
+              images: sums.map((line) => {
+                const [sha256, file] = line.split(/\s+/);
+                return { file, sha256 };
+              }),
+              debianSources: fs.readdirSync('assets').filter((f) => f.endsWith('.sources')),
+              signed: false,
+              signatureNote: 'image signing waits for the owner key ceremony',
+            };
+            fs.writeFileSync('assets/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+      - name: sign the checksums, or say the key ceremony waits
+        shell: bash
+        env:
+          SIGNING_KEY: ${{ secrets.OS_IMAGE_SIGNING_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo '::warning::image signing waits for the owner key ceremony; assets stay unsigned'
+            exit 0
+          fi
+          export GNUPGHOME="$RUNNER_TEMP/sign-gpg"
+          mkdir -p "$GNUPGHOME"
+          chmod 700 "$GNUPGHOME"
+          printf '%s' "$SIGNING_KEY" | gpg --batch --import
+          gpg --batch --armor --detach-sign --output assets/SHA256SUMS.asc assets/SHA256SUMS
+          node -e "
+            const fs = require('node:fs');
+            const manifest = JSON.parse(fs.readFileSync('assets/manifest.json', 'utf8'));
+            manifest.signed = true;
+            manifest.signatureNote = 'SHA256SUMS.asc over SHA256SUMS';
+            fs.writeFileSync('assets/manifest.json', JSON.stringify(manifest, null, 2) + '\n');
+          "
+      - name: attest the provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: assets/muse-node-*.raw
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: node-os-assets
+          path: assets/
+          retention-days: 90
