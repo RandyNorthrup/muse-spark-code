@@ -590,7 +590,8 @@ export async function preserveFailedMerge(input: {
     )
   } catch (error: unknown) {
     // The hold could not be created: the work stays where it is.
-    if (isTeamGitError(error) || isErrno(error)) return { kind: 'kept' }
+    if (isTeamGitError(error)) return { kind: 'kept' }
+    if (isErrno(error)) return { kind: 'kept' }
     throw error
   }
   return { kind: 'held', ref }

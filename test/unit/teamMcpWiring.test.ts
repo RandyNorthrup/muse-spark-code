@@ -7,10 +7,9 @@ import { createTeamHostService } from '../../src/core/team/teamHost'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import { TeamMcpServer } from '../../src/host/team/teamMcpServer'
 import { teamRosterAnswer } from '../../src/host/team/teamHostEntry'
-import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
 import { OPTIONAL_RUNTIME_AVAILABILITY, UI_TEXT } from '../../src/shared/constants'
 import type { TeamPoolEntry, TeamSnapshot } from '../../src/shared/team'
-import { harness } from './helpers/teamHostHarness'
+import { harness, UNUSED_ENGINE, type Harness } from './helpers/teamHostHarness'
 
 beforeAll(() => {
   OPTIONAL_RUNTIME_AVAILABILITY.team = true
@@ -19,27 +18,27 @@ afterAll(() => {
   OPTIONAL_RUNTIME_AVAILABILITY.team = false
 })
 
-const UNUSED_ENGINE: EngineTeamPortsDeps = {
-  repositoryRoot: () => undefined,
-  storageRoot: '',
-  platform: process.platform,
-  isTrusted: () => false,
-  listModels: () => Promise.reject(new Error('not used')),
-  startWorker: () => Promise.reject(new Error('not used')),
-  now: () => 0,
-  log: {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  },
-}
-
 const silent = {
   trace: () => undefined,
   info: () => undefined,
   warn: () => undefined,
   error: () => undefined,
+}
+
+/** The window binding over the harness's service deps and the real MCP server. */
+function makeBinding(h: Harness): TeamHostBinding {
+  return new TeamHostBinding({
+    ports: { ...h.deps, engine: UNUSED_ENGINE },
+    canRunKind: (kind) => kind === 'engine',
+    loadFactory: () => Promise.resolve(() => createTeamHostService(h.deps)),
+    loadTeamMcp: () =>
+      Promise.resolve({ server: new TeamMcpServer(silent), rosterAnswer: teamRosterAnswer }),
+    uiText: () => UI_TEXT,
+    uiLocale: () => 'en',
+    showTree: () => undefined,
+    openRoles: () => Promise.resolve(),
+    showDiff: () => Promise.resolve(),
+  })
 }
 
 function storedTeam(): TeamSnapshot {
@@ -57,18 +56,7 @@ function storedTeam(): TeamSnapshot {
 describe('the team MCP server binding', () => {
   it('serves the five tools to its own conversation over real HTTP and refuses other tokens', async () => {
     const h = harness(storedTeam())
-    const bound = new TeamHostBinding({
-      ports: { ...h.deps, engine: UNUSED_ENGINE },
-      canRunKind: (kind) => kind === 'engine',
-      loadFactory: () => Promise.resolve(() => createTeamHostService(h.deps)),
-      loadTeamMcp: () =>
-        Promise.resolve({ server: new TeamMcpServer(silent), rosterAnswer: teamRosterAnswer }),
-      uiText: () => UI_TEXT,
-      uiLocale: () => 'en',
-      showTree: () => undefined,
-      openRoles: () => Promise.resolve(),
-      showDiff: () => Promise.resolve(),
-    })
+    const bound = makeBinding(h)
     try {
       await bound.open()
       expect(bound.teamMcp.modeForNewConversation()).toBe('team')
@@ -128,18 +116,7 @@ describe('the team MCP server binding', () => {
 
   it('stays single-model without a stored runnable team: no endpoint is minted', async () => {
     const h = harness(undefined)
-    const bound = new TeamHostBinding({
-      ports: { ...h.deps, engine: UNUSED_ENGINE },
-      canRunKind: (kind) => kind === 'engine',
-      loadFactory: () => Promise.resolve(() => createTeamHostService(h.deps)),
-      loadTeamMcp: () =>
-        Promise.resolve({ server: new TeamMcpServer(silent), rosterAnswer: teamRosterAnswer }),
-      uiText: () => UI_TEXT,
-      uiLocale: () => 'en',
-      showTree: () => undefined,
-      openRoles: () => Promise.resolve(),
-      showDiff: () => Promise.resolve(),
-    })
+    const bound = makeBinding(h)
     try {
       expect(bound.teamMcp.modeForNewConversation()).toBe('single-model')
       expect(await bound.teamMcp.endpointForConversation()).toBeUndefined()

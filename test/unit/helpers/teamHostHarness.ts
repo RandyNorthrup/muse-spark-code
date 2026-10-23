@@ -11,6 +11,24 @@ import type {
 import { isProtectedPath } from '../../../src/core/protectedPaths'
 import { TEAM_WORKSPACE_KEYS } from '../../../src/shared/teamConversation'
 import { SETTING_DEFAULTS } from '../../../src/shared/constants'
+import type { EngineTeamPortsDeps } from '../../../src/host/team/teamEnginePorts'
+
+/** The binding's engine ports for window tests that never reach the engine. */
+export const UNUSED_ENGINE: EngineTeamPortsDeps = {
+  repositoryRoot: () => undefined,
+  storageRoot: '',
+  platform: process.platform,
+  isTrusted: () => false,
+  listModels: () => Promise.reject(new Error('not used')),
+  startWorker: () => Promise.reject(new Error('not used')),
+  now: () => 0,
+  log: {
+    trace: () => undefined,
+    info: () => undefined,
+    warn: () => undefined,
+    error: () => undefined,
+  },
+}
 
 export const ORCHESTRATOR_MODEL = 'muse-spark-1.3'
 

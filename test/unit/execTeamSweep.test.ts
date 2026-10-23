@@ -14,8 +14,7 @@ import {
   EXEC_TEAM_RUN_PREFIX,
 } from '../../src/shared/constants'
 import { acquireFileLease, type FileLeaseEnv } from '../../src/core/locks/fileLease'
-import { nodeLeasePort } from '../../src/core/locks/nodeLeasePort'
-import { currentProcessOwner, isProcessOwnerGone } from '../../src/core/locks/processOwner'
+import { execLedgerLeaseEnv } from '../../src/runtime/exec/execLedgerLeaseEntry'
 import { setTimeout as delay } from 'node:timers/promises'
 import { processTeamGit } from '../../src/core/team/workers/workerOps'
 import { configureResources } from '../../src/core/resources/admission'
@@ -35,6 +34,35 @@ const execFileAsync = promisify(execFile)
 // Real git workloads (init, commit, branch, ref checks) share one ceiling:
 // complete native runs take seconds on a loaded rig, never minutes.
 const REAL_GIT_TIMEOUT_MS = 30_000
+
+/**
+This rig's /usr/bin/git is an Xcode shim the sandbox cannot launch; the
+CommandLineTools binary beside it is the real Git. Prefer it when the
+plain name does not run, so these suites use real Git here and the
+ambient one everywhere else.
+*/
+async function preferRealGitOnDarwin(): Promise<void> {
+  if (process.platform !== 'darwin') return
+  try {
+    await execFileAsync('git', ['--version'], { timeout: 10_000 })
+  } catch {
+    const dir = '/Library/Developer/CommandLineTools/usr/bin'
+    process.env['PATH'] = `${dir}${path.delimiter}${process.env['PATH'] ?? ''}`
+    await execFileAsync('git', ['--version'], { timeout: 10_000 })
+  }
+}
+
+/** A scratch repository under `root` with one seed commit. */
+async function seedRepo(root: string): Promise<string> {
+  const repo = path.join(root, 'repo')
+  await mkdir(repo, { recursive: true })
+  await git(['init', '-q'], repo)
+  await git(
+    ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'seed'],
+    repo,
+  )
+  return repo
+}
 
 async function git(args: readonly string[], cwd: string): Promise<string> {
   const { stdout } = await execFileAsync('git', [...args], {
@@ -57,19 +85,7 @@ describe('exec team sweep over the real runs root', () => {
   let disposeResources: (() => void) | undefined
 
   beforeAll(async () => {
-    // This rig's /usr/bin/git is an Xcode shim the sandbox cannot launch;
-    // the CommandLineTools binary beside it is the real Git. Prefer it when
-    // the plain name does not run, so the sweep below uses real Git here and
-    // the ambient one everywhere else.
-    if (process.platform === 'darwin') {
-      try {
-        await execFileAsync('git', ['--version'], { timeout: 10_000 })
-      } catch {
-        const dir = '/Library/Developer/CommandLineTools/usr/bin'
-        process.env['PATH'] = `${dir}${path.delimiter}${process.env['PATH'] ?? ''}`
-        await execFileAsync('git', ['--version'], { timeout: 10_000 })
-      }
-    }
+    await preferRealGitOnDarwin()
     // The sweep's git is the governed contained launch, so the governor is
     // configured as the runtime process configures it for a headless run.
     jobsRoot = await mkdtemp(path.join(tmpdir(), 'exec-team-sweep-jobs-'))
@@ -80,13 +96,7 @@ describe('exec team sweep over the real runs root', () => {
     })
     gitImpl = processTeamGit(process.platform)
     root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}sweep-`))
-    repo = path.join(root, 'repo')
-    await mkdir(repo, { recursive: true })
-    await git(['init', '-q'], repo)
-    await git(
-      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'seed'],
-      repo,
-    )
+    repo = await seedRepo(root)
     const branch = 'agents/reviewer/task-sweep'
     await git(['branch', branch], repo)
     agentsRef = `refs/heads/${branch}`
@@ -155,23 +165,9 @@ describe('preserveFailedMerge over real git (finding 5)', () => {
   let head = ''
 
   beforeAll(async () => {
-    if (process.platform === 'darwin') {
-      try {
-        await execFileAsync('git', ['--version'], { timeout: 10_000 })
-      } catch {
-        const dir = '/Library/Developer/CommandLineTools/usr/bin'
-        process.env['PATH'] = `${dir}${path.delimiter}${process.env['PATH'] ?? ''}`
-        await execFileAsync('git', ['--version'], { timeout: 10_000 })
-      }
-    }
+    await preferRealGitOnDarwin()
     root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}preserve-`))
-    repo = path.join(root, 'repo')
-    await mkdir(repo, { recursive: true })
-    await git(['init', '-q'], repo)
-    await git(
-      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'seed'],
-      repo,
-    )
+    repo = await seedRepo(root)
     copy = path.join(root, 'copy')
     await git(['clone', '-q', '--shared', repo, copy], root)
     await git(
@@ -250,13 +246,10 @@ describe('preserveFailedMerge over real git (finding 5)', () => {
 })
 
 async function ledgerLeaseTestEnv(): Promise<FileLeaseEnv> {
+  // The production environment with test-scale waits.
+  const base = await execLedgerLeaseEnv()
   return {
-    port: nodeLeasePort,
-    now: () => Date.now(),
-    monotonic: () => performance.now(),
-    sleep: (ms: number) => delay(ms),
-    owner: await currentProcessOwner(),
-    isOwnerGone: (owner) => isProcessOwnerGone(owner),
+    ...base,
     leaseMs: 30_000,
     honoredLeaseMs: 30_000,
     unreadableMs: 2000,
