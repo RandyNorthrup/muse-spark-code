@@ -65,6 +65,7 @@ const storedTaskSchema = z.object({
   reviewFindings: z.optional(z.array(reviewFindingSchema)),
   continueFrom: z.optional(z.string()),
   schedulerAttempt: z.optional(z.number()),
+  handoffBrief: z.optional(z.string()),
   owner: z.optional(
     z.object({
       windowInstanceId: z.string(),

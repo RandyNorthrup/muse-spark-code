@@ -9,7 +9,9 @@ import {
 } from '../../../shared/team'
 import type { TeamSchedulingDeps, TeamSchedulingPort } from '../teamScheduling'
 import { TaskBoard } from './board'
-import { SchedulerSlots, isResourceSlotAvailable } from './slots'
+import { SchedulerSlots, isResourceSlotAvailable, type SlotRequest } from './slots'
+import { AttemptRetirement } from './retire'
+import { StallRecovery, type HandoffEntry } from './stalls'
 import { TeamScheduler } from '../teamPool'
 import { teamPathMatcher } from '../sharedFiles'
 import { WriteSetLeases, expandWriteSet, writeSetOverlap, type PlannedWriteSet } from '../writeSets'
@@ -17,6 +19,7 @@ import { SharedFiles } from '../sharedFiles'
 
 export const TEAM_BOARD_STATE_KEY = 'museSpark.team.board'
 const ARCHIVE_KEY = 'museSpark.team.boardArchive'
+const DECISIONS_KEY = 'museSpark.team.retirementDecisions'
 
 /** One instance for the workspace-holding window; effects begin on submission. */
 export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedulingPort {
@@ -367,6 +370,154 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
   })
   // Restored write leases join the same release table new reservations use.
   for (const lease of adopted) scheduler.adoptLease(lease, { release: lease.release })
+
+  /**
+  Attempt retirement and stall recovery (M96c): the board, slots and leases
+  live here; evidence and effects on real runs come through deps.retirement.
+  Absent that port, every retirement action refuses with teamTaskUnknown.
+  */
+  const delay = (ms: number, signal: AbortSignal): Promise<void> =>
+    new Promise((resolve) => {
+      if (signal.aborted) {
+        resolve()
+        return
+      }
+      const timer = setTimeout(resolve, ms)
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer)
+          resolve()
+        },
+        { once: true },
+      )
+    })
+  const retirementPort = deps.retirement
+  const attemptRetirement =
+    retirementPort === undefined
+      ? undefined
+      : new AttemptRetirement(
+          {
+            windowInstanceId: deps.windowInstanceId,
+            now: deps.now,
+            evidence: (ref) => retirementPort.evidence(ref),
+            cancel: (ref) => retirementPort.cancel(ref),
+            changed: (ref, signal) => retirementPort.changed(ref, signal),
+            escalate: (ref) => retirementPort.escalate(ref),
+            delay,
+            markUncertain: (ref) => {
+              board.finishAttempt(ref.taskId, ref.attempt, { state: 'uncertain' })
+              board.transition(
+                ref.taskId,
+                ref.attempt,
+                'blocked',
+                deps.now(),
+                UI_TEXT.teamTrafficNotices.uncertainAttempt,
+              )
+            },
+            quarantine: async (ref) => {
+              await retirementPort.quarantine(ref)
+              await save()
+            },
+            canQuarantine: (ref) => retirementPort.canQuarantine(ref),
+            prepareReplacement: async (ref, replacement) => {
+              const checkpoint = await retirementPort.checkpoint(ref)
+              if (
+                !board.prepareNext(ref.taskId, ref.attempt, deps.now(), 'stall', true) ||
+                !(await retirementPort.applyReplacement(ref, replacement.attempt, checkpoint))
+              )
+                return false
+              await save()
+              await scheduler.wake()
+              return true
+            },
+            exclusiveResourcesFree: (replacement) => {
+              const snapshot = board.snapshot()
+              const own = snapshot.tasks.find((task) => task.id === replacement.taskId)
+              if (own === undefined) return false
+              const set = writeSetOf(own)
+              return snapshot.tasks.every(
+                (other) =>
+                  other.id === replacement.taskId ||
+                  other.attempts.every((attempt) => attempt.state === 'retired') ||
+                  writeSetOverlap(set, writeSetOf(other), sharedFiles()).length === 0,
+              )
+            },
+            teamHostWorkers: () =>
+              board
+                .snapshot()
+                .tasks.filter((task) => task.attempts.at(-1)?.state === 'running')
+                .map((task) => ({ taskId: task.id, attempt: task.currentAttempt })),
+            restartTeamHost: () => retirementPort.restartWorkers(),
+            recordDecision: async (ref, decision) => {
+              const stored = deps.state.get(DECISIONS_KEY)
+              const decisions: Record<string, unknown>[] = Array.isArray(stored)
+                ? stored.filter(
+                    (item): item is Record<string, unknown> =>
+                      typeof item === 'object' && item !== null,
+                  )
+                : []
+              decisions.push({
+                taskId: ref.taskId,
+                attempt: ref.attempt,
+                decision,
+                at: deps.now(),
+              })
+              await deps.state.update(DECISIONS_KEY, decisions)
+            },
+          },
+          slots,
+        )
+  const handoffEntries = (task: TeamBoardTask, onlyEntryId?: string): HandoffEntry[] =>
+    entries()
+      .filter(
+        (entry) =>
+          entry.roleId === task.roleId && (onlyEntryId === undefined || entry.id === onlyEntryId),
+      )
+      .map((entry) => ({
+        id: entry.id,
+        agentProfileId: entry.agentProfileId,
+        modelId: entry.modelId,
+        isKey: retirementPort?.isKeyEntry(entry.id) ?? false,
+        hasHeadroom: canStart({ ...task, state: 'ready' }, entry),
+      }))
+  const stallRecoveryFor = (
+    task: TeamBoardTask,
+    onlyEntryId?: string,
+  ): StallRecovery | undefined =>
+    retirementPort === undefined || attemptRetirement === undefined
+      ? undefined
+      : new StallRecovery({
+          isCurrent: (ref) =>
+            board.snapshot().tasks.find((item) => item.id === ref.taskId)?.currentAttempt ===
+            ref.attempt,
+          retire: (ref) => attemptRetirement.retire(ref),
+          checkpoint: (ref) => retirementPort.checkpoint(ref),
+          settleUsage: (ref) => retirementPort.settleUsage(ref),
+          entries: () => handoffEntries(task, onlyEntryId),
+          consent: (entry) =>
+            retirementPort.consentEntry({ taskId: task.id, attempt: task.currentAttempt }, entry),
+          reassign: async (ref, entry, handoff) => {
+            if (
+              !board.prepareNext(ref.taskId, ref.attempt, deps.now(), 'stall') ||
+              !(await retirementPort.applyReassignment(ref, entry, handoff))
+            )
+              return false
+            await save()
+            await scheduler.wake()
+            return true
+          },
+          switchRow: () => {
+            deps.changed()
+          },
+          block: (ref, reason) => {
+            board.transition(ref.taskId, ref.attempt, 'blocked', deps.now(), reason)
+          },
+        })
+  const requireRetirement = (): AttemptRetirement => {
+    if (attemptRetirement === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+    return attemptRetirement
+  }
   return {
     submit: async (
       tasks: readonly {
@@ -486,6 +637,82 @@ export function createWindowTeamScheduler(deps: TeamSchedulingDeps): TeamSchedul
       await save()
     },
     writeLeases: () => leases.snapshot(),
+    retireAttempt: async (taskId, attempt) => {
+      const outcome = await requireRetirement().retire({ taskId, attempt })
+      if (outcome.state === 'retired') {
+        board.finishAttempt(taskId, attempt, {
+          state: 'retired',
+          endedAt: outcome.endedAt,
+          retirement: outcome.retirement,
+        })
+        board.transition(taskId, attempt, 'cancelled', deps.now())
+        await scheduler.retired({ taskId, attempt })
+      } else await save()
+      return outcome.state
+    },
+    continueAnyway: async (taskId, attempt) => {
+      const outcome = await requireRetirement().continueAnyway({ taskId, attempt })
+      if (outcome.state !== 'retired') throw new Error(UI_TEXT.teamTaskUnknown)
+      board.finishAttempt(taskId, attempt, {
+        state: 'retired',
+        endedAt: outcome.endedAt,
+        retirement: outcome.retirement,
+      })
+      await scheduler.retired({ taskId, attempt })
+    },
+    handOffAnyway: async (taskId, attempt, entryId) => {
+      const task = board.task(taskId)
+      const entry =
+        entries().find((item) => item.id === entryId && item.roleId === task.roleId) ??
+        entries().find((item) => item.roleId === task.roleId)
+      if (entry === undefined) return false
+      const replacement: SlotRequest = {
+        taskId,
+        attempt: attempt + 1,
+        workspaceId: task.workspaceId,
+        roleId: task.roleId,
+        entryId: entry.id,
+        agentProfileId: entry.agentProfileId,
+        kind: entry.kind,
+      }
+      const isHandedOff = await requireRetirement().handOffAnyway({ taskId, attempt }, replacement)
+      await save()
+      if (isHandedOff) await scheduler.wake()
+      return isHandedOff
+    },
+    restartTeamHost: async () => {
+      const workers = board
+        .snapshot()
+        .tasks.filter((task) => task.attempts.at(-1)?.state === 'running')
+        .map((task) => ({ taskId: task.id, attempt: task.currentAttempt }))
+      const results = await requireRetirement().restartTeamHost(workers)
+      for (const { ref, outcome } of results) {
+        if (outcome.state !== 'retired') continue
+        board.finishAttempt(ref.taskId, ref.attempt, {
+          state: 'retired',
+          endedAt: outcome.endedAt,
+          retirement: outcome.retirement,
+        })
+        board.transition(ref.taskId, ref.attempt, 'cancelled', deps.now())
+        await scheduler.retired(ref)
+      }
+      await save()
+    },
+    reassignAttempt: async (taskId, attempt, entryId) => {
+      if (retirementPort === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+      const task = board.task(taskId)
+      const recovery = stallRecoveryFor(task, entryId)
+      if (recovery === undefined) throw new Error(UI_TEXT.teamTaskUnknown)
+      const brief = retirementPort.stallBrief({ taskId, attempt })
+      const result = await recovery.recover(task, 'noProgress', {
+        policy: 'reassign',
+        brief: brief.brief,
+        lastMessage: brief.lastMessage,
+        toolCalls: brief.toolCalls,
+      })
+      await save()
+      return result
+    },
     dispose: () => {
       scheduler.stopSweep()
     },

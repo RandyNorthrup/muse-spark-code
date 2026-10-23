@@ -139,6 +139,8 @@ export interface TeamTaskRecord {
   /** The stall detector flagged this run: retire it into the retry pin. */
   stallReassign: boolean
   retryFrom?: TeamWorkerOutcome | undefined
+  /** A stall handoff's instruction and data block, prepended once at launch. */
+  handoffBrief?: string | undefined
   isRaised: boolean
   writerModels: string[]
   lease?: { release: () => void } | undefined
@@ -938,6 +940,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       failure: task.failure,
       continueFrom: task.continueFrom?.taskId,
       schedulerAttempt: task.schedulerAttempt,
+      handoffBrief: task.handoffBrief,
       owner: task.owner,
       consented: [],
       writerModels: [...task.writerModels],
@@ -1001,6 +1004,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       if (wasActive) restoredInterrupted.add(stored.taskId)
       tasks.set(stored.taskId, {
         ...stored,
+        handoffBrief: stored.handoffBrief,
         owner: stored.owner,
         // A restored run is never mid-stall: detection starts over.
         stallReassign: false,
@@ -1528,7 +1532,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           taskId: task.taskId,
           role: task.role,
           entry,
-          brief: task.brief,
+          // A stall handoff rides once, ahead of the original brief.
+          brief:
+            task.handoffBrief === undefined ? task.brief : `${task.handoffBrief}\n${task.brief}`,
           parentReports: input?.reports.map((report) => ({
             taskId: report.taskId,
             text: report.text,
@@ -1540,6 +1546,7 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           meter: {
             noteSession: (sessionId) => {
               task.childSessionId = sessionId
+              task.handoffBrief = undefined
               // A started worker is alive: feed the stall detector.
               rawScheduler?.noteActivity({
                 taskId: task.taskId,
@@ -2523,6 +2530,154 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       ),
     launch: async (task, _entry, input) => {
       await launch(known(task.id), input)
+    },
+    retirement: {
+      evidence: (ref) => {
+        const task = known(ref.taskId)
+        const boardAttempt = rawScheduler
+          ?.snapshot()
+          .tasks.find((item) => item.id === ref.taskId)
+          ?.attempts.find((attempt) => attempt.number === ref.attempt)
+        const proof = deps.workers.retirement?.(ref.taskId)
+        const isProved = proof?.kind === 'proved'
+        const method = isProved ? proof.method : 'unproved'
+        return {
+          windowInstanceId: myWindowId,
+          ref,
+          kind: boardAttempt?.kind ?? task.entry?.agent.kind ?? 'engine',
+          loopStopped: !executions.has(ref.taskId),
+          turnTerminal: task.outcome !== undefined,
+          itemsTerminal: task.outcome !== undefined,
+          promptAnswered: task.outcome !== undefined,
+          isReadOnlyMuse:
+            (boardAttempt?.kind ?? task.entry?.agent.kind) === 'museCode' &&
+            roleMode(task.role) === 'read-only',
+          hostExited: isProved,
+          processes: [
+            {
+              childExited: !executions.has(ref.taskId),
+              descendantsEnded: isProved,
+              method,
+            },
+          ],
+          containerMethod: method,
+        }
+      },
+      cancel: (ref) => {
+        known(ref.taskId).controller.abort()
+        return Promise.resolve()
+      },
+      changed: (_ref, signal) =>
+        new Promise((resolve) => {
+          if (signal.aborted) {
+            resolve()
+            return
+          }
+          const wake = (): void => {
+            waiters.delete(wake)
+            resolve()
+          }
+          waiters.add(wake)
+          signal.addEventListener(
+            'abort',
+            () => {
+              waiters.delete(wake)
+              resolve()
+            },
+            { once: true },
+          )
+        }),
+      escalate: async (ref) => {
+        const task = known(ref.taskId)
+        task.controller.abort()
+        await executions.get(ref.taskId)
+      },
+      quarantine: async (ref) => {
+        // The copy is never a continue source again; the board keeps the
+        // attempt counted until a decision or proof releases it.
+        copyOwners.add(ref.taskId)
+        await persist()
+      },
+      canQuarantine: (ref) => hasCopy(known(ref.taskId)),
+      restartWorkers: async () => {
+        for (const task of allTasks())
+          if (isActive(task.phase) || task.phase === 'starting') task.controller.abort()
+        await Promise.allSettled(executions.values())
+      },
+      checkpoint: (ref) => {
+        const task = known(ref.taskId)
+        return Promise.resolve({
+          commit: task.outcome?.head ?? task.workspace?.baseCommit ?? '',
+          files: task.outcome?.changedFiles ?? task.files,
+          diffStat: task.outcome?.report.summary ?? '',
+        })
+      },
+      settleUsage: async (ref) => {
+        await recordAccounting(known(ref.taskId))
+      },
+      isKeyEntry: (entryId) =>
+        roles().some((role) =>
+          pool(role).some((entry) => entry.id === entryId && entry.agent.pays === 'key'),
+        ),
+      consentEntry: async (ref, entry) => {
+        const task = known(ref.taskId)
+        const candidate = pool(task.role).find((item) => item.id === entry.id)
+        if (candidate === undefined) return false
+        if (candidate.agent.pays !== 'key') return true
+        return await deps.paid.allowKeyTasks(
+          [confirmationFor(task.role.role, candidate)],
+          undefined,
+          {
+            sessionId: task.sessionId,
+            approvalMode: modeOf(task) ?? '',
+            signal: task.controller.signal,
+          },
+        )
+      },
+      stallBrief: (ref) => {
+        const task = known(ref.taskId)
+        return {
+          brief: task.brief,
+          lastMessage: task.outcome?.report.summary ?? task.failure ?? '',
+          toolCalls: [],
+        }
+      },
+      applyReassignment: async (ref, entry, handoff) => {
+        const task = known(ref.taskId)
+        const candidate = pool(task.role).find((item) => item.id === entry.id)
+        if (candidate === undefined) return false
+        task.selectedEntry = entry.id
+        if (candidate.agent.pays === 'key')
+          task.consented = new Set([...task.consented, paidScope(candidate.agent)])
+        task.retryFrom = task.outcome
+        task.handoffBrief = `${handoff.instruction}\n${handoff.data.open}${handoff.data.lastMessage}${handoff.data.close}`
+        task.phase = 'queued'
+        task.entry = undefined
+        task.lease = undefined
+        delete task.capped
+        await persist()
+        return true
+      },
+      applyReplacement: async (ref, _replacementAttempt, checkpoint) => {
+        const task = known(ref.taskId)
+        if (task.outcome === undefined) return false
+        // A fresh copy from the checkpoint commit; the old copy stays quarantined.
+        task.retryFrom = {
+          ...task.outcome,
+          folder: undefined,
+          branch: undefined,
+          agentsRef: undefined,
+          baseCommit: checkpoint.commit,
+          head: checkpoint.commit,
+        }
+        task.workspace = undefined
+        task.phase = 'queued'
+        task.entry = undefined
+        task.lease = undefined
+        delete task.capped
+        await persist()
+        return true
+      },
     },
     changed,
     failure: (error) => {
