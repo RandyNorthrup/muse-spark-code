@@ -4141,6 +4141,8 @@
   "execTeamMergeHeldProtected": "Les chemins protégés exigent une approbation, donc la branche est conservée sous {ref}. Approuvez-les puis fusionnez à nouveau, ou supprimez {ref} pour abandonner le travail.",
   "execTeamMergeHeldReview": "La relecture exigée n’est pas terminée, donc la branche est conservée sous {ref}. Recueillez la relecture puis fusionnez à nouveau, ou supprimez {ref} pour abandonner le travail.",
   "execTeamMergeBlocked": "La fusion ne peut pas continuer pour la tâche {entry} : {detail}.",
+  "execTeamMergeFailedHeld": "La fusion a échoué : {detail} La branche est conservée sous {ref} ; fusionnez à nouveau une fois corrigé, ou supprimez {ref} pour abandonner le travail.",
+  "execTeamMergeFailedKept": "La fusion a échoué : {detail} Sa branche n’a pas pu être conservée, le travail reste donc dans {folder}. Récupérez-le depuis cet endroit avant que la prochaine exécution sans interface ne nettoie les anciennes exécutions.",
   "execMuseCodeOnly": "Ces options exigent le moteur Muse Code, celui par défaut sans --backend modelApi : {options}.",
   "execModelUnpriced": "Aucun tarif connu pour ce modèle.",
   "execPromptMissing": "Fournissez une seule invite non vide.",

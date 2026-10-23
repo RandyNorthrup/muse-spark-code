@@ -14,11 +14,13 @@ import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import {
   currentOwner,
+  preserveFailedMerge,
   predictedAgentsRef,
   recordCleanupOwner,
   recordCleanupRef,
   sweepStaleTeamRuns,
 } from '../../src/runtime/exec/execTeamRecovery'
+import { realTeamGit } from './helpers/teamGit'
 
 const execFileAsync = promisify(execFile)
 
@@ -133,6 +135,108 @@ describe('exec team sweep over the real runs root', () => {
         await readFile(path.join(liveFolder, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
       ) as { refs: unknown[] }
       expect(liveLedger.refs).toEqual([])
+    },
+  )
+})
+
+describe('preserveFailedMerge over real git (finding 5)', () => {
+  let root = ''
+  let repo = ''
+  let copy = ''
+  let runFolder = ''
+  let head = ''
+
+  beforeAll(async () => {
+    if (process.platform === 'darwin') {
+      try {
+        await execFileAsync('git', ['--version'], { timeout: 10_000 })
+      } catch {
+        const dir = '/Library/Developer/CommandLineTools/usr/bin'
+        process.env['PATH'] = `${dir}${path.delimiter}${process.env['PATH'] ?? ''}`
+        await execFileAsync('git', ['--version'], { timeout: 10_000 })
+      }
+    }
+    root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}preserve-`))
+    repo = path.join(root, 'repo')
+    await mkdir(repo, { recursive: true })
+    await git(['init', '-q'], repo)
+    await git(
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'seed'],
+      repo,
+    )
+    copy = path.join(root, 'copy')
+    await git(['clone', '-q', '--shared', repo, copy], root)
+    await git(
+      ['-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-q', '--allow-empty', '-m', 'work'],
+      copy,
+    )
+    const headText = await git(['rev-parse', 'HEAD'], copy)
+    head = headText.trim()
+    runFolder = path.join(root, `${EXEC_TEAM_RUN_PREFIX}run`)
+    await mkdir(runFolder, { recursive: true })
+    await recordCleanupOwner(runFolder, currentOwner())
+  }, REAL_GIT_TIMEOUT_MS)
+
+  afterAll(async () => {
+    const { rm } = await import('node:fs/promises')
+    await rm(root, { recursive: true, force: true })
+  }, REAL_GIT_TIMEOUT_MS)
+
+  it(
+    'holds the branch in the repo and records the hold in the ledger',
+    { timeout: REAL_GIT_TIMEOUT_MS },
+    async () => {
+      const preserved = await preserveFailedMerge({
+        git: realTeamGit,
+        repo,
+        runFolder,
+        copyFolder: copy,
+        role: 'reviewer',
+        taskId: 'task-preserve',
+        head,
+      })
+      expect(preserved.kind).toBe('held')
+      if (preserved.kind !== 'held') throw new Error('expected a held branch')
+      await expect(git(['rev-parse', '--verify', preserved.ref], repo)).resolves.toBe(`${head}\n`)
+      const ledger = JSON.parse(
+        await readFile(path.join(runFolder, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+      ) as { holds: { ref: string }[] }
+      expect(ledger.holds.map((entry) => entry.ref)).toContain(preserved.ref)
+    },
+  )
+
+  it(
+    'keeps the work in place when the head names nothing holdable',
+    { timeout: REAL_GIT_TIMEOUT_MS },
+    async () => {
+      const preserved = await preserveFailedMerge({
+        git: realTeamGit,
+        repo,
+        runFolder,
+        copyFolder: copy,
+        role: 'reviewer',
+        taskId: 'task-kept-head',
+        head: 'not-a-commit',
+      })
+      expect(preserved).toEqual({ kind: 'kept' })
+    },
+  )
+
+  it(
+    'keeps the work in place when git cannot fetch the branch',
+    { timeout: REAL_GIT_TIMEOUT_MS },
+    async () => {
+      const preserved = await preserveFailedMerge({
+        git: realTeamGit,
+        repo,
+        runFolder,
+        copyFolder: path.join(root, 'missing-copy'),
+        role: 'reviewer',
+        taskId: 'task-kept-fetch',
+        head,
+      })
+      expect(preserved).toEqual({ kind: 'kept' })
+      await expect(stat(copy)).resolves.toBeDefined()
     },
   )
 })

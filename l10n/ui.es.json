@@ -4141,6 +4141,8 @@
   "execTeamMergeHeldProtected": "Las rutas protegidas necesitan aprobación, por lo que la rama se conserva en {ref}. Apruébelas y fusione de nuevo, o elimine {ref} para descartar el trabajo.",
   "execTeamMergeHeldReview": "La revisión requerida no está completa, por lo que la rama se conserva en {ref}. Recoja la revisión y fusione de nuevo, o elimine {ref} para descartar el trabajo.",
   "execTeamMergeBlocked": "La fusión no puede continuar para la tarea {entry}: {detail}.",
+  "execTeamMergeFailedHeld": "La fusión falló: {detail} La rama queda retenida en {ref}; vuelva a fusionar una vez corregido o elimine {ref} para descartar el trabajo.",
+  "execTeamMergeFailedKept": "La fusión falló: {detail} Su rama no pudo retenerse, por lo que el trabajo se conserva en {folder}. Recupérelo desde allí antes de que la próxima ejecución sin interfaz limpie las ejecuciones antiguas.",
   "execMuseCodeOnly": "Estas opciones requieren el motor Muse Code, el predeterminado sin --backend modelApi: {options}.",
   "execModelUnpriced": "Este modelo no tiene una tarifa conocida.",
   "execPromptMissing": "Proporciona una única instrucción no vacía.",

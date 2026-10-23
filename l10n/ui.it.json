@@ -4141,6 +4141,8 @@
   "execTeamMergeHeldProtected": "I percorsi protetti richiedono approvazione, quindi il ramo è trattenuto in {ref}. Approvali e unisci di nuovo, oppure rimuovi {ref} per scartare il lavoro.",
   "execTeamMergeHeldReview": "La revisione richiesta non è completa, quindi il ramo è trattenuto in {ref}. Raccogli la revisione e unisci di nuovo, oppure rimuovi {ref} per scartare il lavoro.",
   "execTeamMergeBlocked": "L'unione non può procedere per l'attività {entry}: {detail}.",
+  "execTeamMergeFailedHeld": "L’unione non è riuscita: {detail} Il ramo è conservato in {ref}; unisca di nuovo dopo la correzione oppure rimuova {ref} per scartare il lavoro.",
+  "execTeamMergeFailedKept": "L’unione non è riuscita: {detail} Il suo ramo non ha potuto essere conservato, quindi il lavoro resta in {folder}. Lo recuperi da lì prima che la prossima esecuzione senza interfaccia pulisca le esecuzioni obsolete.",
   "execMuseCodeOnly": "Queste opzioni richiedono il backend Muse Code, quello predefinito senza --backend modelApi: {options}.",
   "execModelUnpriced": "Questo modello non ha una tariffa nota.",
   "execPromptMissing": "Fornisci un’unica istruzione non vuota.",

@@ -4223,6 +4223,8 @@
   "execTeamMergeHeldProtected": "Chráněné cesty vyžadují schválení, proto je větev podržena v {ref}. Schvalte je a sloučte znovu, nebo odeberte {ref} a práci zahoďte.",
   "execTeamMergeHeldReview": "Požadovaná revize není dokončena, proto je větev podržena v {ref}. Shromážděte revizi a sloučte znovu, nebo odeberte {ref} a práci zahoďte.",
   "execTeamMergeBlocked": "Sloučení pro úlohu {entry} nemůže pokračovat: {detail}.",
+  "execTeamMergeFailedHeld": "Sloučení se nezdařilo: {detail} Větev je podržena na {ref}; po opravě sloučte znovu, nebo odebráním {ref} práci zahoďte.",
+  "execTeamMergeFailedKept": "Sloučení se nezdařilo: {detail} Jeho větev nešlo podržet, proto je práce zachována ve složce {folder}. Obnovte ji odtud, než další běh bez rozhraní uklidí staré běhy.",
   "execMuseCodeOnly": "Tyto možnosti vyžadují backend Muse Code, výchozí bez --backend modelApi: {options}.",
   "execModelUnpriced": "Tento model nemá známý tarif.",
   "execPromptMissing": "Zadejte jeden neprázdný pokyn.",
