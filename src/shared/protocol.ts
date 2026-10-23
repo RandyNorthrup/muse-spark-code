@@ -734,6 +734,8 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('resetTeamEntry'), entryId: stringSchema }),
   // The Agent map's Stop all team tasks.
   z.object({ type: z.literal('stopAllTeamTasks') }),
+  // M120 lane P: Move to… on a waiting task, to another role.
+  z.object({ type: z.literal('moveTeamTask'), taskId: stringSchema, role: stringSchema }),
   // A `!` prompt (M46): the command, without the `!`.
   z.object({ type: z.literal('runUserShell'), command: stringSchema }),
   // Tool row: fetch one page of a stored output or patch document.

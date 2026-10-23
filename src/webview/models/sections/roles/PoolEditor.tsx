@@ -78,6 +78,120 @@ function isFreeOrLocalOffer(offer: TeamPanelOffer): boolean {
   return offer.agent.pays === 'local' || (offer.inputRate === 0 && offer.outputRate === 0)
 }
 
+/** An entry's secondary roles (M120 lane P, D212): ordered, dragged to order. */
+function SecondaryRoles({
+  role,
+  entryId,
+  slice,
+  post,
+  announce,
+  onChip,
+}: {
+  readonly role: TeamEditorRole
+  readonly entryId: string
+  readonly slice: TeamPanelSlice
+  readonly post: (message: TeamPanelMessage) => void
+  readonly announce: (text: string) => void
+  readonly onChip: (chip: string | undefined) => void
+}) {
+  const [dragged, setDragged] = useState<string | undefined>()
+  const secondary =
+    slice.document.assignments?.find((assignment) => assignment.candidateId === entryId)
+      ?.secondaryRoles ?? []
+  const roleName = (id: string) => slice.roleViews.find((item) => item.role === id)?.name ?? id
+  const write = (next: readonly string[]) => {
+    post({ type: 'roles/secondaryRoles', role: role.role, entryId, secondaryRoles: [...next] })
+  }
+  const move = (target: string, to: number) => {
+    const next = secondary.filter((item) => item !== target)
+    next.splice(to, 0, target)
+    write(next)
+    announce(
+      fill(UI_TEXT.teamEditor.moveLabel, {
+        entry: roleName(target),
+        position: formatNumber(to + 1),
+      }),
+    )
+  }
+  const available = slice.document.roles
+    .map((item) => item.role)
+    .filter((id) => id !== role.role && !secondary.includes(id))
+  return (
+    <>
+      <p className="models-hint">
+        {fill(UI_TEXT.teamSecondaryMain, { role: roleName(role.role) })}
+      </p>
+      <fieldset className="team-editor-caps">
+        <legend>{UI_TEXT.teamSecondaryTitle}</legend>
+        <p className="models-hint">{UI_TEXT.teamSecondaryKeys}</p>
+        <ul className="team-editor-secondary">
+          {secondary.map((target, index) => (
+            <li
+              key={target}
+              className="team-editor-actions"
+              draggable
+              onDragStart={() => {
+                setDragged(target)
+              }}
+              onDragOver={(event) => {
+                event.preventDefault()
+              }}
+              onDrop={(event) => {
+                event.preventDefault()
+                if (dragged !== undefined) move(dragged, index)
+                setDragged(undefined)
+              }}
+            >
+              <button
+                type="button"
+                className="team-editor-order"
+                aria-label={roleName(target)}
+                onKeyDown={(event) => {
+                  const action = webviewKey('team.pool', event)
+                  if (action === undefined) return
+                  event.preventDefault()
+                  const next = index + (action === 'previous' ? -1 : 1)
+                  if (next >= 0 && next < secondary.length) move(target, next)
+                }}
+              >
+                {formatNumber(index + 1)} · {roleName(target)}
+              </button>
+              <button
+                type="button"
+                className="models-button"
+                aria-label={fill(UI_TEXT.teamSecondaryRemove, { role: roleName(target) })}
+                onClick={() => {
+                  write(secondary.filter((item) => item !== target))
+                }}
+              >
+                {UI_TEXT.providerRemove}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {available.length === 0 ? null : (
+          <SearchableSelect
+            label={UI_TEXT.teamSecondaryTitle}
+            placeholder={UI_TEXT.teamSecondaryAdd}
+            options={available.map((id) => ({
+              value: id,
+              label: roleName(id),
+              description: id,
+              category: 'role',
+            }))}
+            chips={[]}
+            activeChip={undefined}
+            onChip={onChip}
+            onSelect={(id) => {
+              write([...secondary, id])
+            }}
+          />
+        )}
+      </fieldset>
+    </>
+  )
+}
+
 /** The option line: provider and model with context and price to compare. */
 export function offerDescription(offer: TeamPanelOffer, money?: MoneyDisplay): string {
   const parts = [`${offer.agent.provider ?? offer.agent.agentId} · ${offer.agent.model}`]
@@ -265,6 +379,14 @@ export function PoolEditor({
                 }}
               />
               <p className="models-hint">{view?.reasons[entry.id]}</p>
+              <SecondaryRoles
+                role={role}
+                entryId={entry.id}
+                slice={slice}
+                post={post}
+                announce={announce}
+                onChip={setChip}
+              />
               <fieldset className="team-editor-caps">
                 <legend>{UI_TEXT.teamEditor.caps}</legend>
                 {caps.map((cap, capIndex) => (
