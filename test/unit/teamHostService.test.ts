@@ -19,6 +19,8 @@ import { TEAM_WORKSPACE_KEYS, decideTeamConversationMode } from '../../src/share
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
 import { OPTIONAL_RUNTIME_AVAILABILITY, TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { storedTasksSchema } from '../../src/core/team/teamTaskState'
+import { fill } from '../../src/shared/l10n/text'
 import { Usd } from '../../src/shared/usd'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
@@ -1919,5 +1921,88 @@ describe('team lifecycle hook firing', () => {
     t.h.finish(1)
     await settle()
     await t.service.dispose()
+  })
+})
+
+function moveTwoRoles(
+  reviewPool: readonly TeamPoolEntry[] = [entry('r', WORKER_MODEL, 1)],
+): TeamSnapshot {
+  return {
+    roles: [
+      {
+        role: 'engineering',
+        workspace: 'own-branch',
+        pool: [entry('a', WORKER_MODEL, 1)],
+      },
+      { role: 'code-review', workspace: 'read-only', pool: [...reviewPool] },
+    ],
+    intensity: 'balanced',
+  }
+}
+
+function moveQueuedTaskIds(service: TeamHostService, roleId: string): string[] {
+  const role = service.tree()?.roles.find((item) => item.id === roleId)
+  return role?.queued.map((worker) => worker.taskId) ?? []
+}
+
+async function queuedOnEngineering(stored: TeamSnapshot = moveTwoRoles()) {
+  const h = harness(stored)
+  const service = createTeamHostService(h.deps)
+  await service.probeEntries()
+  await service.teamRunner.delegate(delegateOne, context())
+  await waitingDecision(h, service, 'queue')
+  // The waiting card mints its own id, so both task ids come from the
+  // tree rather than the counter.
+  const running = service
+    .tree()
+    ?.roles.flatMap((role) => role.entries.flatMap((entry) => entry.workers))[0]?.taskId
+  const [queued] = moveQueuedTaskIds(service, 'engineering')
+  if (running === undefined || queued === undefined) throw new Error('No running and queued pair')
+  return { h, service, running, queued }
+}
+
+describe('M120 lane P: Move to…', () => {
+  it('moves a waiting task, chains the move, and launches it under its new role', async () => {
+    const { h, service, queued } = await queuedOnEngineering()
+    await service.moveTask(queued, 'code-review')
+    expect(moveQueuedTaskIds(service, 'engineering')).toEqual([])
+    expect(moveQueuedTaskIds(service, 'code-review')).toEqual([queued])
+    // The chain survives the restart parse: the task's report records it.
+    const saved = storedTasksSchema.parse(h.values.get(TEAM_TASKS_STATE_KEY))
+    const tasks = Array.isArray(saved) ? saved : saved.tasks
+    const moved = tasks.find((task) => task.taskId === queued)
+    expect(moved?.handoff?.chain).toEqual([
+      expect.objectContaining({
+        kind: 'move',
+        trigger: 'user',
+        fromCandidateId: 'engineering',
+        toCandidateId: 'r',
+      }),
+    ])
+    h.finish(0)
+    await settle()
+    expect(h.started[1]?.role.role).toBe('code-review')
+    await service.dispose()
+  })
+
+  it('says each refusal: running, finished, unknown, unstaffed, same role', async () => {
+    const { h, service, running, queued } = await queuedOnEngineering()
+    await expect(service.moveTask(running, 'code-review')).rejects.toThrow(UI_TEXT.teamMoveRunning)
+    await expect(service.moveTask(queued, 'ghost')).rejects.toThrow(
+      fill(UI_TEXT.teamRoleUnknown, { role: 'ghost' }),
+    )
+    await expect(service.moveTask('ghost', 'code-review')).rejects.toThrow(UI_TEXT.teamTaskUnknown)
+    await expect(service.moveTask(queued, 'engineering')).rejects.toThrow(UI_TEXT.teamMoveSettled)
+    h.finish(0)
+    await settle()
+    h.finish(1)
+    await settle()
+    await expect(service.moveTask(queued, 'code-review')).rejects.toThrow(UI_TEXT.teamMoveSettled)
+    await service.dispose()
+    const empty = await queuedOnEngineering(moveTwoRoles([]))
+    await expect(empty.service.moveTask(empty.queued, 'code-review')).rejects.toThrow(
+      fill(UI_TEXT.teamPoolNotStaffed, { role: 'code-review' }),
+    )
+    await empty.service.dispose()
   })
 })
