@@ -14,6 +14,7 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { Usd } from '../../src/shared/usd'
 import { collectingLogger } from './helpers/collectingLogger'
+import { quietTabServices } from './helpers/tabQuietFixtures'
 import { removeFolder } from './helpers/temporaryFolders'
 
 // M94 acceptance 1 (off sends nothing and loads nothing; on arms the
@@ -92,13 +93,7 @@ function depsOf(state: ShimState): TabActivationDeps {
     onIgnoreFilesChanged: () => ({ dispose: () => undefined }),
     onDidChangeTextDocument: () => ({ dispose: () => undefined }),
     activeLanguageId: () => undefined,
-    knownLanguages: () => Promise.resolve([]),
-    confirmCopilotDisable: () => Promise.resolve(false),
-    disableCopilotFor: () => Promise.resolve(),
-    openAccountUsage: () => Promise.resolve(),
-    runCommand: () => Promise.resolve(),
-    table: () => UI_TEXT,
-    locale: () => 'en',
+    ...quietTabServices(),
     snoozeStore: {
       readSnoozedUntil: () => undefined,
       writeSnoozedUntil: () => Promise.resolve(),
