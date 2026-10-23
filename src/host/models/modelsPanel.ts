@@ -61,6 +61,7 @@ import { Usd } from '../../shared/usd'
 import { distinctProviderLabels } from '../../shared/providerLabels'
 import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { type SessionBudgetConfig } from './sessionBudget'
 import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
 import {
@@ -326,8 +327,8 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     try {
       return projectJudgePanel(deps.judge.read())
-    } catch {
-      log.warn('Judge panel status could not be read')
+    } catch (error: unknown) {
+      log.warn(`Judge panel status could not be read: ${failureForLog(error)}`)
       return unavailableJudgePanel()
     }
   }
