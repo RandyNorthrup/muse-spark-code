@@ -231,7 +231,9 @@ export const NODE_AUTH_TERMINAL_STREAM = '/node/terminal/stream'
 export const NODE_FILE_TREE_ROW_PX = 32
 export const NODE_FILE_TREE_VISIBLE_ROWS = 12
 export const NODE_FILE_TREE_OVERSCAN_ROWS = 4
-export const NODE_WORKSPACE_ASSET = './node/files/main.js'
+// The workspace stylesheet beside the served page (its script comes from the
+// independent build through loadWorkspace, never from this build's bundles).
+export const NODE_WORKSPACE_ASSET = './node/files/main.css'
 export const NODE_WORKSPACE_BUDGET_KIB = 375
 export const NODE_EDITOR_BUDGET_KIB = 600
 /** U2: the lazy terminal chunk (xterm.js) is budgeted apart from the

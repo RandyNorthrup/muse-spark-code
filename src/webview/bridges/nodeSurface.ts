@@ -22,7 +22,7 @@ export async function mountNodeSurface(element: Element, scriptUrl: string): Pro
   }
   const sheet = document.createElement('link')
   sheet.rel = 'stylesheet'
-  sheet.href = new URL(NODE_WORKSPACE_ASSET.replace(/\.js$/u, '.css'), scriptUrl).href
+  sheet.href = new URL(NODE_WORKSPACE_ASSET, scriptUrl).href
   document.head.append(sheet)
   try {
     const module = await binding.loadWorkspace()

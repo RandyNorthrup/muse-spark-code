@@ -560,8 +560,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'NODE_BUNDLE_FILE', side: ['acp'] },
     ],
   },
-  { file: 'nodeAuth.js', side: 'unreached', requestedBy: [] },
-  { file: 'nodeAuthPage.js', side: 'unreached', requestedBy: [] },
   {
     file: 'pageWorker.js',
     side: 'both',
@@ -1248,13 +1246,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'MODELS_WEBVIEW_SCRIPT_FILE',
         side: ['vscode'],
       },
-    ],
-  },
-  {
-    file: 'webview/node/files/main.js',
-    side: 'vscode',
-    requestedBy: [
-      { importer: 'src/shared/constants.ts', symbol: 'WEBVIEW_SCRIPT_FILE', side: ['vscode'] },
     ],
   },
   { file: 'webview/referencePage.js', side: 'vscode', requestedBy: [] },
