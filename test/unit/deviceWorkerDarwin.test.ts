@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { workerEnvironment } from '../../src/core/team/refFence'
-import { deviceWorkerDarwin } from '../../src/host/backend/deviceWorkerDarwin'
+import { deviceWorkerDarwin, escapeXml } from '../../src/host/backend/deviceWorkerDarwin'
 import { deviceWorkerLinux } from '../../src/host/backend/deviceWorkerLinux'
 import { deviceWorkerNative } from '../../src/host/backend/deviceWorkerNative'
 import {
@@ -119,6 +119,14 @@ describe('M100 worker driver selection', () => {
     }
     expect(failure).toBeInstanceOf(DeviceWorkerHostError)
     expect((failure as DeviceWorkerHostError).detail).toBe('helper')
+  })
+})
+
+describe('darwin worker plist escaping', () => {
+  it('escapes the five XML metacharacters', () => {
+    expect(escapeXml(`<a href="x">'&'</a>`)).toBe(
+      '&lt;a href=&quot;x&quot;&gt;&apos;&amp;&apos;&lt;/a&gt;',
+    )
   })
 })
 

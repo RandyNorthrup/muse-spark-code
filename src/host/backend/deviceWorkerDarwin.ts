@@ -497,13 +497,17 @@ async function isPresent(file: string): Promise<boolean> {
   }
 }
 
-function xml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&apos;')
+const XML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&apos;',
+}
+
+/** Escape text for XML content, one pass, so values stay inside their plist string. */
+export function escapeXml(value: string): string {
+  return value.replaceAll(/[&<>"']/g, (char) => XML_ESCAPES[char] ?? char)
 }
 
 /** No GUI domain, compiler, coalition ABI or assertion means unsupported-host. */
@@ -753,9 +757,12 @@ export function deviceWorkerDarwin(deps: DeviceWorkerDarwinDeps): DeviceWorkerDr
         throw new DeviceWorkerHostError('preflight')
       await writeFile(file('request.json'), encoded, { flag: 'wx', mode: Number('0o600') })
       const variables = Object.entries(env)
-        .map(([name, value = '']) => `<key>${xml(name)}</key><string>${xml(value)}</string>`)
+        .map(
+          ([name, value = '']) =>
+            `<key>${escapeXml(name)}</key><string>${escapeXml(value)}</string>`,
+        )
         .join('')
-      const plist = `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${xml(target)}</string><string>--run</string><string>${xml(file('request.json'))}</string></array><key>EnvironmentVariables</key><dict>${variables}</dict><key>RunAtLoad</key><true/><key>AbandonProcessGroup</key><false/><key>LimitLoadToSessionType</key><string>Aqua</string></dict></plist>`
+      const plist = `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>Label</key><string>${label}</string><key>ProgramArguments</key><array><string>${escapeXml(target)}</string><string>--run</string><string>${escapeXml(file('request.json'))}</string></array><key>EnvironmentVariables</key><dict>${variables}</dict><key>RunAtLoad</key><true/><key>AbandonProcessGroup</key><false/><key>LimitLoadToSessionType</key><string>Aqua</string></dict></plist>`
       await writeFile(file('job.plist'), plist, { flag: 'wx', mode: Number('0o600') })
       transition(attempt, { kind: 'bootstrapping' })
       await call(['bootstrap', domain, file('job.plist')])
