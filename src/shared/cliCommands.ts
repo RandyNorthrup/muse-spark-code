@@ -23,6 +23,9 @@ export function cliCommands(shouldIncludeHeld = false) {
     providersTest: [['providers', 'test']],
     providersRefresh: [['providers', 'refresh']],
     providersRemove: [['providers', 'remove']],
+    // The bare form's own row (RLTESTDRIVE2 14): its invocation is the
+    // command a person types, never the route's name.
+    providersUsageTargets: [['providers', 'usage']],
     chatGptProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'chatgpt']),
     grokProvider: ['add', 'remove', 'status'].map((action) => ['providers', action, 'grok']),
     serve: [[]],
