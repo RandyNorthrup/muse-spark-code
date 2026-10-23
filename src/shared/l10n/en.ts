@@ -5533,6 +5533,25 @@ export const EN = {
     'The last request exceeded its reservation by {overage} ({cost} charged, {reserved} reserved). The run stopped before another request.',
   execBudgetBreach: 'Observed accounting exceeded its reservation.',
   execIncomplete: 'The response did not complete.',
+  execIncompleteTransport:
+    'The connection to the model was lost. The session is kept and can be resumed.',
+  turnPausedNetwork:
+    'Paused: the model connection was lost at {time}; attempt {attempt}, retrying.',
+  turnPausedNetworkCapped:
+    'Paused: the model connection was lost at {time}; attempt {attempt} of {cap}, retrying.',
+  nodeLivenessOnline: 'Online',
+  nodeLivenessOffline: 'Offline',
+  nodeLivenessUnreachable: 'Unreachable since {time}, retrying',
+  nodeWaitingRow:
+    'Waiting: {node} unreachable since {time}, retrying, attempt {attempt}, next in {delay}',
+  packsVerifyUnavailable: 'Pack verification is unavailable in this build.',
+  peekSlashDescription: "Peek at an agent's event stream (read-only).",
+  peekUsage: '/peek [agent-id]',
+  peekNoAgents: 'No agents are running in this session.',
+  peekUnknownAgent: 'Unknown agent: {id}',
+  peekAttachmentsRefused: '/peek takes no attachments: send it alone.',
+  toolchainsFeatureName: 'Toolchains',
+  referenceToolchains: 'The toolchains installed on this machine, with their versions.',
   execDeniedStop: 'An approval denial stopped this run.',
   execInterrupted: 'The run was interrupted.',
   execOutputStalled: 'Output closed or stalled.',

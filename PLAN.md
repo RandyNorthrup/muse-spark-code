@@ -276,6 +276,7 @@ temp/planfix0190/d2-summary.txt Full record:
 | `@xterm/xterm` / `addon-fit` / `headless`                                                            | 6.0.0 / 0.11.0 / 6.0.0            |
 | `string-width` / `wrap-ansi`                                                                         | 8.3.0 / 10.0.2                    |
 | `ink` / `ink-testing-library`                                                                        | 6.3.1 / 4.0.0                     |
+| `sigstore`                                                                                           | 5.0.0                             |
 
 **`typescript`** — Registry latest is 7.0.2, but `typescript-eslint@8.70.1` declares `peerDependencies.typescript: ">=4.8.4 <6.1.0"`. TS 7 installs cleanly and silently disables every type-aware lint rule. 6.0.3 is the highest release inside the supported range.
 
@@ -348,6 +349,8 @@ temp/planfix0190/d2-summary.txt Full record:
 **`string-width` / `wrap-ansi`** — M110a0 TD: cell widths and word-wrap with the same libraries Ink itself uses (sindresorhus, MIT; no peers; `npm audit` clean), so components clip on real cell boundaries instead of a hand-rolled width table. `string-width` ships (the components and the art sizer import it); `wrap-ansi` is dev-only (the harness wraps one log line the way callers wrap theirs).
 
 **`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` ships with the agent; `ink-testing-library` is dev-only.
+
+**`sigstore`** — Pack index signatures (M110t TP1/TP2, D90.27): verifies the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). No peer dependencies; `npm audit` clean 2026-10-22; 5.0.0 released 2026-06-01, past the seven-day window.
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
@@ -1913,6 +1916,8 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/modelsSubscriptions.js` budget rationale.** (PANELBUDGET: the subscriptions half of the Models panel host, the ChatGPT and Copilot sign-in flows, loaded on the first subscription action; measured 22,917 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB)
+
+**`dist/packsVerify.js` budget rationale.** (M110t TP2: the pack index verifier with sigstore, loaded on the first pack fetch; measured 1,484,756 B plus 15%, rounded up to the next 25 KiB multiple = 1675 KiB)
 
 ### D7 — Permission modes map onto MSP approval modes; prompting modes wait for M4
 
@@ -9203,9 +9208,11 @@ user's own nodes only (decision 10), and adds one D89.2 keyslot kind
      trusts the workspace (D13), under its egress policy. Features and images
      resolve to digests, which are recorded.
    - **Snapshots.** M72's turn checkpoints keep working inside a workspace. A
-     workspace snapshot (a git bundle plus an archive of untracked, non-ignored
-     files, or a file-system snapshot where btrfs or ZFS backs the volume) is
-     taken before an upgrade, a restore and any destructive cleanup.
+     workspace snapshot (a git bundle, a worktree patch of tracked modifications,
+     plus an archive of untracked, non-ignored files, or a file-system snapshot
+     where btrfs or ZFS backs the volume) is taken before an upgrade, a restore
+     and any destructive cleanup. The bundle alone would lose dirty tracked
+     files (proven by the W2 drill, 2026-10-22).
 
 7. **Every model path, with each credential where it belongs.**
    - **Engine providers** (the Model API and every M95 provider) hold their
@@ -31232,6 +31239,8 @@ with POSIX privacy checks exercised through filesystem seams. No socket policy
 is widened. Record each regression and byte-exact red drill in
 `docs/certification/m110-t.md`; the rig brief reserves full quality for the lead.
 
+**Status 2026-10-22: building.** Lanes Y1, Y2, Y3, Y4, TQ, TP1, TP2, TA, TV, R1, F1, P, W1, W2 and K built on RLM110B, in review (drill record `docs/certification/rlm110b-drills.md`); TJ blocked on M125 lane H.
+
 **Status 2026-10-05: planned.**
 
 Status detail retained: planned, documentation only. Nothing is implemented,
@@ -36523,33 +36532,7 @@ dependent gate remains outstanding; this record does not certify those
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
-**REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
-shared rules prohibit aggregate `npm run quality`; the lead owns the full
-integration gate. Run all required scoped typechecks, changed-file lint and
-format, localization, help drift, deadcode, duplication, host API, build and
-owned test files directly on Kubuntu. No threshold, timeout, rule or hook is
-weakened. Startup must additionally stay at or below 895.5 KiB for this
-lane. U9 raw argument frames and the production capability binding remain
-explicit evidence/integration handoffs, not passing certification claims.
-Receipts and byte-exact red drills are in `docs/certification/m106-l1.md`.
-**FIXM106L2 / FIXM106L22 / FIXM106L23 bounded review repairs (2026-10-06).** The rig/shared brief
-prohibits aggregate `npm run quality` and requires scoped tests, at most
-three files/three workers per run, with the repository timeout. Run the
-focused regressions, typecheck, changed-file lint/format, localization,
-deadcode, duplication, host API and production build directly on Kubuntu.
-No gate is weakened. Lane W retains aggregate quality, integration and the
-existing split-gate registration of `toolScheduler.ts`/`repeatGuard.ts`;
-its classification omission is a justified integration deferral, not a
-permission to package or publish. Receipts and red drills:
-`docs/certification/m106-l2.md`.
-**FIXM106R2 response-read repair (Kubuntu, 2026-10-06).** Scoped client and
-dependent regressions use repository-default timeouts and no test filtering.
-Seven red drills fire their named test and restore the client byte-exact;
-receipts are in `docs/certification/m106-r2-review-drills.json`. The rig/common
-brief forbids aggregate quality; full coverage, accessibility, hosted/platform
-and live certification remain with the lead. No gate, timeout, hook, cap or
-paid-call fence is weakened. Final scoped gate results are recorded in
-`docs/certification/m106-r.md`.
+- **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -38066,6 +38049,10 @@ No new escape hatch is introduced.
 | RLM96D location                                             | Escape hatch                                       | Reason                                                                                                                                                                                                                 | Removal                               |
 | ----------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | `src/core/team/coordinator/advisories.ts` (`poll` grouping) | `eslint-disable-next-line unicorn/prefer-group-by` | `Map.groupBy` does not resolve under this repo's TS lib (the lint-suggested call fails type-aware rules with unresolvable-type errors, as `Iterator.toArray` does); the explicit grouping loop stays. Inline-reasoned. | A TS lib that resolves `Map.groupBy`. |
+
+| RLM110B location                                   | Escape hatch                                            | Reason                                                                                                                                                                                                          | Date       |
+| -------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/nodeWorkspaceGit.test.ts` (refused URL) | `eslint-disable-next-line unicorn/prefer-https`, 1 site | The `http://github.com/…` fixture is the refused case the classifier must reject; the rule's `--fix` silently rewrites it to the accepted `https://` case, inverting the test. Inline-reasoned; no rule change. | 2026-10-22 |
 
 ## 9. Security assumptions and accepted residual risk
 

@@ -143,23 +143,24 @@ bindings are certified by M112's integration, not by a headless run.
 
 ## Exits, authoritative completion and output
 
-| Code | Status                              | Meaning                                                                                                                                                |
-| ---- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0    | completed                           | ACP end_turn AND latest Model API response completed at clean EOF with valid usage and priced settlement; or Muse Code tap terminal exactly completed. |
-| 1    | internal                            | Crash, output closed/stalled, duplicate settlement or wrapper failure when exec itself succeeded. Result is best effort.                               |
-| 2    | no result                           | CLI/input usage error; redacted stderr only.                                                                                                           |
-| 3    | auth_required / backend_unavailable | Missing/invalid key, HTTP 401/403, CLI signed out, missing CLI/bundle or unavailable store.                                                            |
-| 4    | failed                              | Ordinary backend/transport/HTTP failure after retry policy; explicit response.failed.                                                                  |
-| 5    | budget_exceeded / request_cap       | Pre-dispatch budget/shape/unpriced refusal, request count limit or observed accounting bound breach.                                                   |
-| 6    | timeout                             | Process deadline.                                                                                                                                      |
-| 7    | denied                              | --fail-on-denial latched.                                                                                                                              |
-| 8    | incomplete                          | response.incomplete, clean EOF without terminal (no_completion), or Muse Code terminal other than completed; preserve its word/reason.                 |
-| 9    | accounting_unverified               | Latest response.completed has missing or invalid usage, or accounting validation explicitly stops the run. Never authorizes comment/patch/apply.       |
-| 130  | cancelled                           | SIGINT.                                                                                                                                                |
-| 143  | cancelled                           | SIGTERM.                                                                                                                                               |
+| Code | Status                              | Meaning                                                                                                                                                                                     |
+| ---- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | completed                           | ACP end_turn AND latest Model API response completed at clean EOF with valid usage and priced settlement; or Muse Code tap terminal exactly completed.                                      |
+| 1    | internal                            | Crash, output closed/stalled, duplicate settlement or wrapper failure when exec itself succeeded. Result is best effort.                                                                    |
+| 2    | no result                           | CLI/input usage error; redacted stderr only.                                                                                                                                                |
+| 3    | auth_required / backend_unavailable | Missing/invalid key, HTTP 401/403, CLI signed out, missing CLI/bundle or unavailable store.                                                                                                 |
+| 4    | failed                              | Ordinary backend/HTTP failure after retry policy; explicit response.failed; refused transport answers (too large, malformed).                                                               |
+| 5    | budget_exceeded / request_cap       | Pre-dispatch budget/shape/unpriced refusal, request count limit or observed accounting bound breach.                                                                                        |
+| 6    | timeout                             | Process deadline.                                                                                                                                                                           |
+| 7    | denied                              | --fail-on-denial latched.                                                                                                                                                                   |
+| 8    | incomplete                          | response.incomplete, clean EOF without terminal (no_completion), a lost model connection (transport_lost, resumable), or Muse Code terminal other than completed; preserve its word/reason. |
+| 9    | accounting_unverified               | Latest response.completed has missing or invalid usage, or accounting validation explicitly stops the run. Never authorizes comment/patch/apply.                                            |
+| 130  | cancelled                           | SIGINT.                                                                                                                                                                                     |
+| 143  | cancelled                           | SIGTERM.                                                                                                                                                                                    |
 
-First latched stop wins. Otherwise auth failure precedes backend/HTTP/transport
-failure, then incomplete response/EOF, then completed-with-unverified-accounting.
+First latched stop wins. Otherwise auth failure precedes backend/HTTP
+failure, then a lost connection or incomplete response/EOF, then
+completed-with-unverified-accounting.
 Only the latest clean completed response with valid priced settlement plus ACP
 end_turn authorizes Model API success. An observed terminal followed by transport
 loss remains cut short. Muse Code requires its tap terminal exactly completed.

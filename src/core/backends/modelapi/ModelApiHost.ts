@@ -460,6 +460,7 @@ import {
 import { estimateCostUsd, formatUsd } from '../../usage/insights'
 
 import { runLegalScanCall } from './legalScanTool'
+import { runToolchainsCall, type ToolchainsReader } from '../../tools/toolchains'
 import { toolHookInput, toolHookOutput } from './toolHookPayload'
 import {
   afterAgentThoughtFields,
@@ -1080,6 +1081,11 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   through lane 0's contract; undefined leaves `legal_scan` out.
   */
   readonly legalScan?: LegalScanRunner | undefined
+  /**
+  The installed toolchains (M110t TA, PLAN.md D90.27): the node's pack
+  store through the reader contract; undefined leaves `toolchains` out.
+  */
+  readonly toolchains?: ToolchainsReader | undefined
   /** `museSpark.modelApiRepoMap`, read per turn: the repo map in the system prompt (M67). */
   readonly isRepoMapInPrompt?: (() => boolean) | undefined
   /**
@@ -6127,6 +6133,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       // A scanner behind the tool, in a trusted workspace: trust lost
       // after the offer refuses the call (M97).
       hasLegalScan: this.deps.legalScan !== undefined && this.deps.isWorkspaceTrusted(),
+      hasToolchains: this.deps.toolchains !== undefined,
     })
     const mcp = hasShell ? (this.deps.mcpServers?.definitions() ?? []) : []
     const offered = [...own, ...this.ideDefinitions(), ...mcp]
@@ -12723,6 +12730,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       case MODEL_API_TOOLS.legalScan: {
         return { outcome: await this.runLegalScan(call, signal) }
       }
+      case MODEL_API_TOOLS.toolchains: {
+        return { outcome: await this.runToolchains(call, signal) }
+      }
       case MODEL_API_TOOLS.generateImage:
       case MODEL_API_TOOLS.editImage: {
         return {
@@ -14162,6 +14172,18 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     return outcome.isRestricted
       ? toolFailure(outcome.reason, UI_TEXT.legalScanUntrusted)
+      : toolFailure(outcome.reason)
+  }
+
+  /**
+  A `toolchains` call (M110t TA, PLAN.md D90.27): a read in every mode,
+  stopped by Stop. The helper enforces the contract; this maps its
+  outcome to the row.
+  */
+  private async runToolchains(call: FunctionCallItem, signal: AbortSignal): Promise<ToolOutcome> {
+    const outcome = await runToolchainsCall(argumentsOf(call), this.deps.toolchains, signal)
+    return outcome.ok
+      ? { output: outcome.json, visibleOutput: outcome.json }
       : toolFailure(outcome.reason)
   }
 

@@ -957,3 +957,41 @@ of markers. The joined file is int/recovery's archive plus the 19 RLM100
 blocks whose body hash it did not already hold (260 were byte-identical
 passages already archived), each rendered by `renderBlock` under its own
 heading with `addToArchive`; `archiveProblems` reports none.
+
+## 2026-10-22: room for RLM110B's plan additions
+
+The lane's decision records, escape-hatch row and milestone status put
+`PLAN.md` at 3,565,766 bytes, 608 over the `check:plan` gate (85% of
+the 4 MiB bound, 3,565,158). One §7 block of four closed M106 lane
+records (2026-10-06/10-10) moved to `docs/plan-archive/gates.md` with
+a pointer; no test, script or live branch cites or touches it (all
+342 live lane branches' `PLAN.md` copies hold it byte-identical, so
+no open merge can conflict). The four lanes are verified and closed
+(their cert records stand in `docs/certification/m106-*.md`); M106
+itself still builds, so only these §7 receipts moved:
+
+| Block                                           | Lines (at `2bd7a2093`) | Bytes | SHA-256     |
+| ----------------------------------------------- | ---------------------- | ----- | ----------- |
+| C-M106-2 R5 + REDM106L1 + FIXM106L2 + FIXM106R2 | 34560–34595            | 2,591 | `996e0aec…` |
+
+After: 3,563,282 bytes, 1,876 bytes under the gate.
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` before the write,
+  SHA-256 `00c1cce6…`.
+- Parsed facts: identical; format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/gates.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 222 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` unchanged.
+- `npm run check:reference`: exit 0.
+- `planReader` + `planCitation` + `autoCompact` (89) +
+  `paidMoneyStructure` (46): 135 passed.
+
+### At the int/recovery join (2026-10-23)
+
+RLINTFIX's earlier archive pass had already moved the first of the four
+records (C-M106-2 R5, block `gates-b96bda2b6-35300`); the other three
+were still in `PLAN.md`. This block lands as it was moved (hash
+verified), so C-M106-2 R5 now stands in two hashed blocks and the three
+M106 records left `PLAN.md` at the join, behind this block's pointer.

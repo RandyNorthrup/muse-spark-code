@@ -1,0 +1,60 @@
+{
+  "name": "game",
+  "version": "1.0.0",
+  "description": "Game dev: headless Godot with its own checks; C# and C++ gates ride the language packs.",
+  "license": "MIT",
+  "languages": ["csharp", "cpp"],
+  "requires": [],
+  "checks": [
+    {
+      "name": "godot-import",
+      "command": ["godot", "--headless", "--import"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "godot",
+      "version": "4.7.2",
+      "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "Godot_*",
+          "as": "godot"
+        }
+      ]
+    },
+    {
+      "name": "godot",
+      "version": "4.7.2",
+      "url": "https://github.com/godotengine/godot/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.arm64.zip",
+      "license": "MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ],
+      "bin": [
+        {
+          "name": "Godot_*",
+          "as": "godot"
+        }
+      ]
+    }
+  ],
+  "smoke": [
+    {
+      "command": ["godot", "--version"]
+    }
+  ]
+}

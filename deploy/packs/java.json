@@ -1,0 +1,106 @@
+{
+  "name": "java",
+  "version": "1.0.0",
+  "description": "A Temurin JDK (LTS) with Gradle, Maven, ktlint, detekt, Checkstyle, SpotBugs and the JVM test runners. The skill's table has no JVM row; this is M104's gate set.",
+  "license": "Apache-2.0 AND (GPL-2.0-only WITH Classpath-exception-2.0) AND LGPL-2.1-or-later AND MIT",
+  "languages": ["java", "kotlin"],
+  "requires": [],
+  "checks": [
+    { "name": "ktlint", "command": ["ktlint"] },
+    { "name": "detekt", "command": ["detekt"] },
+    { "name": "checkstyle", "command": ["checkstyle", "-c", "/google_checks.xml"] },
+    { "name": "spotbugs", "command": ["spotbugs", "-textui"] },
+    { "name": "maven", "command": ["mvn", "-B", "verify"] },
+    { "name": "gradle", "command": ["gradle", "check"] }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "temurin",
+      "version": "25.0.5+8",
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5%2B8/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5_8.tar.gz",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "platforms": [{ "os": "linux", "arch": "x64" }]
+    },
+    {
+      "name": "temurin",
+      "version": "25.0.4.1+1",
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.4.1%2B1/OpenJDK25U-jdk_aarch64_linux_hotspot_25.0.4.1_1.tar.gz",
+      "license": "GPL-2.0-only WITH Classpath-exception-2.0",
+      "platforms": [{ "os": "linux", "arch": "arm64" }]
+    },
+    {
+      "name": "gradle",
+      "version": "9.8.2",
+      "url": "https://services.gradle.org/distributions/gradle-9.8.2-bin.zip",
+      "license": "Apache-2.0",
+      "platforms": [
+        { "os": "linux", "arch": "x64" },
+        { "os": "linux", "arch": "arm64" }
+      ]
+    },
+    {
+      "name": "maven",
+      "version": "3.10.0",
+      "url": "https://dlcdn.apache.org/maven/maven-3/3.10.0/binaries/apache-maven-3.10.0-bin.tar.gz",
+      "license": "Apache-2.0",
+      "platforms": [
+        { "os": "linux", "arch": "x64" },
+        { "os": "linux", "arch": "arm64" }
+      ]
+    },
+    {
+      "name": "ktlint",
+      "version": "1.8.0",
+      "url": "https://github.com/ktlint/ktlint/releases/download/1.8.0/ktlint",
+      "license": "MIT",
+      "platforms": [
+        { "os": "linux", "arch": "x64" },
+        { "os": "linux", "arch": "arm64" }
+      ]
+    },
+    {
+      "name": "detekt",
+      "version": "1.23.8",
+      "url": "https://github.com/detekt/detekt/releases/download/v1.23.8/detekt-cli-1.23.8.zip",
+      "license": "Apache-2.0",
+      "platforms": [
+        { "os": "linux", "arch": "x64" },
+        { "os": "linux", "arch": "arm64" }
+      ],
+      "bin": [{ "name": "detekt-cli", "as": "detekt" }]
+    },
+    {
+      "name": "checkstyle",
+      "version": "14.3.0",
+      "url": "https://github.com/checkstyle/checkstyle/releases/download/checkstyle-14.3.0/checkstyle-14.3.0-all.jar",
+      "license": "LGPL-2.1-or-later",
+      "platforms": [
+        { "os": "linux", "arch": "x64" },
+        { "os": "linux", "arch": "arm64" }
+      ],
+      "bin": [{ "name": "checkstyle-*-all.jar", "as": "checkstyle" }]
+    },
+    {
+      "name": "spotbugs",
+      "version": "4.10.5",
+      "url": "https://github.com/spotbugs/spotbugs/releases/download/4.10.5/spotbugs-4.10.5.tgz",
+      "license": "LGPL-2.1-or-later",
+      "platforms": [
+        { "os": "linux", "arch": "x64" },
+        { "os": "linux", "arch": "arm64" }
+      ]
+    }
+  ],
+  "smoke": [
+    { "command": ["java", "--version"] },
+    { "command": ["gradle", "--version"] },
+    { "command": ["mvn", "--version"] },
+    { "command": ["ktlint", "--version"] },
+    { "command": ["detekt", "--version"] },
+    { "command": ["checkstyle", "--version"] },
+    { "command": ["spotbugs", "-version"] }
+  ]
+}

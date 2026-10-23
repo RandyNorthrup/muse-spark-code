@@ -25,6 +25,8 @@ import type { RecordingScope } from '../../context/recordingReader'
 import type { ContextSections } from '../../context/workspaceContext'
 import type { MemoryScopeSnapshot } from '../../memory/memoryStore'
 import { checkListText } from '../../verify/checkCommands'
+import { toolchainsLine } from '../../tools/toolchains'
+import type { ToolchainsFile } from '../../../shared/toolchains'
 import { usageLocalDay } from '../../usage/localDay'
 
 export interface GitFacts {
@@ -62,6 +64,8 @@ export interface InstructionFacts {
   readonly hasCodeIntel: boolean
   /** The repo map section, while `museSpark.modelApiRepoMap` is on (M67): fixed for the session. */
   readonly repoMap?: string
+  /** The installed packs' capabilities (M110t TA): the one stable context line while packs exist. */
+  readonly toolchains?: ToolchainsFile
   /** `YYYY-MM-DD` in the host's clock. */
   readonly today: string
   readonly environment: EnvironmentFacts
@@ -311,6 +315,8 @@ export function instructionsFor(facts: InstructionFacts): string {
   const sections = [
     baseText(facts).join(PARAGRAPH),
     environmentText(facts),
+    // The installed toolchains' one stable context line, while packs exist (M110t TA).
+    toolchainsLine(facts.toolchains),
     WORKING_RULES,
     verifyText(facts),
     rulesText(facts.context.rules),

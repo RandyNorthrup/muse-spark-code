@@ -48,6 +48,12 @@
     "src/core/backends/modelapi/modelApiVerifyEntry.ts",
     // The image run-path, built as dist/modelApiImage.js (D6), loaded on the first image call.
     "src/core/backends/modelapi/modelApiImageEntry.ts",
+    // The pack index verifier, built as dist/packsVerify.js (M110t TP2),
+    // loaded on the first pack fetch.
+    "src/runtime/node/packs/verifyEntry.ts",
+    // Its loader (M110t TP2): built, pending the ACP pack fetch that
+    // calls it (A0/transport); declared, not hidden, not deleted.
+    "src/runtime/node/packs/verifyBundle.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
     "src/host/usage/usagePanelEntry.ts",
@@ -343,6 +349,10 @@
     "action/apply/lib/*.mjs",
     // The live Action receipt's judge (action-live.yml), started by path.
     "test/action/*.mjs",
+    // The fault-injection scenarios (M110r Y4), bundled by path in
+    // scripts/lib/faultRig.mjs; the namespace responder is spawned by path.
+    "test/faults/scenarios/*.ts",
+    "test/faults/lib/nsResponder.mjs",
     "scripts/**/*.mjs",
     ".vscode-test.mjs",
 
