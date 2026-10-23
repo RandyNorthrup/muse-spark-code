@@ -644,6 +644,22 @@ happened, not what was planned; superseded entries are kept.
   owned by the Devices bundle; without a platform protection the stores
   refuse to open. No user key material moves.
 
+- Approve unshipped machine sends byte for byte: the Devices panel and
+  the ACP agent show the exact bytes, their analysis and their digest
+  before an unshipped 3D-printer, CNC or microcontroller adapter may
+  send, and a refusal sends nothing. The adapters and their simulators
+  ship in their own lazy bundle beside the Devices bundle, loaded on
+  the first execution. No caller sends yet: every adapter
+  runs against its simulator with receipt journals, and simulator
+  receipts never qualify real hardware.
+
+- Complete the unshipped paired-device relocation route: the check
+  router takes linked-device offers, matches repository and kind across
+  separators, rechecks offer, setting and level before sending, and
+  settles the finished check M100's send returns; the teams binding
+  completes the runner-route join. No binding supplies offers yet, so
+  relocation still keeps work local.
+
 ### Fixed (M100, to curate)
 
 - Settle observed Devices worker capacity exits with their usage and recovery
