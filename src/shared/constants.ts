@@ -4697,6 +4697,9 @@ export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
 // unsettled. A veto answers in seconds; the poll granularity vanishes
 // inside the window.
 export const JUDGE_FAST_VETO_POLL_MS = 50
+// A probability in thousandths (D107 §9.6's audit): integers dodge the
+// floats a journal line cannot always carry.
+export const PERMILLE_MAX = 1000
 // D107 §9.2 and the ship rule (§11): platforms where B1 may skip the
 // reviewer — a platform receipt (drills, m125-f1.md) AND the harm bound
 // (lane V) behind each entry. Empty until both land anywhere: Linux's
@@ -6859,6 +6862,7 @@ export const REPORT_EVENT_KINDS = [
   'unhandledRejection',
   'reactBoundary',
   'errorNotice',
+  'judgeFastSkip',
 ] as const
 export type ReportEventKind = (typeof REPORT_EVENT_KINDS)[number]
 // What the webview may post to the host: its own failures only, never host kinds.
@@ -6969,6 +6973,9 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
   'permissionRequestFailed',
   'approvalWithoutDenial',
   'questionFailed',
+  // A fast-path allow's audit record (M125, D107 §9.6): the entry's fixed
+  // code word. Not an error; the audit it labels carries the facts.
+  'fast-path-allow',
   // How Muse Code's process ended when nobody asked it to (M93): a non-zero
   // exit, or the signal that ended it.
   REPORT_EXIT_CODE,

@@ -195,6 +195,7 @@ import {
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
 import { effortForThinking, effortLevelsFor, isEffortLevel } from '../../shared/effort'
+import type { FastPathAudit } from '../../shared/fastPathAudit'
 import {
   isChildTurn,
   type AgentEvent,
@@ -330,6 +331,8 @@ export interface ConversationReports {
   carries, or undefined when nothing was recorded.
   */
   readonly record: (kind: ReportEventKind, code: string) => ReportEventRef | undefined
+  /** Journals a fast-path allow's audit facts (M125, D107 §9.6) from the audit's own budget. */
+  readonly recordAudit: (audit: FastPathAudit) => void
 }
 
 /**
@@ -2555,6 +2558,7 @@ export class ConversationController {
       return
     }
     const reportRef = this.observeFailure(event)
+    if (event.type === 'judgeFastSkip') this.deps.reports?.recordAudit(event.audit)
     if (
       (event.type === 'approvalRequested' || event.type === 'questionRequested') &&
       event.isReplayed !== undefined
