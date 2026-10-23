@@ -28,6 +28,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **Continue With Grok (awaiting xAI's registration).** A SuperGrok or X
+  Premium subscription signs in with xAI and Grok models run on that
+  subscription, no API key: a browser flow with a local loopback callback
+  in Models & Agents, the command palette and the terminal
+  (`providers add grok`), plus a device-code flow for SSH and remote hosts
+  (`providers add grok --device`). The app's xAI OAuth client id lives in
+  the Muse Spark: Grok Client Id setting (or `--client-id`); until xAI
+  issues one, sign-in refuses before any request and says so. Tokens stay
+  in the credential store under their own lane, refreshed in the
+  background, and usage spends the subscription allowance.
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
@@ -251,6 +261,13 @@ happened, not what was planned; superseded entries are kept.
   built-in and custom agents cannot run there.
 
 ### Fixed
+
+- A stray sign-in callback can no longer end a ChatGPT or Grok sign-in:
+  a browser redirect carrying another attempt's state is turned away
+  and the sign-in keeps waiting for its own, instead of failing at
+  once. The Grok device flow also only ever sends you to an xAI
+  address to type its code, and a refreshed Grok identity token must
+  still belong to the sign-in that started the grant.
 
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
@@ -525,6 +542,19 @@ happened, not what was planned; superseded entries are kept.
   issues one, sign-in refuses before any request and says so. Tokens stay
   in the credential store under their own lane, refreshed in the
   background, and usage spends the subscription allowance.
+
+### Vault
+
+- Stored sign-ins that are not plain API keys (OAuth and subscription
+  records, and the default account saved over a provider slot) now move
+  into the vault with everything else on unlock, and stay working there
+  through rotation, lock and sign-out.
+- The ChatGPT subscription's stored tokens move into the vault the same
+  way, and pooled (non-default) accounts migrate from the account pool
+  where their host lists one.
+- Past the retain window a migrated slot's legacy entry retires and
+  the slot keeps reading from the vault, including across lock and
+  sign-out.
 
 ### Release infrastructure
 

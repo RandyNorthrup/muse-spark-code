@@ -76,16 +76,17 @@ describe('grok host callback', () => {
     })
   })
 
-  it('refuses a mismatched state with the validated failure and one fixed log line', async () => {
+  it('ignores a mismatched state with one fixed log line and still takes its own callback', async () => {
     await withCallback(async (flow, lines) => {
       const answer = await probe(`${flow.redirectUri}?code=x&state=${OTHER_STATE}`)
       expect(answer.status).toBe(400)
-      const failure = await captureFailure(() => flow.waitForCallback())
-      expect(failure).toBeInstanceOf(GrokSignInError)
-      expect(failure).toMatchObject({ code: 'invalid-state' })
       expect(lines).toHaveLength(1)
       expect(lines[0]).not.toContain(OTHER_STATE)
       expect(lines[0]).not.toContain('code=')
+      // The foreign attempt settled nothing: this attempt's callback still lands.
+      const own = await probe(`${flow.redirectUri}?code=auth-code&state=${STATE}`)
+      expect(own.status).toBe(200)
+      await expect(flow.waitForCallback()).resolves.toContain('code=auth-code')
     })
   })
 

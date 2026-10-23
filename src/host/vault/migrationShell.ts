@@ -62,6 +62,12 @@ export function withMigrationLock<T>(work: () => Promise<T>): Promise<T> {
 
 /** The vault side the lazy controller binds; null while unbound. */
 export interface MigrationMirror {
+  /**
+  Read a retired slot's only value from the vault. Resolves undefined
+  for any slot that is not retired (or whose vault is not unlocked);
+  damage refuses by throwing, never by silence.
+  */
+  readRetired(key: string): Promise<string | undefined>
   /** Copy a written value into its migrated slot; throws when it cannot. */
   mirrorWrite(key: string, value: string): Promise<void>
   /**
@@ -75,7 +81,11 @@ export interface MigrationMirror {
 
 /** Activation owns the shell; the lazy vault binding owns the mirror. */
 export interface MigrationShell {
-  /** The store every host credential path shares (reads always pass through). */
+  /**
+  The store every host credential path shares. A present legacy copy
+  reads straight through; only an absent one consults the mirror, which
+  serves retired slots from the vault.
+  */
   readonly store: SecretStore
   /**
   Bound when a vault binding builds; a newer binding replaces the older
@@ -89,7 +99,18 @@ export function createMigrationShell(secrets: SecretStore): MigrationShell {
   let mirror: MigrationMirror | null = null
   return {
     store: {
-      get: (key) => secrets.get(key),
+      get: async (key) => {
+        const value = await secrets.get(key)
+        const candidate = mirror
+        // A present legacy copy is the value, exactly as before; only an
+        // absent one consults the mirror, so reads cost nothing extra
+        // until a slot retires. Serialized with mirror ops, so a
+        // concurrent rotation or sign-out cannot interleave between this
+        // read and its journal check.
+        return value !== undefined || candidate === null
+          ? value
+          : await withMigrationLock(() => candidate.readRetired(key))
+      },
       async store(key, value) {
         // One lane holding across the SecretStorage commit and its vault
         // mirror: a sign-out that arrives second sees this save's committed

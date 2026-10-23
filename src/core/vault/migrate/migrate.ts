@@ -454,9 +454,7 @@ export class VaultMigration {
   finishes — the vault copy goes, the legacy copy goes, the row goes
   `deleted`. Only a different digest is a key saved after the
   interruption, and it is never deleted here: only the stale vault copy
-  goes, and an apiKey record is then re-seeded with `store`, while an
-  opaque one stays in SecretStorage with the row `deleted`, which the
-  unlock skips like any signed-out opaque slot. A record that no longer
+  goes, and the newer record is then re-seeded with `store`. A record that no longer
   decodes refuses with the codec's own fault and nothing is deleted. With
   no legacy copy, the legacy remove runs only against the absent copy it
   expects, and the row completes `deleted` without touching SecretStorage.
@@ -492,10 +490,6 @@ export class VaultMigration {
       try {
         decoded = entry.decode(live)
         await this.removeVaultCopyIfPresent(entry, lease)
-        if (decoded.material.kind !== 'apiKey') {
-          await this.completeDelete(row, lease)
-          return
-        }
         if (row.digest !== null && itemDigest(decoded) === row.digest) {
           await this.removeLegacy(entry.key, lease)
           await this.completeDelete(row, lease)
@@ -506,32 +500,6 @@ export class VaultMigration {
         eraseItem(decoded)
       }
     } finally {
-      live?.fill(0)
-    }
-  }
-  /**
-  The live legacy record's decoded material kind. Null when the record is
-  absent or damaged — each caller leaves those to its own recovery — and
-  every buffer is wiped before returning.
-  */
-  private async liveMaterialKind(
-    entry: MigrationCredential,
-    lease: MigrationLease,
-  ): Promise<VaultItem['material']['kind'] | null> {
-    let live: Uint8Array | null = null
-    let decoded: VaultItem | undefined
-    try {
-      live = await this.deps.legacy.read(entry.key)
-      lease.assertCurrent()
-      if (live === null) return null
-      try {
-        decoded = entry.decode(live)
-      } catch {
-        return null
-      }
-      return decoded.material.kind
-    } finally {
-      eraseItem(decoded)
       live?.fill(0)
     }
   }
@@ -665,6 +633,32 @@ export class VaultMigration {
       return entry.request === null ? null : vaultPrivateReadSchema.parse(entry.request)
     })
   }
+  /**
+  Authoritative read for a retired slot: the legacy copy is gone by
+  design, so the vault copy is the only value. Returns the legacy
+  envelope bytes the installed readers parse. Any other phase, or no
+  row, is not a retired slot and reads null — active slots keep
+  reading their legacy copy, unchanged. A vault copy that fails
+  validation or its journaled digest is damage and refuses, never a
+  silent absence; the caller owns the returned bytes and erases them.
+  */
+  async readRetired(key: string): Promise<Uint8Array | null> {
+    const entry = this.credential(key)
+    return await this.run(async (lease) => {
+      const row = await this.record(entry, lease)
+      if (row?.phase !== 'retired') return null
+      let item: VaultItem | undefined
+      try {
+        item = await this.deps.vault.read(entry.itemId)
+        lease.assertCurrent()
+        validateMigrationItem(item, entry.itemId)
+        if (itemDigest(item) !== row.digest) throw new VaultMigrationFault('verification')
+        return entry.encode(item)
+      } finally {
+        eraseItem(item)
+      }
+    })
+  }
   async undo(key: string): Promise<void> {
     const entry = this.credential(key)
     await this.run(async (lease) => {
@@ -778,91 +772,6 @@ export class VaultMigration {
       await this.save({ ...base, phase: 'deleted', digest: null }, lease)
     })
   }
-  /**
-  Drop a copy the engine can never verify: a `copying` or `writing` row
-  whose vault item the private channel cannot serve, or whose legacy
-  record no longer decodes to an apiKey row. Saves before the apiKey gate
-  stranded such rows with a `secret` item the unlock used to skip before
-  `resume` ever saw them. The stuck item goes when it is still there, and
-  the journal row goes with it, so the opaque record keeps working in
-  SecretStorage. Anything else — an apiKey row recovery can still finish,
-  or a row with no stuck item and no opaque record — reports false and is
-  left for its own recovery, and a damaged record stays the engine's to
-  report instead of being rolled back here.
-  */
-  async rollbackCopy(key: string): Promise<boolean> {
-    const entry = this.credential(key)
-    return await this.run(async (lease) => {
-      const row = await this.record(entry, lease)
-      if (!row || (row.phase !== 'copying' && row.phase !== 'writing')) return false
-      const listed = await this.deps.vault.list()
-      lease.assertCurrent()
-      const isPresent = listed.some((metadata) => metadata.id === entry.itemId)
-      let isStuck: boolean
-      if (isPresent) {
-        let isReadable = false
-        let item: VaultItem | undefined
-        try {
-          item = await this.deps.vault.read(entry.itemId)
-          lease.assertCurrent()
-          isReadable = true
-        } catch (error: unknown) {
-          if (!(error instanceof VaultMigrationFault) || error.code !== 'invalid') throw error
-        } finally {
-          eraseItem(item)
-        }
-        isStuck = !isReadable
-      } else {
-        const kind = await this.liveMaterialKind(entry, lease)
-        if (kind === null) return false
-        isStuck = kind !== 'apiKey'
-      }
-      if (!isStuck) return false
-      if (isPresent) {
-        await this.deps.vault.remove(entry.itemId, () => {
-          lease.assertCurrent()
-        })
-        lease.assertCurrent()
-      }
-      await this.deps.journal.remove(entry.key)
-      lease.assertCurrent()
-      return true
-    })
-  }
-  /**
-  Drop a vault copy the legacy slot no longer owns: the live record
-  decodes to something other than an apiKey row (an oauth, subscription
-  or account record saved over a migrated apiKey slot) while the journal
-  still claims the old key. A readable apiKey vault item is not "stuck",
-  so `rollbackCopy` leaves it; this removes it instead, without touching
-  the live SecretStorage record. A `copying` or `writing` row goes with
-  its item the way a rollback drops it; any other owned row (`active`,
-  `retired`, `deleting`) finishes `deleted` through the interrupted
-  sign-out path, which keeps a live copy it did not expect. Anything
-  else — no row, a terminal row, an absent or damaged record, or a
-  record that still decodes to an apiKey row — reports false and changes
-  nothing. Never deletes the SecretStorage record: that is the live key.
-  */
-  async removeStaleVaultCopy(key: string): Promise<boolean> {
-    const entry = this.credential(key)
-    return await this.run(async (lease) => {
-      const row = await this.record(entry, lease)
-      if (row === null || row.phase === 'deleted' || row.phase === 'undone') return false
-      const kind = await this.liveMaterialKind(entry, lease)
-      // An apiKey record is not stale — and an absent or damaged one stays
-      // the engine's own recovery to report. A newer record the finish path
-      // below reads is re-read there, so no check here can go stale.
-      if (kind === null || kind === 'apiKey') return false
-      if (row.phase === 'copying' || row.phase === 'writing') {
-        await this.removeVaultCopyIfPresent(entry, lease)
-        await this.deps.journal.remove(entry.key)
-        lease.assertCurrent()
-        return true
-      }
-      await this.finishInterruptedDelete(entry, row, lease)
-      return true
-    })
-  }
   /** Startup recovery runs before first-party bindings become usable. */
   async resume(key: string): Promise<void> {
     const entry = this.credential(key)
@@ -911,9 +820,11 @@ export class VaultMigration {
       if (listed.every((metadata) => metadata.id !== row.itemId)) {
         // The atomic vault write never committed.
         if (row.previous !== undefined) {
-          // A rotation: restore the previous usable journal row.
-          await this.save({ ...row, ...row.previous, previous: undefined }, lease)
-          return false
+          // A kind-changing rotation removed the previous item before its
+          // replacement could publish. The retained legacy record is the
+          // recoverable authority, not a previous digest with no item.
+          await this.save({ ...row, previous: undefined, phase: 'copying' }, lease)
+          return true
         }
         if (await this.legacyAbsent(entry, lease)) {
           const base = { ...row }

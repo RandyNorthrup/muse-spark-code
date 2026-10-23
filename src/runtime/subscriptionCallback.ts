@@ -119,6 +119,13 @@ export async function startSubscriptionCallback<E extends Error>(
       answer(response, HTTP_STATUS.notFound)
       return
     }
+    // A callback carrying another attempt's state is not this attempt's:
+    // whoever sent it (another local process, a stray tab, a probe) gets
+    // the fixed page and settles nothing, so it cannot end this sign-in.
+    if (url.searchParams.get('state') !== state) {
+      answer(response, HTTP_STATUS.badRequest)
+      return
+    }
     try {
       binding.parse(url.href, redirectUri)
       answer(response, HTTP_STATUS.ok)

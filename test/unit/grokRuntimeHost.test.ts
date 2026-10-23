@@ -158,14 +158,15 @@ describe('grok runtime callback', () => {
     }
   })
 
-  it('refuses a mismatched state with the validated failure', async () => {
+  it('ignores a mismatched state and still takes its own callback', async () => {
     const state = pkceRandom(32)
     const flow = await startGrokCallback(state, 10_000, () => 'callback page')
     try {
       const answer = await probe(`${flow.redirectUri}?code=x&state=${pkceRandom(32)}`)
       expect(answer.status).toBe(400)
-      const failure = await captureFailure(() => flow.waitForCallback())
-      expect(failure).toMatchObject({ code: 'invalid-state' })
+      const own = await probe(`${flow.redirectUri}?code=auth-code&state=${state}`)
+      expect(own.status).toBe(200)
+      await expect(flow.waitForCallback()).resolves.toContain('code=auth-code')
     } finally {
       flow.close()
     }
