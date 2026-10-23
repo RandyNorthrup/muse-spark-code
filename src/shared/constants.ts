@@ -232,6 +232,13 @@ export const DEVICE_MODEL_TEXT = {
   deviceOwnerBinding:
     'Bind each pair and grant to its owner; a device serves two orchestrators only with separate grants and quotas per owner. Authorize security-relevant actions per message by role under least-privilege time-bounded revocable grants, and audit each one. Never carry secrets in the clear: brokered uses go through the vault. Windows pair keys rest under OS store protection.',
 } as const
+// RLF-DEVICES: only the maker executors' loader (dist/devices.js) reads
+// these words, so they are a block of their own (D6), guarded in
+// scripts/check-bundle-split.mjs beside DEVICE_MODEL_TEXT.
+export const MAKER_MODEL_TEXT = {
+  makerBundleUnavailable:
+    'The maker executors bundle could not be loaded, so no maker execution can run. Report the failure to the user and stop: never claim the send happened, never retry in a loop, and never fall back to another path.',
+} as const
 // M108: local account configuration and policy. Credentials are never fields.
 export const ACCOUNT_DEFAULT_ID = 'default'
 export const ACCOUNT_ID_PATTERN = /^[a-z][a-z0-9-]{0,31}$/
@@ -5127,6 +5134,9 @@ export const MAKER_PERMISSION_OPTIONS = {
   allowOnce: 'maker-allow-once',
   deny: 'maker-deny',
 } as const
+// The maker executors' lazy bundle beside dist/devices.js, required on the
+// first maker execution; the devices bundle keeps only the panel surface.
+export const MAKER_BUNDLE_FILE = 'maker.js'
 // One session-list page the agent reads for the editor's cursor; the editor
 // pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50
@@ -7228,6 +7238,7 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
   'dist/browserRuntime.js',
   'dist/validation.js',
   'dist/devices.js',
+  'dist/maker.js',
   'dist/whatsNew.js',
   'dist/webview/whatsNew.js',
   'dist/conversation.js',
