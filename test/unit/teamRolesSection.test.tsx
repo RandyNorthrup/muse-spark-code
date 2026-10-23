@@ -776,7 +776,7 @@ describe('M120 lane P preference editor UI', () => {
     render(<RoleEditor role={engineeringRole(slice)} slice={slice} post={post} />)
     const qa = slice.roleViews.find((item) => item.role === 'qa')
     if (qa === undefined) throw new Error('No qa role')
-    fireEvent.keyDown(screen.getByRole('button', { name: qa.name }), {
+    fireEvent.keyDown(screen.getByRole('button', { name: `2 · ${qa.name}` }), {
       key: 'ArrowUp',
       altKey: true,
     })

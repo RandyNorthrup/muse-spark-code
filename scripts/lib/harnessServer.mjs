@@ -301,6 +301,8 @@ export const SCENARIOS = [
   'models-test-cost',
   'models-test-failed',
   'models-models',
+  'models-roles',
+  'models-agents',
   'models-privacy',
   'models-suggestions',
   'models-confirm',
