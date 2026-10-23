@@ -259,6 +259,8 @@ judge suite fails in the related run.
 - 2a83caaf6 fix(devices): guard worker spawns, review the fixed ones
 - e2244e115 fix(judge): report judge legs through the neutral log formatter
 - 28be71ee3 chore(host-api): regenerate after devices spawn guards
+- 0d26758ea docs(judgefix): devices, bundles, logText, whistleblowers record
+- 3209e9782 docs(judgefix): final proofs and host-api regen
 - (records: this file, CHANGELOG entry, PLAN.md M98 status line)
 
 ## 11. logText out of the judge bundles (lead follow-up)
