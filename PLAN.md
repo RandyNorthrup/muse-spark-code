@@ -18140,6 +18140,12 @@ plan's §8 (A–G); a phase that needs another editor installed waits for Q62.
 (M62b tried for real where installable; M63c refreshed for PR #661; M65
 waits on RLM104; M66 assessed; `docs/certification/rlhosts.md`).
 
+**Status 2026-10-22 (RLF-HOSTS2): built**
+(M66: Vim plugin shipped and host-checked, live drill held 3 turns in
+4 contributor requests; Xcode 26.3's bridge is dyld-dead on this Mac,
+so no Xcode session is possible here;
+`docs/certification/rlf-hosts2.md`).
+
 | Milestone | Phase | What it delivers                                                                                                                                             |
 | --------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | M60       | A     | The host API inventory: every VS Code API, Node built-in, webview host call and theme variable the extension uses, recorded and gated; the `vscode` boundary |
@@ -36990,6 +36996,26 @@ recovery lane. `check:roadmap` is red as a downstream casualty (the
 generator refuses while the plan drifts), and clears with the same
 archive. No threshold, bound or ignore is weakened. All other
 recovery gates pass; evidence: `docs/certification/rlm96d.md`.
+
+**RLF-HOSTS2 plan-size deferral (2026-10-22, macmini, open).** `npm run
+check:plan` exits 1: PLAN.md is 3,671,628 bytes, past 85% of the 4-MiB
+archived-plan budget (3,565,158 bytes). Measured on the untouched base
+397aca3dd (3,668,951 bytes, exit 1): the overage predates this lane, which
+adds ~2.6 KB (the RLHOSTS merge's status lines, one M66 line and two §7
+deferrals).
+Archiving mid-recovery would rewrite the file every recovery lane edits,
+so the lead archives at integration; this lane records the red and adds
+nothing beyond its required status line. No threshold is changed.
+Evidence: `docs/certification/rlf-hosts2.md`.
+
+**RLF-HOSTS2 bundle-size deferral (2026-10-22, macmini, open).** `npm run
+build` exits 1 on three bundle budgets: `dist/modelApi.js` 527.7 KiB
+(budget 525), `dist/resourceAdmission.js` and `dist/vaultActions.js`
+25.0 KiB each (budget 25). Measured on the untouched base 397aca3dd
+with identical byte counts: the overages predate this lane, which
+changes no file those bundles contain (no budget is raised, no code of
+theirs touched). Shrinking them belongs to their owning lanes; the lead
+assigns. Evidence: `docs/certification/rlf-hosts2.md`.
 
 ## 8. Escape hatches register
 

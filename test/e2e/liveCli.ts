@@ -59,6 +59,47 @@ export function countAttempts(log: string): number {
   return log.match(ATTEMPT_LINE)?.length ?? 0
 }
 
+/** The CLI session log's date-sharded path (XDG-aware, like the CLI itself). */
+export function sessionJsonlPath(sessionId: string): string {
+  const dataHome = process.env['XDG_DATA_HOME'] ?? path.join(homedir(), '.local', 'share')
+  const now = new Date()
+  const shard = [now.getFullYear(), now.getMonth() + 1, now.getDate()]
+    .map((part) => String(part).padStart(2, '0'))
+    .join(path.sep)
+  return path.join(dataHome, 'muse', 'sessions', shard, sessionId, 'session.jsonl')
+}
+
+export interface SessionResponseCounts {
+  readonly responses: number
+  readonly models: readonly string[]
+}
+
+/**
+Model requests answered in a CLI session log: one `model_response_created`
+per request, each `model_completed` naming its model. Shapes verified
+2026-10-22 against real `muse serve` session logs (0 and 1 responses).
+*/
+export function countSessionResponses(logPath: string): SessionResponseCounts {
+  const responses: string[] = []
+  const models: string[] = []
+  for (const line of readFileSync(logPath, 'utf8').split('\n')) {
+    if (line.trim() === '') continue
+    const record = JSON.parse(line) as {
+      payload_type?: string
+      payload?: { event?: { kind?: string; response_id?: string; model?: string } }
+    }
+    if (record.payload_type !== 'runtime.session') continue
+    const event = record.payload?.event
+    if (event?.kind === 'model_response_created' && typeof event.response_id === 'string') {
+      responses.push(event.response_id)
+    }
+    if (event?.kind === 'model_completed' && typeof event.model === 'string') {
+      models.push(event.model)
+    }
+  }
+  return { responses: responses.length, models }
+}
+
 /** The real CLI's backend for one drill in `workspaceRoot`. */
 export function liveBackend(
   workspaceRoot: string,
