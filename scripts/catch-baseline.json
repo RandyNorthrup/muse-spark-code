@@ -3,17 +3,17 @@
   "counts": {
     "acp": {
       "SWALLOW": 0,
-      "GENERIC": 19,
+      "GENERIC": 17,
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 72,
-      "GENERIC": 267,
+      "SWALLOW": 70,
+      "GENERIC": 265,
       "CLEANUP": 235
     },
     "host": {
       "SWALLOW": 19,
-      "GENERIC": 113,
+      "GENERIC": 110,
       "CLEANUP": 90
     },
     "root": {
@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 34,
-      "GENERIC": 203,
+      "GENERIC": 202,
       "CLEANUP": 125
     },
     "shared": {
@@ -86,16 +86,6 @@
     {
       "file": "src/acp/agent.ts",
       "identity": "440978b7ea9021a10fce0cb202456f12119a356909ef9c217110dd0b4272afe8",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/acp/agent.ts",
-      "identity": "c473bf8024c6695b09c5e9b4c525bffc1b29091292c01f6e556e4412af36fa57",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/acp/agent.ts",
-      "identity": "06637dd7070844cd33720e3af981d72a84796b1b98cdb105fe97155cb7f57dc0",
       "class": "GENERIC"
     },
     {
@@ -485,11 +475,6 @@
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "7d7b6221c4c96e15e9918cabbf70b52097102613efe039f959e2d5a169c4eb4b",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "6c12fdcd8e0bcbaf18ccb61c0d28bd4eb1a18cdf1636f52a6da408fc053b1213",
       "class": "GENERIC"
     },
@@ -512,11 +497,6 @@
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "488862103a7c11aba83cd6b1f6c94230c76701fff8f575c7c22d808d9456b08e",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "18b7d6d6f910e23a06997c0711b5352dbcd53540e391c5a1b8a1d992f2f087da",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
@@ -792,16 +772,6 @@
       "file": "src/core/browser/checkProxy.ts",
       "identity": "b64d2563cd86ae07e7b3c40b7791fd0a50f16aa8a60e767b05f8d363bc8462ca",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/core/browser/checkProxy.ts",
-      "identity": "d2b0380a2b62e05a222e0c20cdeab8292f00cf6835f5c971b3bbf7439702bba4",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/browser/checkProxy.ts",
-      "identity": "bb9d5e3fb0a32f43e2975c84b747bd3902748d05f4ec5c5817424da78a1d00bd",
-      "class": "SWALLOW"
     },
     {
       "file": "src/core/browser/pageCheck.ts",
@@ -3195,11 +3165,6 @@
     },
     {
       "file": "src/host/backend/toolIo.ts",
-      "identity": "5fcb3d2abc2dcabecd21f1272932465906249ec281c62a416675e48d2a694fa9",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/backend/toolIo.ts",
       "identity": "bf668f3bf762d689fa4d593000ea66794c672806cdfafd633163b6cb9600ad1c",
       "class": "GENERIC"
     },
@@ -3781,16 +3746,6 @@
     {
       "file": "src/host/skills/bundledSkillsInstall.ts",
       "identity": "383ab6cdd33692d199208f0ddc9f44c67dedd69af58fcfdab16306620f6702b3",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/skills/bundledSkillsInstall.ts",
-      "identity": "d1846a9cdfdeb22408f0e465ed90e67fa5932ed80c84fdb2d44eb40431e7c9a4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/host/skills/bundledSkillsInstall.ts",
-      "identity": "6c2025372c3b57954fa24db39f584dc744cb16a504c6d11a48857c92f7c81007",
       "class": "GENERIC"
     },
     {
@@ -4496,11 +4451,6 @@
     {
       "file": "src/runtime/exec/runExec.ts",
       "identity": "799e7eec795f07d8681f5329667a11660b574f62e0d264648d73894aa22da91e",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/exec/runExec.ts",
-      "identity": "213f8c5ce4dd5a272f110d7ed9b90740223b7dc06dedf21e5f2c04a34f5f3ab9",
       "class": "GENERIC"
     },
     {
