@@ -3339,6 +3339,10 @@ async function activateWindow(
       const { createTeamHost } = await import('./host/team/teamHostEntry')
       return createTeamHost
     },
+    loadTeamMcp: async () => {
+      const { TeamMcpServer, teamRosterAnswer } = await import('./host/team/teamHostEntry')
+      return { server: new TeamMcpServer(log), rosterAnswer: teamRosterAnswer }
+    },
     uiText: () => UI_TEXT,
     uiLocale,
     showTree: (tree) => {
@@ -4872,6 +4876,7 @@ async function activateWindow(
             },
           },
           team: teamHost,
+          teamMcp: teamHost.teamMcp,
           workspaceRoot,
           modelId: DEFAULT_MODEL_ID,
           initialPermissionMode: currentSettings().initialPermissionMode,
