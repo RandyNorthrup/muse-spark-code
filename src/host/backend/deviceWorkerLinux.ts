@@ -1,5 +1,5 @@
 // M100/H: a user service owns the tree; the transport only carries bounded pipes.
-import { spawn, execFile, type ChildProcessWithoutNullStreams } from 'node:child_process'
+import type { ChildProcessWithoutNullStreams } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
@@ -12,7 +12,9 @@ import type { Logger } from '../logger'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { deviceAttemptIdentitySchema } from '../../shared/devices'
 import { canonicalUsd } from '../../shared/usdSchema'
+import { probeChildEnvironment } from '../../core/executables'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
+import { execFileGuarded, spawnGuarded } from '../../core/guardedChildProcess'
 import { workerEnvironment } from '../../core/team/refFence'
 import {
   DEVICE_LIMITS,
@@ -75,7 +77,7 @@ export interface DeviceWorkerLinuxDeps {
 
 const run: RunProgram = (file, args, env) =>
   new Promise((resolve, reject) => {
-    const child = execFile(
+    const child = execFileGuarded(
       file,
       [...args],
       {
@@ -157,7 +159,10 @@ function groupPath(group: string, file: string): string {
 /** No user manager, unenforceable task limit or sleep authorization means no worker. */
 export function deviceWorkerLinux(deps: DeviceWorkerLinuxDeps): DeviceWorkerDriver {
   const invoke = deps.run ?? run
-  const start = deps.start ?? ((file, args, env) => spawn(file, [...args], { env, stdio: 'pipe' }))
+  const start =
+    deps.start ??
+    ((file, args, env) =>
+      spawnGuarded(file, [...args], { env: probeChildEnvironment(env), stdio: 'pipe' }))
   const read = deps.read ?? ((file) => readFile(file, 'utf8'))
   const entries = deps.entries ?? ((directory) => readdir(directory))
   const workerEnv = workerEnvironment(deps.environment, 'linux')
