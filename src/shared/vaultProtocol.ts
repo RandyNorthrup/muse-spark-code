@@ -1,5 +1,10 @@
 import * as z from 'zod/mini'
-import { VAULT_LIMITS, VAULT_PROTOCOL_VERSION, VAULT_RECOVERY_BYTES } from './constants'
+import {
+  VAULT_LIMITS,
+  VAULT_PROTOCOL_VERSION,
+  VAULT_RECOVERY_BYTES,
+  VAULT_TOTP_DIGITS,
+} from './constants'
 import {
   vaultBrokerEventSchema,
   vaultStatusSchema,
@@ -367,6 +372,35 @@ export const vaultRemoteRequestSchema = z.strictObject({
       kind: z.literal('totp'),
       origin: vaultOriginSchema.check(z.startsWith('https://')),
     }),
+  ]),
+})
+const remoteCode = z
+  .string()
+  .check(
+    z.refine(
+      (value) =>
+        Array.of<number>(VAULT_TOTP_DIGITS.standard, VAULT_TOTP_DIGITS.extended).includes(
+          value.length,
+        ) && /^\d+$/u.test(value),
+    ),
+  )
+/** The paired channel carries only the resulting capability. Never a ticket, item, grant or approval. */
+export const vaultRemoteResponseSchema = z.strictObject({
+  v: z.literal(VAULT_PROTOCOL_VERSION),
+  id,
+  result: z.discriminatedUnion('kind', [
+    z.strictObject({
+      kind: z.literal('signature'),
+      signature: z
+        .string()
+        .check(
+          z.minLength(1),
+          z.maxLength(VAULT_LIMITS.frameBytes),
+          z.regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u),
+        ),
+    }),
+    z.strictObject({ kind: z.literal('code'), code: remoteCode }),
+    z.strictObject({ kind: z.literal('denied') }),
   ]),
 })
 

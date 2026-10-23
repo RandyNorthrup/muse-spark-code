@@ -15,6 +15,7 @@ import {
   type DeviceReady,
   type DeviceStream,
 } from '../../shared/devices'
+import { vaultRemoteRequestSchema, vaultRemoteResponseSchema } from '../../shared/vaultProtocol'
 
 // Product-owned carriage, not an upstream model protocol. Inner envelopes
 // remain lane 0's strict schemas. The log lane carries bounded untrusted text;
@@ -30,6 +31,10 @@ const messageSchema = z.union([
   z.strictObject({ kind: z.literal('grantRefusal'), refusal: deviceGrantRefusalSchema }),
   z.strictObject({ kind: z.literal('result'), result: deviceResultEnvelopeSchema }),
   z.strictObject({ kind: z.literal('resultAck'), ack: deviceResultAckSchema }),
+  // Lane K's sole added carriage members: a brokered vault use and its
+  // capability-only answer. The schemas stay M109 lane R's strict shapes.
+  z.strictObject({ kind: z.literal('vaultRequest'), request: vaultRemoteRequestSchema }),
+  z.strictObject({ kind: z.literal('vaultResponse'), response: vaultRemoteResponseSchema }),
   z.strictObject({
     kind: z.literal('log'),
     text: z.string(),
@@ -100,6 +105,11 @@ function streamFor(message: MultiplexedDeviceMessage): DeviceStream {
     case 'grantRequest':
     case 'result': {
       return 'events'
+    }
+    case 'vaultRequest':
+    case 'vaultResponse': {
+      // Security-relevant and small: brokered uses ride control, never bulk.
+      return 'control'
     }
     case 'frame': {
       switch (message.frame.body.kind) {
