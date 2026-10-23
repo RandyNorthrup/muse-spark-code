@@ -16,7 +16,6 @@ import { HTTP_SUCCESS_MAX, HTTP_SUCCESS_MIN } from '../../../shared/constants'
 
 /** Labels every sandbox carries: the node owns them, drills filter them. */
 export const SANDBOX_LABEL_MANAGED = 'muse.node.sandbox'
-export const SANDBOX_LABEL_WORKSPACE = 'muse.node.workspace'
 
 /** The daemon's trimmed words in an error: codes, never full bodies. */
 const ERROR_SNIPPET_MAX_CHARS = 200
@@ -359,10 +358,6 @@ export async function connectEngine(explicitSocket?: string): Promise<Engine> {
   }
 }
 
-export async function engineInfo(engine: Engine): Promise<unknown> {
-  return await engineRequest(engine, 'GET', '/info')
-}
-
 export async function listSandboxes(engine: Engine): Promise<ContainerSummary[]> {
   const raw = await engineRequest(
     engine,
@@ -406,14 +401,6 @@ export async function inspectSandbox(
 ): Promise<{ readonly parsed: ContainerInspect; readonly raw: unknown }> {
   const raw = await engineRequest(engine, 'GET', `/containers/${id}/json`)
   return { parsed: parseInspect(raw), raw }
-}
-
-export async function updateSandbox(
-  engine: Engine,
-  id: string,
-  update: { readonly memoryBytes?: number; readonly nanoCpus?: number },
-): Promise<void> {
-  await engineRequest(engine, 'POST', `/containers/${id}/update`, updateBody(update))
 }
 
 export async function ensureNetwork(engine: Engine, name: string): Promise<string> {
@@ -675,6 +662,11 @@ export async function removeImage(engine: Engine, image: string, isForced = fals
     'DELETE',
     `/images/${encodeURIComponent(image)}?${new URLSearchParams({ force: String(isForced) }).toString()}`,
   )
+}
+
+/** Remove a workspace network by id or name; the daemon refuses one in use. */
+export async function removeNetwork(engine: Engine, id: string): Promise<void> {
+  await engineRequest(engine, 'DELETE', `/networks/${id}`)
 }
 
 /**

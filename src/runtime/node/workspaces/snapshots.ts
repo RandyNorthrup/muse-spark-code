@@ -16,6 +16,7 @@ import { mkdtempSync, readFileSync, rmSync, statfsSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
+import { isCodedFailure } from '../../../core/fs/errno'
 import { runWorkspaceGit } from './git'
 
 export const SNAPSHOT_VERSION = 1
@@ -24,15 +25,6 @@ export const SNAPSHOT_VERSION = 1
 const OCTAL_ESCAPE_DIGITS = 3
 /** The `?? ` prefix an untracked porcelain line starts with. */
 const PORCELAIN_UNTRACKED_PREFIX = '?? '
-
-/**
-A failure carrying a machine-readable code: an errno string from the
-kernel, or an exit-status number from a tool. Anything else rethrows
-instead of reading as absent or falling back.
-*/
-function isCodedFailure(error: unknown): error is Error & { readonly code: unknown } {
-  return error instanceof Error && 'code' in error
-}
 
 const snapshotManifestSchema = z.strictObject({
   version: z.literal(SNAPSHOT_VERSION),

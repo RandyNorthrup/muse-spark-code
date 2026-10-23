@@ -61,21 +61,11 @@ export const checkpointSchema = z.strictObject({
 })
 export type Checkpoint = z.infer<typeof checkpointSchema>
 
-/** The orchestrator's acknowledgement of a checkpoint. */
-export const checkpointAckSchema = z.strictObject({
-  taskId: z.string().check(z.minLength(1)),
-  attemptId: z.string().check(z.minLength(1)),
-  epoch: z.number().check(z.int(), z.gte(0)),
-  step: z.number().check(z.int(), z.gte(0)),
-  digest: digestSchema,
-})
-export type CheckpointAck = z.infer<typeof checkpointAckSchema>
-
 /**
 Whether `ack` acknowledges `checkpoint`: same task, attempt, epoch, step
 and digest. Anything else is not this checkpoint's acknowledgement.
 */
-export function isAckFor(checkpoint: Checkpoint, ack: CheckpointAck): boolean {
+export function isAckFor(checkpoint: Checkpoint, ack: Checkpoint): boolean {
   return (
     ack.taskId === checkpoint.taskId &&
     ack.attemptId === checkpoint.attemptId &&

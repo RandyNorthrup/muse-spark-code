@@ -146,7 +146,10 @@ const STACK_PACKS: ReadonlyMap<string, { pack: PackName; reason: string }> = new
   ],
 ])
 
-/** The languages each persona pre-ticks in the second question. */
+/**
+The languages each persona pre-ticks in the second question.
+@unwired M110 pre-ticks for the setup pages' second question
+*/
 export const PERSONA_LANGUAGES: Record<Persona, readonly LanguageId[]> = {
   'makers-and-embedded': ['python'],
   web: ['typescript'],
@@ -193,7 +196,10 @@ export const profileSchema = z.strictObject({
 })
 export type NodeProfile = z.infer<typeof profileSchema>
 
-/** The file's name beside node.json. */
+/**
+The file's name beside node.json.
+@unwired M110 the setup pages read and write it beside node.json
+*/
 export const PROFILE_FILE = 'profile.json'
 
 /** A suggested pack with its reason, in words. */

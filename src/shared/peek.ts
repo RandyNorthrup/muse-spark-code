@@ -12,7 +12,6 @@ export const PEEK_EVENT_VERSION = 1
 export const peekSkippedSchema = z.strictObject({
   skipped: z.number().check(z.int(), z.gte(1)),
 })
-export type PeekSkipped = z.infer<typeof peekSkippedSchema>
 
 export const peekEventSchema = z.strictObject({
   v: z.literal(PEEK_EVENT_VERSION),

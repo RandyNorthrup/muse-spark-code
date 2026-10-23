@@ -16,7 +16,6 @@
 // person's click in a visible terminal (the panel's); no step
 // auto-accepts prompts or agreements. Pure: the panel maps pack
 // definitions onto the inputs and runs the plan.
-export type GuidedOs = 'windows' | 'macos' | 'linux'
 
 /** One manager-installed tool with the check that proves its version. */
 export interface GuidedTool {

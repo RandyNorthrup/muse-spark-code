@@ -1,11 +1,13 @@
 // M110b W1 live drills (MUSE_NODE_DRILL=1): the sandbox engine and
 // egress proxy against the real daemon, real DNS and real upstreams.
-// The engine drill runs a box, freezes it, and proves the snapshot
-// carries state by reading a marker back from a second box; the
-// egress drill tunnels a real TLS handshake, then proves each refusal
-// (policy, metadata, SNI mismatch, unknown source). Nothing here is
-// faked: no daemon or network means the flag stays off and the drills
-// skip. Recorded 2026-10-22 against docker 29.2.1 on linuxlt.
+// The engine drills run a box, freeze it, and prove the snapshot
+// carries state by reading a marker back from a second box; then pull
+// the base image and ensure the workspace network twice (idempotent)
+// before removing it. The egress drill tunnels a real TLS handshake,
+// then proves each refusal (policy, metadata, SNI mismatch, unknown
+// source). Nothing here is faked: no daemon or network means the flag
+// stays off and the drills skip. Recorded 2026-10-22 against docker
+// 29.2.1 on linuxlt.
 import { readFileSync } from 'node:fs'
 import { Socket } from 'node:net'
 import { connect as connectTls } from 'node:tls'
@@ -17,8 +19,12 @@ import {
   connectEngine,
   createExec,
   createSandbox,
+  ensureNetwork,
+  inspectNetwork,
   inspectSandbox,
+  pullImage,
   removeImage,
+  removeNetwork,
   removeSandbox,
   runExec,
   startSandbox,
@@ -144,6 +150,26 @@ describe.skipIf(!IS_DRILL)('the sandbox engine, live', () => {
             // The image is already gone; the commit asserted it earlier.
           }
         }
+      }
+    },
+  )
+  it(
+    'pulls the base image and ensures the workspace network twice',
+    // A cold daemon pulls the base image over the network; the clock
+    // covers the pull, not the assertions.
+    { timeout: 180_000 },
+    async () => {
+      const engine: Engine = await connectEngine()
+      await pullImage(engine, BASE_IMAGE)
+      const name = `muse-drill-net-${String(process.pid)}-${String(Date.now())}`
+      const first = await ensureNetwork(engine, name)
+      try {
+        expect(await ensureNetwork(engine, name)).toBe(first)
+        const inspected = await inspectNetwork(engine, first)
+        expect(inspected.Id).toBe(first)
+        expect(inspected.Name).toBe(name)
+      } finally {
+        await removeNetwork(engine, first)
       }
     },
   )
