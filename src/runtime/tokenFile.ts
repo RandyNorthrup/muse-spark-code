@@ -9,6 +9,7 @@ import { constants, realpathSync, rmSync, rmdirSync } from 'node:fs'
 import { chmod, lstat, mkdtemp, open, realpath, rm, rmdir } from 'node:fs/promises'
 import { withoutCredentials, withoutKeyringRoutes } from './credentialVariables'
 import { isStoreErrorCode } from '../host/backend/storeErrors'
+import { isOwnerOnlyAcl } from '../core/fs/ownerOnlyAcl'
 import { IDE_MCP_TOKEN_BYTES, UI_TEXT } from '../shared/constants'
 
 const FILE_MODE = constants.S_IRUSR | constants.S_IWUSR
@@ -163,15 +164,7 @@ export async function secureOwnerOnly(
     )
     if (!parsed.success) throw new Error('EOWNER_ONLY')
     const receipt = parsed.data
-    if (
-      !receipt.protected ||
-      receipt.ownerSid !== receipt.currentSid ||
-      receipt.rules.some(
-        (rule) =>
-          rule.sid !== receipt.currentSid || rule.inherited || !rule.allow || !rule.fullControl,
-      )
-    )
-      throw new Error('EOWNER_ONLY')
+    if (!isOwnerOnlyAcl(receipt)) throw new Error('EOWNER_ONLY')
     return { platform: 'win32', ownerOnly: true, windows: receipt }
   }
   const mode = isDirectory ? DIRECTORY_MODE : FILE_MODE

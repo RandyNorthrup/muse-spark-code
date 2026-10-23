@@ -325,6 +325,146 @@ export const EN = {
   shareTooLarge: 'This share exceeds the file size or transcript limit.',
   shareAttachmentUnavailable: 'Selected attachment content is unavailable in this range.',
   sharePreviewExpired: 'The preview changed or expired. Preview again before sharing.',
+  // M100/D80: lazy Devices setup, observations and recovery.
+  devices: {
+    desktopHeap:
+      'Windows could not initialize the worker (STATUS_DLL_INIT_FAILED). Run fewer concurrent workers, run the receiver in the interactive session, or ask an administrator to raise the desktop heap and reboot. No retry or registry change was made.',
+    pool: 'Pool',
+    entry: 'Entry',
+    usageKinds: {
+      known: 'Known usage',
+      estimated: 'Estimated usage',
+      uncertain: 'Uncertain usage',
+    },
+    offHelp:
+      'Devices is off by default. Pairing and offering work each require an explicit local choice.',
+    importInvitation: 'Import invitation',
+    importConfirmation: 'Import confirmation',
+    peerFingerprint: 'Peer fingerprint',
+    fingerprintMatches: 'I compared both screens and the fingerprint matches',
+    confirmFingerprint: 'Confirm fingerprint',
+    invalidMessage:
+      'The device message is invalid or the request failed. Existing work and liability are kept.',
+    retry: 'Retry',
+    renderUnavailable: 'Devices could not display the latest observation. Reload to recover.',
+    unpairedHelp: 'This device is not paired. Pair both devices before offering work.',
+    revokedHelp: 'This pair was revoked. Pair again; previous unresolved work remains blocked.',
+    localApprovalHelp:
+      'Approvals and paid consent are requested on the executing device. Open that device to answer; pairing grants no approval.',
+    capacityHelp:
+      'The receiving pool is at capacity. Wait for locally proved retirement; do not reassign uncertain work.',
+    grantHelp:
+      'The receiving device must approve the repository mapping, base snapshot and local offer.',
+    unknown: 'Unknown',
+    observationHelp: 'Status is the last observation, not proof that work has stopped.',
+    noOffers: 'No approved offers',
+    payer: 'Payer',
+    readiness: 'Model readiness',
+    address: 'Private address',
+    port: 'TCP port',
+    retryAddress: 'Save address and retry paired identity',
+    capHelp:
+      'Caps apply to this offered window only. Narrowing a cap takes effect at the next controlled boundary.',
+    saveOffer: 'Review and save local offer',
+    confirmUnlink: 'Confirm unlink',
+    cancel: 'Cancel',
+    costOwnership:
+      'Each device keeps its own sign-ins and charges. Its local paid modal asks before the first charge, showing the model price and shared daily budget. No fleet budget or subscription entitlement is transferred.',
+    working: 'Waiting for local host…',
+    retainedLiability: 'Retained spending liability: {amount}',
+    payers: { subscription: 'Subscription', apiKey: 'API key', local: 'Local', unknown: 'Unknown' },
+    readinessStates: { ready: 'Ready', unavailable: 'Unavailable', unknown: 'Unknown' },
+    unresolvedCount: forms({
+      one: '{count} unresolved attempt',
+      other: '{count} unresolved attempts',
+    }),
+    title: 'Devices',
+    pair: 'Pair device',
+    offer: 'Offer lanes',
+    offerChecks: 'Offer checks',
+    pause: 'Pause offers',
+    unlink: 'Unlink',
+    resume: 'Resume queue',
+    manualAddress: 'Manual address',
+    discovery: 'Discover on this LAN',
+    fingerprint: 'Fingerprint',
+    copyInvitation: 'Copy public invitation',
+    copyConfirmation: 'Copy confirmation',
+    scan: 'Scan QR or paste text',
+    compare: 'Compare this fingerprint on both screens before confirming.',
+    pairingHelp: 'Both devices must confirm. A public invitation alone grants no access.',
+    scopeHelp:
+      'Only the approved repository snapshot, task brief and result go to this device. Its own model receives the context.',
+    paidHelp:
+      'This device uses its own sign-ins and pays its own charges. Before the first paid use, local consent names the price {price} and shared daily budget {budget}.',
+    blockedHelp:
+      'Check {application} on {interface} at {address}:{port}: receiver offer, route and OS firewall permission. Ask an administrator for scoped access if needed. A timeout does not prove a firewall denial.',
+    unresolvedHelp:
+      'Reconnect and reconcile before resuming. Uncertain work keeps its occupied slots and spending liability; a timeout or retry cannot release it.',
+    unlinkHelp:
+      'Unlink removes this pair’s local key and connections. It cannot recall code or stop work already admitted on an offline peer.',
+    unsupportedHost:
+      'Pairing requires a qualified local desktop host. This host cannot offer lanes.',
+    waitingApproval: 'Waiting for approval on {device}',
+    lastObservation: 'Last observation',
+    taskBranch: 'Task branch',
+    rolesModels: 'Offered roles and models',
+    workers: 'Worker limit',
+    processes: 'Process limit',
+    heavyChecks: 'Heavy-check slots',
+    tokens: 'Token limit',
+    spend: 'Spend limit',
+    artifact: 'Result size limit',
+    offerScope: 'Repository mapping and exact base snapshot',
+    local: 'Local',
+    connected: 'Connected',
+    paused: 'Paused',
+    offline: 'Offline',
+    uncertain: 'Uncertain',
+    incompatible: 'Incompatible',
+    blocked: 'Blocked or unreachable',
+    bundleUnavailable: 'Devices could not load. Retry setup or reinstall the extension.',
+    protocolMismatch: 'Device protocol mismatch. Upgrade both devices and pair again.',
+    storageUnavailable:
+      'Device state cannot be saved or read. New work is blocked; preserve unresolved work and repair local storage.',
+    fingerprintChanged:
+      'Device fingerprint changed. Pair again; previous unresolved work remains blocked.',
+    settingsDescription:
+      'Enable paired LAN devices after mutual fingerprint confirmation and an explicit local offer. Off by default. Each executing device keeps its own credentials, approvals and charges.',
+    discoveryDescription:
+      'Enable optional LAN discovery for paired receivers that are offering work. Off by default. Advertises only an opaque service id, port and protocol version; discovery grants no trust.',
+    throttled: 'Throttled',
+    throttledHelp:
+      'New attempts are throttled. Admitted work keeps running; nothing is duplicated or lost.',
+    unknownSince: 'Unknown since {time}',
+    grantExpired: 'This grant expired. Ask the receiving device for a new grant.',
+    resultQuarantined:
+      'A late result arrived after its lease and is quarantined instead of applied.',
+    ownerMismatch: 'This pair key belongs to a different owner. Pair again as the right owner.',
+    stepUpWaiting: 'Waiting for step-up approval on {device}.',
+    qrCodeName: 'QR code of the public invitation',
+    qrReload:
+      'The QR code could not load; the text invitation works on its own. Try again reloads this panel: pasted text is kept, and Pair device shows your invitation again.',
+    discoveryAdvertises:
+      'Discovery advertises {service} on port {port} (protocol version {version}). Discovery grants no trust.',
+    owners: 'Owners and grants',
+    grantRepository: 'Repository',
+    grantQuota: 'Quota',
+    grantExpiry: 'Expires',
+    revokeGrant: 'Revoke grant',
+    power: 'Power',
+    powerAc: 'AC power',
+    powerBattery: 'Battery',
+    powerUnknown: 'Unknown',
+    sleepInhibited: 'Sleep inhibited',
+    cpuPressure: 'CPU',
+    memoryPressure: 'Memory',
+    diskPressure: 'Disk',
+    transportResets: 'Transport resets',
+    blockedRecovery:
+      'If the listening application is running, allow {application} through the operating-system firewall for {interface}, or ask an administrator for scoped access to {address}:{port}. Nothing here changes the firewall, and access may still need approval.',
+  },
+
   // M117 / D97: portable estimator surfaces, help and future manifest copy.
   estimateTitle: 'Estimator',
   estimateGoal: 'Goal',
@@ -757,6 +897,7 @@ export const EN = {
   referenceNewTab: 'Open a new Muse Spark conversation in an editor tab.',
   referenceFocus: 'Move keyboard focus between the chat input and editor.',
   referenceTasks: 'Open this conversation’s task list in a separate editor tab.',
+  referenceDevices: 'Open the Devices tab to link this editor with your other devices.',
   referenceDiagnostics: 'Show local backend and extension diagnostics.',
   referenceReport: 'Preview a scrubbed problem report before saving or sending it.',
   referenceInProgress: 'In progress.',

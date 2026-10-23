@@ -38,6 +38,10 @@ it('keeps account, developer and help values out of startup and loads them exact
   // with no startup values) instead of staying out of the table outright.
   expect(() => built.bundle.UI_TEXT.vault).toThrow('English surface is not loaded')
   expect(() => built.bundle.UI_TEXT.developer).toThrow('English surface is not loaded')
+  // No browser surface reads providerText, so the compact table carries no
+  // slot for it at all; the providers surface reads acpChatGpt and waits lazily.
+  expect(Object.hasOwn(built.bundle.EN, 'providerText')).toBe(false)
+  expect(() => built.bundle.EN.acpChatGpt).toThrow('English surface is not loaded')
   // STARTUP017: a restored settlement row's words paint with startup; the
   // rest of the schedule English loads only with the schedule surfaces.
   expect(built.bundle.UI_TEXT.scheduleSettlement).toEqual(EN.scheduleSettlement)
@@ -91,6 +95,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   // The vault group's English loads with the vault surface alone (CAPS017):
   // its installer supplies English through the deferred channel while the
   // installed table keeps winning.
+  expect(Object.hasOwn(built.bundle.EN, 'providerText')).toBe(false)
+  expect(built.bundle.EN.acpChatGpt).toEqual(EN.acpChatGpt)
   built.bundle.installVaultEnglish()
   expect(built.bundle.UI_TEXT.vault).toEqual(german.vault)
   // M107 U-C1: English read only by the resource chip and pages loads with
@@ -104,6 +110,8 @@ it('keeps account, developer and help values out of startup and loads them exact
   })
   expect(resourceOnly.length).toBeGreaterThan(0)
   await built.bundle.loadResourceEnglish()
+  expect(() => built.bundle.EN.devices).toThrow('English surface is not loaded: devices')
+  await built.bundle.loadDevicesEnglish()
   for (const [key, value] of Object.entries(built.bundle.EN)) expect(value).toEqual(EN[key])
   built.bundle.setUiText(built.bundle.EN, 'en')
   for (const [key, value] of Object.entries(built.bundle.EN))
@@ -113,6 +121,7 @@ it('validates deferred slots, keys and plurals before installing a translated ta
   await built.bundle.loadDeferredEnglish()
   built.bundle.installVaultEnglish()
   await built.bundle.loadResourceEnglish()
+  await built.bundle.loadDevicesEnglish()
   const german = JSON.parse(readFileSync('l10n/ui.de.json', 'utf8'))
   for (const mutate of [
     (table) => {

@@ -1511,6 +1511,11 @@ const TEXT_BLOCKS = [
     readers: ['dist/teamEngine.js', 'dist/teamFileIo.js'],
   },
   {
+    block: 'DEVICE_MODEL_TEXT',
+    sentinels: ['deviceTaskContext', 'deviceApprovalWait'],
+    readers: ['dist/devices.js'],
+  },
+  {
     block: 'QUESTION_MODEL_TEXT',
     sentinels: ['deferredClarification'],
     // The two backends share one first-deferral helper; ordinary startup

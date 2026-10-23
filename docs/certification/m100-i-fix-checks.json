@@ -1,0 +1,86 @@
+[
+  {
+    "name": "typecheck",
+    "command": "npm run typecheck",
+    "exitCode": 0,
+    "durationSeconds": 79.05
+  },
+  {
+    "name": "eslint",
+    "command": "npx eslint --max-warnings=0 src/host/devices/deviceEntry.ts test/unit/deviceIntegration.test.ts",
+    "exitCode": 0,
+    "durationSeconds": 13.43
+  },
+  {
+    "name": "prettier-code-plan-changelog",
+    "command": "npx prettier --check src/host/devices/deviceEntry.ts test/unit/deviceIntegration.test.ts PLAN.md CHANGELOG.md",
+    "exitCode": 0,
+    "durationSeconds": 6.42
+  },
+  {
+    "name": "deadcode",
+    "command": "npm run deadcode",
+    "exitCode": 0,
+    "durationSeconds": 3.48
+  },
+  {
+    "name": "duplication",
+    "command": "npx jscpd",
+    "exitCode": 0,
+    "durationSeconds": 1.27
+  },
+  {
+    "name": "localization",
+    "command": "npm run check:l10n",
+    "exitCode": 0,
+    "durationSeconds": 2.58
+  },
+  {
+    "name": "host-api",
+    "command": "npm run check:host-api",
+    "exitCode": 0,
+    "durationSeconds": 17.16
+  },
+  {
+    "name": "reference",
+    "command": "npm run check:reference",
+    "exitCode": 0,
+    "durationSeconds": 0.4
+  },
+  {
+    "name": "cycles",
+    "command": "npm run cycles",
+    "exitCode": 0,
+    "durationSeconds": 6.77
+  },
+  {
+    "name": "build",
+    "command": "npm run build",
+    "exitCode": 0,
+    "durationSeconds": 6.21
+  },
+  {
+    "name": "tests-integration-panel-channel",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceIntegration.test.ts test/unit/devicePanel.test.ts test/unit/deviceChannel.test.ts --maxWorkers=3",
+    "exitCode": 0,
+    "durationSeconds": 7.92,
+    "passedTests": 44,
+    "passedFiles": 3,
+    "timeout": "repository default; no override"
+  },
+  {
+    "name": "tests-bundle-handler-pairing-adapter",
+    "command": "env TMPDIR=/dev/shm/m100i-fix.aq9JLU npx vitest run test/unit/deviceBundle.test.ts test/unit/deviceMessageHandler.test.ts test/unit/devicePairingAdapter.test.ts --maxWorkers=3",
+    "exitCode": 0,
+    "durationSeconds": 6.49,
+    "passedTests": 67,
+    "passedFiles": 3,
+    "timeout": "repository default; no override"
+  },
+  {
+    "name": "typecheck-unit-final",
+    "command": "npm run typecheck:unit",
+    "exitCode": 0,
+    "durationSeconds": 37.74
+  }
+]

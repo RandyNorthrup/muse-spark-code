@@ -1,0 +1,676 @@
+[
+  {
+    "finding": "P2-1-unlink-startup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "this.pending.set(cancel, pair.pairId)\n        server.once",
+        "new": "server.once"
+      },
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-1-startup-close",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-1-startup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)",
+        "new": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs * 2)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-2-listener-generation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "if (this.listeners.get(pairId) === server) this.revoke(pairId)",
+        "new": "this.revoke(pairId)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-2 stale listener cleanup preserves the replacement and its connections"
+    ],
+    "savedSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577",
+    "restoredSha256": "94490da412d2be9c25014c15b764b3ee07dedd9e8dc5d9c65f09651eef675577"
+  },
+  {
+    "finding": "P2-1-unlink-startup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "this.pending.set(cancel, pair.pairId)\n        server.once",
+        "new": "server.once"
+      },
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "finding": "P2-1-startup-close",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "finding": "P2-1-startup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)",
+        "new": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs * 2)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "finding": "P2-2-listener-generation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "if (this.listeners.get(pairId) === server) this.revoke(pairId)",
+        "new": "this.revoke(pairId)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-2 stale listener cleanup preserves the replacement and its connections"
+    ],
+    "savedSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f",
+    "restoredSha256": "f9acc82058a11e9a8c19c838b24003d3ae85fe4d4f88aa52387b652903c3686f"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-1-unlink-startup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "this.pending.set(cancel, pair.pairId)\n        server.once",
+        "new": "server.once"
+      },
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 unlink before bind rejects startup as revoked within its deadline",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-1-startup-close",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "server.once('close', cancel)",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-1-startup-deadline",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs)",
+        "new": "const timer = setTimeout(failed, DEVICE_LIMITS.handshakeDeadlineMs * 2)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-1 closes pending startup and bounds a bind that emits no completion"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-2-listener-generation",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "if (this.listeners.get(pairId) === server) this.revoke(pairId)",
+        "new": "this.revoke(pairId)"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-2 stale listener cleanup preserves the replacement and its connections"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-monotonic-setup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "performance.now() - startedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed listen on monotonic before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-wall-setup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow - wallStartedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed listen on wall-forward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-backwards-wall-setup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow < wallStartedAt",
+        "new": "false"
+      },
+      {
+        "old": "wallNow < wallObservedAt",
+        "new": "false"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed listen on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-observed-wall-progress",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "wallObservedAt = wallNow",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-DNS-checkpoint",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": ".then((address) => {\n            if (!isWithinDeadline()) return",
+        "new": ".then((address) => {"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-TLS-checkpoint",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "              if (!isWithinDeadline()) return\n              openDeviceChannel(",
+        "new": "              openDeviceChannel("
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-first-offer-checkpoint",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "() => pair.isActive() && (isReady || isWithinDeadline())",
+        "new": "() => pair.isActive()"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-decoded-offer-checkpoint",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "      if (isInitialOffer) {\n        if (!isActive()) throw new Error('revoked')",
+        "new": "      if (isInitialOffer) {"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-backward before timer servicing"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-readiness-checkpoint",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "                (channel) => {\n                  if (!isWithinDeadline()) return",
+        "new": "                (channel) => {"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-established-channel-deadline-cleared",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "isReady || isWithinDeadline()",
+        "new": "isWithinDeadline()"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 keeps established channels usable after the setup deadline"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-monotonic-frame",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "performance.now() - frameStartedAt.monotonic >= DEVICE_LIMITS.frameDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 refuses incomplete frames on monotonic expiry without timer servicing"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-wall-frame",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow - frameStartedAt.wall >= DEVICE_LIMITS.frameDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 rechecks incomplete-frame expiry after decoding before admission",
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > checks elapsed deadlines before parse even when the timer callback is delayed"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-backwards-wall-frame",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow < frameStartedAt.observedWall",
+        "new": "false"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 refuses incomplete frames on wall-backwards expiry without timer servicing"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-frame-observed-wall-progress",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "frameStartedAt.observedWall = wallNow",
+        "new": ""
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 refuses incomplete frames on wall-backwards expiry without timer servicing"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-frame-completion-checkpoint",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "      checkFrameDeadline()\n      const isInitialOffer",
+        "new": "      const isInitialOffer"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 rechecks incomplete-frame expiry after decoding before admission"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P3-fragment-ceiling",
+    "source": "src/core/devices/deviceFraming.ts",
+    "test": "test/unit/deviceBoundary.test.ts",
+    "mutations": [
+      {
+        "old": "(end > offset && this.pending.length >= DEVICE_LIMITS.frameFragments)",
+        "new": "false"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceBoundary.test.ts > device pre-parse boundary > RVM100T-P3 refuses 128 KiB in one-byte records at the fragment bound in under one second"
+    ],
+    "savedSha256": "7bb41130782872a7921bc4511a06f741abaa0e9d59466d49e236dea7c05a61eb",
+    "restoredSha256": "7bb41130782872a7921bc4511a06f741abaa0e9d59466d49e236dea7c05a61eb"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P3-linear-reassembly",
+    "source": "src/core/devices/deviceFraming.ts",
+    "test": "test/unit/deviceBoundary.test.ts",
+    "mutations": [
+      {
+        "old": "if (newline === -1) break",
+        "new": "if (newline === -1) {\n        const prefix = Buffer.concat(this.pending, length)\n        this.pending.length = 0\n        this.pending.push(prefix)\n        break\n      }"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceBoundary.test.ts > device pre-parse boundary > RVM100T-P3 concatenates once per complete frame without copying incomplete prefixes",
+      "FAIL  test/unit/deviceBoundary.test.ts > device pre-parse boundary > RVM100T-P3 refuses 128 KiB in one-byte records at the fragment bound in under one second"
+    ],
+    "savedSha256": "7bb41130782872a7921bc4511a06f741abaa0e9d59466d49e236dea7c05a61eb",
+    "restoredSha256": "7bb41130782872a7921bc4511a06f741abaa0e9d59466d49e236dea7c05a61eb"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-monotonic-setup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "performance.now() - startedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on monotonic before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed listen on monotonic before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-wall-setup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow - wallStartedAt >= DEVICE_LIMITS.handshakeDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-forward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed listen on wall-forward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-backwards-wall-setup",
+    "source": "src/host/devices/deviceTransport.ts",
+    "test": "test/unit/deviceTransport.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow < wallStartedAt",
+        "new": "false"
+      },
+      {
+        "old": "wallNow < wallObservedAt",
+        "new": "false"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed DNS on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed TLS on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed decoded-offer on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed readiness on wall-backward before timer servicing",
+      "FAIL  test/unit/deviceTransport.test.ts > pinned device transport with real loopback TLS > RVM100T-P2-3 refuses delayed listen on wall-backward before timer servicing"
+    ],
+    "savedSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42",
+    "restoredSha256": "4e76a66534f50ba2d6f5b9a28ca51077b8b0413234db43ec63d2596dad1eec42"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-monotonic-frame",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "performance.now() - frameStartedAt.monotonic >= DEVICE_LIMITS.frameDeadlineMs ||",
+        "new": "false ||"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 refuses incomplete frames on monotonic expiry without timer servicing"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  },
+  {
+    "phase": "final-review",
+    "finding": "P2-3-backwards-wall-frame",
+    "source": "src/host/devices/deviceChannel.ts",
+    "test": "test/unit/deviceChannel.test.ts",
+    "mutations": [
+      {
+        "old": "wallNow < frameStartedAt.observedWall",
+        "new": "false"
+      }
+    ],
+    "exitCode": 1,
+    "failures": [
+      "FAIL  test/unit/deviceChannel.test.ts > authenticated device channel bounds > RVM100T-P2-3 refuses incomplete frames on wall-backwards expiry without timer servicing"
+    ],
+    "savedSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff",
+    "restoredSha256": "96f918e7afa703f3280f3d7d33a67addb095d12c9a8d964182f1a0a3cb0494ff"
+  }
+]

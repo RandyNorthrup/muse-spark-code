@@ -25,7 +25,7 @@ export interface WebviewHtmlOptions {
   readonly nonce: string
   /** The installed table and its language (`<html lang>` for screen readers). */
   readonly l10n: UiTable
-  readonly surface?: 'tasks'
+  readonly surface?: 'tasks' | 'devices'
   /** A chat document's host-issued id (M107), from `createNonce`: base64url, attribute-safe. */
   readonly documentId?: string
 }
@@ -75,7 +75,7 @@ export function buildWebviewHtml(options: WebviewHtmlOptions): string {
 <link rel="stylesheet" href="${options.styleUri}" nonce="${options.nonce}">
 <title>${PRODUCT_NAME}</title>
 </head>
-<body data-native-context-menu="true"${options.surface === 'tasks' ? ' data-surface="tasks"' : ''}${documentAttribute}>
+<body data-native-context-menu="true"${options.surface === undefined ? '' : ` data-surface="${options.surface}"`}${documentAttribute}>
 <div id="${WEBVIEW_ROOT_ELEMENT_ID}"></div>
 <script type="application/json" id="${WEBVIEW_L10N_ELEMENT_ID}">${scriptSafeJson({ locale, table })}</script>
 <script type="module" nonce="${options.nonce}" src="${options.scriptUri}"></script>

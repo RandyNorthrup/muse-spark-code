@@ -1,0 +1,1113 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-06",
+  "base": "1f8d81821",
+  "command": [
+    "npx",
+    "--no-install",
+    "vitest",
+    "run",
+    "<testFiles>",
+    "--maxWorkers=3",
+    "--testTimeout=120000"
+  ],
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "guard": "fingerprint-comparison",
+      "exit": 1,
+      "failed": [
+        "rejects wrong, swapped or unconfirmed fingerprints and copied invitations without the private key"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "requirePair(fingerprint === peer.fingerprint)",
+      "after": "requirePair(true)",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "local-key-possession",
+      "exit": 1,
+      "failed": [
+        "rejects wrong, swapped or unconfirmed fingerprints and copied invitations without the private key"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "requirePair(certificate.checkPrivateKey(key), 'storage')",
+      "after": "requirePair(true)",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "exact-certificate-pin",
+      "exit": 1,
+      "failed": [
+        "rejects changed pin, expired certificate, malformed DER and correctly signed alternate profiles"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "hash(bytes) === invitation.fingerprint",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "certificate-validity",
+      "exit": 1,
+      "failed": [
+        "rejects changed pin, expired certificate, malformed DER and correctly signed alternate profiles"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "now < end &&",
+      "after": "true &&",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "fixed-certificate-profile",
+      "exit": 1,
+      "failed": [
+        "rejects changed pin, expired certificate, malformed DER and correctly signed alternate profiles"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "requirePair(outer.body.subarray(0, tbs.length).equals(tbs))",
+      "after": "requirePair(true)",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "invitation-expiry",
+      "exit": 1,
+      "failed": [
+        "requires both signatures and derives the same pair id on both screens after invitations expire",
+        "rejects expired and future invitations, duplicate-key text and oversized public payloads"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "now < invitation.expiresAt",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "invitation-clock-skew",
+      "exit": 1,
+      "failed": [
+        "rejects expired and future invitations, duplicate-key text and oversized public payloads"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "invitation.issuedAt <= now + DEVICE_LIMITS.clockSkewMs",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "canonical-public-text",
+      "exit": 1,
+      "failed": [
+        "rejects expired and future invitations, duplicate-key text and oversized public payloads"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "requirePair(JSON.stringify(invitation) === text)",
+      "after": "requirePair(true)",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "public-text-bound",
+      "exit": 1,
+      "failed": ["bounds public input before JSON parsing"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "requirePair(Buffer.byteLength(text) <= DEVICE_LIMITS.invitationTextChars)",
+      "after": "requirePair(true)",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "bilateral-signature",
+      "exit": 1,
+      "failed": [
+        "rejects wrong, swapped or unconfirmed fingerprints and copied invitations without the private key",
+        "binds endpoints, times, invitations, identities and confirmation time to both possession proofs"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "file": "src/core/devices/pairing.ts",
+      "before": "verify(\n          'sha256',\n          Buffer.from(confirmationPayload(confirmation)),\n          validateDeviceCertificate(local, now).publicKey,\n          signature,\n        )",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "self-signature",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": [
+        "rejects self-signature corruption even when the copied public pin matches the corrupt bytes"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "certificate.ca && certificate.verify(certificate.publicKey)",
+      "after": "certificate.ca && true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "p256-curve",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["refuses a correctly signed alternate EC curve in the same fixed profile"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "certificate.publicKey.asymmetricKeyDetails?.namedCurve === 'prime256v1'",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "serial-profile",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["refuses a correctly signed alternate serial profile"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "encodedSerial.length === DEVICE_LIMITS.idChars / 2 && (encodedSerial[0] ?? 0) >= longLength",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "reflection-invitationId",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects single-field invitation reflection before issuing a signature"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "first.invitationId !== second.invitationId",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "reflection-deviceId",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects single-field device reflection before issuing a signature"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "first.deviceId !== second.deviceId",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "reflection-fingerprint",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects single-field fingerprint reflection before issuing a signature"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "first.fingerprint !== second.fingerprint",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "confirmation-pairId",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects a valid peer signature over the wrong pairId"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "confirmation.pairId === bound.pairId",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "confirmation-transcriptDigest",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects a valid peer signature over the wrong transcriptDigest"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "confirmation.transcriptDigest === bound.digest",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "confirmation-localInvitationId",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects a valid peer signature over the wrong localInvitationId"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "confirmation.localInvitationId === local.invitationId",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "confirmation-peerInvitationId",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects a valid peer signature over the wrong peerInvitationId"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "confirmation.peerInvitationId === peer.invitationId",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "confirmation-localFingerprint",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects a valid peer signature over the wrong localFingerprint"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "confirmation.localFingerprint === local.fingerprint",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "confirmation-peerFingerprint",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": ["rejects a valid peer signature over the wrong peerFingerprint"],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "confirmation.peerFingerprint === peer.fingerprint",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "signed-confirmation-clock",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": [
+        "rejects a correctly signed future confirmation and retains strict reflection checks"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "requirePair(confirmation.confirmedAt <= now + DEVICE_LIMITS.clockSkewMs)",
+      "after": "requirePair(true)",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "tls-purpose-profile",
+      "file": "src/core/devices/pairing.ts",
+      "exit": 1,
+      "failed": [
+        "uses the generated production profile in a real mutually verified TLS 1.3 exchange"
+      ],
+      "sha256": "95aa31d120602ca4f79d6773675d85302918939500b502dae9abe09ad85a0bbd",
+      "before": "06082b0601050507030106082b06010505070302",
+      "after": "06082b0601050507030206082b06010505070302",
+      "testFiles": ["test/unit/devicePairing.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "host-ui",
+      "file": "src/host/devices/deviceSecrets.ts",
+      "exit": 1,
+      "failed": ["refuses unqualified execution/key location without reading secrets"],
+      "sha256": "9b4a03e45d5d52e587defda5221e294c1f59d2cda7c1864bb7ce6ab30ebf1a20",
+      "before": "host.ui !== 'desktop'",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "host-remoteName",
+      "file": "src/host/devices/deviceSecrets.ts",
+      "exit": 1,
+      "failed": ["refuses unqualified execution/key location without reading secrets"],
+      "sha256": "9b4a03e45d5d52e587defda5221e294c1f59d2cda7c1864bb7ce6ab30ebf1a20",
+      "before": "host.remoteName !== undefined",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "host-execution",
+      "file": "src/host/devices/deviceSecrets.ts",
+      "exit": 1,
+      "failed": [
+        "refuses unqualified execution/key location without reading secrets",
+        "refuses unqualified execution/key location without reading secrets"
+      ],
+      "sha256": "9b4a03e45d5d52e587defda5221e294c1f59d2cda7c1864bb7ce6ab30ebf1a20",
+      "before": "host.execution !== 'local'",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "host-secretLocation",
+      "file": "src/host/devices/deviceSecrets.ts",
+      "exit": 1,
+      "failed": [
+        "refuses unqualified execution/key location without reading secrets",
+        "refuses unqualified execution/key location without reading secrets"
+      ],
+      "sha256": "9b4a03e45d5d52e587defda5221e294c1f59d2cda7c1864bb7ce6ab30ebf1a20",
+      "before": "host.secretLocation !== 'execution-host'",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "key-read-size",
+      "file": "src/host/devices/deviceSecrets.ts",
+      "exit": 1,
+      "failed": ["bounds corrupt secret data before accepting a parsable oversized PEM"],
+      "sha256": "9b4a03e45d5d52e587defda5221e294c1f59d2cda7c1864bb7ce6ab30ebf1a20",
+      "before": "Buffer.byteLength(loaded.pem) > DEVICE_LIMITS.certificateBase64Chars",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "key-name-collision",
+      "file": "src/host/devices/deviceSecrets.ts",
+      "exit": 1,
+      "failed": ["never overwrites or deletes an existing platform key on a secret-name collision"],
+      "sha256": "9b4a03e45d5d52e587defda5221e294c1f59d2cda7c1864bb7ce6ab30ebf1a20",
+      "before": "if ((await this.store.get(name)) !== undefined)",
+      "after": "if (false)",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-pairId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed pairId on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "grant.pairId !== request.identity.pairId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-receiverIncarnationId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed receiverIncarnationId on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "offer.receiverIncarnationId !== request.identity.receiverIncarnationId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-repositoryId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed repositoryId on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "offer.repositoryId !== request.repositoryId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-grantId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed grantId on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "offer.grantId !== request.grantId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-grantRevision",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed grantRevision on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "offer.grantRevision !== request.grantRevision",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "snapshot-baseCommit",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed baseCommit on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "snapshot.baseCommit !== request.snapshot.baseCommit",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "snapshot-tree",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed tree on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "snapshot.tree !== request.snapshot.tree",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "snapshot-manifestDigest",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed manifestDigest on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "snapshot.manifestDigest !== request.snapshot.manifestDigest",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "snapshot-dirtyPreviewDigest",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed dirtyPreviewDigest on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "snapshot.dirtyPreviewDigest !== request.snapshot.dirtyPreviewDigest",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "sender-mode-ceiling",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed mode on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "!grant.modes.includes(request.mode)",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "approved-check",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed checkId on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "!offer.checkIds.includes(request.checkId)",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "approved-toolchain",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed toolchainDigest on an already authenticated connection"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "offer.toolchainDigest !== request.toolchainDigest",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "lane-deviceId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing device authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "route.deviceId !== offer.deviceId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "lane-poolId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing pool authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "route.poolId !== offer.poolId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "lane-roleId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing role authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "entry.roleId !== request.roleId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "lane-model.providerId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing provider authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "entry.model.providerId !== route.model.providerId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "lane-model.modelId",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing model authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "entry.model.modelId !== route.model.modelId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "model-readiness",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing readiness authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "entry?.readiness !== 'ready'",
+      "after": "entry === undefined",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "cap-workers",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["never exceeds the receiver workers cap"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "workers: Math.min(a.workers, b.workers)",
+      "after": "workers: b.workers",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "cap-processes",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["never exceeds the receiver processes cap"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "processes: Math.min(a.processes, b.processes)",
+      "after": "processes: b.processes",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "cap-heavyChecks",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["never exceeds the receiver heavyChecks cap"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "heavyChecks: Math.min(a.heavyChecks, b.heavyChecks)",
+      "after": "heavyChecks: b.heavyChecks",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "cap-tokens",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["never exceeds the receiver tokens cap"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "tokens: Math.min(a.tokens, b.tokens)",
+      "after": "tokens: b.tokens",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "cap-spendUsd",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["never exceeds the receiver spendUsd cap"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "spendUsd: Math.min(a.spendUsd, b.spendUsd)",
+      "after": "spendUsd: b.spendUsd",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "cap-artifactBytes",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["never exceeds the receiver artifactBytes cap"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "artifactBytes: Math.min(a.artifactBytes, b.artifactBytes)",
+      "after": "artifactBytes: b.artifactBytes",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "exact-lane-entry",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": ["refuses a changed or missing entry authority"],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "offer.entries.find((item) => item.entryId === route.entryId)",
+      "after": "offer.entries[0]",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "strict-grant-fields",
+      "file": "src/core/devices/grants.ts",
+      "exit": 1,
+      "failed": [
+        "rejects missing grants and unrecognized provider/command/permission payload fields"
+      ],
+      "sha256": "f17a5d331583e15a8c83e5351a08a05c51101fc5a31a5a6d485d9e6e2072234f",
+      "before": "export const deviceGrantSchema = z.strictObject({",
+      "after": "export const deviceGrantSchema = z.object({",
+      "testFiles": ["test/unit/deviceGrants.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "current-peer-pin",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "requires the current pin, current local offer and grant revision for every request"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "peerPin !== row.pair.peer.fingerprint",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "immediate-revocation",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "blocks an existing authenticated pair immediately while durable unlink is pending"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "this.revoked.has(pairId)",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "post-key-read-pause",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": ["rechecks pause after an asynchronous key read before permitting any frame"],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "(requiresOffer &&\n        (this.blocked.has(pairId) ||\n          current.paused ||\n          current.grants.every(\n            (grant) => grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId,\n          )))",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-executing-device",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a grant assigned to another executing device and a non-increasing grant revision"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "grant.offer.deviceId !== state.deviceId",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-receiver-incarnation",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "does not reactivate another receiver incarnation\u2019s durable offers after reopening"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "grant.offer.deviceId !== state.deviceId ||\n        grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId",
+      "after": "grant.offer.deviceId !== state.deviceId || false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "grant-monotonic-revision",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a grant assigned to another executing device and a non-increasing grant revision"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "grant.offer.grantRevision <= previous.offer.grantRevision",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "reply-request-binding",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "returns a strict error for a valid but mismatched reply id from a neighboring lane"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "reply.requestId !== request.requestId",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "owner-only-permissions",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": ["refuses permissive metadata or root permissions, symlinks and writable parents"],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "Boolean(sample.mode & BigInt(Number('0o077')))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "non-writable-parent",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": ["refuses permissive metadata or root permissions, symlinks and writable parents"],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "Boolean(parent.mode & BigInt(Number('0o022')))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "exclusive-writer-lock",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "serializes contending writes and excludes another window without a stale-lock timeout"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "open(path.join(directory, '.pairing.lock'), 'wx'",
+      "after": "open(path.join(directory, '.pairing.lock'), 'w'",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "serial-writes",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "serializes contending writes and excludes another window without a stale-lock timeout",
+        "serializes an in-progress native identity read with replacement so ordinary updates do not poison storage"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "      await previous",
+      "after": "      await Promise.resolve()",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "failed-store-latch",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "never forgets invitation replay or revocation evidence and latches failed storage",
+        "refuses publication after failed directory durability and preserves explicit recovery state",
+        "refuses a failed atomic replacement without publishing setup or deleting unrelated keys"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "this.hasFailed || this.isClosed",
+      "after": "this.isClosed",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "device-owner-binding",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a changed device id, duplicate history and exhausted history rather than overwriting"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "after.deviceId !== before.deviceId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "keep-replay-evidence",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "never forgets invitation replay or revocation evidence and latches failed storage"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "before.usedInvitationIds.some((value) => !after.usedInvitationIds.includes(value))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "keep-revocation-evidence",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "never forgets invitation replay or revocation evidence and latches failed storage"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "before.revokedPairIds.some((value) => !after.revokedPairIds.includes(value))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "canonical-state",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses valid-shaped unknown-version and duplicate-key state before returning a usable store"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "JSON.stringify(state) !== bytes.toString('utf8')",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "partial-stage-recovery",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a failed file flush before metadata replacement and removes only the newly created secret"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "names.some((name) => name.endsWith('.stage'))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "file-flush-before-replace",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a failed file flush before metadata replacement and removes only the newly created secret"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "        await handle.writeFile(bytes)\n        await handle.sync()",
+      "after": "        await handle.writeFile(bytes)",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "directory-durability",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses publication after failed directory durability and preserves explicit recovery state"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "await rename(stage, path.join(this.directory, 'pairs.json'))\n        await this.syncDirectory()",
+      "after": "await rename(stage, path.join(this.directory, 'pairs.json'))",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "read-state-byte-bound",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": ["bounds state before parsing and retains the broken state"],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "sample.size > BigInt(DEVICE_LIMITS.journalBytes)",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "state-version",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses valid-shaped unknown-version and duplicate-key state before returning a usable store"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "version: z.literal(DEVICE_LIMITS.protocolVersion)",
+      "after": "version: z.int()",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "state-history-cap",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a changed device id, duplicate history and exhausted history rather than overwriting"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "usedInvitationIds: z.array(id).check(z.maxLength(DEVICE_LIMITS.tombstones))",
+      "after": "usedInvitationIds: z.array(id)",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "read-replacement-serialization",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "serializes an in-progress native identity read with replacement so ordinary updates do not poison storage"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "return await this.ordered(async () => await this.readNow())",
+      "after": "return await this.readNow()",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "stored-bilateral-proof",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses replayed confirmation and corrupted stored pair transcripts after restart"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "validateDevicePair(row.pair, row.completedAt, true) !== row.pairId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "current-receiver-before-key-read",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "does not reactivate another receiver incarnation\u2019s durable offers after reopening"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "row.grants.every(\n          (grant) => grant.offer.receiverIncarnationId !== this.deps.receiverIncarnationId,\n        )",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "returned-current-receiver-grants",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "does not reactivate another receiver incarnation\u2019s durable offers after reopening"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "current.grants.filter(\n          (grant) => grant.offer.receiverIncarnationId === this.deps.receiverIncarnationId,\n        )",
+      "after": "current.grants",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "current-receiver-before-authorization",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "does not reactivate another receiver incarnation\u2019s durable offers after reopening"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "request.identity.receiverIncarnationId !== this.deps.receiverIncarnationId",
+      "after": "false",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "history-uniqueness",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses a changed device id, duplicate history and exhausted history rather than overwriting",
+        "refuses persisted grant grant corruption even with valid bilateral pair proofs",
+        "refuses persisted grant repository corruption even with valid bilateral pair proofs"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "return new Set(values).size === values.length",
+      "after": "return true",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "native-windows-required-before-lock",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "requires the native Windows ACL/durability binding and fails closed when it refuses"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "if (protection === undefined) throw new DevicePairingError('storage')",
+      "after": "if (false) throw new DevicePairingError('storage')",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "public-export-allowlist",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "exports only strict public invitation fields even when the caller carries extra data"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "    const invitation = deviceInvitationSchema.safeParse(value)\n    if (!invitation.success) throw new DevicePairingError('invalid-frame')\n    return JSON.stringify(invitation.data)",
+      "after": "    return JSON.stringify(value)",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "persisted-grant-owner",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": ["refuses persisted grant owner corruption even with valid bilateral pair proofs"],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "grant.offer.deviceId !== state.deviceId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "persisted-grant-pair",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": ["refuses persisted grant pair corruption even with valid bilateral pair proofs"],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "grant.pairId !== row.pairId",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "persisted-grant-id-uniqueness",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": ["refuses persisted grant grant corruption even with valid bilateral pair proofs"],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "!isUnique(row.grants.map((grant) => grant.offer.grantId))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "persisted-grant-repository-uniqueness",
+      "file": "src/host/devices/deviceStore.ts",
+      "exit": 1,
+      "failed": [
+        "refuses persisted grant repository corruption even with valid bilateral pair proofs"
+      ],
+      "sha256": "55455e8367d30a21643b46c0ed039608936d01d5d2aedc8f2286a361b47e19b6",
+      "before": "!isUnique(row.grants.map((grant) => grant.offer.repositoryId))",
+      "after": "false",
+      "testFiles": ["test/unit/deviceStore.test.ts", "test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    },
+    {
+      "guard": "replace-grant-revision",
+      "file": "src/host/devices/devicePairing.ts",
+      "exit": 1,
+      "failed": [
+        "replaces a grant revision by both its id and repository instead of retaining ambiguous rows"
+      ],
+      "sha256": "e20fb08e7c62c1f75651c0673394d70da6f420a95216f86efaf229eb278a417d",
+      "before": "item.offer.grantId !== grant.offer.grantId",
+      "after": "true",
+      "testFiles": ["test/unit/devicePairingAdapter.test.ts"],
+      "restoredByteExact": true
+    }
+  ]
+}

@@ -351,6 +351,24 @@ export const ADDITIONAL_WEBVIEW_BUDGETS = [
     budgetKiB: 25,
   },
   {
+    // RLM100 join: merged shared code grew the closure to 50.1 KiB; measured
+    // +15%, rounded up to 25 KiB.
+    name: 'Devices',
+    entries: ['src/webview/models/sections/agents/DevicesApp.tsx'],
+    budgetKiB: 75,
+  },
+  {
+    // FIXM100P2U: QR figure measures below 1 KiB; approved encoder adds 21,323 B.
+    // D6 rounds the closure plus headroom to 25 KiB, without changing other caps.
+    // Lane W installs the encoder beside the figure, in this same closure.
+    name: 'Devices QR',
+    entries: [
+      'src/webview/models/sections/devices/qr/QrFigure.tsx',
+      'src/webview/models/sections/devices/qr/qrGeneratorEncoder.ts',
+    ],
+    budgetKiB: 25,
+  },
+  {
     name: 'code highlighting',
     entries: ['src/webview/components/HighlightedCode.tsx'],
     budgetKiB: 125,

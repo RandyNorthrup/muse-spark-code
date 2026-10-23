@@ -1,0 +1,77 @@
+{
+  "base": "025b3acccfc8c57bb645fa1fff43149634df08a1",
+  "baseFailures": 23,
+  "basePasses": 55,
+  "modelAttempts": 0,
+  "drills": [
+    {
+      "name": "1-budget",
+      "exit": 1,
+      "counts": "split gate failed",
+      "file": "scripts/lib/webviewBundles.mjs",
+      "sha256": "a4dfe9ab8ebd21905470e4f81a11755c4126f6fa8d44717b357b0066bf82e16c"
+    },
+    {
+      "name": "2-initial",
+      "exit": 1,
+      "counts": "6 failed | 9 skipped (15)",
+      "file": "test/harness/index.html",
+      "sha256": "87c78e0044cb41ee438ad2f9f912004eb98b92927fca0d9a952cb1d0d1435269"
+    },
+    {
+      "name": "3-binding",
+      "exit": 1,
+      "counts": "1 failed | 1 passed | 13 skipped (15)",
+      "file": "test/harness/index.html",
+      "sha256": "87c78e0044cb41ee438ad2f9f912004eb98b92927fca0d9a952cb1d0d1435269"
+    },
+    {
+      "name": "4-throttle",
+      "exit": 1,
+      "counts": "1 failed | 1 passed | 25 skipped (27)",
+      "file": "src/webview/models/sections/agents/DevicesView.tsx",
+      "sha256": "62b7a0e5e38b54bf3bc66109897913c655a2bf8cc694bcbe34780fe4bf132219"
+    },
+    {
+      "name": "5-refusal",
+      "exit": 1,
+      "counts": "2 failed | 25 skipped (27)",
+      "file": "src/webview/models/sections/agents/DevicesView.tsx",
+      "sha256": "62b7a0e5e38b54bf3bc66109897913c655a2bf8cc694bcbe34780fe4bf132219"
+    },
+    {
+      "name": "6-quotas",
+      "exit": 1,
+      "counts": "1 failed | 26 skipped (27)",
+      "file": "src/webview/models/sections/devices/grants/OwnerGrants.tsx",
+      "sha256": "7d06b97407b5f73e4f33a78e44c9c2f63c082c405f33bac3565281bd5d304495"
+    },
+    {
+      "name": "7-responsive",
+      "exit": 1,
+      "counts": "1 failed | 14 skipped (15)",
+      "file": "src/webview/models/sections/devices/qr/QrFigure.tsx",
+      "sha256": "6fe55fdaece29a492df162bc1d62256d51c03fe5290c976925512c71a3760e1d"
+    },
+    {
+      "name": "8-next-pair",
+      "exit": 1,
+      "counts": "1 failed | 2 skipped (3)",
+      "file": "src/webview/models/sections/agents/DevicesApp.tsx",
+      "sha256": "f5cc7e1435bd465dd2fe97f973144be0c0b261fa3ae470d9555a5abcf675b0fe"
+    },
+    {
+      "name": "8-no-encoder",
+      "exit": 1,
+      "counts": "1 failed | 19 skipped (20)",
+      "file": "src/webview/models/sections/agents/DevicesApp.tsx",
+      "sha256": "f5cc7e1435bd465dd2fe97f973144be0c0b261fa3ae470d9555a5abcf675b0fe"
+    },
+    {
+      "drill": "address label removed",
+      "exit": 1,
+      "sha256": "e9b29cee4382a13605bc186ad39bc03cb4b80e76eaf86a6cbc7430e4c5c55517",
+      "source": "src/webview/models/sections/agents/DeviceCard.tsx"
+    }
+  ]
+}

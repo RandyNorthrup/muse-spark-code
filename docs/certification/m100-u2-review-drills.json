@@ -1,0 +1,262 @@
+[
+  {
+    "name": "P2-1-stale-action-data",
+    "finding": "RVM100U2 P2-1",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "rejects stale pair invitation data before pairing can consume it",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "sourceSha256Mutated": "fafd69c3ca1a5dc15cd3a63ad3fdda7372c5362e93b4ca1ab092d8d211e630c0",
+    "sourceSha256Restored": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-1-parent-acceptance",
+    "finding": "RVM100U2 P2-1",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "returns no pairing data when the surviving parent refuses snapshot acceptance",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "sourceSha256Mutated": "5693bb400e993476027480f25bdc717c11a3409324cac7911340ac90ce8ba66a",
+    "sourceSha256Restored": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-1-required-request-view",
+    "finding": "RVM100U2 P2-1",
+    "source": "src/shared/modelsPanel.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicesPanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "requires the view identity, request identity and initiating snapshot revision on every request",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "dc79fad5e69f2ba8141259ee36b88ac8942bdc35d3c1591bf0f8bfc441ccd991",
+    "sourceSha256Mutated": "13f1327e466904759141074be06d77c5dee1afc5580499bac1ab9c9074019fe4",
+    "sourceSha256Restored": "dc79fad5e69f2ba8141259ee36b88ac8942bdc35d3c1591bf0f8bfc441ccd991",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-1-required-request-revision",
+    "finding": "RVM100U2 P2-1",
+    "source": "src/shared/modelsPanel.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicesPanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "requires the view identity, request identity and initiating snapshot revision on every request",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "dc79fad5e69f2ba8141259ee36b88ac8942bdc35d3c1591bf0f8bfc441ccd991",
+    "sourceSha256Mutated": "5c2585b0c08263138a3d3f25c9e0fd744e5646aa48251cdaf82e8ab3eb206c6d",
+    "sourceSha256Restored": "dc79fad5e69f2ba8141259ee36b88ac8942bdc35d3c1591bf0f8bfc441ccd991",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-1-required-reply-view",
+    "finding": "RVM100U2 P2-1",
+    "source": "src/shared/modelsPanel.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/devicesPanel.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "requires the view identity, request identity and initiating snapshot revision on every request",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "dc79fad5e69f2ba8141259ee36b88ac8942bdc35d3c1591bf0f8bfc441ccd991",
+    "sourceSha256Mutated": "d035e60340b984e798af94936c111855ee7dcfc53e9fd67a9bb5ad00c684786e",
+    "sourceSha256Restored": "dc79fad5e69f2ba8141259ee36b88ac8942bdc35d3c1591bf0f8bfc441ccd991",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-1-failed-confirmation",
+    "finding": "RVM100U2 P2-1",
+    "source": "src/webview/models/sections/agents/DevicePairing.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "does not advance pairing when the local host reports a failure",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "bc0ce69cbc5c74faa656b5eaf2ce23e6b191151c079c3d2a288ecb7dbc407b92",
+    "sourceSha256Mutated": "8585d45e313843badd8b7adda7ab70b40f645465b7da9a124534767f3f9a59d0",
+    "sourceSha256Restored": "bc0ce69cbc5c74faa656b5eaf2ce23e6b191151c079c3d2a288ecb7dbc407b92",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-unmount-abort-and-drop",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "aborts an unmounted embedded view and drops its late reply into a surviving parent",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "sourceSha256Mutated": "befea1b3ee61eea1971eb6668aa61350dd78efcf091574d1589e4f03f41d02d1",
+    "sourceSha256Restored": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-view-reply-binding",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "rejects a reply for a foreign view before exposing its pairing data",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "sourceSha256Mutated": "f8212adacb2f6b8d246f1cb358856ab35ea63affc615f9cda52597684b000179",
+    "sourceSha256Restored": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-parent-live-view",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/webview/models/sections/agents/DevicesApp.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesApp.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "rejects parent publication from a unregistered view source",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "76198b179c952dd8ae2b63b11ab12ff1caef4b17c07974672a813f9ba4c62ba2",
+    "sourceSha256Mutated": "c08986ef031b52bcfda4ce198987dcba5e2344030a6cc0dc4af9fce643209c94",
+    "sourceSha256Restored": "76198b179c952dd8ae2b63b11ab12ff1caef4b17c07974672a813f9ba4c62ba2",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-malformed-view-binding",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/webview/models/sections/agents/DevicesApp.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesApp.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "ignores a foreign view reply (malformed=true) without releasing the live request",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "76198b179c952dd8ae2b63b11ab12ff1caef4b17c07974672a813f9ba4c62ba2",
+    "sourceSha256Mutated": "73a0cf6e28a44250ff36794ed53f0cbd552d6d316bc56441d0f5a95aec4ffc91",
+    "sourceSha256Restored": "76198b179c952dd8ae2b63b11ab12ff1caef4b17c07974672a813f9ba4c62ba2",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-host-view-binding",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/host/devices/deviceMessageHandler.ts",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/deviceMessageHandler.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "refuses a reply addressed to a different view even when the request id matches",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "a425ee738941885a6c9b888e370d416035239d0678aca5a41398eb2249bf600b",
+    "sourceSha256Mutated": "ad18c118be5cb29db93e85763ba26b0bdb5618d0865801dfd23858c066af032a",
+    "sourceSha256Restored": "a425ee738941885a6c9b888e370d416035239d0678aca5a41398eb2249bf600b",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-stable-view-id",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/webview/models/sections/agents/DevicesView.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesView.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "carries the live view, distinct request id and current revision on every action",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "sourceSha256Mutated": "03cebe61abee389a280fe8f4113931ca4f4810b9b4a04ff0d470846a3305899a",
+    "sourceSha256Restored": "9762e31158a36e5397d8110ca2973798c7eed6ac1aef070d55d88bc5b96f3d7f",
+    "restoredByteExact": true
+  },
+  {
+    "name": "P2-2-valid-view-binding",
+    "finding": "RVM100U2 P2-2",
+    "source": "src/webview/models/sections/agents/DevicesApp.tsx",
+    "command": [
+      "npx",
+      "--no-install",
+      "vitest",
+      "run",
+      "test/unit/DevicesApp.test.tsx",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "expectedFailingTest": "ignores a foreign view reply (malformed=false) without releasing the live request",
+    "namedFailureObserved": true,
+    "sourceSha256Before": "76198b179c952dd8ae2b63b11ab12ff1caef4b17c07974672a813f9ba4c62ba2",
+    "sourceSha256Mutated": "fa5ed4c90bb80dff5123c4862f015518ec89df82b414178577d0908812a40cf2",
+    "sourceSha256Restored": "76198b179c952dd8ae2b63b11ab12ff1caef4b17c07974672a813f9ba4c62ba2",
+    "restoredByteExact": true
+  }
+]

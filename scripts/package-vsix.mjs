@@ -144,6 +144,7 @@ export async function stageVsix(root, stage, target) {
   for (const license of ['whisper-LICENSE.txt', 'model-LICENSE.txt'])
     if (!normalized.has(`native/dictation-linux/${license}`))
       throw new Error(`Required Linux dictation licence excluded from VSIX: ${license}`)
+  if (!files.includes('dist/devices.js')) throw new Error('Lazy Devices runtime excluded from VSIX')
   if (!files.includes('dist/validation.js'))
     throw new Error('Shared validation runtime excluded from VSIX')
   rmSync(stage, { recursive: true, force: true })

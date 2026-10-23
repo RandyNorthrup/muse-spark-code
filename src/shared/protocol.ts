@@ -59,6 +59,9 @@ import {
 } from './git'
 import { judgeStatusSchema } from './judge'
 import { judgePanelSnapshotSchema } from './judgePanelSchema'
+// Devices is a separate lazy panel route. Type exports do not load its schemas
+// into ordinary chat or the Node wire bundle (M100 acceptance J).
+export type { DeviceHostMessage, DeviceWebviewRequest, DevicesPanelPort } from './devicesPanel'
 import { scheduleHostMessageSchema, scheduleWebviewMessageSchema } from './scheduleProtocol'
 import {
   scheduleDraftSchema,

@@ -461,6 +461,8 @@ describe('packaging (M26)', () => {
         'native/darwin/muse-vault-peer-x64',
         'dist/native/darwin/muse-vault-arm64',
         'dist/native/darwin/muse-vault-x64',
+        'native/windows/MuseSparkDeviceStorage.cs',
+        'native/windows/MuseSparkDeviceWorker.cs',
       ]),
     )
     expect(shipped).not.toContain('native/darwin/muse-dictate')

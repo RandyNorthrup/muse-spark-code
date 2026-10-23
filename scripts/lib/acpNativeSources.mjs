@@ -18,6 +18,7 @@ export const JOB_SOURCES = [
   'native/windows/MuseSparkVaultHello.cs',
   'native/windows/MuseSparkVaultLock.cs',
   'native/windows/MuseSparkVaultPipe.cs',
+  path.join('native', 'windows', 'MuseSparkDeviceStorage.cs'),
   path.join('native', 'windows', 'MuseSparkJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpJob.cs'),
   path.join('native', 'windows', 'MuseSparkMcpLauncher.cs'),

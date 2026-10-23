@@ -1,0 +1,544 @@
+{
+  "base": "9d1ab33c3",
+  "incoming": "23c67925f",
+  "merge": "1b24c700f383ed9ffc78e9ac5c42947936245799",
+  "verified": "18fa2609023358c2ef3a34de6a8326d3b5a72eae",
+  "originalSweepCommit": "390c156a8c041e206511555e45e4fabb49431bfd",
+  "sourceTree": "f67a1e3604f2ac01822885737ff8e66f948bee37",
+  "singleRevisionCoverage": true,
+  "reusedEarlierCoverageMaps": false,
+  "freshCloneCleanAfterVerification": true,
+  "platform": "macmini/darwin",
+  "node": "v24.21.0",
+  "npm": "11.19.0",
+  "freshClone": "/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo",
+  "ci": true,
+  "maxFilesPerTestInvocation": 3,
+  "maxWorkers": 3,
+  "timeoutOverride": false,
+  "modelAttempts": 0,
+  "inferenceSpendUsd": 0,
+  "staticGates": [
+    {
+      "name": "npm-ci",
+      "command": ["npm", "ci"],
+      "exit": 0,
+      "seconds": 8.102,
+      "logSha256": "4c1795447b0baca9ce58587ebb899bf819f26e0c4963980c333e4c8ad6b865ba"
+    },
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 82.896,
+      "logSha256": "62f4d2ad0ab72d0d87e76badc18d5ebe28dd741372b693ae75c9eb8ccf53f860"
+    },
+    {
+      "name": "lint",
+      "command": ["npm", "run", "lint"],
+      "exit": 0,
+      "seconds": 239.382,
+      "logSha256": "f2bdd59c9b07abc0f8756c079103f9e41ad380190be669d2e0e6c1ed32e8a305"
+    },
+    {
+      "name": "format",
+      "command": ["npm", "run", "format:check"],
+      "exit": 0,
+      "seconds": 82.764,
+      "logSha256": "70a23ae6ee05e8d17b29cd95786e233bd2474a9e00b906a7ed57514bf7106a9c"
+    },
+    {
+      "name": "knip",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 5.317,
+      "logSha256": "5722130cf6a2cb7fb65b7d1f9959110094df5e349cb9e30272fda382ccd9a26e"
+    },
+    {
+      "name": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.825,
+      "logSha256": "726e6da3acc82356881074657669ef1f111afd6bc6c31b46a6d4860136026914"
+    },
+    {
+      "name": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exit": 0,
+      "seconds": 7.856,
+      "logSha256": "45e7a44b6f887690c5d4ca9055c96349ee8a8623d970c890b51ff8ad3dc67474"
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 2.316,
+      "logSha256": "ad310966220f35f3e46d83cd47dcc1fc820c897bae1abf25cff3c48e63af37ec"
+    },
+    {
+      "name": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 2.809,
+      "logSha256": "adb44e04beef079abe85e99228a77d39aa321a1e647f1c0b11493cbdd6362910"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 22.021,
+      "logSha256": "1c8ff8839f3b8446f1258147da0aa2439c9287d215bb23930ffa887ed23d62d1"
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 9.066,
+      "logSha256": "ea63f009a23301c85fc73e33996137e8997e99a394267993a4e58d0cc01689d6"
+    }
+  ],
+  "testFiles": 846,
+  "ciShardFileCounts": [212, 212, 211, 211],
+  "testBatchCount": 284,
+  "ciShardMembershipSha256": "19e0f1d230f8c193fa7ba09537887f8f9d0193a52c01252097581d1c2b5a03a9",
+  "coverageCollection": "Actual configured CI sequencer memberships, at most three files per invocation with partial --shard=1/1 maps. Lossless groups of eight use Vitest 5.0.2 coverage-map merge semantics and retain test/error/module graph data. An official 24-file direct merge and reduced merge have identical complete coverage maps and test counts. The final official four-shard merge has no --shard flag and enforces unchanged repository thresholds.",
+  "coverageThresholds": {
+    "statements": 90,
+    "branches": 85,
+    "functions": 90,
+    "lines": 90
+  },
+  "coverage": {
+    "lines": {
+      "total": 73731,
+      "covered": 68848,
+      "skipped": 0,
+      "pct": 93.37
+    },
+    "statements": {
+      "total": 77771,
+      "covered": 72129,
+      "skipped": 0,
+      "pct": 92.74
+    },
+    "functions": {
+      "total": 15590,
+      "covered": 14638,
+      "skipped": 0,
+      "pct": 93.89
+    },
+    "branches": {
+      "total": 57298,
+      "covered": 50303,
+      "skipped": 0,
+      "pct": 87.79
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "coverageSourceFiles": 982,
+  "compactionProof": {
+    "files": 24,
+    "coverageFiles": 982,
+    "exactCoverageMap": true,
+    "exactTestCounts": true,
+    "testCounts": {
+      "numTotalTestSuites": 78,
+      "numPassedTestSuites": 78,
+      "numFailedTestSuites": 0,
+      "numTotalTests": 655,
+      "numPassedTests": 655,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "numTodoTests": 0
+    }
+  },
+  "testAndCoverageSummaries": [
+    {
+      "name": "merge-shard-1",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--merge-reports=/Users/randy/lanes/M100P2BASE/temp/final-blobs/official-shard-1",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo/temp/base-ci/merge-shard-1.json",
+        "--coverage.reporter=text",
+        "--coverage.reporter=lcov",
+        "--coverage.reporter=json-summary"
+      ],
+      "exit": 0,
+      "summary": [
+        "Test Files  211 passed | 1 skipped (212)",
+        "Tests  4528 passed | 11 skipped (4539)",
+        "All files          |    45.4 |     38.9 |   45.53 |   46.06 |"
+      ],
+      "tests": {
+        "numTotalTests": 4539,
+        "numPassedTests": 4528,
+        "numFailedTests": 0,
+        "numPendingTests": 11,
+        "numTodoTests": 0
+      },
+      "files": 212,
+      "logSha256": "64de562886db985b2d0cf1cfdd44f3554b6d2d04c35fa57179493ba28af98a79"
+    },
+    {
+      "name": "merge-shard-2",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--merge-reports=/Users/randy/lanes/M100P2BASE/temp/final-blobs/official-shard-2",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo/temp/base-ci/merge-shard-2.json",
+        "--coverage.reporter=text",
+        "--coverage.reporter=lcov",
+        "--coverage.reporter=json-summary"
+      ],
+      "exit": 0,
+      "summary": [
+        "Test Files  210 passed | 2 skipped (212)",
+        "Tests  3879 passed | 9 skipped (3888)",
+        "All files          |   47.02 |    39.97 |   45.18 |   47.68 |"
+      ],
+      "tests": {
+        "numTotalTests": 3888,
+        "numPassedTests": 3879,
+        "numFailedTests": 0,
+        "numPendingTests": 9,
+        "numTodoTests": 0
+      },
+      "files": 212,
+      "logSha256": "2664c8ba7ff467e5688ee634af0f3138343a2bcb164ef2d6e2d76f206f34111b"
+    },
+    {
+      "name": "merge-shard-3",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--merge-reports=/Users/randy/lanes/M100P2BASE/temp/final-blobs/official-shard-3",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo/temp/base-ci/merge-shard-3.json",
+        "--coverage.reporter=text",
+        "--coverage.reporter=lcov",
+        "--coverage.reporter=json-summary"
+      ],
+      "exit": 0,
+      "summary": [
+        "Test Files  207 passed | 4 skipped (211)",
+        "Tests  4426 passed | 36 skipped (4462)",
+        "All files          |   56.97 |    49.68 |   56.69 |   57.91 |"
+      ],
+      "tests": {
+        "numTotalTests": 4462,
+        "numPassedTests": 4426,
+        "numFailedTests": 0,
+        "numPendingTests": 36,
+        "numTodoTests": 0
+      },
+      "files": 211,
+      "logSha256": "2e923cc889763ab603e3d05afba7cc7980f099e5915e1b740d9027897d5b07fa"
+    },
+    {
+      "name": "merge-shard-4",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--merge-reports=/Users/randy/lanes/M100P2BASE/temp/final-blobs/official-shard-4",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo/temp/base-ci/merge-shard-4.json",
+        "--coverage.reporter=text",
+        "--coverage.reporter=lcov",
+        "--coverage.reporter=json-summary"
+      ],
+      "exit": 0,
+      "summary": [
+        "Test Files  210 passed | 1 skipped (211)",
+        "Tests  4470 passed | 23 skipped (4493)",
+        "All files          |   46.85 |    39.13 |   49.57 |   47.42 |"
+      ],
+      "tests": {
+        "numTotalTests": 4493,
+        "numPassedTests": 4470,
+        "numFailedTests": 0,
+        "numPendingTests": 23,
+        "numTodoTests": 0
+      },
+      "files": 211,
+      "logSha256": "00d22d93026f1fe4e8d6015849170bb7067dacd2b75c710ec104ceb271e1d29f"
+    },
+    {
+      "name": "merge-coverage",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "--merge-reports=/Users/randy/lanes/M100P2BASE/temp/final-blobs/base-ci-final",
+        "--maxWorkers=3",
+        "--coverage",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-v64yxltl/repo/temp/base-ci/merge-coverage.json",
+        "--coverage.reporter=text",
+        "--coverage.reporter=lcov",
+        "--coverage.reporter=json-summary"
+      ],
+      "exit": 0,
+      "summary": [
+        "Test Files  838 passed | 8 skipped (846)",
+        "Tests  17303 passed | 79 skipped (17382)",
+        "All files          |   92.74 |    87.79 |   93.89 |   93.37 |"
+      ],
+      "tests": {
+        "numTotalTests": 17382,
+        "numPassedTests": 17303,
+        "numFailedTests": 0,
+        "numPendingTests": 79,
+        "numTodoTests": 0
+      },
+      "files": 846,
+      "logSha256": "1d12f7a1ee7ff42f21a46797e02192a33330753e5bffc486e1680c177353f6f2"
+    }
+  ],
+  "blobArchiveCount": 284,
+  "everyGzipRoundTripVerified": true,
+  "blobArchiveManifestSha256": "56d785458e213a0fa09cf2afc6ebf9f9a635d423ed63db1f8fdd60889456030f",
+  "initialIntegrationFailures": [
+    {
+      "name": "tests-1-19",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/usagePackaging.test.mjs",
+        "test/unit/textDecoding.test.ts",
+        "test/unit/usageContracts.test.ts",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-1-3/batch-19.json"
+      ],
+      "logSha256": "b9da3aa9010205398fbc6606d0389b35ed74080511b8a55d2c7afa052c2dbd59"
+    },
+    {
+      "name": "tests-1-45",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/eval/evalReport.test.ts",
+        "test/unit/runtimeChatGptPackage.test.ts",
+        "test/unit/promptLedger.test.ts",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-1-6/batch-45.json"
+      ],
+      "logSha256": "73b8b8907f3f661739054b5cc10a270b48bf8a7078eb06733c9c31d6d1aa104c"
+    },
+    {
+      "name": "tests-2-68",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/e2e/execStdio.e2e.test.ts",
+        "test/unit/tabLedger.test.ts",
+        "test/unit/sshRunner.test.ts",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-2-9/batch-68.json"
+      ],
+      "logSha256": "9faadf2e14130f07889f76c893dadcd38b2c043ef08ad9ec211199edfcd09c02"
+    },
+    {
+      "name": "tests-3-1",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/deviceIntegration.test.ts",
+        "test/unit/execProvider.test.ts",
+        "test/unit/renderCost.test.tsx",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-3-1/batch-1.json"
+      ],
+      "logSha256": "8753a05d2ca788364fad4746ccb76b30768b8bb149da1356432a268f7c265530"
+    },
+    {
+      "name": "tests-3-36",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/hookModelHandlers.test.ts",
+        "test/unit/vsixPackaging.test.mjs",
+        "test/unit/runLedger.test.ts",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-3-5/batch-36.json"
+      ],
+      "logSha256": "32e02cd370e772b1cf3e93bb91d220b40bec1270458e3921d4276b3c00deeb63"
+    },
+    {
+      "name": "tests-3-45",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/ndjson.test.ts",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/runtimeChatGpt.test.ts",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-3-6/batch-45.json"
+      ],
+      "logSha256": "cb6f8fecdd89eabb91ae945ad1f8117db0d15b5b7d5d25783930b9f3d48de2d7"
+    },
+    {
+      "name": "tests-4-42",
+      "exit": 1,
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/flightRecorder.test.ts",
+        "test/unit/featureCatalog.test.mjs",
+        "test/unit/ChatViewProvider.test.ts",
+        "--maxWorkers=3",
+        "--coverage",
+        "--shard=1/1",
+        "--reporter=default",
+        "--reporter=blob",
+        "--outputFile=/private/var/folders/r2/xm1s2y_x67zg6lz1kr7x8f2h0000gp/T/m100p2base-ci-pc9ree0k/blob-reports/base-ci-batches-4-6/batch-42.json"
+      ],
+      "logSha256": "26942ca04be4a10669913420a8b7110931189afd4e0d15174375993834d738ed"
+    }
+  ],
+  "completeFreshCloneSweeps": 2,
+  "deliberateIntegrationDrills": [
+    {
+      "drill": "selector",
+      "source": "scripts/lib/uiTextRegions.mjs",
+      "beforeSha256": "d2f8fe5553c08b4fd9eac87ad3a9bce4bdab2843336f80f28dd323c730f10f45",
+      "restoredSha256": "d2f8fe5553c08b4fd9eac87ad3a9bce4bdab2843336f80f28dd323c730f10f45",
+      "command": ["npx", "vitest", "run", "test/unit/browserUiText.test.mjs", "--maxWorkers=3"],
+      "redExit": 1,
+      "summary": ["Test Files  1 failed (1)", "Tests  2 failed | 4 passed (6)"],
+      "logSha256": "cfd42526cf27dce3b37787bcae7977dc499b68415b143eefb9041bedf26c6535"
+    },
+    {
+      "drill": "private_english",
+      "source": "scripts/lib/uiTextRegions.mjs",
+      "beforeSha256": "d2f8fe5553c08b4fd9eac87ad3a9bce4bdab2843336f80f28dd323c730f10f45",
+      "restoredSha256": "d2f8fe5553c08b4fd9eac87ad3a9bce4bdab2843336f80f28dd323c730f10f45",
+      "command": ["npx", "vitest", "run", "test/unit/browserUiText.test.mjs", "--maxWorkers=3"],
+      "redExit": 1,
+      "summary": ["Test Files  1 failed (1)", "Tests  1 failed | 5 passed (6)"],
+      "logSha256": "65636fdd84ac5cb94382fcc50e48206b0011df337a73e2d1d6d2c0854e12cd3d"
+    },
+    {
+      "drill": "english_catch",
+      "source": "scripts/lib/uiTextRegions.mjs",
+      "beforeSha256": "d2f8fe5553c08b4fd9eac87ad3a9bce4bdab2843336f80f28dd323c730f10f45",
+      "restoredSha256": "d2f8fe5553c08b4fd9eac87ad3a9bce4bdab2843336f80f28dd323c730f10f45",
+      "command": ["npx", "vitest", "run", "test/unit/browserUiText.test.mjs", "--maxWorkers=3"],
+      "redExit": 1,
+      "summary": ["Test Files  1 failed (1)", "Tests  1 failed | 5 passed (6)"],
+      "logSha256": "bdec2f75ac01f1c4dd142950f1dc3d6e82f9da0bef9e36bde1a58a72797da76b"
+    },
+    {
+      "drill": "entry",
+      "source": "src/webview/main.tsx",
+      "beforeSha256": "651b082e11fee9b1598bd2bdfe42805cd3f8c2f15734d372c350815b644a4411",
+      "restoredSha256": "651b082e11fee9b1598bd2bdfe42805cd3f8c2f15734d372c350815b644a4411",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/DevicesApp.test.tsx",
+        "test/unit/webviewBundle.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "redExit": 1,
+      "summary": ["Test Files  2 failed (2)", "Tests  2 failed | 53 passed (55)"],
+      "logSha256": "e81f3c861f5bc0425047a823c45bdd5d3b5b334360ddc627273637c413f337bf"
+    },
+    {
+      "drill": "cancel",
+      "source": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "command": ["npx", "vitest", "run", "test/unit/deviceIntegration.test.ts", "--maxWorkers=3"],
+      "redExit": 1,
+      "summary": ["Test Files  1 failed (1)", "Tests  2 failed | 9 passed (11)"],
+      "logSha256": "18cd87db7eaa6d17ff3a7a75ded753923b1409e144fdcf8cac937844efe9e560"
+    }
+  ],
+  "englishChunkRegression": {
+    "source": "scripts/lib/uiTextRegions.mjs",
+    "sourceSha256": "0bd68b2a98055413f140f317a01a67916d1bd7bf032ca6e3752a284efa3cd890",
+    "redExit": 1,
+    "testsFailed": 1,
+    "testsPassed": 4,
+    "logSha256": "3423bfb53114a1483fd30341959b095469daf0d7c2153308c60d74375097acd1"
+  },
+  "verificationToolingFailures": {
+    "listing": "Vitest list --filesOnly ignored --shard; duplicate-membership preflight stopped before execution. Use the configured sequencer instead.",
+    "collation": "Vitest rejects --merge-reports with --reporter=blob. Original collection completed; bounded lossless reduction and final official supported merges succeeded."
+  },
+  "deliberateBoundaryDrill": {
+    "guard": "Devices panel excludes provider/team validators",
+    "source": "src/shared/devicesPanel.ts",
+    "beforeSha256": "4a672cc45df36ee29d203d758e0dabe39d337c815951f0ff2e33b6a33b2abbbb",
+    "afterSha256": "4a672cc45df36ee29d203d758e0dabe39d337c815951f0ff2e33b6a33b2abbbb",
+    "redExit": 1,
+    "greenExit": 0
+  }
+}

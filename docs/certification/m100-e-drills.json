@@ -1,0 +1,1538 @@
+{
+  "rig": "kubuntu",
+  "testTimeout": "repository default (no override)",
+  "initialGreenProbes": [
+    {
+      "guard": "local paid gate",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "bedb515f6918a8b5fabd91a3ed222ee40a569eb1ac471d6bba07cfb86bac1eb7",
+      "restoredSha256": "bedb515f6918a8b5fabd91a3ed222ee40a569eb1ac471d6bba07cfb86bac1eb7",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 0,
+      "failedTests": []
+    },
+    {
+      "guard": "durable source intent payload validation",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "8f30d4df9cbcf981ca4ddd41962e369ad63e1015306d8b68d3668f96eb5935a7",
+      "restoredSha256": "8f30d4df9cbcf981ca4ddd41962e369ad63e1015306d8b68d3668f96eb5935a7",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 0,
+      "failedTests": []
+    },
+    {
+      "guard": "monotonic outcome revisions",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 0,
+      "failedTests": []
+    },
+    {
+      "guard": "outcome payload immutable",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 0,
+      "failedTests": []
+    },
+    {
+      "guard": "native directory identity across replacement",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 0,
+      "failedTests": []
+    }
+  ],
+  "receipts": [
+    {
+      "guard": "stable original attempt tuple",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership serializes duplicate admission and rejects changed payload or tuple under an attempt id"
+      ]
+    },
+    {
+      "guard": "receiver payload digest",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority rejects changed dispatch data with unchanged or recomputed digest and no second launch"
+      ]
+    },
+    {
+      "guard": "changed payload under same id",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority rejects changed dispatch data with unchanged or recomputed digest and no second launch"
+      ]
+    },
+    {
+      "guard": "replay never starts twice (launch counter)",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority journals admission and launch intent before a single start despite concurrent lost replies",
+        "receiver restart and ownership reconciliation retains unconfirmed start, cancellation and retirement-observation failure without release",
+        "receiver restart and ownership reconciliation holds capacity across disconnect after launch and delayed confirmation"
+      ]
+    },
+    {
+      "guard": "admission before start",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority journals admission and launch intent before a single start despite concurrent lost replies",
+        "receiver admission and local authority rejects changed dispatch data with unchanged or recomputed digest and no second launch",
+        "receiver admission and local authority uses M96 atomic capacity for the final slot, including local work and child capacity",
+        "receiver admission and local authority checks policy again after capacity admission and preserves its reservation on refusal",
+        "receiver restart and ownership reconciliation reconciles a delayed terminal reply through a new incarnation without credit or launch twice",
+        "receiver restart and ownership reconciliation returns the retained tombstone on replay after acknowledged result cleanup and restart",
+        "receiver restart and ownership reconciliation refuses dispatch before start on a failed admission flush",
+        "receiver restart and ownership reconciliation refuses dispatch before start on a failed launch-intent flush",
+        "receiver restart and ownership reconciliation retains unconfirmed start, cancellation and retirement-observation failure without release",
+        "receiver restart and ownership reconciliation does not release when a direct parent exits with an unproved surviving descendant",
+        "receiver restart and ownership reconciliation allows explicit resume only after a lost confirmation is locally retired and reconciled"
+      ]
+    },
+    {
+      "guard": "launch intent before start",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority journals admission and launch intent before a single start despite concurrent lost replies",
+        "receiver admission and local authority uses M96 atomic capacity for the final slot, including local work and child capacity",
+        "receiver admission and local authority keeps the receiver paid off boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid deny boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid missing-key boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid changed-model boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid changed-price boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid changed-credential boundary before the forbidden charge",
+        "receiver admission and local authority asks the local paid consent with current pricing and rechecks binding after its answer",
+        "receiver admission and local authority pauses at the next controlled boundary and requires explicit resume after disconnect",
+        "receiver restart and ownership reconciliation does not release when a direct parent exits with an unproved surviving descendant"
+      ]
+    },
+    {
+      "guard": "current receiver incarnation",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority refuses dispatch to an unoffered incarnation and validates reconciliation pages"
+      ]
+    },
+    {
+      "guard": "M96 atomic admission (capacity spy)",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority uses M96 atomic capacity for the final slot, including local work and child capacity",
+        "receiver restart and ownership reconciliation does not release when a direct parent exits with an unproved surviving descendant"
+      ]
+    },
+    {
+      "guard": "grant intersection",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority checks the current grant and receiver-local approval instead of trusting a pairing",
+        "receiver admission and local authority refuses grant narrowing, trust loss and disconnect after the approval await"
+      ]
+    },
+    {
+      "guard": "local policy authority",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority honors the local trust policy refusal before admission",
+        "receiver admission and local authority honors the local protected-path policy refusal before admission",
+        "receiver admission and local authority honors the local role-tools policy refusal before admission",
+        "receiver admission and local authority honors the local receiver-plan policy refusal before admission",
+        "receiver admission and local authority honors the local receiver-manual policy refusal before admission",
+        "receiver admission and local authority honors the local confidential-policy policy refusal before admission",
+        "receiver admission and local authority checks policy again after capacity admission and preserves its reservation on refusal"
+      ]
+    },
+    {
+      "guard": "local ordinary approval",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority checks the current grant and receiver-local approval instead of trusting a pairing",
+        "receiver admission and local authority refuses grant narrowing, trust loss and disconnect after the approval await",
+        "receiver admission and local authority detects disconnect while a local approval is pending without launching"
+      ]
+    },
+    {
+      "guard": "local paid gate",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority keeps the receiver paid off boundary before the forbidden charge"
+      ]
+    },
+    {
+      "guard": "local paid popup",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority keeps the receiver paid deny boundary before the forbidden charge",
+        "receiver admission and local authority asks the local paid consent with current pricing and rechecks binding after its answer"
+      ]
+    },
+    {
+      "guard": "local paid model price credential binding",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority keeps the receiver paid missing-key boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid changed-model boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid changed-price boundary before the forbidden charge",
+        "receiver admission and local authority keeps the receiver paid changed-credential boundary before the forbidden charge",
+        "receiver admission and local authority asks the local paid consent with current pricing and rechecks binding after its answer"
+      ]
+    },
+    {
+      "guard": "paid binding checked after popup",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority asks the local paid consent with current pricing and rechecks binding after its answer"
+      ]
+    },
+    {
+      "guard": "paid gate checked after popup",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority asks the local paid consent with current pricing and rechecks binding after its answer"
+      ]
+    },
+    {
+      "guard": "disconnect never releases occupancy",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority pauses at the next controlled boundary and requires explicit resume after disconnect",
+        "receiver restart and ownership reconciliation cannot accept old live control on a new channel or erase uncertain work by unlinking",
+        "receiver restart and ownership reconciliation holds capacity across disconnect after launch and delayed confirmation",
+        "receiver restart and ownership reconciliation does not release when a direct parent exits with an unproved surviving descendant",
+        "receiver restart and ownership reconciliation ignores a delayed pause rejection after authoritative retirement"
+      ]
+    },
+    {
+      "guard": "cancel acknowledgement never retires",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation retains unconfirmed start, cancellation and retirement-observation failure without release",
+        "receiver restart and ownership reconciliation does not release when a direct parent exits with an unproved surviving descendant"
+      ]
+    },
+    {
+      "guard": "wait for complete local retirement proof",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority journals admission and launch intent before a single start despite concurrent lost replies",
+        "receiver admission and local authority checks policy again after capacity admission and preserves its reservation on refusal",
+        "receiver admission and local authority pauses at the next controlled boundary and requires explicit resume after disconnect",
+        "receiver admission and local authority returns uncertain for unknown reconciliation and refuses forged terminal/check/settlement frames",
+        "receiver restart and ownership reconciliation preserves a terminal artifact exactly through historical reconciliation",
+        "receiver restart and ownership reconciliation cannot accept old live control on a new channel or erase uncertain work by unlinking",
+        "receiver restart and ownership reconciliation retains unconfirmed start, cancellation and retirement-observation failure without release",
+        "receiver restart and ownership reconciliation holds capacity across disconnect after launch and delayed confirmation",
+        "receiver restart and ownership reconciliation does not release when a direct parent exits with an unproved surviving descendant",
+        "receiver restart and ownership reconciliation blocks resume when a confirmed run loses its complete local retirement proof"
+      ]
+    },
+    {
+      "guard": "terminal durability before resource release",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation keeps terminal-write failure occupied and blocks further dispatch even after local exit"
+      ]
+    },
+    {
+      "guard": "receiver failures block explicit resume",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation blocks resume when a confirmed run loses its complete local retirement proof"
+      ]
+    },
+    {
+      "guard": "reconcile before explicit resume",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority pauses at the next controlled boundary and requires explicit resume after disconnect",
+        "receiver restart and ownership reconciliation recovers launch-before-confirmation with original identity, occupancy and uncertain spending",
+        "receiver restart and ownership reconciliation allows explicit resume only after a lost confirmation is locally retired and reconciled"
+      ]
+    },
+    {
+      "guard": "request channel pair binding",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority returns uncertain for unknown reconciliation and refuses forged terminal/check/settlement frames"
+      ]
+    },
+    {
+      "guard": "reject forged peer terminal outcomes",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority returns uncertain for unknown reconciliation and refuses forged terminal/check/settlement frames"
+      ]
+    },
+    {
+      "guard": "one durable source payload",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership serializes duplicate admission and rejects changed payload or tuple under an attempt id"
+      ]
+    },
+    {
+      "guard": "durable source intent payload validation",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership rejects a durable source intent whose payload no longer matches its digest"
+      ]
+    },
+    {
+      "guard": "settlement id uniqueness",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses duplicate settlement ids and corrupt acknowledgement bindings"
+      ]
+    },
+    {
+      "guard": "idempotent journal admission",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership persists source intent and hashes validated payload independent of key order",
+        "durable attempt ownership retains full outcomes until acknowledged and keeps permanent settlement tombstones",
+        "durable attempt ownership settles source intent once, retains its replay evidence and cannot settle receiver-owned work"
+      ]
+    },
+    {
+      "guard": "journal payload immutable",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership serializes duplicate admission and rejects changed payload or tuple under an attempt id"
+      ]
+    },
+    {
+      "guard": "monotonic outcome revisions",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "outcome identity immutable",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "outcome payload immutable",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "outcome settlement immutable",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "unresolved occupancy retained",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "unresolved liability retained",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "one launch intent per attempt",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "running only after launch intent",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership requires monotonic revisions, immutable identity/digest/settlement and one launch intent"
+      ]
+    },
+    {
+      "guard": "acknowledge exact terminal payload",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership retains full outcomes until acknowledged and keeps permanent settlement tombstones"
+      ]
+    },
+    {
+      "guard": "acknowledge exact settlement id",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership retains full outcomes until acknowledged and keeps permanent settlement tombstones"
+      ]
+    },
+    {
+      "guard": "acknowledgement idempotence",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership retains full outcomes until acknowledged and keeps permanent settlement tombstones"
+      ]
+    },
+    {
+      "guard": "acknowledgement bound to terminal evidence",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses duplicate settlement ids and corrupt acknowledgement bindings"
+      ]
+    },
+    {
+      "guard": "full results retained after acknowledgement",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership retains full outcomes until acknowledged and keeps permanent settlement tombstones"
+      ]
+    },
+    {
+      "guard": "permanent tombstone before cleanup",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership retains full outcomes until acknowledged and keeps permanent settlement tombstones",
+        "durable attempt ownership settles source intent once, retains its replay evidence and cannot settle receiver-owned work"
+      ]
+    },
+    {
+      "guard": "unresolved admission ceiling",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership stops admissions at the unresolved cap without deleting any old attempt"
+      ]
+    },
+    {
+      "guard": "full terminal retention ceiling",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership blocks further admissions when full terminal retention is exhausted"
+      ]
+    },
+    {
+      "guard": "journal byte ceiling before allocation and after read",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses an oversized journal before reading its advertised bytes"
+      ]
+    },
+    {
+      "guard": "canonical duplicate-key rejection",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses damaged state {\"version\":1,\"version\":1,\"records\":[],\"acknowledgements\":[]} and never creates an empty journal"
+      ]
+    },
+    {
+      "guard": "abandoned stage fails closed",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses stage remnants, duplicate records and unknown private fields"
+      ]
+    },
+    {
+      "guard": "file flush before replacement/start",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership flushes admission and launch files before atomic replacement and directory flush"
+      ]
+    },
+    {
+      "guard": "directory durability after replacement",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership flushes admission and launch files before atomic replacement and directory flush"
+      ]
+    },
+    {
+      "guard": "retained initialization marker prevents folder-loss reset",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses directory loss and does not reset replay evidence after logout/runtime cleanup"
+      ]
+    },
+    {
+      "guard": "existing owner-only file permissions",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses broad directory/file permissions and unsafe ancestors"
+      ]
+    },
+    {
+      "guard": "existing owner identity",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses wrong-owner terminal data and replacement of the authoritative directory"
+      ]
+    },
+    {
+      "guard": "hardlink replacement refusal",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses symlink/hardlink/ancestor and native file substitution before using terminal data"
+      ]
+    },
+    {
+      "guard": "exclusive M96 journal owner",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses missing exclusive ownership and unsafe Windows ACL/durability bindings"
+      ]
+    },
+    {
+      "guard": "native file identity across replacement",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses symlink/hardlink/ancestor and native file substitution before using terminal data"
+      ]
+    },
+    {
+      "guard": "native directory identity across replacement",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses wrong-owner terminal data and replacement of the authoritative directory"
+      ]
+    },
+    {
+      "guard": "Windows requires protection binding",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses missing exclusive ownership and unsafe Windows ACL/durability bindings"
+      ]
+    },
+    {
+      "guard": "native ancestor protection binding",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses missing exclusive ownership and unsafe Windows ACL/durability bindings"
+      ]
+    },
+    {
+      "guard": "source terminal claim requires terminal evidence",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership settles source intent once, retains its replay evidence and cannot settle receiver-owned work"
+      ]
+    },
+    {
+      "guard": "source terminal claim binds original payload",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership settles source intent once, retains its replay evidence and cannot settle receiver-owned work"
+      ]
+    },
+    {
+      "guard": "source settlement cannot overwrite local receiver or duplicate credit",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership settles source intent once, retains its replay evidence and cannot settle receiver-owned work"
+      ]
+    },
+    {
+      "guard": "failed persistence latches storage refusal",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership latches unwritable, failed flush and failed replacement state with no success reset"
+      ]
+    },
+    {
+      "guard": "unsafe writable ancestor refusal",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses broad directory/file permissions and unsafe ancestors"
+      ]
+    },
+    {
+      "guard": "unsafe ancestor owner refusal",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "restoredSha256": "6e5dba6ee13f0802cdcd0a54e112678ff2011e4d3d0bf8e2d80ea021230534c5",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership refuses wrong-owner terminal data and replacement of the authoritative directory"
+      ]
+    },
+    {
+      "guard": "post-reservation failure preserves uncertain ownership",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority checks policy again after capacity admission and preserves its reservation on refusal"
+      ]
+    },
+    {
+      "guard": "proved retirement permits explicit recovery",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation allows explicit resume only after a lost confirmation is locally retired and reconciled"
+      ]
+    },
+    {
+      "guard": "late pause failure cannot undo terminal proof",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "restoredSha256": "9a3bd61a91000e10528f328eecf1e94dac0a73bb3bf1e8cda6b28b15e8650006",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation ignores a delayed pause rejection after authoritative retirement"
+      ]
+    }
+  ],
+  "reviewRepairDrills": [
+    {
+      "guard": "RVM100E-P2-1-journal-first",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "restoredSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-identity",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "restoredSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed pairId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed boardId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed taskId control even with an unreadable journal"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-evidence",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "restoredSha256": "8bf58a4c3c2ccc495269c006dd83c056493a231fcb4f2b547800cf6f64ab4c7c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 records cancellation uncertainty without retiring a live attempt"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-priority",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "restoredSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for start-confirmation on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels an existing lease while another dispatch waits for approval"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-control-bound",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "restoredSha256": "cf0e6022316aa001198d676f463f7694b91afaf200db5dcceb136357251ae824",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E-P2-2 counts priority controls against the unchanged frame capacity"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-abort-listener",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for start-confirmation on the same channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-pending",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels a late reservation and persists it without starting"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-already-aborted",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels a late reservation and persists it without starting",
+        "receiver admission and local authority RVM100E-P2-2 keeps cancelled live ordinary and paid boundaries closed"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-late-reservation",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 cancels a late reservation and persists it without starting"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-live-boundary",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 keeps cancelled live ordinary and paid boundaries closed",
+        "receiver admission and local authority RVM100E-P2-2 prevents a charge after Stop during the final paid binding check"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-2-final-paid-check",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E-P2-2 prevents a charge after Stop during the final paid binding check"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-channel-report",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-final-journal-first",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-final-identity",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed pairId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed boardId control even with an unreadable journal",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed taskId control even with an unreadable journal"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-final-evidence",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal flush-failure and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal file-loss and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 cancels live work despite journal corruption and keeps occupancy",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 records cancellation uncertainty without retiring a live attempt",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports unavailable cancellation evidence over the authenticated channel"
+      ]
+    },
+    {
+      "guard": "RVM100E-P2-1-cancel-failure",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "restoredSha256": "1ea33b76760723a3ab18cd550645a7f0182e55736989d59febed9c36f9e73bd3",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E-P2-1 reports an unproved local cancellation without releasing occupancy"
+      ]
+    }
+  ],
+  "roundTwoRepairDrills": [
+    {
+      "guard": "RVM100E2-P2-4 durable cancellation write",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "restoredSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-0.json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership RVM100E2-P2-4 persists cancellation identities idempotently with full tuple validation",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 keeps cancel-before-admission tombstones across compaction and reopen"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 cancellation idempotence tuple binding",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "restoredSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-1.json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership RVM100E2-P2-4 persists cancellation identities idempotently with full tuple validation"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 journal cancellation capacity",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "restoredSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-2.json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership RVM100E2-P2-4 refuses exhausted cancellation capacity without losing earlier evidence"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 duplicate cancellation evidence rejection",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "restoredSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-3.json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership RVM100E2-P2-4 rejects corrupt duplicate cancellation evidence"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 cancellation/record tuple consistency",
+      "file": "src/core/devices/attemptJournal.ts",
+      "beforeSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "restoredSha256": "11f68579dc42a49e747ef8f7500f76e6572ccb7b2753839b33f7c65abecf3efd",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/attemptJournal.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-4.json",
+      "exit": 1,
+      "failedTests": [
+        "durable attempt ownership RVM100E2-P2-4 rejects corrupt record-tuple cancellation evidence"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-1 reserved decoder control capacity",
+      "file": "src/core/devices/deviceFraming.ts",
+      "beforeSha256": "c371290811c9c1de37838a5c43dcb2a95ec430849bc808d4a53f0ce87e4cfa21",
+      "restoredSha256": "c371290811c9c1de37838a5c43dcb2a95ec430849bc808d4a53f0ce87e4cfa21",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-decoder-final-0.json",
+      "exit": 1,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (separate)",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (Stop-first-overflow)",
+        "authenticated device channel bounds RVM100E-P2-2 counts priority controls against the fixed reserved frame capacity",
+        "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (separate)",
+        "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (Stop-first-overflow)"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-1 immediate control delivery before trailing overflow",
+      "file": "src/core/devices/deviceFraming.ts",
+      "beforeSha256": "c371290811c9c1de37838a5c43dcb2a95ec430849bc808d4a53f0ce87e4cfa21",
+      "restoredSha256": "c371290811c9c1de37838a5c43dcb2a95ec430849bc808d4a53f0ce87e4cfa21",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-decoder-final-1.json",
+      "exit": 1,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (separate)",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (Stop-first-overflow)",
+        "authenticated device channel bounds RVM100E-P2-2 counts priority controls against the fixed reserved frame capacity",
+        "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (separate)",
+        "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (Stop-first-overflow)",
+        "receiver admission and local authority RVM100E2-P2-2 remembers Stop overtaking dispatch B behind held approval A",
+        "receiver admission and local authority RVM100E2-P2-4 retains cancellation through an identical coalesced retry",
+        "receiver admission and local authority RVM100E2-P2-4 retains cancellation through an identical later retry",
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for approval on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 delivers Stop while dispatch waits for start-confirmation on the same channel",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver admission and local authority RVM100E-P2-2 cancels an existing lease while another dispatch waits for approval"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-2 synchronous cancellation identity retention",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-0.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E2-P2-2 remembers Stop overtaking dispatch B behind held approval A",
+        "receiver admission and local authority RVM100E2-P2-4 retains cancellation through an identical coalesced retry",
+        "receiver admission and local authority RVM100E2-P2-4 retains cancellation through an identical later retry",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 cancel \u2192 retire \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 cancel \u2192 confirm \u2192 retire",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: cancel \u2192 approve \u2192 retire \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: cancel \u2192 retire \u2192 approve \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: retire \u2192 approve \u2192 cancel \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 retire \u2192 cancel \u2192 confirm",
+        "receiver admission and local authority RVM100E2-P2-4 refuses admission synchronously while cancellation persistence is stalled",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after cancel failure and retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after pause failure and retirement"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 synchronous tombstoned dispatch refusal",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-1.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E2-P2-2 remembers Stop overtaking dispatch B behind held approval A",
+        "receiver admission and local authority RVM100E2-P2-4 retains cancellation through an identical coalesced retry",
+        "receiver admission and local authority RVM100E2-P2-4 retains cancellation through an identical later retry",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 cancel \u2192 retire \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 cancel \u2192 confirm \u2192 retire",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: cancel \u2192 approve \u2192 retire \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: cancel \u2192 retire \u2192 approve \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: retire \u2192 approve \u2192 cancel \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 retire \u2192 cancel \u2192 confirm",
+        "receiver admission and local authority RVM100E2-P2-4 refuses admission synchronously while cancellation persistence is stalled",
+        "receiver admission and local authority RVM100E-P2-2 cancels a coalesced dispatch before approval or reservation",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 keeps cancel-before-admission tombstones across compaction and reopen"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 restore durable cancellation identities",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-2.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after cancel failure and retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after pause failure and retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 restores the capacity latch when cancellation evidence is full",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 keeps cancel-before-admission tombstones across compaction and reopen"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-3 generation and retirement confirmation ownership",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-3.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: approve \u2192 cancel \u2192 retire \u2192 confirm",
+        "receiver admission and local authority RVM100E2 permutations preserve Stop and final retirement: retire \u2192 approve \u2192 cancel \u2192 confirm",
+        "receiver restart and ownership reconciliation RVM100E2-P2-3 ignores a late cancel resolve confirmation after complete retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-3 ignores a late cancel reject confirmation after complete retirement"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-3 nonblocking late reservation cancellation",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-4.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver admission and local authority RVM100E2-P2-3 retires a late reservation without waiting for cancel confirmation"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 bounded memory cancellation evidence",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-5.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after cancel failure and retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after pause failure and retirement"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 permanent capacity failure latch",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-6.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after cancel failure and retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after pause failure and retirement"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 restore full cancellation capacity latch",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-7.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 restores the capacity latch when cancellation evidence is full"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 latch capacity before memory exhaustion",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "restoredSha256": "d6342ea4182379482b6085f5d97dea3a3fb94347c21bd857d740643b6734d68d",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-red-8.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after cancel failure and retirement",
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 delivers Stop at full memory tombstones and keeps capacity latched after pause failure and retirement"
+      ]
+    },
+    {
+      "guard": "RVM100E2-P2-4 shared complete attempt identity binding",
+      "file": "src/shared/devices.ts",
+      "beforeSha256": "c31198b6579c1fc2925bcd8e6de9a3aa4b5198e769f283322d8d95f4df20bb3f",
+      "restoredSha256": "c31198b6579c1fc2925bcd8e6de9a3aa4b5198e769f283322d8d95f4df20bb3f",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceRecovery.test.ts --maxWorkers=3 --reporter=json --outputFile=temp/m100-e2-identity-red.json",
+      "exit": 1,
+      "failedTests": [
+        "receiver restart and ownership reconciliation RVM100E2-P2-4 keeps cancel-before-admission tombstones across compaction and reopen",
+        "receiver restart and ownership reconciliation RVM100E-P2-1 refuses changed taskId control even with an unreadable journal"
+      ]
+    }
+  ],
+  "roundThreeRepairBaseline": {
+    "base": "7a20a217ee08b25a581f25a0b32fc10970b3683a",
+    "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+    "exit": 1,
+    "tests": 47,
+    "failedTests": [
+      "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (data-before-Stop-overflow)",
+      "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (same-chunk)",
+      "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (later-chunk)"
+    ],
+    "assertion": "Every regression expected one local cancel but observed zero on the original production source."
+  },
+  "roundThreeRepairDrills": [
+    {
+      "guard": "drop whole chunk on overflowing data",
+      "file": "src/core/devices/deviceFraming.ts",
+      "beforeSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "restoredSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts test/unit/deviceBoundary.test.ts test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 119,
+      "failedTests": [
+        "device pre-parse boundary RVM100E3-P2 refuses every excess validated data frame without discarding the chunk",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (Stop-first-overflow)",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (data-before-Stop-overflow)",
+        "authenticated device channel bounds RVM100E3-P2 refuses each overflowing request and delivers interleaved Stop controls",
+        "authenticated device channel bounds RVM100E3-P2 gives the frame after a capacity refusal a fresh incomplete-frame deadline",
+        "authenticated device channel bounds RVM100E3-P2 refuses overflow across chunks while an admitted handler is waiting",
+        "receiver admission and local authority RVM100E2-P2-1 reaches the live local cancellation port with saturated data (data-before-Stop-overflow)"
+      ]
+    },
+    {
+      "guard": "data capacity off by one",
+      "file": "src/core/devices/deviceFraming.ts",
+      "beforeSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "restoredSha256": "6bb0805249a0bedd00cb985ca097f86ab10dca6aa6b76e67b2a7f2577dfc41a1",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts test/unit/deviceBoundary.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 70,
+      "failedTests": [
+        "device pre-parse boundary RVM100E3-P2 refuses every excess validated data frame without discarding the chunk",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (Stop-first-overflow)",
+        "authenticated device channel bounds RVM100E2-P2-1 delivers Stop with 31 filled data slots (data-before-Stop-overflow)",
+        "authenticated device channel bounds RVM100E3-P2 refuses each overflowing request and delivers interleaved Stop controls",
+        "authenticated device channel bounds RVM100E3-P2 refuses overflow across chunks while an admitted handler is waiting"
+      ]
+    },
+    {
+      "guard": "corrupt framing reset only pauses",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 49,
+      "failedTests": [
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (same-chunk)",
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (later-chunk)",
+        "receiver admission and local authority RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry",
+        "receiver admission and local authority RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation confirmation"
+      ]
+    },
+    {
+      "guard": "reset loses authenticated pair scope",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 49,
+      "failedTests": [
+        "receiver admission and local authority RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry"
+      ]
+    },
+    {
+      "guard": "reset lets changed queued identity overwrite live owner",
+      "file": "src/host/devices/deviceReceiver.ts",
+      "beforeSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "restoredSha256": "e1f832854ef8feff1797c0760d2182b4bbd0fcbc159340aed848ae35cfdfc73c",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 49,
+      "failedTests": [
+        "receiver admission and local authority RVM100E3-P2 resets only the channel pair and preserves the live identity over a changed queued retry"
+      ]
+    },
+    {
+      "guard": "channel loses reset reason before receiver Stop",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "restoredSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceReceiver.test.ts test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 74,
+      "failedTests": [
+        "authenticated device channel bounds provides a fixed incompatible reason for local upgrade recovery",
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (same-chunk)",
+        "receiver admission and local authority RVM100E3-P2 corrupt framing before Stop resets and stops every live attempt (later-chunk)",
+        "receiver admission and local authority RVM100E3-P2 reset starts Stop despite a stalled journal and held cancellation confirmation"
+      ]
+    },
+    {
+      "guard": "overflow refusal loses identity validation",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "restoredSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 25,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E3-P2 refuses a foreign overflowing frame before sending a capacity response"
+      ]
+    },
+    {
+      "guard": "capacity refusal fails to reset next incomplete deadline",
+      "file": "src/host/devices/deviceChannel.ts",
+      "beforeSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "restoredSha256": "0beed4d31bd2e6a4ded597146812be2d4a2883f2e24d0a63dc4a16fc35b04d36",
+      "byteExact": true,
+      "command": "npx --no-install vitest run test/unit/deviceChannel.test.ts --maxWorkers=3 --reporter=json",
+      "exit": 1,
+      "tests": 25,
+      "failedTests": [
+        "authenticated device channel bounds RVM100E3-P2 gives the frame after a capacity refusal a fresh incomplete-frame deadline"
+      ]
+    }
+  ]
+}

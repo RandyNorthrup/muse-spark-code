@@ -65,6 +65,8 @@ export const ACP_BUNDLES = [
   'connector.js',
   // M124 (D106, RVM124 finding 15): the connector's storage guard, loaded by `mcp` beside it.
   'connectorStoreGuard.js',
+  // Lazy shared method factory; receiver qualification still refuses headless hosts.
+  'devices.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',
