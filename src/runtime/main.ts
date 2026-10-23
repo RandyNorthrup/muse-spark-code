@@ -68,6 +68,7 @@ import {
 } from '../core/judge/evidencePaths'
 import type { SecretStore } from '../host/auth/credentialStore'
 import { fill, uiLocale, UI_TEXT as referenceTable } from '../shared/l10n/text'
+import { Usd } from '../shared/usd'
 import { setUiText as setProviderPolicyText } from '../host/backend/providerPolicyEntry'
 import { authClear, type AuthCommandDeps, authSet, login } from './authCommands'
 import { authGitHub } from './authCommands'
@@ -1587,7 +1588,8 @@ async function main(processResources: ProcessResources): Promise<number> {
         readFile: (file: string): string | undefined => {
           try {
             return readFileSync(file, 'utf8')
-          } catch {
+          } catch (error: unknown) {
+            if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT')) throw error
             return undefined
           }
         },
@@ -1621,12 +1623,13 @@ async function main(processResources: ProcessResources): Promise<number> {
           },
         }),
         billing: 'free',
-        worstCaseUsd: () => 0,
+        worstCaseUsd: () => Usd.from(0).toAmount(),
       })
       const code = await features.runJudgeCommand(
         command,
         { stdin: process.stdin, stdout, stderr },
         {
+          log,
           initialize: async (signal) => {
             await loadDisplayLanguage(log)
             signal.throwIfAborted()

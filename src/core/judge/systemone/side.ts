@@ -10,6 +10,8 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
+import { errorNameForLog } from '../../logging'
+import type { CoreLogger } from '../../logging'
 import type { PinnedResponse, PinnedTarget } from '../../web/webFetch'
 import { isSecretFieldName, redactSecrets } from '../../redact'
 import {
@@ -25,6 +27,8 @@ import {
 } from '../../../shared/constants'
 import type { Phase2SeparateSource } from '../binding'
 import type { JudgeCapability } from '../schema'
+import { Usd } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usdSchema'
 import { systemOneUsd } from './policy'
 import { createSystemOneJudge, type SystemOneJudgeDependencies } from './source'
 
@@ -50,7 +54,7 @@ export interface SystemOneRoute {
   readonly verified: boolean
   readonly capability: JudgeCapability
   /** One request's ceiling: the captured request-token bound at the captured rate. */
-  readonly worstCaseUsd: number
+  readonly worstCaseUsd: UsdAmount
   /** The response model ids the capture allows for this request id. */
   readonly servedModels: readonly string[]
   /** The captured per-million rates the route bills (its own tariff, never the chat model's). */
@@ -77,7 +81,7 @@ export function systemOneRoute(separateId: string): SystemOneRoute | undefined {
     keyProviderId: preset.keyProviderId,
     recipient: preset.origin,
     verified: preset.wireCapture,
-    worstCaseUsd: systemOneUsd(captured.requestTokens, 0, captured),
+    worstCaseUsd: Usd.from(systemOneUsd(captured.requestTokens, 0, captured)).toAmount(),
     servedModels: captured.responseModels,
     tariff: {
       inputUsdPerMillion: captured.inputUsdPerMillion,
@@ -154,7 +158,8 @@ export async function systemOneKey(
   let value: unknown
   try {
     value = JSON.parse(stored)
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
   const record = parseCredentialRecord(value)
@@ -177,6 +182,13 @@ export type SystemOneSend = (
 
 /** Name resolution for the route's host; every address is returned. */
 export type SystemOneResolve = (host: string) => Promise<readonly string[]>
+
+/** Tests' seams for the M95 pinned transport; production passes none. */
+export interface SystemOneTransportSeams {
+  readonly resolve?: SystemOneResolve | undefined
+  readonly send?: SystemOneSend | undefined
+  readonly log?: CoreLogger | undefined
+}
 
 async function defaultResolve(host: string): Promise<readonly string[]> {
   const rows = await lookup(host, { all: true })
@@ -214,7 +226,8 @@ async function boundedJson(response: PinnedResponse): Promise<unknown> {
   try {
     const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
     return parsed
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     return undefined
   }
 }
@@ -286,7 +299,7 @@ is bounded. A refusal before the connection is up is not a send (lane C
 refunds it); anything after it keeps its liability.
 */
 export function pinnedSystemOnePost(
-  seams: { readonly resolve?: SystemOneResolve; readonly send?: SystemOneSend } = {},
+  seams: SystemOneTransportSeams = {},
 ): SystemOneJudgeDependencies['post'] {
   return async (request) => {
     const notSent = { sent: false, status: 0, body: undefined }
@@ -296,7 +309,8 @@ export function pinnedSystemOnePost(
     let answers: readonly string[]
     try {
       answers = isIP(host) === 0 ? await (seams.resolve ?? defaultResolve)(host) : [host]
-    } catch {
+    } catch (error: unknown) {
+      seams.log?.warn(`SystemOne resolve failed: ${errorNameForLog(error)}`)
       return notSent
     }
     const verdict = endpointPolicy.checkEndpointUrl(url.href, answers)
@@ -339,8 +353,9 @@ export function pinnedSystemOnePost(
         body: scrubSystemOneBody(await boundedJson(response), request.key),
       }
     } catch (error: unknown) {
-      if (!connection.isUp) return notSent
-      throw error
+      if (connection.isUp) throw error
+      seams.log?.warn(`SystemOne send failed: ${errorNameForLog(error)}`)
+      return notSent
     }
   }
 }

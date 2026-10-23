@@ -1,23 +1,22 @@
 import { parseArgs } from 'node:util'
 import {
   EXEC_EXIT,
-  JUDGE_CLI_DEFAULT_BUDGET_USD,
   JUDGE_ENGINES,
   JUDGE_REQUEST_TIMEOUT_MS,
   UI_TEXT,
   type JudgeEngine,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { Usd } from '../../shared/usd'
 import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
+import type { UsdAmount } from '../../shared/usdSchema'
 
 export interface JudgeCliOptions {
   readonly engine: Exclude<JudgeEngine, 'off'>
   readonly model: string | undefined
   readonly separate: string | undefined
-  /** Display only; admission uses `budgetNanoUsd`. */
-  readonly budgetUsd: number
-  /** The run cap in exact nano-USD (nine decimals, the liability precision). */
-  readonly budgetNanoUsd: number
+  /** The run cap as a canonical amount; admission accounts it in integer nano-USD. */
+  readonly budgetUsd: UsdAmount
   readonly timeoutMs: number
 }
 
@@ -41,17 +40,26 @@ const DEFAULT_OPTIONS: JudgeCliOptions = {
   engine: 'auto',
   model: undefined,
   separate: undefined,
-  budgetUsd: JUDGE_CLI_DEFAULT_BUDGET_USD,
-  budgetNanoUsd: JUDGE_CLI_DEFAULT_BUDGET_USD,
+  budgetUsd: Usd.from(0).toAmount(),
   timeoutMs: JUDGE_REQUEST_TIMEOUT_MS,
 }
 
 /** Nano-USD in one USD: the judge's run cap keeps the liability precision (RVM98P2R2 8). */
 const NANO_USD_PER_USD = BigInt(USD_DECIMAL_RADIX) ** BigInt(USD_LIABILITY_DECIMALS)
 
-/** `--budget-usd` as exact nano-USD: decimal text, at most nine decimals, never through a float. */
-function budget(value: string | undefined): number | undefined {
-  if (value === undefined) return JUDGE_CLI_DEFAULT_BUDGET_USD
+/** Node's argv parser refusing flags: every refusal keeps its code prefix. */
+function isParseArgsError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    'code' in error &&
+    typeof error.code === 'string' &&
+    error.code.startsWith('ERR_PARSE_ARGS_')
+  )
+}
+
+/** `--budget-usd` as a canonical amount: decimal text, at most nine decimals, never through a float. */
+function budget(value: string | undefined): UsdAmount | undefined {
+  if (value === undefined) return Usd.from(0).toAmount()
   const [whole, fraction = ''] = value.split('.', 2)
   if (
     whole === undefined ||
@@ -62,8 +70,10 @@ function budget(value: string | undefined): number | undefined {
   const units =
     BigInt(whole) * NANO_USD_PER_USD + BigInt(fraction.padEnd(USD_LIABILITY_DECIMALS, '0'))
   // Exactness bound only (D121: no spending cap of ours): the caller's
-  // budget must survive the trip to a double.
-  return units <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(units) : undefined
+  // budget must survive the trip to integer nano-USD.
+  return units <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Usd.fromUnits(units, USD_LIABILITY_DECIMALS).toAmount()
+    : undefined
 }
 
 function invalid() {
@@ -74,15 +84,23 @@ function invalid() {
   }
 }
 
-/** Reserved before ACP/prompt parsing, including malformed and future judge commands. */
+/**
+Reserved before ACP/prompt parsing, including malformed and future judge
+commands. An action's `--help` is malformed judge argv (exit 2): the strict
+parser below owns every action form. Only the bare form answers help, so the
+command table's walk can describe the one judge screen.
+*/
 export function parseJudgeArgs(argv: readonly string[]):
   | JudgeCliCommand
   | {
       readonly command: 'invalid'
       readonly reason: string
       readonly exitCode: number
-    } {
+    }
+  | { readonly command: 'help'; readonly route: string } {
   const action = argv[1]
+  if (argv.length === 2 && (action === '--help' || action === '-h'))
+    return { command: 'help', route: 'judge' }
   if (action === 'serve' || action === 'lint') {
     return { command: 'judge', action, options: DEFAULT_OPTIONS, surfaceArgs: argv.slice(2) }
   }
@@ -106,13 +124,13 @@ export function parseJudgeArgs(argv: readonly string[]):
     const names = tokens.filter((token) => token.kind === 'option').map((token) => token.name)
     if (positionals.length > 0 || new Set(names).size !== names.length) return invalid()
     const engine = JUDGE_ENGINES.find((candidate) => candidate === (values.engine ?? 'auto'))
-    const budgetNanoUsd = budget(values['budget-usd'])
+    const budgetUsd = budget(values['budget-usd'])
     const timeout = values['timeout-ms']
     const timeoutMs = timeout === undefined ? JUDGE_REQUEST_TIMEOUT_MS : Number(timeout)
     if (
       engine === undefined ||
       engine === 'off' ||
-      budgetNanoUsd === undefined ||
+      budgetUsd === undefined ||
       (timeout !== undefined && !/^[0-9]+$/.test(timeout)) ||
       !Number.isSafeInteger(timeoutMs) ||
       timeoutMs <= 0 ||
@@ -128,13 +146,13 @@ export function parseJudgeArgs(argv: readonly string[]):
         engine,
         model: values.model,
         separate: values.separate,
-        budgetUsd: budgetNanoUsd / Number(NANO_USD_PER_USD),
-        budgetNanoUsd,
+        budgetUsd,
         timeoutMs,
       },
     }
-  } catch {
+  } catch (error: unknown) {
     // Never echo parseArgs' raw argv: it can contain pasted credentials.
+    if (!isParseArgsError(error)) throw error
     return invalid()
   }
 }

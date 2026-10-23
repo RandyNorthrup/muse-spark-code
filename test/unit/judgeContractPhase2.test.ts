@@ -13,11 +13,11 @@ import {
   type JudgeResult,
 } from '../../src/core/judge/schema'
 import { readSettings, toSettingsSnapshot, type SettingsSource } from '../../src/host/settings'
+import { parseJudgeArgs } from '../../src/runtime/judge/args'
 import { warningLogger } from './helpers/collectingLogger'
 import { Usd } from '../../src/shared/usd'
 import {
   JUDGE_CASCADE_CONFIDENCE,
-  JUDGE_CLI_DEFAULT_BUDGET_USD,
   JUDGE_EMBED_FALLBACK_CONFIDENCE,
   JUDGE_ENGINES,
   JUDGE_ISOTONIC_MIN_LABELS,
@@ -277,6 +277,8 @@ describe('phase-2 settings preserve the single-model default', () => {
     expect(JUDGE_CASCADE_CONFIDENCE).toBe(0.8)
     expect(JUDGE_EMBED_FALLBACK_CONFIDENCE).toBe(0.8)
     expect(JUDGE_ISOTONIC_MIN_LABELS).toBe(200)
-    expect(JUDGE_CLI_DEFAULT_BUDGET_USD).toBe(0)
+    expect(parseJudgeArgs(['judge', 'ask'])).toMatchObject({
+      options: { budgetUsd: Usd.from(0).toAmount() },
+    })
   })
 })

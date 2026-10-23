@@ -3978,7 +3978,7 @@ These are defaults; editor customizations take precedence.
 
 ## ACP / CLI commands
 
-- `judge ask|calibrate|report|mcp|serve|lint`: Muse Judge suggests caution. You decide; it cannot approve this action.
+- `judge ask|calibrate|report|mcp|serve|lint`: Muse Judge: verdicts, calibration, reports, serving and lint.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
@@ -4308,6 +4308,12 @@ These are defaults; editor customizations take precedence.
 - `resources: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `fontsInstall: --from <value>`: --from &lt;value&gt;: From `{"type":"string","repeatable":false,"format":"YYYY-MM-DD"}`
 - `fontsInstall: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `judge: --engine <value>`: Which judge answers: auto, same, separate or both. `{"type":"string","repeatable":false}`
+- `judge: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false}`
+- `judge: --separate <value>`: The separate source id, without a credential. `{"type":"string","repeatable":false}`
+- `judge: --budget-usd <value>`: Run cap in USD, exact to nine decimals. `{"type":"string","repeatable":false}`
+- `judge: --timeout-ms <value>`: Request timeout in milliseconds. `{"type":"string","repeatable":false}`
+- `judge: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `share: --cwd <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
 - `share: --json`: --json: Print the machine-readable result instead of the human preview. `{"type":"boolean","repeatable":false,"output":"json","default":false}`
 - `share: --mode <value>`: --mode full|conversation: Share the full session or the conversation only. `{"type":"string","repeatable":false}`

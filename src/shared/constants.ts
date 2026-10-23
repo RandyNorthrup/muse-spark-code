@@ -1570,7 +1570,7 @@ export const JUDGE_REQUEST_TIMEOUT_MS = 60_000
 export const JUDGE_CASCADE_CONFIDENCE = 0.8
 export const JUDGE_ISOTONIC_MIN_LABELS = 200
 export const JUDGE_EMBED_FALLBACK_CONFIDENCE = 0.8
-export const JUDGE_CLI_DEFAULT_BUDGET_USD = 0
+
 // The same-model side request (M98 lane S, PLAN.md D77): a side request whose
 // cached prefix (the main body's model, instructions and tools, promptCacheKey)
 // measures below this shares nothing worth caching, so a minimal standalone

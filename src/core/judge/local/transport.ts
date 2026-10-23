@@ -45,6 +45,17 @@ export async function localEndpoint(
 }
 
 /** No pool or reconnect. The verifier runs before even an HTTP header is sent. */
+/** Malformed or over-nested JSON decodes to its error; anything else surfaces. */
+function parsedJson(text: string): { value: unknown } | { error: unknown } {
+  try {
+    return { value: JSON.parse(text) }
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return { error }
+    if (error instanceof RangeError) return { error }
+    throw error
+  }
+}
+
 export async function requestLocal(
   endpoint: { address: string; port: number },
   route: '/api/tags' | '/api/chat' | '/api/ps' | '/v1/systemone',
@@ -129,15 +140,25 @@ export async function requestLocal(
           })
           response.on('error', reject)
           response.on('end', () => {
-            try {
-              if (response.statusCode !== LOCAL_JUDGE_HTTP_OK)
-                throw new Error('refused-http-status')
-              // Never follows Location, uses proxies, retries or reconnects.
-              const decoded: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'))
-              resolve(z.json().parse(decoded))
-            } catch (error: unknown) {
-              reject(error instanceof Error ? error : new Error('invalid-json', { cause: error }))
+            if (response.statusCode !== LOCAL_JUDGE_HTTP_OK) {
+              reject(new Error('refused-http-status'))
+              return
             }
+            // Never follows Location, uses proxies, retries or reconnects.
+            const decoded = parsedJson(Buffer.concat(chunks).toString('utf8'))
+            if ('error' in decoded) {
+              const failure = decoded.error
+              reject(
+                failure instanceof Error ? failure : new Error('invalid-json', { cause: failure }),
+              )
+              return
+            }
+            const parsed = z.json().safeParse(decoded.value)
+            if (!parsed.success) {
+              reject(parsed.error)
+              return
+            }
+            resolve(parsed.data)
           })
         },
       )

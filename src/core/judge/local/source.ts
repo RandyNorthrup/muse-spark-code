@@ -9,6 +9,7 @@ import {
 import type { JudgeRuntime } from '../engine'
 import { redactSecrets } from '../../redact'
 import {
+  isZodParseError,
   judgeCapabilitySchema,
   judgeRequestSchema,
   judgeResultSchema,
@@ -76,6 +77,38 @@ function redactedValue(value: unknown): unknown {
   if (typeof serialized !== 'string') throw new TypeError('invalid-local-input')
   const decoded: unknown = JSON.parse(redactSecrets(serialized))
   return decoded
+}
+
+/** The leg's own timeout: the deadline signal or the socket's own timer. */
+function isLocalTimeout(deadline: AbortSignal, error: unknown): boolean {
+  return deadline.aborted || (error instanceof Error && error.message === 'local-timeout')
+}
+
+/** An untrusted peer, installation, model or changed configuration. */
+function isLocalUnverified(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.startsWith('unverified-') || error.message === 'local-configuration-changed')
+  )
+}
+
+/**
+Malformed local data and failed local transport: refused shapes, the
+invalid family, refused HTTP, oversized requests, and connection
+failures, which carry errno codes. Anything else is a bug and surfaces.
+*/
+function isLocalEngineError(error: unknown): boolean {
+  return (
+    isZodParseError(error) ||
+    error instanceof SyntaxError ||
+    error instanceof TypeError ||
+    (error instanceof Error &&
+      (error.message.startsWith('invalid-') ||
+        error.message === 'missing-local-result' ||
+        error.message === 'refused-http-status' ||
+        error.message === 'request-too-large' ||
+        ('code' in error && typeof error.code === 'string')))
+  )
 }
 
 /** Local inference is a request-only, free advisory source; no fallback/pull path. */
@@ -297,17 +330,10 @@ export function createLocalJudgeSource(deps: LocalJudgeDependencies): JudgeRunti
         return { outcome: 'answered', result: judgeResultSchema.parse(result) }
       } catch (error: unknown) {
         if (callerSignal.aborted) return { outcome: 'no-answer', reason: 'cancelled' }
-        if (deadline.aborted || (error instanceof Error && error.message === 'local-timeout'))
-          return { outcome: 'no-answer', reason: 'timeout' }
-        return {
-          outcome: 'no-answer',
-          reason:
-            error instanceof Error &&
-            (error.message.startsWith('unverified-') ||
-              error.message === 'local-configuration-changed')
-              ? 'local-unverified'
-              : 'engine-failure',
-        }
+        if (isLocalTimeout(deadline, error)) return { outcome: 'no-answer', reason: 'timeout' }
+        if (isLocalUnverified(error)) return { outcome: 'no-answer', reason: 'local-unverified' }
+        if (isLocalEngineError(error)) return { outcome: 'no-answer', reason: 'engine-failure' }
+        throw error
       }
     },
   }

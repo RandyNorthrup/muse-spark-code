@@ -6,7 +6,7 @@
 // (docs/certification/sign-in-detection.md), in fixed words; anything else
 // by its length alone.
 
-import { wireWordForLog } from '../../logging'
+import { errorNameForLog, wireWordForLog } from '../../logging'
 import { DeadlineError } from '../../timeouts'
 import { UI_TEXT } from '../../../shared/constants'
 import { isCreatedRegistrySaveError } from '../../../shared/createdRegistrySaveError'
@@ -32,10 +32,7 @@ export function failureForLog(error: unknown): string {
     return `${wireWordForLog(error.kind)} (MSP error ${String(error.code)})`
   }
   // The extension's own words, naming the method that went unanswered.
-  if (error instanceof DeadlineError) {
-    return error.message
-  }
-  return error instanceof Error ? error.name : 'an unknown failure'
+  return error instanceof DeadlineError ? error.message : errorNameForLog(error)
 }
 
 /** A machine code word: an errno-style token, never free text. */

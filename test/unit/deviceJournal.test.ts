@@ -10,6 +10,7 @@ import {
 import { assertJournalOwner } from '../../src/host/devices/deviceProduction'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { deviceJournalRecordSchema, type DeviceDispatch } from '../../src/shared/devices'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 import {
   deviceCheck,
   deviceGrant,
@@ -25,8 +26,8 @@ function usageFor(index: number): DeviceOutcome['usage'] {
     certainty: 'known',
     inputTokens: 0,
     outputTokens: 0,
-    returnedUsd: 0,
-    retainedLiabilityUsd: 0,
+    returnedUsd: canonicalUsd(0),
+    retainedLiabilityUsd: canonicalUsd(0),
   }
 }
 

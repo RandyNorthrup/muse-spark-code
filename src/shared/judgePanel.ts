@@ -1,8 +1,9 @@
 // The Models panel's Judge section (M98 phase 2, lane FP). The host projects
 // a source lane's facts into this snapshot and both sides validate it before
 // it crosses postMessage. Technique and calibration follow the selected
-// model's capability record, never the provider's name. Money is copied
-// only when it is a finite amount; an absent figure stays absent.
+// model's capability record, never the provider's name. Amounts cross as
+// validated exact strings; rates filter to finite display dollars; an
+// absent figure stays absent.
 //
 // No `vscode`, Node or DOM import: the chat protocol and the panel share it.
 
@@ -211,7 +212,10 @@ export function projectJudgePanel(facts: JudgePanelFacts): JudgePanelSnapshot {
   if (isPaid && !hasPrice && (reason === undefined || reason === 'consent-needed')) {
     reason = 'unpriced'
   }
-  const dailyBudgetUsd = finiteUsd(input.dailyBudgetUsd)
+  // Amounts arrive as validated exact strings; only their presence gates
+  // the first-charge question. Rates still filter here: they stay numeric
+  // display dollars (finiteUsd above).
+  const dailyBudgetUsd = input.dailyBudgetUsd
   const isAskFirstCharge =
     isPaid &&
     consent === 'needed' &&
@@ -239,11 +243,11 @@ export function projectJudgePanel(facts: JudgePanelFacts): JudgePanelSnapshot {
     inputPerMillion,
     cachedPerMillion,
     outputPerMillion,
-    reservedUsd: finiteUsd(input.reservedUsd),
-    settledUsd: finiteUsd(input.settledUsd),
-    uncertainUsd: finiteUsd(input.uncertainUsd),
+    reservedUsd: input.reservedUsd,
+    settledUsd: input.settledUsd,
+    uncertainUsd: input.uncertainUsd,
     dailyBudgetUsd,
-    dailySpentUsd: finiteUsd(input.dailySpentUsd),
+    dailySpentUsd: input.dailySpentUsd,
   })
   const checked = judgePanelSnapshotSchema.safeParse(snapshot)
   if (!checked.success) {

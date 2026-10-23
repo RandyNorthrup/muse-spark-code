@@ -6,15 +6,12 @@
 // claim, and names the exact gap for every id it cannot build. The key is a
 // fixture string; the transport seams answer the recorded OpenRouter shape.
 // No live, paid or local-model call.
-import path from 'node:path'
 import { describe, expect, inject, it } from 'vitest'
 import { assertCurrentProductionBuild } from './productionBuild'
 import type { Phase2EvidenceStore } from '../../src/core/judge/evidencePaths'
-import { createLogger } from '../../src/host/logger'
 import { cliJudgeBinding } from '../../src/runtime/judge/cliBinding'
-import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
 import { Usd } from '../../src/shared/usd'
-import { collectingLogger } from './helpers/collectingLogger'
+import { shippedJudgeP2Features } from './helpers/judgeP2Features'
 import {
   SYSTEMONE_ADDRESS,
   SYSTEMONE_ROUTE,
@@ -29,14 +26,6 @@ import { command, io } from './judgeCliFixtures'
 // The shipped lazy assembly, not a per-test build: this suite runs against
 // the production dist/ the delivery gate proved current.
 assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
-
-function features() {
-  const messages: string[] = []
-  return judgeFeaturesLoader({
-    bundlePath: path.join(process.cwd(), 'dist/judgeP2.js'),
-    log: createLogger(collectingLogger(messages)),
-  })()
-}
 
 /** B fits logprob and stated profiles only: no SystemOne profile can be recorded. */
 const EMPTY_STORE: Phase2EvidenceStore = {
@@ -55,7 +44,7 @@ async function cliRun(input: {
   /** The daily claim's live check starts refusing after this many checks. */
   readonly stopAfterChecks?: number
 }) {
-  const factory = features()
+  const factory = shippedJudgeP2Features()
   const action = input.action ?? 'ask'
   const parsed = command(action, input.args)
   const transport = systemOneTransport({
@@ -71,7 +60,11 @@ async function cliRun(input: {
     daily: () => Promise.resolve(daily),
     transport: { resolve: transport.resolve, send: transport.send },
   })
-  const deps = await factory.createCommandDeps({ binding, billing: 'free', worstCaseUsd: () => 0 })
+  const deps = await factory.createCommandDeps({
+    binding,
+    billing: 'free',
+    worstCaseUsd: () => Usd.from(0).toAmount(),
+  })
   const request = captures.openrouterRecordedNoul.request
   const streams = io(
     action === 'ask'

@@ -26,6 +26,8 @@ import {
   judgePanelStatusText,
 } from '../../src/shared/judgePanelText'
 import { formatUsd } from '../../src/shared/l10n/exactUsd'
+import { Usd } from '../../src/shared/usd'
+import type { UsdAmount } from '../../src/shared/usdSchema'
 import { parseHostToWebviewMessage } from '../../src/shared/protocol'
 import {
   parseHostToPanelMessage,
@@ -216,7 +218,7 @@ describe('judge panel projection', () => {
         billing: 'modelApi',
         consent: 'needed',
         inputPerMillion: 1,
-        dailyBudgetUsd: 1,
+        dailyBudgetUsd: Usd.from(1).toAmount(),
       }),
     )
     expect(untested.effectiveSource).toBe('none')
@@ -340,7 +342,7 @@ describe('judge panel projection', () => {
         reason: 'consent-needed',
         inputPerMillion: 1,
         outputPerMillion: 4,
-        dailyBudgetUsd: 2,
+        dailyBudgetUsd: Usd.from(2).toAmount(),
       }),
     )
     expect(snapshot.askFirstCharge).toBe(true)
@@ -359,7 +361,7 @@ describe('judge panel projection', () => {
         billing: 'modelApi',
         consent: 'needed',
         reason: 'consent-needed',
-        dailyBudgetUsd: 5,
+        dailyBudgetUsd: Usd.from(5).toAmount(),
       }),
     )
     expect(unpriced.reason).toBe('unpriced')
@@ -371,7 +373,7 @@ describe('judge panel projection', () => {
 
   it('shows an absent paid amount as not known and keeps a real zero', () => {
     const absent = projectJudgePanel(modelApiFacts())
-    expect(absent.dailyBudgetUsd).toBe(5)
+    expect(absent.dailyBudgetUsd).toBe('5')
     const reserved = judgePanelRows(absent).find((row) => row.term === UI_TEXT.judgePanel.reserved)
     expect(reserved?.detail).toBe(UI_TEXT.judgePanel.notKnown)
     expect(reserved?.detail).not.toBe(judgePanelMoney(0))
@@ -380,13 +382,13 @@ describe('judge panel projection', () => {
     ).find((row) => row.term === UI_TEXT.judgePanel.dailyBudget)
     expect(budget?.detail).toBe(UI_TEXT.judgePanel.notKnown)
     expect(budget?.detail).not.toBe(judgePanelMoney(1))
-    const zero = judgePanelRows(projectJudgePanel(modelApiFacts({ settledUsd: 0 }))).find(
-      (row) => row.term === UI_TEXT.judgePanel.settled,
-    )
+    const zero = judgePanelRows(
+      projectJudgePanel(modelApiFacts({ settledUsd: Usd.from(0).toAmount() })),
+    ).find((row) => row.term === UI_TEXT.judgePanel.settled)
     expect(zero?.detail).toBe(judgePanelMoney(0))
   })
 
-  it('formats amounts at the paid exact scale and drops a negative amount', () => {
+  it('formats amounts at the paid exact scale', () => {
     expect(judgePanelMoney(0.000012)).toBe(
       formatUsd(0.000012, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS),
     )
@@ -396,21 +398,25 @@ describe('judge panel projection', () => {
     expect(judgePanelMoney(1.5)).toBe(
       formatUsd(1.5, MODEL_API_PRICE_DECIMALS, PROVIDER_PRICE_MAX_DECIMALS),
     )
-    const snapshot = projectJudgePanel(modelApiFacts({ reservedUsd: 0.000012 }))
+    const snapshot = projectJudgePanel(
+      modelApiFacts({ reservedUsd: Usd.from(0.000012).toAmount() }),
+    )
     const reserved = judgePanelRows(snapshot).find(
       (row) => row.term === UI_TEXT.judgePanel.reserved,
     )
     expect(reserved?.detail).toBe(judgePanelMoney(0.000012))
-    const dropped = projectJudgePanel(modelApiFacts({ reservedUsd: -1 }))
-    expect(dropped.reservedUsd).toBeUndefined()
-    expect(
-      judgePanelRows(dropped).find((row) => row.term === UI_TEXT.judgePanel.reserved)?.detail,
-    ).toBe(UI_TEXT.judgePanel.notKnown)
   })
 
-  it('refuses a non-finite amount instead of publishing zero', () => {
-    expect(() => projectJudgePanel(modelApiFacts({ settledUsd: NaN }))).toThrow(TypeError)
-    expect(() => projectJudgePanel(modelApiFacts({ settledUsd: Infinity }))).toThrow(TypeError)
+  it('refuses a negative or non-finite amount instead of publishing zero', () => {
+    expect(() =>
+      projectJudgePanel(modelApiFacts({ reservedUsd: Usd.from(-1).toAmount() })),
+    ).toThrow(TypeError)
+    expect(() => projectJudgePanel(modelApiFacts({ settledUsd: 'NaN' as UsdAmount }))).toThrow(
+      TypeError,
+    )
+    expect(() => projectJudgePanel(modelApiFacts({ settledUsd: 'Infinity' as UsdAmount }))).toThrow(
+      TypeError,
+    )
   })
 
   it('rejects an unexpected field and an unavailable report asks for nothing', () => {
@@ -501,7 +507,7 @@ describe('judge panel projection', () => {
         reason: undefined,
         inputPerMillion: 1,
         outputPerMillion: 4,
-        dailyBudgetUsd: 2,
+        dailyBudgetUsd: Usd.from(2).toAmount(),
       }),
     )
     expect(judgePanelStatusText(snapshot)).toBe(UI_TEXT.judgeStatusPaid)

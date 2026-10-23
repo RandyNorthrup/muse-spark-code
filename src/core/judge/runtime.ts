@@ -3,6 +3,7 @@
 // read once, at resolution, and never again.
 import type { JudgeRuntime } from './engine'
 import { compareUsdAmounts, Usd } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
 import { cascadeJudge, type JudgeCascadeSide, type JudgeCascadeOptions } from './cascade'
 import { isJudgePlan, planJudgeRun, type JudgePlan, type JudgePlanOptions } from './plan'
 import type { JudgeModeContext, JudgeModeResolution2a, JudgeModeTriggers } from './resolve'
@@ -13,7 +14,7 @@ import type { JUDGE_SEPARATE_GAPS } from '../../shared/constants'
 
 export interface JudgeRuntimeBinding {
   readonly attemptCostUsd?:
-    ((request: JudgeRequest, side: 'same' | 'separate') => number | undefined) | undefined
+    ((request: JudgeRequest, side: 'same' | 'separate') => UsdAmount | undefined) | undefined
   readonly billing?: 'free' | 'modelApi' | 'subscription' | undefined
   readonly context: JudgeModeContext
   readonly options: JudgeCascadeOptions
@@ -172,7 +173,7 @@ export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgePlanRuntime {
             feature: 'judge',
             modelId: source.model,
             dailyBudgetUsd: Usd.from(embedding.dailyBudgetUsd()).toAmount(),
-            embedding: { worstCaseUsd: Usd.from(planEmbedding.tariffUsd).toAmount() },
+            embedding: { worstCaseUsd: planEmbedding.tariffUsd },
           })
         pendingPaidConsent.set(priceIdentity, decision)
         let isAllowed: boolean
@@ -231,8 +232,7 @@ export function createJudgeRuntime(deps: JudgeRuntimeDeps): JudgePlanRuntime {
               // The planned tariff is the admitted ceiling: the route's
               // claim can never exceed what the plan priced.
               const tariff = planEmbedding.tariffUsd
-              if (!Number.isFinite(tariff) || tariff < 0) throw new Error('judge-admission-refused')
-              if (compareUsdAmounts(cost.uncachedCostUsd, Usd.from(tariff).toAmount()) > 0)
+              if (compareUsdAmounts(cost.uncachedCostUsd, tariff) > 0)
                 throw new Error('judge-admission-refused')
               const remaining = await ledger.remainingUsd()
               if (remaining !== undefined && compareUsdAmounts(cost.uncachedCostUsd, remaining) > 0)

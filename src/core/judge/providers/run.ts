@@ -6,6 +6,8 @@
 // No `vscode` import.
 
 import { createHash } from 'node:crypto'
+import { errorNameForLog } from '../../logging'
+import type { CoreLogger } from '../../logging'
 import { redactSecrets } from '../../redact'
 import type { ProviderIdentity } from '../../backends/modelapi/providerClient'
 import type { ModelCapabilityRecord } from '../../providers/capabilityRecord'
@@ -95,6 +97,7 @@ export interface ByoRequestPort {
 export interface ByoJudgeDeps {
   /** Caller increments on every binding change, including A → B → A. */
   readonly generation: () => number
+  readonly log?: CoreLogger | undefined
   /** Shared lazy model text: yes/no, one choice letter or one score digit. */
   readonly logprobWording: JudgePromptWording
   /** Shared bounded JSON ceiling; captured minimums can raise it. */
@@ -335,6 +338,7 @@ async function settleSent(
   claim: JudgeLedgerClaim,
   usage: ByoUsage,
   pricing: ModelPricing,
+  log: CoreLogger | undefined,
 ): Promise<UsdAmount | undefined> {
   const settled =
     pricing.kind === 'priced'
@@ -346,7 +350,8 @@ async function settleSent(
   if (settled === undefined) return undefined
   try {
     await claim.settle(settled)
-  } catch {
+  } catch (error: unknown) {
+    log?.warn(`Provider settlement failed: ${errorNameForLog(error)}`)
     return undefined
   }
   return settled
@@ -468,7 +473,8 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
     if (before.auth !== 'none') {
       try {
         digest = await deps.client.currentKeyDigest()
-      } catch {
+      } catch (error: unknown) {
+        deps.log?.warn(`Provider key digest failed: ${errorNameForLog(error)}`)
         digest = ''
       }
     }
@@ -591,7 +597,8 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         return noAnswer('source-unavailable')
       }
       return claim
-    } catch {
+    } catch (error: unknown) {
+      deps.log?.warn(`Provider reservation failed: ${errorNameForLog(error)}`)
       return noAnswer('source-unavailable')
     }
   }
@@ -619,13 +626,15 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         await refund(claim)
         return dispatchMoved
       }
-    } catch {
+    } catch (error: unknown) {
+      deps.log?.warn(`Provider claim check failed: ${errorNameForLog(error)}`)
       await refund(claim)
       return noAnswer('source-unavailable')
     }
     try {
       return { response: await deps.transport.complete(wire, signal) }
-    } catch {
+    } catch (error: unknown) {
+      deps.log?.warn(`Provider transport failed: ${errorNameForLog(error)}`)
       return noAnswer('engine-failure')
     }
   }
@@ -740,7 +749,8 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         }
         try {
           if (deps.afterWait !== undefined) await deps.afterWait()
-        } catch {
+        } catch (error: unknown) {
+          deps.log?.warn(`Provider wait failed: ${errorNameForLog(error)}`)
           await refund(claim)
           return noAnswer('engine-failure')
         }
@@ -761,7 +771,7 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         })
         // No parsed usage: the sent call stays a liability. Do not settle zero.
         if (decoded.outcome === 'failure') return noAnswer('engine-failure')
-        const settledFirst = await settleSent(claim, decoded.usage, first.pricing)
+        const settledFirst = await settleSent(claim, decoded.usage, first.pricing, deps.log)
         const settlementBlock = currentBlock(first, signal)
         const completed = await snapshot()
         const stale =
@@ -801,7 +811,7 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
           })
           // The stated call was sent. A body we cannot read stays a liability.
           if (stated.outcome !== 'answer') return noAnswer('engine-failure')
-          const statedSettled = await settleSent(statedClaim, stated.usage, first.pricing)
+          const statedSettled = await settleSent(statedClaim, stated.usage, first.pricing, deps.log)
           if (statedSettled === undefined) return noAnswer('engine-failure')
           const fallbackSettlementBlock = currentBlock(first, signal)
           const finished = await snapshot()

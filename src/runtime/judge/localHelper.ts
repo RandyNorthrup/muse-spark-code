@@ -1,16 +1,16 @@
-import { execFile, type ExecFileOptions } from 'node:child_process'
+import type { ExecFileOptions } from 'node:child_process'
 import { createHash, randomUUID } from 'node:crypto'
 import { chmod, mkdir, readFile, realpath, rename, rm, stat } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
 import {
   LOCAL_JUDGE_MAX_RESPONSE_BYTES,
   LOCAL_JUDGE_HELPER_MODE,
   LOCAL_JUDGE_TIMEOUT_MS,
   WINDOWS_FRAMEWORK_RELATIVE_PATH,
 } from '../../shared/constants'
+import { executeGuarded } from '../../core/judge/local/guardedExec'
 
-const execute = promisify(execFile)
+const execute = executeGuarded
 export interface LocalJudgeHelperPaths {
   readonly packageRoot: string
   readonly storageRoot: string

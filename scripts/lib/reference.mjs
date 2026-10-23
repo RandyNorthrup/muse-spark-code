@@ -475,10 +475,6 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
       'return museVoiceSetup',
     ],
-    'src/host/paid/paidHost.ts': [
-      'const isDefaultOn = (feature: PaidFeature) => !deps.hasUserValue(feature)',
-      "feature === 'tab' || deps.backend() === 'modelApi' || !isDefaultOn(feature),",
-    ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],
   }
   for (const [file, fragments] of Object.entries(witnesses))

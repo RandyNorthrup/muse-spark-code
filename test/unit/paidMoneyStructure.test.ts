@@ -124,6 +124,17 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
   'core/team/teamPanelViews.ts:usdPerMTokCachedInput': RATE,
   'core/team/teamPanelViews.ts:usdPerMTokInput': RATE,
   'core/team/teamPanelViews.ts:usdPerMTokOutput': RATE,
+  // --- sanctioned: the judge's captured per-unit rates (M121 clause 1).
+  'core/judge/sides.ts:inputUsdPerMillion': RATE,
+  'core/judge/sides.ts:outputUsdPerMillion': RATE,
+  'core/judge/systemone/policy.ts:inputUsdPerMillion': RATE,
+  'core/judge/systemone/policy.ts:outputUsdPerMillion': RATE,
+  'core/judge/systemone/side.ts:inputUsdPerMillion': RATE,
+  'core/judge/systemone/side.ts:outputUsdPerMillion': RATE,
+  'core/judge/systemone/source.ts:inputUsdPerMillion': RATE,
+  'core/judge/systemone/source.ts:outputUsdPerMillion': RATE,
+  'core/providers/capabilities.ts:inputUsdPerMillion': RATE,
+  'core/providers/capabilities.ts:outputUsdPerMillion': RATE,
   'shared/estimate.ts:hourlyUsd': RATE,
   'shared/estimate.ts:CatalogPrice': {
     category: 'sanctioned',

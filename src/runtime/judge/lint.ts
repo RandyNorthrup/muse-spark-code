@@ -1,5 +1,9 @@
 import * as z from 'zod/mini'
+import { errorNameForLog } from '../../core/logging'
+import { Usd } from '../../shared/usd'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 import type { GlobLimits } from '../../core/backends/modelapi/glob'
+import type { Logger } from '../../host/logger'
 import {
   evaluateLintUnit,
   type LintEvaluator,
@@ -22,14 +26,8 @@ import {
   type LintUnit,
 } from '../../core/judge/lint/units'
 
-export interface JudgeLintOptions {
-  readonly changed?: boolean
-  readonly failOn?: 'error' | 'warning'
-  readonly budgetUsd?: number
-  readonly format?: 'text' | 'json' | 'sarif'
-}
-
 export interface JudgeLintDependencies {
+  readonly log?: Logger | undefined
   /** Pinned, strict config/pack decoding; no alternate Muse keys in jevlint.json. */
   rules(): Promise<readonly LintRule[]>
   files(isChanged: boolean): Promise<readonly LintFile[]>
@@ -47,9 +45,11 @@ export interface JudgeLintDependencies {
 const optionsSchema = z.strictObject({
   changed: z.optional(z.boolean()),
   failOn: z.optional(z.enum(['error', 'warning'])),
-  budgetUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetUsd: z.optional(legacyUsdSchema),
   format: z.optional(z.enum(['text', 'json', 'sarif'])),
 })
+
+export type JudgeLintOptions = z.infer<typeof optionsSchema>
 
 const errorCodes: ReadonlySet<string> = new Set([
   'lint-answer-alignment',
@@ -123,7 +123,7 @@ export async function runJudgeLint(
   let isIncomplete = false
   let error: string | undefined
   const parsed = optionsSchema.safeParse(rawOptions)
-  const options = parsed.success ? parsed.data : {}
+  const options: JudgeLintOptions = parsed.success ? parsed.data : {}
   try {
     if (!parsed.success) throw new Error('lint-options-invalid')
     assertCurrent()
@@ -155,7 +155,7 @@ export async function runJudgeLint(
           unit,
           applicable,
           deps.evaluator,
-          options.budgetUsd ?? 0,
+          options.budgetUsd ?? Usd.from(0).toAmount(),
           signal,
         )
         assertCurrent()
@@ -233,7 +233,7 @@ export async function runJudgeLint(
               region,
               [result.rule],
               deps.evaluator,
-              options.budgetUsd ?? 0,
+              options.budgetUsd ?? Usd.from(0).toAmount(),
               signal,
               unit,
             )
@@ -274,6 +274,7 @@ export async function runJudgeLint(
   } catch (error_: unknown) {
     isIncomplete = true
     // Never echo provider/tool exceptions, which can contain source or credentials.
+    deps.log?.warn(`Judge lint run failed: ${errorNameForLog(error_)}`)
     error =
       error_ instanceof Error && errorCodes.has(error_.message) ? error_.message : 'lint-run-failed'
     if (error === 'lint-source-changed') {

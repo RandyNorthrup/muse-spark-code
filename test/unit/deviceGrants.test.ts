@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assertDeviceGrant } from '../../src/core/devices/grants'
+import { sumUsd, Usd } from '../../src/shared/usd'
 import { deviceGrant, deviceCheck, deviceLane, deviceCaps } from './helpers/deviceFixtures'
 
 describe('receiver-local device grants', () => {
@@ -11,7 +12,7 @@ describe('receiver-local device grants', () => {
       ...deviceCheck(grant),
       caps: {
         artifactBytes: 100,
-        spendUsd: 1,
+        spendUsd: Usd.from(1).toAmount(),
         tokens: 100,
         heavyChecks: 1,
         processes: 2,
@@ -145,10 +146,16 @@ describe('receiver-local device grants', () => {
     (key) => {
       const grant = deviceGrant('0'.repeat(32))
       const request = deviceCheck(grant)
-      request.caps = { ...request.caps, [key]: request.caps[key] + 1 }
+      const bumped = { ...request.caps }
+      if (key === 'spendUsd') bumped.spendUsd = sumUsd(bumped.spendUsd, Usd.from(1).toAmount())
+      else bumped[key] += 1
+      request.caps = bumped
       expect(() => assertDeviceGrant(grant, request)).toThrow('capacity')
       const lane = deviceLane(grant)
-      grant.offer.entries[0]!.caps = { ...deviceCaps, [key]: 0 }
+      const floored = { ...deviceCaps }
+      if (key === 'spendUsd') floored.spendUsd = Usd.from(0).toAmount()
+      else floored[key] = 0
+      grant.offer.entries[0]!.caps = floored
       expect(() => assertDeviceGrant(grant, lane)).toThrow('capacity')
     },
   )

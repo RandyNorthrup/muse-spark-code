@@ -8,7 +8,7 @@ import {
   techniqueResult,
   type JudgeTechniqueDependencies,
 } from './sampling'
-import { judgeRequestSchema, type JudgeOutcome, type JudgeRequest } from './schema'
+import { isZodParseError, judgeRequestSchema, type JudgeOutcome, type JudgeRequest } from './schema'
 
 export interface JudgeContrastiveOptions {
   /** Explicit inverses from the family, never generated from a previous answer. */
@@ -90,7 +90,9 @@ export async function contrastiveJudge(
       distributions.set(id, [p, 1 - p])
     }
     return techniqueResult(parsed.data, distributions, 'contrastive', deps, [receipt])
-  } catch {
-    return techniqueRefusal(signal.aborted ? 'cancelled' : 'engine-failure')
+  } catch (error: unknown) {
+    if (signal.aborted) return techniqueRefusal('cancelled')
+    if (isZodParseError(error)) return techniqueRefusal('engine-failure')
+    throw error
   }
 }

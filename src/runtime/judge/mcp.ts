@@ -1,6 +1,13 @@
 import * as z from 'zod/mini'
+import { errorNameForLog } from '../../core/logging'
+import type { Logger } from '../../host/logger'
 import { handleMcpMessage, mcpRequestKeys, type McpTool } from '../../core/mcp'
-import { judgeOutcomeSchema, judgeRequestSchema, type JudgeOutcome } from '../../core/judge/schema'
+import {
+  isZodParseError,
+  judgeOutcomeSchema,
+  judgeRequestSchema,
+  type JudgeOutcome,
+} from '../../core/judge/schema'
 import {
   ACP_AGENT_NAME,
   EXEC_EXIT,
@@ -43,7 +50,13 @@ function judgeTool(judge: JudgeCall, fail: (code: number) => void): McpTool {
           fail(EXEC_EXIT.usage)
           throw error
         }
-        outcome = { outcome: 'no-answer', reason: signal.aborted ? 'cancelled' : 'engine-failure' }
+        if (signal.aborted) {
+          outcome = { outcome: 'no-answer', reason: 'cancelled' }
+        } else if (isZodParseError(error)) {
+          outcome = { outcome: 'no-answer', reason: 'engine-failure' }
+        } else {
+          throw error
+        }
       }
       if (outcome.outcome === 'no-answer') {
         fail(EXEC_EXIT.failed)
@@ -67,6 +80,7 @@ export async function runJudgeMcp(
   io: JudgeCliIo,
   judge: JudgeCall,
   signal: AbortSignal,
+  log?: Logger,
 ): Promise<number> {
   let code: number = EXEC_EXIT.ok
   const output = { hasFailed: false }
@@ -152,7 +166,8 @@ export async function runJudgeMcp(
             io.stdin.destroy()
           }
         }
-      } catch {
+      } catch (error: unknown) {
+        log?.warn(`Judge MCP line failed: ${errorNameForLog(error)}`)
         fail(EXEC_EXIT.failed)
       } finally {
         queuedBytes -= size
@@ -187,8 +202,9 @@ export async function runJudgeMcp(
     await work
     return code
   } catch (error: unknown) {
-    if (output.hasFailed) return EXEC_EXIT.failed
-    throw error
+    if (!output.hasFailed) throw error
+    log?.warn(`Judge MCP loop failed: ${errorNameForLog(error)}`)
+    return EXEC_EXIT.failed
   } finally {
     output.hasFailed = true
     signal.removeEventListener('abort', abort)

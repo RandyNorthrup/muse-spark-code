@@ -125,6 +125,18 @@ const KNOWN: Record<string, KnownSpawn> = {
     reason:
       "direct git only when resource admission is absent (the shared runner's unconfigured rule): the caller gate runs synchronously before each launch, argument array, no shell, bounded output and deadline, hidden window",
   },
+  'src/host/backend/deviceWorkerDarwin.ts': {
+    kind: 'reviewed',
+    anchor: 'workerEnvironment',
+    reason:
+      'fixed absolute commands only (/bin/launchctl, /bin/ps, /usr/bin/clang) plus the sha-pinned compiled helper beside the private store, all through the one program boundary with a workerEnvironment-scrubbed env, argument arrays, no shell',
+  },
+  'src/host/devices/windowsStorageProtection.ts': {
+    kind: 'reviewed',
+    anchor: 'HELPER_TOKEN',
+    reason:
+      'the shipped C# helper compiled once per source into the private directory and ping-proved before use; SystemRoot-only env, argument array, no shell',
+  },
 }
 
 const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
@@ -242,6 +254,12 @@ const KNOWN_SCRIPT: Record<string, KnownSpawn> = {
     anchor: 'spec.command',
     reason:
       "the POSIX supervisor spawns only its caller's spec.command: every runTreeSync caller resolves that command outside the workspace (wrapper list above)",
+  },
+  'src/host/backend/deviceWorkerDarwin.ts': {
+    kind: 'reviewed',
+    anchor: 'config[@"executable"]',
+    reason:
+      'the embedded helper spawns only its config executable (plus a fixed /usr/bin/true self-test probe with an empty env): every launch resolves that executable through the guarded tool lookup before writing the config',
   },
 }
 

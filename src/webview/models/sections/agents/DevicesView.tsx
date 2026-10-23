@@ -4,6 +4,7 @@ import { Fragment, type ReactNode, useLayoutEffect, useRef, useState } from 'rea
 import { DEVICE_LIMITS, UI_TEXT } from '../../../../shared/constants'
 import { fill } from '../../../../shared/l10n/text'
 import { formatUsd } from '../../../../shared/l10n/exactUsd'
+import type { UsdAmount } from '../../../../shared/usdSchema'
 import {
   parseDeviceHostMessage,
   parseDeviceWebviewRequest,
@@ -46,7 +47,7 @@ export function DevicesView({
   readonly boards?: readonly DeviceBoardBinding[]
   readonly renderQr?: ((publicText: string) => ReactNode) | undefined
   readonly tasks?: readonly DeviceTaskView[]
-  readonly paid?: { readonly price: string; readonly budgetUsd: number }
+  readonly paid?: { readonly price: string; readonly budgetUsd: UsdAmount }
 }) {
   const lifetime = useRef<{ viewId?: string; controller: AbortController } | undefined>(undefined)
   const activeRequest = useRef<
