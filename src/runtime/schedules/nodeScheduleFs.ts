@@ -20,6 +20,7 @@ import { lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_STORAGE_FILE_MODE,
+  SCHEDULE_FS_RETRY_ATTEMPTS,
   SCHEDULE_FS_RETRY_BACKOFF_MS,
   SCHEDULE_LEASE_HEARTBEAT_MS,
   SCHEDULE_LEASE_EXPIRES_MS,
@@ -57,10 +58,12 @@ export function isTransientStoreError(error: unknown): boolean {
   )
 }
 /**
-No attempt count of ours (D121, RLF-NOLIMITS): a transient-coded failure
-retries until the operation succeeds, fails another way, or the stop
-fires. The backoff spaces attempts; it stops nothing. An abort throws
-the signal's reason, like the lease lock's own stop.
+Safety limit (D121 clarification, RLF-SAFELIMITS): a transient-coded
+failure retries until the operation succeeds, fails another way, the
+stop fires, or the attempts run out — then the last error surfaces with
+its kind, like any other storage failure. The backoff spaces attempts;
+the stop still ends the wait between them. An abort throws the signal's
+reason, like the lease lock's own stop.
 */
 async function retry<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
   signal?.throwIfAborted()
@@ -68,7 +71,7 @@ async function retry<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T
     try {
       return await work()
     } catch (error: unknown) {
-      if (!isTransientStoreError(error)) throw error
+      if (attempt + 1 >= SCHEDULE_FS_RETRY_ATTEMPTS || !isTransientStoreError(error)) throw error
       signal?.throwIfAborted()
       try {
         await scheduleFsOperation('disk.retryWait', () =>
