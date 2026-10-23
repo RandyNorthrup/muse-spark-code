@@ -21,13 +21,16 @@ function termsLink(url: string): string {
   return `<a href="${escaped}">${escaped}</a>`
 }
 
-/** Escape text for HTML content and double-quoted attributes. */
+const HTML_ESCAPES: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+}
+
+/** Escape text for HTML content and double-quoted attributes, one pass. */
 export function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
+  return value.replaceAll(/[&<>"]/g, (char) => HTML_ESCAPES[char] ?? char)
 }
 
 function document(title: string, body: string): string {
