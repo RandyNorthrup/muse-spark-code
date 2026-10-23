@@ -13,23 +13,25 @@ import {
   type DeviceReceiverActionState,
   type devicePresenceRelaySchema,
 } from '../../src/core/devices/actionGrants'
-import {
-  deviceGrantRequestSchema,
-  deviceGrantSchema,
-  type DeviceGrant,
-  type DeviceGrantRequest,
-} from '../../src/shared/devices'
+import { type DeviceGrant, type DeviceGrantRequest } from '../../src/shared/devices'
 import type * as z from 'zod/mini'
 import { deviceCaps, deviceCheck, deviceGrant } from './helpers/deviceFixtures'
+import {
+  GRANT_HARNESS_IDS,
+  harnessAdmissionGrant,
+  harnessGrantRequest,
+  harnessReceiverState,
+} from './helpers/deviceGrants'
 
 type PresenceMessage = z.infer<typeof devicePresenceRelaySchema>
 
-const PAIR_ID = 'a'.repeat(32)
-const OWNER_ID = 'b'.repeat(32)
-const ROLE_ID = 'c'.repeat(32)
-const REPOSITORY_ID = 'd'.repeat(32)
-const GRANT_ID = 'e'.repeat(32)
-const REQUEST_ID = 'f'.repeat(32)
+const {
+  pairId: PAIR_ID,
+  ownerId: OWNER_ID,
+  grantId: GRANT_ID,
+  requestId: REQUEST_ID,
+} = GRANT_HARNESS_IDS
+const PRESENCE_GRANT = { requiresStepUp: true, checks: true, grantRevision: 1 }
 
 function action(): DeviceLocalAction {
   return {
@@ -41,51 +43,15 @@ function action(): DeviceLocalAction {
 }
 
 function request(): DeviceGrantRequest {
-  return deviceGrantRequestSchema.parse({
-    version: DEVICE_LIMITS.protocolVersion,
-    pairId: PAIR_ID,
-    ownerId: OWNER_ID,
-    roleId: ROLE_ID,
-    mode: 'manual',
-    repositoryId: REPOSITORY_ID,
-    lanes: true,
-    checks: false,
-    quota: deviceCaps,
-  })
+  return harnessGrantRequest()
 }
 
 function admissionGrant(): DeviceGrant {
-  const issuedAt = Date.now()
-  return deviceGrantSchema.parse({
-    version: DEVICE_LIMITS.protocolVersion,
-    grantId: GRANT_ID,
-    grantRevision: 1,
-    pairId: PAIR_ID,
-    ownerId: OWNER_ID,
-    roleId: ROLE_ID,
-    mode: 'manual',
-    repositoryId: REPOSITORY_ID,
-    lanes: true,
-    checks: true,
-    quota: deviceCaps,
-    issuedAt,
-    expiresAt: issuedAt + DEVICE_LIMITS.grantValidityMs - 1,
-    requiresStepUp: true,
-  })
+  return harnessAdmissionGrant(PRESENCE_GRANT)
 }
 
 function stateFor(local: DeviceLocalAction): DeviceReceiverActionState {
-  return {
-    grant: admissionGrant(),
-    revoked: false,
-    repository: request(),
-    role: { mode: 'manual', quota: deviceCaps, roleId: ROLE_ID, tools: ['read-file'] },
-    trusted: true,
-    protectedPaths: [],
-    approval: { mode: 'manual', quota: deviceCaps, allowed: true },
-    used: { workers: 0, processes: 0, heavyChecks: 0, tokens: 0, spendUsd: 0, artifactBytes: 0 },
-    action: local,
-  }
+  return harnessReceiverState(local, ['read-file'], PRESENCE_GRANT)
 }
 
 function setupRelay(options: {

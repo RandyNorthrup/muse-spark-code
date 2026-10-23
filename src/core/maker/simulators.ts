@@ -8,7 +8,13 @@
 // rides M103's machine lanes with hardware).
 import { createHash } from 'node:crypto'
 import type { MakerTarget } from '../../shared/maker'
-import { MAKER_AXIS_KEY, makerLineCommand, makerWordValue, parseMakerWords } from './classify'
+import {
+  MAKER_AXIS_KEY,
+  makerLineCommand,
+  makerWordValue,
+  parseMakerWords,
+  type MakerWord,
+} from './classify'
 import { makerPayloadDigest } from './approval'
 import type { MakerEnvelopeLimits } from './analysis'
 import type {
@@ -39,20 +45,69 @@ function fingerprintOf(canonical: unknown): string {
   return createHash('sha256').update(JSON.stringify(canonical)).digest('hex')
 }
 
+/**
+The Cartesian word application the motion sims share: absolute words
+set the axis, relative (jog) words move it from here.
+*/
+function applyAxisWords(
+  words: readonly MakerWord[],
+  next: { x: number; y: number; z: number },
+  isRelative: boolean,
+): void {
+  for (const axis of ['X', 'Y', 'Z'] as const) {
+    const raw = makerWordValue(words, axis)
+    if (raw === undefined || raw === null) continue
+    const key = MAKER_AXIS_KEY[axis]
+    next[key] = isRelative ? next[key] + raw : raw
+  }
+}
+
 abstract class MakerSimulatorBase implements MakerMachineConnection {
   public abstract readonly target: MakerTarget
   protected seq = 0
   protected readonly journal: MakerReceipt[] = []
+  protected connected = false
 
   public abstract readState(): MakerMachineState
   public abstract readLimits(): MakerEnvelopeLimits
-  public abstract open(): Promise<MakerConnectionResponse>
-  public abstract close(): Promise<MakerConnectionResponse>
   public abstract send(payload: Uint8Array): Promise<MakerConnectionResponse>
   public abstract stop(): Promise<MakerConnectionResponse & { readonly warning?: MakerStopWarning }>
 
+  /** The boot reset an open performs: each machine's own power-on state. */
+  protected abstract boot(): void
+
+  public open(): Promise<MakerConnectionResponse> {
+    const before = this.fingerprint()
+    if (this.connected)
+      return Promise.resolve(this.receive('open', new Uint8Array(0), 'already open', before))
+    this.connected = true
+    this.boot()
+    return Promise.resolve(this.receive('open', new Uint8Array(0), 'ok', before))
+  }
+
+  public close(): Promise<MakerConnectionResponse> {
+    const before = this.fingerprint()
+    this.connected = false
+    return Promise.resolve(this.receive('close', new Uint8Array(0), 'ok', before))
+  }
+
   public receipts(): readonly MakerReceipt[] {
     return [...this.journal]
+  }
+
+  /** The motion state both Cartesian sims report. */
+  protected motionState(
+    position: { x: number; y: number; z: number },
+    isHomed: boolean,
+    hasSoftLimits: boolean,
+  ): MakerMachineState {
+    return {
+      fingerprint: this.fingerprint(),
+      open: this.connected,
+      position: { ...position },
+      homed: isHomed,
+      softLimits: hasSoftLimits,
+    }
   }
 
   protected receive(
@@ -75,7 +130,34 @@ abstract class MakerSimulatorBase implements MakerMachineConnection {
     return { response, receipt }
   }
 
-  protected abstract fingerprint(): string
+  protected fingerprint(): string {
+    return fingerprintOf({ open: this.connected, ...this.fingerprintParts() })
+  }
+
+  /** The machine's own canonical state; the open flag rides with it. */
+  protected abstract fingerprintParts(): Record<string, unknown>
+}
+
+/**
+The line-protocol sims (printer, CNC): sends split into lines through
+the machine's interpreter. The flash machine (MCU) programs whole
+images and stays on the base.
+*/
+abstract class LineSimulatorBase extends MakerSimulatorBase {
+  /** The closed-port refusal in the machine's own casing. */
+  protected abstract readonly closedResponse: string
+
+  /** One line through the machine's interpreter. */
+  protected abstract sendLine(line: string): string
+
+  public send(payload: Uint8Array): Promise<MakerConnectionResponse> {
+    const before = this.fingerprint()
+    if (!this.connected)
+      return Promise.resolve(this.receive('send', payload, this.closedResponse, before))
+    const text = Buffer.from(payload).toString('utf8')
+    const responses = text.split('\n').map((line) => this.sendLine(line))
+    return Promise.resolve(this.receive('send', payload, responses.join('\n'), before))
+  }
 }
 
 export interface PrinterSimRecord {
@@ -111,7 +193,6 @@ export function printerSimRecord(overrides?: Partial<PrinterSimRecord>): Printer
 }
 
 interface PrinterSimState {
-  open: boolean
   position: { x: number; y: number; z: number }
   homedAxes: { x: boolean; y: boolean; z: boolean }
   nozzleTemp: number
@@ -128,14 +209,14 @@ port resets the board (D83.3's warning made real): position lost,
 unhomed, heaters off, halt cleared. Heating is instant; travel
 clamps to the record envelope with the clamp noted.
 */
-export class PrinterSimulator extends MakerSimulatorBase {
+export class PrinterSimulator extends LineSimulatorBase {
   private readonly state: PrinterSimState
   public readonly target: MakerTarget
+  protected readonly closedResponse = 'Error: not open'
   public constructor(private readonly record: PrinterSimRecord) {
     super()
     this.target = record.target
     this.state = {
-      open: false,
       position: { ...record.startPosition },
       homedAxes: {
         x: record.startHomed,
@@ -174,7 +255,7 @@ export class PrinterSimulator extends MakerSimulatorBase {
     return didClamp
   }
 
-  private sendLine(line: string): string {
+  protected sendLine(line: string): string {
     const command = makerLineCommand(line)
     if (command === '') return 'ok'
     if (command !== 'M999' && this.state.halted)
@@ -191,11 +272,7 @@ export class PrinterSimulator extends MakerSimulatorBase {
     }
     if (['G0', 'G1', 'G2', 'G3'].includes(command)) {
       const next = { ...this.state.position }
-      for (const axis of ['X', 'Y', 'Z'] as const) {
-        const raw = makerWordValue(words, axis)
-        if (raw === undefined || raw === null) continue
-        next[MAKER_AXIS_KEY[axis]] = raw
-      }
+      applyAxisWords(words, next, false)
       const didClamp = this.clampTravel(next)
       return didClamp ? 'ok // clamped to travel' : 'ok'
     }
@@ -248,22 +325,19 @@ export class PrinterSimulator extends MakerSimulatorBase {
   }
 
   public readState(): MakerMachineState {
-    return {
-      fingerprint: this.fingerprint(),
-      open: this.state.open,
-      position: { ...this.state.position },
-      homed: this.state.homedAxes.x && this.state.homedAxes.y && this.state.homedAxes.z,
-      softLimits: this.record.softLimits,
-    }
+    return this.motionState(
+      this.state.position,
+      this.state.homedAxes.x && this.state.homedAxes.y && this.state.homedAxes.z,
+      this.record.softLimits,
+    )
   }
 
   public readLimits(): MakerEnvelopeLimits {
     return this.record.limits ?? {}
   }
 
-  protected fingerprint(): string {
-    return fingerprintOf({
-      open: this.state.open,
+  protected fingerprintParts(): Record<string, unknown> {
+    return {
       position: this.state.position,
       homedAxes: this.state.homedAxes,
       nozzleTemp: this.state.nozzleTemp,
@@ -273,14 +347,10 @@ export class PrinterSimulator extends MakerSimulatorBase {
       printing: this.state.printing,
       halted: this.state.halted,
       seq: this.seq,
-    })
+    }
   }
 
-  public open(): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    if (this.state.open)
-      return Promise.resolve(this.receive('open', new Uint8Array(0), 'already open', before))
-    this.state.open = true
+  protected boot(): void {
     // The serial open resets the board: everything returns to boot.
     this.state.position = { x: 0, y: 0, z: 0 }
     this.state.homedAxes = { x: false, y: false, z: false }
@@ -290,28 +360,12 @@ export class PrinterSimulator extends MakerSimulatorBase {
     this.state.bedTarget = 0
     this.state.printing = false
     this.state.halted = false
-    return Promise.resolve(this.receive('open', new Uint8Array(0), 'ok', before))
-  }
-
-  public close(): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    this.state.open = false
-    return Promise.resolve(this.receive('close', new Uint8Array(0), 'ok', before))
-  }
-
-  public send(payload: Uint8Array): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    if (!this.state.open)
-      return Promise.resolve(this.receive('send', payload, 'Error: not open', before))
-    const text = Buffer.from(payload).toString('utf8')
-    const responses = text.split('\n').map((line) => this.sendLine(line))
-    return Promise.resolve(this.receive('send', payload, responses.join('\n'), before))
   }
 
   public stop(): Promise<MakerConnectionResponse & { readonly warning?: MakerStopWarning }> {
     const before = this.fingerprint()
     const bytes = new TextEncoder().encode('M112\n')
-    if (!this.state.open)
+    if (!this.connected)
       return Promise.resolve(this.receive('stop', bytes, 'Error: not open', before))
     this.state.halted = true
     this.state.nozzleTarget = 0
@@ -359,7 +413,6 @@ export function cncSimRecord(overrides?: Partial<CncSimRecord>): CncSimRecord {
 }
 
 interface CncSimState {
-  open: boolean
   position: { x: number; y: number; z: number }
   homed: boolean
   alarm: boolean
@@ -374,14 +427,14 @@ A virtual GRBL-style mill. Status, settings and alarm reads answer;
 motion past the envelope raises the soft-limit alarm; `$H` homes; the
 stop is feed hold, jog cancel, soft reset, with the `$N` warning.
 */
-export class CncSimulator extends MakerSimulatorBase {
+export class CncSimulator extends LineSimulatorBase {
   private readonly state: CncSimState
   public readonly target: MakerTarget
+  protected readonly closedResponse = 'error: not open'
   public constructor(private readonly record: CncSimRecord) {
     super()
     this.target = record.target
     this.state = {
-      open: false,
       position: { x: 0, y: 0, z: 0 },
       homed: record.startHomed,
       alarm: false,
@@ -437,7 +490,7 @@ export class CncSimulator extends MakerSimulatorBase {
     return 'ok'
   }
 
-  private sendLine(line: string): string {
+  protected sendLine(line: string): string {
     const trimmed = line.trim()
     if (trimmed === '') return 'ok'
     const command = makerLineCommand(line)
@@ -461,20 +514,12 @@ export class CncSimulator extends MakerSimulatorBase {
     const words = parseMakerWords(line)
     if (command === '$J') {
       const next = { ...this.state.position }
-      for (const axis of ['X', 'Y', 'Z'] as const) {
-        const raw = makerWordValue(words, axis)
-        if (raw === undefined || raw === null) continue
-        next[MAKER_AXIS_KEY[axis]] += raw
-      }
+      applyAxisWords(words, next, true)
       return this.moveTo(next)
     }
     if (['G0', 'G1', 'G2', 'G3'].includes(command)) {
       const next = { ...this.state.position }
-      for (const axis of ['X', 'Y', 'Z'] as const) {
-        const raw = makerWordValue(words, axis)
-        if (raw === undefined || raw === null) continue
-        next[MAKER_AXIS_KEY[axis]] = raw
-      }
+      applyAxisWords(words, next, false)
       return this.moveTo(next)
     }
     if (['M3', 'M4'].includes(command)) {
@@ -491,61 +536,34 @@ export class CncSimulator extends MakerSimulatorBase {
   }
 
   public readState(): MakerMachineState {
-    return {
-      fingerprint: this.fingerprint(),
-      open: this.state.open,
-      position: { ...this.state.position },
-      homed: this.state.homed,
-      softLimits: this.record.softLimits,
-    }
+    return this.motionState(this.state.position, this.state.homed, this.record.softLimits)
   }
 
   public readLimits(): MakerEnvelopeLimits {
     return this.record.limits ?? {}
   }
 
-  protected fingerprint(): string {
-    return fingerprintOf({
-      open: this.state.open,
+  protected fingerprintParts(): Record<string, unknown> {
+    return {
       position: this.state.position,
       homed: this.state.homed,
       alarm: this.state.alarm,
       spindle: this.state.spindle,
       seq: this.seq,
-    })
+    }
   }
 
-  public open(): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    if (this.state.open)
-      return Promise.resolve(this.receive('open', new Uint8Array(0), 'already open', before))
-    this.state.open = true
+  protected boot(): void {
     this.state.position = { x: 0, y: 0, z: 0 }
     this.state.homed = false
     this.state.alarm = false
     this.state.spindle = 'off'
-    return Promise.resolve(this.receive('open', new Uint8Array(0), 'ok', before))
-  }
-
-  public close(): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    this.state.open = false
-    return Promise.resolve(this.receive('close', new Uint8Array(0), 'ok', before))
-  }
-
-  public send(payload: Uint8Array): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    if (!this.state.open)
-      return Promise.resolve(this.receive('send', payload, 'error: not open', before))
-    const text = Buffer.from(payload).toString('utf8')
-    const responses = text.split('\n').map((line) => this.sendLine(line))
-    return Promise.resolve(this.receive('send', payload, responses.join('\n'), before))
   }
 
   public stop(): Promise<MakerConnectionResponse & { readonly warning?: MakerStopWarning }> {
     const before = this.fingerprint()
     const bytes = new Uint8Array([GRBL_FEED_HOLD, GRBL_JOG_CANCEL, GRBL_SOFT_RESET])
-    if (!this.state.open)
+    if (!this.connected)
       return Promise.resolve(this.receive('stop', bytes, 'error: not open', before))
     this.state.alarm = true
     this.state.spindle = 'off'
@@ -588,7 +606,6 @@ export function mcuSimRecord(overrides?: Partial<McuSimRecord>): McuSimRecord {
 }
 
 interface McuSimState {
-  open: boolean
   resetCount: number
   flash: Uint8Array
 }
@@ -605,13 +622,13 @@ export class McuSimulator extends MakerSimulatorBase {
   public constructor(private readonly record: McuSimRecord) {
     super()
     this.target = record.target
-    this.state = { open: false, resetCount: 0, flash: new Uint8Array(0) }
+    this.state = { resetCount: 0, flash: new Uint8Array(0) }
   }
 
   public readState(): MakerMachineState {
     return {
       fingerprint: this.fingerprint(),
-      open: this.state.open,
+      open: this.connected,
       board: { chip: this.record.chip },
       flashCapacityBytes: this.record.flashCapacityBytes,
     }
@@ -621,13 +638,12 @@ export class McuSimulator extends MakerSimulatorBase {
     return {}
   }
 
-  protected fingerprint(): string {
-    return fingerprintOf({
-      open: this.state.open,
+  protected fingerprintParts(): Record<string, unknown> {
+    return {
       resetCount: this.state.resetCount,
       flashSha: simDigest(this.state.flash),
       seq: this.seq,
-    })
+    }
   }
 
   /** The programmed image, for receipt-level assertions. */
@@ -635,24 +651,13 @@ export class McuSimulator extends MakerSimulatorBase {
     return new Uint8Array(this.state.flash)
   }
 
-  public open(): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    if (this.state.open)
-      return Promise.resolve(this.receive('open', new Uint8Array(0), 'already open', before))
-    this.state.open = true
+  protected boot(): void {
     this.state.resetCount += 1
-    return Promise.resolve(this.receive('open', new Uint8Array(0), 'ok', before))
-  }
-
-  public close(): Promise<MakerConnectionResponse> {
-    const before = this.fingerprint()
-    this.state.open = false
-    return Promise.resolve(this.receive('close', new Uint8Array(0), 'ok', before))
   }
 
   public send(payload: Uint8Array): Promise<MakerConnectionResponse> {
     const before = this.fingerprint()
-    if (!this.state.open)
+    if (!this.connected)
       return Promise.resolve(this.receive('send', payload, 'Error: not open', before))
     if (payload.byteLength > this.record.flashCapacityBytes)
       return Promise.resolve(this.receive('send', payload, 'Error: image exceeds flash', before))

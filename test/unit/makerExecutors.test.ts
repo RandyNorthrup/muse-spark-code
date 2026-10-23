@@ -14,7 +14,9 @@ import {
   CncExecutor,
   McuExecutor,
   PrinterExecutor,
+  type MakerExecuteResult,
   type MakerMachineConnection,
+  type MakerSendOptions,
 } from '../../src/core/maker/executors'
 import {
   CncSimulator,
@@ -52,22 +54,64 @@ function sendReceipts(connection: MakerMachineConnection) {
   return connection.receipts().filter((receipt) => receipt.kind === 'send')
 }
 
+function printerHarness(record?: Parameters<typeof printerSimRecord>[0]): {
+  sim: PrinterSimulator
+  executor: PrinterExecutor
+} {
+  return {
+    sim: new PrinterSimulator(printerSimRecord(record)),
+    executor: new PrinterExecutor({ approvals }),
+  }
+}
+
+function cncHarness(record?: Parameters<typeof cncSimRecord>[0]): {
+  sim: CncSimulator
+  executor: CncExecutor
+} {
+  return { sim: new CncSimulator(cncSimRecord(record)), executor: new CncExecutor({ approvals }) }
+}
+
+function mcuHarness(record?: Parameters<typeof mcuSimRecord>[0]): {
+  sim: McuSimulator
+  executor: McuExecutor
+} {
+  return { sim: new McuSimulator(mcuSimRecord(record)), executor: new McuExecutor({ approvals }) }
+}
+
+async function connectSim(
+  executor: {
+    connect(
+      connection: MakerMachineConnection,
+      asker: MakerApprovalAsker,
+      options: MakerSendOptions,
+      signal: AbortSignal,
+    ): Promise<MakerExecuteResult>
+  },
+  sim: MakerMachineConnection,
+  seen: MakerApprovalPrompt[] = [],
+): Promise<void> {
+  const connected = await executor.connect(sim, approver(seen), noExpiry, signal)
+  expect(connected.ok).toBe(true)
+}
+
+async function homePrinter(executor: PrinterExecutor, sim: PrinterSimulator): Promise<void> {
+  const homed = await executor.send(
+    sim,
+    approver([]),
+    new TextEncoder().encode('G28\n'),
+    noExpiry,
+    signal,
+  )
+  expect(homed.ok).toBe(true)
+}
+
 describe('printer executor', () => {
   it('sends approved bytes to the simulator, receipted by digest', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
+    const { sim, executor } = printerHarness()
     const seen: MakerApprovalPrompt[] = []
-    const connected = await executor.connect(sim, approver(seen), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    await connectSim(executor, sim, seen)
     expect(seen[0]?.warning).toBe('portReset')
-    const homed = await executor.send(
-      sim,
-      approver(seen),
-      new TextEncoder().encode('G28\n'),
-      noExpiry,
-      signal,
-    )
-    expect(homed.ok).toBe(true)
+    await homePrinter(executor, sim)
     const payload = new TextEncoder().encode('G1 X10 Y10 F1500\n')
     const result = await executor.send(sim, approver(seen), payload, noExpiry, signal)
     expect(result.ok).toBe(true)
@@ -89,18 +133,9 @@ describe('printer executor', () => {
   })
 
   it('sends nothing when the person rejects', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
-    const homed = await executor.send(
-      sim,
-      approver([]),
-      new TextEncoder().encode('G28\n'),
-      noExpiry,
-      signal,
-    )
-    expect(homed.ok).toBe(true)
+    const { sim, executor } = printerHarness()
+    await connectSim(executor, sim)
+    await homePrinter(executor, sim)
     const seen: MakerApprovalPrompt[] = []
     const payload = new TextEncoder().encode('G1 X10\n')
     const before = sim.receipts().length
@@ -112,18 +147,9 @@ describe('printer executor', () => {
   })
 
   it('refuses policy violations without asking', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
-    const homed = await executor.send(
-      sim,
-      approver([]),
-      new TextEncoder().encode('G28\n'),
-      noExpiry,
-      signal,
-    )
-    expect(homed.ok).toBe(true)
+    const { sim, executor } = printerHarness()
+    await connectSim(executor, sim)
+    await homePrinter(executor, sim)
     for (const [text, reason] of [
       ['M500\n', 'refused-command'],
       ['G1 X9999\n', 'outside-limits'],
@@ -145,10 +171,8 @@ describe('printer executor', () => {
   })
 
   it('refuses motion on an unhomed machine without asking', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = printerHarness()
+    await connectSim(executor, sim)
     const seen: MakerApprovalPrompt[] = []
     const result = await executor.send(
       sim,
@@ -162,18 +186,9 @@ describe('printer executor', () => {
   })
 
   it('asks again when the machine changed since the prompt', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
-    const homed = await executor.send(
-      sim,
-      approver([]),
-      new TextEncoder().encode('G28\n'),
-      noExpiry,
-      signal,
-    )
-    expect(homed.ok).toBe(true)
+    const { sim, executor } = printerHarness()
+    await connectSim(executor, sim)
+    await homePrinter(executor, sim)
     // Out-of-band change while the prompt waits: a print starts from the
     // machine's own screen, so the approved state no longer holds.
     const racing: MakerApprovalAsker = (prompt) => {
@@ -194,10 +209,8 @@ describe('printer executor', () => {
   })
 
   it('stops without approval and refuses to move while halted', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = printerHarness()
+    await connectSim(executor, sim)
     const stopped = await executor.stop(sim)
     expect(stopped.response).toContain('halted')
     expect(stopped.log.class).toBe('stop')
@@ -214,10 +227,8 @@ describe('printer executor', () => {
   })
 
   it('reads status without approval and refuses motion on the read path', async () => {
-    const sim = new PrinterSimulator(printerSimRecord())
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = printerHarness()
+    await connectSim(executor, sim)
     const status = await executor.query(sim, 'M105\n')
     expect(status.ok).toBe(true)
     expect(status.ok && status.log.approvalId).toBeUndefined()
@@ -242,10 +253,8 @@ describe('printer executor', () => {
   })
 
   it('refuses sends where the machine reports no limits', async () => {
-    const sim = new PrinterSimulator(printerSimRecord({ limits: undefined }))
-    const executor = new PrinterExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = printerHarness({ limits: undefined })
+    await connectSim(executor, sim)
     const seen: MakerApprovalPrompt[] = []
     const result = await executor.send(
       sim,
@@ -261,10 +270,8 @@ describe('printer executor', () => {
 
 describe('cnc executor', () => {
   it('reads status, settings and alarms without approval', async () => {
-    const sim = new CncSimulator(cncSimRecord())
-    const executor = new CncExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = cncHarness()
+    await connectSim(executor, sim)
     const status = await executor.query(sim, '?\n')
     expect(status.ok).toBe(true)
     expect(status.ok && status.response).toContain('MPos')
@@ -275,11 +282,9 @@ describe('cnc executor', () => {
   })
 
   it('refuses motion and firing: no send exists this delivery', async () => {
-    const sim = new CncSimulator(cncSimRecord())
-    const executor = new CncExecutor({ approvals })
+    const { sim, executor } = cncHarness()
     expect('send' in executor).toBe(false)
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    await connectSim(executor, sim)
     const before = sim.receipts().length
     for (const text of ['G1 X10\n', 'M3 S12000\n', '$J=X10\n', '$H\n']) {
       const result = await executor.query(sim, text)
@@ -290,20 +295,16 @@ describe('cnc executor', () => {
   })
 
   it('stops with the GRBL sequence and warns on motion startup lines', async () => {
-    const sim = new CncSimulator(cncSimRecord())
-    const executor = new CncExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = cncHarness()
+    await connectSim(executor, sim)
     const stopped = await executor.stop(sim)
     expect(stopped.warning).toBeUndefined()
     expect(sim.readState().fingerprint).not.toBe(sim.receipts()[0]?.stateBefore)
     const stopReceipt = sim.receipts().find((receipt) => receipt.kind === 'stop')
     expect(stopReceipt?.digest).toBe(makerPayloadDigest(new Uint8Array([0x21, 0x85, 0x18])))
-    const holding = new CncSimulator(cncSimRecord({ startupLines: ['$N0=G28'] }))
-    const executorHolding = new CncExecutor({ approvals })
-    const connectedHolding = await executorHolding.connect(holding, approver([]), noExpiry, signal)
-    expect(connectedHolding.ok).toBe(true)
-    const stoppedHolding = await executorHolding.stop(holding)
+    const holdingHarness = cncHarness({ startupLines: ['$N0=G28'] })
+    await connectSim(holdingHarness.executor, holdingHarness.sim)
+    const stoppedHolding = await holdingHarness.executor.stop(holdingHarness.sim)
     expect(stoppedHolding.warning).toBe('startupMotion')
   })
 })
@@ -312,11 +313,9 @@ describe('mcu executor', () => {
   const firmware = new Uint8Array([0xde, 0xad, 0xbe, 0xef, 0x00, 0x01])
 
   it('opens with the reset warning and programs approved bytes', async () => {
-    const sim = new McuSimulator(mcuSimRecord())
-    const executor = new McuExecutor({ approvals })
+    const { sim, executor } = mcuHarness()
     const seen: MakerApprovalPrompt[] = []
-    const connected = await executor.connect(sim, approver(seen), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    await connectSim(executor, sim, seen)
     expect(seen[0]?.warning).toBe('portReset')
     const programmed = await executor.program(
       sim,
@@ -335,10 +334,8 @@ describe('mcu executor', () => {
   })
 
   it('programs nothing when the person rejects', async () => {
-    const sim = new McuSimulator(mcuSimRecord())
-    const executor = new McuExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = mcuHarness()
+    await connectSim(executor, sim)
     const before = sim.receipts().length
     const result = await executor.program(sim, rejecter([]), firmware, noExpiry, signal)
     expect(result).toMatchObject({ ok: false, reason: 'approval-rejected' })
@@ -347,10 +344,8 @@ describe('mcu executor', () => {
   })
 
   it('refuses a board the project never meant, without asking', async () => {
-    const sim = new McuSimulator(mcuSimRecord())
-    const executor = new McuExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = mcuHarness()
+    await connectSim(executor, sim)
     // D83.10's case: a Pico on the port of an ESP32 project.
     const seen: MakerApprovalPrompt[] = []
     const result = await executor.program(
@@ -366,10 +361,8 @@ describe('mcu executor', () => {
   })
 
   it('refuses an image past the flash capacity without asking', async () => {
-    const sim = new McuSimulator(mcuSimRecord({ flashCapacityBytes: 4 }))
-    const executor = new McuExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = mcuHarness({ flashCapacityBytes: 4 })
+    await connectSim(executor, sim)
     const seen: MakerApprovalPrompt[] = []
     const result = await executor.program(sim, approver(seen), firmware, noExpiry, signal)
     expect(result).toMatchObject({ ok: false, reason: 'outside-limits' })
@@ -377,10 +370,8 @@ describe('mcu executor', () => {
   })
 
   it('stops streams without touching the board', async () => {
-    const sim = new McuSimulator(mcuSimRecord())
-    const executor = new McuExecutor({ approvals })
-    const connected = await executor.connect(sim, approver([]), noExpiry, signal)
-    expect(connected.ok).toBe(true)
+    const { sim, executor } = mcuHarness()
+    await connectSim(executor, sim)
     const programmed = await executor.program(sim, approver([]), firmware, noExpiry, signal)
     expect(programmed.ok).toBe(true)
     const stopped = await executor.stop(sim)

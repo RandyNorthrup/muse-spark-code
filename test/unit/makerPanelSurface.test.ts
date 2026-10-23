@@ -162,34 +162,44 @@ async function answerThroughPanel(
   await panel.request(parsed.message)
 }
 
+function pendingPrompt(service: MakerService, what: string): MakerApprovalPrompt {
+  const prompt = service.surface.pendingPrompt()
+  if (prompt === undefined) throw new Error(`${what} asked nothing`)
+  return prompt
+}
+
+async function connectAndHome(
+  service: MakerService,
+  panel: DevicePanel,
+  signal: AbortSignal,
+): Promise<void> {
+  const printer = service.simulators.printer
+  const connectFlight = service.printer.connect(printer, service.asker(), {}, signal)
+  await answerThroughPanel(panel, pendingPrompt(service, 'connect'), 'send')
+  const connected = await connectFlight
+  expect(connected.ok).toBe(true)
+  const homeFlight = service.printer.send(
+    printer,
+    service.asker(),
+    new TextEncoder().encode('G28\n'),
+    {},
+    signal,
+  )
+  await answerThroughPanel(panel, pendingPrompt(service, 'home'), 'send')
+  const homed = await homeFlight
+  expect(homed.ok).toBe(true)
+}
+
 describe('panel approval round trip', () => {
   it('sends the exact bytes after the panel approves', async () => {
     const { service, panel } = harness()
     const signal = new AbortController().signal
     const printer = service.simulators.printer
-    const connectFlight = service.printer.connect(printer, service.asker(), {}, signal)
-    const connectPrompt = service.surface.pendingPrompt()
-    if (connectPrompt === undefined) throw new Error('connect asked nothing')
-    await answerThroughPanel(panel, connectPrompt, 'send')
-    const connected = await connectFlight
-    expect(connected.ok).toBe(true)
-    const homeFlight = service.printer.send(
-      printer,
-      service.asker(),
-      new TextEncoder().encode('G28\n'),
-      {},
-      signal,
-    )
-    const homePrompt = service.surface.pendingPrompt()
-    if (homePrompt === undefined) throw new Error('home asked nothing')
-    await answerThroughPanel(panel, homePrompt, 'send')
-    const homed = await homeFlight
-    expect(homed.ok).toBe(true)
+    await connectAndHome(service, panel, signal)
 
     const payload = new TextEncoder().encode('G1 X10 Y10\n')
     const sendFlight = service.printer.send(printer, service.asker(), payload, {}, signal)
-    const prompt = service.surface.pendingPrompt()
-    if (prompt === undefined) throw new Error('send asked nothing')
+    const prompt = pendingPrompt(service, 'send')
     // The snapshot carries the waiting prompt for the document.
     const observed = await panel.observe()
     expect(observed.state).toMatchObject({ makerApproval: { requestId: prompt.requestId } })
@@ -206,24 +216,7 @@ describe('panel approval round trip', () => {
     const { service, panel } = harness()
     const signal = new AbortController().signal
     const printer = service.simulators.printer
-    const connectFlight = service.printer.connect(printer, service.asker(), {}, signal)
-    const connectPrompt = service.surface.pendingPrompt()
-    if (connectPrompt === undefined) throw new Error('connect asked nothing')
-    await answerThroughPanel(panel, connectPrompt, 'send')
-    const connected = await connectFlight
-    expect(connected.ok).toBe(true)
-    const homeFlight = service.printer.send(
-      printer,
-      service.asker(),
-      new TextEncoder().encode('G28\n'),
-      {},
-      signal,
-    )
-    const homePrompt = service.surface.pendingPrompt()
-    if (homePrompt === undefined) throw new Error('home asked nothing')
-    await answerThroughPanel(panel, homePrompt, 'send')
-    const homed = await homeFlight
-    expect(homed.ok).toBe(true)
+    await connectAndHome(service, panel, signal)
 
     const before = printer.readState().fingerprint
     const sendFlight = service.printer.send(
@@ -233,8 +226,7 @@ describe('panel approval round trip', () => {
       {},
       signal,
     )
-    const prompt = service.surface.pendingPrompt()
-    if (prompt === undefined) throw new Error('send asked nothing')
+    const prompt = pendingPrompt(service, 'send')
     await answerThroughPanel(panel, prompt, 'reject')
     const result = await sendFlight
     expect(result).toMatchObject({ ok: false, reason: 'approval-rejected' })
