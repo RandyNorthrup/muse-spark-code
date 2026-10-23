@@ -8,6 +8,7 @@ import { HOOK_EVENTS, parseHookAnswer } from '../../core/backends/modelapi/hooks
 import { parseExtensionHookAnswer } from '../../core/backends/modelapi/extensionHooks'
 import { judgeOutcomeSchema, judgeRequestSchema, type JudgeQuestion } from '../../core/judge/schema'
 import { redactSecrets } from '../../core/redact'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import {
   EXEC_EXIT,
   EXEC_FORCE_WRITE_MS,
@@ -293,8 +294,9 @@ export async function runJudgeHookCommand(
         signal,
       )
     }
-  } catch {
+  } catch (error: unknown) {
     // Fixed words only: never private stdin, question, provider error or argv.
+    deps.log?.warn(`Judge hook command failed: ${failureForLog(error)}`)
     code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage
     io.stderr.write(`${signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\n`)
   } finally {
