@@ -27,7 +27,7 @@ beforeAll(async () => {
         setup(builder) {
           builder.onLoad({ filter: /[/\\]runtime[/\\]backends\.ts$/ }, () => ({
             contents:
-              'export function createRuntimeBackend() { throw new Error("BACKEND_STARTED"); }',
+              'export function createRuntimeBackend() { throw Object.assign(new Error("BACKEND_STARTED"), { name: "BACKEND_STARTED" }); }',
             loader: 'ts',
           }))
           builder.onLoad({ filter: /[/\\]acp[/\\]agent\.ts$/ }, () => ({
