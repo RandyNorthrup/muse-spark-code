@@ -409,21 +409,40 @@ export function noScheduleCost(): ScheduleFireRecord['cost'] {
   })
 }
 
+/**
+One call's stop (D121, RLF-NOLIMITS): no attempt count, deadline or other
+bound of ours ends a store wait — the call runs until it settles or this
+signal aborts, and an abort throws the signal's reason. A call without one
+waits on its owner's bound stop only.
+*/
+export interface ScheduleCallOptions {
+  readonly signal?: AbortSignal
+}
+
+/** Either stop ends the wait: the owner's bound one, the call's one, or neither. */
+export function eitherSignal(
+  first: AbortSignal | undefined,
+  second: AbortSignal | undefined,
+): AbortSignal | undefined {
+  if (first === undefined) return second
+  return second === undefined ? first : AbortSignal.any([first, second])
+}
+
 export interface ScheduleStoreV2 {
   /** In-process edits retire authority before their durable write awaits. */
   authorityGeneration?(workspaceKey: string, scheduleId: string): number
   /** New ids start at revision zero and are never reused after removal. */
-  create(schedule: ScheduleV2): Promise<void>
-  list(workspaceKey: string): Promise<readonly ScheduleV2[]>
+  create(schedule: ScheduleV2, options?: ScheduleCallOptions): Promise<void>
+  list(workspaceKey: string, options?: ScheduleCallOptions): Promise<readonly ScheduleV2[]>
   /** Atomic compare-and-swap against schedule.revision; success increments it.
   False means missing or stale. Re-read and merge intent before retrying;
   never replay a stale authority snapshot against a fresh revision. */
-  update(schedule: ScheduleV2): Promise<boolean>
-  remove(workspaceKey: string, scheduleId: string): Promise<boolean>
+  update(schedule: ScheduleV2, options?: ScheduleCallOptions): Promise<boolean>
+  remove(workspaceKey: string, scheduleId: string, options?: ScheduleCallOptions): Promise<boolean>
   /** Atomic, durable, never rolled back after a crash or refusal. */
-  claim(runId: string): Promise<boolean>
-  record(fire: ScheduleFireRecord): Promise<void>
-  fires(workspaceKey: string): Promise<readonly ScheduleFireRecord[]>
+  claim(runId: string, options?: ScheduleCallOptions): Promise<boolean>
+  record(fire: ScheduleFireRecord, options?: ScheduleCallOptions): Promise<void>
+  fires(workspaceKey: string, options?: ScheduleCallOptions): Promise<readonly ScheduleFireRecord[]>
 }
 /** Complete, run-scoped final settlement, parsed with scheduleFireRecordSchema. */
 export type ScheduleDeliveryResult = ScheduleFireRecord

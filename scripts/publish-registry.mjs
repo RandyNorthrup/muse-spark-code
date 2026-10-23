@@ -18,9 +18,11 @@ const OVSX_CLI = require.resolve('ovsx/bin/ovsx')
 const BACKOFF_MS = [20_000, 60_000]
 // Registry visibility after a successful publish lags (npm took 19 minutes
 // for 0.16.0): poll the same fixed endpoints verifyPublished reads, backing
-// off, for 30 minutes in total, shared across every artifact of the run.
-// The publish jobs' timeout-minutes must cover all publishes plus this poll.
-const VISIBILITY_TIMEOUT_MS = 30 * 60_000
+// off, until every artifact is visible. No timeout of ours (D121,
+// RLF-NOLIMITS): the wait ends at visibility, an integrity mismatch, or the
+// release's own stop — the publish job's timeout-minutes, or Ctrl-C on a
+// local run — saying what is still pending on every round. The publish
+// jobs' timeout-minutes must cover all publishes plus this poll.
 const VISIBILITY_BASE_DELAY_MS = 30_000
 const VISIBILITY_MAX_DELAY_MS = 120_000
 // All registry hostnames are fixed and valid, so ENOTFOUND is transient DNS.
@@ -153,18 +155,15 @@ const MISMATCH_ERROR = /differs from the release|must use HTTPS/
 
 /**
 Poll verify() until the published artifact is visible with matching
-integrity. Resolves true when visible, false on timeout; an integrity
-mismatch rejects. The clock and sleep are injectable for tests.
+integrity. Resolves true when visible, false when the stop fires; an
+integrity mismatch rejects. The stop is honored between polls. The sleep
+and stop are injectable for tests.
 */
 export async function pollVisible(verify, deps = {}) {
   const sleep = deps.sleep ?? setTimeout
-  const now = deps.now ?? Date.now
-  const timeout = deps.timeoutMs ?? VISIBILITY_TIMEOUT_MS
-  const deadline = now() + timeout
-  // waitedMs backstops a clock that never advances (skew, suspension, fakes):
-  // the poll always ends after ~timeout of sleeping, whatever the clock says.
-  let waitedMs = 0
+  const signal = deps.signal
   for (let attempt = 0; ; attempt++) {
+    if (signal?.aborted) return false
     try {
       await verify()
       return true
@@ -172,12 +171,8 @@ export async function pollVisible(verify, deps = {}) {
       if (MISMATCH_ERROR.test(error instanceof Error ? error.message : String(error))) {
         throw error
       }
-      if (now() >= deadline || waitedMs >= timeout) {
-        return false
-      }
-      const delay = visibilityDelay(attempt)
-      await sleep(delay)
-      waitedMs += delay
+      await sleep(visibilityDelay(attempt))
+      if (signal?.aborted) return false
     }
   }
 }
@@ -193,7 +188,7 @@ export function reportVisibility(channel, visibility, label = '', environment = 
   if (environment.GITHUB_STEP_SUMMARY !== undefined) {
     appendFileSync(
       environment.GITHUB_STEP_SUMMARY,
-      `\n${subject}: **published, not yet visible** after the 30-minute registry check. ` +
+      `\n${subject}: **published, not yet visible** when the wait stopped. ` +
         `The release stays published; re-check the registry before announcing.\n`,
     )
   }
@@ -264,32 +259,44 @@ export async function publishRegistry(channel, artifact, manifest, deps = {}) {
     return 'visible'
   }
   // A fresh publish polls until the registry shows it. Resolves 'visible'
-  // or 'pending' (timeout warns, never fails).
+  // or 'pending' (a stop warns, never fails).
   const verify = () => verifyPublished(channel, artifact, manifest, deps)
-  return (await pollVisible(verify, deps)) ? 'visible' : 'pending'
+  const { pending } = await pollAllVisible([{ label: artifact, verify }], deps)
+  return pending.length === 0 ? 'visible' : 'pending'
+}
+
+/** Elapsed milliseconds in whole seconds or minutes for the waiting line. */
+function formatWaitedMs(waitedMs) {
+  return waitedMs < 120_000
+    ? `${Math.floor(waitedMs / 1000)}s`
+    : `${Math.floor(waitedMs / 60_000)}m`
 }
 
 /**
 Poll every freshly published artifact until each is visible, under one
-shared deadline (VISIBILITY_TIMEOUT_MS in total, not per artifact). The
-release publishes every artifact first and only then waits, so a slow
-registry delays the job once instead of once per artifact, and a
-cancelled job never leaves only some targets published: re-running the
-job re-publishes nothing (the existing-version path verifies at once)
-and re-polls what is still pending. Returns the `visible` and `pending`
-labels; an integrity mismatch rejects. The clock and sleep are
-injectable for tests.
+shared stop instead of one deadline per artifact. The release publishes
+every artifact first and only then waits, so a slow registry delays the
+job once instead of once per artifact, and a cancelled job never leaves
+only some targets published: re-running the job re-publishes nothing
+(the existing-version path verifies at once) and re-polls what is still
+pending. Every round tells what is still pending and how long the wait
+has run. Returns the `visible` and `pending` labels; an integrity
+mismatch rejects. The clock, sleep, stop and teller are injectable for
+tests.
 */
 export async function pollAllVisible(entries, deps = {}) {
   const sleep = deps.sleep ?? setTimeout
   const now = deps.now ?? Date.now
-  const timeout = deps.timeoutMs ?? VISIBILITY_TIMEOUT_MS
-  const deadline = now() + timeout
-  // waitedMs backstops a clock that never advances (skew, suspension, fakes):
-  // the poll always ends after ~timeout of sleeping, whatever the clock says.
-  let waitedMs = 0
+  const signal = deps.signal
+  const tell =
+    deps.tell ??
+    (() => {
+      /* silent unless the caller says the words */
+    })
+  const startedAt = now()
   const pending = new Map(entries.map(({ label, verify }) => [label, verify]))
   for (let round = 0; pending.size > 0; round++) {
+    if (signal?.aborted) break
     for (const [label, verify] of pending) {
       try {
         await verify()
@@ -300,10 +307,12 @@ export async function pollAllVisible(entries, deps = {}) {
         }
       }
     }
-    if (pending.size === 0 || now() >= deadline || waitedMs >= timeout) break
-    const delay = visibilityDelay(round)
-    await sleep(delay)
-    waitedMs += delay
+    if (pending.size === 0 || signal?.aborted) break
+    tell(
+      `waiting for registry visibility: ${pending.keys().toArray().join(', ')} ` +
+        `(${formatWaitedMs(now() - startedAt)} elapsed)`,
+    )
+    await sleep(visibilityDelay(round))
   }
   const done = new Set(entries.map(({ label }) => label).filter((label) => !pending.has(label)))
   return {
@@ -320,8 +329,10 @@ if (
   try {
     // One package per platform plus the untargeted fallback (PLAN.md D209):
     // the release publishes every artifact first and only then polls for
-    // visibility under one shared deadline, so a cancelled job never leaves
+    // visibility under one shared stop, so a cancelled job never leaves
     // only some targets published. npm still takes its single tarball.
+    // The wait has no timeout of ours: the job's own timeout-minutes or a
+    // local Ctrl-C ends it, and every round says what is still pending.
     if (artifacts.length === 0) {
       throw new Error('usage: publish-registry.mjs <marketplace|openvsx|npm> <artifact...>')
     }
@@ -336,6 +347,7 @@ if (
         label: artifact,
         verify: () => verifyPublished(channel, artifact, manifest),
       })),
+      { tell: (line) => console.log(line) },
     )
     for (const label of visible) reportVisibility(channel, 'visible', label)
     for (const label of pending) reportVisibility(channel, 'pending', label)

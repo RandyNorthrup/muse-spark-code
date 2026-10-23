@@ -246,11 +246,13 @@ An already-published version is successful only when it matches this run:
 
 Every artifact is published before any visibility poll runs; the job
 then polls the same endpoints until each exact version is visible with
-matching integrity (up to 30 minutes in total, shared across all
-artifacts and backing off; npm took 19 minutes for 0.16.0), re-checking
-unfinished targets in the same job, then reports each
-`published and visible`. A target still pending at the deadline reports
-`published, not yet visible` as a warning in the job
+matching integrity (shared across all artifacts and backing off; npm
+took 19 minutes for 0.16.0). No timeout of ours ends the wait: it ends
+at visibility, an integrity mismatch, or the job's own stop (the
+publish job's timeout-minutes, or Ctrl-C on a local run), and every
+round says what is still pending. Finished targets report
+`published and visible`. A target still pending when the wait stopped
+reports `published, not yet visible` as a warning in the job
 summary without failing the release; re-check the registry before announcing.
 A re-run of the job re-publishes nothing (the already-published path
 verifies at once) and re-polls what is still pending, so a cancelled job

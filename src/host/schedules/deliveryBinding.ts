@@ -165,7 +165,9 @@ export function createScheduleDeliveryBinding(
             authority.generation?.(entry.schedule.workspaceKey, entry.schedule.id) ===
               authorityGeneration,
           checkDispatch: async () => {
-            const live = await authority.read(entry.schedule.workspaceKey, entry.schedule.id)
+            const live = await authority.read(entry.schedule.workspaceKey, entry.schedule.id, {
+              signal: entry.signal,
+            })
             const check = () => {
               isAuthorityIsCurrent =
                 live !== undefined &&
@@ -180,7 +182,9 @@ export function createScheduleDeliveryBinding(
             return check
           },
           readGrant: async () => {
-            const current = await authority.read(entry.schedule.workspaceKey, entry.schedule.id)
+            const current = await authority.read(entry.schedule.workspaceKey, entry.schedule.id, {
+              signal: entry.signal,
+            })
             return current === undefined ||
               current.paused ||
               current.mode !== entry.schedule.mode ||

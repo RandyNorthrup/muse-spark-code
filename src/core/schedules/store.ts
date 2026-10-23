@@ -13,8 +13,10 @@ import {
   SCHEDULE_RECONCILE_MAX_RUNS,
 } from '../../shared/constants'
 import {
+  eitherSignal,
   scheduleFireRecordSchema,
   scheduleV2Schema,
+  type ScheduleCallOptions,
   type ScheduleStoreV2,
   type ScheduleFireRecord,
   type ScheduleDeliveryState,
@@ -27,7 +29,11 @@ import { validateScheduleSettlement } from './fireRecord'
 
 export interface ScheduleQueuePort {
   /** One dispatcher per target, held until final settlement. */
-  serialize(targetKey: string, work: () => Promise<void>): Promise<void>
+  serialize(
+    targetKey: string,
+    work: () => Promise<void>,
+    options?: ScheduleCallOptions,
+  ): Promise<void>
 }
 export function scheduleStorageHash(value: string): string {
   return createHash('sha256').update(value).digest('hex')
@@ -107,24 +113,43 @@ const reservationSchema = z.strictObject({
   migrationSourceJobFingerprint: z.optional(z.string()),
 })
 export interface ScheduleRunJournalPort {
-  admit(intent: ScheduleRunIntent): Promise<boolean>
+  admit(intent: ScheduleRunIntent, options?: ScheduleCallOptions): Promise<boolean>
   /** Cursor CAS and after-N admission, idempotent for an already admitted run. */
-  advance(intent: ScheduleRunIntent): Promise<boolean>
+  advance(intent: ScheduleRunIntent, options?: ScheduleCallOptions): Promise<boolean>
   /** Durable at-most-once fence before entering any host delivery boundary. */
   startDispatch(
     intent: ScheduleRunIntent,
     liabilityUsd?: ScheduleFireRecord['cost']['retainedLiabilityUsd'],
+    options?: ScheduleCallOptions,
   ): Promise<boolean>
-  lookupRun(workspaceKey: string, runId: string): Promise<ScheduleDeliveryState>
+  lookupRun(
+    workspaceKey: string,
+    runId: string,
+    options?: ScheduleCallOptions,
+  ): Promise<ScheduleDeliveryState>
   /** A target lease expiry does not prove its dispatching process died. */
-  isLiveDispatchOwnedElsewhere?(workspaceKey: string, runId: string): Promise<boolean>
+  isLiveDispatchOwnedElsewhere?(
+    workspaceKey: string,
+    runId: string,
+    options?: ScheduleCallOptions,
+  ): Promise<boolean>
   /** Bounded dispatchers select from this persisted queue, including live owners. */
-  pending(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
-  abandoned(workspaceKey: string): Promise<readonly ScheduleRunIntent[]>
+  pending(
+    workspaceKey: string,
+    options?: ScheduleCallOptions,
+  ): Promise<readonly ScheduleRunIntent[]>
+  abandoned(
+    workspaceKey: string,
+    options?: ScheduleCallOptions,
+  ): Promise<readonly ScheduleRunIntent[]>
   /** Retain final accounting durably until record succeeds. */
-  acknowledge(fire: ScheduleFireRecord): Promise<void>
-  acknowledged(workspaceKey: string, runId: string): Promise<ScheduleFireRecord | undefined>
-  maintain(workspaceKey: string, now: number): Promise<void>
+  acknowledge(fire: ScheduleFireRecord, options?: ScheduleCallOptions): Promise<void>
+  acknowledged(
+    workspaceKey: string,
+    runId: string,
+    options?: ScheduleCallOptions,
+  ): Promise<ScheduleFireRecord | undefined>
+  maintain(workspaceKey: string, now: number, options?: ScheduleCallOptions): Promise<void>
 }
 /**
 The one expected answer for a process that cannot be: ESRCH or EINVAL
@@ -197,6 +222,13 @@ export interface ScheduleStoreOptions {
   recorded, but the schedule keeps firing until the person stops it.
   */
   readonly pauseAfterFailures?: number | (() => number) | undefined
+  /**
+  The owner's bound stop (D121, RLF-NOLIMITS): every call waits on it
+  unless the call names its own as well. The engine binds the delivery
+  stop here, so close-time settlement still runs while close stops the
+  calls that named the combined stop.
+  */
+  readonly signal?: AbortSignal | undefined
 }
 
 export function createScheduleStore(
@@ -208,6 +240,11 @@ export function createScheduleStore(
     const setting = options?.pauseAfterFailures
     const raw = typeof setting === 'function' ? setting() : (setting ?? 0)
     return Number.isSafeInteger(raw) && raw > 0 ? raw : 0
+  }
+  const bound = options?.signal
+  const effective = (call?: ScheduleCallOptions): ScheduleCallOptions | undefined => {
+    const signal = eitherSignal(bound, call?.signal)
+    return signal === undefined ? undefined : { signal }
   }
 
   const retireAuthority = (workspace: string, id: string) => {
@@ -259,22 +296,36 @@ export function createScheduleStore(
     journals.set(workspaceKey, created)
     return created
   }
-  const read = async <T>(file: string, parse: (raw: unknown) => T): Promise<T | undefined> => {
-    const content = await fs.read(file)
+  const read = async <T>(
+    file: string,
+    parse: (raw: unknown) => T,
+    call?: ScheduleCallOptions,
+  ): Promise<T | undefined> => {
+    const content = await fs.read(file, call)
     return content === undefined ? undefined : parse(parseScheduleStoredJson(content))
   }
-  const immutable = async (file: string, content: string, failure: string) => {
-    if (!(await fs.publish(file, content)) && (await fs.read(file)) !== content)
+  const immutable = async (
+    file: string,
+    content: string,
+    failure: string,
+    call?: ScheduleCallOptions,
+  ) => {
+    if (
+      !(await fs.publish(file, content, undefined, call)) &&
+      (await fs.read(file, call)) !== content
+    )
       throw new Error(failure)
   }
-  const fires = async (workspaceKey: string) => {
+  const fires = async (workspaceKey: string, call?: ScheduleCallOptions) => {
     identifier.parse(workspaceKey)
     const result = []
-    const names = await fs.names(`${workspaceKey}/fires`)
+    const names = await fs.names(`${workspaceKey}/fires`, call)
     for (const name of names) {
       if (!/^[\da-f]+\.json$/.test(name)) continue
-      const entry = await read(`${workspaceKey}/fires/${name}`, (raw) =>
-        fireEnvelopeSchema.parse(raw),
+      const entry = await read(
+        `${workspaceKey}/fires/${name}`,
+        (raw) => fireEnvelopeSchema.parse(raw),
+        call,
       )
       if (entry === undefined) continue
       if (
@@ -290,8 +341,9 @@ export function createScheduleStore(
     workspaceKey: string,
     now: number,
     retained?: Awaited<ReturnType<typeof fires>>,
+    call?: ScheduleCallOptions,
   ) => {
-    const history = (retained ?? (await fires(workspaceKey))).toSorted(
+    const history = (retained ?? (await fires(workspaceKey, call))).toSorted(
       (a, b) => b.sequence - a.sequence || b.fire.occurrenceMs - a.fire.occurrenceMs,
     )
     const counts = new Map<string, number>()
@@ -303,8 +355,15 @@ export function createScheduleStore(
         entry.fire.observedAtMs < now - SCHEDULE_AUDIT_MAX_AGE_MS
       ) {
         try {
-          await fs.remove(`${workspaceKey}/fires/${scheduleStorageHash(entry.fire.runId)}.json`)
+          await fs.remove(
+            `${workspaceKey}/fires/${scheduleStorageHash(entry.fire.runId)}.json`,
+            true,
+            call,
+          )
         } catch {
+          // The stop is not debt: an abort ends the prune instead of
+          // leaving the entry for the next maintain.
+          call?.signal?.throwIfAborted()
           // Pruning is debt: a fire left behind is retried on the next
           // maintain, so a failed entry waits instead of failing the prune.
           continue
@@ -313,7 +372,8 @@ export function createScheduleStore(
     }
   }
   const store: ScheduleStoreV2 & ScheduleRunJournalPort & ScheduleMigrationJournalPort = {
-    async create(input) {
+    async create(input, options?: ScheduleCallOptions) {
+      const call = effective(options)
       const schedule = scheduleV2Schema.parse(input)
       // Map keys must survive JSON/zod records without prototype semantics.
       identifier.parse(schedule.id)
@@ -327,12 +387,12 @@ export function createScheduleStore(
       await index(schedule.workspaceKey).transact(async (value) => {
         if (
           value.schedules[schedule.id] !== undefined ||
-          (await fs.read(`${file}.committed`)) !== undefined
+          (await fs.read(`${file}.committed`, call)) !== undefined
         )
           throw new Error('scheduleIdentifierAlreadyIssued')
         if (Object.keys(value.schedules).length >= SCHEDULE_MAX_PER_WORKSPACE)
           throw new Error('scheduleWorkspaceLimit')
-        const previous = await read(file, (raw) => reservationSchema.parse(raw))
+        const previous = await read(file, (raw) => reservationSchema.parse(raw), call)
         const copy = Object.values(value.migrations).find(
           (receipt) => receipt.pendingCopy && receipt.targetId === schedule.id,
         )
@@ -352,22 +412,23 @@ export function createScheduleStore(
             (previous.migrationSourceId === copy.sourceId &&
               previous.migrationSourceJobFingerprint === copy.sourceJobFingerprint))
         )
-          await fs.replace(file, JSON.stringify(reserved))
-        else await immutable(file, JSON.stringify(reserved), 'scheduleIdentifierAlreadyIssued')
+          await fs.replace(file, JSON.stringify(reserved), undefined, call)
+        else
+          await immutable(file, JSON.stringify(reserved), 'scheduleIdentifierAlreadyIssued', call)
         value.schedules[schedule.id] = schedule
         return { value, result: undefined }
-      })
-      await fs.publish(`${file}.committed`, '')
+      }, call)
+      await fs.publish(`${file}.committed`, '', undefined, call)
     },
-    async list(workspaceKey) {
-      const current = await index(workspaceKey).read()
+    async list(workspaceKey, options?: ScheduleCallOptions) {
+      const current = await index(workspaceKey).read(effective(options))
       return Object.values(current.value.schedules).toSorted(
         (a, b) => a.createdAtMs - b.createdAtMs || compareId(a.id, b.id),
       )
     },
     authorityGeneration: (workspace, id) =>
       authorityGenerations.get(authorityKey(workspace, id)) ?? 0,
-    async update(input) {
+    async update(input, options?: ScheduleCallOptions) {
       const job = scheduleV2Schema.parse(input)
       retireAuthority(job.workspaceKey, job.id)
       return await index(job.workspaceKey).transact((value) => {
@@ -384,9 +445,9 @@ export function createScheduleStore(
           }
         value.schedules[job.id] = scheduleV2Schema.parse({ ...job, revision: job.revision + 1 })
         return { value, result: true }
-      })
+      }, effective(options))
     },
-    async remove(workspaceKey, id) {
+    async remove(workspaceKey, id, options?: ScheduleCallOptions) {
       identifier.parse(id)
       retireAuthority(workspaceKey, id)
       return await index(workspaceKey).transact((value) => {
@@ -400,16 +461,19 @@ export function createScheduleStore(
           if (key.startsWith(`${id}:`)) Reflect.deleteProperty(value.timeCursors, key)
         }
         return { value, result: true }
-      })
+      }, effective(options))
     },
-    async claim(runId) {
+    async claim(runId, options?: ScheduleCallOptions) {
+      const call = effective(options)
       scheduleFireRecordSchema.shape.runId.parse(runId)
       const id = decodeURIComponent(runId.split(':', 1)[0] ?? '')
-      const reservation = await read(`identifiers/${scheduleStorageHash(id)}.json`, (raw) =>
-        reservationSchema.parse(raw),
+      const reservation = await read(
+        `identifiers/${scheduleStorageHash(id)}.json`,
+        (raw) => reservationSchema.parse(raw),
+        call,
       )
       if (reservation !== undefined) {
-        const current = await index(reservation.workspaceKey).read()
+        const current = await index(reservation.workspaceKey).read(call)
         if (current.value.schedules[id] === undefined) return false
       }
       return (
@@ -421,21 +485,25 @@ export function createScheduleStore(
             ownerPid: scheduleProcessBirth().pid,
             ownerStart: scheduleProcessBirth().start,
           }),
+          undefined,
+          call,
         ))
       )
     },
-    async admit(input) {
+    async admit(input, options?: ScheduleCallOptions) {
+      const call = effective(options)
       const intent = intentSchema.parse(input)
       const isNew = await index(intent.schedule.workspaceKey).transact(async (value) => {
         const reservation = await read(
           `identifiers/${scheduleStorageHash(intent.schedule.id)}.json`,
           (raw) => reservationSchema.parse(raw),
+          call,
         )
         if (reservation?.removedAtMs !== undefined) return { value, result: false }
         if (value.schedules[intent.schedule.id] === undefined) return { value, result: false }
         if (
           value.pending[intent.runId] !== undefined ||
-          (await fs.read(`${fenceFolder(intent.runId)}.json`)) !== undefined
+          (await fs.read(`${fenceFolder(intent.runId)}.json`, call)) !== undefined
         )
           return { value, result: false }
         if (Object.keys(value.pending).length >= SCHEDULE_OUTBOX_MAX_PENDING)
@@ -446,15 +514,20 @@ export function createScheduleStore(
           ownerStart: scheduleProcessBirth().start,
         }
         return { value, result: true }
-      })
+      }, call)
       // Intent precedes the identity fence. A crash here leaves definitely-unsent
       // work in the outbox, which reconciliation will fence and deliver once.
-      if (isNew) await store.claim(intent.runId)
+      if (isNew) await store.claim(intent.runId, options)
       return isNew
     },
-    async advance(input) {
+    async advance(input, options?: ScheduleCallOptions) {
+      const call = effective(options)
       const intent = intentSchema.parse(input)
-      const fence = await read(`${fenceFolder(intent.runId)}.json`, (raw) => fenceSchema.parse(raw))
+      const fence = await read(
+        `${fenceFolder(intent.runId)}.json`,
+        (raw) => fenceSchema.parse(raw),
+        call,
+      )
       if (fence !== undefined && fence.runId !== intent.runId)
         throw new Error('scheduleClaimIdentityMismatch')
       let decision: z.infer<typeof decisionSchema> | undefined
@@ -462,8 +535,10 @@ export function createScheduleStore(
         async (value, revision) => {
           const pending = value.pending[intent.runId]
           if (pending === undefined) {
-            const saved = await read(`${fenceFolder(intent.runId)}.decision`, (raw) =>
-              decisionSchema.parse(raw),
+            const saved = await read(
+              `${fenceFolder(intent.runId)}.decision`,
+              (raw) => decisionSchema.parse(raw),
+              call,
             )
             if (saved !== undefined) {
               if (saved.intentHash !== scheduleStorageHash(JSON.stringify(intent)))
@@ -520,17 +595,19 @@ export function createScheduleStore(
           }
           return { value, result: isAdmitted }
         },
+        call,
       )
-      await store.claim(intent.runId)
+      await store.claim(intent.runId, options)
       if (decision !== undefined)
         await immutable(
           `${fenceFolder(intent.runId)}.decision`,
           JSON.stringify(decision),
           'scheduleAdmissionConflict',
+          call,
         )
       return isResult
     },
-    async startDispatch(input, liabilityUsd) {
+    async startDispatch(input, liabilityUsd, options?: ScheduleCallOptions) {
       const intent = intentSchema.parse(input)
       return await index(intent.schedule.workspaceKey).transact((value) => {
         const pending = value.pending[intent.runId]
@@ -547,15 +624,18 @@ export function createScheduleStore(
         pending.ownerPid = process.pid
         pending.ownerStart = scheduleProcessBirth().start
         return { value, result: true }
-      })
+      }, effective(options))
     },
-    async lookupRun(workspaceKey, runId) {
-      const current = await index(workspaceKey).read()
+    async lookupRun(workspaceKey, runId, options?: ScheduleCallOptions) {
+      const call = effective(options)
+      const current = await index(workspaceKey).read(call)
       const pending = current.value.pending[runId]
       const saved =
         pending?.ack === undefined
-          ? await read(`${workspaceKey}/fires/${scheduleStorageHash(runId)}.json`, (raw) =>
-              fireEnvelopeSchema.parse(raw),
+          ? await read(
+              `${workspaceKey}/fires/${scheduleStorageHash(runId)}.json`,
+              (raw) => fireEnvelopeSchema.parse(raw),
+              call,
             )
           : undefined
       const fire = pending?.ack ?? saved?.fire
@@ -571,21 +651,21 @@ export function createScheduleStore(
         }
       return { status: pending === undefined ? 'absent' : 'admitted' }
     },
-    async pending(workspaceKey) {
-      const current = await index(workspaceKey).read()
+    async pending(workspaceKey, options?: ScheduleCallOptions) {
+      const current = await index(workspaceKey).read(effective(options))
       return Object.values(current.value.pending)
         .map((entry) => entry.intent)
         .toSorted(ordered)
     },
-    async abandoned(workspaceKey) {
-      const current = await index(workspaceKey).read()
+    async abandoned(workspaceKey, options?: ScheduleCallOptions) {
+      const current = await index(workspaceKey).read(effective(options))
       return Object.values(current.value.pending)
         .filter((entry) => !isScheduleDispatchOwnerAlive(entry.ownerPid, entry.ownerStart))
         .map((entry) => entry.intent)
         .toSorted(ordered)
     },
-    async isLiveDispatchOwnedElsewhere(workspaceKey, runId) {
-      const current = await index(workspaceKey).read()
+    async isLiveDispatchOwnedElsewhere(workspaceKey, runId, options?: ScheduleCallOptions) {
+      const current = await index(workspaceKey).read(effective(options))
       const pending = current.value.pending[runId]
       if (pending === undefined || pending.dispatchStarted === false) return false
       // A row this process owns under its own birth is not owned elsewhere;
@@ -595,8 +675,9 @@ export function createScheduleStore(
         (pending.ownerStart === undefined || pending.ownerStart === scheduleProcessStart)
       return !isOwnBirth && isScheduleDispatchOwnerAlive(pending.ownerPid, pending.ownerStart)
     },
-    async acknowledge(input) {
+    async acknowledge(input, options?: ScheduleCallOptions) {
       const fire = scheduleFireRecordSchema.parse(input)
+      const call = effective(options)
       await index(fire.workspaceKey).transact((value) => {
         const pending = value.pending[fire.runId]
         if (pending === undefined) throw new Error('scheduleRunNotClaimed')
@@ -611,13 +692,14 @@ export function createScheduleStore(
           throw new Error('scheduleSettlementConflict')
         pending.ack = fire
         return { value, result: undefined }
-      })
+      }, call)
     },
-    async acknowledged(workspaceKey, runId) {
-      const current = await index(workspaceKey).read()
+    async acknowledged(workspaceKey, runId, options?: ScheduleCallOptions) {
+      const current = await index(workspaceKey).read(effective(options))
       return current.value.pending[runId]?.ack
     },
-    async record(input) {
+    async record(input, options?: ScheduleCallOptions) {
+      const call = effective(options)
       const fire = scheduleFireRecordSchema.parse(input)
       const isMustFinalize = await index(fire.workspaceKey).transact(async (value) => {
         // Published completion work retires with the next ordinary mutation,
@@ -626,12 +708,12 @@ export function createScheduleStore(
           0,
           SCHEDULE_RECONCILE_MAX_RUNS,
         )) {
-          if ((await fs.read(`${fenceFolder(runId)}.applied`)) !== undefined)
+          if ((await fs.read(`${fenceFolder(runId)}.applied`, call)) !== undefined)
             Reflect.deleteProperty(value.finalizations, runId)
         }
         const folder = fenceFolder(fire.runId)
         const hash = scheduleStorageHash(JSON.stringify(fire))
-        const previous = await fs.read(`${folder}.settled`)
+        const previous = await fs.read(`${folder}.settled`, call)
         if (previous !== undefined && previous !== hash)
           throw new Error('scheduleSettlementConflict')
         const pending = value.pending[fire.runId]
@@ -646,7 +728,7 @@ export function createScheduleStore(
         if (
           previous !== undefined &&
           pending === undefined &&
-          ((await fs.read(`${folder}.applied`)) !== undefined ||
+          ((await fs.read(`${folder}.applied`, call)) !== undefined ||
             value.finalizations[fire.runId] === hash)
         )
           return { value, result: value.finalizations[fire.runId] !== undefined }
@@ -655,13 +737,13 @@ export function createScheduleStore(
         const file = `${fire.workspaceKey}/fires/${scheduleStorageHash(fire.runId)}.json`
         const saved =
           pending === undefined
-            ? await read(file, (raw) => fireEnvelopeSchema.parse(raw))
+            ? await read(file, (raw) => fireEnvelopeSchema.parse(raw), call)
             : undefined
         const sequence = pending?.sequence ?? saved?.sequence ?? 0
         const envelope = { fire, sequence }
-        await immutable(file, JSON.stringify(envelope), 'scheduleSettlementConflict')
-        await immutable(`${folder}.settled`, hash, 'scheduleSettlementConflict')
-        const retained = await fires(fire.workspaceKey)
+        await immutable(file, JSON.stringify(envelope), 'scheduleSettlementConflict', call)
+        await immutable(`${folder}.settled`, hash, 'scheduleSettlementConflict', call)
+        const retained = await fires(fire.workspaceKey, call)
         const job = value.schedules[fire.scheduleId]
         // D121: the pause window is the person's live count; 0 keeps no
         // window and never pauses. Older summaries are normalized here, so
@@ -709,58 +791,75 @@ export function createScheduleStore(
           })
         Reflect.deleteProperty(value.pending, fire.runId)
         value.finalizations[fire.runId] = hash
-        await trimAudit(fire.workspaceKey, fire.observedAtMs, retained)
+        await trimAudit(fire.workspaceKey, fire.observedAtMs, retained, call)
         return { value, result: true }
-      })
-      if (isMustFinalize) await fs.publish(`${fenceFolder(fire.runId)}.applied`, '')
+      }, call)
+      if (isMustFinalize)
+        await fs.publish(`${fenceFolder(fire.runId)}.applied`, '', undefined, call)
     },
-    async fires(workspaceKey) {
-      const history = await fs.lock(`${workspaceKey}/index`, async () => await fires(workspaceKey))
+    async fires(workspaceKey, options?: ScheduleCallOptions) {
+      const call = effective(options)
+      const history = await fs.lock(
+        `${workspaceKey}/index`,
+        async () => await fires(workspaceKey, call),
+        call,
+      )
       return history
         .map((entry) => entry.fire)
         .toSorted((a, b) => a.occurrenceMs - b.occurrenceMs || a.runId.localeCompare(b.runId))
     },
-    async migrationReceipt(workspaceKey, sourceId) {
-      const current = await index(workspaceKey).read()
+    async migrationReceipt(workspaceKey, sourceId, options?: ScheduleCallOptions) {
+      const call = effective(options)
+      const current = await index(workspaceKey).read(call)
       return (
         current.value.migrations[sourceId] ??
         (await read(
           `${workspaceKey}/migrationReceipts/${scheduleStorageHash(sourceId)}.json`,
           (raw) => scheduleMigrationReceiptSchema.parse(raw),
+          call,
         ))
       )
     },
-    async saveMigrationReceipt(workspaceKey, input) {
+    async saveMigrationReceipt(workspaceKey, input, options?: ScheduleCallOptions) {
       const receipt = scheduleMigrationReceiptSchema.parse(input)
       await index(workspaceKey).transact((value) => {
         value.migrations[receipt.sourceId] = receipt
         return { value, result: undefined }
-      })
+      }, effective(options))
     },
-    async completeMigration(workspaceKey, sourceId) {
+    async completeMigration(workspaceKey, sourceId, options?: ScheduleCallOptions) {
+      const call = effective(options)
       return await index(workspaceKey).transact(async (value) => {
         const receiptFile = `${workspaceKey}/migrationReceipts/${scheduleStorageHash(sourceId)}.json`
         // A completed receipt survives in its file: a retry after a crash
         // between completion and source removal still verifies and finishes.
         const receipt =
           value.migrations[sourceId] ??
-          (await read(receiptFile, (raw) => scheduleMigrationReceiptSchema.parse(raw)))
+          (await read(receiptFile, (raw) => scheduleMigrationReceiptSchema.parse(raw), call))
         const schedule = receipt === undefined ? undefined : value.schedules[receipt.targetId]
         if (receipt === undefined || schedule === undefined) return { value, result: undefined }
         if (value.migrations[sourceId] !== undefined) {
-          await fs.replace(receiptFile, JSON.stringify(receipt))
+          await fs.replace(receiptFile, JSON.stringify(receipt), undefined, call)
           Reflect.deleteProperty(value.migrations, sourceId)
         }
         return { value, result: { schedule, receipt } }
-      })
+      }, call)
     },
-    async reconcileMigration(workspaceKey, next, receipt, expectedSourceFingerprint) {
+    async reconcileMigration(
+      workspaceKey,
+      next,
+      receipt,
+      expectedSourceFingerprint,
+      options?: ScheduleCallOptions,
+    ) {
+      const call = effective(options)
       return await index(workspaceKey).transact(async (value) => {
         const currentReceipt =
           value.migrations[receipt.sourceId] ??
           (await read(
             `${workspaceKey}/migrationReceipts/${scheduleStorageHash(receipt.sourceId)}.json`,
             (raw) => scheduleMigrationReceiptSchema.parse(raw),
+            call,
           ))
         if (
           value.schedules[next.id]?.revision !== next.revision ||
@@ -770,31 +869,38 @@ export function createScheduleStore(
         value.schedules[next.id] = scheduleV2Schema.parse({ ...next, revision: next.revision + 1 })
         value.migrations[receipt.sourceId] = scheduleMigrationReceiptSchema.parse(receipt)
         return { value, result: true }
-      })
+      }, call)
     },
-    async maintain(workspaceKey, now) {
+    async maintain(workspaceKey, now, options?: ScheduleCallOptions) {
+      const call = effective(options)
       await index(workspaceKey).transact(async (value) => {
         for (const runId of Object.keys(value.finalizations).slice(
           0,
           SCHEDULE_RECONCILE_MAX_RUNS,
         )) {
           try {
-            await fs.publish(`${fenceFolder(runId)}.applied`, '')
+            await fs.publish(`${fenceFolder(runId)}.applied`, '', undefined, call)
             Reflect.deleteProperty(value.finalizations, runId)
           } catch {
-            // The applied marker is debt: an unpublished finalization stays
-            // queued for the next maintain instead of failing this one.
+            // The stop is not debt: an abort ends the maintain instead of
+            // leaving the finalization for the next one.
+            call?.signal?.throwIfAborted()
             continue
           }
         }
-        await trimAudit(workspaceKey, now)
+        await trimAudit(workspaceKey, now, undefined, call)
         let remaining = SCHEDULE_RECONCILE_MAX_RUNS
         for (const [id, atMs] of Object.entries(value.retirements)) {
           const file = `identifiers/${scheduleStorageHash(id)}.json`
-          const reservation = await read(file, (raw) => reservationSchema.parse(raw))
+          const reservation = await read(file, (raw) => reservationSchema.parse(raw), call)
           if (reservation === undefined) throw new Error('scheduleIdentifierMissing')
-          await fs.replace(file, JSON.stringify({ ...reservation, removedAtMs: atMs }))
-          await fs.publish(`${file}.committed`, '')
+          await fs.replace(
+            file,
+            JSON.stringify({ ...reservation, removedAtMs: atMs }),
+            undefined,
+            call,
+          )
+          await fs.publish(`${file}.committed`, '', undefined, call)
           if (
             now - atMs < SCHEDULE_FENCE_GRACE_MS ||
             Object.keys(value.finalizations).some((runId) => runId.startsWith(`${id}:`)) ||
@@ -803,40 +909,46 @@ export function createScheduleStore(
             continue
           const folder = `claims/${scheduleStorageHash(id)}`
           let isRetired = true
-          const segments = await fs.names(folder)
+          const segments = await fs.names(folder, call)
           for (const segment of segments) {
             if (remaining <= 0) {
               isRetired = false
               continue
             }
-            const names = await fs.names(`${folder}/${segment}`)
+            const names = await fs.names(`${folder}/${segment}`, call)
             for (const name of names.slice(0, remaining)) {
               remaining -= 1
               try {
-                await fs.remove(`${folder}/${segment}/${name}`, false)
+                await fs.remove(`${folder}/${segment}/${name}`, false, call)
               } catch {
+                // The stop is not debt: an abort ends the maintain.
+                call?.signal?.throwIfAborted()
                 // Retirement is debt: a claim left behind keeps the entry
                 // for the next maintain instead of deleting around it.
                 isRetired = false
               }
             }
             try {
-              await fs.remove(`${folder}/${segment}`, false)
+              await fs.remove(`${folder}/${segment}`, false, call)
             } catch {
+              // The stop is not debt: an abort ends the maintain.
+              call?.signal?.throwIfAborted()
               // As above: an undeleted segment keeps the entry for retry.
               isRetired = false
             }
           }
           try {
-            await fs.remove(folder, false)
+            await fs.remove(folder, false, call)
           } catch {
+            // The stop is not debt: an abort ends the maintain.
+            call?.signal?.throwIfAborted()
             // As above: an undeleted folder keeps the entry for retry.
             isRetired = false
           }
           if (isRetired) Reflect.deleteProperty(value.retirements, id)
         }
         return { value, result: undefined }
-      })
+      }, call)
     },
   }
   return store

@@ -1,6 +1,7 @@
 // The lazy runtime binding lane X named for W/S: the real engine, no fakes.
 // Loaded by the schedule CLI and the ACP agent through runtimeSchedulesBinding.
 import { homedir } from 'node:os'
+import { eitherSignal } from '../../shared/scheduleV2'
 import { setUiText } from '../../shared/l10n/text'
 import { UI_TEXT } from '../../shared/constants'
 import { agentDataFolder, schedulesFolder } from '../dataFolder'
@@ -15,8 +16,16 @@ import type { createScheduleBilling } from '../../host/schedules/paidBinding'
 export async function createRuntimeSchedules(
   ...args: CreateRuntimeSchedulesArgs
 ): Promise<RuntimeSchedulesBinding> {
-  const [table, locale, delivery, runtimeDelivery, migration, scheduleEngine, pauseAfterFailures] =
-    args
+  const [
+    table,
+    locale,
+    delivery,
+    runtimeDelivery,
+    migration,
+    scheduleEngine,
+    pauseAfterFailures,
+    callerSignal,
+  ] = args
   // The engine module lives on the ACP side (main.ts installs it); the
   // schedules bundle never loads it from VS Code, so the VSIX need not
   // carry the runtime engine for schedules.
@@ -86,10 +95,12 @@ export async function createRuntimeSchedules(
       throw error
     }
   }
+  // Either stop ends an engine wait: the editor delivery's, the caller's, or neither.
+  const engineSignal = eitherSignal(delivery?.signal, callerSignal)
   const { runtime } = await createScheduleEngine({
     fs: createNodeScheduleFs(root),
     ...(pauseAfterFailures !== undefined && { pauseAfterFailures }),
-    ...(delivery !== undefined && { signal: delivery.signal }),
+    ...(engineSignal !== undefined && { signal: engineSignal }),
     queue: createNodeScheduleQueue(root),
     platform,
     homeDir,

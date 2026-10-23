@@ -2085,9 +2085,6 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
-// `git worktree add` checks a whole tree out, and `remove` deletes one (M32);
-// a held checkout's listing, index and writes share the same bound (M71).
-export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
 // What a failed git call's error keeps of its stderr (M72's process runner).
 export const GIT_STDERR_MAX_CHARS = 4096
 // Apple's Xcode stub exits with this code while naming xcodebuild when its
@@ -4895,9 +4892,10 @@ export const POSIX_TREE_EXIT_POLL_MS = 20
 // is compiled once into the extension's storage. Where no job is possible,
 // the shell is given this long to exit after taskkill, and then its orphans
 // are looked up by their dead parent's id and killed, one generation per
-// round, in this many rounds at most. A helper run itself (PowerShell, the
-// process table, taskkill) has no deadline of ours: Windows PowerShell's
-// first start on a slow machine outlasted the old 20 s and was killed.
+// round, until none remains or the stop fires (D121, RLF-NOLIMITS: no round
+// count of ours). A helper run itself (PowerShell, the process table,
+// taskkill) has no deadline of ours: Windows PowerShell's first start on a
+// slow machine outlasted the old 20 s and was killed.
 export const SHELL_JOB_TYPE_NAME = 'MuseSparkJob'
 export const SHELL_JOB_FOLDER = 'shell-job'
 // .NET Framework ships with Windows PowerShell 5.1; its x86 compiler is
@@ -4909,7 +4907,6 @@ export const WINDOWS_FRAMEWORK_RELATIVE_PATH = 'Microsoft.NET\\Framework\\v4.0.3
 // eslint-disable-next-line unicorn/prefer-string-raw -- as above.
 export const SHELL_JOB_NAME_PREFIX = 'Local\\MuseSparkShell-'
 export const TREE_EXIT_WAIT_MS = 10_000
-export const ORPHAN_SWEEP_ROUNDS = 5
 /**
 The usage-page opener's own wait bound (D121): the terminal must not wait on
 a stuck OS opener past this; the page, once handed off, is the OS's. Every
@@ -5211,7 +5208,6 @@ export const SCHEDULE_FENCE_GRACE_MS = 8 * MILLISECONDS_PER_DAY
 export const SCHEDULE_AUDIT_MAX_PER_SCHEDULE = 100
 export const SCHEDULE_AUDIT_MAX_AGE_MS = 30 * MILLISECONDS_PER_DAY
 export const SCHEDULE_FENCE_SEGMENT_CHARS = 2
-export const SCHEDULE_FS_RETRY_ATTEMPTS = 5
 export const SCHEDULE_FS_RETRY_BACKOFF_MS = 20
 export const SCHEDULE_LEASE_HEARTBEAT_MS = 2000
 export const SCHEDULE_LEASE_EXPIRES_MS = 10_000
