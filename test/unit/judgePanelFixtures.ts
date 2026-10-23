@@ -2,6 +2,7 @@
 // a daily budget and a needed consent so the tests fail if that path asks.
 
 import type { JudgePanelCapability, JudgePanelFacts } from '../../src/shared/judgePanel'
+import { Usd } from '../../src/shared/usd'
 
 export function judgeCapability(
   overrides: Partial<JudgePanelCapability> = {},
@@ -48,7 +49,7 @@ export function subscriptionFacts(): JudgePanelFacts {
     reason: 'consent-needed',
     inputPerMillion: 1,
     outputPerMillion: 4,
-    dailyBudgetUsd: 2,
+    dailyBudgetUsd: Usd.from(2).toAmount(),
   })
 }
 
@@ -61,7 +62,7 @@ export function modelApiFacts(overrides: Partial<JudgePanelFacts> = {}): JudgePa
     reason: 'consent-needed',
     inputPerMillion: 3,
     outputPerMillion: 15,
-    dailyBudgetUsd: 5,
+    dailyBudgetUsd: Usd.from(5).toAmount(),
     ...overrides,
   })
 }
