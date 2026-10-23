@@ -198,6 +198,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Changed
 
+- Three bundle budgets are back to their original caps with the bundles
+  fitting by weight and no behavior change. The team runners read their
+  schemas from the already-loaded team bundle instead of carrying second
+  copies (`dist/teamRunners.js` 64.1 KiB under 75). The estimator's composer
+  parsing and first-wave start load lazily from `dist/estimateActions.js`
+  (44.5 KiB under 52) on first use (`dist/estimator.js` 72.8 KiB under 75).
+  The POSIX tree supervisor script lives in the function that runs it, so
+  bundles that never call it stop carrying it (`dist/judgeServe.js`
+  21.1 KiB under 25).
 - Runner-route resource relocation joins the lazy check router to the
   existing governor, SSH admission and resource journal. Complete
   scheduler bindings supply approved routes, exclusive attempt ownership,
