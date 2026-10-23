@@ -7,90 +7,30 @@
 // Cached Input stays honestly unreported for this session. A third frame
 // grows the cache counter inside its input delta, and that bounded cached
 // delta journals with the input and output it was read from.
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
-import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
-import { MuseUsageDeltas } from '../../src/core/backends/musecode/usageDeltas'
-import { createUsageRecording } from '../../src/core/usage/recording'
-import { UsageJournalStore } from '../../src/core/usage/journalStore'
-import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import { describe, expect, it } from 'vitest'
+import {
+  createMuseJournalRig,
+  MUSE_JOURNAL_SESSION,
+  MUSE_TOKEN_USAGE_FRAMES,
+  registerMuseJournalCleanup,
+} from './helpers/museJournalRig'
 
-const NOW = 1_790_000_000_000
-const sessionId = 'session-1'
-
-const roots: string[] = []
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
-})
-
-function tokenUsageEvent(params: Record<string, unknown>) {
-  const mapped = mapNotification({ method: 'session/tokenUsage', params })
-  if (typeof mapped === 'string' || !('event' in mapped) || mapped.event.type !== 'tokenUsage')
-    throw new Error('recorded frame did not map')
-  return mapped.event
-}
-
-async function journaled(model: string, prefix: string) {
-  const dataFolder = await mkdtemp(path.join(tmpdir(), prefix))
-  roots.push(dataFolder)
-  let ids = 0
-  const store = new UsageJournalStore(new NodeUsageFs(dataFolder, () => NOW), {
-    writerId: 'deltas-test',
-    isEnabled: () => true,
-    now: () => NOW,
-    onWriteError: () => undefined,
-  })
-  const recording = createUsageRecording({
-    client: 'test',
-    now: () => NOW,
-    newId: () => `note-${String((ids += 1))}`,
-    isEnabled: () => true,
-    writer: () => Promise.resolve(store),
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
-  })
-  const deltas = new MuseUsageDeltas(recording, sessionId, model, true, () => NOW)
-  return {
-    feed(frames: readonly Record<string, unknown>[]) {
-      for (const params of frames) deltas.receive(tokenUsageEvent(params))
-    },
-    async read() {
-      await recording.flush()
-      const journal = await store.read()
-      return journal.records
-    },
-  }
-}
+registerMuseJournalCleanup()
 
 describe('Muse usage deltas over the real journal', () => {
   it('journals input and output without inventing cached splits', async () => {
-    const journal = await journaled('muse-spark-1.3-contributor', 'rel0190-usage-deltas-')
+    const journal = await createMuseJournalRig(
+      'muse-spark-1.3-contributor',
+      'rel0190-usage-deltas-',
+      'deltas-test',
+    )
     journal.feed([
+      // The recorded exchange's first two frames, then a third that grows
+      // the cache counter inside its input delta: the cached delta journals
+      // with the input and output it was read from.
+      ...MUSE_TOKEN_USAGE_FRAMES,
       {
-        sessionId,
-        modelId: 'muse-spark-1.3-contributor',
-        cumulative: { promptTokens: 24_999, outputTokens: 770, totalTokens: 25_769 },
-      },
-      {
-        sessionId,
-        modelId: 'muse-spark-1.3-contributor',
-        cumulative: {
-          promptTokens: 50_789,
-          outputTokens: 887,
-          totalTokens: 51_676,
-          cacheReadTokens: 24_945,
-        },
-      },
-      // A third frame grows the cache counter inside its input delta: the
-      // cached delta journals with the input and output it was read from.
-      {
-        sessionId,
+        sessionId: MUSE_JOURNAL_SESSION,
         modelId: 'muse-spark-1.3-contributor',
         cumulative: {
           promptTokens: 60_789,
@@ -127,10 +67,14 @@ describe('Muse usage deltas over the real journal', () => {
     // CLI 1.4.2): the first completion finishes with tool_calls, the
     // second carries no finish reason, the third predates per-completion
     // usage, the fourth names no model.
-    const journal = await journaled('muse-spark-1.3', 'rel0190-usage-outcome-')
+    const journal = await createMuseJournalRig(
+      'muse-spark-1.3',
+      'rel0190-usage-outcome-',
+      'deltas-test',
+    )
     journal.feed([
       {
-        sessionId,
+        sessionId: MUSE_JOURNAL_SESSION,
         modelId: 'muse-spark-1.3-contributor',
         usage: {
           inputTokens: 24_999,
@@ -147,7 +91,7 @@ describe('Muse usage deltas over the real journal', () => {
         cumulative: { promptTokens: 24_999, outputTokens: 770, totalTokens: 25_769 },
       },
       {
-        sessionId,
+        sessionId: MUSE_JOURNAL_SESSION,
         modelId: 'muse-spark-1.3-contributor',
         usage: {
           inputTokens: 25_790,
@@ -169,14 +113,14 @@ describe('Muse usage deltas over the real journal', () => {
       },
       // A frame that predates per-completion usage journals its delta.
       {
-        sessionId,
+        sessionId: MUSE_JOURNAL_SESSION,
         modelId: 'muse-spark-1.3-contributor',
         cumulative: { promptTokens: 60_789, outputTokens: 987, totalTokens: 61_776 },
       },
       // A frame that names no model: the record keeps the last model
       // the CLI named and names no served model.
       {
-        sessionId,
+        sessionId: MUSE_JOURNAL_SESSION,
         cumulative: { promptTokens: 70_789, outputTokens: 1087, totalTokens: 71_876 },
       },
     ])

@@ -1,110 +1,47 @@
 // RLF-MACLIVE F2: the ACP usage read covers Muse Code sessions. A Muse
 // Code turn's journaled records feed the snapshot through the real chain:
-// the wire mapper, the session deltas, the recording, the on-disk journal
-// and the real daily-ledger reader. The tokenUsage frames are the recorded
-// 2026-10-08 exchange (docs/research/m105-captures/u16-2026-10-08.jsonl,
-// CLI 1.4.2), the same frames museUsageDeltas.test.ts journals.
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+// the rig's wire mapper, session deltas, recording and on-disk journal,
+// plus the real daily-ledger reader for budgets.
+import { describe, expect, it } from 'vitest'
 import { readAcpUsage } from '../../src/acp/accounting'
-import { mapNotification } from '../../src/core/backends/musecode/mapNotification'
-import { MuseUsageDeltas } from '../../src/core/backends/musecode/usageDeltas'
-import { createUsageRecording } from '../../src/core/usage/recording'
-import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { createAcpAccounting } from '../../src/runtime/acpAccounting'
 import { readRuntimeDailyBudget } from '../../src/runtime/runtimeAccountingEntry'
-import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
+import {
+  createMuseJournalRig,
+  MUSE_JOURNAL_NOW,
+  MUSE_JOURNAL_SESSION,
+  MUSE_TOKEN_USAGE_FRAMES,
+  registerMuseJournalCleanup,
+} from './helpers/museJournalRig'
 
-const NOW = 1_790_000_000_000
-const sessionId = 'session-1'
-
-const roots: string[] = []
-afterEach(async () => {
-  await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })))
-})
-
-function tokenUsageEvent(params: Record<string, unknown>) {
-  const mapped = mapNotification({ method: 'session/tokenUsage', params })
-  if (typeof mapped === 'string' || !('event' in mapped) || mapped.event.type !== 'tokenUsage')
-    throw new Error('recorded frame did not map')
-  return mapped.event
-}
+registerMuseJournalCleanup()
 
 async function museCodeAccounting(isHistoryOn: boolean) {
-  const dataFolder = await mkdtemp(path.join(tmpdir(), 'muse-acp-usage-'))
-  roots.push(dataFolder)
-  let ids = 0
-  const store = new UsageJournalStore(new NodeUsageFs(dataFolder, () => NOW), {
-    writerId: 'acp-usage-test',
-    isEnabled: () => true,
-    now: () => NOW,
-    onWriteError: () => undefined,
-  })
-  const recording = createUsageRecording({
-    client: 'test',
-    now: () => NOW,
-    newId: () => `note-${String((ids += 1))}`,
-    isEnabled: () => true,
-    writer: () => Promise.resolve(store),
-    log: {
-      trace: () => undefined,
-      info: () => undefined,
-      warn: () => undefined,
-      error: () => undefined,
-    },
-  })
-  const deltas = new MuseUsageDeltas(
-    recording,
-    sessionId,
+  const rig = await createMuseJournalRig(
     'muse-spark-1.3-contributor',
-    true,
-    () => NOW,
+    'muse-acp-usage-',
+    'acp-usage-test',
   )
   const accounting = createAcpAccounting({
-    recording,
+    recording: rig.recording,
     isEnabled: () => isHistoryOn,
-    runtime: { readUsageBudgets: () => readRuntimeDailyBudget({ dataFolder, now: () => NOW }) },
-    dataFolder,
-    now: () => NOW,
+    runtime: {
+      readUsageBudgets: () =>
+        readRuntimeDailyBudget({ dataFolder: rig.dataFolder, now: () => MUSE_JOURNAL_NOW }),
+    },
+    dataFolder: rig.dataFolder,
+    now: () => MUSE_JOURNAL_NOW,
     sleep: () => Promise.resolve(),
   })
-  return {
-    feed(frames: readonly Record<string, unknown>[]) {
-      for (const params of frames) deltas.receive(tokenUsageEvent(params))
-    },
-    accounting,
-    async snapshot() {
-      await recording.flush()
-      return await readAcpUsage(accounting, sessionId)
-    },
-  }
+  return { rig, accounting }
 }
-
-const RECORDED_FRAMES = [
-  {
-    sessionId,
-    modelId: 'muse-spark-1.3-contributor',
-    cumulative: { promptTokens: 24_999, outputTokens: 770, totalTokens: 25_769 },
-  },
-  {
-    sessionId,
-    modelId: 'muse-spark-1.3-contributor',
-    cumulative: {
-      promptTokens: 50_789,
-      outputTokens: 887,
-      totalTokens: 51_676,
-      cacheReadTokens: 24_945,
-    },
-  },
-]
 
 describe('ACP usage read over Muse Code journal records', () => {
   it('snapshots the session with plan-priced requests and no settled dollars', async () => {
-    const rig = await museCodeAccounting(true)
-    rig.feed(RECORDED_FRAMES)
-    const snapshot = await rig.snapshot()
+    const { rig, accounting } = await museCodeAccounting(true)
+    rig.feed(MUSE_TOKEN_USAGE_FRAMES)
+    await rig.recording.flush()
+    const snapshot = await readAcpUsage(accounting, MUSE_JOURNAL_SESSION)
     expect(snapshot.available).toBe(true)
     // Both completions journaled; neither settles dollars on a subscription.
     expect(snapshot.session.requests).toBe(2)
@@ -116,8 +53,11 @@ describe('ACP usage read over Muse Code journal records', () => {
   })
 
   it('refuses the read where history is disabled', async () => {
-    const rig = await museCodeAccounting(false)
-    rig.feed(RECORDED_FRAMES)
-    await expect(rig.snapshot()).rejects.toThrow('Usage history unavailable')
+    const { rig, accounting } = await museCodeAccounting(false)
+    rig.feed(MUSE_TOKEN_USAGE_FRAMES)
+    await rig.recording.flush()
+    await expect(readAcpUsage(accounting, MUSE_JOURNAL_SESSION)).rejects.toThrow(
+      'Usage history unavailable',
+    )
   })
 })
