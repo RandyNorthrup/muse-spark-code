@@ -10,6 +10,7 @@ import {
   scheduleReportTool,
 } from '../../src/core/schedules/reportAction'
 import { quietStoreBase, runContextFixture, scheduleFixture } from './helpers/scheduleFixtures'
+import { collectingLogger } from './helpers/collectingLogger'
 
 const SECRET = 'SECRET-recipient-secret-path'
 
@@ -39,6 +40,7 @@ function schedule() {
 describe('report failure secrecy', () => {
   it('settles a throwing provider as failed without its text', async () => {
     const job = schedule()
+    const logged: string[] = []
     const runner = new ScheduleReportActionRunner({
       store: {
         create: () => Promise.resolve(undefined),
@@ -49,16 +51,22 @@ describe('report failure secrecy', () => {
         run: () => Promise.reject(new Error(`provider exploded: ${SECRET}`)),
       },
       audit: () => Promise.resolve(undefined),
+      log: collectingLogger(logged),
       now: () => 1,
     })
     const result = await runner.run(job, runContextFixture(job), 1_700_000_060_000)
     expect(result.outcome).toBe('failed')
     expect(result.reason).toBe(UI_TEXT.scheduleV2.reportAction.failed)
     expect(JSON.stringify(result)).not.toContain('SECRET')
+    // The record keeps the failure's kind; the secret reaches neither
+    // the record nor the person.
+    expect(logged).toContain('The schedule report run failed: Error')
+    expect(logged.join('\n')).not.toContain('SECRET')
   })
 
   it('refuses a throwing admission without its text', async () => {
     const job = schedule()
+    const logged: string[] = []
     const tool = scheduleReportTool(
       {
         destinationsAllowed: () => Promise.resolve(true),
@@ -66,6 +74,7 @@ describe('report failure secrecy', () => {
       },
       { bounded: (request) => request },
       () => ({ rules: [], destinationIds: ['dest-1'], paidCapUsd: Usd.from(0).toAmount() }),
+      collectingLogger(logged),
     )
     const result = await tool.execute({
       name: 'Morning report',
@@ -85,5 +94,7 @@ describe('report failure secrecy', () => {
     })
     expect(result).toEqual({ kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.unavailable })
     expect(JSON.stringify(result)).not.toContain('SECRET')
+    expect(logged).toContain('The schedule report tool failed: Error')
+    expect(logged.join('\n')).not.toContain('SECRET')
   })
 })

@@ -18,6 +18,7 @@ export async function createRuntimeSchedules(
   const [
     table,
     locale,
+    log,
     delivery,
     runtimeDelivery,
     migration,
@@ -95,6 +96,7 @@ export async function createRuntimeSchedules(
     }
   }
   const { runtime } = await createScheduleEngine({
+    log,
     fs: createNodeScheduleFs(root),
     ...(pauseAfterFailures !== undefined && { pauseAfterFailures }),
     ...(isWorkspaceTrusted !== undefined && { isWorkspaceTrusted }),

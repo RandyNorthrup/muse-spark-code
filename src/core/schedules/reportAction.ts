@@ -1,4 +1,5 @@
 import { UI_TEXT } from '../../shared/constants'
+import { wireWordForLog, type CoreLogger } from '../logging'
 import { isRunContextOf } from './runIdentity'
 import { scheduleEventSchema, type ScheduleEvent } from '../../shared/scheduleEvents'
 import {
@@ -50,6 +51,8 @@ export interface ScheduleReportDeps {
   readonly store: ScheduleStoreV2
   readonly reports: ScheduleReportPort
   readonly audit: (entry: ReturnType<typeof scheduleGrantAuditSchema.parse>) => Promise<void>
+  /** Failures the person gets as fixed sentences keep their kind here. */
+  readonly log: CoreLogger
   readonly now: () => number
 }
 
@@ -150,8 +153,11 @@ export class ScheduleReportActionRunner implements ScheduleReportDeliveryPort {
       return results.some((item) => item.status === 'deferred')
         ? settle('skipped', UI_TEXT.scheduleV2.messages.openWhenBack, report.data)
         : settle('ran', undefined, report.data)
-    } catch {
-      // Report/provider errors may contain paths, recipients or credentials.
+    } catch (error: unknown) {
+      if (!(error instanceof Error)) throw error
+      // Report/provider errors may contain paths, recipients or
+      // credentials: the record keeps the kind, never the words.
+      this.deps.log.warn(`The schedule report run failed: ${wireWordForLog(error.name)}`)
       return settle('failed', UI_TEXT.scheduleV2.reportAction.failed)
     }
   }
@@ -175,6 +181,7 @@ export function scheduleReportTool(
   port: ScheduleReportAgentPort,
   noEscalation: ScheduleNoEscalation,
   creatorGrant: () => ScheduleGrant,
+  log: CoreLogger,
 ) {
   return {
     name: 'schedule_report',
@@ -214,7 +221,11 @@ export function scheduleReportTool(
           (response.data.kind === 'accepted' || response.data.kind === 'refused')
           ? response.data
           : { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.invalidResponse }
-      } catch {
+      } catch (error: unknown) {
+        if (!(error instanceof Error)) throw error
+        // Admission and port errors may name paths or recipients: the
+        // record keeps the kind, never the words.
+        log.warn(`The schedule report tool failed: ${wireWordForLog(error.name)}`)
         return { kind: 'refused', reason: UI_TEXT.scheduleV2.runtime.unavailable }
       }
     },

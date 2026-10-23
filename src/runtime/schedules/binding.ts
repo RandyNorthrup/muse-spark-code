@@ -28,6 +28,8 @@ export interface RuntimeSchedulesBinding extends AcpSchedulePort {
 export type CreateRuntimeSchedulesArgs = [
   table: UiText,
   locale: string,
+  // Failures the person gets as fixed sentences keep their kind here.
+  log: Logger,
   delivery?: ScheduleEditorDeliveryPorts,
   runtimeDelivery?: RuntimeScheduleDeliveryPorts,
   migration?: { source: ScheduleMigrationSource; zone: string },
@@ -87,10 +89,11 @@ export function runtimeSchedulesBinding(
           migration === undefined &&
           pauseAfterFailures === undefined &&
           isWorkspaceTrusted === undefined
-            ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
+            ? load().createRuntimeSchedules(UI_TEXT, uiLocale(), log)
             : load().createRuntimeSchedules(
                 UI_TEXT,
                 uiLocale(),
+                log,
                 delivery,
                 undefined,
                 migration,
@@ -102,6 +105,7 @@ export function runtimeSchedulesBinding(
         binding = load().createRuntimeSchedules(
           UI_TEXT,
           uiLocale(),
+          log,
           delivery,
           runtimeDelivery,
           migration,

@@ -37,6 +37,7 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import type { CoreLogger } from '../../core/logging'
 import { fill } from '../../shared/l10n/text'
 import {
   scheduleEventRunId,
@@ -108,6 +109,8 @@ export interface ScheduleEngineOptions {
   readonly isWorkspaceTrusted?: (root: string) => boolean
   /** The installed locale for report documents. Absent reads English. */
   readonly locale?: string
+  /** Failures the person gets as fixed sentences keep their kind here. */
+  readonly log: CoreLogger
 }
 
 /** The conservative failed accounting for a delivery round that produced no
@@ -238,6 +241,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
   // report fire refuses with the pending sentence.
   const reportRunner = new ScheduleReportActionRunner({
     store,
+    log: options.log,
     reports: createScheduleReportPort({
       store,
       authorityStore: authority,
@@ -630,6 +634,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     return release
   }
   const runtime = new ScheduleRuntime({
+    log: options.log,
     controlFor: (cwd, _caller) => controlFor(cwd),
     host,
     surface,
