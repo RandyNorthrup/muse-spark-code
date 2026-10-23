@@ -157,6 +157,32 @@ function failed(folder: string, error: unknown): BundledSkillsFailure {
   return { folder, reason: { kind: 'error', message: describe(error) } }
 }
 
+/** A failed install's result: nothing kept, the failure (and any undo failure) as data. */
+function installFailed(
+  tag: string,
+  at: string,
+  error: unknown,
+  undoFailure: BundledSkillsFailure | undefined,
+): BundledSkillsInstallResult {
+  return {
+    tag,
+    installed: [],
+    skipped: [],
+    removed: [],
+    failure: failed(at, error),
+    ...(undoFailure !== undefined && { undoFailure }),
+  }
+}
+
+/** A failed removal's result: what was removed before the failure stands. */
+function removeFailed(
+  removed: readonly string[],
+  at: string,
+  error: unknown,
+): BundledSkillsRemoveResult {
+  return { removed, hadCopy: true, failure: failed(at, error) }
+}
+
 /** The copy's own folder: `<sources>/high-quality-projects-skill`. */
 function copyFolder(paths: BundledSkillsPaths): string {
   return path.join(paths.sourcesRoot, BUNDLED_SKILLS_PACKAGE_NAME)
@@ -657,14 +683,8 @@ export async function installBundledSkills(
     }
     return { tag: vendor.tag, installed, skipped, removed, failure: undefined }
   } catch (error: unknown) {
-    const failure = failed(at, error)
     const undoFailure = await undo(made)
-    return {
-      tag: vendor.tag,
-      ...nothing,
-      failure,
-      ...(undoFailure !== undefined && { undoFailure }),
-    }
+    return installFailed(vendor.tag, at, error, undoFailure)
   }
 }
 
@@ -723,6 +743,6 @@ export async function removeBundledSkills(
     await fs.rm(folder, { recursive: true })
     return { removed, hadCopy: true, failure: undefined }
   } catch (error: unknown) {
-    return { removed, hadCopy: true, failure: failed(at, error) }
+    return removeFailed(removed, at, error)
   }
 }

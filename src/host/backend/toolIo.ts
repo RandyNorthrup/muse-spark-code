@@ -1084,12 +1084,11 @@ export function createToolIo(deps: ToolIoDeps): ToolIo {
       }
       const job = assembly === undefined ? undefined : newShellJob(assembly)
       resource = await prepareResourceJob(resource, job)
-      try {
-        assertCanRun?.()
-      } catch (error: unknown) {
+      const refusal = entryRefusal(assertCanRun)
+      if (refusal !== undefined) {
         resource?.complete(true)
         // No workspace process has started; retain the owner's no-entry refusal.
-        return refusedShellEntry(error instanceof Error ? error.message : String(error))
+        return refusedShellEntry()
       }
       const isFenced = !isInteractive || (deps.agentFence?.() ?? true)
       return await runCommand({
@@ -1342,6 +1341,20 @@ function startProcess(run: CommandRun) {
 }
 
 /**
+The owner's final admission, captured as data: a throw is the documented
+no-entry refusal, so the caller settles with `refusedShellEntry` and starts
+nothing instead of treating a refusal as a process failure.
+*/
+function entryRefusal(assert: (() => void) | undefined): { readonly cause: unknown } | undefined {
+  try {
+    assert?.()
+    return undefined
+  } catch (error: unknown) {
+    return { cause: error }
+  }
+}
+
+/**
 Runs one process to its exit (PLAN.md D25). A named timeout or an abort
 kills the whole process tree, and the result waits for that kill to
 finish (M27); otherwise it is settled on exit plus a short drain of the
@@ -1364,10 +1377,9 @@ export function runCommand(run: CommandRun): Promise<ShellResult> {
       return
     }
     const startedAt = Date.now()
-    try {
-      run.assertCanStart?.()
-    } catch (error: unknown) {
-      resolve(refusedShellEntry(error instanceof Error ? error.message : String(error)))
+    const refusal = entryRefusal(run.assertCanStart)
+    if (refusal !== undefined) {
+      resolve(refusedShellEntry())
       return
     }
     const child = startProcess(run)
