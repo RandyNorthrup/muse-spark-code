@@ -383,7 +383,7 @@ Commands: —. Settings: `museSpark.modelApiParallelReads`. [Documentation](http
 
 ### museSpark.modelApiMaxRetries
 
-Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.
+Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries twice, the official SDK default.
 
 Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
@@ -3665,7 +3665,7 @@ Type: `"number"`. Default: `0`. Scope: `machine`.
 
 ### museSpark.modelApiMaxRetries
 
-Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries until its own wait or stop answer ends it.
+Retry limit for failed Model API requests, per try after the first (0 never retries). Unset by default: each provider's documented maximum governs (Anthropic 2, OpenAI 2, Gemini 4, Azure 10, xAI 4, Meta 4), and a provider that documents none retries twice, the official SDK default.
 
 Type: `["integer","null"]`. Default: `null`. Scope: `machine`.
 

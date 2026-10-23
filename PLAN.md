@@ -15487,6 +15487,34 @@ page read 2026-10-12, and stay UNVERIFIED until a real editor confirms them
 (capture plan and certification record are linked in the full record). Full
 record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D217 — A transiently failed request retries itself, the industry-standard way (lane RLF-AUTORETRY, owner decision 2026-10-23)
+
+The owner: "auto resend we should follow the industry standard", and "no
+limits mean the limits we set it does not mean dont put any limits
+obviously there needs to be limits for things like fail retries". One
+retry loop per request path: the Model API backend retries the failed
+model request inside the turn, keeping the conversation and every tool
+result; the Muse Code backend, where the CLI owns the loop, resends a
+continue in the same session from the send site (the panel controller,
+the ACP agent), never re-running tools that already ran. Only transient
+failures retry — connection errors and timeouts, 408, 409, 429, 5xx and
+overload signals — never a refusal, an auth error or a bad request.
+Backoff is exponential with jitter and honours `retry-after` /
+`retry-after-ms` whole. Each provider's documented maximum and backoff
+ceiling govern where documented; where a provider documents none, the
+SDK default governs (2 retries, 0.5 s doubling to 8 s: `DEFAULT_MAX_RETRIES`,
+`INITIAL_RETRY_DELAY`, `MAX_RETRY_DELAY` in openai-python and
+anthropic-sdk-python `_constants.py`, read 2026-10-23; "twice by default,
+honoring the retry-after header when present",
+platform.claude.com/docs/en/api/errors; "use exponential backoff with
+jitter and limit the number of retries",
+developers.openai.com/api/docs/guides/error-codes). The maximum is
+person-settable (setting, panel, CLI flag); 0 disables. During a wait
+the person sees "Retrying in Ns (attempt K of N)" with Stop, in the
+panel and through ACP; Stop, a non-transient error, or the last attempt
+ends it and shows the error with the Retry action (RLF-ACPTURNS). Full
+record: `docs/certification/rlf-autoretry.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>

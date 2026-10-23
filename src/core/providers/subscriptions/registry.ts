@@ -38,6 +38,7 @@ import {
   CHATGPT_TOOL_NAMESPACE_DESCRIPTION,
   GROK_TOKEN_MIN_VALIDITY_MS,
   HTTP_TOO_MANY_REQUESTS,
+  INDUSTRY_RETRY_MAX_RETRIES,
   MILLISECONDS_PER_SECOND,
   PROVIDER_RETRY_HTTP_STATUS,
   STILL_WAITING_NOTICE_MS,
@@ -1000,9 +1001,12 @@ export function createSubscriptionClient(
     // Lane PR225W1: each subscription route answers its own retry limit.
     // Neither plan route documents a maximum (provider-refusals.md
     // lane RETRYLIMITS), so a plan model reads the person's setting when
-    // set and is unbounded otherwise; off-plan models are Meta's own.
+    // set and the industry-standard default otherwise (D217); off-plan
+    // models are Meta's own.
     maxRetries: (model) =>
-      model !== undefined && !isPlanModel(model) ? meta.maxRetries() : deps.personCap?.(),
+      model !== undefined && !isPlanModel(model)
+        ? meta.maxRetries()
+        : (deps.personCap?.() ?? INDUSTRY_RETRY_MAX_RETRIES),
     personCap: () => deps.personCap?.(),
     createImage: (...args) => meta.createImage(...args),
     editImage: (...args) => meta.editImage(...args),

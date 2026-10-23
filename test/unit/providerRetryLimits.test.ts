@@ -200,7 +200,7 @@ describe('each provider retries by its documented maximum', () => {
 })
 
 describe("the person's setting decides", () => {
-  it('caps the documented maximum (0 never retries), never raises it, else the documented one, else none', () => {
+  it('caps the documented maximum (0 never retries), never raises it, else the documented one, else the industry default', () => {
     expect(effectiveMaxRetries(1, limitsOf('xai'))).toBe(1)
     expect(effectiveMaxRetries(0, limitsOf('azure'))).toBe(0)
     expect(effectiveMaxRetries(0, limitsOf('openrouter'))).toBe(0)
@@ -209,9 +209,11 @@ describe("the person's setting decides", () => {
     expect(effectiveMaxRetries(10, limitsOf('anthropic'))).toBe(2)
     expect(effectiveMaxRetries(10, limitsOf('openrouter'))).toBe(10)
     expect(effectiveMaxRetries(undefined, limitsOf('anthropic'))).toBe(2)
-    expect(effectiveMaxRetries(undefined, limitsOf('openrouter'))).toBeUndefined()
+    // D217: where the provider documents no maximum, the industry
+    // default (2) governs instead of retrying unbounded.
+    expect(effectiveMaxRetries(undefined, limitsOf('openrouter'))).toBe(2)
     expect(transportFor(limitsOf('gemini')).maxRetries()).toBe(4)
-    expect(transportFor(limitsOf('groq')).maxRetries()).toBeUndefined()
+    expect(transportFor(limitsOf('groq')).maxRetries()).toBe(2)
   })
   it('a count above the documented maximum still stops at it on a real refused send', async () => {
     // Anthropic documents two retries: with the person at 10, the refused
@@ -239,21 +241,22 @@ describe('waits follow the provider', () => {
     }
     expect(gemini.backoffMs(10)).toBe(60_000)
   })
-  it('grows uncapped where the provider documents no maximum wait', () => {
-    for (const [preset, attempt, base] of [
-      ['xai', 10, 1_024_000],
-      ['openrouter', 2, 4000],
-    ] as const) {
-      const wait = transportFor(limitsOf(preset)).backoffMs(attempt)
-      expect(wait).toBeGreaterThanOrEqual(base)
-      expect(wait).toBeLessThan(base + MODEL_API_RETRY_JITTER_MS)
-    }
+  it('caps at the industry ceiling where the provider documents no maximum wait', () => {
+    // D217: xAI documents 1 s doubling with no ceiling, so the industry
+    // 8 s ceiling governs (the ceiling caps the jittered wait whole);
+    // OpenRouter documents no base either, so the industry 0.5 s base
+    // governs its early waits.
+    expect(transportFor(limitsOf('xai')).backoffMs(10)).toBe(8000)
+    const wait = transportFor(limitsOf('openrouter')).backoffMs(2)
+    expect(wait).toBeGreaterThanOrEqual(2000)
+    expect(wait).toBeLessThan(2000 + MODEL_API_RETRY_JITTER_MS)
   })
-  it('waits out a backoff longer than one timer holds instead of asking again at once', async () => {
-    // An undocumented provider's 23rd try: the backoff has passed the
-    // longest delay one timer holds, which the platform would cut to 1 ms.
+  it('waits out a provider wait longer than one timer holds instead of asking again at once', async () => {
+    // Only a provider-named wait still passes the longest delay one timer
+    // holds (D217 caps the computed backoff at 8 s): the platform would
+    // cut the single timer to 1 ms, so the pause must chunk the wait.
     const transport = transportFor(limitsOf('openrouter'))
-    const wait = transport.backoffMs(22)
+    const wait = transport.backoffMs(0, MODEL_API_TIMER_MAX_MS + 1)
     expect(wait).toBeGreaterThan(MODEL_API_TIMER_MAX_MS)
     // A Stop well past the 1 ms the platform would cut the wait to: the
     // wait must still be running when it comes, so the Stop ends it.
@@ -307,7 +310,11 @@ describe('ambiguous sends need an explicit cap', () => {
     // without end (PR225FIX2). One fetch, no retry notice, the send
     // failure at once.
     const transport = transportToNowhere(await closedLoopbackPort(), limitsOf('openrouter'))
-    expect(transport.maxRetries()).toBeUndefined()
+    // D217: the industry fallback bounds answered failures, never an
+    // ambiguous send — no explicit bound here, so none is reported and
+    // the send still fails once.
+    expect(transport.explicitMaxRetries()).toBeUndefined()
+    expect(transport.maxRetries()).toBe(2)
     const notices: RetryNotice[] = []
     await expect(postNowhere(transport, undefined, notices)).rejects.toBeInstanceOf(ModelApiError)
     expect(notices).toHaveLength(0)
@@ -364,10 +371,10 @@ const subscriptionClient = (person: number | undefined) => {
 }
 
 describe('each subscription route answers its own retry limit', () => {
-  it('plan routes read the setting, else unbounded; off-plan stays Meta', () => {
+  it('plan routes read the setting, else the industry default; off-plan stays Meta', () => {
     const unset = subscriptionClient(undefined)
-    expect(unset.maxRetries('chatgpt/gpt-5.2')).toBeUndefined()
-    expect(unset.maxRetries('copilot/gpt-4.1')).toBeUndefined()
+    expect(unset.maxRetries('chatgpt/gpt-5.2')).toBe(2)
+    expect(unset.maxRetries('copilot/gpt-4.1')).toBe(2)
     expect(unset.maxRetries('some-model')).toBe(4)
     const capped = subscriptionClient(1)
     expect(capped.maxRetries('chatgpt/gpt-5.2')).toBe(1)

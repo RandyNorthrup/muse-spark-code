@@ -467,7 +467,7 @@ export class ModelApiClient implements TransportProviderClient {
   Meta serves its own models only, so the selected model does not change
   the answer; an aggregate client reads it instead (PR #225).
   */
-  public maxRetries(_modelId?: string): number | undefined {
+  public maxRetries(_modelId?: string): number {
     return this.transport.maxRetries()
   }
 

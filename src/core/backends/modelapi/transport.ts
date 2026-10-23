@@ -1192,12 +1192,28 @@ export class RequestTransport {
 
   /**
   The retries one call may use (lane RETRYLIMITS): the person's
-  `museSpark.modelApiMaxRetries` setting when set, else the provider's
-  documented maximum, else undefined (unbounded: the provider's own
-  Retry-After waits and stop answers govern the loop).
+  `museSpark.modelApiMaxRetries` setting capped by the provider's
+  documented maximum, the person's value alone where the provider
+  documents none, else the industry-standard default (D217).
   */
-  public maxRetries(): number | undefined {
+  public maxRetries(): number {
     return effectiveMaxRetries(this.deps.personCap?.(), documentedLimits(this.deps))
+  }
+
+  /**
+  The retries an explicit bound allows (D217): the person's setting
+  capped by the provider's documented maximum, or the person's value
+  alone where the provider documents none — never the industry
+  fallback. Only this guards an ambiguous send (lane PR225FIX2): a
+  request that may have arrived and executed is sent again only within
+  a bound the person set or the provider documented.
+  */
+  public explicitMaxRetries(): number | undefined {
+    const personCap = this.deps.personCap?.()
+    const providerMaxRetries = documentedLimits(this.deps).maxRetries
+    return personCap !== undefined && providerMaxRetries !== undefined
+      ? Math.min(personCap, providerMaxRetries)
+      : (personCap ?? providerMaxRetries)
   }
 
   /**
@@ -1303,7 +1319,7 @@ export class RequestTransport {
       const allowed = this.maxRetries()
       onRetry?.({
         attempt: attempt + 1,
-        maxAttempts: allowed === undefined ? undefined : allowed + 1,
+        maxAttempts: allowed + 1,
         delayMs: delay,
         reason,
       })
@@ -1312,7 +1328,7 @@ export class RequestTransport {
       // Lane PR225W1: the person's limit is live — a change mid-wait (to 0
       // during a long Retry-After) refuses the dispatch the pre-wait check
       // accepted, instead of sending one request past the new ceiling.
-      if (attempt >= (this.maxRetries() ?? UNBOUNDED_RETRIES)) throw refused
+      if (attempt >= this.maxRetries()) throw refused
     }
     // How long the answer took, retries included, at trace level (M39).
     const startedAt = this.deps.now()
@@ -1417,7 +1433,7 @@ export class RequestTransport {
             onRetry?.({
               phase: 'pacing',
               attempt,
-              maxAttempts: allowed === undefined ? undefined : allowed + 1,
+              maxAttempts: allowed + 1,
               delayMs,
               reason: UI_TEXT.modelApiPacingWaiting,
             })
@@ -1564,8 +1580,10 @@ export class RequestTransport {
         // have arrived and executed — so it is sent again only within an
         // explicit bound (the person's setting or the provider's documented
         // maximum). With neither, the failure ends the request here instead
-        // of replaying a possibly-executed paid send without end.
-        const allowed = this.maxRetries()
+        // of replaying a possibly-executed paid send without end. D217's
+        // industry fallback never qualifies: it bounds answered failures,
+        // never an ambiguous send.
+        const allowed = this.explicitMaxRetries()
         const refused = new ModelApiError(reason, NETWORK_FAILURE_STATUS, undefined, undefined)
         if (
           isRateLimitOnly ||
@@ -1642,11 +1660,7 @@ export class RequestTransport {
       const isRetryable =
         (this.deps.isRetryableFailure?.(failure) ?? decision.retry) &&
         (!isRateLimitOnly || response.status === HTTP_TOO_MANY_REQUESTS)
-      if (
-        !isRetryable ||
-        !canRetryWithinBudget(budget, attempt) ||
-        attempt >= (this.maxRetries() ?? UNBOUNDED_RETRIES)
-      ) {
+      if (!isRetryable || !canRetryWithinBudget(budget, attempt) || attempt >= this.maxRetries()) {
         if (
           response.status >= HTTP_STATUS.internalServerError &&
           provider.identity.provider === 'meta'

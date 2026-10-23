@@ -7,7 +7,6 @@ import type { ProviderFormat } from '../../providers/providersFile'
 import type { CreateResponseBody, StreamEvent } from './schemas'
 import {
   RequestTransport,
-  UNBOUNDED_RETRIES,
   assertConfirmedAllowed,
   canRetryWithinBudget,
   ignoreClosingError,
@@ -84,11 +83,11 @@ export interface ProviderClient {
   The retries one call may use (lane RETRYLIMITS, PR #225): the person's
   `museSpark.modelApiMaxRetries` setting caps the provider's documented
   maximum (never raises it), decides alone where the provider documents
-  none, else undefined (unbounded: the provider's own Retry-After waits
-  and stop answers govern the loop). The selected model rides along so
-  an aggregate client answers for the provider that handled the request.
+  none, else the industry-standard default (D217). The selected model
+  rides along so an aggregate client answers for the provider that
+  handled the request.
   */
-  maxRetries(modelId?: string): number | undefined
+  maxRetries(modelId?: string): number
   /**
   The person's live `museSpark.modelApiMaxRetries` setting, before any
   provider maximum caps it, so the turn loop can tell a person-set cap
@@ -198,7 +197,7 @@ export class CodecClient implements ProviderClient {
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
   }
   /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
-  public maxRetries(): number | undefined {
+  public maxRetries(): number {
     return this.transport.maxRetries()
   }
 
@@ -399,14 +398,17 @@ export class CodecClient implements ProviderClient {
           // stream with stays on the status policy above.
           const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
           const allowed = this.transport.maxRetries()
+          // Lane PR225FIX2: an ambiguous resend needs an explicit bound
+          // (D217's industry fallback never qualifies it).
+          const hasExplicitBound = this.transport.explicitMaxRetries() !== undefined
           if (
             !isResendable ||
             hasContent ||
             signal.aborted ||
             admitAttempt?.mediaAccounting !== undefined ||
             !canRetryWithinBudget(retries, retries.retriesUsed) ||
-            (isAmbiguous && allowed === undefined) ||
-            retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+            (isAmbiguous && !hasExplicitBound) ||
+            retries.retriesUsed >= allowed
           )
             await rethrowStreamError(error, redact, response.status)
           const attempt = retries.retriesUsed
@@ -414,14 +416,14 @@ export class CodecClient implements ProviderClient {
           const delayMs = this.retryDelayMs(attempt)
           onRetry?.({
             attempt: attempt + 1,
-            maxAttempts: allowed === undefined ? undefined : allowed + 1,
+            maxAttempts: allowed + 1,
             delayMs,
             reason: `${failure.code ?? ''}: ${failure.message}`,
           })
           await this.waitBeforeRetry(delayMs, signal)
           // Lane PR225W1: the person's limit is live — a change mid-wait
           // refuses the resend the pre-wait check accepted.
-          if (attempt >= (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)) throw failure
+          if (attempt >= this.transport.maxRetries()) throw failure
         } finally {
           if (response.body !== null && !response.body.locked) {
             void response.body.cancel().catch(ignoreClosingError)
