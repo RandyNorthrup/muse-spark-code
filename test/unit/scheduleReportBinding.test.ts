@@ -24,6 +24,7 @@ import {
 import { createScheduleStore, scheduleStorageHash } from '../../src/core/schedules/store'
 import { ScheduleGrantEditor } from '../../src/core/schedules/grantAudit'
 import { ScheduleReportActionRunner } from '../../src/core/schedules/reportAction'
+import { collectingLogger } from './helpers/collectingLogger'
 import {
   createScheduleReportPort,
   reportDestinationsAllowed,
@@ -292,6 +293,7 @@ describe('report adapter without a backend', () => {
         audited.push(entry)
         return Promise.resolve()
       },
+      log: collectingLogger([]),
       now: () => 1_700_000_000_000,
     })
     const [stored] = await store.list('workspace-1')

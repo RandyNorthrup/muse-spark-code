@@ -20,6 +20,7 @@ import {
 } from '../../src/runtime/schedules/nodeScheduleFs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
 import { scheduleFixture } from './helpers/scheduleFixtures'
+import { collectingLogger } from './helpers/collectingLogger'
 
 const folders: string[] = []
 afterEach(async () => {
@@ -59,6 +60,7 @@ describe('event chaining through the engine', () => {
     let nowMs = 1_700_000_100_000
     const reported: unknown[] = []
     const engine = await createScheduleEngine({
+      log: collectingLogger([]),
       fs: createNodeScheduleFs(root),
       queue: createNodeScheduleQueue(root),
       now: () => nowMs,

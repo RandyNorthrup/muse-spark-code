@@ -114,6 +114,7 @@ export async function pollWatchdogRepository(
   try {
     listed = await deps.client.listIssues(deps.token, named)
   } catch (error: unknown) {
+    if (!(error instanceof GitHubError)) throw error
     return {
       repository,
       created: !isKnown,
@@ -134,6 +135,7 @@ export async function pollWatchdogRepository(
     try {
       comments.set(issue.number, await deps.client.issueComments(deps.token, named, issue.number))
     } catch (error: unknown) {
+      if (!(error instanceof GitHubError)) throw error
       errors.push({ number: issue.number, message: refusal(error) })
     }
   }
@@ -148,6 +150,7 @@ export async function pollWatchdogRepository(
       const ack = await postAck(deps.client, deps.token, named, issue, policy)
       posted.set(issue.number, { commentId: ack.commentId, labels: ack.labels })
     } catch (error: unknown) {
+      if (!(error instanceof GitHubError)) throw error
       errors.push({ number: issue.number, message: refusal(error) })
     }
   }
