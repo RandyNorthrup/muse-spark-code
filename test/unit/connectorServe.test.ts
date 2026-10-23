@@ -22,7 +22,7 @@ import { EN, type UiText } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import type { SavedPrompt } from '../../src/shared/prompts'
 import { PromptStore } from '../../src/core/prompts/promptStore'
-import { CONNECTOR_FOLDER } from '../../src/shared/constants'
+import { CONNECTOR_DEFAULT_CONNECTION, CONNECTOR_FOLDER } from '../../src/shared/constants'
 import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
@@ -217,7 +217,11 @@ async function decidedSave(isApproved: boolean) {
       const operationId = await saveAwaiting(server)
       expect(await new PromptStore(data, undefined).list('user')).toEqual([])
       await decideOnPage(launch, isApproved)
-      await sleep(250)
+      // The terminal receipt, not a fixed sleep (RLM106, RLF-HYGIENE): the
+      // decision settles asynchronously, and 250 ms flaked under load while
+      // the 2 s poll floor forbids re-reading the state. Every call ends in
+      // exactly one terminal receipt, so the single read below observes it.
+      await waitForTerminalReceipt(data, operationId)
       return {
         state: await operationState(server, 2, operationId),
         prompts: await new PromptStore(data, undefined).list('user'),
@@ -227,6 +231,55 @@ async function decidedSave(isApproved: boolean) {
     }
   } finally {
     await removeFolder(data)
+  }
+}
+
+/** The receipt events that end an operation, whatever ended it. */
+const TERMINAL_RECEIPT_EVENTS: ReadonlySet<string> = new Set([
+  'settled',
+  'refused',
+  'cancelled',
+  'failed',
+])
+const RECEIPT_WAIT_MS = 4000
+const RECEIPT_POLL_MS = 25
+
+// The operation's terminal receipt in the connection's audit journal. The
+// settled receipt is durable before the state moves; a best-effort end is
+// noted after it — either way the read that follows sees the end.
+async function waitForTerminalReceipt(data: string, operationId: string): Promise<void> {
+  const journal = path.join(
+    data,
+    CONNECTOR_FOLDER,
+    'audit',
+    `${CONNECTOR_DEFAULT_CONNECTION}.jsonl`,
+  )
+  const deadline = Date.now() + RECEIPT_WAIT_MS
+  for (;;) {
+    let text: string
+    try {
+      text = await readFile(journal, 'utf8')
+    } catch {
+      text = ''
+    }
+    for (const line of text.split('\n')) {
+      if (line === '') continue
+      let parsed: Record<string, unknown>
+      try {
+        parsed = JSON.parse(line) as Record<string, unknown>
+      } catch {
+        continue // A torn line amid appends: skipped like the journal skips it.
+      }
+      if (
+        parsed['operationId'] === operationId &&
+        typeof parsed['event'] === 'string' &&
+        TERMINAL_RECEIPT_EVENTS.has(parsed['event'])
+      )
+        return
+    }
+    if (Date.now() > deadline)
+      throw new Error(`no terminal receipt for ${operationId} in: ${text.slice(-500)}`)
+    await sleep(RECEIPT_POLL_MS)
   }
 }
 
