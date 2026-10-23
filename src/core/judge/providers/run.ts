@@ -6,7 +6,7 @@
 // No `vscode` import.
 
 import { createHash } from 'node:crypto'
-import { failureForLog } from '../../backends/musecode/logText'
+import { errorNameForLog } from '../../logging'
 import type { CoreLogger } from '../../logging'
 import { redactSecrets } from '../../redact'
 import type { ProviderIdentity } from '../../backends/modelapi/providerClient'
@@ -351,7 +351,7 @@ async function settleSent(
   try {
     await claim.settle(settled)
   } catch (error: unknown) {
-    log?.warn(`Provider settlement failed: ${failureForLog(error)}`)
+    log?.warn(`Provider settlement failed: ${errorNameForLog(error)}`)
     return undefined
   }
   return settled
@@ -474,7 +474,7 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
       try {
         digest = await deps.client.currentKeyDigest()
       } catch (error: unknown) {
-        deps.log?.warn(`Provider key digest failed: ${failureForLog(error)}`)
+        deps.log?.warn(`Provider key digest failed: ${errorNameForLog(error)}`)
         digest = ''
       }
     }
@@ -598,7 +598,7 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
       }
       return claim
     } catch (error: unknown) {
-      deps.log?.warn(`Provider reservation failed: ${failureForLog(error)}`)
+      deps.log?.warn(`Provider reservation failed: ${errorNameForLog(error)}`)
       return noAnswer('source-unavailable')
     }
   }
@@ -627,14 +627,14 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         return dispatchMoved
       }
     } catch (error: unknown) {
-      deps.log?.warn(`Provider claim check failed: ${failureForLog(error)}`)
+      deps.log?.warn(`Provider claim check failed: ${errorNameForLog(error)}`)
       await refund(claim)
       return noAnswer('source-unavailable')
     }
     try {
       return { response: await deps.transport.complete(wire, signal) }
     } catch (error: unknown) {
-      deps.log?.warn(`Provider transport failed: ${failureForLog(error)}`)
+      deps.log?.warn(`Provider transport failed: ${errorNameForLog(error)}`)
       return noAnswer('engine-failure')
     }
   }
@@ -750,7 +750,7 @@ export function createByoJudge(deps: ByoJudgeDeps): ByoJudge {
         try {
           if (deps.afterWait !== undefined) await deps.afterWait()
         } catch (error: unknown) {
-          deps.log?.warn(`Provider wait failed: ${failureForLog(error)}`)
+          deps.log?.warn(`Provider wait failed: ${errorNameForLog(error)}`)
           await refund(claim)
           return noAnswer('engine-failure')
         }

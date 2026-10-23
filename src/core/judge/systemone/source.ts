@@ -10,7 +10,7 @@ import type { SystemOneModelCapability } from '../../providers/capabilities'
 const { systemOneCapability } = capabilities
 const { systemOnePresetById } = presets
 import type { SystemOneServicePreset } from '../../providers/presets'
-import { failureForLog } from '../../backends/musecode/logText'
+import { errorNameForLog } from '../../logging'
 import type { CoreLogger } from '../../logging'
 import { redactSecrets } from '../../redact'
 import { unlessAborted } from '../../timeouts'
@@ -168,7 +168,7 @@ async function release(
     await claim.refund()
     return refused(reason)
   } catch (error: unknown) {
-    log?.warn(`SystemOne refund failed: ${failureForLog(error)}`)
+    log?.warn(`SystemOne refund failed: ${errorNameForLog(error)}`)
     return refused('engine-failure')
   }
 }
@@ -227,7 +227,7 @@ async function reserveUntilAborted(
         if (late.reserved) await release(late.claim, 'cancelled', deps.log)
       })
       .catch((error: unknown) => {
-        deps.log?.warn(`SystemOne late release failed: ${failureForLog(error)}`)
+        deps.log?.warn(`SystemOne late release failed: ${errorNameForLog(error)}`)
         return refused('engine-failure')
       })
   }
@@ -328,7 +328,7 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         if (measured.failure !== undefined) return refused(measured.failure)
         quoteInput = measured.bodyTokens
       } catch (error: unknown) {
-        deps.log?.warn(`SystemOne measure failed: ${failureForLog(error)}`)
+        deps.log?.warn(`SystemOne measure failed: ${errorNameForLog(error)}`)
         return refused('engine-failure')
       }
       const quote = pricedReservation(quoteInput, route.capability)
@@ -341,7 +341,7 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         reserved = await reserveUntilAborted(deps, quote.cost, signal)
       } catch (error: unknown) {
         if (signal.aborted) return refused(abortReason(callerSignal, deadline))
-        deps.log?.warn(`SystemOne reserve failed: ${failureForLog(error)}`)
+        deps.log?.warn(`SystemOne reserve failed: ${errorNameForLog(error)}`)
         return refused('engine-failure')
       }
       if (reserved === undefined) return refused(abortReason(callerSignal, deadline))
@@ -357,7 +357,7 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         try {
           claim.check()
         } catch (error: unknown) {
-          deps.log?.warn(`SystemOne claim check failed: ${failureForLog(error)}`)
+          deps.log?.warn(`SystemOne claim check failed: ${errorNameForLog(error)}`)
           isAdmitted = false
         }
         // Cancellation is read last: a reader above may abort synchronously.
@@ -372,7 +372,7 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         try {
           key = await unlessAborted(deps.readKey(route.preset.keyProviderId), signal)
         } catch (error: unknown) {
-          deps.log?.warn(`SystemOne key read failed: ${failureForLog(error)}`)
+          deps.log?.warn(`SystemOne key read failed: ${errorNameForLog(error)}`)
           return await release(claim, 'engine-failure', deps.log)
         }
         const afterKey = holdReason()
@@ -390,7 +390,7 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
             proceed: () => holdReason() === undefined,
           })
         } catch (error: unknown) {
-          deps.log?.warn(`SystemOne post failed: ${failureForLog(error)}`)
+          deps.log?.warn(`SystemOne post failed: ${errorNameForLog(error)}`)
           return refused('engine-failure')
         }
         // Withdrawn or refused before any byte was written: a known non-send.
@@ -419,7 +419,7 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
           const late = bindingRefusal(deps, binding)
           return late === undefined ? { outcome: 'answered', result } : refused(late)
         } catch (error: unknown) {
-          deps.log?.warn(`SystemOne settlement failed: ${failureForLog(error)}`)
+          deps.log?.warn(`SystemOne settlement failed: ${errorNameForLog(error)}`)
           return refused('engine-failure')
         }
       }

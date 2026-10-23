@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { failureForLog } from '../../core/backends/musecode/logText'
+import { errorNameForLog } from '../../core/logging'
 import { Usd } from '../../shared/usd'
 import { legacyUsdSchema } from '../../shared/usdSchema'
 import type { GlobLimits } from '../../core/backends/modelapi/glob'
@@ -274,7 +274,7 @@ export async function runJudgeLint(
   } catch (error_: unknown) {
     isIncomplete = true
     // Never echo provider/tool exceptions, which can contain source or credentials.
-    deps.log?.warn(`Judge lint run failed: ${failureForLog(error_)}`)
+    deps.log?.warn(`Judge lint run failed: ${errorNameForLog(error_)}`)
     error =
       error_ instanceof Error && errorCodes.has(error_.message) ? error_.message : 'lint-run-failed'
     if (error === 'lint-source-changed') {

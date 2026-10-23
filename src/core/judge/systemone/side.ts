@@ -10,7 +10,7 @@
 import { lookup } from 'node:dns/promises'
 import { isIP } from 'node:net'
 import * as z from 'zod/mini'
-import { failureForLog } from '../../backends/musecode/logText'
+import { errorNameForLog } from '../../logging'
 import type { CoreLogger } from '../../logging'
 import type { PinnedResponse, PinnedTarget } from '../../web/webFetch'
 import { isSecretFieldName, redactSecrets } from '../../redact'
@@ -310,7 +310,7 @@ export function pinnedSystemOnePost(
     try {
       answers = isIP(host) === 0 ? await (seams.resolve ?? defaultResolve)(host) : [host]
     } catch (error: unknown) {
-      seams.log?.warn(`SystemOne resolve failed: ${failureForLog(error)}`)
+      seams.log?.warn(`SystemOne resolve failed: ${errorNameForLog(error)}`)
       return notSent
     }
     const verdict = endpointPolicy.checkEndpointUrl(url.href, answers)
@@ -354,7 +354,7 @@ export function pinnedSystemOnePost(
       }
     } catch (error: unknown) {
       if (connection.isUp) throw error
-      seams.log?.warn(`SystemOne send failed: ${failureForLog(error)}`)
+      seams.log?.warn(`SystemOne send failed: ${errorNameForLog(error)}`)
       return notSent
     }
   }
