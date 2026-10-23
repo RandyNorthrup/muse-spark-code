@@ -1680,8 +1680,9 @@ async function main(): Promise<number> {
           table: UI_TEXT,
           locale: uiLocale(),
         })
-      } catch {
+      } catch (error: unknown) {
         // A malformed registration/key-store error can echo pasted input; never log it.
+        log.error(failureForLog(error))
         log.error(
           command.action === 'panel' ||
             (command.action === 'hardware' && command.operation === 'enable') ||

@@ -456,6 +456,24 @@ function hoistLeadingCommand(argv: readonly string[]): readonly string[] {
     : argv
 }
 
+/** The maker parser's own refusals: its fixed sentences and parseArgs' coded throws. */
+function isMakerArgumentFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (('code' in error &&
+      typeof error.code === 'string' &&
+      ['ERR_PARSE_ARGS_UNKNOWN_OPTION', 'ERR_PARSE_ARGS_INVALID_OPTION_VALUE'].includes(
+        error.code,
+      )) ||
+      [
+        UI_TEXT.makerTitle,
+        UI_TEXT.makerDevicesTitle,
+        UI_TEXT.makerAddMachine,
+        UI_TEXT.makerPhysicalStopRequired,
+      ].includes(error.message))
+  )
+}
+
 /** D5: the parser library's unknown-option sentence never reaches the person. */
 function parserUnknownOption(error: unknown): string | undefined {
   const message = error instanceof Error ? error.message : String(error)
@@ -476,11 +494,16 @@ export function parseCommandLine<T>(
   const argv = hoistLeadingCommand(args)
   const divider = argv.indexOf('--')
   const flags = divider === -1 ? argv : argv.slice(0, divider)
-  try {
-    const maker = parseMakerCommand(argv)
-    if (maker !== undefined) return maker
-  } catch {
-    return { command: 'invalid', reason: UI_TEXT.makerDevicesTitle, exitCode: 2 }
+  // A maker command's --help is answered by the help routing below, never
+  // by the strict maker parser (which refuses the flag as unknown).
+  if (!flags.includes('--help') && !flags.includes('-h')) {
+    try {
+      const maker = parseMakerCommand(argv)
+      if (maker !== undefined) return maker
+    } catch (error: unknown) {
+      if (!isMakerArgumentFailure(error)) throw error
+      return { command: 'invalid', reason: UI_TEXT.makerDevicesTitle, exitCode: 2 }
+    }
   }
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
