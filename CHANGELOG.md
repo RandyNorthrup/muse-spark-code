@@ -16,6 +16,36 @@ happened, not what was planned; superseded entries are kept.
   behind a native question). The first run is a walkthrough step.
   The driver's flows load on first open, never at activation.
 
+- Fast judge approval fence: a held Auto action that is a confined
+  read-only inspect command, or the workspace's own unchanged check
+  script, may skip the slow reviewer when the judge does not veto it
+  within 5 seconds of the hold. The reviewer still starts as today,
+  so a veto adds no wait; every skip lands in the audit with its
+  program allow-list, proven over strace on x86_64.
+
+- Fast judge check sandbox: the workspace's unchanged npm or pnpm
+  check script runs in a contained sandbox over a frozen snapshot of
+  a verified allow-listed closure, so a skip cannot read or change
+  anything outside it.
+
+- Fast judge on the Model API backend: the compaction tail keeps
+  relevance-ranked entries past the recent turns, with triage and
+  effort signals carried on the turn.
+
+- Fast judge on the Muse Code backend: turn-tail verdicts, review
+  notes and a stuck-turn chip, carried on the session's own frames.
+
+- Fast judge provider gating: an engine admits only over its M95
+  capability record, and the logprob wire only with a top-5 answer.
+
+- Fast judge headless setup: `muse-spark-code-acp judge
+  scan|setup|remove` scans the machine (writing nothing, calling
+  nothing), installs the recommended model, or removes only what
+  setup added; setup and removal change nothing without `--yes`.
+
+- Fast judge measurement: per-turn fast-decision records on both
+  backends, with paired on-minus-off replay deciding what ships.
+
 - Fast judge usage rows: Account & usage and the Models & Agents Judge
   section show the window's fast-decision rolls — turns, applied turns,
   judge calls and tokens, and each evaluated decision's state — with a

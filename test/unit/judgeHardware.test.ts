@@ -119,6 +119,7 @@ describe('judge hardware scan', () => {
         ),
         'utf8',
       ),
+      // The committed capture's envelope; tags and health parse below.
     ) as { tags: unknown; health: unknown }
     const tags = parseOllamaTags(JSON.stringify(systemone.tags))
     expect(tags?.[0]).toEqual({

@@ -25,6 +25,7 @@ interface ShippedEnvelope {
 }
 
 const shippedEnvelope = async (): Promise<ShippedEnvelope> =>
+  // Names the shipped table's envelope; the rows below check its shape.
   JSON.parse(await readFile(shipped, 'utf8')) as ShippedEnvelope
 
 describe('judged-models table', () => {
