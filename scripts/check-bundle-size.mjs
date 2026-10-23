@@ -533,6 +533,10 @@ const BUDGETS = [
   // branch's base (RVCM96B2 P3-8 rule kept). Headless retains its original
   // 125 KiB cap.
   { path: 'dist/execTeam.js', budgetKiB: 53 },
+  // The cleanup ledger's cross-process lease (M96b), loaded on the first
+  // ledger turn: 13,301 bytes (12.99 KiB, production build on macbook,
+  // 2026-10-23) x 1.15 = 14.94 KiB, rounded up to the KiB.
+  { path: 'dist/execLedgerLease.js', budgetKiB: 15 },
   // M114 F: runtime-only installer, measured with the shared validation API.
   { path: 'dist/fontsInstall.js', budgetKiB: 25 },
   { path: 'dist/scheduleBackground.js', budgetKiB: 50 },

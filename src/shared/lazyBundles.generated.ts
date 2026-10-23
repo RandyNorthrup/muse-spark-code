@@ -303,6 +303,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   { file: 'execGuard.js', side: 'both', requestedBy: [] },
   {
+    file: 'execLedgerLease.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/runtime/exec/execTeamRecovery.ts',
+        symbol: 'withLedgerLease',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
     file: 'execTeam.js',
     side: 'acp',
     requestedBy: [{ importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] }],
