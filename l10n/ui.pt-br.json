@@ -458,7 +458,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: Usar o nível Fast do catálogo do plano (velocidade 2x, maior uso). Desativado por padrão: usa mais da sua cota do plano."
+    "fast": "--fast: Usar o nível Fast do catálogo do plano (velocidade 2x, maior uso). Desativado por padrão: usa mais da sua cota do plano.",
+    "exec-provider": "Executar neste provedor (backend da Model API); --model passa a ser <provider>/<model>.",
+    "scan-timeout": "Definir o prazo da verificação em segundos; sem ele, a verificação executa até terminar."
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Trabalhe com o cofre de credenciais por usuário em um terminal: configuração, recuperação, redefinição, estado, desbloqueio, bloqueio, lista, adição, concessões, auditoria, importação e observação. Os valores nunca são impressos; o intermediário os mantém. Após confirmação explícita, a redefinição também pode substituir um bloqueio de gravação com proprietário desconhecido.",

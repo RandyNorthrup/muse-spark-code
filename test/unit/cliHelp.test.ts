@@ -110,6 +110,27 @@ describe('per-command help', () => {
     expect(text).toContain('repeatable')
   })
 
+  it('shows each M80 subcommand its own flag words, never another route', () => {
+    // RLF-HYGIENE: exec --provider carried auth's sentence ("the account
+    // belongs to ... (auth set/status/clear)") and scan-secrets --timeout
+    // carried the run's ("the run has no deadline"). Each route names its
+    // own text through the registry's text map.
+    const exec = helpTopicNamed('exec')
+    if (exec === undefined) throw new Error('exec topic is missing')
+    const execText = renderTopicHelp(EN, COMMAND, exec)
+    expect(execText).toContain(
+      'Run on this provider (Model API backend); --model is then <provider>/<model>.',
+    )
+    expect(execText).not.toContain('auth set/status/clear')
+    const scan = helpTopicNamed('scan-secrets')
+    if (scan === undefined) throw new Error('scan-secrets topic is missing')
+    const scanText = renderTopicHelp(EN, COMMAND, scan)
+    expect(scanText).toContain(
+      'Set the scan deadline in seconds; without it the scan runs until it finishes.',
+    )
+    expect(scanText).not.toContain('the run has no deadline')
+  })
+
   it('preserves required argument shapes even when translations repeat the flag', () => {
     const topic = helpTopicNamed('providers')
     if (topic === undefined) throw new Error('providers topic is missing')

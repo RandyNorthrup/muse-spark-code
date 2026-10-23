@@ -458,7 +458,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: Usa il livello Fast del catalogo del piano (velocità 2x, utilizzo maggiore). Disattivato per impostazione predefinita: usa più quota del tuo piano."
+    "fast": "--fast: Usa il livello Fast del catalogo del piano (velocità 2x, utilizzo maggiore). Disattivato per impostazione predefinita: usa più quota del tuo piano.",
+    "exec-provider": "Eseguire su questo fornitore (backend Model API); --model diventa <provider>/<model>.",
+    "scan-timeout": "Impostare il limite di scansione in secondi; altrimenti la scansione prosegue fino al termine."
   },
   "referenceScanSecrets": "Analizza un file patch UTF-8 alla ricerca di segreti e termina con errore se li rileva. --key-stdin cerca anche la chiave Model API esatta in memoria; nessuna chiave viene salvata.",
   "referenceVault": "Lavora con il vault delle credenziali per utente da un terminale: configurazione, recupero, reimpostazione, stato, sblocco, blocco, elenco, aggiunta, concessioni, audit, importazione e osservazione. I valori non vengono mai stampati; li detiene il broker. Dopo una conferma esplicita, il ripristino può anche sostituire un blocco di scrittura di proprietario sconosciuto.",

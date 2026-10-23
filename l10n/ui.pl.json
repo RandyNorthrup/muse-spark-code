@@ -461,7 +461,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: Użyj poziomu Fast z katalogu planu (2x szybkość, zwiększone użycie). Domyślnie wyłączone: zużywa więcej limitu Twojego planu."
+    "fast": "--fast: Użyj poziomu Fast z katalogu planu (2x szybkość, zwiększone użycie). Domyślnie wyłączone: zużywa więcej limitu Twojego planu.",
+    "exec-provider": "Uruchom na tym dostawcy (backend Model API); --model to wtedy <provider>/<model>.",
+    "scan-timeout": "Ustaw limit skanowania w sekundach; bez niego skanowanie działa do zakończenia."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: konfiguracja, odzyskiwanie, reset, stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker. Po wyraźnym potwierdzeniu reset może też zastąpić blokadę zapisu o nieznanym właścicielu.",

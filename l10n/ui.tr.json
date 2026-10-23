@@ -455,7 +455,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: Plan kataloğunun Fast katmanını kullan (2 kat hız, artırılmış kullanım). Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır."
+    "fast": "--fast: Plan kataloğunun Fast katmanını kullan (2 kat hız, artırılmış kullanım). Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır.",
+    "exec-provider": "Bu sağlayıcıda çalıştırın (Model API arka ucu); --model o zaman <provider>/<model> olur.",
+    "scan-timeout": "Tarama süresini saniye olarak belirleyin; aksi takdirde tarama bitene kadar çalışır."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Kullanıcı başına kimlik bilgisi kasasıyla bir terminalden çalışın: kurulum, kurtarma, sıfırlama, durum, kilit açma, kilitleme, liste, ekleme, izinler, denetim, içe aktarma ve izleme. Değerler asla yazdırılmaz; aracı tutar. Açık onaydan sonra sıfırlama, sahibi bilinmeyen yazma kilidini de değiştirebilir.",

@@ -455,7 +455,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: A csomagkatalógus Fast szintjének használata (2x sebesség, megnövelt használat). Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből."
+    "fast": "--fast: A csomagkatalógus Fast szintjének használata (2x sebesség, megnövelt használat). Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből.",
+    "exec-provider": "Futtatás ezen a szolgáltatón (Model API backend); a --model ekkor <provider>/<model>.",
+    "scan-timeout": "A vizsgálat határidejének beállítása másodpercben; nélküle a vizsgálat a végéig fut."
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket. Kifejezett megerősítés után az alaphelyzetbe állítás az ismeretlen tulajdonosú írási zárolást is lecserélheti.",
