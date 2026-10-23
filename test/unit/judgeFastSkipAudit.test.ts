@@ -77,6 +77,7 @@ describe('fast-path audit', () => {
   })
 
   it('omits the audit but keeps the skip when a field leaves the vocabulary', () => {
+    // Deliberately off-vocabulary: the audit is omitted but the skip stays.
     const offSchema = built({
       ...audit(),
       program: 'rg',

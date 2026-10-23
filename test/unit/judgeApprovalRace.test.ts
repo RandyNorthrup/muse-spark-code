@@ -67,6 +67,7 @@ function scheduledPorts(schedule: Schedule): {
         return schedule.inspect ?? OUTPUT
       },
     },
+    // The ports fill every signal when the race starts them; the cast names the running set.
     signals: signals as { reviewer: AbortSignal; veto: AbortSignal; inspect: AbortSignal },
   }
 }

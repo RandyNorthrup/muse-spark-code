@@ -37,9 +37,11 @@ const readTurn = (body: unknown): ScriptedTurn => {
   let bashCalls = 0
   let isEditCalled = false
   let outputs = 0
+  // The stub fetch's own request body: input turns or nothing.
   const items = (body as { input?: readonly unknown[] }).input ?? []
   for (const item of items) {
     if (typeof item !== 'object' || item === null) continue
+    // Guarded non-null object above; the record shape reads the call fields.
     const record = item as Record<string, unknown>
     if (record['type'] === 'function_call') {
       if (record['name'] === 'bash') bashCalls += 1
@@ -85,8 +87,9 @@ its later requests are smaller. Usage scales with the real request
 bytes, so the token saving is measured, not asserted.
 */
 const scriptedFetch: typeof fetch = async (input: string | URL | Request) => {
+  // The harness only sends Requests; the stub reads the turn's body back.
   const raw = await (input as Request).text()
-  const turn = readTurn(JSON.parse(raw) as unknown)
+  const turn = readTurn(JSON.parse(raw))
   const callId = `call_${String(turn.outputs + 1)}`
   const id = `resp_${String(turn.outputs + 1)}`
   const answer = (output: readonly unknown[]): Response =>

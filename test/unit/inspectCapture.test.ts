@@ -23,6 +23,7 @@ function runScript(
     })
     return { status: 0, output }
   } catch (error) {
+    // A failed run answers with status and streams; the shape reads them back.
     const child = error as { status?: number | null; stdout?: string; stderr?: string }
     return { status: child.status ?? 1, output: `${child.stdout ?? ''}${child.stderr ?? ''}` }
   }
@@ -64,6 +65,7 @@ if (process.platform === 'linux') {
         const file = path.join(directory, 'rows.json')
         const { output, status } = runScript(['--helper', helper, '--json', file])
         expect(status, output).toBe(0)
+        // The helper wrote this rows file; the shape names its programs.
         const rows = JSON.parse(readFileSync(file, 'utf8')) as { rows: { program: string }[] }
         expect(rows.rows.map((row) => row.program)).toEqual(PROGRAMS)
         const missing = runScript(['--helper', path.join(directory, 'no-such-helper')])

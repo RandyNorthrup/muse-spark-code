@@ -16711,6 +16711,23 @@ regression set, the 40-case prefix the smoke check. Evidence and rows:
 `docs/certification/judge-bench.md` §§3/8 (rows verified against the
 committed raw files in round 2).
 
+**Status 2026-10-23: built.** On RLM125 (recovery): every lane
+except the F1a core stands on the M98 phase 2 base with the
+`src/RLM125/01-fix-judge-stat-uutils` merge: 0, R, E, H, J, L, W, K,
+M, C, P, F1b, F2, U, V and D, plus the W panel surface (wizard host
+and webview, Judge section management, status item, walkthrough) and
+the editor/CLI runs that prove them. Proven on x86_64 with strace
+allow-lists and bubblewrap 0.11 or later; the wizard command opens in
+a real editor on both VS Code floors, and the headless scan, setup
+refusal and remove run against the built agent. Eight unwired
+`JUDGE_*` place-holders were removed again (their design values stay
+authoritative in `docs/design/judge-fast-path.md`); the MHP mapping
+for other editors went back to the D84 review. Still open: macOS
+(Q-D107-B1-MAC), any model download (owner's go), the V-report
+persistence behind the savings row, `check:catches` and knip (both
+fail identically on the M98P2 base), and the packed-product real-life
+run before release.
+
 - **Goal.** D107: the judge is our own Jev. A batched, calibrated decision
   engine makes the agent faster (decisions the big model spends a turn or
   a round-trip on) and more accurate (checks on its own work), works out
@@ -36361,6 +36378,18 @@ L98P2-EMBED's live family measurement and installed-editor certification
 remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
 
 ## 8. Escape hatches register
+
+| RLM125 location                                        | Escape hatch                                                                                                               | Reason                                                                                                                                                          | 2026-10-23 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/judgeSetupController.test.ts`, `snapshotOf` | `directive.snapshot as JudgeSetupSnapshot`                                                                                 | The guard proves a non-null object carrying `snapshot`; the cast names it for the step assertions. Nine unguarded casts folded into this one helper. Test-only. |
+| `test/unit/eval/evalJudgeWiring.test.ts`               | `body as { input?: readonly unknown[] }`, `item as Record<string, unknown>` (after object/null guards), `input as Request` | The stub fetch reads its own request body back: input turns or nothing; the guarded record reads the call fields; the harness only sends Requests. Test-only.   |
+| `test/unit/judgeFastSkipAudit.test.ts`                 | `as unknown as FastPathAudit`                                                                                              | Deliberately off-vocabulary program and executable, proving the audit is omitted but the skip stays. Test-only.                                                 |
+| `test/unit/judgeSetupFlow.test.ts`                     | `JSON.parse(…) as JudgeSetupRecord`                                                                                        | The fake registration store reads back the registration the flow wrote. Test-only.                                                                              |
+| `test/unit/judgeSetupTable.test.ts`                    | `JSON.parse(…) as ShippedEnvelope`                                                                                         | Names the shipped models table's envelope; the assertions check its rows. Test-only.                                                                            |
+| `test/unit/judgeHardware.test.ts`                      | `JSON.parse(…) as { tags: unknown; health: unknown }`                                                                      | The committed Ollama capture's envelope; tags and health parse below. Test-only.                                                                                |
+| `test/unit/judgeSetupParts.test.ts`                    | `JSON.parse(…) as { manifest: unknown }`                                                                                   | The committed registry capture's envelope; the manifest parses below. Test-only.                                                                                |
+| `test/unit/inspectCapture.test.ts`                     | `error as { status?; stdout?; stderr? }`, `JSON.parse(…) as { rows: { program: string }[] }`                               | A failed run answers with status and streams; the helper wrote the rows file it names. Test-only.                                                               |
+| `test/unit/judgeApprovalRace.test.ts`                  | `signals as { reviewer; veto; inspect }`                                                                                   | The ports fill every signal when the race starts them; the cast names the running set. Test-only.                                                               |
 
 RLM125 lane 0, 2026-10-22: `// eslint-disable-next-line
 unicorn/consistent-boolean-name` on `eligible` in

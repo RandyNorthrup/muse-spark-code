@@ -148,6 +148,15 @@ const send = async (
   return { snapshots, directive }
 }
 
+/** The directive's snapshot, or a failed expectation when it carries none. */
+const snapshotOf = (directive: unknown): JudgeSetupSnapshot => {
+  if (directive === null || typeof directive !== 'object' || !('snapshot' in directive)) {
+    throw new Error('expected a snapshot directive')
+  }
+  // The guard above proves the snapshot; the cast names it for the step assertions.
+  return directive.snapshot as JudgeSetupSnapshot
+}
+
 describe('setup controller', () => {
   beforeEach(() => {
     setUiText(EN, 'en')
@@ -158,10 +167,7 @@ describe('setup controller', () => {
     expect(controller.current()).toEqual({ step: 'scan', running: false, summary: [] })
     const { snapshots, directive } = await send(controller, { command: 'startScan' })
     expect(snapshots.map((snapshot) => snapshot.step)).toEqual(['scan'])
-    if (directive === null || typeof directive !== 'object' || !('snapshot' in directive)) {
-      throw new Error('expected a snapshot directive')
-    }
-    const snapshot = directive.snapshot as JudgeSetupSnapshot
+    const snapshot = snapshotOf(directive)
     expect(snapshot.step).toBe('recommendation')
     if (snapshot.step !== 'recommendation') throw new Error('unreachable')
     expect(snapshot.model).toBe('tev1:4b')
@@ -188,15 +194,12 @@ describe('setup controller', () => {
     const controller = new JudgeSetupController(PATHS, ports())
     await send(controller, { command: 'startScan' })
     const toggled = await send(controller, { command: 'chooseCpuOnly' })
-    if (toggled.directive === null || typeof toggled.directive !== 'object') {
-      throw new Error('expected a directive')
-    }
-    const snapshot = (toggled.directive as { snapshot: JudgeSetupSnapshot }).snapshot
+    const snapshot = snapshotOf(toggled.directive)
     expect(snapshot.step).toBe('recommendation')
     if (snapshot.step !== 'recommendation') throw new Error('unreachable')
     expect(snapshot.cpuOnly).toBe(true)
     const picked = await send(controller, { command: 'chooseModel', model: 'elsewhere:9b' })
-    const after = (picked.directive as { snapshot: JudgeSetupSnapshot }).snapshot
+    const after = snapshotOf(picked.directive)
     expect(after.step).toBe('recommendation')
     if (after.step !== 'recommendation') throw new Error('unreachable')
     expect(after.model).toBe('tev1:4b')
@@ -212,10 +215,7 @@ describe('setup controller', () => {
     expect(phases).toContain('fetch')
     expect(phases).toContain('smoke')
     expect(phases.at(-1)).toBe('smoke')
-    if (directive === null || typeof directive !== 'object' || !('snapshot' in directive)) {
-      throw new Error('expected a snapshot directive')
-    }
-    const done = directive.snapshot as JudgeSetupSnapshot
+    const done = snapshotOf(directive)
     expect(done.step).toBe('done')
     if (done.step !== 'done') throw new Error('unreachable')
     expect(done.model).toBe('tev1:4b')
@@ -242,7 +242,7 @@ describe('setup controller', () => {
     )
     await send(controller, { command: 'startScan' })
     const asked = await send(controller, { command: 'startInstall' })
-    const licence = (asked.directive as { snapshot: JudgeSetupSnapshot }).snapshot
+    const licence = snapshotOf(asked.directive)
     expect(licence).toEqual({
       step: 'licence',
       model: 'tev1:4b',
@@ -250,7 +250,7 @@ describe('setup controller', () => {
       url: 'https://test.invalid/licence',
     })
     const installed = await send(controller, { command: 'acceptLicence' })
-    const done = (installed.directive as { snapshot: JudgeSetupSnapshot }).snapshot
+    const done = snapshotOf(installed.directive)
     expect(done.step).toBe('done')
   })
 
@@ -266,7 +266,7 @@ describe('setup controller', () => {
     })
     await send(controller, { command: 'startScan' })
     const { directive } = await send(controller, { command: 'startInstall' })
-    const failed = (directive as { snapshot: JudgeSetupSnapshot }).snapshot
+    const failed = snapshotOf(directive)
     expect(failed).toEqual({
       step: 'install',
       model: 'tev1:4b',
@@ -274,9 +274,7 @@ describe('setup controller', () => {
       error: 'smoke/smoke-failed',
     })
     const back = await send(controller, { command: 'back' })
-    expect((back.directive as { snapshot: JudgeSetupSnapshot }).snapshot.step).toBe(
-      'recommendation',
-    )
+    expect(snapshotOf(back.directive).step).toBe('recommendation')
   })
 
   it('steps back through licence and closes with its directives', async () => {
@@ -288,9 +286,7 @@ describe('setup controller', () => {
     await send(controller, { command: 'startScan' })
     await send(controller, { command: 'startInstall' })
     const back = await send(controller, { command: 'back' })
-    expect((back.directive as { snapshot: JudgeSetupSnapshot }).snapshot.step).toBe(
-      'recommendation',
-    )
+    expect(snapshotOf(back.directive).step).toBe('recommendation')
     const skipped = await send(controller, { command: 'chooseSkip' })
     expect(skipped.directive).toEqual({ to: 'close', openHosted: false })
     const hosted = await send(controller, { command: 'chooseHosted' })

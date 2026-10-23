@@ -57,6 +57,7 @@ describe('setup pure parts', () => {
         ),
         'utf8',
       ),
+      // The committed capture's envelope; the manifest parses below.
     ) as { manifest: unknown }
     const manifest = parseRegistryManifest(JSON.stringify(capture.manifest))
     expect(manifest?.layers.length).toBeGreaterThan(0)

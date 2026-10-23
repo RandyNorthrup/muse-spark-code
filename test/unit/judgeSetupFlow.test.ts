@@ -132,6 +132,7 @@ function fakeWorld(overrides: Partial<JudgeSetupFlowPorts> = {}): FakeWorld {
       waitForVersion: () => Promise.resolve(true),
       readRegistration: (file) => {
         const bytes = files.get(file)
+        // The fake store reads back the registration the flow wrote.
         return bytes === undefined
           ? undefined
           : (JSON.parse(Buffer.from(bytes).toString('utf8')) as JudgeSetupRecord)
