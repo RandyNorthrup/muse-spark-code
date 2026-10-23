@@ -103,6 +103,7 @@ import {
   ACP_CONFIG_IDS,
   ACP_NEAREST_COMMAND_COUNT,
   ACP_PAID_TOOL_CALL_PREFIX,
+  MAKER_TOOL_CALL_PREFIX,
   ACP_QUESTIONS_BUNDLE_FILE,
   ACP_SESSION_LIST_LIMIT,
   type AcpBackendKind,
@@ -190,6 +191,14 @@ import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
 import { isAcpSharingFailure, SHARING_FAILURE_CODES, type AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
+import {
+  makerPermissionAnswer,
+  makerPermissionDetail,
+  makerPermissionOptions,
+  makerPermissionTitle,
+  type AcpMakerSurface,
+} from './maker'
+import type { MakerApprovalAnswer, MakerApprovalPrompt } from '../shared/maker'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
 import type { AcpEstimatePort } from './estimate'
 
@@ -299,6 +308,8 @@ export interface AcpAgentDeps {
   readonly defaultCwd: string
   /** The flagged paid features; the agent asks before each use (M63c, M58). */
   readonly paid: AcpPaidUse
+  /** The exact-payload approval before a maker send; the agent asks every time. */
+  readonly maker: AcpMakerSurface
   readonly log: CoreLogger
   /** The process-wide lazy governor; subscriptions do not start it. */
   readonly resources?: RuntimeResources
@@ -2409,6 +2420,84 @@ class AcpSession {
   }
 
   /**
+  The exact-payload approval before a maker send (RLF-DEVICES, D83.3): a
+  row naming the operation on the machine, and a permission prompt
+  carrying the target, the analysis and the exact payload lines.
+  Anything but Send once is Reject; the answer echoes the prompt's id
+  and digest for the engine's single-use verify.
+  */
+  public async askMakerUse(
+    prompt: MakerApprovalPrompt,
+    signal: AbortSignal,
+  ): Promise<MakerApprovalAnswer | null> {
+    const isCurrent = () => !this.isDisposed && !signal.aborted
+    if (!isCurrent()) return null
+    // Unique for the client's lifetime: a session loaded again starts afresh.
+    const toolCallId = `${MAKER_TOOL_CALL_PREFIX}${randomUUID()}`
+    const title = makerPermissionTitle(prompt)
+    const content = [
+      {
+        type: 'content' as const,
+        content: { type: 'text' as const, text: makerPermissionDetail(prompt) },
+      },
+    ]
+    this.send({
+      sessionUpdate: 'tool_call',
+      toolCallId,
+      title,
+      kind: 'other',
+      status: 'pending',
+      content,
+    })
+    let decision: 'send' | 'reject' = 'reject'
+    try {
+      await this.outbox
+      if (!isCurrent()) {
+        return null
+      }
+      const params: RequestPermissionRequest = {
+        sessionId: this.sessionId,
+        toolCall: {
+          toolCallId,
+          title,
+          status: 'pending',
+          content,
+        },
+        options: makerPermissionOptions(),
+      }
+      // The companion's cancellation also cancels the editor's prompt: a
+      // locally abandoned wait must not leave the editor's question open.
+      // The turn's own stop cancels it too, sending `$/cancel_request`
+      // for the waiting request (G04).
+      const turnStop = this.clientStop?.signal
+      const cancellationSignal = combinedStop(signal, turnStop)
+      const pendingPermission = this.client.request(
+        'session/request_permission',
+        params,
+        cancellationSignal === undefined ? undefined : { cancellationSignal },
+      )
+      const response = await unlessAborted(pendingPermission, signal)
+      // A session let go while the editor was asked sends nothing.
+      decision =
+        response !== undefined && isCurrent()
+          ? makerPermissionAnswer(permissionResponse(response))
+          : 'reject'
+    } catch (error: unknown) {
+      this.deps.log.warn(
+        `ACP session ${this.sessionId}: the maker approval question failed, refusing: ${failureForLog(error)}`,
+      )
+    }
+    this.send({
+      sessionUpdate: 'tool_call_update',
+      toolCallId,
+      status: decision === 'reject' ? 'failed' : 'completed',
+    })
+    return decision === 'send'
+      ? { requestId: prompt.requestId, decision: 'send', digest: prompt.digest }
+      : null
+  }
+
+  /**
   An "always" the session's answer gave but the store could not keep: said
   in the session, after the allowed use, so being asked again is expected.
   */
@@ -4236,6 +4325,22 @@ class AgentState {
     return await acp.askPaidUse(request, canRemember)
   }
 
+  /** A maker send asked in the session it is for; one the agent does not hold is refused. */
+  public async askMakerUse(
+    sessionId: string,
+    prompt: MakerApprovalPrompt,
+    signal: AbortSignal,
+  ): Promise<MakerApprovalAnswer | null> {
+    const acp = this.sessions.get(sessionId)
+    if (acp === undefined) {
+      this.deps.log.warn(
+        `Maker send on ${prompt.target.name}: no editor session ${sessionId} to ask in, so it is refused`,
+      )
+      return null
+    }
+    return await acp.askMakerUse(prompt, signal)
+  }
+
   /** An "always" the session's answer gave but the store could not keep. */
   public notePaidNotKept(sessionId: string, text: string): void {
     const acp = this.sessions.get(sessionId)
@@ -4684,6 +4789,7 @@ export function createAcpAgent(deps: AcpAgentDeps): AgentApp {
   deps.paid.attachNotify((sessionId, text) => {
     state.notePaidNotKept(sessionId, text)
   })
+  deps.maker.attach((sessionId, prompt, signal) => state.askMakerUse(sessionId, prompt, signal))
   return acpAgent({ name: ACP_AGENT_NAME })
     .onRequest('initialize', (context) =>
       respond('initialize', () => {

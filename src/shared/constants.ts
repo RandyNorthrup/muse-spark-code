@@ -5120,6 +5120,13 @@ export const ACP_PAID_OPTIONS = {
   allowAlways: 'paid-allow-always',
   deny: 'paid-deny',
 } as const
+// The exact-payload approval before a maker send (RLF-DEVICES, D83.3): its
+// tool call row and its answers. Every payload asks; there is no "always".
+export const MAKER_TOOL_CALL_PREFIX = 'maker-approval-'
+export const MAKER_PERMISSION_OPTIONS = {
+  allowOnce: 'maker-allow-once',
+  deny: 'maker-deny',
+} as const
 // One session-list page the agent reads for the editor's cursor; the editor
 // pages through every one, so no session is hidden past the page.
 export const ACP_SESSION_LIST_LIMIT = 50
