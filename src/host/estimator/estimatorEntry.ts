@@ -7,7 +7,7 @@ import {
   estimateLimitContextSchema,
   type EstimateLimitContext,
 } from '../../core/estimator/limitContext'
-import { parseEstimateComposer, type EstimateContext } from '../../runtime/estimator/command'
+import type { EstimateContext } from '../../runtime/estimator/command'
 // The capacity estimator's lazy bundle (M117, PLAN.md D6, D97): esbuild
 // builds this file into dist/estimator.js, which the extension, the CLI and
 // the ACP agent require the first time an estimate runs, so the engine stays
@@ -30,7 +30,7 @@ import { parseEstimateComposer, type EstimateContext } from '../../runtime/estim
 // the review time observed in history, and hours per round would count it
 // twice (docs/estimator/prior.md).
 import * as z from 'zod/mini'
-import { fill, formatPercent, setUiText } from '../../shared/l10n/text'
+import { fill, formatPercent, setUiText, uiLocale } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { ESTIMATE_ENGINES, UI_TEXT } from '../../shared/constants'
@@ -64,7 +64,6 @@ import { recommendEstimate } from '../../core/estimator/recommend'
 import { lookupEstimatePrices } from '../../core/estimator/prices'
 import type { EstimatePriceLookup, EstimatePricePort } from '../../core/estimator/prices'
 import { baseRisks } from '../../core/estimator/baseRisk'
-import { EstimateWaveStarter } from '../../core/estimator/provision/start'
 import type { EstimateStartPort } from '../../shared/estimate'
 
 /** The milestone bindings, injected: each refuses with its handoff until it merges. */
@@ -84,8 +83,14 @@ export interface EstimatorSourcePorts extends EstimateGoalSourcesPort {
   priceLookup(): Omit<EstimatePriceLookup, 'asOf'>
 }
 
+/** The run's composer parsing and first-wave start, in the actions bundle. */
+interface EstimateActions {
+  parseCommand(text: string, context: EstimateContext): EstimateRequest
+  startWave(input: EstimateInputs): Promise<readonly string[]>
+}
+
 export interface EstimatorRun {
-  parseCommand?(text: string, context: EstimateContext): EstimateRequest
+  parseCommand?(text: string, context: EstimateContext): Promise<EstimateRequest>
   estimate(request: EstimateRequest, signal: AbortSignal): Promise<EstimateSection>
   startWave(input: EstimateInputs): Promise<readonly string[]>
   price(price: CatalogPrice): string
@@ -139,12 +144,28 @@ export function createEstimatorRun(
 ): EstimatorRun {
   setUiText(table, locale)
   const board = ports.board()
-  const starter = new EstimateWaveStarter(board)
+  // The actions bundle loads the first time a composer command parses or a
+  // first wave starts, and is kept from then on, so the starter keeps its
+  // submitted lanes across calls exactly as before.
+  let actions: EstimateActions | undefined
+  const loaded = async (): Promise<EstimateActions> => {
+    if (actions === undefined) {
+      const { createEstimateActionsRun } = await import('./estimateActionsEntry')
+      actions = createEstimateActionsRun(board, UI_TEXT, uiLocale())
+    }
+    return actions
+  }
   return {
-    parseCommand: parseEstimateComposer,
+    parseCommand: async (text, context) => {
+      const run = await loaded()
+      return run.parseCommand(text, context)
+    },
     provisionWaiting: 'M117-P-M109-provider',
     price: (price) => formatUsd(displayUsdNanos(usdNanos(price.hourlyUsd)), 2),
-    startWave: (input) => starter.start(input),
+    startWave: async (input) => {
+      const run = await loaded()
+      return await run.startWave(input)
+    },
     estimate: async (request, signal) => {
       const parsed = parseEstimate(estimateRequestSchema, request)
       const supply = ports.beginEstimate?.() ?? ports
