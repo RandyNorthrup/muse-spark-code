@@ -249,6 +249,13 @@ above.
      and the redactor catches only keys. Log a protocol word through
      `wireWordForLog`, an MSP failure through `failureForLog`, stderr
      through `stderrForLog`, or fixed words.
+   - **The home node (M110a0).** The node's secrets — the one-time setup
+     code, the key slots, the identity — live only in the state root on the
+     person's own PC, never in settings, logs, telemetry, tests or
+     fixtures. The setup code is printed once, at `init`, and never logged;
+     `wipe --confirm-wipe` destroys the key slots, the identity, the state
+     root and the recorded workspace volume together. The LAN installer
+     takes no credential and stores none.
    - **Logging.** Log through the `LogOutputChannel`; never `console.log`
      in the host.
 9. **Dependencies are deliberate.** Before adding one: check peer ranges
@@ -554,6 +561,13 @@ design/tokens/**      the W3C design-token source (muse.tokens.json, M114
 src/runtime/fonts/**  the pinned font pack's verified installer
                       (`fonts install`) and the portable UI/code font and
                       ligature preferences (M114 lane F)
+src/runtime/node/**   the home node's packaged CLI (dist/node.js): the
+                      production binding with its real wipe, the local
+                      stopped-status, and the ACP `node` subcommand (M110a0 S0)
+deploy/install/       the LAN installer's verify-then-layout pair, the two
+                      systemd units and their fixed users (M110a0 S0)
+docs/node/            the home-node operator guides: home, serve, toolhost
+                      (M110a0 J)
 native/windows/**     dictate.ps1, the Windows dictation helper; capture.ps1,
                       Muse Voice's recorder; the job helpers' C#
                       (MuseSparkJob.cs, MuseSparkMcpLauncher.cs and the

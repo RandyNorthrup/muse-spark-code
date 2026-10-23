@@ -302,3 +302,9 @@ M118's shared sharing core and React/ACP/CLI bindings are integrated; native
 menus and the companion page still wait on M104, and TUI mounting waits on
 M110a0 lane T. Exact pending envelopes/DTOs and each editor's availability are
 listed in [the host record](ide-compatibility/hosts.md#m118-sharing-integration-2026-10-06).
+
+The home node's operator surface (M110a0 lanes S0 and J) is
+editor-independent: the packaged `dist/node.js` CLI, the ACP agent's `node`
+subcommand and the install guides in `docs/node/` run the same everywhere,
+so they add no editor-matrix row. The node's browser pages and TUI mount
+through their own lanes and editors later.

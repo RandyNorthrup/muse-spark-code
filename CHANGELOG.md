@@ -39,6 +39,20 @@ happened, not what was planned; superseded entries are kept.
   Production authentication, issuance and deployment still require their lane
   bindings and platform receipts.
 
+- Home-node install on a home PC (M110a0 S0): the native Linux installer's
+  LAN profile (checksum plus release-attestation verification, fixed
+  `muse-node`/`muse-tools` users, two systemd units, the node's port
+  only), Docker Desktop guides for macOS and Windows, a production `node`
+  binding whose wipe destroys the key slots, identity, state root and
+  workspace volume together, and the hosts proof record with the open
+  runbooks. Serving still refuses until its binding lands; the full
+  install, attestation success and container runs await their PCs.
+- Home-node operator guides (M110a0 J): `docs/node/` (home, serve,
+  toolhost), README's Muse Node section, the SECURITY and PRIVACY rows,
+  AGENTS.md's layout and rule-8 rows, and the A0 attempt log. The macOS
+  Docker beat was attempted and is blocked: Desktop's backend runs but
+  its socket never appeared.
+
 - Muse Node OS image-side updates (M110 OS2, simulator evidence only): RAUC
   slot configs for UEFI and Raspberry Pi; a custom Pi tryboot backend with
   one-shot trials on the controller-first layout (controller FAT 1, boot A/B

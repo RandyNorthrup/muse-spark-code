@@ -688,6 +688,11 @@ string in the published outputs. The step summary records the commit, the
 | LA, done 2026-10-05       | reviewed candidate Action + real MUSE_MODEL_API_KEY | exact same-repo PR/dispatch, immutable Action/package digests, run/jobs/comment/artifact/usage links and masking evidence; unsigned, not registry |
 | LR, pending after release | exact published package + npm verified chain        | bundle/lock/registry/subject/certificate hashes, release/action/run/result links; no claim for other/future versions                              |
 
+The home-node LAN installer's checks (`test/unit/nodeInstall.test.mjs`)
+run in CI on Linux with the real POSIX tools; the full install, the `gh`
+attestation success path and the container runbooks still await their PCs
+(`docs/certification/m110a0-hosts.md`).
+
 The LA receipt is
 [run 37249121568](https://github.com/RandyNorthrup/muse-spark-code/actions/runs/37249121568).
 It reviewed the same-repository draft pull request #114 at head `9efcdbce`,

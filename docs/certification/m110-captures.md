@@ -81,3 +81,30 @@ credentialed Git never enables repository hooks. C/N/U1 take A0-GIT and
 M110L0-Git-runtime-qualification in PLAN §9 before claiming support. The
 existing Action's closed-config boundary is a design reference, not a node
 implementation or a substitute for the snapshot race protection.
+
+## RLM110A0: S0 A0 attempt log
+
+Lane RLM110A0, 2026-10-23, rig `macmini`
+(`/Users/randy/lanes/RLM110A0`). Model attempts: **0**. No credential read,
+sign-in, OS trust-store change, firewall change, image pull, external
+network request or live/paid model call in this lane.
+
+Local inventory (read-only): Darwin x86_64, macOS 15.7.4,
+Node v24.21.0; Docker CLI present, Podman CLI absent; no UTM, VirtualBox,
+Parallels, lima or QEMU on the rig.
+
+| Capture     | Attempt and outcome                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| A0-PUBLISH  | Attempted the macOS Desktop beat: Docker Desktop's backend runs (pid 34393) but its socket never appeared — `/var/run/docker.sock` points at `/Users/randy/.docker/run/docker.sock`, which does not exist (ENOENT), and `docker version` hangs. No shim or wrapper was built (sandbox rule), so no container ran and no publish/firewall/volume receipt exists. Retry when Docker is healthy. All other A0-PUBLISH hosts still await their rigs. |
+| A0-TLS      | Not attempted: still waiting on the lead's authorized throwaway OS/browser profiles. No browser or trust store was touched.                                                                                                                                                                                                                                                                                                                      |
+| A0-NAME     | Not attempted: still waiting on a second LAN PC and cross-OS resolution.                                                                                                                                                                                                                                                                                                                                                                         |
+| A0-BWRAP    | Not attempted: still waiting on C/N's tool-host image and Linux/arm64 rigs.                                                                                                                                                                                                                                                                                                                                                                      |
+| A0-PTY      | Not attempted: still waiting on N's tool host and C's image.                                                                                                                                                                                                                                                                                                                                                                                     |
+| A0-WEBAUTHN | Not attempted: still waiting on A1's verifier.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| A0-LOGIN    | Not attempted: the rig brief forbids credential access; no sign-in attempted.                                                                                                                                                                                                                                                                                                                                                                    |
+| A0-GIT      | Not attempted: still waiting on N's closed runner, C's permissions and U1's destination binding.                                                                                                                                                                                                                                                                                                                                                 |
+
+S0's installer evidence (`test/unit/nodeInstall.test.mjs`, 8/8, real
+POSIX tools; the `deploy/install/` profile) is committed-test evidence for
+the LAN profile's checks, not an OS receipt: it changes none of the rows
+above.
