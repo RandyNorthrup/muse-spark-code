@@ -67,6 +67,27 @@ describe('watchdog GitHub client', () => {
     expect(search.incompleteResults).toBe(false)
   })
 
+  it('reads releases, tags and commit search from their captures', async () => {
+    const { fetch } = serveGithub({
+      [`GET ${BASE}/releases`]: { status: 200, body: watchdogCaptured('github-releases') },
+      [`GET ${BASE}/tags`]: { status: 200, body: watchdogCaptured('github-tags') },
+      ['GET https://api.github.com/search/commits']: {
+        status: 200,
+        body: watchdogCaptured('github-search-commits'),
+      },
+    })
+    const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
+    const [release] = await client.listReleases('token', REPOSITORY)
+    expect(release?.tag).toBe('v0.19.0')
+    expect(release?.isDraft).toBe(false)
+    const [tag] = await client.listTags('token', REPOSITORY)
+    expect(tag?.name).toBe('v0.19.0')
+    expect(tag?.sha).toBe('4e09cab6ea724dd138bbb71304bdef39d5253992')
+    const commits = await client.searchCommits('token', 'repo:RandyNorthrup/muse-spark-code 146')
+    expect(commits.totalCount).toBe(commits.commits.length)
+    expect(commits.commits[0]?.author).toBe('RandyNorthrup')
+  })
+
   it('forms the comment, label and close mutations GitHub expects', async () => {
     const comments = watchdogCaptured('github-issue-comments')
     if (!Array.isArray(comments) || comments.length === 0)

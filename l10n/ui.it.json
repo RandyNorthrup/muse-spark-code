@@ -1897,6 +1897,9 @@
       "findings": "Risultati",
       "questions": "Domande aperte"
     },
+    "triage": {
+      "unreadable": "Lo smistamento non è tornato come risultati."
+    },
     "refusal": {
       "spamHeld": "Trattenuto come possibile spam: non è stato pubblicato nulla.",
       "approvalRequired": "Questo messaggio richiede prima la tua approvazione."

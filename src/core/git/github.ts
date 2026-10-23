@@ -125,6 +125,48 @@ const issueSearchSchema = z.object({
   items: z.array(issueSchema),
 })
 
+// The triage's release rows, from the same day's captures. `name`,
+// `published_at` and `body` read nullable although no capture shows
+// null: GitHub documents them nullable for drafts
+// (docs.github.com/rest/releases/releases).
+const releaseSchema = z.object({
+  html_url: z.string(),
+  tag_name: z.string(),
+  target_commitish: z.string(),
+  name: z.nullable(z.string()),
+  draft: z.boolean(),
+  prerelease: z.boolean(),
+  created_at: z.string(),
+  published_at: z.nullable(z.string()),
+  body: z.nullable(z.string()),
+})
+
+const tagSchema = z.object({
+  name: z.string(),
+  commit: z.object({ sha: z.string() }),
+})
+
+// Commit search rows. `author` and `committer` read nullable although
+// no capture shows null: GitHub documents them nullable when the commit
+// author matches no GitHub user (docs.github.com/rest/search/search).
+const commitSearchItemSchema = z.object({
+  sha: z.string(),
+  html_url: z.string(),
+  commit: z.object({
+    message: z.string(),
+    author: z.object({ date: z.string() }),
+  }),
+  author: z.nullable(userSchema),
+  committer: z.nullable(userSchema),
+  score: z.number(),
+})
+
+const commitSearchSchema = z.object({
+  total_count: z.number(),
+  incomplete_results: z.boolean(),
+  items: z.array(commitSearchItemSchema),
+})
+
 const errorSchema = z.object({
   message: z.string(),
   errors: z.optional(
@@ -213,6 +255,38 @@ export interface GitHubIssueSearch {
   readonly totalCount: number
   readonly incompleteResults: boolean
   readonly issues: readonly GitHubIssue[]
+}
+
+export interface GitHubRelease {
+  readonly url: string
+  readonly tag: string
+  readonly target: string
+  readonly name: string | undefined
+  readonly isDraft: boolean
+  readonly isPrerelease: boolean
+  readonly createdAt: string
+  readonly publishedAt: string | undefined
+  readonly body: string
+}
+
+export interface GitHubTag {
+  readonly name: string
+  readonly sha: string
+}
+
+export interface GitHubCommitMatch {
+  readonly sha: string
+  readonly url: string
+  readonly message: string
+  readonly date: string
+  readonly author: string | undefined
+  readonly score: number
+}
+
+export interface GitHubCommitSearch {
+  readonly totalCount: number
+  readonly incompleteResults: boolean
+  readonly commits: readonly GitHubCommitMatch[]
 }
 
 /** A repository's default branch, and for a fork the repository it came from. */
@@ -831,5 +905,89 @@ export class GitHubClient {
       { state: 'closed' },
     )
     return toGitHubIssue(this.parse(issueSchema, raw, 'closed issue'))
+  }
+
+  /** The repository's releases, newest first, until a short page ends them. */
+  public async listReleases(token: string, repository: GitHubRepository): Promise<GitHubRelease[]> {
+    const releases: GitHubRelease[] = []
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({
+        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+        page: String(page),
+      })
+      const parsed = this.parse(
+        z.array(releaseSchema),
+        await this.request(
+          token,
+          'GET',
+          `${repositoryPath(repository)}/releases?${query.toString()}`,
+        ),
+        'release list',
+      )
+      releases.push(
+        ...parsed.map((release) => ({
+          url: release.html_url,
+          tag: release.tag_name,
+          target: release.target_commitish,
+          name: release.name ?? undefined,
+          isDraft: release.draft,
+          isPrerelease: release.prerelease,
+          createdAt: release.created_at,
+          publishedAt: release.published_at ?? undefined,
+          body: release.body ?? '',
+        })),
+      )
+      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
+    }
+    return releases
+  }
+
+  /** The repository's tags, newest first, until a short page ends them. */
+  public async listTags(token: string, repository: GitHubRepository): Promise<GitHubTag[]> {
+    const tags: GitHubTag[] = []
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({
+        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+        page: String(page),
+      })
+      const parsed = this.parse(
+        z.array(tagSchema),
+        await this.request(token, 'GET', `${repositoryPath(repository)}/tags?${query.toString()}`),
+        'tag list',
+      )
+      tags.push(
+        ...parsed.map((tag) => ({
+          name: tag.name,
+          sha: tag.commit.sha,
+        })),
+      )
+      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
+    }
+    return tags
+  }
+
+  /** Commit search, first page. The caller passes the whole `q`. */
+  public async searchCommits(token: string, query: string): Promise<GitHubCommitSearch> {
+    const search = new URLSearchParams({
+      q: query,
+      per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+    })
+    const parsed = this.parse(
+      commitSearchSchema,
+      await this.request(token, 'GET', `/search/commits?${search.toString()}`),
+      'commit search',
+    )
+    return {
+      totalCount: parsed.total_count,
+      incompleteResults: parsed.incomplete_results,
+      commits: parsed.items.map((item) => ({
+        sha: item.sha,
+        url: item.html_url,
+        message: item.commit.message,
+        date: item.commit.author.date,
+        author: item.author?.login ?? item.committer?.login,
+        score: item.score,
+      })),
+    }
   }
 }

@@ -1839,6 +1839,9 @@
       "findings": "調査結果",
       "questions": "未解決の質問"
     },
+    "triage": {
+      "unreadable": "トリアージが調査結果として返ってきませんでした。"
+    },
     "refusal": {
       "spamHeld": "スパムの疑いで保留されました: 何も投稿されていません。",
       "approvalRequired": "この投稿には事前の承認が必要です。"

@@ -1897,6 +1897,9 @@
       "findings": "Constats",
       "questions": "Questions ouvertes"
     },
+    "triage": {
+      "unreadable": "Le triage n’est pas revenu sous forme de constats."
+    },
     "refusal": {
       "spamHeld": "Retenu comme spam suspect : rien n’a été publié.",
       "approvalRequired": "Cette publication nécessite d’abord votre approbation."
