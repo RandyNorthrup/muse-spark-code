@@ -310,8 +310,10 @@ export async function execResourceFileBytes(
         if (isFailed) return
         isFailed = true
         stopping ??= stop()
-        void stopping.catch(() => {
-          reject(new Error('Governed command tree stop failed'))
+        void stopping.catch((error: unknown) => {
+          // The abort already reached the waiter; the stop failure keeps its
+          // cause so the record names the cleanup that failed.
+          reject(new Error('Governed command tree stop failed', { cause: error }))
         })
       }
       const push = (chunk: Buffer, to: Buffer[]): void => {

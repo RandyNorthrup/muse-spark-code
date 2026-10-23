@@ -585,6 +585,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     }
     return record?.secret
   }
+
   const isClosed = (): boolean => isDisposed
   const readTeamState = async (): Promise<void> => {
     // A failed fresh source read cannot leave an older balance or roster visible.

@@ -97,8 +97,8 @@ Code” are Meta trademarks. You bring your own credentials.
   release and change reports from local facts, in Markdown, HTML, JSON or text,
   with saved history and comparisons; nothing is sent to a model.
 - **Orchestrator playbook.** The nine orchestration rules ship as a first-party
-  skill. In the ACP agent and the CLI, `/playbook status`, `record` and
-  `settings` answer locally without a model call.
+  skill. In the panel's composer, the ACP agent and the CLI, `/playbook status`,
+  `record` and `settings` answer locally without a model call.
 - **Refreshed design.** Shared design tokens and generated palettes style every
   panel surface; an optional pinned OFL font pack serves standalone installs.
 

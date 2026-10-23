@@ -109,7 +109,7 @@ export class TeamWorkspaceError extends Error {
   }
 }
 
-/** @unwired M96 team workspace error guard */
+/** Whether a failure is the team's own workspace failure, with its stable code. */
 export function isTeamWorkspaceError(value: unknown): value is TeamWorkspaceError {
   return value instanceof Error && value.name === 'TeamWorkspaceError'
 }
@@ -213,7 +213,7 @@ clean, else a commit made from the current tree with `HEAD` as its
 parent (`git commit-tree` through a private index, which writes no user ref), so the
 worker sees the uncommitted work. Nothing is committed to the user's
 branch either way.
-@unwired M96 team base commit resolver
+Team base commit resolver
 */
 export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string): Promise<string> {
   const status = await runGit(
@@ -309,6 +309,30 @@ export async function resolveBaseCommit(runGit: TeamGit, repositoryRoot: string)
   }
 }
 
+/**
+The dispatch base for a task of this mode (M116, PLAN.md D212): raw HEAD
+in place (the tree's own parent; the work lands in the tree itself), else
+the base commit the task's copy branches from, with the branch ref when
+the checkout names one (`HEAD` reads as detached, never as a branch).
+*/
+export async function readDispatchHead(
+  runGit: TeamGit,
+  repositoryRoot: string,
+  mode: 'read-only' | 'own-branch' | 'in-place',
+): Promise<{ readonly ref: string | undefined; readonly commit: string }> {
+  const abbrev = decodeText(
+    await runGit(['rev-parse', '--abbrev-ref', 'HEAD'], repositoryRoot),
+  ).trim()
+  if (abbrev === '')
+    throw new TeamWorkspaceError('workspaceFailed', 'The workspace names no branch')
+  const ref = abbrev === 'HEAD' ? undefined : `refs/heads/${abbrev}`
+  const commit =
+    mode === 'in-place'
+      ? objectId(await runGit(['rev-parse', '--verify', 'HEAD^{commit}'], repositoryRoot), 'base')
+      : await resolveBaseCommit(runGit, repositoryRoot)
+  return { ref, commit }
+}
+
 async function removeRemote(runGit: TeamGit, folder: string): Promise<void> {
   await runGit(['remote', 'remove', 'origin'], folder)
 }
@@ -321,7 +345,7 @@ same ref into the user's repository so Review diff and git tools see it.
 Every `read-only` worker gets a scratch copy instead (detached, no
 `agents/` ref: there is nothing to merge). `in-place` runs in the user's
 tree; its lock is lane T's.
-@unwired M96 team workspace starter
+Team workspace starter
 */
 export async function startTeamWorkspace(
   runGit: TeamGit,
@@ -378,7 +402,7 @@ The end-of-task commit: the working copy's state on the clone's branch,
 as one commit naming the role, the entry and the task. The worker never
 commits; the extension does. Returns the branch head (the base when
 nothing changed, without an empty commit).
-@unwired M96 task branch committer
+Task branch committer
 */
 export async function commitTaskBranch(
   runGit: TeamGit,
@@ -603,7 +627,7 @@ export function parseScratchStatus(porcelain: Uint8Array): readonly string[] {
 /**
 A read-only worker's change found in its scratch copy fails the task:
 any change or new file there is a breach of its role.
-@unwired M96 scratch-copy breach scanner
+Scratch-copy breach scanner
 */
 export async function scratchBreach(runGit: TeamGit, folder: string): Promise<readonly string[]> {
   runGit = teamProgramFreeGit(runGit)

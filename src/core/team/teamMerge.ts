@@ -451,7 +451,7 @@ card asks), then: `write-paths` violations refuse the whole merge; a ref
 breach refuses it; protected paths refuse it unless `allowProtected`;
 then derives every file through `git merge-file`. Conflicts go to the
 task copy under rework; no result lands in the user tree until clean.
-@unwired M96 team merge applier
+Team merge applier
 */
 export async function applyTeamMerge(
   io: TeamMergeIo,

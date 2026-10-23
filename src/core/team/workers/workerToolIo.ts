@@ -215,7 +215,8 @@ export function fenceWorkerToolIo(base: ToolIo, fence: WorkerToolFence): ToolIo 
             return Promise.resolve()
           })
         } catch {
-          /* A name cannot escape the grant, even if enumeration raced. */
+          // A name cannot escape the grant, even if enumeration raced.
+          fence.input.io.debug?.('Worker listing raced a confined name; skipping it.')
         }
       }
       fence.admit()

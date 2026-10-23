@@ -15,7 +15,18 @@ export async function createTeamHost(
 ): Promise<TeamHostService> {
   setUiText(table, locale)
   const { engineTeamPorts } = await import('./teamEngineEntry')
-  return createTeamHostService({ ...deps, ...engineTeamPorts(table, locale, deps.engine) })
+  const engine = engineTeamPorts(table, locale, deps.engine)
+  // The playbook's dispatch-base read rides the engine's git; the factory is
+  // the owner's. Apart, neither governs: the binding needs both halves.
+  const { head, ...ports } = engine
+  const { playbook: playbookCreate, ...rest } = deps
+  return createTeamHostService({
+    ...rest,
+    ...ports,
+    ...(playbookCreate !== undefined && {
+      playbook: { create: playbookCreate.create, head },
+    }),
+  })
 }
 
 // The lazy file adapter shares this grant authority, including its WeakMap.

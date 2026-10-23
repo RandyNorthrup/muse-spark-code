@@ -2170,10 +2170,10 @@
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#orchestrator-playbook-policy-m116",
       "backends": ["museCode", "modelApi"],
       "paid": false,
-      "surfaces": ["acp:museCode", "acp:modelApi"],
-      "details": [],
+      "surfaces": ["vscode:museCode", "vscode:modelApi", "acp:museCode", "acp:modelApi"],
+      "details": [{ "ui": "playbookMuseCodeStarts" }],
       "facts": {},
-      "editors": ["acp"]
+      "editors": ["vscode", "acp"]
     },
     {
       "id": "mcp-connector",
@@ -5278,13 +5278,14 @@
     },
     {
       "route": "playbook",
-      "name": "playbook [status|record|settings]",
-      "description": "Use `playbook status|record|settings`.",
+      "name": "playbook [status|record|settings|run <name>]",
+      "description": "Use `playbook status|record|settings|run <name> [--heavy] [--full-gate]`.",
       "text": { "ui": "playbookCommandUsage" },
       "invocations": [
         ["playbook", "status"],
         ["playbook", "record"],
-        ["playbook", "settings"]
+        ["playbook", "settings"],
+        ["playbook", "run"]
       ]
     },
     {

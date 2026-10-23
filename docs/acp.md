@@ -612,6 +612,18 @@ answers, and failed sends release without writing. Panel enforcement
 [the milestone certification](certification/m116.md) for what is bound and
 what waits for M96's planner.
 
+The standalone command also runs one of the workspace's check commands:
+`playbook run <name>` reads `museSpark.checkCommands` from the
+workspace's `.vscode/settings.json` (JSONC, as the panel reads it) and
+runs the named check through the same admission, journal and record as
+the panel: a paused resource governor refuses with its why-note and the
+check never spawns, and the record follows the outcome line either way.
+`--heavy` and `--full-gate` mark the check for the offload rule; with no
+workers and no CI in reach, a headless run always runs locally. The
+command exits with the check's own exit code, 1 when the run is refused
+or fails, and 2 for misuse. `run` is not part of `/playbook`: the ACP
+surface stays read-only.
+
 ## Several accounts per provider (M108)
 
 On the Model API backend `/accounts list`, `/accounts current` and

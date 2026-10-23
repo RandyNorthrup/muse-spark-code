@@ -6,8 +6,9 @@ export class TeamGitError extends Error {
     public readonly exitCode: number,
     public readonly stderr: string,
     command: string,
+    options?: { cause?: unknown },
   ) {
-    super(`git ${command} exited with code ${String(exitCode)}: ${stderr.trim()}`)
+    super(`git ${command} exited with code ${String(exitCode)}: ${stderr.trim()}`, options)
     this.name = 'TeamGitError'
   }
 }

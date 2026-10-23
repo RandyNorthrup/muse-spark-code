@@ -81,6 +81,12 @@ export interface ReportingWindowDeps extends Pick<
   readonly reportVaultSnapshot?: (
     context: SourceReadContext,
   ) => Promise<SecurityVaultSnapshot | null>
+  /**
+  M116 (D212): told the observed CI check runs after a generation that
+  attempted the github read. Feeds the team runner's CI holder; absent,
+  nothing observes and the board reads CI as unknown.
+  */
+  readonly reportCiObserved?: ReportingContext['noteGithubCi']
 }
 
 /** Window adapters and engine acquisition live entirely inside the lazy panel bundle. */
@@ -156,6 +162,8 @@ export function createReportingWindow(
       engine: () =>
         (engine ??= loadEngine().createReportingEngine({
           ...deps,
+          // M116 (D212): the engine's CI observation feeds the team runner.
+          ...(deps.reportCiObserved !== undefined && { noteGithubCi: deps.reportCiObserved }),
           session: {
             read: (context) =>
               loadInputs().createSessionReportReader(sessionInput(), table, locale).read(context),
@@ -229,6 +237,20 @@ export function createReportingWindow(
                   locale,
                 )
                 .read(context),
+          },
+          // D214: the playbook, milestone and fleet kinds order through
+          // the same journal the reader reads. The orderer replays fresh
+          // on every section; the note names its rule for the log.
+          playbookOrder: loadPlaybookSchedules().createPlaybookReportOrder(
+            {
+              agentDataFolder: deps.reportUsageDataFolder,
+              workspaceRoot: deps.workspaceRoot ?? process.cwd(),
+            },
+            table,
+            locale,
+          ),
+          playbookNote: (note) => {
+            deps.context.log.info(`playbook report order: ${note.rule}/${note.code}`)
           },
           schedules: {
             read: (context) =>

@@ -22,7 +22,12 @@ import { builtinRoles, toolsOfGroups } from './builtInRoles'
 import { resolveTeamToolset } from './toolsets'
 import { checkRoleCapability } from './capabilityCheck'
 import { validateEntryCaps } from './capValidation'
-import { TEAM_INTENSITY_SPECS, levelCostPerHour, levelCostLabel } from './intensity'
+import {
+  TEAM_INTENSITY_SPECS,
+  levelCostPerHour,
+  levelCostLabel,
+  type TeamLevelPrice,
+} from './intensity'
 import {
   buildTeamSuggestions,
   typicalTokensFor,
@@ -272,6 +277,7 @@ export function deriveTeamPanel(
   sample: TeamPanelSlice['sample'],
   isDirty: boolean,
   hasSavedConfiguration: boolean,
+  /** Undefined while no daily budget is set: role budgets keep their own caps. */
   remainingDailyBudgetUsd: UsdAmount | undefined,
   records: readonly TeamRoleRecord[],
 ): TeamPanelSlice {
@@ -351,6 +357,30 @@ export function deriveTeamPanel(
     },
   })
   const ceilings = { provider: maxWorkers, hard: maxWorkers, machine: maxWorkers }
+  // One selected entry's price per role, including non-billable roles.
+  const roleLevelPrices = (): TeamLevelPrice[] => {
+    const prices: TeamLevelPrice[] = []
+    for (const role of document.roles) {
+      const agent = role.pool[0]?.agent
+      const offer =
+        agent === undefined
+          ? offers.find((item) => item.ref === defaultRef)
+          : offers.find((item) => isSameAgent(item, agent))
+      if (offer === undefined) continue
+      prices.push({
+        billable: offer.agent.pays === 'key',
+        usdPerMTok:
+          offer.inputRate === undefined || offer.outputRate === undefined
+            ? undefined
+            : (offer.inputRate + offer.outputRate) / 2,
+        cachedUsdPerMTok:
+          offer.cachedRate === undefined || offer.outputRate === undefined
+            ? undefined
+            : (offer.cachedRate + offer.outputRate) / 2,
+      })
+    }
+    return prices
+  }
   const issues = roleViews.flatMap((role) => role.issues)
   const roleIds = document.roles.map((role) => role.role)
   const entryIds = document.roles.flatMap((role) => role.pool.map((entry) => entry.id))
@@ -416,32 +446,7 @@ export function deriveTeamPanel(
     levelCosts: Object.fromEntries(
       TEAM_INTENSITY_ORDER.map((level) => [
         level,
-        levelCostLabel(
-          levelCostPerHour(
-            level,
-            ceilings,
-            document.roles.length,
-            document.roles
-              .map((role) => {
-                const agent = role.pool[0]?.agent
-                return agent === undefined
-                  ? offers.find((item) => item.ref === defaultRef)
-                  : offers.find((item) => isSameAgent(item, agent))
-              })
-              .filter((offer) => offer !== undefined)
-              .map((offer) => ({
-                billable: offer.agent.pays === 'key',
-                usdPerMTok:
-                  offer.inputRate === undefined || offer.outputRate === undefined
-                    ? undefined
-                    : (offer.inputRate + offer.outputRate) / 2,
-                cachedUsdPerMTok:
-                  offer.cachedRate === undefined || offer.outputRate === undefined
-                    ? undefined
-                    : (offer.cachedRate + offer.outputRate) / 2,
-              })),
-          ),
-        ),
+        levelCostLabel(levelCostPerHour(level, ceilings, document.roles.length, roleLevelPrices())),
       ]),
     ),
     sample,

@@ -114,7 +114,11 @@ worktrees and the evaluation retain their distinct immediate policies.
 ## M116 playbook surfaces — integration status
 
 The ACP agent and standalone CLI read journal records and settings locally.
-VS Code panel integration is listed under [In progress](../../ROADMAP.md#in-progress).
+In VS Code the composer answers `/playbook` from the same journal, and the
+Agent map opens its status, record and settings; the window reads the
+journal on a worker thread of its own. The panel's own review and dispatch
+rounds going through the playbook is listed under
+[In progress](../../ROADMAP.md#in-progress).
 
 ## M115 schedule routes — integration status
 

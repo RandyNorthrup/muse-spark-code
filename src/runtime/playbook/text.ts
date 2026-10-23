@@ -8,6 +8,11 @@ import {
   UI_TEXT,
 } from '../../shared/constants'
 import { fill, formatDateTime, formatNumber, formatUnit, plural } from '../../shared/l10n/text'
+import {
+  comparePlaybookReportItems,
+  playbookRecordReportFlags,
+  playbookReportBucket,
+} from '../../shared/playbook'
 import type {
   PlaybookFindingClass,
   PlaybookRecord,
@@ -79,37 +84,26 @@ export function playbookCounterText(counter: ReturnType<typeof playbookCounters>
   return `${counter.module} · ${label}: ${plural(UI_TEXT.playbookStrikeBadge, counter.round)}`
 }
 
-function playbookNotePriority(note: PlaybookWhyNote): number {
-  if (note.needsUser) return 0
-  switch (note.code) {
-    case 'checksPassed':
-    case 'reordered':
-    case 'offloaded':
-    case 'localCheck':
-    case 'ciGate':
-    case 'ownerFirst':
-    case 'ruleDisabled':
-    case 'briefRecorded': {
-      return 2
-    }
-    default: {
-      return 1
-    }
-  }
+function reportFlagsOf(entry: PlaybookRecord | { readonly kind: 'counter' }): {
+  readonly needsUser: boolean
+  readonly failing: boolean
+} {
+  return entry.kind === 'counter'
+    ? { needsUser: false, failing: false }
+    : playbookRecordReportFlags(entry)
 }
 
 function prioritized(entry: PlaybookRecord | { readonly kind: 'counter' }): number {
-  if (entry.kind === 'note') return playbookNotePriority(entry.value)
-  if (entry.kind === 'design' && entry.value.outcome !== 'impossible') return 0
-  return entry.kind === 'round' && entry.value.findings.length > 0 ? 1 : 2
+  return playbookReportBucket(reportFlagsOf(entry))
 }
 
 /** Every surface shares this stable order: owner/unresolved designs, warnings,
-then informational records and aggregate counter statistics. */
+then informational records and aggregate counter statistics. D214: the buckets
+derive from the one shared ordering, never a local copy of it. */
 export function orderedPlaybookRecords<T extends PlaybookRecord | { readonly kind: 'counter' }>(
   records: readonly T[],
 ): T[] {
-  return records.toSorted((a, b) => prioritized(a) - prioritized(b))
+  return records.toSorted((a, b) => comparePlaybookReportItems(reportFlagsOf(a), reportFlagsOf(b)))
 }
 
 export function playbookDesigns(records: readonly PlaybookRecord[]) {

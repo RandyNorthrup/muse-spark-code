@@ -5,7 +5,7 @@
 import { lstat } from 'node:fs/promises'
 import { pathModule } from '../../workspaceRoot'
 import { windowsPathProblem } from '../../windowsPathSpelling'
-import type { WorkerFileHandle, WorkerPathInput } from './workerFence'
+import type { WorkerFenceIo, WorkerFileHandle, WorkerPathInput } from './workerFence'
 import type { UiText } from '../../../shared/l10n/en'
 import { setUiText } from '../../../shared/l10n/text'
 
@@ -17,6 +17,30 @@ type Authority = Pick<
 >
 import type { WorkerRolePolicy } from './workerTypes'
 import { UI_TEXT } from '../../../shared/constants'
+
+/** Best-effort descriptor close; a gone descriptor is routine. */
+async function closeWorkerFile(
+  opened: Pick<WorkerFileHandle, 'close'>,
+  io: WorkerFenceIo,
+): Promise<void> {
+  try {
+    await opened.close()
+  } catch {
+    // The descriptor is already gone; cleanup still runs.
+    io.debug?.('Worker descriptor already gone; cleanup still runs.')
+  }
+}
+
+/**
+The role's write policy refused before native creation: the sentence the
+worker reports, so the ACP surface can repeat it instead of throwing.
+*/
+export class WorkerRoleDeniedError extends Error {
+  public constructor() {
+    super(UI_TEXT.teamFileRoleDenied)
+    this.name = 'WorkerRoleDeniedError'
+  }
+}
 
 export interface WorkerCreateProof {
   readonly root: string
@@ -75,7 +99,7 @@ export async function createWorkerFile(
       const remaining = p.relative(ancestor, absolute).split(p.sep).join('/')
       const canonical = [target.canonical, remaining].filter(Boolean).join('/')
       if (!isCheckedWorkerWriteAllowed(role, { ...target, relative, canonical }))
-        throw new Error(UI_TEXT.teamFileRoleDenied)
+        throw new WorkerRoleDeniedError()
       // A dangling symlink is not a missing path, and neither is a device.
       try {
         await lstat(absolute)
@@ -112,7 +136,7 @@ export async function createWorkerFile(
       } catch (error: unknown) {
         // The helper never reported what it made: at most the preflight
         // missing count can be ours.
-        await sweep.cleanupCreated(run, proof, absolute, undefined, p, predicted)
+        await sweep.cleanupCreated(run, proof, absolute, undefined, p, predicted, input.io)
         throw sweep.mapNativeError(error, relative)
       }
       let opened: Awaited<ReturnType<NonNullable<typeof input.io.openFile>>>
@@ -126,10 +150,11 @@ export async function createWorkerFile(
           created.identity,
           p,
           created.createdFolders,
+          input.io,
         )
         throw sweep.typedCreateError(error, relative)
       }
-      await sweep.recordCreated(input.folder, relative, created.identity)
+      await sweep.recordCreated(input.folder, relative, created.identity, input.io)
       let isReserved = false
       const check = async () => {
         const current = await opened.identify()
@@ -139,17 +164,17 @@ export async function createWorkerFile(
         return current
       }
       const forget = (): void => {
-        sweep.forgetCreated(input.folder, relative, created.identity)
+        sweep.forgetCreated(input.folder, relative, created.identity, input.io)
       }
       sweep.trackCreated(created.identity, opened)
       try {
         await check()
       } catch (error: unknown) {
-        try {
-          await opened.close()
-        } catch {
-          /* The descriptor is already gone; cleanup still runs. */
-        }
+        // The file changed under us after creation: it goes back through
+        // the exact-state removal below.
+        input.io.debug?.('Worker create check failed; removing the created file.')
+        // The descriptor may already be gone; cleanup still runs either way.
+        await closeWorkerFile(opened, input.io)
         await sweep.cleanupCreated(
           run,
           proof,
@@ -157,6 +182,7 @@ export async function createWorkerFile(
           created.identity,
           p,
           created.createdFolders,
+          input.io,
         )
         forget()
         throw error
@@ -178,6 +204,7 @@ export async function createWorkerFile(
               created.identity,
               p,
               created.createdFolders,
+              input.io,
             )
             forget()
             throw error
@@ -206,6 +233,7 @@ export async function createWorkerFile(
                 created.identity,
                 p,
                 created.createdFolders,
+                input.io,
               )
             forget()
             await opened.close()
@@ -213,26 +241,34 @@ export async function createWorkerFile(
           return {
             fill: async (bytes: Uint8Array) => {
               if (isFinished) return 'changed'
+              let isChanged = false
               try {
                 try {
                   await check()
                 } catch {
-                  return 'changed'
+                  // The file changed under us; the fill reports it as changed.
+                  input.io.debug?.('Worker fill check raced; reporting changed.')
+                  isChanged = true
                 }
+                if (isChanged) return 'changed'
                 const outcome = await withWorkerFile(
                   { ...input, io: { ...input.io, openFile: () => Promise.resolve(handle) } },
                   absolute,
                   false,
                   async (_file, target) => {
                     if (!isCheckedWorkerWriteAllowed(role, target))
-                      throw new Error(UI_TEXT.teamFileRoleDenied)
+                      throw new WorkerRoleDeniedError()
                     if (opened.readBytes === undefined)
                       throw new Error(UI_TEXT.teamFileHelperMissing)
+                    let isChanged = false
                     try {
                       await opened.readBytes(0)
                     } catch {
-                      return 'changed'
+                      // The file changed under us; the fill reports it as changed.
+                      input.io.debug?.('Worker fill read raced; reporting changed.')
+                      isChanged = true
                     }
+                    if (isChanged) return 'changed'
                     // Binary bytes use a verified existing descriptor, never a path reopen.
                     if (opened.writeBytes === undefined)
                       throw new Error(UI_TEXT.teamFileHelperMissing)
@@ -250,14 +286,18 @@ export async function createWorkerFile(
             },
             release: async () => {
               if (isFinished) return 'changed'
+              let isChanged = false
               try {
                 try {
                   await check()
                   if (opened.readBytes === undefined) throw new Error(UI_TEXT.teamFileHelperMissing)
                   await opened.readBytes(0)
                 } catch {
-                  return 'changed'
+                  // The file changed under us; the release reports it as changed.
+                  input.io.debug?.('Worker release check raced; reporting changed.')
+                  isChanged = true
                 }
+                if (isChanged) return 'changed'
                 await run(proof, 'worker-release', created.identity)
                 isSettled = true
                 return 'done'

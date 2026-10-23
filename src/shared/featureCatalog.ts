@@ -1550,7 +1550,9 @@ export function featureCatalog(): readonly Feature[] {
 }
 
 export const REFERENCE_SURFACES: Readonly<Record<string, readonly string[]>> = {
-  'orchestrator-playbook': ['acp:museCode', 'acp:modelApi'],
+  // M116: the CLI, ACP and the VS Code composer answer /playbook from the
+  // journal; the panel's Agent map opens its status, record and settings.
+  'orchestrator-playbook': ['vscode:museCode', 'vscode:modelApi', 'acp:museCode', 'acp:modelApi'],
   // CM108ACC: the terminal and ACP sessions on the Model API backend; the
   // editor's Accounts page is not mounted.
   accounts: ['acp:modelApi'],
@@ -1590,6 +1592,9 @@ const REFERENCE_DETAILS: Readonly<
   exports: ['referenceExports'],
   imports: ['agentImportDetailEvery', 'referenceResumeAgents'],
   plans: ['referencePlanModes'],
+  // M116: Muse Code starts subagents without asking; the playbook counts
+  // their rounds and reviews their work, and cannot stop a start.
+  'orchestrator-playbook': ['playbookMuseCodeStarts'],
   browser: ['referenceBrowser'],
   images: ['referencePaidContexts'],
   search: ['referencePaidContexts'],

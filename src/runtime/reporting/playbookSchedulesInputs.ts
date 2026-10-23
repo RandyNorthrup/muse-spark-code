@@ -10,7 +10,17 @@
 import {
   FilePlaybookJournal,
   PlaybookHistoryLostError,
+  validatedRecords,
 } from '../../core/orchestration/playbook/journal'
+import { PLAYBOOK_PANEL_TEAM } from '../../shared/constants'
+import {
+  comparePlaybookReportItems,
+  playbookOrderReportNote,
+  type PlaybookRecord,
+  replayPlaybookSettings,
+} from '../../shared/playbook'
+import { UI_TEXT } from '../../shared/l10n/text'
+import type { PlaybookReportOrderer } from '../../core/reporting/collect/playbookOrder'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { LocalSourceError } from '../../core/reporting/sources/local'
@@ -41,6 +51,57 @@ export function createPlaybookReportReader(input: {
       }
       return Promise.resolve({ records, observedAt: context.asOf })
     },
+  }
+}
+
+/**
+`validatedRecords`, but a validation failure — which quotes record
+content — answers unavailability instead of throwing it outward. Any
+other failure (a defect above the records) is rethrown as it is.
+*/
+function validRecordsOrUnavailable(
+  raw: readonly unknown[],
+): { ok: true; records: PlaybookRecord[] } | { ok: false } {
+  try {
+    return { ok: true, records: validatedRecords(raw) }
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === '$ZodError') return { ok: false }
+    throw error
+  }
+}
+
+/**
+D214: the report ordering over the same journal the reader reads, for the
+person's panel team. Every call replays the journal fresh (like the policy's
+refresh), gates on the replayed loudFailures switch, and sorts through the
+one shared ordering; nothing is stored, so reads never contend. A lost
+journal throws lost; anything else unreadable throws unavailable.
+*/
+export function createPlaybookReportOrder(input: {
+  readonly agentDataFolder: string
+  readonly workspaceRoot: string
+}): PlaybookReportOrderer {
+  const journal = new FilePlaybookJournal(input.agentDataFolder, input.workspaceRoot)
+  const readRecords = () => {
+    // The journal's own failures travel as they are (lost stays lost).
+    const raw = journal.read()
+    const parsed = validRecordsOrUnavailable(raw)
+    if (!parsed.ok) throw new Error(UI_TEXT.playbookUnavailable)
+    return parsed.records
+  }
+  return {
+    orderReport: (items) => {
+      const records = readRecords()
+      const settings = replayPlaybookSettings(records, PLAYBOOK_PANEL_TEAM)
+      const ordered = [...items]
+      if (settings.rules.loudFailures.enabled)
+        ordered.sort((a, b) => comparePlaybookReportItems(a, b))
+      return {
+        items: structuredClone(ordered),
+        note: playbookOrderReportNote(settings, Date.now()),
+      }
+    },
+    getRecord: () => structuredClone(readRecords()),
   }
 }
 

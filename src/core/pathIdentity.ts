@@ -14,7 +14,8 @@ type IdentityRelation = 'inside' | 'outside' | 'unknown'
 /** A segment shaped like an NTFS 8.3 alias (`GIT~1`, `CLAUDE~1`). */
 export const SHORT_NAME_SHAPE = /~\d/u
 
-function isMissing(error: unknown): boolean {
+/** Whether a failed look says what it looked for is missing, and nothing else. */
+export function isMissing(error: unknown): boolean {
   return error instanceof Error && 'code' in error && error.code === 'ENOENT'
 }
 

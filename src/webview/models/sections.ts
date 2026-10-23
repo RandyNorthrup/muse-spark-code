@@ -18,8 +18,8 @@ export async function loadTeamEnglish(): Promise<void> {
   // The hidden team English travels with its readers, never with the
   // panel's first paint. A dynamic import keeps this loader out of the
   // panel body; in source and tests the module installs nothing.
-  const deferred = await import('../../shared/l10n/deferredEnglish')
-  await deferred.loadDeferredEnglish()
+  const deferredEnglish = await import('../../shared/l10n/deferredEnglish')
+  await deferredEnglish.loadDeferredEnglish()
 }
 import { deferred } from '../components/DeferredSurface'
 import {
@@ -144,6 +144,7 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     id: 'roles',
     getTitle: () => UI_TEXT.teamRolesTitle,
     icon: CodeIcon,
+    isOffered: (panelState) => panelState?.roles !== undefined,
     Component: RolesSection,
     reduceSection: reduceModels,
   },
@@ -151,6 +152,7 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     id: 'agents',
     getTitle: () => UI_TEXT.teamEditor.agents,
     icon: CodeIcon,
+    isOffered: (panelState) => panelState?.roles !== undefined,
     Component: AgentsSection,
     reduceSection: reduceModels,
   },

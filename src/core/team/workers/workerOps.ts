@@ -19,6 +19,7 @@ import {
 } from '../../../shared/constants'
 import type { UiText } from '../../../shared/l10n/en'
 import { fill, setUiText } from '../../../shared/l10n/text'
+import type { CoreLogger } from '../../logging'
 import { execResourceFile, execResourceFileBytes } from '../../resources/launcher'
 import { windowsPowerShellEnvironment } from '../../execGuard'
 import { resourceWindowsJob } from '../../resources/admission'
@@ -36,16 +37,7 @@ export function installSweepText(table: UiText, locale: string): void {
   setUiText(table, locale)
 }
 
-/** A refusal this module already typed keeps its sentence on the way out. */
-function markTyped(error: Error): Error {
-  return Object.assign(error, { typedCreateRefusal: true })
-}
-
-function isTyped(error: unknown): error is Error {
-  return (
-    error instanceof Error && 'typedCreateRefusal' in error && error.typedCreateRefusal === true
-  )
-}
+import { markTypedCreateRefusal, isTypedCreateRefusal } from './workerTypes'
 
 const receipt = z.strictObject({
   identity: z.string().check(z.regex(/^\d+:\d+$/)),
@@ -90,7 +82,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
       // Already the typed sentence: on Windows no ENOENT marks the absence
       // (PowerShell starts; the assembly load fails instead), so the mapper
       // below must keep it, not remap it to the generic proof failure.
-      throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
+      throw markTypedCreateRefusal(new Error(UI_TEXT.teamFileHelperMissing))
     await job.verify()
     file = path.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH)
     // Windows PowerShell 5.1 with its own module path, whatever shell
@@ -102,7 +94,7 @@ export async function nativeOperation(proof: WorkerCreateProof, op: string, iden
     command = ['--created-directory', ...args]
   } else if (process.platform === 'linux' && ['x64', 'arm64'].includes(process.arch)) {
     file = path.join(__dirname, '..', 'native', 'linux', process.arch, 'muse-created')
-  } else throw markTyped(new Error(UI_TEXT.teamFileHelperMissing))
+  } else throw markTypedCreateRefusal(new Error(UI_TEXT.teamFileHelperMissing))
   try {
     const { stdout } = await execResourceFile('contained', file, command, {
       env: scrubWorkerEnv({ platform: process.platform, baseEnv: env }),
@@ -291,7 +283,7 @@ The display path is always relative to the working copy as asked, never an
 ancestor-relative suffix: every caller passes the copy-relative path.
 */
 export function mapNativeError(error: unknown, display: string): Error {
-  if (isTyped(error)) return error
+  if (isTypedCreateRefusal(error)) return error
   const cause = error instanceof Error ? error : new Error(UI_TEXT.teamFileNativeFailed)
   // Production carries the helper's words on stderr; the test fixture embeds
   // them in the message. Both are the helper's fixed refusals, never paths.
@@ -303,10 +295,10 @@ export function mapNativeError(error: unknown, display: string): Error {
   const reason = refusalReason(text)
   if (reason !== undefined) {
     const row = WORKER_REFUSALS.find((entry) => entry.reason === reason)
-    if (row !== undefined) return markTyped(refusalError(row.sentence, display, cause))
+    if (row !== undefined) return markTypedCreateRefusal(refusalError(row.sentence, display, cause))
     // An unknown refusal still maps to the named backstop, with its code
     // kept in the cause chain for the log.
-    return markTyped(
+    return markTypedCreateRefusal(
       new Error(UI_TEXT.teamFileNativeFailed, {
         cause: new Error(`${WORKER_REFUSAL_PREFIX}${reason}`, { cause }),
       }),
@@ -319,7 +311,7 @@ export function mapNativeError(error: unknown, display: string): Error {
   // its load-failure types map to the helper-unavailable sentence instead.
   const kind = helperFailureKind(text)
   if (kind !== undefined)
-    return markTyped(
+    return markTypedCreateRefusal(
       new Error(
         HELPER_UNAVAILABLE_KINDS.has(kind)
           ? UI_TEXT.teamFileHelperMissing
@@ -330,7 +322,7 @@ export function mapNativeError(error: unknown, display: string): Error {
   const isMissing =
     cause.message === 'Governed command unavailable' ||
     (cause.cause instanceof Error && 'code' in cause.cause && cause.cause.code === 'ENOENT')
-  return markTyped(
+  return markTypedCreateRefusal(
     new Error(isMissing ? UI_TEXT.teamFileHelperMissing : UI_TEXT.teamFileNativeFailed, { cause }),
   )
 }
@@ -369,12 +361,12 @@ export const CREATE_ERRNOS: ReadonlySet<string> = new Set([
 ])
 
 export function typedCreateError(error: unknown, relative: string): Error {
-  if (isTyped(error)) return error
+  if (isTypedCreateRefusal(error)) return error
   if (error instanceof Error && 'code' in error && typeof error.code === 'string') {
     if (error.code === 'EEXIST')
-      return markTyped(new Error(UI_TEXT.teamFileExists, { cause: error }))
+      return markTypedCreateRefusal(new Error(UI_TEXT.teamFileExists, { cause: error }))
     // Every name in CREATE_ERRNOS, and any coded failure beyond them.
-    return markTyped(
+    return markTypedCreateRefusal(
       new Error(fill(UI_TEXT.teamFileCannotCreate, { path: relative }), { cause: error }),
     )
   }
@@ -430,12 +422,14 @@ export async function cleanupCreated(
   identity: string | undefined,
   p: PlatformPath,
   createdFolders: number,
+  io?: Pick<WorkerFenceIo, 'debug'>,
 ): Promise<void> {
   if (identity !== undefined) {
     try {
       await run(proof, 'worker-release', identity)
     } catch {
-      /* Exact-state removal; refusal means changed, missing or gone. */
+      // Exact-state removal; refusal means changed, missing or gone.
+      io?.debug?.('Worker cleanup release refused; the file stays.')
     }
   }
   try {
@@ -447,11 +441,13 @@ export async function cleanupCreated(
       try {
         await rmdir(dir)
       } catch {
-        /* Still used, already gone, or out of our hands: leave it. */
+        // Still used, already gone, or out of our hands: leave it.
+        io?.debug?.('Worker cleanup folder still used, gone, or out of our hands; leaving it.')
       }
     }
   } catch {
-    /* Never. */
+    // Unreachable while the removal above only ignores filesystem outcomes.
+    io?.debug?.('Worker cleanup folder walk failed unexpectedly.')
   }
 }
 
@@ -462,9 +458,14 @@ export function trackCreated(identity: string, handle: WorkerFileHandle): void {
   liveHandles.set(identity, new WeakRef(handle))
 }
 
-export function forgetCreated(folder: string, relative: string, identity: string): void {
+export function forgetCreated(
+  folder: string,
+  relative: string,
+  identity: string,
+  io?: Pick<WorkerFenceIo, 'debug'>,
+): void {
   liveHandles.delete(identity)
-  void unrecordCreated(folder, relative, identity)
+  void unrecordCreated(folder, relative, identity, io)
 }
 
 const reservationRecord = z.strictObject({
@@ -477,11 +478,17 @@ function reservationRecordFile(folder: string): string {
   return path.join(tmpdir(), 'muse-spark-code-worker-reservations', `${digest}.json`)
 }
 
-async function unrecordCreated(folder: string, relative: string, identity: string): Promise<void> {
+async function unrecordCreated(
+  folder: string,
+  relative: string,
+  identity: string,
+  io?: Pick<WorkerFenceIo, 'debug'>,
+): Promise<void> {
   try {
     const file = reservationRecordFile(folder)
-    const record = reservationRecord.parse(JSON.parse(await readFile(file, 'utf8')))
-    if (record.folder !== folder) return
+    const parsed = reservationRecord.safeParse(JSON.parse(await readFile(file, 'utf8')))
+    if (!parsed.success || parsed.data.folder !== folder) return
+    const record = parsed.data
     const kept = record.reservations.filter(
       (entry) => !(entry.relative === relative && entry.identity === identity),
     )
@@ -489,7 +496,8 @@ async function unrecordCreated(folder: string, relative: string, identity: strin
     if (kept.length === 0) await rm(file)
     else await writeFile(file, JSON.stringify({ folder, reservations: kept }))
   } catch {
-    /* Bookkeeping only; the file operation never depends on it. */
+    // Bookkeeping only; the file operation never depends on it.
+    io?.debug?.('Worker record could not be forgotten; the next sweep retries it.')
   }
 }
 
@@ -497,22 +505,26 @@ export async function recordCreated(
   folder: string,
   relative: string,
   identity: string,
+  io?: Pick<WorkerFenceIo, 'debug'>,
 ): Promise<void> {
   try {
     const file = reservationRecordFile(folder)
     let reservations: { readonly relative: string; readonly identity: string }[] = []
     try {
-      const record = reservationRecord.parse(JSON.parse(await readFile(file, 'utf8')))
-      if (record.folder === folder) reservations = [...record.reservations]
+      const parsed = reservationRecord.safeParse(JSON.parse(await readFile(file, 'utf8')))
+      if (parsed.success && parsed.data.folder === folder)
+        reservations = [...parsed.data.reservations]
     } catch {
-      /* A missing or foreign record starts fresh. */
+      // A missing record starts fresh; the note carries no error text.
+      io?.debug?.('Worker record unreadable; starting fresh.')
     }
     if (reservations.every((entry) => entry.relative !== relative || entry.identity !== identity))
       reservations = [...reservations, { relative, identity }]
     await mkdir(path.dirname(file), { recursive: true })
     await writeFile(file, JSON.stringify({ folder, reservations }))
   } catch {
-    /* Bookkeeping only; the file operation never depends on it. */
+    // Bookkeeping only; the file operation never depends on it.
+    io?.debug?.('Worker record could not be written; the next start retries it.')
   }
 }
 
@@ -529,7 +541,7 @@ export async function sweepAbandonedReservations(
   root: string,
   rootIdentity: string,
   p: PlatformPath,
-  io: Pick<WorkerFenceIo, 'pathIdentity'>,
+  io: Pick<WorkerFenceIo, 'pathIdentity' | 'debug'>,
   run: SweepRun,
 ): Promise<void> {
   try {
@@ -562,6 +574,7 @@ export async function sweepAbandonedReservations(
       } catch (error: unknown) {
         // A helper refusal means the file is changed or has content: the
         // record goes, the file stays. Anything else stays recorded.
+        io.debug?.('Worker sweep release failed; the record stays until the next start.')
         const failure = error instanceof Error ? error : undefined
         const stderr =
           failure !== undefined && 'stderr' in failure && typeof failure.stderr === 'string'
@@ -580,10 +593,12 @@ export async function sweepAbandonedReservations(
       if (kept.length === 0) await rm(file)
       else await writeFile(file, JSON.stringify({ folder, reservations: kept }))
     } catch {
-      /* The next start retries what this one could not settle. */
+      // The next start retries what this one could not settle.
+      io.debug?.('Worker sweep could not settle its record; the next start retries it.')
     }
   } catch {
-    /* A missing record is the common case. */
+    // A missing record is the common case; the note carries no error text.
+    io.debug?.('Worker sweep found no reservation record; nothing to settle.')
   }
 }
 
@@ -591,7 +606,7 @@ const GIT_TIMEOUT_MS = 120_000
 const GIT_MAX_BUFFER_MIB = 256
 
 /** Binary-safe git through the governed contained launcher (first use loads it here). */
-export function processTeamGit(platform: NodeJS.Platform): TeamGit {
+export function processTeamGit(platform: NodeJS.Platform, log?: CoreLogger): TeamGit {
   const fallbackEnv = workerEnvironment(process.env, platform)
   return async (args, cwd, input, env) => {
     try {
@@ -602,6 +617,7 @@ export function processTeamGit(platform: NodeJS.Platform): TeamGit {
         timeout: GIT_TIMEOUT_MS,
         maxBuffer: GIT_MAX_BUFFER_MIB * BYTES_PER_MIB,
         windowsHide: true,
+        ...(log !== undefined && { log }),
       })
       return new Uint8Array(stdout)
     } catch (error: unknown) {
@@ -619,7 +635,7 @@ export function processTeamGit(platform: NodeJS.Platform): TeamGit {
           : ''
       const code =
         error instanceof Error && 'code' in error && typeof error.code === 'number' ? error.code : 1
-      throw new TeamGitError(code, stderr, args[0] ?? 'git')
+      throw new TeamGitError(code, stderr, args[0] ?? 'git', { cause: error })
     }
   }
 }

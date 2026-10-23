@@ -13,6 +13,7 @@ import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type * as Entry from './bundledSkillsEntry'
 import type { BundledSkillsPaths, BundledSkillsStatus } from './bundledSkillsInstall'
+import type { PlaybookCharterTarget } from './playbookReviewerCharter'
 
 export type { BundledSkillsCommandDeps } from './bundledSkillsCommands'
 
@@ -24,7 +25,7 @@ export interface BundledSkillsBundle {
   /** Remove what the install made, and only that, in the caller's language. */
   readonly runBundledSkillsRemove: typeof Entry.runBundledSkillsRemove
   /** I binds this only to playbook reviews; ordinary request builders never read it. */
-  readonly playbookReviewerCharter: () => string
+  readonly playbookReviewerCharter: (targets?: readonly PlaybookCharterTarget[]) => string
 }
 
 const BUNDLE_FUNCTIONS = [

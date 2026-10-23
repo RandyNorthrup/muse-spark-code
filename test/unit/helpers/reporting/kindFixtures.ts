@@ -244,22 +244,20 @@ export function changeSelections() {
               branches: commit.sha === 'head' ? ['m12/k'] : [],
             })),
           ),
-  }
-}
-
-export const fixtureCollector = createReportCollector({
-  finalize: fixtureFinalize,
-  nextStepLimit: 3,
-  selections: {
-    ...changeSelections(),
-    risksSinceRelease: (snapshot) =>
+    risksSinceRelease: (snapshot: SourceSnapshot) =>
       snapshot.sources.plan.data === null
         ? unavailableSource('risksSinceRelease', 'No revision evidence')
         : availableSource('risksSinceRelease', {
             risks: snapshot.sources.plan.data.risks,
             residuals: snapshot.sources.plan.data.residuals,
           }),
-  },
+  }
+}
+
+export const fixtureCollector = createReportCollector({
+  finalize: fixtureFinalize,
+  nextStepLimit: 3,
+  selections: changeSelections(),
 })
 
 export function facet(source: string, heading: ReportLabelKey, size = 2): ReportSection {

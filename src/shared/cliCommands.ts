@@ -57,7 +57,7 @@ export function cliCommands(shouldIncludeHeld = false) {
       'developer',
       action,
     ]),
-    playbook: ['status', 'record', 'settings'].map((action) => ['playbook', action]),
+    playbook: ['status', 'record', 'settings', 'run'].map((action) => ['playbook', action]),
     estimate: [['estimate']],
     report: [['report'], ['report', 'problem']],
     reports: [
@@ -289,7 +289,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     },
     {
       route: 'playbook',
-      name: 'playbook [status|record|settings]',
+      name: 'playbook [status|record|settings|run <name>]',
       description: UI_TEXT.playbookCommandUsage,
       text: { ui: 'playbookCommandUsage' },
     },

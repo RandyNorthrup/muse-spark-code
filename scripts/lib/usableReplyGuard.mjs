@@ -120,6 +120,17 @@ const ALLOW_LIST = new Map([
     'src/core/orchestration/panelPlaybook.ts:observe',
     'collects per-item review texts; settle consumes them only through usableReply',
   ],
+  [
+    'src/host/playbook/playbookWindow.ts:reviewEvent',
+    'forwards per-item review observations; settle consumes the review only through usableReply',
+  ],
+  // The team try names the turn's failure when its terminal is not
+  // completed; the collected agentMessage text is reported beside that
+  // named failure, never as a completed result.
+  [
+    'src/core/team/teamTry.ts:tryTeam',
+    'turn-end failure classification into the named failure slot; takes no reply as an answer',
+  ],
   // The handoff trigger starts the brief read on completion; the brief
   // itself is taken only through usableReply in finishHandoff. The message
   // display hold reads an ITEM status for a display-only rewrite.
