@@ -1,5 +1,6 @@
 {
   "method": "workflow/pause",
+  "commandId": "01a1674a-d6e3-7000-ac87-7cf627529dda",
   "params": {
     "sessionId": "01a1674a-328b-7053-83c2-2f185e18ae19",
     "workflowRunId": "workflow-run-model-tool-call_01a1674a7fc770d9be73ba232c12ad4b"

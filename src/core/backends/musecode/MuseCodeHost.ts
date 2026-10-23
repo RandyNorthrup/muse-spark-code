@@ -727,7 +727,8 @@ function toComputerUseSetup(result: unknown): ComputerUseSetup {
   }
 }
 
-const workflowResumeResultSchema = z.object({
+/** Exported for the RLF-M47 capture tests: parses the recorded `workflow/resume` ack. */
+export const workflowResumeResultSchema = z.object({
   commandId: z.string(),
   status: z.string(),
   turnId: z.string(),
@@ -908,6 +909,31 @@ function taskRefusalOr(error: unknown): unknown {
     error.data['reason'] === INVALID_TARGET
     ? new Error(UI_TEXT.taskNotRunning)
     : error
+}
+
+// A workflow control's refusal (RLF-M47, captured live 2026-10-23):
+// `commandRejected` with `data.reason` `missing_run` (the run settled or
+// never existed), `already_terminal` (M47's 1.3.0 cancel probe),
+// `invalid_target` (no in-flight attempt: a scheduled, ended or unknown
+// child) or `stale_attempt` (the attempt moved; re-read and re-key).
+const WORKFLOW_REFUSALS: ReadonlyMap<
+  string,
+  'workflowRunEnded' | 'workflowChildNotRunning' | 'workflowChildMovedOn'
+> = new Map([
+  ['missing_run', 'workflowRunEnded'],
+  ['already_terminal', 'workflowRunEnded'],
+  ['invalid_target', 'workflowChildNotRunning'],
+  ['stale_attempt', 'workflowChildMovedOn'],
+])
+
+/** A workflow refusal in words; anything else unchanged. */
+function workflowRefusalOr(error: unknown): unknown {
+  if (!(error instanceof MspError) || error.kind !== COMMAND_REJECTED) {
+    return error
+  }
+  const reason = error.data['reason']
+  const key = typeof reason === 'string' ? WORKFLOW_REFUSALS.get(reason) : undefined
+  return key === undefined ? error : new Error(UI_TEXT[key])
 }
 
 // `item/readOutput` encodings: text media is always utf8, binary media base64.
@@ -2654,7 +2680,12 @@ export class MuseSession implements ScheduledAgentSession {
     workflowRunId: string,
   ): Promise<{ readonly status: string; readonly turnId: string }> {
     const commandId = this.channel.connection.mintCommandId()
-    const result = await this.command('workflow/resume', { workflowRunId }, commandId)
+    let result: unknown
+    try {
+      result = await this.command('workflow/resume', { workflowRunId }, commandId)
+    } catch (error: unknown) {
+      throw workflowRefusalOr(error)
+    }
     const parsed = workflowResumeResultSchema.parse(result)
     return { status: parsed.status, turnId: parsed.turnId }
   }
@@ -2666,7 +2697,12 @@ export class MuseSession implements ScheduledAgentSession {
   */
   public async pauseWorkflowRun(workflowRunId: string): Promise<string> {
     const commandId = this.channel.connection.mintCommandId()
-    const result = await this.command('workflow/pause', { workflowRunId }, commandId)
+    let result: unknown
+    try {
+      result = await this.command('workflow/pause', { workflowRunId }, commandId)
+    } catch (error: unknown) {
+      throw workflowRefusalOr(error)
+    }
     return workflowControlResultSchema.parse(result).status
   }
 
@@ -2676,7 +2712,12 @@ export class MuseSession implements ScheduledAgentSession {
   */
   public async cancelWorkflowRun(workflowRunId: string): Promise<string> {
     const commandId = this.channel.connection.mintCommandId()
-    const result = await this.command('workflow/cancel', { workflowRunId }, commandId)
+    let result: unknown
+    try {
+      result = await this.command('workflow/cancel', { workflowRunId }, commandId)
+    } catch (error: unknown) {
+      throw workflowRefusalOr(error)
+    }
     return workflowControlResultSchema.parse(result).status
   }
 
@@ -2688,16 +2729,21 @@ export class MuseSession implements ScheduledAgentSession {
   */
   public async controlWorkflowChild(control: WorkflowChildControl): Promise<string> {
     const commandId = this.channel.connection.mintCommandId()
-    const result = await this.command(
-      'workflow/childControl',
-      {
-        action: control.action,
-        attempt: control.attempt,
-        childId: control.childId,
-        workflowRunId: control.workflowRunId,
-      },
-      commandId,
-    )
+    let result: unknown
+    try {
+      result = await this.command(
+        'workflow/childControl',
+        {
+          action: control.action,
+          attempt: control.attempt,
+          childId: control.childId,
+          workflowRunId: control.workflowRunId,
+        },
+        commandId,
+      )
+    } catch (error: unknown) {
+      throw workflowRefusalOr(error)
+    }
     return workflowControlResultSchema.parse(result).status
   }
 

@@ -367,6 +367,13 @@ const workflowEntrySchema = z.object({
   children: z.readonly(z.array(workflowChildSchema)),
   /** The reconciled message the run ends with (`workflowOutcome` reads it). */
   message: z.optional(z.string()),
+  /**
+  The run stays paused through this panel (RLF-M47): set by the host's
+  `workflowPaused` after an accepted pause, cleared on resume and once
+  the run settles. The wire carries no paused state, so the card reads
+  this to offer Resume instead of Pause.
+  */
+  pausedByUser: z.optional(z.boolean()),
 })
 
 const itemEntrySchema = z.object({

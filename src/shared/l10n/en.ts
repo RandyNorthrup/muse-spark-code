@@ -4195,6 +4195,22 @@ export const EN = {
   // The Workflow tool's row.
   workflowLaunched: 'Launched: it runs in the background and reports back to this conversation.',
   workflowScriptSaved: 'Script saved at {path}',
+  // The run card's owner controls (RLF-M47): Cancel, Pause and Resume on a
+  // live run, Skip on a running agent. Retry reuses agentRetry.
+  workflowCancel: 'Cancel',
+  workflowPause: 'Pause',
+  workflowSkip: 'Skip',
+  // The card's own mark while the run stays paused through this panel.
+  workflowPaused: 'Paused',
+  workflowControlFailed: 'The workflow command was refused',
+  // The run is gone (missing_run) or already settled (already_terminal).
+  workflowRunEnded: 'That workflow run is not running any more',
+  // A child control needs the in-flight attempt (invalid_target otherwise).
+  workflowChildNotRunning: 'That workflow agent is not running right now',
+  // The attempt moved between the panel's read and the command (stale_attempt).
+  workflowChildMovedOn: 'That agent moved on; try again',
+  // The session's backend offers no workflow controls (the Model API runs none).
+  workflowUnsupported: 'This backend runs no workflows',
   backgroundTasksCount: forms({
     one: '{count} Background Task',
     other: '{count} Background Tasks',

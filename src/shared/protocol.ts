@@ -47,6 +47,7 @@ import {
   WEBVIEW_ERROR_MESSAGE_MAX_CHARS,
   WEBVIEW_ERROR_SOURCES,
   WEBVIEW_ERROR_STACK_MAX_CHARS,
+  WORKFLOW_CONTROLS,
 } from './constants'
 import {
   commitFormSchema,
@@ -920,6 +921,17 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     body: stringSchema,
     isFollowup: booleanSchema,
   }),
+  // The workflow card's owner controls (RLF-M47): cancel/pause/resume on
+  // the run, skip/retry on a running agent. childId names the agent;
+  // childLabel is the display name the card shows, for the retry confirm.
+  // The attempt is never sent: the host re-reads the run and re-keys.
+  z.object({
+    type: z.literal('workflowControl'),
+    workflowRunId: stringSchema,
+    control: z.enum(WORKFLOW_CONTROLS),
+    childId: z.optional(stringSchema),
+    childLabel: z.optional(stringSchema),
+  }),
   z.object({
     type: z.literal('resumeSession'),
     sessionId: stringSchema,
@@ -1565,6 +1577,14 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     report: uploadedFilesReportSchema,
     accountId: z.optional(stringSchema),
     generation: z.optional(numberSchema),
+  }),
+  // A workflow run paused or resumed through this panel (RLF-M47): the
+  // wire carries no paused state, so the host tells the card after an
+  // accepted pause or resume, and the card offers the other control.
+  z.object({
+    type: z.literal('workflowPaused'),
+    workflowRunId: stringSchema,
+    paused: booleanSchema,
   }),
 ])
 
