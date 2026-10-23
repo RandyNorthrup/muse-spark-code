@@ -1,0 +1,58 @@
+{
+  "lane": "RLF-M107",
+  "acceptance": 15,
+  "at": "2026-10-23T05:59:18.486Z",
+  "machine": {
+    "platform": "darwin",
+    "arch": "x64",
+    "release": "24.6.0",
+    "model": "Intel(R) Core(TM) i7-8700B CPU @ 3.20GHz",
+    "cores": 12,
+    "totalMemBytes": 34359738368,
+    "loadavg": [24.60693359375, 14.51025390625, 9.93115234375],
+    "node": "v24.21.0",
+    "uv": "1.52.1"
+  },
+  "settings": {
+    "kind": "check",
+    "class": "background",
+    "checks": 15,
+    "cpuThreshold": 100,
+    "burners": 10,
+    "engageTimeoutMs": 45000
+  },
+  "baselineCpuPercent": 57.88435270906056,
+  "idleProbesMs": [],
+  "phaseA": null,
+  "phaseB": {
+    "engaged": false,
+    "trip": {
+      "engaged": false,
+      "afterMs": 45072,
+      "level": "normal"
+    },
+    "settings": {
+      "enabled": true,
+      "cpuMaxPercent": 100,
+      "memoryMaxPercent": null,
+      "memoryMinFreeGiB": null,
+      "gpuMaxPercent": null,
+      "diskBusyMaxPercent": null,
+      "diskMinFreeGiB": null,
+      "relocate": "off"
+    },
+    "hostErrors": []
+  },
+  "assertions": [
+    {
+      "name": "B-throttle-engaged",
+      "ok": false,
+      "detail": {
+        "engaged": false,
+        "afterMs": 45072,
+        "level": "normal"
+      }
+    }
+  ],
+  "pass": false
+}
