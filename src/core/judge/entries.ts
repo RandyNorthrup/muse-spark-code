@@ -5,6 +5,7 @@
 // passed finds no entry and is dropped, unused. No `vscode` import.
 
 import { createHash } from 'node:crypto'
+import { canonicalJson } from '../../shared/canonicalJson'
 
 /** What identifies one judged action. */
 export interface JudgeEntryParts {
@@ -14,46 +15,6 @@ export interface JudgeEntryParts {
   readonly tool: string
   /** The tool's canonical arguments (JSON values). */
   readonly args: unknown
-}
-
-function compareStrings(left: string, right: string): number {
-  if (left < right) {
-    return -1
-  }
-  return left > right ? 1 : 0
-}
-
-function canonicalJson(value: unknown): string {
-  if (value === null) {
-    return 'null'
-  }
-  switch (typeof value) {
-    case 'number': {
-      if (!Number.isFinite(value)) {
-        throw new TypeError('judge entry args must be finite JSON values')
-      }
-      return JSON.stringify(value)
-    }
-    case 'boolean':
-    case 'string': {
-      return JSON.stringify(value)
-    }
-    case 'undefined': {
-      throw new TypeError('judge entry args must not contain undefined')
-    }
-    case 'object': {
-      if (Array.isArray(value)) {
-        return `[${value.map((item) => canonicalJson(item)).join(',')}]`
-      }
-      const entries = Object.entries(value)
-        .filter(([, item]) => item !== undefined)
-        .toSorted(([left], [right]) => compareStrings(left, right))
-      return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalJson(item)}`).join(',')}}`
-    }
-    default: {
-      throw new TypeError('judge entry args must be JSON values')
-    }
-  }
 }
 
 /**
@@ -69,7 +30,7 @@ export function entryKey(parts: JudgeEntryParts): string {
         parts.sessionId,
         parts.turnId,
         parts.tool,
-        canonicalJson(parts.args),
+        canonicalJson(parts.args, 'judge entry args'),
       ]),
     )
     .digest('hex')

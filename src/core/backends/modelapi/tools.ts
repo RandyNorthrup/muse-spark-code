@@ -88,6 +88,7 @@ import type { ToolClass } from './permissions'
 import { type FunctionOutputPart, type FunctionToolDefinition, withStrictTools } from './schemas'
 
 import { LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS } from './legalScanTool'
+import { TOOLCHAINS_DESCRIPTION, TOOLCHAINS_PARAMETERS } from '../../tools/toolchains'
 import { RECALL_TOOL_DEFINITION } from './observationPack'
 import { SUBAGENT_TOOL_DEFINITIONS, subagentSpawnDescription } from './subagentTools'
 import type { TEAM_TOOL_DEFINITIONS } from '../../team/teamTools'
@@ -581,6 +582,9 @@ const TOOL_CLASSES: Readonly<Record<string, ToolClass>> = {
   // M97 (PLAN.md D76): the deterministic scan reads, in every mode; it
   // never writes, runs a command or installs.
   [MODEL_API_TOOLS.legalScan]: 'read',
+  // M110t TA (PLAN.md D90.27): the installed toolchains read, in every
+  // mode; they never write, run a command or install.
+  [MODEL_API_TOOLS.toolchains]: 'read',
   // M67 (PLAN.md D49): the language services read, in every mode; a rename is an edit.
   [CODE_INTEL_TOOLS.findDefinition]: 'read',
   [CODE_INTEL_TOOLS.findReferences]: 'read',
@@ -687,6 +691,8 @@ export interface ToolDefinitionOptions {
   readonly hasBrowserCheck?: boolean
   /** The deterministic legal scan (M97, PLAN.md D76): a scanner is behind it. */
   readonly hasLegalScan?: boolean
+  /** The installed toolchains (M110t TA, PLAN.md D90.27): a reader is behind it. */
+  readonly hasToolchains?: boolean
   /** The code intelligence tools, while VS Code's language services are at hand (M67). */
   readonly hasCodeIntel?: boolean
 }
@@ -971,6 +977,9 @@ export function toolDefinitions(
       : []),
     ...(options.hasLegalScan === true
       ? [define(MODEL_API_TOOLS.legalScan, LEGAL_SCAN_DESCRIPTION, LEGAL_SCAN_PARAMETERS, [])]
+      : []),
+    ...(options.hasToolchains === true
+      ? [define(MODEL_API_TOOLS.toolchains, TOOLCHAINS_DESCRIPTION, TOOLCHAINS_PARAMETERS, [])]
       : []),
     ...(options.scheduleTools ?? []),
   ]

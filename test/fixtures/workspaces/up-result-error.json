@@ -1,0 +1,5 @@
+{
+  "outcome": "error",
+  "message": "Command failed: docker pull invalid.invalid/nonexistent:latest",
+  "description": "An error occurred setting up the container."
+}

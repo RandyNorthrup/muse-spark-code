@@ -73,6 +73,7 @@ import {
   type ExecInputRecord,
   type ExecResult,
   type ExecStatus,
+  outcomeStatus,
   type TokenTotals,
 } from './execProtocol'
 import type { FdWriter } from './fdWriter'
@@ -1498,26 +1499,30 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         last?.httpStatus === HTTP_STATUS.forbidden
       )
         status = 'auth_required'
-      else if (
-        terminal === 'failed' ||
-        last?.transportError != null ||
-        (last?.httpStatus != null && last.httpStatus >= HTTP_STATUS.badRequest)
-      )
-        status = 'failed'
-      else if (terminal !== 'completed' || last?.endedWithoutTerminal === true) {
-        status = 'incomplete'
-        const reason = terminal === null ? 'no_completion' : null
-        incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
-        if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
-      } else if (
-        options.backend === 'modelApi' &&
-        (last?.usage !== 'valid' || last.settlement !== 'priced')
-      )
-        status = 'accounting_unverified'
-      else if (stopReason === 'max_turn_requests') {
-        status = 'request_cap'
-        error = modelCallLimitReason ?? plural(UI_TEXT.modelApiTurnLimit, totals?.requests ?? 0)
-      } else status = stopReason === 'end_turn' ? 'completed' : 'failed'
+      else {
+        const outcome = outcomeStatus(terminal, last?.transportError, last?.httpStatus)
+        if (outcome === 'failed') status = 'failed'
+        else if (outcome === 'incomplete-transport') {
+          // M110r Y1: a lost model connection ends the run incomplete (8)
+          // with its session to resume, never failed.
+          status = 'incomplete'
+          incompleteReason ??= 'transport_lost'
+          error = UI_TEXT.execIncompleteTransport
+        } else if (terminal !== 'completed' || last?.endedWithoutTerminal === true) {
+          status = 'incomplete'
+          const reason = terminal === null ? 'no_completion' : null
+          incompleteReason ??= isEmptyCompaction ? NO_COMPACTABLE_HISTORY : reason
+          if (isEmptyCompaction) error = UI_TEXT.nothingToCompact
+        } else if (
+          options.backend === 'modelApi' &&
+          (last?.usage !== 'valid' || last.settlement !== 'priced')
+        )
+          status = 'accounting_unverified'
+        else if (stopReason === 'max_turn_requests') {
+          status = 'request_cap'
+          error = modelCallLimitReason ?? plural(UI_TEXT.modelApiTurnLimit, totals?.requests ?? 0)
+        } else status = stopReason === 'end_turn' ? 'completed' : 'failed'
+      }
     }
     if (status === 'accounting_unverified') error = UI_TEXT.execAccountingUnverified
     const signal = lifecycle.cause?.kind === 'signal' ? lifecycle.cause.signal : null
@@ -1562,7 +1567,11 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         requests: totals?.requests ?? 0,
         details: budgetRefusal,
       })
-    } else if (status === 'unpriced' || cause?.kind === 'request_shape')
+    } else if (
+      status === 'unpriced' ||
+      cause?.kind === 'request_shape' ||
+      (status === 'incomplete' && incompleteReason === 'transport_lost')
+    )
       finalMessage = [...kept, error].join(' ')
     else finalMessage = partialText ?? (hasCompleteResponse ? '' : UI_TEXT.execMessageWithheld)
     const result: ExecResult = {

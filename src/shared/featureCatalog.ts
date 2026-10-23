@@ -332,6 +332,7 @@ export const REFERENCE_IN_PROGRESS_FEATURES: readonly string[] = [
   'team-workers',
   'vault',
   'estimator',
+  'toolchains',
 ]
 
 export function featureCatalog(): readonly Feature[] {
@@ -958,6 +959,19 @@ export function featureCatalog(): readonly Feature[] {
       'rules-skills-and-memory',
     ),
     feature('memory', { ui: 'memoryItem' }, { tip: 'memory' }, ['memory'], [], 'memory'),
+    // M110t TA: the model reads the installed toolchains (versions, pack
+    // provenance) through one read-only tool; no commands or settings yet.
+    feature(
+      'toolchains',
+      { ui: 'toolchainsFeatureName' },
+      { ui: 'referenceToolchains' },
+      [],
+      [],
+      'the-panel',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
     feature(
       'mcp',
       { ui: 'mcpItem' },
