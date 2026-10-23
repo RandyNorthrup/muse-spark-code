@@ -53,6 +53,7 @@ import {
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
+  JUDGE_FAST_METHOD_DETERMINISTIC,
   MILLISECONDS_PER_SECOND,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   MSP_COMMAND_ATTEMPTS,
@@ -84,6 +85,12 @@ import { doneTailNote, failureTailHint, loopTailNote } from '../../judge/fast/ap
 import { judgeDoneClaim } from '../../judge/fast/reflex/done'
 import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
 import { detectLoop, toolRepeatKey, type LoopSignal } from '../../judge/fast/reflex/loop'
+import {
+  doneTurnReason,
+  FastTurnRecorder,
+  loopTurnReason,
+  type FastDecisionPin,
+} from '../../judge/fast/turnRecord'
 import { fingerprint } from '../../verify/fingerprint'
 import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
@@ -275,6 +282,12 @@ export interface MuseCodeFeaturePorts {
   reads as off's opposite: the deterministic checks run.
   */
   readonly isFastPathOff?: () => boolean
+  /**
+  D107 (M125 lane U): the evaluation pin lane V's arms set, read at
+  each fast decision. True forces the decision to apply, false forces
+  it not to, undefined runs the verdict. Production passes none.
+  */
+  readonly fastDecisionPin?: FastDecisionPin | undefined
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -1364,6 +1377,8 @@ export class MuseSession implements ScheduledAgentSession {
   private fastLastTurn: string | undefined
   private fastReply: string | undefined
   private readonly fastTurnOutputs: { readonly tool: string; readonly output: string }[] = []
+  private readonly fastTurn = new FastTurnRecorder()
+  private fastEmittedTurn: string | undefined
 
   public constructor(
     public readonly sessionId: string,
@@ -1375,6 +1390,7 @@ export class MuseSession implements ScheduledAgentSession {
     private readonly usageDeltas?: MuseUsageDeltas,
     initialApprovalMode?: string,
     private readonly isFastPathOff?: () => boolean,
+    private readonly fastDecisionPin?: FastDecisionPin,
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
@@ -1860,6 +1876,10 @@ export class MuseSession implements ScheduledAgentSession {
       this.fastOnTurn(event.turnId)
       return
     }
+    if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
+      this.fastEndTurn(event.turnId)
+      return
+    }
     if (event.type !== 'itemCompleted') return
     if (event.item.kind === 'agentMessage' && typeof event.item.text === 'string') {
       this.fastReply = event.item.text
@@ -1885,46 +1905,107 @@ export class MuseSession implements ScheduledAgentSession {
       outputDigest: fingerprint(`${item.visibleOutput ?? ''}\n${item.failureReason ?? ''}`),
     })
     const loop = detectLoop(this.fastLoop)
-    if (loop.stuck && !this.fastStuck) {
-      this.fastTail.push(loopTailNote(loop.pattern, tool))
-      this.emit({ type: 'judgeStuck', pattern: loop.pattern })
+    const pin = this.fastDecisionPin?.('loop.stuck')
+    const isRaised = loop.stuck || pin === true
+    const isActed = isRaised && !this.fastStuck && pin !== false
+    if (isActed) {
+      this.fastTail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', tool))
+      if (loop.stuck) this.emit({ type: 'judgeStuck', pattern: loop.pattern })
     }
-    this.fastStuck = loop.stuck
+    this.fastStuck = isRaised
+    this.fastTurn.observeLoop(isRaised, isActed, loopTurnReason(loop, pin))
   }
 
   /**
   D107 §6.4 and §7.3 (lane C): the turn boundary. The finished turn's
-  reply and outputs queue the next turn's hints; a backed done queues
-  its note. An unbacked done is a surface note (lane U), nothing
-  model-side. The snapshots keep no exit code, so the verdicts read the
-  texts alone and miss more often without one — never a guess.
+  reply and outputs queue the next turn's hints and close its turn
+  record; a backed done queues its note. An unbacked done is a surface
+  note (lane U), nothing model-side. The snapshots keep no exit code,
+  so the verdicts read the texts alone and miss more often without
+  one — never a guess.
   */
   private fastOnTurn(turnId: string): void {
-    const previous = this.fastLastTurn
+    this.fastEndTurn(this.fastLastTurn)
     this.fastLastTurn = turnId
+    this.fastLoop.length = 0
+    this.fastStuck = false
+  }
+
+  /**
+  D107 (lane U): close one turn's fast record. The done and failure
+  verdicts run over the drained reply and outputs, then the turn event
+  carries every evaluated decision — or nothing is emitted when none
+  was. The turn end calls this before the surface sees `turnCompleted`;
+  the next turn's start is the backstop, and the emitted mark keeps the
+  two from doubling.
+  */
+  private fastEndTurn(turnId: string | undefined): void {
+    if (turnId === undefined || turnId === this.fastEmittedTurn) return
+    this.fastEmittedTurn = turnId
     const reply = this.fastReply
     const outputs = this.fastTurnOutputs.splice(0)
     this.fastReply = undefined
     this.fastLoop.length = 0
     this.fastStuck = false
-    if (previous === undefined || reply === undefined || outputs.length === 0 || this.fastOff())
+    if (this.fastOff()) {
+      this.fastTurn.reset()
       return
+    }
+    if (reply !== undefined && outputs.length > 0) {
+      this.fastEndDone(reply, outputs)
+      this.fastEndFailure(reply, outputs)
+    }
+    const event = this.fastTurn.event(turnId, 'museCode', JUDGE_FAST_METHOD_DETERMINISTIC)
+    this.fastTurn.reset()
+    if (event !== undefined) this.emit(event)
+  }
+
+  /** D107 §6.4 (lane C): the finished turn's done claim, with its record. */
+  private fastEndDone(
+    reply: string,
+    outputs: readonly { readonly tool: string; readonly output: string }[],
+  ): void {
     const done = judgeDoneClaim({
       replyText: reply,
       toolOutputs: outputs.map((output) => ({ exitCode: undefined, output: output.output })),
     })
-    if (done.decision === 'backed') this.fastTail.push(doneTailNote())
+    const pin = this.fastDecisionPin?.('done.unbacked')
+    const isClaimed = done.decision !== 'miss'
+    if (pin !== false && done.decision === 'backed') this.fastTail.push(doneTailNote())
+    this.fastTurn.observeDone(
+      isClaimed || pin === true,
+      pin !== false && (isClaimed || pin === true),
+      doneTurnReason(done.decision, pin),
+    )
+  }
+
+  /** D107 §7.3 (lane C): the finished turn's unmentioned failure, with its record. */
+  private fastEndFailure(
+    reply: string,
+    outputs: readonly { readonly tool: string; readonly output: string }[],
+  ): void {
+    const pin = this.fastDecisionPin?.('failure.unmentioned')
+    let isMentioned = false
     for (const output of outputs) {
       const failure = findUnmentionedFailure({
         toolOutput: output.output,
         exitCode: undefined,
         replyText: reply,
       })
-      if (failure.decision === 'unmentioned') {
+      if (failure.decision === 'mentioned') isMentioned = true
+      if (pin !== false && failure.decision === 'unmentioned') {
         this.fastTail.push(failureTailHint(output.tool))
+        this.fastTurn.observeFailure(true, true, 'hint')
         return
       }
     }
+    if (pin === true) {
+      const first = outputs[0]
+      if (first !== undefined) this.fastTail.push(failureTailHint(first.tool))
+      this.fastTurn.observeFailure(true, true, 'pinned')
+      return
+    }
+    this.fastTurn.observeFailure(false, false, isMentioned ? 'mentioned' : 'absent')
   }
 
   /** Merge captured native attempt history for both live updates and local inspection. */
@@ -3064,6 +3145,7 @@ export class MuseCodeHost implements AgentHost {
         : this.createUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
       this.features.isFastPathOff,
+      this.features.fastDecisionPin,
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []

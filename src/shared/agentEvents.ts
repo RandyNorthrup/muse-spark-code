@@ -9,6 +9,7 @@ import { nonnegativeUsdSchema } from './usdSchema'
 import * as z from 'zod/mini'
 import { agentEvidenceSchema, agentFileSchema } from './agentEvidence'
 import { fastPathAuditSchema } from './fastPathAudit'
+import { judgeFastTurnSchema } from './judgeFastTurn'
 
 import { scheduleViewSchema } from './schedule'
 import {
@@ -563,6 +564,7 @@ const agentEventSchema = z.discriminatedUnion('type', [
     type: z.literal('judgeStuck'),
     pattern: z.enum(['repeat', 'oscillation', 'same-failure']),
   }),
+  judgeFastTurnSchema,
   // The agent asked the user something (`request_user_input`).
   z.object({
     type: z.literal('questionRequested'),

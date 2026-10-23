@@ -4992,6 +4992,9 @@ export const JUDGE_FAST_REPROBE_MS = 60_000
 // past the compaction tail, most relevant first. A small bound: the
 // tail already keeps the recent turns, and the summary covers the rest.
 export const JUDGE_FAST_KEEP_ENTRIES = 3
+// D107 (lane U): the turn record's method when the deterministic checks
+// decided, with no engine call behind them.
+export const JUDGE_FAST_METHOD_DETERMINISTIC = 'deterministic'
 // D107 §4.1 (lane P): the logprob answers the judge's engines read are
 // top-5; a record affirming fewer never admits the logprob wire.
 export const JUDGE_LOGPROB_TOP_K = 5
