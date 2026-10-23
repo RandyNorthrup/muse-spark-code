@@ -3,9 +3,12 @@
 // trees, reporting every divergence. The image jobs build twice and
 // compare; the comparison starts recorded (hashes kept as artifacts)
 // and blocks once two builds match. Node builtins only.
+import { Buffer } from 'node:buffer'
 import { createHash } from 'node:crypto'
-import { readdirSync, readFileSync, statSync } from 'node:fs'
+import { closeSync, openSync, readdirSync, readSync, statSync } from 'node:fs'
 import path from 'node:path'
+
+const HASH_CHUNK_BYTES = 64 * 1024 * 1024
 
 /** Every file under dir as a sorted list of /-separated relative paths. */
 function compareStrings(one, other) {
@@ -30,8 +33,24 @@ export function listFiles(dir) {
   return found
 }
 
+// Chunked reads: whole-file reads refuse files over 2 GiB, and the
+// raw images are near 6 GiB.
 function sha256File(file) {
-  return createHash('sha256').update(readFileSync(file)).digest('hex')
+  const hash = createHash('sha256')
+  const fd = openSync(file, 'r')
+  try {
+    const chunk = Buffer.allocUnsafe(HASH_CHUNK_BYTES)
+    let position = 0
+    for (;;) {
+      const read = readSync(fd, chunk, 0, HASH_CHUNK_BYTES, position)
+      if (read === 0) break
+      hash.update(chunk.subarray(0, read))
+      position += read
+    }
+  } finally {
+    closeSync(fd)
+  }
+  return hash.digest('hex')
 }
 
 /** Hash every file under dir: { files: { relative: sha256 } }. */
