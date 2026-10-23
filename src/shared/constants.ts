@@ -796,20 +796,19 @@ export const IS_MUSE_CODE_AUTO_REVIEWER_ON_BY_DEFAULT = true
 export const ARE_SCHEDULES_ON_BY_DEFAULT = true
 // Management surfaces exist, but installed execution/snapshot owners are unbound (C-X-1).
 // Optional runtimes withheld from public activation share one release-latch
-// record (schedules and the estimator ride the release train; teams here, so
-// opening one adds its key beside `team`). Availability is the latch AND the
-// setting: a true setting with a closed latch opens nothing. The latch stays
-// false until the join passes review.
+// record (schedules and the estimator ride the release train). Availability
+// is the latch AND the setting: a true setting with a closed latch opens
+// nothing. The latch stays false until the join passes review. Teams left
+// the latch with D217: the two-model rule and the person's off switch gate
+// them instead.
 export const OPTIONAL_RUNTIME_AVAILABILITY: {
   readonly schedules: boolean
   estimator: boolean
-  team: boolean
 } = {
   get schedules() {
     return SCHEDULE_EDITOR_DELIVERY_CERTIFICATION.isReady
   },
   estimator: false,
-  team: false,
 }
 
 export const SETTING_DEFAULTS = {
@@ -9243,10 +9242,11 @@ export function museCodeLoadedSessionCeiling(serverVersion = ''): number {
     ? MUSE_CODE_LOADED_SESSIONS_FROM_1_4_5
     : MUSE_CODE_LOADED_SESSIONS_THROUGH_1_4_4
 }
-// `museSpark.team` (D75's switch, off unless explicitly set true). Not
-// contributed to the manifest until a user can save a team in the Roles
-// section (C-M96-2, lead 2026-10-10): until then it would do nothing a user
-// can see. Hidden means hidden: an absent setting counts as off.
+// `museSpark.team` (D75's switch, off only while explicitly set false;
+// D217). Not contributed to the manifest until a user can save a team in
+// the Roles section (C-M96-2, lead 2026-10-10): until then it would do
+// nothing a user can see. An absent setting counts as on: the two-model
+// rule keeps teams off until a second model is set up.
 export const TEAM_SWITCH_SETTING = 'team'
 export const TEAM_EXTERNAL_AGENT_CEILING = 4
 export const TEAM_EXTERNAL_AGENT_DEFAULT = 2

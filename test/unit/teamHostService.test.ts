@@ -3,7 +3,7 @@
 // Every port is a fake that records its calls; nothing here touches a model,
 // git or the disk.
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { createTeamHostService, TEAM_TASKS_STATE_KEY } from '../../src/core/team/teamHost'
 import type {
   TeamCardItem,
@@ -18,7 +18,7 @@ import type { TeamCap, TeamPoolEntry, TeamRoleConfig, TeamSnapshot } from '../..
 import { TEAM_WORKSPACE_KEYS, decideTeamConversationMode } from '../../src/shared/teamConversation'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
 import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
-import { OPTIONAL_RUNTIME_AVAILABILITY, TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
+import { TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 
 const ORCHESTRATOR = 'muse-spark-1.3'
@@ -31,14 +31,8 @@ beforeAll(async () => {
   await import('../../src/core/team/teamMergeFlow')
 })
 
-// The feature's own suites run with the release latch open (teamAvailability
-// certifies the closed latch); the latch ships closed.
-beforeAll(() => {
-  OPTIONAL_RUNTIME_AVAILABILITY.team = true
-})
-afterAll(() => {
-  OPTIONAL_RUNTIME_AVAILABILITY.team = false
-})
+// D217: no release latch stands before teams any more; the two-model rule
+// and the person's off switch gate them (teamAvailability.test.ts).
 
 function entry(id: string, model: string | undefined, concurrent = 2): TeamPoolEntry {
   return {
