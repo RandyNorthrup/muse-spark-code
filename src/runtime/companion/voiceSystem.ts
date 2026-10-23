@@ -7,12 +7,8 @@ import {
   type HelperChild,
   type HelperInvocation,
 } from '../../core/voice/dictation'
-import {
-  DICTATION_QUIT_GRACE_MS,
-  MEMORY_STAGE_FILE_MODE,
-  VOICE_TEXT_MAX_BYTES,
-  UI_TEXT,
-} from '../../shared/constants'
+import { DICTATION_QUIT_GRACE_MS } from '../../shared/dictationConstants'
+import { MEMORY_STAGE_FILE_MODE, VOICE_TEXT_MAX_BYTES, UI_TEXT } from '../../shared/constants'
 import { COMPANION_VOICE_REQUEST_MS } from '../../shared/companionVoice'
 import { withDeadline } from '../../core/timeouts'
 import { secureOwnerOnly } from '../tokenFile'

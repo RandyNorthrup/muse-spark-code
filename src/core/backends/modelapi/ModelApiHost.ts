@@ -93,8 +93,6 @@ import {
   AUTO_REVIEW_ROW_TOOL,
   AUTO_REVIEWER_RECENT_CALLS,
   BACKGROUND_INITIATOR_USER,
-  BROWSER_CHECK_SUBJECT_KIND,
-  BROWSER_CHECK_WIDEN_SUBJECT_KIND,
   type CheckCommandSetting,
   type CheckSkip,
   CLARIFICATION_MAX_CHARS,
@@ -186,6 +184,10 @@ import {
   TEAM_COLLECT_WAIT_MAX_SECONDS_ENGINE,
   TEAM_TOOL_NAMES,
 } from '../../../shared/constants'
+import {
+  BROWSER_CHECK_SUBJECT_KIND,
+  BROWSER_CHECK_WIDEN_SUBJECT_KIND,
+} from '../../../shared/browserCheckConstants'
 import { fill, formatNumber, numberFormat, plural, uiLocale } from '../../../shared/l10n/text'
 import { unknownModelRefText } from '../../unknownModel'
 import type { UnattendedRun, ScheduledAgentSession } from '../../schedules/unattended'

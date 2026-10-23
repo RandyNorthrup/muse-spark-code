@@ -69,8 +69,6 @@ import {
   GITHUB_AUTH_PROVIDER,
   GITHUB_AUTH_SCOPES,
   CHECKPOINT_STORE_BUNDLE_FILE,
-  BROWSER_CHECK_BUNDLE_FILE,
-  BROWSER_RUNTIME_BUNDLE_FILE,
   CODE_INTEL_BUNDLE_FILE,
   MODELS_PANEL_BUNDLE_FILE,
   MODELS_SUBSCRIPTIONS_BUNDLE_FILE,
@@ -137,6 +135,10 @@ import {
   WORKSPACE_STATE_KEYS,
   TAB_CONTEXT_FILES,
 } from './shared/constants'
+import {
+  BROWSER_CHECK_BUNDLE_FILE,
+  BROWSER_RUNTIME_BUNDLE_FILE,
+} from './shared/browserCheckConstants'
 import { Usd, sumUsd, type UsdAmount } from './shared/usd'
 
 import { teamLatchRefusal } from './shared/teamConversation'

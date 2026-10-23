@@ -41,8 +41,8 @@ import {
   SHELL_JOB_TYPE_NAME,
   TREE_EXIT_WAIT_MS,
   WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../shared/constants'
+import { WINDOWS_TASKKILL_RELATIVE_PATH } from '../shared/browserCheckConstants'
 
 const SIGKILL = 'SIGKILL'
 const TERMINATED = 'terminated'
