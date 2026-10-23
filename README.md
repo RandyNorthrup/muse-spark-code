@@ -5734,8 +5734,9 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 results and what is still open.
 
 `exec --team --backend modelApi --permission-mode acceptEdits
---max-budget-usd <usd>` runs the configured workspace team in-process
-(behind the agent-teams availability switch, off until certified).
+--max-budget-usd <usd>` runs the configured workspace team in-process.
+Teams need two models — the run's own plus a second runnable model —
+so with one model the run refuses and says so.
 Every worker request shares the hard run budget; local engines need no key.
 Questions deny, protected or unreviewed merges are held under a named ref
 instead of discarded, and ordinary merges enter the run's
@@ -6978,10 +6979,11 @@ required before claiming those source routes are supported.
 
 ### Team configuration
 
-Roles and Agents in Models & Agents remain hidden until the production team
-worker binding and its complete configuration ports are installed. The portable editor and shared React sections
-are implemented and tested with an enabled fake host; that does not enable
-workers in the released extension. The saved workspace document is
+Roles and Agents in Models & Agents need two usable models: the
+conversation's own plus a second model for workers. With one model the
+Roles section says how to enable teams instead of saving an unrunnable
+team, and team entry points refuse in words. Setting `museSpark.team` to
+false turns teams off. The saved workspace document is
 `museSpark.team.config`, followed by `TeamHostBinding.reload()`. The per-role
 editor loads on first use, with accessible loading and a retry on chunk failure.
 
