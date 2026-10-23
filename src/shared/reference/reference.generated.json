@@ -7935,6 +7935,18 @@
       "key": "Escape",
       "when": "bestOfN.close",
       "text": { "ui": "referenceModalKeys" }
+    },
+    {
+      "command": "node.tree",
+      "key": "ArrowDown / ArrowUp / Home / End / Enter / Space / ArrowRight / ArrowLeft",
+      "when": "node.tree",
+      "text": { "ui": "referenceNodeTreeKeys" }
+    },
+    {
+      "command": "node.editor",
+      "key": "Ctrl+S / Cmd+S",
+      "when": "node.editor",
+      "text": { "ui": "referenceNodeEditorKeys" }
     }
   ]
 }

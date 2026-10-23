@@ -646,6 +646,8 @@
   "referenceDictationKeys": "enregistre votre voix dans la zone de saisie (appuyez pour activer ou désactiver, maintenez pour parler)",
   "referenceNewlineKeys": "Insérer une nouvelle ligne dans le brouillon.",
   "referenceSendKeys": "Envoyer le brouillon avec le geste choisi par useCtrlEnterToSend.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Choisissez l’effort que Muse consacre à chaque réponse. Réflexion: Activé = effort; Désactivé = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Sous Windows, quand cette fenêtre utilise le bac à sable du shell Muse Code, configurez-le avec une autorisation administrateur puis ouvrez une nouvelle conversation. shellSandbox=\"off\" ne nécessite pas de configuration.",
   "referenceSetup": "Exécuter les hooks Setup pour init depuis spark-hooks.json dans un espace de travail approuvé.",

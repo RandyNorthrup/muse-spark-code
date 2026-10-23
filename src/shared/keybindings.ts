@@ -164,6 +164,21 @@ export const WEBVIEW_KEYBINDINGS = {
   elicitation: { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceElicitationKeys' } } },
   'deferred.close': { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceModalKeys' } } },
   'bestOfN.close': { close: { keys: [{ key: 'Escape' }], text: { ui: 'referenceModalKeys' } } },
+  'node.tree': {
+    next: { keys: [{ key: 'ArrowDown' }], text: { ui: 'referenceNodeTreeKeys' } },
+    previous: { keys: [{ key: 'ArrowUp' }], text: { ui: 'referenceNodeTreeKeys' } },
+    first: { keys: [{ key: 'Home' }], text: { ui: 'referenceNodeTreeKeys' } },
+    last: { keys: [{ key: 'End' }], text: { ui: 'referenceNodeTreeKeys' } },
+    accept: { keys: [{ key: 'Enter' }, { key: ' ' }], text: { ui: 'referenceNodeTreeKeys' } },
+    expand: { keys: [{ key: 'ArrowRight' }], text: { ui: 'referenceNodeTreeKeys' } },
+    collapse: { keys: [{ key: 'ArrowLeft' }], text: { ui: 'referenceNodeTreeKeys' } },
+  },
+  'node.editor': {
+    save: {
+      keys: [{ key: 's', primary: true, shift: false }],
+      text: { ui: 'referenceNodeEditorKeys' },
+    },
+  },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, KeyBinding>>>>
 
 interface KeyEvent {

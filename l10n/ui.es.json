@@ -646,6 +646,8 @@
   "referenceDictationKeys": "graba su voz en el cuadro de mensaje (pulse para alternar, mantenga pulsado para hablar)",
   "referenceNewlineKeys": "Insertar una línea nueva en el borrador.",
   "referenceSendKeys": "Enviar el borrador con el gesto elegido por useCtrlEnterToSend.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Elige cuánto esfuerzo dedica Muse a cada respuesta. Pensamiento: Activado = effort; Desactivado = museCode:none / modelApi:minimal.",
   "referenceSandbox": "En Windows, cuando esta ventana usa el aislamiento de shell de Muse Code, configúrelo con una aprobación de administrador y abra una conversación nueva. shellSandbox=\"off\" no requiere configuración.",
   "referenceSetup": "Ejecutar los hooks Setup de init de spark-hooks.json en un espacio de trabajo de confianza.",

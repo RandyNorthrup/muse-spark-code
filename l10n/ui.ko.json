@@ -644,6 +644,8 @@
   "referenceDictationKeys": "음성을 입력란에 녹음(탭하여 전환, 길게 눌러 말하기)",
   "referenceNewlineKeys": "초안에 새 줄을 삽입합니다.",
   "referenceSendKeys": "useCtrlEnterToSend로 선택한 동작으로 초안을 전송합니다.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "각 답변에 Muse가 들이는 노력을 선택합니다. 생각: 켜기 = effort; 끄기 = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Windows에서 이 창이 Muse Code 셸 샌드박스를 사용할 때는 관리자 승인으로 설정한 후 새 대화를 시작하세요. shellSandbox=\"off\"는 설정이 필요하지 않습니다.",
   "referenceSetup": "신뢰할 수 있는 작업 영역에서 spark-hooks.json의 init Setup 훅을 실행합니다.",

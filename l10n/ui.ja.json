@@ -644,6 +644,8 @@
   "referenceDictationKeys": "音声を入力欄に録音します (タップで切り替え、長押しで話す)",
   "referenceNewlineKeys": "下書きに改行を挿入します。",
   "referenceSendKeys": "useCtrlEnterToSendで選択された操作で下書きを送信します。",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "各回答に Muse がかける手間を選びます。 思考: オン = effort; オフ = museCode:none / modelApi:minimal.",
   "referenceSandbox": "WindowsでこのウィンドウがMuse Codeシェルサンドボックスを使用する場合、管理者の承認で設定し、新しい会話を開始してください。shellSandbox=\"off\" では設定は不要です。",
   "referenceSetup": "信頼されたワークスペースで spark-hooks.json の init 用 Setup フックを実行します。",

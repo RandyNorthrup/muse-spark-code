@@ -645,6 +645,8 @@
   "referenceDictationKeys": "sesinizi mesaj kutusuna kaydeder (açıp kapatmak için dokunun, konuşmak için basılı tutun)",
   "referenceNewlineKeys": "Taslağa yeni satır ekleyin.",
   "referenceSendKeys": "Taslağı useCtrlEnterToSend ile seçilen hareketle gönderin.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Muse'un her yanıta ayırdığı çabayı seçin. Düşünme: Açık = effort; Kapalı = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Windows’ta bu pencere Muse Code kabuk korumalı alanını kullanıyorsa bir yönetici onayıyla kurun ve yeni konuşma başlatın. shellSandbox=\"off\" kurulum gerektirmez.",
   "referenceSetup": "Güvenilen çalışma alanında spark-hooks.json dosyasından init için Setup kancalarını çalıştırın.",

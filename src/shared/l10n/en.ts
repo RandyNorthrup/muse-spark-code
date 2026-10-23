@@ -793,6 +793,9 @@ export const EN = {
   referenceDictationKeys: 'records your voice into the composer (tap to toggle, hold to talk)',
   referenceNewlineKeys: 'Insert a new line in the draft.',
   referenceSendKeys: 'Send the draft using the gesture selected by useCtrlEnterToSend.',
+  referenceNodeTreeKeys:
+    'Move between files, expand or collapse a folder, or open the active file.',
+  referenceNodeEditorKeys: 'Save the open file.',
   referenceThinking:
     'Choose how much effort Muse puts into each reply. Thinking: On = effort; Off = museCode:none / modelApi:minimal.',
   referenceSandbox:

@@ -117,7 +117,9 @@
       "vault.endHourHint",
       "vault.ceilingHint",
       "nodeAudit.filterGit",
-      "nodeDashboard.sessionTui"
+      "nodeDashboard.sessionTui",
+      "referenceNodeTreeKeys",
+      "referenceNodeEditorKeys"
     ],
     "cs": [
       "groupModel",
