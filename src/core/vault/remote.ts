@@ -1,11 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto'
 import * as z from 'zod/mini'
-import {
-  UI_TEXT,
-  VAULT_LIMITS,
-  VAULT_PROTOCOL_VERSION,
-  VAULT_TOTP_DIGITS,
-} from '../../shared/constants'
+import { UI_TEXT, VAULT_LIMITS, VAULT_PROTOCOL_VERSION } from '../../shared/constants'
 import {
   vaultRequesterSchema,
   vaultUseSchema,
@@ -15,11 +10,13 @@ import {
 } from '../../shared/vault'
 import {
   vaultRemoteRequestSchema,
+  vaultRemoteResponseSchema,
   vaultAuthorizationResultSchema,
   vaultApprovalResultSchema,
   vaultUseProposalSchema,
   type VaultAuthenticatedPeer,
 } from '../../shared/vaultProtocol'
+export { vaultRemoteResponseSchema } from '../../shared/vaultProtocol'
 import { type VaultBroker } from './broker/broker'
 import { vaultUseDigest } from './useDigest'
 import { awaitVaultApproval } from './fleet'
@@ -27,35 +24,6 @@ import { awaitVaultApproval } from './fleet'
 type RemoteRequest = ReturnType<typeof vaultRemoteRequestSchema.parse>
 const id = vaultRemoteRequestSchema.shape.id
 const digest = z.string().check(z.regex(/^[a-f0-9]{64}$/u))
-const code = z
-  .string()
-  .check(
-    z.refine(
-      (value) =>
-        Array.of<number>(VAULT_TOTP_DIGITS.standard, VAULT_TOTP_DIGITS.extended).includes(
-          value.length,
-        ) && /^\d+$/u.test(value),
-    ),
-  )
-/** The paired channel carries only the resulting capability. Never a ticket, item, grant or approval. */
-export const vaultRemoteResponseSchema = z.strictObject({
-  v: z.literal(VAULT_PROTOCOL_VERSION),
-  id,
-  result: z.discriminatedUnion('kind', [
-    z.strictObject({
-      kind: z.literal('signature'),
-      signature: z
-        .string()
-        .check(
-          z.minLength(1),
-          z.maxLength(VAULT_LIMITS.frameBytes),
-          z.regex(/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u),
-        ),
-    }),
-    z.strictObject({ kind: z.literal('code'), code }),
-    z.strictObject({ kind: z.literal('denied') }),
-  ]),
-})
 type Response = ReturnType<typeof vaultRemoteResponseSchema.parse>
 const identitySchema = z
   .strictObject({
