@@ -46,13 +46,13 @@ is a plain Error.
 export class ShellEntryError extends Error {}
 
 /** Proven no-entry outcome from a local caller guard, separate from a stopped running process. */
-export function refusedShellEntry(reason = 'Shell entry refused'): ShellResult {
+export function refusedShellEntry(): ShellResult {
   return {
     stdout: '',
-    stderr: reason,
+    stderr: '',
     exitCode: null,
     isTimedOut: false,
-    isCancelled: false,
+    isCancelled: true,
     isWorkspaceShutdownProven: true,
     isEntryRefused: true,
   }
