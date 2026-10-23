@@ -18,6 +18,7 @@ import type { ResourceProcessIdentity } from '../../shared/resources'
 import {
   CLI_OUTPUT_MAX_BYTES,
   MILLISECONDS_PER_SECOND,
+  RESOURCE_HANDOFF_TIMEOUT_MS,
   RESOURCE_JOB_EMPTY_MS,
   RESOURCE_JOB_SAMPLE_MS,
   RESOURCE_TREE_PROCESS_CAP,
@@ -268,7 +269,7 @@ function spawnHandoff(
   const isLaunchedAtSpawn = until === 'spawn'
   // The caller's own environment, never the lease's temporary root: a browser the
   // OS starts outlives this lease and must not keep TMPDIR under governed cleanup.
-  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, caller-only deadline, root-only stop on cancel (PLAN SPAWN017C, section 8).
+  // nosemgrep: javascript.lang.security.detect-child-process.detect-child-process -- Admitted fixed OS hand-off adapter: argument array, no shell, output to the null device, named deadline (the caller's, or the safety default), root-only stop on cancel (PLAN SPAWN017C, section 8).
   const child = spawnGuarded(file, [...args], {
     ...options,
     signal: undefined,
@@ -535,12 +536,14 @@ export async function spawnResourceProcess(
     ...options
   } = launchOptions
   if (profile === 'handoff') {
-    // No deadline of ours (D121): only a deadline the caller passes bounds
-    // the wait for the adapter. Otherwise the handoff ends at the
-    // adapter's exit, its start, or the caller's cancel.
+    // Safety default (D121 clarification, RLF-SAFELIMITS): the caller's
+    // own deadline wins when passed; otherwise the wait still ends after
+    // ten seconds, counting the adapter as launched (detached, never
+    // killed). A hand-off with no stop at all must not wait on a stuck
+    // adapter forever.
     const cancel = options.signal
-    const deadline = callerStop(undefined, handoffTimeoutMs)
-    const signal = deadline === undefined ? cancel : callerStop(cancel, handoffTimeoutMs)
+    const deadline = callerStop(undefined, handoffTimeoutMs ?? RESOURCE_HANDOFF_TIMEOUT_MS)
+    const signal = callerStop(cancel, handoffTimeoutMs ?? RESOURCE_HANDOFF_TIMEOUT_MS)
     return await withLease(profile, signal, (resource, spawned) => {
       beforeSpawn?.()
       spawned.value = true
