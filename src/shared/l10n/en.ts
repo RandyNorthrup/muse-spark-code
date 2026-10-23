@@ -226,6 +226,8 @@ export const EN = {
     cancelled: 'The action was cancelled.',
     untrusted: 'Trust the workspace before running repository code.',
     unsupported: 'This operation is not supported on this node.',
+    running: 'The node is running. Stop it before wiping.',
+    failed: 'The node command failed.',
   },
   // M110 T: terminal surface, read only at render/dispatch time.
   tuiInvalidFrame: 'The node sent an invalid or oversized frame.',

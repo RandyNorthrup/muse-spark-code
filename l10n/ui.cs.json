@@ -192,7 +192,9 @@
     "notFound": "Požadovaná položka nebyla nalezena.",
     "cancelled": "Akce byla zrušena.",
     "untrusted": "Před spuštěním kódu repozitáře důvěřujte pracovnímu prostoru.",
-    "unsupported": "Tato operace není na tomto uzlu podporována."
+    "unsupported": "Tato operace není na tomto uzlu podporována.",
+    "running": "Uzel je spuštěný. Před vymazáním jej zastavte.",
+    "failed": "Příkaz uzlu se nezdařil."
   },
   "tuiInvalidFrame": "Uzel odeslal neplatný nebo příliš velký rámec.",
   "tuiConnecting": "Připojování k uzlu…",

@@ -192,7 +192,9 @@
     "notFound": "L’élément demandé est introuvable.",
     "cancelled": "L’action a été annulée.",
     "untrusted": "Faites confiance à l’espace de travail avant d’exécuter le code du dépôt.",
-    "unsupported": "Cette opération n’est pas prise en charge sur ce nœud."
+    "unsupported": "Cette opération n’est pas prise en charge sur ce nœud.",
+    "running": "Le nœud est en cours d’exécution. Arrêtez-le avant de l’effacer.",
+    "failed": "La commande du nœud a échoué."
   },
   "tuiInvalidFrame": "Le nœud a envoyé une trame invalide ou trop volumineuse.",
   "tuiConnecting": "Connexion au nœud…",

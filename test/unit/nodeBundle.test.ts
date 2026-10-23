@@ -1,5 +1,6 @@
 import path from 'node:path'
-import { rm } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
+import { mkdir, rm, stat } from 'node:fs/promises'
 import { build } from 'esbuild'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { sharedUiText, sharedValidation } from '../../scripts/lib/deferredBundles.mjs'
@@ -84,4 +85,76 @@ describe('M110-N shipped shared-parser boundary', () => {
       expect(await module.runNodeArgs(['status'], deps, EN, 'en')).toBe(0)
     },
   )
+  it('the packaged CLI answers --help as a child process', () => {
+    const run = spawnSync(process.execPath, [path.join(built.folder, 'node.js'), '--help'], {
+      encoding: 'utf8',
+    })
+    expect(run.status).toBe(0)
+    expect(run.stdout.split('\n', 1)[0]).toBe(EN.nodeLabels.title)
+  })
+  nodeNativeTest(
+    'the packaged CLI runs init, status, serve-refusal and wipe for real',
+    async () => {
+      const root = await nodeTempRoot('m110-node-cli-')
+      const workspace = path.join(root, 'workspaces')
+      await mkdir(workspace, { recursive: true })
+      const cli = path.join(built.folder, 'node.js')
+      const run = (argv: readonly string[]) =>
+        spawnSync(process.execPath, [cli, ...argv], { encoding: 'utf8' })
+      try {
+        const initialized = run([
+          'init',
+          '--data-root',
+          root,
+          '--label',
+          'Home',
+          '--name',
+          'home.local',
+          '--workspace-root',
+          workspace,
+        ])
+        expect(initialized.status).toBe(0)
+        expect(run(['status', '--data-root', root]).status).toBe(0)
+        const served = run(['serve', '--data-root', root])
+        expect(served.status).toBe(1)
+        expect(served.stdout.trim()).toBe(EN.nodeErrors.unavailable)
+        expect(run(['wipe', '--confirm-wipe', '--data-root', root]).status).toBe(0)
+        await expect(stat(root)).rejects.toThrow()
+        await expect(stat(workspace)).rejects.toThrow()
+        const after = run(['status', '--data-root', root])
+        expect(after.status).toBe(1)
+        expect(after.stdout.trim()).toBe(EN.nodeErrors.notFound)
+      } finally {
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
+  nodeNativeTest('the packaged CLI honors the image data-root variable', async () => {
+    const root = await nodeTempRoot('m110-node-clienv-')
+    const cli = path.join(built.folder, 'node.js')
+    try {
+      const initialized = spawnSync(
+        process.execPath,
+        [
+          cli,
+          'init',
+          '--label',
+          'Home',
+          '--name',
+          'home.local',
+          '--workspace-root',
+          path.join(root, 'ws'),
+        ],
+        { encoding: 'utf8', env: { ...process.env, MUSE_NODE_DATA_ROOT: root } },
+      )
+      expect(initialized.status).toBe(0)
+      const status = spawnSync(process.execPath, [cli, 'status'], {
+        encoding: 'utf8',
+        env: { ...process.env, MUSE_NODE_DATA_ROOT: root },
+      })
+      expect(status.status).toBe(0)
+    } finally {
+      await rm(root, { recursive: true, force: true })
+    }
+  })
 })

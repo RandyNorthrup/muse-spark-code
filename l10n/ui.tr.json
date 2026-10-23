@@ -192,7 +192,9 @@
     "notFound": "İstenen öğe bulunamadı.",
     "cancelled": "İşlem iptal edildi.",
     "untrusted": "Depo kodunu çalıştırmadan önce çalışma alanına güvenin.",
-    "unsupported": "Bu işlem bu düğümde desteklenmiyor."
+    "unsupported": "Bu işlem bu düğümde desteklenmiyor.",
+    "running": "Düğüm çalışıyor. Silmeden önce durdurun.",
+    "failed": "Düğüm komutu başarısız oldu."
   },
   "tuiInvalidFrame": "Düğüm geçersiz veya çok büyük bir çerçeve gönderdi.",
   "tuiConnecting": "Düğüme bağlanılıyor…",

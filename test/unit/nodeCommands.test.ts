@@ -5,17 +5,12 @@ import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { parseNodeArgs } from '../../src/runtime/node/args'
-import {
-  runNodeCommand,
-  type NodeCommandDeps,
-  type NodeServiceBinding,
-} from '../../src/runtime/node/main'
+import { ownService, productionNodeBinding } from '../../src/runtime/node/binding'
+import { runNodeCommand, type NodeCommandDeps } from '../../src/runtime/node/main'
 import { NodeStateStore } from '../../src/runtime/node/state'
 import { nodeDataFolder } from '../../src/runtime/dataFolder'
 import { NODE_LOCK_FILE, UI_TEXT } from '../../src/shared/constants'
 import { recordCalls } from './helpers/recordCalls'
-import { scripted } from './helpers/recordCalls'
-import { nodeDashboard } from './helpers/node/records'
 
 const directories: string[] = []
 async function setup() {
@@ -139,56 +134,31 @@ describe('M110-N node commands and isolated dispatch', () => {
     },
   )
   nodeNativeTest(
-    'H08 commands use the authenticated binding, stdin-only unlock and singleton supervision',
+    'H08 serve and the live commands refuse explicitly until the service binding lands',
     async () => {
       const { deps, init } = await setup()
       await runNodeCommand(init, deps)
-      const started = Promise.withResolvers<undefined>()
-      const finish = Promise.withResolvers<undefined>()
-      const command = scripted(
-        (
-          action: 'status' | 'stop' | 'lock' | 'unlock',
-          _input: Parameters<NodeServiceBinding['command']>[1],
-        ) => Promise.resolve(action === 'status' ? nodeDashboard() : { done: true }),
+      const bound = { ...deps, binding: productionNodeBinding() }
+      await expect(runNodeCommand(parseNodeArgs(['serve']), bound)).rejects.toThrow(
+        UI_TEXT.nodeErrors.unavailable,
       )
-      const binding: NodeServiceBinding = {
-        serve: async () => {
-          started.resolve(undefined)
-          await finish.promise
-        },
-        command,
-        wipe: () => Promise.resolve(),
+      // A stopped node answers status from its files, binding or not.
+      expect(await runNodeCommand(parseNodeArgs(['status']), bound)).toBe(0)
+      for (const action of ['lock', 'unlock', 'stop'])
+        await expect(runNodeCommand(parseNodeArgs([action]), bound)).rejects.toThrow(
+          UI_TEXT.nodeErrors.unavailable,
+        )
+      // A held lock refuses serve before the binding runs; status without a
+      // binding reports the holder instead of inventing service state.
+      const store = new NodeStateStore(deps.root, () => undefined)
+      await store.load()
+      const release = await ownService(store)
+      try {
+        await expect(runNodeCommand(parseNodeArgs(['serve']), bound)).rejects.toThrow()
+        await expect(runNodeCommand(parseNodeArgs(['status']), deps)).rejects.toThrow()
+      } finally {
+        await release()
       }
-      const bound = { ...deps, binding }
-      const running = runNodeCommand(parseNodeArgs(['serve']), bound)
-      await started.promise
-      await expect(runNodeCommand(parseNodeArgs(['serve']), bound)).rejects.toThrow()
-      await expect(runNodeCommand(parseNodeArgs(['status']), deps)).rejects.toThrow()
-      for (const action of ['status', 'lock', 'unlock', 'stop'])
-        await runNodeCommand(parseNodeArgs([action]), bound)
-      expect(command.calls.map(([action]) => action)).toEqual(['status', 'lock', 'unlock', 'stop'])
-      finish.resolve(undefined)
-      expect(await running).toBe(0)
-    },
-  )
-  nodeNativeTest(
-    'H08 wipe requires explicit confirmation and destroys key slots before removing state',
-    async () => {
-      const { deps, init, root } = await setup()
-      await runNodeCommand(init, deps)
-      const wipe = scripted(async (store: NodeStateStore) => {
-        expect(store.read().config.label).toBe('Home')
-        await store.files.write('keys.v1', '')
-      })
-      const bound = {
-        ...deps,
-        binding: { serve: () => Promise.resolve(), command: () => Promise.resolve({}), wipe },
-      }
-      await expect(runNodeCommand(parseNodeArgs(['wipe']), bound)).rejects.toThrow()
-      expect(wipe.calls).toHaveLength(0)
-      expect(await runNodeCommand(parseNodeArgs(['wipe', '--confirm-wipe']), bound)).toBe(0)
-      expect(wipe.calls).toHaveLength(1)
-      await expect(stat(root)).rejects.toThrow()
     },
   )
 })

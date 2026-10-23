@@ -192,7 +192,9 @@
     "notFound": "未找到请求的项目。",
     "cancelled": "操作已取消。",
     "untrusted": "请在运行仓库代码前信任工作区。",
-    "unsupported": "此节点不支持此操作。"
+    "unsupported": "此节点不支持此操作。",
+    "running": "节点正在运行。请先停止，然后再擦除。",
+    "failed": "节点命令失败。"
   },
   "tuiInvalidFrame": "节点发送了无效或过大的帧。",
   "tuiConnecting": "正在连接节点…",

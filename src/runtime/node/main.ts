@@ -1,10 +1,11 @@
 // The runtime dispatches here only for an explicit node command. A1/M104/C
 // install the named service binding; missing dependencies fail explicitly.
 import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
-import { open, rm, unlink } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
+import { homedir } from 'node:os'
 import path from 'node:path'
+import process from 'node:process'
 import {
-  NODE_FILE_MODE,
   NODE_LOCK_FILE,
   NODE_MAX_AUTH_BYTES,
   NODE_PROTOCOL_VERSION,
@@ -15,8 +16,11 @@ import {
 } from '../../shared/constants'
 import { nodeDashboardSchema, type NodeState } from '../../shared/node'
 import * as z from 'zod/mini'
-import { fill, formatDateTime } from '../../shared/l10n/text'
+import { BASE_LOCALE, fill, formatDateTime } from '../../shared/l10n/text'
+import { nodeDataFolder } from '../dataFolder'
+import { readSecretLine } from '../hiddenInput'
 import { isUsageError, parseNodeArgs, type NodeCommand } from './args'
+import { ownService, productionNodeBinding, type NodeServiceBinding } from './binding'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { NodeStateStore } from './state'
@@ -33,19 +37,8 @@ export { NodeClosedGitRunner } from './gitRunner'
 export { NodeListener } from './listener'
 export { nodeActionDigest } from './listenerMethods'
 
-/** Authenticated local transport, TLS/web sign-in, slot codec and tool-peer binding. */
-export interface NodeServiceBinding {
-  serve(store: NodeStateStore, signal: AbortSignal): Promise<void>
-  command(
-    action: 'status' | 'stop' | 'lock' | 'unlock',
-    input: {
-      root: string
-      all: boolean
-      readSecret: () => Promise<string>
-    },
-  ): Promise<unknown>
-  wipe(store: NodeStateStore): Promise<void>
-}
+export type { NodeServiceBinding } from './binding'
+export { productionNodeBinding } from './binding'
 export interface NodeCommandDeps {
   readonly root: string
   readonly signal: AbortSignal
@@ -53,19 +46,6 @@ export interface NodeCommandDeps {
   readonly now: () => number
   readonly print: (line: string) => void
   readonly readSecret: () => Promise<string>
-}
-
-/** An exclusive OS file prevents two supervisors sharing one identity/state. */
-async function ownService(store: NodeStateStore): Promise<() => Promise<void>> {
-  await store.files.prepare()
-  const file = store.files.file(NODE_LOCK_FILE)
-  const handle = await open(file, 'wx', NODE_FILE_MODE)
-  await handle.writeFile(JSON.stringify({ pid: process.pid }))
-  await handle.sync()
-  return async () => {
-    await handle.close()
-    await unlink(file)
-  }
 }
 
 async function init(
@@ -136,22 +116,23 @@ export async function runNodeCommand(command: NodeCommand, deps: NodeCommandDeps
     return 0
   }
   await store.load()
-  if (command.action === 'status' && deps.binding === undefined) {
+  // A stopped node answers status from its files, binding or not; a held
+  // lock falls through to the live service (or refuses without one).
+  if (command.action === 'status') {
     try {
       await store.files.read(NODE_LOCK_FILE, NODE_MAX_AUTH_BYTES)
-      throw new Error(UI_TEXT.nodeErrors.unavailable)
     } catch (error: unknown) {
       if (!isMissingFile(error)) throw error
+      deps.print(
+        JSON.stringify({
+          nodeId: store.read().nodeId,
+          running: false,
+          keyStoreSealed: true,
+          attendance: 'unattended',
+        }),
+      )
+      return 0
     }
-    deps.print(
-      JSON.stringify({
-        nodeId: store.read().nodeId,
-        running: false,
-        keyStoreSealed: true,
-        attendance: 'unattended',
-      }),
-    )
-    return 0
   }
   const binding = deps.binding
   if (binding === undefined) throw new Error(UI_TEXT.nodeErrors.unavailable)
@@ -167,9 +148,9 @@ export async function runNodeCommand(command: NodeCommand, deps: NodeCommandDeps
   if (command.action === 'wipe') {
     if (!command.confirmWipe) throw new Error(UI_TEXT.nodeErrors.forbidden)
     await binding.wipe(store)
-    // Binding destroys slots, seals memory, ends sessions/tools and revokes any
-    // future pairs before removal. Workspace volume removal belongs to S0.
-    await rm(path.resolve(deps.root), { recursive: true })
+    // The binding destroys slots, identity and the workspace volume first;
+    // force covers either nesting: the volume may hold the state root.
+    await rm(path.resolve(deps.root), { recursive: true, force: true })
     return 0
   }
   const status = await binding.command(command.action, {
@@ -201,9 +182,78 @@ export async function runNodeArgs(
   try {
     return await runNodeCommand(command, { ...deps, root: command.dataRoot ?? deps.root })
   } catch (error: unknown) {
+    // A missing store is routine setup state: name it, never a traceback.
+    if (isMissingFile(error)) {
+      deps.print(UI_TEXT.nodeErrors.notFound)
+      return 1
+    }
+    // A binding refusal is already one of the node's said words.
+    if (isNodeRefusal(error)) {
+      deps.print(error.message)
+      return 1
+    }
     // Run failures are typed; anything else is a bug and surfaces.
     if (!(error instanceof NodeListenerError)) throw error
     deps.print(UI_TEXT.nodeErrors.unavailable)
     return 1
   }
+}
+
+/** Only the binding's own said words pass through verbatim. */
+function isNodeRefusal(error: unknown): error is Error {
+  return (
+    error instanceof Error &&
+    [
+      UI_TEXT.nodeErrors.unavailable,
+      UI_TEXT.nodeErrors.forbidden,
+      UI_TEXT.nodeErrors.running,
+    ].includes(error.message)
+  )
+}
+
+/** The CLI's last resort: a fixed word on stderr, never the failure's text. */
+function report(_error: unknown): void {
+  process.stderr.write(`${UI_TEXT.nodeErrors.failed}\n`)
+}
+
+async function cliMain(argv: readonly string[]): Promise<number> {
+  const controller = new AbortController()
+  const stop = () => {
+    controller.abort()
+  }
+  process.on('SIGTERM', stop)
+  process.on('SIGINT', stop)
+  try {
+    return await runNodeArgs(
+      argv,
+      {
+        root:
+          process.env['MUSE_NODE_DATA_ROOT'] ??
+          nodeDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
+        signal: controller.signal,
+        binding: productionNodeBinding(),
+        now: Date.now,
+        print: (line) => {
+          process.stdout.write(`${line}\n`)
+        },
+        readSecret: () => readSecretLine(UI_TEXT.nodeLabels.unlock, process.stdin, process.stderr),
+      },
+      UI_TEXT,
+      BASE_LOCALE,
+    )
+  } finally {
+    process.off('SIGTERM', stop)
+    process.off('SIGINT', stop)
+  }
+}
+
+if (require.main === module) {
+  void cliMain(process.argv.slice(2))
+    .then((code) => {
+      process.exitCode = code
+    })
+    .catch((error: unknown) => {
+      report(error)
+      process.exitCode = 1
+    })
 }

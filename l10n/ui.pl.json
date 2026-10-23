@@ -192,7 +192,9 @@
     "notFound": "Nie znaleziono żądanego elementu.",
     "cancelled": "Czynność została anulowana.",
     "untrusted": "Zaufaj obszarowi roboczemu przed uruchomieniem kodu repozytorium.",
-    "unsupported": "Ta operacja nie jest obsługiwana na tym węźle."
+    "unsupported": "Ta operacja nie jest obsługiwana na tym węźle.",
+    "running": "Węzeł jest uruchomiony. Zatrzymaj go przed wyczyszczeniem.",
+    "failed": "Polecenie węzła nie powiodło się."
   },
   "tuiInvalidFrame": "Węzeł wysłał nieprawidłową lub zbyt dużą ramkę.",
   "tuiConnecting": "Łączenie z węzłem…",

@@ -192,7 +192,9 @@
     "notFound": "O item solicitado não foi encontrado.",
     "cancelled": "A ação foi cancelada.",
     "untrusted": "Confie no espaço de trabalho antes de executar código do repositório.",
-    "unsupported": "Esta operação não é suportada neste nó."
+    "unsupported": "Esta operação não é suportada neste nó.",
+    "running": "O nó está em execução. Pare-o antes de apagá-lo.",
+    "failed": "O comando do nó falhou."
   },
   "tuiInvalidFrame": "O nó enviou um quadro inválido ou grande demais.",
   "tuiConnecting": "Conectando ao nó…",
