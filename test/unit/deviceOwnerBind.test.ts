@@ -162,6 +162,23 @@ describe('M100 lane K per-message authorization', () => {
     ])
   })
 
+  it('finds the current grant for a role in whatever state it is in', async () => {
+    const records: DeviceOwnerAuditRecord[] = []
+    const audit = collectedAudit(records)
+    const bindings = new DeviceOwnerBindings()
+    const grants = new DeviceOwnerGrants(bindings, audit)
+    const { pair } = completePair(hexId(32), hexId(33))
+    const binding = bindings.bind(pair, OWNER_A, NOW)
+    expect(grants.find(binding.pairId, OWNER_A, ROLE)).toBeUndefined()
+    const grant = await grants.issue(grantFor(binding.pairId, OWNER_A, hexId(34)))
+    expect(grants.find(binding.pairId, OWNER_A, ROLE)).toEqual(grant)
+    await grants.revoke(OWNER_A, grant.grantId, binding.pairId)
+    // Found but revoked: authorize reads grant-revoked, not a miss.
+    expect(grants.find(binding.pairId, OWNER_A, ROLE)).toEqual(grant)
+    const refused = await grants.authorize(messageFor(grant), NOW)
+    expect(refused).toMatchObject({ reason: 'grant-revoked' })
+  })
+
   it('denies an unknown pair, an unbound owner and a grant carried across pairs', async () => {
     const records: DeviceOwnerAuditRecord[] = []
     const audit = collectedAudit(records)
