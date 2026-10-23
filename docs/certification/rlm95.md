@@ -91,7 +91,7 @@ sources above.
 
 ## Gate deferral
 
-`npm run check:plan` fails on this tree: PLAN.md is 3,575,112 bytes, 9,954
+`npm run check:plan` fails on this tree: PLAN.md is 3,575,730 bytes, 10,572
 over the 85% early-warning tripwire (reader bound 4 MiB, 11% headroom
 left). The lane's merges added the overage; the archive move stays with
 the lead at integration (recorded in PLAN.md §7 with cause: the open-branch
@@ -115,10 +115,25 @@ record). No threshold or rule changed.
   providerPacing (xAI windows), providerRetryLimits, providerSpendTerminal,
   providerAzureWaiting (new), providerSessionRefresh (new),
   sessionStore, sessionDelete, bestOfNWorktreeFailed.
-- `vitest related` over the merge's changed sources: 94/99 files green.
-  `uploadLedgerTwoProcess` (birth-reap case) fails intermittently on this
-  rig (fail/pass/fail on the same tree) — a load-sensitive two-process
-  timing test with no code path from this lane; `credentialLease` failed
-  once under the 99-file load and passes alone. Both left for hosted CI.
-- Full gates (`npm run quality:gates`, typecheck ×5, build, l10n, roadmap,
-  reference, catches) run before LANE DONE; results in the lane report.
+- `vitest related` over the lane's 99 changed sources on the final tree
+  (739 files): 22,148 passed, 63 failed across 22 files, zero in lane
+  areas. Every failure is rig-environmental: 27 load timeouts (schedule /
+  estimator / native-git families), EPERM on /bin/ps (macRss; the sandbox
+  denies ps outright), missing `muse-dictate` native helper
+  (resourceCreatedSweep), missing pinned zopfli (vsixCompression),
+  keychain/birth/socket-length vault refusals, and pid-reuse timing
+  (crashMarker). Identical-tree rerun shifted 59 → 63 failures (load).
+  Three oracles on a pristine base checkout (c7bdd3e94 + lane
+  node_modules): estimatorSnapshotStrict, legalCancel and
+  vault/credentialMigrationStore fail there identically. `skillArchive`
+  and `credentialLease` pass alone; `uploadLedgerTwoProcess` birth-reap
+  fails then passes on the identical tree (two-process timing; the lane's
+  only ledger change is the optional-expiry sweep condition, disjoint
+  from birth logic). Hosted CI is the arbiter for all of them.
+- Full gates on the final tree: format, lint, typecheck ×5, badges,
+  tokens, l10n, reference, host-api, roadmap, catches (baseline regen:
+  runtime GENERIC 198 → 197, a deduped providersCommands site), deadcode,
+  cycles, duplication (0 clones), build (all budgets met) and
+  security:audit green; `check:plan` red only (the deferred tripwire
+  above). `security:sast` is not part of `quality:gates`; a direct run
+  was sandbox-blocked when tried on this rig (empty trust anchors).
