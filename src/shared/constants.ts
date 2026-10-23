@@ -3948,6 +3948,18 @@ export const EXEC_TEAM_FILE_MODE = 0o600
 // every worker copy, owned ref, git child and held branch is recorded here
 // before it is created, so a later run sweeps exactly what a gone owner left.
 export const EXEC_TEAM_CLEANUP_FILE = 'team-cleanup.json'
+/**
+The cleanup ledger's cross-process lease (M96b file lease): one fenced
+lock file inside the run folder, on M123's lease timings' pattern. A
+ledger write is milliseconds; the lease only has to outlive one
+read-modify-write, and a waiter past the timeout refuses loudly instead
+of losing a record.
+*/
+export const EXEC_TEAM_LEDGER_LOCK_FILE = 'team-cleanup.lock'
+export const EXEC_TEAM_LEDGER_LEASE_MS = 30_000
+export const EXEC_TEAM_LEDGER_LEASE_TIMEOUT_MS = 10_000
+export const EXEC_TEAM_LEDGER_LEASE_POLL_MS = 10
+export const EXEC_TEAM_LEDGER_LEASE_UNREADABLE_MS = 2000
 // A denied merge never destroys the finished branch: it is kept under this
 // prefix (`<prefix><role>/<task>`), outside `refs/heads/agents/`, until an
 // explicit discard or the documented unmerged-task retention removes it.

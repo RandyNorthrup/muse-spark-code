@@ -39,6 +39,7 @@ import type { CoreLogger } from '../../core/logging'
 import {
   createHoldRef,
   currentOwner,
+  holdRefFor,
   isGitTimeout,
   preserveFailedMerge,
   predictedAgentsRef,
@@ -610,19 +611,9 @@ export async function createExecTeam(
                     outcome.changedFiles ?? [],
                   )
                   if (hold !== undefined) {
-                    let ref: string
-                    try {
-                      ref = await createHoldRef(
-                        runGit,
-                        deps.cwd,
-                        outcomeFolder,
-                        task.role.role,
-                        task.taskId,
-                        outcomeHead,
-                      )
-                    } catch (error: unknown) {
-                      throw await failPreserved(gitFailureDetail(error, task.taskId), error)
-                    }
+                    // Pre-creation tombstone (P2-11): record the hold's name
+                    // before the fetch creates it.
+                    const ref = holdRefFor(task.role.role, task.taskId)
                     if (folder !== undefined) {
                       try {
                         await recordHoldRef(folder, {
@@ -634,6 +625,18 @@ export async function createExecTeam(
                       } catch (error: unknown) {
                         deps.log.warn(failureForLog(error))
                       }
+                    }
+                    try {
+                      await createHoldRef(
+                        runGit,
+                        deps.cwd,
+                        outcomeFolder,
+                        task.role.role,
+                        task.taskId,
+                        outcomeHead,
+                      )
+                    } catch (error: unknown) {
+                      throw await failPreserved(gitFailureDetail(error, task.taskId), error)
                     }
                     throw heldMergeError(hold, ref)
                   }
