@@ -33,6 +33,15 @@ export const RESOURCE_TEMP_MARKER = '.muse-owner.json'
 export const RESOURCE_TEMP_TOKEN_BYTES = 16
 /** Internal I/O batching for retiring retained registry names; not a user limit. */
 export const RESOURCE_RETIRED_SWEEP_WIDTH = 128
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a created-registry
+// save that loses its compare-and-swap republishes this many times, then
+// throws `contended` with words. Five is Kubernetes client-go's
+// DefaultRetry ("the recommended retry for a conflict where multiple
+// clients are making changes to the same resource",
+// k8s.io/client-go/util/retry): concurrent instances are exactly such
+// clients, and each attempt already spaces itself on disk I/O and the
+// publish helper's spawn.
+export const CREATED_REGISTRY_SAVE_ATTEMPTS = 5
 export const RESOURCE_DISK_READ_TIMEOUT_MS = 1000
 export const RESOURCE_BIGINT_ZERO = 0n
 export const RESOURCE_TREE_SAMPLE_MS = 15_000
