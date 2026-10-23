@@ -115,6 +115,10 @@
     "snapshot": "20261022T000000Z",
     "packages": [
       {
+        "name": "ipxe-qemu",
+        "license": "GPL-2.0-only"
+      },
+      {
         "name": "picotool",
         "license": "BSD-3-Clause"
       },
