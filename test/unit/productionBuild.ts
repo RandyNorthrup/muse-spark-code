@@ -13,8 +13,10 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 
 /** The suites that serve the production build from dist/. */
+// Its own key: globalSetup.mjs provides PRODUCTION_BUILD_KEY, the copied
+// build's folder, to the suites that stage one (the devices harness among
+// them); this proof is only the generation of the root's dist/.
 const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
-  'test/unit/devicesPhase2Harness.test.mjs',
   'test/unit/teamHarness.test.mjs',
   // M98 phase 2 (RVM98P2R2 10): the delivery suite verifies dist/ itself.
   'test/unit/judgeP2Delivery.test.ts',
@@ -45,7 +47,7 @@ const GIT_LIST_MAX_BYTES = 64 * 1024 * 1024
 declare module 'vitest' {
   export interface ProvidedContext {
     /** The build inputs' generation this run built from; empty when it built nothing. */
-    productionBuild: string
+    productionBuildGeneration: string
   }
 }
 
@@ -106,7 +108,7 @@ export function assertCurrentProductionBuild(
 interface SetupProject {
   readonly config: { readonly root: string }
   readonly vitest: { readonly state: { getPaths(): string[] } }
-  provide(key: 'productionBuild', value: string): void
+  provide(key: 'productionBuildGeneration', value: string): void
   onTestsRerun(listener: (specifications: readonly { readonly moduleId: string }[]) => void): void
 }
 interface BuildPorts {
@@ -130,11 +132,11 @@ export function productionBuildSetup(ports: BuildPorts = realBuild) {
     const root = project.config.root
     const prepare = (selected: readonly string[]) => {
       if (!requiresProductionBuild(root, selected)) {
-        project.provide('productionBuild', '')
+        project.provide('productionBuildGeneration', '')
         return
       }
       ports.build(root)
-      project.provide('productionBuild', ports.generation(root))
+      project.provide('productionBuildGeneration', ports.generation(root))
     }
     // The run's selected files (the state API is experimental: a change there
     // shows as the serving suites' own refusal, never a silent skip).

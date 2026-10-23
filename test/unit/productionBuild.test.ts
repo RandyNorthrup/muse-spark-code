@@ -11,7 +11,7 @@ import {
 
 const root = path.resolve('repo-root')
 const at = (file: string) => path.join(root, file)
-const HARNESS = 'test/unit/devicesPhase2Harness.test.mjs'
+const HARNESS = 'test/unit/judgeP2Delivery.test.ts'
 
 /** A fake Vitest project that records what the setup provides and its rerun listener. */
 function fakeProject(selected: string[]) {
@@ -20,7 +20,7 @@ function fakeProject(selected: string[]) {
   const project = {
     config: { root },
     vitest: { state: { getPaths: () => selected } },
-    provide: (_key: 'productionBuild', value: string) => {
+    provide: (_key: 'productionBuildGeneration', value: string) => {
       provided.push(value)
     },
     onTestsRerun: (listener: (typeof listeners)[number]) => {
