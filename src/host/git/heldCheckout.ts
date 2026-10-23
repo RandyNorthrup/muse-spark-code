@@ -25,7 +25,12 @@ import {
 } from '../../core/git/heldTree'
 import { isSamePath } from '../../core/paths'
 import { worktreeAddHeldArgs } from '../../core/worktrees'
-import { HELD_EXECUTABLE_MODE, HELD_FILE_MODE, UI_TEXT } from '../../shared/constants'
+import {
+  GIT_WORKTREE_TIMEOUT_MS,
+  HELD_EXECUTABLE_MODE,
+  HELD_FILE_MODE,
+  UI_TEXT,
+} from '../../shared/constants'
 import type { Logger } from '../logger'
 import { type GitProcess } from '../git'
 import { quietGitEnvironment } from '../../core/execGuard'
@@ -193,9 +198,9 @@ export function createHeldCheckout(deps: HeldCheckoutDeps): HeldCheckout {
         platform: deps.platform,
         realpath: realpathSync,
       }),
-      // No deadline of ours (D121, RLF-NOLIMITS): the listing waits for
-      // git's records until the checkout's own stop.
-      timeoutMs: undefined,
+      // Safety limit (D121 clarification, RLF-SAFELIMITS): a listing
+      // git never finishes ends with words after five minutes.
+      timeoutMs: GIT_WORKTREE_TIMEOUT_MS,
       onStdout: (chunk) => {
         records.push(...listing.take(chunk))
         return Promise.resolve()

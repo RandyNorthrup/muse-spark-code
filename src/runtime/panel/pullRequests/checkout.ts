@@ -46,6 +46,7 @@ import {
   GIT_BATCH_KILL_GRACE_MS,
   GIT_OUTPUT_MAX_BYTES,
   GIT_STDERR_MAX_CHARS,
+  GIT_WORKTREE_TIMEOUT_MS,
   HELD_CLEANUP_REMOVE_RETRIES,
   HELD_CLEANUP_TIMEOUT_MS,
   HELD_EXECUTABLE_MODE,
@@ -440,6 +441,8 @@ export interface NodePullRequestCheckoutGitOptions {
   /** Cancel or shutdown stops every git it runs, however quiet it is. */
   readonly signal: AbortSignal
   readonly log: CoreLogger
+  /** The held batch's own deadline: `GIT_WORKTREE_TIMEOUT_MS` unless a test shortens it. */
+  readonly batchDeadlineMs?: number
   /** Creates one held file (`createFileExclusively`); a test stands a slow disk here. */
   readonly createFile?: typeof createFileExclusively
   /** How git starts (`nodeGitProcesses`); a test records each start here. */
@@ -474,6 +477,7 @@ interface NodeGitRunner {
   readonly platform: NodeJS.Platform
   readonly signal: AbortSignal
   readonly log: CoreLogger
+  readonly batchDeadlineMs: number
   readonly createFile: typeof createFileExclusively
   readonly processes: GitProcessPort
   versionChecked: boolean
@@ -516,6 +520,7 @@ function runGit(
     cwd,
     env: checkoutChildEnvironment(git.platform, how.env ?? git.quietEnv, cwd),
     signal: how.signal ?? git.signal,
+    timeout: GIT_WORKTREE_TIMEOUT_MS,
     maxBuffer: GIT_OUTPUT_MAX_BYTES,
     beforeSpawn: gate,
   })
@@ -526,8 +531,8 @@ The commit's tree listing, record by record, at any size: `ls-tree -z`
 streams through the spawned child straight into the record splitter, so
 no buffered reader (and its fixed output ceiling) stands between git and
 the validator. Like `runGit`, the gate runs first, in the same
-synchronous turn as the spawn; Cancel ends the listing however quiet
-git is (D121, RLF-NOLIMITS: no deadline of ours).
+synchronous turn as the spawn; a deadline and Cancel end the listing
+however quiet git is.
 */
 function runGitListing(
   git: NodeGitRunner,
@@ -553,6 +558,7 @@ function runGitListing(
           return
         }
         hasSettled = true
+        clearTimeout(timer)
         git.signal.removeEventListener('abort', onAbort)
         killBatchTree(child, git.platform)
         child.stdout.destroy()
@@ -563,6 +569,11 @@ function runGitListing(
         const reason: unknown = git.signal.reason
         fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
       }
+      // The listing's own deadline, independent of the spawn timeout: a root
+      // that ignores its signal still ends the checkout.
+      const timer = setTimeout(() => {
+        fail(unreadable())
+      }, GIT_WORKTREE_TIMEOUT_MS)
       git.signal.addEventListener('abort', onAbort, { once: true })
       if (git.signal.aborted) {
         onAbort()
@@ -570,7 +581,7 @@ function runGitListing(
       }
       child.on('error', fail)
       // Nothing reads the error stream: discard it, so a chatty git can
-      // never fill the pipe and stall the listing.
+      // never fill the pipe and stall the listing past its deadline.
       child.stderr.resume()
       child.stdin.end()
       void (async () => {
@@ -593,7 +604,8 @@ function runGitListing(
         }
         records.push(...listing.finish())
         // Past a failure this resolve is a no-op: the rejection stands, and
-        // the abort listener is already gone with it.
+        // the timer and the abort listener are already gone with it.
+        clearTimeout(timer)
         git.signal.removeEventListener('abort', onAbort)
         resolve(records)
       })()
@@ -613,7 +625,8 @@ function startGitBatch(
     cwd,
     env: checkoutChildEnvironment(git.platform, git.quietEnv, cwd),
     signal: git.signal,
-    // Its own group on POSIX, so Cancel stops the helpers it
+    timeout: GIT_WORKTREE_TIMEOUT_MS,
+    // Its own group on POSIX, so the deadline stops the helpers it
     // spawned with it, not just the root.
     detached: git.platform !== 'win32',
     beforeSpawn: gate,
@@ -824,6 +837,7 @@ async function writeHeldBlobs(
   child.stdin.write(blobs.map((entry) => `${entry.oid}\n`).join(''))
   child.stdin.end()
   await runBatchChild(child, answers, {
+    deadlineMs: git.batchDeadlineMs,
     killGraceMs: GIT_BATCH_KILL_GRACE_MS,
     drainGraceMs: HELD_WRITER_DRAIN_GRACE_MS,
     platform: git.platform,
@@ -836,6 +850,8 @@ async function writeHeldBlobs(
 export interface BatchChildOptions {
   /** The launcher's refusal or enforced cap wins over an unreadable batch. */
   readonly outcome?: ResourcePipedProcess['outcome'] | undefined
+  /** The batch's own deadline: a root that ignores its signal still ends the checkout. */
+  readonly deadlineMs: number
   /** How long a killed batch is observed before the checkout settles anyway. */
   readonly killGraceMs: number
   /** How long a failure waits for a file writer in flight before handing it the cleanup. */
@@ -849,15 +865,14 @@ export interface BatchChildOptions {
 
 /**
 Every answer the batch child completes, then its exit — or its death:
-a failure (Cancel, a bad answer) first invalidates the file writers, so
-none takes another step; then kills the tree, destroys our pipe ends so
-the reader cannot hang on a helper holding them, and observes the exit
-and the writer in flight for bounded graces. Drained, it rejects with
-the failure; a writer still in flight past its grace rejects as
-`CleanupPendingError`, whose cleanup waits for it. Nothing keeps the
-checkout pending past Cancel, and no writer outlives the cleanup
-(D121, RLF-NOLIMITS: no deadline of ours; the batch waits for git's
-answers until the person stops it). Exported so the tests can stand a
+a failure (the deadline, Cancel, a bad answer) first invalidates the
+file writers, so none takes another step; then kills the tree, destroys
+our pipe ends so the reader cannot hang on a helper holding them, and
+observes the exit and the writer in flight for bounded graces. Drained,
+it rejects with the failure; a writer still in flight past its grace
+rejects as `CleanupPendingError`, whose cleanup waits for it. Nothing
+keeps the checkout pending past both its deadline and Cancel, and no
+writer outlives the cleanup. Exported so the tests can stand a
 scripted root with a helper where git would be.
 */
 /**
@@ -895,6 +910,7 @@ export function runBatchChild(
         return
       }
       hasSettled = true
+      clearTimeout(deadline)
       signal.removeEventListener('abort', onAbort)
       resolve()
     }
@@ -903,6 +919,7 @@ export function runBatchChild(
         return
       }
       hasSettled = true
+      clearTimeout(deadline)
       signal.removeEventListener('abort', onAbort)
       // First: from here on no publisher starts another step.
       writers.invalidate(error)
@@ -923,6 +940,11 @@ export function runBatchChild(
       const reason: unknown = signal.reason
       fail(reason instanceof Error ? reason : new Error('The operation was aborted'))
     }
+    // The batch's own deadline, independent of the spawn timeout: a root
+    // that ignores its signal still ends the checkout.
+    const deadline = setTimeout(() => {
+      fail(unreadable())
+    }, options.deadlineMs)
     signal.addEventListener('abort', onAbort, { once: true })
     if (signal.aborted) {
       onAbort()
@@ -1003,6 +1025,7 @@ export function createNodePullRequestCheckoutGit(
     platform: options.platform,
     signal: options.signal,
     log: options.log,
+    batchDeadlineMs: options.batchDeadlineMs ?? GIT_WORKTREE_TIMEOUT_MS,
     createFile: options.createFile ?? createFileExclusively,
     processes: options.processes ?? nodeGitProcesses,
     versionChecked: false,

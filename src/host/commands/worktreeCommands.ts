@@ -20,7 +20,7 @@ import {
 import { redactSecrets } from '../../core/redact'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { gitExitCode, isGitExitError } from '../git'
-import { UI_TEXT } from '../../shared/constants'
+import { GIT_WORKTREE_TIMEOUT_MS, UI_TEXT } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { Logger } from '../logger'
 import type { PickItem, PickOne } from './pickItem'
@@ -264,9 +264,9 @@ async function didForceRemoveFolder(
   folder: string,
 ): Promise<boolean> {
   try {
-    // No deadline of ours (D121, RLF-NOLIMITS): like the unforced remove,
-    // the forced one waits for git's answer, however long it takes.
-    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, Infinity)
+    // Safety limit (D121 clarification, RLF-SAFELIMITS): a wedged git
+    // ends with words after five minutes instead of hanging the remove.
+    await runCurrentGit(deps, worktreeRemoveArgs(folder, true), root, GIT_WORKTREE_TIMEOUT_MS)
     return true
   } catch (error: unknown) {
     if (!isGitExitError(error)) {
