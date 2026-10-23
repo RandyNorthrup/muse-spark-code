@@ -1,5 +1,7 @@
 import * as z from 'zod/mini'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import { Usd } from '../../shared/usd'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 import type { GlobLimits } from '../../core/backends/modelapi/glob'
 import type { Logger } from '../../host/logger'
 import {
@@ -43,7 +45,7 @@ export interface JudgeLintDependencies {
 const optionsSchema = z.strictObject({
   changed: z.optional(z.boolean()),
   failOn: z.optional(z.enum(['error', 'warning'])),
-  budgetUsd: z.optional(z.number().check(z.nonnegative())),
+  budgetUsd: z.optional(legacyUsdSchema),
   format: z.optional(z.enum(['text', 'json', 'sarif'])),
 })
 
@@ -153,7 +155,7 @@ export async function runJudgeLint(
           unit,
           applicable,
           deps.evaluator,
-          options.budgetUsd ?? 0,
+          options.budgetUsd ?? Usd.from(0).toAmount(),
           signal,
         )
         assertCurrent()
@@ -231,7 +233,7 @@ export async function runJudgeLint(
               region,
               [result.rule],
               deps.evaluator,
-              options.budgetUsd ?? 0,
+              options.budgetUsd ?? Usd.from(0).toAmount(),
               signal,
               unit,
             )

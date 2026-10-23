@@ -36,7 +36,7 @@ export interface EmbeddingSource {
   readonly providerPolicy: 'allow' | 'refuse'
   readonly dimension: number
   readonly inputTokens: number
-  readonly uncachedCostUsd: number
+  readonly uncachedCostUsd: UsdAmount
   readonly embed: (
     inputs: readonly string[],
     signal: AbortSignal,
@@ -481,14 +481,11 @@ export function runEmbeddingJudge(
       const batchSchema = z
         .array(z.array(z.number()).check(z.length(trained.identity.dimension)))
         .check(z.length(Object.keys(request.questions).length))
-      // The source's quoted dollars canonicalize at this seam: a quote that
-      // is not finite and nonnegative cannot price the leg, so the full
-      // judge runs without it.
-      const quote = deps.source.uncachedCostUsd
-      if (!Number.isFinite(quote) || quote < 0) return delegate()
+      // The source quotes an exact amount; the seam re-canonicalizes it
+      // into the claim.
       const claim: EmbeddingCostClaim = {
         inputTokens: deps.source.inputTokens,
-        uncachedCostUsd: Usd.from(quote).toAmount(),
+        uncachedCostUsd: Usd.from(deps.source.uncachedCostUsd).toAmount(),
       }
       return guardedStep(
         signal,

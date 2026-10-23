@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { JUDGE_REQUEST_TIMEOUT_MS } from '../../src/shared/constants'
+import { Usd } from '../../src/shared/usd'
 
 describe('judge command reservation', () => {
   it('reserves all supported commands before ACP parsing', () => {
@@ -8,7 +9,11 @@ describe('judge command reservation', () => {
       expect(parseCommandLine(['judge', action])).toMatchObject({
         command: 'judge',
         action,
-        options: { engine: 'auto', budgetUsd: 0, timeoutMs: JUDGE_REQUEST_TIMEOUT_MS },
+        options: {
+          engine: 'auto',
+          budgetUsd: Usd.from(0).toAmount(),
+          timeoutMs: JUDGE_REQUEST_TIMEOUT_MS,
+        },
       })
     }
   })
@@ -41,7 +46,7 @@ describe('judge command reservation', () => {
           engine,
           model: 'chosen',
           separate: 'local:tev1',
-          budgetUsd: 0.000001,
+          budgetUsd: Usd.from('0.000001').toAmount(),
           timeoutMs: 100,
         },
       })
@@ -105,19 +110,19 @@ describe('judge command reservation', () => {
       options: { timeoutMs: 21_600_001 },
     })
   })
-  it('keeps decimal caps as exact integer nano-USD, nine decimals (RVM98P2R2 8)', () => {
+  it('keeps decimal caps as canonical amounts, nine decimals (RVM98P2R2 8)', () => {
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.016249'])).toMatchObject({
       command: 'judge',
-      options: { budgetUsd: 0.016249, budgetNanoUsd: 16_249_000 },
+      options: { budgetUsd: Usd.from('0.016249').toAmount() },
     })
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.01'])).toMatchObject({
       command: 'judge',
-      options: { budgetUsd: 0.01, budgetNanoUsd: 10_000_000 },
+      options: { budgetUsd: Usd.from('0.01').toAmount() },
     })
     // One nano-USD above a route ceiling is a different cap, not a rounding.
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.002688001'])).toMatchObject({
       command: 'judge',
-      options: { budgetNanoUsd: 2_688_001 },
+      options: { budgetUsd: Usd.from('0.002688001').toAmount() },
     })
     expect(parseCommandLine(['judge', 'ask', '--budget-usd', '0.0026880001'])).toMatchObject({
       command: 'invalid',

@@ -9,6 +9,8 @@ import { JUDGE_LOCAL_SEPARATE_PREFIX, type JUDGE_SEPARATE_GAPS } from '../../sha
 import type { Phase2SeparateSource } from './binding'
 import { chooseByoTechnique } from './providers/decide'
 import type { JudgeCapability, JudgeProfileIdentity, JudgeQuestion } from './schema'
+import { compareUsdAmounts } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
 import * as z from 'zod/mini'
 import {
   createSystemOneSide,
@@ -59,7 +61,7 @@ export type SeparateSourceBuild =
       readonly kind: 'built'
       readonly source: Phase2SeparateSource
       /** One request's ceiling at the route's captured rate (the CLI cap). */
-      readonly worstCaseUsd: number
+      readonly worstCaseUsd: UsdAmount
       /** Where judged state is sent, for the consent popup and PRIVACY. */
       readonly recipient: string
       readonly model: string
@@ -73,7 +75,7 @@ export interface SeparateSourceCall {
   /** The call settled at this cost, with its reported token usage when read. */
   settled(
     usage: { readonly inputTokens: number; readonly outputTokens: number } | undefined,
-    costUsd: number,
+    costUsd: UsdAmount,
   ): void
 }
 
@@ -172,7 +174,8 @@ export function buildSeparateSource(
       // a body-sized quote under-reserves. Reserve the route's captured
       // per-request ceiling instead; settlement charges the reported usage.
       reserve: async (usd) => {
-        const reserved = await ports.systemOne.reserve(Math.max(usd, route.worstCaseUsd))
+        const ceiling = compareUsdAmounts(usd, route.worstCaseUsd) >= 0 ? usd : route.worstCaseUsd
+        const reserved = await ports.systemOne.reserve(ceiling)
         if (!reserved.reserved) return reserved
         return {
           reserved: true,

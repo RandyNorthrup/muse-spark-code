@@ -1,6 +1,7 @@
 import * as z from 'zod/mini'
 import { JUDGE_QUESTION_MAX } from '../../../shared/constants'
 import { redactSecrets } from '../../redact'
+import type { UsdAmount } from '../../../shared/usdSchema'
 import { entropyConfidence } from '../math'
 import { judgeRequestSchema, judgeResultSchema, type JudgeRequest } from '../schema'
 import { type LintCache, type LintDecision, type LintIdentity } from './cache'
@@ -22,7 +23,7 @@ export interface LintEvaluator {
   readonly cache: LintCache
   callees(file: LintFile, unit: LintUnit): Promise<unknown>
   /** The assembled source must reserve/rebind under D78 before each send, including retries. */
-  judgeAdmitted(request: JudgeRequest, budgetUsd: number, signal: AbortSignal): Promise<unknown>
+  judgeAdmitted(request: JudgeRequest, budgetUsd: UsdAmount, signal: AbortSignal): Promise<unknown>
 }
 
 export interface LintUnitResult {
@@ -94,7 +95,7 @@ export async function evaluateLintUnit(
   unit: LintUnit,
   rules: readonly LintRule[],
   evaluator: LintEvaluator,
-  budgetUsd: number,
+  budgetUsd: UsdAmount,
   signal: AbortSignal,
   parent?: LintUnit,
 ): Promise<readonly LintUnitResult[]> {

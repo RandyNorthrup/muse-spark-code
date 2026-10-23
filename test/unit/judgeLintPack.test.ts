@@ -3,6 +3,7 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
 import { evaluateLintUnit } from '../../src/core/judge/lint/evaluate'
+import { Usd } from '../../src/shared/usd'
 import {
   decodeLintConfig,
   decodeLintPackRules,
@@ -116,7 +117,7 @@ describe('first-party lint criterion inventory', () => {
         { kind: 'function', name: '', start: 0, end: source.length },
         [lintRule({ id: item.rule })],
         active,
-        0,
+        Usd.from(0).toAmount(),
         new AbortController().signal,
       )
       expect(results[0]?.decision.outcome).toBe(item.expect)

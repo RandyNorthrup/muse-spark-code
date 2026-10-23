@@ -1,23 +1,22 @@
 import { parseArgs } from 'node:util'
 import {
   EXEC_EXIT,
-  JUDGE_CLI_DEFAULT_BUDGET_USD,
   JUDGE_ENGINES,
   JUDGE_REQUEST_TIMEOUT_MS,
   UI_TEXT,
   type JudgeEngine,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
+import { Usd } from '../../shared/usd'
 import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
+import type { UsdAmount } from '../../shared/usdSchema'
 
 export interface JudgeCliOptions {
   readonly engine: Exclude<JudgeEngine, 'off'>
   readonly model: string | undefined
   readonly separate: string | undefined
-  /** Display only; admission uses `budgetNanoUsd`. */
-  readonly budgetUsd: number
-  /** The run cap in exact nano-USD (nine decimals, the liability precision). */
-  readonly budgetNanoUsd: number
+  /** The run cap as a canonical amount; admission accounts it in integer nano-USD. */
+  readonly budgetUsd: UsdAmount
   readonly timeoutMs: number
 }
 
@@ -41,8 +40,7 @@ const DEFAULT_OPTIONS: JudgeCliOptions = {
   engine: 'auto',
   model: undefined,
   separate: undefined,
-  budgetUsd: JUDGE_CLI_DEFAULT_BUDGET_USD,
-  budgetNanoUsd: JUDGE_CLI_DEFAULT_BUDGET_USD,
+  budgetUsd: Usd.from(0).toAmount(),
   timeoutMs: JUDGE_REQUEST_TIMEOUT_MS,
 }
 
@@ -59,9 +57,9 @@ function isParseArgsError(error: unknown): boolean {
   )
 }
 
-/** `--budget-usd` as exact nano-USD: decimal text, at most nine decimals, never through a float. */
-function budget(value: string | undefined): number | undefined {
-  if (value === undefined) return JUDGE_CLI_DEFAULT_BUDGET_USD
+/** `--budget-usd` as a canonical amount: decimal text, at most nine decimals, never through a float. */
+function budget(value: string | undefined): UsdAmount | undefined {
+  if (value === undefined) return Usd.from(0).toAmount()
   const [whole, fraction = ''] = value.split('.', 2)
   if (
     whole === undefined ||
@@ -72,8 +70,10 @@ function budget(value: string | undefined): number | undefined {
   const units =
     BigInt(whole) * NANO_USD_PER_USD + BigInt(fraction.padEnd(USD_LIABILITY_DECIMALS, '0'))
   // Exactness bound only (D121: no spending cap of ours): the caller's
-  // budget must survive the trip to a double.
-  return units <= BigInt(Number.MAX_SAFE_INTEGER) ? Number(units) : undefined
+  // budget must survive the trip to integer nano-USD.
+  return units <= BigInt(Number.MAX_SAFE_INTEGER)
+    ? Usd.fromUnits(units, USD_LIABILITY_DECIMALS).toAmount()
+    : undefined
 }
 
 function invalid() {
@@ -124,13 +124,13 @@ export function parseJudgeArgs(argv: readonly string[]):
     const names = tokens.filter((token) => token.kind === 'option').map((token) => token.name)
     if (positionals.length > 0 || new Set(names).size !== names.length) return invalid()
     const engine = JUDGE_ENGINES.find((candidate) => candidate === (values.engine ?? 'auto'))
-    const budgetNanoUsd = budget(values['budget-usd'])
+    const budgetUsd = budget(values['budget-usd'])
     const timeout = values['timeout-ms']
     const timeoutMs = timeout === undefined ? JUDGE_REQUEST_TIMEOUT_MS : Number(timeout)
     if (
       engine === undefined ||
       engine === 'off' ||
-      budgetNanoUsd === undefined ||
+      budgetUsd === undefined ||
       (timeout !== undefined && !/^[0-9]+$/.test(timeout)) ||
       !Number.isSafeInteger(timeoutMs) ||
       timeoutMs <= 0 ||
@@ -146,8 +146,7 @@ export function parseJudgeArgs(argv: readonly string[]):
         engine,
         model: values.model,
         separate: values.separate,
-        budgetUsd: budgetNanoUsd / Number(NANO_USD_PER_USD),
-        budgetNanoUsd,
+        budgetUsd,
         timeoutMs,
       },
     }

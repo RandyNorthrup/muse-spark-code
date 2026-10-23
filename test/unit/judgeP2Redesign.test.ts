@@ -62,7 +62,7 @@ describe('P1: one plan per run prices, admits and dispatches the same binding', 
     'keeps auto on the planned same side when a receipt lands before dispatch (%s)',
     async (action) => {
       const fixture = phase2Binding('auto')
-      const priced = { ...fixture.value, attemptCostUsd: () => 0.0002 }
+      const priced = { ...fixture.value, attemptCostUsd: () => Usd.from(0.0002).toAmount() }
       const readiness = priced.context.separate
       if (readiness === undefined) throw new Error('fixture needs separate readiness')
       // Resolution sees no adoption receipt: `auto` is `same`. The valid
@@ -75,7 +75,7 @@ describe('P1: one plan per run prices, admits and dispatches the same binding', 
       const deps = createJudgeCommandDeps({
         binding: binding.read,
         billing: 'paid',
-        worstCaseUsd: () => 0,
+        worstCaseUsd: () => Usd.from(0).toAmount(),
       })
       const streams = io(surfaceInput(action))
       const code = await runJudgeCommand(
@@ -99,7 +99,10 @@ describe('P1: one plan per run prices, admits and dispatches the same binding', 
       const embedding = rig.value.embedding
       const refreshed: JudgeRuntimeBinding = {
         ...rig.value,
-        embedding: { ...embedding, source: { ...embedding.source, uncachedCostUsd: 0.2 } },
+        embedding: {
+          ...embedding,
+          source: { ...embedding.source, uncachedCostUsd: Usd.from(0.2).toAmount() },
+        },
       }
       // Resolution, pricing and admission see $0.0002; every read after
       // them sees $0.20.
@@ -107,7 +110,7 @@ describe('P1: one plan per run prices, admits and dispatches the same binding', 
       const deps = createJudgeCommandDeps({
         binding: binding.read,
         billing: 'paid',
-        worstCaseUsd: () => 0,
+        worstCaseUsd: () => Usd.from(0).toAmount(),
         loadEmbedding,
       })
       const streams = io(surfaceInput(action))
@@ -141,18 +144,18 @@ describe('P1: one plan per run prices, admits and dispatches the same binding', 
   it('prices the whole plan: both sides and the embedding tariff', () => {
     const rig = embeddedBinding('same-provider')
     const runtime = createJudgeRuntime({
-      binding: () => ({ ...rig.value, attemptCostUsd: () => 0.0003 }),
+      binding: () => ({ ...rig.value, attemptCostUsd: () => Usd.from(0.0003).toAmount() }),
     })
     const plan = runtime.plan({ ...REQUEST }, { engine: 'both', hasFreeSides: false })
     expect(plan).toMatchObject({
       resolution: { mode: 'both' },
       isPaid: true,
-      embedding: { tariffUsd: 0.0002 },
+      embedding: { tariffUsd: '0.0002' },
     })
     if (!('worstCaseUsd' in plan)) throw new Error('expected a plan')
-    expect(plan.worstCaseUsd).toBeCloseTo(0.0008, 12)
-    expect(plan.same?.tariffUsd).toBe(0.0003)
-    expect(plan.separate?.tariffUsd).toBe(0.0003)
+    expect(plan.worstCaseUsd).toBe('0.0008')
+    expect(plan.same?.tariffUsd).toBe('0.0003')
+    expect(plan.separate?.tariffUsd).toBe('0.0003')
     expect(Object.isFrozen(plan)).toBe(true)
   })
 })

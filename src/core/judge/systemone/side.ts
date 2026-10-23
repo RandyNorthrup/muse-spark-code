@@ -27,6 +27,8 @@ import {
 } from '../../../shared/constants'
 import type { Phase2SeparateSource } from '../binding'
 import type { JudgeCapability } from '../schema'
+import { Usd } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usdSchema'
 import { systemOneUsd } from './policy'
 import { createSystemOneJudge, type SystemOneJudgeDependencies } from './source'
 
@@ -52,7 +54,7 @@ export interface SystemOneRoute {
   readonly verified: boolean
   readonly capability: JudgeCapability
   /** One request's ceiling: the captured request-token bound at the captured rate. */
-  readonly worstCaseUsd: number
+  readonly worstCaseUsd: UsdAmount
   /** The response model ids the capture allows for this request id. */
   readonly servedModels: readonly string[]
   /** The captured per-million rates the route bills (its own tariff, never the chat model's). */
@@ -79,7 +81,7 @@ export function systemOneRoute(separateId: string): SystemOneRoute | undefined {
     keyProviderId: preset.keyProviderId,
     recipient: preset.origin,
     verified: preset.wireCapture,
-    worstCaseUsd: systemOneUsd(captured.requestTokens, 0, captured),
+    worstCaseUsd: Usd.from(systemOneUsd(captured.requestTokens, 0, captured)).toAmount(),
     servedModels: captured.responseModels,
     tariff: {
       inputUsdPerMillion: captured.inputUsdPerMillion,

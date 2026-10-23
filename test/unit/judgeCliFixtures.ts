@@ -7,6 +7,7 @@ import type {
 } from '../../src/core/judge/schema'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import type { JudgeCliSource } from '../../src/runtime/judge/commands'
+import type { UsdAmount } from '../../src/shared/usd'
 import type { FdWriter } from '../../src/runtime/exec/fdWriter'
 
 export const REQUEST: JudgeRequest = {
@@ -223,7 +224,7 @@ export function evidenceCases() {
 
 export function source(
   billing: 'free' | 'paid' = 'free',
-  cost?: number,
+  cost?: UsdAmount,
   answer?: JudgeOutcome | Error,
 ) {
   const calls: { request: JudgeRequest; signal: AbortSignal }[] = []
