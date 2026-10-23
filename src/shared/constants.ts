@@ -4693,6 +4693,12 @@ export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// D107 §9.2 and the ship rule (§11): platforms where B1 may skip the
+// reviewer — a platform receipt (drills, m125-f1.md) AND the harm bound
+// (lane V) behind each entry. Empty until both land anywhere: Linux's
+// receipt is F1b's, its harm bound lane V's; macOS waits for
+// Q-D107-B1-MAC; Windows is off by §9.2.
+export const JUDGE_FAST_B1_READY_PLATFORMS: readonly NodeJS.Platform[] = []
 // M125 lane 0 (D107): the fast judge's shared numbers. Deadlines select a
 // fallback, never stop work: a missed deadline runs today's behaviour, and
 // the approval reviewer starts beside the fast path as today. Bars and
