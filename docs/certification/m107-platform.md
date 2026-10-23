@@ -92,3 +92,25 @@ lead's authorized rig probes:
 
 No live wire capture is needed for these local contracts or platform facts.
 Model attempts: **0**.
+
+## RLF-M107 confirmation (2026-10-22, this same Mac mini)
+
+Fresh capture; the 2026-10-05 receipts above stand and are not repeated.
+Machine: Intel i7-8700B, 12 logical / 6 physical cores, 34,359,738,368
+bytes RAM, macOS 15.7.4 (24G517), Darwin 24.6.0 x86_64, node v24.21.0,
+libuv 1.52.1 (the new headroom path; no helper child).
+
+One adjacent memory reading: `totalmem()` 34,359,738,368, `freemem()`
+3,624,517,632, `process.availableMemory()` 15,918,588,704 against
+`vm_stat` free 807,600 + inactive 2,995,776 + speculative 79,112 pages
+(× 4,096 = 15,902,670,848 bytes, 0.1% apart) and `memorystatus_level` 82. This confirms lane 0's finding on the current runtime:
+`availableMemory()` tracks free + inactive + speculative, `freemem()`
+tracks free + speculative, and the pressure level is not a byte
+fraction.
+
+`/usr/sbin/taskpolicy` is present (119,488 bytes) with `-b`/`-B -p
+<pid>` supported, as lane 0 used it. The Kubuntu cgroup and Win11 job
+probes above stay pending: both machines are powered off, and this
+lane's sandbox runs macOS only. The full all-cores owner case is
+pending with them (this lane's process tree is capped at ~3 cores; see
+[RLF-M107](rlf-m107.md)).
