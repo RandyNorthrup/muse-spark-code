@@ -14,6 +14,7 @@ import {
 } from '../../src/core/judge/schema'
 import { readSettings, toSettingsSnapshot, type SettingsSource } from '../../src/host/settings'
 import { warningLogger } from './helpers/collectingLogger'
+import { Usd } from '../../src/shared/usd'
 import {
   JUDGE_CASCADE_CONFIDENCE,
   JUDGE_CLI_DEFAULT_BUDGET_USD,
@@ -81,7 +82,7 @@ function result(): JudgeResult {
         confidence: 0.28,
         vendorConfidence: 0.9,
         partial: false,
-        uncertainCostUsd: '0.001',
+        uncertainCostUsd: Usd.from(0.001).toAmount(),
         profileId: 'private-profile-id',
       },
     },

@@ -23,7 +23,7 @@ function loadEmbedding() {
 function expectOverBudgetRefusal(
   code: number,
   output: string,
-  rig: Pick<ReturnType<typeof embeddedBinding>, 'embed' | 'claims'>,
+  rig: Pick<ReturnType<typeof embeddedBinding>, 'embedCalls' | 'claims'>,
 ): void {
   expect(code).toBe(4)
   expect(output).toContain('over-budget')
@@ -209,7 +209,7 @@ describe('P2: adoption profiles must serve the current technique', () => {
     const value: JudgeRuntimeBinding = {
       ...fixture,
       separateVerified: true,
-      separateLocality: 'verified-local',
+      separateLocality: 'verified-local' as const,
       context: {
         ...fixture.context,
         separate: {

@@ -1,7 +1,7 @@
 import { PassThrough } from 'node:stream'
 import * as z from 'zod/mini'
 import { describe, expect, it } from 'vitest'
-import type { JudgeResult } from '../../src/core/judge/schema'
+import type { JudgeOutcome, JudgeResult } from '../../src/core/judge/schema'
 import { runJudgeCommand, type JudgeCliDeps } from '../../src/runtime/judge/commands'
 import { JudgeCliInputError } from '../../src/runtime/judge/args'
 import { JUDGE_MAX_BODY_BYTES, MILLISECONDS_PER_SECOND } from '../../src/shared/constants'

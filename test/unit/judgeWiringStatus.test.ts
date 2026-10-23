@@ -5,7 +5,7 @@ import { resolveJudgeMode2a } from '../../src/core/judge/resolve'
 import type { JudgeStatus } from '../../src/shared/judge'
 import type { JudgeEntryStore } from '../../src/core/judge/entries'
 import type { JudgeUseJob } from '../../src/core/judge/use'
-import type { JudgeQuestion } from '../../src/core/judge/schema'
+import type { JudgeQuestion } from '../../src/core/judge/judge'
 import { wiringFixture } from './helpers/judgeWiring'
 
 const JUDGE_ACTION = {
@@ -17,8 +17,9 @@ const JUDGE_ACTION = {
 } as const
 
 const RISK_QUESTION: JudgeQuestion = {
-  type: 'noul',
-  instructions: 'Can this action irreversibly delete data or change shared state?',
+  id: 'risk.destructive',
+  kind: 'noul',
+  text: 'Can this action irreversibly delete data or change shared state?',
 }
 
 function host() {
