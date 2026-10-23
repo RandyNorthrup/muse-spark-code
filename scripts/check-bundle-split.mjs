@@ -1504,10 +1504,24 @@ for (const name of nodeRequired) {
   const input = `src/runtime/node/${name}.ts`
   if (!nodeService.has(input)) problems.push(`${NODE_SERVICE.output} no longer carries ${input}`)
 }
+// M110t TP2 (RLM110B): the pack index verifier is the node service's own
+// lazy chunk (packs/verifyBundle.ts loads it on the first pack fetch), so it
+// may carry exactly the verifier and nothing else of the node service.
+const NODE_SERVICE_CHUNKS = new Map([
+  [
+    'dist/packsVerify.js',
+    new Set(['src/runtime/node/packs/verify.ts', 'src/runtime/node/packs/verifyEntry.ts']),
+  ],
+])
 for (const bundle of SHIPPED) {
   if (bundle.output === NODE_SERVICE.output) continue
+  const allowed = NODE_SERVICE_CHUNKS.get(bundle.output) ?? new Set()
   for (const input of inputsOf(bundle).keys()) {
-    if (input !== 'src/runtime/node/bundle.ts' && input.startsWith('src/runtime/node/'))
+    if (
+      input !== 'src/runtime/node/bundle.ts' &&
+      input.startsWith('src/runtime/node/') &&
+      !allowed.has(input)
+    )
       problems.push(`${bundle.output} carries the isolated node service: ${input}`)
   }
 }
