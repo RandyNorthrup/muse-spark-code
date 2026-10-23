@@ -1,0 +1,31 @@
+# The M110r Y4 fault-injection run: the packed rig drives recorded
+# streams through cut sockets, renumbers and partitions a real network
+# namespace (passwordless sudo on the runner), and redelivers work at a
+# real git remote. Linux only. Informational until the lead wires it into
+# the required aggregate (rule 2 owns that file).
+name: Faults
+
+on:
+  pull_request:
+  merge_group:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  faults:
+    name: fault rig (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: fault rig
+        run: node scripts/fault-rig.mjs all

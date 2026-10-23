@@ -1,0 +1,79 @@
+{
+  "name": "cpp",
+  "version": "1.0.0",
+  "description": "C and C++: LLVM's clang, clang-format and clang-tidy with gcc, CMake, Ninja, cppcheck and valgrind; the sanitizer runtimes ride the LLVM build.",
+  "license": "(Apache-2.0 WITH LLVM-exception) AND Apache-2.0 AND BSD-3-Clause AND GPL-2.0-only AND GPL-3.0-only AND (GPL-3.0-or-later WITH GCC-exception-3.1)",
+  "languages": ["c", "cpp"],
+  "requires": [],
+  "checks": [
+    { "name": "clang-format", "command": ["clang-format", "--dry-run", "--Werror"] },
+    { "name": "clang-tidy", "command": ["clang-tidy"] },
+    { "name": "cppcheck", "command": ["cppcheck", "--error-exitcode=1", "."] },
+    { "name": "ctest", "command": ["ctest"] },
+    { "name": "valgrind", "command": ["valgrind", "--error-exitcode=1"] }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "llvm",
+      "version": "23.1.4",
+      "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/LLVM-23.1.4-Linux-X64.tar.xz",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "platforms": [{ "os": "linux", "arch": "x64" }]
+    },
+    {
+      "name": "llvm",
+      "version": "23.1.4",
+      "url": "https://github.com/llvm/llvm-project/releases/download/llvmorg-23.1.4/LLVM-23.1.4-Linux-ARM64.tar.xz",
+      "license": "Apache-2.0 WITH LLVM-exception",
+      "platforms": [{ "os": "linux", "arch": "arm64" }]
+    },
+    {
+      "name": "cmake",
+      "version": "4.4.4",
+      "url": "https://github.com/Kitware/CMake/releases/download/v4.4.4/cmake-4.4.4-linux-x86_64.tar.gz",
+      "license": "BSD-3-Clause",
+      "platforms": [{ "os": "linux", "arch": "x64" }]
+    },
+    {
+      "name": "cmake",
+      "version": "4.4.4",
+      "url": "https://github.com/Kitware/CMake/releases/download/v4.4.4/cmake-4.4.4-linux-aarch64.tar.gz",
+      "license": "BSD-3-Clause",
+      "platforms": [{ "os": "linux", "arch": "arm64" }]
+    },
+    {
+      "name": "ninja",
+      "version": "1.13.2",
+      "url": "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux.zip",
+      "license": "Apache-2.0",
+      "platforms": [{ "os": "linux", "arch": "x64" }]
+    },
+    {
+      "name": "ninja",
+      "version": "1.13.2",
+      "url": "https://github.com/ninja-build/ninja/releases/download/v1.13.2/ninja-linux-aarch64.zip",
+      "license": "Apache-2.0",
+      "platforms": [{ "os": "linux", "arch": "arm64" }]
+    }
+  ],
+  "apt": {
+    "snapshot": "20261022T000000Z",
+    "packages": [
+      { "name": "gcc", "license": "GPL-3.0-or-later WITH GCC-exception-3.1" },
+      { "name": "g++", "license": "GPL-3.0-or-later WITH GCC-exception-3.1" },
+      { "name": "cppcheck", "license": "GPL-3.0-only" },
+      { "name": "valgrind", "license": "GPL-2.0-only" }
+    ]
+  },
+  "smoke": [
+    { "command": ["clang", "--version"] },
+    { "command": ["gcc", "--version"] },
+    { "command": ["cmake", "--version"] },
+    { "command": ["ninja", "--version"] },
+    { "command": ["cppcheck", "--version"] },
+    { "command": ["valgrind", "--version"] }
+  ]
+}

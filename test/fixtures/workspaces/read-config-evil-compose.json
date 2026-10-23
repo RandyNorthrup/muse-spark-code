@@ -1,0 +1,19 @@
+{
+  "configuration": {
+    "name": "evil-compose",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "configFilePath": {
+      "$mid": 1,
+      "fsPath": "/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/evil-compose/.devcontainer/devcontainer.json",
+      "path": "/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/evil-compose/.devcontainer/devcontainer.json",
+      "scheme": "vscode-fileHost"
+    }
+  },
+  "workspace": { "workspaceFolder": "/" },
+  "ociAuthDiagnostics": {
+    "authLookupWouldBeBlocked": false,
+    "registryRedirectWouldPreventCredentialForwarding": false,
+    "authServerRedirect": false
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "outcome": "success",
+  "containerId": "1dc212cc207367bb20638cb4c86833740e0fba6039ffb05c9044f6af04002ca8",
+  "remoteUser": "root",
+  "remoteWorkspaceFolder": "/workspaces/ws",
+  "ociAuthDiagnostics": {
+    "authLookupWouldBeBlocked": false,
+    "registryRedirectWouldPreventCredentialForwarding": false,
+    "authServerRedirect": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "configuration": {
+    "name": "Node.js",
+    "image": "mcr.microsoft.com/devcontainers/javascript-node:5-26-trixie",
+    "customizations": {
+      "vscode": { "settings": {}, "extensions": ["streetsidesoftware.code-spell-checker"] }
+    },
+    "portsAttributes": { "3000": { "label": "Hello Remote World", "onAutoForward": "notify" } },
+    "postCreateCommand": "npm install",
+    "configFilePath": {
+      "$mid": 1,
+      "fsPath": "/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-cli/wsnode/.devcontainer/devcontainer.json",
+      "path": "/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-cli/wsnode/.devcontainer/devcontainer.json",
+      "scheme": "vscode-fileHost"
+    }
+  },
+  "workspace": {
+    "workspaceFolder": "/workspaces/wsnode",
+    "workspaceMount": "type=bind,source=/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-cli/wsnode,target=/workspaces/wsnode"
+  },
+  "ociAuthDiagnostics": {
+    "authLookupWouldBeBlocked": false,
+    "registryRedirectWouldPreventCredentialForwarding": false,
+    "authServerRedirect": false
+  }
+}

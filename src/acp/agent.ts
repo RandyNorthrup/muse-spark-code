@@ -156,6 +156,10 @@ import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
 import type { AcpSharingPort } from './sharing'
 import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
+import { PeekTap } from '../core/peek/tap'
+import { createPeekScrubHook } from '../core/peek/scrubHook'
+import { parsePeekCommand, runPeekText } from '../runtime/peek/acpPeek'
+import type { SecretScrubPort } from '../shared/redact'
 import { type VaultApprovalRequest, type VaultApprovalAnswer } from '../shared/vault'
 import type { AcpEstimatePort } from './estimate'
 import type { ConversationController } from '../host/conversation/conversationController'
@@ -266,6 +270,8 @@ export interface AcpAgentDeps {
   /** H-W-SESSION: one profile-owned account service, bound to this backend. */
   readonly accounts?: AccountsSessionPort
   readonly vault?: AcpVault
+  /** K injects M109's scrub service at this boundary; `/peek` refuses without it. */
+  readonly scrubService?: SecretScrubPort
   readonly backend: AcpBackend
   readonly version: string
   readonly options: AcpAgentOptions
@@ -545,6 +551,8 @@ class AcpSession {
   private starting: Promise<unknown> | undefined
   /** The last backend mode command queued: each one runs after the one before it. */
   private modeOrder: Promise<unknown> = Promise.resolve()
+  /** Live peek's tap over this agent's own stream (M110b K). */
+  private readonly peekTap: PeekTap
   public readonly sessionId: string
 
   public constructor(
@@ -561,6 +569,8 @@ class AcpSession {
     private readonly noteChoice: () => void,
   ) {
     this.sessionId = session.sessionId
+    this.peekTap = new PeekTap(createPeekScrubHook(deps.scrubService))
+    this.peekTap.register(session.sessionId, session.sessionId)
     this.questionBundle =
       deps.questionBundle ??
       questionDeferralLoader({
@@ -815,6 +825,11 @@ class AcpSession {
         .filter((command) => command.name !== SLASH_COMMAND_NAMES.help) ?? []),
       { name: SLASH_COMMAND_NAMES.help, description: UI_TEXT.referenceIntro, input: null },
       { name: 'whatsnew', description: UI_TEXT.paletteTips.whatsNew, input: null },
+      {
+        name: 'peek',
+        description: UI_TEXT.peekSlashDescription,
+        input: { hint: UI_TEXT.peekUsage },
+      },
       ...(this.deps.vault === undefined
         ? []
         : [
@@ -930,6 +945,7 @@ class AcpSession {
               'accounts',
               'vault',
               'whatsnew',
+              'peek',
               'uploads',
             ].includes(skill.selector) &&
             ((this.deps.usage === undefined && this.deps.resources === undefined) ||
@@ -1087,6 +1103,7 @@ class AcpSession {
   }
 
   private onEvent(event: AgentEvent): void {
+    this.peekTap.offer(this.sessionId, event)
     switch (event.type) {
       case 'turnStarted': {
         this.activeTurnId = event.turnId
@@ -2700,6 +2717,33 @@ class AcpSession {
         await this.outbox
         return preparing.isCancelled ? 'cancelled' : 'end_turn'
       }
+      // `/peek` (M110b K): this agent's own stream, read-only, printed as
+      // JSONL until the read-only page lands to link to. Anything but the
+      // bare command and one id refuses; attachments never ride along.
+      if (/^\/peek(?:\s|$)/.test(typed)) {
+        if (parsed.parts.some((part) => part.type !== 'text'))
+          throw RequestError.invalidParams(undefined, UI_TEXT.peekAttachmentsRefused)
+        const peekArgs = parsePeekCommand(typed)
+        if (peekArgs === undefined || peekArgs === 'invalid')
+          throw RequestError.invalidParams(undefined, UI_TEXT.peekUsage)
+        await this.announceCommands()
+        if ('error' in preparing) throw preparing.error
+        try {
+          const text = await runPeekText(this.peekTap, peekArgs)
+          if (!preparing.isCancelled)
+            this.send({
+              sessionUpdate: 'agent_message_chunk',
+              content: { type: 'text', text },
+            })
+        } catch (error: unknown) {
+          this.deps.log.warn(`ACP session ${this.sessionId}: peek failed: ${failureForLog(error)}`)
+          if (error instanceof Error && error.message === UI_TEXT.vaultScrubUnavailable)
+            throw RequestError.internalError(undefined, UI_TEXT.vaultScrubUnavailable)
+          throw error
+        }
+        await this.outbox
+        return preparing.isCancelled ? 'cancelled' : 'end_turn'
+      }
       // `/playback` (D203): a memory-only turn, recognised on the command
       // text as every local command is. With anything after it, or any
       // other block or part beside it (an image, a resource, more text),
@@ -3060,6 +3104,7 @@ class AcpSession {
     this.pending?.resolve('cancelled')
     this.pending = undefined
     this.unsubscribe?.()
+    this.peekTap.unregister(this.sessionId)
     this.unsubscribeResources?.()
     const releaseSchedules = this.releaseSchedules
     this.releaseSchedules = undefined

@@ -1,0 +1,90 @@
+{
+  "name": "mobile",
+  "version": "1.0.0",
+  "description": "Android: the SDK command-line tools, platform-tools, build-tools and android-36, with Android lint. The licence is click-through; x86-64 Linux only (Google ships no ARM SDK); iOS needs macOS and Xcode, so the pack offers its cross-platform parts and says so.",
+  "license": "LicenseRef-Android-SDK",
+  "languages": ["kotlin", "typescript"],
+  "requires": ["java"],
+  "checks": [
+    {
+      "name": "android-lint",
+      "command": ["lint", "--exitcode"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": true,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "android-cmdline-tools",
+      "version": "23.0",
+      "url": "https://dl.google.com/android/repository/commandlinetools-linux-16111833_latest.zip",
+      "license": "LicenseRef-Android-SDK",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "dest": "opt/android-sdk/cmdline-tools/latest",
+      "strip": 1
+    },
+    {
+      "name": "android-platform-tools",
+      "version": "37.0.1",
+      "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-linux.zip",
+      "license": "LicenseRef-Android-SDK",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "dest": "opt/android-sdk",
+      "strip": 0
+    },
+    {
+      "name": "android-build-tools",
+      "version": "37.0.0",
+      "url": "https://dl.google.com/android/repository/build-tools_r37_linux.zip",
+      "license": "LicenseRef-Android-SDK",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "dest": "opt/android-sdk/build-tools/37.0.0",
+      "strip": 1
+    },
+    {
+      "name": "android-platform",
+      "version": "36.0.2",
+      "url": "https://dl.google.com/android/repository/platform-36_r02.zip",
+      "license": "LicenseRef-Android-SDK",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ],
+      "dest": "opt/android-sdk/platforms",
+      "strip": 0,
+      "bin": []
+    }
+  ],
+  "smoke": [
+    {
+      "command": ["sdkmanager", "--version"]
+    },
+    {
+      "command": ["adb", "--version"]
+    },
+    {
+      "command": ["lint", "--version"]
+    },
+    {
+      "command": ["aapt", "version"]
+    }
+  ]
+}

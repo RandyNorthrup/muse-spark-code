@@ -1911,12 +1911,13 @@
     "lint:js:tests": "node --max-old-space-size=6144 node_modules/eslint/bin/eslint.js test --ignore-pattern \"test/unit/**\" --max-warnings=0",
     "lint:css": "stylelint \"src/**/*.css\" --max-warnings=0",
     "lint:ps": "node scripts/lint-ps.mjs",
-    "typecheck": "run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration",
+    "typecheck": "run-s typecheck:host typecheck:webview typecheck:unit typecheck:e2e typecheck:integration typecheck:faults",
     "typecheck:host": "tsc -p tsconfig.json --noEmit",
     "typecheck:webview": "tsc -p src/webview/tsconfig.json --noEmit",
     "typecheck:unit": "node --max-old-space-size=4096 node_modules/typescript/bin/tsc -p test/unit/tsconfig.json --noEmit",
     "typecheck:e2e": "tsc -p test/e2e/tsconfig.json --noEmit",
     "typecheck:integration": "tsc -p test/integration/tsconfig.json --noEmit",
+    "typecheck:faults": "tsc -p test/faults/tsconfig.json --noEmit",
     "deadcode": "knip",
     "cycles": "node scripts/cycles.mjs",
     "duplication": "jscpd",
@@ -2037,6 +2038,7 @@
     "pngjs": "7.0.0",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
+    "sigstore": "5.0.0",
     "smol-toml": "1.9.1",
     "string-width": "8.3.0"
   }

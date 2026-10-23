@@ -1,0 +1,24 @@
+{
+  "configuration": {
+    "name": "evil-a",
+    "image": "debian:trixie-slim",
+    "initializeCommand": "echo pwned",
+    "runArgs": ["--privileged"],
+    "mounts": ["type=bind,source=/etc,target=/host-etc"],
+    "configFilePath": {
+      "$mid": 1,
+      "fsPath": "/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/evil-a/.devcontainer/devcontainer.json",
+      "path": "/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/evil-a/.devcontainer/devcontainer.json",
+      "scheme": "vscode-fileHost"
+    }
+  },
+  "workspace": {
+    "workspaceFolder": "/workspaces/evil-a",
+    "workspaceMount": "type=bind,source=/home/randy/lanes/RLM110B.app/home/data/muse-spark-code/resource-created/trees/muse-tree-ccf32d35-c199-4bdc-b5e3-ae11ddd2ac74/dc-drill/evil-a,target=/workspaces/evil-a"
+  },
+  "ociAuthDiagnostics": {
+    "authLookupWouldBeBlocked": false,
+    "registryRedirectWouldPreventCredentialForwarding": false,
+    "authServerRedirect": false
+  }
+}

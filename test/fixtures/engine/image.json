@@ -1,0 +1,40 @@
+{
+  "Architecture": "amd64",
+  "Author": "",
+  "Comment": "debuerreotype 0.17",
+  "Config": {
+    "AttachStderr": false,
+    "AttachStdin": false,
+    "AttachStdout": false,
+    "Cmd": ["bash"],
+    "Domainname": "",
+    "Entrypoint": null,
+    "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
+    "Hostname": "",
+    "Image": "",
+    "Labels": null,
+    "OnBuild": null,
+    "OpenStdin": false,
+    "StdinOnce": false,
+    "Tty": false,
+    "User": "",
+    "Volumes": null,
+    "WorkingDir": ""
+  },
+  "Container": "",
+  "ContainerConfig": null,
+  "Created": "2026-10-20T21:32:55Z",
+  "DockerVersion": "",
+  "GraphDriver": { "Data": null, "Name": "overlayfs" },
+  "Id": "sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad",
+  "Metadata": { "LastTagTime": "2026-10-23T00:27:20.989462983Z" },
+  "Os": "linux",
+  "Parent": "",
+  "RepoDigests": ["debian@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad"],
+  "RepoTags": ["debian:trixie-slim"],
+  "RootFS": {
+    "Layers": ["sha256:a70f6272827f64e1427d048ced77491aab5d64ab95725e56920802ff391197d7"],
+    "Type": "layers"
+  },
+  "Size": 29854024
+}

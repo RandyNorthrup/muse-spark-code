@@ -6172,3 +6172,46 @@ Record the missing platform receipts and failure-stage diagnostics in
 release-green claim.
 
 <!-- plan-archive:end id="gates-49b2ee654-35033" -->
+
+## **C-M106-2 R5 bounded repair certification
+
+<!-- plan-archive:begin id="gates-2bd7a2093-34560" lines="34560-34595" at="2bd7a2093" bytes="2591" sha256="996e0aecddb31ec403afc0c95125c7a9506cc684ae3fd36be54258cc154d87de" -->
+
+**C-M106-2 R5 bounded repair certification (2026-10-10).** The rig/shared
+brief forbids aggregate quality, full-suite runs and branch integration.
+Run the owning whole test files at repository timeouts with at most three
+workers/files per invocation, all five typechecks, changed-file lint and
+format, deadcode, duplication, localization, reference, host API, plan,
+roadmap and production build. Every new guard must fail its regression in a
+deliberate drill and be restored byte-exact. The lead retains aggregate
+quality, independent review and the multi-OS release matrix; no gate is
+weakened. Evidence: `docs/certification/m106-capability-binding.md`.
+**REDM106L1 scoped certification (2026-10-06).** The rig lane brief and
+shared rules prohibit aggregate `npm run quality`; the lead owns the full
+integration gate. Run all required scoped typechecks, changed-file lint and
+format, localization, help drift, deadcode, duplication, host API, build and
+owned test files directly on Kubuntu. No threshold, timeout, rule or hook is
+weakened. Startup must additionally stay at or below 895.5 KiB for this
+lane. U9 raw argument frames and the production capability binding remain
+explicit evidence/integration handoffs, not passing certification claims.
+Receipts and byte-exact red drills are in `docs/certification/m106-l1.md`.
+**FIXM106L2 / FIXM106L22 / FIXM106L23 bounded review repairs (2026-10-06).** The rig/shared brief
+prohibits aggregate `npm run quality` and requires scoped tests, at most
+three files/three workers per run, with the repository timeout. Run the
+focused regressions, typecheck, changed-file lint/format, localization,
+deadcode, duplication, host API and production build directly on Kubuntu.
+No gate is weakened. Lane W retains aggregate quality, integration and the
+existing split-gate registration of `toolScheduler.ts`/`repeatGuard.ts`;
+its classification omission is a justified integration deferral, not a
+permission to package or publish. Receipts and red drills:
+`docs/certification/m106-l2.md`.
+**FIXM106R2 response-read repair (Kubuntu, 2026-10-06).** Scoped client and
+dependent regressions use repository-default timeouts and no test filtering.
+Seven red drills fire their named test and restore the client byte-exact;
+receipts are in `docs/certification/m106-r2-review-drills.json`. The rig/common
+brief forbids aggregate quality; full coverage, accessibility, hosted/platform
+and live certification remain with the lead. No gate, timeout, hook, cap or
+paid-call fence is weakened. Final scoped gate results are recorded in
+`docs/certification/m106-r.md`.
+
+<!-- plan-archive:end id="gates-2bd7a2093-34560" -->
