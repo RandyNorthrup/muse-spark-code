@@ -230,6 +230,73 @@ describe('mapNotification', () => {
         retryable: false,
       },
     ],
+    // RLF-ACPTURNS: a failed turn carries the CLI's own retry judgment
+    // (m91-captures/05-linux-msp-failure/turn-completed.jsonl). Where the
+    // CLI says nothing the event says nothing: absent judgment never reads
+    // as retryable, so RLWINFIX2's "the turn kept its work" sentence and
+    // the Retry action follow only the CLI's word.
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'refused by exit 2',
+        error: { kind: 'modelError', message: 'refused by exit 2', retryable: true },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'refused by exit 2',
+        errorKind: 'modelError',
+        retryable: true,
+      },
+    ],
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        error: { kind: 'modelError', message: 'broke' },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+        errorKind: 'modelError',
+      },
+    ],
+    [
+      'turn/completed',
+      {
+        sessionId,
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'not logged in',
+        error: { kind: 'authRequired', message: 'not logged in' },
+      },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'not logged in',
+        errorKind: 'authRequired',
+      },
+    ],
+    [
+      'turn/completed',
+      { sessionId, turnId: 't1', terminal: 'failed', reason: 'broke' },
+      {
+        type: 'turnCompleted',
+        turnId: 't1',
+        terminal: 'failed',
+        reason: 'broke',
+      },
+    ],
     [
       'turn/retryScheduled',
       {

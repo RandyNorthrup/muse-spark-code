@@ -270,6 +270,7 @@ export const REFERENCE_ACTION_FEATURES = {
   webviewError: 'chat',
   sendMessage: 'chat',
   withdrawQueued: 'chat',
+  retryTurn: 'chat',
   runManualHook: 'hooks',
   cancelTurn: 'chat',
   signIn: 'account',

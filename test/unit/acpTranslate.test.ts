@@ -293,9 +293,23 @@ describe('UpdateTranslator', () => {
     // No notices capability on this translator: the SDK's sanctioned agent
     // message carries the notice instead (acpBackendNotice.test.ts covers
     // the advertised path).
-    expect(translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })).toEqual([
-      { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'Slow\n\n' } },
-    ])
+    const fallback = translator.updates({ type: 'backendNotice', level: 'warning', text: 'Slow' })
+    expect(fallback).toHaveLength(1)
+    const [chunk] = fallback
+    expect(chunk).toMatchObject({
+      sessionUpdate: 'agent_message_chunk',
+      content: { type: 'text', text: 'Slow\n\n' },
+    })
+    // RLF-ACPTURNS F1: the fallback is its own message, so a client that
+    // groups by id starts a new message instead of folding the notice
+    // into the model's answer. Each emission carries a fresh id.
+    expect(chunk?.sessionUpdate).toBe('agent_message_chunk')
+    const firstId = chunk?.sessionUpdate === 'agent_message_chunk' ? chunk.messageId : undefined
+    expect(typeof firstId).toBe('string')
+    const [again] = translator.updates({ type: 'backendNotice', level: 'info', text: 'Again' })
+    const secondId = again?.sessionUpdate === 'agent_message_chunk' ? again.messageId : undefined
+    expect(typeof secondId).toBe('string')
+    expect(secondId).not.toBe(firstId)
     // Real use, Windows 0.19.0: after the model's words the fallback notice
     // opens its own paragraph instead of running on ("Canberra.The turn
     // finished…"), and a notice after a notice adds no extra blank lines.

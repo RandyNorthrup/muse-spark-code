@@ -11,7 +11,7 @@ import path from 'node:path'
 import { expect } from 'vitest'
 import { BestOfNCoordinator } from '../../../src/core/bestOfN/bestOfNCoordinator'
 import { PendingPrompts } from '../../../src/core/sessionBoard'
-import type { AuthPort } from '../../../src/host/auth/authService'
+import type { AuthPort, AuthSnapshot } from '../../../src/host/auth/authService'
 import { createCheckpointPort } from '../../../src/host/checkpoints/checkpointHost'
 import {
   ConversationController,
@@ -58,6 +58,8 @@ export interface ModelApiRig {
   readonly host: ModelApiHost
   readonly store: ReturnType<typeof createFileSessionStore>
   readonly warnings: string[]
+  /** What the host logged at error: a turn that died before reporting. */
+  readonly errors: string[]
 }
 
 /**
@@ -66,23 +68,30 @@ provider client is the product's own, constructed with no key: no Meta key
 is stored, which the host is told as the extension tells it
 (`hasMetaCredential`), so the model listing reads no network, and any
 request that would need the key fails on its missing key before a byte is
-sent. A loaded rig over the same folder (`loadedModelApiRig`) is the next
+sent. A suite that needs a turn to fail past the missing-key check (a
+failure the backend judges retryable, e.g. the credential store failing)
+hands its own `apiKey`: the request fails there, and no call is made. A
+loaded rig over the same folder (`loadedModelApiRig`) is the next
 window's host: it revives what this one saved.
 */
 export function modelApiRig(
   directory: string,
   loadExtensionHooks?: () => Promise<readonly ExtensionHookDefinition[]>,
   hasHookShell?: boolean,
+  options?: { apiKey?: () => Promise<string | undefined> },
 ): ModelApiRig {
   let ids = 0
   const warnings: string[] = []
+  const errors: string[] = []
   const log = {
     trace: () => undefined,
     info: () => undefined,
     warn: (message: string) => {
       warnings.push(message)
     },
-    error: () => undefined,
+    error: (message: string) => {
+      errors.push(message)
+    },
   }
   const store = createFileSessionStore({
     directory,
@@ -94,7 +103,7 @@ export function modelApiRig(
   const client = new ModelApiClient({
     fetch: globalThis.fetch,
     baseUrl: MODEL_API_BASE_URL,
-    apiKey: () => Promise.resolve(undefined),
+    apiKey: options?.apiKey ?? (() => Promise.resolve(undefined)),
     sleep: () => Promise.resolve(),
     now: () => Date.now(),
     random: () => 0.5,
@@ -142,7 +151,7 @@ export function modelApiRig(
     store,
     ...(loadExtensionHooks !== undefined && { loadExtensionHooks }),
   }
-  return { host: new ModelApiHost(deps), store, warnings }
+  return { host: new ModelApiHost(deps), store, warnings, errors }
 }
 
 /**
@@ -207,6 +216,12 @@ export function emptySessionMemory(): SessionMemory {
 export interface PanelOptions {
   readonly rig: ModelApiRig
   readonly directory: string
+  /**
+  The suite runs turns (RLF-ACPTURNS): the temp folder counts as known,
+  so the running mark publishes (nowhere, with no store). Absent, sends
+  refuse at the mark, as before.
+  */
+  readonly isNamespaceKnown?: boolean
   /** The model the person's picker holds when the panel opens. */
   readonly modelId?: string
   readonly sessions?: SessionMemory
@@ -227,12 +242,15 @@ export interface PanelRig {
   readonly posted: HostToWebviewMessage[]
   /** What the controller wrote to the window's log, as the output channel shows it. */
   readonly logged: string[]
+  /** Backend errors reported to the sign-in gate (a host that refuses to run). */
+  readonly backendErrors: string[]
 }
 
 /** The real controller on `rig`'s host, as the editor builds it for one panel. */
 export function conversationPanel(options: PanelOptions): PanelRig {
   const posted: HostToWebviewMessage[] = []
   const logged: string[] = []
+  const backendErrors: string[] = []
   const record = (message: string) => {
     logged.push(message)
   }
@@ -261,12 +279,17 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     refresh: unused('auth.refresh'),
     checkAgain: unused('auth.checkAgain'),
     markAuthRequired: unused('auth.markAuthRequired'),
-    markBackendError: unused('auth.markBackendError'),
+    markBackendError: (detail: string): AuthSnapshot => {
+      backendErrors.push(detail)
+      return { status: 'signedIn', detail, backend: 'modelApi' }
+    },
   }
   // No path here drives git: every entry fails closed instead of pretending
   // git ran, except the session-changed notification, which the rig has no
-  // git panel to observe.
+  // git panel to observe, and the event feed, which the real port ignores
+  // while no generation waits for its reply (conversationGit.ts `onEvent`).
   const git: ConversationGitPort = {
+    onEvent: () => undefined,
     sessionChanged: () => undefined,
     postState: unused('git.postState'),
     handleAction: unused('git.handleAction'),
@@ -277,7 +300,6 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     isGenerationCurrent: unused('git.isGenerationCurrent'),
     generationSubmitted: unused('git.generationSubmitted'),
     generationFailed: unused('git.generationFailed'),
-    onEvent: unused('git.onEvent'),
     dispose: unused('git.dispose'),
   }
   const mentions: MentionSearch = {
@@ -380,7 +402,10 @@ export function conversationPanel(options: PanelOptions): PanelRig {
     allowsPaidUse: unused('allowsPaidUse'),
     checkpoints: createCheckpointPort({
       store: undefined,
-      isNamespaceKnown: () => false,
+      // The temp folder counts as known only where the suite runs turns;
+      // with no store their presence is unpublished, and units stay off.
+      // Default false: sends refuse at the running mark, as before.
+      isNamespaceKnown: () => options.isNamespaceKnown === true,
       isWorkspaceTrusted: () => true,
       isEnabled: () => true,
       hasGit: () => false,
@@ -407,7 +432,7 @@ export function conversationPanel(options: PanelOptions): PanelRig {
       estimatorGeneration: options.estimatorGeneration,
     }),
   }
-  return { controller: new ConversationController(deps), posted, logged }
+  return { controller: new ConversationController(deps), posted, logged, backendErrors }
 }
 
 export function panelNotices(
