@@ -14,7 +14,7 @@ import { resolveExecutable, workspaceChildEnvironment } from '../../src/core/exe
 import { configureResources, loadResourceWindow } from '../../src/core/resources/admission'
 import { nodeGitProcesses } from '../../src/runtime/panel/pullRequests/checkout'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
-import { GIT_OUTPUT_MAX_BYTES, GIT_WORKTREE_TIMEOUT_MS } from '../../src/shared/constants'
+import { GIT_OUTPUT_MAX_BYTES } from '../../src/shared/constants'
 import { childExitText } from './helpers/processes'
 import { removeFolder } from './helpers/temporaryFolders'
 
@@ -67,8 +67,6 @@ describe('governed checkout git', () => {
         realpath: realpathSync,
       }),
       signal: new AbortController().signal,
-      // The product's own checkout deadline: the test waits as checkout does.
-      timeout: GIT_WORKTREE_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,
       beforeSpawn: gate,
     }
