@@ -64,10 +64,10 @@
   --ms-chart-danger: var(--ms-danger);
   --ms-git-added: var(--ms-success);
   --ms-git-deleted: var(--ms-danger);
-  --ms-syntax-function: var(--ms-text);
-  --ms-syntax-keyword: var(--ms-text);
-  --ms-syntax-number: var(--ms-text);
-  --ms-syntax-string: var(--ms-text);
+  --ms-syntax-function: #82aaff;
+  --ms-syntax-keyword: #c792ea;
+  --ms-syntax-number: #f78c6c;
+  --ms-syntax-string: #c3e88d;
   --ms-list-warning: var(--ms-warning);
   --ms-contrast-border: var(--ms-border);
   --ms-danger-legacy: #f14c4c;
@@ -78,6 +78,9 @@
   );
   --ms-usage-purple: #b180d7;
   --ms-usage-orange: #d18616;
+  --ms-divider: #4a5058;
+  --ms-on-warning: #000;
+  --ms-git-modified: var(--ms-warning);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -98,6 +101,7 @@
   --ms-motion-slow: 240ms;
   --ms-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ms-ease-emphasised: cubic-bezier(0.8, 0, 0.2, 1);
+  --ms-motion-flip: 280ms;
   --ms-space-0: 0;
   --ms-space-4: 4px;
   --ms-space-8: 8px;
@@ -128,6 +132,11 @@
   --ms-pill-min-width: 2.5rem;
   --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
+  --ms-bar-height: 32px;
+  --ms-status-height: 24px;
+  --ms-rail-width: 48px;
+  --ms-rail-button-size: 44px;
+  --ms-rail-icon-size: 20px;
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
   --ms-measure: var(--ms-column-max-width);
@@ -198,10 +207,10 @@
   --ms-chart-danger: var(--ms-danger);
   --ms-git-added: var(--ms-success);
   --ms-git-deleted: var(--ms-danger);
-  --ms-syntax-function: var(--ms-text);
-  --ms-syntax-keyword: var(--ms-text);
-  --ms-syntax-number: var(--ms-text);
-  --ms-syntax-string: var(--ms-text);
+  --ms-syntax-function: #095bbe;
+  --ms-syntax-keyword: #7c3aed;
+  --ms-syntax-number: #9a3412;
+  --ms-syntax-string: #176b2b;
   --ms-list-warning: var(--ms-warning);
   --ms-contrast-border: var(--ms-border);
   --ms-danger-legacy: #f14c4c;
@@ -212,6 +221,9 @@
   );
   --ms-usage-purple: #652d90;
   --ms-usage-orange: #ba6800;
+  --ms-divider: #b9bec7;
+  --ms-on-warning: #fff;
+  --ms-git-modified: var(--ms-warning);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -232,6 +244,7 @@
   --ms-motion-slow: 240ms;
   --ms-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ms-ease-emphasised: cubic-bezier(0.8, 0, 0.2, 1);
+  --ms-motion-flip: 280ms;
   --ms-space-0: 0;
   --ms-space-4: 4px;
   --ms-space-8: 8px;
@@ -262,6 +275,11 @@
   --ms-pill-min-width: 2.5rem;
   --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
+  --ms-bar-height: 32px;
+  --ms-status-height: 24px;
+  --ms-rail-width: 48px;
+  --ms-rail-button-size: 44px;
+  --ms-rail-icon-size: 20px;
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
   --ms-measure: var(--ms-column-max-width);
@@ -332,16 +350,19 @@
   --ms-chart-danger: var(--ms-danger);
   --ms-git-added: var(--ms-success);
   --ms-git-deleted: var(--ms-danger);
-  --ms-syntax-function: var(--ms-text);
-  --ms-syntax-keyword: var(--ms-text);
-  --ms-syntax-number: var(--ms-text);
-  --ms-syntax-string: var(--ms-text);
+  --ms-syntax-function: #1d4ed8;
+  --ms-syntax-keyword: #5b21b6;
+  --ms-syntax-number: #9a3412;
+  --ms-syntax-string: #14532d;
   --ms-list-warning: var(--ms-warning);
   --ms-contrast-border: var(--ms-border);
   --ms-danger-legacy: #f14c4c;
   --ms-modal-scrim: #fff;
   --ms-usage-purple: var(--ms-text);
   --ms-usage-orange: var(--ms-text);
+  --ms-divider: #8a8a8a;
+  --ms-on-warning: #fff;
+  --ms-git-modified: var(--ms-warning);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -362,6 +383,7 @@
   --ms-motion-slow: 240ms;
   --ms-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ms-ease-emphasised: cubic-bezier(0.8, 0, 0.2, 1);
+  --ms-motion-flip: 280ms;
   --ms-space-0: 0;
   --ms-space-4: 4px;
   --ms-space-8: 8px;
@@ -392,6 +414,11 @@
   --ms-pill-min-width: 2.5rem;
   --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
+  --ms-bar-height: 32px;
+  --ms-status-height: 24px;
+  --ms-rail-width: 48px;
+  --ms-rail-button-size: 44px;
+  --ms-rail-icon-size: 20px;
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
   --ms-measure: var(--ms-column-max-width);
@@ -462,16 +489,19 @@
   --ms-chart-danger: var(--ms-danger);
   --ms-git-added: var(--ms-success);
   --ms-git-deleted: var(--ms-danger);
-  --ms-syntax-function: var(--ms-text);
-  --ms-syntax-keyword: var(--ms-text);
-  --ms-syntax-number: var(--ms-text);
-  --ms-syntax-string: var(--ms-text);
+  --ms-syntax-function: #ffb3b3;
+  --ms-syntax-keyword: #7fffff;
+  --ms-syntax-number: #ff0;
+  --ms-syntax-string: #7fff7f;
   --ms-list-warning: var(--ms-warning);
   --ms-contrast-border: var(--ms-border);
   --ms-danger-legacy: #f14c4c;
   --ms-modal-scrim: #000;
   --ms-usage-purple: var(--ms-text);
   --ms-usage-orange: var(--ms-text);
+  --ms-divider: #6e6e6e;
+  --ms-on-warning: #000;
+  --ms-git-modified: var(--ms-warning);
   --ms-radius-xs: 3px;
   --ms-radius-sm: 4px;
   --ms-radius-md: 6px;
@@ -492,6 +522,7 @@
   --ms-motion-slow: 240ms;
   --ms-ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ms-ease-emphasised: cubic-bezier(0.8, 0, 0.2, 1);
+  --ms-motion-flip: 280ms;
   --ms-space-0: 0;
   --ms-space-4: 4px;
   --ms-space-8: 8px;
@@ -522,6 +553,11 @@
   --ms-pill-min-width: 2.5rem;
   --ms-column-inset: max(0px, (100cqw - var(--ms-column-max-width)) / 2);
   --ms-column-gutter: calc(var(--ms-column-inset) + var(--ms-gap));
+  --ms-bar-height: 32px;
+  --ms-status-height: 24px;
+  --ms-rail-width: 48px;
+  --ms-rail-button-size: 44px;
+  --ms-rail-icon-size: 20px;
   --ms-gap: var(--ms-space-8);
   --ms-radius: var(--ms-radius-md);
   --ms-measure: var(--ms-column-max-width);
@@ -551,6 +587,7 @@
     --ms-motion-fast: 0ms;
     --ms-motion-base: 0ms;
     --ms-motion-slow: 0ms;
+    --ms-motion-flip: 0ms;
   }
 }
 

@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Launcher modes</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">10</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">Launcher · calculator, symbols, agents and settings</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · four launcher states side by side</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="Launcher.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="Greeter.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1100" height="620" style="opacity: 0.07"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div class="ms-bar" style="height: 32px; flex: none; border-bottom: 1px solid var(--ms-border); position: relative"></div>
+    <div class="scrim" style="top: 32px"></div>
+    <div style="position: relative; flex: 1; display: flex; justify-content: center; align-items: flex-start; gap: 28px; padding-top: 108px">
+
+      <!-- Calculator -->
+      <section role="dialog" aria-label="Launcher, calculator" class="ms-launch" style="width: 440px; display: flex; flex-direction: column; overflow: hidden">
+        <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--ms-border)">
+          <svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-muted)"><path d="{{I.calc}}"></path></svg>
+          <label class="sr" for="lm-calc">Calculate</label>
+          <input id="lm-calc" class="ms-input mono dat" value="= 12 km in mi" style="flex: 1; height: 34px; border: 0; background: transparent; color: var(--ms-text); font-size: 17px; outline: none">
+        </div>
+        <div style="padding: 12px; display: flex; flex-direction: column; gap: 8px">
+          <div role="option" aria-selected="true" style="border-radius: var(--ms-radius-lg); background: var(--ms-selection); color: var(--ms-on-selection); padding: 14px 16px; display: flex; flex-direction: column; gap: 4px">
+            <span class="mono dat" style="font-size: 30px; font-weight: 600">7.456 mi</span>
+            <span class="dat" style="font-size: 12px">12 kilometres = 7.45645 miles</span>
+          </div>
+          <div class="row" style="min-height: 40px"><span class="mono dat" style="flex: 1">(1920 − 1280) / 2</span><span class="mono dat" style="font-weight: 600">320</span></div>
+          <div class="row" style="min-height: 40px"><span class="mono dat" style="flex: 1">0.98 × 255</span><span class="mono dat" style="font-weight: 600">249.9</span></div>
+          <span style="font-size: 12px; color: var(--ms-muted); padding: 4px 10px">Worked out on this machine. Nothing is sent anywhere.</span>
+        </div>
+        <div style="height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--ms-border); font-size: 12px; color: var(--ms-muted)"><span><span class="kc">Enter</span> Copy the result</span><span><span class="kc">Esc</span> Close</span></div>
+      </section>
+
+      <!-- Emoji and symbols -->
+      <section role="dialog" aria-label="Launcher, emoji and symbols" class="ms-launch" style="width: 440px; display: flex; flex-direction: column; overflow: hidden">
+        <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--ms-border)">
+          <svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-muted)"><path d="{{I.smile}}"></path></svg>
+          <label class="sr" for="lm-emoji">Find emoji or a symbol</label>
+          <input id="lm-emoji" class="ms-input dat" value=": arrow" style="flex: 1; height: 34px; border: 0; background: transparent; color: var(--ms-text); font-size: 17px; outline: none">
+        </div>
+        <div role="tablist" aria-label="Character sets" style="display: flex; gap: 4px; padding: 10px 12px 0">
+          <button role="tab" aria-selected="false" class="pill">Emoji</button>
+          <button role="tab" aria-selected="true" class="pill" style="background: var(--ms-selection); color: var(--ms-on-selection); border-color: var(--ms-selection)">Symbols</button>
+          <button role="tab" aria-selected="false" class="pill">Recent</button>
+        </div>
+        <div role="grid" aria-label="Arrows" style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 4px; padding: 12px">
+          <sc-for list="{{glyphs}}" as="g" hint-placeholder-count="24">
+            <button role="gridcell" aria-label="{{g.n}}" style="height: 44px; border-radius: var(--ms-radius-md); border: 1px solid {{g.bd}}; background: {{g.bg}}; color: {{g.fg}}; font-size: 22px; display: grid; place-items: center">{{g.c}}</button>
+          </sc-for>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; padding: 4px 16px 12px"><span style="font-size: 30px; width: 40px; text-align: center">→</span><span style="display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">Rightwards arrow</span><span class="mono" style="font-size: 12px; color: var(--ms-muted)">U+2192</span></span></div>
+        <div style="height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--ms-border); font-size: 12px; color: var(--ms-muted)"><span><span class="kc">Enter</span> Type it</span><span><span class="kc">Ctrl+C</span> Copy</span><span><span class="kc">←↑→↓</span> Move</span></div>
+      </section>
+
+      <!-- Agents and roles -->
+      <section role="dialog" aria-label="Launcher, agents and roles" class="ms-launch" style="width: 440px; display: flex; flex-direction: column; overflow: hidden">
+        <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--ms-border)">
+          <svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-muted)"><path d="{{I.search}}"></path></svg>
+          <label class="sr" for="lm-web">Search</label>
+          <input id="lm-web" class="ms-input dat" value="web" style="flex: 1; height: 34px; border: 0; background: transparent; color: var(--ms-text); font-size: 17px; outline: none">
+        </div>
+        <div role="listbox" aria-label="Results" style="padding: 6px 8px 10px; display: flex; flex-direction: column">
+          <sc-for list="{{agentRows}}" as="r" hint-placeholder-count="5">
+            <span class="lbl" style="padding: 10px 10px 4px; display: {{r.hd}}">{{r.g}}</span>
+            <div role="option" aria-selected="{{r.sel}}" style="min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: var(--ms-radius-md); background: {{r.bg}}; color: {{r.fg}}">
+              <span style="width: 28px; height: 28px; flex: none; border-radius: var(--ms-radius-md); border: 1px solid var(--ms-border); background: {{r.tile}}; display: grid; place-items: center"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"></path></svg></span>
+              <span style="flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">{{r.t}}</span><span class="dat" style="font-size: 12px; opacity: 0.85">{{r.s}}</span></span>
+              <span class="mono" style="font-size: var(--ms-font-small); opacity: 0.85; white-space: nowrap">{{r.k}}</span>
+            </div>
+          </sc-for>
+        </div>
+        <div style="height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--ms-border); font-size: 12px; color: var(--ms-muted)"><span><span class="kc">Enter</span> Jump</span><span><span class="kc">Ctrl+Enter</span> Peek</span></div>
+      </section>
+
+      <!-- Settings and the web -->
+      <section role="dialog" aria-label="Launcher, settings" class="ms-launch" style="width: 440px; display: flex; flex-direction: column; overflow: hidden">
+        <div style="height: 56px; display: flex; align-items: center; gap: 10px; padding: 0 16px; border-bottom: 1px solid var(--ms-border)">
+          <svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-muted)"><path d="{{I.search}}"></path></svg>
+          <label class="sr" for="lm-night">Search</label>
+          <input id="lm-night" class="ms-input dat" value="night light" style="flex: 1; height: 34px; border: 0; background: transparent; color: var(--ms-text); font-size: 17px; outline: none">
+        </div>
+        <div role="listbox" aria-label="Results" style="padding: 6px 8px 10px; display: flex; flex-direction: column">
+          <span class="lbl" style="padding: 10px 10px 4px">Quick setting</span>
+          <div role="option" aria-selected="true" style="min-height: 48px; display: flex; align-items: center; gap: 12px; padding: 6px 10px; border-radius: var(--ms-radius-md); background: var(--ms-selection); color: var(--ms-on-selection)">
+            <span style="width: 28px; height: 28px; flex: none; border-radius: var(--ms-radius-md); border: 1px solid var(--ms-border); background: var(--ms-surface); color: var(--ms-text); display: grid; place-items: center"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.night}}"></path></svg></span>
+            <span style="flex: 1; display: flex; flex-direction: column; line-height: 1.3"><span style="font-weight: 600">Night light</span><span style="font-size: 12px">On until 07:00</span></span>
+            <span class="tog" role="switch" aria-checked="true" aria-label="Night light" style="border-color: var(--ms-on-selection)"></span>
+          </div>
+          <span class="lbl" style="padding: 10px 10px 4px">Settings</span>
+          <div role="option" aria-selected="false" class="row" style="min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.gear}}"></path></svg><span style="flex: 1">Night light schedule</span><span style="font-size: 12px; color: var(--ms-muted)">Displays</span></div>
+          <div role="option" aria-selected="false" class="row" style="min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.gear}}"></path></svg><span style="flex: 1">Colour filters</span><span style="font-size: 12px; color: var(--ms-muted)">Accessibility</span></div>
+          <span class="lbl" style="padding: 10px 10px 4px">Web</span>
+          <div role="option" aria-selected="false" class="row" style="min-height: 44px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.extLink}}"></path></svg><span style="flex: 1">Search the web in Chrome for “night light”</span></div>
+        </div>
+        <div style="height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--ms-border); font-size: 12px; color: var(--ms-muted)"><span><span class="kc">Space</span> Toggle</span><span><span class="kc">Enter</span> Open</span></div>
+      </section>
+    </div>
+    <div class="ms-bar" style="position: absolute; bottom: 0; inset-inline: 0; height: 24px; border-top: 1px solid var(--ms-border)"></div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"light"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      search: c(11, 11, 7) + ' M20 20l-4-4',
+      calc: 'M6 3h12v18H6z M9 7h6 M9 12h.01 M12 12h.01 M15 12h.01 M9 16h.01 M12 16h.01 M15 16h.01',
+      smile: c(12, 12, 9) + ' M8.5 14a4 4 0 0 0 7 0 M9 9.5h.01 M15 9.5h.01',
+      bot: 'M5 8h14v11H5z M12 4v4 M9.5 13h.01 M14.5 13h.01 M2 12v3 M22 12v3',
+      team: c(9, 7, 4) + ' M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1 M16 3.3a4 4 0 0 1 0 7.4 M22 21v-1a6 6 0 0 0-4-5.6',
+      cmd: 'M5 7l5 5-5 5 M12 17h7',
+      gear: 'M4 6h9 M17 6h3 M15 4v4 M4 12h3 M11 12h9 M9 10v4 M4 18h11 M19 18h1 M17 16v4',
+      night: 'M12 3v2 M5.6 5.6L7 7 M3 12h2 M12 21a9 9 0 0 0 9-9 6 6 0 0 1-9-6 9 9 0 0 0 0 15z',
+      extLink: 'M14 4h6v6 M20 4l-9 9 M18 14v6H4V6h6'
+    };
+    const chars = [['→', 'Rightwards arrow'], ['←', 'Leftwards arrow'], ['↑', 'Upwards arrow'], ['↓', 'Downwards arrow'], ['↔', 'Left right arrow'], ['↕', 'Up down arrow'], ['⇒', 'Rightwards double arrow'], ['⇐', 'Leftwards double arrow'],
+      ['↩', 'Leftwards arrow with hook'], ['↪', 'Rightwards arrow with hook'], ['⟶', 'Long rightwards arrow'], ['⟵', 'Long leftwards arrow'], ['↗', 'North east arrow'], ['↘', 'South east arrow'], ['↙', 'South west arrow'], ['↖', 'North west arrow'],
+      ['⇄', 'Rightwards over leftwards arrows'], ['⇅', 'Up and down arrows'], ['↻', 'Clockwise open circle arrow'], ['↺', 'Anticlockwise open circle arrow'], ['⤴', 'Arrow pointing right then up'], ['⤵', 'Arrow pointing right then down'], ['➔', 'Heavy wide-headed rightwards arrow'], ['⇥', 'Rightwards arrow to bar']];
+    const glyphs = chars.map(([ch, n], i) => ({ c: ch, n, bg: i === 0 ? 'var(--ms-selection)' : 'var(--ms-raised)', fg: i === 0 ? 'var(--ms-on-selection)' : 'var(--ms-text)', bd: i === 0 ? 'var(--ms-selection)' : 'var(--ms-border)' }));
+    const ar = (g, t, s, k, icon, sel) => ({ g, hd: g ? 'block' : 'none', t, s, k, icon, sel: sel ? 'true' : 'false', bg: sel ? 'var(--ms-selection)' : 'transparent', fg: sel ? 'var(--ms-on-selection)' : 'var(--ms-text)', tile: sel ? 'var(--ms-surface)' : 'var(--ms-raised)' });
+    const agentRows = [
+      ar('Agents', 'Jump to web-eng', 'Running in trailhead · waiting for approval', 'Enter', I.bot, true),
+      ar('', 'Peek at web-eng', 'Live peek of its terminal and desktop 3', 'Ctrl+Enter', I.bot, false),
+      ar('Roles', 'Start a task with Web engineer', 'Role from the web experience', '', I.team, false),
+      ar('Commands', 'Web: Open the preview beside the editor', 'Workbench', '', I.cmd, false),
+      ar('', 'Web: Show every viewport', 'Workbench', '', I.cmd, false)
+    ];
+    return {
+      theme, themeName: names[theme] ?? theme, I, glyphs, agentRows,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'overlay', 'border', 'text', 'muted', 'accent', 'on-accent', 'selection', 'on-selection', 'badge', 'on-badge', 'modal-scrim', 'elevation-overlay', 'launcher-alpha', 'backdrop-blur', 'radius-xs', 'radius-md', 'radius-lg', 'radius-xl', 'radius-pill', 'space-8', 'space-12', 'space-16', 'font-ui', 'font-code', 'font-size', 'font-small', 'chip-height', 'control-size', 'bar-height', 'status-height']
+    };
+  }
+}
+</script>
+</body>
+</html>

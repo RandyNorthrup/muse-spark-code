@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Workbench component</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: {{W}}px; height: {{sheetH}}px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">{{num}}</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">{{name}}</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">{{W}} × {{H}} · {{themeName}} · data-ms-theme="{{theme}}"{{extra}}</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px">
+      <a class="btn" href="{{prev}}">Previous</a>
+      <a class="btn" href="Main.dc.html">Index</a>
+      <a class="btn btn-p" href="{{next}}">Next</a>
+    </nav>
+  </header>
+
+  <div class="screen {{rtlClass}}" dir="{{dir}}" style="width: {{W}}px; height: {{H}}px">
+    <!-- Top bar: the shell's layer surface -->
+    <div class="ms-bar" role="banner" style="height: 32px; flex: none; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; padding-inline: 6px; border-bottom: 1px solid var(--ms-border); font-size: 12px; position: relative; z-index: 2">
+      <div style="display: flex; align-items: center; gap: 6px; min-width: 0">
+        <button class="ib" aria-label="Open the launcher (Super)" style="width: 36px"><svg viewBox="-14 -14 228 128" width="26" height="15" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+        <div role="tablist" aria-label="Desktops" style="display: flex; gap: 4px">
+          <sc-for list="{{desks}}" as="d" hint-placeholder-count="3">
+            <button role="tab" aria-selected="{{d.sel}}" aria-label="{{d.aria}}" style="height: 22px; padding: 0 8px; border-radius: var(--ms-radius-pill); border: 1px solid {{d.bd}}; background: {{d.bg}}; color: {{d.fg}}; display: inline-flex; align-items: center; gap: 5px">
+              <span class="mono" style="font-weight: 600">{{d.n}}</span>
+              <svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{d.icon}}"></path></svg>
+              <sc-if value="{{d.agent}}" hint-placeholder-val="{{ false }}"><span class="chip dat" style="height: 15px; color: {{d.fg}}; font-size: 10px">{{d.agent}}</span></sc-if>
+            </button>
+          </sc-for>
+        </div>
+        <button class="sb" aria-label="Window menu" style="font-weight: 600">Workbench · <span class="dat">trailhead</span><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg></button>
+      </div>
+      <button class="sb" aria-label="Calendar and notifications" style="font-weight: 600">Fri 23 Oct · 14:32</button>
+      <div style="justify-self: end; display: flex; align-items: center; gap: 1px">
+        <button class="sb" aria-label="Node: this machine, ready"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.node}}"></path></svg>Local<span style="width: 6px; height: 6px; border-radius: 50%; background: var(--ms-success)"></span></button>
+        <button class="sb" aria-label="Agents: 3 running, 1 waiting for approval"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg>3<span class="badge" style="background: var(--ms-warning); color: var(--ms-surface)">1</span></button>
+        <button class="sb" aria-label="Resources: CPU 62 percent, memory 61 percent, GPU 18 percent"><span style="display: flex; align-items: flex-end; gap: 2px; height: 13px"><i style="width: 4px; height: 8px; background: var(--ms-text); border-radius: 1px"></i><i style="width: 4px; height: 8px; background: var(--ms-text); border-radius: 1px"></i><i style="width: 4px; height: 3px; background: var(--ms-text); border-radius: 1px"></i></span></button>
+        <button class="sb mono" aria-label="Keyboard layout: English (US)">EN</button>
+        <button class="sb" aria-label="Wi-Fi: Studio-5G"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.wifi}}"></path></svg></button>
+        <button class="sb" aria-label="Bluetooth: 2 devices"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bt}}"></path></svg></button>
+        <button class="sb" aria-label="Sound: 60 percent"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.sound}}"></path></svg></button>
+        <button class="sb" aria-label="Battery 82 percent"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.battery}}"></path></svg>82%</button>
+        <button class="sb" aria-label="Notifications: 3"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bell}}"></path></svg><span class="badge">3</span></button>
+        <button class="sb" aria-label="Randy Northrup: user and power menu"><span style="width: 20px; height: 20px; border-radius: 50%; background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600; font-size: 11px">R</span></button>
+      </div>
+    </div>
+
+    <!-- The workbench window, alone on desktop 1 -->
+    <div style="flex: 1; min-height: 0; display: flex">
+      <!-- Left: chat and agents -->
+      <section aria-label="Chat" style="width: {{chatW}}px; flex: none; display: flex; flex-direction: column; background: var(--ms-surface); border-inline-end: 1px solid var(--ms-border); min-height: 0">
+        <div style="height: 40px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 12px 6px; border-bottom: 1px solid var(--ms-border)">
+          <svg viewBox="-14 -14 228 128" width="20" height="12" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+          <span class="dat" style="flex: 1; min-width: 0; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-inline-start: 4px">Cart summary: tax and shipping</span>
+          <button class="ib" aria-label="Session history"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.history}}"></path></svg></button>
+          <button class="ib" aria-label="New conversation"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.plus}}"></path></svg></button>
+          <button class="ib" aria-label="More actions"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 3"><path d="{{I.more}}"></path></svg></button>
+        </div>
+        <section aria-label="Agent map" style="flex: none; margin: 8px; padding: 8px 10px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); background: var(--ms-raised); display: flex; flex-direction: column; gap: 2px">
+          <div style="display: flex; align-items: center; gap: 6px; height: 22px">
+            <span class="lbl">Agent map</span>
+            <span style="font-size: var(--ms-font-small); color: var(--ms-muted)">3 agents · live</span>
+            <span style="flex: 1"></span>
+            <button class="ib" aria-label="Open the board" style="width: 22px; height: 22px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.grid}}"></path></svg></button>
+            <button class="ib" aria-label="Collapse the agent map" aria-expanded="true" style="width: 22px; height: 22px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevU}}"></path></svg></button>
+          </div>
+          <sc-for list="{{agents}}" as="a" hint-placeholder-count="4">
+            <div style="display: flex; align-items: center; gap: 8px; height: 26px; padding-inline-start: {{a.pad}}px; font-size: 12px; min-width: 0">
+              <sc-if value="{{a.child}}" hint-placeholder-val="{{ false }}"><span aria-hidden="true" style="width: 9px; height: 14px; flex: none; margin-top: -12px; border-inline-start: 1px solid var(--ms-border); border-bottom: 1px solid var(--ms-border)"></span></sc-if>
+              <span aria-hidden="true" style="width: 8px; height: 8px; flex: none; border-radius: 50%; background: {{a.dot}}; border: 1.5px solid {{a.ring}}"></span>
+              <span class="dat" style="font-weight: 600; white-space: nowrap">{{a.name}}</span>
+              <span style="flex: 1; min-width: 0; color: var(--ms-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{a.task}}</span>
+              <span class="chip" style="color: {{a.sc}}">{{a.state}}</span>
+            </div>
+          </sc-for>
+        </section>
+        <div role="log" aria-label="Conversation" style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; gap: 12px; padding: 4px 12px 10px">
+          <div class="dat" style="background: var(--ms-raised); border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 10px 12px">The cart summary should show shipping and tax before the total. Keep the tests green and add one for the free-shipping threshold.</div>
+          <div style="display: flex; align-items: center; gap: 6px; color: var(--ms-muted); font-size: 12px"><svg class="ic flipx" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevR}}"></path></svg>Thought for 6s</div>
+          <div><span>I'll split the total into subtotal, shipping and tax, and read the threshold from </span><code class="mono dat" style="font-size: 12px; background: var(--ms-code-surface); padding: 1px 4px; border-radius: var(--ms-radius-xs)">pricing.ts</code>.</div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <sc-for list="{{tools}}" as="t" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 8px; min-height: 24px; font-size: 12px; min-width: 0">
+                <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true" style="color: {{t.ic}}"><path d="{{t.icon}}"></path></svg>
+                <span style="color: var(--ms-muted)">{{t.verb}}</span>
+                <span class="mono dat" style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{t.path}}</span>
+                <span class="mono dat" style="color: var(--ms-git-added)">{{t.add}}</span>
+                <span class="mono dat" style="color: var(--ms-git-deleted)">{{t.del}}</span>
+              </div>
+            </sc-for>
+          </div>
+          <div><span>One test failed at exactly $50.00: the check used </span><code class="mono dat" style="font-size: 12px; background: var(--ms-code-surface); padding: 1px 4px; border-radius: var(--ms-radius-xs)">&gt;</code><span> where free shipping starts at $50. I changed it to </span><code class="mono dat" style="font-size: 12px; background: var(--ms-code-surface); padding: 1px 4px; border-radius: var(--ms-radius-xs)">&gt;=</code><span> and want to run the tests again.</span></div>
+          <div role="group" aria-label="Approval waiting" style="border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); background: var(--ms-raised); padding: 12px; display: flex; flex-direction: column; gap: 8px; box-shadow: var(--ms-elevation-raised)">
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.terminal}}"></path></svg>Run this command?<span style="flex: 1"></span><span class="chip dat" style="color: var(--ms-warning)">web-eng</span></div>
+            <div class="mono dat" style="font-size: 12px; padding: 6px 8px; border-radius: var(--ms-radius-md); background: var(--ms-surface); border: 1px solid var(--ms-border)">npm run test -- CartSummary</div>
+            <div style="font-size: 12px; color: var(--ms-muted)">In <span class="mono dat">~/trailhead</span> · Edit automatically asks before commands</div>
+            <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+              <button class="btn focus" style="padding: 0 6px; font-size: 12px">Allow once</button>
+              <button class="btn" style="padding: 0 6px; font-size: 12px">Always allow</button>
+              <button class="btn" style="padding: 0 6px; font-size: 12px">Deny</button>
+            </div>
+          </div>
+        </div>
+        <div style="flex: none; margin: 0 8px 8px; border: 1px solid var(--ms-input-border); border-radius: var(--ms-radius-lg); background: var(--ms-input-surface); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px">
+          <label class="sr" for="wb-composer">Message</label>
+          <textarea id="wb-composer" class="ms-input" rows="2" placeholder="Ask Muse…" style="resize: none; border: 0; background: transparent; color: var(--ms-input-text); font: inherit; outline: none; padding: 0"></textarea>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap">
+            <button class="pill"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.pencil}}"></path></svg>Edit automatically</button>
+            <button class="pill"><span class="dat">{{modelShort}}</span> · medium</button>
+            <span style="flex: 1"></span>
+            <span class="mono" style="font-size: var(--ms-font-small); color: var(--ms-muted)" aria-label="Context 38 percent used">38%</span>
+            <button class="ib" aria-label="Attach a file"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.clip}}"></path></svg></button>
+            <button aria-label="Send" style="width: 28px; height: 28px; border: 0; border-radius: 50%; background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.send}}"></path></svg></button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Centre column -->
+      <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; min-height: 0">
+        <sc-if value="{{isEditor}}" hint-placeholder-val="{{ true }}">
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--ms-editor-surface)">
+            <div role="tablist" aria-label="Editors" style="height: 36px; flex: none; display: flex; background: var(--ms-surface); border-bottom: 1px solid var(--ms-border); overflow: hidden">
+              <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+                <button role="tab" aria-selected="{{t.sel}}" style="height: 36px; flex: none; display: inline-flex; align-items: center; gap: 6px; padding-inline: 12px 8px; border: 0; border-inline-end: 1px solid var(--ms-border); background: {{t.bg}}; color: {{t.fg}}; box-shadow: {{t.sh}}; font-style: {{t.fs}}">
+                  <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.files}}"></path></svg>
+                  <span class="dat">{{t.name}}</span>
+                  <svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="opacity: {{t.pinO}}"><path d="{{t.tail}}"></path></svg>
+                </button>
+              </sc-for>
+              <span style="flex: 1"></span>
+              <button class="ib" aria-label="Split editor" style="height: 36px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.split}}"></path></svg></button>
+              <button class="ib" aria-label="More editor actions" style="height: 36px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" style="stroke-width: 3"><path d="{{I.more}}"></path></svg></button>
+            </div>
+            <nav aria-label="Breadcrumbs" style="height: 24px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 14px; font-size: 12px; color: var(--ms-muted)">
+              <sc-for list="{{crumbs}}" as="c" hint-placeholder-count="5">
+                <span class="dat" style="color: {{c.fg}}">{{c.t}}</span>
+                <svg class="ic flipx" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true" style="opacity: {{c.o}}"><path d="{{I.chevR}}"></path></svg>
+              </sc-for>
+            </nav>
+            <div style="height: 28px; flex: none; display: flex; align-items: center; gap: 8px; padding-inline: 14px; font-size: 12px; border-block: 1px solid var(--ms-border); background: var(--ms-surface)">
+              <svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg>
+              <span><span class="dat" style="font-weight: 600">web-eng</span> changed this file against HEAD</span>
+              <span class="mono dat" style="color: var(--ms-git-added)">+8</span><span class="mono dat" style="color: var(--ms-git-deleted)">−2</span>
+              <span style="flex: 1"></span>
+              <button class="btn" style="height: 22px; font-size: 12px; padding: 0 8px">Keep</button>
+              <button class="btn" style="height: 22px; font-size: 12px; padding: 0 8px">Undo</button>
+            </div>
+            <div class="ltr" dir="ltr" style="flex: 1; min-height: 0; display: flex">
+              <div class="mono" style="flex: 1; min-width: 0; overflow: hidden; padding-block: 6px; font-size: var(--ms-code-size); line-height: var(--ms-line-code)">
+                <sc-for list="{{code}}" as="l" hint-placeholder-count="20">
+                  <div style="display: flex; height: 20.8px; background: {{l.bg}}">
+                    <span style="width: 18px; flex: none; text-align: center; color: {{l.mc}}">{{l.mark}}</span>
+                    <span style="width: 34px; flex: none; text-align: end; color: var(--ms-muted)">{{l.n}}</span>
+                    <span style="white-space: pre; padding-inline-start: 16px; color: var(--ms-syntax-keyword)">{{l.t}}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div aria-hidden="true" style="width: {{miniW}}px; flex: none; position: relative; padding-top: 8px; border-inline-start: 1px solid var(--ms-border)">
+                <div style="position: absolute; inset-inline: 0; top: 4px; height: 120px; background: var(--ms-hover)"></div>
+                <sc-for list="{{mini}}" as="m" hint-placeholder-count="20">
+                  <div style="position: relative; height: 3px; margin: 0 6px 1px; width: {{m.w}}%; background: {{m.c}}; opacity: {{m.o}}; border-radius: 1px"></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isPreview}}" hint-placeholder-val="{{ false }}">
+          <div style="flex: 1; min-height: 0; display: flex">
+            <div style="width: 44%; flex: none; display: flex; flex-direction: column; background: var(--ms-editor-surface); border-inline-end: 1px solid var(--ms-border); min-width: 0">
+              <div role="tablist" aria-label="Editors, group 1" style="height: 36px; flex: none; display: flex; background: var(--ms-surface); border-bottom: 1px solid var(--ms-border)">
+                <button role="tab" aria-selected="true" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; padding-inline: 12px; border: 0; border-inline-end: 1px solid var(--ms-border); background: var(--ms-editor-surface); color: var(--ms-text); box-shadow: inset 0 2px 0 var(--ms-accent)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.files}}"></path></svg><span class="dat">CartSummary.tsx</span></button>
+              </div>
+              <div class="mono ltr" dir="ltr" style="flex: 1; min-height: 0; overflow: hidden; padding-block: 8px; font-size: var(--ms-code-size); line-height: var(--ms-line-code)">
+                <sc-for list="{{codeFinal}}" as="l" hint-placeholder-count="20">
+                  <div style="display: flex; height: 20.8px; background: {{l.bg}}">
+                    <span style="width: 40px; flex: none; text-align: end; color: var(--ms-muted)">{{l.n}}</span>
+                    <span style="white-space: pre; padding-inline-start: 16px; color: var(--ms-syntax-keyword)">{{l.t}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--ms-editor-surface)">
+              <div role="tablist" aria-label="Editors, group 2" style="height: 36px; flex: none; display: flex; background: var(--ms-surface); border-bottom: 1px solid var(--ms-border)">
+                <button role="tab" aria-selected="true" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; padding-inline: 12px 8px; border: 0; border-inline-end: 1px solid var(--ms-border); background: var(--ms-editor-surface); color: var(--ms-text); box-shadow: inset 0 2px 0 var(--ms-accent)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.globe}}"></path></svg>Preview · <span class="dat">localhost:5173/cart</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.x}}"></path></svg></button>
+              </div>
+              <div style="height: 38px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 8px; border-bottom: 1px solid var(--ms-border); background: var(--ms-surface)">
+                <button class="ib" aria-label="Back"><svg class="ic flipx" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.arrowL}}"></path></svg></button>
+                <button class="ib" aria-label="Forward" disabled="disabled" style="color: var(--ms-disabled)"><svg class="ic flipx" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.arrowR}}"></path></svg></button>
+                <button class="ib" aria-label="Reload"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.refresh}}"></path></svg></button>
+                <label class="sr" for="pv-address">Address</label>
+                <input id="pv-address" class="field mono dat" value="localhost:5173/cart" style="height: 26px; flex: 1; min-width: 0; font-size: 12px">
+                <span class="chip" style="color: var(--ms-success)">HMR</span>
+                <button class="btn" style="height: 26px; font-size: 12px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.extLink}}"></path></svg>Open in Chrome</button>
+              </div>
+              <div role="toolbar" aria-label="Device and checks" style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--ms-border); background: var(--ms-surface); font-size: 12px">
+                <button class="btn" style="height: 26px; font-size: 12px; padding: 0 8px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.phone}}"></path></svg>Phone<svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg></button>
+                <span class="mono dat" style="display: inline-flex; align-items: center; gap: 4px"><span style="padding: 2px 6px; border: 1px solid var(--ms-input-border); border-radius: var(--ms-radius-sm); background: var(--ms-input-surface)">390</span>×<span style="padding: 2px 6px; border: 1px solid var(--ms-input-border); border-radius: var(--ms-radius-sm); background: var(--ms-input-surface)">844</span></span>
+                <button class="pill">DPR 3<svg class="ic" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg></button>
+                <button class="pill">75%<svg class="ic" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg></button>
+                <button class="ib" aria-label="Rotate" style="width: 26px; height: 26px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.rotate}}"></path></svg></button>
+                <button class="ib" aria-label="Touch input" aria-pressed="true" style="width: 26px; height: 26px; background: var(--ms-selection); color: var(--ms-on-selection)"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.touch}}"></path></svg></button>
+                <span style="width: 1px; height: 18px; background: var(--ms-border)"></span>
+                <button class="pill"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.contrast}}"></path></svg>Light · reduced motion</button>
+                <button class="pill"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.gauge}}"></path></svg>Network: no throttle</button>
+                <span style="width: 1px; height: 18px; background: var(--ms-border)"></span>
+                <button class="btn" style="height: 26px; font-size: 12px; padding: 0 8px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.a11y}}"></path></svg>axe</button>
+                <button class="btn" style="height: 26px; font-size: 12px; padding: 0 8px"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.gauge}}"></path></svg>Lighthouse</button>
+                <button class="ib" aria-label="Screenshot" style="width: 26px; height: 26px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.capture}}"></path></svg></button>
+                <button class="ib" aria-label="Inspect an element" aria-pressed="true" style="width: 26px; height: 26px; background: var(--ms-selection); color: var(--ms-on-selection)"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.inspect}}"></path></svg></button>
+                <button class="ib" aria-label="DevTools" style="width: 26px; height: 26px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.brackets}}"></path></svg></button>
+                <button class="ib" aria-label="Viewport grid" style="width: 26px; height: 26px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.grid}}"></path></svg></button>
+              </div>
+              <div style="flex: 1; min-height: 0; background: var(--ms-surface); display: flex; flex-direction: column; align-items: center; gap: 10px; padding-top: 18px; position: relative">
+                <span class="mono" style="font-size: 12px; color: var(--ms-muted)">Phone · 390 × 844 · DPR 3 · 75%</span>
+                <div style="width: 293px; height: 633px; position: relative; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-xl); overflow: hidden; box-shadow: var(--ms-elevation-raised)">
+                  <div class="ltr" data-ms-theme="light" dir="ltr" style="width: 390px; height: 844px; transform: scale(0.75); transform-origin: 0 0; background: var(--ms-surface); color: var(--ms-text); font-family: var(--ms-font-ui); font-size: 15px; line-height: 1.4">
+                    <div style="height: 56px; display: flex; align-items: center; padding: 0 20px; border-bottom: 1px solid var(--ms-border)"><b style="font-size: 18px">Trailhead</b><span style="flex: 1"></span><span>Cart (3)</span></div>
+                    <div style="padding: 20px; display: flex; flex-direction: column; gap: 16px">
+                      <div style="margin: 0; font-size: 24px; line-height: 32px; font-weight: 600">Your cart</div>
+                      <div>
+                        <div style="height: 52px; display: flex; align-items: center; gap: 12px"><span style="flex: 1">Merino trail socks<br><small style="color: var(--ms-muted)">2 × $14.00</small></span><b>$28.00</b></div>
+                        <div style="height: 52px; display: flex; align-items: center; gap: 12px"><span style="flex: 1">Bandana, olive<br><small style="color: var(--ms-muted)">1 × $9.50</small></span><b>$9.50</b></div>
+                      </div>
+                      <div style="border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 12px; position: relative">
+                        <div style="height: 28px; display: flex; align-items: center"><span style="flex: 1">Subtotal</span>$37.50</div>
+                        <div style="height: 28px; display: flex; align-items: center; outline: 2px solid var(--ms-focus); background: var(--ms-hover)"><span style="flex: 1">Shipping</span>$4.99</div>
+                        <div style="height: 28px; display: flex; align-items: center"><span style="flex: 1">Tax</span>$3.40</div>
+                        <div style="height: 28px; display: flex; align-items: center; font-weight: 600; border-top: 1px solid var(--ms-border)"><span style="flex: 1">Total</span>$45.89</div>
+                      </div>
+                      <div style="height: 20px; color: var(--ms-muted); font-size: 14px">Add $12.50 more for free shipping</div>
+                      <div style="height: 48px; border-radius: var(--ms-radius-md); background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600">Check out</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="ms-pop" style="position: absolute; top: 285px; inset-inline-start: calc(50% - 130px); width: 300px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; font-size: 12px">
+                  <span class="mono dat">dd · 324 × 28</span>
+                  <span style="color: var(--ms-muted)">Source <span class="mono dat" style="color: var(--ms-info)">CartSummary.tsx:18</span></span>
+                  <button class="btn" style="height: 24px; font-size: 12px; align-self: flex-start"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.plus}}"></path></svg>Add element to chat</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{isGrid}}" hint-placeholder-val="{{ false }}">
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--ms-editor-surface)">
+            <div role="tablist" aria-label="Editors" style="height: 36px; flex: none; display: flex; background: var(--ms-surface); border-bottom: 1px solid var(--ms-border)">
+              <button role="tab" aria-selected="false" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; padding-inline: 12px; border: 0; border-inline-end: 1px solid var(--ms-border); background: var(--ms-surface); color: var(--ms-muted)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.files}}"></path></svg><span class="dat">CartSummary.tsx</span></button>
+              <button role="tab" aria-selected="true" style="height: 36px; display: inline-flex; align-items: center; gap: 6px; padding-inline: 12px 8px; border: 0; border-inline-end: 1px solid var(--ms-border); background: var(--ms-editor-surface); color: var(--ms-text); box-shadow: inset 0 2px 0 var(--ms-accent)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.grid}}"></path></svg>Viewports · <span class="dat">localhost:5173/cart</span><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.x}}"></path></svg></button>
+            </div>
+            <div role="toolbar" aria-label="Viewports" style="flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 12px; border-bottom: 1px solid var(--ms-border); background: var(--ms-surface)">
+              <span class="lbl">Viewports</span>
+              <sc-for list="{{vps}}" as="v" hint-placeholder-count="4">
+                <button class="pill" aria-pressed="true"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{v.icon}}"></path></svg>{{v.label}} <span class="mono">{{v.w}}</span></button>
+              </sc-for>
+              <button class="pill"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.plus}}"></path></svg>Add size</button>
+              <span style="flex: 1"></span>
+              <span class="lbl">In step</span>
+              <button class="pill" aria-pressed="true" style="background: var(--ms-selection); color: var(--ms-on-selection); border-color: var(--ms-selection)"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.check}}"></path></svg>Scrolling</button>
+              <button class="pill" aria-pressed="true" style="background: var(--ms-selection); color: var(--ms-on-selection); border-color: var(--ms-selection)"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.check}}"></path></svg>Navigation</button>
+              <button class="pill" aria-pressed="true" style="background: var(--ms-selection); color: var(--ms-on-selection); border-color: var(--ms-selection)"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.check}}"></path></svg>Clicks</button>
+              <button class="pill">Fit<svg class="ic" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg></button>
+              <button class="btn" style="height: 24px; font-size: 12px; padding: 0 8px"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.qr}}"></path></svg>Open on phone</button>
+            </div>
+            <div style="flex: 1; min-height: 0; background: var(--ms-surface); display: grid; grid-template-columns: auto auto auto; justify-content: center; align-content: start; gap: 20px 28px; padding: 22px">
+              <sc-for list="{{vps}}" as="v" hint-placeholder-count="4">
+                <figure style="margin: 0; grid-row: {{v.gr}}; grid-column: {{v.gc}}; display: flex; flex-direction: column; gap: 6px">
+                  <figcaption class="mono" style="font-size: 12px; color: var(--ms-muted)">{{v.label}} · {{v.w}} × {{v.h}} · {{v.pct}}</figcaption>
+                  <div style="width: {{v.bw}}px; height: {{v.bh}}px; overflow: hidden; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-md); box-shadow: var(--ms-elevation-raised)">
+                    <div class="ltr" data-ms-theme="light" dir="ltr" style="width: {{v.w}}px; height: {{v.h}}px; transform: scale({{v.s}}); transform-origin: 0 0; background: var(--ms-surface); color: var(--ms-text); font-family: var(--ms-font-ui); font-size: 15px; line-height: 1.4">
+                      <div style="height: 60px; display: flex; align-items: center; gap: 24px; padding: 0 {{v.pad}}px; border-bottom: 1px solid var(--ms-border)"><b style="font-size: 20px">Trailhead</b><sc-if value="{{v.wide}}" hint-placeholder-val="{{ false }}"><span style="color: var(--ms-muted)">Packs</span><span style="color: var(--ms-muted)">Apparel</span><span style="color: var(--ms-muted)">Camp</span></sc-if><span style="flex: 1"></span><span>Cart (3)</span></div>
+                      <div style="max-width: {{v.max}}px; margin: 0 auto; padding: {{v.pad}}px; display: flex; flex-direction: column; gap: 16px">
+                        <div style="font-size: 26px; line-height: 34px; font-weight: 600">Your cart</div>
+                        <div style="display: flex; flex-direction: {{v.dirn}}; gap: 24px; align-items: flex-start">
+                          <div style="flex: 1; width: 100%">
+                            <div style="height: 56px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--ms-border)"><span style="flex: 1">Merino trail socks<br><small style="color: var(--ms-muted)">2 × $14.00</small></span><b>$28.00</b></div>
+                            <div style="height: 56px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--ms-border)"><span style="flex: 1">Bandana, olive<br><small style="color: var(--ms-muted)">1 × $9.50</small></span><b>$9.50</b></div>
+                          </div>
+                          <div style="width: {{v.sumW}}; flex: none; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-lg); padding: 14px; display: flex; flex-direction: column">
+                            <div style="height: 30px; display: flex; align-items: center"><span style="flex: 1">Subtotal</span>$37.50</div>
+                            <div style="height: 30px; display: flex; align-items: center"><span style="flex: 1">Shipping</span>$4.99</div>
+                            <div style="height: 30px; display: flex; align-items: center"><span style="flex: 1">Tax</span>$3.40</div>
+                            <div style="height: 34px; display: flex; align-items: center; font-weight: 600; border-top: 1px solid var(--ms-border)"><span style="flex: 1">Total</span>$45.89</div>
+                            <div style="height: 22px; color: var(--ms-muted); font-size: 14px">Add $12.50 more for free shipping</div>
+                            <div style="height: 46px; margin-top: 10px; border-radius: var(--ms-radius-md); background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-weight: 600; outline: 3px solid var(--ms-focus); outline-offset: 2px">Check out</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </figure>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{showTerm}}" hint-placeholder-val="{{ true }}">
+          <section aria-label="Panel" style="height: {{termH}}px; flex: none; display: flex; flex-direction: column; background: var(--ms-surface); border-top: 1px solid var(--ms-border)">
+            <div style="height: 34px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 8px">
+              <div role="tablist" aria-label="Panel views" style="display: flex; gap: 2px">
+                <sc-for list="{{panelTabs}}" as="p" hint-placeholder-count="4">
+                  <button role="tab" aria-selected="{{p.sel}}" style="height: 30px; padding: 0 8px; border: 0; background: transparent; color: {{p.fg}}; box-shadow: {{p.sh}}; font-size: var(--ms-font-small); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; display: inline-flex; align-items: center; gap: 6px">{{p.t}}<span class="badge" style="opacity: {{p.bo}}">{{p.b}}</span></button>
+                </sc-for>
+              </div>
+              <span style="flex: 1"></span>
+              <div role="tablist" aria-label="Terminals" style="display: flex; gap: 4px">
+                <button role="tab" aria-selected="false" class="sb" style="border: 1px solid var(--ms-border)"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.terminal}}"></path></svg><span class="dat">zsh</span></button>
+                <div style="display: inline-flex; align-items: center; border-radius: var(--ms-radius-sm); background: var(--ms-selection); color: var(--ms-on-selection)">
+                  <button role="tab" aria-selected="true" class="sb" style="color: var(--ms-on-selection)"><svg class="ic" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg><span class="dat">web-eng · vitest</span> · read-only</button>
+                  <button class="sb" aria-label="Stop web-eng's command" style="color: var(--ms-on-selection); padding: 0 6px"><svg class="ic" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.stop}}"></path></svg>Stop</button>
+                </div>
+              </div>
+              <button class="ib" aria-label="New terminal"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.plus}}"></path></svg></button>
+              <button class="ib" aria-label="Split terminal"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.split}}"></path></svg></button>
+              <button class="ib" aria-label="Pinned to the dock" aria-pressed="true"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.pin}}"></path></svg></button>
+              <button class="ib" aria-label="Detach into a window"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.window}}"></path></svg></button>
+              <button class="ib" aria-label="Collapse into the footer"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg></button>
+              <button class="ib" aria-label="Hide the panel"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.x}}"></path></svg></button>
+            </div>
+            <div class="mono ltr" dir="ltr" role="log" aria-label="web-eng's terminal output" style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 0 16px 8px; font-size: var(--ms-code-size); line-height: 1.45; white-space: pre">
+              <sc-for list="{{term}}" as="t" hint-placeholder-count="10">
+                <div style="color: {{t.c}}; font-weight: {{t.w}}; min-height: 18.85px">{{t.t}}</div>
+              </sc-for>
+            </div>
+          </section>
+        </sc-if>
+        <div role="tablist" aria-label="Collapsed panels" style="height: 28px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 8px; border-top: 1px solid var(--ms-border); background: var(--ms-surface)">
+          <sc-for list="{{foot}}" as="f" hint-placeholder-count="2">
+            <button role="tab" aria-selected="false" class="sb" style="border: 1px solid var(--ms-border); height: 20px"><svg class="ic" width="11" height="11" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevU}}"></path></svg>{{f.t}} <span class="dat mono" style="color: var(--ms-muted)">{{f.d}}</span><span style="width: 6px; height: 6px; border-radius: 50%; background: {{f.dot}}"></span></button>
+          </sc-for>
+        </div>
+      </div>
+
+      <!-- Right: sidebar panel, then the icon rail -->
+      <sc-if value="{{showSide}}" hint-placeholder-val="{{ true }}">
+        <section aria-label="Explorer" style="width: {{sideW}}px; flex: none; display: flex; flex-direction: column; background: var(--ms-surface); border-inline-start: 1px solid var(--ms-border); min-height: 0">
+          <div style="height: 36px; flex: none; display: flex; align-items: center; gap: 2px; padding-inline: 12px 6px">
+            <span class="lbl" style="flex: 1">Explorer</span>
+            <button class="ib" aria-label="New file"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.files}}"></path></svg></button>
+            <button class="ib" aria-label="New folder"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.folder}}"></path></svg></button>
+            <button class="ib" aria-label="Refresh"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.refresh}}"></path></svg></button>
+          </div>
+          <div style="height: 24px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 8px; font-size: var(--ms-font-small); font-weight: 600; text-transform: uppercase; letter-spacing: .04em"><svg class="ic" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevD}}"></path></svg><span class="dat">trailhead</span></div>
+          <div role="tree" aria-label="Files" style="display: flex; flex-direction: column">
+            <sc-for list="{{tree}}" as="f" hint-placeholder-count="14">
+              <button role="treeitem" aria-selected="{{f.sel}}" style="height: 24px; display: flex; align-items: center; gap: 6px; padding-inline: {{f.pad}}px 12px; border: 0; background: {{f.bg}}; color: {{f.fg}}; outline: {{f.ol}}; outline-offset: -1px; text-align: start; width: 100%">
+                <svg class="ic {{f.flip}}" width="13" height="13" viewBox="0 0 24 24" aria-hidden="true" style="color: {{f.ic}}"><path d="{{f.icon}}"></path></svg>
+                <span class="dat" style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{f.name}}</span>
+                <span class="mono" style="font-size: var(--ms-font-small); font-weight: 600; color: {{f.gc}}">{{f.git}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <span style="flex: 1"></span>
+          <sc-for list="{{sections}}" as="s" hint-placeholder-count="3">
+            <button aria-expanded="false" style="height: 26px; flex: none; display: flex; align-items: center; gap: 4px; padding-inline: 8px; border: 0; border-top: 1px solid var(--ms-border); background: transparent; font-size: var(--ms-font-small); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; text-align: start"><svg class="ic flipx" width="12" height="12" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.chevR}}"></path></svg>{{s}}</button>
+          </sc-for>
+        </section>
+      </sc-if>
+      <nav aria-label="Sidebar rail" style="width: 48px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding-block: 6px; background: var(--ms-surface); border-inline-start: 1px solid var(--ms-border)">
+        <div role="tablist" aria-label="Workspace page, 1 of 2" aria-orientation="vertical" style="display: flex; flex-direction: column; gap: 2px">
+          <sc-for list="{{rail}}" as="r" hint-placeholder-count="9">
+            <button role="tab" aria-selected="{{r.sel}}" aria-label="{{r.aria}}" title="{{r.aria}}" style="position: relative; width: 44px; height: 40px; border: 0; border-radius: var(--ms-radius-md); background: {{r.bg}}; color: {{r.fg}}; display: grid; place-items: center">
+              <svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+              <span class="kc" style="position: absolute; inset-block-end: 2px; inset-inline-end: 2px">{{r.k}}</span>
+              <span class="badge" style="position: absolute; top: 2px; inset-inline-start: 3px; opacity: {{r.bo}}">{{r.b}}</span>
+              <span style="position: absolute; inset-inline-end: -3px; top: 9px; bottom: 9px; width: 2px; border-radius: 2px; background: var(--ms-accent); opacity: {{r.selO}}"></span>
+            </button>
+          </sc-for>
+        </div>
+        <span style="width: 28px; height: 1px; background: var(--ms-border); margin-block: 4px"></span>
+        <div role="group" aria-label="Pinned apps" style="display: flex; flex-direction: column; gap: 2px">
+          <sc-for list="{{pins}}" as="r" hint-placeholder-count="3">
+            <button aria-label="{{r.aria}}" title="{{r.aria}}" style="position: relative; width: 44px; height: 40px; border: 0; border-radius: var(--ms-radius-md); background: transparent; color: var(--ms-text); display: grid; place-items: center">
+              <svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"></path></svg>
+              <span class="kc" style="position: absolute; inset-block-end: 2px; inset-inline-end: 1px">{{r.k}}</span>
+              <span class="mono" style="position: absolute; top: 1px; inset-inline-end: 4px; font-size: 10px; font-weight: 600; color: var(--ms-muted)">{{r.desk}}</span>
+              <span style="position: absolute; inset-inline-start: 5px; bottom: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--ms-text); opacity: {{r.runO}}"></span>
+            </button>
+          </sc-for>
+        </div>
+        <span style="flex: 1"></span>
+        <button aria-label="Flip to the Toolbox page (Ctrl+Alt+PageDown)" style="width: 40px; height: 30px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-md); background: var(--ms-raised); color: var(--ms-text); display: grid; place-items: center"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.flip}}"></path></svg></button>
+        <div aria-hidden="true" style="display: flex; gap: 4px; padding-block: 6px"><span style="width: 6px; height: 6px; border-radius: 50%; background: var(--ms-text)"></span><span style="width: 6px; height: 6px; border-radius: 50%; border: 1px solid var(--ms-text)"></span></div>
+        <button aria-label="Settings" title="Settings (Ctrl+,)" style="width: 44px; height: 38px; border: 0; border-radius: var(--ms-radius-md); background: transparent; color: var(--ms-text); display: grid; place-items: center"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.gear}}"></path></svg></button>
+        <button aria-label="Help" title="Help (F1)" style="width: 44px; height: 38px; border: 0; border-radius: var(--ms-radius-md); background: transparent; color: var(--ms-text); display: grid; place-items: center"><svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.help}}"></path></svg></button>
+      </nav>
+    </div>
+
+    <!-- Status bar: the shell's full-width layer surface, items published by the workbench -->
+    <div class="ms-bar" role="contentinfo" style="height: 24px; flex: none; display: flex; align-items: center; gap: 1px; padding-inline: 6px; border-top: 1px solid var(--ms-border)">
+      <sc-for list="{{statusL}}" as="s" hint-placeholder-count="5">
+        <button class="sb" aria-label="{{s.a}}" style="color: {{s.c}}"><svg class="ic" width="{{s.iw}}" height="13" viewBox="0 0 24 24" aria-hidden="true" style="opacity: {{s.io}}"><path d="{{s.icon}}"></path></svg><span class="{{s.cls}}">{{s.t}}</span></button>
+      </sc-for>
+      <span style="flex: 1"></span>
+      <sc-for list="{{statusR}}" as="s" hint-placeholder-count="6">
+        <button class="sb" aria-label="{{s.a}}" style="color: {{s.c}}"><svg class="ic" width="{{s.iw}}" height="13" viewBox="0 0 24 24" aria-hidden="true" style="opacity: {{s.io}}"><path d="{{s.icon}}"></path></svg><span class="{{s.cls}}">{{s.t}}</span></button>
+      </sc-for>
+    </div>
+  </div>
+
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="{{cols}}" title="Tokens on this sheet" hint-size="100%,{{legendH}}px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"size":{"editor":"enum","options":["1920","1280"],"default":"1920"},"center":{"editor":"enum","options":["editor","preview","grid"],"default":"editor"},"rtl":{"editor":"boolean","default":false},"num":{"editor":null},"label":{"editor":null},"prev":{"editor":null},"next":{"editor":null},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const big = String(this.props.size ?? '1920') !== '1280';
+    const center = this.props.center ?? 'editor';
+    const rtl = !!this.props.rtl;
+    const hc = theme.indexOf('hc') === 0;
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      files: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5',
+      search: c(11, 11, 7) + ' M20 20l-4-4',
+      git: 'M6 3v12 ' + c(18, 6, 3) + ' ' + c(6, 18, 3) + ' M18 9a9 9 0 0 1-9 9',
+      conn: c(5, 12, 2.5) + ' ' + c(19, 5, 2.5) + ' ' + c(19, 19, 2.5) + ' M7.3 11l9.4-4.8 M7.3 13l9.4 4.8',
+      team: c(9, 7, 4) + ' M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1 M16 3.3a4 4 0 0 1 0 7.4 M22 21v-1a6 6 0 0 0-4-5.6',
+      usage: 'M3 21h18 M6 17v-6 M11 17V5 M16 17v-9',
+      key: c(7, 12, 4) + ' M11 12h10 M17 12v3 M20 12v2',
+      chip: 'M7 7h10v10H7z M10 3v4 M14 3v4 M10 17v4 M14 17v4 M3 10h4 M3 14h4 M17 10h4 M17 14h4',
+      ext: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M16.5 13v7 M13 16.5h7',
+      gear: 'M4 6h9 M17 6h3 M15 4v4 M4 12h3 M11 12h9 M9 10v4 M4 18h11 M19 18h1 M17 16v4',
+      help: c(12, 12, 9) + ' M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14 M12 17.5v.01',
+      globe: c(12, 12, 9) + ' M3 12h18 M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9',
+      monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
+      brackets: 'M8 7l-5 5 5 5 M16 7l5 5-5 5 M14 4l-4 16',
+      terminal: 'M4 5h16v14H4z M7.5 9.5l3 2.5-3 2.5 M12.5 15h4',
+      wifi: 'M2 8.5a15 15 0 0 1 20 0 M5 12a10 10 0 0 1 14 0 M8.5 15.5a5 5 0 0 1 7 0 M12 19h.01',
+      bt: 'M7 7l10 10-5 4V3l5 4L7 17',
+      sound: 'M4 9h4l5-4v14l-5-4H4z M16.5 8.5a5 5 0 0 1 0 7 M19 6a8.5 8.5 0 0 1 0 12',
+      battery: 'M3 7h16v10H3z M22 10v4 M6 10v4 M9 10v4 M12 10v4',
+      bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 21h4',
+      node: 'M4 4h16v6H4z M4 14h16v6H4z M8 7h.01 M8 17h.01',
+      bot: 'M5 8h14v11H5z M12 4v4 M9.5 13h.01 M14.5 13h.01 M2 12v3 M22 12v3',
+      chevD: 'M6 9l6 6 6-6', chevR: 'M9 6l6 6-6 6', chevU: 'M6 15l6-6 6 6',
+      x: 'M6 6l12 12 M18 6L6 18', plus: 'M12 5v14 M5 12h14',
+      pin: 'M9 3h6l-1 6 4 4H6l4-4z M12 13v8',
+      history: c(12, 12, 9) + ' M12 7v5l3 2',
+      more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+      send: 'M12 19V5 M6 11l6-6 6 6',
+      clip: 'M20 11l-8.5 8.5a5 5 0 0 1-7-7L13 4a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-3L14 7',
+      split: 'M3 4h18v16H3z M12 4v16',
+      refresh: 'M20 11a8 8 0 0 0-14.6-4.5L4 8 M4 4v4h4 M4 13a8 8 0 0 0 14.6 4.5L20 16 M20 20v-4h-4',
+      arrowL: 'M19 12H5 M11 6l-6 6 6 6', arrowR: 'M5 12h14 M13 6l6 6-6 6',
+      extLink: 'M14 4h6v6 M20 4l-9 9 M18 14v6H4V6h6',
+      phone: 'M7 2h10v20H7z M11 18h2', tablet: 'M5 3h14v18H5z M11 18h2', laptop: 'M4 5h16v11H4z M2 19h20',
+      rotate: 'M3 12a9 9 0 0 1 15.5-6.2L21 8 M21 3v5h-5',
+      inspect: 'M4 4h7 M4 4v7 M20 11V4h-7 M4 20h7 M13 13l7 3-3 1-1 3z',
+      capture: 'M4 8V5h3 M17 5h3v3 M20 16v3h-3 M7 19H4v-3 ' + c(12, 12, 3),
+      a11y: c(12, 4.5, 1.5) + ' M5 8l7 1 7-1 M12 9v5 M9 21l3-7 3 7',
+      gauge: 'M4 18a8 8 0 1 1 16 0 M12 18l4-6',
+      check: 'M5 12l5 5 9-10', warn: 'M12 3l10 18H2z M12 10v4 M12 17.5v.01',
+      xcircle: c(12, 12, 9) + ' M9 9l6 6 M15 9l-6 6',
+      flip: 'M4 7h13l-3-3 M20 17H7l3 3',
+      panel: 'M3 4h18v16H3z M3 15h18', sidebar: 'M3 4h18v16H3z M15 4v16',
+      folder: 'M3 6h6l2 2h10v11H3z', stop: 'M6 6h12v12H6z',
+      grid: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
+      touch: 'M9 11V5a2 2 0 0 1 4 0v6 M13 10a2 2 0 0 1 4 0v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-5-3l-2-3a1.5 1.5 0 0 1 2.5-1.5L7 14',
+      pencil: 'M4 20h4L19 9l-4-4L4 16z M14 6l4 4', window: 'M8 4h12v12 M4 8h12v12H4z',
+      contrast: c(12, 12, 9) + ' M12 3v18', qr: 'M4 4h6v6H4z M14 4h6v6h-6z M4 14h6v6H4z M14 14h2v2h-2z M18 18h2v2h-2z M14 20h2 M20 14v2',
+      dot: 'M12 12h.01'
+    };
+    const W = big ? 1920 : 1280;
+    const H = big ? 1080 : 800;
+    const chatW = big ? 400 : 340;
+    const isEditor = center === 'editor';
+    const showSide = center !== 'grid';
+    const sideW = big ? 280 : 232;
+    const legendH = big ? 360 : 428;
+
+    const sel = (on) => on;
+    const desks = [
+      { n: '1', icon: I.monitor, aria: 'Desktop 1: Workbench, current', on: true, agent: '' },
+      { n: '2', icon: I.globe, aria: 'Desktop 2: Chrome', on: false, agent: '' },
+      { n: '3', icon: I.globe, aria: 'Desktop 3: opened by web-eng, Chrome for Testing', on: false, agent: 'web-eng' }
+    ].map((d) => ({ ...d, sel: d.on ? 'true' : 'false', bg: d.on ? 'var(--ms-selection)' : 'transparent', fg: d.on ? 'var(--ms-on-selection)' : 'var(--ms-text)', bd: d.on ? 'var(--ms-selection)' : 'var(--ms-border)' }));
+
+    const st = {
+      running: { dot: 'var(--ms-info)', ring: 'var(--ms-info)', sc: 'var(--ms-info)' },
+      approval: { dot: 'var(--ms-warning)', ring: 'var(--ms-warning)', sc: 'var(--ms-warning)' },
+      queued: { dot: 'transparent', ring: 'var(--ms-muted)', sc: 'var(--ms-muted)' }
+    };
+    const agents = [
+      { name: 'Orchestrator', task: 'Coordinating 3 agents', s: 'running', state: 'running', child: false, pad: 0 },
+      { name: 'web-eng', task: 'Wants to run npm run test', s: 'approval', state: 'approval', child: true, pad: 4 },
+      { name: 'docs-writer', task: 'Updating CHANGELOG.md', s: 'running', state: 'running', child: true, pad: 4 },
+      { name: 'reviewer', task: 'Starts when tests pass', s: 'queued', state: 'queued', child: true, pad: 4 }
+    ].map((a) => ({ ...a, ...st[a.s] }));
+
+    const ok = { icon: I.check, ic: 'var(--ms-success)' };
+    const bad = { icon: I.xcircle, ic: 'var(--ms-danger)' };
+    const tools = [
+      { ...ok, verb: 'Read', path: 'src/lib/pricing.ts', add: '', del: '' },
+      { ...ok, verb: 'Edited', path: 'src/components/CartSummary.tsx', add: '+8', del: '−2' },
+      { ...ok, verb: 'Edited', path: 'src/components/CartSummary.test.tsx', add: '+22', del: '' },
+      { ...bad, verb: 'Ran', path: 'npm run test -- CartSummary', add: '', del: '1 failed' },
+      { ...ok, verb: 'Edited', path: 'src/components/CartSummary.tsx', add: '+1', del: '−1' }
+    ];
+
+    const tab = (name, o) => ({ name, sel: o.sel ? 'true' : 'false', bg: o.sel ? 'var(--ms-editor-surface)' : 'var(--ms-surface)', fg: o.sel ? 'var(--ms-text)' : 'var(--ms-muted)', sh: o.sel ? 'inset 0 2px 0 var(--ms-accent)' : 'none', fs: o.preview ? 'italic' : 'normal', tail: o.pinned ? I.pin : (o.dirty ? c(12, 12, 3.5) : I.x), pinO: o.sel || o.pinned || o.dirty ? '1' : '0' });
+    const tabs = [tab('package.json', { pinned: true }), tab('CartSummary.tsx', { sel: true }), tab('CartSummary.test.tsx', { preview: true })];
+    if (big) tabs.push(tab('pricing.ts', { dirty: true }));
+    const crumbs = ['trailhead', 'src', 'components', 'CartSummary.tsx', 'CartSummary'].map((t, i, a) => ({ t, fg: i === a.length - 1 ? 'var(--ms-text)' : 'var(--ms-muted)', o: i === a.length - 1 ? '0' : '1' }));
+
+    const src = [
+      ['', "import { formatMoney } from '../lib/money';"],
+      ['-', "import { FREE_SHIPPING_FROM } from '../lib/pricing';"],
+      ['+', "import { FREE_SHIPPING_FROM, shippingFor, taxFor } from '../lib/pricing';"],
+      ['', "import type { CartLine } from '../types';"],
+      ['', ''],
+      ['', 'type Props = { lines: CartLine[]; region: string };'],
+      ['', ''],
+      ['', 'export function CartSummary({ lines, region }: Props) {'],
+      ['', '  const subtotal = lines.reduce((sum, l) => sum + l.price * l.qty, 0);'],
+      ['-', '  const total = subtotal;'],
+      ['+', '  const shipping = subtotal >= FREE_SHIPPING_FROM ? 0 : shippingFor(region);'],
+      ['+', '  const tax = taxFor(region, subtotal + shipping);'],
+      ['+', '  const total = subtotal + shipping + tax;'],
+      ['', ''],
+      ['', '  return ('],
+      ['', '    <dl className="cart-summary">'],
+      ['', '      <dt>Subtotal</dt>'],
+      ['', '      <dd>{formatMoney(subtotal)}</dd>'],
+      ['+', '      <dt>Shipping</dt>'],
+      ['+', "      <dd>{shipping === 0 ? 'Free' : formatMoney(shipping)}</dd>"],
+      ['+', '      <dt>Tax</dt>'],
+      ['+', '      <dd>{formatMoney(tax)}</dd>'],
+      ['', '      <dt className="total">Total</dt>'],
+      ['', '      <dd className="total">{formatMoney(total)}</dd>'],
+      ['', '    </dl>'],
+      ['', '  );'],
+      ['', '}']
+    ];
+    let n = 0;
+    const code = src.map(([k, t]) => {
+      if (k !== '-') n += 1;
+      return { t, n: k === '-' ? '' : String(n), mark: k === '-' ? '−' : k, mc: k === '+' ? 'var(--ms-git-added)' : 'var(--ms-git-deleted)', bg: k === '+' ? 'var(--ms-diff-added)' : (k === '-' ? 'var(--ms-diff-removed)' : 'transparent') };
+    });
+    let m = 0;
+    const codeFinal = src.filter(([k]) => k !== '-').map(([, t]) => { m += 1; return { t, n: String(m), bg: m === 18 ? 'var(--ms-hover)' : 'transparent' }; });
+    const mini = src.map(([k, t]) => ({ w: Math.max(4, Math.min(100, t.length * 1.25)), c: k === '+' ? 'var(--ms-success)' : (k === '-' ? 'var(--ms-danger)' : 'var(--ms-muted)'), o: k ? '0.9' : '0.55' }));
+
+    const T = (t, cc, w) => ({ t, c: cc || 'var(--ms-text)', w: w || '400' });
+    const term = [
+      T(' RUN  v3.2.4  /home/randy/trailhead', 'var(--ms-muted)'),
+      T(' '),
+      T(' ✓ src/lib/pricing.test.ts (6 tests) 14ms', 'var(--ms-success)'),
+      T(' ❯ src/components/CartSummary.test.tsx (5 tests | 1 failed) 41ms'),
+      T('   × charges no shipping from $50.00 exactly', 'var(--ms-danger)', '600'),
+      T("     → expected '$4.99' to be 'Free'", 'var(--ms-muted)'),
+      T(' '),
+      T(' Test Files  1 failed | 1 passed (2)'),
+      T('      Tests  1 failed | 10 passed (11)'),
+      T('   Duration  1.12s', 'var(--ms-muted)')
+    ];
+    const panelTabs = [['Terminal', '', true], ['Problems', '1', false], ['Output', '', false], ['Live peek', '', false]].map(([t, b, s]) => ({ t, b, bo: b ? '1' : '0', sel: s ? 'true' : 'false', fg: s ? 'var(--ms-text)' : 'var(--ms-muted)', sh: s ? 'inset 0 -2px 0 var(--ms-accent)' : 'none' }));
+    const foot = isEditor
+      ? [{ t: 'Output · vite dev', d: ':5173', dot: 'var(--ms-success)' }, { t: 'Terminal · zsh', d: '(2)', dot: 'transparent' }]
+      : [{ t: 'Terminal · web-eng · vitest', d: '', dot: 'var(--ms-info)' }, { t: 'Output · vite dev', d: ':5173', dot: 'var(--ms-success)' }, { t: 'Problems', d: '1', dot: 'transparent' }];
+
+    const hoverOl = hc ? '1px dashed var(--ms-contrast-border)' : 'none';
+    const F = (d, name, o) => {
+      const s = o.sel; const h = o.hover;
+      return {
+        name, pad: 8 + d * 14,
+        icon: o.folder ? (o.open ? I.chevD : I.chevR) : I.files,
+        flip: o.folder && !o.open ? 'flipx' : '',
+        sel: s ? 'true' : 'false',
+        bg: s ? 'var(--ms-selection)' : (h ? 'var(--ms-hover)' : 'transparent'),
+        fg: s ? 'var(--ms-on-selection)' : 'var(--ms-text)',
+        ic: s ? 'var(--ms-on-selection)' : 'var(--ms-muted)',
+        ol: h ? hoverOl : 'none',
+        git: o.git || '', gc: s ? 'var(--ms-on-selection)' : 'var(--ms-warning)'
+      };
+    };
+    const tree = [
+      F(0, 'src', { folder: true, open: true }), F(1, 'components', { folder: true, open: true }),
+      F(2, 'CartSummary.tsx', { sel: true, git: 'M' }), F(2, 'CartSummary.test.tsx', { git: 'M' }), F(2, 'ProductCard.tsx', { hover: true }),
+      F(1, 'lib', { folder: true, open: true }), F(2, 'money.ts', {}), F(2, 'pricing.ts', {}), F(2, 'pricing.test.ts', {}),
+      F(1, 'main.tsx', {}), F(1, 'types.ts', {}), F(0, 'public', { folder: true, open: false }),
+      F(0, 'CHANGELOG.md', { git: 'M' }), F(0, 'index.html', {}), F(0, 'package.json', {}), F(0, 'vite.config.ts', {})
+    ];
+    const R = (k, label, icon, o) => ({ k, icon, aria: label + ', Ctrl+Alt+' + k, sel: o.sel ? 'true' : 'false', bg: o.sel ? 'var(--ms-hover)' : 'transparent', fg: o.sel ? 'var(--ms-text)' : 'var(--ms-muted)', selO: o.sel ? '1' : '0', b: o.b || '', bo: o.b ? '1' : '0' });
+    const rail = [
+      R('1', 'Explorer', I.files, { sel: showSide }), R('2', 'Search', I.search, {}), R('3', 'Git', I.git, { b: '4' }),
+      R('4', 'Connections', I.conn, {}), R('5', 'Roles and team', I.team, {}), R('6', 'Usage', I.usage, {}),
+      R('7', 'Accounts and vault', I.key, {}), R('8', 'Makers and devices', I.chip, {}), R('9', 'Extensions and MCP', I.ext, {})
+    ];
+    const pins = [
+      { k: 'P1', icon: I.globe, desk: '2', runO: '1', aria: 'Chrome, running on desktop 2, Ctrl+Alt+Shift+1' },
+      { k: 'P2', icon: I.monitor, desk: '1', runO: center === 'editor' ? '0' : '1', aria: 'Preview, Ctrl+Alt+Shift+2' },
+      { k: 'P3', icon: I.brackets, desk: '', runO: '0', aria: 'DevTools, Ctrl+Alt+Shift+3' }
+    ];
+    const S = (t, icon, a, o) => ({ t, icon: icon || I.dot, a: a || t, io: icon ? '1' : '0', iw: icon ? 13 : 0, c: (o && o.c) || 'var(--ms-text)', cls: (o && o.dat) ? 'dat' : '' });
+    const statusL = [
+      S('feat/cart-summary', I.git, 'Branch feat/cart-summary', { dat: true }),
+      S('1↓ 2↑', I.refresh, 'Sync: 1 to pull, 2 to push', { dat: true }),
+      S('0', I.xcircle, 'No errors'),
+      S('1', I.warn, '1 warning'),
+      S('1 approval waiting', I.bot, '1 approval waiting, web-eng', { c: 'var(--ms-warning)' })
+    ];
+    const statusR = [S('Ln 11, Col 41', null, 'Line 11, column 41', { dat: true })];
+    if (big) { statusR.push(S('Spaces: 2')); statusR.push(S('UTF-8')); }
+    statusR.push(S('TypeScript JSX'));
+    statusR.push(S('muse-spark-1.3-contributor', I.bot, 'Model', { dat: true }));
+    statusR.push(S('41k tokens today', I.usage, 'Usage today'));
+    statusR.push(S('', I.panel, 'Toggle the panel'));
+    statusR.push(S('', I.sidebar, 'Toggle the sidebar'));
+
+    const vps = [
+      { label: 'Phone', icon: I.phone, w: 390, h: 844, s: 0.5, gr: '1 / span 2', gc: '1', wide: false, pad: 20, max: 560, dirn: 'column', sumW: '100%' },
+      { label: 'Tablet', icon: I.tablet, w: 820, h: 1180, s: 0.5, gr: '1 / span 2', gc: '2', wide: false, pad: 32, max: 620, dirn: 'column', sumW: '100%' },
+      { label: 'Laptop', icon: I.laptop, w: 1280, h: 800, s: 0.36, gr: '1', gc: '3', wide: true, pad: 40, max: 1120, dirn: 'row', sumW: '360px' },
+      { label: 'Desktop', icon: I.monitor, w: 1920, h: 1080, s: 0.3, gr: '2', gc: '3', wide: true, pad: 48, max: 1200, dirn: 'row', sumW: '380px' }
+    ].map((v) => ({ ...v, bw: Math.round(v.w * v.s), bh: Math.round(v.h * v.s), pct: Math.round(v.s * 100) + '%' }));
+
+    const base = ['surface', 'raised', 'editor-surface', 'border', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'focus', 'selection', 'on-selection', 'hover', 'success', 'warning', 'danger', 'info', 'badge', 'on-badge'];
+    let legend;
+    if (center === 'editor') {
+      legend = base.concat(['diff-added', 'diff-removed', 'git-added', 'git-deleted', 'syntax-keyword', 'input-surface', 'input-border', 'elevation-raised', 'overlay-alpha', 'backdrop-blur', 'radius-xs', 'radius-md', 'radius-lg', 'radius-pill', 'font-ui', 'font-code', 'font-small', 'focus-width', 'bar-height', 'status-height', 'rail-width']);
+      if (hc) legend.splice(legend.indexOf('overlay-alpha'), 0, 'contrast-border');
+    } else {
+      legend = base.concat(['disabled', 'input-surface', 'input-border', 'elevation-raised', 'elevation-popover', 'popover-alpha', 'backdrop-blur', 'radius-sm', 'radius-md', 'radius-lg', 'radius-xl', 'radius-pill', 'font-ui', 'font-code', 'font-small', 'chip-height', 'button-height', 'focus-width', 'bar-height', 'status-height', 'rail-width']);
+    }
+
+    return {
+      theme, themeName: names[theme] ?? theme, W, H, chatW, sideW, legendH, cols: big ? 4 : 3,
+      sheetH: 72 + H + legendH,
+      num: this.props.num ?? 'W', name: this.props.label ?? 'Workbench component',
+      prev: this.props.prev ?? 'Main.dc.html', next: this.props.next ?? 'Main.dc.html',
+      extra: rtl ? ' · dir="rtl" · pseudo-RTL strings' : '',
+      dir: rtl ? 'rtl' : 'ltr', rtlClass: rtl ? 'psrtl' : '',
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      I, desks, agents, tools, tabs, crumbs, code, codeFinal, mini, miniW: big ? 64 : 48,
+      term, termH: big ? 240 : 176, panelTabs, foot, tree, rail, pins,
+      sections: ['Open editors', 'Outline', 'Timeline'],
+      statusL, statusR, vps, legend,
+      modelShort: big ? 'muse-spark-1.3-contributor' : 'spark-1.3-contributor',
+      isEditor, isPreview: center === 'preview', isGrid: center === 'grid', showSide, showTerm: isEditor
+    };
+  }
+}
+</script>
+</body>
+</html>

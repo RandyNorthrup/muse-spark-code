@@ -374,26 +374,26 @@
       },
       "colour.syntax-function": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.145098, 0.160784, 0.196078], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.035294, 0.356863, 0.745098], "alpha": 1 },
+        "css": "#095bbe",
         "variable": "--ms-syntax-function"
       },
       "colour.syntax-keyword": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.145098, 0.160784, 0.196078], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.486275, 0.227451, 0.929412], "alpha": 1 },
+        "css": "#7c3aed",
         "variable": "--ms-syntax-keyword"
       },
       "colour.syntax-number": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.145098, 0.160784, 0.196078], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.603922, 0.203922, 0.070588], "alpha": 1 },
+        "css": "#9a3412",
         "variable": "--ms-syntax-number"
       },
       "colour.syntax-string": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.145098, 0.160784, 0.196078], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.090196, 0.419608, 0.168627], "alpha": 1 },
+        "css": "#176b2b",
         "variable": "--ms-syntax-string"
       },
       "colour.list-warning": {
@@ -443,6 +443,24 @@
         },
         "css": "#ba6800",
         "variable": "--ms-usage-orange"
+      },
+      "colour.divider": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.72549, 0.745098, 0.780392], "alpha": 1 },
+        "css": "#b9bec7",
+        "variable": "--ms-divider"
+      },
+      "colour.on-warning": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
+        "variable": "--ms-on-warning"
+      },
+      "colour.git-modified": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.45098, 0.333333, 0], "alpha": 1 },
+        "css": "var(--ms-warning)",
+        "variable": "--ms-git-modified"
       },
       "radius.xs": {
         "type": "dimension",
@@ -587,6 +605,12 @@
         "value": [0.8, 0, 0.2, 1],
         "css": "cubic-bezier(0.8, 0, 0.2, 1)",
         "variable": "--ms-ease-emphasised"
+      },
+      "motion.flip": {
+        "type": "duration",
+        "value": { "value": 280, "unit": "ms" },
+        "css": "280ms",
+        "variable": "--ms-motion-flip"
       },
       "spacing.0": {
         "type": "dimension",
@@ -767,6 +791,36 @@
         "value": { "value": 0, "unit": "px" },
         "css": "calc(var(--ms-column-inset) + var(--ms-gap))",
         "variable": "--ms-column-gutter"
+      },
+      "layout.bar-height": {
+        "type": "dimension",
+        "value": { "value": 32, "unit": "px" },
+        "css": "32px",
+        "variable": "--ms-bar-height"
+      },
+      "layout.status-height": {
+        "type": "dimension",
+        "value": { "value": 24, "unit": "px" },
+        "css": "24px",
+        "variable": "--ms-status-height"
+      },
+      "layout.rail-width": {
+        "type": "dimension",
+        "value": { "value": 48, "unit": "px" },
+        "css": "48px",
+        "variable": "--ms-rail-width"
+      },
+      "layout.rail-button-size": {
+        "type": "dimension",
+        "value": { "value": 44, "unit": "px" },
+        "css": "44px",
+        "variable": "--ms-rail-button-size"
+      },
+      "layout.rail-icon-size": {
+        "type": "dimension",
+        "value": { "value": 20, "unit": "px" },
+        "css": "20px",
+        "variable": "--ms-rail-icon-size"
       },
       "aliases.gap": {
         "type": "dimension",
@@ -1178,26 +1232,26 @@
       },
       "colour.syntax-function": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.894118, 0.905882, 0.929412], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.509804, 0.666667, 1], "alpha": 1 },
+        "css": "#82aaff",
         "variable": "--ms-syntax-function"
       },
       "colour.syntax-keyword": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.894118, 0.905882, 0.929412], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.780392, 0.572549, 0.917647], "alpha": 1 },
+        "css": "#c792ea",
         "variable": "--ms-syntax-keyword"
       },
       "colour.syntax-number": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.894118, 0.905882, 0.929412], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.968627, 0.54902, 0.423529], "alpha": 1 },
+        "css": "#f78c6c",
         "variable": "--ms-syntax-number"
       },
       "colour.syntax-string": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0.894118, 0.905882, 0.929412], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.764706, 0.909804, 0.552941], "alpha": 1 },
+        "css": "#c3e88d",
         "variable": "--ms-syntax-string"
       },
       "colour.list-warning": {
@@ -1247,6 +1301,24 @@
         },
         "css": "#d18616",
         "variable": "--ms-usage-orange"
+      },
+      "colour.divider": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.290196, 0.313725, 0.345098], "alpha": 1 },
+        "css": "#4a5058",
+        "variable": "--ms-divider"
+      },
+      "colour.on-warning": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
+        "variable": "--ms-on-warning"
+      },
+      "colour.git-modified": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.898039, 0.764706, 0.294118], "alpha": 1 },
+        "css": "var(--ms-warning)",
+        "variable": "--ms-git-modified"
       },
       "radius.xs": {
         "type": "dimension",
@@ -1391,6 +1463,12 @@
         "value": [0.8, 0, 0.2, 1],
         "css": "cubic-bezier(0.8, 0, 0.2, 1)",
         "variable": "--ms-ease-emphasised"
+      },
+      "motion.flip": {
+        "type": "duration",
+        "value": { "value": 280, "unit": "ms" },
+        "css": "280ms",
+        "variable": "--ms-motion-flip"
       },
       "spacing.0": {
         "type": "dimension",
@@ -1571,6 +1649,36 @@
         "value": { "value": 0, "unit": "px" },
         "css": "calc(var(--ms-column-inset) + var(--ms-gap))",
         "variable": "--ms-column-gutter"
+      },
+      "layout.bar-height": {
+        "type": "dimension",
+        "value": { "value": 32, "unit": "px" },
+        "css": "32px",
+        "variable": "--ms-bar-height"
+      },
+      "layout.status-height": {
+        "type": "dimension",
+        "value": { "value": 24, "unit": "px" },
+        "css": "24px",
+        "variable": "--ms-status-height"
+      },
+      "layout.rail-width": {
+        "type": "dimension",
+        "value": { "value": 48, "unit": "px" },
+        "css": "48px",
+        "variable": "--ms-rail-width"
+      },
+      "layout.rail-button-size": {
+        "type": "dimension",
+        "value": { "value": 44, "unit": "px" },
+        "css": "44px",
+        "variable": "--ms-rail-button-size"
+      },
+      "layout.rail-icon-size": {
+        "type": "dimension",
+        "value": { "value": 20, "unit": "px" },
+        "css": "20px",
+        "variable": "--ms-rail-icon-size"
       },
       "aliases.gap": {
         "type": "dimension",
@@ -1962,26 +2070,26 @@
       },
       "colour.syntax-function": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.113725, 0.305882, 0.847059], "alpha": 1 },
+        "css": "#1d4ed8",
         "variable": "--ms-syntax-function"
       },
       "colour.syntax-keyword": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.356863, 0.129412, 0.713725], "alpha": 1 },
+        "css": "#5b21b6",
         "variable": "--ms-syntax-keyword"
       },
       "colour.syntax-number": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.603922, 0.203922, 0.070588], "alpha": 1 },
+        "css": "#9a3412",
         "variable": "--ms-syntax-number"
       },
       "colour.syntax-string": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.078431, 0.32549, 0.176471], "alpha": 1 },
+        "css": "#14532d",
         "variable": "--ms-syntax-string"
       },
       "colour.list-warning": {
@@ -2023,6 +2131,24 @@
         "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
         "css": "var(--ms-text)",
         "variable": "--ms-usage-orange"
+      },
+      "colour.divider": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.541176, 0.541176, 0.541176], "alpha": 1 },
+        "css": "#8a8a8a",
+        "variable": "--ms-divider"
+      },
+      "colour.on-warning": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
+        "css": "#ffffff",
+        "variable": "--ms-on-warning"
+      },
+      "colour.git-modified": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.45098, 0.333333, 0], "alpha": 1 },
+        "css": "var(--ms-warning)",
+        "variable": "--ms-git-modified"
       },
       "radius.xs": {
         "type": "dimension",
@@ -2143,6 +2269,12 @@
         "value": [0.8, 0, 0.2, 1],
         "css": "cubic-bezier(0.8, 0, 0.2, 1)",
         "variable": "--ms-ease-emphasised"
+      },
+      "motion.flip": {
+        "type": "duration",
+        "value": { "value": 280, "unit": "ms" },
+        "css": "280ms",
+        "variable": "--ms-motion-flip"
       },
       "spacing.0": {
         "type": "dimension",
@@ -2323,6 +2455,36 @@
         "value": { "value": 0, "unit": "px" },
         "css": "calc(var(--ms-column-inset) + var(--ms-gap))",
         "variable": "--ms-column-gutter"
+      },
+      "layout.bar-height": {
+        "type": "dimension",
+        "value": { "value": 32, "unit": "px" },
+        "css": "32px",
+        "variable": "--ms-bar-height"
+      },
+      "layout.status-height": {
+        "type": "dimension",
+        "value": { "value": 24, "unit": "px" },
+        "css": "24px",
+        "variable": "--ms-status-height"
+      },
+      "layout.rail-width": {
+        "type": "dimension",
+        "value": { "value": 48, "unit": "px" },
+        "css": "48px",
+        "variable": "--ms-rail-width"
+      },
+      "layout.rail-button-size": {
+        "type": "dimension",
+        "value": { "value": 44, "unit": "px" },
+        "css": "44px",
+        "variable": "--ms-rail-button-size"
+      },
+      "layout.rail-icon-size": {
+        "type": "dimension",
+        "value": { "value": 20, "unit": "px" },
+        "css": "20px",
+        "variable": "--ms-rail-icon-size"
       },
       "aliases.gap": {
         "type": "dimension",
@@ -2714,26 +2876,26 @@
       },
       "colour.syntax-function": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [1, 0.701961, 0.701961], "alpha": 1 },
+        "css": "#ffb3b3",
         "variable": "--ms-syntax-function"
       },
       "colour.syntax-keyword": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.498039, 1, 1], "alpha": 1 },
+        "css": "#7fffff",
         "variable": "--ms-syntax-keyword"
       },
       "colour.syntax-number": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 0], "alpha": 1 },
+        "css": "#ffff00",
         "variable": "--ms-syntax-number"
       },
       "colour.syntax-string": {
         "type": "color",
-        "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
-        "css": "var(--ms-text)",
+        "value": { "colorSpace": "srgb", "components": [0.498039, 1, 0.498039], "alpha": 1 },
+        "css": "#7fff7f",
         "variable": "--ms-syntax-string"
       },
       "colour.list-warning": {
@@ -2775,6 +2937,24 @@
         "value": { "colorSpace": "srgb", "components": [1, 1, 1], "alpha": 1 },
         "css": "var(--ms-text)",
         "variable": "--ms-usage-orange"
+      },
+      "colour.divider": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0.431373, 0.431373, 0.431373], "alpha": 1 },
+        "css": "#6e6e6e",
+        "variable": "--ms-divider"
+      },
+      "colour.on-warning": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [0, 0, 0], "alpha": 1 },
+        "css": "#000000",
+        "variable": "--ms-on-warning"
+      },
+      "colour.git-modified": {
+        "type": "color",
+        "value": { "colorSpace": "srgb", "components": [1, 1, 0], "alpha": 1 },
+        "css": "var(--ms-warning)",
+        "variable": "--ms-git-modified"
       },
       "radius.xs": {
         "type": "dimension",
@@ -2895,6 +3075,12 @@
         "value": [0.8, 0, 0.2, 1],
         "css": "cubic-bezier(0.8, 0, 0.2, 1)",
         "variable": "--ms-ease-emphasised"
+      },
+      "motion.flip": {
+        "type": "duration",
+        "value": { "value": 280, "unit": "ms" },
+        "css": "280ms",
+        "variable": "--ms-motion-flip"
       },
       "spacing.0": {
         "type": "dimension",
@@ -3075,6 +3261,36 @@
         "value": { "value": 0, "unit": "px" },
         "css": "calc(var(--ms-column-inset) + var(--ms-gap))",
         "variable": "--ms-column-gutter"
+      },
+      "layout.bar-height": {
+        "type": "dimension",
+        "value": { "value": 32, "unit": "px" },
+        "css": "32px",
+        "variable": "--ms-bar-height"
+      },
+      "layout.status-height": {
+        "type": "dimension",
+        "value": { "value": 24, "unit": "px" },
+        "css": "24px",
+        "variable": "--ms-status-height"
+      },
+      "layout.rail-width": {
+        "type": "dimension",
+        "value": { "value": 48, "unit": "px" },
+        "css": "48px",
+        "variable": "--ms-rail-width"
+      },
+      "layout.rail-button-size": {
+        "type": "dimension",
+        "value": { "value": 44, "unit": "px" },
+        "css": "44px",
+        "variable": "--ms-rail-button-size"
+      },
+      "layout.rail-icon-size": {
+        "type": "dimension",
+        "value": { "value": 20, "unit": "px" },
+        "css": "20px",
+        "variable": "--ms-rail-icon-size"
       },
       "aliases.gap": {
         "type": "dimension",
@@ -3276,6 +3492,10 @@
       "variable": "--ms-usage-orange",
       "vscode": ["--vscode-charts-orange"]
     },
+    "colour.git-modified": {
+      "variable": "--ms-git-modified",
+      "vscode": ["--vscode-gitDecoration-modifiedResourceForeground"]
+    },
     "typography.font-ui": { "variable": "--ms-font-ui", "vscode": ["--vscode-font-family"] },
     "typography.font-code": {
       "variable": "--ms-font-code",
@@ -3415,6 +3635,9 @@
     { "foreground": "colour.usage-orange", "background": "colour.editor-surface", "usage": "ui" },
     { "foreground": "colour.brand-mark", "background": "colour.surface", "usage": "ui" },
     { "foreground": "colour.brand-mark-light", "background": "colour.surface", "usage": "ui" },
-    { "foreground": "colour.qr-module", "background": "colour.qr-field", "usage": "ui" }
+    { "foreground": "colour.qr-module", "background": "colour.qr-field", "usage": "ui" },
+    { "foreground": "colour.on-warning", "background": "colour.warning", "usage": "text" },
+    { "foreground": "colour.git-modified", "background": "colour.surface", "usage": "text" },
+    { "foreground": "colour.git-modified", "background": "colour.raised", "usage": "text" }
   ]
 }

@@ -51,3 +51,7 @@ test/fixtures/mcpEra/
 # YAML prettier can parse ({{- if }} blocks). Values and the chart stay
 # formatted; only the templates are out of its reach.
 deploy/helm/muse-node/templates/
+
+# M111 approved mockup design reference (RLF-M111L0): the owner-approved
+# artifact is kept byte-exact; its CSS/HTML are design sources, not product code.
+docs/design/m111-mockups/

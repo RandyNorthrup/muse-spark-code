@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Launcher result kinds</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">09</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">Launcher · every result kind</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · Super or Super+Space · query "tr"</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="BarMuse.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="LauncherModes.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1100" height="620" style="opacity: 0.07"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    <div class="ms-bar" style="height: 32px; flex: none; display: flex; align-items: center; gap: 6px; padding-inline: 6px; border-bottom: 1px solid var(--ms-border); font-size: 12px; position: relative">
+      <span style="width: 36px; display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="26" height="15" aria-hidden="true"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+      <span class="sb" style="height: 22px; border-radius: var(--ms-radius-pill); background: var(--ms-selection); color: var(--ms-on-selection)"><span class="mono" style="font-weight: 600">1</span></span>
+      <span style="flex: 1"></span><span class="sb" style="font-weight: 600">Fri 23 Oct · 14:32</span><span style="flex: 1"></span><span class="sb">82%</span>
+    </div>
+    <div class="scrim" style="top: 32px"></div>
+
+    <div role="dialog" aria-label="Launcher" aria-modal="true" class="ms-launch" style="position: absolute; top: 108px; inset-inline-start: calc(50% - 380px); width: 760px; display: flex; flex-direction: column; overflow: hidden">
+      <div style="height: 60px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--ms-border)">
+        <svg class="ic" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-muted)"><path d="{{I.search}}"></path></svg>
+        <label class="sr" for="ln-query">Search apps, windows, commands, files and more</label>
+        <input id="ln-query" class="ms-input focus" value="tr" style="flex: 1; height: 36px; border: 0; background: transparent; color: var(--ms-text); font: 400 20px/1 var(--ms-font-ui); outline-offset: 4px; border-radius: var(--ms-radius-sm)">
+        <span style="font-size: 12px; color: var(--ms-muted)">14 results</span>
+        <span class="kc">Esc</span>
+      </div>
+      <div role="listbox" aria-label="Results" style="display: flex; flex-direction: column; padding: 6px 8px 8px">
+        <sc-for list="{{groups}}" as="g" hint-placeholder-count="10">
+          <div role="group" aria-label="{{g.t}}" style="display: flex; flex-direction: column">
+            <span class="lbl" style="height: 26px; display: flex; align-items: flex-end; padding: 0 10px 4px">{{g.t}}</span>
+            <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="1">
+              <div role="option" aria-selected="{{r.sel}}" style="height: 40px; display: flex; align-items: center; gap: 12px; padding: 0 10px; border-radius: var(--ms-radius-md); background: {{r.bg}}; color: {{r.fg}}">
+                <span style="width: 28px; height: 28px; flex: none; border-radius: var(--ms-radius-md); background: {{r.tile}}; border: 1px solid var(--ms-border); display: grid; place-items: center"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{r.icon}}"></path></svg></span>
+                <span style="flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden">
+                  <span class="dat" style="font-size: 14px"><sc-for list="{{r.parts}}" as="p" hint-placeholder-count="2"><span style="font-weight: {{p.w}}; text-decoration: {{p.u}}">{{p.t}}</span></sc-for></span>
+                  <span class="dat" style="font-size: 12px; opacity: 0.85; overflow: hidden; text-overflow: ellipsis">{{r.sub}}</span>
+                </span>
+                <span class="mono" style="font-size: var(--ms-font-small); opacity: 0.85; white-space: nowrap">{{r.hint}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-for>
+      </div>
+      <div style="height: 36px; display: flex; align-items: center; gap: 14px; padding: 0 18px; border-top: 1px solid var(--ms-border); font-size: 12px; color: var(--ms-muted)">
+        <span><span class="kc">↑↓</span> Move</span><span><span class="kc">Enter</span> Open</span><span><span class="kc">Ctrl+Enter</span> Peek</span><span><span class="kc">Tab</span> Actions</span>
+        <span style="flex: 1"></span>
+        <span>Modes: <span class="kc">=</span> calculator · <span class="kc">:</span> emoji and symbols</span>
+      </div>
+      <span class="sr" aria-live="polite">14 results. Top hit: Workbench, trailhead, desktop 1.</span>
+    </div>
+
+    <div class="ms-bar" style="position: absolute; bottom: 0; inset-inline: 0; height: 24px; border-top: 1px solid var(--ms-border)"></div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      search: c(11, 11, 7) + ' M20 20l-4-4',
+      monitor: 'M3 4h18v12H3z M8 20h8 M12 16v4',
+      terminal: 'M4 5h16v14H4z M7.5 9.5l3 2.5-3 2.5 M12.5 15h4',
+      globe: c(12, 12, 9) + ' M3 12h18 M12 3c2.5 2.5 3.5 5.5 3.5 9s-1 6.5-3.5 9 M12 3c-2.5 2.5-3.5 5.5-3.5 9s1 6.5 3.5 9',
+      grid: 'M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z',
+      cmd: 'M5 7l5 5-5 5 M12 17h7',
+      files: 'M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5',
+      gear: 'M4 6h9 M17 6h3 M15 4v4 M4 12h3 M11 12h9 M9 10v4 M4 18h11 M19 18h1 M17 16v4',
+      chat: 'M4 5h16v11H9l-5 4z',
+      bot: 'M5 8h14v11H5z M12 4v4 M9.5 13h.01 M14.5 13h.01 M2 12v3 M22 12v3',
+      team: c(9, 7, 4) + ' M2 21v-1a6 6 0 0 1 6-6h2a6 6 0 0 1 6 6v1 M16 3.3a4 4 0 0 1 0 7.4 M22 21v-1a6 6 0 0 0-4-5.6',
+      extLink: 'M14 4h6v6 M20 4l-9 9 M18 14v6H4V6h6'
+    };
+    const P = (s) => s.split('|').map((t, i) => ({ t, w: i % 2 ? '600' : '400', u: i % 2 ? 'underline' : 'none' }));
+    let first = true;
+    const r = (parts, sub, hint, icon) => {
+      const sel = first; first = false;
+      return { parts: P(parts), sub, hint, icon, sel: sel ? 'true' : 'false', bg: sel ? 'var(--ms-selection)' : 'transparent', fg: sel ? 'var(--ms-on-selection)' : 'var(--ms-text)', tile: sel ? 'var(--ms-surface)' : 'var(--ms-raised)' };
+    };
+    const groups = [
+      { t: 'Top hit', rows: [r('Workbench · |tr|ailhead', 'Window · desktop 1', 'Super+1', I.monitor)] },
+      { t: 'Apps', rows: [r('|T|e|r|minal', 'Opens on a desktop of its own', 'Enter', I.terminal)] },
+      { t: 'Windows', rows: [r('Chrome · |Tr|ailhead cart', 'localhost:5173/cart · desktop 2', 'Super+2', I.globe)] },
+      { t: 'Desktops', rows: [r('Desktop 3 · web-eng · |tr|ailhead preview', 'Opened by an agent', 'Super+3', I.grid)] },
+      { t: 'Commands', rows: [r('|T|e|r|minal: Create a new terminal', 'Workbench', 'Ctrl+Shift+`', I.cmd), r('|Tr|ansform to uppercase', 'Editor', '', I.cmd)] },
+      { t: 'Files', rows: [r('CartSummary.tsx', 'trailhead/src/components · opened 2 min ago', '', I.files), r('pricing.ts', 'trailhead/src/lib', '', I.files)] },
+      { t: 'Settings', rows: [r('|Tr|ackpad gestures', 'Settings › Mouse and touchpad', '', I.gear)] },
+      { t: 'Conversations', rows: [r('|Tr|ailhead: cart summary, tax and shipping', 'Today · 14 messages', '', I.chat)] },
+      { t: 'Agents and roles', rows: [r('Jump to web-eng', 'Working in trailhead · waiting for approval', 'Ctrl+Enter Peek', I.bot), r('Start a task with |Tr|iage', 'Role', '', I.team)] },
+      { t: 'Web', rows: [r('Search the web in Chrome for “tr”', 'Opens Chrome', '', I.extLink)] }
+    ];
+    return {
+      theme, themeName: names[theme] ?? theme, I, groups,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'overlay', 'border', 'text', 'muted', 'brand-mark', 'selection', 'on-selection', 'focus', 'badge', 'on-badge', 'modal-scrim', 'elevation-overlay', 'launcher-alpha', 'backdrop-blur', 'radius-xs', 'radius-sm', 'radius-md', 'radius-xl', 'space-8', 'space-12', 'font-ui', 'font-code', 'font-size', 'font-small', 'font-large', 'weight-bold', 'focus-width', 'focus-offset', 'motion-base', 'ease-emphasised', 'bar-height', 'status-height']
+    };
+  }
+}
+</script>
+</body>
+</html>
