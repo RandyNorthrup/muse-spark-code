@@ -1,0 +1,20 @@
+.node-terminal-stack {
+  display: grid;
+}
+
+.node-terminal-stack > .node-terminal-view {
+  grid-area: 1 / 1;
+  min-height: 240px;
+}
+
+.node-terminal-hidden {
+  visibility: hidden;
+}
+
+.node-terminal-host {
+  height: 100%;
+}
+
+.node-terminal-status {
+  margin-block: 8px;
+}

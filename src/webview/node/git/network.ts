@@ -10,19 +10,26 @@ import { NODE_ZERO_DIGEST, NODE_DIGEST_RADIX } from '../../../shared/constants'
 import { NodePageError } from '../../bridges/nodePort'
 
 export type NetworkGitMethod = 'node/git/fetch' | 'node/git/pull' | 'node/git/push'
+/** Every step-up method a node page can present: git's network moves,
+`node/terminal/open` (U2) and `node/wipe` (S0). */
+export type StepUpMethod = NetworkGitMethod | 'node/terminal/open' | 'node/wipe'
 export interface NodePageAuthPort {
   /** A1 presents fresh user verification bound to this exact action digest.
   Cancellation is an abort: a person-cancelled verification rejects with an
   AbortError (like the signal), never a plain error, so the caller stays
   silent instead of reporting a refusal. */
-  verify(action: 'git.network', actionDigest: string, signal: AbortSignal): Promise<NodeStepUp>
+  verify(
+    action: NodeStepUp['action'],
+    actionDigest: string,
+    signal: AbortSignal,
+  ): Promise<NodeStepUp>
 }
 
 /** Same canonical key order as N's nodeActionDigest; Web Crypto keeps Node
 imports out of the shared browser surface. Never hashes localized labels. */
-export async function networkGitDigest(
-  method: NetworkGitMethod,
-  params: NodeMethodParams<NetworkGitMethod>,
+export async function stepUpActionDigest<M extends StepUpMethod>(
+  method: M,
+  params: NodeMethodParams<M>,
 ): Promise<string> {
   const parsed = nodeMethods[method].params.parse(params)
   const payload = Object.fromEntries(
@@ -35,6 +42,29 @@ export async function networkGitDigest(
   return [...new Uint8Array(bytes)]
     .map((byte) => byte.toString(NODE_DIGEST_RADIX).padStart(2, '0'))
     .join('')
+}
+
+/** Presents fresh user verification for one action digest and returns the
+proof the method call sends. A cancelled verification rejects with the
+caller's abort, never a refusal. */
+export async function presentStepUp(
+  auth: NodePageAuthPort,
+  action: NodeStepUp['action'],
+  actionDigest: string,
+  signal: AbortSignal,
+): Promise<NodeStepUp> {
+  const presented = await auth.verify(action, actionDigest, signal)
+  let proof: NodeStepUp
+  try {
+    proof = nodeStepUpSchema.parse(presented)
+  } catch (error: unknown) {
+    // A malformed proof is a wrong proof: typed `forbidden` with the
+    // parse failure attached, never the raw schema failure.
+    throw new NodePageError('forbidden', { cause: error })
+  }
+  if (proof.action !== action || proof.actionDigest !== actionDigest)
+    throw new NodePageError('forbidden')
+  return proof
 }
 
 export async function runNetworkGit(
@@ -59,20 +89,10 @@ export async function runNetworkGit(
     stepUpId: 'pending',
     actionDigest: NODE_ZERO_DIGEST,
   })
-  const actionDigest = await networkGitDigest(method, pending)
+  const actionDigest = await stepUpActionDigest(method, pending)
   // Verification stays outside the parse below: a cancelled proof is an
   // abort the caller silences, never a forbidden proof.
-  const presented = await auth.verify('git.network', actionDigest, signal)
-  let proof: NodeStepUp
-  try {
-    proof = nodeStepUpSchema.parse(presented)
-  } catch (error: unknown) {
-    // A malformed proof is a wrong proof: typed `forbidden` with the
-    // parse failure attached, never the raw schema failure.
-    throw new NodePageError('forbidden', { cause: error })
-  }
-  if (proof.action !== 'git.network' || proof.actionDigest !== actionDigest)
-    throw new NodePageError('forbidden')
+  const proof = await presentStepUp(auth, 'git.network', actionDigest, signal)
   const current = await port.request('node/git/status', { workspaceId, cursor: null }, signal)
   const resolved = current.remotes.find((entry) => entry.name === remote.name)
   if (
