@@ -17,3 +17,6 @@ src/core/reporting/collect/estimate.ts:generic-api-key:123
 src/core/reporting/collect/estimate.ts:generic-api-key:124
 # Public hCaptcha site key inside MediaWiki's page config (wg*), served to every reader of the recorded Wikipedia fixture; site keys are public by design, no credential.
 test/fixtures/webfetch/wiki-internet.body:generic-api-key:6
+# Public X.509 kernel-module-signing key ID printed by the kernel at boot in the recorded QEMU transcripts; a public cert identifier, no credential.
+test/fixtures/nodeos-boot/serial-proving.txt:generic-api-key:298
+test/fixtures/nodeos-boot/serial-panic.txt:generic-api-key:298
