@@ -362,17 +362,24 @@ describe('new notifications', () => {
       UNKNOWN_METHOD,
     )
   })
-  it('tolerates the 1.4.11 leave handshake without mapping it', () => {
-    // This client never hands a session to another host, so it never sends
-    // `session/leave` and the terminal `session/leaveCompleted` stays
-    // unmapped; a `session/closed` broadcast for a released leave still
-    // parses, and the reason reads as served.
+  it('reads the 1.4.11 leave handshake as served', () => {
+    // M127 wraps `session/leave`: its terminal `session/leaveCompleted`
+    // settles the waiter by commandId and reads as a notice naming the
+    // outcome as served; a `session/closed` broadcast for a released leave
+    // still parses, and the reason reads as served.
     expect(
       mapNotification({
         method: 'session/leaveCompleted',
         params: { sessionId, commandId: 'c1', outcome: 'released' },
       }),
-    ).toBe(UNKNOWN_METHOD)
+    ).toEqual({
+      sessionId,
+      event: {
+        type: 'backendNotice',
+        level: 'info',
+        text: `${UI_TEXT.sessionLeaveCompleted} (released)`,
+      },
+    })
     expect(sessionClosedSchema.parse({ sessionId, reason: 'leave' })).toEqual({
       sessionId,
       reason: 'leave',
