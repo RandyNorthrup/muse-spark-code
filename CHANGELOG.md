@@ -278,6 +278,10 @@ happened, not what was planned; superseded entries are kept.
   exclusions. Legacy tasks remain outside borrowing. Exhausted reviewer
   preferences block merge with skip reasons and queue or ask for an eligible
   reviewer instead of allowing an unreviewed merge (RVM120SG).
+- **Each headless subcommand's help shows its own flag words.** `exec
+  --provider` now says it runs on that provider instead of naming the
+  account commands, and `scan-secrets --timeout` names the scan's
+  deadline instead of a run's.
 
 ### Release infrastructure
 
