@@ -4,30 +4,21 @@
 // owner's subscription, so it runs when MUSE_LIVE_VIM=1 with
 // MUSE_LIVE_VIM_TARBALL pointing at the packed agent tarball, Vim 8.1+ with
 // +job/+channel on PATH (or VIM_BIN), and the owner's own sign-in. The
-// model attempts are counted from the CLI's own trace log for the session
-// (test/e2e/liveCli.ts); the session log names the model of every request.
+// session log (test/e2e/liveCli.ts) names every completed request and its
+// model: the requests are counted from it, at most four for the prompts.
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  countAttempts,
-  countSessionResponses,
-  LIVE_MODEL_ID,
-  sessionJsonlPath,
-  sessionLog,
-} from './liveCli'
+import { countSessionResponses, LIVE_MODEL_ID, sessionJsonlPath } from './liveCli'
 
 const IS_ENABLED = process.env['MUSE_LIVE_VIM'] === '1'
 // Three live model turns plus session start and shutdown.
 const DRILL_TIMEOUT_MS = 600_000
-// The trace log unlocks once the CLI's host process has exited.
-const COUNT_TIMEOUT_MS = 60_000
-// A reply-only turn is 25 to 45 model attempts on Muse Code 1.3.0 (one for
-// the answer, the rest the CLI's bundled reminder agents; live.e2e.test.ts):
-// three turns fit under 200 with headroom for the read turn's tool loop.
-const ATTEMPT_BUDGET = 200
+// The brief's cap: three prompts, at most four model requests (the read
+// turn takes two: one for the tool call, one for the quoted answer).
+const REQUEST_BUDGET = 4
 const EXPECTED_TURNS = 3
 
 interface DrillRun {
@@ -115,12 +106,20 @@ describe.skipIf(!IS_ENABLED)('classic Vim, live (MUSE_LIVE_VIM=1)', () => {
       )
     }
     const sessionLine = run.transcript.find((line) => line.startsWith('[session '))
-    const match = /^\[session (\S+) on (\S+)\]$/.exec(sessionLine ?? '')
-    if (match?.[1] === undefined || match[1] === '') {
+    const sessionMatch = /^\[session (\S+) on \S+\]$/.exec(sessionLine ?? '')
+    if (sessionMatch?.[1] === undefined || sessionMatch[1] === '') {
       throw new Error('the transcript names no session')
     }
-    run.sessionId = match[1]
-    run.sessionModel = match[2] ?? ''
+    run.sessionId = sessionMatch[1]
+    // The [session] line names the model at open; the header names the
+    // model the turns ran on after the driver's :MuseSparkModel switch
+    // (`# Muse Spark — <model>`, with an optional ` (mode)` suffix).
+    const headerLine = run.transcript.find((line) => line.startsWith('# Muse Spark — '))
+    const headerMatch = /^# Muse Spark — (\S+)/.exec(headerLine ?? '')
+    if (headerMatch?.[1] === undefined || headerMatch[1] === '') {
+      throw new Error('the transcript names no model')
+    }
+    run.sessionModel = headerMatch[1]
   }, DRILL_TIMEOUT_MS)
 
   afterAll(() => {
@@ -143,15 +142,11 @@ describe.skipIf(!IS_ENABLED)('classic Vim, live (MUSE_LIVE_VIM=1)', () => {
     expect(run.sessionModel).toBe(LIVE_MODEL_ID)
   })
 
-  it(
-    'counts the model attempts from the CLI trace log',
-    async () => {
-      const attempts = countAttempts(await sessionLog(run.sessionId))
-      expect(attempts).toBeGreaterThan(0)
-      expect(attempts).toBeLessThanOrEqual(ATTEMPT_BUDGET)
-    },
-    COUNT_TIMEOUT_MS,
-  )
+  it('sends at most four model requests', () => {
+    const { responses } = countSessionResponses(sessionJsonlPath(run.sessionId))
+    expect(responses).toBeGreaterThan(0)
+    expect(responses).toBeLessThanOrEqual(REQUEST_BUDGET)
+  })
 
   it('names the contributor on every completed request', () => {
     const { responses, models } = countSessionResponses(sessionJsonlPath(run.sessionId))
