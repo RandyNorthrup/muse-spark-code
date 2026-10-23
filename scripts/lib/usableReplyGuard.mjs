@@ -319,6 +319,12 @@ const ALLOW_LIST = new Map([
     'src/runtime/judge/hook.ts:<top>',
     'the hook preflight reads hook-answer statuses over its own synthesized outputs',
   ],
+  // The first-boot setup reads its own code-acceptance reason: an
+  // already-completed setup shows the done page, never a turn reply.
+  [
+    'src/runtime/node/firstBoot/server.ts:handleRequest',
+    'the setup server shows the done page for its own already-completed acceptance reason',
+  ],
 ])
 
 const ACCESSOR = 'src/core/turns/usableReply.ts'

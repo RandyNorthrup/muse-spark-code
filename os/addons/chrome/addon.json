@@ -1,0 +1,36 @@
+{
+  "name": "chrome",
+  "kind": "sysext",
+  "architectures": ["amd64", "arm64"],
+  "vendor": "Google LLC",
+  "terms": "https://www.google.com/chrome/terms/",
+  "install": "user-click",
+  "fallback": "chromium",
+  "osRelease": {
+    "id": "debian",
+    "versionId": "13"
+  },
+  "buildLane": "device",
+  "sources": {
+    "amd64": {
+      "apt": {
+        "uri": "https://dl.google.com/linux/chrome/deb",
+        "suite": "stable",
+        "component": "main",
+        "packages": ["google-chrome-stable"]
+      }
+    },
+    "arm64": {
+      "apt": {
+        "uri": "https://dl.google.com/linux/chrome/deb",
+        "suite": "stable",
+        "component": "main",
+        "packages": ["google-chrome-stable"]
+      }
+    }
+  },
+  "keyring": {
+    "url": "https://dl.google.com/linux/linux_signing_key.pub",
+    "fingerprints": "fingerprints.txt"
+  }
+}

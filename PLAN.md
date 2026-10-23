@@ -31216,6 +31216,8 @@ or helper-only-access certification.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
+**Status 2026-10-23: building.** RLF-M110OS built OS3–OS7, in review; OS1, OS2, A1 and M110a still open; threat-model acceptance, the signing ceremony and owner hardware waiting.
+
 **Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
 **Status 2026-10-22: recovery (RLM110C).** Phases c-h landed as ready
@@ -38053,6 +38055,13 @@ No new escape hatch is introduced.
 | RLM110B location                                   | Escape hatch                                            | Reason                                                                                                                                                                                                          | Date       |
 | -------------------------------------------------- | ------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/nodeWorkspaceGit.test.ts` (refused URL) | `eslint-disable-next-line unicorn/prefer-https`, 1 site | The `http://github.com/…` fixture is the refused case the classifier must reject; the rule's `--fix` silently rewrites it to the accepted `https://` case, inverting the test. Inline-reasoned; no rule change. | 2026-10-22 |
+
+| RLF-M110OS location                                  | Escape hatch                                             | Reason                                                                                                                                                                          | Date       |
+| ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/nodeOsCrypt.test.ts` (Tang URLs, 4 sites) | `eslint-disable-next-line unicorn/prefer-https`, 4 sites | Tang serves HTTP by design; the thumbprint check is the trust anchor, not TLS, and the validator must accept the http shape the tests feed it. Inline-reasoned; no rule change. | 2026-10-23 |
+| `test/unit/nodeOsAddons.test.ts` (http negatives)    | `eslint-disable-next-line unicorn/prefer-https`, 2 sites | The violations under test: the checkers must refuse non-https terms and snapshot URLs, so the tests feed them http. Inline-reasoned; no rule change.                            | 2026-10-23 |
+| `test/unit/nodeOsAddons.test.ts` (manifest nav)      | `as Record<string, unknown>`, 2 sites                    | Navigation over parsed manifest fixtures the test constructed; each cast follows a throwing shape assertion. Inline-reasoned; no rule change.                                   | 2026-10-23 |
+| `os/addons/lib/checkAddon.mjs` (release unescaper)   | `eslint-disable-next-line unicorn/prefer-string-raw`     | Escape pairs read clearest as escapes in the `\"`/`\\` unescaper. Inline-reasoned; no rule change.                                                                              | 2026-10-23 |
 
 ## 9. Security assumptions and accepted residual risk
 
