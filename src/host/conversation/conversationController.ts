@@ -198,6 +198,7 @@ import {
   USER_SHELL_ITEM_KIND,
   USER_SHELL_SANDBOX_FAILURE_MARKER,
   TEAM_MCP_SERVER_NAME,
+  RETRYABLE_TURNS_KEPT,
 } from '../../shared/constants'
 // M96 lane T (LANE-T-SEAM, lane 0): from shared constants at integration.
 
@@ -894,6 +895,7 @@ const AUTH_REQUIRED_SESSION_ACTIONS: ReadonlySet<ConversationMessage['type']> = 
   'requestHandoff',
   'confirmHandoff',
   'withdrawQueued',
+  'retryTurn',
   // A sequence's first step is a turn (M88); its stop and library are local.
   'sequenceStart',
 ])
@@ -1188,6 +1190,31 @@ const STEERED_DISPOSITION = 'steered'
 const PLAN_MODE: PermissionMode = 'plan'
 
 /**
+Retry's admission (RLF-ACPTURNS): which refusal a press earns, if any.
+`unavailable` is nothing remembered (a send this panel did not make, a
+non-plain send, one forgotten past the bound), another conversation now,
+or a turn that did not fail retryably; `busy` is a turn still running
+(the row disables Retry then, so it answers only the race). Undefined
+admits the resubmit.
+*/
+export function retryTurnRefusal(input: {
+  readonly sessionId: string | undefined
+  readonly rememberedSessionId: string | undefined
+  readonly failedRetryable: boolean | undefined
+  readonly turnRunning: boolean
+}): 'unavailable' | 'busy' | undefined {
+  if (
+    input.sessionId === undefined ||
+    input.rememberedSessionId === undefined ||
+    input.rememberedSessionId !== input.sessionId ||
+    input.failedRetryable !== true
+  ) {
+    return 'unavailable'
+  }
+  return input.turnRunning ? 'busy' : undefined
+}
+
+/**
 A plan as a conversation's brief (M79): the plan file attached, what to do
 with it for the model, and its steps as the todo list. Where the backend
 lets the extension set that list, the note says what it was set to (the
@@ -1379,6 +1406,21 @@ export class ConversationController implements DeferredSend {
   private readonly acceptedUserCards = new Map<
     string,
     { readonly turnId: string; readonly text: string }
+  >()
+  /**
+  Plain sends kept for Retry (RLF-ACPTURNS), by their turn: a failed turn
+  the backend judged retryable resubmits these parts. `failedRetryable`
+  arms once the turn ends failed; steers never replace their starter.
+  */
+  private readonly retryableTurns = new Map<
+    string,
+    {
+      readonly sessionId: string
+      readonly parts: readonly TurnPart[]
+      readonly displayText: string | undefined
+      readonly shownText: string
+      failedRetryable: boolean | undefined
+    }
   >()
   private modelId: string
   private permissionMode: PermissionMode
@@ -2529,6 +2571,7 @@ export class ConversationController implements DeferredSend {
     this.hasSaidOutputFailure = false
     this.fileMessageIds.clear()
     this.acceptedUserCards.clear()
+    this.retryableTurns.clear()
     this.queuedMessages.clear()
     this.admittedEarly.clear()
     this.forgetReviews(isOwnedRecovery)
@@ -2549,13 +2592,23 @@ export class ConversationController implements DeferredSend {
   more (it stopped, restarted or closed the session, D25): the reply stops
   streaming and its cards go, as for a turn the host completed.
   */
-  private endTurnLocally(terminal: 'cancelled' | 'failed', reason: string): void {
+  private endTurnLocally(
+    terminal: 'cancelled' | 'failed',
+    reason: string,
+    isRetryable = false,
+  ): void {
     const turnId = this.activeTurnId
     if (turnId === undefined) {
       return
     }
     this.activeTurnId = undefined
-    const event = { type: 'turnCompleted', turnId, terminal, reason } as const
+    const event = {
+      type: 'turnCompleted',
+      turnId,
+      terminal,
+      reason,
+      ...(isRetryable && { retryable: true }),
+    } as const
     // The same end line and clock as a turn the host ended (the review of PR #20).
     this.endTurnClock(event)
     this.checkpoints.turnCompleted(turnId)
@@ -3323,6 +3376,14 @@ export class ConversationController implements DeferredSend {
         if (event.turnId === this.activeTurnId) this.clearJudgeCards()
         this.endTurnClock(event)
         this.finishedTurns.add(event.turnId)
+        // A failure the backend judged retryable arms this turn's Retry
+        // (RLF-ACPTURNS): only then may the error row's press resubmit.
+        if (event.terminal === 'failed') {
+          const remembered = this.retryableTurns.get(event.turnId)
+          if (remembered !== undefined) {
+            remembered.failedRetryable = event.retryable === true
+          }
+        }
         // A review turn's end puts the user's mode back (M70).
         this.planHold?.hold.turnEnded(event.turnId)
         // A Plan-mode turn that finished with the panel in Plan mode throughout (M79).
@@ -7882,34 +7943,36 @@ export class ConversationController implements DeferredSend {
       if (sandboxNote.length > 0) {
         this.hasToldModelSandboxCannotStart = true
       }
-      this.checkpoints.accepted(
+      this.acceptResubmission(
+        submittedSession,
+        localId,
+        shownText,
+        parts,
+        submission,
         checkpoint,
-        turnId,
-        submission.disposition !== QUEUED_DISPOSITION &&
-          submission.disposition !== STEERED_DISPOSITION,
+        isPlanModeSend,
       )
       if (gitGeneration !== undefined) {
         this.git.generationSubmitted(turnId, gitGeneration)
       }
-      // acceptSubmission below records the card; the Auto reviewer sees the message now (M90).
-      this.noteReviewMessage(shownText)
-      if (typed.some((part) => part.type === 'file' || part.type === 'textFile')) {
-        this.fileMessageIds.add(submission.userMessageId ?? localId)
-      }
+      // Only a plain composer send is retryable by resubmission: a brief,
+      // review card, handoff, git draft or answered question carries state
+      // a replay must not redo.
       if (
-        isPlanModeSend &&
-        this.permissionMode === PLAN_MODE &&
-        submission.disposition !== STEERED_DISPOSITION
+        brief === undefined &&
+        cardText === undefined &&
+        handoff === undefined &&
+        gitDraft === undefined &&
+        question === undefined
       ) {
-        // An ack can land after its own turn completed (D26).
-        if (this.finishedTurns.has(turnId)) {
-          this.planTurnIds.add(turnId)
-        } else {
-          this.pendingPlanTurnIds.add(turnId)
-        }
+        this.rememberRetryableTurn(
+          submittedSession.sessionId,
+          parts,
+          displayText,
+          shownText,
+          submission,
+        )
       }
-      this.noteQueuedMessage(submittedSession, localId, submission)
-      this.acceptSubmission(localId, shownText, submission)
       isGitSubmitted = true
       return { isAccepted: true, hasSetTodos: seededSession !== undefined, turnId }
     } catch (error: unknown) {
@@ -8043,6 +8106,102 @@ export class ConversationController implements DeferredSend {
     }
   }
 
+  /**
+  Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
+  resubmits the turn's own remembered parts as a new turn, answered
+  `turnAccepted` or `sendFailed` for the webview's optimistic card. The
+  failed turn's work stays: nothing is taken back. Every refusal is said.
+  Never an automatic resubmit: only this press sends it. The host may have
+  died under the turn and dropped the session: the resubmit re-establishes
+  it like any send (restarts on send, D25), but only for a press that can
+  send — nothing remembered restarts no host.
+  */
+  private async retryTurn(localId: string, turnId: string): Promise<void> {
+    const remembered = this.retryableTurns.get(turnId)
+    if (remembered?.failedRetryable !== true) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryUnavailable })
+      return
+    }
+    if (this.activeTurnId !== undefined) {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
+      return
+    }
+    let session = this.session
+    if (session === undefined) {
+      session = await this.sessionForAction(localId)
+      if (session === undefined) {
+        // That step refused with its own reason already.
+        return
+      }
+    }
+    const refusal = retryTurnRefusal({
+      sessionId: session.sessionId,
+      rememberedSessionId: remembered.sessionId,
+      failedRetryable: remembered.failedRetryable,
+      // A turn may have started while the session re-established above,
+      // so the live read is load-bearing; the rule sees only the
+      // pre-await narrowing (PLAN.md §8).
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- activeTurnId is reassigned by concurrent sends across the await above
+      turnRunning: this.activeTurnId !== undefined,
+    })
+    if (refusal === 'unavailable') {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryUnavailable })
+      return
+    }
+    if (refusal === 'busy') {
+      this.post({ type: 'sendFailed', localId, reason: UI_TEXT.turnRetryBusy })
+      return
+    }
+    const generation = this.sendInvalidationEpoch
+    const isCurrent = () => this.isCurrentSessionAction(session, generation)
+    let checkpoint: PendingMark | undefined
+    try {
+      await this.autosave()
+      if (!isCurrent()) {
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      if (!this.isSideChat) {
+        checkpoint = await this.checkpoints.beforeTurn(session.sessionId)
+        if (!isCurrent()) {
+          this.checkpoints.dropPending(checkpoint)
+          throw new Error(UI_TEXT.turnStoppedByRestart)
+        }
+      }
+      const submission = await this.submit(
+        session,
+        remembered.parts,
+        remembered.displayText,
+        false,
+        isCurrent,
+      )
+      if (!isCurrent()) {
+        this.checkpoints.dropPending(checkpoint)
+        throw new Error(UI_TEXT.turnStoppedByRestart)
+      }
+      this.acceptResubmission(
+        session,
+        localId,
+        remembered.shownText,
+        remembered.parts,
+        submission,
+        checkpoint,
+        this.permissionMode === PLAN_MODE,
+      )
+      // The retry's own turn may fail retryably in its turn.
+      this.rememberRetryableTurn(
+        session.sessionId,
+        remembered.parts,
+        remembered.displayText,
+        remembered.shownText,
+        submission,
+      )
+    } catch (error: unknown) {
+      this.checkpoints.dropPending(checkpoint)
+      this.deps.log.warn(`Retrying turn ${turnId} failed: ${failureForLog(error)}`)
+      this.post({ type: 'sendFailed', localId, reason: describe(error) })
+    }
+  }
+
   /** A brief that failed leaves no todo list behind (M79): its steps were never sent. */
   private takeBackTodos(session: AgentSession): void {
     try {
@@ -8050,6 +8209,82 @@ export class ConversationController implements DeferredSend {
     } catch (error: unknown) {
       this.deps.log.warn(`The brief's todo list could not be taken back: ${errorKind(error)}`)
     }
+  }
+
+  /**
+  A plain send's parts, kept for Retry (RLF-ACPTURNS): a failed turn the
+  backend judged retryable resubmits these. A steer joins another turn,
+  so it never replaces that turn's starter; oldest forgotten past the
+  bound.
+  */
+  private rememberRetryableTurn(
+    sessionId: string,
+    parts: readonly TurnPart[],
+    displayText: string | undefined,
+    shownText: string,
+    submission: TurnSubmission,
+  ): void {
+    if (submission.disposition === STEERED_DISPOSITION) {
+      return
+    }
+    this.retryableTurns.set(submission.turnId, {
+      sessionId,
+      parts,
+      displayText,
+      shownText,
+      failedRetryable: undefined,
+    })
+    if (this.retryableTurns.size <= RETRYABLE_TURNS_KEPT) {
+      return
+    }
+    const [oldest] = this.retryableTurns.keys()
+    if (oldest === undefined) {
+      return
+    }
+    this.retryableTurns.delete(oldest)
+  }
+
+  /**
+  An accepted send's tail, shared by the composer send and a turn retry
+  (RLF-ACPTURNS): the checkpoint, the review note, the file marks, the
+  Plan-mode mark and the card's accept. Both call it once per accepted
+  submission; the git generation stays the composer's own.
+  */
+  private acceptResubmission(
+    session: AgentSession,
+    localId: string,
+    shownText: string,
+    parts: readonly TurnPart[],
+    submission: TurnSubmission,
+    checkpoint: PendingMark | undefined,
+    isPlanModeSend: boolean,
+  ): void {
+    const { turnId } = submission
+    this.checkpoints.accepted(
+      checkpoint,
+      turnId,
+      submission.disposition !== QUEUED_DISPOSITION &&
+        submission.disposition !== STEERED_DISPOSITION,
+    )
+    // acceptSubmission below records the card; the Auto reviewer sees the message now (M90).
+    this.noteReviewMessage(shownText)
+    if (parts.some((part) => part.type === 'file' || part.type === 'textFile')) {
+      this.fileMessageIds.add(submission.userMessageId ?? localId)
+    }
+    if (
+      isPlanModeSend &&
+      this.permissionMode === PLAN_MODE &&
+      submission.disposition !== STEERED_DISPOSITION
+    ) {
+      // An ack can land after its own turn completed (D26).
+      if (this.finishedTurns.has(turnId)) {
+        this.planTurnIds.add(turnId)
+      } else {
+        this.pendingPlanTurnIds.add(turnId)
+      }
+    }
+    this.noteQueuedMessage(session, localId, submission)
+    this.acceptSubmission(localId, shownText, submission)
   }
 
   /** The host took the card's turn: the card is sent, and its turn runs unless it queued. */
@@ -11682,6 +11917,14 @@ export class ConversationController implements DeferredSend {
           })
           break
         }
+        case 'retryTurn': {
+          this.post({
+            type: 'sendFailed',
+            localId: message.localId,
+            reason: UI_TEXT.notSignedInReason,
+          })
+          break
+        }
         case 'previewFeedback': {
           // Without admission there is no host scrub: the dialog falls back
           // to its local pattern detector over the unchanged note.
@@ -11721,6 +11964,10 @@ export class ConversationController implements DeferredSend {
       }
       case 'withdrawQueued': {
         await this.withdrawQueued(message)
+        break
+      }
+      case 'retryTurn': {
+        await this.retryTurn(message.localId, message.turnId)
         break
       }
       case 'runManualHook': {
@@ -13245,9 +13492,27 @@ export class ConversationController implements DeferredSend {
     }
     this.historyWatchEpoch += 1
     const didHaveSession = this.session !== undefined
+    // The drop below forgets every remembered turn. A non-persistent exit
+    // restarts the host on send and resumes this same conversation (D25),
+    // so its turns stay resubmittable; the dead one arms its Retry, and
+    // only when the send was a plain one worth resubmitting. A persistent
+    // exit refuses to run as configured: no Retry, the sign-in gate speaks.
+    const keptTurns = new Map(this.retryableTurns)
+    const deadTurnId = this.activeTurnId
+    const deadTurn = deadTurnId === undefined ? undefined : keptTurns.get(deadTurnId)
+    const isResubmittable = !exit.isPersistent && deadTurn !== undefined
     this.rememberForResume(this.session)
-    this.endTurnLocally('failed', `${UI_TEXT.hostExited} (${exit.description})`)
+    this.endTurnLocally('failed', `${UI_TEXT.hostExited} (${exit.description})`, isResubmittable)
     this.dropSession(false)
+    if (!exit.isPersistent) {
+      for (const [turnId, turn] of keptTurns) {
+        this.retryableTurns.set(turnId, turn)
+      }
+      // The restored entry is this same object: arming it arms the map.
+      if (deadTurn !== undefined) {
+        deadTurn.failedRetryable = true
+      }
+    }
     this.forgetModels()
     this.listWatch.forget()
     this.usageWatch.forget()

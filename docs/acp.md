@@ -536,6 +536,14 @@ Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
   notebook tools): passed to Muse Code for the session, over stdio or
   HTTP, and optional, so one that fails to start does not stop the
   session. SSE servers are not taken; the Model API backend runs none.
+- **Failed prompts**: the prompt error's `data.retryable` is the backend's
+  retry judgment: true where sending the prompt again may work, false
+  where it cannot (a failure beyond retrying, or a dead backend, whose
+  session is released with it). The agent never resubmits by itself.
+- **One-shot notices**: a product notice the client cannot show as a
+  notice goes out as its own message with its own id, so a client that
+  groups by message id starts a new message instead of folding it into
+  the model's answer; elsewhere it stands as its own paragraph.
 
 ## Questions
 
