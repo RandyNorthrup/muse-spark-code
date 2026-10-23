@@ -12,6 +12,13 @@ import {
 import { failureCodeNames } from '../../networkFailure'
 import { ChatGptSignInError, createChatGptHostId, isChatGptHostId } from './chatgptHostId'
 export { ChatGptSignInError } from './chatgptHostId'
+import {
+  CHATGPT_ISSUER,
+  CHATGPT_ORIGIN,
+  chatGptRecordSchema,
+  type ChatGptRecord,
+} from './chatgptRecord'
+export { chatGptRecordSchema, type ChatGptRecord } from './chatgptRecord'
 import { pkce } from '../../../host/backend/providersEntry'
 const {
   createPkcePair,
@@ -21,9 +28,7 @@ const {
   pkceChallenge: createChallenge,
 } = pkce
 
-const ISSUER = 'https://auth.openai.com'
-const ORIGIN = 'https://api.openai.com'
-const RESOURCE = `${ORIGIN}/v1`
+const RESOURCE = `${CHATGPT_ORIGIN}/v1`
 const DIRECT_SCOPE = 'chatgpt.tokens.use.direct'
 const SCOPES = `openid profile email offline_access resource.invoke ${DIRECT_SCOPE}`
 const DYNAMIC_CLIENT = 'dynamic_agent_client'
@@ -32,10 +37,10 @@ const JWT_SEGMENT_COUNT = 3
 const nonempty = z.string().check(z.minLength(1))
 const positive = z.number().check(z.gt(0))
 const discoverySchema = z.object({
-  issuer: z.literal(ISSUER),
-  authorization_endpoint: z.literal(`${ISSUER}/api/accounts/authorize`),
-  token_endpoint: z.literal(`${ISSUER}/api/accounts/oauth/token`),
-  revocation_endpoint: z.literal(`${ISSUER}/api/accounts/oauth/revoke`),
+  issuer: z.literal(CHATGPT_ISSUER),
+  authorization_endpoint: z.literal(`${CHATGPT_ISSUER}/api/accounts/authorize`),
+  token_endpoint: z.literal(`${CHATGPT_ISSUER}/api/accounts/oauth/token`),
+  revocation_endpoint: z.literal(`${CHATGPT_ISSUER}/api/accounts/oauth/revoke`),
   jwks_uri: z.url(),
 })
 const tokenSchema = z.object({
@@ -77,26 +82,6 @@ export const chatGptRegistrationSchema = z.object({
   accountIdHash: z.optional(accountHashSchema),
 })
 export type ChatGptRegistration = z.infer<typeof chatGptRegistrationSchema>
-
-/** Secret-store payload only. Never send this record across a UI bridge. */
-export const chatGptRecordSchema = z.object({
-  v: z.literal(CREDENTIAL_RECORD_VERSION),
-  auth: z.literal('subscription'),
-  origin: z.literal(ORIGIN),
-  issuer: z.literal(ISSUER),
-  clientId: nonempty,
-  hostId: nonempty,
-  /** Hash of the captured verified OIDC subject; never the raw account id. */
-  accountIdHash: z.optional(accountHashSchema),
-  accessToken: nonempty,
-  refreshToken: nonempty,
-  expiresAt: positive,
-  scope: nonempty,
-  nonce: nonempty,
-  /** A replacement kept for recovery/revocation, never usable before verification. */
-  pendingRefresh: z.optional(z.object({ idToken: z.optional(nonempty) })),
-})
-export type ChatGptRecord = z.infer<typeof chatGptRecordSchema>
 
 /**
 The local verdict for a stored grant: signed in until its access token's
@@ -194,7 +179,7 @@ export function buildChatGptAuthorizeUrl(options: {
     throw new ChatGptSignInError('invalid-callback')
   }
   const { verifier, state, nonce, hostId, clientId } = options
-  const url = new URL(`${ISSUER}/api/accounts/authorize`)
+  const url = new URL(`${CHATGPT_ISSUER}/api/accounts/authorize`)
   url.search = new URLSearchParams({
     client_id: clientId ?? DYNAMIC_CLIENT,
     response_type: 'code',
@@ -277,7 +262,7 @@ const jwtHeaderSchema = z.object({ alg: z.literal('RS256'), kid: nonempty })
 const claimsSchema = z.object({
   // Owner captures acdc0f60 / 577bc807 (0 + 1 attempts) include OIDC sub.
   sub: z.optional(nonempty),
-  iss: z.literal(ISSUER),
+  iss: z.literal(CHATGPT_ISSUER),
   aud: z.union([nonempty, z.array(nonempty).check(z.minLength(1))]),
   azp: z.optional(nonempty),
   exp: positive,
@@ -443,7 +428,7 @@ export class ChatGptSignIn {
       })
       if (!response.ok) {
         if (
-          url === `${ISSUER}/api/accounts/oauth/token` &&
+          url === `${CHATGPT_ISSUER}/api/accounts/oauth/token` &&
           (response.status === HTTP_STATUS.badRequest ||
             response.status === HTTP_STATUS.unauthorized)
         ) {
@@ -494,12 +479,12 @@ export class ChatGptSignIn {
   private async discovery(): Promise<z.infer<typeof discoverySchema>> {
     const discovery = parse(
       discoverySchema,
-      await this.json(`${ISSUER}/.well-known/openid-configuration`, 'invalid-discovery'),
+      await this.json(`${CHATGPT_ISSUER}/.well-known/openid-configuration`, 'invalid-discovery'),
       'invalid-discovery',
     )
     const jwks = new URL(discovery.jwks_uri)
     if (
-      jwks.origin !== ISSUER ||
+      jwks.origin !== CHATGPT_ISSUER ||
       jwks.username !== '' ||
       jwks.password !== '' ||
       jwks.search !== '' ||
@@ -643,8 +628,8 @@ export class ChatGptSignIn {
               {
                 v: CREDENTIAL_RECORD_VERSION,
                 auth: 'subscription',
-                origin: ORIGIN,
-                issuer: ISSUER,
+                origin: CHATGPT_ORIGIN,
+                issuer: CHATGPT_ISSUER,
                 clientId: grant.clientId,
                 hostId: this.host.hostId,
                 ...(accountIdHash !== undefined && { accountIdHash }),
@@ -674,7 +659,7 @@ export class ChatGptSignIn {
     const request = z.url().safeParse(requestUrl)
     if (
       !request.success ||
-      new URL(request.data).origin !== ORIGIN ||
+      new URL(request.data).origin !== CHATGPT_ORIGIN ||
       new URL(request.data).username !== '' ||
       new URL(request.data).password !== ''
     ) {

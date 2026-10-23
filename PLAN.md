@@ -29511,6 +29511,53 @@ and admission have deliberate failing regressions.
 **Status 2026-10-17 (MSM109; superseded 2026-10-18 by VAULTOPEN: the key-store migration and companion surface stayed open): complete.** Merged `main-now`, purged every stand-in-based vault test per the 10-17 testing rules (the overhaul deletions stay deleted; crash recovery and broker sessions stay proven through real child processes), bound the Models & Agents vault section and the window commands to the lazy vault bundle, enabled the reviewed availability switch, composed SSH key add in the action dialogs, published vault Help, and passed all gates. The Windows pipe helper (lane C-M109-1c), the key-store migration, the companion vault surface and the macOS replay still wait and are not claimed here; see `docs/certification/msm109.md`.
 **Status 2026-10-18 (VAULTOPEN, macmini): building.** The key-store migration is built for apiKey-shaped keys (Model API key, apiKey provider records; opaque records, retire/undo and pooled accounts stay follow-ups) behind the lazy `dist/vaultMigration.js` chunk with its own budget; the macOS replay is recorded with its sandbox blocks; the companion vault surface stays open with the measured gap. See `docs/certification/msm109.md` (lane VAULTOPEN). M109 stays open.
 
+**RLM109 recovery (2026-10-21, Windows): building.** Reconcile the seven
+`src/RLM109/*` sources against the released tree, retaining its death-only
+writer ownership, current native helpers, no-limit rules and removed stand-in
+tests. The untouched production build and Windows panel-flow suite passed
+locally using an owner-only disposable TEMP inside this worktree. First
+complete the existing opaque provider/default-account migration: extend only
+the authenticated host's private reader for hidden, first-party, never-agent
+records and reuse the installed codecs, journal and mirroring shell. Prove
+copy, rotation, sign-out, lock/unlock and origin refusal through the real
+Windows broker and a separately named native credential-store service; no
+credential values reach output. Then connect pooled-account enumeration,
+subscription records, authoritative reads with retire/undo, T5 exec/ACP and
+the companion vault surface through their existing owners. Each increment
+requires real behavior and red/restored-green evidence before a claim or
+commit. Linux VS Code routing and Secure Enclave qualification retain the
+brief's owner holds; macOS replay needs a real macOS host. Readiness,
+source reconciliation and receipts: `docs/certification/rlm109.md` and
+`.lane/RLM109.report.md`. No provider/model calls, real vault access, new
+dependency, budget increase or restored fake-driven test is authorized.
+
+**RLM109 recovery (2026-10-22, macmini): building.** Increments 2–3:
+the ChatGPT subscription slot migrates through its own opaque,
+origin-bound, byte-exact codec (the controller probes the slot; the
+record schema is a leaf the sign-in re-exports, keeping
+`dist/vaultMigration.js` at 41.4/45 KiB), and pooled accounts migrate
+from an optional per-provider listing with the existing account codec
+(43.2/45 KiB; the window passes no pool until the M108 host bindings
+land). Sources 01–06 are superseded or evidence-only; 07 is declined
+verbatim with a reconciled one-owner design recorded. Open: retire/undo
+(authoritative reads first — the retire trigger must not land before
+them), T5 runtime migration (needs its own lazy chunk), the companion
+surface (owner question), and the macOS/Windows broker proofs, which
+this lane's sandbox cannot run (`/bin/ps` denied, 148-byte TMPDIR over
+the 103-byte socket limit, no default keychain). Receipts:
+`docs/certification/rlm109.md`. M109 stays open.
+
+**RLM109 recovery (2026-10-22, macmini): increment 4.** Retire
+mechanics bound: `ensureMigrated` retires past the retain window and
+retired slots read authoritatively through the shell
+(`dist/vaultMigration.js` 43.8/45 KiB; both broker suites drive
+retire at release 21 for CI). T5 corrected to the grant-redemption
+consumer (vault_run binding in exec/ACP tool IO); deferred with a
+design — its launch half has no packaging and every behavior needs
+real runs. Undo trigger, vault-reset restoration of retired slots
+and the companion surface are owner/product questions. macOS and
+Windows proofs stay with the lead and hosted CI.
+
 **C-M109-1 lead decisions (2026-10-10, lead decision).** In 0.17.0, every
 vault use is refused. The binding layer was never built: the broker process,
 its ports, peer checks, a setup flow, a runtime bundle and a Linux slot are
