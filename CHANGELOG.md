@@ -7,6 +7,36 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+### Added
+
+- **Maker tools with a person at every physical action.** Shell commands
+  that flash a board, open a device or move a machine ask every time, in
+  every permission mode, and no remembered rule, hook or automatic reviewer
+  can answer for you; commands that cannot be undone (burning fuses,
+  one-time-programmable writes and their like) are refused with the
+  run-it-yourself reply. Stop commands are never blocked or asked about.
+  Nothing physical runs from a subagent, a scheduled run or headless use.
+- **Maker projects are recognised, and the right help is offered.**
+  PlatformIO, ESP-IDF, Arduino, MicroPython, CircuitPython, Pico, Zephyr,
+  ESPHome, ROS 2, printer and CAD workspaces are detected from their files,
+  with matching skills and check presets; a workspace without a marker is
+  unchanged.
+- **Devices and machines, read first.** Serial ports are listed with their
+  board identity without opening anything. Printer and CNC status reads
+  need no approval; sending G-code is analysed against the machine's limits
+  and asks once for exactly those bytes, and every answer is single-use and
+  expires. OpenSCAD and KiCad checks and an STL preview are included.
+- **The same maker tools in a terminal.** `hardware`, `machines` and
+  `stop-machine` commands and `--hardware` sessions in
+  `muse-spark-code-acp`, with the companion page for approvals where the
+  editor has no dialog of its own. Machine keys stay in the operating
+  system's credential store.
+- **An Arduino IDE 2 build and a Thonny plug-in.** The same product builds
+  for Arduino IDE 2.3.x (VS Code API 1.96) with its own typecheck, and the
+  `thonny-muse-spark` plug-in package opens the companion and its Stop from
+  Thonny's menu through Thonny's own connection. Arduino IDE qualification
+  in the installed IDE is not complete yet.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
@@ -1461,383 +1491,6 @@ al.` notice suffixes, terminal periods, paired email/URL contacts) while
   reviewed screenshots. A test names any kind of Markdown the real notes
   use and the sample lacks. The capture inputs gain the build helpers and
   the dependency versions, and no longer include this file (VISFIX).
-
-### M103 Accepted Maker Tools Port
-
-- Preserve maker approvals and Stop across the 0.17.1 provider/resource/question updates; keep maker contracts and fallback English lazy under independent budgets. Qualification and visibility limits remain unchanged.
-
-
-- M103 makers integration: the twelve makers lanes joined additively with
-  regenerated reference, localization and host-API records. New lazy bundles
-  carry their own budgets (`runtimeMaker`, `makerHost`, `makerPreviewHost`,
-  `hardwareGuard`, `hardwareShell`); startup is unchanged. The help reference
-  covers the makers feature, its four CLI routes and `--hardware`; maker
-  commands and settings stay with the wiring lane. Physical approvals need OS
-  user presence, Stop is never gated, and nothing physical runs unattended.
-  Simulator and emulator receipts are authoritative; see
-  `docs/certification/m103.md`.
-
-### Documentation
-
-- A register of orchestration gotchas (`docs/orchestration-gotchas.md`) lists
-  what went wrong while a fleet of agents built this project. For each one it
-  gives the rule that prevents it and the milestone that will enforce that
-  rule in the app's own orchestrator (D100).
-### Added
-
-- A lazy VS Code maker host adapter with native per-action approval, canonical
-  host storage and SecretStorage, independent status-bar Stop, hardware and
-  machine command handlers, a restricted preview tab and validated `ide` tool
-  wrappers. It preserves uncertain send outcomes. Activation, shared preview
-  assets and protected engine wiring remain with M103's wiring lane.
-
-- A consolidated maker text region for approvals, hardware admission and
-  physical-stop warnings, target/payload analysis, logs, previews and device
-  counts, with real translations in all fourteen UI languages. Maker commands
-  and settings remain with the forthcoming wiring lane.
-
-- A portable maker host and versioned surface protocol for the forthcoming
-  editor/runtime adapters, with committed JSON Schemas. Serial and machine
-  approvals share a frozen target, expiring single-use answer checks and a
-  live identity check at the final spawn/write. Device swaps, stale answers,
-  revoked permissions and replayed bindings refuse dispatch; Stop stays
-  independent.
-
-- An Arduino IDE 2.3.x VSIX variant of the same product, targeting VS Code API
-  1.96, Node 20.14 and Chromium 124, with an isolated older-API typecheck,
-  unchanged package and startup budgets, and side-load installation guidance.
-- A validated optional Arduino board-selection reader and an Arduino IDE
-  host job running every integration test. The first real IDE run loaded the
-  extension and passed 21 of 34 tests; 13 host compatibility failures remain
-  recorded, so Arduino qualification is incomplete.
-
-- Shared lazy maker views for exact per-action approval, independent Stop,
-  device/serial controls, secretless machine registration and the local device
-  log, plus a separate bounded WebGL STL preview page. All surfaces use the
-  portable maker protocol and include real translations in fourteen languages.
-  Final command/tool, host adapter and package wiring remains in M103 W/V/R.
-
-### Fixed
-
-- A reloaded or replacement maker companion document starts a new approval
-  epoch as soon as it resumes its session or subscribes, not only when it
-  announces itself: the earlier document's payload review, presence grant
-  and any OS prompt still open are retired, and the new document can always
-  review and authenticate afresh. An expired presence grant no longer blocks
-  a new OS prompt for the same request.
-
-- Every maker payload-review producer is bound to the document epoch that
-  started it: a review upload whose body completes after a replacement
-  document resumes is refused, and an editor-permission answer resolving
-  after one settles reject without prompting. The new document reviews
-  again in both cases.
-
-- Maker machine sends and serial sessions work on macOS and Windows. The
-  hardware lease identified its holder from Linux's process table only, so
-  elsewhere every send failed before asking for approval, and Windows Stop
-  reported a failure whenever a lease folder existed. macOS now reads the
-  holder's start time with `ps`, Windows with the process creation time,
-  and Windows admits a lease folder only when it is private to you (SYSTEM
-  and Administrators aside). A lease's Stop socket path now fits macOS's
-  104-byte limit.
-
-- Hardware Stop still reaches a device session started by an earlier build
-  of the agent, and no longer reports success when a session it cannot
-  reach or recognise may still hold a device: it tells you to use the
-  machine's physical emergency stop instead. On Windows, maker sends and
-  Stop also work when the environment spells `SystemRoot` in another case.
-
-- Stop all machines reports an unconfirmed Stop when a live device owner's
-  readable Stop index filename carries another resource's hash. It still
-  attempts other recognised owners and directs you to the physical emergency
-  stop instead of reporting success.
-
-- Hardware Stop has its own 5-second delivery deadline. A serial port that
-  never opens or drains, or an HTTP Stop that never answers, now reports Stop
-  unconfirmed instead of leaving the caller waiting; a late serial port still
-  receives Stop and is closed.
-
-- A maker companion document that reloads or is replaced no longer inherits
-  the earlier document's payload review: its `makerReady` revokes it, so
-  Send once needs a fresh review. A reloaded companion resumes its cookie
-  session instead of failing on the spent launch code, and sees its admission
-  before pending approvals, so they are no longer rejected on arrival.
-
-- Serial Stop ignores only proven dead or retired lease generations after
-  dispatching directly to current endpoints, so abandoned indexes cannot
-  spoil a successful Stop. Retirement retries marker and Stop-index cleanup
-  even with an existing matching receipt; concurrent releases share one
-  transition, and unpublished sessions retire their own indexes too.
-
-- Maker preview approval receipts now latch a decision or withdrawal. Changed
-  or invalid rendered-byte acknowledgements revoke approval and ignore late
-  Send once answers. Asking again requires a new approval ID. The deferred
-  preview regression uses production bundle inputs without historical Git
-  objects and covers Windows output paths.
-
-
-- Maker approvals verify the digest of displayed bytes and wait for delivered,
-  rendered payloads before offering Send once. Each pending approval has its
-  own immutable preview; closing or reloading it cancels approval. Passive
-  notices no longer hold tool outcomes or failed Stop, and the maker-only
-  modal limit no longer adds unused code to startup bundles. Shared preview
-  page rendering remains with M103's wiring lane.
-
-- The maker emulator lease consumer now reads P's version-2 record and
-  immutable generation, verified against a live lease-only child without
-  board assets. New machine registration requests leave generation UUIDs
-  with the engine.
-- JSON verification checks disk bytes and the editor generation even when stale
-  valid editor text and an empty diagnostics event would otherwise appear clean.
-  Arduino completion unit tests provide private fake artifacts and run without
-  an integration build.
-
-- JSONC verification rejects missing members/elements rather than erasing
-  illegal commas. Stale editor text stays unchecked after an empty diagnostic
-  event, and disposing verification stops active and queued diagnostic reads.
-  Arduino qualification requires discovered tests and a fully passed receipt
-  with zero pending cases.
-
-- JSON verification supplies positioned local diagnostics when the host emits
-  no JSON report, publishes through the editor API, checks existing Muse
-  permission-setting schemas, and prefers native diagnostics without duplicates.
-  Verification and formatting now load on first use in a separate guarded
-  25 KiB bundle; existing startup and VSIX budgets remain unchanged.
-
-- Arduino IDE file reveals tolerate the measured Theia editor-notification
-  race. Temporary clean documents close through their own editor handle when
-  the host omits tab identities. Formatting validates the captured Monaco
-  edit shape and converts its one-based ranges to native Positions.
-- Semantic rename detects missing provider/prepare commands while retaining
-  VS Code providers listed by internal identifiers, with translated
-  search/read_file guidance when no language service answers. The real Arduino
-  follow-up passes 32/34 integration tests with explicit absent-TypeScript
-  expectations; two JSON diagnostics cases remain failing, so qualification
-  is incomplete.
-- Arduino qualification isolates CLI data/downloads and supports a public
-  cached offline run with external requests denied; runner logs survive a
-  slow IDE shutdown.
-
-
-- Hosts without the native walkthrough command get a local getting-started
-  page with sign-in guidance, shortcuts and chat/rules actions. File opening
-  passes the opened document to the editor API.
-
-- Machine-scoped settings are read from user/global configuration even in
-  hosts that accept repository overrides, preventing a workspace from
-  enabling Bypass, replacing the CLI or opting into paid features.
-
-
-- M103 lane D's portable maker project detector and catalogue gate: bounded,
-  read-only project markers select relevant bundled maker skills, while
-  ordinary workspaces keep the existing catalogue and request text. Optional
-  Raspberry Pi facts use the OS model file and bounded, credential-free
-  `vcgencmd` probes. A validated, localized `presetsOffered` event suggests
-  finite build, syntax, analysis and simulation checks without running them
-  or changing settings. Wokwi suggestions require explicit cloud opt-in and
-  an expected result; Arduino and Zephyr require a chosen board target.
-  Host integration follows in M103's wiring lane.
-
-
-- Maker detection works in ordinary macOS workspaces again. Directory
-  enumeration uses the checked inherited descriptor, preserving confinement
-  when a workspace ancestor is replaced and retaining bounded reads.
-
-- Maker detection validates opened file and directory handles against the
-  held workspace root before reading or listing, so an ancestor replacement
-  cannot redirect detection outside the workspace. Windows uses native
-  handle paths and directory queries, including case-sensitive roots.
-
-- CIRCUITPY volume labels and root boot_out.txt retain the board-save notice
-  and generic Python syntax suggestions, including Windows drive roots and
-  differently named Linux mount points.
-
-- Maker Pico SDK and Zephyr build suggestions now use detected application
-  CMakeLists.txt directories; toolchain and workspace metadata still select
-  skills without offering unusable builds.
-
-
-- Bundled-skill updates reconcile owned links when an id moves between the
-  vendor and first-party roots. Failed upgrades restore the previous copy,
-  links and marker, keeping Update available. Maker topic checks now reject
-  unsafe stop paths, model-set approvals, bypass/Auto actuation suggestions
-  and irreversible provisioning instructions.
-
-
-
-- **Maker serial lifecycle before integration.** Cross-process Stop accepts
-  Windows CRLF frames and waits for cancelled opening and port cleanup.
-  COM namespace aliases
-  share a lease, failed POSIX claims retain another holder's exclusivity, and
-  empty Windows enumeration returns no ports. Adapters that cannot honour
-  approved DTR/RTS settings refuse before opening. Submitted stale removals
-  address only their immutable holder generation. Admission now publishes
-  one fully written, fsynced record with an exclusive link, without a native
-  mutex or cleanup mutex. PID plus process-start identity detects stale
-  holders, generation-checked retirement makes release idempotent, and a
-  separate session index lets Stop
-  reach the process even with corrupt claim records. Retired claim slots
-  stay immutable so delayed cleanup cannot erase a replacement. Windows port
-  identity uses the registry's PortName, falling back only to a final COM
-  suffix in the friendly name.
-  Stop now waits for the active holder and reports its success or failure
-  separately from cancellation of a preparing contender. A contender cannot
-  acknowledge hardware Stop or acquire the lease after cancellation.
-
-
-
-- Local Linux maker rig for Pi 3B/4B/arm64 virt, ESP32/S3/C3, Uno/Mega,
-  Pico, STM32 and nRF52: bounded launchers, private UARTs and an opt-in suite
-  using real emulators, serial sessions, approvals, flashing tools and leases.
-  Pi 3B/4B now provide getty consoles using the image's matching kernel and
-  device trees; S3's download fixture selects UART rather than unemulated USB.
-  S3 qualification uploads and verifies a real app, boots it, and stops a
-  live flash.
-  Physical boards and the integrated maker guard/editor flows remain required.
-
-- **Thonny companion plugin (M103 lane T).** New `integrations/thonny/`
-  Python package `thonnycontrib.muse_spark`: Tools menu items Open Muse
-  Spark and Stop machine (also a toolbar button), runtime start/stop,
-  companion-page opening, and the serial-provider bridge through Thonny's
-  own connection. pytest suite against fakes, CI test workflow, and a
-  PyPI release job that publishes only with the owner's token (nothing
-  published by this lane).
-
-
-- **Thonny handshake readiness and stdout failures (RVM103T3).** Hand-over
-  waits for a validated provider welcome and held-lease acknowledgement.
-  Runtime output is decoded as UTF-8 without relying on the Windows locale;
-  invalid diagnostics are reported while draining continues, and unreadable
-  output stops the owned child. The active wire-freeze residual now describes
-  context and explicit acquire/release, with no Thonny write-approval path.
-
-- **Thonny port hand-over redesign (REDM103T / RVM103T2).** Removed every
-  device command and write path through Thonny. The bridge serves bounded
-  displayed shell context only. Explicit Hand the port to Muse Spark / Give
-  the port back to Thonny clicks disconnect before runtime acquisition and
-  require release before reconnection; the runtime owns device I/O. Stop
-  workers and their process trees are owned through shutdown, the Windows
-  launcher preserves child failure exit codes, provider logs discard peer
-  values, and encoded responses have a hard size cap. The incompatible v2
-  interface awaits R/P integration. PyPI upload uses Trusted Publishing in
-  a separate OIDC job, without a stored publishing token. Both new controls
-  and transfer failures ship in all fourteen translated languages.
-
-- **Thonny provider admission and connection (RVM103T).** Settled or timed-out
-  queued writes are cancelled; each write rechecks its approved bytes, target
-  connection and expiry. Provider endpoints are confined to `127.0.0.1`,
-  handshakes validate field types, and idle connections survive the handshake
-  timeout. Empty files can be created or truncated, and browser-launch refusal
-  is reported. Approval fields remain a proposal awaiting the runtime freeze.
-- **Thonny startup, shutdown and localization (RVM103T).** Open clicks are
-  serialized and shutdown cancels startup and handshakes. Runtime children
-  belong to a Windows job or POSIX process group, and stdout is drained
-  throughout their lifetime. Announcement order no longer affects startup.
-  Menus, toolbar captions and failure notices ship in all fourteen translated
-  languages through gettext catalogues.
-
-- FIXM103R4: maker CLI hardware enable, machine add and panel commands refuse
-  agent-marked shells before asking for OS presence. Unattended shell children
-  carry the runtime marker; Stop remains available.
-  The panel opens with a public URL and exchanges its one-shot code over
-  loopback; the code never appears on an opener command line.
-  Browser origins are user-only, with a separate settings confirmation for
-  non-loopback origins. Registered machine hosts and aliases, known printer/CNC
-  UIs, private machine/web ports and encrypted private tunnels stay refused,
-  including Bypass. HTTP documents are bounded and screened before browser
-  interaction. Browser classification now uses web fetch's NAT64 discovery
-  and refuses unknown IPv6 translation.
-
-- REDM103R supersedes the terminal/SSH approval repairs below: physical maker
-  approvals, hardware enable, machine add and panel open require OS user
-  authentication bound to the exact action. Grants expire in five seconds and
-  work once. Remove ancestry walks, terminal launch codes, id-only HMAC answers
-  and the multiplexer refusal. Linux ships a non-caching polkit policy; the
-  macOS/Windows native helpers and real authenticated runs remain qualification
-  prerequisites. Stop remains independent. Browser checks deny private resolved
-  addresses by default, permit exact workspace dev-server origins explicitly,
-  and always deny the reserved companion ports, even without discovery files.
-  The ACP package carries the runtime bundle, browser schema entry and policy.
-
-- FIXM103R2: reject local/unknown SSH attendance and verify Windows ancestor
-  executable paths. Browser launchers receive only a public panel URL; a typed
-  eight-character code expires after 60 seconds, is single use and rate-limited,
-  and is printed only to the attended CLI's own TTY. Privileged commands refuse
-  inside terminal multiplexers because capture-pane can expose their code;
-  a separately opened person panel remains available, while direct multiplexer
-  confirmation is a named integration residual. Browser checks refuse published
-  companion ports, including aliases, redirects and tunnels; same-user registry
-  integrity remains a named G4 integration residual. Worker IDE-tool
-  admission now fails closed even when only static tools were registered.
-
-- FIXM103R: refuse unattended maker privileges using terminal and ancestry
-  evidence; open the companion via the OS browser without printing launch or
-  Thonny tokens. Panel cookies bind their instance and port; only a separate
-  page-held, once-only capability can answer an approval. Stop reads user-level
-  registries independently of workspace authority, including home/root/linked
-  paths and occupied ACP turns with leading whitespace. Failed Stop names the
-  machine and requires immediate physical emergency Stop in all fourteen
-  languages. Dead leases no longer cause a false alarm; unavailable serial and
-  PrusaLink Stop reports the physical requirement, and cancelling an unsent
-  approval no longer dispatches emergency Stop. ACP session guards now have
-  direct regression/drill coverage. Physical Muse Code MCP tools are withheld
-  until captured caller-turn provenance is available; the unsafe stdout
-  Thonny startup handoff is withdrawn pending private editor integration.
-
-- M103R runtime/ACP maker host: hardware grants outside the workspace, OS
-  credential storage, hardware/machines/Stop commands, editor permissions
-  with once-only target binding, authenticated loopback companion/MCP
-  transports and the Thonny v2 handover endpoint. Stop bypasses admission and
-  occupied ACP turns; ordinary prompts retain their preparing hold. Runtime
-  tools are withdrawn in Plan and unattended contexts. The maker engine loads
-  from a deferred bundle capped at 125 KiB; existing caps are unchanged.
-  Shared maker UI, package wiring, G4 and physical/cross-OS
-  qualification remain integration work, as recorded in M103R certification.
-
-- Maker danger acknowledgement now includes unparseable heater expressions,
-  variables and unknown macros, including serial payloads without analysis,
-  M42 and Klipper offset/carriage safety equivalents. Search runs in a
-  cancellable Web Worker, searching the complete query while bounding its
-  displayed prefix. The static Stop
-  shell is present before storage access and remains functional immediately
-  after reload while host replay is pending, including denied storage.
-
-- Maker search now uses cancellable elapsed-time slices and linear matching,
-  preserving responsive Stop during long queries on 100,000-line payloads.
-  Reload re-fetches pending approvals from the host, revokes previous review
-  readiness and restores maker controls without saving large payloads.
-
-- Maker canonical review preserves and visibly escapes BOM bytes everywhere,
-  with randomized exact-byte round-trip coverage. Every M302 spelling and
-  conservative power, protection, soft-limit and firmware-equivalent highlights
-  require the extra danger acknowledgement.
-
-- Maker summary highlights now follow CR-only line endings and padded numeric
-  command codes. Compound blocks disclose unknown effects. Summary preparation
-  avoids allocating heater maps and irrelevant parameter scans per motion line.
-- Maker approval now binds the exact outgoing-byte digest to a canonical,
-  virtualised rendering and structured summary. Control bytes are visible;
-  small payloads require reaching the scroll end, and large ones require
-  summary/digest confirmation. Highlighted dangers need acknowledgement.
-  Bounded Stop all and scrollable machine lists remain usable during long
-  rendering and failures. Retry reloads the panel to recover failed static
-  dependencies, preserving state and clearing review confirmations. Maker
-  review, fallback and validation have their own lazy budget.
-
-- Hardware approval now counts only fully visible hard-split segments, resets
-  progress on resize and requires host-owned completed review against the exact
-  outgoing bytes. Read-only/native preview paint cannot authorize a send.
-  Stop sits outside dialog scrolling and standalone controls form a stack.
-  Failed optional views retry a fresh chunk URL or close to restore chat.
-  The maker unit-test project now typechecks.
-
-- Maker approval now requires review of every payload line before Send once,
-  with paged and keyboard review, rendered-byte receipts and equally sized
-  choices. Serial-only Stop, failed-view recovery and short-pane preview Stop
-  stay available. Invalid meshes clear the old preview; oversized meshes are
-  rejected before component validation and accepted validation yields to Stop.
-  Machine categories now have translated display labels.
-
 
 ## [0.17.1] - 2026-10-10
 
