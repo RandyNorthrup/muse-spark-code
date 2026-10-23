@@ -48,8 +48,8 @@ export async function runRuntimeMaker(
 ): Promise<number> {
   setUiText(deps.table, deps.locale)
   if (command.action === 'stop-machine') {
-    try {
-      const result = await stopRuntimeMachines(
+    const [stopped] = await Promise.allSettled([
+      stopRuntimeMachines(
         {
           dataDirectory: deps.dataDirectory,
           platform: deps.platform,
@@ -57,15 +57,16 @@ export async function runRuntimeMaker(
           lan: runtimeMakerLan,
         },
         command.operation,
-      )
-      deps.print(stopResultText(result))
+      ),
+    ])
+    if (stopped.status === 'fulfilled') {
+      deps.print(stopResultText(stopped.value))
       return 0
-    } catch (error) {
-      ;(deps.reportFailure ?? deps.print)(
-        error instanceof Error ? error.message : UI_TEXT.makerPhysicalStopRequired,
-      )
-      return 1
     }
+    ;(deps.reportFailure ?? deps.print)(
+      stopped.reason instanceof Error ? stopped.reason.message : UI_TEXT.makerPhysicalStopRequired,
+    )
+    return 1
   }
   const service = await createRuntimeMakerService({
     stopOnlyFallback: command.action === 'panel',

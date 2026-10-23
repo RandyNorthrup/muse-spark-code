@@ -9,6 +9,15 @@ import { stopRuntimeMachines, stopResultText } from './stop'
 import { startCompanion } from './companionServer'
 
 /** Workspace authority is lazy. Stop needs neither authority nor a writable workspace. */
+function isServiceUnavailable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (('code' in error && typeof error.code === 'string') ||
+      error.message.startsWith('lease-') ||
+      error.message.startsWith('maker-'))
+  )
+}
+
 export function createAcpMakerRuntime(
   deps: Omit<RuntimeMakerServiceDeps, 'workspace' | 'ask' | 'interactive'>,
 ): AcpMakerRuntime {
@@ -93,21 +102,22 @@ export function createAcpMakerRuntime(
           if (parsed?.name === 'stop-machine') {
             held.service?.host.cancelApprovals()
             held.service?.serial.stop()
-            try {
-              return stopResultText(
-                await stop(parsed.args === '' || parsed.args === '--all' ? undefined : parsed.args),
-              )
-            } catch (error) {
-              // Stop errors already contain fixed localized text and registry machine names.
-              return error instanceof Error ? error.message : UI_TEXT.makerPhysicalStopRequired
-            }
+            const [stopped] = await Promise.allSettled([
+              stop(parsed.args === '' || parsed.args === '--all' ? undefined : parsed.args),
+            ])
+            if (stopped.status === 'fulfilled') return stopResultText(stopped.value)
+            // Stop errors already contain fixed localized text and registry machine names.
+            return stopped.reason instanceof Error
+              ? stopped.reason.message
+              : UI_TEXT.makerPhysicalStopRequired
           }
           let current: Service
           try {
             current = await service()
-          } catch {
-            if (parsed === undefined) return // Chat in home remains possible, with no physical tools.
-            throw new Error(UI_TEXT.makerUnattendedDenied)
+          } catch (error) {
+            if (parsed === undefined && isServiceUnavailable(error)) return // Chat in home remains possible, with no physical tools.
+            if (parsed === undefined) throw error
+            throw new Error(UI_TEXT.makerUnattendedDenied, { cause: error })
           }
           if (parsed === undefined) return
           const argumentsText = parsed.args
@@ -130,8 +140,8 @@ export function createAcpMakerRuntime(
               const envelope = makerSurfaceMessageSchema.parse(raw)
               if (envelope.type !== 'makerAddMachine') throw new Error(UI_TEXT.makerAddMachine)
               await current.dispatch(envelope, new AbortController().signal)
-            } catch {
-              throw new Error(UI_TEXT.makerAddMachine)
+            } catch (error) {
+              throw new Error(UI_TEXT.makerAddMachine, { cause: error })
             }
           } else if (argumentsText.startsWith('remove ')) {
             if (!current.host.isTrusted()) throw new Error(UI_TEXT.makerTrustRequired)

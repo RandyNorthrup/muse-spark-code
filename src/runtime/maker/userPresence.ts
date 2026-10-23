@@ -17,6 +17,10 @@ import {
 } from '../../shared/constants'
 
 /** No guessed Darwin/Windows wire: M109 installs its signed helper through this same port. */
+function isPresenceProbeFailure(error: unknown): boolean {
+  return error instanceof Error && 'code' in error
+}
+
 export function createUserPresence(platform: NodeJS.Platform, native?: UserPresence): UserPresence {
   if (native !== undefined) return native
   return {
@@ -89,8 +93,9 @@ export function createUserPresence(platform: NodeJS.Platform, native?: UserPrese
             },
           )
         })
-      } catch {
-        return 'unavailable'
+      } catch (error) {
+        if (isPresenceProbeFailure(error)) return 'unavailable'
+        throw error
       }
     },
   }

@@ -67,10 +67,15 @@ export async function startCompanion(deps: CompanionDeps) {
   const host = deps.host
   let origin = ''
   const server = createServer((request, response) => {
-    void handle(request, response).catch(() => {
+    void (async () => {
+      const [attempt] = await Promise.allSettled([handle(request, response)])
+      if (attempt.status !== 'rejected') {
+        return
+      }
+
       if (!response.headersSent) response.writeHead(HTTP_STATUS.badRequest)
       response.end()
-    })
+    })()
   })
   server.requestTimeout = RUNTIME_MAKER_TIMEOUT_MS
   server.headersTimeout = RUNTIME_MAKER_TIMEOUT_MS
@@ -237,8 +242,11 @@ export async function startCompanion(deps: CompanionDeps) {
           return
         }
         if (request.url === '/presence') {
-          try {
-            const grant = await host?.authorize(parsed.data.answer)
+          const [attempt] = await Promise.allSettled([
+            (async () => await host?.authorize(parsed.data.answer))(),
+          ])
+          if (attempt.status === 'fulfilled') {
+            const grant = attempt.value
             response
               .writeHead(grant === undefined ? HTTP_STATUS.forbidden : HTTP_STATUS.ok, {
                 'Content-Type': 'application/json',
@@ -250,10 +258,13 @@ export async function startCompanion(deps: CompanionDeps) {
                   ),
                 ),
               )
-          } catch (error) {
+          } else {
             response.writeHead(HTTP_STATUS.forbidden, { 'Content-Type': 'application/json' }).end(
               JSON.stringify({
-                error: error instanceof Error ? error.message : UI_TEXT.makerPresenceUnavailable,
+                error:
+                  attempt.reason instanceof Error
+                    ? attempt.reason.message
+                    : UI_TEXT.makerPresenceUnavailable,
               }),
             )
           }

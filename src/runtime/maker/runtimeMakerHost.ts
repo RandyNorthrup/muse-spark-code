@@ -90,10 +90,10 @@ export class RuntimeMakerHost implements MakerHost {
   private machines: readonly MakerMachineSummary[] = []
   private ports: readonly Extract<MakerTarget, { kind: 'serial' }>[] = []
   /**
-   * Document epoch (PLAN M103 FIXM103W8): reviews and `auth` are valid only in
-   * the epoch that made them. Private, so `newDocument` is its only writer
-   * (FIXM103W10): no consumer can restore an old epoch for a stale answer.
-   */
+  Document epoch (PLAN M103 FIXM103W8): reviews and `auth` are valid only in
+  the epoch that made them. Private, so `newDocument` is its only writer
+  (FIXM103W10): no consumer can restore an old epoch for a stale answer.
+  */
   #epoch = 0
   readonly secrets: MakerSecrets
   readonly serialProvider?: MakerSerialProvider
@@ -120,12 +120,13 @@ export class RuntimeMakerHost implements MakerHost {
     for (const listener of this.listeners) listener(message)
   }
   private async checkPresence(request: Parameters<UserPresence['check']>[0]): Promise<void> {
-    let result: Awaited<ReturnType<UserPresence['check']>>
-    try {
-      result = (await this.deps.presence?.check(Object.freeze(request))) ?? 'unavailable'
-    } catch {
-      result = 'unavailable'
-    }
+    const presence = this.deps.presence
+    const [checked] =
+      presence === undefined
+        ? [{ status: 'fulfilled', value: undefined } as const]
+        : await Promise.allSettled([presence.check(Object.freeze(request))])
+    const result: Awaited<ReturnType<UserPresence['check']>> =
+      checked.status === 'fulfilled' ? (checked.value ?? 'unavailable') : 'unavailable'
     if (result !== 'approved')
       throw new Error(
         result === 'denied' ? UI_TEXT.makerPresenceDenied : UI_TEXT.makerPresenceUnavailable,
@@ -146,12 +147,11 @@ export class RuntimeMakerHost implements MakerHost {
   }
   async refresh(): Promise<void> {
     this.enabled = false
-    try {
-      const raw = await this.storage.workspace.get(RUNTIME_MAKER_STATE_KEY)
-      const grant = grantSchema.safeParse(raw)
+    // Unreadable authority stays off; it must not prevent independent Stop controls.
+    const [stored] = await Promise.allSettled([this.storage.workspace.get(RUNTIME_MAKER_STATE_KEY)])
+    if (stored.status === 'fulfilled') {
+      const grant = grantSchema.safeParse(stored.value)
       this.enabled = grant.success && grant.data.enabled
-    } catch {
-      // Unreadable authority stays off; it must not prevent independent Stop controls.
     }
     if (!this.hardwareEnabled() || !this.isTrusted() || !this.isInteractive())
       this.cancelApprovals()
@@ -231,29 +231,30 @@ export class RuntimeMakerHost implements MakerHost {
       if (this.deps.ask !== undefined) {
         // The editor prompt shows this epoch's request; its answer cannot review a new document.
         const epoch = this.#epoch
-        void this.deps
-          .ask(request)
-          .then(async (answer) => {
-            const parsed = makerApprovalAnswerSchema.safeParse(answer).data
-            // The editor prompt showed the whole request; its allow is the review of that digest.
-            const grant =
-              parsed?.decision === 'allow_once' &&
-              parsed.id === request.id &&
-              epoch === this.#epoch &&
-              didReview({
-                v: 1,
-                type: 'makerPayloadReviewed',
-                id: request.id,
-                digest: parsed.digest,
-                isComplete: true,
-              })
-                ? await this.authorize(answer)
-                : undefined
-            this.answer(grant ? answer : reject, grant)
-          })
-          .catch(() => {
-            this.answer(reject)
-          })
+        void (async () => {
+          const [attempt] = await Promise.allSettled([
+            (async () => {
+              const answer = await this.deps.ask?.(request)
+              const parsed = makerApprovalAnswerSchema.safeParse(answer).data
+              // The editor prompt showed the whole request; its allow is the review of that digest.
+              const grant =
+                parsed?.decision === 'allow_once' &&
+                parsed.id === request.id &&
+                epoch === this.#epoch &&
+                didReview({
+                  v: 1,
+                  type: 'makerPayloadReviewed',
+                  id: request.id,
+                  digest: parsed.digest,
+                  isComplete: true,
+                })
+                  ? await this.authorize(answer)
+                  : undefined
+              this.answer(grant ? answer : reject, grant)
+            })(),
+          ])
+          if (attempt.status === 'rejected') this.answer(reject)
+        })()
       }
       return await pending
     } finally {
@@ -341,10 +342,10 @@ export class RuntimeMakerHost implements MakerHost {
     return auth.value
   }
   /**
-   * Transition `newDocument` (launch, /session resume, /events replay, makerReady): a new epoch
-   * atomically retires every earlier grant and in-flight OS authentication, and MakerApproval
-   * clears its review on any frame but a matching review.
-   */
+  Transition `newDocument` (launch, /session resume, /events replay, makerReady): a new epoch
+  atomically retires every earlier grant and in-flight OS authentication, and MakerApproval
+  clears its review on any frame but a matching review.
+  */
   newDocument(): void {
     this.#epoch += 1
     for (const { review } of this.pending.values()) review({ v: 1, type: 'makerReady' })
@@ -353,7 +354,7 @@ export class RuntimeMakerHost implements MakerHost {
   review(message: Extract<MakerSurfaceMessage, { type: 'makerPayloadReviewed' }>): boolean {
     return this.pending.get(message.id)?.review(message) ?? false
   }
-  answer(raw: unknown, grant?: string): boolean {
+  answer(raw: unknown, grant = ''): boolean {
     const parsed = makerApprovalAnswerSchema.safeParse(raw)
     const correlation = z.object({ id: z.uuid() }).safeParse(raw)
     if (!correlation.success) return false
@@ -363,7 +364,7 @@ export class RuntimeMakerHost implements MakerHost {
     // Transition `answer`: allow needs this epoch's live grant; the engine still needs this epoch's review.
     if (parsed.success && parsed.data.decision === 'allow_once') {
       const minted = held.auth?.epoch === this.#epoch ? held.auth : undefined
-      const given = Buffer.from(grant ?? '')
+      const given = Buffer.from(grant)
       const expected = Buffer.from(minted?.value ?? '')
       isAllowed =
         minted?.value !== undefined &&

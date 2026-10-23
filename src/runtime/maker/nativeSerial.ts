@@ -28,6 +28,15 @@ import {
   RUNTIME_MAKER_TIMEOUT_MS,
 } from '../../shared/constants'
 
+function isExitCodeOne(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    error.cause instanceof Error &&
+    'code' in error.cause &&
+    error.cause.code === 1
+  )
+}
+
 export interface NativeSerialDeps {
   readonly platform: NodeJS.Platform
   readonly env: NodeJS.ProcessEnv
@@ -162,13 +171,7 @@ export function nativeSerial(deps: NativeSerialDeps) {
             )
             return true
           } catch (error: unknown) {
-            if (
-              error instanceof Error &&
-              error.cause instanceof Error &&
-              'code' in error.cause &&
-              error.cause.code === 1
-            )
-              return false
+            if (isExitCodeOne(error)) return false
             throw new Error('serial-ownership-unknown', { cause: error })
           }
         },

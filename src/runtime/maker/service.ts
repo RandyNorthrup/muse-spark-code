@@ -70,6 +70,15 @@ export interface RuntimeMakerServiceDeps extends Omit<RuntimeMakerHostDeps, 'aud
   readonly serialMachine?: (record: MachineRecord, deps: MachineDeps) => Promise<Machine>
   readonly prusalinkTransport?: (record: MachineRecord, secrets: MakerSecrets) => PrusaLinkTransport
 }
+function isHostUnavailable(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (('code' in error && typeof error.code === 'string') ||
+      error.message.startsWith('lease-') ||
+      error.message.startsWith('maker-'))
+  )
+}
+
 export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   const logging: { value?: DeviceLog } = {}
   const hostDeps: RuntimeMakerHostDeps = {
@@ -89,6 +98,7 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
   try {
     host = await RuntimeMakerHost.create(hostDeps)
   } catch (error) {
+    if (!isHostUnavailable(error)) throw error
     if (deps.stopOnlyFallback !== true) throw error
     host = RuntimeMakerHost.stopOnly(hostDeps)
   }
@@ -251,13 +261,16 @@ export async function createRuntimeMakerService(deps: RuntimeMakerServiceDeps) {
       // Revoke the final write guard. Cancelling an unsent permission is not a machine Stop.
       leased.delete(generation)
       if (dispatched.has(generation))
-        void engine.stop().catch(() => {
-          host.notify({
-            type: 'makerNotice',
-            level: 'error',
-            message: fill(UI_TEXT.makerStopFailed, { machine: engine.record.name }),
-          })
-        })
+        void (async () => {
+          const [attempt] = await Promise.allSettled([engine.stop()])
+          if (attempt.status === 'rejected') {
+            host.notify({
+              type: 'makerNotice',
+              level: 'error',
+              message: fill(UI_TEXT.makerStopFailed, { machine: engine.record.name }),
+            })
+          }
+        })()
     }
     signal.addEventListener('abort', cancel, { once: true })
     try {
