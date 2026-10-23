@@ -644,6 +644,8 @@
   "referenceDictationKeys": "将你的语音录入输入框（轻点切换，按住说话）",
   "referenceNewlineKeys": "在草稿中插入新行。",
   "referenceSendKeys": "使用useCtrlEnterToSend选择的操作发送草稿。",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "选择 Muse 在每条回答上投入的工作量。 思考: 开 = effort; 关 = museCode:none / modelApi:minimal.",
   "referenceSandbox": "在Windows上，当此窗口使用Muse Code命令行沙箱时，请通过一次管理员批准完成设置，然后开始新对话。shellSandbox=\"off\" 无需设置。",
   "referenceSetup": "在受信任的工作区中运行 spark-hooks.json 中 init 的 Setup 钩子。",

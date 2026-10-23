@@ -6,6 +6,7 @@ import {
   NODE_GIT_IMPORT_MAX_FILES,
   UI_TEXT,
 } from '../../../shared/constants'
+import { webviewKey } from '../../../shared/keybindings'
 import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
 import { NodePageError, isNodePageError } from '../../bridges/nodePort'
 import { useRequestRunner } from '../requestRunner'
@@ -161,34 +162,33 @@ export function FileTree({
   }
   const key = (event: KeyboardEvent<HTMLDivElement>) => {
     const row = rows[active]
-    switch (event.key) {
-      case 'ArrowDown': {
+    switch (webviewKey('node.tree', event)) {
+      case 'next': {
         move(active + 1)
         break
       }
-      case 'ArrowUp': {
+      case 'previous': {
         move(active - 1)
         break
       }
-      case 'Home': {
+      case 'first': {
         move(0)
         break
       }
-      case 'End': {
+      case 'last': {
         move(rows.length - 1)
         break
       }
-      case 'Enter':
-      case ' ': {
+      case 'accept': {
         if (row !== undefined) activate(row)
         break
       }
-      case 'ArrowRight': {
+      case 'expand': {
         if (row?.entry.kind === 'directory' && !expanded.has(row.entry.path)) activate(row)
         else move(active + 1)
         break
       }
-      case 'ArrowLeft': {
+      case 'collapse': {
         if (row !== undefined && expanded.has(row.entry.path)) activate(row)
         else if (row !== undefined) move(rows.findIndex((item) => item.entry.path === row.parent))
         break

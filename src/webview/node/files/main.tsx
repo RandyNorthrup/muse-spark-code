@@ -7,6 +7,7 @@ import {
   WEBVIEW_L10N_ELEMENT_ID,
   UI_TEXT,
 } from '../../../shared/constants'
+import { webviewKey } from '../../../shared/keybindings'
 import { EN } from '../../../shared/l10n/en'
 import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
 import type { NodeTerminalSocketFactory } from '../../bridges/nodePort'
@@ -449,7 +450,7 @@ function NodeWorkspace({ port, auth, workspaceId, connectTerminal }: NodeWorkspa
           <section
             aria-label={UI_TEXT.nodeLabels.editor}
             onKeyDown={(event) => {
-              if (!((event.ctrlKey || event.metaKey) && event.key === 's')) {
+              if (webviewKey('node.editor', event) !== 'save') {
                 return
               }
 

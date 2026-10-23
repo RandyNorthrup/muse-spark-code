@@ -647,6 +647,8 @@
   "referenceDictationKeys": "записывает ваш голос в поле ввода (нажмите для переключения или удерживайте, чтобы говорить)",
   "referenceNewlineKeys": "Вставить новую строку в черновик.",
   "referenceSendKeys": "Отправить черновик действием, выбранным useCtrlEnterToSend.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Выберите, сколько усилий Muse вкладывает в каждый ответ. Размышление: Вкл. = effort; Выкл. = museCode:none / modelApi:minimal.",
   "referenceSandbox": "В Windows, когда окно использует песочницу оболочки Muse Code, настройте её с одобрением администратора и начните новую беседу. shellSandbox=\"off\" не требует настройки.",
   "referenceSetup": "Запустить хуки Setup для init из spark-hooks.json в доверенной рабочей области.",

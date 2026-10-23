@@ -645,6 +645,8 @@
   "referenceDictationKeys": "nimmt Ihre Stimme in das Eingabefeld auf (tippen zum Umschalten, halten zum Sprechen)",
   "referenceNewlineKeys": "Eine neue Zeile in die Eingabe einfügen.",
   "referenceSendKeys": "Die Eingabe mit der durch useCtrlEnterToSend gewählten Geste senden.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Wählen, wie viel Mühe Muse in jede Antwort steckt. Nachdenken: Ein = effort; Aus = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Unter Windows, wenn dieses Fenster die Muse Code Shell-Sandbox nutzt, richten Sie sie mit einer Administratorbestätigung ein und starten eine neue Unterhaltung. shellSandbox=\"off\" erfordert keine Einrichtung.",
   "referenceSetup": "Setup-Hooks für init aus spark-hooks.json in einem vertrauenswürdigen Arbeitsbereich ausführen.",

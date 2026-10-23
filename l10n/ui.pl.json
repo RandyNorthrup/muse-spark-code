@@ -647,6 +647,8 @@
   "referenceDictationKeys": "nagrywa Twój głos do pola wiadomości (naciśnij, aby przełączyć, lub przytrzymaj, aby mówić)",
   "referenceNewlineKeys": "Wstaw nowy wiersz w szkicu.",
   "referenceSendKeys": "Wyślij szkic gestem wybranym przez useCtrlEnterToSend.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Wybierz, ile wysiłku Muse wkłada w każdą odpowiedź. Myślenie: Wł. = effort; Wył. = museCode:none / modelApi:minimal.",
   "referenceSandbox": "W Windows, gdy okno używa piaskownicy powłoki Muse Code, skonfiguruj ją z jedną zgodą administratora i rozpocznij nową rozmowę. shellSandbox=\"off\" nie wymaga konfiguracji.",
   "referenceSetup": "Uruchomić haki Setup dla init z pliku spark-hooks.json w zaufanym obszarze roboczym.",

@@ -647,6 +647,8 @@
   "referenceDictationKeys": "nahraje váš hlas do pole zprávy (klepnutím přepnete, podržením mluvíte)",
   "referenceNewlineKeys": "Vložit nový řádek do zadání.",
   "referenceSendKeys": "Odeslat zadání gestem podle useCtrlEnterToSend.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Zvolte, kolik úsilí Muse věnuje každé odpovědi. Přemýšlení: Zapnuto = effort; Vypnuto = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Ve Windows, pokud okno používá shellový sandbox Muse Code, nastavte jej s jedním potvrzením správce a začněte novou konverzaci. shellSandbox=\"off\" nastavení nevyžaduje.",
   "referenceSetup": "Spustit háčky Setup pro init ze spark-hooks.json v důvěryhodném pracovním prostoru.",

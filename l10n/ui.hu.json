@@ -645,6 +645,8 @@
   "referenceDictationKeys": "a hangját a szövegmezőbe rögzíti (koppintás: be/ki, nyomva tartás: beszéd)",
   "referenceNewlineKeys": "Új sor beszúrása a piszkozatba.",
   "referenceSendKeys": "A piszkozat küldése a useCtrlEnterToSend által választott gesztussal.",
+  "referenceNodeTreeKeys": "Move between files, expand or collapse a folder, or open the active file.",
+  "referenceNodeEditorKeys": "Save the open file.",
   "referenceThinking": "Válassza ki, mennyi erőfeszítést tegyen a Muse az egyes válaszokba. Gondolkodás: Be = effort; Ki = museCode:none / modelApi:minimal.",
   "referenceSandbox": "Windows alatt, ha az ablak a Muse Code shell-homokozóját használja, állítsa be egy rendszergazdai jóváhagyással, majd indítson új beszélgetést. shellSandbox=\"off\" esetén nincs szükség beállításra.",
   "referenceSetup": "A spark-hooks.json init eseményhez tartozó Setup hookjainak futtatása megbízható munkaterületen.",
