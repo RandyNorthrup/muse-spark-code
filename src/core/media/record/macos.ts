@@ -4,7 +4,6 @@ import path from 'node:path'
 import * as z from 'zod/mini'
 import { isCredentialVariable } from '../../../shared/credentialEnvironment'
 import {
-  DICTATION_QUIT_GRACE_MS,
   BYTES_PER_MIB,
   MEDIA_MAX_UPLOAD_DEFAULT_MIB,
   MILLISECONDS_PER_SECOND,
@@ -27,6 +26,8 @@ import { realpathSync } from 'node:fs'
 
 const PRIVATE_DIRECTORY_MODE = 0o700
 const PRIVATE_FILE_MODE = 0o600
+/** The native helper's own output bound (`maximumBytes` in ScreenRecord.swift). */
+export const MACOS_RECORDING_HELPER_MAX_BYTES = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
 const SCREEN_SETTINGS =
   'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
 const MICROPHONE_SETTINGS =
@@ -59,7 +60,11 @@ export interface MacosScreenRecordingDeps {
       }
     | undefined
   >
-  /** Host power-suspend subscription. Unsubscribe when the run settles. */
+  /**
+  Host power-suspend subscription. Unsubscribe when the run settles. Absent
+  where the host has no suspend signal (VS Code exposes none): the native
+  helper still stops on sleep itself, and the run starts without it.
+  */
   readonly onSuspend?: (listener: () => void) => () => void
   /**
   Spawn directly with this exact argument array and environment; no shell.
@@ -69,9 +74,14 @@ export interface MacosScreenRecordingDeps {
   readonly spawn: (command: string, args: readonly string[], env: GuardedChildEnv) => HelperChild
   /** M1's bounded sniffer, injected until its lane is integrated. */
   readonly inspect: (file: string) => Promise<MediaInfo>
-  /** Lane W binds these to SCREEN_RECORDING_* tunables in shared/constants. */
-  readonly startupTimeoutMs: number
-  readonly finishTimeoutMs: number
+  /**
+  The recording file's byte bound: the person's upload cap when set, else
+  the helper's own bound. Refused unless a whole number from 1 to the
+  helper's bound; D121 keeps no other bound of ours, so a run whose helper
+  stops answering waits until the person stops it.
+  */
+  readonly maxBytes: number
+  /** The helper protocol's per-read bound (bytes, never a person's value). */
   readonly maxProtocolChars: number
   /** The editor offers its recovery action; no settings are opened automatically. */
   readonly onPermissionDenied?: (permission: Permission) => void
@@ -135,8 +145,9 @@ function childEnvironment(base: NodeJS.ProcessEnv): GuardedChildEnv {
 }
 
 export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): ScreenRecordingDriver {
-  // Used for both fixed codesign and the read-only native probe. Bound all
-  // subprocesses; discard diagnostics and refuse malformed/truncated output.
+  // Used for both fixed codesign and the read-only native probe. The read
+  // is bounded in bytes, never in time (D121: no timeout of ours); discard
+  // diagnostics and refuse malformed/truncated output.
   const readCheck = (command: string, args: readonly string[]): Promise<string | undefined> =>
     new Promise((resolve) => {
       let child: HelperChild
@@ -152,13 +163,8 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       const finish = (value: string | undefined) => {
         if (isDone) return
         isDone = true
-        clearTimeout(timer)
         resolve(value)
       }
-      const timer = setTimeout(() => {
-        finish(undefined)
-        child.kill()
-      }, deps.startupTimeoutMs)
       child.stdout.on('data', (chunk) => {
         if (isDone) return
         output += typeof chunk === 'string' ? chunk : decoder.write(Buffer.from(chunk))
@@ -250,7 +256,12 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
     available,
     async start(input, onCountdown) {
       const options = screenRecordingOptionsSchema.safeParse(input)
-      if (!options.success) {
+      if (
+        !options.success ||
+        !Number.isSafeInteger(deps.maxBytes) ||
+        deps.maxBytes <= 0 ||
+        deps.maxBytes > MACOS_RECORDING_HELPER_MAX_BYTES
+      ) {
         return {
           stop: () => Promise.resolve(),
           cancel: () => Promise.resolve(),
@@ -267,17 +278,17 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
       }
       // Reverify immediately before recording: availability's probe is a separate launch.
       const helperPath = await verifiedPath()
-      const subscribeSuspend = deps.onSuspend
-      if (!helperPath || !subscribeSuspend) {
+      if (!helperPath) {
         return {
           stop: () => Promise.resolve(),
           cancel: () => Promise.resolve(),
           result: Promise.resolve(unavailable('helperIntegrity')),
         }
       }
+      const subscribeSuspend = deps.onSuspend
+      const maxBytes = deps.maxBytes
       const folder = await mkdtemp(path.join(deps.tempRoot, 'muse-screen-'))
       const output = path.join(folder, 'recording.mp4')
-      const maxBytes = MEDIA_MAX_UPLOAD_DEFAULT_MIB * BYTES_PER_MIB
       const dispose = async () => {
         await rm(folder, { recursive: true, force: true })
       }
@@ -318,13 +329,12 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
         let isCancelled = false
         let isRecording = false
         let hasFinished = false
+        let hasExited = false
         let isStopping = false
         let failure: string | undefined
         const shouldDiscard = () => isCancelled || failure !== undefined
         let remaining = options.data.maxSeconds
         let tick: ReturnType<typeof setInterval> | undefined
-        let killTimer: ReturnType<typeof setTimeout> | undefined
-        let watchdog: ReturnType<typeof setTimeout>
         const endHelper = () => {
           try {
             child.kill()
@@ -341,20 +351,17 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
             endHelper()
           }
         }
-        const terminate = (reason: string) => {
+        // A failed run asks the helper to cancel and waits for its exit,
+        // which settles the run. D121: no watchdog of ours stops the work;
+        // only the person's cancel ends a helper that never answers.
+        const fail = (reason: string) => {
           if (isDone || failure !== undefined) return
           failure = reason
-          // The process adapter owes onExit. Bound it even if a broken adapter never calls back.
-          killTimer = setTimeout(() => {
-            void complete(false)
-          }, DICTATION_QUIT_GRACE_MS)
-          child.kill()
+          send('cancel')
         }
         const complete = async (hasCleanExit: boolean) => {
           if (isDone || isSettling) return
           isSettling = true
-          clearTimeout(watchdog)
-          clearTimeout(killTimer)
           clearInterval(tick)
           unsubscribeSuspend()
           try {
@@ -393,30 +400,28 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
             isDone = true
           }
         }
+        // Asks the helper once, then waits for its own exit: finishing a
+        // recording takes as long as it takes (D121, no deadline).
         const stop = () => {
           if (isDone || isStopping) return Promise.resolve()
           isStopping = true
           clearInterval(tick)
-          clearTimeout(watchdog)
-          watchdog = setTimeout(() => {
-            terminate('muse-dictate')
-          }, deps.finishTimeoutMs)
           send('stop')
           return Promise.resolve()
         }
-        watchdog = setTimeout(() => {
-          terminate('muse-dictate')
-        }, deps.startupTimeoutMs)
-        const unsubscribeSuspend = subscribeSuspend(() => {
-          void stop()
-        })
+        const unsubscribeSuspend =
+          subscribeSuspend === undefined
+            ? () => {
+                // No host suspend signal: nothing subscribed.
+              }
+            : subscribeSuspend(() => void stop())
         let pending = ''
         const decoder = new StringDecoder('utf8')
         child.stdout.on('data', (chunk) => {
           if (isDone || failure !== undefined) return
           pending += typeof chunk === 'string' ? chunk : decoder.write(Buffer.from(chunk))
           if (pending.length > deps.maxProtocolChars) {
-            terminate('protocol')
+            fail('protocol')
             return
           }
           let newline = pending.indexOf('\n')
@@ -428,26 +433,22 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
               if (frame.type === 'error') {
                 const permission = permissionForCode(frame.code)
                 if (permission === undefined) {
-                  terminate(frame.code)
+                  fail(frame.code)
                 } else {
                   deps.onPermissionDenied?.(permission)
-                  terminate(UI_TEXT.media.recordingPermissionDenied)
+                  fail(UI_TEXT.media.recordingPermissionDenied)
                 }
               } else if (frame.type === 'finished') {
                 if (!isRecording || hasFinished) throw new Error('out of order')
                 hasFinished = true
                 clearInterval(tick)
-                clearTimeout(watchdog)
-                watchdog = setTimeout(() => {
-                  terminate('muse-dictate')
-                }, deps.finishTimeoutMs)
               } else {
                 if (isRecording || hasFinished) throw new Error('out of order')
                 isRecording = true
                 if (!isStopping) {
-                  clearTimeout(watchdog)
                   // D121: maxSeconds 0 records until stopped — the tick then
-                  // reports seconds recorded and no watchdog stops the run.
+                  // reports seconds recorded and nothing ends the run
+                  // automatically; any other length is the person's own.
                   const isUncapped = options.data.maxSeconds === 0
                   let elapsed = options.data.maxSeconds - remaining
                   onCountdown(isUncapped ? elapsed : remaining)
@@ -461,18 +462,11 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
                     onCountdown(remaining)
                     if (remaining === 0) void stop()
                   }, MILLISECONDS_PER_SECOND)
-                  if (!isUncapped) {
-                    watchdog = setTimeout(() => {
-                      remaining = 0
-                      onCountdown(remaining)
-                      void stop()
-                    }, remaining * MILLISECONDS_PER_SECOND)
-                  }
                 }
               }
             } catch {
-              // A malformed frame ends the run; the exit grace still settles it.
-              terminate('protocol')
+              // A malformed frame fails the run; the helper's exit settles it.
+              fail('protocol')
             }
             newline = pending.indexOf('\n')
           }
@@ -482,14 +476,18 @@ export function macosScreenRecordingDriver(deps: MacosScreenRecordingDeps): Scre
           /* Deliberately discard private native diagnostics. */
         })
         child.onExit((description) => {
+          hasExited = true
           void complete(description === 'exit code 0' && pending === '' && decoder.end() === '')
         })
         stopRun = stop
         cancelRun = async () => {
           if (isDone) return
           isCancelled = true
-          send('cancel')
-          terminate('cancelled')
+          // The person's cancel: a helper already asked to stop that is
+          // still running is ended at once; otherwise it is asked to
+          // cancel and its exit settles the run.
+          if (isStopping && !hasExited) endHelper()
+          else send('cancel')
           await result
         }
       })

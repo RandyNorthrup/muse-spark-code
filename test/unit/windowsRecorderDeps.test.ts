@@ -22,6 +22,7 @@ import {
   MEDIA_FILE_ID_MIN_BYTES,
   MEDIA_MAX_UPLOAD_MIB,
   SCREEN_RECORDING_LINE_MAX_BYTES,
+  UI_TEXT,
 } from '../../src/shared/constants'
 import { lockWindowsStorageDir, removeFolder } from './helpers/temporaryFolders'
 
@@ -52,6 +53,7 @@ describe.skipIf(process.platform !== 'win32')('M105 R2 windows recorder host dep
       storageDir,
       tempRoot: path.join(root, 'temp'),
       systemRoot,
+      l10n: { table: UI_TEXT, locale: 'en' },
     })
     const built = await deps.prepareHelper()
     if (built === undefined) throw new Error('inbox recorder failed to compile or self-test')
@@ -137,6 +139,7 @@ describe.skipIf(process.platform !== 'win32')('M105 R2 windows recorder host dep
       storageDir: path.join(root, 'storage-missing'),
       tempRoot: path.join(root, 'temp-missing'),
       systemRoot,
+      l10n: { table: UI_TEXT, locale: 'en' },
     })
     await expect(missing.prepareHelper()).resolves.toBeUndefined()
     await expect(deps.verifyHelper(path.join(root, 'no-such-helper.exe'))).resolves.toBe(false)

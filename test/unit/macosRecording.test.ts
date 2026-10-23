@@ -1,8 +1,10 @@
 // The macOS screen driver's failure handling (D119 catch burn-down): a spawn
 // that will not start leaves the check inconclusive, an unverified helper
 // refuses, a malformed probe refuses as probe, a dead command channel ends
-// the helper, a malformed frame ends the run, and an unverifiable recording
-// delivers nothing. Helpers below are the driver's own injected spawn seam
+// the helper, a malformed frame fails the run and waits for the helper's
+// exit, and an unverifiable recording delivers nothing. Stop asks and waits
+// (D121: no watchdog of ours); only the person's cancel ends a helper that
+// never answers. Helpers below are the driver's own injected spawn seam
 // over real event emitters; every failure is a real throw, a real file-system
 // error, or a real malformed line through the real protocol parser.
 import { EventEmitter } from 'node:events'
@@ -11,6 +13,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import {
+  MACOS_RECORDING_HELPER_MAX_BYTES,
   macosScreenRecordingDriver,
   type MacosScreenRecordingDeps,
 } from '../../src/core/media/record/macos'
@@ -116,8 +119,7 @@ function depsWith(spawn: MacosScreenRecordingDeps['spawn']): {
         return helper
       },
       inspect: () => Promise.reject(new Error('unreachable in failure tests')),
-      startupTimeoutMs: 1000,
-      finishTimeoutMs: 50,
+      maxBytes: MACOS_RECORDING_HELPER_MAX_BYTES,
       maxProtocolChars: 65_536,
     },
   }
@@ -245,27 +247,94 @@ describe('macos driver start', () => {
     )
     const run = await startDriver(deps, tempRoot)
     await run.stop()
+    // The dead channel ended the helper; its exit settles the run.
+    helpers.at(-1)?.emitExit('exit code 1')
     const outcome = await run.result
     expectHelperEnded(outcome, helpers)
   })
 
-  it('ends the run on a malformed helper frame', async () => {
+  it('fails the run on a malformed helper frame and waits for the helper to exit', async () => {
     const tempRoot = await macosTempRoot()
     const { deps, helpers } = depsWith((_command, args) =>
       testHelper(
         (helper) => {
           if (isProbeCall(helper, args)) return
-          if (args.includes('--record-screen')) helper.emitLine('not json{{{\n')
-          else exitZero(helper)
+          if (args.includes('--record-screen')) {
+            helper.emitLine('not json{{{\n')
+            exitZero(helper)
+          } else exitZero(helper)
         },
         () => {
-          // No commands matter once the protocol breaks.
+          // The failed run asks the helper to cancel; its exit settles it.
         },
       ),
     )
     const run = await startDriver(deps, tempRoot)
     const outcome = await run.result
-    expectHelperEnded(outcome, helpers)
+    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
+    // Asked to cancel, never killed: only the person's cancel ends the helper.
+    expect(helpers.at(-1)?.sent).toEqual(['cancel'])
+    expect(helpers.at(-1)?.wasKilled).toBe(false)
+  })
+
+  it('stops by asking and waiting for the helper, never by killing it', async () => {
+    const tempRoot = await macosTempRoot()
+    const { deps, helpers } = depsWith((_command, args) =>
+      testHelper(
+        (helper) => {
+          if (isProbeCall(helper, args)) return
+          if (args.includes('--record-screen')) helper.emitLine('{"type":"recording"}\n')
+          else exitZero(helper)
+        },
+        (line) => {
+          if (line !== 'stop') return
+          const helper = helpers.at(-1)
+          helper?.emitLine('{"type":"finished"}\n')
+          helper?.emitExit('exit code 0')
+        },
+      ),
+    )
+    const run = await startDriver(deps, tempRoot)
+    // Let the helper's `recording` frame arrive before stopping it.
+    await Promise.resolve()
+    await run.stop()
+    const outcome = await run.result
+    // No file was written, so the run refuses after the helper's own exit.
+    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
+    expect(helpers.at(-1)?.sent).toEqual(['stop'])
+    expect(helpers.at(-1)?.wasKilled).toBe(false)
+  })
+
+  it('starts without a suspend subscription and refuses a byte bound outside the helper', async () => {
+    const tempRoot = await macosTempRoot()
+    let recordSpawns = 0
+    const { deps } = depsWith((_command, args) => {
+      if (args.includes('--output')) recordSpawns += 1
+      return testHelper(
+        (helper) => {
+          if (isProbeCall(helper, args)) return
+          if (args.includes('--record-screen')) {
+            helper.emitLine('{"type":"recording"}\n')
+            exitZero(helper)
+          } else exitZero(helper)
+        },
+        () => {
+          // No commands before the run settles on the helper's exit.
+        },
+      )
+    })
+    const { onSuspend: _dropped, ...withoutSuspend } = deps
+    const run = await startDriver(withoutSuspend, tempRoot)
+    const outcome = await run.result
+    expect(outcome).toEqual({ ok: false, reason: expect.any(String) })
+    // The recorder spawned: the missing subscription did not refuse the run.
+    expect(recordSpawns).toBe(1)
+    const overBound = macosScreenRecordingDriver({
+      ...withoutSuspend,
+      tempRoot,
+      maxBytes: MACOS_RECORDING_HELPER_MAX_BYTES + 1,
+    })
+    await refusedAndRemoved(overBound, tempRoot)
   })
 
   it('delivers nothing when the helper writes no file', async () => {
