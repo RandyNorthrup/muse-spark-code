@@ -48,9 +48,7 @@ export interface RetirementDependencies {
   recordDecision(ref: AttemptRef, decision: 'continueAnyway' | 'handOffAnyway'): Promise<void>
 }
 
-/** Cancellation acknowledgements, direct exits and process groups prove nothing.
-@unwired M96c scheduler attempt retirement
-*/
+/** Cancellation acknowledgements, direct exits and process groups prove nothing. */
 export class AttemptRetirement {
   constructor(
     private readonly deps: RetirementDependencies,
