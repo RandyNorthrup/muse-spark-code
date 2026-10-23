@@ -560,6 +560,54 @@ export interface TabActivationDeps {
   readonly notifyBudgetReached: (spent: UsdAmount, budget: UsdAmount) => void
 }
 
+/**
+What the lazy bundle wires a loaded Tab from: activation's readers, the
+armed status and snooze, and the resolved table and locale. Activation
+passes its own deps through (`{ ...deps, status, snooze, uiTable,
+locale }`); the bundle picks what it wires.
+*/
+export interface TabLoadedWiring {
+  readonly statusDeps: TabStatusDeps
+  readonly tabSettings: TabActivationDeps['tabSettings']
+  readonly isPaidOn: TabActivationDeps['isPaidOn']
+  readonly isKeyStored: TabActivationDeps['isKeyStored']
+  readonly isTrusted: TabActivationDeps['isTrusted']
+  readonly realPath: TabActivationDeps['realPath']
+  readonly foreignSetting: TabActivationDeps['foreignSetting']
+  readonly isCopilotExtensionPresent: TabActivationDeps['isCopilotExtensionPresent']
+  readonly filesExclude: TabActivationDeps['filesExclude']
+  readonly workspaceRoots: TabActivationDeps['workspaceRoots']
+  readonly ignoreFileExists: TabActivationDeps['ignoreFileExists']
+  readonly runGit: TabActivationDeps['runGit']
+  readonly onIgnoreFilesChanged: TabActivationDeps['onIgnoreFilesChanged']
+  readonly onDidChangeTextDocument: TabActivationDeps['onDidChangeTextDocument']
+  readonly recentEdits?: TabActivationDeps['recentEdits']
+  readonly knownLanguages: TabActivationDeps['knownLanguages']
+  readonly updateSetting: TabActivationDeps['updateSetting']
+  readonly services: TabActivationDeps['services']
+  readonly onTodayTotalChanged?: TabActivationDeps['onTodayTotalChanged']
+  readonly consentDeps: TabActivationDeps['consentDeps']
+  readonly hooks?: TabActivationDeps['hooks']
+  readonly hookDispatch?: TabActivationDeps['hookDispatch']
+  readonly notifyBudgetReached: TabActivationDeps['notifyBudgetReached']
+  readonly log: TabActivationDeps['log']
+  readonly status: TabStatusHandle
+  readonly snooze: TabSnooze
+  readonly uiTable: UiText
+  readonly locale: string
+}
+
+/** A loaded Tab: the provider, the spend gate and the command runners. */
+export interface TabLoadedHandle {
+  readonly provider: TabProviderHandle
+  readonly spend: TabSpendGate
+  showMenu(): Promise<void>
+  runSnooze(): Promise<void>
+  runLanguages(): Promise<void>
+  accept(args: unknown): void
+  dispose(): void
+}
+
 interface ActiveTab {
   readonly provider: TabProviderHandle
   readonly spend: TabSpendGate
@@ -641,97 +689,33 @@ export function createTabActivation(deps: TabActivationDeps): TabActivation {
     }
     void deps.ensureKeyPresence()
     const bundle = load()
-    const uiTable = deps.table()
-    const locale = deps.locale()
-    // The engine (lane C) and the ledger's spend gate (lane L) live in the
-    // bundle; the status bar redraws when today's total moves.
-    const { engine, spend } = bundle.createTabServices({
-      ...deps.services,
-      budgetUsd: () => deps.tabSettings().tabDailyBudgetUsd,
-      onTotalChanged: () => {
-        status?.refresh()
-        deps.onTodayTotalChanged?.()
-      },
-      // Hitting the daily budget is never silent: one notice per day
-      // naming the spend, the budget and how to raise it, with a direct
-      // way into Settings.
-      onBudgetReached: (spent, budget) => {
-        deps.notifyBudgetReached(spent, budget)
-      },
-      log: deps.log,
-    })
     const currentStatus = status
     if (currentStatus === undefined) {
       throw new Error('Tab status is not armed')
     }
-    const settingsOf = (): ReturnType<TabProviderDeps['settings']> => {
-      const settings = deps.tabSettings()
-      return {
-        tabModel: settings.tabModel,
-        tabMaxOutputTokens: settings.tabMaxOutputTokens,
-        tabLanguages: settings.tabLanguages,
-        tabMultiline: settings.tabMultiline,
-        tabTrigger: settings.tabTrigger,
-        tabWithCopilot: settings.tabWithCopilot,
-      }
-    }
-    const provider = bundle.createTabProvider({
-      settings: settingsOf,
-      recordMaxOutputTokens: deps.services.recordMaxOutputTokens,
-      isPaidOn: deps.isPaidOn,
-      isKeyStored: deps.isKeyStored,
-      isTrusted: deps.isTrusted,
-      isSnoozed: () => snooze.isSnoozed(Date.now()),
-      realPath: deps.realPath,
-      foreignSetting: deps.foreignSetting,
-      isCopilotExtensionPresent: deps.isCopilotExtensionPresent,
-      filesExclude: deps.filesExclude,
-      workspaceRoots: deps.workspaceRoots,
-      ignoreFileExists: deps.ignoreFileExists,
-      runGit: deps.runGit,
-      onIgnoreFilesChanged: deps.onIgnoreFilesChanged,
-      onDidChangeTextDocument: deps.onDidChangeTextDocument,
-      recentEdits: deps.recentEdits,
-      engine,
-      spend,
-      consentDeps: deps.consentDeps,
-      hooks: deps.hooks,
-      hookDispatch: deps.hookDispatch,
-      onOutcome: (outcome) => {
-        // Deny snoozes the window (Q-M94a): set it before the status redraws.
-        if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {
-          snooze.snoozeUntilRestart()
-        }
-        currentStatus.noteOutcome(outcome)
-      },
-      log: deps.log,
-      uiTable,
-      locale,
-    })
-    const handle: ActiveTab = {
-      provider,
-      spend,
+    // The wiring lives in the lazy bundle; the shim only passes its deps
+    // through on the first request.
+    const loaded = bundle.createTabLoaded({
+      ...deps,
+      statusDeps,
       status: currentStatus,
       snooze,
-      showMenu: () => bundle.showTabMenu({ ...statusDeps, uiTable, locale }),
-      runSnooze: async () => {
-        await bundle.snoozeTabCommand(snooze, uiTable, locale)
-        // The palette's snooze redraws the bar, as the menu's rows do (RVM94HU 9).
-        currentStatus.refresh()
-      },
-      runLanguages: () =>
-        bundle.tabLanguagesCommand({
-          languages: deps.knownLanguages,
-          tabLanguages: () => deps.tabSettings().tabLanguages,
-          updateSetting: deps.updateSetting,
-          uiTable,
-          locale,
-        }),
+      uiTable: deps.table(),
+      locale: deps.locale(),
+    })
+    const handle: ActiveTab = {
+      provider: loaded.provider,
+      spend: loaded.spend,
+      status: currentStatus,
+      snooze,
+      showMenu: () => loaded.showMenu(),
+      runSnooze: () => loaded.runSnooze(),
+      runLanguages: () => loaded.runLanguages(),
       accept: (args) => {
-        provider.acceptNotified(args)
+        loaded.accept(args)
       },
       dispose: () => {
-        provider.dispose()
+        loaded.dispose()
       },
     }
     active = handle

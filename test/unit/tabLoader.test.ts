@@ -66,12 +66,13 @@ describe('isTabBundle', () => {
   const entries = {
     createTabServices: () => ({}),
     createTabProvider: () => ({}),
+    createTabLoaded: () => ({}),
     showTabMenu: () => Promise.resolve(),
     snoozeTabCommand: () => Promise.resolve(),
     tabLanguagesCommand: () => Promise.resolve(),
   }
 
-  it('accepts the five entries and refuses anything else', () => {
+  it('accepts the six entries and refuses anything else', () => {
     expect(isTabBundle(entries)).toBe(true)
     expect(isTabBundle({ ...entries, showTabMenu: undefined })).toBe(false)
     expect(isTabBundle({})).toBe(false)
