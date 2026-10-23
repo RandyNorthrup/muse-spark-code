@@ -94,6 +94,27 @@ function socketTuple(socket: Socket) {
   return { remoteAddress, remotePort, localAddress, localPort }
 }
 
+/** A malformed proc status or a coded filesystem failure mid-scan. */
+function isProcError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === 'unverified-process-owner' ||
+      ('code' in error && typeof error.code === 'string'))
+  )
+}
+
+/** A same-user pid whose file list vanished hides its descriptors: refuse. */
+async function checkHiddenOwner(
+  pid: string,
+  hasExpectedUid: boolean,
+  uid: number,
+  error: unknown,
+): Promise<void> {
+  const owner = await stat(`/proc/${pid}`)
+  if (hasExpectedUid || owner.uid === uid)
+    throw new Error('unverified-hidden-owner', { cause: error })
+}
+
 async function linuxSocket(
   socket: Socket,
   uid: number,
@@ -138,9 +159,8 @@ async function linuxSocket(
       files = await readdir(`/proc/${pid}/fd`)
     } catch (error: unknown) {
       if (error instanceof Error && 'code' in error && error.code === 'ENOENT') continue
-      const owner = await stat(`/proc/${pid}`)
-      if (hasExpectedUid || owner.uid === uid)
-        throw new Error('unverified-hidden-owner', { cause: error })
+      if (!isProcError(error)) throw error
+      await checkHiddenOwner(pid, hasExpectedUid, uid, error)
       continue
     }
     if (await hasSocketDescriptor(pid, files, inode)) owners.push(Number(pid))
