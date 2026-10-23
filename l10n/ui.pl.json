@@ -6287,6 +6287,7 @@
   "makerStopPhysicalRequired": "Maszyna {machine} wymaga fizycznego zatrzymania awaryjnego; zatrzymanie programowe jest niedostępne.",
   "makerTrustRequired": "Oznacz ten obszar roboczy jako zaufany przed włączeniem sprzętu.",
   "makerEnableHardware": "Włącz sprzęt w tym obszarze roboczym",
+  "makerCliUsage": "Sprzęt maker z terminala: włącz lub wyłącz sprzęt dla obszaru roboczego, rejestruj i listuj maszyny, zatrzymaj maszynę lub otwórz panel maker. machines add odczytuje --registration, a z opcją --key-stdin klucz maszyny ze standardowego wejścia. Działania fizyczne wymagają logowania do systemu operacyjnego i nigdy nie działają bez nadzoru.",
   "makerDisableHardware": "Wyłącz sprzęt w tym obszarze roboczym",
   "makerHardwareReason": "Podaj powód włączenia sprzętu.",
   "makerSoftwareStopWarning": "Zatrzymanie programowe nie zastępuje fizycznego zatrzymania awaryjnego maszyny.",

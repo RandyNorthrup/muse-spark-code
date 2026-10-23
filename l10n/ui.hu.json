@@ -5967,6 +5967,7 @@
   "makerStopPhysicalRequired": "A(z) {machine} gép fizikai vészleállítást igényel; szoftveres leállítás nem érhető el.",
   "makerTrustRequired": "A hardver engedélyezése előtt jelölje megbízhatónak ezt a munkaterületet.",
   "makerEnableHardware": "Hardver engedélyezése ezen a munkaterületen",
+  "makerCliUsage": "Maker hardver a terminálból: hardver engedélyezése vagy letiltása egy munkaterülethez, gépek regisztrálása és listázása, gép leállítása vagy a maker panel megnyitása. A machines add beolvassa a --registration értéket, a --key-stdin kapcsolóval pedig a gépkulcsot a szabványos bemenetről. A fizikai műveletek az operációs rendszer bejelentkezését kérik, és soha nem futnak felügyelet nélkül.",
   "makerDisableHardware": "Hardver letiltása ezen a munkaterületen",
   "makerHardwareReason": "Adja meg a hardver engedélyezésének okát.",
   "makerSoftwareStopWarning": "A szoftveres leállítás nem helyettesíti a gép fizikai vészleállítóját.",

@@ -5807,6 +5807,7 @@
   "makerStopPhysicalRequired": "机器 {machine} 需要物理紧急停止；软件停止不可用。",
   "makerTrustRequired": "启用硬件前，请信任此工作区。",
   "makerEnableHardware": "为此工作区启用硬件",
+  "makerCliUsage": "从终端使用创客硬件: 为工作区启用或禁用硬件、注册和列出机器、停止机器或打开创客面板。machines add 读取 --registration，并在使用 --key-stdin 时从标准输入读取机器密钥。物理操作会要求您登录操作系统，且绝不在无人值守时运行。",
   "makerDisableHardware": "为此工作区禁用硬件",
   "makerHardwareReason": "请输入启用硬件的原因。",
   "makerSoftwareStopWarning": "软件停止不能替代机器的物理急停。",

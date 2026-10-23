@@ -7619,6 +7619,8 @@ export const EN = {
   makerTrustRequired: 'Trust this workspace before enabling hardware.',
 
   makerEnableHardware: 'Enable hardware for this workspace',
+  makerCliUsage:
+    'Maker hardware from the terminal: enable or disable hardware for a workspace, register and list machines, stop a machine, or open the maker panel. Machines add reads --registration and, with --key-stdin, the machine key from standard input. Physical actions ask for your operating-system sign-in and never run unattended.',
 
   makerDisableHardware: 'Disable hardware for this workspace',
 

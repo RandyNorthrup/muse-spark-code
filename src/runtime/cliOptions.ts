@@ -374,6 +374,10 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
     providerKeyUsage: 'providers usage <id>',
     helpTopic: 'help <command>',
     authGitHub: 'auth github login|logout|status',
+    hardware: 'hardware enable|disable|status',
+    machines: 'machines list|add|remove',
+    'stop-machine': 'stop-machine [id|--all]',
+    panel: 'panel',
   }
   const lines = [`${command} ${localUsage[route] ?? name}`]
   if (definition === undefined) {
@@ -394,6 +398,10 @@ export function formatCommandHelp(table: UiText, command: string, route: string)
       help: table.referenceBriefHelp,
       share: sharingCliHelp(table, command),
       prompts: sharingCliHelp(table, command),
+      hardware: table.makerCliUsage,
+      machines: table.makerCliUsage,
+      'stop-machine': table.makerCliUsage,
+      panel: table.makerCliUsage,
     }
     const description = Object.entries(usage).find(
       ([prefix]) => route === prefix || route.startsWith(`${prefix} `),

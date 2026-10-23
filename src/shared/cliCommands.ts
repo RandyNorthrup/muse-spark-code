@@ -57,6 +57,7 @@ export function cliCommands(shouldIncludeHeld = false) {
       action,
     ]),
     playbook: ['status', 'record', 'settings'].map((action) => ['playbook', action]),
+    maker: [['hardware'], ['machines'], ['stop-machine'], ['panel']],
     estimate: [['estimate']],
     report: [['report'], ['report', 'problem']],
     reports: [

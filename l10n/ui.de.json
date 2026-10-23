@@ -5967,6 +5967,7 @@
   "makerStopPhysicalRequired": "Maschine {machine} erfordert den physischen Not-Aus; ein Softwarestopp ist nicht verfügbar.",
   "makerTrustRequired": "Vertrauen Sie diesem Arbeitsbereich, bevor Sie Hardware aktivieren.",
   "makerEnableHardware": "Hardware für diesen Arbeitsbereich aktivieren",
+  "makerCliUsage": "Maker-Hardware vom Terminal aus: Hardware für einen Arbeitsbereich aktivieren oder deaktivieren, Maschinen registrieren und auflisten, eine Maschine stoppen oder das Maker-Panel öffnen. machines add liest --registration und mit --key-stdin den Maschinenschlüssel von der Standardeingabe. Physische Aktionen fragen Ihre Anmeldung beim Betriebssystem ab und laufen nie unbeaufsichtigt.",
   "makerDisableHardware": "Hardware für diesen Arbeitsbereich deaktivieren",
   "makerHardwareReason": "Geben Sie einen Grund für die Hardwareaktivierung an.",
   "makerSoftwareStopWarning": "Ein Softwarestopp ersetzt nicht den physischen Not-Aus der Maschine.",

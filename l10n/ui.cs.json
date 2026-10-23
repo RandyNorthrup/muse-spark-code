@@ -6287,6 +6287,7 @@
   "makerStopPhysicalRequired": "Stroj {machine} vyžaduje fyzické nouzové zastavení; softwarové zastavení není dostupné.",
   "makerTrustRequired": "Před povolením hardwaru označte tento pracovní prostor jako důvěryhodný.",
   "makerEnableHardware": "Povolit hardware pro tento pracovní prostor",
+  "makerCliUsage": "Maker hardware z terminálu: povolte nebo zakažte hardware pro pracovní prostor, registrujte a vypisujte stroje, zastavte stroj nebo otevřete panel maker. Příkaz machines add čte --registration a s volbou --key-stdin klíč stroje ze standardního vstupu. Fyzické akce vyžadují přihlášení do operačního systému a nikdy neběží bez dozoru.",
   "makerDisableHardware": "Zakázat hardware pro tento pracovní prostor",
   "makerHardwareReason": "Zadejte důvod povolení hardwaru.",
   "makerSoftwareStopWarning": "Softwarové zastavení nenahrazuje fyzické nouzové zastavení stroje.",

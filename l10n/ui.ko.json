@@ -5807,6 +5807,7 @@
   "makerStopPhysicalRequired": "{machine} 기계는 물리적 비상 정지가 필요합니다. 소프트웨어 정지는 사용할 수 없습니다.",
   "makerTrustRequired": "하드웨어를 활성화하기 전에 이 작업 영역을 신뢰하세요.",
   "makerEnableHardware": "이 작업 영역에서 하드웨어 활성화",
+  "makerCliUsage": "터미널에서 메이커 하드웨어 사용: 워크스페이스의 하드웨어를 활성화하거나 비활성화하고, 머신을 등록하고 나열하고, 머신을 중지하거나 메이커 패널을 엽니다. machines add는 --registration을 읽고, --key-stdin을 사용하면 표준 입력에서 머신 키를 읽습니다. 물리적 작업은 운영 체제 로그인을 요구하며 절대 무인으로 실행되지 않습니다.",
   "makerDisableHardware": "이 작업 영역에서 하드웨어 비활성화",
   "makerHardwareReason": "하드웨어를 활성화하는 이유를 입력하세요.",
   "makerSoftwareStopWarning": "소프트웨어 정지는 기계의 물리적 비상 정지를 대체하지 않습니다.",
