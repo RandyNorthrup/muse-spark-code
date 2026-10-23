@@ -34409,6 +34409,23 @@ the palette with an always-present tab showing state or reason.
 claude-haiku-5-5 verified priced from Anthropic's published page.
 Evidence: `docs/certification/rltestdrive.md`.
 
+### RLINTFIX — int/recovery green: PLAN size, bundle budgets and the unit suite (2026-10-22)
+
+**Status 2026-10-22: built.** Fixed on the owner's Windows PC, branch
+`rec/rlintfix`, base int/recovery 397aca3ddb, never merged: PLAN.md
+archived under its unchanged bound; `dist/modelApi.js`,
+`dist/resourceAdmission.js` and `dist/vaultActions.js` back under
+their unchanged budgets by sharing code through the boundary chunks;
+the runner output delete-shared (no EBUSY, race fix kept); the ACP
+handshake isolated per empty `XDG_CONFIG_HOME` with a no-CLI case;
+the fake-driven teamHostService suite replaced by real-port tests;
+the ten symlink-EPERM tests privilege-free with the product audited
+never to need the privilege; freeze layout correct for any TMP; the
+connector suites on private folders with the packed product probed
+working on dirty `%TEMP%`; README marking headless teams and Team
+configuration not yet available. The vault suites never ran on this
+PC. Evidence: `docs/certification/rlintfix.md`.
+
 ---
 
 ## 7. Gates
