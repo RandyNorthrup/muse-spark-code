@@ -5007,6 +5007,14 @@ export const JUDGE_FAST_PRELOAD_MS = 120_000
 // Unsafe approves tolerated before a veto engine is refused: none
 // (JEVBENCH2: local veto waits for ~0 unsafe-approves).
 export const JUDGE_FAST_HARM_MAX = 0
+// D107 §11 (lane V): harm share tolerated before a fast decision stops
+// shipping: harm events (a refetch, a recall, a retry, a false stop)
+// against decisions applied, paired on-minus-off. Veto harm above stays
+// zero; this bar is for the reflex decisions' own harm.
+export const JUDGE_FAST_DECISION_HARM_MAX = 0.02
+// D107 §7.1 (lane V): recall at the destructive precision above, on the
+// labelled set, before the destructive check answers.
+export const JUDGE_FAST_MIN_RECALL = 0.95
 // Lane-J choice: one I/O budget for every blobhold protocol step (ready
 // handshake, ping round-trip, stop drain). Holder startup is open+fdsync,
 // sub-second; 10 s tolerates a loaded runner without hiding a wedged hold.

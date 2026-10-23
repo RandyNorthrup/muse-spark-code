@@ -49,11 +49,16 @@ import {
   frozenBundleChange,
 } from './mechanisms'
 import type { ArmBundle } from './armSources'
+import { judgeArmBaseline, judgeArmDecision } from './mechanisms'
+import { type JudgeFastReplayRecorder, type JudgeReplayRecorder } from './judgeReplay'
+import type { JudgeAdvisory } from '../judge/use'
+import type { JudgeFastTurnDecision } from '../../shared/judgeFastTurn'
 import {
   createEvalWire,
   wireTotals,
   type EvalBudget,
   type EvalWire,
+  type EvalWireTotals,
   type EvalWireTruncation,
 } from './wire'
 import {
@@ -73,9 +78,26 @@ export interface EvalArm {
   readonly change?: EvalHostChange | undefined
 }
 
+/**
+D107 (M125 lane V): the run's judge wiring. The recorders start empty
+and the report carries their measurements; the advisory judges the
+turns (a real `JudgeUse` on the live run, a scripted one on the fake
+replay); the labels answer ground truth per run when an independent
+labelling pass judged it (D77), and stay undefined otherwise.
+*/
+export interface EvalRunJudge {
+  readonly recorder: JudgeReplayRecorder
+  readonly fast: JudgeFastReplayRecorder
+  readonly advisory?: JudgeAdvisory | undefined
+  readonly labels?:
+    ((taskId: string, decision: JudgeFastTurnDecision) => boolean | undefined) | undefined
+}
+
 export interface EvalRunDeps {
   /** The live entry's certified immutable snapshots, prepared before credentials. */
   readonly frozenHarness?: FrozenEvalHarness
+  /** The judge wiring; absent, the run records no judge section. */
+  readonly judge?: EvalRunJudge | undefined
   /** The network: the live `fetch`, or the fake Model API's. */
   readonly fetch: typeof fetch
   /** The client's settings but its `fetch`, which is each run's trace. */
@@ -155,6 +177,7 @@ async function runInFolders(
         newId: deps.newId,
         turnTimeoutMs: deps.turnTimeoutMs,
         admission,
+        ...(deps.judge?.advisory !== undefined && { judge: deps.judge.advisory }),
       },
       workspace: folders.workspace,
       prompt: task.prompt,
@@ -234,6 +257,7 @@ async function runTask(
   deps.log.info(
     `Evaluation ${arm.name} ${task.id}: ${isPassed ? 'passed' : 'failed'} after ${String(totals.attempts)} attempts`,
   )
+  recordJudgeRun(deps.judge, task, arm, outcome, totals, isPassed)
   // Released D78 claims remain attempt evidence; accepted history replacement
   // and its known settlement are recorded independently below.
   const compactionsSettled = ledger.tally.settled - settledBefore
@@ -244,6 +268,7 @@ async function runTask(
       split: task.split,
       passed: isPassed,
       terminal: outcome?.terminal ?? EVAL_TURN_NOT_RUN,
+      ...(outcome?.turnWallMs !== undefined && { wallMs: outcome.turnWallMs }),
       failures,
       attempts: totals.attempts,
       requests: totals.requests,
@@ -361,6 +386,70 @@ function stopReason(code: EvalWireTruncation, budget: EvalBudget): string {
   }
 }
 
+/**
+D107 (M125 lane V): one arm's run of one task into the judge recorders.
+The arm row carries the turn's own numbers. The decision row carries
+the arm's isolated decision alone: other decisions are pinned off on a
+judge arm, so their tallies would dilute that decision's own pair.
+Fence samples arrive separately, through the advisory's `onFence`,
+which the harness binds to the run's recorder.
+*/
+function recordJudgeRun(
+  judge: EvalRunJudge | undefined,
+  task: EvalTask,
+  arm: EvalArm,
+  outcome: EvalTurnOutcome | undefined,
+  totals: EvalWireTotals,
+  isPassed: boolean,
+): void {
+  if (judge === undefined || outcome === undefined) return
+  const backend = 'modelApi'
+  const model = EVAL_MODEL_ID
+  judge.fast.recordArm({
+    backend,
+    model,
+    arm: arm.name,
+    taskId: task.id,
+    passed: isPassed,
+    wallMs: outcome.turnWallMs,
+    attempts: totals.attempts,
+    inputTokens: totals.inputTokens,
+    outputTokens: totals.outputTokens,
+    recalls: outcome.recalledOutputs.length,
+    failed: outcome.terminal === 'failed',
+  })
+  const isolated = judgeArmDecision(arm.name)
+  if (isolated === undefined) return
+  let isActed = false
+  let applied = 0
+  let evaluated = 0
+  for (const turn of outcome.fastTurns) {
+    for (const entry of turn.decisions) {
+      if (entry.decision !== isolated) continue
+      evaluated += 1
+      if (!entry.acted) {
+        continue
+      }
+
+      isActed = true
+      applied += 1
+    }
+  }
+  if (evaluated === 0) return
+  const shouldFire = judge.labels?.(task.id, isolated)
+  judge.fast.recordDecision({
+    backend,
+    model,
+    arm: arm.name,
+    taskId: task.id,
+    decision: isolated,
+    acted: isActed,
+    appliedTurns: applied,
+    evaluatedTurns: evaluated,
+    ...(shouldFire !== undefined && { shouldFire }),
+  })
+}
+
 /** Runs the tasks on every arm (the first is the baseline) and builds the report. */
 export async function runPairedEval(
   tasks: readonly EvalTask[],
@@ -389,6 +478,12 @@ export async function runPairedEval(
   const frozen = deps.frozenHarness ?? freezeEvalHarness(arms, tasks)
   if (frozen.selection !== JSON.stringify({ arms: arms.map((arm) => arm.name), tasks }))
     throw new Error('the frozen evaluation selection does not match the run')
+  if (deps.judge !== undefined) {
+    for (const arm of arms) {
+      if (judgeArmDecision(arm.name) !== undefined)
+        deps.judge.fast.pair(arm.name, judgeArmBaseline(arm.name))
+    }
+  }
   const runs = arms.map((arm) => ({
     arm,
     bundle: frozen.bundles.get(arm.name),
@@ -476,6 +571,14 @@ export async function runPairedEval(
     generatedAt: deps.generatedAt,
     ...(frozen.bundles.size === arms.length && { harnessDigest: frozen.sha256 }),
     arms: reports,
+    ...(deps.judge !== undefined && {
+      judge: {
+        fence: [...deps.judge.recorder.measurements()],
+        fast: deps.judge.fast
+          .measurements()
+          .map((measured) => ({ ...measured, blockedBy: [...measured.blockedBy] })),
+      },
+    }),
     compactionLedger: {
       reservedUsd: ledger.tally.reservedUsd,
       settledUsd: ledger.tally.settledUsd,
