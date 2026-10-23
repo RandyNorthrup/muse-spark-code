@@ -38,6 +38,7 @@
 //   through `toolExtras`, keyed by call id. Unknown SSE event types are
 //   tolerated; malformed known frames throw.
 
+import { Buffer } from 'node:buffer'
 import * as z from 'zod/mini'
 import {
   nativeModelMetadataSchema,
@@ -45,13 +46,17 @@ import {
 } from '../../../providers/modelMetadata'
 import type { ModelCapabilityRecord } from '../../../providers/capabilityRecord'
 import { capturedCapabilities } from '../../../providers/capturedCapabilities'
+import { readImageInfo } from '../../../imageDimensions'
 
 import {
+  ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX,
+  ANTHROPIC_MANY_IMAGES_THRESHOLD,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_FRAMES,
   ANTHROPIC_MAX_ITEM_BYTES,
   ANTHROPIC_MAX_ITEMS,
+  ANTHROPIC_MAX_REQUEST_BYTES,
   ANTHROPIC_MAX_STREAM_BYTES,
   CODEC_EMPTY_TOOL_OUTPUT,
   CODEC_IMAGE_WITHOUT_VISION,
@@ -61,7 +66,7 @@ import {
   PROVIDER_RETRY_HTTP_STATUS,
 } from '../../../../shared/constants'
 import { isEffortLevel } from '../../../../shared/effort'
-import { fill, UI_TEXT } from '../../../../shared/l10n/text'
+import { fill, formatBytes, formatNumber, UI_TEXT } from '../../../../shared/l10n/text'
 import { ModelApiError } from '../transport'
 import { parseRefusalError } from '../providerRefusal'
 import {
@@ -469,6 +474,71 @@ function documentBlock(fileData: string): AnthropicDocumentBlock {
   return { type: 'document', source: { type: 'base64', media_type: mediaType, data } }
 }
 
+/**
+Every image block the request carries, top-level and inside `tool_result`
+content: the vision doc counts them all toward the many-image threshold
+(platform.claude.com/docs/en/build-with-claude/vision, "Request limits",
+read 2026-10-23). Document blocks count only on partner platforms, so a
+direct API request leaves them out.
+*/
+function requestImages(messages: readonly AnthropicMessage[]): readonly AnthropicImageBlock[] {
+  const images: AnthropicImageBlock[] = []
+  for (const message of messages) {
+    if (typeof message.content === 'string') continue
+    for (const block of message.content) {
+      if (block.type === 'image') images.push(block)
+      else if (block.type === 'tool_result' && typeof block.content !== 'string') {
+        for (const nested of block.content) if (nested.type === 'image') images.push(nested)
+      }
+    }
+  }
+  return images
+}
+
+/**
+Refuses a request Anthropic's many-image rule would reject: past 20 image
+blocks every image must fit 2000 px per side ("Request limits", read
+2026-10-23). Only images whose bytes ride the request are measured:
+file-id references count toward the threshold while the provider judges
+their size, as do images whose bytes decode to no readable dimensions.
+*/
+function assertManyImagesFit(images: readonly AnthropicImageBlock[]): void {
+  if (images.length <= ANTHROPIC_MANY_IMAGES_THRESHOLD) return
+  for (const image of images) {
+    if (image.source.type !== 'base64') continue
+    const info = readImageInfo(Buffer.from(image.source.data, 'base64'))
+    if (info === undefined) continue
+    const side = Math.max(info.width, info.height)
+    if (side > ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX)
+      throw codecError(
+        'many_images_dimensions',
+        fill(UI_TEXT.anthropicCodecManyImagesDimensions, {
+          maxPixels: formatNumber(ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX),
+          maxImages: formatNumber(ANTHROPIC_MANY_IMAGES_THRESHOLD),
+          count: formatNumber(images.length),
+          pixels: formatNumber(side),
+        }),
+      )
+  }
+}
+
+/**
+Refuses a request past Anthropic's 32 MB Messages cap ("Request size
+limits", read 2026-10-23), measured as the encoded JSON body the
+transport sends, before it goes out as a 413.
+*/
+function assertRequestFits(body: AnthropicRequestBody): void {
+  const bytes = Buffer.byteLength(JSON.stringify(body))
+  if (bytes > ANTHROPIC_MAX_REQUEST_BYTES)
+    throw codecError(
+      'request_too_large',
+      fill(UI_TEXT.anthropicCodecRequestTooLarge, {
+        maxSize: formatBytes(ANTHROPIC_MAX_REQUEST_BYTES),
+        size: formatBytes(bytes),
+      }),
+    )
+}
+
 /** M101 lane P1 (BYO item 1): an empty tool result rides as an explicit marker. */
 function toolResultText(output: string): string {
   return isBlankWireText(output) ? CODEC_EMPTY_TOOL_OUTPUT : cleanWireText(output)
@@ -780,7 +850,7 @@ export function encodeAnthropicRequest(
     ...(shouldBindThinking ? [ANTHROPIC_BETA_DROP_BLOCK] : []),
     ...(isManual ? [ANTHROPIC_BETA_INTERLEAVED_THINKING] : []),
   ]
-  return {
+  const request: AnthropicNativeRequest = {
     path: ANTHROPIC_PATH,
     headers: {
       'anthropic-version': ANTHROPIC_VERSION,
@@ -808,6 +878,12 @@ export function encodeAnthropicRequest(
       ...(!isThinking && offThinking !== undefined && { thinking: offThinking }),
     },
   }
+  // The provider-documented request limits, refused in words before
+  // anything is sent: the many-image dimension tightening, then the
+  // request size cap.
+  assertManyImagesFit(requestImages(request.body.messages))
+  assertRequestFits(request.body)
+  return request
 }
 
 // --- decode: Anthropic SSE to canonical events (every frame zod-parsed) ---

@@ -103,6 +103,8 @@
   "outputSchemaLocalValidation": "출력 스키마 검증: 로컬 (선택한 모델에 구조화된 출력 형식이 없습니다).",
   "outputSchemaReadFailed": "출력 스키마를 읽을 수 없습니다: {detail}",
   "modelApiPacingWaiting": "요청 제한 내 여유 용량을 기다리는 중…",
+  "modelApiPacingConcurrencyWaiting": "DeepSeek 요청 슬롯을 기다리는 중(계정 동시성 {limit})…",
+  "modelApiPacingBurstWaiting": "Azure의 짧은 창 속도 평가를 위해 요청을 균등하게 분산하는 중…",
   "modelApiStatusLabel": "Meta API 상태",
   "modelApiStatusUnavailable": "상태를 확인할 수 없음",
   "modelApiStatusOpen": "서비스 상태 열기",
@@ -4765,6 +4767,8 @@
   "chatCodecThinkingOffUnsupported": "선택한 모델에서는 사고를 끌 수 없습니다.",
   "anthropicCodecEmptyTurn": "Anthropic에는 메시지가 하나 이상 필요합니다.",
   "anthropicCodecLimitExceeded": "Anthropic 응답이 디코딩 한도를 초과했습니다.",
+  "anthropicCodecManyImagesDimensions": "Anthropic은 이미지가 {maxImages}개를 초과하는 요청에서 이미지 한 변당 최대 {maxPixels}px까지 허용합니다(이미지 {count}개, 가장 긴 변 {pixels}px).",
+  "anthropicCodecRequestTooLarge": "Anthropic은 최대 {maxSize}까지의 요청을 허용합니다(이 요청은 {size}입니다).",
   "modelsEmpty": "아직 모델 공급자가 없습니다. 직접 모델을 사용하려면 추가하세요.",
   "panelNoMatches": "일치하는 항목이 없습니다.",
   "modelFilterLabels": {

@@ -103,6 +103,8 @@
   "outputSchemaLocalValidation": "出力スキーマの検証: ローカル (選択したモデルには構造化出力形式がありません)。",
   "outputSchemaReadFailed": "出力スキーマを読み取れませんでした: {detail}",
   "modelApiPacingWaiting": "レート制限の空き容量を待っています…",
+  "modelApiPacingConcurrencyWaiting": "DeepSeekリクエストの空き枠を待っています（アカウントの同時実行数 {limit}）…",
+  "modelApiPacingBurstWaiting": "Azureの短いウィンドウでのレート評価のためリクエストを均等に分散しています…",
   "modelApiStatusLabel": "Meta API の状態",
   "modelApiStatusUnavailable": "状態を取得できません",
   "modelApiStatusOpen": "サービスの状態を開く",
@@ -4765,6 +4767,8 @@
   "chatCodecThinkingOffUnsupported": "選択したモデルでは思考をオフにできません。",
   "anthropicCodecEmptyTurn": "Anthropic には少なくとも 1 件のメッセージが必要です。",
   "anthropicCodecLimitExceeded": "Anthropic の応答がデコードの上限を超えました。",
+  "anthropicCodecManyImagesDimensions": "Anthropicでは{maxImages}件を超える画像を含むリクエストで画像の1辺あたり最大{maxPixels} pxまでです（画像{count}件、最大辺{pixels} px）。",
+  "anthropicCodecRequestTooLarge": "Anthropicでは{maxSize}までのリクエストが可能です（このリクエストは{size}です）。",
   "modelsEmpty": "モデルプロバイダーがまだありません。独自のモデルを使うには追加してください。",
   "panelNoMatches": "一致するものがありません。",
   "modelFilterLabels": {
