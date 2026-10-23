@@ -103,7 +103,6 @@ export function createSubscriptionFeatures(options: {
     if (cached?.clientId === clientId) return cached.core
     const core = createGrokSignIn({
       secrets: options.secrets,
-      globalStoragePath: options.globalStorageUri.fsPath,
       isRemote: options.isRemote,
       clientId,
       scopes: undefined,

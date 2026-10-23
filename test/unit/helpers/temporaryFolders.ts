@@ -5,7 +5,7 @@
 // orphans, PLAN.md M27, sat in `toolIo.test.ts`'s folder this way).
 
 import { readdirSync, realpathSync } from 'node:fs'
-import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { noWorkspaceChildEnvironment, windowsPowerShell } from '../../../src/core/execGuard'
@@ -63,6 +63,18 @@ macOS's `/var` symlink never leaks into hashed paths).
 */
 export async function temporaryDir(prefix: string): Promise<string> {
   return await realpath(await mkdtemp(path.join(tmpdir(), prefix)))
+}
+
+/**
+A fresh lock directory for the named lock, relative to the working
+folder: a Unix socket path must fit sockaddr_un (103 bytes on macOS),
+and neither the checkout's absolute path nor a lane-private TMPDIR can
+promise that. Workers inherit the working folder, so they meet here.
+*/
+export async function lockDirectory(prefix: string): Promise<string> {
+  const temp = path.resolve('temp')
+  await mkdir(temp, { recursive: true })
+  return path.relative(process.cwd(), await mkdtemp(path.join(temp, prefix)))
 }
 
 /**

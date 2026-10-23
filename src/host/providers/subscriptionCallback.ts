@@ -6,7 +6,10 @@
 import { createServer } from 'node:http'
 import { HTTP_STATUS, OAUTH_LOOPBACK_HOST, UI_TEXT } from '../../shared/constants'
 import { chatGptCallbackBinding, grokCallbackBinding } from '../backend/subscriptionsEntry'
-import { fileErrorCode } from './subscriptionFileLock'
+
+export function fileErrorCode(error: unknown): unknown {
+  return error instanceof Error && 'code' in error ? error.code : undefined
+}
 
 export interface HostSubscriptionCallback {
   readonly bindHost: string
