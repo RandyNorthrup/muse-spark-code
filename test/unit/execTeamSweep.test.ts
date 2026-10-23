@@ -8,7 +8,15 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { EXEC_TEAM_CLEANUP_FILE, EXEC_TEAM_RUN_PREFIX } from '../../src/shared/constants'
+import {
+  EXEC_TEAM_CLEANUP_FILE,
+  EXEC_TEAM_LEDGER_LOCK_FILE,
+  EXEC_TEAM_RUN_PREFIX,
+} from '../../src/shared/constants'
+import { acquireFileLease, type FileLeaseEnv } from '../../src/core/locks/fileLease'
+import { nodeLeasePort } from '../../src/core/locks/nodeLeasePort'
+import { currentProcessOwner, isProcessOwnerGone } from '../../src/core/locks/processOwner'
+import { setTimeout as delay } from 'node:timers/promises'
 import { processTeamGit } from '../../src/core/team/workers/workerOps'
 import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
@@ -237,6 +245,101 @@ describe('preserveFailedMerge over real git (finding 5)', () => {
       })
       expect(preserved).toEqual({ kind: 'kept' })
       await expect(stat(copy)).resolves.toBeDefined()
+    },
+  )
+})
+
+async function ledgerLeaseTestEnv(): Promise<FileLeaseEnv> {
+  return {
+    port: nodeLeasePort,
+    now: () => Date.now(),
+    monotonic: () => performance.now(),
+    sleep: (ms: number) => delay(ms),
+    owner: await currentProcessOwner(),
+    isOwnerGone: (owner) => isProcessOwnerGone(owner),
+    leaseMs: 30_000,
+    honoredLeaseMs: 30_000,
+    unreadableMs: 2000,
+    timeoutMs: 10_000,
+    pollMs: 10,
+    watches: new Map(),
+  }
+}
+
+describe('cleanup ledger cross-process lease (M96b file lease)', () => {
+  it(
+    'a ledger write waits for another holder of the folder lease, then lands',
+    { timeout: REAL_GIT_TIMEOUT_MS },
+    async () => {
+      const root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}lease-`))
+      try {
+        await recordCleanupOwner(root, currentOwner())
+        const holder = await acquireFileLease(
+          path.join(root, EXEC_TEAM_LEDGER_LOCK_FILE),
+          await ledgerLeaseTestEnv(),
+        )
+        const recording = recordCleanupRef(root, {
+          repo: root,
+          role: 'reviewer',
+          taskId: 'task-lease',
+          ref: 'refs/heads/agents/reviewer/task-lease',
+        })
+        await delay(300)
+        const during = JSON.parse(
+          await readFile(path.join(root, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+        ) as { refs: { ref: string }[] }
+        expect(during.refs).toEqual([])
+        await holder.release()
+        await recording
+        const after = JSON.parse(
+          await readFile(path.join(root, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+        ) as { refs: { ref: string }[] }
+        expect(after.refs.map((entry) => entry.ref)).toEqual([
+          'refs/heads/agents/reviewer/task-lease',
+        ])
+      } finally {
+        const { rm } = await import('node:fs/promises')
+        await rm(root, { recursive: true, force: true })
+      }
+    },
+  )
+
+  it(
+    'concurrent records under contention lose no update',
+    { timeout: REAL_GIT_TIMEOUT_MS },
+    async () => {
+      const root = await mkdtemp(path.join(tmpdir(), `${EXEC_TEAM_RUN_PREFIX}lease2-`))
+      try {
+        await recordCleanupOwner(root, currentOwner())
+        const holder = await acquireFileLease(
+          path.join(root, EXEC_TEAM_LEDGER_LOCK_FILE),
+          await ledgerLeaseTestEnv(),
+        )
+        const first = recordCleanupRef(root, {
+          repo: root,
+          role: 'reviewer',
+          taskId: 'task-a',
+          ref: 'refs/heads/agents/reviewer/task-a',
+        })
+        const second = recordCleanupRef(root, {
+          repo: root,
+          role: 'reviewer',
+          taskId: 'task-b',
+          ref: 'refs/heads/agents/reviewer/task-b',
+        })
+        await delay(200)
+        await holder.release()
+        await Promise.all([first, second])
+        const ledger = JSON.parse(
+          await readFile(path.join(root, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+        ) as { refs: { ref: string }[] }
+        expect(
+          ledger.refs.map((entry) => entry.ref).toSorted((a, b) => a.localeCompare(b)),
+        ).toEqual(['refs/heads/agents/reviewer/task-a', 'refs/heads/agents/reviewer/task-b'])
+      } finally {
+        const { rm } = await import('node:fs/promises')
+        await rm(root, { recursive: true, force: true })
+      }
     },
   )
 })
