@@ -1,6 +1,7 @@
 // M100 Devices region of the Models & Agents panel.
 import * as z from 'zod/mini'
 import { DEVICE_LIMITS } from './constants'
+import { makerApprovalPromptSchema } from './maker'
 import {
   DEVICE_FAILURES,
   deviceCapabilitySchema,
@@ -28,9 +29,14 @@ export const DEVICE_STATUSES = [
 
 export const devicesPanelStateSchema = z.discriminatedUnion('enabled', [
   // Off has no rows/discovery switch. U must hide the section, not probe it.
-  z.strictObject({ enabled: z.literal(false) }),
+  // A maker prompt is not rows: it renders over either state while pending.
+  z.strictObject({
+    enabled: z.literal(false),
+    makerApproval: z.optional(makerApprovalPromptSchema),
+  }),
   z.strictObject({
     enabled: z.literal(true),
+    makerApproval: z.optional(makerApprovalPromptSchema),
     discoveryEnabled: z.boolean(),
     devices: z.array(
       z.strictObject({
@@ -100,6 +106,15 @@ const action = z.discriminatedUnion('kind', [
     pairId: devicePanelId,
     ownerId: devicePanelId,
     grantId: devicePanelId,
+  }),
+  // RLF-DEVICES: the document's answer to a maker exact-payload prompt.
+  // It echoes the prompt's request id and payload digest; anything else
+  // is a reject. Closing the prompt answers `reject`.
+  z.strictObject({
+    kind: z.literal('answerMakerApproval'),
+    requestId: z.string().check(z.regex(/^[a-f0-9]{32}$(?![\s\S])/)),
+    decision: z.enum(['send', 'reject']),
+    digest: z.string().check(z.regex(/^[a-f0-9]{64}$(?![\s\S])/)),
   }),
 ])
 export const deviceWebviewRequestSchema = z.strictObject({
