@@ -14,6 +14,7 @@ import type { DeviceFrame, DEVICE_FAILURES } from '../../shared/devices'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import { DevicePairing, type DevicePairingDeps } from './devicePairing'
+import { MakerService } from './makerService'
 import { assertLocalDeviceHost } from './deviceSecrets'
 import {
   DeviceReceiver,
@@ -51,6 +52,8 @@ export interface DeviceServiceDeps extends Omit<DevicePairingDeps, 'disconnectPa
   readonly policy: Omit<DeviceReceiverPolicy, 'currentGrant'>
   readonly source: DeviceChannelPort
   readonly snapshot: () => Promise<DevicesPanelState>
+  /** Opens or reveals the Devices panel for a waiting maker prompt. */
+  readonly reveal: () => void
   readonly publish: (message: DeviceHostMessage) => void
   readonly report: (reason: Failure) => void
   readonly log: Logger
@@ -88,16 +91,6 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     },
     deps.log,
   )
-  const panel = new DevicePanel({
-    perform: (request) => {
-      if (lifetime.isDisposed) throw new DevicePairingError('revoked')
-      return pairing.handle(request)
-    },
-    snapshot: deps.snapshot,
-    publish(message) {
-      if (!isDisposed()) deps.publish(message)
-    },
-  })
   async function observe(): Promise<void> {
     if (isDisposed()) return
     const message = await panel.observe()
@@ -129,6 +122,30 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     })()
     return observation
   }
+  const maker = new MakerService({
+    publish: () => {
+      void observed()
+    },
+    reveal: deps.reveal,
+  })
+  const panel = new DevicePanel({
+    perform: async (request) => {
+      if (lifetime.isDisposed) throw new DevicePairingError('revoked')
+      if (request.action.kind === 'answerMakerApproval') {
+        maker.surface.answer(request.action)
+        return { viewId: request.viewId, requestId: request.requestId }
+      }
+      return await pairing.handle(request)
+    },
+    snapshot: async () => {
+      const base = await deps.snapshot()
+      const makerApproval = maker.surface.pendingPrompt()
+      return makerApproval === undefined ? base : { ...base, makerApproval }
+    },
+    publish(message) {
+      if (!isDisposed()) deps.publish(message)
+    },
+  })
   const receiverPort: DeviceChannelPort = {
     connected(channel) {
       void (async () => {
@@ -192,6 +209,7 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     panel,
     pairing,
     receiver,
+    maker,
     observe,
     async request(input: unknown, signal?: AbortSignal): Promise<DeviceHostMessage> {
       const parsed = deviceWebviewMessageSchema.safeParse(input)
@@ -226,6 +244,7 @@ export async function createDeviceService(deps: DeviceServiceDeps, table: UiText
     },
     dispose() {
       lifetime.isDisposed = true
+      maker.dispose()
       for (const pairId of active) {
         receiver.disconnect('revoked', pairId)
         transport.revoke(pairId)
