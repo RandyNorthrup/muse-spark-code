@@ -108,6 +108,7 @@
   "cacheWriteTokens": "Gravações em cache",
   "cacheWrite5mTokens": "Gravações em cache ({duration})",
   "cacheWrite1hTokens": "Gravações em cache ({duration})",
+  "cacheWrite12hTokens": "Gravações em cache ({duration})",
   "reasoningTokens": "Tokens de raciocínio",
   "reasoningNote": "O raciocínio está incluído na saída; não é cobrado duas vezes.",
   "totalCost": "Custo total",

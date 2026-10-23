@@ -24,7 +24,12 @@ import {
 import type { CoreLogger } from '../../core/logging'
 import type { SecretStore } from '../auth/credentialStore'
 import type { UiTable } from '../l10n'
-import { PROVIDER_SECRET_PREFIX, SECRET_KEYS, UI_TEXT } from '../../shared/constants'
+import {
+  PROVIDER_SECRET_PREFIX,
+  type PromptCacheTtl,
+  SECRET_KEYS,
+  UI_TEXT,
+} from '../../shared/constants'
 import {
   planUsageReportSchema,
   providerUsageRowSchema,
@@ -40,6 +45,8 @@ export function createSubscriptionFeatures(options: {
   readonly configFile: string
   /** Lane RETRYLIMITS: the person's retry limit, read live per transport. */
   readonly personCap?: () => number | undefined
+  /** RLPROVSYNC: the person's cache-lifetime choice, read live per request. */
+  readonly promptCacheTtl?: () => PromptCacheTtl
   readonly l10n: UiTable
   readonly globalState: {
     get(key: string): unknown
@@ -98,6 +105,7 @@ export function createSubscriptionFeatures(options: {
       // (PR #214 review); per-request timing still goes nowhere.
       log: options.log,
       ...(options.personCap !== undefined && { personCap: options.personCap }),
+      ...(options.promptCacheTtl !== undefined && { promptCacheTtl: options.promptCacheTtl }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () => tallies.filter((row) => !['chatgpt', 'copilot'].includes(row.providerId)),
       saveUsage: (rows) => {

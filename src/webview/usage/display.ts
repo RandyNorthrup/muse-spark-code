@@ -1,4 +1,8 @@
-import { MILLISECONDS_PER_SECOND, TOKENS_PER_MILLION } from '../../shared/constants'
+import {
+  CACHE_WRITE_12H_HOURS,
+  MILLISECONDS_PER_SECOND,
+  TOKENS_PER_MILLION,
+} from '../../shared/constants'
 import { USAGE_TEXT } from '../../shared/l10n/usageTable'
 import {
   fill,
@@ -192,6 +196,12 @@ export function totalsFacts(
     {
       label: fill(USAGE_TEXT.cacheWrite1hTokens, { duration: formatUnit(1, 'hour') }),
       value: count(totals.tokens.cacheWrite1h),
+    },
+    {
+      label: fill(USAGE_TEXT.cacheWrite12hTokens, {
+        duration: formatUnit(CACHE_WRITE_12H_HOURS, 'hour'),
+      }),
+      value: count(totals.tokens.cacheWrite12h),
     },
     { label: USAGE_TEXT.reasoningTokens, value: count(totals.tokens.reasoning) },
     { label: USAGE_TEXT.requests, value: count(totals.records) },

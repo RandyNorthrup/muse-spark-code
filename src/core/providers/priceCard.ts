@@ -1,6 +1,6 @@
 import { Usd, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
-import { TOKENS_PER_MILLION } from '../../shared/constants'
+import { OPENAI_CACHE_WRITE_12H_MULTIPLE, TOKENS_PER_MILLION } from '../../shared/constants'
 // A model's price card (M95, PLAN.md D74). Prices drive budgets and are
 // never guessed. Sources, in order: the provider's own models list where it
 // prices (OpenRouter, xAI, Together, Groq, Hugging Face's router), the
@@ -24,6 +24,8 @@ export interface PriceCard {
   readonly cacheWrite?: number | undefined
   /** The 1 h write where it differs (OpenRouter lists it). */
   readonly cacheWrite1h?: number | undefined
+  /** The 12 h write where it differs (a user-entered override; RLPROVSYNC). */
+  readonly cacheWrite12h?: number | undefined
   readonly output: number
   /** A flat USD price per request where one exists (OpenRouter, Groq). */
   readonly request?: number | undefined
@@ -43,6 +45,7 @@ export interface PriceCard {
         readonly cachedInput?: number | undefined
         readonly cacheWrite?: number | undefined
         readonly cacheWrite1h?: number | undefined
+        readonly cacheWrite12h?: number | undefined
       }
     | undefined
   readonly source: PriceSource
@@ -76,12 +79,20 @@ export interface PricedUsage {
   from the 5-minute remainder. Absent where the provider reports none.
   */
   readonly cacheWriteTokens1h?: number | undefined
+  /**
+  The 12-hour-written subset of `cacheWriteTokens` (OpenAI GPT-5.6 and
+  later): settled at the 12 h write rate, disjoint from the 30-minute
+  remainder and from the 1-hour subset. Absent where the provider
+  reports none (RLPROVSYNC).
+  */
+  readonly cacheWriteTokens12h?: number | undefined
   readonly outputTokens: number
 }
 
 /**
 Whether every count is a finite, non-negative number, with read plus
-written at most the total and the 1-hour-written at most the written.
+written at most the total and the TTL subsets (1-hour, 12-hour) jointly
+at most the written.
 */
 export function isValidUsage(usage: PricedUsage): boolean {
   const counts = [
@@ -90,25 +101,29 @@ export function isValidUsage(usage: PricedUsage): boolean {
     usage.cachedTokens ?? 0,
     usage.cacheWriteTokens ?? 0,
     usage.cacheWriteTokens1h ?? 0,
+    usage.cacheWriteTokens12h ?? 0,
   ]
   return (
     counts.every((count) => Number.isFinite(count) && !(count < 0)) &&
     (usage.cachedTokens ?? 0) + (usage.cacheWriteTokens ?? 0) <= usage.inputTokens &&
-    (usage.cacheWriteTokens1h ?? 0) <= (usage.cacheWriteTokens ?? 0)
+    (usage.cacheWriteTokens1h ?? 0) + (usage.cacheWriteTokens12h ?? 0) <=
+      (usage.cacheWriteTokens ?? 0)
   )
 }
 
 /**
-Written tokens split into the 5-minute remainder and the 1-hour subset,
-for a host that prices or stores the two TTLs apart (M101 lane P2; lane I
-wires the consumers).
+Written tokens split into the short-TTL remainder and the 1-hour and
+12-hour subsets, for a host that prices or stores the TTLs apart (M101
+lane P2; lane I wires the consumers; RLPROVSYNC adds the 12-hour split).
 */
 export function splitCacheWrites(usage: PricedUsage): {
   readonly standard: number
   readonly oneHour: number
+  readonly twelveHour: number
 } {
   const oneHour = usage.cacheWriteTokens1h ?? 0
-  return { standard: (usage.cacheWriteTokens ?? 0) - oneHour, oneHour }
+  const twelveHour = usage.cacheWriteTokens12h ?? 0
+  return { standard: (usage.cacheWriteTokens ?? 0) - oneHour - twelveHour, oneHour, twelveHour }
 }
 
 /** Whether a card's own rates are finite and non-negative. */
@@ -119,6 +134,7 @@ export function isValidPriceCard(card: PriceCard): boolean {
     card.cachedInput ?? 0,
     card.cacheWrite ?? 0,
     card.cacheWrite1h ?? 0,
+    card.cacheWrite12h ?? 0,
     card.request ?? 0,
     card.image ?? 0,
   ]
@@ -126,7 +142,12 @@ export function isValidPriceCard(card: PriceCard): boolean {
     return false
   }
   const tier = card.longContextTier
-  const tierCacheRates = [tier?.cachedInput ?? 0, tier?.cacheWrite ?? 0, tier?.cacheWrite1h ?? 0]
+  const tierCacheRates = [
+    tier?.cachedInput ?? 0,
+    tier?.cacheWrite ?? 0,
+    tier?.cacheWrite1h ?? 0,
+    tier?.cacheWrite12h ?? 0,
+  ]
   return (
     tier === undefined ||
     (Number.isFinite(tier.fromTokens) &&
@@ -318,12 +339,14 @@ export function reserveRequestAmount(card: PriceCard, usage: PricedUsage): UsdAm
   const { tier, isLongContext, inputRate, outputRate } = longContextRates(card, usage)
   // Cold writes are bounded at the dearest applicable write price: the
   // card's own write rates, plus the tier's where the estimate reaches it.
-  const writeCandidates: number[] = [card.cacheWrite, card.cacheWrite1h].filter(
+  const writeCandidates: number[] = [card.cacheWrite, card.cacheWrite1h, card.cacheWrite12h].filter(
     (rate): rate is number => rate !== undefined,
   )
   if (isLongContext && tier !== undefined) {
     writeCandidates.push(
-      ...[tier.cacheWrite, tier.cacheWrite1h].filter((rate): rate is number => rate !== undefined),
+      ...[tier.cacheWrite, tier.cacheWrite1h, tier.cacheWrite12h].filter(
+        (rate): rate is number => rate !== undefined,
+      ),
     )
   }
   const writeRate = Math.max(inputRate, ...writeCandidates)
@@ -394,14 +417,28 @@ export function settleUsageAmount(
     (isLongContext && tier !== undefined ? tier.cacheWrite1h : undefined) ??
     card.cacheWrite1h ??
     writeRate
+  // RLPROVSYNC: OpenAI's Responses API is the only wire that reports
+  // 12-hour writes, at the documented 2.5x multiple of uncached input, so
+  // reported 12-hour writes without an explicit rate settle at that
+  // multiple of the applicable input rate — a documented fact about the
+  // reporter, never a guess. An explicit tier or card rate still wins.
+  const write12hRate =
+    (isLongContext && tier !== undefined ? tier.cacheWrite12h : undefined) ??
+    card.cacheWrite12h ??
+    inputRate * OPENAI_CACHE_WRITE_12H_MULTIPLE
   const read = usage.cachedTokens ?? 0
-  const { standard: written5m, oneHour: written1h } = splitCacheWrites(usage)
-  const fresh = usage.inputTokens - read - written5m - written1h
+  const {
+    standard: writtenShort,
+    oneHour: written1h,
+    twelveHour: written12h,
+  } = splitCacheWrites(usage)
+  const fresh = usage.inputTokens - read - writtenShort - written1h - written12h
   return Usd.from(inputRate)
     .times(fresh)
     .add(Usd.from(readRate).times(read))
-    .add(Usd.from(writeRate).times(written5m))
+    .add(Usd.from(writeRate).times(writtenShort))
     .add(Usd.from(write1hRate).times(written1h))
+    .add(Usd.from(write12hRate).times(written12h))
     .add(Usd.from(outputRate).times(usage.outputTokens))
     .add(Usd.from(card.request ?? 0))
     .toAmount()

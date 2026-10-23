@@ -4246,6 +4246,8 @@
   "execBudgetStartBytes": "Limitovaný běh: strop {cap}, zbývá {remaining}. Každý požadavek rezervuje svůj vstup omezený byty plus až {output} výstupních tokenů.",
   "execBudgetStillReading": "Rozpočet běh zastavil, když ještě četl, takže zatím neexistuje žádná odpověď.",
   "execCountBytesFallback": "Počet vstupních tokenů u poskytovatele selhal, takže tento požadavek rezervuje bajtový odhad.",
+  "execCountBytesFailed": "Počet vstupních tokenů u poskytovatele selhal (HTTP {status}, {type}), takže tento požadavek rezervuje bajtový odhad.",
+  "execCountBytesOverLength": "Počet vstupních tokenů u poskytovatele překročil velikost požadavku, takže tento požadavek rezervuje bajtový odhad.",
   "execOutputCapExceeded": "--max-output-tokens překračuje limit výstupu {cap} tokenů.",
   "execUnpricedProvider": "Tento model nemá známý tarif, takže limitovaný běh pro {model} nemůže rezervovat. Přidejte cenu tohoto modelu do {file}, nebo zvolte oceněný model.",
   "execUnpricedModel": "Tento model nemá známý tarif, takže limitovaný běh nemůže rezervovat. Zvolte oceněný model.",
@@ -5277,7 +5279,7 @@
     "newBadge": "Novinka"
   },
   "modelToolCallingUnavailable": "Volání nástrojů nebylo u tohoto modelu ověřeno.",
-  "paidProviderPrice": "Za milion tokenů: vstup {input}, čtení mezipaměti {cached}, zápis mezipaměti {write}, hodinový zápis {write1h}, výstup {output}. Za požadavek {request}; za obrázek {image}.",
+  "paidProviderPrice": "Za milion tokenů: vstup {input}, čtení mezipaměti {cached}, zápis mezipaměti {write}, hodinový zápis {write1h}, dvanáctihodinový zápis {write12h}, výstup {output}. Za požadavek {request}; za obrázek {image}.",
   "paidProviderPriceTier": "Od {threshold} vstupních tokenů: vstup {input}, výstup {output} za milion.",
   "modelUnpriced": "Bez ceny",
   "modelLocal": "Místní",
@@ -5550,7 +5552,8 @@
     "azureResource": "Prostředek Azure",
     "deployment": "Nasazení",
     "loopbackPort": "Místní port",
-    "customFormat": "Formát protokolu"
+    "customFormat": "Formát protokolu",
+    "safetyIdentifier": "ID koncového uživatele (bezpečnost xAI)"
   },
   "providerDocs": "Dokumentace",
   "providerDataUse": "Jak se používají vaše data",

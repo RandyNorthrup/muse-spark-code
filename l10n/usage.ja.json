@@ -88,6 +88,7 @@
   "cacheWriteTokens": "キャッシュ書き込み",
   "cacheWrite5mTokens": "{duration}キャッシュ書き込み",
   "cacheWrite1hTokens": "{duration}キャッシュ書き込み",
+  "cacheWrite12hTokens": "{duration}キャッシュ書き込み",
   "reasoningTokens": "推論トークン",
   "reasoningNote": "推論は出力に含まれます。二重に課金されることはありません。",
   "totalCost": "合計コスト",

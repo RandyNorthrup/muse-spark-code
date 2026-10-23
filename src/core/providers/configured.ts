@@ -115,6 +115,7 @@ import {
   ANTHROPIC_MAX_ITEMS,
   EFFORT_PROVIDER_DEFAULT,
   MANUAL_THINKING_BUDGET_BY_EFFORT,
+  type PromptCacheTtl,
   PROVIDER_CONNECTION_LOST_CODE,
   PROVIDER_MANUAL_THINKING_BUDGET,
   PROVIDER_SECRET_PREFIX,
@@ -161,6 +162,14 @@ export interface ConfiguredProviderOptions {
   own wait or stop answer ends it.
   */
   readonly personCap?: () => number | undefined
+  /**
+  RLPROVSYNC: the person's `museSpark.modelApiPromptCacheTtl` setting,
+  read live so a change applies without a restart. Set, it is the minimum
+  cache lifetime sent as `prompt_cache_options.ttl` where the codec takes
+  it (OpenAI GPT-5.6 and later); unset, nothing is sent and the provider
+  default applies.
+  */
+  readonly promptCacheTtl?: () => PromptCacheTtl
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -964,7 +973,7 @@ export function createConfiguredProviderServices(
       isRetryableFailure: (failure) => isRefusalRetryable(failure, presets.quirksOf(preset).retry),
     })
     const headers: Record<string, string> = {}
-    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2023-06-01'
+    if ((entry.format ?? preset.format) === 'anthropic') headers['anthropic-version'] = '2026-10-21'
     if (preset.id === 'openrouter') {
       const attribution = presets.OPENROUTER_ATTRIBUTION
       headers[attribution.refererHeader] = attribution.referer
@@ -1331,13 +1340,13 @@ export function createConfiguredProviderServices(
       // could invent a product sentence, and a new member fails to typecheck
       // until it gets its own parser.
       parseError: (status, value) => parseFormatError(format, status, value),
-      encode: (body, _model, options?: WireEncodeOptions) => {
+      encode: (body, _model, encodeOptions?: WireEncodeOptions) => {
         // M101-REPLAY-ORIGIN: only the Responses branch below reads the
         // provenance map; every other format encodes exactly as before.
         const replayOrigins =
-          options?.replayOrigins === undefined
+          encodeOptions?.replayOrigins === undefined
             ? undefined
-            : translateReplayOrigins(entry, options.replayOrigins)
+            : translateReplayOrigins(entry, encodeOptions.replayOrigins)
         let path = '/v1/responses'
         let wire: unknown
         let extras: Readonly<Record<string, string>> = {}
@@ -1419,6 +1428,7 @@ export function createConfiguredProviderServices(
             // model (research §1.2 [AZ1, AZ3, AZ6]); the record above stays
             // keyed by the model family, never the deployment name.
             const isAzure = preset.id === 'azure'
+            const safetyIdentifier = presets.safetyIdentifierFor(entry)
             wire = responses
               .createResponsesCodec(
                 {
@@ -1436,7 +1446,14 @@ export function createConfiguredProviderServices(
                   model: presets.wireModelFor(entry, native),
                   ...(shouldOmitReasoning && { reasoning: undefined }),
                 },
-                replayOrigins === undefined ? undefined : { replayOrigins },
+                {
+                  ...(replayOrigins !== undefined && { replayOrigins }),
+                  ...(safetyIdentifier !== undefined && { safetyIdentifier }),
+                  // RLPROVSYNC: the person's cache-lifetime choice rides to
+                  // the wire only where the codec takes it (OpenAI GPT-5.6
+                  // and later); the codec omits `default` itself.
+                  cacheTtl: options.promptCacheTtl?.() ?? 'default',
+                },
               )
             if (isAzure) path = '/responses'
           }
@@ -1564,6 +1581,7 @@ export function createConfiguredProviderServices(
                 body: count.body,
                 ...(encoded.headers !== undefined && { headers: encoded.headers }),
                 accept: 'application/json',
+                countRequest: true,
                 retries: 'rateLimitOnly',
               },
               signal,
@@ -1986,6 +2004,7 @@ export function createConfiguredProviderServices(
                 card.cachedInput,
                 card.cacheWrite,
                 card.cacheWrite1h,
+                card.cacheWrite12h,
                 card.request,
                 card.image,
                 card.longContextTier?.input,

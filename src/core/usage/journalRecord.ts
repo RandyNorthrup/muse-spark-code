@@ -57,13 +57,16 @@ export function normaliseUsage(
   const details = usage.input_tokens_details
   const written = details?.cache_write_tokens
   const written1h = details?.cache_write_tokens_1h
+  const written12h = details?.cache_write_tokens_12h
   const tokens = usageTokensSchema.parse({
     ...(usage.input_tokens !== undefined && { input: usage.input_tokens }),
     ...(usage.output_tokens !== undefined && { output: usage.output_tokens }),
     ...(details?.cached_tokens !== undefined && { cached: details.cached_tokens }),
     ...(written !== undefined && { cacheWrite: written }),
     ...(written1h !== undefined && { cacheWrite1h: written1h }),
-    ...(written !== undefined && written1h !== undefined && { cacheWrite5m: written - written1h }),
+    ...(written12h !== undefined && { cacheWrite12h: written12h }),
+    ...(written !== undefined &&
+      written1h !== undefined && { cacheWrite5m: written - written1h - (written12h ?? 0) }),
     ...(usage.output_tokens_details?.reasoning_tokens !== undefined && {
       reasoning: usage.output_tokens_details.reasoning_tokens,
     }),
@@ -75,6 +78,7 @@ export function normaliseUsage(
     (tokens.input !== undefined &&
       (tokens.cached ?? 0) + (tokens.cacheWrite ?? 0) > tokens.input) ||
     (tokens.cacheWrite1h ?? 0) > (tokens.cacheWrite ?? 0) ||
+    (tokens.cacheWrite12h ?? 0) > (tokens.cacheWrite ?? 0) ||
     (tokens.output !== undefined && (tokens.reasoning ?? 0) > tokens.output)
   ) {
     throw new Error('invalidUsage')
@@ -100,6 +104,7 @@ function pricedUsage(tokens: UsageTokens, canPricePartial = false): PricedUsage 
     cachedTokens: tokens.cached,
     cacheWriteTokens: tokens.cacheWrite,
     cacheWriteTokens1h: tokens.cacheWrite1h,
+    cacheWriteTokens12h: tokens.cacheWrite12h,
   }
 }
 

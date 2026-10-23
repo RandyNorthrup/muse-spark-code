@@ -296,6 +296,7 @@ function ConfigureStep({
     readonly address?: string | undefined
     readonly azureResource?: string | undefined
     readonly deployment?: string | undefined
+    readonly safetyIdentifier?: string | undefined
     readonly loopbackPort?: number | undefined
     readonly customFormat?: ModelsCustomFormat | undefined
   }): void => {
@@ -305,6 +306,21 @@ function ConfigureStep({
     <div className="models-wizard-step">
       <h3>{preset?.label ?? UI_TEXT.providerFields.provider}</h3>
       {preset?.originKind === 'fixed' && <p className="models-origin">{preset.originDisplay}</p>}
+      {preset?.id === 'xai' && (
+        <label className="models-field" htmlFor="models-safety-identifier">
+          <span>{fields.safetyIdentifier}</span>
+          <input
+            id="models-safety-identifier"
+            type="text"
+            autoComplete="off"
+            spellCheck={false}
+            value={draft.safetyIdentifier ?? ''}
+            onChange={(event) => {
+              edit({ safetyIdentifier: event.target.value })
+            }}
+          />
+        </label>
+      )}
       {preset?.originKind === 'azure-resource' && (
         <>
           <label className="models-field" htmlFor="models-azure-resource">

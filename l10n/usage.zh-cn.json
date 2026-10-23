@@ -88,6 +88,7 @@
   "cacheWriteTokens": "缓存写入",
   "cacheWrite5mTokens": "{duration}缓存写入",
   "cacheWrite1hTokens": "{duration}缓存写入",
+  "cacheWrite12hTokens": "{duration}缓存写入",
   "reasoningTokens": "推理 Token",
   "reasoningNote": "推理包含在输出中，不会重复计费。",
   "totalCost": "总费用",

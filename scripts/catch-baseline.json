@@ -22,7 +22,7 @@
       "CLEANUP": 2
     },
     "runtime": {
-      "SWALLOW": 33,
+      "SWALLOW": 32,
       "GENERIC": 194,
       "CLEANUP": 130
     },
@@ -5247,11 +5247,6 @@
       "file": "src/runtime/runtimeAccountingEntry.ts",
       "identity": "7a1641f45a5f63d480a78f316396136bdca3d27f4933031443a0f7ee6a09fa6b",
       "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/runtimeAccountingEntry.ts",
-      "identity": "96cc380ad05ebd2c6848c20fc5bed7b7080d08c48ae973c2e48a79f5676da54b",
-      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/runtimeConverterPath.ts",

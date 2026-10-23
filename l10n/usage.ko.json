@@ -88,6 +88,7 @@
   "cacheWriteTokens": "캐시 쓰기",
   "cacheWrite5mTokens": "{duration} 캐시 쓰기",
   "cacheWrite1hTokens": "{duration} 캐시 쓰기",
+  "cacheWrite12hTokens": "{duration} 캐시 쓰기",
   "reasoningTokens": "추론 토큰",
   "reasoningNote": "추론은 출력에 포함되며 이중으로 청구되지 않습니다.",
   "totalCost": "총비용",

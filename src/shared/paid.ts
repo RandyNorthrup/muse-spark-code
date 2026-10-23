@@ -142,6 +142,7 @@ export interface SubagentUsage {
   readonly cachedTokens: number
   readonly cacheWriteTokens?: number | undefined
   readonly cacheWriteTokens1h?: number | undefined
+  readonly cacheWriteTokens12h?: number | undefined
   /** A resolved provider receipt; legacy Meta observers keep their existing fields. */
   readonly costUsd?: UsdAmount | undefined
 }

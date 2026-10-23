@@ -4163,6 +4163,8 @@
   "execBudgetStartBytes": "Ejecución con límite: tope {cap}, quedan {remaining}. Cada solicitud reserva su entrada limitada por bytes más hasta {output} tokens de salida.",
   "execBudgetStillReading": "El presupuesto detuvo la ejecución mientras aún leía, así que todavía no hay respuesta.",
   "execCountBytesFallback": "El recuento de entrada del proveedor falló, así que esta solicitud reserva la cota de bytes.",
+  "execCountBytesFailed": "El recuento de entrada del proveedor falló (HTTP {status}, {type}), así que esta solicitud reserva la cota de bytes.",
+  "execCountBytesOverLength": "El recuento de entrada del proveedor superó el tamaño de la solicitud, así que esta solicitud reserva la cota de bytes.",
   "execOutputCapExceeded": "--max-output-tokens supera el límite de salida de {cap} tokens.",
   "execUnpricedProvider": "Este modelo no tiene una tarifa conocida, por lo que una ejecución con límite no puede reservar para {model}. Agregue un precio para este modelo en {file} o elija un modelo con precio.",
   "execUnpricedModel": "Este modelo no tiene una tarifa conocida, por lo que una ejecución con límite no puede reservar. Elija un modelo con precio.",
@@ -5149,7 +5151,7 @@
     "newBadge": "Nuevo"
   },
   "modelToolCallingUnavailable": "No se ha verificado la llamada a herramientas para este modelo.",
-  "paidProviderPrice": "Por millón de tokens: entrada {input}, lectura de caché {cached}, escritura de caché {write}, escritura de una hora {write1h}, salida {output}. Por solicitud {request}; por imagen {image}.",
+  "paidProviderPrice": "Por millón de tokens: entrada {input}, lectura de caché {cached}, escritura de caché {write}, escritura de una hora {write1h}, escritura de doce horas {write12h}, salida {output}. Por solicitud {request}; por imagen {image}.",
   "paidProviderPriceTier": "A partir de {threshold} tokens de entrada: entrada {input}, salida {output} por millón.",
   "modelUnpriced": "Sin precio",
   "modelLocal": "Local",
@@ -5418,7 +5420,8 @@
     "azureResource": "Recurso de Azure",
     "deployment": "Implementación",
     "loopbackPort": "Puerto local",
-    "customFormat": "Formato del protocolo"
+    "customFormat": "Formato del protocolo",
+    "safetyIdentifier": "ID de usuario final (seguridad de xAI)"
   },
   "providerDocs": "Documentación",
   "providerDataUse": "Cómo se usan sus datos",
