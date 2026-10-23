@@ -3368,6 +3368,14 @@ export const TAB_DEBOUNCE_MS = 350
 export const TAB_CACHE_ENTRIES = 64
 // The latency gate: a slower median first text defaults the trigger to onInvoke.
 export const TAB_AUTOMATIC_LATENCY_CEILING_MS = 1500
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a sent Tab request's
+// backstop. A request no provider answers or fails (a hung connection,
+// neither answer nor failure) ends here with words, its reservation
+// standing — Tab's own signal never aborts, so nothing else would end
+// it. Ten minutes is the OpenAI and Anthropic SDKs' default request
+// timeout (600000), far past any healthy answer (the probe: usage at
+// 15 s), so it fires only on a true hang.
+export const TAB_REQUEST_TIMEOUT_MS = 600_000
 // Tab's own cache-key prefix, never a conversation's (SoL-Pi, A7).
 export const TAB_PROMPT_CACHE_KEY_PREFIX = 'muse-spark-tab-'
 // The fixed hole marker in the user message (Continue's hole-filler, L8).
