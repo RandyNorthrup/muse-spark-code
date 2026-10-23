@@ -594,10 +594,6 @@
         {
           "command": "museSpark.showScheduleTimeline",
           "when": "museSpark.scheduleDeliveryCertified"
-        },
-        {
-          "command": "museSpark.estimate",
-          "when": "false"
         }
       ],
       "view/title": [

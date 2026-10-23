@@ -51,6 +51,7 @@ import {
   securityAuditRowSchema,
   securityDeveloperAuditRowSchema,
 } from '../../core/reporting/sources/security'
+import { stripJsonc } from '../sharing/confidential'
 import type { ReportEstimateReader } from '../../core/reporting/sources/estimate'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { ReportAccountsReader } from '../../core/reporting/sources/accounts'
@@ -85,8 +86,10 @@ import type { UsageBudgetRead } from '../../core/usage/usageService'
 The installed manifest for the keybindings report (M113 C-M113-5, D93.4):
 each host passes its own install's package.json path, so VS Code, ACP and
 the CLI report the same installed bindings. Read at generation time, never
-at import, and parsed by the source's schema; a missing or broken file is
-an unavailable source with its reason, never an empty report.
+at import, and parsed by the source's schema. An absent file reads as
+undefined — the source reports no custom keybindings, never invalid data
+(RLTESTDRIVE2 12). A commented manifest still reads; only a file that
+really fails to parse is invalid.
 */
 export function keybindingsManifestReader(packageJsonPath: string): () => unknown {
   return () => {
@@ -94,11 +97,13 @@ export function keybindingsManifestReader(packageJsonPath: string): () => unknow
     try {
       raw = readFileSync(packageJsonPath, 'utf8')
     } catch (error) {
-      if (errorCode(error) === 'ENOENT') throw new LocalSourceError('missing')
+      // An absent file is not invalid data: the source reports no custom
+      // keybindings for the missing input (RLTESTDRIVE2 12).
+      if (errorCode(error) === 'ENOENT') return
       throw new LocalSourceError('failed')
     }
     try {
-      const parsed: unknown = JSON.parse(raw)
+      const parsed: unknown = JSON.parse(stripJsonc(raw))
       return parsed
     } catch {
       throw new LocalSourceError('invalid')

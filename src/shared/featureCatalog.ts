@@ -311,7 +311,7 @@ export const COMMAND_REFERENCE: Readonly<Record<CommandKey, CommandReference>> =
   diagnostics: { description: { ui: 'referenceDiagnostics' }, canRun: true },
   reportProblem: { description: { ui: 'referenceReport' }, canRun: true },
   showReport: { description: { ui: 'reportSlashDescription' }, canRun: true },
-  estimate: { description: { ui: 'referenceEstimate' }, canRun: false },
+  estimate: { description: { ui: 'referenceEstimate' }, canRun: true },
   newConversation: { description: { tip: 'clear' }, canRun: false },
   signOut: { description: { tip: 'signOut' }, canRun: false },
   openInTerminal: { description: { ui: 'referenceTerminal' }, canRun: false },

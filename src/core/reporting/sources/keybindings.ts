@@ -36,12 +36,6 @@ const manifestBindingSchema = z.object({
   win: optionalTextField,
   when: optionalTextField,
 })
-const manifestSchema = z.object({
-  contributes: z.object({
-    commands: z.unknown(),
-    keybindings: z.unknown(),
-  }),
-})
 
 export interface AcpCommandEntry {
   readonly name: string
@@ -94,12 +88,24 @@ export function keybindingsFacts(
   reportText: UiText,
   manifest: unknown,
 ): { readonly facts: KeybindingsFacts; readonly problems: readonly ReportProblem[] } {
-  let contributes: z.infer<typeof manifestSchema>['contributes']
-  try {
-    contributes = manifestSchema.parse(manifest).contributes
-  } catch {
-    throw new LocalSourceError('invalid')
-  }
+  const contributes =
+    typeof manifest === 'object' && manifest !== null && 'contributes' in manifest
+      ? manifest.contributes
+      : undefined
+  // An absent manifest, or one that contributes no keybindings (the packed
+  // agent's npm manifest), is not invalid data: there is nothing to list
+  // (RLTESTDRIVE2 12). Only a file that really fails to parse stays invalid.
+  if (
+    typeof contributes !== 'object' ||
+    contributes === null ||
+    Array.isArray(contributes) ||
+    !('keybindings' in contributes) ||
+    contributes.keybindings === undefined
+  )
+    throw new LocalSourceError('disabled', reportText.reportUi.noCustomKeybindings)
+  // Declared commands carry no facts, so an absent list reads as empty;
+  // only a present one's damage is named.
+  const commandsInput = 'commands' in contributes ? contributes.commands : []
   // Every declared binding is listed, including bindings for built-in
   // commands (the manifest rebinds `editor.action.inlineSuggest.trigger`):
   // the editor resolves those itself, and per-record validation below is
@@ -117,7 +123,7 @@ export function keybindingsFacts(
     reportText,
     'keybindings',
     'keybindings/commands',
-    contributes.commands,
+    commandsInput,
     manifestCommandSchema,
   )
   // Declared commands carry no facts, but their damage is still named.

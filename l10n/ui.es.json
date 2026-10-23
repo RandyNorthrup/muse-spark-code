@@ -2290,6 +2290,8 @@
     "networkOff": "Las fuentes de red de los informes están desactivadas.",
     "signInRequired": "Inicia sesión en GitHub para leer esta fuente.",
     "noPlan": "Este proyecto no tiene un plan estructurado.",
+    "noCustomKeybindings": "No hay atajos de teclado personalizados.",
+    "noCheckRuns": "Aún no se ha registrado ninguna ejecución de comprobaciones.",
     "planDrift": "Formato del plan en la línea {line}: {detail}",
     "automatedNote": "Este informe se generó automáticamente.",
     "post": "Publicar",
@@ -2359,6 +2361,11 @@
     "one": "{count} problema más",
     "other": "{count} problemas más",
     "many": "{count} problemas más"
+  },
+  "checkRunsUnreadable": {
+    "one": "No se pudo leer {count} ejecución de comprobación.",
+    "other": "No se pudieron leer {count} ejecuciones de comprobación.",
+    "many": "No se pudieron leer {count} ejecuciones de comprobación."
   },
   "reportCliUsage": "Generar un informe determinista a partir de fuentes identificadas, sin llamar a un modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Tipos: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
@@ -4040,7 +4047,7 @@
   "acpFontIntegrity": "No se pudo verificar el archivo de fuente: {file}",
   "acpFontInstallFailed": "No se pudo instalar el paquete de fuentes.",
   "acpFontsUsage": "Uso: {command} fonts install [--from <directory>]",
-  "acpUsage": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} auth set|status|clear --provider <id>  Guardar, comprobar o quitar una clave de proveedor (se lee de stdin)\n  {command} providers list|add|test|remove|connect|usage  Gestionar los proveedores de modelos\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número; sale con 0 si está limpio, 10 si se encuentra un secreto, 2 por uso incorrecto)\n  {command} report [options]  Mostrar un informe de problema depurado (no inicia ningún backend, no abre el navegador)\n  {command} legal [options]  Ejecutar el análisis legal de solo lectura (sin backend ni inicio de sesión)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --questions-defer-after <seconds>  Posponer preguntas tras estos segundos; sin límite salvo que se fije uno (0, el valor predeterminado, nunca)\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --muse-voice                     Ofrecer la transcripción de pago de Muse Voice del sonido adjunto (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Ejecutar los hooks Setup y salir",
+  "acpUsage": "Uso:\n  {command} [opciones]              Servir el Agent Client Protocol por stdin y stdout\n  {command} [opciones] login        Iniciar sesión en Muse Code en este terminal\n  {command} auth set|status|clear  Guardar, comprobar o quitar la clave de Meta Model API\n  {command} auth set|status|clear --provider <id>  Guardar, comprobar o quitar una clave de proveedor (se lee de stdin)\n  {command} providers list|add|test|remove|connect|usage <id>  Gestionar los proveedores de modelos\n  {command} exec [options] <prompt>  Ejecutar un turno sin interfaz\n  {command} scan-secrets <file> [--key-stdin]  Contar posibles secretos en un archivo (solo muestra el número; sale con 0 si está limpio, 10 si se encuentra un secreto, 2 por uso incorrecto)\n  {command} report [options]  Mostrar un informe de problema depurado (no inicia ningún backend, no abre el navegador)\n  {command} legal [options]  Ejecutar el análisis legal de solo lectura (sin backend ni inicio de sesión)\nOpciones:\n  --backend museCode|modelApi      Quién paga: Muse Code (predeterminado) o la clave de Model API\n  --trust-workspace                Cargar las reglas, las habilidades y la memoria de la carpeta\n  --muse-binary <ruta>             La CLI de Muse Code que se ejecuta\n  --shell-sandbox auto|muse|off    El espacio aislado del shell de Muse Code\n  --questions-defer-after <seconds>  Posponer preguntas tras estos segundos; sin límite salvo que se fije uno (0, el valor predeterminado, nunca)\n  --allow-dangerously-skip-permissions  Ofrecer el modo «Omitir permisos»\n  --allow-contributor-models       Mostrar los modelos de nivel colaborador (Meta puede entrenar con su contenido)\n  --web-search                     Ofrecer la búsqueda web de pago (back-end de Model API; primero se pregunta su precio)\n  --image-generation               Ofrecer la generación de imágenes de pago (back-end de Model API; primero se pregunta su precio)\n  --muse-voice                     Ofrecer la transcripción de pago de Muse Voice del sonido adjunto (back-end de Model API; primero se pregunta su precio)\n  --verbose                        Registrar cada detalle en stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Ejecutar los hooks Setup y salir",
   "reportUsage": "Uso:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Muestra el informe de problema depurado en stdout, o lo escribe en <file> con --out.\n  No inicia ningún backend, no inicia sesión en ningún sitio y no abre el navegador.\nOpciones:\n  --out <file>         Escribir el informe en un archivo en lugar de stdout\n  --description <text>  Qué estaba pasando, en tus palabras\n  --no-facts           Omitir los datos de soporte\n  --no-events          Omitir los eventos recientes",
   "cliHelp": {
     "usage": "Uso:",
@@ -5114,6 +5121,7 @@
   "providerConnectRecoveredStored": "Una conexión anterior de OpenRouter ya guardó su clave. Se conserva.",
   "providerConnectStoredNewKey": "La nueva clave de OpenRouter está guardada. No se pudo restaurar la clave anterior.",
   "providerUsageFailed": "No se pudo consultar el uso de la clave de OpenRouter. Vuelve a intentarlo.",
+  "providerUsageNeedsId": "Se necesita el ID de un proveedor: {command} providers usage <id>.",
   "providerPasteCode": "Pega el código de autorización que muestra OpenRouter.",
   "usageKeyTotal": "Uso total",
   "usageUnlimited": "Sin límite",
@@ -6147,6 +6155,7 @@
     "execHelp": "Cuentas sin interacción: {command} exec --account <id> [--account-pool]. CI con --key-stdin usa solo la cuenta predeterminada y nunca cambia de cuenta.",
     "unavailable": "Las cuentas estarán disponibles cuando este entorno se conecte al servicio compartido de cuentas.",
     "unavailableReason": "Las cuentas no están disponibles ({reason}).",
+    "noAccountsEntry": "{provider} no tiene ninguna entrada de cuentas en este entorno.",
     "changed": "Las cuentas cambiaron durante la actualización. Inténtelo de nuevo.",
     "notReady": "Las cuentas aún no están listas. Inténtelo de nuevo.",
     "invalidReply": "El servicio de cuentas respondió con una respuesta inesperada.",
