@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, it } from 'vitest'
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { DICTATION_HELPER_DIR, darwinDictationHelperSegments } from '../../../src/shared/constants'
-import { hasBrokerSocketFit } from '../helpers/vault/socketFit'
+import { shouldSkipPosixBrokerSuite } from '../helpers/vault/socketFit'
 import { vaultPeerExecutable } from '../../../src/runtime/vault/posixNative'
 import { startPosixPanelFixture, type PosixPanelFixture } from '../helpers/vault/posixPanelFixture'
 import { drivePanelFlow } from '../helpers/vault/panelFlowDriver'
@@ -25,33 +25,7 @@ const fixture = { current: undefined as PosixPanelFixture | undefined }
 // governor) takes minutes on a busy rig.
 const TEST_TIMEOUT_MS = 300_000
 
-/** This rig's process listing for the broker's exact-birth identity: darwin reads it from /bin/ps. */
-function hasProcessListing(): boolean {
-  if (process.platform !== 'darwin') return true
-  try {
-    execFileSync('/bin/ps', ['-o', 'lstart=', '-p', String(process.pid)], { stdio: 'ignore' })
-    return true
-  } catch {
-    // A rig that cannot list processes cannot prove process birth, so the
-    // broker fail-closes a fresh vault as lost: skip with this reason.
-    return false
-  }
-}
-
-/**
-Linux's OS store is the Secret Service, reached over the session bus: a
-machine with no session bus (an SSH login, a CI runner) has no store, and
-setup rightly refuses with the credential-store sentence. Such a rig skips
-with this reason; a desktop session, or a private `dbus-run-session` with
-an unlocked keyring, runs the flow.
-*/
-function hasSessionBus(): boolean {
-  return process.platform !== 'linux' || (process.env['DBUS_SESSION_BUS_ADDRESS'] ?? '') !== ''
-}
-
-describe.skipIf(
-  process.platform === 'win32' || !hasBrokerSocketFit() || !hasProcessListing() || !hasSessionBus(),
-)('POSIX vault through the panel', () => {
+describe.skipIf(shouldSkipPosixBrokerSuite())('POSIX vault through the panel', () => {
   // The native helper builds and broker starts take as long as the machine
   // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
   // no time limit of ours on this setup (owner 2026-10-16).

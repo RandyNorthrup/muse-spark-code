@@ -24,6 +24,13 @@ import {
   splitJwt,
   subscriptionRequest,
 } from './oidc'
+import {
+  CHATGPT_ISSUER,
+  CHATGPT_ORIGIN,
+  chatGptRecordSchema,
+  type ChatGptRecord,
+} from './chatgptRecord'
+export { chatGptRecordSchema, type ChatGptRecord } from './chatgptRecord'
 import { pkce } from '../../../host/backend/providersEntry'
 const {
   createPkcePair,
@@ -33,8 +40,8 @@ const {
   pkceChallenge: createChallenge,
 } = pkce
 
-const ISSUER = 'https://auth.openai.com'
-const ORIGIN = 'https://api.openai.com'
+const ISSUER = CHATGPT_ISSUER
+const ORIGIN = CHATGPT_ORIGIN
 const RESOURCE = `${ORIGIN}/v1`
 const DIRECT_SCOPE = 'chatgpt.tokens.use.direct'
 const SCOPES = `openid profile email offline_access resource.invoke ${DIRECT_SCOPE}`
@@ -88,26 +95,6 @@ export const chatGptRegistrationSchema = z.object({
   accountIdHash: z.optional(accountHashSchema),
 })
 export type ChatGptRegistration = z.infer<typeof chatGptRegistrationSchema>
-
-/** Secret-store payload only. Never send this record across a UI bridge. */
-export const chatGptRecordSchema = z.object({
-  v: z.literal(CREDENTIAL_RECORD_VERSION),
-  auth: z.literal('subscription'),
-  origin: z.literal(ORIGIN),
-  issuer: z.literal(ISSUER),
-  clientId: nonempty,
-  hostId: nonempty,
-  /** Hash of the captured verified OIDC subject; never the raw account id. */
-  accountIdHash: z.optional(accountHashSchema),
-  accessToken: nonempty,
-  refreshToken: nonempty,
-  expiresAt: positive,
-  scope: nonempty,
-  nonce: nonempty,
-  /** A replacement kept for recovery/revocation, never usable before verification. */
-  pendingRefresh: z.optional(z.object({ idToken: z.optional(nonempty) })),
-})
-export type ChatGptRecord = z.infer<typeof chatGptRecordSchema>
 
 /**
 The local verdict for a stored grant: signed in until its access token's
