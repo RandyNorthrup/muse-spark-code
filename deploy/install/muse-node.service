@@ -1,0 +1,41 @@
+[Unit]
+Description=Muse Spark Code Node (Unofficial)
+After=network-online.target
+Wants=network-online.target muse-node-toolhost.service
+
+[Service]
+Type=simple
+User=muse-node
+Group=muse-node
+SupplementaryGroups=muse-bus
+UMask=0027
+WorkingDirectory=/var/lib/muse-spark-code-node
+Environment=HOME=/var/lib/muse-spark-code-node
+Environment=XDG_CONFIG_HOME=/var/lib/muse-spark-code-node/config
+Environment=MUSE_NODE_DATA_ROOT=/var/lib/muse-spark-code-node
+Environment=MUSE_NODE_TOOL_SOCKET=/run/muse-tools/host.sock
+ExecStart=/usr/bin/node /opt/muse/dist/node.js serve --data-root /var/lib/muse-spark-code-node
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+# LAN profile: the node binds its chosen LAN address and port only; the
+# address is node configuration from init, not this unit. Open only the
+# node's port in the firewall (docs/node/home.md).
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/muse-spark-code-node /run/muse-tools
+
+[Install]
+WantedBy=multi-user.target

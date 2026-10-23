@@ -1,32 +1,19 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { afterEach, describe, expect, it } from 'vitest'
-import { resolveExecutable } from '../../src/core/executables'
+import { testBash } from './helpers/shellBash'
 
 const manifest = JSON.parse(readFileSync('deploy/toolset/base.json', 'utf8'))
 const folders = []
 afterEach(async () => {
   await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true })))
 })
-const installedBash = path.join(process.env.ProgramFiles ?? 'C:/Program Files', 'Git/bin/bash.exe')
-let bash = process.platform === 'win32' && existsSync(installedBash) ? installedBash : 'bash'
-if (process.platform === 'win32' && !existsSync(installedBash)) {
-  const git = resolveExecutable('git', {
-    platform: process.platform,
-    pathVariable: process.env.PATH,
-    fileExists: existsSync,
-  })
-  if (git !== undefined) {
-    const shell = path.join(path.dirname(git), '..', 'usr', 'bin', 'sh.exe')
-    const result = spawnSync(shell, ['--version'], { encoding: 'utf8', windowsHide: true })
-    if (result.status === 0 && result.stdout.startsWith('GNU bash,')) bash = shell
-  }
-}
+const bash = testBash()
 
 function fixture(pack) {
   const root = mkdtempSync(path.join(tmpdir(), 'm110-b0-install-'))
