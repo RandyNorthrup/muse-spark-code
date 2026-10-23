@@ -15,6 +15,7 @@ import { DevicePairingError, type DevicePair } from '../../src/core/devices/pair
 import { PassphraseVaultSlot } from '../../src/core/vault/keyslots'
 import { DEVICE_LIMITS } from '../../src/shared/constants'
 import { deviceGrantSchema, type DeviceGrant } from '../../src/shared/devices'
+import { canonicalUsd } from '../../src/shared/usdSchema'
 import { deviceCaps } from './helpers/deviceFixtures'
 import { completeDevicePair } from './helpers/devicePairs'
 
@@ -253,7 +254,7 @@ describe('M100 lane K per-message authorization', () => {
       processes: 0,
       heavyChecks: 0,
       tokens: 0,
-      spendUsd: 0,
+      spendUsd: canonicalUsd(0),
       artifactBytes: 0,
     })
     const allowed = await grants.authorize({ ...messageFor(grantB), quota: { ...deviceCaps } }, NOW)

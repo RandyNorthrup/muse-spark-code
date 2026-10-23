@@ -34,6 +34,8 @@ import {
   vaultBlockSchema,
   type VaultBlockContext,
 } from '../vault/crypto'
+import { compareUsdAmounts, sumUsd } from '../../shared/usd'
+import { canonicalUsd, legacyUsdSchema, nonnegativeUsdSchema } from '../../shared/usdSchema'
 import type { MultiplexedDeviceMessage } from './channel'
 import { DevicePairingError, validateDevicePair, type DevicePair } from './pairing'
 import {
@@ -175,19 +177,29 @@ export interface DeviceOwnerAuthMessage {
   readonly mode?: DeviceGrantMode
   readonly quota?: DeviceCaps
 }
+// The counted quota fields; spend is an exact amount (spendUsd) beside them.
 const deviceOwnerQuotaFields = [
   'workers',
   'processes',
   'heavyChecks',
   'tokens',
-  'spendUsd',
   'artifactBytes',
 ] as const
 function zeroCaps(): DeviceCaps {
-  return { workers: 0, processes: 0, heavyChecks: 0, tokens: 0, spendUsd: 0, artifactBytes: 0 }
+  return {
+    workers: 0,
+    processes: 0,
+    heavyChecks: 0,
+    tokens: 0,
+    spendUsd: canonicalUsd(0),
+    artifactBytes: 0,
+  }
 }
 function isUsage(value: DeviceCaps): boolean {
-  return deviceOwnerQuotaFields.every((field) => Number.isFinite(value[field]) && value[field] >= 0)
+  return (
+    deviceOwnerQuotaFields.every((field) => Number.isFinite(value[field]) && value[field] >= 0) &&
+    nonnegativeUsdSchema.safeParse(value.spendUsd).success
+  )
 }
 const deviceOwnerUsageField = z.number().check(
   z.gte(0),
@@ -273,6 +285,7 @@ export class DeviceOwnerGrants {
     const binding = this.bindings.assertOwner(pairId, ownerId)
     const total = this.usedBy(ownerId)
     for (const field of deviceOwnerQuotaFields) total[field] += usage[field]
+    total.spendUsd = sumUsd(total.spendUsd, usage.spendUsd)
     this.used.set(ownerId, total)
     await this.audit.record({ pairId: binding.pairId, ownerId, action: 'spend', decision: 'allow' })
     return this.usedBy(ownerId)
@@ -302,7 +315,7 @@ export class DeviceOwnerGrants {
             processes: deviceOwnerUsageField,
             heavyChecks: deviceOwnerUsageField,
             tokens: deviceOwnerUsageField,
-            spendUsd: deviceOwnerUsageField,
+            spendUsd: legacyUsdSchema,
             artifactBytes: deviceOwnerUsageField,
           }),
         ),
@@ -353,12 +366,12 @@ export class DeviceOwnerGrants {
       DEVICE_GRANT_MODE_ORDER.indexOf(message.mode) > DEVICE_GRANT_MODE_ORDER.indexOf(grant.mode)
     )
       return await deny('scope-denied')
-    if (message.quota !== undefined) {
+    const quota = shaped.data.quota
+    if (quota !== undefined) {
       const used = this.usedBy(message.ownerId)
-      const quota = message.quota
-      const isOverQuota = deviceOwnerQuotaFields.some(
-        (field) => quota[field] + used[field] > grant.quota[field],
-      )
+      const isOverQuota =
+        deviceOwnerQuotaFields.some((field) => quota[field] + used[field] > grant.quota[field]) ||
+        compareUsdAmounts(sumUsd(quota.spendUsd, used.spendUsd), grant.quota.spendUsd) > 0
       if (isOverQuota) return await deny('quota-exceeded')
     }
     await this.audit.record({
