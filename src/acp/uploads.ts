@@ -3,7 +3,7 @@
 // provider's delete call. A foreign file is confirmed through the ACP
 // permission request exactly where VS Code asks with its modal dialog, and
 // kept with its reason when refused.
-import { RequestError } from '@agentclientprotocol/sdk'
+import { RequestError } from '@agentclientprotocol/sdk/unstable'
 import { uploadExpiryText } from '../core/media/uploadedFiles'
 import { UI_TEXT } from '../shared/constants'
 import { describeError } from '../shared/redact'

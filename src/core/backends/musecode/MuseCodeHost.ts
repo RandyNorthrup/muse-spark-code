@@ -39,6 +39,7 @@ import type { ModeSyncOps } from './approvalModesEntry'
 import * as z from 'zod/mini'
 import {
   type AgentEvent,
+  type ApprovalChoice,
   type ItemSnapshot,
   type QuestionAnswer,
   type RequirementRef,
@@ -498,6 +499,27 @@ export function contributorModelSummaries(
         !listed.has(`${model.modelId}${CONTRIBUTOR_MODEL_SUFFIX}`),
     )
     .map((model) => toContributorSummary(model))
+}
+
+/**
+Feedback rides only on a choice that accepts it: Muse Code 1.4.11 refuses
+an `approval/decide` carrying feedback for any other choice (the SDK's
+`feedbackNotAccepted` failure, changelog 1.4.11), so the decision is sent
+without it and the turn goes on. A choice the ledger never saw keeps its
+feedback: the host, not this client, refuses those.
+*/
+export function stripUnacceptedDecisionFeedback(
+  choices: readonly ApprovalChoice[] | undefined,
+  decision: ApprovalDecision,
+): ApprovalDecision {
+  if (choices === undefined || decision.feedback === undefined) return decision
+  const choice = choices.find((candidate) => candidate.choiceId === decision.choiceId)
+  if (choice === undefined || choice.acceptsFeedback === true) return decision
+  return {
+    approvalId: decision.approvalId,
+    choiceId: decision.choiceId,
+    requirementId: decision.requirementId,
+  }
 }
 
 /**
@@ -2408,7 +2430,16 @@ export class MuseSession implements ScheduledAgentSession {
       throw new PromptSettledError('movedOn', `${stage}: the approval moved on`)
     }
     this.prompts.markDecided(requirementId)
-    const pending = this.sendApprovalDecision(decision)
+    const admitted = stripUnacceptedDecisionFeedback(
+      this.prompts.pending(approvalId)?.availableChoices,
+      decision,
+    )
+    if (admitted.feedback === undefined && decision.feedback !== undefined) {
+      this.log.info(
+        `Approval ${approvalId} choice ${decision.choiceId} takes no feedback; it was not sent`,
+      )
+    }
+    const pending = this.sendApprovalDecision(admitted)
     this.decisionsInFlight.set(key, pending)
     try {
       await pending

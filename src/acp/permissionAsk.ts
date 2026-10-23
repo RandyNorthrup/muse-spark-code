@@ -3,7 +3,7 @@
 // to a re-issued approval for the same tool call, and a newer stage never
 // opens a second client request while one is still unanswered. Pure: the
 // ACP agent (`agent.ts`) sends what these decide.
-import type { RequestPermissionResponse } from '@agentclientprotocol/sdk'
+import type { RequestPermissionResponse } from '@agentclientprotocol/sdk/unstable'
 import type { ApprovalChoice } from '../shared/agentEvents'
 import type { PermissionMode } from '../shared/constants'
 import { untrustedStartMode } from '../shared/permissionModes'

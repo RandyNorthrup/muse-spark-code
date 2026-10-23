@@ -10,9 +10,10 @@
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import * as acp from '@agentclientprotocol/sdk'
+import * as acp from '@agentclientprotocol/sdk/unstable'
 import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
+import * as z from 'zod/mini'
 import { createAcpAgent } from '../../src/acp/agent'
 import { AcpPaidUse } from '../../src/acp/paid'
 import type { SessionListEvent, SessionRecord } from '../../src/core/agent/agentBackend'
@@ -22,7 +23,7 @@ import { sessionEnvelopeSchema } from '../../src/core/backends/musecode/sessionR
 import { buildSessionBoard } from '../../src/core/sessionBoard'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import { UI_TEXT } from '../../src/shared/constants'
+import { MSP_KNOWN_SCHEMA_FINGERPRINTS, UI_TEXT } from '../../src/shared/constants'
 import { type Answer, refuseUnscripted, ReplayWire } from './helpers/museReplay'
 import { titleCapture as capture, recordedAnswer as recorded } from './helpers/sessionTitleCapture'
 
@@ -47,6 +48,8 @@ const WORDS: Readonly<Record<string, string | undefined>> = {
 }
 const labelOf = (sessionId: string) =>
   capture.provenance.sessions.find((entry) => entry.sessionId === sessionId)?.label ?? sessionId
+
+const initializeSchema = z.object({ schema: z.object({ fingerprint: z.string() }) })
 
 const log = stderrLogger(() => undefined, 'warn')
 const hosts: { host: MuseCodeHost; wire: ReplayWire }[] = []
@@ -201,5 +204,10 @@ describe('Muse Code session titles, end to end', () => {
         WORDS[labelOf(session.sessionId)] ?? UI_TEXT.untitledConversation,
       )
     }
+  })
+
+  it('serves a schema the map knows, labelled with the capture’s build', () => {
+    const init = initializeSchema.parse(recorded('initialize'))
+    expect(MSP_KNOWN_SCHEMA_FINGERPRINTS[init.schema.fingerprint]).toBe(capture.provenance.cli)
   })
 })

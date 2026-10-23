@@ -298,8 +298,9 @@ export class MuseCodeBackendManager {
 
   /**
   The SDK reports a host whose schema fingerprint differs from its pin. A
-  build known to be an additive successor is an info line naming it; any
-  other difference stays a warning (0.9.1: every 1.4.0 start warned).
+  build the map knows is an info line naming it, whether it served an
+  older schema or a newer one; any other difference stays a warning
+  (0.9.1: every 1.4.0 start warned).
   */
   private logFingerprint(warning: FingerprintWarning | undefined): void {
     if (warning === undefined) {
@@ -311,7 +312,7 @@ export class MuseCodeBackendManager {
       return
     }
     this.deps.log.info(
-      `MSP schema ${warning.served} is Muse Code ${build}'s, an additive successor of the SDK's ${warning.pinned}`,
+      `MSP schema ${warning.served} is Muse Code ${build}'s known schema; the SDK pins ${warning.pinned}`,
     )
   }
 

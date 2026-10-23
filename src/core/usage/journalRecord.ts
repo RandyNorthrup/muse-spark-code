@@ -4,6 +4,7 @@ import { Usd, type UsdAmount } from '../../shared/usd'
 import {
   CONTRIBUTOR_MODEL_SUFFIX,
   MODEL_API_PRICED_MODELS,
+  type MODEL_API_PRICES_PER_MILLION,
   MODEL_API_PRICES_VERIFIED_ON,
   PAID_PRICES_USD,
   PAID_PRICES_VERIFIED_ON,
@@ -127,7 +128,9 @@ contributor suffix the backend's own model id carries. Only an equivalent
 display price may use the suffix tier; actual (computed/reported) costs
 stay on the verified whitelist, never a guessed tariff.
 */
-function planPriceTier(context: UsageRecordContext): 'standard' | 'contributor' | undefined {
+function planPriceTier(
+  context: UsageRecordContext,
+): keyof typeof MODEL_API_PRICES_PER_MILLION | undefined {
   if (context.provider !== 'meta' && context.backend !== 'museCode') {
     return undefined
   }
@@ -138,6 +141,10 @@ function planPriceTier(context: UsageRecordContext): 'standard' | 'contributor' 
   const contributor: readonly string[] = MODEL_API_PRICED_MODELS.contributor
   if (contributor.includes(context.model)) {
     return 'contributor'
+  }
+  const wonder: readonly string[] = MODEL_API_PRICED_MODELS.wonder
+  if (wonder.includes(context.model)) {
+    return 'wonder'
   }
   return context.model.endsWith(CONTRIBUTOR_MODEL_SUFFIX) ? 'contributor' : undefined
 }

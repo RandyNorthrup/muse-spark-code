@@ -2932,7 +2932,7 @@ export function App({
   const effortModel = state.models.find((model) => model.modelId === state.model?.modelId)
   // The dots and keyboard stepping offer what the served catalogue admits,
   // through the one shared function (RVCM1063D cause 1).
-  const effortLevels = servedEffortLevels(state.models, state.model?.modelId)
+  const effortLevels = servedEffortLevels(state.models, state.model?.modelId, state.auth.backend)
   const fastTier = state.models.find((model) => model.modelId === state.model?.modelId)?.fastTier
   const onStepEffort = useCallback(
     (direction: -1 | 1) => {

@@ -149,6 +149,11 @@ Optional Model API explanation: {price}. Each use asks for consent and shares th
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -245,6 +250,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -395,6 +405,11 @@ conversationStart&modelPricing: On by default. Compacts long Model API conversat
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -509,7 +524,14 @@ Choose how much effort Muse puts into each reply.
   "default": "high",
   "tiers": {
     "muse-spark-1.3": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
-    "muse-spark-1.2": ["minimal", "low", "medium", "high", "xhigh"]
+    "muse-wonder-1.0": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
+    "muse-wonder-full-1.0": ["minimal", "low", "medium", "high", "xhigh", "max", "ultra"],
+    "muse-spark-1.3-contributor": ["minimal", "low", "medium", "high", "xhigh"],
+    "muse-spark-1.2": ["minimal", "low", "medium", "high", "xhigh"],
+    "muse-spark-1.2-contributor": ["minimal", "low", "medium", "high", "xhigh"],
+    "muse-spark-1.1": ["minimal", "low", "medium", "high", "xhigh"],
+    "muse-wonder-1.0-contributor": ["minimal", "low", "medium", "high", "xhigh"],
+    "muse-wonder-full-1.0-contributor": ["minimal", "low", "medium", "high", "xhigh"]
   },
   "thinkingOff": {
     "museCode": "none",
@@ -1136,6 +1158,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1196,6 +1223,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1255,6 +1287,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1333,6 +1370,11 @@ Attach files by selecting or dropping them, and paste images into the composer. 
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1396,6 +1438,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1449,6 +1496,11 @@ Interactive Model API extras ask before spending and share the daily budget. Mus
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1500,6 +1552,11 @@ Turn paid model hooks on or off.
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1561,6 +1618,11 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "paidFeature": "tab",
@@ -1587,6 +1649,11 @@ Tab uses the stored Model API key on either chat backend. The default trigger is
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",
@@ -1670,6 +1737,11 @@ The background safety check did not finish, so no advisory is attached to this a
       "input": "0.1",
       "cachedInput": "0.002",
       "output": "0.2"
+    },
+    "wonder": {
+      "input": "4",
+      "cachedInput": "0.2",
+      "output": "20"
     }
   },
   "billing": "storedModelApiKey",

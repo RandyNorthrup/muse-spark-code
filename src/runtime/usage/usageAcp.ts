@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import type { CreateElicitationRequest } from '@agentclientprotocol/sdk'
+import type { CreateElicitationRequest } from '@agentclientprotocol/sdk/unstable'
 import type { CoreLogger } from '../../core/logging'
 import { UI_TEXT } from '../../shared/constants'
 import type { UsageAdapter } from './usageAdapter'

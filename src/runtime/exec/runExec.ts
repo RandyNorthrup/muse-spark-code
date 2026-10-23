@@ -1,5 +1,5 @@
 import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
-import type * as acp from '@agentclientprotocol/sdk'
+import type * as acp from '@agentclientprotocol/sdk/unstable'
 import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import {
   createUsageRecording,
@@ -1329,7 +1329,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                   ? config.options.flatMap((option) =>
                       'value' in option ? option.value : option.options.map((entry) => entry.value),
                     )
-                  : [...effortLevelsFor(model ?? undefined)]
+                  : [...effortLevelsFor(model ?? undefined, undefined, options.backend)]
               if (
                 !(model ?? '').includes('/') &&
                 options.effort !== THINKING_OFF_EFFORT &&

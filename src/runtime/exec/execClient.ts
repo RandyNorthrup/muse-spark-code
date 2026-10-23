@@ -1,4 +1,4 @@
-import * as acp from '@agentclientprotocol/sdk'
+import * as acp from '@agentclientprotocol/sdk/unstable'
 import * as z from 'zod/mini'
 import type { ExecSink } from './execOutput'
 import type { Lifecycle } from './execLimits'

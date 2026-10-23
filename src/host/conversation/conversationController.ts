@@ -4493,7 +4493,7 @@ export class ConversationController implements DeferredSend {
   site in this controller calls this, never the static table.
   */
   private servedLevels(modelId: string | undefined): readonly EffortLevel[] {
-    return servedEffortLevels(this.models, modelId)
+    return servedEffortLevels(this.models, modelId, this.sessionKind ?? 'museCode')
   }
   private applyEffort(
     session: AgentSession,

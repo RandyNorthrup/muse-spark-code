@@ -1668,14 +1668,43 @@ export const COMPOSER_MAX_ROWS = 10
 // it is what the Thinking toggle sends when it is off.
 export const EFFORT_LEVELS = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra'] as const
 export type EffortLevel = (typeof EFFORT_LEVELS)[number]
-// The tiers each model family actually serves, keyed by model-id prefix
-// (verified live 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max`
-// with "Supported values: [minimal, low, medium, high, xhigh]"). Families not
-// listed get the full UI range.
+// The tiers each model actually serves, keyed by exact model id: `max` is
+// served only by muse-spark-1.3 and Muse Wonder (dev.meta.ai/docs/
+// reasoning: not available on muse-spark-1.3-contributor; verified live
+// 2026-09-21, Muse Code 1.3.0: muse-spark-1.2 rejects `max` with
+// "Supported values: [minimal, low, medium, high, xhigh]"). `ultra` is Muse
+// Code's client-side top tier and rides only the Muse Code backend
+// (effortLevelsFor drops it for the Model API, which has no such value).
+// Models not listed get the full UI range.
+export const EFFORT_LEVELS_THROUGH_XHIGH: readonly EffortLevel[] = [
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+]
 export const MODEL_EFFORT_LEVELS: Readonly<Record<string, readonly EffortLevel[]>> = {
   'muse-spark-1.3': EFFORT_LEVELS,
-  'muse-spark-1.2': ['minimal', 'low', 'medium', 'high', 'xhigh'],
+  'muse-wonder-1.0': EFFORT_LEVELS,
+  'muse-wonder-full-1.0': EFFORT_LEVELS,
+  'muse-spark-1.3-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-spark-1.2': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-spark-1.2-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-spark-1.1': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-wonder-1.0-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
+  'muse-wonder-full-1.0-contributor': EFFORT_LEVELS_THROUGH_XHIGH,
 }
+// The Model API's documented `reasoning_effort` range for a model the table
+// does not name (dev.meta.ai/docs/reasoning): the full vocabulary without
+// Muse Code's client-side `ultra`.
+export const MODEL_API_EFFORT_LEVELS: readonly EffortLevel[] = [
+  'minimal',
+  'low',
+  'medium',
+  'high',
+  'xhigh',
+  'max',
+]
 // The standing default where a model lists none of its own: `muse --help`
 // documents `high` as the CLI's global default (verified 2026-09-21, Muse
 // Code 1.3.0). A row's own default wins at session start (muse-spark-1.3
@@ -2758,9 +2787,15 @@ export const MODEL_API_VERSION = 'v1'
 // Only chat models are listed; the catalogue also carries image, voice and
 // segmentation models.
 export const MODEL_API_MODEL_PREFIX = 'muse-spark-'
+// Muse Wonder rides the same backend under its own name (dev.meta.ai/docs/
+// models, 2026-10-21): both prefixes are Meta first-party chat models.
+export const MODEL_API_MODEL_PREFIXES: readonly string[] = [MODEL_API_MODEL_PREFIX, 'muse-wonder-']
+export function isModelApiModelId(model: string | undefined): boolean {
+  return model !== undefined && MODEL_API_MODEL_PREFIXES.some((prefix) => model.startsWith(prefix))
+}
 export const CONTRIBUTOR_MODEL_SUFFIX = '-contributor'
 // Meta's published Model API prices per million tokens (dev.meta.ai/docs/
-// pricing-rate-limits, read 2026-09-22). Finite admission uses only the
+// pricing-rate-limits, read 2026-10-22). Finite admission uses only the
 // exact MODEL_API_PRICED_MODELS whitelist below. A suffix display fallback
 // for a future model is not a verified tariff or capped spending.
 export const MODEL_API_PRICES_PER_MILLION = {
@@ -2774,8 +2809,13 @@ export const MODEL_API_PRICES_PER_MILLION = {
     cachedInput: /* @__PURE__ */ usdAmountSchema.parse('0.002'),
     output: /* @__PURE__ */ usdAmountSchema.parse('0.2'),
   },
+  wonder: {
+    input: /* @__PURE__ */ usdAmountSchema.parse('4'),
+    cachedInput: /* @__PURE__ */ usdAmountSchema.parse('0.2'),
+    output: /* @__PURE__ */ usdAmountSchema.parse('20'),
+  },
 } as const
-export const MODEL_API_PRICES_VERIFIED_ON = '2026-09-26'
+export const MODEL_API_PRICES_VERIFIED_ON = '2026-10-22'
 export const MODEL_API_PRICE_DECIMALS = 3
 /** Decimal currency coefficients stay integers; no binary USD arithmetic in admission. */
 export const USD_USAGE_DISPLAY_DECIMALS = 4
@@ -2784,6 +2824,8 @@ export const PROVIDER_PRICE_MAX_DECIMALS = 20
 export const MODEL_API_PRICED_MODELS = {
   standard: ['muse-spark-1.1', 'muse-spark-1.2', 'muse-spark-1.3'],
   contributor: ['muse-spark-1.2-contributor', 'muse-spark-1.3-contributor'],
+  // Standard mode at its own tariff; Contributor mode is not offered for it.
+  wonder: ['muse-wonder-1.0'],
 } as const
 /** A consent grant covers actual child HTTP attempts, including all retries. */
 // D121 (owner 2026-10-16): no request bound of ours on a child task — a
@@ -2806,8 +2848,9 @@ export const BEST_OF_N_MIN_GIT_MINOR = 36
 /** Bump when the accepted rates or child-task limit changes. */
 export const SUBAGENT_PRICE_ACCEPTANCE_VERSION = '2026-10-19:unbounded:v1'
 export const TOKENS_PER_MILLION = 1_000_000
-// dev.meta.ai/docs/models: every Muse Spark model has this window; the
-// output cap is well under the documented 131,072 maximum.
+// dev.meta.ai/docs/models: every Muse Spark model has this window, and so
+// does Muse Wonder 1.0; the output cap is well under the documented
+// 131,072 maximum.
 export const MODEL_API_CONTEXT_WINDOW = 1_048_576
 /** Verified legacy ids only; an installed registry resolver always owns its rows. */
 export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
@@ -2816,6 +2859,7 @@ export const MODEL_API_LEGACY_CONTEXT_MODELS: readonly string[] = [
   'muse-spark-1.3',
   'muse-spark-1.2-contributor',
   'muse-spark-1.3-contributor',
+  'muse-wonder-1.0',
 ]
 // U8/U10 captured selected model; other models retain unknown capability states.
 export const M106_CAPTURED_META_MODEL = 'muse-spark-1.3-contributor'
@@ -5833,16 +5877,19 @@ export const MSP_ATTACHMENT_FRAME_BUDGET_BYTES =
   MSP_FRAME_LIMIT_BYTES - MSP_ATTACHMENT_FRAME_HEADROOM_BYTES
 // `session/list` refuses a larger page (msp.d.ts SessionListParams.limit).
 export const MSP_SESSION_LIST_MAX_LIMIT = 200
-// The captured 1.4.4 build matches the SDK's own pin (SDK144, served
-// 2026-10-09 by 1.4.4-R5419.1). The 1.4.9 capture below (served 2026-10-17
-// by 1.4.9-R6297.1, `muse schema generate-json-schema`) equals the SDK
-// 1.4.10 pin (`EXPECTED_SCHEMA_FINGERPRINT`), so 1.4.10 serves it too.
-// Older fingerprints (1.4.2-R4684.1 included) are no longer additive
-// successors of this SDK and must retain the mismatch warning. Future
-// successors need a served capture before they enter this map.
+// Schemas this SDK interoperates with, by the build that served each in a
+// capture: 1.4.4-R5419.1 (2026-10-09, the SDK 1.4.4 pin),
+// 1.4.9-R6297.1 (2026-10-17, `muse schema generate-json-schema`, the SDK
+// 1.4.10 pin `EXPECTED_SCHEMA_FINGERPRINT`, so 1.4.10 serves it too) and
+// 1.4.11-R6667.1 (2026-10-21, test/fixtures/session-titles/
+// msp-1.4.11-echo-titles.json, the SDK 1.4.11 pin). A host serving one
+// logs an info line naming it; any other difference stays a mismatch
+// warning (1.4.2-R4684.1 included). Future builds need a served capture
+// before they enter this map.
 export const MSP_KNOWN_SCHEMA_FINGERPRINTS: Readonly<Record<string, string>> = {
   'sha256:7c94f153c41659cb3f1bd3c3e04438be254644cb2a97d65d48edc7449b74858a': '1.4.4-R5419.1',
   'sha256:5d3b43e5ccdb7dc4f5a32c380f5f2cde0f10e3059b93610afb2e73f73b1d914c': '1.4.9-R6297.1',
+  'sha256:f282ad16e21520d0cda68cb190149b86e2b062eef1dd282749360c05aa3d1082': '1.4.11-R6667.1',
 }
 // Muse Code's documented exit codes (SDK `classifyExit`) after which a
 // restart cannot help; what each code means is `UI_TEXT.museExitMeanings`.

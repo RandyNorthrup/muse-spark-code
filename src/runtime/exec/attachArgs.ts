@@ -3,7 +3,7 @@
 import path from 'node:path'
 import { realpath } from 'node:fs/promises'
 import { pathToFileURL } from 'node:url'
-import type { ContentBlock } from '@agentclientprotocol/sdk'
+import type { ContentBlock } from '@agentclientprotocol/sdk/unstable'
 import { UI_TEXT } from '../../shared/constants'
 import { confineWorkspacePath } from '../../core/workspacePath'
 import type { ExecOptions } from './execArgs'
