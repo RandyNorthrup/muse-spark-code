@@ -432,6 +432,11 @@ const errorEntrySchema = z.object({
   */
   reportRef: z.optional(reportEventRefSchema),
   errorKind: z.optional(z.string()),
+  /**
+  The failed turn to resubmit (RLF-ACPTURNS): set only when the backend
+  judged it retryable. The row offers Retry only while it is present.
+  */
+  retryTurnId: z.optional(z.string()),
 })
 
 export type NoticeLevel = (typeof NOTICE_LEVELS)[number]

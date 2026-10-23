@@ -2993,6 +2993,9 @@ export const BACKGROUND_TURN_NOTIFICATION_MIN_MS = 60_000
 // The attention notices already raised in this window, remembered by key so
 // a second surface on the same session does not raise one again (M82).
 export const BACKGROUND_NOTICE_KEYS_MAX = 200
+// Plain sends kept for Retry (RLF-ACPTURNS): a failed turn the backend
+// judged retryable resubmits its own parts. Oldest forgotten past this.
+export const RETRYABLE_TURNS_KEPT = 8
 // The session budget's input estimate (M82, sessionBudget.ts): what a
 // request adds to the last reported one is counted at one token per UTF-8
 // byte, the most a byte-level tokenizer can make of it, so the estimate
