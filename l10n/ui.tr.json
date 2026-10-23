@@ -6192,6 +6192,7 @@
     "summaryTitle": "Özet",
     "setupDone": "Kurulum tamamlandı. Makine düğümünüzü başlatıyor.",
     "setupFailed": "Kurulum tamamlanamadı: {reason}",
+    "seedRefused": "Karttaki kurulum dosyaları kullanılmadı: {reason}",
     "continueButton": "Devam"
   }
 }

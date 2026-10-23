@@ -7810,6 +7810,7 @@ export const EN = {
     summaryTitle: 'Review',
     setupDone: 'Setup is complete. The machine is starting your node.',
     setupFailed: 'Setup could not finish: {reason}',
+    seedRefused: 'The card’s setup files were not used: {reason}',
     continueButton: 'Continue',
   },
 }

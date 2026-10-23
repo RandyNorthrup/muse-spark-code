@@ -6512,6 +6512,7 @@
     "summaryTitle": "Shrnutí",
     "setupDone": "Nastavení je dokončeno. Stroj spouští váš uzel.",
     "setupFailed": "Nastavení se nepodařilo dokončit: {reason}",
+    "seedRefused": "Soubory nastavení z karty nebyly použity: {reason}",
     "continueButton": "Pokračovat"
   }
 }
