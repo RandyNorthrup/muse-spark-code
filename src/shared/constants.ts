@@ -4988,6 +4988,10 @@ export const JUDGE_FAST_REQUALIFY_PROBES = 3
 // Lane-0 choice: the minimum delay between background reprobe attempts,
 // so a suspended engine is rechecked without steady load.
 export const JUDGE_FAST_REPROBE_MS = 60_000
+// D107 §6.1 (lane M): relevance-ranked replay entries the judge keeps
+// past the compaction tail, most relevant first. A small bound: the
+// tail already keeps the recent turns, and the summary covers the rest.
+export const JUDGE_FAST_KEEP_ENTRIES = 3
 // Lane-0 choice: hosted latency samples older than this stop counting,
 // and the engine requalifies by sample expiry with a consented warm-up.
 export const JUDGE_FAST_SAMPLE_TTL_MS = 3_600_000
@@ -8541,6 +8545,24 @@ Start the report with anything needing the user and any failures, then a short e
 // does not carry the backend's full review instructions into the webview.
 export const REVIEW_COMMENT_MODEL_TEXT = {
   reviewRemovedLine: '{path} (a line this change removed; it was line {line})',
+} as const
+
+// The fast judge's harness notes (M125 lanes M/C, D107 §§6-7), English
+// whatever the display language. A block of its own beside MODEL_TEXT so
+// that a bundle that never judges does not carry it: only the backends'
+// bundles (dist/modelApi.js, dist/museCode.js) and the runtime engine
+// (dist/runtimeEngine.js, which embeds both backends) read it.
+export const FAST_PATH_MODEL_TEXT = {
+  fastLoopRepeat:
+    'The last three {tool} calls repeat the same call with the same result; try a different approach before calling it again.',
+  fastLoopOscillation:
+    'The last four tool calls alternate between two calls without progress; stop and reassess before calling again.',
+  fastLoopSameFailure:
+    'The last three calls fail the same way; the failure needs a different approach, not another attempt.',
+  fastDoneBacked: "The request's checks already passed; no further verification rounds are needed.",
+  fastFailureHint:
+    'The last {tool} run reported a failure the reply does not mention; address it before continuing.',
+  fastContextLead: 'Context the judge ranked relevant to this request:',
 } as const
 
 // The prompt/agent hook handlers' text for the model (M91, PLAN.md D70),

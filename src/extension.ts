@@ -3311,6 +3311,7 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    isFastPathOff: () => currentSettings()['judge.fastPathOff'],
     maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,

@@ -200,6 +200,13 @@ export class ObservationPack {
   */
   private readonly counted = new WeakSet<readonly InputItem[]>()
   private tokensAvoided = 0
+  /**
+  D107 §6.2 (M125 lane M): outputs the fast judge triaged before their
+  first send. A marked output packs on its first projection through the
+  same placeholder; the mark is consumed there, so a later request packs
+  by the store's own rule.
+  */
+  private readonly early = new Set<string>()
 
   private register(callId: string, text: string, tool: string | undefined): PackedOutput {
     const known = this.outputs.get(callId)
@@ -290,6 +297,11 @@ export class ObservationPack {
     })
   }
 
+  /** Mark one output to pack before its first whole send. */
+  public markEarly(callId: string): void {
+    this.early.add(callId)
+  }
+
   /**
   The request's input with packable outputs projected: whole while an
   output is still new, a placeholder once it packed. Registers outputs it
@@ -346,9 +358,11 @@ export class ObservationPack {
         return item
       }
       if (item.output.length <= OBS_PACK_THRESHOLD_CHARS) {
+        this.early.delete(item.call_id)
         return item
       }
       const entry = this.register(item.call_id, item.output, tools.get(item.call_id))
+      if (this.early.delete(item.call_id)) entry.isPacked = true
       return entry.isPacked || entry.text.length > SHELL_PACKED_MAX_CHARS
         ? this.placeholder(item.call_id, entry, item)
         : item

@@ -1674,6 +1674,14 @@ const TEXT_BLOCKS = [
     sentinels: ['singleTokenInstruction'],
     readers: ['dist/judgeSources.js'],
   },
+  // M125 lanes M/C: the fast judge's harness notes. The backends read
+  // them through the shared application layer; the runtime engine embeds
+  // both backends, so it carries the block too.
+  {
+    block: 'FAST_PATH_MODEL_TEXT',
+    sentinels: ['fastLoopRepeat', 'fastDoneBacked'],
+    readers: ['dist/modelApi.js', 'dist/museCode.js', 'dist/runtimeEngine.js'],
+  },
   // M124: what another agent's model reads from the connector, `mcp` only.
   {
     block: 'CONNECTOR_MODEL_TEXT',
