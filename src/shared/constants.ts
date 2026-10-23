@@ -354,6 +354,10 @@ export const LOOPBACK_FETCH_MAX_BODY_BYTES = 64 * 1024
 // client is probing, and is refused. Structural abuse guard, listed
 // for the lead (D121): it never stops legit work.
 export const EGRESS_CONNECT_HEAD_MAX_BYTES = 8 * 1024
+// M110b W2 (PLAN.md D90.6): the devcontainer CLI the node runs, exact.
+// Bumped with each CLI release (bleeding edge); the workspace layer
+// refuses any other version.
+export const DEVCONTAINER_CLI_PIN = '0.89.0'
 /** The probe dials `http:` loopback; an empty port means this one. */
 export const LOOPBACK_FETCH_DEFAULT_PORT = 80
 /**
