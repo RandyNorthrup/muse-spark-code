@@ -5316,7 +5316,7 @@
       "name": "providers usage",
       "description": "Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.",
       "text": { "ui": "referenceProvidersUsage" },
-      "invocations": [["providersUsageTargets"]]
+      "invocations": [["providers", "usage"]]
     },
     {
       "route": "helpTopic",
