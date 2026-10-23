@@ -10,6 +10,8 @@ import * as z from 'zod/mini'
 import { JUDGE_EMBED_FALLBACK_CONFIDENCE, REDACTED_MARK } from '../../../shared/constants'
 import { nonnegativeUsdSchema, sumUsd, Usd, type UsdAmount } from '../../../shared/usd'
 import { isSecretFieldName, redactSecrets } from '../../redact'
+import { isPaidStop } from '../../refusal'
+import { JudgeLedgerError } from '../admission'
 import { entropyConfidence } from '../math'
 import {
   judgeOutcomeSchema,
@@ -107,6 +109,30 @@ function wasAborted(signal: AbortSignal): boolean {
 type Step<T> = { readonly status: 'ready'; readonly value: T } | { readonly status: 'failed' }
 
 /**
+Named embedding-leg failures: a paid stop, a ledger fault, a degenerate
+input (cyclic data overflows the schema walk), a refused shape, a stale
+binding or refused admission, and the refused-inputs control throw.
+*/
+function isEmbeddingStepError(error: unknown): boolean {
+  return (
+    isPaidStop(error) ||
+    error instanceof JudgeLedgerError ||
+    error instanceof RangeError ||
+    (error instanceof Error &&
+      (error.name === '$ZodError' ||
+        error.message === 'judge-binding-changed' ||
+        error.message === 'judge-admission-refused' ||
+        (error instanceof TypeError &&
+          (error.message === 'invalid-input' || error.message === 'redaction-failed'))))
+  )
+}
+
+/** A stop or a named leg failure fails the step; anything else surfaces. */
+function isStepFailure(signal: AbortSignal, error: unknown): boolean {
+  return signal.aborted || isEmbeddingStepError(error)
+}
+
+/**
 The only await owner: dispatch, parse and settle every step here. Stop
 wins over fulfillment, rejection and synchronous failures, and is re-read
 after the continuation settles too. Issued receipts stay with their ledger
@@ -124,17 +150,20 @@ async function guardedStep<T>(
     const returned: unknown = await dispatch()
     if (wasAborted(signal)) return refusal('cancelled')
     step = { status: 'ready', value: validate(returned) }
-  } catch {
+  } catch (error: unknown) {
     // Source errors become failed steps; Stop takes precedence below.
+    if (!isStepFailure(signal, error)) throw error
     step = { status: 'failed' }
   }
   if (wasAborted(signal)) return refusal('cancelled')
   try {
     const outcome = await settle(step)
     return wasAborted(signal) ? refusal('cancelled') : outcome
-  } catch {
+  } catch (error: unknown) {
     // A rejected continuation settles explicitly instead of escaping.
-    return refusal(wasAborted(signal) ? 'cancelled' : 'engine-failure')
+    if (signal.aborted) return refusal('cancelled')
+    if (isEmbeddingStepError(error)) return refusal('engine-failure')
+    throw error
   }
 }
 
@@ -256,8 +285,9 @@ function prepareRequest(value: unknown): { request: JudgeRequest; inputs: EmbedI
   try {
     const parsed = plainDataSchema.safeParse(value)
     if (parsed.success) plain = parsed.data
-  } catch {
+  } catch (error: unknown) {
     // Cyclic data cannot be JSON; it takes the same typed input refusal.
+    if (!(error instanceof RangeError)) throw error
   }
   if (plain === undefined) {
     return {
