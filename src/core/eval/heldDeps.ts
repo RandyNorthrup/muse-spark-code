@@ -24,4 +24,7 @@ export const EVAL_HELD_DEPS = [
   'noteReviewerUsage',
   'contextModel',
   'memory',
+  // D107 (M125 lane V): the turn's caution judge. Both arms of a pair
+  // judge under the same binding, so the pair isolates the mechanism.
+  'judge',
 ] as const satisfies readonly (keyof ModelApiHostDeps)[]

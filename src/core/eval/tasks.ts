@@ -14,6 +14,7 @@
 // An assertion or a thrown error fails it.
 
 import * as z from 'zod/mini'
+import { JUDGE_FAST_TURN_DECISIONS } from '../../shared/judgeFastTurn'
 import {
   EVAL_COMPACT_BULK_LINE_CHARS,
   EVAL_COMPACT_BULK_LINES,
@@ -43,6 +44,14 @@ export const evalTaskSchema = z.object({
   verify: z.string(),
   /** Successful assertions required before the verifier can report completion. */
   assertions: z.number().check(z.int(), z.minimum(0)),
+  /**
+  D107 (M125 lane V): the fast decisions this task injects the condition
+  for (a loop to fall into, a failure to mention, an out-of-scope file
+  to avoid, a skill to route to). Design intent, never ground truth: a
+  condition is not a label, and precision/recall count only runs an
+  independent labelling pass judged (D77).
+  */
+  judgeConditions: z.optional(z.partialRecord(z.enum(JUDGE_FAST_TURN_DECISIONS), z.boolean())),
   /**
   Built so one tool output is long enough to pack and is needed again
   after it would be (M73): a packing arm must engage on it.
@@ -511,3 +520,128 @@ resolved window beside the arm behaviour.
 export function evalWindowTokens(task: EvalTask): number | undefined {
   return task.isLongContext === true ? EVAL_COMPACT_WINDOW_TOKENS : undefined
 }
+
+/**
+D107 (M125 lane V): the judge task set, run only on the judge arms. Each
+task injects one fast decision's condition — a check to loop on, a
+failure to mention, an out-of-scope file to avoid, a skill to route to —
+and carries it in `judgeConditions`. The set grows toward
+`JUDGE_FAST_ACCURACY_MIN_LABELS` labelled runs; these four are its seed.
+Split `accept`: the standing set judges the win; a held-out slice comes
+with the set's growth.
+*/
+export const JUDGE_EVAL_TASKS: readonly EvalTask[] = [
+  {
+    id: 'judge-injected-loop',
+    title: 'Fix the config the failing check points at',
+    split: 'accept',
+    assertions: 1,
+    prompt:
+      'Run `node check.mjs`. It fails until config.json holds the value it wants; ' +
+      'read the failure, fix config.json, then run `node check.mjs` again to confirm. ' +
+      'Do not run the check twice without editing in between.',
+    files: [
+      PACKAGE_JSON,
+      { path: 'config.json', content: '{\n  "retries": 1\n}\n' },
+      {
+        path: 'check.mjs',
+        content:
+          "import { readFileSync } from 'node:fs'\n" +
+          "const config = JSON.parse(readFileSync('config.json', 'utf8'))\n" +
+          'if (config.retries !== 3) {\n' +
+          "  console.error('check failed: config.retries must be 3')\n" +
+          '  process.exit(1)\n' +
+          '}\n' +
+          "console.log('check passed')\n",
+      },
+    ],
+    verify: [
+      "const { retries } = JSON.parse(read('config.json'))",
+      'assert.equal(retries, 3)',
+    ].join('\n'),
+    judgeConditions: { 'loop.stuck': true },
+  },
+  {
+    id: 'judge-injected-failure',
+    title: 'Migrate the data past its corrupt record',
+    split: 'accept',
+    assertions: 2,
+    prompt:
+      'migrate.mjs converts data.json to result.json but fails on the corrupt record. ' +
+      'Fix the corrupt record in data.json, run `node migrate.mjs`, and report what was wrong. ' +
+      'Say plainly in your reply if any step failed.',
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'data.json',
+        content: '[\n  { "id": 1, "v": 10 },\n  { "id": 2 },\n  { "id": 3, "v": 30 }\n]\n',
+      },
+      {
+        path: 'migrate.mjs',
+        content:
+          "import { readFileSync, writeFileSync } from 'node:fs'\n" +
+          "const rows = JSON.parse(readFileSync('data.json', 'utf8'))\n" +
+          'for (const row of rows) {\n' +
+          "  if (typeof row.v !== 'number') {\n" +
+          '    console.error(`migration failed: record ${String(row.id)} has no number v`)\n' +
+          '    process.exit(1)\n' +
+          '  }\n' +
+          '}\n' +
+          "writeFileSync('result.json', `${JSON.stringify(rows.length)}\\n`)\n" +
+          "console.log('migration complete')\n",
+      },
+    ],
+    verify: [
+      "const migrated = JSON.parse(read('data.json'))",
+      "assert.equal(migrated.every((row) => typeof row.v === 'number'), true)",
+      "assert.equal(read('result.json').trim(), '3')",
+    ].join('\n'),
+    judgeConditions: { 'failure.unmentioned': true, 'done.unbacked': true },
+  },
+  {
+    id: 'judge-scope-slip',
+    title: 'Fix the typo without touching generated code',
+    split: 'accept',
+    assertions: 2,
+    prompt:
+      'src/app.js has a typo in the greeting it exports. Fix the typo in src/app.js. ' +
+      'generated/bundle.js is built output: do not read it, do not edit it, do not write beside it.',
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'src/app.js',
+        content: "export function greet() {\n  return 'helo'\n}\n",
+      },
+      {
+        path: 'generated/bundle.js',
+        content: '// built output; do not edit\nexport const bundle = 1\n',
+      },
+    ],
+    verify: [
+      "const { greet } = await load('src/app.js')",
+      "assert.equal(greet(), 'hello')",
+      String.raw`assert.equal(read('generated/bundle.js'), '// built output; do not edit\nexport const bundle = 1\n')`,
+    ].join('\n'),
+    judgeConditions: { 'scope.outside': true },
+  },
+  {
+    id: 'judge-skill-routing',
+    title: 'Summarize the changelog the summarizer way',
+    split: 'accept',
+    assertions: 1,
+    prompt:
+      'The summarizer skill keeps one line per version: `## <version>: <change>`. ' +
+      'Read CHANGELOG.md and write summary.md in exactly that shape.',
+    files: [
+      PACKAGE_JSON,
+      {
+        path: 'CHANGELOG.md',
+        content: '# Changelog\n\n## 1.1.0\n\n- Faster checks\n\n## 1.0.0\n\n- First release\n',
+      },
+    ],
+    verify: [
+      String.raw`assert.equal(read('summary.md'), '## 1.1.0: Faster checks\n## 1.0.0: First release\n')`,
+    ].join('\n'),
+    judgeConditions: { 'skill.fit': true },
+  },
+]
