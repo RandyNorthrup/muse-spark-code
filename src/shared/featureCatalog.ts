@@ -141,6 +141,7 @@ const UI_CONDITIONS: Readonly<
   referenceSandbox: 'platform=win32&shellSandbox',
   referenceBrowser: 'workspaceTrust',
   referenceBestOfNRequirements: 'bestOfNAdmission',
+  referenceMuseCodeSubscriptionSummary: 'useMuseCodeSubscription&paidFeatureConsent',
   referenceSecretPrompt: 'secretDetected',
   referenceTabMenu: 'copilotYield',
   referenceTeamConfiguration:
@@ -550,6 +551,19 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paletteUsagePage' },
       ['openUsagePage'],
       ['usageHistory', 'usageHistoryDays'],
+      'usage-and-cost',
+      ['museCode', 'modelApi'],
+      false,
+      ['vscode', 'acp'],
+    ),
+    // PROVSPEND: what the provider itself reports was spent, next to our
+    // estimate. Display and reconciliation only; never feeds a cap.
+    feature(
+      'provider-spend',
+      { ui: 'referenceProvidersUsage' },
+      { ui: 'referenceProvidersUsage' },
+      [],
+      [],
       'usage-and-cost',
       ['museCode', 'modelApi'],
       false,
@@ -1027,6 +1041,25 @@ export function featureCatalog(): readonly Feature[] {
         'confidentialWorkspace',
       ],
       'get-started',
+    ),
+    feature(
+      'muse-code-subscription',
+      { ui: 'referenceMuseCodeSubscriptionName' },
+      { ui: 'referenceMuseCodeSubscriptionSummary' },
+      [],
+      [
+        'useMuseCodeSubscription',
+        'modelApiWebSearch',
+        'modelApiSubagents',
+        'modelApiAutoReviewer',
+        'modelApiBestOfN',
+        'modelApiHookModels',
+        'judge.engine',
+      ],
+      'muse-code-subscription',
+      ['modelApi'],
+      false,
+      ['vscode', 'acp'],
     ),
     {
       ...feature(

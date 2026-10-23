@@ -12,7 +12,7 @@
 //   is routed to transcription (D85.5), never sent unheard.
 // Inline image/document parts pass through untouched, so the established
 // pipeline's bytes never change; only the encoded size is measured.
-import { MODEL_API_MODEL_TEXT, UI_TEXT } from '../../shared/constants'
+import { MEDIA_MODEL_TEXT, UI_TEXT } from '../../shared/constants'
 import { fill, formatBytes, formatUnit } from '../../shared/l10n/text'
 import { storedMediaPartSchema, type StoredMediaPart } from '../../shared/media'
 import type { ResponsesMediaCodec } from '../backends/modelapi/codecs/responses'
@@ -71,7 +71,7 @@ export const responsesMediaCodec: ResponsesMediaCodec = {
   omittedText: (media, model, reason) =>
     reason === 'source'
       ? fill(UI_TEXT.media.uploadExpired, { name: media.name })
-      : fill(MODEL_API_MODEL_TEXT.mediaLeftOut, {
+      : fill(MEDIA_MODEL_TEXT.mediaLeftOut, {
           reason:
             reason === 'files'
               ? UI_TEXT.media.filesReadOnly

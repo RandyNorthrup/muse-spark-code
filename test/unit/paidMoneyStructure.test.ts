@@ -185,7 +185,10 @@ const ALLOW_LIST: Readonly<Record<string, AllowEntry>> = {
     reason: 'User-entered USD-per-token price card.',
     plan: SANCTIONED_RATE,
   },
+  'core/providers/priceCard.ts:catalogueCostSchema': RATE,
   'core/backends/modelapi/codecs/responses.ts:settledCostSchema': WIRE,
+  'core/providers/providerSpend.ts:openAiCostLine': WIRE,
+  'core/providers/providerSpend.ts:openAiCostPage': WIRE,
   // --- sanctioned: vendor wire units (xAI ticks of 1e-10 USD).
   'core/backends/modelapi/codecs/responses.ts:cost_in_usd_ticks': WIRE,
   'core/usage/journalRecord.ts:costInUsdTicks': WIRE,

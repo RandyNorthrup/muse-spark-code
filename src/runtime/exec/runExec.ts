@@ -45,6 +45,7 @@ import {
   PAID_PRICES_USD,
   MODEL_API_IMAGE_MODEL,
   MODEL_API_PRICES_PER_MILLION,
+  MUSE_CREDENTIAL_FILE_MAX_BYTES,
   SECRET_KEYS,
   THINKING_OFF_EFFORT,
   PROVIDER_SECRET_PREFIX,
@@ -55,6 +56,13 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import { effortNotForModelText } from '../../core/unknownModel'
 import { formatUsd as exactUsd, parseUsd } from '../../shared/accountUsd'
 import { modelApiPaidTier } from '../../shared/paid'
+import {
+  isFsError,
+  isMissing,
+  readSubscriptionKeyText,
+  subscriptionKeyRefusal,
+} from '../../core/backends/modelapi/subscriptionKey'
+import { credentialFilePath } from '../../core/backends/musecode/credentialPath'
 import type { RuntimeBackend, RuntimeBackendDeps } from '../backends'
 import { isHeadlessPaidUseAllowed, serveOptionsFor } from './execArgs'
 import { execAttachmentBlocks, type ExecAttachmentOptions as ExecOptions } from './attachArgs'
@@ -843,6 +851,43 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         literals.push(key.key)
         secrets = memory
       }
+      // C-M95-SUB: the subscription key joins the scrubbed literals like a
+      // pasted key; a missing sign-in refuses with its fix, like stdin's.
+      // Read through the run's own bounded file reader (never the secret
+      // store); the key lives in the literals the run already clears. (The
+      // backend is always modelApi here: both argv layers reject the
+      // opt-in anywhere else.)
+      if (providerRun === undefined && options.subscription) {
+        const file = credentialFilePath({
+          platform: deps.platform,
+          homeDir: deps.homeDir,
+          xdgConfigHome: deps.env['XDG_CONFIG_HOME'],
+        })
+        let text: string
+        try {
+          const bytes = await lifecycle.race(
+            deps.readFile(file, MUSE_CREDENTIAL_FILE_MAX_BYTES, lifecycle.signal),
+          )
+          text = new TextDecoder().decode(bytes)
+        } catch (readError: unknown) {
+          status = 'auth_required'
+          if (isMissing(readError)) error = subscriptionKeyRefusal('missing')
+          else {
+            // A coded filesystem failure reads as unreadable; a codeless
+            // throw is not this preflight's answer to give.
+            if (!isFsError(readError)) throw readError
+            error = subscriptionKeyRefusal('unreadable')
+          }
+          return await finish()
+        }
+        const read = readSubscriptionKeyText(text)
+        if (read.status !== 'ready') {
+          status = 'auth_required'
+          error = subscriptionKeyRefusal(read.status)
+          return await finish()
+        }
+        literals.push(read.key)
+      }
       const watchedSecrets: SecretStore = {
         async get(name) {
           const value = await lifecycle.race(Promise.resolve(secrets.get(name)))
@@ -920,6 +965,10 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           get selectedModel() {
             return model ?? ''
           },
+          // Meta-only, fixed-model one-shot: subscription preflight is plan or
+          // refusal. Provider runs use runtimeAccounting's per-attempt route.
+          // The flag is safe here; paid images remain separately dollar-billed.
+          planBilling: options.subscription,
           imageGeneration: options.paidFeatures.includes('imageGeneration'),
           responsesThroughEngine: options.team,
           lifecycle,
@@ -1419,9 +1468,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                 }
                 // Ask the ledger's exact arithmetic for the start reservation, in a
                 // separate un-dispatched ledger. No request belongs to this run yet.
-                const preview = previewResponseReservation(ledger, model ?? '', price)
+                // C-M95-SUB: a plan-billed run holds no dollar reservation; the
+                // required --max-budget-usd still bounds paid image spend and
+                // the ledger below still counts requests.
+                const preview = options.subscription
+                  ? undefined
+                  : previewResponseReservation(ledger, model ?? '', price)
                 const minimum =
-                  microUsd(preview.reserveUsd) +
+                  (preview === undefined ? ZERO_MICRO_USD : microUsd(preview.reserveUsd)) +
                   (options.paidFeatures.includes('imageGeneration')
                     ? microUsd(Usd.from(PAID_PRICES_USD.imageGeneration).toAmount())
                     : ZERO_MICRO_USD)
@@ -1541,9 +1595,9 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw error_
     }
   } catch (error_: unknown) {
-    // The run error carries the raw text for the operator's own output;
-    // the log records only the redacted kind.
-    log.warn(failureForLog(error_))
+    // The run's own failure record: the kind here, the mapped status and
+    // redacted message below through finish().
+    log.error(`Exec run failed (${failureForLog(error_)})`)
     if (
       error_ instanceof Error &&
       'code' in error_ &&

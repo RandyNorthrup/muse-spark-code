@@ -570,6 +570,35 @@ window runs on. The CLI looks for `muse` through `museSpark.museBinaryPath`,
 then `PATH`, then the platform's install folder (`%LOCALAPPDATA%\Programs\muse`
 on Windows, `~/.local/bin` elsewhere).
 
+### Muse Code subscription
+
+The Model API backend can bill your Muse Code plan instead of a pay-as-you-go
+key. Turn on **Use Muse Code Subscription** (`museSpark.useMuseCodeSubscription`,
+off by default): the extension reads the subscription key the Muse Code CLI
+already holds after a browser or device-code sign-in and uses it for Model
+API calls. A pay-as-you-go `muse auth set` key never counts: it is refused,
+never billed as plan. Those calls count
+against the plan, never the card; **Account & usage** labels them **Muse Code plan**
+with no dollar price. While the setting is on, a missing or unreadable CLI
+sign-in stops Model API calls with the fix instead of billing a stored key.
+The key is held in memory only: it is never shown, logged, copied into
+settings, or stored anywhere. Exact redaction keeps rotated values in memory
+until the process ends. Each attempt binds its billing and credential together;
+a billing-account change during admission stops it before sending. Rotation
+keeps saved sessions visible under the same resolved sign-in path, ignoring
+Windows path casing. Signing out and back in on the same host keeps unrelated
+provider models usable.
+Paid images, enabled hosted search, subagents, Auto review, Best-of-N, hook
+models and Judge require the
+stored Model API key and their normal price, daily-budget and use consent.
+A search response also bills its model tokens to that key, disclosed before
+use; remembered search consent includes the payer kind and token rates.
+Deny keeps chat on the plan. Disabled extras stay quiet. Voice keeps using
+the stored key. Outside VS Code, pass `--subscription` to
+`serve` or `exec` (Model API backend only); a headless subscription run
+still needs `--max-budget-usd` and `--max-requests`, and its receipt reports
+`$0` billed for the plan-covered chat requests.
+
 Conversations on the Model API backend are saved as they go under VS Code's
 workspace storage for the extension, so the History dialog lists them after
 a reload, and a resumed one continues with its transcript and its edit
@@ -3299,7 +3328,10 @@ integration owners; editor font settings continue to decide inside editors.
   filenames are refused before any PDF check.
   Images and PDFs also paste and drop. A dismissible banner gives the specific
   size, media, backend, text or private-file refusal; unknown file reasons
-  keep generic unsupported-type guidance. Muse Code's MSP 1.3.0 cannot take a PDF part, so a PDF attachment
+  keep generic unsupported-type guidance. On providers other than Meta the
+  documented image rules apply instead: on xAI, for example, only PNG and
+  JPEG images up to 20 MiB are sent, and anything else is refused before
+  sending. Muse Code's MSP 1.3.0 cannot take a PDF part, so a PDF attachment
   there names the Model API backend instead. The Model API agent can read a
   workspace PDF or image through `read_file`; other workspace files use its
   existing UTF-8 text reader. Excluded text files share only a path mention,
@@ -4565,6 +4597,21 @@ context limits, sampling, logprobs, completion and hosted services. Yes carries
 a value, no explicitly refuses support, and unknown supplies no evidence.
 User-file parsing stamps known overrides with `source.kind: "user"`; a supplied
 source cannot elevate their priority. See [M95 N's record contract](docs/certification/m95-n.md).
+
+A Hugging Face entry can pin one router upstream (or a routing policy) with
+`upstream`; it is sent as the documented `model:upstream` suffix, and the
+panel prices that upstream instead of the dearest list price. For example:
+
+```json
+{
+  "preset": "huggingface",
+  "upstream": "novita"
+}
+```
+
+`novita` names one provider from the router's live list; `cheapest`,
+`fastest` and `preferred` follow the router's policies. Without `upstream`
+the router chooses and the panel keeps the dearest price as the bound.
 
 | What                             | Limit                                                                                                                                                                                                                                                                                                                                 |
 | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

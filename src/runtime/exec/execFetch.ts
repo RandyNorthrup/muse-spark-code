@@ -71,6 +71,11 @@ export function execFetch(input: {
   imageGeneration: boolean
   /** Team engine clients own concurrent response admission; this transport still pins egress. */
   readonly responsesThroughEngine?: boolean
+  /**
+  C-M95-SUB: plan-billed chat requests admit at zero dollars and settle
+  at $0 billed; requests are still counted against the run's maximum.
+  */
+  planBilling?: boolean | undefined
   lifecycle: Lifecycle
   onLatch: (cause: StopCause, message?: string) => void
   emit: (event: ExecEventBody) => void
@@ -210,6 +215,8 @@ export function execFetch(input: {
         ? refuse('closed')
         : await pinnedFetch(url, init)
     }
+    const zeroUsd = Usd.from(0).toAmount()
+    const zeroPrice = { input: zeroUsd, cachedInput: zeroUsd, output: zeroUsd }
     // Each caller captures the current tail synchronously. Rechecking after
     // this wait and reserving have no intervening await.
     const previous = barrier
@@ -238,7 +245,7 @@ export function execFetch(input: {
         ? input.ledger.admitResponse({
             model: input.selectedModel,
             maxOutputTokens: responseShape.data.max_output_tokens,
-            price: MODEL_API_PRICES_PER_MILLION[tier],
+            price: input.planBilling ? zeroPrice : MODEL_API_PRICES_PER_MILLION[tier],
           })
         : input.ledger.admitImage(endpoint)
     if ('refused' in ticket) {

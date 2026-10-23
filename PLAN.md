@@ -143,6 +143,15 @@ are not product-wiring proof. Real-provider restart, mismatch, concurrent
 clear and hook/event checks remain explicit lead-run scenarios in
 `docs/certification/muse-restart-model.md`; lane gates and provider-free
 packed-product commands are measured separately.
+**PROVSPEND: provider-reported spend beside our estimate (2026-10-12,
+kubuntu lane).** Each preset declares one spend capability (`none`,
+`key-usage`, `balance`, `admin-report`); `providers usage <id> [--days n]
+[--output json]` shows the provider's own figures next to the journal
+estimate with the difference, and `auth --admin` stores the separate admin
+report key. The OpenRouter read is the first shared-shape report. Admin
+wire shapes are documented, not live captured (UNVERIFIED); the lead's
+capture checklist lives in `docs/certification/provider-spend.md`. Spend
+reports are display only and never feed a cap.
 
 **CMDSAY: editor commands answer, notices leave model text, refusals name the model (2026-10-12, macmini; lane ACPSAY).** Three real-life findings on the 0.18.x product, fixed as classes. (1) Every local editor-protocol command ends with something the person can read: `/compact` reports turns folded and sizes before/after (the editor protocol reads it from one sentence source; the panel shows the same sentences), and the two remaining silent turns (`/accounts` with no sentence, a `/usage` stopped before its first sentence) now refuse or report stopped instead of ending the turn. (2) A product status is never model text: every `backendNotice` goes through the SDK 1.7.0 `notice` channel on the editor protocol (empty notices are dropped), on both backends through the one translator; where the editor shows notices they travel the protocol's own notice channel, otherwise as a separate message. (3) Every product-decided model/effort refusal names the id as typed, the entry that does not offer it, and the remedy (`providers list` for provider entries; an offered model or effort in a session), sharing the model sentence source while the editor-session effort wording sits beside the kept session sentence until the follow-up unifies them; a provider entry's own list is checked before any request is sent. A provider's own wire refusal stays the provider-refusals lane's. Certification: `docs/certification/editor-commands-answer.md`.
 
@@ -7979,6 +7988,17 @@ the not-billed branch for Files storage: uploads ask nothing beyond decision 7
 screen recording is a user action only. Full record:
 [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+Lane FILESAPI closed three scan gaps against D85 on 2026-10-13 (record:
+`docs/certification/FILESAPI.md`, captures in
+`docs/certification/FILESAPI-capture-plan.json`). XAI-G11: xAI image input
+is PNG/JPEG up to 20 MiB by the capability record, and anything else is
+refused before sending. OPENAI-G15: the Files client speaks the Meta,
+OpenAI and Anthropic upload dialects by the record's new `files`
+capability, and references ride as `file_id` parts. GAPANTH-G16: the
+Anthropic codec stages file sources for images and documents. Uploads stay
+off in production (`files: 'unknown'`) until live captures confirm every
+shape; enabling them is lead-owned.
+
 | Editor                                                                             | Attach (pick, drop, paste)                                                                                                                                                  | Screen recording                                                                  | Runs in               | When                                                   |
 | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- | --------------------- | ------------------------------------------------------ |
 | VS Code, VSCodium, Cursor, Windsurf, Kiro, Positron, Theia                         | the picker with a media filter, drop and paste; the webview sends a path or URI token and the host streams the file                                                         | **Attach screen recording…** and **Attach latest recording** (the native helpers) | extension host        | M105                                                   |
@@ -13923,6 +13943,98 @@ go. It stays.
    with a benefit check of its four tests. PR #62, from the same author,
    stays untouched until its own record and the owner's decision.
 
+### D216 — The Model API backend on the Muse Code subscription (C-M95-SUB, 2026-10-10; numbered D106 on its branch until the int/recovery join of 2026-10-23, when that number was found shared with the MCP connector)
+
+**CMSUBKEYR3 redesign (2026-10-10, macmini).** Third review round:
+replace independent billing/auth reads with one frozen per-attempt
+`BillingRoute` (kind, credential, accountId). Resolve only for Meta-direct
+models; other providers keep their origin-bound authentication. Carry the
+route through ordinary and compaction guards and transport; the small shared
+route module is activation-allowed, explicitly forbidden in headless, and
+never added to the nine-byte-slack subscription parser. Compare the
+sent credential digest synchronously and re-resolve after durable admission
+only to refuse a changed kind/account, never to replace the credential.
+The stable subscription identity hashes a fixed label and the resolved,
+separator-normalized sign-in path: the captured DEVICE_LOGIN_FILE has no
+account/user id, so no uncaptured field or bearer digest is invented.
+Rotation preserves saved-session ownership. External paid budget scopes bind
+the pasted credential digest separately from the stable conversation owner.
+Drop subscription-bound fences
+when sign-out leaves an unrelated provider usable; retain pasted-key fences.
+Plan exemption, reply cost and runtime accounting use this attempt's route;
+clear sending state at completion and never hide the journal with old state.
+Subscription readiness refuses with the actual sign-in fix even with a
+pasted key. Keep every previously seen secret registered/redacted for the
+process lifetime. Paid extras (search, subagents, Auto reviewer) require the
+stored pay-as-you-go key and ordinary price/budget/use consent; off features
+stay quiet. Extract and test the backend restart predicate. Each of the eight
+review findings gets a regression and hash-exact red drill in `m95-sub.md`.
+No live/paid calls, dependencies, cap increases or merges. Rig/common rules
+assign full quality to the lead; this lane runs scoped suites and static/build
+gates directly, with installed hooks on each commit.
+
+The owner, 2026-10-10: users with a Muse Code subscription drive the Model
+API backend from their subscription, with no pasted key and no extra
+billing; chosen for the fleet too. Lane C-M95-SUB, branch `c/m95-subkey`,
+certification [`docs/certification/m95-sub.md`](docs/certification/m95-sub.md).
+
+1. **Credential.** With the one opt-in (`museSpark.useMuseCodeSubscription`
+   in VS Code, `--subscription` for `serve`/`exec`), the backend reads the
+   subscription key the Muse Code CLI holds after a browser or device-code
+   sign-in: `providers.meta`'s `access_token` (the captured `accountLogin`
+   shape, `DEVICE_LOGIN_FILE` in `docs/certification/sign-in-detection.md`),
+   from the CLI's auth file on every OS (XDG honoured, Windows included),
+   read fresh from disk for every attempt: no credential cache supplies a
+   later send, and a 64 KiB size guard refuses oversized files before they are
+   read. A `muse auth set` file holds a pay-as-you-go `api_key` alone (the
+   captured `apiKey` shape) and NEVER counts as the subscription: it reads
+   as unsigned and the turn refuses, so a card-billed key is never billed
+   as plan. Held in memory only; never displayed, logged, copied
+   into settings, sent to telemetry, or written anywhere. The sent key is
+   tracked in the shared redactor registry plus exact literals at every
+   persistence boundary, so snapshots, logs, receipts and errors redact the
+   credential actually sent, retaining old literals until the process ends.
+   A 401 surfaces through the ordinary credential-error path.
+2. **Tension, for the lead.** D74/M95b reads "another application's client
+   or stored tokens are never read or reused", and the research in §4 notes
+   subscription credentials are "for use with Muse Code only" (ToS §3.1,
+   §10.1(i)). This lane reuses the user's OWN CLI sign-in, with explicit
+   opt-in, on the owner's binding order — recorded here so the lead can
+   confirm the reading before release.
+3. **Refusal, not fallback.** Opted in but missing/unreadable/unsigned (or a
+   macOS Keychain pointer, which is never read): the turn refuses with the
+   fix; a pasted key is never billed silently. Disabled paid scopes stay quiet.
+4. **Billing.** Subscription Meta turns price as plan: usage records carry
+   certainty `plan` with no dollar charge, the settle math prices the
+   attempt like a plan model (no journal write, no reply-usd, no spend
+   accumulation), the dollar session-budget reservation and durable
+   preflight are skipped like plan models, headless chat requests admit at
+   zero dollars while still counting against `--max-requests`, and the
+   runtime daily journal plus run ledger settle $0. Meta plan rows read
+   "Muse Code plan" (plan-certainty rows name their provider; any other
+   plan row keeps the shared "Plan"); certainty stays one value.
+5. **Scope.** VS Code, ACP `serve` and headless `exec` share the core
+   resolver. Paid extras bill a stored key: a billed image POST
+   authenticates as the pasted key and refuses with the fix when none is
+   stored; enabled hosted search, subagents and Auto review use the pasted
+   pay-as-you-go key under ordinary price, daily-budget and use consent.
+   A search response's model tokens also bill that key, disclosed before use;
+   denied search leaves chat on the plan. Off features stay quiet; an enabled
+   extra without a pasted key gives the localized refusal. Rotation preserves
+   stable session ownership instead of rebinding to a bearer digest; a
+   pasted-key switch still refuses. Toggling the opt-in restarts the
+   backend and re-reads auth. A refused subscription leaves unrelated
+   provider models on their own accounts, including on a living host after
+   sign-out; subscription-bound account and budget fences are dropped there. macOS
+   Keychain-backed sign-ins refuse with the fix; file-backed sign-ins work
+   on Windows, macOS and Linux.
+6. **Bundle budget (cap restored, 2026-10-10, RVCMSUBKEY P3-10).** The
+   100 → 120 KiB amendment is reverted: the headless preflight reads
+   through the run's own bounded reader (parse plus refuse only) instead
+   of carrying the key-source class, and `dist/headless.js` measures
+   100.0 KiB (102,391 B) against the 100 KiB cap. Cap changes belong to
+   the owner.
+
 ### D76 — `/legal`: evidence first, fixes only after selection (M97, 2026-10-04)
 
 The `/legal` scan is planned (M97), and its lane writes documentation only.
@@ -16803,6 +16915,31 @@ Notices go out only where the client advertises them (pinned ACP 1.8.0
 schema). Protocol accounting reads the journal's settled records with
 explicit uncertainty. Certification: `docs/certification/acp-dogfood.md`
 (branch record) and `docs/certification/rlacp.md` (this join).
+
+### USAGEFIELDS — Every usage and price field a provider reports (2026-10-12)
+
+**Status 2026-10-12: built.** On branch `feat/provider-usage-fields` with
+wire shapes still UNVERIFIED (see below). Closes GQ-G01, DS-G03, GEM-G01, HF-G01,
+HF-G02, HF-G03, HF-G04, OR-G04, FW-G01. Money shown is what the provider
+reported for that request: cached tokens, reasoning-token prices, tier
+boundaries, the routed upstream and the credit balance flow through the
+price card, the session budget and `/usage`; where the reply gives no
+number the product says "not reported", never a guess. Amounts stay exact
+decimal text end to end. The spend ledger and the reservation rule are
+untouched; only which fields the codecs read and how a price is computed
+from them changed. New request bytes: Fireworks'
+`prompt_cache_isolation_key` (its API reference, read 2026-10-12) and the
+Hugging Face `model:upstream` suffix (its Inference Providers page, read
+2026-10-12). UNVERIFIED until the lead runs
+`docs/certification/usagefields-capture-plan.json` (10 requests) and the
+answers return: the Groq cached-token envelope path and billed half price
+(GQ-C1), DeepSeek's reasoning-token envelope (DS-C1), the Gemini
+usageMetadata paths (GEM-C1), the router's routed-upstream signal and
+suffix acceptance (HF-C1, HF-C2), the `/api/v1/key` balance fields (OR-C1)
+and the isolation-key acceptance (FW-C1). Catalogue `cache_write` prices
+now apply (132 rows carried them unread). The Hugging Face price
+fingerprint now includes per-upstream status, context and flags, so every
+HF model re-fingerprints once on the next refresh.
 
 ### PROVWIZ10 — Re-entry credential comparison and retry receipts (2026-10-09)
 
@@ -23795,6 +23932,21 @@ the merge of `b92fab054` onto `acf388a14`, so 37 KiB (the lane's 31 KiB came
 from 0.17.0's smaller wizard); models section 12,074 B, 13 KiB. No existing
 row changes. The providers row tightens when the wizard leaves the section
 chunk. Receipt: `docs/certification/models-split.md`.
+**CMSUBKEYR4 redesign (2026-10-11, macmini).** Resolve one billing route
+for every attempt from its feature and admission flag, and require that route
+at transport. Separate branded ConversationOwner from PayerCredential;
+external budgets compare owner to owner and payer to payer. Bind remembered
+search consent to payer kind and model-token disclosure. Make subscription /
+provider host transitions symmetric, check usable provider credentials before
+subscription refusal in every editor, resolve and case-fold Windows paths,
+and describe only the refused attempt on retry. Fix all nine RVCMSUBKEY3
+findings with regressions and byte-exact red drills in m95-sub.md. No new
+dependency, merge, paid call or cap increase; full quality remains with lead. The
+free provider probe ships with the existing configuredProviders lazy entry,
+so its required route result does not enter the headless preflight. Quote
+authority ships once through the existing Node boundary bundle, with the
+caller's installed language, preserving the stricter Model API diet pin too;
+caps stay unchanged.
 
 **M95R5 integration (2026-10-05, Windows 11).** Merge lane T with
 `--no-ff`, then merge a single sanitized squash of X's net changes on its
@@ -24150,6 +24302,8 @@ is deferred; all five fix drills fired and restored SHA-256-exact source.
 **Status 2026-10-10 (first parts shipped in 0.15.0; M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain): building.**
 
 **Status 2026-10-17 (lane MSM95, macmini): lane MSM95 complete on ms/msm95; lead certification pending.** Merged the most-complete candidate (C-M95-4: llama.cpp/LM Studio captures, local context windows, read-at-use-time resolver) and `main-now` through `3d30a7321`. Every listed behaviour is connected on every named surface — panel (Providers/Models sections, wizard, quick pick, scan), terminal (`providers add --context-window`, `connect openrouter`, `usage`, `exec --provider`), editor protocol (configured registry, output-cap minimum, windowed refusal) and ACP/CLI (`auth set --provider`, `providers`, `exec --provider`) — with Help reference and README entries. Panel lists exactly what the transport admits (D205); uncaptured presets refuse with no dispatch. M95b sign-ins/plan keys and M95c Bedrock/chat exposure remain separate milestones. Evidence: `docs/certification/msm95.md`.
+
+**Status 2026-10-22 (lane RLM95, macmini): recovery complete on `rec/rlm95`; lead integration pending.** Landed the four provider lanes in order (subscription key source, provider spend, usage and price fields, Files API) with every conflict resolved for current main, repaired fresh sessions missing from History (ownership is recorded at the first owned save), and closed the msm95 gaps that current provider documentation settles: xAI per-second request budgets, Anthropic per-request image counts (100/600 by window), session-refresh proof, and the Azure waiting-state proof. Per-attempt pool admission still waits for the profile broker; DeepSeek concurrency and Azure burst sub-windows are documented but unenforced (no admission machinery). No live turns on this lane: no provider credential on the rig. Evidence: `docs/certification/rlm95.md`.
 
 Status detail retained: planned on `feature/m95-byo-providers` from main
 `1e93c67c`; research in `docs/certification/m95-research.md`. Step 13's
@@ -35776,6 +35930,16 @@ application's client id or scope). Research:
 
 ## 7. Gates
 
+**RLM95 plan-archive deferral (2026-10-22, macmini).** `npm run check:plan`
+fails on this lane's tree: PLAN.md is 3,575,112 bytes, 9,954 over the 85%
+early-warning tripwire (the reader's own 4 MiB bound still has 11%
+headroom). The lane's four merges added the overage. The prescribed fix —
+`npm run plan:archive` — stays with the lead at integration: its proofs
+need every open branch's PLAN.md diff and a merge of each onto the new
+file, and this rig holds 1,171 branches with no open/stale record, so a
+lane-side move risks modify/delete conflicts on work the lane cannot see.
+No threshold or rule is changed.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
   **CM1073 inherited integration-size hold (2026-10-11, Kubuntu).** The scoped
   runner build emits its concrete bindings within existing caps: teamRunners
@@ -37613,6 +37777,13 @@ to the lead. Run the three owning suites and named static/build gates in
 a fresh clone instead; no gate, timeout, threshold or configuration changes.
 L98P2-EMBED's live family measurement and installed-editor certification
 remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
+
+**C-M95-SUB headless budget amendment REVERTED (2026-10-10, linuxlt,
+RVCMSUBKEY P3-10).** The 100 → 120 KiB rise is withdrawn: the headless
+preflight now reads through the run's bounded reader (parse plus refuse
+only) and `dist/headless.js` measures 100.0 KiB (102,391 B) against the
+restored 100 KiB cap. Full D216.6. No other threshold, ignore or rule is
+changed. Receipts: `docs/certification/m95-sub.md`.
 
 ## 8. Escape hatches register
 

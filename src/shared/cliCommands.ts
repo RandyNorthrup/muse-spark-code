@@ -140,12 +140,6 @@ export function cliCommands(shouldIncludeHeld = false) {
       text: { ui: 'providerOpenRouterServices' },
     },
     {
-      route: 'providerKeyUsage',
-      name: 'providers usage <id>',
-      description: UI_TEXT.usageKeyUsage,
-      text: { ui: 'usageKeyUsage' },
-    },
-    {
       route: 'providersAdd',
       name: 'providers add --preset <preset> [--as <id>] [--address <url>] [--model <model>] [--privacy <policy>] [--private-ok] [--key-stdin]',
       description: UI_TEXT.startWithOwnModelDetail,
@@ -174,6 +168,20 @@ export function cliCommands(shouldIncludeHeld = false) {
       name: 'providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'providersUsage',
+      name: 'providers usage <id> [--days <n>] [--output json]',
+      description: UI_TEXT.referenceProvidersUsage,
+      text: { ui: 'referenceProvidersUsage' },
+    },
+    {
+      // Bare `providers usage` names the missing id and lists the configured
+      // ids (RLTESTDRIVE2 14).
+      route: 'providersUsageTargets',
+      name: 'providers usage',
+      description: UI_TEXT.referenceProvidersUsage,
+      text: { ui: 'referenceProvidersUsage' },
     },
     {
       route: 'helpTopic',

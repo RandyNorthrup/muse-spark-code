@@ -19,7 +19,6 @@ import {
   LOOPBACK_NO_PROXY_ENTRIES,
   MUSE_BIN_PREFIX,
   MUSE_CMD_FILE,
-  MUSE_CREDENTIAL_FILE_SEGMENTS,
   MUSE_POSIX_EXECUTABLE,
   MUSE_POSIX_INSTALL_SEGMENTS,
   MUSE_VERSION_FILE,
@@ -264,20 +263,5 @@ export function withLoopbackBypass<T extends NodeJS.ProcessEnv>(
   return bypassed
 }
 
-export interface CredentialPathInput {
-  readonly platform: NodeJS.Platform
-  readonly homeDir: string
-  readonly xdgConfigHome: string | undefined
-}
-
-/**
-Where the CLI stores its browser-login credential. The binary honours
-`XDG_CONFIG_HOME` on every platform (Windows included) and otherwise uses
-`~/.config`; `MUSE_AUTH_PATH` is honoured only by the POSIX launcher, so it
-is deliberately not consulted here.
-*/
-export function credentialFilePath(input: CredentialPathInput): string {
-  const p = pathModule(input.platform)
-  const configHome = input.xdgConfigHome ?? p.join(input.homeDir, '.config')
-  return p.join(configHome, ...MUSE_CREDENTIAL_FILE_SEGMENTS)
-}
+export type { CredentialPathInput } from './credentialPath'
+export { credentialFilePath } from './credentialPath'

@@ -1082,6 +1082,12 @@
           "description": "%config.modelApiSessionBudgetUsd.description%",
           "scope": "machine"
         },
+        "museSpark.useMuseCodeSubscription": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.useMuseCodeSubscription.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiRepoMap": {
           "type": "boolean",
           "default": false,

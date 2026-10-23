@@ -113,6 +113,7 @@ import {
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
 import type { GrokProviderAction } from './grokProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
+import type { SpendEstimate } from '../core/providers/providerSpend'
 import { takeCredentials } from './credentialVariables'
 import { keepGitCredentialRoutes } from './gitUserEnvironment'
 import { displayLanguage } from './locale'
@@ -2197,6 +2198,17 @@ async function main(processResources: ProcessResources): Promise<number> {
       })
     }
     case 'authSet': {
+      if (command.admin === true && command.provider !== undefined) {
+        const providersFile = await userProvidersFile()
+        const { runAuthSetProvider } = await import('./providerAuth')
+        return await runAuthSetProvider(
+          authDeps(),
+          command.provider,
+          providersFile.readUserFile,
+          providersFile.withUserFileLock,
+          { admin: true },
+        )
+      }
       // A provider-only set (`auth set --provider <id>`, the ACP paste-key
       // method) routes to the provider's own key shape, never Meta's.
       const providerId = authSetProviderId(command)
@@ -2307,7 +2319,12 @@ async function main(processResources: ProcessResources): Promise<number> {
             providersFile.withUserFileLock,
             providersFile.readUserFile,
           )
-        : await runAuthStatusProvider(deps, command.provider, providersFile.withUserFileLock)
+        : await runAuthStatusProvider(
+            deps,
+            command.provider,
+            providersFile.withUserFileLock,
+            command.admin === true ? { admin: true } : undefined,
+          )
     }
     case 'authClear': {
       if (command.provider === undefined) return await authClear(authDeps())
@@ -2317,6 +2334,7 @@ async function main(processResources: ProcessResources): Promise<number> {
         authDeps(),
         command.provider,
         providersFile.withUserFileLock,
+        command.admin === true ? { admin: true } : undefined,
       )
     }
     case 'providersList': {
@@ -2327,17 +2345,9 @@ async function main(processResources: ProcessResources): Promise<number> {
       const { runOpenRouterConnect } = await import('./openRouterCommands')
       return await runOpenRouterConnect(await providersDeps(), await openRouterApi())
     }
-    case 'providerKeyUsage': {
-      if (command.provider === undefined) {
-        const { providersUsageTargets } = await import('./providersCommands')
-        return await providersUsageTargets(await providersDeps())
-      }
-      const { runOpenRouterUsage } = await import('./openRouterCommands')
-      return await runOpenRouterUsage(
-        await providersDeps(),
-        await openRouterApi(),
-        command.provider,
-      )
+    case 'providersUsageTargets': {
+      const { providersUsageTargets } = await import('./providersCommands')
+      return await providersUsageTargets(await providersDeps())
     }
     case 'providersAdd': {
       const { providersAdd } = await import('./providersCommands')
@@ -2358,6 +2368,39 @@ async function main(processResources: ProcessResources): Promise<number> {
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)
+    }
+    case 'providersUsage': {
+      const { providersUsage, spendEstimateFromBreakdown } = await import('./providersSpend')
+      const { usageLocalDay } = await import('../core/usage/localDay')
+      const deps = await providersDeps()
+      return await providersUsage(
+        {
+          ...deps,
+          // Our own estimate comes from the local usage journal: the same
+          // provider-grouped read the usage page serves. A journal failure
+          // shows the provider's figures alone, never against a zero.
+          readSpendEstimate: (provider, startMs, endMs) =>
+            (async (): Promise<SpendEstimate | undefined> => {
+              try {
+                const access = usageFor(log).access()
+                const state = await access.read({
+                  range: 'custom',
+                  from: usageLocalDay(startMs),
+                  to: usageLocalDay(endMs),
+                  groupBy: 'provider',
+                  metric: 'cost',
+                })
+                return spendEstimateFromBreakdown(state.breakdown, [provider])
+              } catch (error: unknown) {
+                log.warn(
+                  `Spend estimate unreadable (${failureForLog(error)}); showing provider figures alone`,
+                )
+                return undefined
+              }
+            })(),
+        },
+        { provider: command.provider, days: command.days, json: command.json },
+      )
     }
     case 'estimate': {
       return await runRuntimeEstimateCommand(command.argv, {

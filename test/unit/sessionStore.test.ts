@@ -173,16 +173,18 @@ describe('M105 session upload references', () => {
     expect(legacy.ok).toBe(true)
     if (legacy.ok) expect(legacy.session).not.toHaveProperty('fileRefs')
   })
-  it('rejects byte-bearing references, missing expiry and invalid hashes', () => {
+  it('rejects byte-bearing references and invalid hashes, but keeps expiry-absent ones', () => {
     const { expiresAt: _expiry, ...expired } = ref
     for (const file of [
       { ...ref, file_data: 'data:video/mp4;base64,CANARY' },
       { ...ref, sourcePath: '/private/clip.mp4' },
-      expired,
       { ...ref, sha256: 'invalid' },
+      { ...ref, expiresAt: 0 },
     ]) {
       expect(parseStoredSession({ ...full, fileRefs: [file] }).ok).toBe(false)
     }
+    // A file that lives until deleted carries no expiry (OPENAI-G15, GAPANTH-G16).
+    expect(parseStoredSession({ ...full, fileRefs: [expired] })).toMatchObject({ ok: true })
   })
 })
 

@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 72,
-      "GENERIC": 258,
+      "GENERIC": 254,
       "CLEANUP": 241
     },
     "host": {
@@ -23,7 +23,7 @@
     },
     "runtime": {
       "SWALLOW": 32,
-      "GENERIC": 192,
+      "GENERIC": 187,
       "CLEANUP": 130
     },
     "shared": {
@@ -235,16 +235,6 @@
     },
     {
       "file": "src/core/backends/modelapi/files.ts",
-      "identity": "0dfd5ef7eab0f0feb69c725aa8a2c56ad83ee70ca0cb825922021ecdb9e4211c",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/files.ts",
-      "identity": "931c5e64f0763946b2c0fd147e55fda783844b4bfd43f0ba3c7dbc83fa509ca1",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/files.ts",
       "identity": "bc853f6db365735a6a3a0de24e089c0fa9e60d10a57cf6ee0a2ea5b0bcba7ba2",
       "class": "CLEANUP"
     },
@@ -411,11 +401,6 @@
     {
       "file": "src/core/backends/modelapi/ModelApiHost.ts",
       "identity": "82b9ca17b5d5444bee3bb35dff04fb6ac1f82b60496a82c2810e93c93b9004b4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/backends/modelapi/ModelApiHost.ts",
-      "identity": "1cf9d6fe8a53cbc9913fa4b7bec6ba1dacc7f7cfe4ad558867a2ca69b0ad57ec",
       "class": "GENERIC"
     },
     {
@@ -1676,11 +1661,6 @@
     {
       "file": "src/core/providers/configured.ts",
       "identity": "fce7005b2ff4a8e325d300dcbf9b1356977394b03584a828603300670cea7d1a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/core/providers/configured.ts",
-      "identity": "7f364c109205b4aecf39d6592cb3318728da49174601f58ebf4bb1e545862da9",
       "class": "GENERIC"
     },
     {
@@ -4125,11 +4105,6 @@
     },
     {
       "file": "src/runtime/backends.ts",
-      "identity": "5a0efcc81578b00e8f113437b0a1e3b7add8e993d7e3a041aa23c028d01217e2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/backends.ts",
       "identity": "f9eb56cc1fefe5305c1141f7d36e8e9069cbcf7f03b8849cdab40fe33b5713e8",
       "class": "GENERIC"
     },
@@ -4384,16 +4359,6 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/runtime/exec/providerList.ts",
-      "identity": "6524609b803d9ba69f92e206767de99b93bce0f7d6e87cf076503c0e5ea6f67a",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/exec/providerList.ts",
-      "identity": "fd4b5e337f9bc9f32e44ba645833628ec200feb73ed86fad591a0d3d957a0df5",
-      "class": "GENERIC"
-    },
-    {
       "file": "src/runtime/exec/runExec.ts",
       "identity": "8377d5d7a2d96de65721549fd17b00c99849895edcc9e673645a0d0c1807606f",
       "class": "CLEANUP"
@@ -4626,11 +4591,6 @@
     {
       "file": "src/runtime/openRouterCommands.ts",
       "identity": "dbb4ee3c2805575d50a3971d5574469df71042f4c8b28664da8d22e7a2e64998",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/openRouterCommands.ts",
-      "identity": "869a6b6bfaf13397397c062b017fae2007fcc5f3d130736e9a9f14cef63054b1",
       "class": "GENERIC"
     },
     {
@@ -4872,11 +4832,6 @@
       "file": "src/runtime/providers/runtimeServices.ts",
       "identity": "60174266217d40edbf639d856dfc8a51efbc7d0e5d07d2c1184699db23dc2524",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/providersCommands.ts",
-      "identity": "a10b8baa620be5febcac9a2c779d7156a93769016c46b72d0579dd07bd8150be",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/providersCommands.ts",

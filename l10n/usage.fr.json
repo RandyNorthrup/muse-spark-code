@@ -130,6 +130,7 @@
   "certaintyUncertain": "Incertain",
   "reservedLabel": "Réservé",
   "certaintyPlan": "Forfait",
+  "certaintyMuseCodePlan": "Muse Code plan",
   "certaintyLocal": "En local",
   "certaintyUnpriced": "Sans prix",
   "certaintyEstimated": "Estimé",

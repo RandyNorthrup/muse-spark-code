@@ -236,6 +236,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       ...SERVE_FAMILY_OPTIONS,
       { name: 'max-budget-usd', shape: '<amount>', fact: factFor('max-budget-usd') },
       { name: 'scheduled-prompts', shape: '' },
+      { name: 'subscription', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
     ],
@@ -266,6 +267,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     options: [
       { name: 'provider', shape: '<id>' },
       { name: 'account', shape: '<id>' },
+      { name: 'admin', shape: '' },
       { name: 'help', shape: '' },
       { name: 'version', shape: '' },
     ],
@@ -282,8 +284,9 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     usage: [
       (command) => `${command} providers list|add|test|refresh|remove`,
       (command) => `${command} providers models <entry> [--add <model>] [--remove <model>]`,
+      (command) => `${command} providers usage <id> [--days <n>] [--output json]`,
     ],
-    routes: ['providersAdd', 'providersModels'],
+    routes: ['providersAdd', 'providersModels', 'providersUsage'],
     options: [
       { name: 'preset', shape: '<preset>' },
       { name: 'as', shape: '<id>' },
@@ -305,6 +308,8 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'add', shape: '<model>' },
       { name: 'remove', shape: '<model>' },
       { name: 'force', shape: '<reason>' },
+      { name: 'days', shape: '<n>' },
+      { name: 'output', shape: '<format>' },
       { name: 'help', shape: '' },
     ],
     examples: [
@@ -349,6 +354,7 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       { name: 'fail-on-denial', shape: '' },
       { name: 'ephemeral', shape: '' },
       { name: 'key-stdin', shape: '' },
+      { name: 'subscription', shape: '' },
       { name: 'vault', shape: '' },
       { name: 'verbose', shape: '' },
       { name: 'auto-compaction', shape: '' },
@@ -801,6 +807,9 @@ const AUTH_STATUS_CLEAR_NON_TOPIC: readonly string[] = [
   'private-ok',
   'key-stdin',
   'context-window',
+  // PROVSPEND: parsed for the providers routes, refused on the auth route.
+  'days',
+  'output',
 ]
 
 export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> = {
@@ -817,6 +826,10 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'key-stdin',
     'context-window',
     'maintenance',
+    // PROVSPEND: parsed for the providers routes, refused on serve.
+    'days',
+    'admin',
+    'output',
   ],
   login: [
     'provider',
@@ -831,6 +844,10 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'key-stdin',
     'context-window',
     'maintenance',
+    // PROVSPEND: parsed for the providers routes, refused on login.
+    'days',
+    'admin',
+    'output',
   ],
   authSet: [
     'usage-history',
@@ -857,6 +874,9 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'private-ok',
     'key-stdin',
     'context-window',
+    // PROVSPEND: parsed for the providers routes, refused on the auth route.
+    'days',
+    'output',
   ],
   authStatus: AUTH_STATUS_CLEAR_NON_TOPIC,
   authClear: AUTH_STATUS_CLEAR_NON_TOPIC,
@@ -884,6 +904,10 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     'image-generation',
     'muse-voice',
     'questions-defer-after',
+    // PROVSPEND: parsed for the providers routes, refused on setup.
+    'days',
+    'admin',
+    'output',
   ],
   exec: [
     'trust-workspace',
@@ -898,7 +922,8 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
     // dormant, as no usage of a dormant feature is published (CX1R3).
     'team',
   ],
-  providersAdd: [],
+  // PROVSPEND: `auth set|clear --admin` is shown on the auth topic, not here.
+  providersAdd: ['admin'],
   providersModels: [],
   usage: [],
   legal: [],

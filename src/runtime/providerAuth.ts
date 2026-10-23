@@ -152,23 +152,48 @@ async function recoverAndReportJournal(
   return report
 }
 
+/**
+One `auth --provider` command inside the one credential lease: journal
+recovery first, then the command; a live writer's lease resolves
+through `busy` instead of failing.
+*/
+async function runAuthCommand(
+  deps: AuthCommandDeps,
+  withLock: CredentialLock,
+  run: () => Promise<number>,
+  busy: () => Promise<number>,
+): Promise<number> {
+  try {
+    return await withLock(async () => {
+      const report = await recoverAndReportJournal(deps)
+      return report.failed ? 1 : await run()
+    })
+  } catch (error: unknown) {
+    if (!isCredentialLockBusy(error)) throw error
+    return await busy()
+  }
+}
+
+/** A live writer's lease refuses a write with the one busy sentence. */
+function busyWrite(deps: AuthCommandDeps): Promise<number> {
+  deps.printError(UI_TEXT.providerConnectBusy)
+  return Promise.resolve(1)
+}
+
 /** `auth set --provider <id>` inside the one credential lease. */
 export async function runAuthSetProvider(
   deps: AuthCommandDeps,
   providerId: string,
   readUserFile: () => Promise<ProvidersFileRead>,
   withLock: CredentialLock,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
-  try {
-    return await withLock(async () => {
-      const report = await recoverAndReportJournal(deps)
-      return report.failed ? 1 : await authSetProvider(deps, providerId, readUserFile)
-    })
-  } catch (error: unknown) {
-    if (!isCredentialLockBusy(error)) throw error
-    deps.printError(UI_TEXT.providerConnectBusy)
-    return 1
-  }
+  return await runAuthCommand(
+    deps,
+    withLock,
+    () => authSetProvider(deps, providerId, readUserFile, options),
+    () => busyWrite(deps),
+  )
 }
 
 /** `auth clear --provider <id>` inside the one credential lease. */
@@ -176,17 +201,14 @@ export async function runAuthClearProvider(
   deps: AuthCommandDeps,
   providerId: string,
   withLock: CredentialLock,
+  options: { readonly admin?: boolean | undefined } = {},
 ): Promise<number> {
-  try {
-    return await withLock(async () => {
-      const report = await recoverAndReportJournal(deps)
-      return report.failed ? 1 : await authClearProvider(deps, providerId)
-    })
-  } catch (error: unknown) {
-    if (!isCredentialLockBusy(error)) throw error
-    deps.printError(UI_TEXT.providerConnectBusy)
-    return 1
-  }
+  return await runAuthCommand(
+    deps,
+    withLock,
+    () => authClearProvider(deps, providerId, options),
+    () => busyWrite(deps),
+  )
 }
 
 /**
@@ -198,16 +220,14 @@ export async function runAuthStatusProvider(
   deps: AuthCommandDeps,
   providerId: string,
   withLock: CredentialLock,
+  options?: { readonly admin?: boolean | undefined },
 ): Promise<number> {
-  try {
-    return await withLock(async () => {
-      const report = await recoverAndReportJournal(deps)
-      return report.failed ? 1 : await authStatusProvider(deps, providerId)
-    })
-  } catch (error: unknown) {
-    if (!isCredentialLockBusy(error)) throw error
-    return await authStatusProvider(deps, providerId)
-  }
+  return await runAuthCommand(
+    deps,
+    withLock,
+    () => authStatusProvider(deps, providerId, options),
+    () => authStatusProvider(deps, providerId),
+  )
 }
 
 /**
