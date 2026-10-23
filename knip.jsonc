@@ -650,7 +650,10 @@
     "readelf",
     "cc",
     "^c\\+\\+$",
-    "ssh-keygen"
+    "ssh-keygen",
+    "gcc",
+    "gpg",
+    "openssl"
   ],
 
   "ignoreExportsUsedInFile": true,
