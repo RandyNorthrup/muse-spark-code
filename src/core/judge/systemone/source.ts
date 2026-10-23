@@ -182,8 +182,10 @@ function redactedRequest(parsed: JudgeRequest): JudgeRequest | undefined {
     )
     const candidate = judgeRequestSchema.safeParse(redacted)
     return candidate.success ? candidate.data : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    if (error instanceof SyntaxError) return undefined
+    if (error instanceof TypeError) return undefined
+    throw error
   }
 }
 

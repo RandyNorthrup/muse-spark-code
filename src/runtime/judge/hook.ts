@@ -265,7 +265,8 @@ export async function runJudgeHookCommand(
           let rawOutcome: unknown
           try {
             rawOutcome = JSON.parse(chunk)
-          } catch {
+          } catch (error: unknown) {
+            if (!(error instanceof SyntaxError)) throw error
             return
           }
           const outcome = judgeOutcomeSchema.safeParse(rawOutcome)
