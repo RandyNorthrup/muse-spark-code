@@ -720,7 +720,10 @@ export function step(
     state.lastUse = event.now
     if (op.command.kind === 'material')
       effects.push({ kind: 'release', tags: operationTags(op), item, run: op.command.run })
-    else if (op.command.kind === 'private' && item.material.kind === 'apiKey') {
+    else if (
+      op.command.kind === 'private' &&
+      (item.material.kind === 'apiKey' || item.material.kind === 'secret')
+    ) {
       const buffer = Buffer.alloc(item.material.value.byteLength)
       buffer.set(item.material.value)
       own(op, { buffer })
@@ -1718,8 +1721,10 @@ export function step(
                     if (
                       !item.metadata.firstParty ||
                       !item.metadata.hidden ||
-                      item.material.kind !== 'apiKey' ||
-                      item.material.origin !== command.request.origin ||
+                      (item.material.kind !== 'apiKey' && item.material.kind !== 'secret') ||
+                      (item.material.kind === 'apiKey' &&
+                        item.material.origin !== command.request.origin) ||
+                      (item.material.kind === 'secret' && item.metadata.policy.mode !== 'never') ||
                       item.metadata.bindings.every(
                         (binding) =>
                           !(binding.kind === 'origin' && binding.origin === command.request.origin),

@@ -20,6 +20,7 @@ export function bindCredentialMigration(
   const controller = new CredentialMigrationController({
     secrets: deps.secrets,
     listProviderIds: deps.listProviderIds,
+    ...(deps.listAccounts !== undefined && { listAccounts: deps.listAccounts }),
     ports,
     minorRelease: deps.minorRelease,
     now: deps.now,
