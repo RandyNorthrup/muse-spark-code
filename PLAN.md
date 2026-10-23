@@ -24736,6 +24736,23 @@ each down one; baseline regenerated). The live check, the remaining
 acceptance rows and the shim-size note stay with the lead and the
 owner's key. Record: `docs/certification/rlfinish.md`.
 
+**Status 2026-10-22 (RLF-TAB): building.** The no-live-call rows
+are closed with real-code suites: shim arming and first-use load (1,
+18), the no-key row (2), the quiet paths (3), exclusions, ignores and
+hooks (4, 17), the redacted halves (5), typing-through and the
+inferred partial accept (8), the two-writer ledger race and
+corrupt-ledger refusal (10), keyed consent (11), modes (13), the
+Copilot yield (14), status and snooze (15), the usage row (16) and the
+loader and log words (20): each with its unit suite, plus an
+integration suite over the quiet paths and activation in a real
+editor, written for hosted CI (not run on this rig). The provider's
+file, consent, snooze, status, yield and loader decisions move out of
+activation into tested modules, with the first-use wiring loaded
+inside `dist/tab.js`; the shim's Tab-attributable bytes fall from
+10.598 KiB to 8.136 KiB with budgets unchanged. The served-path live
+suggestion, the 4 KiB ambition and the live check stay open (B4).
+Record: `docs/certification/rlf-tab.md`.
+
 **RVM94KR3G follow-up (2026-10-09, kubuntu).** The shared window-once
 revocation counter is replaced with per-feature generations, retaining every
 Tab revocation and the global Ask again fence. Regressions prove Tab's Allow
