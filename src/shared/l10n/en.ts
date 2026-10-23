@@ -2751,6 +2751,8 @@ export const EN = {
     networkOff: 'Report network sources are off.',
     signInRequired: 'Sign in to GitHub to read this source.',
     noPlan: 'This project has no structured plan.',
+    noCustomKeybindings: 'There are no custom keybindings.',
+    noCheckRuns: 'No check runs have been recorded yet.',
     planDrift: 'Plan format at line {line}: {detail}',
     automatedNote: 'This report was generated automatically.',
     post: 'Post',
@@ -2819,6 +2821,10 @@ export const EN = {
   },
   reportRowsMore: forms({ one: '{count} more', other: '{count} more' }),
   reportProblemsMore: forms({ one: '{count} more problem', other: '{count} more problems' }),
+  checkRunsUnreadable: forms({
+    one: '{count} check run could not be read.',
+    other: '{count} check runs could not be read.',
+  }),
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
   reportCliKinds:
@@ -4890,7 +4896,7 @@ export const EN = {
     '  {command} [options] login        Sign in to Muse Code in this terminal',
     '  {command} auth set|status|clear  Store, check or remove the Meta Model API key',
     '  {command} auth set|status|clear --provider <id>  Store, check or remove a provider key (read from stdin)',
-    '  {command} providers list|add|test|remove|connect|usage  Manage model providers',
+    '  {command} providers list|add|test|remove|connect|usage <id>  Manage model providers',
     '  {command} exec [options] <prompt>  Run one headless turn',
     '  {command} scan-secrets <file> [--key-stdin]  Count likely secrets in one file (prints only the number; exits 0 when clean, 10 when a secret is found, 2 for misuse)',
     '  {command} report [options]  Print a scrubbed problem report (starts no backend, opens no browser)',
@@ -6371,6 +6377,7 @@ export const EN = {
   providerConnectStoredNewKey:
     'The new OpenRouter key is stored. The previous key could not be restored.',
   providerUsageFailed: 'OpenRouter key usage could not be read. Try again.',
+  providerUsageNeedsId: 'A provider id is needed: {command} providers usage <id>.',
   providerPasteCode: 'Paste the authorization code shown by OpenRouter.',
   usageKeyTotal: 'Total Usage',
   usageUnlimited: 'No Limit',
@@ -7589,6 +7596,7 @@ export const EN = {
     unavailable:
       'Accounts are unavailable until this runtime is connected to the shared account service.',
     unavailableReason: 'Accounts are unavailable ({reason}).',
+    noAccountsEntry: '{provider} has no accounts entry in this runtime.',
     changed: 'Accounts changed while updating. Try again.',
     notReady: 'Accounts are not ready yet. Try again.',
     invalidReply: 'The account service answered with an unexpected reply.',

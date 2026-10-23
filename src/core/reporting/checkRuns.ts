@@ -6,6 +6,7 @@ import {
   REPORT_SOURCE_FRESH_MS,
 } from '../../shared/constants'
 import { reportsMethods } from '../../shared/hostApi/reports'
+import { plural } from '../../shared/l10n/text'
 import { type ReportStorage } from './history'
 import type { CheckRunRecord, ReportSourcePort, SourceResult } from './sources/types'
 
@@ -99,7 +100,19 @@ export class CheckRunJournal {
             async (files): Promise<SourceResult<readonly CheckRunRecord[]>> => {
               const text = await files.read(`${workspaceKey}.jsonl`)
               signal.throwIfAborted()
-              if (text === undefined) throw new Error(reportText.reportUi.generationFailed)
+              // No journal yet is not a failure: no checks have run in this
+              // workspace, so the source is not applicable (RLTESTDRIVE2 13).
+              if (text === undefined)
+                return {
+                  record: {
+                    id: 'checkRuns',
+                    status: 'notApplicable',
+                    reason: reportText.reportUi.noCheckRuns,
+                    observedAt: null,
+                    freshness: { state: 'unknown', ageMs: null },
+                  },
+                  data: null,
+                }
               const parsed = parsedRuns(text, this.deps.scrub)
               const observedAt = parsed.entries.at(-1)?.at ?? asOf
               const ageMs = Math.max(0, Date.parse(asOf) - Date.parse(observedAt))
@@ -108,7 +121,10 @@ export class CheckRunJournal {
                   id: 'checkRuns',
                   ...(parsed.skipped === 0
                     ? { status: 'ok' as const, reason: null }
-                    : { status: 'partial' as const, reason: reportText.reportUi.generationFailed }),
+                    : {
+                        status: 'partial' as const,
+                        reason: plural(reportText.checkRunsUnreadable, parsed.skipped),
+                      }),
                   observedAt,
                   freshness: { state: ageMs > REPORT_SOURCE_FRESH_MS ? 'stale' : 'fresh', ageMs },
                 },
@@ -117,11 +133,17 @@ export class CheckRunJournal {
             },
           )
         } catch {
+          // A cancelled read says cancelled; any other failure is a read the
+          // source could not complete (RLTESTDRIVE2 13) — never the
+          // report-level generation sentence, which names no cause.
+          const reason = signal.aborted
+            ? reportText.reportSourceReasons.cancelled
+            : reportText.reportSourceReasons.failed
           return {
             record: {
               id: 'checkRuns',
               status: 'unavailable',
-              reason: reportText.reportUi.generationFailed,
+              reason,
               observedAt: null,
               freshness: { state: 'unknown', ageMs: null },
             },

@@ -2322,6 +2322,8 @@
     "networkOff": "Sieciowe źródła raportów są wyłączone.",
     "signInRequired": "Zaloguj się do GitHub, aby odczytać to źródło.",
     "noPlan": "Projekt nie ma uporządkowanego planu.",
+    "noCustomKeybindings": "Brak niestandardowych skrótów klawiaturowych.",
+    "noCheckRuns": "Nie zarejestrowano jeszcze żadnych przebiegów kontroli.",
     "planDrift": "Format planu w wierszu {line}: {detail}",
     "automatedNote": "Ten raport został wygenerowany automatycznie.",
     "post": "Opublikuj",
@@ -2393,6 +2395,12 @@
     "other": "{count} kolejnego problemu",
     "few": "{count} kolejne problemy",
     "many": "{count} kolejnych problemów"
+  },
+  "checkRunsUnreadable": {
+    "one": "Nie można odczytać {count} przebieg kontroli.",
+    "other": "Nie można odczytać {count} przebiegu kontroli.",
+    "few": "Nie można odczytać {count} przebiegi kontroli.",
+    "many": "Nie można odczytać {count} przebiegów kontroli."
   },
   "reportCliUsage": "Wygeneruj deterministyczny raport z nazwanych źródeł, bez wywołania modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Rodzaje: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
@@ -4120,7 +4128,7 @@
   "acpFontIntegrity": "Weryfikacja pliku czcionki nie powiodła się: {file}",
   "acpFontInstallFailed": "Nie udało się zainstalować pakietu czcionek.",
   "acpFontsUsage": "Użycie: {command} fonts install [--from <directory>]",
-  "acpUsage": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} auth set|status|clear --provider <id>  Zapisz, sprawdź lub usuń klucz dostawcy (czytany ze stdin)\n  {command} providers list|add|test|remove|connect|usage  Zarządzaj dostawcami modeli\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę; kończy z 0 gdy czysto, 10 gdy znajdzie sekret, 2 przy błędnym użyciu)\n  {command} report [options]  Wypisać oczyszczony raport o problemie (nie uruchamia backendu, nie otwiera przeglądarki)\n  {command} legal [options]  Uruchom skanowanie prawne tylko do odczytu (bez backendu i logowania)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --questions-defer-after <seconds>  Odraczaj pytania po tylu sekundach; brak limitu, dopóki go nie ustawisz (0, wartość domyślna, nigdy)\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --muse-voice                     Udostępnij płatną transkrypcję dołączonego dźwięku przez Muse Voice (backend Model API; najpierw pyta o cenę)\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Uruchom hooki Setup i zakończ",
+  "acpUsage": "Użycie:\n  {command} [opcje]              Obsługuj Agent Client Protocol przez stdin i stdout\n  {command} [opcje] login        Zaloguj się do Muse Code w tym terminalu\n  {command} auth set|status|clear  Zapisz, sprawdź lub usuń klucz Meta Model API\n  {command} auth set|status|clear --provider <id>  Zapisz, sprawdź lub usuń klucz dostawcy (czytany ze stdin)\n  {command} providers list|add|test|remove|connect|usage <id>  Zarządzaj dostawcami modeli\n  {command} exec [options] <prompt>  Uruchomić jedną turę bez interfejsu\n  {command} scan-secrets <file> [--key-stdin]  Policzyć prawdopodobne sekrety w jednym pliku (wypisuje tylko liczbę; kończy z 0 gdy czysto, 10 gdy znajdzie sekret, 2 przy błędnym użyciu)\n  {command} report [options]  Wypisać oczyszczony raport o problemie (nie uruchamia backendu, nie otwiera przeglądarki)\n  {command} legal [options]  Uruchom skanowanie prawne tylko do odczytu (bez backendu i logowania)\nOpcje:\n  --backend museCode|modelApi      Kto płaci: Muse Code (domyślnie) lub klucz Model API\n  --trust-workspace                Wczytaj reguły, umiejętności i pamięć folderu\n  --muse-binary <ścieżka>             Interfejs CLI Muse Code do uruchomienia\n  --shell-sandbox auto|muse|off    Piaskownica powłoki Muse Code\n  --questions-defer-after <seconds>  Odraczaj pytania po tylu sekundach; brak limitu, dopóki go nie ustawisz (0, wartość domyślna, nigdy)\n  --allow-dangerously-skip-permissions  Udostępnij tryb „Pomijanie uprawnień”\n  --allow-contributor-models       Wyświetl modele poziomu contributor (Meta może trenować na ich treści)\n  --web-search                     Udostępnij płatne wyszukiwanie w sieci (backend Model API; najpierw pyta o cenę)\n  --image-generation               Udostępnij płatne generowanie obrazów (backend Model API; najpierw pyta o cenę)\n  --muse-voice                     Udostępnij płatną transkrypcję dołączonego dźwięku przez Muse Voice (backend Model API; najpierw pyta o cenę)\n  --verbose                        Zapisuj każdy szczegół w stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Uruchom hooki Setup i zakończ",
   "reportUsage": "Użycie:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Wypisuje oczyszczony raport o problemie na stdout albo zapisuje go do <file> z --out.\n  Nie uruchamia backendu, nigdzie się nie loguje i nie otwiera przeglądarki.\nOpcje:\n  --out <file>         Zapisać raport do pliku zamiast na stdout\n  --description <text>  Co się działo, własnymi słowami\n  --no-facts           Pominąć dane wsparcia\n  --no-events          Pominąć ostatnie zdarzenia",
   "cliHelp": {
     "usage": "Użycie:",
@@ -5238,6 +5246,7 @@
   "providerConnectRecoveredStored": "Poprzednie połączenie OpenRouter zapisało już swój klucz. Zostaje zachowany.",
   "providerConnectStoredNewKey": "Nowy klucz OpenRouter jest zapisany. Nie można było przywrócić poprzedniego klucza.",
   "providerUsageFailed": "Nie udało się odczytać użycia klucza OpenRouter. Spróbuj ponownie.",
+  "providerUsageNeedsId": "Wymagany jest identyfikator dostawcy: {command} providers usage <id>.",
   "providerPasteCode": "Wklej kod autoryzacji wyświetlony przez OpenRouter.",
   "usageKeyTotal": "Łączne użycie",
   "usageUnlimited": "Bez limitu",
@@ -6310,6 +6319,7 @@
     "execHelp": "Konta bez interakcji: {command} exec --account <id> [--account-pool]. CI z --key-stdin używa tylko konta domyślnego i nigdy nie zmienia konta.",
     "unavailable": "Konta będą dostępne po połączeniu tego środowiska z usługą współdzielonych kont.",
     "unavailableReason": "Konta są niedostępne ({reason}).",
+    "noAccountsEntry": "{provider} nie ma w tym środowisku wpisu kont.",
     "changed": "Konta zmieniły się podczas aktualizacji. Spróbuj ponownie.",
     "notReady": "Konta nie są jeszcze gotowe. Spróbuj ponownie.",
     "invalidReply": "Usługa kont zwróciła nieoczekiwaną odpowiedź.",

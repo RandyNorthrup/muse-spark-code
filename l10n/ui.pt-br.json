@@ -2290,6 +2290,8 @@
     "networkOff": "As fontes de rede dos relatórios estão desativadas.",
     "signInRequired": "Entre no GitHub para ler esta fonte.",
     "noPlan": "Este projeto não tem um plano estruturado.",
+    "noCustomKeybindings": "Não há atalhos de teclado personalizados.",
+    "noCheckRuns": "Nenhuma execução de verificação foi registrada ainda.",
     "planDrift": "Formato do plano na linha {line}: {detail}",
     "automatedNote": "Este relatório foi gerado automaticamente.",
     "post": "Publicar",
@@ -2359,6 +2361,11 @@
     "one": "Mais {count} problema",
     "other": "Mais {count} problemas",
     "many": "Mais {count} problemas"
+  },
+  "checkRunsUnreadable": {
+    "one": "Não foi possível ler {count} execução de verificação.",
+    "other": "Não foi possível ler {count} execuções de verificação.",
+    "many": "Não foi possível ler {count} execuções de verificação."
   },
   "reportCliUsage": "Gerar um relatório determinístico de fontes identificadas, sem chamar um modelo.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Tipos: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
@@ -4040,7 +4047,7 @@
   "acpFontIntegrity": "Falha na verificação do arquivo de fonte: {file}",
   "acpFontInstallFailed": "Não foi possível instalar o pacote de fontes.",
   "acpFontsUsage": "Uso: {command} fonts install [--from <directory>]",
-  "acpUsage": "Uso:\n  {command} [opções]              Servir o Agent Client Protocol em stdin e stdout\n  {command} [opções] login        Entrar no Muse Code neste terminal\n  {command} auth set|status|clear  Guardar, verificar ou remover a chave da Meta Model API\n  {command} auth set|status|clear --provider <id>  Guardar, verificar ou remover uma chave de provedor (lida de stdin)\n  {command} providers list|add|test|remove|connect|usage  Gerir os provedores de modelos\n  {command} exec [options] <prompt>  Executar um turno sem interface\n  {command} scan-secrets <file> [--key-stdin]  Contar possíveis segredos em um arquivo (mostra só o número; sai com 0 se estiver limpo, 10 se um segredo for encontrado, 2 por uso incorreto)\n  {command} report [options]  Mostrar um relatório de problema depurado (não inicia backend, não abre o navegador)\n  {command} legal [options]  Executar a verificação jurídica somente leitura (sem backend nem login)\nOpções:\n  --backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API\n  --trust-workspace                Carregar as regras, as skills e a memória da pasta\n  --muse-binary <caminho>             A CLI do Muse Code a executar\n  --shell-sandbox auto|muse|off    A sandbox do shell do Muse Code\n  --questions-defer-after <seconds>  Adiar perguntas após estes segundos; sem limite, a menos que se defina um (0, o padrão, nunca)\n  --allow-dangerously-skip-permissions  Oferecer o modo “Ignorar permissões”\n  --allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)\n  --web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)\n  --image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)\n  --muse-voice                     Oferecer a transcrição paga do som anexado pelo Muse Voice (back-end da Model API; o preço é perguntado antes)\n  --verbose                        Registrar cada detalhe em stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Executar os ganchos Setup e sair",
+  "acpUsage": "Uso:\n  {command} [opções]              Servir o Agent Client Protocol em stdin e stdout\n  {command} [opções] login        Entrar no Muse Code neste terminal\n  {command} auth set|status|clear  Guardar, verificar ou remover a chave da Meta Model API\n  {command} auth set|status|clear --provider <id>  Guardar, verificar ou remover uma chave de provedor (lida de stdin)\n  {command} providers list|add|test|remove|connect|usage <id>  Gerir os provedores de modelos\n  {command} exec [options] <prompt>  Executar um turno sem interface\n  {command} scan-secrets <file> [--key-stdin]  Contar possíveis segredos em um arquivo (mostra só o número; sai com 0 se estiver limpo, 10 se um segredo for encontrado, 2 por uso incorreto)\n  {command} report [options]  Mostrar um relatório de problema depurado (não inicia backend, não abre o navegador)\n  {command} legal [options]  Executar a verificação jurídica somente leitura (sem backend nem login)\nOpções:\n  --backend museCode|modelApi      Quem paga: o Muse Code (padrão) ou a chave da Model API\n  --trust-workspace                Carregar as regras, as skills e a memória da pasta\n  --muse-binary <caminho>             A CLI do Muse Code a executar\n  --shell-sandbox auto|muse|off    A sandbox do shell do Muse Code\n  --questions-defer-after <seconds>  Adiar perguntas após estes segundos; sem limite, a menos que se defina um (0, o padrão, nunca)\n  --allow-dangerously-skip-permissions  Oferecer o modo “Ignorar permissões”\n  --allow-contributor-models       Listar os modelos de nível colaborador (a Meta pode treinar com o conteúdo deles)\n  --web-search                     Oferecer a pesquisa na web paga (back-end da Model API; o preço é perguntado antes)\n  --image-generation               Oferecer a geração de imagens paga (back-end da Model API; o preço é perguntado antes)\n  --muse-voice                     Oferecer a transcrição paga do som anexado pelo Muse Voice (back-end da Model API; o preço é perguntado antes)\n  --verbose                        Registrar cada detalhe em stderr\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Executar os ganchos Setup e sair",
   "reportUsage": "Uso:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Mostra o relatório de problema depurado em stdout, ou o grava em <file> com --out.\n  Não inicia backend, não entra em lugar algum e não abre o navegador.\nOpções:\n  --out <file>         Gravar o relatório em um arquivo em vez de stdout\n  --description <text>  O que estava acontecendo, com suas palavras\n  --no-facts           Omitir os dados de suporte\n  --no-events          Omitir os eventos recentes",
   "cliHelp": {
     "usage": "Uso:",
@@ -5114,6 +5121,7 @@
   "providerConnectRecoveredStored": "Uma conexão anterior do OpenRouter já salvou sua chave. Ela será mantida.",
   "providerConnectStoredNewKey": "A nova chave do OpenRouter está salva. Não foi possível restaurar a chave anterior.",
   "providerUsageFailed": "Não foi possível consultar o uso da chave do OpenRouter. Tente novamente.",
+  "providerUsageNeedsId": "É necessário o ID de um provedor: {command} providers usage <id>.",
   "providerPasteCode": "Cole o código de autorização exibido pelo OpenRouter.",
   "usageKeyTotal": "Uso total",
   "usageUnlimited": "Sem limite",
@@ -6147,6 +6155,7 @@
     "execHelp": "Contas sem interação: {command} exec --account <id> [--account-pool]. CI com --key-stdin usa apenas a conta padrão e nunca troca de conta.",
     "unavailable": "As contas ficarão disponíveis quando este ambiente estiver conectado ao serviço compartilhado de contas.",
     "unavailableReason": "As contas estão indisponíveis ({reason}).",
+    "noAccountsEntry": "{provider} não tem entrada de contas neste ambiente.",
     "changed": "As contas mudaram durante a atualização. Tente novamente.",
     "notReady": "As contas ainda não estão prontas. Tente novamente.",
     "invalidReply": "O serviço de contas respondeu de forma inesperada.",

@@ -2258,6 +2258,8 @@
     "networkOff": "Netzwerkquellen für Berichte sind ausgeschaltet.",
     "signInRequired": "Melden Sie sich bei GitHub an, um diese Quelle zu lesen.",
     "noPlan": "Dieses Projekt hat keinen strukturierten Plan.",
+    "noCustomKeybindings": "Es gibt keine benutzerdefinierten Tastenkombinationen.",
+    "noCheckRuns": "Es wurden noch keine Prüfläufe aufgezeichnet.",
     "planDrift": "Planformat in Zeile {line}: {detail}",
     "automatedNote": "Dieser Bericht wurde automatisch erstellt.",
     "post": "Veröffentlichen",
@@ -2325,6 +2327,10 @@
   "reportProblemsMore": {
     "one": "{count} weiteres Problem",
     "other": "{count} weitere Probleme"
+  },
+  "checkRunsUnreadable": {
+    "one": "{count} Prüflauf konnte nicht gelesen werden.",
+    "other": "{count} Prüfläufe konnten nicht gelesen werden."
   },
   "reportCliUsage": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
   "reportCliKinds": "Arten: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
@@ -3960,7 +3966,7 @@
   "acpFontIntegrity": "Überprüfung der Schriftdatei fehlgeschlagen: {file}",
   "acpFontInstallFailed": "Das Schriftpaket konnte nicht installiert werden.",
   "acpFontsUsage": "Verwendung: {command} fonts install [--from <directory>]",
-  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} auth set|status|clear --provider <id>  Einen Anbieterschlüssel speichern, prüfen oder entfernen (wird über stdin gelesen)\n  {command} providers list|add|test|remove|connect|usage  Modellanbieter verwalten\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus; endet mit 0 ohne Fund, 10 bei gefundenem Geheimnis, 2 bei falschem Aufruf)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\n  {command} legal [options]  Den schreibgeschützten Legal-Scan ausführen (kein Backend, keine Anmeldung)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --questions-defer-after <seconds>  Fragen nach so vielen Sekunden zurückstellen; kein Limit, solange keines gesetzt ist (0, die Voreinstellung, nie)\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --muse-voice                     Kostenpflichtige Muse-Voice-Transkription von angehängtem Ton anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
+  "acpUsage": "Verwendung:\n  {command} [Optionen]              Das Agent Client Protocol über stdin und stdout bereitstellen\n  {command} [Optionen] login        In diesem Terminal bei Muse Code anmelden\n  {command} auth set|status|clear  Den Schlüssel für die Meta Model API speichern, prüfen oder entfernen\n  {command} auth set|status|clear --provider <id>  Einen Anbieterschlüssel speichern, prüfen oder entfernen (wird über stdin gelesen)\n  {command} providers list|add|test|remove|connect|usage <id>  Modellanbieter verwalten\n  {command} exec [options] <prompt>  Einen Lauf ohne Oberfläche ausführen\n  {command} scan-secrets <file> [--key-stdin]  Mögliche Geheimnisse in einer Datei zählen (gibt nur die Anzahl aus; endet mit 0 ohne Fund, 10 bei gefundenem Geheimnis, 2 bei falschem Aufruf)\n  {command} report [options]  Einen bereinigten Problembericht ausgeben (startet kein Backend, öffnet keinen Browser)\n  {command} legal [options]  Den schreibgeschützten Legal-Scan ausführen (kein Backend, keine Anmeldung)\nOptionen:\n  --backend museCode|modelApi      Wer bezahlt: Muse Code (Standard) oder der Model API-Schlüssel\n  --trust-workspace                Regeln, Skills und Speicher des Ordners laden\n  --muse-binary <Pfad>             Die auszuführende Muse Code-CLI\n  --shell-sandbox auto|muse|off    Die Shell-Sandbox von Muse Code\n  --questions-defer-after <seconds>  Fragen nach so vielen Sekunden zurückstellen; kein Limit, solange keines gesetzt ist (0, die Voreinstellung, nie)\n  --allow-dangerously-skip-permissions  Den Modus „Berechtigungen umgehen“ anbieten\n  --allow-contributor-models       Modelle der Contributor-Stufe auflisten (Meta darf mit ihren Inhalten trainieren)\n  --web-search                     Kostenpflichtige Websuche anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --image-generation               Kostenpflichtige Bilderzeugung anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --muse-voice                     Kostenpflichtige Muse-Voice-Transkription von angehängtem Ton anbieten (Model-API-Backend; der Preis wird zuerst erfragt)\n  --verbose                        Jedes Detail auf stderr protokollieren\n  --help, --version\n  {command} --trust-workspace setup [--maintenance]  Die Setup-Hooks ausführen und beenden",
   "reportUsage": "Verwendung:\n  {command} report [--out <file>] [--description <text>] [--no-facts] [--no-events]\n  Gibt den bereinigten Problembericht auf stdout aus oder schreibt ihn mit --out nach <file>.\n  Startet kein Backend, meldet sich nirgends an und öffnet keinen Browser.\nOptionen:\n  --out <file>         Den Bericht in eine Datei statt auf stdout schreiben\n  --description <text>  Was gerade geschah, in eigenen Worten\n  --no-facts           Die Support-Fakten weglassen\n  --no-events          Die letzten Ereignisse weglassen",
   "cliHelp": {
     "usage": "Verwendung:",
@@ -4990,6 +4996,7 @@
   "providerConnectRecoveredStored": "Eine frühere OpenRouter-Verbindung hat ihren Schlüssel bereits gespeichert. Er bleibt erhalten.",
   "providerConnectStoredNewKey": "Der neue OpenRouter-Schlüssel ist gespeichert. Der vorherige Schlüssel konnte nicht wiederhergestellt werden.",
   "providerUsageFailed": "Die Nutzung des OpenRouter-Schlüssels konnte nicht gelesen werden. Versuchen Sie es erneut.",
+  "providerUsageNeedsId": "Eine Anbieter-ID ist erforderlich: {command} providers usage <id>.",
   "providerPasteCode": "Fügen Sie den von OpenRouter angezeigten Autorisierungscode ein.",
   "usageKeyTotal": "Gesamtnutzung",
   "usageUnlimited": "Kein Limit",
@@ -5984,6 +5991,7 @@
     "execHelp": "Konten ohne Interaktion: {command} exec --account <id> [--account-pool]. CI mit --key-stdin nutzt nur das Standardkonto und wechselt nie das Konto.",
     "unavailable": "Konten sind erst verfügbar, wenn diese Laufzeit mit dem gemeinsamen Kontendienst verbunden ist.",
     "unavailableReason": "Konten sind nicht verfügbar ({reason}).",
+    "noAccountsEntry": "{provider} hat in dieser Laufzeit keinen Kontoeintrag.",
     "changed": "Die Konten haben sich während der Aktualisierung geändert. Versuchen Sie es erneut.",
     "notReady": "Die Konten sind noch nicht bereit. Versuchen Sie es erneut.",
     "invalidReply": "Der Kontendienst hat mit einer unerwarteten Antwort geantwortet.",
