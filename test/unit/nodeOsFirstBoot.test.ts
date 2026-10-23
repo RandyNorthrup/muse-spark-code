@@ -4,10 +4,10 @@
 // fetched cloud-init v2 and `#cloud-config` contracts (seed.ts header,
 // 2026-10-23), never to a guessed shape.
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { cleanup, scratch } from './helpers/nodeOs'
 import {
   acceptSetupCode,
   applySeed,
@@ -26,13 +26,12 @@ import {
 import { parseSshPublicKey, setupDiskTargetSchema } from '../../src/runtime/node/firstBoot/schemas'
 import { readAndConsumeSeed } from '../../src/runtime/node/firstBoot/seed'
 
-function scratch(tag: string): string {
-  return mkdtempSync(path.join(tmpdir(), tag))
-}
-
-function cleanup(dir: string): void {
-  rmSync(dir, { recursive: true, force: true })
-}
+/** Nothing on the boot partition reads as an empty seed. */
+const EMPTY_SEED = {
+  ok: true,
+  network: { network: null, ignored: [] },
+  user: { hostname: undefined, sshKeys: [], ignored: [] },
+} as const
 
 describe('setup code', () => {
   it('issues grouped codes that verify through typing variants', () => {
@@ -207,11 +206,7 @@ describe('cloud-init seed', () => {
   it('reads nothing when the boot partition carries no seed', () => {
     const dir = scratch('node-os-seed-empty-')
     try {
-      expect(readAndConsumeSeed(dir)).toEqual({
-        ok: true,
-        network: { network: null, ignored: [] },
-        user: { hostname: undefined, sshKeys: [], ignored: [] },
-      })
+      expect(readAndConsumeSeed(dir)).toEqual(EMPTY_SEED)
     } finally {
       cleanup(dir)
     }
@@ -249,11 +244,7 @@ describe('cloud-init seed', () => {
         user: { hostname: 'mynode', sshKeys: [], ignored: ['timezone'] },
       })
       // Read once: the second read finds nothing.
-      expect(readAndConsumeSeed(dir)).toEqual({
-        ok: true,
-        network: { network: null, ignored: [] },
-        user: { hostname: undefined, sshKeys: [], ignored: [] },
-      })
+      expect(readAndConsumeSeed(dir)).toEqual(EMPTY_SEED)
     } finally {
       cleanup(dir)
     }
