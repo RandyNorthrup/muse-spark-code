@@ -33,6 +33,12 @@ const RECEIPT = z.object({
 })
 const MANIFEST = z.object({ name: z.string(), version: z.string() })
 const ARTIFACT_NAMES = ['muse-spark-code-vsix', 'muse-spark-code-acp', 'muse-spark-code-sboms']
+// Safety limit (D121 clarification, RLF-SAFELIMITS): the whole CI lookup
+// (page walk plus artifact checks) gets this long, then the release falls
+// back to a full rebuild with words instead of failing the job at its own
+// timeout. Sized so the lookup fails fast enough for the fallback to fit
+// the reuse job's own 10-minute timeout; the pre-removal production value.
+const LOOKUP_TIMEOUT_MS = 120_000
 // The release job that reuses verified CI artifacts, and the build jobs a
 // release that built its own packages must have passed.
 const REUSE_JOB = 'verified CI artifacts or full-build fallback'
@@ -163,6 +169,31 @@ export async function findRecovery(repository, tag, runId, request) {
   return { commit: source.head_sha, artifacts }
 }
 
+/**
+The lookup's GitHub API reader: every call in the lookup shares one
+whole-lookup bound, so a hung API ends the lookup instead of the job. A
+rejection (a timeout, an HTTP failure, a malformed answer) falls back to
+a full rebuild with words in the find step below. The timeout and the
+fetch are injectable for tests.
+*/
+export function createLookupRequest(
+  token,
+  { timeoutMs = LOOKUP_TIMEOUT_MS, fetchImpl = fetch } = {},
+) {
+  const signal = globalThis.AbortSignal.timeout(timeoutMs)
+  return async (endpoint) => {
+    const reply = await fetchImpl(`https://api.github.com${endpoint}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github+json',
+      },
+      signal,
+    })
+    if (!reply.ok) throw new Error('CI lookup unavailable')
+    return await reply.json()
+  }
+}
+
 /** Check all assets before any are admitted to the publishing jobs. */
 export function verifyBuild(directory, tree, version, run = execute, isLegacyRecovery = false) {
   const names = assetNames(version)
@@ -252,16 +283,7 @@ if (
             .string()
             .regex(/^[\w.-]+\/[\w.-]+$/)
             .parse(process.env.GITHUB_REPOSITORY)
-          const request = async (endpoint) => {
-            const reply = await fetch(`https://api.github.com${endpoint}`, {
-              headers: {
-                Authorization: `Bearer ${process.env.GH_TOKEN}`,
-                Accept: 'application/vnd.github+json',
-              },
-            })
-            if (!reply.ok) throw new Error('CI lookup unavailable')
-            return await reply.json()
-          }
+          const request = createLookupRequest(process.env.GH_TOKEN ?? '')
           if (recovery === '') {
             tree = SHA.parse(execute('git', ['rev-parse', 'HEAD^{tree}']).trim())
             runId = await findBuild(repository, tree, request)
