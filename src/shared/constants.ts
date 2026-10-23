@@ -1858,6 +1858,19 @@ export const ANTHROPIC_MAX_IMAGE_BYTES = 10_000_000
 export const ANTHROPIC_IMAGE_MAX_COUNT = 600
 export const ANTHROPIC_IMAGE_MAX_COUNT_200K = 100
 export const ANTHROPIC_IMAGE_200K_WINDOW_TOKENS = 200_000
+// Documented Anthropic many-image dimension tightening
+// (platform.claude.com/docs/en/build-with-claude/vision, "Request limits",
+// read 2026-10-23): past 20 image blocks in one request a stricter
+// per-image dimension limit applies to every image, and "neither dimension
+// exceeds 2000 px" stays under it on every platform; wider images are
+// rejected. Resent turns and images inside tool_result count; document
+// blocks count only on partner platforms, never the direct API.
+export const ANTHROPIC_MANY_IMAGES_THRESHOLD = 20
+export const ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX = 2000
+// Documented Anthropic request size cap for the Messages endpoint
+// (platform.claude.com/docs/en/api/overview, "Request size limits", read
+// 2026-10-23): 32 MB; past it answers 413 request_too_large.
+export const ANTHROPIC_MAX_REQUEST_BYTES = 32_000_000
 // Documented xAI image-understanding bounds: jpg/jpeg or png only, 20 MiB
 // (docs.x.ai image-understanding, "Image input general limits", read
 // 2026-10-13; XAI-G11). Anything else is refused before sending.
@@ -3037,6 +3050,24 @@ export function webSearchMaxCallsFor(value: number): number | undefined {
 // (owner 2026-10-16: no pace of our own). Other providers require their own
 // captures.
 export const PACING_WINDOW_MS = 60_000
+// DeepSeek's documented account-level concurrency limits
+// (https://api-docs.deepseek.com/quick_start/rate_limit, "Concurrency
+// Limit", read 2026-10-23): 2500 for deepseek-flash, 500 for
+// deepseek-v4-pro. One request counts from send until the model response
+// is complete, per account regardless of API key; past the limit answers
+// HTTP 429. Models the table does not name carry no documented ceiling,
+// so only the live 429 pause applies to them.
+export const DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH = 2500
+export const DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO = 500
+// Azure OpenAI's documented burst-evaluation sub-windows: RPM enforcement
+// expects requests evenly distributed over the minute and evaluates the
+// incoming rate over short windows, typically 1 or 10 seconds, answering
+// 429 past the window's expected share (600 RPM over 1-second windows
+// allows 10 per window;
+// https://learn.microsoft.com/en-us/azure/foundry/openai/how-to/quota,
+// read 2026-10-23).
+export const AZURE_BURST_WINDOW_SHORT_MS = 1000
+export const AZURE_BURST_WINDOW_LONG_MS = 10_000
 /** Smallest documented manual-thinking budget; always below the output cap. */
 export const PROVIDER_MANUAL_THINKING_BUDGET = 1024
 /**

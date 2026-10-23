@@ -114,6 +114,8 @@
   "outputSchemaLocalValidation": "Çıktı şeması doğrulaması: yerel (seçilen modelin yapılandırılmış çıktı biçimi yok).",
   "outputSchemaReadFailed": "Çıktı şeması okunamadı: {detail}",
   "modelApiPacingWaiting": "İstek sınırı içinde boş kapasite bekleniyor…",
+  "modelApiPacingConcurrencyWaiting": "DeepSeek istek yuvası bekleniyor (hesap eşzamanlılığı {limit})…",
+  "modelApiPacingBurstWaiting": "Azure kısa pencere hız değerlendirmesi için istekler dengeli dağıtılıyor…",
   "modelApiStatusLabel": "Meta API durumu",
   "modelApiStatusUnavailable": "Durum bilgisi alınamıyor",
   "modelApiStatusOpen": "Hizmet durumunu aç",
@@ -5393,6 +5395,8 @@
   "chatCodecThinkingOffUnsupported": "Seçili modelde düşünme kapatılamaz.",
   "anthropicCodecEmptyTurn": "Anthropic en az bir ileti gerektirir.",
   "anthropicCodecLimitExceeded": "Anthropic yanıtı bir kod çözme sınırını aştı.",
+  "anthropicCodecManyImagesDimensions": "Anthropic, {maxImages} resimden fazla içeren isteklerde resim kenarı başına en fazla {maxPixels} px izin verir ({count} resim, en uzun kenar {pixels} px).",
+  "anthropicCodecRequestTooLarge": "Anthropic en fazla {maxSize} boyutunda isteklere izin verir (bu istek {size}).",
   "modelsEmpty": "Henüz model sağlayıcı yok. Kendi modellerinizi kullanmak için ekleyin.",
   "panelNoMatches": "Eşleşme yok.",
   "modelFilterLabels": {

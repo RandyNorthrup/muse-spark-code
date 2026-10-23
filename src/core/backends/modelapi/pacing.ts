@@ -3,6 +3,10 @@
 // captured interpreter through the client's capability port.
 import * as z from 'zod/mini'
 import {
+  AZURE_BURST_WINDOW_LONG_MS,
+  AZURE_BURST_WINDOW_SHORT_MS,
+  DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH,
+  DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO,
   MILLISECONDS_PER_MINUTE,
   MILLISECONDS_PER_SECOND,
   MINUTES_PER_HOUR,
@@ -199,6 +203,42 @@ export function azureRetryAfterMs(headers: Headers): number | undefined {
   return Number.isSafeInteger(ms) ? ms : undefined
 }
 
+/** DeepSeek's documented per-model concurrency table; a model missing here has no documented ceiling. */
+const DEEPSEEK_CONCURRENCY_BY_MODEL: Readonly<Record<string, number>> = {
+  'deepseek-flash': DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH,
+  'deepseek-v4-pro': DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO,
+}
+
+/**
+DeepSeek's documented account-level concurrency ceiling for one model
+(api-docs.deepseek.com/quick_start/rate_limit, "Concurrency Limit", read
+2026-10-23): 2500 for deepseek-flash, 500 for deepseek-v4-pro. DeepSeek
+sends no limit headers (captured 2026-10-04:
+`docs/certification/m95-captures/deepseek/02-tool-call-stream.json`), so
+this table, not a header reader, paces it. A model the table does not
+name has no documented ceiling: undefined, so only the live 429 pause
+applies.
+*/
+export function deepseekConcurrencyLimit(model: string | undefined): number | undefined {
+  return model === undefined ? undefined : DEEPSEEK_CONCURRENCY_BY_MODEL[model]
+}
+
+/**
+Azure's documented burst share for one evaluation sub-window: the
+observed per-minute request limit's expected share of the sub-window
+(learn.microsoft.com/azure/foundry/openai/how-to/quota, read 2026-10-23:
+600 RPM over 1-second windows allows 10 per window). Floored, since past
+the expected share answers 429, and never below one: a lone request is
+not a burst, and the per-minute bucket still caps the minute rate.
+*/
+export function azureBurstShare(
+  perMinuteLimit: number,
+  limitWindowMs: number,
+  subWindowMs: number,
+): number {
+  return Math.max(1, Math.floor((perMinuteLimit * subWindowMs) / limitWindowMs))
+}
+
 /** U12, sequences 34/35/37/39/40. No reset header was captured. */
 export function metaPacingLimits(headers: Headers): PacingLimits | undefined {
   const parsed = limitsSchema.safeParse({
@@ -241,6 +281,12 @@ interface Bucket {
   observed: boolean
   admittedRequests: number
   admittedTokens: number
+  /** Held concurrency slots per model (DeepSeek's documented ceilings). */
+  inflight: Map<string, number>
+  /** Waiters per model for a freed concurrency slot. */
+  waiters: Map<string, Set<() => void>>
+  /** Admission times, pruned to the longest burst sub-window (Azure). */
+  admissions: number[]
 }
 
 /** Cumulative local debits at dispatch, so late headers retain subsequent admissions. */
@@ -249,15 +295,37 @@ export interface PacingSnapshot {
   readonly tokens: number
 }
 
+/** What the pacer knows about the request it admits: the codec-supplied native model id and the stable preset id, so provider-documented per-model ceilings (DeepSeek concurrency) and per-provider shaping (Azure bursts) apply. */
+export interface PacingAcquireOptions {
+  readonly model?: string | undefined
+  readonly provider?: string | undefined
+}
+
+/** The provider-documented limit a pacing wait answers, so the wait names it in words. */
+export type PacingWaitLimit =
+  | { readonly kind: 'concurrency'; readonly limit: number }
+  | { readonly kind: 'burst'; readonly windowMs: number }
+
+/** A pacing wait's notice: the delay and, when a provider-documented limit binds it, the limit. */
+export type PacingWaitHandler = (delayMs: number, limit?: PacingWaitLimit) => void
+
 /** A portable admission port for team pools, judges and scheduled dispatchers. */
 export interface RequestPacer {
+  /**
+  Admits one request, waiting for provider headroom first. Where the
+  provider documents a concurrency ceiling (DeepSeek), the admission
+  holds a slot until the returned release runs: the transport runs it
+  when the model response completes, so the slot spans send to
+  completion exactly as documented. No ceiling means no slot: undefined.
+  */
   acquire(
     account: string,
     kind: PacingClass,
     tokens: number,
     signal: AbortSignal,
-    onWait?: (delayMs: number) => void,
-  ): Promise<void>
+    onWait?: PacingWaitHandler,
+    options?: PacingAcquireOptions,
+  ): Promise<(() => void) | undefined>
   snapshot(account: string): PacingSnapshot
   observe(
     account: string,
@@ -289,10 +357,19 @@ export class ModelApiPacing implements RequestPacer {
         observed: false,
         admittedRequests: 0,
         admittedTokens: 0,
+        inflight: new Map(),
+        waiters: new Map(),
+        admissions: [],
       }
       this.buckets.set(account, bucket)
     }
     const now = this.deps.now()
+    // Burst shaping only looks back over the longest documented
+    // sub-window; older admissions are forgotten, never stored.
+    if (bucket.admissions.length > 0)
+      bucket.admissions = bucket.admissions.filter(
+        (admittedAt) => admittedAt > now - AZURE_BURST_WINDOW_LONG_MS && admittedAt <= now,
+      )
     const elapsed = Math.max(0, now - bucket.updatedAt)
     bucket.remainingRequests = Math.min(
       bucket.requests,
@@ -315,6 +392,75 @@ export class ModelApiPacing implements RequestPacer {
     if (bucket.remainingTokens !== undefined) {
       bucket.remainingTokens = Math.max(0, bucket.remainingTokens - tokens)
     }
+  }
+
+  /** Holds one concurrency slot for the model; the lease frees it exactly once. */
+  private hold(account: string, model: string): () => void {
+    const bucket = this.bucket(account)
+    bucket.inflight.set(model, (bucket.inflight.get(model) ?? 0) + 1)
+    let hasReleased = false
+    return () => {
+      if (hasReleased) return
+      hasReleased = true
+      const current = this.bucket(account)
+      const held = current.inflight.get(model) ?? 0
+      if (held > 1) current.inflight.set(model, held - 1)
+      else current.inflight.delete(model)
+      // A freed slot wakes every waiter for the model; each re-checks on
+      // wake, so a slot taken in between waits again instead of overrunning.
+      const waiters = current.waiters.get(model)
+      if (waiters === undefined) return
+      current.waiters.delete(model)
+      for (const wake of waiters) wake()
+    }
+  }
+
+  /** Sleeps until a slot for the model frees or Stop ends the wait; the loop re-checks after. */
+  private untilReleased(bucket: Bucket, model: string, signal: AbortSignal): Promise<void> {
+    return new Promise<void>((resolve) => {
+      const existing = bucket.waiters.get(model)
+      const waiters = existing ?? new Set<() => void>()
+      if (existing === undefined) bucket.waiters.set(model, waiters)
+      // The same wake answers a release and Stop: Stop resolves here and
+      // the loop's re-check throws it. Whichever fires first drops the
+      // abort listener, so a released wait leaves nothing behind.
+      const cleanup = new AbortController()
+      const wake = (): void => {
+        cleanup.abort()
+        waiters.delete(wake)
+        if (waiters.size === 0) bucket.waiters.delete(model)
+        resolve()
+      }
+      waiters.add(wake)
+      signal.addEventListener('abort', wake, { signal: cleanup.signal })
+    })
+  }
+
+  /**
+  Azure's documented burst rule over the bucket's trailing admissions: at
+  most the sub-window's expected share of the observed per-minute request
+  limit in any trailing 1-second or 10-second window. Past a share, the
+  wait lasts until the oldest in-window admission ages out.
+  */
+  private azureBurstDelay(bucket: Bucket, now: number): { delayMs: number; windowMs: number } {
+    let delayMs = 0
+    let windowMs = AZURE_BURST_WINDOW_SHORT_MS
+    for (const window of [AZURE_BURST_WINDOW_SHORT_MS, AZURE_BURST_WINDOW_LONG_MS]) {
+      const share = azureBurstShare(bucket.requests, bucket.requestWindowMs, window)
+      let inWindow = 0
+      let oldest = now
+      for (const admittedAt of bucket.admissions) {
+        if (admittedAt <= now - window || admittedAt > now) continue
+        inWindow += 1
+        if (admittedAt < oldest) oldest = admittedAt
+      }
+      if (inWindow < share) continue
+      const wait = oldest + window - now
+      if (wait <= delayMs) continue
+      delayMs = wait
+      windowMs = window
+    }
+    return { delayMs, windowMs }
   }
 
   public snapshot(account: string): PacingSnapshot {
@@ -372,15 +518,48 @@ export class ModelApiPacing implements RequestPacer {
     kind: PacingClass,
     tokens: number,
     signal: AbortSignal,
-    onWait?: (delayMs: number) => void,
-  ): Promise<void> {
+    onWait?: PacingWaitHandler,
+    options?: PacingAcquireOptions,
+  ): Promise<(() => void) | undefined> {
     if (!Number.isSafeInteger(tokens) || tokens < 0) {
       throw new RangeError('Invalid pacing token estimate')
     }
+    const provider = options?.provider
+    const model = options?.model
+    // DeepSeek documents account-level concurrency per model, not a rate
+    // window (api-docs.deepseek.com/quick_start/rate_limit, read
+    // 2026-10-23): the ceiling gates background admission, and every
+    // admission holds a slot until the model response completes. The
+    // foreground holds a slot without waiting, as with 429 pauses: its
+    // own retry loop answers the provider's 429. One account key may mix
+    // models, so slots are counted per model; a second key on the same
+    // account keeps its own bucket, and the live 429 pause covers the
+    // remainder of the account-wide limit.
+    const concurrency =
+      provider === 'deepseek' && model !== undefined ? deepseekConcurrencyLimit(model) : undefined
     for (;;) {
       signal.throwIfAborted()
       const bucket = this.bucket(account)
-      const pause = Math.max(0, bucket.pausedUntil - this.deps.now())
+      const now = this.deps.now()
+      const pause = Math.max(0, bucket.pausedUntil - now)
+      // A concurrency ceiling gates background admission ahead of every
+      // other check: no free slot waits for a release, saying which
+      // provider limit holds it. The gate runs before the unobserved
+      // bypass below on purpose — DeepSeek sends no limit headers at
+      // all, so its buckets never observe and the documented ceiling is
+      // the only gate. The slot itself is held only at admission, never
+      // across a headroom wait: held slots with nothing sent would starve
+      // the requests whose completions free them.
+      if (
+        kind !== 'foreground' &&
+        concurrency !== undefined &&
+        model !== undefined &&
+        (bucket.inflight.get(model) ?? 0) >= concurrency
+      ) {
+        onWait?.(0, { kind: 'concurrency', limit: concurrency })
+        await this.untilReleased(bucket, model, signal)
+        continue
+      }
       // Foreground never joins the fan-out queue. Otherwise only what the
       // provider reported shapes the wait (owner 2026-10-16): no observed
       // limits means no queue at all — the first requests go out freely —
@@ -389,7 +568,10 @@ export class ModelApiPacing implements RequestPacer {
       // user's turn.
       if (kind === 'foreground' || (pause === 0 && !bucket.observed)) {
         this.charge(bucket, tokens)
-        return
+        if (provider === 'azure') bucket.admissions.push(now)
+        return concurrency !== undefined && model !== undefined
+          ? this.hold(account, model)
+          : undefined
       }
       // Keep one request for the foreground. A one-RPM key can still run
       // background work once full; foreground always bypasses this check.
@@ -410,12 +592,35 @@ export class ModelApiPacing implements RequestPacer {
           : (Math.max(0, Math.min(tokens, bucket.tokens) - bucket.remainingTokens) *
               bucket.tokenWindowMs) /
             bucket.tokens
-      const delay = Math.ceil(Math.max(pause, requestWait, tokenWait))
+      // Azure evaluates the incoming request rate over short sub-windows
+      // (learn.microsoft.com/azure/foundry/openai/how-to/quota, read
+      // 2026-10-23), so observed Azure limits additionally spread
+      // admissions across the trailing 1-second and 10-second windows.
+      // Unobserved buckets have no per-minute limit to share out, so no
+      // burst math runs before the first headers.
+      const burst =
+        provider === 'azure' && bucket.observed ? this.azureBurstDelay(bucket, now) : undefined
+      const burstWait = burst?.delayMs ?? 0
+      const delay = Math.ceil(Math.max(pause, requestWait, tokenWait, burstWait))
       if (delay === 0) {
         this.charge(bucket, tokens)
-        return
+        if (provider === 'azure') bucket.admissions.push(now)
+        return concurrency !== undefined && model !== undefined
+          ? this.hold(account, model)
+          : undefined
       }
-      onWait?.(delay)
+      // The wait names the provider-documented limit when one binds it; a
+      // headroom or 429 wait keeps the established reason.
+      onWait?.(
+        delay,
+        burst !== undefined &&
+          burstWait > 0 &&
+          burstWait >= pause &&
+          burstWait >= requestWait &&
+          burstWait >= tokenWait
+          ? { kind: 'burst', windowMs: burst.windowMs }
+          : undefined,
+      )
       await this.deps.wait(delay, signal)
     }
   }
