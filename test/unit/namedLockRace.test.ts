@@ -12,9 +12,9 @@ import { chmod, lstat, mkdir, mkdtemp, rm, symlink, utimes, writeFile } from 'no
 import { randomUUID } from 'node:crypto'
 import { withNamedLock } from '../../src/runtime/namedLock'
 import path from 'node:path'
-import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { runDriverScript } from './helpers/spawnDriver'
+import { bundleWorker } from './helpers/workerBundle'
 import {
   CHATGPT_GRANT_LOCK_DIR,
   CHATGPT_GRANT_LOCK_FILE,
@@ -24,27 +24,14 @@ import {
   NAMED_LOCK_ENTRY_BYTES,
 } from '../../src/shared/constants'
 
-const scratch = { folder: '', bundle: '' }
+const workers = await bundleWorker('src/runtime/namedLock.ts', 'named-lock-race-', 'namedLock.cjs')
 const PROCESSES = 6
 const ROUNDS = 8
 // Darwin sockaddr_un has 103 usable bytes; /tmp is independent of TMPDIR.
 const MACOS_SOCKET_PATH_CHARS = 103
 
-beforeAll(async () => {
-  scratch.folder = await mkdtemp(path.join(path.resolve('temp'), 'named-lock-race-'))
-  scratch.bundle = path.join(scratch.folder, 'namedLock.cjs')
-  await build({
-    entryPoints: [path.resolve('src/runtime/namedLock.ts')],
-    outfile: scratch.bundle,
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    logLevel: 'silent',
-  })
-})
-
 afterAll(async () => {
-  if (scratch.folder !== '') await rm(scratch.folder, { recursive: true, force: true })
+  await workers.cleanup()
 })
 
 interface Summary {
@@ -59,11 +46,11 @@ interface Summary {
 describe('the named lock under a race (R2)', () => {
   it(`never lets two of ${String(PROCESSES)} processes hold at once, on dead socket files or a pipe`, async () => {
     const { code, output } = await runDriverScript(path.resolve('test/hosts/named-lock-race.mjs'), [
-      scratch.bundle,
+      workers.bundle,
       // Relative to the working folder the driver and its workers share: a
       // socket path under a CI checkout's absolute path passed macOS's 103
       // bytes (CI run 39086390519, capacity shard 5).
-      path.relative(process.cwd(), path.join(scratch.folder, 'work')),
+      path.relative(process.cwd(), path.join(workers.folder, 'work')),
       String(PROCESSES),
       String(ROUNDS),
     ])

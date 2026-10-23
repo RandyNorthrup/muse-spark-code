@@ -18,7 +18,7 @@ import {
 import { ChatGptSignInError, GrokSignInError } from '../backend/subscriptionsEntry'
 import {
   NamedLockError,
-  personScope,
+  grantLockNames,
   withNamedLock,
   type NamedLockOptions,
 } from '../../runtime/namedLock'
@@ -37,21 +37,11 @@ export async function withEditorRefreshLock<T, E extends Error>(
   binding: EditorRefreshLockBinding<E>,
   options: NamedLockOptions = {},
 ): Promise<T> {
-  // The same rendezvous the runtime wrapper builds (src/runtime/
-  // subscriptionRefreshLock.ts): the same names plus the same person scope,
-  // or the two surfaces stop excluding each other. The cross-surface drill
-  // (test/unit/crossSurfaceRefreshLock.test.ts) proves they still meet.
-  const scope = personScope()
   try {
-    return await withNamedLock(
-      work,
-      {
-        pipe: `${binding.pipe}-${scope}`,
-        folder: `${binding.folder}-${scope}`,
-        file: binding.file,
-      },
-      { ...options, timeoutMs: options.timeoutMs ?? OAUTH_CODE_TTL_MS },
-    )
+    return await withNamedLock(work, grantLockNames(binding), {
+      ...options,
+      timeoutMs: options.timeoutMs ?? OAUTH_CODE_TTL_MS,
+    })
   } catch (error) {
     if (error instanceof NamedLockError) {
       if (error.kind === 'busy') throw binding.failBusy()

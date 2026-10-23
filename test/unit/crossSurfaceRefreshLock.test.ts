@@ -7,16 +7,16 @@
 // traffic.
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdir, mkdtemp, rm } from 'node:fs/promises'
+import { rm } from 'node:fs/promises'
 import path from 'node:path'
-import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { createGrokSignIn } from '../../src/host/providers/grokSignIn'
 import {
   withEditorChatGptRefreshLock,
   withEditorGrokRefreshLock,
 } from '../../src/host/providers/subscriptionRefreshLock'
+import type { NamedLockOptions } from '../../src/runtime/namedLock'
 import { withGrokRefreshLock } from '../../src/runtime/subscriptionRefreshLock'
 import {
   CLIENT_ID,
@@ -30,6 +30,7 @@ import { grokGrantRecord } from './helpers/grokGrant'
 import { mapSecrets } from './helpers/mapSecrets'
 import { lockDirectory } from './helpers/temporaryFolders'
 import { captureFailure } from './helpers/captureFailure'
+import { bundleWorker } from './helpers/workerBundle'
 import { drillFetch, fileSecrets } from './refreshLockWorkerEntry'
 
 const GRANT_KEY = 'museSpark.provider.grok'
@@ -49,23 +50,13 @@ const workerReportSchema = z.looseObject({
 /** The rotated grant the drill reads back; only the refreshed token matters. */
 const storedGrantSchema = z.looseObject({ refreshToken: z.optional(z.string()) })
 
-const scratch = { folder: '', bundle: '' }
-beforeAll(async () => {
-  const temp = path.resolve('temp')
-  await mkdir(temp, { recursive: true })
-  scratch.folder = await mkdtemp(path.join(temp, 'rlf-refreshlock-'))
-  scratch.bundle = path.join(scratch.folder, 'worker.cjs')
-  await build({
-    entryPoints: [path.resolve('test/unit/refreshLockWorkerEntry.ts')],
-    outfile: scratch.bundle,
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-    logLevel: 'silent',
-  })
-})
+const workers = await bundleWorker(
+  'test/unit/refreshLockWorkerEntry.ts',
+  'rlf-refreshlock-',
+  'worker.cjs',
+)
 afterAll(async () => {
-  if (scratch.folder !== '') await rm(scratch.folder, { recursive: true, force: true })
+  await workers.cleanup()
 })
 
 function spawnWorker(mode: string, args: unknown, hasIpc: boolean): ChildProcess {
@@ -73,7 +64,7 @@ function spawnWorker(mode: string, args: unknown, hasIpc: boolean): ChildProcess
     process.execPath,
     [
       path.resolve('test/hosts/refresh-lock-worker.mjs'),
-      scratch.bundle,
+      workers.bundle,
       mode,
       JSON.stringify(args),
     ],
@@ -96,6 +87,42 @@ function exited(child: ChildProcess): Promise<number | null> {
   })
 }
 
+/** Hold one grant lock until the test releases it: the gate plus the held promise. */
+async function holdUntilReleased(
+  hold: (work: () => Promise<string>, options: NamedLockOptions) => Promise<string>,
+  heldValue: string,
+  options: NamedLockOptions,
+): Promise<{ release: () => void; done: Promise<string> }> {
+  const { promise: entered, resolve: markEntered } = Promise.withResolvers<undefined>()
+  const { promise: gate, resolve: open } = Promise.withResolvers<undefined>()
+  const done = hold(async () => {
+    markEntered(undefined)
+    await gate
+    return heldValue
+  }, options)
+  await entered
+  return {
+    release: () => {
+      open(undefined)
+    },
+    done,
+  }
+}
+
+/** The editor Grok sign-in over a fresh grant and an isolated lock. */
+function editorSignIn(directory: string, calls: FetchCall[], timeoutMs: number) {
+  return createGrokSignIn({
+    secrets: mapSecrets({ [GRANT_KEY]: JSON.stringify(grokGrantRecord()) }),
+    isRemote: false,
+    clientId: CLIENT_ID,
+    scopes: undefined,
+    fetch: discoveryOnlyFetch({ calls }),
+    openExternal: () => Promise.resolve(true),
+    log: () => undefined,
+    lock: { directory, pipeName: PIPE_NAME, timeoutMs },
+  })
+}
+
 describe('one refresh lock for the editor and the CLI', () => {
   it.each([
     { which: 'chatgpt', hold: withEditorChatGptRefreshLock, busy: 'chatgpt.lock-busy' },
@@ -105,17 +132,11 @@ describe('one refresh lock for the editor and the CLI', () => {
     async ({ which, hold, busy }) => {
       const directory = await lockDirectory('rlf-refreshlock-')
       try {
-        const { promise: entered, resolve: markEntered } = Promise.withResolvers<undefined>()
-        const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
-        const held = hold(
-          async () => {
-            markEntered(undefined)
-            await gate
-            return 'editor-held'
-          },
-          { directory, pipeName: PIPE_NAME, timeoutMs: 5000 },
-        )
-        await entered
+        const held = await holdUntilReleased(hold, 'editor-held', {
+          directory,
+          pipeName: PIPE_NAME,
+          timeoutMs: 5000,
+        })
         try {
           const child = spawnWorker(
             'contend',
@@ -133,8 +154,8 @@ describe('one refresh lock for the editor and the CLI', () => {
             child.kill()
           }
         } finally {
-          release(undefined)
-          await held
+          held.release()
+          await held.done
         }
       } finally {
         await rm(directory, { recursive: true, force: true })
@@ -149,17 +170,9 @@ describe('one refresh lock for the editor and the CLI', () => {
     // The Grok production lock has no other taker: xAI issued this app no
     // client id, so no person can hold it, and every other suite isolates
     // its own directory.
-    const { promise: entered, resolve: markEntered } = Promise.withResolvers<undefined>()
-    const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
-    const held = withEditorGrokRefreshLock(
-      async () => {
-        markEntered(undefined)
-        await gate
-        return 'editor-held'
-      },
-      { timeoutMs: 5000 },
-    )
-    await entered
+    const held = await holdUntilReleased(withEditorGrokRefreshLock, 'editor-held', {
+      timeoutMs: 5000,
+    })
     try {
       const child = spawnWorker('contend', { which: 'grok', timeoutMs: 300 }, false)
       let output = ''
@@ -173,14 +186,14 @@ describe('one refresh lock for the editor and the CLI', () => {
         child.kill()
       }
     } finally {
-      release(undefined)
-      await held
+      held.release()
+      await held.done
     }
   })
 
   it('grok: one refresh wins and the loser reads the rotated grant', async () => {
     const directory = await lockDirectory('rlf-refreshlock-')
-    const storeFile = path.join(scratch.folder, `store-${String(process.pid)}.json`)
+    const storeFile = path.join(workers.folder, `store-${String(process.pid)}.json`)
     const secrets = fileSecrets(storeFile)
     await secrets.store(
       GRANT_KEY,
@@ -255,47 +268,23 @@ describe('one refresh lock for the editor and the CLI', () => {
   it('grok: the editor sign-in fails lock-busy on a runtime-held lock', async () => {
     const directory = await lockDirectory('rlf-refreshlock-')
     try {
-      const { promise: entered, resolve: markEntered } = Promise.withResolvers<undefined>()
-      const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
-      const held = withGrokRefreshLock(
-        async () => {
-          markEntered(undefined)
-          await gate
-          return 'runtime-held'
-        },
-        { directory, pipeName: PIPE_NAME, timeoutMs: 5000 },
-      )
-      await entered
+      const held = await holdUntilReleased(withGrokRefreshLock, 'runtime-held', {
+        directory,
+        pipeName: PIPE_NAME,
+        timeoutMs: 5000,
+      })
       try {
         const calls: FetchCall[] = []
-        const signIn = createGrokSignIn({
-          secrets: mapSecrets({ [GRANT_KEY]: JSON.stringify(grokGrantRecord()) }),
-          isRemote: false,
-          clientId: CLIENT_ID,
-          scopes: undefined,
-          fetch: discoveryOnlyFetch({ calls }),
-          openExternal: () => Promise.resolve(true),
-          log: () => undefined,
-          lock: { directory, pipeName: PIPE_NAME, timeoutMs: 200 },
-        })
+        const signIn = editorSignIn(directory, calls, 200)
         const failure = await captureFailure(() => signIn.accessToken(REQUEST_URL, 60_000))
         expect(failure).toMatchObject({ code: 'lock-busy' })
         expect(calls).toEqual([])
       } finally {
-        release(undefined)
-        await held
+        held.release()
+        await held.done
       }
       const calls: FetchCall[] = []
-      const signIn = createGrokSignIn({
-        secrets: mapSecrets({ [GRANT_KEY]: JSON.stringify(grokGrantRecord()) }),
-        isRemote: false,
-        clientId: CLIENT_ID,
-        scopes: undefined,
-        fetch: discoveryOnlyFetch({ calls }),
-        openExternal: () => Promise.resolve(true),
-        log: () => undefined,
-        lock: { directory, pipeName: PIPE_NAME, timeoutMs: 2000 },
-      })
+      const signIn = editorSignIn(directory, calls, 2000)
       await expect(signIn.accessToken(REQUEST_URL, 60_000)).resolves.toBe(
         'test-access-token-placeholder',
       )

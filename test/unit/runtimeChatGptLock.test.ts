@@ -4,11 +4,11 @@
 // failure masked as "temporarily unavailable").
 import { spawn, type ChildProcess } from 'node:child_process'
 import { once } from 'node:events'
-import { lstat, mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
+import { lstat, mkdtemp, readdir, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import path from 'node:path'
-import { build } from 'esbuild'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
+import { bundleWorker } from './helpers/workerBundle'
 import {
   CHATGPT_REFRESH_LOCK_TIMEOUT_MS,
   withChatGptRefreshLock,
@@ -17,25 +17,17 @@ import { ChatGptSignInError } from '../../src/core/providers/subscriptions/chatg
 import { chatGptCommandText } from '../../src/runtime/chatGptProviderCommands'
 import { CHATGPT_GRANT_LOCK_FILE, OAUTH_CODE_TTL_MS } from '../../src/shared/constants'
 
-const scratch = { folder: '' }
+const workers = await bundleWorker(
+  'src/runtime/subscriptionRefreshLock.ts',
+  'm95b-x-lock-',
+  'lock.cjs',
+)
 // Socket-file assertions only hold where the lock binds a Unix socket
 // (macOS/Linux). On Windows the same lock binds a named pipe instead, so
 // those cases have their own pipe variants below.
 const isWindows = process.platform === 'win32'
-beforeAll(async () => {
-  const temp = path.resolve('temp')
-  await mkdir(temp, { recursive: true })
-  scratch.folder = await mkdtemp(path.join(temp, 'm95b-x-lock-'))
-  await build({
-    entryPoints: [path.resolve('src/runtime/subscriptionRefreshLock.ts')],
-    outfile: path.join(scratch.folder, 'lock.cjs'),
-    bundle: true,
-    platform: 'node',
-    format: 'cjs',
-  })
-})
 afterAll(async () => {
-  if (scratch.folder !== '') await rm(scratch.folder, { recursive: true, force: true })
+  await workers.cleanup()
 })
 
 /**
@@ -45,7 +37,7 @@ on macOS); under a CI checkout's absolute path the longer cases did not,
 and the lock then never saw its own entry (CI run 39086390519).
 */
 async function lockDirectory(prefix: string): Promise<string> {
-  return path.relative(process.cwd(), await mkdtemp(path.join(scratch.folder, prefix)))
+  return path.relative(process.cwd(), await mkdtemp(path.join(workers.folder, prefix)))
 }
 
 /** A contender's own socket entry: the lock's file name, a dot, and a name only it binds. */
@@ -64,7 +56,7 @@ function worker(directory: string): ChildProcess {
     process.execPath,
     [
       path.resolve('test/hosts/runtime-chatgpt-lock-worker.mjs'),
-      path.join(scratch.folder, 'lock.cjs'),
+      path.join(workers.folder, 'lock.cjs'),
       directory,
     ],
     {

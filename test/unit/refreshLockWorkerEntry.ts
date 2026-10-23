@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto'
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import type { SecretStore } from '../../src/host/auth/credentialStore'
-import type { FetchCall } from './helpers/grokDiscoveryFetch'
+import { readFetchCall, type FetchCall } from './helpers/grokDiscoveryFetch'
 
 export { GrokSignIn } from '../../src/core/providers/subscriptions/grok'
 export { createRuntimeGrokHost } from '../../src/runtime/grokHost'
@@ -75,20 +75,15 @@ xAI's other answers are never invented here.
 */
 export function drillFetch(options: DrillFetchOptions): typeof fetch {
   const stub: typeof fetch = async (url, init) => {
-    const href = url instanceof Request ? url.url : String(url)
-    const method = init?.method ?? (url instanceof Request ? url.method : 'GET')
-    const body = init?.body
-    let form: URLSearchParams | undefined
-    if (typeof body === 'string') form = new URLSearchParams(body)
-    else if (body instanceof URLSearchParams) form = body
-    options.calls?.push({ url: href, method, form })
-    if (method === 'GET' && href === options.discoveryUrl)
+    const call = readFetchCall(url, init)
+    options.calls?.push(call)
+    if (call.method === 'GET' && call.url === options.discoveryUrl)
       return Response.json(options.discovery, { status: 200 })
     if (
-      method === 'POST' &&
-      href === options.tokenUrl &&
-      form?.get('grant_type') === 'refresh_token' &&
-      form.get('refresh_token') === options.seedRefreshToken
+      call.method === 'POST' &&
+      call.url === options.tokenUrl &&
+      call.form?.get('grant_type') === 'refresh_token' &&
+      call.form.get('refresh_token') === options.seedRefreshToken
     ) {
       await delay(options.tokenDelayMs)
       return Response.json(
@@ -102,7 +97,7 @@ export function drillFetch(options: DrillFetchOptions): typeof fetch {
         { status: 200 },
       )
     }
-    throw new Error(`no recorded answer for ${method} ${href}`)
+    throw new Error(`no recorded answer for ${call.method} ${call.url}`)
   }
   return stub
 }
