@@ -1,14 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
-import os from 'node:os'
+import { rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { windowsPipeExecutable } from '../../../src/host/vault/slots/windowsVaultBuild'
-import { configureResources } from '../../../src/core/resources/admission'
-import { runtimeWindowsJob } from '../../../src/runtime/resources/jobs'
 import { startWindowsPipeFiles } from '../../../src/runtime/vault/windowsPipeRelay'
 import type { WindowsVaultExecutable } from '../../../src/runtime/vault/slots/windowsVaultTransport'
+import { buildWindowsVaultHelper } from '../helpers/windowsVaultHelper'
 import { UI_TEXT } from '../../../src/shared/constants'
 import { isVaultFileMissing } from '../../../src/core/vault/broker/files'
 
@@ -26,27 +23,10 @@ describe.runIf(process.platform === 'win32')('Windows pipe helper start', () => 
   // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
   // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
-    fixture.root = await mkdtemp(path.join(await realpath(os.tmpdir()), 'vs-pipestart-'))
-    // Not made here: the build makes its storage folder on first use, and
-    // the test below proves the helper lands there, never in the temp tree.
-    const storageDir = path.join(fixture.root, 'data', 'vault', 'helpers')
-    const systemRoot = process.env['SystemRoot']
-    if (systemRoot === undefined || systemRoot === '') throw new Error('SystemRoot is missing')
-    const windowsJob = runtimeWindowsJob(path.join(fixture.root, 'jobs'), path.resolve('.'))
-    fixture.dispose = configureResources({
-      inspect: () => ({}),
-      onError: () => undefined,
-      windowsJob,
-    })
-    // The job helpers compile on first governed use: prepare them here, in
-    // the hook's budget, so each case below is a launch and never a build.
-    if ((await windowsJob()) === undefined) throw new Error('the Windows job helpers did not build')
-    fixture.helper = await windowsPipeExecutable({
-      storageDir,
-      systemRoot,
-      readSlotSource: () => readFile(path.resolve('native/windows/MuseSparkVault.cs'), 'utf8'),
-      readPipeSource: () => readFile(path.resolve('native/windows/MuseSparkVaultPipe.cs'), 'utf8'),
-    })
+    const built = await buildWindowsVaultHelper('vs-pipestart-')
+    fixture.root = built.root
+    fixture.helper = built.helper
+    fixture.dispose = built.dispose
   }, 0)
   afterAll(async () => {
     fixture.dispose?.()
