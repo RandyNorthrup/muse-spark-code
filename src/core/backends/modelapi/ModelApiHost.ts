@@ -60,6 +60,7 @@ import { declaredPreviewFields } from './previewFields'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
+import process from 'node:process'
 import * as z from 'zod/mini'
 import type {
   AgentEvent,
@@ -112,6 +113,8 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
+  JUDGE_FAST_B1_READY_PLATFORMS,
+  JUDGE_FAST_VETO_WINDOW_MS,
   MCP_ELICITATION_TIMEOUT_MS,
   MEMORY_INDEX_FILE,
   type MemoryScope,
@@ -271,6 +274,15 @@ import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection } from '../../judge/same/modelApiSource'
+import { raceB1Hold, resolveB1Executable } from '../../judge/fast/approval'
+import {
+  b1Realpath,
+  closeInspectSession,
+  openInspectSession,
+  type InspectSessionBinding,
+} from '../../judge/fast/inspectExec'
+import { spawnResourceProcess } from '../../resources/launcher'
+import { fastPathAuditSchema } from '../../../shared/fastPathAudit'
 import { approvalHost } from '../../web/hostName'
 import type { PageUrlCheck } from '../../web/pageUrl'
 import {
@@ -643,6 +655,12 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly noteVaultTaint?: (sessionId: string, taint: VaultTaint) => void
   /** M98: injected same-model source; all paid dispatch admitted by lane A. */
   readonly judge?: JudgeAdvisory | undefined
+  /**
+  D107 §9.3: the B1 confine helper binary for this session. Unset, or a
+  path that is not there, keeps today's reviewer: B1 never races without
+  its confinement, and the helper ships only with certification (§11).
+  */
+  readonly b1HelperPath?: string | undefined
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
@@ -2166,6 +2184,13 @@ type ReviewedAsk =
   | { readonly decision: 'allow' }
   | { readonly decision: 'ask'; readonly note: string | undefined; readonly judgeCaution?: boolean }
 
+/** D107 §9.4: a B1 skip's delivered output, held for perform. */
+interface B1SkipOutput {
+  readonly stdout: string
+  readonly stderr: string
+  readonly exitCode: number
+}
+
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
   if (judgement?.settledBy === 'profile') {
@@ -2721,6 +2746,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   */
   private readonly shellSidecarToken = randomUUID()
   private readonly judgeCardFences = new Map<string, JudgeFence>()
+  /**
+  D107 §9.3: the session's B1 runner, opened on the first shell ask that
+  reaches the hold. Undefined keeps today's path; one instance per
+  session, so a failed self-test latches off until a new session.
+  */
+  private b1RunnerTask: Promise<InspectSessionBinding | undefined> | undefined
+  /**
+  D107 §9.4: a B1 skip's delivered output, held for perform keyed by the
+  tool call's item. perform takes and deletes on read; a shell call's
+  ask-to-perform gap holds no await, so no entry orphans.
+  */
+  private readonly b1Skips = new Map<string, B1SkipOutput>()
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   /** Live cards for a second surface joining while a decision is still pending. */
   private readonly pendingApprovalEvents = new Map<
@@ -7639,9 +7676,50 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       return { isApproved: true, feedback: undefined }
     }
+    // D107 §9.3: a shell ask may race the reviewer below against B1's
+    // confined run; a hook's own helper call never races (its review is
+    // already skipped). Anything but a skip runs today's path unchanged.
+    return !isHookHelperCall && query.toolClass === 'shell'
+      ? await this.askApprovalB1(
+          itemId,
+          call,
+          signal,
+          query,
+          question,
+          requiresUserApproval,
+          judgement,
+        )
+      : await this.askApprovalReviewed(
+          itemId,
+          call,
+          signal,
+          query,
+          question,
+          requiresUserApproval,
+          judgement,
+          isHookHelperCall,
+        )
+  }
+
+  /**
+  The ask past the hook's allow (D107 §9.3): the Auto reviewer, then the
+  card. The hold runs this as its reviewer, reporting each judge fence
+  it starts through shareFence so the veto polls the one run.
+  */
+  private async askApprovalReviewed(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    query: PermissionQuery,
+    question: { readonly card: ApprovalSubject },
+    requiresUserApproval: boolean,
+    judgement: PermissionJudgement,
+    isHookHelperCall = false,
+    shareFence?: () => JudgeFence | undefined,
+  ): Promise<ApprovalOutcome> {
     let review: ReviewedAsk | undefined
     if (!requiresUserApproval && !isHookHelperCall && judgement.isReviewable) {
-      review = await this.autoReview(call, query, signal)
+      review = await this.autoReview(call, query, signal, shareFence)
       signal.throwIfAborted()
       judgement = this.permissions.judge(query, this.policy())
       if (judgement.verdict === 'deny' || !this.deps.isWorkspaceTrusted()) {
@@ -7690,7 +7768,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           return
         }
 
-        caution = this.startJudge(call)
+        caution = shareFence === undefined ? this.startJudge(call) : shareFence()
         if (caution !== undefined) this.judgeCardFences.set(approvalId, caution)
         caution?.card(() => {
           if (
@@ -7753,6 +7831,126 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
+  One shell ask through the B1 hold (D107 §9.3): the reviewer below
+  races B1's confined run of the line, the veto polling the judge
+  fence the reviewer starts. A skip holds the delivered output for
+  perform and audits it; anything else runs today's path unchanged.
+  */
+  private async askApprovalB1(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    query: PermissionQuery,
+    question: { readonly card: ApprovalSubject },
+    requiresUserApproval: boolean,
+    judgement: PermissionJudgement,
+  ): Promise<ApprovalOutcome> {
+    const reviewed = (): Promise<ApprovalOutcome> =>
+      this.askApprovalReviewed(
+        itemId,
+        call,
+        signal,
+        query,
+        question,
+        requiresUserApproval,
+        judgement,
+      )
+    const opened = await this.b1Runner()
+    if (opened === undefined) return await reviewed()
+    const outcome = await raceB1Hold<ApprovalOutcome>({
+      line: query.command ?? call.arguments,
+      platform: process.platform,
+      floor: {
+        settledBy: judgement.settledBy,
+        tool: {
+          network: query.toolClass === 'network',
+          paid: query.toolClass === 'paid',
+          spawn: query.toolClass === 'spawn',
+          mcpWrite: query.toolClass === 'mcp' && query.isReadOnly !== true,
+        },
+        // The hold cannot see the judge engine's locality from here, so a
+        // confidential workspace always floors: fail closed (§9.3.2).
+        confidentialNonlocal: this.deps.isConfidentialWorkspace(),
+      },
+      conditions: {
+        mode: this.permissions.currentMode,
+        isHeadlessRun: this.active?.scheduleRun !== undefined,
+        isUntrustedOrigin: this.isSubagent || this.isSideChat,
+        isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
+        sessionProcessAlive: this.hasLiveCommands(),
+        // The runner opened: its helper is there, its scratch is made,
+        // and the platform confines. The race's first run is the
+        // session's self-test; the runner latches a failure.
+        confinementReady: true,
+        platform: process.platform,
+        certifiedPlatforms: JUDGE_FAST_B1_READY_PLATFORMS,
+      },
+      startReviewer: (raceSignal, shareFence) =>
+        this.askApprovalReviewed(
+          itemId,
+          call,
+          AbortSignal.any([signal, raceSignal]),
+          query,
+          question,
+          requiresUserApproval,
+          judgement,
+          false,
+          shareFence,
+        ),
+      startJudgeFence: () => this.startJudge(call),
+      runInspect: (canonical, raceSignal) =>
+        opened.runner.run(canonical, opened.workspace, AbortSignal.any([signal, raceSignal])),
+      vetoWindowMs: JUDGE_FAST_VETO_WINDOW_MS,
+    })
+    if (outcome.kind !== 'skip') return await reviewed()
+    // The skip won and the reviewer is cancelled: only a well-formed
+    // audit sends it. A malformed one re-runs the reviewer fresh; the
+    // cancelled race's verdict is gone, so the card may ask again.
+    const executable = resolveB1Executable(outcome.parsed.program, b1Realpath)
+    const audit = fastPathAuditSchema.safeParse({
+      class: 'B1',
+      program: outcome.parsed.program,
+      ...(executable !== undefined && { executable }),
+      confinement: opened.confinement,
+      confinementVersion: opened.runner.probedAbi,
+      deadlineMs: JUDGE_FAST_VETO_WINDOW_MS,
+      excluded: outcome.excluded,
+      ...(outcome.detail !== undefined && {
+        engine: outcome.detail.engine,
+        pYesMilli: outcome.detail.pYesMilli,
+        thresholdMilli: outcome.detail.thresholdMilli,
+      }),
+    })
+    if (!audit.success) return await reviewed()
+    this.b1Skips.set(itemId, {
+      stdout: outcome.stdout,
+      stderr: outcome.stderr,
+      exitCode: outcome.exitCode,
+    })
+    this.emit({ type: 'judgeFastSkip', itemId, audit: audit.data })
+    this.emit({
+      type: 'approvalResolved',
+      approvalId: this.deps.newId(),
+      itemId,
+      decision: DECISION_APPROVED,
+      resolvedBy: UI_TEXT.judgeB1.resolver,
+    })
+    return { isApproved: true, feedback: undefined }
+  }
+
+  /**
+  The session's B1 runner, opened once. Undefined keeps today's
+  reviewer: no helper, no confinement, no race.
+  */
+  private b1Runner(): Promise<InspectSessionBinding | undefined> {
+    return (this.b1RunnerTask ??= openInspectSession(
+      this.deps.b1HelperPath,
+      this.deps.workspaceRoot,
+      (file, args, options) => spawnResourceProcess('bootstrap', file, args, options),
+    ))
+  }
+
+  /**
   The Auto reviewer on an ask nothing settled (M78, PLAN.md D49): the
   paid-use popup first (D48), then one read-only call, shown as its own
   paid row. Undefined when the reviewer is off, not for this session (a
@@ -7788,6 +7986,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     call: FunctionCallItem,
     query: PermissionQuery,
     signal: AbortSignal,
+    shareFence?: () => JudgeFence | undefined,
   ): Promise<ReviewedAsk | undefined> {
     if (!this.deps.isPaidFeatureOn('autoReviewer') || this.isSubagent || this.isSideChat) {
       return undefined
@@ -7877,7 +8076,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       if (!isCurrent()) return undefined
       const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-      const caution = this.startJudge(call)
+      const caution = shareFence === undefined ? this.startJudge(call) : shareFence()
       let outcome: ReviewedAsk
       try {
         outcome = await reviewPaidCall(
@@ -11320,6 +11519,27 @@ export class ModelApiSession implements ScheduledAgentSession {
         return { outcome: this.runGoal(call) }
       }
       case shellToolFor(this.deps.platform).name: {
+        // D107 §9.4: the hold already ran this line confined and won the
+        // race; perform serves its delivered output as today's outcome.
+        const skipped = this.b1Skips.get(itemId)
+        if (skipped !== undefined) {
+          this.b1Skips.delete(itemId)
+          this.noteProcessRan()
+          return {
+            outcome: shellOutcome(
+              {
+                stdout: skipped.stdout,
+                stderr: skipped.stderr,
+                exitCode: skipped.exitCode,
+                isTimedOut: false,
+                isCancelled: false,
+              },
+              undefined,
+              TOOL_OUTPUT_MAX_CHARS,
+              true,
+            ),
+          }
+        }
         return await this.runShellCall(
           itemId,
           call,
@@ -18175,6 +18395,18 @@ export class ModelApiSession implements ScheduledAgentSession {
       void removeShellSidecar(sideFile).catch(() => {
         // Best effort: the operating system cleans its own temp dir.
       })
+    }
+    // D107 §9.3: the session's B1 runner and its scratch go with it.
+    const b1 = this.b1RunnerTask
+    if (b1 !== undefined) {
+      this.b1RunnerTask = undefined
+      void b1
+        .then(async (opened) => {
+          await closeInspectSession(opened)
+        })
+        .catch(() => {
+          // Best effort: the operating system cleans its own temp dir.
+        })
     }
     // The ledger registers on its first load; a session that never verified
     // has nothing to remove.

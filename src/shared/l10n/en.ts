@@ -5728,6 +5728,13 @@ export const EN = {
     noneUncalibrated: 'No local judge is ready yet: the fitting models still need calibration.',
     cpuOnly: 'No usable GPU was found; judging CPU-only options.',
   },
+  // M125 lane F1b (D107 §9.4, §9.6): the B1 skip's transcript row. The
+  // allow line is the design's exact words; the count fills {count}.
+  judgeB1: {
+    allowRow: 'Allowed without review: inspect command',
+    excluded: forms({ one: '{count} entry not read', other: '{count} entries not read' }),
+    resolver: 'B1 fast path',
+  },
   // The Models panel's Judge section (M98 phase 2, lane FP). Amounts are filled
   // with the display language's money format; an unknown amount is not shown as zero.
   judgePanel: {

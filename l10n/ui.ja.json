@@ -4396,6 +4396,13 @@
     "noneUncalibrated": "ローカルジャッジの準備はまだです: 適合するモデルは校正が必要です。",
     "cpuOnly": "使用可能な GPU が見つかりません。CPU の選択肢のみ判断します。"
   },
+  "judgeB1": {
+    "allowRow": "レビューなしで許可: inspectコマンド",
+    "excluded": {
+      "other": "{count}件のエントリが読み取られませんでした"
+    },
+    "resolver": "B1高速パス"
+  },
   "judgePanel": {
     "source": "出典",
     "model": "モデル",

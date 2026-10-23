@@ -4618,6 +4618,15 @@
     "noneUncalibrated": "Nessun valutatore locale è ancora pronto: i modelli adatti hanno ancora bisogno di calibrazione.",
     "cpuOnly": "Nessuna GPU utilizzabile trovata; valuto solo opzioni CPU."
   },
+  "judgeB1": {
+    "allowRow": "Consentito senza revisione: comando inspect",
+    "excluded": {
+      "one": "{count} voce non letta",
+      "other": "{count} voci non lette",
+      "many": "{count} voci non lette"
+    },
+    "resolver": "Percorso rapido B1"
+  },
   "judgePanel": {
     "source": "Origine",
     "model": "Modello",

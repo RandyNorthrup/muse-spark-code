@@ -4396,6 +4396,13 @@
     "noneUncalibrated": "本地評判器尚未就緒：合適的模型仍需校準。",
     "cpuOnly": "未找到可用的 GPU；僅評估 CPU 選項。"
   },
+  "judgeB1": {
+    "allowRow": "免複查允許：inspect 命令",
+    "excluded": {
+      "other": "未讀取 {count} 個條目"
+    },
+    "resolver": "B1 快速路徑"
+  },
   "judgePanel": {
     "source": "來源",
     "model": "模型",
