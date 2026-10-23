@@ -4,19 +4,12 @@
 // pins the ruleset's security properties and the OS6 QEMU boot parses the
 // file for real inside the booted image. The threshold gate runs the real
 // systemd-analyze against a planted insecure unit on Linux.
-import { execFileSync, spawnSync } from 'node:child_process'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
-import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { runCommand, scratch } from './helpers/nodeOs'
 
 const NFTABLES = fileURLToPath(new URL('../../os/hardening/nftables.conf', import.meta.url))
 const SYSCTL = fileURLToPath(
@@ -45,15 +38,6 @@ function hasTool(command: string): boolean {
 }
 const HAS_ANALYZE = isLinux && hasTool('systemd-analyze')
 
-function runScript(
-  script: string,
-  args: string[],
-  env?: NodeJS.ProcessEnv,
-): { status: number | null; out: string } {
-  const run = spawnSync(script, args, { encoding: 'utf8', env: env ?? process.env })
-  return { status: run.status, out: `${run.stdout}${run.stderr}` }
-}
-
 function contentLines(file: string): string[] {
   return readFileSync(file, 'utf8')
     .split('\n')
@@ -62,7 +46,7 @@ function contentLines(file: string): string[] {
 }
 
 function plantedRoot(): { root: string; unit: string } {
-  const root = mkdtempSync(path.join(tmpdir(), 'node-os-threshold-'))
+  const root = scratch('node-os-threshold-')
   const unitDir = path.join(root, 'usr', 'lib', 'systemd', 'system')
   mkdirSync(unitDir, { recursive: true })
   writeFileSync(path.join(unitDir, 'insecure-test.service'), INSECURE_UNIT)
@@ -117,7 +101,7 @@ describe('sysctl knobs', () => {
 describe.skipIf(!isLinux)('security threshold gate', () => {
   it.runIf(HAS_ANALYZE)('passes a loose threshold and fails a zero one on a planted unit', () => {
     const { root, unit } = plantedRoot()
-    const loose = runScript(THRESHOLD, [
+    const loose = runCommand(THRESHOLD, [
       '--root',
       root,
       '--threshold',
@@ -125,16 +109,16 @@ describe.skipIf(!isLinux)('security threshold gate', () => {
       unit,
     ])
     expect(loose.status).toBe(0)
-    const strict = runScript(THRESHOLD, ['--root', root, '--threshold', '0', unit])
+    const strict = runCommand(THRESHOLD, ['--root', root, '--threshold', '0', unit])
     expect(strict.status).not.toBe(0)
   })
 
   it.runIf(HAS_ANALYZE)('runs through a symlinked directory', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'node-os-threshold-link-'))
+    const dir = scratch('node-os-threshold-link-')
     const link = path.join(dir, 'hardening')
     symlinkSync(path.dirname(THRESHOLD), link, 'dir')
     const { root, unit } = plantedRoot()
-    const run = runScript(path.join(link, 'security-threshold.sh'), [
+    const run = runCommand(path.join(link, 'security-threshold.sh'), [
       '--root',
       root,
       '--threshold',
@@ -160,20 +144,20 @@ describe.skipIf(!isLinux)('security threshold gate', () => {
       { args: ['--root', root, '--threshold', '0'], anchor: 'at least one unit' },
     ]
     for (const { args, anchor } of cases) {
-      const run = runScript(THRESHOLD, args)
+      const run = runCommand(THRESHOLD, args)
       expect(run.status).toBe(2)
       expect(run.out).toContain(anchor)
     }
   })
 
   it.runIf(existsSync(BASH))('reports a missing systemd-analyze as exit 3', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'node-os-threshold-notool-'))
+    const dir = scratch('node-os-threshold-notool-')
     symlinkSync(BASH, path.join(dir, 'bash'))
     const { root, unit } = plantedRoot()
-    const run = runScript(
+    const run = runCommand(
       THRESHOLD,
       ['--root', root, '--threshold', String(LOOSE_THRESHOLD), unit],
-      { ...process.env, PATH: dir },
+      { env: { ...process.env, PATH: dir } },
     )
     expect(run.status).toBe(3)
     expect(run.out).toContain('systemd-analyze not installed')

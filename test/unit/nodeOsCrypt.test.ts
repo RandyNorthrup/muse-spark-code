@@ -5,20 +5,19 @@
 // real enrollment runs on hardware and in the OS6 QEMU boot. The signing
 // hook does a real sbsign/sbverify round trip on an EFI binary found on
 // the machine.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
   existsSync,
-  mkdtempSync,
   readdirSync,
   readFileSync,
   statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { runCommand, scratch } from './helpers/nodeOs'
 
 const CRYPTTAB = fileURLToPath(new URL('../../os/crypt/crypttab.var', import.meta.url))
 const ENROLL = fileURLToPath(new URL('../../os/crypt/enroll-var.sh', import.meta.url))
@@ -69,21 +68,50 @@ function findBlockDevice(): string | undefined {
 const BLOCK_DEVICE = isLinux ? findBlockDevice() : undefined
 const EFI_BINARY = isLinux ? EFI_CANDIDATES.find((candidate) => existsSync(candidate)) : undefined
 
-function runScript(
-  script: string,
-  args: string[],
-  options?: { env?: NodeJS.ProcessEnv; input?: string },
-): { status: number | null; out: string } {
-  const run = spawnSync(script, args, {
-    encoding: 'utf8',
-    env: options?.env ?? process.env,
-    input: options?.input,
-  })
-  return { status: run.status, out: `${run.stdout}${run.stderr}` }
+/** A throwaway self-signed key pair for the signing round trips. */
+function makeTestCert(dir: string): { key: string; cert: string } {
+  const key = path.join(dir, 'key.pem')
+  const cert = path.join(dir, 'cert.pem')
+  execFileSync('openssl', [
+    'req',
+    '-x509',
+    '-newkey',
+    'rsa:2048',
+    '-keyout',
+    key,
+    '-out',
+    cert,
+    '-days',
+    '2',
+    '-nodes',
+    '-subj',
+    '/CN=node-os-test',
+  ])
+  return { key, cert }
 }
 
-function scratch(prefix: string): string {
-  return mkdtempSync(path.join(tmpdir(), prefix))
+/** A copy of the machine's EFI binary, signed with the test key. */
+function signCopy(
+  dir: string,
+  source: string,
+  key: string,
+  cert: string,
+): { input: string; output: string } {
+  const input = path.join(dir, 'input.efi')
+  writeFileSync(input, readFileSync(source))
+  const output = path.join(dir, 'signed-input.efi')
+  const signed = runCommand(SIGN_BOOT, [
+    '--key',
+    key,
+    '--cert',
+    cert,
+    '--input',
+    input,
+    '--output',
+    output,
+  ])
+  expect(signed.status).toBe(0)
+  return { input, output }
 }
 
 describe('encrypted /var crypttab entry', () => {
@@ -161,7 +189,7 @@ describe.skipIf(!isLinux)('cryptenroll script', () => {
       },
     ]
     for (const { args, anchor } of cases) {
-      const run = runScript(ENROLL, args)
+      const run = runCommand(ENROLL, args)
       expect(run.status).toBe(2)
       expect(run.out).toContain(anchor)
     }
@@ -170,7 +198,7 @@ describe.skipIf(!isLinux)('cryptenroll script', () => {
   it('dry-runs the exact cryptenroll invocations without needing the device', () => {
     const key = path.join(scratch('node-os-enroll-dry-'), 'key.pub')
     writeFileSync(key, 'public key bytes')
-    const run = runScript(ENROLL, [
+    const run = runCommand(ENROLL, [
       '--device',
       NULL_DEVICE,
       '--public-key',
@@ -194,7 +222,7 @@ describe.skipIf(!isLinux)('cryptenroll script', () => {
   })
 
   it.runIf(BLOCK_DEVICE !== undefined)('refuses an unreadable public key on a live run', () => {
-    const run = runScript(ENROLL, [
+    const run = runCommand(ENROLL, [
       '--device',
       BLOCK_DEVICE ?? '',
       '--public-key',
@@ -211,7 +239,7 @@ describe.skipIf(!isLinux)('cryptenroll script', () => {
     () => {
       const key = path.join(scratch('node-os-enroll-empty-'), 'key.pub')
       writeFileSync(key, 'public key bytes')
-      const run = runScript(
+      const run = runCommand(
         ENROLL,
         ['--device', BLOCK_DEVICE ?? '', '--public-key', key, '--public-key-pcrs', '7'],
         { input: '' },
@@ -259,7 +287,7 @@ describe.skipIf(!isLinux)('tang bind script', () => {
       { args: ['--device', NULL_DEVICE, '--config', valid], anchor: 'not a block device' },
     ]
     for (const { args, anchor } of cases) {
-      const run = runScript(BIND_TANG, args)
+      const run = runCommand(BIND_TANG, args)
       expect(run.status).toBe(2)
       expect(run.out).toContain(anchor)
     }
@@ -269,7 +297,7 @@ describe.skipIf(!isLinux)('tang bind script', () => {
     const config = path.join(scratch('node-os-tang-dry-'), 'tang.json')
     // eslint-disable-next-line unicorn/prefer-https -- Tang serves HTTP by design; the thumbprint check is the trust anchor, and the validator must accept the http shape.
     writeFileSync(config, JSON.stringify({ url: 'http://tang.lan:7500', thp: TANG_THUMBPRINT }))
-    const run = runScript(BIND_TANG, ['--device', NULL_DEVICE, '--config', config, '--dry-run'])
+    const run = runCommand(BIND_TANG, ['--device', NULL_DEVICE, '--config', config, '--dry-run'])
     expect(run.status).toBe(0)
     expect(run.out.trim()).toBe(
       `clevis luks bind -d ${NULL_DEVICE} tang ` +
@@ -315,7 +343,7 @@ describe.skipIf(!isLinux)('boot signing hook', () => {
       },
     ]
     for (const { args, anchor } of cases) {
-      const run = runScript(SIGN_BOOT, args)
+      const run = runCommand(SIGN_BOOT, args)
       expect(run.status).toBe(2)
       expect(run.out).toContain(anchor)
     }
@@ -326,7 +354,7 @@ describe.skipIf(!isLinux)('boot signing hook', () => {
     symlinkSync(BASH, path.join(dir, 'bash'))
     const key = path.join(dir, 'key.pem')
     writeFileSync(key, 'key')
-    const run = runScript(
+    const run = runCommand(
       SIGN_BOOT,
       ['--key', key, '--cert', key, '--input', key, '--output', path.join(dir, 'out.efi')],
       { env: { ...process.env, PATH: dir } },
@@ -339,66 +367,18 @@ describe.skipIf(!isLinux)('boot signing hook', () => {
     'signs a real EFI binary and verifies it',
     () => {
       const dir = scratch('node-os-sign-live-')
-      execFileSync('openssl', [
-        'req',
-        '-x509',
-        '-newkey',
-        'rsa:2048',
-        '-keyout',
-        path.join(dir, 'key.pem'),
-        '-out',
-        path.join(dir, 'cert.pem'),
-        '-days',
-        '2',
-        '-nodes',
-        '-subj',
-        '/CN=node-os-test',
-      ])
-      const input = path.join(dir, 'input.efi')
-      writeFileSync(input, readFileSync(EFI_BINARY ?? ''))
-      const output = path.join(dir, 'signed.efi')
-      const signed = runScript(SIGN_BOOT, [
-        '--key',
-        path.join(dir, 'key.pem'),
-        '--cert',
-        path.join(dir, 'cert.pem'),
-        '--input',
-        input,
-        '--output',
-        output,
-      ])
-      expect(signed.status).toBe(0)
+      const { key, cert } = makeTestCert(dir)
+      const { input, output } = signCopy(dir, EFI_BINARY ?? '', key, cert)
       expect(statSync(output).size).toBeGreaterThan(statSync(input).size)
-      const verified = runScript(SIGN_BOOT, [
-        '--verify-only',
-        '--cert',
-        path.join(dir, 'cert.pem'),
-        '--input',
-        output,
-      ])
+      const verified = runCommand(SIGN_BOOT, ['--verify-only', '--cert', cert, '--input', output])
       expect(verified.status).toBe(0)
     },
   )
 
   it.runIf(HAS_SBSIGN && EFI_BINARY !== undefined)('rejects unsigned and tampered binaries', () => {
     const dir = scratch('node-os-sign-red-')
-    execFileSync('openssl', [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-keyout',
-      path.join(dir, 'key.pem'),
-      '-out',
-      path.join(dir, 'cert.pem'),
-      '-days',
-      '2',
-      '-nodes',
-      '-subj',
-      '/CN=node-os-test',
-    ])
-    const cert = path.join(dir, 'cert.pem')
-    const unsigned = runScript(SIGN_BOOT, [
+    const { key, cert } = makeTestCert(dir)
+    const unsigned = runCommand(SIGN_BOOT, [
       '--verify-only',
       '--cert',
       cert,
@@ -406,53 +386,26 @@ describe.skipIf(!isLinux)('boot signing hook', () => {
       EFI_BINARY ?? '',
     ])
     expect(unsigned.status).toBe(1)
-    const input = path.join(dir, 'input.efi')
-    writeFileSync(input, readFileSync(EFI_BINARY ?? ''))
-    const output = path.join(dir, 'signed.efi')
-    const signed = runScript(SIGN_BOOT, [
-      '--key',
-      path.join(dir, 'key.pem'),
-      '--cert',
-      cert,
-      '--input',
-      input,
-      '--output',
-      output,
-    ])
-    expect(signed.status).toBe(0)
+    const { output } = signCopy(dir, EFI_BINARY ?? '', key, cert)
     const tampered = path.join(dir, 'tampered.efi')
     const bytes = readFileSync(output)
     bytes[Math.floor(bytes.length / 2)] = (bytes[Math.floor(bytes.length / 2)] ?? 0) ^ 0xff
     writeFileSync(tampered, bytes)
-    const checked = runScript(SIGN_BOOT, ['--verify-only', '--cert', cert, '--input', tampered])
+    const checked = runCommand(SIGN_BOOT, ['--verify-only', '--cert', cert, '--input', tampered])
     expect(checked.status).toBe(1)
   })
 
   it.runIf(HAS_SBSIGN)('leaves no output behind when signing fails', () => {
     const dir = scratch('node-os-sign-fail-')
-    execFileSync('openssl', [
-      'req',
-      '-x509',
-      '-newkey',
-      'rsa:2048',
-      '-keyout',
-      path.join(dir, 'key.pem'),
-      '-out',
-      path.join(dir, 'cert.pem'),
-      '-days',
-      '2',
-      '-nodes',
-      '-subj',
-      '/CN=node-os-test',
-    ])
+    const { key, cert } = makeTestCert(dir)
     const input = path.join(dir, 'broken.efi')
     writeFileSync(input, malformedPe())
     const output = path.join(dir, 'out.efi')
-    const run = runScript(SIGN_BOOT, [
+    const run = runCommand(SIGN_BOOT, [
       '--key',
-      path.join(dir, 'key.pem'),
+      key,
       '--cert',
-      path.join(dir, 'cert.pem'),
+      cert,
       '--input',
       input,
       '--output',

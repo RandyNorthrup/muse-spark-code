@@ -3,10 +3,10 @@
 // stops the server; SSH keys come from the installed ssh-keygen and disks
 // from a sysfs-shaped fixture beside the real /sys cases next door.
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { scratch } from './helpers/nodeOs'
 import { fill, UI_TEXT } from '../../src/shared/l10n/text'
 import {
   createSetupServer,
@@ -22,10 +22,6 @@ afterEach(async () => {
     if (server !== undefined) await server.close()
   }
 })
-
-function scratch(tag: string): string {
-  return mkdtempSync(path.join(tmpdir(), tag))
-}
 
 async function get(url: string): Promise<{ status: number; text: string }> {
   const response = await fetch(url)
@@ -63,11 +59,12 @@ function fixtureSysfs(root: string): string {
   return sys
 }
 
-async function started(): Promise<{ url: string; code: string; root: string }> {
-  const root = scratch('node-os-server-')
-  const stateDir = path.join(root, 'state')
-  const bootDir = path.join(root, 'boot')
-  mkdirSync(bootDir, { recursive: true })
+/** Fresh setup state plus its serving server, closed by the afterEach. */
+async function prepareAndServe(
+  root: string,
+  stateDir: string,
+  bootDir: string,
+): Promise<{ server: SetupServer; code: string }> {
   const prepared = prepareSetupState(stateDir, bootDir)
   if (prepared.code === null) throw new Error('fresh setup has no code')
   const server = await createSetupServer({
@@ -79,7 +76,42 @@ async function started(): Promise<{ url: string; code: string; root: string }> {
     sysfsRoot: fixtureSysfs(root),
   })
   servers.push(server)
-  return { url: server.url, code: prepared.code, root }
+  return { server, code: prepared.code }
+}
+
+async function started(): Promise<{ url: string; code: string; root: string }> {
+  const root = scratch('node-os-server-')
+  const stateDir = path.join(root, 'state')
+  const bootDir = path.join(root, 'boot')
+  mkdirSync(bootDir, { recursive: true })
+  const { server, code } = await prepareAndServe(root, stateDir, bootDir)
+  return { url: server.url, code, root }
+}
+
+/** The wizard page after the fresh setup code is posted. */
+async function wizardTextAfterCode(
+  root: string,
+  stateDir: string,
+  bootDir: string,
+): Promise<string> {
+  const { server, code } = await prepareAndServe(root, stateDir, bootDir)
+  const wizard = await postForm(`${server.url}code`, { code })
+  return wizard.text
+}
+
+/** A scratch root whose boot partition carries the given seed files. */
+function seededRoot(
+  prefix: string,
+  seeds: Record<string, string>,
+): { root: string; stateDir: string; bootDir: string } {
+  const root = scratch(prefix)
+  const stateDir = path.join(root, 'state')
+  const bootDir = path.join(root, 'boot')
+  mkdirSync(bootDir, { recursive: true })
+  for (const [name, content] of Object.entries(seeds)) {
+    writeFileSync(path.join(bootDir, name), content)
+  }
+  return { root, stateDir, bootDir }
 }
 
 describe('setup server', () => {
@@ -201,64 +233,30 @@ describe('setup server', () => {
   })
 
   it('prefills the wizard from the seed', async () => {
-    const root = scratch('node-os-server-seed-')
+    const { root, stateDir, bootDir } = seededRoot('node-os-server-seed-', {
+      'network-config':
+        'network:\n  version: 2\n  wifis:\n    wlan0:\n      dhcp4: true\n      access-points:\n        SeedNet:\n          password: seed-password\n',
+      'user-data': `#cloud-config\nhostname: seedbox\nssh_authorized_keys:\n  - ${sshKey}\n`,
+    })
     try {
       const text = UI_TEXT.nodeOs
-      const stateDir = path.join(root, 'state')
-      const bootDir = path.join(root, 'boot')
-      mkdirSync(bootDir, { recursive: true })
-      writeFileSync(
-        path.join(bootDir, 'network-config'),
-        'network:\n  version: 2\n  wifis:\n    wlan0:\n      dhcp4: true\n      access-points:\n        SeedNet:\n          password: seed-password\n',
-      )
-      writeFileSync(
-        path.join(bootDir, 'user-data'),
-        `#cloud-config\nhostname: seedbox\nssh_authorized_keys:\n  - ${sshKey}\n`,
-      )
-      const prepared = prepareSetupState(stateDir, bootDir)
-      if (prepared.code === null) throw new Error('fresh setup has no code')
-      const server = await createSetupServer({
-        stateDir,
-        bootDir,
-        host: '127.0.0.1',
-        port: 0,
-        maxBodyBytes: 1_000_000,
-        sysfsRoot: fixtureSysfs(root),
-      })
-      servers.push(server)
-      const wizard = await postForm(`${server.url}code`, { code: prepared.code })
-      expect(wizard.text).toContain(text.netSeedNote)
-      expect(wizard.text).toContain('value="SeedNet"')
-      expect(wizard.text).toContain(sshKey)
+      const wizard = await wizardTextAfterCode(root, stateDir, bootDir)
+      expect(wizard).toContain(text.netSeedNote)
+      expect(wizard).toContain('value="SeedNet"')
+      expect(wizard).toContain(sshKey)
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
   })
 
   it('says a refused seed on the wizard', async () => {
-    const root = scratch('node-os-server-refusal-')
+    const { root, stateDir, bootDir } = seededRoot('node-os-server-refusal-', {
+      'network-config': 'version: 2\nethernets:\n  eth0:\n    addresses: [192.168.1.10/24]\n',
+    })
     try {
       const text = UI_TEXT.nodeOs
-      const stateDir = path.join(root, 'state')
-      const bootDir = path.join(root, 'boot')
-      mkdirSync(bootDir, { recursive: true })
-      writeFileSync(
-        path.join(bootDir, 'network-config'),
-        'version: 2\nethernets:\n  eth0:\n    addresses: [192.168.1.10/24]\n',
-      )
-      const prepared = prepareSetupState(stateDir, bootDir)
-      if (prepared.code === null) throw new Error('fresh setup has no code')
-      const server = await createSetupServer({
-        stateDir,
-        bootDir,
-        host: '127.0.0.1',
-        port: 0,
-        maxBodyBytes: 1_000_000,
-        sysfsRoot: fixtureSysfs(root),
-      })
-      servers.push(server)
-      const wizard = await postForm(`${server.url}code`, { code: prepared.code })
-      expect(wizard.text).toContain(fill(text.seedRefused, { reason: 'seed-network-static' }))
+      const wizard = await wizardTextAfterCode(root, stateDir, bootDir)
+      expect(wizard).toContain(fill(text.seedRefused, { reason: 'seed-network-static' }))
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
