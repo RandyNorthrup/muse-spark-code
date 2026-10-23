@@ -5220,6 +5220,15 @@ export const EN = {
   announceApprovalFor: 'Approval needed for {tool}',
   // A failed turn's card when the backend gave no reason.
   turnFailed: 'The turn failed.',
+  // Retry on a failed turn the backend judged retryable (RLF-ACPTURNS):
+  // the error row's button resends the turn's own message.
+  turnRetryAction: 'Retry',
+  // The retry was refused: the turn's message is gone, it failed beyond
+  // retrying, or the conversation moved on. Sending again still works.
+  turnRetryUnavailable: 'That turn can no longer be retried. Send your message again.',
+  // A retry pressed while a turn runs: the row's button is disabled
+  // then, so this answers only the race.
+  turnRetryBusy: 'Wait for the reply to finish, or stop it, before retrying.',
   turnRetrying: 'Attempt {attempt}/{maxAttempts} failed ({reason}); retrying in {seconds} s.',
   // A retry notice with no retry limit (lane RETRYLIMITS): neither the
   // provider nor the person sets one, so the provider governs.
