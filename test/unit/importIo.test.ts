@@ -24,8 +24,16 @@ describe('isPathPresent', () => {
     const file = path.join(base, 'present.txt')
     await writeFile(file, 'words')
     await expect(isPathPresent(file)).resolves.toBe(true)
-    const dangling = path.join(base, 'dangling.txt')
-    symlinkSync(missing, dangling)
+    // A broken link reads as present. Where this account cannot create
+    // symlinks (Windows without the privilege), a dangling junction does:
+    // lstat sees both alike.
+    const isWindows = process.platform === 'win32'
+    const dangling = path.join(base, isWindows ? 'dangling' : 'dangling.txt')
+    symlinkSync(
+      isWindows ? path.join(base, 'missing-dir') : missing,
+      dangling,
+      isWindows ? 'junction' : 'file',
+    )
     await expect(isPathPresent(dangling)).resolves.toBe(true)
   })
 })

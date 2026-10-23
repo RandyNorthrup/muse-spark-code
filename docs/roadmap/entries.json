@@ -1280,6 +1280,11 @@
       "note": "Grok subscription sign-in (xAI OAuth), pending xAI's registration"
     },
     {
+      "id": "RLINTFIX",
+      "public": false,
+      "note": "recovery: int/recovery gates, build and unit suite green on the owner PC"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

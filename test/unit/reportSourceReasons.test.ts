@@ -197,7 +197,14 @@ const cases: readonly ReasonCase[] = [
     run: async (dataDir) => {
       const outside = await temps.dir('m113-reasons-outside-')
       await writeFile(path.join(outside, 'providers.json'), registryWith({ meta: goodMetaEntry() }))
-      await symlink(path.join(outside, 'providers.json'), path.join(dataDir, 'providers.json'))
+      // A linked registry is refused. Where this account cannot create
+      // symlinks (Windows without the privilege), a hard link trips the
+      // same `refused`: the reader refuses nlink above one like a symlink.
+      if (process.platform === 'win32') {
+        await link(path.join(outside, 'providers.json'), path.join(dataDir, 'providers.json'))
+      } else {
+        await symlink(path.join(outside, 'providers.json'), path.join(dataDir, 'providers.json'))
+      }
       return await readAccounts(dataDir)
     },
     want: {
@@ -273,10 +280,15 @@ const cases: readonly ReasonCase[] = [
       const outside = await temps.dir('m113-reasons-outside-')
       await writeFile(path.join(outside, 'developer-audit.jsonl'), auditLine('unlock', 'palette'))
       await mkdir(path.join(dataDir, 'developer'), { recursive: true })
-      await symlink(
-        path.join(outside, 'developer-audit.jsonl'),
-        path.join(dataDir, 'developer', 'developer-audit.jsonl'),
-      )
+      // A linked audit is refused. Where this account cannot create
+      // symlinks (Windows without the privilege), a hard link trips the
+      // same `refused`: the reader refuses nlink above one like a symlink.
+      const target = path.join(dataDir, 'developer', 'developer-audit.jsonl')
+      if (process.platform === 'win32') {
+        await link(path.join(outside, 'developer-audit.jsonl'), target)
+      } else {
+        await symlink(path.join(outside, 'developer-audit.jsonl'), target)
+      }
       return await readSecurity(dataDir)
     },
     want: {

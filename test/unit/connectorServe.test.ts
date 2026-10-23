@@ -10,9 +10,8 @@
 // these cases and their ports stay unbound here — their wiring is proven
 // by test/e2e/connectorStdio.e2e.test.ts on the built product.)
 import { request } from 'node:http'
-import { mkdtemp, readFile } from 'node:fs/promises'
+import { readFile } from 'node:fs/promises'
 import { createConnection } from 'node:net'
-import os from 'node:os'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
 import { setTimeout as sleep } from 'node:timers/promises'
@@ -28,7 +27,7 @@ import { startApprovalPage } from '../../src/runtime/connector/approvalPage'
 import { parseConnectorCommand, runConnectorCommand } from '../../src/runtime/connector/command'
 import { runConnector, type ConnectorRuntimeDeps } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
-import { removeFolder } from './helpers/temporaryFolders'
+import { usingPrivateDir } from './helpers/temporaryFolders'
 import { connectorCall, connectorHeaders, connectorLogin } from './helpers/connectorLoopback'
 
 const CANARY = 'sk-connector-canary-1234567890'
@@ -205,8 +204,7 @@ async function saveAwaiting(server: Serving): Promise<string> {
 
 /** One save through the page's decision; its operation state and the library afterwards. */
 async function decidedSave(isApproved: boolean) {
-  const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
-  try {
+  return await usingPrivateDir('m124-serve-', async (data) => {
     await granted(data, ['prompts:write'])
     let launch = ''
     const server = serve(data, (url) => {
@@ -225,15 +223,12 @@ async function decidedSave(isApproved: boolean) {
     } finally {
       await server.close()
     }
-  } finally {
-    await removeFolder(data)
-  }
+  })
 }
 
 describe('M124 connector serving (real store, page and pipes)', () => {
   it('serves granted reads scrubbed and writes nothing of them to the audit', async () => {
-    const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
-    try {
+    await usingPrivateDir('m124-serve-', async (data) => {
       await granted(data, ['prompts:read', 'content:read'])
       const seeded: SavedPrompt = {
         schemaVersion: PROMPT_SCHEMA_VERSION,
@@ -262,9 +257,7 @@ describe('M124 connector serving (real store, page and pipes)', () => {
       expect(journal).not.toContain(CANARY)
       expect(journal).not.toContain(data)
       expect(journal).toContain('"event":"settled"')
-    } finally {
-      await removeFolder(data)
-    }
+    })
   })
 
   it('writes a save only after the approval page approves it, once', async () => {
@@ -281,8 +274,7 @@ describe('M124 connector serving (real store, page and pipes)', () => {
   })
 
   it('stops pending work when the kill switch lands, while Stop still answers', async () => {
-    const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
-    try {
+    await usingPrivateDir('m124-serve-', async (data) => {
       await granted(data, ['prompts:write', 'prompts:read'])
       const server = serve(data, () => Promise.resolve())
       try {
@@ -305,14 +297,11 @@ describe('M124 connector serving (real store, page and pipes)', () => {
       } finally {
         await server.close()
       }
-    } finally {
-      await removeFolder(data)
-    }
+    })
   })
 
   it('refuses the save and retires the real page listener when the browser opener fails', async () => {
-    const data = await mkdtemp(path.join(os.tmpdir(), 'm124-serve-'))
-    try {
+    await usingPrivateDir('m124-serve-', async (data) => {
       await granted(data, ['prompts:write'])
       let origin = ''
       const server = serve(data, (url) => {
@@ -339,9 +328,7 @@ describe('M124 connector serving (real store, page and pipes)', () => {
       } finally {
         await server.close()
       }
-    } finally {
-      await removeFolder(data)
-    }
+    })
   })
 })
 

@@ -1,5 +1,5 @@
 // M124 (D106, RVM124 finding 15): the connector's storage guard for real:
-// a real ConnectorStore bound to the real guard in a real temporary data
+// a real ConnectorStore bound to the real guard in a real private data
 // folder. What the store creates comes back private to the current account
 // (an independent Get-Acl read on Windows, stat on POSIX); storage planted
 // the legacy way is refused; links and escapes are refused; the entry
@@ -18,7 +18,7 @@ import { runConnector } from '../../src/runtime/connector/entry'
 import { ConnectorStore } from '../../src/runtime/connector/store'
 import { connectorStorageGuard } from '../../src/runtime/connector/storageGuard'
 import { isStorageRefused } from '../../src/runtime/connector/storageGuardPort'
-import { usingTempDir } from './helpers/temporaryFolders'
+import { usingPrivateDir } from './helpers/temporaryFolders'
 
 function run(file: string, args: readonly string[]): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -144,7 +144,7 @@ async function refusalOf(work: () => Promise<unknown>): Promise<{ reason: string
 
 describe('M124 connector storage guard', () => {
   it('secures what the store creates, then verifies the tree', async () => {
-    await usingTempDir('m124-guard-', async (data) => {
+    await usingPrivateDir('m124-guard-', async (data) => {
       const root = path.join(data, CONNECTOR_FOLDER)
       const guard = connectorStorageGuard(root)
       const store = new ConnectorStore(data, guard)
@@ -165,7 +165,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('refuses storage planted the legacy way', async () => {
-    await usingTempDir('m124-guard-legacy-', async (data) => {
+    await usingPrivateDir('m124-guard-legacy-', async (data) => {
       // A real grant through an unbound store: byte-real pre-fix storage.
       expect(await grant(new ConnectorStore(data))).toBe(0)
       const guard = connectorStorageGuard(path.join(data, CONNECTOR_FOLDER))
@@ -175,7 +175,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('refuses a link below the root', async () => {
-    await usingTempDir('m124-guard-link-', async (data) => {
+    await usingPrivateDir('m124-guard-link-', async (data) => {
       const { root, guard } = await securedRoot(data)
       const target = path.join(data, 'outside')
       await mkdir(target)
@@ -192,7 +192,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('refuses a hard link below the root', async () => {
-    await usingTempDir('m124-guard-hardlink-', async (data) => {
+    await usingPrivateDir('m124-guard-hardlink-', async (data) => {
       const { root, guard } = await securedRoot(data)
       const target = path.join(root, 'target.json')
       await writeFile(target, '{}\n')
@@ -204,7 +204,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('refuses to secure outside the root', async () => {
-    await usingTempDir('m124-guard-scope-', async (data) => {
+    await usingPrivateDir('m124-guard-scope-', async (data) => {
       const stray = path.join(data, 'stray.json')
       await writeFile(stray, '{}\n')
       const guard = connectorStorageGuard(path.join(data, CONNECTOR_FOLDER))
@@ -214,7 +214,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('refuses to serve untrusted storage, silently on stdout', async () => {
-    await usingTempDir('m124-guard-serve-', async (data) => {
+    await usingPrivateDir('m124-guard-serve-', async (data) => {
       expect(await grant(new ConnectorStore(data))).toBe(0)
       const root = path.join(data, CONNECTOR_FOLDER)
       const ran = await runEntry(data, root, [])
@@ -225,7 +225,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('reports the refusal instead of the grants on untrusted storage', async () => {
-    await usingTempDir('m124-guard-status-', async (data) => {
+    await usingPrivateDir('m124-guard-status-', async (data) => {
       expect(await grant(new ConnectorStore(data))).toBe(0)
       const root = path.join(data, CONNECTOR_FOLDER)
       const ran = await runEntry(data, root, ['status'])
@@ -236,7 +236,7 @@ describe('M124 connector storage guard', () => {
   })
 
   it('still narrows untrusted storage on revoke and kill', async () => {
-    await usingTempDir('m124-guard-narrow-', async (data) => {
+    await usingPrivateDir('m124-guard-narrow-', async (data) => {
       expect(await grant(new ConnectorStore(data))).toBe(0)
       const root = path.join(data, CONNECTOR_FOLDER)
       const revokedRan = await runEntry(data, root, ['revoke'])

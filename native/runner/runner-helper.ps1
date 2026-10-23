@@ -70,8 +70,11 @@ public static class MuseRunnerJob {
   public static void Start(string application,string command,string output) {
     if(command.Length>=32767) throw new InvalidOperationException("runner command line exceeds CreateProcess limit");
     // Direct inheritable file handles: no Start-Process pipe pump dies with SSH.
+    // Delete-shared: readers unlink the run's output once the record is
+    // observable even while the supervisor lingers shutting down; the
+    // release-before-record below still frees it promptly either way.
     using(SafeFileHandle input=CreateFile("NUL",0x80000000,3,IntPtr.Zero,3,0,IntPtr.Zero))
-    using(FileStream log=new FileStream(output,FileMode.CreateNew,FileAccess.Write,FileShare.ReadWrite)) {
+    using(FileStream log=new FileStream(output,FileMode.CreateNew,FileAccess.Write,FileShare.ReadWrite|FileShare.Delete)) {
       if(input.IsInvalid) throw new System.ComponentModel.Win32Exception();
       Startup start=new Startup(); start.cb=(uint)Marshal.SizeOf(start); start.flags=0x100;
       ProcessInfo child=new ProcessInfo(); IntPtr attributes=IntPtr.Zero,handles=IntPtr.Zero; bool attributesReady=false;
@@ -175,7 +178,9 @@ switch ($Action) {
     'output' {
         $file = Join-Path (Get-RunPath $RunId) 'output'
         if (Test-Path -LiteralPath $file) {
-            $stream=[IO.File]::Open($file,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::ReadWrite)
+            # Delete-shared like the supervisor's own open: a concurrent
+            # deleter never waits out this stream.
+            $stream=[IO.File]::Open($file,[IO.FileMode]::Open,[IO.FileAccess]::Read,([IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete))
             $bytes=[IO.MemoryStream]::new()
             try { $stream.CopyTo($bytes); Write-Protocol @{bytes=[Convert]::ToBase64String($bytes.ToArray())} }
             finally { $bytes.Dispose(); $stream.Dispose() }

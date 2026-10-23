@@ -46,7 +46,7 @@ describe('usable-reply guard', () => {
     })
   })
 
-  it('passes through a symlinked directory', { timeout: 20_000 }, () => {
+  it('passes through a linked directory', { timeout: 20_000 }, () => {
     const output = execGuardViaSymlinkedScripts(
       REPO,
       'check-usable-reply.mjs',

@@ -275,6 +275,10 @@ happened, not what was planned; superseded entries are kept.
 - **Stale helper builds retire on process exit.** An older MCP job
   executable a live process has loaded is removed when that process ends
   instead of warning on every start.
+- **Finished runs release their output on Windows.** A run's output file
+  can be cleaned up as soon as the run reports ended, even while its
+  helper is still shutting down, instead of failing until the helper
+  exits.
 - Key-billed team work paces as background `team` traffic, so team dispatches
   queue behind the provider's headroom instead of spending the user's
   foreground turn.

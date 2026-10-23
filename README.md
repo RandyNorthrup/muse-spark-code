@@ -5733,19 +5733,12 @@ See the [ACP guide](docs/acp.md), the [CI guide](docs/ci.md) and the
 [M80 record](docs/certification/m80.md) for tests, deliberate breaks, platform
 results and what is still open.
 
-`exec --team --backend modelApi --permission-mode acceptEdits
---max-budget-usd <usd>` runs the configured workspace team in-process
-(behind the agent-teams availability switch, off until certified).
-Every worker request shares the hard run budget; local engines need no key.
-Questions deny, protected or unreviewed merges are held under a named ref
-instead of discarded, and ordinary merges enter the run's
-working tree after local checks, for M80's exact patch review. The run records
-its board, copies and task refs in a cleanup ledger and removes them on
-shutdown; a later run sweeps what a dead run left. Store the workspace `TeamSnapshot` in the
-agent data folder's `acp/<workspaceKey>/team.json`; Default follows exec's
-provider/model, and `.muse/team.json` can only lower limits. Muse Code and
-external workers cannot run headlessly. See [the headless contract](docs/ci.md)
-for snapshot fields, billing and cleanup.
+Headless teams are not yet available: `exec` has no `--team` flag in
+this release (the agent-teams availability switch is off until the runner
+lane is certified, and the parser answers `--team` as an unknown argument).
+No workspace team can run headlessly yet. See [the headless
+contract](docs/ci.md) and [the M96b record](docs/certification/m96b.md) for
+the certified design and what is still open.
 
 ### Other CI systems
 
@@ -6978,9 +6971,10 @@ required before claiming those source routes are supported.
 
 ### Team configuration
 
-Roles and Agents in Models & Agents remain hidden until the production team
+Team configuration is not yet available in the release: Roles and Agents in
+Models & Agents remain hidden until the production team
 worker binding and its complete configuration ports are installed. The portable editor and shared React sections
-are implemented and tested with an enabled fake host; that does not enable
+are implemented and tested; that does not enable
 workers in the released extension. The saved workspace document is
 `museSpark.team.config`, followed by `TeamHostBinding.reload()`. The per-role
 editor loads on first use, with accessible loading and a retry on chunk failure.

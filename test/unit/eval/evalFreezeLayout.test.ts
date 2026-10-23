@@ -13,7 +13,17 @@
 
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { cpSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import {
+  chmodSync,
+  copyFileSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readlinkSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -60,39 +70,32 @@ function gitNested(nested: string, args: readonly string[]): void {
   })
 }
 
-// Copy exactly the digest-relevant sources: every tracked file under
-// `src/` (the family walk covers the whole committed family) plus the
-// frozen source list's non-`src` entries (configs, scripts, tests, the
-// lockfile, the native helpers). Untracked scratch stays out of both
-// trees, so it cannot move either digest (proved in evalFrozen.test.ts);
-// anything the freeze reads is present, so an under-copy fails loudly
-// instead of passing quietly.
+// Copy exactly the digest-relevant sources, file by file: every tracked
+// file under `src/` (the family walk covers the whole committed family)
+// plus the frozen source list's non-`src` entries (configs, scripts,
+// tests, the lockfile, the native helpers). Untracked scratch stays out
+// of both trees, so it cannot move either digest (proved in
+// evalFrozen.test.ts); anything the freeze reads is present, so an
+// under-copy fails loudly instead of passing quietly. Per-file, never a
+// recursive tree copy: the stage may sit inside the repository (TMP under
+// the checkout), where a tree copy refuses as a copy into itself, while
+// named files land for any TMP.
 function copyTrackedSources(repo: string, nested: string, sources: readonly string[]): void {
-  const keep = new Set(
-    trackedFiles(repo)
-      .map((file) => file.replaceAll('\\', '/'))
-      .filter((file) => file === 'src' || file.startsWith('src/') || sources.includes(file)),
-  )
-  const keepDir = new Set<string>()
+  const keep = trackedFiles(repo)
+    .map((file) => file.replaceAll('\\', '/'))
+    .filter((file) => file === 'src' || file.startsWith('src/') || sources.includes(file))
   for (const file of keep) {
-    let dir = file.split('/').slice(0, -1).join('/')
-    while (dir !== '' && !keepDir.has(dir)) {
-      keepDir.add(dir)
-      dir = dir.split('/').slice(0, -1).join('/')
+    const source = path.join(repo, ...file.split('/'))
+    const target = path.join(nested, ...file.split('/'))
+    mkdirSync(path.dirname(target), { recursive: true })
+    const stat = lstatSync(source)
+    if (stat.isSymbolicLink()) {
+      symlinkSync(readlinkSync(source), target)
+    } else {
+      copyFileSync(source, target)
+      chmodSync(target, stat.mode)
     }
   }
-  cpSync(repo, nested, {
-    recursive: true,
-    filter: (entry) => {
-      const relative = path.relative(repo, entry).replaceAll('\\', '/')
-      if (relative === '') return true
-      // The install, the VCS metadata and the build output travel
-      // separately (the dependency link below) or not at all.
-      const top = relative.split('/', 1)[0] ?? ''
-      if (['node_modules', '.git', 'dist'].includes(top)) return false
-      return statSync(entry).isDirectory() ? keepDir.has(relative) : keep.has(relative)
-    },
-  })
 }
 
 // The nested freeze genuinely rebuilds the whole harness in a child

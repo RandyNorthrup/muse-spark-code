@@ -131,7 +131,7 @@ export function describeSourceGuard(drill: SourceGuardDrill): void {
       })
     })
 
-    it('passes through a symlinked directory', () => {
+    it('passes through a linked directory', () => {
       const output = execGuardViaSymlinkedScripts(
         repo,
         drill.scriptName,
@@ -154,7 +154,14 @@ export function execGuardViaSymlinkedScripts(
   const dir = path.join(osTmpdir(), `${tag}-${String(process.pid)}`)
   mkdirSync(dir, { recursive: true })
   try {
-    symlinkSync(path.join(repo, 'scripts'), path.join(dir, 'scripts'))
+    // A directory link to the scripts: a junction where this account
+    // cannot create symlinks (Windows without the privilege), which the
+    // started script resolves exactly like a symlink.
+    symlinkSync(
+      path.join(repo, 'scripts'),
+      path.join(dir, 'scripts'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
     return execFileSync('node', [path.join(dir, 'scripts', scriptName), ...args], {
       cwd: repo,
       encoding: 'utf8',

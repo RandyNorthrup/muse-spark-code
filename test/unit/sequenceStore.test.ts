@@ -2,7 +2,7 @@
 // JSON file per sequence under its scope's `sequences/` folder; blanks
 // refuse in words, a damaged scope refuses in fixed words, and a held
 // lock says the store is busy.
-import { mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -91,7 +91,17 @@ describe('sequence store', () => {
     const outside = path.join(dataFolder, 'outside.json')
     await writeFile(outside, '{}')
     await rm(target)
-    await symlink(outside, target)
+    // A linked sequence file is refused, never followed. Where this
+    // account cannot create symlinks (Windows without the privilege), a
+    // junction reports the same flags the scan refuses (not a file, a
+    // symbolic link).
+    if (process.platform === 'win32') {
+      const outsideDir = path.join(dataFolder, 'outside-dir')
+      await mkdir(outsideDir)
+      await symlink(outsideDir, target, 'junction')
+    } else {
+      await symlink(outside, target)
+    }
     await expect(store.library()).rejects.toThrow(UI_TEXT.promptStoreDamaged)
   })
 
