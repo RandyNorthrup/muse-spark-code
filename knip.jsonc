@@ -618,7 +618,9 @@
     "dash",
     "flock",
     "openssl",
-    "gpgv"
+    "gpgv",
+    "gcc",
+    "gpg"
   ],
 
   "ignoreExportsUsedInFile": true,
