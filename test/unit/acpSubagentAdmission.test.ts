@@ -1,4 +1,4 @@
-// The ACP agent's child-work admission (M116, PLAN.md D215): `/agents
+// The ACP agent's child-work admission (M116, PLAN.md D219): `/agents
 // continue|retry` through the `SubagentAdmission` port. The M107
 // governor's latest reading pauses the resume only at its paused level,
 // where the governor itself pauses new work; unknown — no reading, or a

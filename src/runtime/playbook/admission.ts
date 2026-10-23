@@ -1,7 +1,7 @@
-// The ACP agent's child-work admission (M116, PLAN.md D215): `/agents
+// The ACP agent's child-work admission (M116, PLAN.md D219): `/agents
 // continue|retry` through the same `SubagentAdmission` port the Model API
 // host consults, as a `delegate` round. The decision is the hosts'
-// capacity (D213): the M107 governor's latest reading pauses the resume
+// capacity (D217): the M107 governor's latest reading pauses the resume
 // only at its paused level, where the governor itself pauses new work;
 // unknown never pauses work (owner rule). No journal is read or written:
 // ACP sessions hold no module rounds (no runtime writer records a

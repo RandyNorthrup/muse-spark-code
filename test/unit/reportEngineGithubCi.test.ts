@@ -1,4 +1,4 @@
-// M116 (D212): the report engine tells the team runner's CI holder what a
+// M116 (D216): the report engine tells the team runner's CI holder what a
 // generation observed: the CI check runs through the real github source
 // over the recorded 2026-09-28 capture, a failure when the read fails,
 // and nothing when no generation attempted the read.

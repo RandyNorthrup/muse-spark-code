@@ -2521,7 +2521,7 @@ export const PLAYBOOK_CONFIGURABLE_RULES = [
 ] as const
 export const PLAYBOOK_SAFETY_RULE = 'neverAround'
 export const PLAYBOOK_RESOLUTIONS = ['impossible', 'caught', 'remains'] as const
-// D214: why-note codes that report progress, never a failure or a refusal.
+// D218: why-note codes that report progress, never a failure or a refusal.
 // Every other code sorts as failing in the one report ordering (shared
 // playbookRecordReportFlags); the CLI's buckets and the policy's orderReport
 // share this set, so owner/unresolved rows come first in all editors.
@@ -2552,7 +2552,7 @@ export const PLAYBOOK_PANEL_TIMEOUT_MS = 75_000
 export const PLAYBOOK_PANEL_TEAM = 'panel'
 export const PLAYBOOK_PANEL_LANE = 'panel'
 export const PLAYBOOK_SURFACE_LANE = 'surface'
-// The team runner's orchestration (M116, PLAN.md D212): one team id and one
+// The team runner's orchestration (M116, PLAN.md D216): one team id and one
 // lane label per workspace journal, beside the panel's.
 export const PLAYBOOK_TEAM_RUNNER = 'team'
 // D96.1's default module: the file's directory two levels under the source root.

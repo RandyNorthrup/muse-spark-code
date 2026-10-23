@@ -1,4 +1,4 @@
-// M116 (D212): the playbook's dispatch base over the team's own governed
+// M116 (D216): the playbook's dispatch base over the team's own governed
 // git, against the real git binary. A copy branches from the orchestrator's
 // base commit (its own commit off a dirty tree); in-place work lands in the
 // tree itself, so its base is raw HEAD.

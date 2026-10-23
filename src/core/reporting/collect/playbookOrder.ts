@@ -1,4 +1,4 @@
-// D214: the M113 collector's playbook ordering (lane I's handoff). Built
+// D218: the M113 collector's playbook ordering (lane I's handoff). Built
 // sections go through collectPlaybookReport, so owner and failure rows come
 // first in the playbook, milestone and fleet kinds; every other kind keeps
 // its own order. Rows ride through as their own items, so payloads survive
@@ -96,7 +96,7 @@ function residualRow(
   }
 }
 
-/** D214: the journal's residual register merged into the milestone residuals
+/** D218: the journal's residual register merged into the milestone residuals
 section, with each row's flags carried alongside for the wrap. Without an
 orderer, or with an empty register, sections pass through untouched and the
 flag map is empty. */

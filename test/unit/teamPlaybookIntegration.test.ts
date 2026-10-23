@@ -1,4 +1,4 @@
-// M116 (D212): the team runner's integration over a real journal and a real
+// M116 (D216): the team runner's integration over a real journal and a real
 // policy, with the board read from the team's live facts. Nothing here is
 // stubbed: the journal is a real file journal in a scratch folder, the
 // policy is the orchestrator policy, and the board readers are the live

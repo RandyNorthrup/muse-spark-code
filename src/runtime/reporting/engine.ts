@@ -77,11 +77,11 @@ export interface ReportingContext {
   /** Normalized source ports shared by embedded hosts and engine certification. */
   readonly sources?: Partial<ReportSourcePorts>
   readonly playbook?: LocalReportSourceDeps['playbook']
-  /** D214: the playbook ordering for the playbook, milestone and fleet kinds,
+  /** D218: the playbook ordering for the playbook, milestone and fleet kinds,
   bound by the facades from the journal the report read. Absent, those kinds
   keep their own order. */
   readonly playbookOrder?: PlaybookReportOrderer
-  /** D214: where the ordering note goes; the facades bind their own log. */
+  /** D218: where the ordering note goes; the facades bind their own log. */
   readonly playbookNote?: (note: PlaybookWhyNote) => void
   readonly schedules?: LocalReportSourceDeps['schedules']
   readonly estimate?: LocalReportSourceDeps['estimate']
@@ -91,7 +91,7 @@ export interface ReportingContext {
     | (() => Promise<Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>>)
   /**
   Told the observed CI check runs after a generation that attempted the
-  github read (M116, PLAN.md D212): how many ran, or that the read failed.
+  github read (M116, PLAN.md D216): how many ran, or that the read failed.
   A generation that never attempted the read calls nothing, so a holder
   fed here stays unknown until CI is really observed, never guessed.
   */
@@ -311,7 +311,7 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               readReportSource('github', network.github, readContext),
               readReportSource('stores', network.stores, readContext),
             ])
-      // D212: only a generation that really attempted the github read feeds
+      // D216: only a generation that really attempted the github read feeds
       // the CI holder: the bound network, or an owner-supplied github port.
       // Anything else leaves unknown alone.
       if (network !== undefined || context.networkSources?.github !== undefined)

@@ -1,4 +1,4 @@
-// Sync cells for the latest async readings (M116, PLAN.md D212/D213).
+// Sync cells for the latest async readings (M116, PLAN.md D216/D217).
 // The playbook's sync ports (the board, the check admission) cannot await;
 // the holder serves the latest reading instead. Unknown is never a value:
 // a failed read clears to unknown rather than keeping a stale one, and
@@ -39,7 +39,7 @@ export function createReadingHolder<T>(): ReadingHolder<T> {
 }
 
 /**
-The hosts' check admission (D213): the latest M107 resource-governor
+The hosts' check admission (D217): the latest M107 resource-governor
 reading pauses local checks only at the paused level, where the governor
 itself pauses new work. Throttled or relocating machines still run checks;
 worker and CI targets admit (their own side governs them); unknown never

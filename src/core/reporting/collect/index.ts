@@ -49,10 +49,10 @@ export interface ReportCollectorDependencies {
   finalize(draft: ReportDraft): ReportDocument
   readonly nextStepLimit: number
   readonly selections: ReportSelectionPorts
-  /** D214: the playbook ordering, bound by the facades from the journal the
+  /** D218: the playbook ordering, bound by the facades from the journal the
   report read. Absent, the three playbook kinds keep their own order. */
   readonly playbookOrder?: PlaybookReportOrderer
-  /** D214: where the ordering note goes (the host log in production). Absent,
+  /** D218: where the ordering note goes (the host log in production). Absent,
   the order still applies; the note has nowhere to surface. */
   readonly playbookNote?: (note: PlaybookWhyNote) => void
 }
@@ -156,7 +156,7 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
     if (snapshot.asOf !== options.asOf) throw new Error('report/asOfMismatch')
     let sections: ReportSection[]
     let extraSources: ReportSourceRecord[] = []
-    // D214: every section carries the same ordering note (one policy, one
+    // D218: every section carries the same ordering note (one policy, one
     // settings replay); the sink sees it once per report.
     let hasShownPlaybookNote = false
     const showPlaybookNote = (note: PlaybookWhyNote) => {

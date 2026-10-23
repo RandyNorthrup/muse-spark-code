@@ -98,7 +98,7 @@ function prioritized(entry: PlaybookRecord | { readonly kind: 'counter' }): numb
 }
 
 /** Every surface shares this stable order: owner/unresolved designs, warnings,
-then informational records and aggregate counter statistics. D214: the buckets
+then informational records and aggregate counter statistics. D218: the buckets
 derive from the one shared ordering, never a local copy of it. */
 export function orderedPlaybookRecords<T extends PlaybookRecord | { readonly kind: 'counter' }>(
   records: readonly T[],

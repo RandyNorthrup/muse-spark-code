@@ -71,7 +71,7 @@ function validRecordsOrUnavailable(
 }
 
 /**
-D214: the report ordering over the same journal the reader reads, for the
+D218: the report ordering over the same journal the reader reads, for the
 person's panel team. Every call replays the journal fresh (like the policy's
 refresh), gates on the replayed loudFailures switch, and sorts through the
 one shared ordering; nothing is stored, so reads never contend. A lost
