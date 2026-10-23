@@ -4,6 +4,7 @@ import { isConversationShareItem } from './agentEvents'
 import {
   SHARE_DESTINATIONS,
   SHARE_LOCAL_DESTINATIONS,
+  SHARE_NETWORK_DESTINATIONS,
   SHARE_SCHEMA_VERSION,
   UI_TEXT,
 } from './constants'
@@ -12,6 +13,7 @@ import { redactSecrets } from './redact'
 
 const idSchema = z.string().check(z.minLength(1))
 const LOCAL_DESTINATIONS: ReadonlySet<string> = new Set(SHARE_LOCAL_DESTINATIONS)
+const NETWORK_DESTINATIONS: ReadonlySet<string> = new Set(SHARE_NETWORK_DESTINATIONS)
 const rangeSchema = z.strictObject({ from: idSchema, to: idSchema })
 const optionsSchema = z.strictObject({
   codeBlocks: z._default(z.boolean(), true),
@@ -128,7 +130,13 @@ export const confirmedShareSchema = z
     previewId: idSchema,
     request: shareRequestSchema,
   })
-  .check(z.refine((release) => LOCAL_DESTINATIONS.has(release.request.destination)))
+  .check(
+    z.refine(
+      (release) =>
+        LOCAL_DESTINATIONS.has(release.request.destination) ||
+        NETWORK_DESTINATIONS.has(release.request.destination),
+    ),
+  )
 
 /**
 Reuse ConversationDeps.isConfidentialWorkspace/the native host's same

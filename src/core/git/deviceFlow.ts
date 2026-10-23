@@ -28,6 +28,7 @@ import {
   GITHUB_DEVICE_SLOW_DOWN_STEP_S,
   GITHUB_DEVICE_TOKEN_URL,
   GITHUB_DEVICE_VERIFICATION_URL,
+  GITHUB_GIST_SCOPES,
   GITHUB_REFRESH_GRANT_TYPE,
   GITHUB_REQUEST_TIMEOUT_MS,
   GITHUB_USER_CODE_PATTERN,
@@ -35,7 +36,12 @@ import {
   MILLISECONDS_PER_SECOND,
   UI_TEXT,
 } from '../../shared/constants'
-import { assertPermittedScopes, GitHubTokenSourceError, requireOAuthClientId } from './tokenSource'
+import {
+  assertGistShareScopes,
+  assertPermittedScopes,
+  GitHubTokenSourceError,
+  requireOAuthClientId,
+} from './tokenSource'
 
 export interface DeviceFlowDeps {
   readonly fetch: typeof fetch
@@ -183,6 +189,28 @@ export async function signInWithDeviceFlow(
   signal: AbortSignal,
 ): Promise<DeviceFlowTokens> {
   assertPermittedScopes(scopes)
+  return await runDeviceFlow(deps, scopes, present, signal)
+}
+
+/**
+D217's Share-time sign-in: the same flow, asking for the gist scope beside
+`repo`, and only callable from Share's consent. Sign-in itself never asks.
+*/
+export async function signInWithDeviceFlowForGistShare(
+  deps: DeviceFlowDeps,
+  present: (prompt: DeviceCodePrompt) => Promise<void>,
+  signal: AbortSignal,
+): Promise<DeviceFlowTokens> {
+  assertGistShareScopes(GITHUB_GIST_SCOPES)
+  return await runDeviceFlow(deps, GITHUB_GIST_SCOPES, present, signal)
+}
+
+async function runDeviceFlow(
+  deps: DeviceFlowDeps,
+  scopes: readonly string[],
+  present: (prompt: DeviceCodePrompt) => Promise<void>,
+  signal: AbortSignal,
+): Promise<DeviceFlowTokens> {
   const clientId = requireOAuthClientId()
   const raw = await post(
     deps,

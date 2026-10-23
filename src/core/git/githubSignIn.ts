@@ -25,6 +25,7 @@ import { fill } from '../../shared/l10n/text'
 import type { CoreLogger } from '../logging'
 import { signInFailureText, type DeviceCodePrompt } from './deviceFlow'
 import {
+  canAskGistScope,
   isCredentialLive,
   orderedSources,
   resolveGitHubCredential,
@@ -72,6 +73,11 @@ function tolerant(source: GitHubTokenSource, log: CoreLogger): GitHubTokenSource
         return
       }
     },
+    // D217's Share-time grant rides through the same wrapper, unasked: an
+    // asked sign-in's failure is the user's to see, as `credential` says.
+    ...(canAskGistScope(source) && {
+      signInForGistShare: (signal: AbortSignal) => source.signInForGistShare(signal),
+    }),
     rejected: (credential) => source.rejected(credential),
     signOut: () => source.signOut(),
   }
@@ -187,6 +193,36 @@ export class GitHubSignIn {
         this.issued.set(credential.source, credential)
         await this.noteAccount(credential, combined)
         // Cancel during the login read still stops this call.
+        combined.throwIfAborted()
+      }
+      return credential
+    } finally {
+      this.asking.delete(own)
+      if (this.asking.size === 0 && this.code !== undefined) {
+        this.code = undefined
+        this.changed()
+      }
+    }
+  }
+
+  /**
+  D217's Share-time grant: a fresh device-flow sign-in carrying the gist
+  scope, run only after the person consented at Share time. The device-flow
+  source is the only one that can ask; without it there is no upgrade to
+  run. Cancel stops it like any sign-in, and the account line follows the
+  new credential as usual.
+  */
+  public async credentialForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined> {
+    const source = this.sources.find(canAskGistScope)
+    if (source === undefined) return undefined
+    const own = new AbortController()
+    this.asking.add(own)
+    const combined = AbortSignal.any([signal, own.signal])
+    try {
+      const credential = await source.signInForGistShare(combined)
+      if (credential !== undefined) {
+        this.issued.set(credential.source, credential)
+        await this.noteAccount(credential, combined)
         combined.throwIfAborted()
       }
       return credential

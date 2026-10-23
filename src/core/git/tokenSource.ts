@@ -18,6 +18,7 @@
 
 import * as z from 'zod/mini'
 import {
+  GITHUB_GIST_SCOPES,
   GITHUB_LEASE_TTL_MS,
   GITHUB_OAUTH_CLIENT_ID,
   GITHUB_PERMITTED_SCOPES,
@@ -151,6 +152,36 @@ export function assertPermittedScopes(scopes: readonly string[]): void {
   if (scopes.some((scope) => !GITHUB_PERMITTED_SCOPES.includes(scope))) {
     throw new GitHubTokenSourceError('scopeRefused')
   }
+}
+
+/**
+D217's one exception: Share asks for the gist scope only at the moment the
+person presses Share to a secret gist, never at sign-in. The set is exact —
+`repo` beside `gist`, so the grant keeps serving the Git calls — and no
+other caller may pass it.
+*/
+export function assertGistShareScopes(scopes: readonly string[]): void {
+  const wanted = new Set(scopes)
+  if (
+    wanted.size !== GITHUB_GIST_SCOPES.length ||
+    GITHUB_GIST_SCOPES.some((scope) => !wanted.has(scope))
+  ) {
+    throw new GitHubTokenSourceError('scopeRefused')
+  }
+}
+
+/**
+A source that can run D217's Share-time sign-in: a fresh grant carrying
+the gist scope, stored like any sign-in of that source. Only the
+device-flow source implements this; the editor's session and `gh` keep
+theirs, so a Share-time grant never widens them.
+*/
+export interface GitHubGistScopeSource extends GitHubTokenSource {
+  signInForGistShare(signal: AbortSignal): Promise<GitHubCredential | undefined>
+}
+
+export function canAskGistScope(source: GitHubTokenSource): source is GitHubGistScopeSource {
+  return 'signInForGistShare' in source && typeof source.signInForGistShare === 'function'
 }
 
 /**

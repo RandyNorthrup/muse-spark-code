@@ -41,11 +41,12 @@ import {
   DeviceFlowFailure,
   refreshDeviceFlowToken,
   signInWithDeviceFlow,
+  signInWithDeviceFlowForGistShare,
   type DeviceCodePrompt,
   type DeviceFlowDeps,
   type DeviceFlowTokens,
 } from '../../core/git/deviceFlow'
-import type { GitHubCredential, GitHubTokenSource } from '../../core/git/tokenSource'
+import type { GitHubCredential, GitHubGistScopeSource } from '../../core/git/tokenSource'
 import { randomUUID } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
@@ -118,7 +119,7 @@ interface RotatedFrom {
   readonly id: string
 }
 
-export interface DeviceFlowSource extends GitHubTokenSource {
+export interface DeviceFlowSource extends GitHubGistScopeSource {
   /** Whether a token is stored (for `auth github status`); never the token. */
   isSignedIn(): Promise<boolean>
 }
@@ -330,6 +331,34 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
     return pair === undefined ? undefined : { pair, signOuts: began }
   }, era)
 
+  // D217's Share-time grant: a second shared run beside the sign-in, asking
+  // for the gist scope too. It publishes through the same barrier, so the
+  // stored pair it leaves behind serves both the Git calls and the gist.
+  const signInGist = shared(async (signal): Promise<Issued | undefined> => {
+    const began = signOuts
+    const start = await generation()
+    const tokens = await signInWithDeviceFlowForGistShare(deps.flow, deps.present, signal)
+    const pair = await publish(tokens, start)
+    return pair === undefined ? undefined : { pair, signOuts: began }
+  }, era)
+
+  // Serve: whichever path gave the pair (a shared run, a cached pair
+  // during an outage), only while its generation is current, while no
+  // Sign out of this source has come since its operation began, and
+  // while this caller still waits. The final read races this caller's
+  // signal; no await follows the check.
+  const serve = async (
+    issued: Issued | undefined,
+    signal: AbortSignal,
+  ): Promise<GitHubCredential | undefined> => {
+    if (issued === undefined) return
+    signal.throwIfAborted()
+    const now = await untilAborted(generation(), signal)
+    signal.throwIfAborted()
+    if (issued.pair.generation !== now || issued.signOuts !== signOuts) return
+    return credentialOf(issued.pair)
+  }
+
   return {
     kind: 'deviceFlow',
     async credential(mode, signal) {
@@ -344,18 +373,13 @@ export function deviceFlowSource(deps: DeviceFlowSourceDeps): DeviceFlowSource {
         if (mode !== 'ask' || signal.aborted) throw error
         stored = undefined
       }
-      const issued = stored ?? (mode === 'ask' ? await signIn(signal) : undefined)
-      // Serve: whichever path gave the pair (a shared run, a cached pair
-      // during an outage), only while its generation is current, while no
-      // Sign out of this source has come since its operation began, and
-      // while this caller still waits. The final read races this caller's
-      // signal; no await follows the check.
-      if (issued === undefined) return
-      signal.throwIfAborted()
-      const now = await untilAborted(generation(), signal)
-      signal.throwIfAborted()
-      if (issued.pair.generation !== now || issued.signOuts !== signOuts) return
-      return credentialOf(issued.pair)
+      return await serve(stored ?? (mode === 'ask' ? await signIn(signal) : undefined), signal)
+    },
+    // D217: only Share calls this, after the person's consent at Share
+    // time. A fresh grant, not the stored pair: the caller asked because
+    // the stored token has no gist scope.
+    async signInForGistShare(signal) {
+      return await serve(await signInGist(signal), signal)
     },
     async rejected(credential) {
       const text = await read()
