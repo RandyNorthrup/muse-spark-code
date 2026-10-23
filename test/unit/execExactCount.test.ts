@@ -9,29 +9,11 @@ import { budgetRefusalDetails } from '../../src/runtime/runtimeAccountingEntry'
 import { reserveRequestAmount, type PriceCard } from '../../src/core/providers/priceCard'
 import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/anthropic'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { haikuRequestBody } from './helpers/haikuRequest'
 
 const card: PriceCard = { source: 'user', input: 0.000005, output: 0.00009 }
 function body(maxOutputTokens: number): CreateResponseBody {
-  return {
-    model: 'anthropic/claude-haiku-4-5',
-    instructions: `Workspace: ${path.resolve('.')}`,
-    input: [
-      {
-        type: 'message',
-        role: 'user',
-        content: [{ type: 'input_text', text: 'Explain this repository.' }],
-      },
-    ],
-    tools: [],
-    tool_choice: 'auto',
-    reasoning: { effort: 'none' },
-    stream: true,
-    store: false,
-    include: [],
-    prompt_cache_key: '',
-    prompt_cache_retention: 'in_memory',
-    max_output_tokens: maxOutputTokens,
-  }
+  return haikuRequestBody(`Workspace: ${path.resolve('.')}`, maxOutputTokens)
 }
 function quote(
   inputTokens: number,

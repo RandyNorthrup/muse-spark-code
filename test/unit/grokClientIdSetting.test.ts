@@ -1,20 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { readSettings } from '../../src/host/settings'
-
-const log = {
-  trace: () => undefined,
-  info: () => undefined,
-  warn: () => undefined,
-  error: () => undefined,
-}
+import { readOneSetting } from './helpers/oneSetting'
 
 function clientIdOf(value: unknown) {
-  return readSettings(
-    {
-      get: (key: string) => (key === 'grokClientId' ? value : undefined),
-    },
-    log,
-  ).grokClientId
+  return readOneSetting('grokClientId', value)
 }
 
 describe('Grok client id setting (RLGROKAUTH)', () => {

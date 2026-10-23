@@ -26,6 +26,7 @@ import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/
 import { buildExactCountRequest } from '../../src/core/providers/tokenCount'
 import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
+import { haikuRequestBody } from './helpers/haikuRequest'
 import { MODEL_API_RETRY_MAX_MS } from '../../src/shared/constants'
 import { transportTestDeps } from './helpers/modelApiTransport'
 
@@ -325,26 +326,7 @@ describe('provider waits are honoured whole', () => {
         }),
       }),
     )
-    const sent: CreateResponseBody = {
-      model: 'anthropic/claude-haiku-4-5',
-      instructions: 'Workspace: test',
-      input: [
-        {
-          type: 'message',
-          role: 'user',
-          content: [{ type: 'input_text', text: 'Explain this repository.' }],
-        },
-      ],
-      tools: [],
-      tool_choice: 'auto',
-      reasoning: { effort: 'none' },
-      stream: true,
-      store: false,
-      include: [],
-      prompt_cache_key: '',
-      prompt_cache_retention: 'in_memory',
-      max_output_tokens: 1024,
-    }
+    const sent: CreateResponseBody = haikuRequestBody('Workspace: test', 1024)
     const encoded = encodeAnthropicRequest(sent, {
       model: 'claude-haiku-4-5',
       maxTokens: sent.max_output_tokens,

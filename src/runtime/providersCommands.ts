@@ -45,7 +45,12 @@ import {
   HTTP_STATUS,
   UI_TEXT,
 } from '../shared/constants'
-import { listModelIds, providerListHeaders, readProviderJson } from './providerReads'
+import {
+  freeProbeRefusal,
+  listModelIds,
+  providerListHeaders,
+  readProviderJson,
+} from './providerReads'
 import { credentialLockDir } from '../core/credentialPaths'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
@@ -543,14 +548,10 @@ async function probeWithTransport(
   key: string | undefined,
   resolveHost: ProvidersDeps['resolveHost'],
 ): Promise<ProbeOutcome> {
+  const refusal = freeProbeRefusal(provider, key)
+  if (refusal !== undefined) return refusal
   const test = provider.preset.keyTest
-  if (test.kind === 'paid-token') {
-    return { ok: false, paid: true, reason: 'paid' }
-  }
   const headers = providerListHeaders(provider)
-  if (key === undefined && provider.preset.auth === 'apiKey') {
-    return { ok: false, paid: false, reason: 'no-key' }
-  }
   const shared = await import('../host/backend/modelApiEntry')
   const auth = await import('../host/backend/configuredProvidersEntry')
   shared.setUiText(UI_TEXT, uiLocale())
