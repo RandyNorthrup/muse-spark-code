@@ -308,11 +308,30 @@ function peakCpu(rows) {
 
 async function waitForLevel(host, level, timeoutMs) {
   const started = Date.now()
+  const warmup = []
   for (;;) {
     const status = await host.refreshStatus()
-    if (status.level === level) return { engaged: true, afterMs: Date.now() - started }
+    warmup.push({
+      tMs: Date.now() - started,
+      level: status.level,
+      cpuPercent: status.sample?.cpuPercent ?? null,
+    })
+    if (status.level === level) {
+      return {
+        engaged: true,
+        afterMs: Date.now() - started,
+        warmup,
+        warmupPeakCpu: peakCpu(warmup),
+      }
+    }
     if (Date.now() - started >= timeoutMs) {
-      return { engaged: false, afterMs: Date.now() - started, level: status.level }
+      return {
+        engaged: false,
+        afterMs: Date.now() - started,
+        level: status.level,
+        warmup,
+        warmupPeakCpu: peakCpu(warmup),
+      }
     }
     await sleep(TRACE_MS)
   }
@@ -417,10 +436,15 @@ async function phaseWithGovernor(options, record) {
   const burners = []
   try {
     for (let index = 0; index < options.burners; index += 1) {
-      burners.push(spawnHarnessChild(['--burn', String(BURN_SECONDS)]))
+      burners.push(spawnHarnessChild(['--burn', String(options.burnSeconds)]))
     }
     const trip = await waitForLevel(host, 'throttle', options.engageTimeoutMs)
-    record('B-throttle-engaged', trip.engaged, trip)
+    record('B-throttle-engaged', trip.engaged, {
+      engaged: trip.engaged,
+      afterMs: trip.afterMs,
+      level: trip.level ?? 'throttle',
+      warmupPeakCpu: trip.warmupPeakCpu,
+    })
     if (!trip.engaged) {
       return { engaged: false, trip, settings: host.status().settings, hostErrors: errors }
     }
@@ -563,8 +587,9 @@ function printSummary(receipt) {
   console.log(
     `machine: ${receipt.machine.model} x${receipt.machine.cores}, ${(receipt.machine.totalMemBytes / 1024 ** 3).toFixed(1)} GiB, ${receipt.machine.platform}/${receipt.machine.arch} ${receipt.machine.release}, node ${receipt.machine.node} (uv ${receipt.machine.uv})`,
   )
+  const idleProbes = receipt.idleProbesMs ?? []
   console.log(
-    `baseline cpu: ${receipt.baselineCpuPercent ?? 'unknown'}%, idle probes: ${(receipt.idleProbesMs ?? []).join(', ')} ms`,
+    `baseline cpu: ${receipt.baselineCpuPercent ?? 'unknown'}%, idle probes: ${idleProbes.length === 0 ? 'none' : `${idleProbes.join(', ')} ms`}`,
   )
   if (receipt.phaseA !== null) {
     const phase = receipt.phaseA
@@ -643,6 +668,7 @@ async function orchestrate(options) {
       checks: options.checks,
       cpuThreshold: options.cpuThreshold,
       burners: options.burners,
+      burnSeconds: options.burnSeconds,
       engageTimeoutMs: options.engageTimeoutMs,
     },
     baselineCpuPercent,
@@ -682,6 +708,12 @@ function burnerCount(value) {
   return value
 }
 
+function burnSeconds(value) {
+  if (!Number.isSafeInteger(value) || value < 10 || value > 900)
+    throw new Error('bad --burn-seconds')
+  return value
+}
+
 function timeoutMs(value) {
   if (!Number.isSafeInteger(value) || value < 1000) throw new Error('bad --engage-timeout-ms')
   return value
@@ -709,6 +741,10 @@ const ARG_HANDLERS = {
     takesValue: true,
     apply: (options, value) => ({ ...options, burners: burnerCount(Number(value)) }),
   },
+  '--burn-seconds': {
+    takesValue: true,
+    apply: (options, value) => ({ ...options, burnSeconds: burnSeconds(Number(value)) }),
+  },
   '--engage-timeout-ms': {
     takesValue: true,
     apply: (options, value) => ({ ...options, engageTimeoutMs: timeoutMs(Number(value)) }),
@@ -727,6 +763,7 @@ function parseArgs(argv) {
     checks: 15,
     cpuThreshold: 60,
     burners: 10,
+    burnSeconds: BURN_SECONDS,
     engageTimeoutMs: 240_000,
     receipt: null,
   }
@@ -769,7 +806,7 @@ async function main() {
   const options = parseArgs(argv)
   if (options.help === true) {
     console.log(
-      'usage: node scripts/m107-owner-case.mjs [--phase a|b|all] [--checks N] [--cpu-threshold P] [--burners N] [--engage-timeout-ms MS] [--receipt PATH]',
+      'usage: node scripts/m107-owner-case.mjs [--phase a|b|all] [--checks N] [--cpu-threshold P] [--burners N] [--burn-seconds S] [--engage-timeout-ms MS] [--receipt PATH]',
     )
     return 0
   }
