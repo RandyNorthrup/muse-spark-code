@@ -93,7 +93,8 @@ function refreshRoutes(): void {
 
 /**
 The join switch for runner-route relocation (RVCM1073 P3). The teams
-wiring flips `isComplete` when the scheduler/surface ports land; until
+wiring flips `isComplete` when the scheduler/surface ports land
+(`createResourceRouting` in the teams runners entry, M100-R); until
 then registration is refused, so no runner route is active in an
 installed editor and the setting keeps its not-available-yet text.
 */

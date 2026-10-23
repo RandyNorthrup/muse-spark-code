@@ -7,7 +7,11 @@ import {
   ResourceRunnerRouter,
   type ResourceRunnerRouteOptions,
 } from '../../core/runners/routing'
-import { loadResourceWindow, registerResourceRunnerRoutes } from '../../core/resources/admission'
+import {
+  loadResourceWindow,
+  registerResourceRunnerRoutes,
+  resourceRunnerRoutesJoin,
+} from '../../core/resources/admission'
 import { UI_TEXT } from '../../shared/constants'
 import { handleTrafficMessage, handleRunnersMessage } from '../modelsPanelTraffic'
 import { setUiText } from '../../shared/l10n/text'
@@ -23,8 +27,11 @@ export function createTeamRunnersRuntime(table: UiText, locale: string) {
     routeChecks,
     /** M96c supplies its exact conversation/attempt and surface ports. */
     async createResourceRouting(options: Omit<ResourceRunnerRouteOptions, 'port'>) {
+      // The scheduler/surface ports landed with this binding (M100-R): the
+      // join completes, so this and later bindings register their routes.
+      resourceRunnerRoutesJoin.isComplete = true
       const unregister = registerResourceRunnerRoutes(
-        () => !options.headless && options.hasTarget(),
+        () => !options.headless && (options.hasTarget() || options.devicesEnabled()),
       )
       try {
         const window = await loadResourceWindow()
