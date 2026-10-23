@@ -246,6 +246,11 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Judge failures that used to vanish now leave a word in the output
+  channel: when a review use cannot start or be read, the Models panel
+  cannot read the judge's status, or a stored judge record cannot be
+  read or parsed, the log names the failure kind (never the content)
+  and the surface answers "unavailable" as before.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read
