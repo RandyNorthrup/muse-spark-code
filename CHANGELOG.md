@@ -9,6 +9,14 @@ happened, not what was planned; superseded entries are kept.
 
 ### Highlights
 
+- **Retries follow the industry standard, and say so.**
+  Only connection errors, timeouts, 408, 409, 429, 5xx and overload signals
+  retry — never a refusal, an auth error or a bad request — with exponential
+  backoff, jitter and full `retry-after` / `retry-after-ms` waits. Where a
+  provider documents no retry bounds, the official SDK default governs (2
+  retries, 0.5 s doubling to 8 s); `museSpark.modelApiMaxRetries` still
+  decides when set. Every wait shows "Retrying in Ns (attempt K of N)" with
+  Stop, in the panel and through ACP.
 - **Big files open a window at a time.** `read_file` and `edit_file` take
   `byteOffset` and `byteLength` for files past the whole-read size: one
   byte window is shown, edits land inside the window that was read, and a

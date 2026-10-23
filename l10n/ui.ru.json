@@ -4545,8 +4545,8 @@
   "turnRetryAction": "Повторить",
   "turnRetryUnavailable": "Этот ход больше нельзя повторить. Отправьте сообщение ещё раз.",
   "turnRetryBusy": "Дождитесь конца ответа или остановите его, прежде чем повторять.",
-  "turnRetrying": "Попытка {attempt}/{maxAttempts} не удалась ({reason}); повтор через {seconds} с.",
-  "turnRetryingUncapped": "Попытка {attempt} не удалась ({reason}); повтор через {seconds} с (лимит повторов не задан).",
+  "turnRetrying": "Повтор через {seconds} с (попытка {attempt} из {maxAttempts}).",
+  "turnRetryingUncapped": "Повтор через {seconds} с (попытка {attempt}).",
   "modelApiProviderRetryWait": "{reason}; провайдер попросил подождать до {time}. Вы можете остановить ход в любой момент.",
   "usageWindowHours": {
     "one": "{count}-часовое окно",

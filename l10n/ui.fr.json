@@ -4450,8 +4450,8 @@
   "turnRetryAction": "Réessayer",
   "turnRetryUnavailable": "Ce tour ne peut plus être réessayé. Envoyez votre message à nouveau.",
   "turnRetryBusy": "Attendez la fin de la réponse, ou arrêtez-la, avant de réessayer.",
-  "turnRetrying": "La tentative {attempt}/{maxAttempts} a échoué ({reason}) ; nouvelle tentative dans {seconds} s.",
-  "turnRetryingUncapped": "La tentative {attempt} a échoué ({reason}) ; nouvelle tentative dans {seconds} s (aucune limite de tentatives définie).",
+  "turnRetrying": "Nouvelle tentative dans {seconds} s (tentative {attempt} sur {maxAttempts}).",
+  "turnRetryingUncapped": "Nouvelle tentative dans {seconds} s (tentative {attempt}).",
   "modelApiProviderRetryWait": "{reason} ; le fournisseur a demandé d’attendre jusqu’à {time}. Vous pouvez arrêter le tour à tout moment.",
   "usageWindowHours": {
     "one": "fenêtre de {count} heure",

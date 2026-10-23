@@ -4260,8 +4260,8 @@
   "turnRetryAction": "重试",
   "turnRetryUnavailable": "该轮次无法重试。请重新发送您的消息。",
   "turnRetryBusy": "重试之前，请先等待回复完成或将其停止。",
-  "turnRetrying": "第 {attempt}/{maxAttempts} 次尝试失败（{reason}）；{seconds} 秒后重试。",
-  "turnRetryingUncapped": "第 {attempt} 次尝试失败（{reason}）；{seconds} 秒后重试（未设置重试上限）。",
+  "turnRetrying": "{seconds} 秒后重试（第 {attempt} 次，共 {maxAttempts} 次）。",
+  "turnRetryingUncapped": "{seconds} 秒后重试（第 {attempt} 次）。",
   "modelApiProviderRetryWait": "{reason}；提供方要求等到{time}再重试。您可以随时停止本轮。",
   "usageWindowHours": {
     "other": "{count} 小时时段"

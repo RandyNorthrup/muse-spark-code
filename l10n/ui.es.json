@@ -4450,8 +4450,8 @@
   "turnRetryAction": "Reintentar",
   "turnRetryUnavailable": "Ese turno ya no se puede reintentar. Envíe su mensaje de nuevo.",
   "turnRetryBusy": "Espere a que termine la respuesta, o deténgala, antes de reintentar.",
-  "turnRetrying": "El intento {attempt}/{maxAttempts} falló ({reason}); se reintentará en {seconds} s.",
-  "turnRetryingUncapped": "El intento {attempt} falló ({reason}); se reintentará en {seconds} s (sin límite de reintentos).",
+  "turnRetrying": "Reintentando en {seconds} s (intento {attempt} de {maxAttempts}).",
+  "turnRetryingUncapped": "Reintentando en {seconds} s (intento {attempt}).",
   "modelApiProviderRetryWait": "{reason}; el proveedor pidió esperar hasta {time}. Puedes detener el turno en cualquier momento.",
   "usageWindowHours": {
     "one": "ventana de {count} hora",

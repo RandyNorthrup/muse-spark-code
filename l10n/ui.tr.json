@@ -4355,8 +4355,8 @@
   "turnRetryAction": "Yeniden dene",
   "turnRetryUnavailable": "Bu tur artık yeniden denenemez. İletinizi tekrar gönderin.",
   "turnRetryBusy": "Yeniden denemeden önce yanıtın bitmesini bekleyin ya da durdurun.",
-  "turnRetrying": "Deneme {attempt}/{maxAttempts} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor.",
-  "turnRetryingUncapped": "Deneme {attempt} başarısız oldu ({reason}); {seconds} sn içinde yeniden deneniyor (yeniden deneme sınırı yok).",
+  "turnRetrying": "{seconds} sn içinde yeniden deneniyor (deneme {attempt}/{maxAttempts}).",
+  "turnRetryingUncapped": "{seconds} sn içinde yeniden deneniyor (deneme {attempt}).",
   "modelApiProviderRetryWait": "{reason}; sağlayıcı {time} tarihine kadar beklemeyi istedi. Turu istediğiniz zaman durdurabilirsiniz.",
   "usageWindowHours": {
     "one": "{count} saatlik pencere",
