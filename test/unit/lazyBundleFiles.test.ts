@@ -22,6 +22,8 @@ import {
   COMPUTED_SOURCE_LOADS,
   computedLoadFailures,
   hasIdentifier,
+  knownBundleOutputs,
+  readMetafiles,
   resolveRequest,
   scanRequests,
 } from '../../scripts/lib/lazyRegistry.mjs'
@@ -146,6 +148,74 @@ const valuesOf = (files: Record<string, string>) =>
   scanOf(files)
     .requests.map((request) => request.value)
     .toSorted((a, b) => a.localeCompare(b, 'en'))
+
+it('rows only what the build emits: stale records and dist leftovers never count', () => {
+  // RLF-HYGIENE: a leftover another run left in dist/ (dev test bundles,
+  // the traffic harness) and a metafile left by another build (a removed
+  // bundle) broke `npm run build` on three rigs with phantom registry
+  // rows. Rows come from metafile outputs on disk plus the named
+  // non-esbuild files; nothing is discovered by walking dist/.
+  const folder = mkdtempSync(path.join(tmpdir(), 'muse-lazy-known-'))
+  folders.push(folder)
+  const metaDir = path.join(folder, 'dist', 'meta')
+  mkdirSync(metaDir, { recursive: true })
+  mkdirSync(path.join(folder, 'dist', 'test', 'integration'), { recursive: true })
+  mkdirSync(path.join(folder, 'dist', 'traffic-harness'), { recursive: true })
+  mkdirSync(path.join(folder, 'dist', 'chunks'), { recursive: true })
+  writeFileSync(
+    path.join(metaDir, 'current.json'),
+    JSON.stringify({
+      inputs: { 'src/current.ts': { bytes: 10, imports: [] } },
+      outputs: {
+        'dist/current.js': {
+          bytes: 20,
+          inputs: { 'src/current.ts': { bytesInOutput: 10 } },
+          imports: [{ path: './chunks/hashed.js', kind: 'dynamic-import' }],
+        },
+        'dist/chunks/hashed.js': {
+          bytes: 5,
+          inputs: { 'src/chunk.ts': { bytesInOutput: 5 } },
+          imports: [],
+        },
+        'dist/current.js.map': { bytes: 3, inputs: {}, imports: [] },
+      },
+    }),
+  )
+  writeFileSync(
+    path.join(metaDir, 'stale.json'),
+    JSON.stringify({
+      inputs: { 'src/removed.ts': { bytes: 10, imports: [] } },
+      outputs: {
+        'dist/stale.js': {
+          bytes: 20,
+          inputs: { 'src/removed.ts': { bytesInOutput: 10 } },
+          imports: [],
+        },
+      },
+    }),
+  )
+  writeFileSync(path.join(folder, 'dist', 'current.js'), 'current\n')
+  writeFileSync(path.join(folder, 'dist', 'chunks', 'hashed.js'), 'chunk\n')
+  writeFileSync(path.join(folder, 'dist', 'providerCatalog.js'), 'catalog\n')
+  writeFileSync(path.join(folder, 'dist', 'test', 'integration', 'leftover.test.js'), 'test\n')
+  writeFileSync(path.join(folder, 'dist', 'traffic-harness', 'main.js'), 'harness\n')
+  const emitted = new Set<string>()
+  const inputChunks = new Map<string, Set<string>>()
+  const importEdges = new Map<string, Set<string>>()
+  readMetafiles(metaDir, folder, emitted, inputChunks, importEdges)
+  expect([...emitted].toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual([
+    'dist/chunks/hashed.js',
+    'dist/current.js',
+  ])
+  expect(importEdges.get('dist/current.js')).toEqual(new Set(['dist/chunks/hashed.js']))
+  expect(inputChunks.get('src/current.ts')).toEqual(
+    new Set(['dist/chunks/hashed.js', 'dist/current.js']),
+  )
+  expect([...knownBundleOutputs(emitted)].toSorted((a, b) => a.localeCompare(b, 'en'))).toEqual([
+    'dist/current.js',
+    'dist/providerCatalog.js',
+  ])
+})
 
 it('fails a real stray: a lazy import of a file no row covers (R2 drill)', () => {
   const folder = fixtureTree({
