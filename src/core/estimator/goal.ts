@@ -86,9 +86,10 @@ export function compareEstimateIds(left: string, right: string): number {
   return left > right ? 1 : 0
 }
 
+// The order keys only: a row's hourly rate never reaches this comparator.
 interface CatalogRow {
   classId: string
-  price: CatalogPrice
+  price: Pick<CatalogPrice, 'providerId' | 'sizeId'>
 }
 /** Code-unit order, so rows are deterministic no matter how the vendor orders
 its answer; prices.ts re-sorts identically through this same comparator. */
