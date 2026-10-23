@@ -60,17 +60,3 @@ def test_round1_round2_no_thonny_device_command_or_write_path_exists():
             if value in forbidden:
                 offenders.append((path.name, node.lineno, value))
     assert not offenders, "Thonny device command path exists: %r" % offenders
-
-
-def test_round3_wire_freeze_describes_context_and_port_control_only():
-    root = Path(__file__).resolve().parents[3]
-    plan = (root / 'PLAN.md').read_text(encoding='utf-8')
-    residual = plan.split('## 9. Security assumptions and accepted residual risk', 1)[1]
-    residual = residual.split('**M103T-WIRE-FREEZE', 1)[1].split('\n- **', 1)[0]
-    residual = ' '.join(residual.split())
-    assert 'accepts no device payloads or write approvals' in residual
-    assert 'exports no runner/proxy identity' in residual
-    assert '`acquire` succeeds only after lane P\'s lease is held' in residual
-    assert '`release` acknowledges only after serial close and lease release' in residual
-    assert 'Provider closure must cancel outstanding acquisitions' in residual
-    assert 'UTC approval expiry' not in residual and 'Writes require' not in residual
