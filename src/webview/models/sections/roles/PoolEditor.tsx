@@ -145,7 +145,6 @@ function SecondaryRoles({
               <button
                 type="button"
                 className="team-editor-order"
-                aria-label={roleName(target)}
                 onKeyDown={(event) => {
                   const action = webviewKey('team.pool', event)
                   if (action === undefined) return
