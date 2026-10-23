@@ -137,16 +137,35 @@ describe('windows screen recorder removal', () => {
     expect(removed).toHaveLength(1)
   })
 
-  it('retries a scanner lock past any count of ours, then removes', async () => {
+  it('removes once a brief scanner lock clears inside the attempts', async () => {
     const attempts: string[] = []
     const run = await startWithUnverifiableHelper((directory) => {
       attempts.push(directory)
-      return attempts.length < 6
+      return attempts.length < 2
         ? Promise.reject(codedError('EPERM: locked by scanner', 'EPERM'))
         : rm(directory, { recursive: true, force: true })
     })
     await expect(run.result).resolves.toEqual({ ok: false, reason: expect.any(String) })
-    expect(attempts).toHaveLength(6)
+    expect(attempts).toHaveLength(2)
+  })
+
+  it('stops a never-clearing scanner lock after three attempts, keeping its kind', async () => {
+    const attempts: string[] = []
+    const failure = codedError('EPERM: locked by scanner', 'EPERM')
+    let surfaced: unknown
+    try {
+      const run = await startWithUnverifiableHelper((directory) => {
+        attempts.push(directory)
+        return Promise.reject(failure)
+      })
+      await run.result
+    } catch (error: unknown) {
+      surfaced = error
+    }
+    // Unbounded code would retry here past the suite's own timeout; the
+    // bound surfaces the lock error after three attempts (~400 ms).
+    expect(surfaced).toBe(failure)
+    expect(attempts).toHaveLength(3)
   })
 
   it('stops retrying a scanner lock at the person cancel, surfacing the lock error', async () => {

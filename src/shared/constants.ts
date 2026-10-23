@@ -2060,6 +2060,14 @@ Screen Recordings, Xbox Game Bar in Captures. Attach Latest searches both.
 export const VIDEOS_FOLDER_NAME = 'Videos'
 export const WINDOWS_SCREEN_RECORDINGS_FOLDER = 'Screen Recordings'
 export const WINDOWS_CAPTURES_FOLDER = 'Captures'
+// Safety limit (D121 clarification, RLF-SAFELIMITS): a held-file failure
+// while removing the preview directory retries this many times, then the
+// real error surfaces. Bounded held-file retries are rimraf's shape (npm's
+// standard remover retries EBUSY/EMFILE/ENFILE at most MAXRETRIES=10;
+// ours waits 200 ms between attempts, as JUDGE_TEMP_REMOVE_ATTEMPTS does
+// for the same failure class), so a never-clearing scanner lock ends the
+// cleanup with words instead of retrying until cancel.
+export const SCREEN_RECORDING_REMOVE_ATTEMPTS = 3
 export const SCREEN_RECORDING_REMOVE_RETRY_MS = 200
 // The recorder launch port's per-line bound (M105 R2): the helper's frames
 // are short JSON lines, and a line past this is corruption — the port stops
