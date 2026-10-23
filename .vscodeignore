@@ -173,6 +173,7 @@
 !dist/vaultActions.js
 !dist/vaultMigration.js
 !dist/estimator.js
+!dist/estimateActions.js
 !dist/estimateContracts.js
 !dist/planSnapshot.js
 !dist/estimatePrices.js

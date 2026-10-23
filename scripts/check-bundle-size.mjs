@@ -415,9 +415,14 @@ const BUDGETS = [
   // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
   // first estimate: goal and DAG, calibration, schedule and simulation,
   // recommendations, dated prices and the first-wave starter with their
-  // shared contracts, plus M117's provision run and price catalogues.
-  // 77.1 KiB measured with the run; budget 80 KiB (PLAN.md D6).
-  { path: 'dist/estimator.js', budgetKiB: 80 },
+  // shared contracts. RLF-BUDGETS: composer parsing and the wave start
+  // moved to dist/estimateActions.js; 72.8 KiB measured, back under the
+  // original 75 KiB cap.
+  { path: 'dist/estimator.js', budgetKiB: 75 },
+  // RLF-BUDGETS: the estimator run's composer parsing and first-wave
+  // start, loaded on the first parse or wave start. 45,549 bytes
+  // (44.5 KiB) measured +15% = 51.2 KiB, rounded up to the KiB.
+  { path: 'dist/estimateActions.js', budgetKiB: 52 },
   // CIFIX161B: the sign-in gate (AuthService and the three-valued
   // credential read), loaded on the first credential, money or consent
   // read. 64.8 KiB when split out, plus 15%, rounded up to 25 KiB

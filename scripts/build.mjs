@@ -366,6 +366,11 @@ const ESTIMATE_PRICES_OUTFILE = 'dist/estimatePrices.js'
 // this build.
 const ESTIMATE_HISTORY_ENTRY = 'src/host/estimator/historyEntry.ts'
 const ESTIMATE_HISTORY_OUTFILE = 'dist/estimateHistory.js'
+// The estimator run's composer parsing and first-wave start, loaded the
+// first time an estimate parses a composer command or starts its first
+// wave; it reads no `vscode`, so a stray import fails this build.
+const ESTIMATE_ACTIONS_ENTRY = 'src/host/estimator/estimateActionsEntry.ts'
+const ESTIMATE_ACTIONS_OUTFILE = 'dist/estimateActions.js'
 const RECORDER_ENTRY = 'src/host/support/recorderEntry.ts'
 const RECORDER_OUTFILE = 'dist/recorder.js'
 const CREDENTIAL_LEASE_ENTRY = 'src/core/credentialLeaseEntry.ts'
@@ -859,12 +864,22 @@ const reportOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const estimatorOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, sharedWire],
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedWire],
   entryPoints: [ESTIMATOR_ENTRY],
   outfile: ESTIMATOR_OUTFILE,
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+// The estimator run's composer parsing and first-wave start, loaded the
+// first time one is used; it reads no `vscode`, so a stray import fails
+// this build.
+/** @type {import('esbuild').BuildOptions} */
+const estimateActionsOptions = {
+  ...estimatorOptions,
+  entryPoints: [ESTIMATE_ACTIONS_ENTRY],
+  outfile: ESTIMATE_ACTIONS_OUTFILE,
 }
 
 // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6, D97), loaded the
@@ -2050,6 +2065,7 @@ if (isWatch) {
     esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
     esbuild.context(estimatorOptions),
+    esbuild.context(estimateActionsOptions),
     esbuild.context(planSnapshotOptions),
     esbuild.context(estimatePricesOptions),
     esbuild.context(estimateHistoryOptions),
@@ -2268,6 +2284,7 @@ if (isWatch) {
     planSnapshot: recorded('planSnapshot', planSnapshotOptions),
     estimatePrices: recorded('estimatePrices', estimatePricesOptions),
     estimateHistory: recorded('estimateHistory', estimateHistoryOptions),
+    estimateActions: recorded('estimateActions', estimateActionsOptions),
     credentialLease: recorded('credentialLease', credentialLeaseOptions),
     ...Object.fromEntries(
       UI_TEXT_REGIONS.map((region, index) => [
@@ -2447,6 +2464,7 @@ if (isWatch) {
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
+  reportSize(ESTIMATE_ACTIONS_OUTFILE)
   reportSize(ESTIMATE_PRICES_OUTFILE)
   reportSize(ESTIMATE_HISTORY_OUTFILE)
   reportSize(RECORDER_OUTFILE)

@@ -170,6 +170,9 @@
     // The capacity estimator's engine (M117, PLAN.md D97), required by path
     // on the first estimate.
     "src/host/estimator/estimatorEntry.ts",
+    // The estimator run's composer parsing and first-wave start, required by
+    // path on the first parse or wave start.
+    "src/host/estimator/estimateActionsEntry.ts",
     // The estimator's plan snapshot (M117 C-M117-1, PLAN.md D6), required by
     // path the first time an estimate needs a plan snapshot.
     "src/host/estimator/planSnapshotEntry.ts",
