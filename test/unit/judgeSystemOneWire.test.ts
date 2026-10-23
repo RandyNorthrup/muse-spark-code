@@ -17,6 +17,7 @@ import {
   systemOnePresetById,
 } from '../../src/core/providers/presets'
 import captures from './fixtures/judgeSystemOneCaptures.json'
+import { Usd } from '../../src/shared/usd'
 
 const costs = { reservedCostUsd: 0.02, settledCostUsd: 0.01 }
 
@@ -126,8 +127,8 @@ describe('systemone wire', () => {
       label: 'uncalibrated',
       partial: false,
       confidence: entropyConfidence([0.95, no]),
-      reservedCostUsd: costs.reservedCostUsd,
-      settledCostUsd: costs.settledCostUsd,
+      reservedCostUsd: Usd.from(costs.reservedCostUsd).toAmount(),
+      settledCostUsd: Usd.from(costs.settledCostUsd).toAmount(),
     })
     expect(muse?.vendorConfidence).toBeUndefined()
     expect(muse?.confidence).not.toBeCloseTo(Math.abs(2 * 0.95 - 1))
