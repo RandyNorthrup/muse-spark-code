@@ -20,6 +20,8 @@ import {
   resolveB1Executable,
   type B1Conditions,
   type B1FloorContext,
+  type B1FloorReason,
+  type B1FloorVerdict,
 } from '../../src/core/judge/fast/approval'
 import { parseInspectCommand } from '../../src/core/judge/fast/inspectGrammar'
 
@@ -35,6 +37,11 @@ function quotedWords(group: string): string[] {
 
 function missingRealpath(): string {
   throw Object.assign(new Error('no such file'), { code: 'ENOENT', errno: -2 })
+}
+
+function heldReason(verdict: B1FloorVerdict): B1FloorReason {
+  if (verdict.pass) throw new Error('expected the floor to hold')
+  return verdict.reason
 }
 
 function brokenRealpath(): string {
@@ -78,20 +85,20 @@ describe('B1 floor', () => {
 
   it('names evaluators, sudo, installs and git', () => {
     for (const line of ['eval danger', 'iex danger']) {
-      expect(b1Floor(line, floorContext()).reason).toBe('evaluator')
+      expect(heldReason(b1Floor(line, floorContext()))).toBe('evaluator')
     }
-    expect(b1Floor('pwsh -EncodedCommand eAAn', floorContext()).reason).toBe('evaluator')
-    expect(b1Floor('pwsh -encodedcommand eAAn', floorContext()).reason).toBe('evaluator')
-    expect(b1Floor('sudo cat secrets.txt', floorContext()).reason).toBe('sudo')
-    expect(b1Floor('git status', floorContext()).reason).toBe('gitCommand')
+    expect(heldReason(b1Floor('pwsh -EncodedCommand eAAn', floorContext()))).toBe('evaluator')
+    expect(heldReason(b1Floor('pwsh -encodedcommand eAAn', floorContext()))).toBe('evaluator')
+    expect(heldReason(b1Floor('sudo cat secrets.txt', floorContext()))).toBe('sudo')
+    expect(heldReason(b1Floor('git status', floorContext()))).toBe('gitCommand')
     for (const line of ['npm install', 'pnpm add leftpad', 'apt remove vim', 'brew upgrade']) {
-      expect(b1Floor(line, floorContext()).reason).toBe('packageInstall')
+      expect(heldReason(b1Floor(line, floorContext()))).toBe('packageInstall')
     }
   })
 
   it('names --force anywhere in the line', () => {
-    expect(b1Floor('find . --force -print', floorContext()).reason).toBe('forceFlag')
-    expect(b1Floor('cat --force=x allowed.txt', floorContext()).reason).toBe('forceFlag')
+    expect(heldReason(b1Floor('find . --force -print', floorContext()))).toBe('forceFlag')
+    expect(heldReason(b1Floor('cat --force=x allowed.txt', floorContext()))).toBe('forceFlag')
     // A pattern merely containing the letters is not the flag.
     const innocent = b1Floor('grep -e forceful allowed.txt', floorContext())
     expect(innocent.pass).toBe(true)
@@ -100,30 +107,38 @@ describe('B1 floor', () => {
   it('fails the tool context and confidential routing', () => {
     const line = 'cat allowed.txt'
     expect(
-      b1Floor(
-        line,
-        floorContext({ tool: { network: true, paid: false, spawn: false, mcpWrite: false } }),
-      ).reason,
+      heldReason(
+        b1Floor(
+          line,
+          floorContext({ tool: { network: true, paid: false, spawn: false, mcpWrite: false } }),
+        ),
+      ),
     ).toBe('networkTool')
     expect(
-      b1Floor(
-        line,
-        floorContext({ tool: { network: false, paid: true, spawn: false, mcpWrite: false } }),
-      ).reason,
+      heldReason(
+        b1Floor(
+          line,
+          floorContext({ tool: { network: false, paid: true, spawn: false, mcpWrite: false } }),
+        ),
+      ),
     ).toBe('paidTool')
     expect(
-      b1Floor(
-        line,
-        floorContext({ tool: { network: false, paid: false, spawn: true, mcpWrite: false } }),
-      ).reason,
+      heldReason(
+        b1Floor(
+          line,
+          floorContext({ tool: { network: false, paid: false, spawn: true, mcpWrite: false } }),
+        ),
+      ),
     ).toBe('spawnTool')
     expect(
-      b1Floor(
-        line,
-        floorContext({ tool: { network: false, paid: false, spawn: false, mcpWrite: true } }),
-      ).reason,
+      heldReason(
+        b1Floor(
+          line,
+          floorContext({ tool: { network: false, paid: false, spawn: false, mcpWrite: true } }),
+        ),
+      ),
     ).toBe('mcpWrite')
-    expect(b1Floor(line, floorContext({ confidentialNonlocal: true })).reason).toBe(
+    expect(heldReason(b1Floor(line, floorContext({ confidentialNonlocal: true })))).toBe(
       'confidentialNonlocal',
     )
   })

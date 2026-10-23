@@ -120,7 +120,7 @@ describe('fast-path audit', () => {
     expect(fastPathAuditSchema.safeParse(audit({ pYesMilli: 1001 })).success).toBe(false)
     expect(fastPathAuditSchema.safeParse(audit({ thresholdMilli: -1 })).success).toBe(false)
     expect(fastPathAuditSchema.safeParse(audit({ excluded: -1 })).success).toBe(false)
-    expect(fastPathAuditSchema.safeParse(audit({ class: 'B2' })).success).toBe(false)
+    expect(fastPathAuditSchema.safeParse({ ...audit(), class: 'B2' }).success).toBe(false)
     expect(fastPathAuditSchema.safeParse(audit({ executable: '/usr/bin/cat;evil' })).success).toBe(
       false,
     )

@@ -8,7 +8,11 @@ import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
 import { ObservationPack } from '../../src/core/backends/modelapi/observationPacking'
 import { functionCallItemSchema, restoredToolText } from '../../src/core/backends/modelapi/schemas'
-import type { FunctionCallItem, InputItem } from '../../src/core/backends/modelapi/schemas'
+import type {
+  BoundedToolText,
+  FunctionCallItem,
+  InputItem,
+} from '../../src/core/backends/modelapi/schemas'
 import {
   doneTailNote,
   failureTailHint,
@@ -22,7 +26,10 @@ import { ruleEffort } from '../../src/core/judge/fast/reflex/effort'
 import { triageOutput } from '../../src/core/judge/fast/reflex/triage'
 import { JUDGE_FAST_KEEP_ENTRIES } from '../../src/shared/constants'
 
-const goldenCallAndOutput = (): { readonly call: FunctionCallItem; readonly output: string } => {
+const goldenCallAndOutput = (): {
+  readonly call: FunctionCallItem
+  readonly output: BoundedToolText
+} => {
   const goldenFile = z
     .object({ requests: z.array(z.string()) })
     .parse(

@@ -168,12 +168,13 @@ function syntheticFitted(): { profile: CalibrationProfile; identity: Calibration
   const fitted = fitCalibration(parsed.dataset, 'platt', limits)
   if (fitted.status !== 'fitted') throw new Error(fitted.reason)
   const reported = reportCalibration(fitted.profile, parsed.dataset, 5, limits)
+  if (reported.status !== 'reported') throw new Error(reported.reason)
   return { profile: reported.profile, identity: parsed.dataset.identity }
 }
 
 interface CheckCase {
   readonly check: AccuracyCheckId
-  readonly decide: (rawProbability: number) => AccuracyOutput<Record<string, unknown>>
+  readonly decide: (rawProbability: number) => AccuracyOutput<unknown>
   readonly content: readonly string[]
 }
 
