@@ -203,6 +203,12 @@ export function azureRetryAfterMs(headers: Headers): number | undefined {
   return Number.isSafeInteger(ms) ? ms : undefined
 }
 
+/** DeepSeek's documented per-model concurrency table; a model missing here has no documented ceiling. */
+const DEEPSEEK_CONCURRENCY_BY_MODEL: Readonly<Record<string, number>> = {
+  'deepseek-flash': DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH,
+  'deepseek-v4-pro': DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO,
+}
+
 /**
 DeepSeek's documented account-level concurrency ceiling for one model
 (api-docs.deepseek.com/quick_start/rate_limit, "Concurrency Limit", read
@@ -213,12 +219,6 @@ this table, not a header reader, paces it. A model the table does not
 name has no documented ceiling: undefined, so only the live 429 pause
 applies.
 */
-/** DeepSeek's documented per-model concurrency table; a model missing here has no documented ceiling. */
-const DEEPSEEK_CONCURRENCY_BY_MODEL: Readonly<Record<string, number>> = {
-  'deepseek-flash': DEEPSEEK_CONCURRENCY_DEEPSEEK_FLASH,
-  'deepseek-v4-pro': DEEPSEEK_CONCURRENCY_DEEPSEEK_V4_PRO,
-}
-
 export function deepseekConcurrencyLimit(model: string | undefined): number | undefined {
   return model === undefined ? undefined : DEEPSEEK_CONCURRENCY_BY_MODEL[model]
 }
@@ -306,6 +306,9 @@ export type PacingWaitLimit =
   | { readonly kind: 'concurrency'; readonly limit: number }
   | { readonly kind: 'burst'; readonly windowMs: number }
 
+/** A pacing wait's notice: the delay and, when a provider-documented limit binds it, the limit. */
+export type PacingWaitHandler = (delayMs: number, limit?: PacingWaitLimit) => void
+
 /** A portable admission port for team pools, judges and scheduled dispatchers. */
 export interface RequestPacer {
   /**
@@ -320,7 +323,7 @@ export interface RequestPacer {
     kind: PacingClass,
     tokens: number,
     signal: AbortSignal,
-    onWait?: (delayMs: number, limit?: PacingWaitLimit) => void,
+    onWait?: PacingWaitHandler,
     options?: PacingAcquireOptions,
   ): Promise<(() => void) | undefined>
   snapshot(account: string): PacingSnapshot
@@ -515,7 +518,7 @@ export class ModelApiPacing implements RequestPacer {
     kind: PacingClass,
     tokens: number,
     signal: AbortSignal,
-    onWait?: (delayMs: number, limit?: PacingWaitLimit) => void,
+    onWait?: PacingWaitHandler,
     options?: PacingAcquireOptions,
   ): Promise<(() => void) | undefined> {
     if (!Number.isSafeInteger(tokens) || tokens < 0) {

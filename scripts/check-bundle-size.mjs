@@ -94,7 +94,9 @@ const BUDGETS = [
   { path: 'dist/connector.js', budgetKiB: 125 },
   // REL0160B combined Model API: 479.2 KiB measured +5%, rounded to 25 KiB;
   // authorized rebuild brief and measurement recorded in PLAN.md (2026-10-07).
-  { path: 'dist/modelApi.js', budgetKiB: 525 },
+  // RLF-PROVLIMITS: 525.0 KiB measured +5%, rounded up to 25 KiB (DeepSeek
+  // concurrency admission, Azure burst shaping, Anthropic request limits).
+  { path: 'dist/modelApi.js', budgetKiB: 575 },
   // PR206: the Muse Code backend's own bundle (the host, its notification
   // mapping and the SDK), loaded on the first backend start: 97.6 KiB when
   // split out, plus 15%, rounded up to 25 KiB (PLAN.md D6).

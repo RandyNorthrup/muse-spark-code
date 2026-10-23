@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
@@ -17,6 +18,7 @@ import {
   restoredToolText,
   type CreateResponseBody,
   type FunctionToolDefinition,
+  type InputContentPart,
   type InputItem,
   type ReasoningItem,
   type StreamEvent,
@@ -27,15 +29,18 @@ import {
   type CapabilityOverrides,
 } from '../../src/core/providers/capabilityRecord'
 import {
+  ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX,
+  ANTHROPIC_MANY_IMAGES_THRESHOLD,
   ANTHROPIC_MAX_ARGUMENT_BYTES,
   ANTHROPIC_MAX_FRAME_BYTES,
   ANTHROPIC_MAX_FRAMES,
   ANTHROPIC_MAX_ITEM_BYTES,
   ANTHROPIC_MAX_ITEMS,
+  ANTHROPIC_MAX_REQUEST_BYTES,
   ANTHROPIC_MAX_STREAM_BYTES,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import { setUiText } from '../../src/shared/l10n/text'
+import { fill, formatBytes, formatNumber, setUiText } from '../../src/shared/l10n/text'
 
 const MODEL = 'claude-sonnet-5-5'
 const BASE_OPTIONS: AnthropicEncodeOptions = { model: MODEL, maxTokens: 256, effort: 'high' }
@@ -1935,4 +1940,197 @@ describe('bounded Anthropic accumulation (RVM95AO 4)', () => {
       expect(isClosed).toBe(true)
     },
   )
+})
+
+/** A PNG data URL with the given IHDR dimensions and optional raw-byte padding. */
+function pngDataUrl(width: number, height: number, padBytes = 0): string {
+  const header = Buffer.from([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
+    0x00,
+    0x00,
+    0x00,
+    0x0d,
+    0x49,
+    0x48,
+    0x44,
+    0x52,
+    (width >>> 24) & 0xff,
+    (width >>> 16) & 0xff,
+    (width >>> 8) & 0xff,
+    width & 0xff,
+    (height >>> 24) & 0xff,
+    (height >>> 16) & 0xff,
+    (height >>> 8) & 0xff,
+    height & 0xff,
+  ])
+  return `data:image/png;base64,${Buffer.concat([header, Buffer.alloc(padBytes, 0x41)]).toString('base64')}`
+}
+
+/** Image parts at the given dimensions; the bytes stay tiny unless padded. */
+function imageParts(
+  count: number,
+  width: number,
+  height: number,
+  padBytes = 0,
+): InputContentPart[] {
+  return Array.from({ length: count }, () => ({
+    type: 'input_image' as const,
+    image_url: pngDataUrl(width, height, padBytes),
+    detail: 'auto' as const,
+  }))
+}
+
+/** A user message carrying exactly the given image parts. */
+function imagePartsMessage(parts: InputContentPart[]): InputItem {
+  return {
+    type: 'message',
+    role: 'user',
+    content: [{ type: 'input_text', text: 'What is in these pictures?' }, ...parts],
+  }
+}
+
+/** The refusal a 21-image request with one 2001px side carries. */
+function manyImagesRefusalText(): string {
+  return fill(EN.anthropicCodecManyImagesDimensions, {
+    maxPixels: formatNumber(ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX),
+    maxImages: formatNumber(ANTHROPIC_MANY_IMAGES_THRESHOLD),
+    count: formatNumber(21),
+    pixels: formatNumber(2001),
+  })
+}
+
+/** Encodes a user message over the parts, expecting the many-images refusal. */
+function expectManyImagesRefusal(parts: InputContentPart[]): void {
+  const body = canonicalBody({ input: [imagePartsMessage(parts)] })
+  expect(() => encodeAnthropicRequest(body, BASE_OPTIONS)).toThrow(manyImagesRefusalText())
+}
+
+/** Encodes the body and counts the native image blocks it carries. */
+function encodeImageCount(body: CreateResponseBody): number {
+  const encoded = encodeAnthropicRequest(body, BASE_OPTIONS)
+  let images = 0
+  for (const message of encoded.body.messages) {
+    if (typeof message.content === 'string') continue
+    for (const block of message.content) {
+      if (block.type === 'image') images += 1
+      else if (block.type === 'tool_result' && typeof block.content !== 'string') {
+        for (const nested of block.content) if (nested.type === 'image') images += 1
+      }
+    }
+  }
+  return images
+}
+
+describe('Anthropic many-image dimensions', () => {
+  it('admits 21 small images: every side fits the stricter limit', () => {
+    // platform.claude.com/docs/en/build-with-claude/vision, "Request
+    // limits", read 2026-10-23: past 20 images neither side may exceed
+    // 2000 px. 21 fitting images encode untouched.
+    expect(ANTHROPIC_MANY_IMAGES_THRESHOLD).toBe(20)
+    expect(ANTHROPIC_MANY_IMAGES_MAX_DIMENSION_PX).toBe(2000)
+    expect(
+      encodeImageCount(canonicalBody({ input: [imagePartsMessage(imageParts(21, 10, 10))] })),
+    ).toBe(21)
+  })
+
+  it('refuses an over-2000px image past 20 images, naming the limit', () => {
+    expectManyImagesRefusal([
+      ...imageParts(20, 10, 10),
+      { type: 'input_image', image_url: pngDataUrl(2001, 10), detail: 'auto' },
+    ])
+  })
+
+  it('leaves 20 images unmeasured: the tightening starts past 20', () => {
+    expect(
+      encodeImageCount(canonicalBody({ input: [imagePartsMessage(imageParts(20, 5000, 5000))] })),
+    ).toBe(20)
+  })
+
+  it('counts file-id images while the provider judges their size', () => {
+    // Nineteen bytes plus one file reference plus one wide image: the
+    // file counts toward the 20, so the wide image is measured and the
+    // request is refused; the file itself is never measured locally.
+    expectManyImagesRefusal([
+      ...imageParts(19, 10, 10),
+      { type: 'input_image', file_id: 'file-abc123', detail: 'auto' },
+      { type: 'input_image', image_url: pngDataUrl(2001, 10), detail: 'auto' },
+    ])
+  })
+
+  it('counts images nested in tool results toward the 20', () => {
+    // Twenty top-level images plus one wide image inside a tool result:
+    // the nested image counts, so the request is refused.
+    const body = canonicalBody({
+      input: [
+        imagePartsMessage(imageParts(20, 10, 10)),
+        {
+          type: 'function_call',
+          id: 'toolu_01nested',
+          call_id: 'toolu_01nested',
+          name: 'get_time',
+          arguments: '{"timezone":"UTC"}',
+        },
+        {
+          type: 'function_call_output',
+          call_id: 'toolu_01nested',
+          output: [{ type: 'input_image', image_url: pngDataUrl(10, 2001), detail: 'auto' }],
+        },
+      ],
+    })
+    expect(() => encodeAnthropicRequest(body, BASE_OPTIONS)).toThrow(manyImagesRefusalText())
+  })
+
+  it('leaves undecodable image bytes to the provider instead of refusing', () => {
+    // A well-formed data URL whose bytes are no readable image: the
+    // codec cannot measure it, so the provider judges it.
+    const garbage = `data:image/png;base64,${Buffer.from('not-an-image-at-all').toString('base64')}`
+    const body = canonicalBody({
+      input: [
+        imagePartsMessage([
+          ...imageParts(20, 10, 10),
+          { type: 'input_image', image_url: garbage, detail: 'auto' },
+        ]),
+      ],
+    })
+    expect(encodeImageCount(body)).toBe(21)
+  })
+
+  it('ships a sentence that names the dimension rule', () => {
+    expect(EN.anthropicCodecManyImagesDimensions).toContain('per image side')
+    expect(EN.anthropicCodecManyImagesDimensions).toContain('more than')
+  })
+})
+
+describe('Anthropic request size', () => {
+  it('refuses a request past the documented 32 MB, naming the cap', () => {
+    // platform.claude.com/docs/en/api/overview, "Request size limits",
+    // read 2026-10-23: the Messages endpoint allows 32 MB; past it
+    // answers 413 request_too_large. Twenty 1.7 MB images stay at the
+    // dimension threshold, isolating the size refusal.
+    expect(ANTHROPIC_MAX_REQUEST_BYTES).toBe(32_000_000)
+    const body = canonicalBody({
+      input: [imagePartsMessage(imageParts(20, 10, 10, 1_700_000))],
+    })
+    expect(() => encodeAnthropicRequest(body, BASE_OPTIONS)).toThrow(
+      `up to ${formatBytes(ANTHROPIC_MAX_REQUEST_BYTES)}`,
+    )
+  })
+
+  it('admits a request under the cap', () => {
+    const body = canonicalBody({
+      input: [imagePartsMessage(imageParts(10, 10, 10, 1_700_000))],
+    })
+    expect(encodeImageCount(body)).toBe(10)
+  })
+
+  it('ships a sentence that names the request cap', () => {
+    expect(EN.anthropicCodecRequestTooLarge).toContain('Anthropic allows requests up to')
+  })
 })
