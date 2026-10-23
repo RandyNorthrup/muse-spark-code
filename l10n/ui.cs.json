@@ -413,6 +413,7 @@
   "referenceInstallSkills": "Zkopírovat project_setup, feature_delivery a quality_retrofit do konfigurace Muse Code a propojit je jako dovednosti.",
   "referenceExecContract": "Běhy bez rozhraní odmítají důvěru v pracovní prostor a obcházení oprávnění. Bez rozhraní jsou povoleny jen plan nebo acceptEdits. Hostované vyhledávání na webu nemá zaručený limit a je odmítnuto. Generování obrázků vyžaduje acceptEdits. Vyberte právě jeden zdroj pokynu. Pokyn i klíč nemohou současně používat stdin. Model API vyžaduje --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatická komprese běží pouze s --auto-compaction pod --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Použití, volby a příklady pro jeden příkaz. help --all: Příkazy, nastavení a funkce s popisy a dokumentací.",
+  "referenceWatchdog": "Sledování problémů na GitHubu z terminálu: vypsat, stav, pozastavit, obnovit, sondovat, důkazy, použít, rozhodnout a vyřešit.",
   "referenceKeyStdin": "auth set: Přečte váš klíč v terminálu a uloží ho do úložiště přihlašovacích údajů tohoto počítače. Konverzace se účtují na klíč. exec / scan-secrets --key-stdin: Načtěte klíč z roury, nikoli z terminálu. stdin → memory; prompt stdin + key stdin = Pokyn i klíč nemohou současně používat stdin.",
   "referenceModalKeys": "Zavřít dialog nebo přesunout fokus uvnitř něj.",
   "referenceRenameKeys": "Potvrdit či zrušit přejmenování konverzace.",
@@ -1901,7 +1902,33 @@
       "alreadyPaused": "Hlídací pes pro {repository} je již pozastaven.",
       "notPaused": "Hlídací pes pro {repository} není pozastaven.",
       "invalidRepository": "Zadejte repozitář jako vlastník/název.",
-      "watching": "Sledování {repository}."
+      "watching": "Sledování {repository}.",
+      "usage": "Použijte `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Nejprve se přihlaste k GitHubu a spusťte `auth github`.",
+      "invalidIssue": "Zadejte číslo problému.",
+      "invalidEvidence": "Ověřovací důkaz neměl očekávaný tvar.",
+      "applyNeedsAck": "Tento problém nečeká na roztřídění.",
+      "decideNeedsTriage": "Tento problém nemá žádné roztřídění k rozhodnutí.",
+      "resolveNeedsPlan": "Tento problém nemá žádný plán k vyřešení.",
+      "overdue": "po termínu",
+      "commandFailed": "Příkaz hlídacího psa nelze dokončit.",
+      "unavailable": "Hlídací pes není k dispozici.",
+      "description": "Vypíše, sonduje a rozhodne sledované problémy na GitHubu.",
+      "pausedWord": "Pozastaveno",
+      "issueCount": {
+        "one": "{count} problém",
+        "other": "{count} problémů",
+        "few": "{count} problémy",
+        "many": "{count} problémů"
+      },
+      "noIssues": "Nejsou zaznamenány žádné problémy.",
+      "triagedAs": "Roztříděno jako {verdict}.",
+      "decided": "Rozhodnuto: {outcome}.",
+      "posted": "Zveřejněno.",
+      "closedNote": "Zavřeno.",
+      "notVerified": "Neověřeno: {notes}.",
+      "unknownIssue": "Tento problém není sledován.",
+      "alreadyPosted": "Odpověď je již zveřejněna."
     },
     "poll": {
       "skippedPullRequest": "žádost o stažení, nikoli problém",
@@ -1919,6 +1946,10 @@
       "inHand": "V řešení",
       "invalid": "Neplatné",
       "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Záznam plánu",
+      "fixLane": "Opravná dráha"
     },
     "planDraft": {
       "intro": "Koncept plánu hlídacího psa pro {repository}#{number} (verdikt: {verdict}).",
@@ -3954,6 +3985,7 @@
     "purposeResources": "Zobrazit zatížení počítače a nedávnou historii.",
     "purposeShare": "Sdílejte konverzaci: zkopírujte ji, uložte do souboru nebo otevřete v prohlížeči.",
     "purposePrompts": "Ukládejte, vypisujte, používejte a sdílejte opakovaně použitelné šablony promptů.",
+    "purposeWatchdog": "Sledovat problémy na GitHubu: vypsat, sondovat, roztřídit, rozhodnout a vyřešit.",
     "modelsList": "Modely pro {entry}:",
     "modelsForced": "vynuceno: {reason}",
     "modelsExtra": "U poskytovatele, ale ne v záznamu:",

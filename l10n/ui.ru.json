@@ -413,6 +413,7 @@
   "referenceInstallSkills": "Скопировать project_setup, feature_delivery и quality_retrofit в конфигурацию Muse Code и подключить их как навыки.",
   "referenceExecContract": "Запуски без интерфейса запрещают доверие рабочей области и обход разрешений. Без интерфейса разрешены только plan и acceptEdits. Серверный веб-поиск не имеет гарантированного ограничения и запрещён. Генерация изображений требует acceptEdits. Выберите ровно один источник запроса. Запрос и ключ не могут одновременно использовать stdin. Model API требует --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Автоматическое сжатие работает только с --auto-compaction при --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Использование, параметры и примеры одной команды. help --all: Команды, настройки и возможности с описаниями и документацией.",
+  "referenceWatchdog": "Слежение за проблемами GitHub из терминала: показ, состояние, пауза, продолжение, опрос, свидетельства, применение, решение и завершение.",
   "referenceKeyStdin": "auth set: Считывает ваш ключ в терминале и хранит его в хранилище учетных данных этого компьютера. Разговоры оплачиваются по ключу. exec / scan-secrets --key-stdin: Читайте ключ из канала, а не из терминала. stdin → memory; prompt stdin + key stdin = Запрос и ключ не могут одновременно использовать stdin.",
   "referenceModalKeys": "Закрыть диалог или переместить фокус внутри него.",
   "referenceRenameKeys": "Подтвердить или отменить переименование беседы.",
@@ -1901,7 +1902,33 @@
       "alreadyPaused": "Сторож для {repository} уже приостановлен.",
       "notPaused": "Сторож для {repository} не приостановлен.",
       "invalidRepository": "Укажите репозиторий как владелец/имя.",
-      "watching": "Отслеживается {repository}."
+      "watching": "Отслеживается {repository}.",
+      "usage": "Используйте `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Сначала войдите в GitHub, затем выполните `auth github`.",
+      "invalidIssue": "Укажите номер проблемы.",
+      "invalidEvidence": "Доказательство проверки имело неверную форму.",
+      "applyNeedsAck": "Эта проблема не ждёт сортировки.",
+      "decideNeedsTriage": "У этой проблемы нет сортировки для решения.",
+      "resolveNeedsPlan": "У этой проблемы нет плана для завершения.",
+      "overdue": "просрочено",
+      "commandFailed": "Команду сторожа не удалось выполнить.",
+      "unavailable": "Сторож недоступен.",
+      "description": "Показывает, опрашивает и решает отслеживаемые проблемы GitHub.",
+      "pausedWord": "Приостановлен",
+      "issueCount": {
+        "one": "{count} проблема",
+        "other": "{count} проблемы",
+        "few": "{count} проблемы",
+        "many": "{count} проблем"
+      },
+      "noIssues": "Проблемы не записаны.",
+      "triagedAs": "Отсортировано как {verdict}.",
+      "decided": "Решено: {outcome}.",
+      "posted": "Опубликовано.",
+      "closedNote": "Закрыто.",
+      "notVerified": "Не проверено: {notes}.",
+      "unknownIssue": "Эта проблема не отслеживается.",
+      "alreadyPosted": "Ответ уже опубликован."
     },
     "poll": {
       "skippedPullRequest": "запрос на слияние, а не проблема",
@@ -1919,6 +1946,10 @@
       "inHand": "В работе",
       "invalid": "Неверно",
       "spam": "Спам"
+    },
+    "outcomes": {
+      "planEntry": "Запись плана",
+      "fixLane": "Дорожка исправления"
     },
     "planDraft": {
       "intro": "Черновик плана сторожа для {repository}#{number} (вердикт: {verdict}).",
@@ -3954,6 +3985,7 @@
     "purposeResources": "Показать нагрузку компьютера и недавнюю историю.",
     "purposeShare": "Поделиться разговором: скопировать, сохранить в файл или открыть в браузере.",
     "purposePrompts": "Сохранять, перечислять, использовать и передавать повторно используемые шаблоны промптов.",
+    "purposeWatchdog": "Следить за проблемами GitHub: показ, опрос, сортировка, решение и завершение.",
     "modelsList": "Модели {entry}:",
     "modelsForced": "принудительно: {reason}",
     "modelsExtra": "У провайдера, но не в записи:",

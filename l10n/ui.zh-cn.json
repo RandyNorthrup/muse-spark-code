@@ -410,6 +410,7 @@
   "referenceInstallSkills": "将 project_setup、feature_delivery 和 quality_retrofit 复制到 Muse Code 配置中，并链接为技能。",
   "referenceExecContract": "无界面运行不允许信任工作区或绕过权限。 无界面运行仅允许 plan 或 acceptEdits。 托管网页搜索没有可保证的费用上限，因此拒绝使用。 图像生成需要 acceptEdits。 请选择且仅选择一个提示来源。 提示和密钥不能同时使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自动压缩仅在 --auto-compaction 和 --max-budget-usd 下运行。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 单个命令的用法、选项和示例。help --all: 命令、设置和功能，附有说明和文档。",
+  "referenceWatchdog": "从终端监视 GitHub 问题:列出、状态、暂停、恢复、轮询、证据、应用、裁决和解决。",
   "referenceKeyStdin": "auth set: 在终端中读取你的密钥，并将其保存在这台计算机的凭据存储中。对话费用计入该密钥。 exec / scan-secrets --key-stdin: 请从管道读取密钥，而非终端。 stdin → memory; prompt stdin + key stdin = 提示和密钥不能同时使用 stdin。",
   "referenceModalKeys": "关闭对话框或在其中移动焦点。",
   "referenceRenameKeys": "确认或取消重命名此对话。",
@@ -1814,7 +1815,30 @@
       "alreadyPaused": "{repository} 的看护已处于暂停状态。",
       "notPaused": "{repository} 的看护未处于暂停状态。",
       "invalidRepository": "请按 所有者/名称 的格式指定仓库。",
-      "watching": "正在监视 {repository}。"
+      "watching": "正在监视 {repository}。",
+      "usage": "请使用 `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`。",
+      "notSignedIn": "请先登录 GitHub，然后运行 `auth github`。",
+      "invalidIssue": "请指定问题编号。",
+      "invalidEvidence": "验证证据的格式不符合预期。",
+      "applyNeedsAck": "此问题未在等待分类。",
+      "decideNeedsTriage": "此问题没有可裁决的分类结果。",
+      "resolveNeedsPlan": "此问题没有可解决的计划。",
+      "overdue": "已逾期",
+      "commandFailed": "无法完成看护命令。",
+      "unavailable": "看护不可用。",
+      "description": "列出、轮询和裁决受监视的 GitHub 问题。",
+      "pausedWord": "已暂停",
+      "issueCount": {
+        "other": "{count} 个问题"
+      },
+      "noIssues": "未记录任何问题。",
+      "triagedAs": "已分类为{verdict}。",
+      "decided": "已裁决:{outcome}。",
+      "posted": "已发布。",
+      "closedNote": "已关闭。",
+      "notVerified": "未验证:{notes}。",
+      "unknownIssue": "此问题未被监视。",
+      "alreadyPosted": "回复已发布。"
     },
     "poll": {
       "skippedPullRequest": "是拉取请求，而非问题",
@@ -1832,6 +1856,10 @@
       "inHand": "处理中",
       "invalid": "无效",
       "spam": "垃圾信息"
+    },
+    "outcomes": {
+      "planEntry": "计划条目",
+      "fixLane": "修复通道"
     },
     "planDraft": {
       "intro": "针对 {repository}#{number} 的看护计划草案（结论：{verdict}）。",
@@ -3729,6 +3757,7 @@
     "purposeResources": "显示计算机负载与最近历史记录。",
     "purposeShare": "分享对话：复制、保存到文件或在浏览器中打开。",
     "purposePrompts": "保存、列出、使用和分享可复用的提示词模板。",
+    "purposeWatchdog": "监视 GitHub 问题:列出、轮询、分类、裁决和解决。",
     "modelsList": "{entry} 的模型：",
     "modelsForced": "强制添加：{reason}",
     "modelsExtra": "提供方有但条目中没有：",

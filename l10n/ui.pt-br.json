@@ -412,6 +412,7 @@
   "referenceInstallSkills": "Copiar project_setup, feature_delivery e quality_retrofit para a configuração do Muse Code e vinculá-las como habilidades.",
   "referenceExecContract": "Execuções sem interface recusam confiança no espaço de trabalho e desvio de permissões. Sem interface, apenas plan ou acceptEdits são permitidos. A pesquisa web hospedada não tem limite garantido e é recusada. A geração de imagens exige acceptEdits. Escolha exatamente uma fonte de prompt. O prompt e a chave não podem usar stdin ao mesmo tempo. A Model API exige --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. A compactação automática só é executada com --auto-compaction sob --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Uso, opções e exemplos de um comando. help --all: Comandos, configurações e recursos, com descrições e documentação.",
+  "referenceWatchdog": "Vigiar problemas do GitHub pelo terminal: listar, status, pausar, retomar, sondar, evidência, aplicar, decidir e resolver.",
   "referenceKeyStdin": "auth set: Lê sua chave em um terminal e a guarda no armazenamento de credenciais deste computador. As conversas são cobradas da chave. exec / scan-secrets --key-stdin: Leia a chave de um pipe, não de um terminal. stdin → memory; prompt stdin + key stdin = O prompt e a chave não podem usar stdin ao mesmo tempo.",
   "referenceModalKeys": "Fechar a janela ou mover o foco dentro dela.",
   "referenceRenameKeys": "Confirmar ou cancelar a renomeação desta conversa.",
@@ -1872,7 +1873,32 @@
       "alreadyPaused": "O vigia de {repository} já está pausado.",
       "notPaused": "O vigia de {repository} não está pausado.",
       "invalidRepository": "Informe um repositório como dono/nome.",
-      "watching": "Vigiando {repository}."
+      "watching": "Vigiando {repository}.",
+      "usage": "Use o comando `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Entre no GitHub primeiro e execute `auth github`.",
+      "invalidIssue": "Informe um número de problema.",
+      "invalidEvidence": "A evidência de verificação não tinha a forma esperada.",
+      "applyNeedsAck": "Este problema não está aguardando triagem.",
+      "decideNeedsTriage": "Este problema não tem triagem para decidir.",
+      "resolveNeedsPlan": "Este problema não tem plano para resolver.",
+      "overdue": "atrasado",
+      "commandFailed": "O comando do vigia não pôde ser concluído.",
+      "unavailable": "O vigia está indisponível.",
+      "description": "Lista, sonda e decide problemas vigiados do GitHub.",
+      "pausedWord": "Pausado",
+      "issueCount": {
+        "one": "{count} problema",
+        "other": "{count} problemas",
+        "many": "{count} problemas"
+      },
+      "noIssues": "Nenhum problema registrado.",
+      "triagedAs": "Triado como {verdict}.",
+      "decided": "Decidido: {outcome}.",
+      "posted": "Publicado.",
+      "closedNote": "Fechado.",
+      "notVerified": "Não verificado: {notes}.",
+      "unknownIssue": "Este problema não está sendo vigiado.",
+      "alreadyPosted": "A resposta já está publicada."
     },
     "poll": {
       "skippedPullRequest": "uma solicitação de pull, não um problema",
@@ -1890,6 +1916,10 @@
       "inHand": "Em andamento",
       "invalid": "Inválido",
       "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Item do plano",
+      "fixLane": "Raia de correção"
     },
     "planDraft": {
       "intro": "Rascunho de plano do vigia para {repository}#{number} (veredito: {verdict}).",
@@ -3879,6 +3909,7 @@
     "purposeResources": "Mostrar a carga da máquina e o histórico recente.",
     "purposeShare": "Compartilhar uma conversa: copiá-la, salvá-la em um arquivo ou abri-la no navegador.",
     "purposePrompts": "Salvar, listar, usar e compartilhar modelos de prompt reutilizáveis.",
+    "purposeWatchdog": "Vigiar problemas do GitHub: listar, sondar, triar, decidir e resolver.",
     "modelsList": "Modelos de {entry}:",
     "modelsForced": "forçado: {reason}",
     "modelsExtra": "No provedor, mas não na entrada:",

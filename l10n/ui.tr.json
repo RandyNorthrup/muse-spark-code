@@ -411,6 +411,7 @@
   "referenceInstallSkills": "project_setup, feature_delivery ve quality_retrofit'i Muse Code yapılandırmasına kopyalayıp beceri olarak bağlayın.",
   "referenceExecContract": "Arayüzsüz çalıştırmalar çalışma alanına güvenmeyi ve izinleri atlamayı reddeder. Arayüzsüz çalıştırmalarda yalnızca plan veya acceptEdits kullanılabilir. Barındırılan web aramasının garantili sınırı yoktur ve reddedilir. Görsel üretimi için acceptEdits gerekir. Tam olarak bir istem kaynağı seçin. İstem ve anahtar aynı anda stdin kullanamaz. Model API için --max-budget-usd gerekir. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Otomatik sıkıştırma yalnızca --auto-compaction ile --max-budget-usd altında çalışır.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Bir komutun kullanımı, seçenekleri ve örnekleri. help --all: Açıklamalar ve belgelerle birlikte komutlar, ayarlar ve özellikler.",
+  "referenceWatchdog": "Terminalden GitHub sorunlarını izleme: listeleme, durum, duraklatma, sürdürme, yoklama, kanıt, uygulama, karar ve çözüm.",
   "referenceKeyStdin": "auth set: Anahtarınızı bir terminalde okur ve bu bilgisayarın kimlik bilgisi deposunda saklar. Konuşmalar anahtara faturalandırılır. exec / scan-secrets --key-stdin: Anahtarı terminalden değil borudan okuyun. stdin → memory; prompt stdin + key stdin = İstem ve anahtar aynı anda stdin kullanamaz.",
   "referenceModalKeys": "İletişim kutusunu kapatın veya içinde odağı taşıyın.",
   "referenceRenameKeys": "Bu konuşmanın yeniden adlandırılmasını onaylayın veya iptal edin.",
@@ -1843,7 +1844,31 @@
       "alreadyPaused": "{repository} bekçisi zaten duraklatılmış.",
       "notPaused": "{repository} bekçisi duraklatılmamış.",
       "invalidRepository": "Depoyu sahip/ad biçiminde verin.",
-      "watching": "{repository} izleniyor."
+      "watching": "{repository} izleniyor.",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>` kullanın.",
+      "notSignedIn": "Önce GitHub’da oturum açın, sonra `auth github` çalıştırın.",
+      "invalidIssue": "Bir sorun numarası verin.",
+      "invalidEvidence": "Doğrulama kanıtı beklenen biçimde değildi.",
+      "applyNeedsAck": "Bu sorun triyaj beklemiyor.",
+      "decideNeedsTriage": "Bu sorunun karara bağlanacak triyajı yok.",
+      "resolveNeedsPlan": "Bu sorunun çözülecek planı yok.",
+      "overdue": "gecikmiş",
+      "commandFailed": "Bekçi komutu tamamlanamadı.",
+      "unavailable": "Bekçi kullanılamıyor.",
+      "description": "İzlenen GitHub sorunlarını listeler, yoklar ve karara bağlar.",
+      "pausedWord": "Duraklatıldı",
+      "issueCount": {
+        "one": "{count} sorun",
+        "other": "{count} sorun"
+      },
+      "noIssues": "Kayıtlı sorun yok.",
+      "triagedAs": "{verdict} olarak triyajlandı.",
+      "decided": "Karar verildi: {outcome}.",
+      "posted": "Gönderildi.",
+      "closedNote": "Kapatıldı.",
+      "notVerified": "Doğrulanmadı: {notes}.",
+      "unknownIssue": "Bu sorun izlenmiyor.",
+      "alreadyPosted": "Yanıt zaten gönderildi."
     },
     "poll": {
       "skippedPullRequest": "sorun değil, çekme isteği",
@@ -1861,6 +1886,10 @@
       "inHand": "Elde",
       "invalid": "Geçersiz",
       "spam": "İstenmeyen"
+    },
+    "outcomes": {
+      "planEntry": "Plan girdisi",
+      "fixLane": "Düzeltme şeridi"
     },
     "planDraft": {
       "intro": "{repository}#{number} için bekçi plan taslağı (karar: {verdict}).",
@@ -3804,6 +3833,7 @@
     "purposeResources": "Makine yükünü ve son geçmişi gösterir.",
     "purposeShare": "Bir sohbeti paylaş: kopyala, dosyaya kaydet ya da tarayıcıda aç.",
     "purposePrompts": "Yeniden kullanılabilir istem şablonlarını kaydet, listele, kullan ve paylaş.",
+    "purposeWatchdog": "GitHub sorunlarını izleme: listeleme, yoklama, triyaj, karar ve çözüm.",
     "modelsList": "{entry} modelleri:",
     "modelsForced": "zorla eklendi: {reason}",
     "modelsExtra": "Sağlayıcıda var, girdide yok:",

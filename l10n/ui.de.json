@@ -411,6 +411,7 @@
   "referenceInstallSkills": "project_setup, feature_delivery und quality_retrofit in die Muse Code-Konfiguration kopieren und als Skills verknüpfen.",
   "referenceExecContract": "Ausführungen ohne Oberfläche verweigern Workspace-Vertrauen und das Umgehen von Berechtigungen. Ohne Oberfläche sind nur plan oder acceptEdits erlaubt. Gehostete Websuche hat keine begrenzte Freigabe und wird verweigert. Bilderzeugung benötigt acceptEdits. Wähle genau eine Prompt-Quelle. Prompt und Schlüssel können nicht beide stdin verwenden. Die Model API benötigt --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Die automatische Komprimierung läuft nur mit --auto-compaction unter --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Verwendung, Optionen und Beispiele für einen Befehl. help --all: Befehle, Einstellungen und Funktionen mit Beschreibungen und Dokumentation.",
+  "referenceWatchdog": "GitHub-Probleme vom Terminal aus beobachten: auflisten, Status, pausieren, fortsetzen, abfragen, Beweise, anwenden, entscheiden und auflösen.",
   "referenceKeyStdin": "auth set: Liest Ihren Schlüssel in einem Terminal ein und bewahrt ihn im Anmeldeinformationsspeicher dieses Computers auf. Die Unterhaltungen werden über den Schlüssel abgerechnet. exec / scan-secrets --key-stdin: Lies den Schlüssel aus einer Pipe, nicht aus einem Terminal. stdin → memory; prompt stdin + key stdin = Prompt und Schlüssel können nicht beide stdin verwenden.",
   "referenceModalKeys": "Den Dialog schließen oder den Fokus darin bewegen.",
   "referenceRenameKeys": "Das Umbenennen dieser Unterhaltung bestätigen oder abbrechen.",
@@ -1843,7 +1844,31 @@
       "alreadyPaused": "Der Watchdog für {repository} ist bereits pausiert.",
       "notPaused": "Der Watchdog für {repository} ist nicht pausiert.",
       "invalidRepository": "Geben Sie ein Repository als Besitzer/Name an.",
-      "watching": "Beobachte {repository}."
+      "watching": "Beobachte {repository}.",
+      "usage": "Verwenden Sie `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "notSignedIn": "Melden Sie sich zuerst bei GitHub an und führen Sie `auth github` aus.",
+      "invalidIssue": "Geben Sie eine Problemnummer an.",
+      "invalidEvidence": "Der Verifizierungsnachweis hatte nicht die erwartete Form.",
+      "applyNeedsAck": "Dieses Problem wartet nicht auf die Sichtung.",
+      "decideNeedsTriage": "Dieses Problem hat keine Sichtung zu entscheiden.",
+      "resolveNeedsPlan": "Dieses Problem hat keinen Plan zum Abschließen.",
+      "overdue": "überfällig",
+      "commandFailed": "Der Watchdog-Befehl konnte nicht abgeschlossen werden.",
+      "unavailable": "Der Watchdog ist nicht verfügbar.",
+      "description": "Beobachtete GitHub-Probleme auflisten, abfragen und entscheiden.",
+      "pausedWord": "Pausiert",
+      "issueCount": {
+        "one": "{count} Problem",
+        "other": "{count} Probleme"
+      },
+      "noIssues": "Keine Probleme verzeichnet.",
+      "triagedAs": "Gesichtet als {verdict}.",
+      "decided": "Entschieden: {outcome}.",
+      "posted": "Veröffentlicht.",
+      "closedNote": "Geschlossen.",
+      "notVerified": "Nicht verifiziert: {notes}.",
+      "unknownIssue": "Dieses Problem wird nicht beobachtet.",
+      "alreadyPosted": "Die Antwort ist bereits veröffentlicht."
     },
     "poll": {
       "skippedPullRequest": "ein Pull Request, kein Problem",
@@ -1861,6 +1886,10 @@
       "inHand": "In Arbeit",
       "invalid": "Ungültig",
       "spam": "Spam"
+    },
+    "outcomes": {
+      "planEntry": "Planeintrag",
+      "fixLane": "Fix-Spur"
     },
     "planDraft": {
       "intro": "Watchdog-Planentwurf für {repository}#{number} (Ergebnis: {verdict}).",
@@ -3804,6 +3833,7 @@
     "purposeResources": "Rechnerauslastung und Verlauf anzeigen.",
     "purposeShare": "Eine Unterhaltung teilen: kopieren, in einer Datei speichern oder im Browser öffnen.",
     "purposePrompts": "Wiederverwendbare Prompt-Vorlagen speichern, auflisten, verwenden und teilen.",
+    "purposeWatchdog": "GitHub-Probleme beobachten: auflisten, abfragen, sichten, entscheiden und auflösen.",
     "modelsList": "Modelle für {entry}:",
     "modelsForced": "erzwungen: {reason}",
     "modelsExtra": "Beim Anbieter, aber nicht im Eintrag:",

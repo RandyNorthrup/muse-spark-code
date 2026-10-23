@@ -5103,6 +5103,23 @@
       ]
     },
     {
+      "route": "watchdog",
+      "name": "watchdog [list|status|pause|resume|poll|evidence|apply|decide|resolve]",
+      "description": "Watch GitHub issues from the terminal: list, status, pause, resume, poll, evidence, apply, decide and resolve.",
+      "text": { "ui": "referenceWatchdog" },
+      "invocations": [
+        ["watchdog", "list"],
+        ["watchdog", "status"],
+        ["watchdog", "pause"],
+        ["watchdog", "resume"],
+        ["watchdog", "poll"],
+        ["watchdog", "evidence"],
+        ["watchdog", "apply"],
+        ["watchdog", "decide"],
+        ["watchdog", "resolve"]
+      ]
+    },
+    {
       "route": "fontsInstall",
       "name": "fonts install [--from <directory>]",
       "description": "Usage: {command} fonts install [--from <directory>]",
