@@ -1,0 +1,173 @@
+{
+  "name": "shell",
+  "version": "1.0.0",
+  "description": "Shell scripting: PowerShell with PSScriptAnalyzer and Pester, shellcheck, shfmt and bats.",
+  "license": "MIT AND BSD-3-Clause AND GPL-3.0-or-later AND Apache-2.0 AND ICU",
+  "languages": ["bash", "powershell"],
+  "requires": [],
+  "checks": [
+    {
+      "command": ["shellcheck", "--severity=warning"],
+      "name": "shellcheck"
+    },
+    {
+      "command": ["shfmt", "-d"],
+      "name": "shfmt"
+    },
+    {
+      "command": ["bats"],
+      "name": "bats"
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "license": "MIT",
+      "name": "pwsh",
+      "platforms": [
+        {
+          "arch": "x64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.7/powershell-7.6.7-linux-x64.tar.gz",
+      "version": "7.6.7"
+    },
+    {
+      "license": "MIT",
+      "name": "pwsh",
+      "platforms": [
+        {
+          "arch": "arm64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/PowerShell/PowerShell/releases/download/v7.6.7/powershell-7.6.7-linux-arm64.tar.gz",
+      "version": "7.6.7"
+    },
+    {
+      "bin": [
+        {
+          "as": "shfmt",
+          "name": "shfmt_*"
+        }
+      ],
+      "license": "BSD-3-Clause",
+      "name": "shfmt",
+      "platforms": [
+        {
+          "arch": "x64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_amd64",
+      "version": "3.14.1"
+    },
+    {
+      "bin": [
+        {
+          "as": "shfmt",
+          "name": "shfmt_*"
+        }
+      ],
+      "license": "BSD-3-Clause",
+      "name": "shfmt",
+      "platforms": [
+        {
+          "arch": "arm64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/mvdan/sh/releases/download/v3.14.1/shfmt_v3.14.1_linux_arm64",
+      "version": "3.14.1"
+    },
+    {
+      "license": "GPL-3.0-or-later",
+      "name": "shellcheck",
+      "platforms": [
+        {
+          "arch": "x64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz",
+      "version": "0.11.0"
+    },
+    {
+      "license": "GPL-3.0-or-later",
+      "name": "shellcheck",
+      "platforms": [
+        {
+          "arch": "arm64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.aarch64.tar.xz",
+      "version": "0.11.0"
+    },
+    {
+      "install": ["./install.sh", "{prefix}/usr/local"],
+      "license": "MIT",
+      "name": "bats",
+      "platforms": [
+        {
+          "arch": "x64",
+          "os": "linux"
+        },
+        {
+          "arch": "arm64",
+          "os": "linux"
+        }
+      ],
+      "url": "https://github.com/bats-core/bats-core/archive/refs/tags/v1.14.0.tar.gz",
+      "version": "1.14.0"
+    }
+  ],
+  "managed": {
+    "psGallery": [
+      {
+        "license": "MIT",
+        "name": "PSScriptAnalyzer",
+        "version": "1.25.0"
+      },
+      {
+        "license": "Apache-2.0",
+        "name": "Pester",
+        "version": "6.2.0"
+      }
+    ]
+  },
+  "smoke": [
+    {
+      "command": ["pwsh", "-Version"]
+    },
+    {
+      "command": ["shfmt", "--version"]
+    },
+    {
+      "command": ["shellcheck", "--version"]
+    },
+    {
+      "command": ["bats", "--version"]
+    },
+    {
+      "command": [
+        "pwsh",
+        "-NoProfile",
+        "-Command",
+        "(Get-Module -ListAvailable PSScriptAnalyzer, Pester | ForEach-Object { $_.Name + ' ' + $_.Version }) -join '; '"
+      ]
+    }
+  ],
+  "apt": {
+    "snapshot": "20261022T000000Z",
+    "packages": [
+      {
+        "name": "libicu76",
+        "license": "ICU"
+      }
+    ]
+  }
+}

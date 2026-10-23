@@ -111,12 +111,12 @@ const LAYERS_DIR = 'layers'
 const PACKS_DIR = 'packs'
 /** The range answer that continues a partial download instead of restarting it. */
 const HTTP_PARTIAL_CONTENT = 206
-/** `process.platform` names the packs know. */
-const HOST_OS: ReadonlyMap<string, PackPlatform['os']> = new Map([
-  ['linux', 'linux'],
-  ['darwin', 'darwin'],
-  ['win32', 'windows'],
-])
+/**
+`process.platform` names the packs know. Packs are Linux layers for the
+node's sandboxes; anywhere else refuses, and the guided install (TV)
+covers the person's own machine instead.
+*/
+const HOST_OS: ReadonlyMap<string, PackPlatform['os']> = new Map([['linux', 'linux']])
 /** `process.arch` names the packs know. */
 const HOST_ARCH: ReadonlyMap<string, PackPlatform['arch']> = new Map([
   ['x64', 'x64'],
@@ -437,6 +437,7 @@ export class PackManager {
       name: pack.name,
       version: pack.version,
       languages: pack.languages,
+      tools: pack.tools.map((tool) => ({ name: tool.name, version: tool.version })),
       checks: pack.checks,
     }))
     const file = { version: 1, packs: toolchainPacks, updatedAt: this.deps.now().toISOString() }

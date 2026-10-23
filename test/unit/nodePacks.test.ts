@@ -20,7 +20,7 @@ import {
   type PackFetch,
   type PackManagerDeps,
 } from '../../src/runtime/node/packs/manager'
-import type { Persona } from '../../src/shared/profile'
+import type { PackName, Persona } from '../../src/shared/profile'
 import { toolchainsSchema } from '../../src/shared/toolchains'
 
 const NOW = new Date('2026-06-01T00:00:00.000Z')
@@ -37,7 +37,7 @@ function makeArtifact(
   version: string,
   content: string,
   platforms?: PackPlatform[],
-): { artifact: PackArtifact; bytes: Uint8Array } {
+): { artifact: PackArtifact; bytes: Uint8Array<ArrayBuffer> } {
   const bytes = new TextEncoder().encode(content)
   return {
     bytes,
@@ -60,6 +60,7 @@ function makePack(
     constraints?: PackDefinition['constraints']
     clickThrough?: boolean
     version?: string
+    tools?: PackDefinition['tools']
   } = {},
 ): PackDefinition {
   const label: string = name
@@ -71,6 +72,9 @@ function makePack(
     languages: name === 'shell' || name === 'crosscutting' ? [] : [name],
     requires: options.requires ?? [],
     artifacts,
+    tools:
+      options.tools ??
+      artifacts.map((artifact) => ({ name: artifact.name, version: artifact.version })),
     checks: [{ name: `${label}-check`, command: [name, 'check'] }],
     constraints: options.constraints ?? [],
     clickThrough: options.clickThrough ?? false,
@@ -95,7 +99,7 @@ function makeIndex(
 /** The fake pack server: index bytes with their digest, artifacts by URL. */
 class FakeServer implements PackFetch {
   index: PackIndex
-  readonly artifacts = new Map<string, Uint8Array>()
+  readonly artifacts = new Map<string, Uint8Array<ArrayBuffer>>()
   failIndex: Error | undefined = undefined
   failArtifact: Error | undefined = undefined
   sendDigest = true
@@ -106,7 +110,7 @@ class FakeServer implements PackFetch {
     this.index = makeIndex(packs, options)
   }
 
-  serve(artifact: PackArtifact, bytes: Uint8Array): void {
+  serve(artifact: PackArtifact, bytes: Uint8Array<ArrayBuffer>): void {
     this.artifacts.set(artifact.url, bytes)
   }
 
@@ -306,7 +310,7 @@ describe('PackManager', () => {
 
   const auditLineSchema = z.object({ action: z.string(), reason: z.optional(z.string()) })
 
-  async function auditLines(): Promise<{ action: string; reason?: string }[]> {
+  async function auditLines(): Promise<{ action: string; reason?: string | undefined }[]> {
     const raw = await readFile(path.join(root, 'audit.jsonl'), 'utf8')
     return raw
       .split('\n')

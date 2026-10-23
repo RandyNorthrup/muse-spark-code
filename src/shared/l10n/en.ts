@@ -4785,6 +4785,11 @@ export const EN = {
   nodeWaitingRow:
     'Waiting: {node} unreachable since {time}, retrying, attempt {attempt}, next in {delay}',
   packsVerifyUnavailable: 'Pack verification is unavailable in this build.',
+  peekSlashDescription: "Peek at an agent's event stream (read-only).",
+  peekUsage: '/peek [agent-id]',
+  peekNoAgents: 'No agents are running in this session.',
+  peekUnknownAgent: 'Unknown agent: {id}',
+  peekAttachmentsRefused: '/peek takes no attachments: send it alone.',
   execDeniedStop: 'An approval denial stopped this run.',
   execInterrupted: 'The run was interrupted.',
   execOutputStalled: 'Output closed or stalled.',

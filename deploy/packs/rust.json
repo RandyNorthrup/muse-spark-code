@@ -1,0 +1,101 @@
+{
+  "name": "rust",
+  "version": "1.0.0",
+  "description": "Rust through rustup: the pinned stable toolchain and a pinned nightly for sanitizers, with rustfmt, pedantic clippy, cargo-machete, cargo-audit and cargo-deny.",
+  "license": "(Apache-2.0 OR MIT) AND MIT",
+  "languages": ["rust"],
+  "requires": [],
+  "checks": [
+    {
+      "name": "rustfmt",
+      "command": ["cargo", "fmt", "--check"]
+    },
+    {
+      "name": "clippy",
+      "command": ["cargo", "clippy", "--", "-W", "clippy::pedantic", "-D", "warnings"]
+    },
+    {
+      "name": "cargo-machete",
+      "command": ["cargo", "machete"]
+    },
+    {
+      "name": "cargo-audit",
+      "command": ["cargo", "audit"]
+    },
+    {
+      "name": "cargo-deny",
+      "command": ["cargo", "deny", "check"]
+    }
+  ],
+  "constraints": [],
+  "clickThrough": false,
+  "checkedAt": "2026-10-22",
+  "upstream": [
+    {
+      "name": "rustup",
+      "version": "1.29.2",
+      "url": "https://static.rust-lang.org/rustup/archive/1.29.2/x86_64-unknown-linux-gnu/rustup-init",
+      "license": "Apache-2.0 OR MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "x64"
+        }
+      ]
+    },
+    {
+      "name": "rustup",
+      "version": "1.29.2",
+      "url": "https://static.rust-lang.org/rustup/archive/1.29.2/aarch64-unknown-linux-gnu/rustup-init",
+      "license": "Apache-2.0 OR MIT",
+      "platforms": [
+        {
+          "os": "linux",
+          "arch": "arm64"
+        }
+      ]
+    }
+  ],
+  "managed": {
+    "rust": [
+      {
+        "name": "rust",
+        "version": "1.99.1",
+        "license": "Apache-2.0 OR MIT"
+      },
+      {
+        "name": "rust-nightly",
+        "version": "nightly-2026-10-22",
+        "license": "Apache-2.0 OR MIT"
+      }
+    ],
+    "cargo": [
+      {
+        "name": "cargo-machete",
+        "version": "0.9.2",
+        "license": "MIT"
+      },
+      {
+        "name": "cargo-audit",
+        "version": "0.22.2",
+        "license": "Apache-2.0 OR MIT"
+      },
+      {
+        "name": "cargo-deny",
+        "version": "0.20.2",
+        "license": "Apache-2.0 OR MIT"
+      }
+    ]
+  },
+  "smoke": [
+    {
+      "command": ["rustup", "--version"]
+    },
+    {
+      "command": ["rustc", "--version"]
+    },
+    {
+      "command": ["cargo", "--version"]
+    }
+  ]
+}

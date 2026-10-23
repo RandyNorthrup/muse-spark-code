@@ -1355,6 +1355,11 @@ const TEXT_BLOCKS = [
     sentinels: ['legalScanRestrictedMode', 'headerPolicyDescription'],
     readers: ['dist/modelApiBoundaries.js'],
   },
+  {
+    block: 'TOOLCHAINS_MODEL_TEXT',
+    sentinels: ['toolchainsContextLine', 'noToolchains'],
+    readers: ['dist/modelApiBoundaries.js'],
+  },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },
   {

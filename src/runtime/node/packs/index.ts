@@ -77,14 +77,14 @@ export async function verifyIndex(options: {
 
 /** The installed toolchain versions across packs, for constraint checks. */
 export function installedToolchainVersions(
-  packs: Iterable<Pick<PackDefinition, 'artifacts'>>,
+  packs: Iterable<Pick<PackDefinition, 'tools'>>,
 ): ReadonlyMap<string, string> {
   const versions = new Map<string, string>()
   for (const pack of packs) {
-    for (const artifact of pack.artifacts) {
-      const known = versions.get(artifact.name)
-      if (known === undefined || compareVersions(artifact.version, known) > 0) {
-        versions.set(artifact.name, artifact.version)
+    for (const tool of pack.tools) {
+      const known = versions.get(tool.name)
+      if (known === undefined || compareVersions(tool.version, known) > 0) {
+        versions.set(tool.name, tool.version)
       }
     }
   }
