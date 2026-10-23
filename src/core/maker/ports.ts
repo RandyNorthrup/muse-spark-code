@@ -62,8 +62,8 @@ export interface MakerSerialProvider {
   release(): Promise<void>
 }
 /** Approval-panel makerReady replays current admission/preview and pending requests via reopen.
- * Browser state never supplies payloads or review readiness after document reload.
- */
+Browser state never supplies payloads or review readiness after document reload.
+*/
 export interface MakerHost<Request extends ApprovalRequest = ApprovalRequest> {
   /** Only completed approval review may call review; a preview receipt is not authority. */
   confirm(request: Request, didReview: (raw: unknown) => boolean): Promise<unknown>

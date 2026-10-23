@@ -13,13 +13,13 @@ import {
 } from '../../shared/constants'
 
 /**
- * The two ways `ipv4only.arpa`'s AAAA answers are asked for (RFC 7050):
- * the operating system's resolver, as the page's name was looked up, which
- * returns what a DNS64 in its path synthesized; and a DNS query of its own
- * (c-ares), whose NXDOMAIN or NODATA is the only proof that no AAAA record
- * exists. getaddrinfo's failure proves nothing: Node documents that its
- * ENOTFOUND may stand for other failures of the lookup.
- */
+The two ways `ipv4only.arpa`'s AAAA answers are asked for (RFC 7050):
+the operating system's resolver, as the page's name was looked up, which
+returns what a DNS64 in its path synthesized; and a DNS query of its own
+(c-ares), whose NXDOMAIN or NODATA is the only proof that no AAAA record
+exists. getaddrinfo's failure proves nothing: Node documents that its
+ENOTFOUND may stand for other failures of the lookup.
+*/
 export interface Nat64Lookups {
   readonly system: () => Promise<readonly string[]>
   readonly dns: () => Promise<readonly string[]>
@@ -55,13 +55,13 @@ function outcomeText(outcome: PromiseSettledResult<readonly string[]>): string {
 }
 
 /**
- * The network's NAT64 prefixes (RFC 7050), from the answers either lookup
- * returned. With none, only the DNS query's NXDOMAIN or NODATA means no
- * DNS64; any other outcome (a timeout, SERVFAIL, a refusal, no servers
- * found), or answers that carry no RFC 6052 prefix, leave NAT64 unknown,
- * and the fetch then uses no IPv6 answer, since any could carry a private
- * address.
- */
+The network's NAT64 prefixes (RFC 7050), from the answers either lookup
+returned. With none, only the DNS query's NXDOMAIN or NODATA means no
+DNS64; any other outcome (a timeout, SERVFAIL, a refusal, no servers
+found), or answers that carry no RFC 6052 prefix, leave NAT64 unknown,
+and the fetch then uses no IPv6 answer, since any could carry a private
+address.
+*/
 export async function discoverNat64(
   lookups: Nat64Lookups,
   log: Pick<Logger, 'info' | 'trace'>,
