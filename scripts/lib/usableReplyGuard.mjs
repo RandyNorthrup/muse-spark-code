@@ -294,6 +294,13 @@ const ALLOW_LIST = new Map([
     'src/webview/usage/UsageApp.tsx:receive',
     'the usage panel notices its own export/delete message outcome',
   ],
+  // The judge hook preflights its own synthesized caution/neutral outputs
+  // through the hook parsers: hook-protocol answer statuses, never a turn
+  // reply (no turn, no cap, no reply to gate).
+  [
+    'src/runtime/judge/hook.ts:<top>',
+    'the hook preflight reads hook-answer statuses over its own synthesized outputs',
+  ],
 ])
 
 const ACCESSOR = 'src/core/turns/usableReply.ts'
