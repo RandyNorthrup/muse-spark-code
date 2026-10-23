@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Token sheet</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}</style>
+</helmet>
+<section data-ms-theme="{{theme}}" aria-label="Token legend" style="width: 100%; box-sizing: border-box; padding: 20px 32px 28px; background: var(--ms-raised); border-top: 1px solid var(--ms-border); color: var(--ms-text); font-family: var(--ms-font-ui); font-size: var(--ms-font-size); line-height: var(--ms-line-ui); display: flex; flex-direction: column; gap: 14px">
+  <div style="display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap">
+    <h2 style="margin: 0; font-size: var(--ms-font-large); font-weight: 600">{{title}}</h2>
+    <span class="mono" style="font-size: 12px; color: var(--ms-muted)">values for {{themeName}} · data-ms-theme="{{theme}}"</span>
+    <span style="flex: 1"></span>
+    <span style="display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ms-muted)"><span class="chip" style="color: var(--ms-warning)">proposed</span> not in muse.tokens.json yet</span>
+  </div>
+  <sc-for list="{{groups}}" as="g" hint-placeholder-count="1">
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <sc-if value="{{g.title}}" hint-placeholder-val="{{ true }}"><h3 class="lbl" style="margin: 4px 0 0">{{g.title}}</h3></sc-if>
+      <div style="display: grid; grid-template-columns: repeat({{cols}}, minmax(0, 1fr)); gap: 2px 28px">
+        <sc-for list="{{g.rows}}" as="r" hint-placeholder-count="8">
+          <div style="display: flex; align-items: flex-start; gap: 8px; min-height: 22px; min-width: 0; padding-block: 2px">
+            <span style="width: 14px; height: 14px; flex: none; margin-top: 2px; border-radius: var(--ms-radius-xs); border: 1px solid var(--ms-border); background: {{r.sw}}; opacity: {{r.swo}}"></span>
+            <span class="mono" style="font-size: 12px; font-weight: 500; white-space: nowrap">{{r.name}}</span>
+            <span class="mono" style="font-size: 12px; color: {{r.vc}}; min-width: 0; overflow-wrap: anywhere">{{r.value}}</span>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </sc-for>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"cols":{"editor":"int","min":1,"max":6,"default":4},"tokens":{"editor":null},"title":{"editor":null},"$preview":{"width":1920,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'dark';
+    const ti = { dark: 0, light: 1, 'hc-light': 2, 'hc-dark': 3 }[theme] ?? 0;
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const mixT = 'color-mix(text 70%, surface)';
+    const mixS = 'color-mix(surface 55%, transparent)';
+    // Colour roles: [dark, light, hc-light, hc-dark], from design/tokens/generated/muse.css.
+    const C = {
+      surface: ['#181818', '#fff', '#fff', '#000'], raised: ['#242832', '#f3f5f8', '#fff', '#000'],
+      overlay: ['#242832', '#fff', '#fff', '#000'], border: ['#858b98', '#737780', '#000', '#fff'],
+      boundary: [mixT, mixT, mixT, mixT], text: ['#e4e7ed', '#252932', '#000', '#fff'],
+      muted: ['#aeb6c4', '#575d68', '#292929', '#fff'], 'brand-mark': ['#3d8bff', '#0a5cff', '#000', '#fff'],
+      accent: ['#0a5cff', '#0a5cff', '#000', '#fff'], 'on-accent': ['#fff', '#fff', '#fff', '#000'],
+      focus: ['#7fb2ff', '#0a5cff', '#000', '#fff'], selection: ['#064e8a', '#064e8a', '#000', '#fff'],
+      'on-selection': ['#fff', '#fff', '#fff', '#000'], success: ['#3fb950', '#176b2b', '#176b2b', '#7fff7f'],
+      warning: ['#e5c34b', '#735500', '#735500', '#ff0'], danger: ['#ff9292', '#ac1721', '#ac1721', '#ffb3b3'],
+      info: ['#7fb2ff', '#095bbe', '#095bbe', '#7fffff'], badge: ['#434a58', '#434a58', '#000', '#fff'],
+      'on-badge': ['#fff', '#fff', '#fff', '#000'], disabled: ['#858b98', '#737780', '#737780', '#858b98'],
+      hover: ['#303642', '#edf1f7', '#fff', '#000'], pressed: ['#0646c4', '#0646c4', '#000', '#fff'],
+      'error-surface': ['#3a2024', '#fff2f2', '#fff', '#000'], 'warning-surface': ['#332c14', '#fff7d6', '#fff', '#000'],
+      'modal-scrim': [mixS, mixS, '#fff', '#000'],
+      'diff-added': ['#2ea04333', '#2ea04333', '#2ea04333', '#2ea04333'], 'diff-removed': ['#f8514933', '#f8514933', '#f8514933', '#f8514933'],
+      shadow: ['#0000004d', '#0000004d', '#0000004d', '#0000004d'],
+      'status-low': ['oklch(11.86% 0.0248 260.66deg)', 'oklch(11.86% 0.0248 260.66deg)', 'oklch(11.86% 0.0248 260.66deg)', 'oklch(11.86% 0.0248 260.66deg)'],
+      'status-mid': ['oklch(31.33% 0.1419 260.73deg)', 'oklch(31.33% 0.1419 260.73deg)', 'oklch(31.33% 0.1419 260.73deg)', 'oklch(31.33% 0.1419 260.73deg)'],
+      'status-high': ['oklch(60.61% 0.2122 260.66deg)', 'oklch(60.61% 0.2122 260.66deg)', 'oklch(60.61% 0.2122 260.66deg)', 'oklch(60.61% 0.2122 260.66deg)'],
+      'usage-purple': ['#b180d7', '#652d90', '#000', '#fff'], 'usage-orange': ['#d18616', '#ba6800', '#000', '#fff']
+    };
+    const A = {
+      'editor-surface': 'raised', 'input-surface': 'raised', 'input-border': 'border', 'input-placeholder': 'muted',
+      'input-text': 'text', 'code-surface': 'raised', 'secondary-surface': 'raised', 'control-border': 'border',
+      cursor: 'text', progress: 'focus', 'git-added': 'success', 'git-deleted': 'danger', 'contrast-border': 'border',
+      'link-hover': 'info', 'syntax-keyword': 'text', 'syntax-string': 'text', 'syntax-function': 'text', 'syntax-number': 'text'
+    };
+    const T = {
+      'elevation-flat': ['none', 'none', 'none', 'none'],
+      'elevation-raised': ['0 2px 8px 0 #0000004d', '0 2px 8px 0 #0000004d', 'none', 'none'],
+      'elevation-popover': ['0 4px 16px 0 #0000004d', '0 4px 16px 0 #0000004d', 'none', 'none'],
+      'elevation-overlay': ['0 8px 32px 0 #0000004d', '0 8px 32px 0 #0000004d', 'none', 'none'],
+      'overlay-alpha': ['0.94', '0.94', '1', '1'], 'popover-alpha': ['0.98', '0.98', '1', '1'],
+      'launcher-alpha': ['0.96', '0.96', '1', '1'], 'backdrop-blur': ['12px', '12px', '0', '0']
+    };
+    const V = {
+      'radius-xs': '3px', 'radius-sm': '4px', 'radius-md': '6px', 'radius-lg': '12px', 'radius-xl': '20px', 'radius-pill': '999px', 'radius-circle': '50%',
+      'space-4': '4px', 'space-8': '8px', 'space-12': '12px', 'space-16': '16px', 'space-20': '20px', 'space-24': '24px', 'space-32': '32px', 'space-48': '48px',
+      'font-ui': "inter, 'Segoe UI', sans-serif", 'font-code': "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
+      'font-size': '13px', 'code-size': '13px', 'font-small': '11px', 'font-large': '16px',
+      'weight-normal': '400', 'weight-medium': '500', 'weight-bold': '600', 'line-ui': '1.5', 'line-code': '1.6',
+      'motion-fast': '120ms', 'motion-base': '180ms', 'motion-slow': '240ms',
+      'ease-standard': 'cubic-bezier(0.2, 0, 0, 1)', 'ease-emphasised': 'cubic-bezier(0.8, 0, 0.2, 1)',
+      'focus-width': '2px', 'focus-offset': '2px', 'icon-size': '16px', 'control-size': '26px', 'chip-height': '20px',
+      'button-height': '28px', 'column-max-width': '760px', gap: '8px'
+    };
+    const P = { 'bar-height': '32px (top bar)', 'status-height': '24px (status bar)', 'rail-width': '48px (icon rail)', 'motion-flip': '280ms (rail flip, D91.13)' };
+    const row = (k) => {
+      const name = '--ms-' + k;
+      if (C[k]) {
+        const v = C[k][ti];
+        const live = k === 'boundary' || k === 'modal-scrim';
+        return { name, value: v, sw: live ? 'var(--ms-' + k + ')' : v, swo: '1', vc: 'var(--ms-muted)' };
+      }
+      if (A[k]) {
+        const v = C[A[k]][ti];
+        return { name, value: '→ --ms-' + A[k] + ' · ' + v, sw: v, swo: '1', vc: 'var(--ms-muted)' };
+      }
+      if (T[k]) return { name, value: T[k][ti], sw: 'transparent', swo: '0', vc: 'var(--ms-muted)' };
+      if (V[k]) return { name, value: V[k], sw: 'transparent', swo: '0', vc: 'var(--ms-muted)' };
+      if (P[k]) return { name, value: P[k] + ' · proposed', sw: 'transparent', swo: '0', vc: 'var(--ms-warning)' };
+      return { name, value: 'not a token', sw: 'transparent', swo: '0', vc: 'var(--ms-danger)' };
+    };
+    const tokens = this.props.tokens;
+    let groups;
+    if (Array.isArray(tokens) && tokens.length) {
+      groups = [{ title: '', rows: tokens.map(row) }];
+    } else {
+      const g = (title, keys) => ({ title, rows: keys.map(row) });
+      groups = [
+        g('Colour roles', ['surface', 'raised', 'overlay', 'border', 'boundary', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'focus', 'selection', 'on-selection', 'success', 'warning', 'danger', 'info', 'badge', 'on-badge', 'disabled', 'hover', 'pressed', 'error-surface', 'warning-surface']),
+        g('Component roles (aliases)', ['editor-surface', 'input-surface', 'input-border', 'input-placeholder', 'input-text', 'code-surface', 'secondary-surface', 'control-border', 'cursor', 'progress', 'git-added', 'git-deleted', 'contrast-border', 'link-hover', 'modal-scrim']),
+        g('Code, diff, status and charts', ['syntax-keyword', 'syntax-string', 'syntax-function', 'syntax-number', 'diff-added', 'diff-removed', 'status-low', 'status-mid', 'status-high', 'usage-purple', 'usage-orange', 'shadow']),
+        g('Elevation and translucency', ['elevation-flat', 'elevation-raised', 'elevation-popover', 'elevation-overlay', 'overlay-alpha', 'popover-alpha', 'launcher-alpha', 'backdrop-blur']),
+        g('Radius', ['radius-xs', 'radius-sm', 'radius-md', 'radius-lg', 'radius-xl', 'radius-pill', 'radius-circle']),
+        g('Spacing', ['space-4', 'space-8', 'space-12', 'space-16', 'space-20', 'space-24', 'space-32', 'space-48']),
+        g('Type', ['font-ui', 'font-code', 'font-size', 'code-size', 'font-small', 'font-large', 'weight-normal', 'weight-medium', 'weight-bold', 'line-ui', 'line-code']),
+        g('Motion', ['motion-fast', 'motion-base', 'motion-slow', 'ease-standard', 'ease-emphasised']),
+        g('Focus and sizes', ['focus-width', 'focus-offset', 'icon-size', 'control-size', 'chip-height', 'button-height', 'column-max-width', 'gap']),
+        g('Proposed for the desktop', ['bar-height', 'status-height', 'rail-width', 'motion-flip'])
+      ];
+    }
+    return {
+      theme,
+      themeName: names[theme] ?? theme,
+      cols: this.props.cols ?? 4,
+      title: this.props.title ?? 'Token sheet: every --ms-* token in muse.css',
+      groups
+    };
+  }
+}
+</script>
+</body>
+</html>

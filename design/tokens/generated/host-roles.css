@@ -28,10 +28,11 @@
   --ms-chart-danger: var(--vscode-charts-red, var(--ms-danger));
   --ms-git-added: var(--vscode-gitDecoration-addedResourceForeground, var(--ms-success));
   --ms-git-deleted: var(--vscode-gitDecoration-deletedResourceForeground, var(--ms-danger));
-  --ms-syntax-function: var(--vscode-symbolIcon-functionForeground, var(--ms-text));
-  --ms-syntax-keyword: var(--vscode-symbolIcon-keywordForeground, var(--ms-text));
-  --ms-syntax-number: var(--vscode-debugTokenExpression-number, var(--ms-text));
-  --ms-syntax-string: var(--vscode-debugTokenExpression-string, var(--ms-text));
+  --ms-syntax-function: var(--vscode-symbolIcon-functionForeground, #82aaff);
+  --ms-syntax-keyword: var(--vscode-symbolIcon-keywordForeground, #c792ea);
+  --ms-syntax-number: var(--vscode-debugTokenExpression-number, #f78c6c);
+  --ms-syntax-string: var(--vscode-debugTokenExpression-string, #c3e88d);
   --ms-list-warning: var(--vscode-list-warningForeground, var(--ms-warning));
   --ms-contrast-border: var(--vscode-contrastBorder, var(--ms-border));
+  --ms-git-modified: var(--vscode-gitDecoration-modifiedResourceForeground, var(--ms-warning));
 }

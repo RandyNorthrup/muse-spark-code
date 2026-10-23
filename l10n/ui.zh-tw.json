@@ -6879,5 +6879,67 @@
     "setupFailed": "無法完成設定：{reason}",
     "seedRefused": "未使用記憶卡中的設定檔：{reason}",
     "continueButton": "繼續"
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "密碼",
+    "pin": "PIN 碼",
+    "securityKey": "安全金鑰",
+    "fingerprint": "指紋",
+    "orSignInWith": "或使用以下方式登入",
+    "capsLockOn": "大寫鎖定已開啟",
+    "session": "工作階段",
+    "sessionDesktop": "桌面",
+    "sessionTerminal": "終端機",
+    "accessibility": "輔助使用",
+    "recovery": "復原",
+    "recoveryHint": "需要管理員密碼或復原金鑰",
+    "secureAttentionGreeter": "隨時按 Ctrl+Alt+Del 可到達真正的登入畫面。",
+    "secureAttentionLock": "隨時按 Ctrl+Alt+Del 可確認這是真正的鎖定畫面。",
+    "secureAttentionPrompt": "不確定這是真的?按 Ctrl+Alt+Del。",
+    "notificationsCount": {
+      "other": "{count} 則通知"
+    },
+    "agentsRunning": {
+      "other": "{count} 個代理正在執行"
+    },
+    "worksWithoutSignIn": "無需登入即可使用",
+    "stopEverything": "全部停止",
+    "stopEverythingDetail": "代理、管理操作和開發伺服器",
+    "lockAdmin": "鎖定管理",
+    "lockAdminDetail": "在您解除鎖定之前,代理將失去管理員存取權",
+    "stopMachine": "關機",
+    "administratorPassword": "管理員密碼",
+    "authenticate": "驗證",
+    "cancel": "取消",
+    "agentAdminRequest": "代理管理要求",
+    "taintAskNote": "即使在「一律允許」下也會詢問:{agent} 在提出要求前讀取了一個網頁。",
+    "writtenToAdminAudit": "已寫入管理稽核記錄",
+    "touchKeyToAllow": "輕觸您的安全金鑰以允許",
+    "deny": "拒絕",
+    "allowOnce": "允許一次",
+    "wifiPassword": "Wi-Fi 密碼",
+    "connectAutomatically": "自動連線",
+    "connect": "連線",
+    "bluetoothPairing": "藍牙配對",
+    "launcherCalculateLocal": "在本機上計算,不會傳送到任何地方。",
+    "launcherSymbolSearch": "尋找表情符號或符號",
+    "onboardingTitle": "設定 Muse Desktop",
+    "onboardingStep": "第 {step} 步,共 {total} 步",
+    "packsForYourWork": "適合您工作的套件",
+    "recommendedPacks": {
+      "other": "推薦 · {count}"
+    },
+    "allPacks": "全部套件 · {count}",
+    "fromSignedIndex": "來自已簽署的 Muse 套件索引",
+    "downloadSize": "下載",
+    "onDiskSize": "磁碟占用",
+    "details": "詳細資料",
+    "setUpLater": "稍後設定",
+    "back": "返回",
+    "install": "安裝",
+    "installingPacks": {
+      "other": "正在安裝 {count} 個套件"
+    }
   }
 }

@@ -147,7 +147,9 @@
       "nodeDashboard.sessionTui",
       "referenceNodeTreeKeys",
       "referenceNodeEditorKeys",
-      "nodeOs.netWifi"
+      "nodeOs.netWifi",
+      "desktop.greeterTitle",
+      "desktop.pin"
     ],
     "cs": [
       "groupModel",
@@ -193,7 +195,8 @@
       "devices.diskPressure",
       "judgeSetupCli.planModel",
       "nodeDashboard.sessionWeb",
-      "nodeOs.diskTitle"
+      "nodeOs.diskTitle",
+      "desktop.sessionTerminal"
     ],
     "pl": [
       "groupModel",
@@ -218,7 +221,8 @@
       "teamCapabilityWarning",
       "devices.cpuPressure",
       "judgeSetupCli.planModel",
-      "nodeDashboard.sessionWeb"
+      "nodeDashboard.sessionWeb",
+      "desktop.sessionTerminal"
     ],
     "de": [
       "groupSkills",
@@ -274,7 +278,11 @@
       "nodeAudit.filterTerminal",
       "nodeDashboard.sessionWeb",
       "nodeDashboard.sessionEditor",
-      "nodeOs.consoleName"
+      "nodeOs.consoleName",
+      "desktop.sessionDesktop",
+      "desktop.sessionTerminal",
+      "desktop.downloadSize",
+      "desktop.details"
     ],
     "es": [
       "hooksItem",
@@ -297,7 +305,8 @@
       "sessionListsPlugins",
       "devices.cpuPressure",
       "nodeDashboard.sessionWeb",
-      "nodeDashboard.sessionEditor"
+      "nodeDashboard.sessionEditor",
+      "desktop.sessionTerminal"
     ],
     "pt-br": [
       "agentTokens",
@@ -317,7 +326,9 @@
       "devices.cpuPressure",
       "judgeSetupCli.scanClasses",
       "nodeDashboard.sessionWeb",
-      "nodeDashboard.sessionEditor"
+      "nodeDashboard.sessionEditor",
+      "desktop.sessionTerminal",
+      "desktop.downloadSize"
     ],
     "fr": [
       "modesTitle",
@@ -357,7 +368,12 @@
       "devices.makerOperation",
       "nodeLabels.sessions",
       "nodeLabels.version",
-      "nodeDashboard.sessionWeb"
+      "nodeDashboard.sessionWeb",
+      "desktop.session",
+      "desktop.sessionTerminal",
+      "desktop.notificationsCount.one",
+      "desktop.notificationsCount.other",
+      "desktop.notificationsCount.many"
     ],
     "it": [
       "usageAccount",
@@ -384,7 +400,10 @@
       "judgeSetupCli.planRuntime",
       "judgeSetupCli.scanCores.one",
       "nodeDashboard.sessionWeb",
-      "nodeDashboard.sessionEditor"
+      "nodeDashboard.sessionEditor",
+      "desktop.password",
+      "desktop.sessionDesktop",
+      "desktop.downloadSize"
     ],
     "zh-cn": ["toolLabels.shell", "devices.cpuPressure"],
     "zh-tw": ["toolLabels.shell", "devices.cpuPressure"],

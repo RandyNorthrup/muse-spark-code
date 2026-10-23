@@ -7056,5 +7056,71 @@
     "setupFailed": "A beállítást nem sikerült befejezni: {reason}",
     "seedRefused": "A kártya beállítófájljai nem lettek felhasználva: {reason}",
     "continueButton": "Folytatás"
+  },
+  "desktop": {
+    "greeterTitle": "Muse Desktop",
+    "password": "Jelszó",
+    "pin": "PIN",
+    "securityKey": "Biztonsági kulcs",
+    "fingerprint": "Ujjlenyomat",
+    "orSignInWith": "Vagy jelentkezzen be ezzel",
+    "capsLockOn": "A Caps Lock be van kapcsolva",
+    "session": "Munkamenet",
+    "sessionDesktop": "Asztal",
+    "sessionTerminal": "Terminál",
+    "accessibility": "Kisegítő lehetőségek",
+    "recovery": "Helyreállítás",
+    "recoveryHint": "Rendszergazdai jelszó vagy a helyreállítási kulcs szükséges",
+    "secureAttentionGreeter": "Bármikor nyomja meg a Ctrl+Alt+Del billentyűket a valódi bejelentkezési képernyő eléréséhez.",
+    "secureAttentionLock": "Bármikor nyomja meg a Ctrl+Alt+Del billentyűket annak ellenőrzéséhez, hogy ez a valódi zárolási képernyő.",
+    "secureAttentionPrompt": "Nem biztos benne, hogy valódi? Nyomja meg a Ctrl+Alt+Del billentyűket.",
+    "notificationsCount": {
+      "one": "{count} értesítés",
+      "other": "{count} értesítés"
+    },
+    "agentsRunning": {
+      "one": "{count} ügynök fut",
+      "other": "{count} ügynök fut"
+    },
+    "worksWithoutSignIn": "Bejelentkezés nélkül működik",
+    "stopEverything": "Minden leállítása",
+    "stopEverythingDetail": "Ügynökök, rendszergazdai műveletek és fejlesztőszerverek",
+    "lockAdmin": "Admin zárolása",
+    "lockAdminDetail": "Az ügynökök elveszítik a rendszergazdai hozzáférést, amíg fel nem oldja",
+    "stopMachine": "Gép leállítása",
+    "administratorPassword": "Rendszergazdai jelszó",
+    "authenticate": "Hitelesítés",
+    "cancel": "Mégse",
+    "agentAdminRequest": "Ügynök rendszergazdai kérése",
+    "taintAskNote": "Ez a „Mindig engedélyez” mellett is kérdez: {agent} a kérés előtt weboldalt olvasott.",
+    "writtenToAdminAudit": "Beírva a rendszergazdai naplóba",
+    "touchKeyToAllow": "Az engedélyezéshez érintse meg a biztonsági kulcsot",
+    "deny": "Elutasítás",
+    "allowOnce": "Egyszer engedélyez",
+    "wifiPassword": "Wi-Fi-jelszó",
+    "connectAutomatically": "Automatikus csatlakozás",
+    "connect": "Csatlakozás",
+    "bluetoothPairing": "Bluetooth-párosítás",
+    "launcherCalculateLocal": "Ezen a gépen számolva. Semmi sem kerül elküldésre.",
+    "launcherSymbolSearch": "Emoji vagy szimbólum keresése",
+    "onboardingTitle": "A Muse Desktop beállítása",
+    "onboardingStep": "{step}. lépés a {total} közül",
+    "packsForYourWork": "Csomagok a munkájához",
+    "recommendedPacks": {
+      "one": "Ajánlott · {count}",
+      "other": "Ajánlott · {count}"
+    },
+    "allPacks": "Minden csomag · {count}",
+    "fromSignedIndex": "Az aláírt Muse-csomagindexből",
+    "downloadSize": "Letöltés",
+    "onDiskSize": "Lemezen",
+    "details": "Részletek",
+    "setUpLater": "Beállítás később",
+    "back": "Vissza",
+    "install": "Telepítés",
+    "installingPacks": {
+      "one": "{count} csomag telepítése",
+      "other": "{count} csomag telepítése"
+    }
   }
 }

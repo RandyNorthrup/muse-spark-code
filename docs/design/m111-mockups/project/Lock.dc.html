@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Lock screen</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>body{margin:0}a{color:var(--ms-text)}a:hover{color:var(--ms-info)}</style>
+</helmet>
+<div class="sheet" data-ms-theme="{{theme}}" style="width: 1920px; height: 1512px">
+  <header style="height: 72px; flex: none; display: flex; align-items: center; gap: 24px; padding: 0 32px; background: var(--ms-raised); border-bottom: 1px solid var(--ms-border)">
+    <span class="mono" style="font-size: 28px; font-weight: 600; color: var(--ms-muted)">12</span>
+    <div style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0">
+      <span style="font-size: 18px; font-weight: 600">Lock screen</span>
+      <span class="mono" style="font-size: 12px; color: var(--ms-muted)">1920 × 1080 · {{themeName}} · data-ms-theme="{{theme}}" · ext-session-lock surface, opaque; counts only, never content</span>
+    </div>
+    <nav aria-label="Sheets" style="display: flex; gap: 8px"><a class="btn" href="Greeter.dc.html">Previous</a><a class="btn" href="Main.dc.html">Index</a><a class="btn btn-p" href="Prompts.dc.html">Next</a></nav>
+  </header>
+  <div class="screen" style="width: 1920px; height: 1080px">
+    <div aria-hidden="true" style="position: absolute; inset: 0; background: var(--ms-surface); display: grid; place-items: center"><svg viewBox="-14 -14 228 128" width="1300" height="733" style="opacity: 0.08"><path d="{{mark}}" fill="none" stroke="var(--ms-brand-mark)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+
+    <div style="position: absolute; top: 150px; inset-inline: 0; display: flex; flex-direction: column; align-items: center; gap: 4px">
+      <span style="font-size: 112px; line-height: 1; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">14:32</span>
+      <span style="font-size: 22px; color: var(--ms-muted)">Friday 23 October</span>
+      <div style="display: flex; gap: 10px; margin-top: 18px">
+        <span class="chip" style="height: 28px; padding: 0 12px; font-size: 13px; color: var(--ms-text); border-color: var(--ms-border); background: var(--ms-raised)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bell}}"></path></svg>3 notifications</span>
+        <span class="chip" style="height: 28px; padding: 0 12px; font-size: 13px; color: var(--ms-text); border-color: var(--ms-border); background: var(--ms-raised)"><svg class="ic" width="14" height="14" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.bot}}"></path></svg>2 agents running</span>
+      </div>
+    </div>
+
+    <section aria-label="Unlock" style="position: absolute; top: 470px; inset-inline-start: calc(50% - 200px); width: 400px; display: flex; flex-direction: column; align-items: center; gap: 14px">
+      <span style="width: 72px; height: 72px; border-radius: 50%; background: var(--ms-accent); color: var(--ms-on-accent); display: grid; place-items: center; font-size: 30px; font-weight: 600">R</span>
+      <span class="dat" style="font-weight: 600; font-size: 17px">Randy Northrup</span>
+      <div style="width: 100%; display: flex; flex-direction: column; gap: 6px">
+        <label for="lk-password" class="sr">Password</label>
+        <div style="display: flex; gap: 8px">
+          <input id="lk-password" class="field focus" type="password" placeholder="Password" style="height: 42px; font-size: 16px; flex: 1">
+          <button class="btn btn-p" aria-label="Unlock" style="width: 42px; height: 42px; padding: 0"><svg class="ic flipx" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.arrowR}}"></path></svg></button>
+        </div>
+      </div>
+      <div style="width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+        <button class="btn" style="height: 36px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.usbkey}}"></path></svg>Security key</button>
+        <button class="btn" style="height: 36px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.finger}}"></path></svg>Fingerprint</button>
+        <button class="btn" style="height: 36px"><svg class="ic" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.pin}}"></path></svg>PIN</button>
+      </div>
+    </section>
+
+    <section aria-label="Safety controls, no sign-in needed" class="ms-pop" style="position: absolute; top: 470px; inset-inline-end: 56px; width: 330px; padding: 14px; display: flex; flex-direction: column; gap: 10px">
+      <span class="lbl">Works without signing in</span>
+      <button class="btn btn-d" style="height: 44px; justify-content: flex-start; gap: 10px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-danger)"><path d="{{I.stop}}"></path></svg><span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25"><span style="font-weight: 600">Stop machine</span><span style="font-size: var(--ms-font-small); font-weight: 400; color: var(--ms-muted)">3D printer on USB</span></span></button>
+      <button class="btn btn-d" style="height: 44px; justify-content: flex-start; gap: 10px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="color: var(--ms-danger)"><path d="{{I.stop}}"></path></svg><span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25"><span style="font-weight: 600">Stop everything</span><span style="font-size: var(--ms-font-small); font-weight: 400; color: var(--ms-muted)">Agents, admin actions and dev servers</span></span></button>
+      <button class="btn" style="height: 44px; justify-content: flex-start; gap: 10px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.shield}}"></path></svg><span style="display: flex; flex-direction: column; align-items: flex-start; line-height: 1.25"><span style="font-weight: 600">Lock admin</span><span style="font-size: var(--ms-font-small); font-weight: 400; color: var(--ms-muted)">Agents lose admin access until you unlock it</span></span></button>
+    </section>
+
+    <div style="position: absolute; bottom: 28px; inset-inline-start: 36px; display: flex; gap: 8px">
+      <button class="btn" aria-label="Accessibility" style="height: 40px"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.a11y}}"></path></svg></button>
+      <button class="btn" style="height: 40px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.keyboard}}"></path></svg>EN (US)</button>
+    </div>
+    <div style="position: absolute; bottom: 38px; inset-inline: 0; text-align: center; font-size: 13px; color: var(--ms-muted)">Press <span class="kc" style="font-size: 11px">Ctrl+Alt+Del</span> at any time to check this is the real lock screen.</div>
+    <div style="position: absolute; bottom: 28px; inset-inline-end: 36px; display: flex; gap: 8px">
+      <button class="btn" style="height: 40px"><svg class="ic" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.battery}}"></path></svg>82%</button>
+      <button class="btn" aria-label="Power" style="height: 40px"><svg class="ic" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path d="{{I.power}}"></path></svg></button>
+    </div>
+  </div>
+  <dc-import name="Legend" theme="{{theme}}" tokens="{{legend}}" cols="4" title="Tokens on this sheet" hint-size="100%,360px"></dc-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"light"},"$preview":{"width":1920,"height":1512}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const theme = this.props.theme ?? 'light';
+    const names = { dark: 'dark', light: 'light', 'hc-light': 'high contrast light', 'hc-dark': 'high contrast dark' };
+    const c = (x, y, r) => 'M' + (x - r) + ' ' + y + 'a' + r + ' ' + r + ' 0 1 0 ' + (2 * r) + ' 0a' + r + ' ' + r + ' 0 1 0 ' + (-2 * r) + ' 0';
+    const I = {
+      bell: 'M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z M10 21h4',
+      bot: 'M5 8h14v11H5z M12 4v4 M9.5 13h.01 M14.5 13h.01 M2 12v3 M22 12v3',
+      arrowR: 'M5 12h14 M13 6l6 6-6 6',
+      usbkey: 'M9 3h6v8H9z M7 11h10v10H7z M12 15v2',
+      finger: 'M12 11v4 M8.5 8.5A5 5 0 0 1 17 12v2 M7 12v1a5 5 0 0 0 1 3 M12 3a9 9 0 0 1 9 9 M3 12a9 9 0 0 1 4-7.5 M15 17v1 M12 19a3 3 0 0 1-3-3',
+      pin: 'M4 8h16v8H4z M8 12h.01 M12 12h.01 M16 12h.01',
+      stop: 'M6 6h12v12H6z', shield: 'M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z',
+      a11y: c(12, 4.5, 1.5) + ' M5 8l7 1 7-1 M12 9v5 M9 21l3-7 3 7',
+      keyboard: 'M3 6h18v12H3z M7 10h.01 M11 10h.01 M15 10h.01 M7 14h10',
+      battery: 'M3 7h16v10H3z M22 10v4 M6 10v4 M9 10v4 M12 10v4',
+      power: 'M12 3v9 M6.3 6.3a8 8 0 1 0 11.4 0'
+    };
+    return {
+      theme, themeName: names[theme] ?? theme, I,
+      mark: 'M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77',
+      legend: ['surface', 'raised', 'overlay', 'border', 'text', 'muted', 'brand-mark', 'accent', 'on-accent', 'focus', 'danger', 'error-surface', 'badge', 'on-badge', 'input-surface', 'input-border', 'input-placeholder', 'elevation-popover', 'popover-alpha', 'backdrop-blur', 'radius-xs', 'radius-md', 'radius-lg', 'radius-pill', 'radius-circle', 'font-ui', 'font-size', 'font-small', 'font-large', 'weight-bold', 'focus-width', 'focus-offset', 'button-height', 'chip-height']
+    };
+  }
+}
+</script>
+</body>
+</html>

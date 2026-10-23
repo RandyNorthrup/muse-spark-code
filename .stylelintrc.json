@@ -58,7 +58,8 @@
     "**/dist/**",
     "**/coverage/**",
     "**/*.min.css",
-    "**/vendor/**"
+    "**/vendor/**",
+    "docs/design/m111-mockups/**"
   ],
   "overrides": [
     {

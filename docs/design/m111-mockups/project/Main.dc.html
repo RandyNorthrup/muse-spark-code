@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Muse Desktop mockups index</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./muse.css">
+<link rel="stylesheet" href="./mock.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@400;500;600&amp;display=swap">
+<style>
+body{margin:0}
+a{color:var(--ms-text)}a:hover{color:var(--ms-info)}
+</style>
+</helmet>
+<div data-ms-theme="{{theme}}" style="width: 1920px; height: 1080px; box-sizing: border-box; padding: 72px 96px; background: var(--ms-surface); color: var(--ms-text); font-family: var(--ms-font-ui); font-size: var(--ms-font-size); line-height: var(--ms-line-ui); display: grid; grid-template-columns: 620px minmax(0, 1fr); gap: 88px; overflow: hidden">
+  <div style="display: flex; flex-direction: column; gap: 32px; min-width: 0">
+    <svg viewBox="-14 -14 228 128" width="120" height="68" role="img" aria-label="The Muse mark, a squiggled m"><path d="M0 100C18 78 52 2 75 0C84 0 84 90 94 90C108 90 140 10 165 10C176 10 178 79 190 79L197 77" fill="none" stroke="var(--ms-brand-mark)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+    <div style="display: flex; flex-direction: column; gap: 12px">
+      <div class="lbl">M111 · PLAN Q-M111 item 6</div>
+      <h1 style="margin: 0; font-size: 56px; line-height: 1.05; font-weight: 600; letter-spacing: -0.02em; text-wrap: balance">Muse Desktop mockups</h1>
+      <p style="margin: 0; font-size: var(--ms-font-large); color: var(--ms-muted); max-width: 600px">For the owner's review before lanes SH1, SH2, WB and ST start. His changes land in lane 0's component contracts, and the screenshot goldens start from these pictures.</p>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 18px 20px; border: 2px solid var(--ms-accent); border-radius: var(--ms-radius-lg); background: var(--ms-raised)">
+      <a href="https://claude.ai/artifact/YGpuxmo2XnWEx2GP4zFkXn" style="align-self: flex-start; height: 52px; padding: 0 22px; border-radius: var(--ms-radius-md); background: var(--ms-accent); color: var(--ms-on-accent); display: inline-flex; align-items: center; font-size: 18px; font-weight: 600; text-decoration: none">Open the full-size viewer</a>
+      <span style="font-size: 14px; color: var(--ms-muted)">This canvas shows every sheet at once, so it zooms out. The viewer shows one screen at a time, filling your window, with its tokens listed underneath. Use the arrow keys to move between screens.</span>
+    </div>
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 class="lbl" style="margin: 0">How to read a sheet</h2>
+      <div style="display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 8px 16px; font-size: 14px">
+        <div style="font-weight: 600">Label strip</div><div style="color: var(--ms-muted)">Number, name, screen size and theme, with Previous and Next links for stepping through in Play.</div>
+        <div style="font-weight: 600">Screen</div><div style="color: var(--ms-muted)">Drawn at its true pixel size: 1920 × 1080 or 1280 × 800.</div>
+        <div style="font-weight: 600">Token legend</div><div style="color: var(--ms-muted)">Every token the screen uses, with its value in the sheet's theme. Values with no token yet are marked proposed.</div>
+        <div style="font-weight: 600">Tweaks</div><div style="color: var(--ms-muted)">Each sheet's theme switch shows the same screen in dark, light, high contrast dark and high contrast light.</div>
+      </div>
+    </section>
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 class="lbl" style="margin: 0">The story on every screen</h2>
+      <p style="margin: 0; font-size: 14px; color: var(--ms-muted)">The <span class="mono" style="color: var(--ms-text)">trailhead</span> shop, a Vite and React app. The agent <span style="color: var(--ms-text); font-weight: 600">web-eng</span> adds shipping and tax to the cart summary. One test fails at exactly $50.00, it fixes the check and asks to run the tests again. <span style="color: var(--ms-text); font-weight: 600">docs-writer</span> updates the changelog; <span style="color: var(--ms-text); font-weight: 600">reviewer</span> waits for green tests.</p>
+    </section>
+    <section style="display: flex; flex-direction: column; gap: 10px">
+      <h2 class="lbl" style="margin: 0">Sources</h2>
+      <div class="mono" style="font-size: 12px; color: var(--ms-muted); display: flex; flex-direction: column; gap: 4px">
+        <span>design/tokens/generated/muse.css (from muse.tokens.json, D94)</span>
+        <span>docs/research/muse-desktop-2026-10-05.md §13</span>
+        <span>PLAN.md D91, D94, M111, M114</span>
+        <span>docs/certification/m111-threat-model.md D53, D60, D61, D93</span>
+      </div>
+    </section>
+  </div>
+  <nav aria-label="Sheets" style="display: flex; flex-direction: column; gap: 22px; min-width: 0">
+    <sc-for list="{{groups}}" as="g" hint-placeholder-count="7">
+      <section style="display: flex; flex-direction: column; gap: 8px">
+        <h2 class="lbl" style="margin: 0">{{g.title}}</h2>
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+          <sc-for list="{{g.sheets}}" as="s" hint-placeholder-count="3">
+            <a href="{{s.file}}" style="display: grid; grid-template-columns: 40px minmax(0, 1fr); align-items: center; gap: 4px 12px; min-height: 58px; box-sizing: border-box; padding: 8px 14px; border: 1px solid var(--ms-border); border-radius: var(--ms-radius-md); background: var(--ms-raised); text-decoration: none">
+              <span class="mono" style="grid-row: span 2; font-size: 20px; font-weight: 600; color: var(--ms-muted)">{{s.n}}</span>
+              <span style="font-weight: 600; font-size: 14px">{{s.name}}</span>
+              <span class="mono" style="font-size: 12px; color: var(--ms-muted)">{{s.meta}}</span>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+    </sc-for>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light","hc-dark","hc-light"],"default":"dark"},"$preview":{"width":1920,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const s = (n, name, meta, file) => ({ n, name, meta, file });
+    return {
+      theme: this.props.theme ?? 'dark',
+      groups: [
+        { title: 'Workbench', sheets: [
+          s('01', 'Workbench', '1920 × 1080 · dark', 'Wb1920Dark.dc.html'),
+          s('02', 'Workbench', '1920 × 1080 · light', 'Wb1920Light.dc.html'),
+          s('03', 'Workbench', '1920 × 1080 · hc-dark', 'Wb1920Hc.dc.html'),
+          s('04', 'Workbench', '1280 × 800 · dark', 'Wb1280Dark.dc.html'),
+          s('05', 'Workbench', '1280 × 800 · light', 'Wb1280Light.dc.html'),
+          s('06', 'Workbench', '1280 × 800 · hc-light', 'Wb1280Hc.dc.html') ] },
+        { title: 'The shell', sheets: [
+          s('07', 'Bar · system popovers', '1920 × 1080 · dark', 'BarSystem.dc.html'),
+          s('08', 'Bar · Muse popovers', '1920 × 1080 · dark', 'BarMuse.dc.html'),
+          s('09', 'Launcher · result kinds', '1920 × 1080 · dark', 'Launcher.dc.html'),
+          s('10', 'Launcher · modes', '1920 × 1080 · light', 'LauncherModes.dc.html') ] },
+        { title: 'Sign-in, lock and prompts', sheets: [
+          s('11', 'Greeter', '1920 × 1080 · dark', 'Greeter.dc.html'),
+          s('12', 'Lock screen', '1920 × 1080 · light', 'Lock.dc.html'),
+          s('13', 'System prompts', '1920 × 1080 · dark', 'Prompts.dc.html') ] },
+        { title: 'Desktops and onboarding', sheets: [
+          s('14', 'Tiled desktop', '1920 × 1080 · dark', 'Tiled.dc.html'),
+          s('15', 'Onboarding · pack list', '1920 × 1080 · light', 'Onboarding.dc.html') ] },
+        { title: 'Web development', sheets: [
+          s('16', 'Preview · device toolbar', '1920 × 1080 · dark', 'Preview.dc.html'),
+          s('17', 'Preview · viewport grid', '1920 × 1080 · light', 'Grid.dc.html') ] },
+        { title: 'Mirroring and components', sheets: [
+          s('18', 'Pseudo-RTL mirror', '1920 × 1080 · dark · rtl', 'Rtl.dc.html'),
+          s('T', 'Token sheet', 'all tokens · 4 palettes', 'Legend.dc.html'),
+          s('W', 'Workbench component', 'source of 01–06, 16–18', 'Workbench.dc.html') ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
