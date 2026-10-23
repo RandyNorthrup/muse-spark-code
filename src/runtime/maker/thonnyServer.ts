@@ -31,6 +31,20 @@ const replySchema = z.strictObject({
   result: z.optional(z.unknown()),
   error: z.optional(z.strictObject({ code: z.string(), message: z.string() })),
 })
+function isPortFailure(error: unknown): boolean {
+  return (
+    error instanceof Error && !(error instanceof ReferenceError) && !(error instanceof RangeError)
+  )
+}
+
+function isRequestFailure(error: unknown): boolean {
+  return (
+    error instanceof SyntaxError ||
+    (error instanceof Error && error.name === 'AbortError') ||
+    isPortFailure(error)
+  )
+}
+
 export interface ThonnyPortOwner {
   /** Must resolve only after lane P has the lease and approved serial open. */
   acquire(port: string, signal: AbortSignal): Promise<() => Promise<void>>
@@ -61,11 +75,9 @@ export async function startThonnyServer(owner: ThonnyPortOwner) {
     }
     async function release(): Promise<void> {
       if (opening !== undefined) {
-        try {
-          held = { port: held?.port ?? '', release: await opening }
-        } catch {
-          /* Cancelled acquire closed its own resources. */
-        }
+        // Cancelled acquire closed its own resources.
+        const [opened] = await Promise.allSettled([opening])
+        if (opened.status === 'fulfilled') held = { port: held?.port ?? '', release: opened.value }
         opening = undefined
       }
       await held?.release()
@@ -113,7 +125,8 @@ export async function startThonnyServer(owner: ThonnyPortOwner) {
           await release()
           send({ ...request, type: 'port_response', ok: true, owner: 'released' })
         }
-      } catch {
+      } catch (error) {
+        if (!isPortFailure(error)) throw error
         send({ ...request, type: 'port_response', ok: false })
         socket.destroy()
       }
@@ -141,7 +154,8 @@ export async function startThonnyServer(owner: ThonnyPortOwner) {
             lifetime.signal.throwIfAborted()
             const raw: unknown = JSON.parse(line)
             await handle(raw)
-          } catch {
+          } catch (error) {
+            if (!isRequestFailure(error)) throw error
             socket.destroy()
           } finally {
             queued -= 1
@@ -162,13 +176,14 @@ export async function startThonnyServer(owner: ThonnyPortOwner) {
       }
       const previous = cleanup
       cleanup = (async () => {
-        try {
-          await previous
-          await queue
-          await release()
-        } catch {
-          isCleanupFailed = true
-        }
+        const [attempt] = await Promise.allSettled([
+          (async () => {
+            await previous
+            await queue
+            await release()
+          })(),
+        ])
+        if (attempt.status === 'rejected') isCleanupFailed = true
       })()
     })
   })

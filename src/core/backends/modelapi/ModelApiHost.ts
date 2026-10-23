@@ -1,3 +1,4 @@
+import { failureForLog } from '../musecode/logText'
 import { isRequestNotSent } from '../../refusal'
 import { UserRefusalError } from '../../refusal'
 import { isPaidStop } from '../../refusal'
@@ -1860,6 +1861,22 @@ export class HookCancelledError extends Error {
 
 function describe(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
+}
+
+function isHardwareBindingRefusal(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message === UI_TEXT.hardwareExpired || error.message === UI_TEXT.hardwareUnattended)
+  )
+}
+
+function isShellEntryFailure(error: unknown): boolean {
+  return (
+    error instanceof ShellEntryError ||
+    (error instanceof Error &&
+      (('code' in error && typeof error.code === 'string') ||
+        error.message === UI_TEXT.hardwareUnattended))
+  )
 }
 
 // Incomplete reasons the wire may carry, as the log names them (RVM105B
@@ -9544,6 +9561,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           try {
             admission.hardwareBinding?.assertCanStart()
           } catch (error: unknown) {
+            if (!isHardwareBindingRefusal(error)) throw error
             refusal = toolFailure(MODEL_API_MODEL_TEXT.hardwareRefused, describe(error))
             throw new AbortedError()
           }
@@ -12004,6 +12022,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         'check',
       )
     } catch (error: unknown) {
+      if (!isShellEntryFailure(error)) throw error
       return {
         stdout: '',
         stderr: describe(error),
@@ -13890,17 +13909,23 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   private async executeHardwareStop(stop: HardwareStop): Promise<ToolOutcome> {
-    let outcome: ToolOutcome
-    try {
-      if (this.deps.io.runHardwareStop === undefined) throw new Error(UI_TEXT.hardwareRefused)
-      const result = await this.deps.io.runHardwareStop(stop)
-      outcome = shellOutcome(result, MAKER_STOP_DEADLINE_MS)
-      if (result.exitCode === 0 && outcome.failureReason === undefined) return outcome
-    } catch (error: unknown) {
-      outcome = toolFailure(describe(error))
+    const [attempt] = await Promise.allSettled([
+      (async () => {
+        if (this.deps.io.runHardwareStop === undefined) throw new Error(UI_TEXT.hardwareRefused)
+        return await this.deps.io.runHardwareStop(stop)
+      })(),
+    ])
+    if (attempt.status === 'fulfilled') {
+      const outcome = shellOutcome(attempt.value, MAKER_STOP_DEADLINE_MS)
+      if (attempt.value.exitCode === 0 && outcome.failureReason === undefined) return outcome
+      this.emit({ type: 'backendNotice', level: 'error', text: UI_TEXT.hardwareStopUnconfirmed })
+      return { ...outcome, failureReason: UI_TEXT.hardwareStopUnconfirmed }
     }
     this.emit({ type: 'backendNotice', level: 'error', text: UI_TEXT.hardwareStopUnconfirmed })
-    return { ...outcome, failureReason: UI_TEXT.hardwareStopUnconfirmed }
+    return {
+      ...toolFailure(describe(attempt.reason)),
+      failureReason: UI_TEXT.hardwareStopUnconfirmed,
+    }
   }
 
   /** A serial call, including corrections and then_run, takes the same staged path. */
@@ -14164,12 +14189,16 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
     } catch (error: unknown) {
       prepared.provisionalSeen.clear()
-      if (error instanceof AbortedError || signal.aborted) {
+      if (error instanceof AbortedError) {
+        throw new AbortedError()
+      }
+      if (signal.aborted) {
         throw new AbortedError()
       }
       // A tool that threw (a disk error, a directory for a file, an MCP
       // server's error or deadline) is a failed call the model is told
       // about, not the end of the turn.
+      this.deps.log.warn(`Model API tool call failed: ${failureForLog(error)}`)
       result = { outcome: thrownToolOutcome(error), isRejected: false }
     }
     if (signal.aborted || result.isRejected || result.outcome.failureReason !== undefined)
