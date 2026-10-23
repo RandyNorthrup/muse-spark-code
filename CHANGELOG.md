@@ -464,6 +464,10 @@ happened, not what was planned; superseded entries are kept.
   project's OAuth app is registered.
 - Hook events on plan turns name the turn's provider (`model_provider`)
   with the qualified model, instead of always saying Meta.
+- Recovery verification: a guard test proves no product code names another
+  application's credential storage, and the editor-chat provider's
+  conversion, limits, rates and refusals are covered by tests over real
+  resolved models (its pure logic moved to `src/core/providers/editorChat`).
 
 ### Release infrastructure
 

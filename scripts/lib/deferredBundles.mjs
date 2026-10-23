@@ -1407,6 +1407,12 @@ export function checkDeferredBundles(inputsOf, metafileOf) {
         // The ref must not fork validation, and the bundle must not wait
         // on the providers bundle: the tiny module rides along.
         !(source === 'src/core/providers/modelRef.ts' && bundle.output === 'dist/editorChat.js') &&
+        // RLF-M95B2 (2026-10-23): the provider's pure conversion moved
+        // beside the ref parse so unit tests drive the real code. It
+        // rides only in the editor-chat bundle, like the parse.
+        !(
+          source === 'src/core/providers/editorChat.ts' && bundle.output === 'dist/editorChat.js'
+        ) &&
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageService.js'
         ) &&
