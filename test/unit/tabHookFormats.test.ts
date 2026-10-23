@@ -1,4 +1,3 @@
-import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
@@ -9,12 +8,9 @@ import {
   parseForeignResult,
 } from '../../src/core/backends/modelapi/hookFormats'
 import { createTabHooks, type TabHookRun } from '../../src/core/tab/tabHooks'
-import {
-  EXTENSION_HOOK_EVENTS,
-  WINDOWS_POWERSHELL_COMMAND_ARGS,
-  WINDOWS_POWERSHELL_RELATIVE_PATH,
-} from '../../src/shared/constants'
+import { EXTENSION_HOOK_EVENTS } from '../../src/shared/constants'
 import { cursorTabExample } from './helpers/cursorTabFixture'
+import { fixtureHookRun } from './helpers/tabHookScripts'
 
 const WORKSPACE_ROOT = process.platform === 'win32' ? String.raw`C:\workspace` : '/workspace'
 const FILE_PATH = path.join(WORKSPACE_ROOT, 'a.ts')
@@ -188,39 +184,7 @@ describe('real hook output, no model calls', () => {
         isHooksEnabled: () => true,
         configurationVersion: () => 'fixture',
         log: () => undefined,
-        run: (request) => {
-          requests.push(request)
-          const isWindows = process.platform === 'win32'
-          const systemRoot = process.env['SystemRoot']
-          if (isWindows && systemRoot === undefined)
-            throw new Error('Windows fixture requires SystemRoot')
-          const program = isWindows
-            ? path.win32.join(systemRoot ?? '', WINDOWS_POWERSHELL_RELATIVE_PATH)
-            : '/bin/sh'
-          const args = isWindows
-            ? [
-                ...WINDOWS_POWERSHELL_COMMAND_ARGS.filter((arg) => arg !== '-Command'),
-                '-File',
-                'test/fixtures/tabHooks/read.ps1',
-                mode,
-              ]
-            : ['test/fixtures/tabHooks/read.sh', mode]
-          const child = spawnSync(program, args, {
-            input: request.stdin,
-            encoding: 'utf8',
-            env: isWindows ? { SystemRoot: systemRoot } : {},
-          })
-          if (child.error !== undefined) throw child.error
-          return Promise.resolve([
-            {
-              exitCode: child.status,
-              stdout: child.stdout,
-              stderr: child.stderr,
-              isTimedOut: false,
-              isCancelled: false,
-            },
-          ])
-        },
+        run: fixtureHookRun(mode, requests),
       })
       const example = cursorTabExample('beforeTabFileRead')
       const content = z.string().parse(example['content'])

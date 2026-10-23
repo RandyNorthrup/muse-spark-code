@@ -13,13 +13,15 @@ import { setUiText } from '../../shared/l10n/text'
 import {
   type TabBundleTable,
   type TabLanguagesCommandDeps,
+  type TabLoadedHandle,
+  type TabLoadedWiring,
   type TabProviderDeps,
   type TabProviderHandle,
   type TabServices,
   type TabServicesDeps,
-  type TabSnooze,
   type TabStatusDeps,
 } from './tabBundle'
+import type { TabSnooze } from './tabSnooze'
 import { createTabLedger } from './tabLedger'
 import { createTabProvider as createProvider } from './tabProvider'
 import { createTabSpendGate } from './tabSpendGate'
@@ -124,4 +126,97 @@ export async function tabLanguagesCommand(
 ): Promise<void> {
   setUiText(deps.uiTable, deps.locale)
   await runLanguagesCommand(deps)
+}
+
+/**
+Wires a loaded Tab from activation's readers: the engine and the spend
+gate, the provider over them, and the command runners. Lives in the lazy
+bundle, so activation carries none of the wiring: the shim only passes
+its deps through on the first request.
+*/
+export function createTabLoaded(wiring: TabLoadedWiring): TabLoadedHandle {
+  // The engine (lane C) and the ledger's spend gate (lane L) live in the
+  // bundle; the status bar redraws when today's total moves.
+  const { engine, spend } = createTabServices({
+    ...wiring.services,
+    budgetUsd: () => wiring.tabSettings().tabDailyBudgetUsd,
+    onTotalChanged: () => {
+      wiring.status.refresh()
+      wiring.onTodayTotalChanged?.()
+    },
+    // Hitting the daily budget is never silent: one notice per day
+    // naming the spend, the budget and how to raise it, with a direct
+    // way into Settings.
+    onBudgetReached: (spent, budget) => {
+      wiring.notifyBudgetReached(spent, budget)
+    },
+    log: wiring.log,
+  })
+  const settingsOf = (): ReturnType<TabProviderDeps['settings']> => {
+    const settings = wiring.tabSettings()
+    return {
+      tabModel: settings.tabModel,
+      tabMaxOutputTokens: settings.tabMaxOutputTokens,
+      tabLanguages: settings.tabLanguages,
+      tabMultiline: settings.tabMultiline,
+      tabTrigger: settings.tabTrigger,
+      tabWithCopilot: settings.tabWithCopilot,
+    }
+  }
+  const provider = createProvider({
+    settings: settingsOf,
+    recordMaxOutputTokens: wiring.services.recordMaxOutputTokens,
+    isPaidOn: wiring.isPaidOn,
+    isKeyStored: wiring.isKeyStored,
+    isTrusted: wiring.isTrusted,
+    isSnoozed: () => wiring.snooze.isSnoozed(Date.now()),
+    realPath: wiring.realPath,
+    foreignSetting: wiring.foreignSetting,
+    isCopilotExtensionPresent: wiring.isCopilotExtensionPresent,
+    filesExclude: wiring.filesExclude,
+    workspaceRoots: wiring.workspaceRoots,
+    ignoreFileExists: wiring.ignoreFileExists,
+    runGit: wiring.runGit,
+    onIgnoreFilesChanged: wiring.onIgnoreFilesChanged,
+    onDidChangeTextDocument: wiring.onDidChangeTextDocument,
+    recentEdits: wiring.recentEdits,
+    engine,
+    spend,
+    consentDeps: wiring.consentDeps,
+    hooks: wiring.hooks,
+    hookDispatch: wiring.hookDispatch,
+    onOutcome: (outcome) => {
+      // Deny snoozes the window (Q-M94a): set it before the status redraws.
+      if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {
+        wiring.snooze.snoozeUntilRestart()
+      }
+      wiring.status.noteOutcome(outcome)
+    },
+    log: wiring.log,
+  })
+  return {
+    provider,
+    spend,
+    showMenu: () =>
+      showTabMenu({ ...wiring.statusDeps, uiTable: wiring.uiTable, locale: wiring.locale }),
+    runSnooze: async () => {
+      await snoozeTabCommand(wiring.snooze, wiring.uiTable, wiring.locale)
+      // The palette's snooze redraws the bar, as the menu's rows do (RVM94HU 9).
+      wiring.status.refresh()
+    },
+    runLanguages: () =>
+      tabLanguagesCommand({
+        languages: wiring.knownLanguages,
+        tabLanguages: () => wiring.tabSettings().tabLanguages,
+        updateSetting: wiring.updateSetting,
+        uiTable: wiring.uiTable,
+        locale: wiring.locale,
+      }),
+    accept: (args) => {
+      provider.acceptNotified(args)
+    },
+    dispose: () => {
+      provider.dispose()
+    },
+  }
 }

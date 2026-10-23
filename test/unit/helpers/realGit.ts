@@ -7,6 +7,32 @@ import { GitExitError } from '../../../src/host/git'
 
 const runFile = promisify(execFile)
 
+/**
+The git that answers on this machine: the PATH git where it works, the
+Command Line Tools git where Apple's shim is broken (`git init` through
+/usr/bin/git dies spawning a missing xcodebuild on such a rig). Each
+candidate is asked its real version; the first that answers wins.
+*/
+const resolvedBinary: Promise<string> = (async (): Promise<string> => {
+  const candidates =
+    process.platform === 'darwin'
+      ? ['git', '/Library/Developer/CommandLineTools/usr/bin/git']
+      : ['git']
+  for (const candidate of candidates) {
+    try {
+      await runFile(candidate, ['--version'])
+      return candidate
+    } catch {
+      continue
+    }
+  }
+  throw new Error('no working git for the real-git suites')
+})()
+
+export function resolveGitBinary(): Promise<string> {
+  return resolvedBinary
+}
+
 export const realGit = async (
   args: readonly string[],
   cwd: string,
@@ -15,7 +41,7 @@ export const realGit = async (
   try {
     // The product passes Infinity for unbounded calls; execFile only takes
     // an unsigned integer, so unbounded stays unset.
-    const finished = await runFile('git', [...args], {
+    const finished = await runFile(await resolveGitBinary(), [...args], {
       cwd,
       ...(timeoutMs !== undefined && Number.isFinite(timeoutMs) && { timeout: timeoutMs }),
     })
