@@ -452,7 +452,9 @@
     "share-to": "--to <message>: Last message to include.",
     "share-out": "--out <file>: Write the shared text to a file instead of stdout.",
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
-    "fast": "--fast: 使用套餐目录的 Fast 档（2 倍速度，用量增加）。默认关闭：它会消耗更多的套餐额度。"
+    "fast": "--fast: 使用套餐目录的 Fast 档（2 倍速度，用量增加）。默认关闭：它会消耗更多的套餐额度。",
+    "exec-provider": "在此供应商上运行（Model API 后端）；--model 则为 <provider>/<model>。",
+    "scan-timeout": "以秒设置扫描期限；未设置时扫描将持续运行直到完成。"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "从终端使用按用户 credential 保管库：设置、恢复、重置、状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。 明确确认后，重置也可替换所有者未知的写入锁。",
