@@ -1,3 +1,4 @@
+import type { DeviceOffer } from '../../shared/devices'
 import type {
   ResourceEvent,
   ResourceLevel,
@@ -20,6 +21,8 @@ export interface ResourceRunnerRouting<T> {
   keepHere: boolean
   /** M96c's approved, matching SSH runners only; this port confers no new authority. */
   approvedRunner(): T | undefined
+  /** M100-R: the paired-device leg is bound; the relocator matches offers exactly. */
+  hasDeviceOffer: () => boolean
 }
 
 /** A routing proposal only. R owns confirmation, admission, rows and dispatch.
@@ -34,7 +37,7 @@ export function resourceRunnerPreference<T>(routing: ResourceRunnerRouting<T>) {
   )
     return
   const runner = routing.approvedRunner()
-  if (runner === undefined) return
+  if (runner === undefined && !routing.hasDeviceOffer()) return
   return {
     runner,
     level: routing.level,
@@ -134,6 +137,43 @@ export type RunnerDispatch =
     }
   | { readonly kind: 'offline' | 'uncertain' }
 
+/**
+A paired device's usable offer for a relocated check (M100-R): the
+offer's lanes/checks cover the kind, the sender's repository path
+matches the offer's repository, and the resource bucket is read after
+the person approves the move. The dispatch itself is M100's own send,
+bound by the caller; the router adds only the relocation metadata.
+*/
+export interface DeviceCheckLink {
+  readonly pairId: string
+  readonly label: string
+  readonly offer: DeviceOffer
+  /** The sender's local repository path this offer's repositoryId covers. */
+  readonly repositoryPath: string
+  /** The offer-status resource bucket; validated without acquiring offer authority. */
+  readonly resource: () => Promise<unknown>
+}
+
+/** A paired-device send: admission, plus the finished check on admission. */
+export type DeviceCheckSend =
+  | { readonly admission: 'admitted'; readonly result: CheckResult }
+  | { readonly admission: 'refused' | 'uncertain' }
+
+/**
+M100-R: whether the linked offer covers this repository and kind. Paths
+match across separators, so a Windows sender and a POSIX offer agree.
+*/
+export function hasDeviceLinkOffer(
+  link: Pick<DeviceCheckLink, 'offer' | 'repositoryPath'>,
+  repository: string,
+  kind: 'worker' | 'check',
+): boolean {
+  return (
+    repository.replaceAll('\\', '/') === link.repositoryPath.replaceAll('\\', '/') &&
+    ((kind === 'worker' && link.offer.lanes) || (kind === 'check' && link.offer.checks))
+  )
+}
+
 export interface CheckRoutingDeps {
   readonly isTrusted: () => boolean
   readonly localLabels: readonly string[]
@@ -156,6 +196,10 @@ export interface ResourceRunnerRouteOptions {
   readonly headless: boolean
   /** Only cached, user-approved routes; this must not discover or probe. */
   readonly hasTarget: () => boolean
+  /** M100-R: the paired-device leg is bound and allowed for this binding. */
+  readonly devicesEnabled: () => boolean
+  /** M100-R: this work's linked offers; cached, approved offers only, never probed. */
+  readonly deviceLinks: (work: ResourceRelocationWork) => readonly DeviceCheckLink[]
   readonly isHeavy: (job: CheckJob) => boolean
   readonly phase: (job: CheckJob) => 'queued' | 'running'
   /** Includes current attempt/tool, repository, snapshot and runner approval. */
@@ -163,18 +207,46 @@ export interface ResourceRunnerRouteOptions {
   readonly claim: (job: CheckJob) => boolean
   readonly settle: (job: CheckJob, result: 'kept' | 'admitted' | 'uncertain') => void
   readonly ask: (job: CheckJob, runner: Runner, signal: AbortSignal) => Promise<boolean>
+  /** M100-R: the Ask question for a paired-device move. */
+  readonly deviceAsk: (
+    job: CheckJob,
+    link: DeviceCheckLink,
+    signal: AbortSignal,
+  ) => Promise<boolean>
   readonly row: (
     job: CheckJob,
     runner: Runner,
     metadata: NonNullable<CheckJob['relocation']>,
     keepHere: ResourceRelocationAttempt['keepHere'],
   ) => void
+  /** M100-R: installs the task row with target and reason before returning. */
+  readonly deviceRow: (
+    job: CheckJob,
+    link: DeviceCheckLink,
+    metadata: NonNullable<CheckJob['relocation']>,
+    keepHere: ResourceRelocationAttempt['keepHere'],
+  ) => void
   readonly notice: (runner: Runner) => void
+  /** M100-R: the once-per-conversation notice for a paired-device move. */
+  readonly deviceNotice: (link: DeviceCheckLink) => void
   readonly traffic: (
     job: CheckJob,
     runner: Runner,
     event: Extract<ResourceEvent, { type: 'relocated' }>,
   ) => void
+  /** M100-R: the Traffic record for a paired-device move. */
+  readonly deviceTraffic: (
+    job: CheckJob,
+    link: DeviceCheckLink,
+    event: Extract<ResourceEvent, { type: 'relocated' }>,
+  ) => void
+  /** M100-R: M100's own send of the relocated check. */
+  readonly deviceSend: (
+    job: CheckJob,
+    link: DeviceCheckLink,
+    metadata: NonNullable<CheckJob['relocation']>,
+    signal: AbortSignal,
+  ) => Promise<DeviceCheckSend>
   readonly onError: ResourceRelocationOptions['onError']
 }
 
@@ -189,12 +261,17 @@ export class ResourceRunnerRouter {
     {
       job: CheckJob
       targets: readonly ResourceRelocationTarget[]
+      deviceTargets: readonly ResourceRelocationTarget[]
       attempt: ResourceRelocationAttempt
     }
   >()
   private readonly runners = new WeakMap<
     ResourceRelocationTarget,
     { runner: Runner; job: CheckJob }
+  >()
+  private readonly deviceBindings = new WeakMap<
+    ResourceRelocationTarget,
+    { link: DeviceCheckLink; job: CheckJob }
   >()
   private readonly active = new Map<string, Promise<CheckResult>>()
   private readonly cancel = new AbortController()
@@ -205,33 +282,53 @@ export class ResourceRunnerRouter {
   ) {
     this.relocator = options.port.createRelocator({
       headless: options.headless,
-      devicesEnabled: () => false,
-      devices: () => [],
+      devicesEnabled: () => !this.cancel.signal.aborted && options.devicesEnabled(),
+      devices: (work) => this.work.get(work)?.deviceTargets ?? [],
       runnersEnabled: () => !this.cancel.signal.aborted && options.hasTarget(),
       runners: (work) => this.work.get(work)?.targets ?? [],
       ask: async (work, target, signal) => {
         const item = this.work.get(work)
+        if (item === undefined) return false
+        const bound = this.deviceBindings.get(target)
+        if (bound !== undefined) return await options.deviceAsk(bound.job, bound.link, signal)
         const context = this.runners.get(target)
         const runner = context?.runner
-        return (
-          item !== undefined &&
-          runner !== undefined &&
-          (await options.ask(item.job, runner, signal))
-        )
+        return runner !== undefined && (await options.ask(item.job, runner, signal))
       },
       row: (work, target, metadata) => {
         const item = this.work.get(work)
+        if (item === undefined) throw new Error(UI_TEXT.teamRunners.busy)
+        const bound = this.deviceBindings.get(target)
+        if (bound !== undefined) {
+          options.deviceRow(
+            bound.job,
+            bound.link,
+            metadata,
+            async () => await item.attempt.keepHere(),
+          )
+          return
+        }
         const context = this.runners.get(target)
         const runner = context?.runner
-        if (item === undefined || runner === undefined) throw new Error(UI_TEXT.teamRunners.busy)
+        if (runner === undefined) throw new Error(UI_TEXT.teamRunners.busy)
         options.row(item.job, runner, metadata, async () => await item.attempt.keepHere())
       },
       notice: (target) => {
+        const bound = this.deviceBindings.get(target)
+        if (bound !== undefined) {
+          options.deviceNotice(bound.link)
+          return
+        }
         const context = this.runners.get(target)
         const runner = context?.runner
         if (runner !== undefined) options.notice(runner)
       },
       traffic: (target, event) => {
+        const bound = this.deviceBindings.get(target)
+        if (bound !== undefined) {
+          options.deviceTraffic(bound.job, bound.link, event)
+          return
+        }
         const context = this.runners.get(target)
         const runner = context?.runner
         if (runner !== undefined && context !== undefined)
@@ -274,12 +371,14 @@ export class ResourceRunnerRouter {
         queued: this.options.phase(job) === 'queued',
         keepHere: false,
         approvedRunner: () => runners.find((runner) => this.options.isApproved(runner, job)),
+        hasDeviceOffer: this.options.devicesEnabled,
       }) === undefined
     )
-      // No approved runner: kept locally, no probes.
+      // No approved runner or device leg: kept locally, no probes.
       return undefined
     const state: {
       completion?: Promise<RunnerDispatch>
+      deviceCompletion?: Promise<RunnerDispatch>
       isClaimRefused: boolean
       /** A target proved busy (receiver refusal or no headroom); the check stays. */
       sawBusy: boolean
@@ -360,12 +459,39 @@ export class ResourceRunnerRouter {
       this.runners.set(target, { runner, job })
       return target
     })
+    // M100-R: one target per linked offer. The offer covers the kind, the
+    // sender's repository path matches the offer's repository, and the
+    // resource bucket is read only after the person approves the move.
+    const deviceTargets = this.options.devicesEnabled()
+      ? this.options.deviceLinks(work).map((link): ResourceRelocationTarget => {
+          const target: ResourceRelocationTarget = {
+            id: `${link.pairId}:${link.offer.deviceId}`,
+            type: 'paired',
+            hasOffer: (repository, kind) => hasDeviceLinkOffer(link, repository, kind),
+            resource: link.resource,
+            dispatch: async (metadata, relocationSignal) =>
+              await new Promise<'admitted' | 'refused' | 'uncertain'>((resolve) => {
+                state.deviceCompletion = this.dispatchDevice(
+                  job,
+                  link,
+                  target,
+                  metadata,
+                  signal,
+                  relocationSignal,
+                  resolve,
+                )
+              }),
+          }
+          this.deviceBindings.set(target, { link, job })
+          return target
+        })
+      : []
     const attempt = this.relocator.create(work)
     const keep = () => {
       void attempt.keepHere().catch(this.options.onError)
     }
     signal.addEventListener('abort', keep, { once: true })
-    this.work.set(work, { job, targets, attempt })
+    this.work.set(work, { job, targets, deviceTargets, attempt })
     try {
       const result = await attempt.run()
       if (state.isClaimRefused) throw new Error(UI_TEXT.teamRunners.busy)
@@ -375,7 +501,7 @@ export class ResourceRunnerRouter {
         if (this.options.phase(job) !== 'queued') throw new Error(UI_TEXT.teamRunners.busy)
         return this.handOver(job, deps, status, state)
       }
-      const answer = await state.completion
+      const answer = await (state.completion ?? state.deviceCompletion)
       if (answer?.kind !== 'finished' || answer.result.runId !== job.runId) {
         throw new Error(UI_TEXT.teamTrafficNotices.uncertainAttempt)
       }
@@ -500,6 +626,75 @@ export class ResourceRunnerRouter {
         this.options.onError(error)
         return { kind: 'offline' }
       }
+      // Cancel reads refused before sending, uncertain after.
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        this.options.onError(error)
+        return { kind: sendState.sent ? 'uncertain' : 'offline' }
+      }
+      // The transport proves only the above by throw; anything else is not
+      // a dispatch outcome.
+      throw error
+    } finally {
+      detach()
+    }
+  }
+
+  /**
+  M100-R: the paired-device send under the decision snapshot. The offer,
+  setting and level are rechecked before sending; admission wins over a
+  late abort. An admitted send carries the finished check: M100 owns the
+  attempt from admission, so the result arrives with it, never inferred.
+  */
+  private async dispatchDevice(
+    job: CheckJob,
+    link: DeviceCheckLink,
+    target: ResourceRelocationTarget,
+    metadata: NonNullable<CheckJob['relocation']>,
+    signal: AbortSignal,
+    relocationSignal: AbortSignal,
+    receipt: (result: 'admitted' | 'refused' | 'uncertain') => void,
+  ): Promise<RunnerDispatch> {
+    const withdrawal = new AbortController()
+    const withdraw = () => {
+      withdrawal.abort()
+    }
+    relocationSignal.addEventListener('abort', withdraw, { once: true })
+    if (relocationSignal.aborted) withdraw()
+    const detach = () => {
+      relocationSignal.removeEventListener('abort', withdraw)
+    }
+    const dispatchSignal = AbortSignal.any([signal, withdrawal.signal])
+    const sendState = { sent: false }
+    try {
+      dispatchSignal.throwIfAborted()
+      const relocation = this.options.port.status().settings.relocate
+      const isOffered = target.hasOffer(job.cwd, 'check')
+      dispatchSignal.throwIfAborted()
+      const final = this.options.port.status()
+      if (
+        !isOffered ||
+        !final.settings.enabled ||
+        final.level !== metadata.level ||
+        final.settings.relocate === 'off' ||
+        final.settings.relocate !== relocation
+      ) {
+        // A pressure or setting change before sending is a refusal, never
+        // an unreachable device: Offline is produced only by the transport.
+        receipt('refused')
+        return { kind: 'busy' }
+      }
+      const answer = await this.options.deviceSend(job, link, metadata, dispatchSignal)
+      sendState.sent = answer.admission !== 'refused'
+      if (answer.admission === 'admitted') {
+        receipt('admitted')
+        job.onSent?.()
+        job.onAdmitted?.()
+        return { kind: 'finished', result: answer.result }
+      }
+      receipt(answer.admission)
+      return { kind: answer.admission === 'refused' ? 'busy' : 'uncertain' }
+    } catch (error: unknown) {
+      receipt(sendState.sent ? 'uncertain' : 'refused')
       // Cancel reads refused before sending, uncertain after.
       if (error instanceof DOMException && error.name === 'AbortError') {
         this.options.onError(error)
