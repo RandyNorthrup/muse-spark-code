@@ -3,22 +3,25 @@
 // on both sides, a message crosses, and health echoes. Revoked and
 // mismatched peers refuse before and without dialing, receiver pressure
 // throttles, and close revokes every pending job.
-import { constants, createHash } from 'node:crypto'
-import { connect, createServer, type Server, type TLSSocket } from 'node:tls'
+import { type Server, type TLSSocket } from 'node:tls'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   DeviceChannelDialFailure,
   PacedDeviceChannels,
-  type DeviceChannelDialer,
   type DeviceChannelPeer,
   type MultiplexedDevicePort,
   type PacedDeviceChannel,
 } from '../../src/host/devices/deviceChannel'
 import type { MultiplexedDeviceMessage } from '../../src/core/devices/channel'
-import { DEVICE_LIMITS } from '../../src/shared/constants'
-import { deviceReadySchema, type DeviceReady, type DeviceThrottled } from '../../src/shared/devices'
+import { type DeviceReady, type DeviceThrottled } from '../../src/shared/devices'
 import { levelLogger, type LoggedMessage } from './helpers/collectingLogger'
 import { deviceTlsIdentity, type DeviceTlsIdentity } from './helpers/deviceTls'
+import {
+  listenEphemeral,
+  pacedReadyFor,
+  pinnedDialer,
+  pinnedServer,
+} from './helpers/devicePacedSockets'
 
 const PAIR_ID = 'a'.repeat(32)
 const INCARNATION = 'b'.repeat(32)
@@ -32,14 +35,7 @@ function peerFor(identity: DeviceTlsIdentity, isActive = true): DeviceChannelPee
 }
 
 function readyFor(requestId: string): DeviceReady {
-  return deviceReadySchema.parse({
-    version: DEVICE_LIMITS.protocolVersion,
-    pairId: PAIR_ID,
-    receiverIncarnationId: INCARNATION,
-    requestId,
-    // The multiplexed core requires every stream, never a subset.
-    streams: ['control', 'status', 'events', 'logs', 'bulk'],
-  })
+  return pacedReadyFor(PAIR_ID, INCARNATION, requestId)
 }
 
 interface CapturedMultiplexedPort {
@@ -77,82 +73,6 @@ function captureMultiplexedPort(): CapturedMultiplexedPort {
         }
       }),
   }
-}
-
-function pinnedServer(local: DeviceTlsIdentity, peer: DeviceTlsIdentity): Server {
-  return createServer({
-    key: local.keyPem,
-    cert: local.pem,
-    ca: [peer.pem],
-    requestCert: true,
-    rejectUnauthorized: true,
-    minVersion: 'TLSv1.3',
-    maxVersion: 'TLSv1.3',
-    secureOptions: constants.SSL_OP_NO_TICKET,
-    handshakeTimeout: DEVICE_LIMITS.handshakeDeadlineMs,
-  })
-}
-
-function pinnedDialer(
-  local: DeviceTlsIdentity,
-  peer: DeviceTlsIdentity,
-  port: number,
-  dials: string[],
-): DeviceChannelDialer {
-  return {
-    dial: (target: DeviceChannelPeer, signal: AbortSignal): Promise<TLSSocket> =>
-      new Promise((resolve, reject) => {
-        dials.push(target.pairId)
-        const socket = connect({
-          host: '127.0.0.1',
-          port,
-          key: local.keyPem,
-          cert: local.pem,
-          ca: [peer.pem],
-          rejectUnauthorized: true,
-          minVersion: 'TLSv1.3',
-          maxVersion: 'TLSv1.3',
-          secureOptions: constants.SSL_OP_NO_TICKET,
-          checkServerIdentity: (_hostname, certificate) => {
-            const raw = certificate.raw
-            if (!Buffer.isBuffer(raw)) return new Error('unpaired')
-            return createHash('sha256').update(raw).digest('hex') === peer.fingerprint
-              ? undefined
-              : new Error('unpaired')
-          },
-        })
-        const onAbort = () => {
-          socket.destroy()
-          reject(new Error('revoked'))
-        }
-        if (signal.aborted) {
-          onAbort()
-          return
-        }
-        signal.addEventListener('abort', onAbort, { once: true })
-        socket.once('secureConnect', () => {
-          signal.removeEventListener('abort', onAbort)
-          resolve(socket)
-        })
-        socket.once('error', (error: Error) => {
-          signal.removeEventListener('abort', onAbort)
-          reject(error)
-        })
-      }),
-  }
-}
-
-async function listenEphemeral(server: Server): Promise<number> {
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => {
-      server.off('error', reject)
-      resolve()
-    })
-  })
-  const address = server.address()
-  if (typeof address !== 'object' || address === null) throw new Error('missing listener address')
-  return address.port
 }
 
 describe('M100 paced channels', () => {
