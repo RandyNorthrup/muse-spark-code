@@ -22,13 +22,6 @@ import {
   type LintUnit,
 } from '../../core/judge/lint/units'
 
-export interface JudgeLintOptions {
-  readonly changed?: boolean
-  readonly failOn?: 'error' | 'warning'
-  readonly budgetUsd?: number
-  readonly format?: 'text' | 'json' | 'sarif'
-}
-
 export interface JudgeLintDependencies {
   /** Pinned, strict config/pack decoding; no alternate Muse keys in jevlint.json. */
   rules(): Promise<readonly LintRule[]>
