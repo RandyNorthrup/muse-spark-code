@@ -1285,6 +1285,11 @@
       "note": "recovery: int/recovery gates, build and unit suite green on the owner PC"
     },
     {
+      "id": "RLFSECSCAN",
+      "public": false,
+      "note": "recovery: the five SAST findings fixed, the secret-scan history triaged"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"
