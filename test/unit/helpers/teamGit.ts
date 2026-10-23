@@ -9,9 +9,16 @@ import { onTestFinished } from 'vitest'
 import { TeamGitError, type TeamGit } from '../../../src/core/team/teamGit'
 
 /** The real git binary behind the `TeamGit` contract. */
-export const realTeamGit: TeamGit = (args, cwd) => {
+export const realTeamGit: TeamGit = (args, cwd, input, env) => {
   try {
-    const out = execFileSync('git', [...args], { cwd, encoding: 'buffer' })
+    const out = execFileSync('git', [...args], {
+      cwd,
+      encoding: 'buffer',
+      // A string input makes Node validate `encoding: 'buffer'` and throw;
+      // bytes go to stdin as they are.
+      ...(input !== undefined && { input: Buffer.from(input) }),
+      ...(env !== undefined && { env }),
+    })
     return Promise.resolve(new Uint8Array(out))
   } catch (error) {
     const status =
