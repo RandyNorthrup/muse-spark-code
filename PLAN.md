@@ -29686,6 +29686,20 @@ Turn-level session/configure/v2-sink proof and positive attested rows ride
 the lead's real-life run and matrix (no browser/GUI/keychain/registered
 trees on this rig); M100–R and M96–C2 stay open.
 
+**RLF-M107 — acceptance 15 and the platform rows (2026-10-22, macmini,
+base 0.19.0).** The owner case ran on the Mac mini with 15 real
+bundle-verification checks through the production governor:
+sandbox-capped at CPU threshold 30 (this lane's tree is capped at ~3 of
+12 cores, receipted; the full all-cores run at 60 rides outside the
+sandbox via `scripts/m107-owner-case.mjs` defaults), the governor holds
+one per kind, event-loop p95 12.1 ms ungoverned vs 14.5 ms governed,
+second-host activation 1,841 ms vs 137 ms (97–107 ms idle). Ticks from
+standing evidence: lanes S, T, G, A, C1, U, H with drills, J bound, fresh
+Mac platform facts, editor rows re-verified; C2 rides RLF-TEAMCORE and R
+rides RLF-DEVICES; Kubuntu/Win11 rows and the GUI second-window row stay
+pending. Records: `docs/certification/rlf-m107.md` and the RLF-M107
+section of `docs/certification/m107.md`. No product change.
+
 ---
 
 ### M108 — Several accounts per provider, with use thresholds (D88)
