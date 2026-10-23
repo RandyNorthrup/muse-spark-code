@@ -83,6 +83,7 @@ export const SCENARIOS = [
   'devices-prompts-narrow',
   'devices-power',
   'devices-blocked',
+  'devices-maker',
   'empty',
   'signin',
   'signin-nocli',

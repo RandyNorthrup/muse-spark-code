@@ -48,6 +48,12 @@ export const FEATURE_CATALOG: readonly DevicesFeature[] = [
     detailKey: 'localApprovalHelp',
     availability: 'unshipped',
   },
+  {
+    id: 'devices.makerApproval',
+    titleKey: 'makerApprovalTitle',
+    detailKey: 'makerApprovalClosed',
+    availability: 'unshipped',
+  },
   { id: 'devices.costs', titleKey: 'payer', detailKey: 'costOwnership', availability: 'unshipped' },
   {
     id: 'devices.status',

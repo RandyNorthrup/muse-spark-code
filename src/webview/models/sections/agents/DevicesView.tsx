@@ -20,6 +20,7 @@ import { deviceFailureText } from './devicePresentation'
 // M100 phase 2 (lane U): phase-2 views mount here; lane W wires the real host
 // values behind the setup facts, fakes stand in until then.
 import { DiscoveryDetails } from '../devices/discovery/DiscoveryDetails'
+import { MakerApprovalDialog } from '../devices/maker/MakerApprovalDialog'
 import { OwnerGrants } from '../devices/grants/OwnerGrants'
 import { ActionPrompts } from '../devices/prompts/ActionPrompts'
 import { PowerView } from '../devices/power/PowerView'
@@ -219,6 +220,14 @@ export function DevicesView({
   return (
     <section ref={view} tabIndex={-1} className="devices-view" aria-label={UI_TEXT.devices.title}>
       <h1>{UI_TEXT.devices.title}</h1>
+      {state.makerApproval !== undefined && (
+        <MakerApprovalDialog
+          key={state.makerApproval.requestId}
+          prompt={state.makerApproval}
+          busy={busy}
+          send={send}
+        />
+      )}
       {!state.enabled && <p role="status">{UI_TEXT.devices.offHelp}</p>}
       <p>{UI_TEXT.devices.costOwnership}</p>
       {paid !== undefined && (

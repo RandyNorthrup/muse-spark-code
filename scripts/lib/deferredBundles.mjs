@@ -766,8 +766,38 @@ export const ON_FIRST_USE = [
       'src/core/devices/deviceAddress.ts',
       'src/core/devices/deviceFraming.ts',
       'src/host/devices/deviceProduction.ts',
+      // RLF-DEVICES: the panel prompt queue and the maker executors'
+      // loader; the executors stay out of this bundle's cap (dist/maker.js).
+      'src/host/devices/makerSurface.ts',
+      'src/host/devices/makerBundle.ts',
+      // The panel state embeds the prompt schema, so this bundle carries
+      // the protocol; the maker bundle carries its own copy beside it.
+      'src/shared/maker.ts',
     ],
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
+  },
+  {
+    // RLF-DEVICES: the maker executors and their simulators. The panel
+    // surface stays in dist/devices.js; only executions load this.
+    output: 'dist/maker.js',
+    metafile: 'dist/meta/maker.json',
+    use: 'the first maker execution',
+    parents: [{ output: 'dist/devices.js', metafile: 'dist/meta/devices.json' }],
+    // No English of its own (prompts render in the panel and ACP), so no
+    // shared-table import.
+    uiText: false,
+    // The protocol (src/shared/maker.ts) stays listed with dist/devices.js,
+    // whose panel state embeds its schema; this bundle carries its copy
+    // unlisted, like the shared utilities other bundles carry.
+    files: [
+      'src/host/devices/makerEntry.ts',
+      'src/host/devices/makerService.ts',
+      'src/core/maker/classify.ts',
+      'src/core/maker/analysis.ts',
+      'src/core/maker/approval.ts',
+      'src/core/maker/executors.ts',
+      'src/core/maker/simulators.ts',
+    ],
   },
   {
     output: 'dist/reportingNetwork.js',

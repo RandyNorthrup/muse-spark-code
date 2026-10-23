@@ -138,7 +138,8 @@
       "trafficSuggestUserWaiters",
       "judgeSetupCli.scanCpu",
       "judgeSetupCli.scanGpu",
-      "judgeSetupCli.setupProgress"
+      "judgeSetupCli.setupProgress",
+      "devices.makerDigest"
     ],
     "cs": [
       "groupModel",
@@ -253,7 +254,8 @@
       "gitPullRequestFormLabel",
       "agentsCount.one",
       "openPullRequestRepository",
-      "sessionListsHooks"
+      "sessionListsHooks",
+      "devices.makerSimulator"
     ],
     "es": [
       "hooksItem",
@@ -328,7 +330,8 @@
       "judgeSetupCli.planLicence",
       "judgeSetupCli.planLicenceNoUrl",
       "judgeSetupCli.planRuntime",
-      "judgeSetupCli.scanClasses"
+      "judgeSetupCli.scanClasses",
+      "devices.makerOperation"
     ],
     "it": [
       "usageAccount",

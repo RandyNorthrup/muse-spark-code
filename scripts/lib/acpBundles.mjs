@@ -68,6 +68,9 @@ export const ACP_BUNDLES = [
   'connectorStoreGuard.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
+  // RLF-DEVICES: beside devices.js, which the agent never loads; the maker
+  // executors run only in the editor host.
+  'maker.js',
   'acpQuestions.js',
   'acpPlaybook.js',
   'runtimeQuestions.js',

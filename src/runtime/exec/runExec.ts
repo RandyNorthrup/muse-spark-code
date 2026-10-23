@@ -1210,6 +1210,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         },
         defaultCwd: cwd,
         paid: runtime.paid,
+        maker: runtime.maker,
         ...(resources !== undefined && { resources }),
         log,
         ...(mediaFactory !== undefined && {

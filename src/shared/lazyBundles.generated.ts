@@ -539,6 +539,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'maker.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'MAKER_BUNDLE_FILE', side: ['acp', 'vscode'] },
+    ],
+  },
   { file: 'mcpPool.js', side: 'both', requestedBy: [] },
   {
     file: 'mcpVault.js',

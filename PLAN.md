@@ -1338,6 +1338,13 @@ Windows storage binding (its C# shipped as `native/windows/MuseSparkDeviceStorag
 outside the bundle) and the RVM100WS request deadline and lifetime fixes,
 `dist/devices.js` measures 100.4 KiB (102,770 bytes), so
 `25 × ceil(100.4 × 1.15 / 25) = 125 KiB`. No other cap moves.
+**2026-10-23 (RLF-DEVICES):** the maker executors, simulators, analysis,
+classifier, approval engine and service assembly leave `dist/devices.js`
+(142.0 KiB with them inside) for their own lazy `dist/maker.js`,
+required on the first maker execution; the devices bundle keeps the
+panel surface and the loader (116.5 KiB, cap unchanged).
+`dist/maker.js` measures 34.0 KiB (34,851 bytes), so
+`25 × ceil(34.0 × 1.15 / 25) = 50 KiB`. No other cap moves.
 
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
@@ -25115,6 +25122,23 @@ carry both invitation paths; two-process pinned-TLS drill and lane-K
 refusal proof green. Awaiting lead integration; two-machine check-only
 and four-device qualification stay lead-side. Record:
 `docs/certification/rlm100.md`.
+
+**Status 2026-10-22: building.** D215 executors, approval UI,
+simulators and the M100-R join on rec/rlf-devices (lane RLF-DEVICES):
+printer/CNC/MCU executors driven only through the exact-payload
+approval, the approval dialog in the Devices panel and in ACP (English
+plus 14 tables), printer/CNC/MCU simulators with receipt journals, and
+the paired-device relocation route completing
+`resourceRunnerRoutesJoin`. Each executor proven against its simulator
+through the real approval path with red/green refusal drills; 89 new
+real-code tests green. The executors ship in their own lazy
+`dist/maker.js` (34.0/50 KiB) beside `dist/devices.js` (116.5/125
+KiB); test and src clones factored to zero lane clones. Still outside
+the lane: M103's tool paths (no
+caller sends yet), M100's sender-side attempt dispatch (the router's
+`deviceSend` port is specified and plumbed, unbound), and real-hardware
+or two-machine qualification (lead-side). Record:
+`docs/certification/rlf-devices.md`.
 
 **PORTM100 release-base port (2026-10-11, before follow-up repairs).** Merge
 0.17.1 `35d7b6f54280e6b6235ae4b90e079b865c3e4ff4` into accepted phase 2

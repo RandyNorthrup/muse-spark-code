@@ -63,6 +63,10 @@ const BUDGETS = [
   // with the Windows storage binding (P-I-WINDOWS-STORAGE, its C# shipped
   // outside the bundle): 100.4 KiB x 1.15 = 115.4, rounded up to 125 (D6).
   { path: 'dist/devices.js', budgetKiB: 125 },
+  // RLF-DEVICES: the maker executors and their simulators, out of
+  // dist/devices.js on the first maker execution; measured 34.0 KiB
+  // (34,851 bytes), +15%, rounded to the next 25 KiB (D6).
+  { path: 'dist/maker.js', budgetKiB: 50 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
   // RLF-BUDGETS: the Windows job-object tree reader, off the governor.
