@@ -4693,6 +4693,10 @@ export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// D107 §9.3.5: how often the veto rereads the judge fence while it is
+// unsettled. A veto answers in seconds; the poll granularity vanishes
+// inside the window.
+export const JUDGE_FAST_VETO_POLL_MS = 50
 // D107 §9.2 and the ship rule (§11): platforms where B1 may skip the
 // reviewer — a platform receipt (drills, m125-f1.md) AND the harm bound
 // (lane V) behind each entry. Empty until both land anywhere: Linux's

@@ -6,8 +6,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   raceApproval,
+  readVetoFence,
   type ApprovalRacePorts,
   type VetoAnswer,
+  type VetoFenceReader,
 } from '../../src/core/judge/fast/approval'
 import type { InspectResult } from '../../src/core/judge/fast/inspectExec'
 
@@ -183,5 +185,73 @@ describe("the hold's race", () => {
     })
     await expect(raceApproval(ports, 100)).rejects.toBe(failure)
     expect(signals.inspect.aborted).toBe(true)
+  })
+
+  it('carries a veto pipeline detail through the skip for the audit', async () => {
+    const { ports } = scheduledPorts({
+      vetoAfterMs: 10,
+      veto: { veto: false, detail: { engine: 'tev1', pYesMilli: 30, thresholdMilli: 800 } },
+      inspectAfterMs: 20,
+      reviewerAfterMs: 500,
+    })
+    const outcome = await raceApproval(ports, 100)
+    expect(outcome).toEqual({
+      kind: 'skip',
+      stdout: 'allowed\n',
+      stderr: '',
+      exitCode: 0,
+      excluded: 2,
+      vetoLatencyMs: expect.any(Number),
+      detail: { engine: 'tev1', pYesMilli: 30, thresholdMilli: 800 },
+    })
+  })
+
+  it('omits the detail a fence-read veto never carries', async () => {
+    const { ports } = scheduledPorts({
+      vetoAfterMs: 10,
+      veto: { veto: false },
+      inspectAfterMs: 20,
+      reviewerAfterMs: 500,
+    })
+    const outcome = await raceApproval(ports, 100)
+    expect(outcome.kind).toBe('skip')
+    if (outcome.kind === 'skip') expect(outcome.detail).toBeUndefined()
+  })
+})
+
+function fenceReader(reads: readonly ('caution' | 'none' | undefined)[]): VetoFenceReader {
+  let index = 0
+  return {
+    read: () => {
+      const outcome = reads[index] ?? reads.at(-1)
+      index += 1
+      return outcome
+    },
+  }
+}
+
+describe('veto fence read', () => {
+  it('reads caution as a veto and a settled none as a non-veto', async () => {
+    const controller = new AbortController()
+    await expect(readVetoFence(fenceReader(['caution']), controller.signal, 5)).resolves.toEqual({
+      veto: true,
+    })
+    await expect(readVetoFence(fenceReader(['none']), controller.signal, 5)).resolves.toEqual({
+      veto: false,
+    })
+  })
+
+  it('waits while the fence is unsettled', async () => {
+    const controller = new AbortController()
+    await expect(
+      readVetoFence(fenceReader([undefined, undefined, 'none']), controller.signal, 5),
+    ).resolves.toEqual({ veto: false })
+  })
+
+  it('throws on abort so the race discards the fast path', async () => {
+    const controller = new AbortController()
+    const read = readVetoFence(fenceReader([undefined]), controller.signal, 5)
+    controller.abort()
+    await expect(read).rejects.toThrow()
   })
 })
