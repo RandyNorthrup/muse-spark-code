@@ -2,7 +2,7 @@
 // a sign-in its restarted backend lost becomes an `authRequired` error
 // naming the restart and the remedy. Anything else is left to the
 // caller, which keeps today's path.
-import { RequestError } from '@agentclientprotocol/sdk'
+import { RequestError } from '@agentclientprotocol/sdk/unstable'
 import { signInLossText, type SignInLossInput } from '../core/backends/musecode/signInLoss'
 
 /** The loud failure; undefined when this turn is not a post-restart sign-in loss. */

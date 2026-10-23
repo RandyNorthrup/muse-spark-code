@@ -361,7 +361,11 @@ export function buildPalette(
   )
   // The "/" list's effort row offers what the served catalogue admits,
   // through the one shared function (RVCM1063D cause 1).
-  const effortLevels = servedEffortLevels(context.models, context.currentModel?.modelId)
+  const effortLevels = servedEffortLevels(
+    context.models,
+    context.currentModel?.modelId,
+    context.backend ?? 'museCode',
+  )
   const effortDetail = effortRefusalDetail(effortModel, effortLevels)
   const groups: readonly PaletteGroup[] = [
     {

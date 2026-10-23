@@ -5,7 +5,10 @@
 // (AGENTS.md rule 7): the ACP SDK checks what the agent receives, not what a
 // request of its own gets back. Pure.
 
-import type { ElicitationPropertySchema, ElicitationSchema } from '@agentclientprotocol/sdk'
+import type {
+  ElicitationPropertySchema,
+  ElicitationSchema,
+} from '@agentclientprotocol/sdk/unstable'
 import * as z from 'zod/mini'
 import type { ElicitationField, Question, QuestionAnswer } from '../shared/agentEvents'
 import { UI_TEXT } from '../shared/constants'

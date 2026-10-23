@@ -1,11 +1,7 @@
 // The provider file and team import share these non-secret option shapes
 // (M95, PLAN.md D74). Keep it outside provider core so panel imports stay lazy.
 import * as z from 'zod/mini'
-import {
-  MODEL_API_BASE_URL,
-  MODEL_API_MIN_OUTPUT_TOKENS,
-  MODEL_API_MODEL_PREFIX,
-} from './constants'
+import { MODEL_API_BASE_URL, MODEL_API_MIN_OUTPUT_TOKENS, isModelApiModelId } from './constants'
 import { UI_TEXT } from './l10n/text'
 import { outputTokenMinimumMessage } from './outputTokenMinimum'
 
@@ -93,8 +89,7 @@ export function providerOutputMinimum(
   minimum: number,
   format: string | undefined,
 ): number {
-  if (format !== 'responses' || address === undefined || !model.startsWith(MODEL_API_MODEL_PREFIX))
-    return minimum
+  if (format !== 'responses' || address === undefined || !isModelApiModelId(model)) return minimum
   try {
     return new URL(address).origin === new URL(MODEL_API_BASE_URL).origin
       ? Math.max(minimum, MODEL_API_MIN_OUTPUT_TOKENS)

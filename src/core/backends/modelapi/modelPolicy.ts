@@ -13,7 +13,7 @@ import {
   MODEL_API_MIN_OUTPUT_TOKENS,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,
   MODEL_API_PRICES_PER_MILLION,
-  MODEL_API_MODEL_PREFIX,
+  isModelApiModelId,
   MODEL_API_CONTEXT_WINDOW,
   THINKING_OFF_EFFORT,
   TOKENS_PER_MILLION,
@@ -140,7 +140,7 @@ function knownFlag(flag: boolean | undefined): Known<true> {
 /** Meta records come exclusively from the existing Meta constants. */
 export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}): ModelPolicy {
   const producer = replayProducer(model)
-  const isMeta = producer.provider === 'meta' && model.startsWith(MODEL_API_MODEL_PREFIX)
+  const isMeta = producer.provider === 'meta' && isModelApiModelId(model)
   const tier = isMeta ? modelApiPaidTier(model) : undefined
   const rates = tier === undefined ? undefined : MODEL_API_PRICES_PER_MILLION[tier]
   const slash = model.indexOf('/')
@@ -149,7 +149,7 @@ export function modelPolicyFor(model: string, evidence: ModelPolicyEvidence = {}
     : evidence.capabilities
   const planFacts = isMeta ? undefined : evidence.planFacts
   const levels = isMeta
-    ? effortLevelsFor(model)
+    ? effortLevelsFor(model, undefined, 'modelApi')
     : (evidence.effortLevels ??
       (planFacts === undefined ? undefined : planOfferedLevels(planFacts)))
   // BYO native hosted routes/prices are a captured M95 follow-up. A native

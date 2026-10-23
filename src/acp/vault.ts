@@ -1,5 +1,5 @@
 import { vaultDecisionChoices } from '../runtime/vault/vaultApproval'
-import type { PermissionOption, RequestPermissionResponse } from '@agentclientprotocol/sdk'
+import type { PermissionOption, RequestPermissionResponse } from '@agentclientprotocol/sdk/unstable'
 import { UI_TEXT } from '../shared/constants'
 import {
   vaultApprovalRequestSchema,

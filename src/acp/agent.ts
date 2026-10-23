@@ -52,7 +52,7 @@ import {
   type SessionModeState,
   type SessionUpdate,
   type StopReason,
-} from '@agentclientprotocol/sdk'
+} from '@agentclientprotocol/sdk/unstable'
 import {
   type AgentHost,
   type AgentSession,
@@ -514,8 +514,13 @@ function startingModel(
 export function modelEffortLevels(
   models: readonly ModelSummary[],
   modelId: string,
+  backend: AcpBackendKind = 'museCode',
 ): readonly EffortLevel[] {
-  return effortLevelsFor(modelId, models.find((model) => model.modelId === modelId)?.effortLevels)
+  return effortLevelsFor(
+    modelId,
+    models.find((model) => model.modelId === modelId)?.effortLevels,
+    backend,
+  )
 }
 
 /**
@@ -523,8 +528,12 @@ The refusal an editor reads for a level the model does not serve: the
 unavailable sentence plus the levels it does serve. Headless `exec`
 names the effort too, through `effortNotForModelText`.
 */
-export function effortRefusalData(models: readonly ModelSummary[], modelId: string): string {
-  return `${UI_TEXT.execEffortUnavailable} --effort: ${servedEffortLevels(models, modelId).join(', ')}`
+export function effortRefusalData(
+  models: readonly ModelSummary[],
+  modelId: string,
+  backend: AcpBackendKind = 'museCode',
+): string {
+  return `${UI_TEXT.execEffortUnavailable} --effort: ${servedEffortLevels(models, modelId, backend).join(', ')}`
 }
 
 /**
@@ -536,13 +545,14 @@ export function defaultEffortFor(
   models: readonly ModelSummary[],
   modelId: string,
   chosen?: EffortLevel,
+  backend: AcpBackendKind = 'museCode',
 ): EffortLevel {
   const summary = models.find((model) => model.modelId === modelId)
-  const levels = effortLevelsFor(modelId, summary?.effortLevels)
+  const levels = effortLevelsFor(modelId, summary?.effortLevels, backend)
   if (chosen !== undefined && levels.includes(chosen)) return chosen
   const fallback = summary?.defaultEffort
   return fallback !== undefined &&
-    effortLevelsFor(modelId, summary?.effortLevels).includes(fallback)
+    effortLevelsFor(modelId, summary?.effortLevels, backend).includes(fallback)
     ? fallback
     : DEFAULT_EFFORT
 }
@@ -583,9 +593,10 @@ function servedEffort(
   models: readonly ModelSummary[],
   modelId: string,
   wanted: EffortLevel,
+  backend: AcpBackendKind,
 ): EffortLevel | undefined {
   // ACP admits through the one shared function too (RVCM1063D cause 1).
-  const levels = servedEffortLevels(models, modelId)
+  const levels = servedEffortLevels(models, modelId, backend)
   return levels.includes(wanted) ? wanted : levels.at(-1)
 }
 
@@ -595,13 +606,17 @@ default where it names a known tier, else the panel default. The captured
 contributor catalogue defaults to `max`, which the static default would
 never select (RVCM1063 #3).
 */
-function startingEffort(models: readonly ModelSummary[], modelId: string): EffortLevel {
+function startingEffort(
+  models: readonly ModelSummary[],
+  modelId: string,
+  backend: AcpBackendKind,
+): EffortLevel {
   const catalogueDefault = models.find((model) => model.modelId === modelId)?.defaultReasoningEffort
   const wanted =
     catalogueDefault !== undefined && isEffortLevel(catalogueDefault)
       ? catalogueDefault
       : DEFAULT_EFFORT
-  return servedEffort(models, modelId, wanted) ?? DEFAULT_EFFORT
+  return servedEffort(models, modelId, wanted, backend) ?? DEFAULT_EFFORT
 }
 
 /**
@@ -613,9 +628,10 @@ the row carries no catalogue.
 function effortOptionsFor(
   models: readonly ModelSummary[],
   modelId: string,
+  backend: AcpBackendKind,
 ): { readonly value: string; readonly name: string }[] {
   const row = models.find((model) => model.modelId === modelId)
-  return servedEffortLevels(models, modelId).map((tier) => ({
+  return servedEffortLevels(models, modelId, backend).map((tier) => ({
     value: tier,
     name:
       row?.reasoningEffortVariants?.find((variant) => variant.tier === tier)?.description ??
@@ -2246,7 +2262,7 @@ class AcpSession {
   }
 
   private effortOption(): SessionConfigOption[] {
-    const options = effortOptionsFor(this.models, this.modelId)
+    const options = effortOptionsFor(this.models, this.modelId, this.deps.backend.kind)
     if (options.length === 0) return []
     return [
       {
@@ -2265,7 +2281,7 @@ class AcpSession {
   the model's own default, else the highest tier it serves.
   */
   private servedEffort(wanted: EffortLevel): EffortLevel {
-    const levels = modelEffortLevels(this.models, this.modelId)
+    const levels = modelEffortLevels(this.models, this.modelId, this.deps.backend.kind)
     if (levels.includes(wanted)) return wanted
     const fallback = this.models.find((model) => model.modelId === this.modelId)?.defaultEffort
     return (
@@ -2615,6 +2631,7 @@ class AcpSession {
       effortLevelsFor(
         this.modelId,
         this.models.find((model) => model.modelId === this.modelId)?.effortLevels,
+        this.deps.backend.kind,
       ).length > 0
     )
       await this.sessionCommand(() =>
@@ -2784,6 +2801,7 @@ class AcpSession {
               this.models,
               this.modelId,
               this.isEffortChosen ? this.effort : undefined,
+              this.deps.backend.kind,
             ),
       )
       return
@@ -2791,12 +2809,19 @@ class AcpSession {
     if (configId !== ACP_CONFIG_IDS.effort) {
       throw RequestError.invalidParams(undefined, configId)
     }
-    if (!isEffortLevel(value) || !servedEffortLevels(this.models, this.modelId).includes(value)) {
+    if (
+      !isEffortLevel(value) ||
+      !servedEffortLevels(this.models, this.modelId, this.deps.backend.kind).includes(value)
+    ) {
       // The effort is not on this model: the refusal names the effort, the
       // model, and the levels it serves (the one shared function, RVCM1063D).
       throw RequestError.invalidParams(
         undefined,
-        effortNotForModelText(value, this.modelId, servedEffortLevels(this.models, this.modelId)),
+        effortNotForModelText(
+          value,
+          this.modelId,
+          servedEffortLevels(this.models, this.modelId, this.deps.backend.kind),
+        ),
       )
     }
     await this.applyEffort(value)
@@ -4012,7 +4037,7 @@ class AgentState {
       // plan model starts on its catalogue default unless the person chose one.
       const claim = this.claimSession(session.sessionId)
       const acp = await this.adopt(host, session, cwd, client, models, claim, (started) =>
-        started.applyEffort(startingEffort(models, modelId)),
+        started.applyEffort(startingEffort(models, modelId, this.deps.backend.kind)),
       )
       // Keep what the editor is shown, including backend events during setup.
       this.choices.set(session.sessionId, acp.currentChoice())

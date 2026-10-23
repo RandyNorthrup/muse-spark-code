@@ -392,6 +392,7 @@ function tokenRatesByTier(): string {
   return [
     `${MODEL_API_PRICED_MODELS.standard.join(', ')}: ${tokenRatePrice('standard')}`,
     `${MODEL_API_PRICED_MODELS.contributor.join(', ')}: ${tokenRatePrice('contributor')}`,
+    `${MODEL_API_PRICED_MODELS.wonder.join(', ')}: ${tokenRatePrice('wonder')}`,
   ].join('\n')
 }
 

@@ -826,7 +826,8 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       [
         'Automatic compaction (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'autoCompaction', isOn: true },
       ],
@@ -858,14 +859,16 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       [
         'Scheduled Prompts (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'scheduledPrompts', isOn: true },
       ],
       [
         'Auto Reviewer (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'autoReviewer', isOn: true },
       ],
@@ -879,14 +882,16 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       [
         'Team Workers (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'teamWorkers', isOn: true },
       ],
       [
         'Tab Completions (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'tab', isOn: true },
       ],
@@ -901,14 +906,16 @@ describe('buildPalette: paid features (M33, PLAN.md D30)', () => {
       [
         'Judge (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'judge', isOn: true },
       ],
       [
         'Explain Findings (Paid)',
         'muse-spark-1.1, muse-spark-1.2, muse-spark-1.3: $1.250/1M input, $0.150/1M cached input, $4.250/1M output tokens\n' +
-          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens',
+          'muse-spark-1.2-contributor, muse-spark-1.3-contributor: $0.100/1M input, $0.0020/1M cached input, $0.200/1M output tokens\n' +
+          'muse-wonder-1.0: $4.000/1M input, $0.200/1M cached input, $20.000/1M output tokens',
         { kind: 'toggle', isOn: false },
         { type: 'setPaidFeature', feature: 'legalExplanation', isOn: true },
       ],

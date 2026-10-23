@@ -135,7 +135,11 @@ export function modelApiPaidTier(
     return 'standard'
   }
   const contributor: readonly string[] = MODEL_API_PRICED_MODELS.contributor
-  return contributor.includes(modelId) ? 'contributor' : undefined
+  if (contributor.includes(modelId)) {
+    return 'contributor'
+  }
+  const wonder: readonly string[] = MODEL_API_PRICED_MODELS.wonder
+  return wonder.includes(modelId) ? 'wonder' : undefined
 }
 
 /** The features that are on (setting on and price accepted), and the tally. */

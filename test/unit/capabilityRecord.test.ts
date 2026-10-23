@@ -586,9 +586,16 @@ describe('normalized capability record', () => {
     expect(meta.output.maxTokens).toBe(131_072)
     // Lead live capture 2026-10-10: max_output_tokens below 16 is a 400.
     expect(meta.output.minTokens).toBe(16)
-    expect(capabilityEffortLevels(metaCapabilityRecord('muse-spark-1.3-contributor'))).toEqual(
-      capabilityEffortLevels(meta),
-    )
+    // Contributor serves through xhigh only: no `max` (dev.meta.ai/docs/
+    // reasoning), so its record differs from the base row it used to
+    // inherit by prefix.
+    expect(capabilityEffortLevels(metaCapabilityRecord('muse-spark-1.3-contributor'))).toEqual([
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ])
     expect(capabilityEffortLevels(metaCapabilityRecord('muse-spark-1.2'))).toEqual([
       'minimal',
       'low',
@@ -608,8 +615,9 @@ describe('normalized capability record', () => {
       value: { maxBytes: 50_000_000, maxPages: 50, maxCount: 50 },
       source: { ref: 'https://dev.meta.ai/docs/file-handling' },
     })
-    // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
-    // mapped to the highest served tier at send time.
+    // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier, so
+    // the Model API record ends at `max`; a stored `ultra` still maps to
+    // `max` at send time.
     expect(capabilityEffortLevels(meta)).toEqual([
       'minimal',
       'low',
@@ -617,7 +625,6 @@ describe('normalized capability record', () => {
       'high',
       'xhigh',
       'max',
-      'ultra',
     ])
   })
 })

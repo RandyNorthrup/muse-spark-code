@@ -14,7 +14,7 @@
 // not hold) is denied, and so is every feature the agent has no flag for:
 // subagents, Muse Voice and scheduled runs.
 
-import type { PermissionOption, RequestPermissionResponse } from '@agentclientprotocol/sdk'
+import type { PermissionOption, RequestPermissionResponse } from '@agentclientprotocol/sdk/unstable'
 import {
   PaidUseConsent,
   type PaidNotKeptNotice,

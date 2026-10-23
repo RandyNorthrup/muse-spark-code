@@ -2,7 +2,7 @@
 export { createAcpAgent } from '../acp/agent'
 export { createRuntimeBackend } from './backends'
 export { createExecClient } from './exec/execClient'
-export { PROTOCOL_VERSION, ndJsonStream, RequestError } from '@agentclientprotocol/sdk'
+export { PROTOCOL_VERSION, ndJsonStream, RequestError } from '@agentclientprotocol/sdk/unstable'
 export { setUiText } from '../shared/l10n/text'
 export { assembleProviderRun } from './exec/providerExec'
 export { providersFilePath, resolveEndpointHost } from './providersCommands'

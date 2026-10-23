@@ -1,6 +1,6 @@
 import { catalogueSliderProps } from '../../src/webview/components/EffortSlider'
 import { describe, expect, it } from 'vitest'
-import { EFFORT_LEVELS } from '../../src/shared/constants'
+import { EFFORT_LEVELS, MODEL_API_EFFORT_LEVELS } from '../../src/shared/constants'
 import {
   effortAt,
   effortForThinking,
@@ -24,7 +24,9 @@ describe('effort helpers', () => {
     { variants: [], expected: [] },
     { variants: 'unknown', expected: [] },
   ] as const)('treats served $variants as authoritative', ({ variants, expected }) => {
-    expect(effortLevelsFor('muse-spark-1.3', ['medium'], { variants })).toEqual(expected)
+    expect(effortLevelsFor('muse-spark-1.3', ['medium'], 'museCode', { variants })).toEqual(
+      expected,
+    )
   })
 
   it('uses only recorded BYO effort tiers, with an empty unknown range', () => {
@@ -48,13 +50,27 @@ describe('effort helpers', () => {
     expect(effortForThinking('high', false)).toBe('none')
   })
 
-  it('lists the verified tiers per model family and the full range otherwise', () => {
+  it('lists the verified tiers per exact model id and the full range otherwise', () => {
     // Lane REASONSHAPES: `ultra` is Muse Code's client-side top tier,
     // mapped to the highest served tier at send time.
     const verified = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max', 'ultra']
+    const capped = ['minimal', 'low', 'medium', 'high', 'xhigh']
     expect(effortLevelsFor('muse-spark-1.3')).toEqual(verified)
-    expect(effortLevelsFor('muse-spark-1.3-contributor')).toEqual(verified)
-    expect(effortLevelsFor('muse-spark-1.2')).toEqual(['minimal', 'low', 'medium', 'high', 'xhigh'])
+    expect(effortLevelsFor('muse-wonder-1.0')).toEqual(verified)
+    expect(effortLevelsFor('muse-wonder-full-1.0')).toEqual(verified)
+    // `max` is not served on a contributor model (dev.meta.ai/docs/
+    // reasoning), nor on muse-spark-1.2/1.1 (the 1.2 live 400), so no
+    // contributor id inherits its base row by prefix.
+    for (const model of [
+      'muse-spark-1.3-contributor',
+      'muse-spark-1.2',
+      'muse-spark-1.2-contributor',
+      'muse-spark-1.1',
+      'muse-wonder-1.0-contributor',
+      'muse-wonder-full-1.0-contributor',
+    ]) {
+      expect(effortLevelsFor(model)).toEqual(capped)
+    }
     expect(effortLevelsFor('some-future-model')).toBe(EFFORT_LEVELS)
     expect(effortLevelsFor(undefined)).toBe(EFFORT_LEVELS)
   })
@@ -83,6 +99,25 @@ describe('effort helpers', () => {
       current: 'turbo',
       onSelect: onSelectTier,
     })
+  })
+
+  it('offers the Model API vocabulary without ultra on that backend', () => {
+    // The Model API has no `ultra` value (dev.meta.ai/docs/reasoning):
+    // the backend offers the table without it, even where `max` is served.
+    const apiFull = ['minimal', 'low', 'medium', 'high', 'xhigh', 'max']
+    expect(effortLevelsFor('muse-spark-1.3', undefined, 'modelApi')).toEqual(apiFull)
+    expect(effortLevelsFor('muse-wonder-1.0', undefined, 'modelApi')).toEqual(apiFull)
+    expect(effortLevelsFor('muse-spark-1.3-contributor', undefined, 'modelApi')).toEqual([
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ])
+    expect(effortLevelsFor('some-future-model', undefined, 'modelApi')).toBe(
+      MODEL_API_EFFORT_LEVELS,
+    )
+    expect(effortLevelsFor(undefined, undefined, 'modelApi')).toBe(MODEL_API_EFFORT_LEVELS)
   })
 
   it('maps tiers to slider positions and clamps positions back to tiers', () => {

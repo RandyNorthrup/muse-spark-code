@@ -30,6 +30,7 @@ import {
   workflowControlResultSchema,
 } from '../../src/core/backends/musecode/MuseCodeHost'
 import { mapNotification, UNKNOWN_METHOD } from '../../src/core/backends/musecode/mapNotification'
+import { sessionClosedSchema } from '../../src/core/backends/musecode/sessionRecords'
 import {
   acquireHookProcessSlot,
   dispatchHooks,
@@ -360,6 +361,22 @@ describe('new notifications', () => {
     expect(mapNotification({ method: 'computerUseSetup/changed', params: { state: {} } })).toBe(
       UNKNOWN_METHOD,
     )
+  })
+  it('tolerates the 1.4.11 leave handshake without mapping it', () => {
+    // This client never hands a session to another host, so it never sends
+    // `session/leave` and the terminal `session/leaveCompleted` stays
+    // unmapped; a `session/closed` broadcast for a released leave still
+    // parses, and the reason reads as served.
+    expect(
+      mapNotification({
+        method: 'session/leaveCompleted',
+        params: { sessionId, commandId: 'c1', outcome: 'released' },
+      }),
+    ).toBe(UNKNOWN_METHOD)
+    expect(sessionClosedSchema.parse({ sessionId, reason: 'leave' })).toEqual({
+      sessionId,
+      reason: 'leave',
+    })
   })
 })
 

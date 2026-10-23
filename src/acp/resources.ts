@@ -3,7 +3,7 @@ import {
   type AvailableCommand,
   type ContentBlock,
   type SessionUpdate,
-} from '@agentclientprotocol/sdk'
+} from '@agentclientprotocol/sdk/unstable'
 import { UI_TEXT } from '../shared/constants'
 import { resourceEventSchema, resourceStatusSchema } from '../shared/resources'
 import type { RuntimeResourceNotice, RuntimeResources } from '../runtime/resources/port'

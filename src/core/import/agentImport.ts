@@ -44,7 +44,7 @@ import {
   type AgentImportKind,
   type AgentImportSource,
   EFFORT_LEVELS,
-  MODEL_API_MODEL_PREFIX,
+  isModelApiModelId,
   BYO_MODEL_REFERENCE_PATTERN,
   MODEL_API_TOOLS,
   PERMISSION_MODES,
@@ -1269,7 +1269,7 @@ function isImportableAgent(text: string): boolean {
       (tools !== undefined && tools.length > 0 && tools.every((tool) => AGENT_TOOLS.has(tool)))) &&
     (!header.has('model') ||
       (isPlainValue(model) &&
-        (model.startsWith(MODEL_API_MODEL_PREFIX) ||
+        (isModelApiModelId(model) ||
           (BYO_MODEL_REFERENCE_PATTERN.test(model) && !model.startsWith('meta/'))))) &&
     (!header.has('effort') || (effort !== undefined && AGENT_EFFORTS.has(effort))) &&
     (!header.has('permission-mode') || (mode !== undefined && AGENT_PERMISSION_MODES.has(mode)))

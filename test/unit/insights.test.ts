@@ -144,6 +144,10 @@ describe('cost estimate', () => {
     expect(Number(estimateCostUsd(usage, 'muse-spark-1.3-contributor'))).toBeCloseTo(
       0.8 * 0.1 + 0.2 * 0.002 + 0.1 * 0.2,
     )
+    expect(Number(estimateCostUsd(usage, 'muse-wonder-1.0'))).toBeCloseTo(
+      0.8 * 4 + 0.2 * 0.2 + 0.1 * 20,
+    )
+    expect(costForTier(usage, 'wonder')).toEqual(estimateCostUsd(usage, 'muse-wonder-1.0'))
     // Cached tokens never exceed the input they sit inside.
     expect(
       Number(
