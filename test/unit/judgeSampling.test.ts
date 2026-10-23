@@ -10,13 +10,15 @@ import {
   techniqueEligibility,
   techniqueProbabilities,
   techniqueResult,
-  type JudgeTechniqueAdmission,
   type JudgeTechniqueCall,
   type JudgeTechniqueDependencies,
   type JudgeTechniqueReceipt,
 } from '../../src/core/judge/sampling'
 import type { JudgeOutcome, JudgeRequest } from '../../src/core/judge/schema'
 import { Usd, compareUsdAmounts, type UsdAmount } from '../../src/shared/usd'
+
+/** The admission port the technique dependencies carry. */
+type JudgeTechniqueAdmission = JudgeTechniqueDependencies['admission']
 
 const REQUEST: JudgeRequest = {
   state: { command: 'synthetic command', context: ['complete', 'state'] },
@@ -159,8 +161,7 @@ describe('sampling technique', () => {
   })
   it('refuses a binding the adoption record does not cover', () => {
     const rig = honestAdmission()
-    const mismatched = testDeps(rig.admission)
-    mismatched.measurement = undefined
+    const mismatched = { ...testDeps(rig.admission), measurement: undefined }
     expect(techniqueEligibility(mismatched, 'sampling')).toMatchObject({
       outcome: 'no-answer',
       reason: 'source-untested',
@@ -270,9 +271,18 @@ describe('sampling technique', () => {
         { type: 'noul', noul: 0.7, probabilities: { true: 0.7, false: 0.3 } },
       ),
     ).toEqual([0.7, 0.3])
-    expect(techniqueProbabilities({ type: 'noul', instructions: 'x' }, { type: 'top1' })).toBe(
-      undefined,
-    )
+    // An answer of another kind than the question asked gives no probabilities.
+    expect(
+      techniqueProbabilities(
+        { type: 'noul', instructions: 'x' },
+        {
+          type: 'choice',
+          choice: 'true',
+          confidence: 0.7,
+          probabilities: { true: 0.7, false: 0.3 },
+        },
+      ),
+    ).toBe(undefined)
   })
   it('validates the prepared call before dispatching', () => {
     const rig = honestAdmission()

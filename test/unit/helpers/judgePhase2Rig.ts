@@ -3,6 +3,7 @@
 // from one helper instead of copying each other.
 import { Usd, type UsdAmount } from '../../../src/shared/usd'
 import { PaidUseConsent, paidUseQuestion } from '../../../src/core/paid/paidConsent'
+import type { PaidUseRequest } from '../../../src/shared/paid'
 import type { JudgeDailyLedger } from '../../../src/core/judge/admission'
 import { embeddingHeadDigest, weightEnvelopeFor } from '../../../src/core/judge/embedding/schema'
 import { fitEmbeddingHead } from '../../../src/core/judge/embedding/fit'
@@ -15,6 +16,8 @@ import {
   embeddingSource,
   groupedDataset,
 } from '../judgeEmbeddingFixtures'
+
+type JudgeUseRequest = Extract<PaidUseRequest, { feature: 'judge' }>
 
 /** The stdin body for an `ask` or MCP judge call over the same request. */
 export function surfaceInput(action: string): string {
@@ -30,7 +33,7 @@ export function phase2Binding(engine = 'both') {
     ...fixture,
     context: { ...fixture.context, engine },
     separateVerified: true,
-    separateLocality: 'verified-local',
+    separateLocality: 'verified-local' as const,
   }
   return { ...fixture, value }
 }
@@ -100,8 +103,9 @@ export function embeddedBinding(locality: 'same-provider' | 'verified-local', co
       return 'once'
     },
   })
-  const allowsCalls: Parameters<typeof consent.allows>[0][] = []
-  const allowsPaidUse = (request: Parameters<typeof consent.allows>[0]) => {
+  // The judge's own request, so the consent answers with its boolean verdict.
+  const allowsCalls: JudgeUseRequest[] = []
+  const allowsPaidUse = (request: JudgeUseRequest) => {
     allowsCalls.push(request)
     return consent.allows(request)
   }
