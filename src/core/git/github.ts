@@ -600,6 +600,27 @@ export class GitHubClient {
     return parsed.data
   }
 
+  /** Every page of a `per_page` list until a short one ends it. `extra`
+  holds a call's own filters ahead of the paging pair; `fetchPage` reads
+  one page through the query it is given. */
+  private async pagedList<Mapped>(
+    fetchPage: (query: URLSearchParams) => Promise<readonly Mapped[]>,
+    extra?: Readonly<Record<string, string>>,
+  ): Promise<Mapped[]> {
+    const items: Mapped[] = []
+    for (let page = 1; ; page += 1) {
+      const query = new URLSearchParams({
+        ...extra,
+        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
+        page: String(page),
+      })
+      const found = await fetchPage(query)
+      items.push(...found)
+      if (found.length < GITHUB_ISSUES_PAGE_SIZE) break
+    }
+    return items
+  }
+
   public async currentUser(token: string): Promise<GitHubUser> {
     return this.parse(userSchema, await this.request(token, 'GET', '/user'), 'account')
   }
@@ -747,30 +768,23 @@ export class GitHubClient {
     repository: GitHubRepository,
     signal?: AbortSignal,
   ): Promise<GitHubIssue[]> {
-    const issues: GitHubIssue[] = []
-    for (let page = 1; ; page += 1) {
-      const query = new URLSearchParams({
-        state: 'all',
-        sort: 'updated',
-        direction: 'desc',
-        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
-        page: String(page),
-      })
-      const parsed = this.parse(
-        z.array(issueSchema),
-        await this.request(
-          token,
-          'GET',
-          `${repositoryPath(repository)}/issues?${query.toString()}`,
-          undefined,
-          signal,
-        ),
-        'issue list',
-      )
-      issues.push(...parsed.map((item) => toGitHubIssue(item)))
-      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
-    }
-    return issues
+    return await this.pagedList(
+      async (query) => {
+        const parsed = this.parse(
+          z.array(issueSchema),
+          await this.request(
+            token,
+            'GET',
+            `${repositoryPath(repository)}/issues?${query.toString()}`,
+            undefined,
+            signal,
+          ),
+          'issue list',
+        )
+        return parsed.map((item) => toGitHubIssue(item))
+      },
+      { state: 'all', sort: 'updated', direction: 'desc' },
+    )
   }
 
   /** An issue's comments, oldest first, until a short page ends the list. */
@@ -779,12 +793,7 @@ export class GitHubClient {
     repository: GitHubRepository,
     number: number,
   ): Promise<GitHubIssueComment[]> {
-    const comments: GitHubIssueComment[] = []
-    for (let page = 1; ; page += 1) {
-      const query = new URLSearchParams({
-        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
-        page: String(page),
-      })
+    return await this.pagedList(async (query) => {
       const parsed = this.parse(
         z.array(issueCommentSchema),
         await this.request(
@@ -794,10 +803,8 @@ export class GitHubClient {
         ),
         'issue comments',
       )
-      comments.push(...parsed.map((item) => toGitHubComment(item)))
-      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
-    }
-    return comments
+      return parsed.map((item) => toGitHubComment(item))
+    })
   }
 
   /** The repository's labels, every page until a short one ends the list. */
@@ -805,12 +812,7 @@ export class GitHubClient {
     token: string,
     repository: GitHubRepository,
   ): Promise<GitHubIssueLabel[]> {
-    const labels: GitHubIssueLabel[] = []
-    for (let page = 1; ; page += 1) {
-      const query = new URLSearchParams({
-        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
-        page: String(page),
-      })
+    return await this.pagedList(async (query) => {
       const parsed = this.parse(
         z.array(issueLabelSchema),
         await this.request(
@@ -820,18 +822,14 @@ export class GitHubClient {
         ),
         'label list',
       )
-      labels.push(
-        ...parsed.map((label) => ({
-          id: label.id,
-          name: label.name,
-          color: label.color,
-          description: label.description ?? undefined,
-          isDefault: label.default,
-        })),
-      )
-      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
-    }
-    return labels
+      return parsed.map((label) => ({
+        id: label.id,
+        name: label.name,
+        color: label.color,
+        description: label.description ?? undefined,
+        isDefault: label.default,
+      }))
+    })
   }
 
   /** Issue search, first page. The caller passes the whole `q`. */
@@ -909,12 +907,7 @@ export class GitHubClient {
 
   /** The repository's releases, newest first, until a short page ends them. */
   public async listReleases(token: string, repository: GitHubRepository): Promise<GitHubRelease[]> {
-    const releases: GitHubRelease[] = []
-    for (let page = 1; ; page += 1) {
-      const query = new URLSearchParams({
-        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
-        page: String(page),
-      })
+    return await this.pagedList(async (query) => {
       const parsed = this.parse(
         z.array(releaseSchema),
         await this.request(
@@ -924,46 +917,33 @@ export class GitHubClient {
         ),
         'release list',
       )
-      releases.push(
-        ...parsed.map((release) => ({
-          url: release.html_url,
-          tag: release.tag_name,
-          target: release.target_commitish,
-          name: release.name ?? undefined,
-          isDraft: release.draft,
-          isPrerelease: release.prerelease,
-          createdAt: release.created_at,
-          publishedAt: release.published_at ?? undefined,
-          body: release.body ?? '',
-        })),
-      )
-      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
-    }
-    return releases
+      return parsed.map((release) => ({
+        url: release.html_url,
+        tag: release.tag_name,
+        target: release.target_commitish,
+        name: release.name ?? undefined,
+        isDraft: release.draft,
+        isPrerelease: release.prerelease,
+        createdAt: release.created_at,
+        publishedAt: release.published_at ?? undefined,
+        body: release.body ?? '',
+      }))
+    })
   }
 
   /** The repository's tags, newest first, until a short page ends them. */
   public async listTags(token: string, repository: GitHubRepository): Promise<GitHubTag[]> {
-    const tags: GitHubTag[] = []
-    for (let page = 1; ; page += 1) {
-      const query = new URLSearchParams({
-        per_page: String(GITHUB_ISSUES_PAGE_SIZE),
-        page: String(page),
-      })
+    return await this.pagedList(async (query) => {
       const parsed = this.parse(
         z.array(tagSchema),
         await this.request(token, 'GET', `${repositoryPath(repository)}/tags?${query.toString()}`),
         'tag list',
       )
-      tags.push(
-        ...parsed.map((tag) => ({
-          name: tag.name,
-          sha: tag.commit.sha,
-        })),
-      )
-      if (parsed.length < GITHUB_ISSUES_PAGE_SIZE) break
-    }
-    return tags
+      return parsed.map((tag) => ({
+        name: tag.name,
+        sha: tag.commit.sha,
+      }))
+    })
   }
 
   /** Commit search, first page. The caller passes the whole `q`. */

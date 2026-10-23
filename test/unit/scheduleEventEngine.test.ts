@@ -3,11 +3,9 @@
 // fires from it — while a schedule never refires on its own settlement,
 // so the chain ends.
 import { existsSync } from 'node:fs'
-import { mkdtemp, rm } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { afterEach, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { noScheduleCost, type ScheduleV2 } from '../../src/shared/scheduleV2'
 import type { ScheduleEvent } from '../../src/shared/scheduleEvents'
 import type { ScheduleDeliverySession } from '../../src/core/schedules/delivery'
@@ -19,43 +17,20 @@ import {
   createNodeScheduleQueue,
 } from '../../src/runtime/schedules/nodeScheduleFs'
 import { workspaceKey } from '../../src/runtime/dataFolder'
-import { scheduleFixture } from './helpers/scheduleFixtures'
+import { deliverySessionFixture, scheduleFixture } from './helpers/scheduleFixtures'
 import { collectingLogger } from './helpers/collectingLogger'
+import { fileRoots } from './helpers/tempDirs'
 
-const folders: string[] = []
-afterEach(async () => {
-  while (folders.length > 0) {
-    const folder = folders.pop()
-    if (folder !== undefined) await rm(folder, { recursive: true, force: true })
-  }
-})
-
-async function tempDir(prefix: string): Promise<string> {
-  const folder = await mkdtemp(path.join(tmpdir(), prefix))
-  folders.push(folder)
-  return folder
-}
+const roots = fileRoots()
 
 function session(sessionId: string): ScheduleDeliverySession {
-  return {
-    backend: 'modelApi',
-    sessionId,
-    isRunning: () => false,
-    isOpen: () => true,
-    steer: () => Promise.resolve(undefined),
-    cancel: () => Promise.resolve(undefined),
-    queue: () => Promise.resolve('msg-0'),
-    withdraw: () => Promise.resolve(true),
-    send: () => Promise.resolve(undefined),
-    waitUntilIdle: () => Promise.resolve(true),
-    queueWhenIdle: () => Promise.resolve('msg-1'),
-  }
+  return deliverySessionFixture({ sessionId })
 }
 
 describe('event chaining through the engine', () => {
   it('runs a follower when its leader settles, then stops', async () => {
-    const root = await tempDir('schedule-event-engine-')
-    const workspace = await tempDir('schedule-event-ws-')
+    const root = await roots.fresh('schedule-event-engine-')
+    const workspace = await roots.fresh('schedule-event-ws-')
     const key = workspaceKey(workspace)
     let nowMs = 1_700_000_100_000
     const reported: unknown[] = []

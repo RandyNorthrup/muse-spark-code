@@ -15,7 +15,10 @@ import {
   triageWatchdogIssue,
 } from '../../core/watchdog/triage'
 import type { WatchdogRepoData, WatchdogStore } from '../../core/watchdog/store'
-import { watchdogVerifyEvidenceSchema } from '../../core/watchdog/verify'
+import {
+  watchdogVerifyEvidenceSchema,
+  type WatchdogVerifyEvidence,
+} from '../../core/watchdog/verify'
 import { UI_TEXT, fill, plural } from '../../shared/l10n/text'
 import type {
   TriageFindings,
@@ -153,7 +156,7 @@ function provenFindings(json: string): TriageFindings {
   }
 }
 
-function provenEvidence(json: string): unknown {
+function provenEvidence(json: string): WatchdogVerifyEvidence {
   let raw: unknown
   try {
     raw = JSON.parse(json) as unknown
@@ -305,6 +308,17 @@ async function pollText(
   }
 }
 
+async function trackedIssue(
+  port: WatchdogSurfacePort,
+  repository: string,
+  number: number,
+): Promise<WatchdogRecord | undefined> {
+  const repos = await port.store.list()
+  return repos
+    .find((item) => item.policy.repository === repository)
+    ?.issues.find((item) => item.issueNumber === number)
+}
+
 async function evidenceText(
   port: WatchdogSurfacePort,
   repository: string,
@@ -313,11 +327,8 @@ async function evidenceText(
   const { client, token } = signedClient(port)
   const named = namedRepository(repository)
   const number = issueNumber(word)
-  const repos = await port.store.list()
-  const tracked = repos
-    .find((item) => item.policy.repository === repository)
-    ?.issues.some((item) => item.issueNumber === number)
-  if (tracked !== true) throw new WatchdogCommandError(UI_TEXT.watchdog.cli.unknownIssue)
+  const tracked = await trackedIssue(port, repository, number)
+  if (tracked === undefined) throw new WatchdogCommandError(UI_TEXT.watchdog.cli.unknownIssue)
   const issue = await client.issue(token, named, number)
   const open = await client.listIssues(token, named)
   const evidence = await collectTriageEvidence({ client, token }, named, issue, open, [])
@@ -333,11 +344,9 @@ async function applyText(
   namedRepository(repository)
   const number = issueNumber(word)
   const findings = provenFindings(json)
-  const repos = await port.store.list()
-  const state = repos
-    .find((item) => item.policy.repository === repository)
-    ?.issues.find((item) => item.issueNumber === number)?.state
-  if (state !== 'acknowledged') throw new WatchdogCommandError(UI_TEXT.watchdog.cli.applyNeedsAck)
+  const tracked = await trackedIssue(port, repository, number)
+  if (tracked?.state !== 'acknowledged')
+    throw new WatchdogCommandError(UI_TEXT.watchdog.cli.applyNeedsAck)
   await triageWatchdogIssue({ store: port.store, now: port.now }, repository, number, json)
   return fill(UI_TEXT.watchdog.cli.triagedAs, {
     verdict: UI_TEXT.watchdog.verdicts[findings.verdict],
@@ -353,10 +362,7 @@ async function decideText(
   const { client, token } = signedClient(port)
   namedRepository(repository)
   const number = issueNumber(word)
-  const repos = await port.store.list()
-  const record = repos
-    .find((item) => item.policy.repository === repository)
-    ?.issues.find((item) => item.issueNumber === number)
+  const record = await trackedIssue(port, repository, number)
   if (record?.state !== 'triaged' || record.findings === undefined)
     throw new WatchdogCommandError(UI_TEXT.watchdog.cli.decideNeedsTriage)
   const decision = await decideWatchdogIssue(
@@ -391,10 +397,7 @@ async function resolveText(
   namedRepository(repository)
   const number = issueNumber(word)
   const evidence = provenEvidence(json)
-  const repos = await port.store.list()
-  const record = repos
-    .find((item) => item.policy.repository === repository)
-    ?.issues.find((item) => item.issueNumber === number)
+  const record = await trackedIssue(port, repository, number)
   if (
     record?.state !== 'planned' ||
     record.findings === undefined ||

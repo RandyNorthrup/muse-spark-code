@@ -7,21 +7,25 @@
 // would receive.
 import { describe, expect, it } from 'vitest'
 import { GitHubClient, GitHubError } from '../../src/core/git/github'
-import { serveGithub, watchdogCaptured, watchdogLogger } from './helpers/watchdog/servedGithub'
+import { collectingLogger } from './helpers/collectingLogger'
+import {
+  WATCHDOG_BASE,
+  WATCHDOG_NAMED,
+  capturedComments,
+  releaseRoutes,
+} from './helpers/watchdog/fixtures'
+import { serveGithub, watchdogCaptured } from './helpers/watchdog/servedGithub'
 
 const logged: string[] = []
-const quiet = watchdogLogger(logged)
-
-const REPOSITORY = { owner: 'RandyNorthrup', name: 'muse-spark-code' }
-const BASE = 'https://api.github.com/repos/RandyNorthrup/muse-spark-code'
+const quiet = collectingLogger(logged)
 
 describe('watchdog GitHub client', () => {
   it('reads one issue with its captured fields', async () => {
     const { fetch, calls } = serveGithub({
-      [`GET ${BASE}/issues/146`]: { status: 200, body: watchdogCaptured('github-issue') },
+      [`GET ${WATCHDOG_BASE}/issues/146`]: { status: 200, body: watchdogCaptured('github-issue') },
     })
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
-    const issue = await client.issue('token', REPOSITORY, 146)
+    const issue = await client.issue('token', WATCHDOG_NAMED, 146)
     expect(issue.number).toBe(146)
     expect(issue.commentCount).toBe(1)
     expect(issue.isPullRequest).toBe(false)
@@ -33,9 +37,11 @@ describe('watchdog GitHub client', () => {
   it('lists the page newest-first and marks pull requests', async () => {
     const page = watchdogCaptured('github-issues-page1')
     if (!Array.isArray(page)) throw new TypeError('the capture lists issues')
-    const { fetch, calls } = serveGithub({ [`GET ${BASE}/issues`]: { status: 200, body: page } })
+    const { fetch, calls } = serveGithub({
+      [`GET ${WATCHDOG_BASE}/issues`]: { status: 200, body: page },
+    })
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
-    const issues = await client.listIssues('token', REPOSITORY)
+    const issues = await client.listIssues('token', WATCHDOG_NAMED)
     expect(issues).toHaveLength(page.length)
     expect(issues.every((item) => item.isPullRequest)).toBe(true)
     expect(issues[0]?.closedAt).toBe('2026-10-22T06:48:21Z')
@@ -44,20 +50,20 @@ describe('watchdog GitHub client', () => {
 
   it('reads comments, labels and search from their captures', async () => {
     const { fetch } = serveGithub({
-      [`GET ${BASE}/issues/146/comments`]: {
+      [`GET ${WATCHDOG_BASE}/issues/146/comments`]: {
         status: 200,
         body: watchdogCaptured('github-issue-comments'),
       },
-      [`GET ${BASE}/labels`]: { status: 200, body: watchdogCaptured('github-labels') },
+      [`GET ${WATCHDOG_BASE}/labels`]: { status: 200, body: watchdogCaptured('github-labels') },
       ['GET https://api.github.com/search/issues']: {
         status: 200,
         body: watchdogCaptured('github-search-issues'),
       },
     })
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
-    const [comment] = await client.issueComments('token', REPOSITORY, 146)
+    const [comment] = await client.issueComments('token', WATCHDOG_NAMED, 146)
     expect(comment?.author.login).toBe('RandyNorthrup')
-    const labels = await client.issueLabels('token', REPOSITORY)
+    const labels = await client.issueLabels('token', WATCHDOG_NAMED)
     expect(labels.map((label) => label.name)).toContain('accessibility')
     const search = await client.searchIssues(
       'token',
@@ -68,19 +74,12 @@ describe('watchdog GitHub client', () => {
   })
 
   it('reads releases, tags and commit search from their captures', async () => {
-    const { fetch } = serveGithub({
-      [`GET ${BASE}/releases`]: { status: 200, body: watchdogCaptured('github-releases') },
-      [`GET ${BASE}/tags`]: { status: 200, body: watchdogCaptured('github-tags') },
-      ['GET https://api.github.com/search/commits']: {
-        status: 200,
-        body: watchdogCaptured('github-search-commits'),
-      },
-    })
+    const { fetch } = serveGithub(releaseRoutes())
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
-    const [release] = await client.listReleases('token', REPOSITORY)
+    const [release] = await client.listReleases('token', WATCHDOG_NAMED)
     expect(release?.tag).toBe('v0.19.0')
     expect(release?.isDraft).toBe(false)
-    const [tag] = await client.listTags('token', REPOSITORY)
+    const [tag] = await client.listTags('token', WATCHDOG_NAMED)
     expect(tag?.name).toBe('v0.19.0')
     expect(tag?.sha).toBe('4e09cab6ea724dd138bbb71304bdef39d5253992')
     const commits = await client.searchCommits('token', 'repo:RandyNorthrup/muse-spark-code 146')
@@ -89,22 +88,26 @@ describe('watchdog GitHub client', () => {
   })
 
   it('forms the comment, label and close mutations GitHub expects', async () => {
-    const comments = watchdogCaptured('github-issue-comments')
-    if (!Array.isArray(comments) || comments.length === 0)
-      throw new TypeError('the capture holds comments')
+    const comments = capturedComments()
     const { fetch, calls } = serveGithub({
-      [`GET ${BASE}/issues/146/comments`]: { status: 200, body: comments },
-      [`POST ${BASE}/issues/146/comments`]: { status: 201, body: comments[0] },
-      [`POST ${BASE}/issues/146/labels`]: { status: 200, body: watchdogCaptured('github-labels') },
-      [`PATCH ${BASE}/issues/146`]: { status: 200, body: watchdogCaptured('github-issue') },
+      [`GET ${WATCHDOG_BASE}/issues/146/comments`]: { status: 200, body: comments },
+      [`POST ${WATCHDOG_BASE}/issues/146/comments`]: { status: 201, body: comments[0] },
+      [`POST ${WATCHDOG_BASE}/issues/146/labels`]: {
+        status: 200,
+        body: watchdogCaptured('github-labels'),
+      },
+      [`PATCH ${WATCHDOG_BASE}/issues/146`]: {
+        status: 200,
+        body: watchdogCaptured('github-issue'),
+      },
     })
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
-    const [existing] = await client.issueComments('token', REPOSITORY, 146)
-    const posted = await client.postIssueComment('token', REPOSITORY, 146, 'hello')
+    const [existing] = await client.issueComments('token', WATCHDOG_NAMED, 146)
+    const posted = await client.postIssueComment('token', WATCHDOG_NAMED, 146, 'hello')
     expect(posted.id).toBe(existing?.id)
-    const names = await client.addIssueLabels('token', REPOSITORY, 146, ['triage'])
+    const names = await client.addIssueLabels('token', WATCHDOG_NAMED, 146, ['triage'])
     expect(names).toContain('accessibility')
-    const closed = await client.closeIssue('token', REPOSITORY, 146)
+    const closed = await client.closeIssue('token', WATCHDOG_NAMED, 146)
     expect(closed.number).toBe(146)
     const mutations = calls.filter((call) => call.method !== 'GET')
     expect(mutations.map((call) => [call.method, call.body])).toEqual([
@@ -117,14 +120,14 @@ describe('watchdog GitHub client', () => {
 
   it('refuses a missing issue and a misshapen answer out loud', async () => {
     const { fetch } = serveGithub({
-      [`GET ${BASE}/issues/999999`]: { status: 404, body: { message: 'Not Found' } },
-      [`GET ${BASE}/issues/147`]: { status: 200, body: { number: 'not-a-number' } },
+      [`GET ${WATCHDOG_BASE}/issues/999999`]: { status: 404, body: { message: 'Not Found' } },
+      [`GET ${WATCHDOG_BASE}/issues/147`]: { status: 200, body: { number: 'not-a-number' } },
     })
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
     logged.length = 0
     let missing: unknown
     try {
-      await client.issue('token', REPOSITORY, 999_999)
+      await client.issue('token', WATCHDOG_NAMED, 999_999)
     } catch (error: unknown) {
       missing = error
     }
@@ -132,7 +135,7 @@ describe('watchdog GitHub client', () => {
     expect(missing.kind).toBe('notFound')
     let malformed: unknown
     try {
-      await client.issue('token', REPOSITORY, 147)
+      await client.issue('token', WATCHDOG_NAMED, 147)
     } catch (error: unknown) {
       malformed = error
     }

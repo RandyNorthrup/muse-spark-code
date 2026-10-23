@@ -14,7 +14,6 @@ import {
   type WatchdogState,
 } from '../../shared/watchdog'
 import {
-  repositoryFromFullName,
   type GitHubClient,
   type GitHubCommitMatch,
   type GitHubIssue,
@@ -23,7 +22,7 @@ import {
 } from '../git/github'
 import type { GitHubRepository } from '../git/githubRemote'
 import { fenced } from '../export/transcriptMarkdown'
-import type { WatchdogStore } from './store'
+import { snapshotWatchdogRepository, type WatchdogStore } from './store'
 
 /** The triage charter, v1: the role's whole instruction, evidence aside. */
 export function triageCharter(): string {
@@ -256,10 +255,7 @@ export async function triageWatchdogIssue(
   number: number,
   answer: string,
 ): Promise<WatchdogTriageResult> {
-  const named = repositoryFromFullName(repository)
-  if (named === undefined) throw new Error(UI_TEXT.watchdog.cli.invalidRepository)
-  const nowMs = deps.now()
-  const snapshot = await deps.store.exclusive(repository, (data) => ({ data, result: data }))
+  const { nowMs, snapshot } = await snapshotWatchdogRepository(deps, repository)
   const record: WatchdogRecord | undefined = snapshot.issues.find(
     (item) => item.issueNumber === number,
   )

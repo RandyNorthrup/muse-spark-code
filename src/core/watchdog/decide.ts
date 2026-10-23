@@ -13,14 +13,16 @@ import {
   type TriageFindings,
   type WatchdogIssue as WatchdogRecord,
   type WatchdogOutcome,
+  type WatchdogPolicy,
   type WatchdogState,
   type WatchdogVerdict,
 } from '../../shared/watchdog'
-import { repositoryFromFullName, type GitHubClient, type GitHubIssueComment } from '../git/github'
+import { type GitHubClient, type GitHubIssueComment } from '../git/github'
+import type { GitHubRepository } from '../git/githubRemote'
 import { isWatchdogReply } from './ack'
-import { resolvePostApproval } from './guard'
+import { resolvePostApproval, type PostApproval } from './guard'
 import { composePlanDraft, composeReplyBody } from './reply'
-import type { WatchdogStore } from './store'
+import { snapshotWatchdogRepository, type WatchdogStore } from './store'
 import { applyVerification } from './verify'
 
 export interface WatchdogDecideDeps {
@@ -102,15 +104,32 @@ async function updateRecord(
   }))
 }
 
+/** The comments read and the gate resolved: an adopted reply posts
+nothing, and a held gate stops the step with its reason. */
+async function admittedWatchdogPost(
+  deps: WatchdogDecideDeps,
+  policy: WatchdogPolicy,
+  named: GitHubRepository,
+  number: number,
+): Promise<{ isReplied: boolean; approval: PostApproval }> {
+  const comments: readonly GitHubIssueComment[] = await deps.client.issueComments(
+    deps.token,
+    named,
+    number,
+  )
+  const isReplied = comments.some((comment) => isWatchdogReply(comment.body))
+  const approval = isReplied
+    ? { allowed: true as const }
+    : await resolvePostApproval(policy, deps.isPostApproved)
+  return { isReplied, approval }
+}
+
 export async function decideWatchdogIssue(
   deps: WatchdogDecideDeps,
   repository: string,
   number: number,
 ): Promise<WatchdogDecision> {
-  const named = repositoryFromFullName(repository)
-  if (named === undefined) throw new Error(UI_TEXT.watchdog.cli.invalidRepository)
-  const nowMs = deps.now()
-  const snapshot = await deps.store.exclusive(repository, (data) => ({ data, result: data }))
+  const { named, nowMs, snapshot } = await snapshotWatchdogRepository(deps, repository)
   const { record, findings } = triagedRecord(snapshot, number)
   const outcome = outcomeFor(findings.verdict)
 
@@ -144,15 +163,7 @@ export async function decideWatchdogIssue(
   }
 
   // A reply already out there is adopted; its close is (re)applied.
-  const comments: readonly GitHubIssueComment[] = await deps.client.issueComments(
-    deps.token,
-    named,
-    number,
-  )
-  const isReplied = comments.some((comment) => isWatchdogReply(comment.body))
-  const approval = isReplied
-    ? { allowed: true as const }
-    : await resolvePostApproval(snapshot.policy, deps.isPostApproved)
+  const { isReplied, approval } = await admittedWatchdogPost(deps, snapshot.policy, named, number)
   if (!approval.allowed)
     return {
       number,
@@ -186,10 +197,7 @@ export async function resolveWatchdogIssue(
   number: number,
   evidence: unknown,
 ): Promise<WatchdogResolution> {
-  const named = repositoryFromFullName(repository)
-  if (named === undefined) throw new Error(UI_TEXT.watchdog.cli.invalidRepository)
-  const nowMs = deps.now()
-  const snapshot = await deps.store.exclusive(repository, (data) => ({ data, result: data }))
+  const { named, nowMs, snapshot } = await snapshotWatchdogRepository(deps, repository)
   const record = snapshot.issues.find((item) => item.issueNumber === number)
   if (
     record?.state !== 'planned' ||
@@ -203,15 +211,7 @@ export async function resolveWatchdogIssue(
   if (!verified.verified)
     return { number, state: record.state, posted: false, closed: false, notes: verified.notes }
 
-  const comments: readonly GitHubIssueComment[] = await deps.client.issueComments(
-    deps.token,
-    named,
-    number,
-  )
-  const isReplied = comments.some((comment) => isWatchdogReply(comment.body))
-  const approval = isReplied
-    ? { allowed: true as const }
-    : await resolvePostApproval(snapshot.policy, deps.isPostApproved)
+  const { isReplied, approval } = await admittedWatchdogPost(deps, snapshot.policy, named, number)
   if (!approval.allowed)
     return {
       number,

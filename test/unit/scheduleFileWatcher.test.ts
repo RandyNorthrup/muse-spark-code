@@ -37,6 +37,14 @@ async function collectUntil(collected: Notification[], count: number): Promise<N
   return collected.splice(0)
 }
 
+function watchAll(watcher: ReturnType<typeof createNodeFileWatcher>) {
+  const collected: Notification[] = []
+  const subscription = watcher.watch(['**'], (input: unknown) => {
+    if (isNotification(input)) collected.push(input)
+  })
+  return { collected, subscription }
+}
+
 describe('workspace file watcher', () => {
   it('observes root and nested writes with stable identities', async () => {
     await usingTempDir('schedule-file-watch-', async (folder) => {
@@ -49,10 +57,7 @@ describe('workspace file watcher', () => {
         },
       })
       expect(watcher.capability()).toEqual({ available: true })
-      const collected: Notification[] = []
-      const subscription = watcher.watch(['**'], (input: unknown) => {
-        if (isNotification(input)) collected.push(input)
-      })
+      const { collected, subscription } = watchAll(watcher)
       try {
         await writeFile(path.join(folder, 'note.md'), 'hello')
         await mkdir(path.join(folder, 'docs'), { recursive: true })
@@ -140,10 +145,7 @@ describe('workspace file watcher', () => {
         },
         watch: refusing,
       })
-      const collected: Notification[] = []
-      const subscription = watcher.watch(['**'], (input: unknown) => {
-        if (isNotification(input)) collected.push(input)
-      })
+      const { collected, subscription } = watchAll(watcher)
       try {
         await writeFile(path.join(folder, 'sub', 'deep.txt'), 'deep')
         const seen = await collectUntil(collected, 1)
