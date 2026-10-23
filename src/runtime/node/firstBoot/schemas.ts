@@ -58,8 +58,6 @@ export const setupDiskSchema = z.strictObject({
   tpmPin: z.optional(z.string().check(z.minLength(1))),
 })
 
-export type SetupDisk = z.infer<typeof setupDiskSchema>
-
 /** Public key types the seed and the setup page accept (OpenSSH PROTOCOL.u2f names the sk pair). */
 export const SSH_PUBLIC_KEY_TYPES: readonly string[] = [
   'ssh-ed25519',
