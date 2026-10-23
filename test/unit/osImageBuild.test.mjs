@@ -659,7 +659,7 @@ with tarfile.open(node, 'w') as output:
 build.download = lambda url, expected, dest: shutil.copyfile(node, dest)
 runtime = base / 'runtime.tar'
 with tarfile.open(runtime, 'w') as output:
-    package = json.dumps({'name': 'muse-spark-code-acp', 'version': 'wrong' if kind == 'package' else '0.14.0'}).encode()
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': 'wrong' if kind == 'package' else '0.19.0'}).encode()
     member = tarfile.TarInfo('package/package.json')
     member.size = len(package)
     output.addfile(member, io.BytesIO(package))
@@ -685,6 +685,72 @@ print('verified staging result')
 `)
     expect(result.status).toBe(0)
     expect(result.stdout).toContain('verified staging result')
+  })
+  it('admits the linux runtime member shapes and refuses an intruder', () => {
+    const dir = directory()
+    const result = python(`
+import sys, tarfile, io, json, shutil
+from pathlib import Path
+from types import SimpleNamespace
+sys.path.insert(0, ${JSON.stringify(root)})
+import build
+base = Path(${JSON.stringify(dir)})
+build.OUT = base / 'out'
+build.subprocess.run = lambda cmd, **kw: SimpleNamespace(
+    stdout='mkosi 27.1', stderr='', returncode=0)
+node = base / 'node.tar'
+with tarfile.open(node, 'w') as output:
+    for name in ('bin/node', 'LICENSE'):
+        member = tarfile.TarInfo('node-v24.18.0-linux-x64/' + name)
+        member.size = 1
+        output.addfile(member, io.BytesIO(b'x'))
+build.download = lambda url, expected, dest: shutil.copyfile(node, dest)
+# One member per admitted shape of the linux-targeted runtime tarball.
+shaped = base / 'shaped.tar'
+with tarfile.open(shaped, 'w') as output:
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': '0.19.0'}).encode()
+    members = {'package.json': package}
+    for name in ('dist/node.js', 'dist/webview/chunks/DEADBEEF.js',
+                 'dist/webview/usage.css', 'dist/legal-data.json.br',
+                 'dist/legal-data/NOTICE.md', 'l10n/ui.tables.json.br',
+                 'schemas/exec-result-v1.schema.json',
+                 'native/linux/x64/muse-created', 'native/runner/runner-helper.sh',
+                 'ci/lib/ci-entry.mjs', 'ci/prompts/ci/review.md',
+                 'design/fonts/manifest.json', 'package.nls.de.json'):
+        members[name] = b'x'
+    for name, body in members.items():
+        member = tarfile.TarInfo('package/' + name)
+        member.size = len(body)
+        output.addfile(member, io.BytesIO(body))
+args = SimpleNamespace(target='x86-64', installer=False, runtime=shaped,
+    runtime_sha256=build.digest(shaped), binding=None, binding_sha256=None,
+    mkosi=base / 'fake-mkosi', pi_keyring=None, pi_keyring_sha256=None)
+workspace = build.stage(args)
+assert (workspace / 'overlay/usr/lib/muse-spark-code/dist/node.js').exists()
+assert (workspace / 'overlay/usr/lib/muse-spark-code/dist/webview/chunks/DEADBEEF.js').exists()
+build.OUT = base / 'out-intruder'
+intruder = base / 'intruder.tar'
+with tarfile.open(intruder, 'w') as output:
+    package = json.dumps({'name': 'muse-spark-code-acp', 'version': '0.19.0'}).encode()
+    for name, body in (('package.json', package), ('dist/evil.sh', b'x')):
+        member = tarfile.TarInfo('package/' + name)
+        member.size = len(body)
+        output.addfile(member, io.BytesIO(body))
+args = SimpleNamespace(target='x86-64', installer=False, runtime=intruder,
+    runtime_sha256=build.digest(intruder), binding=None, binding_sha256=None,
+    mkosi=base / 'fake-mkosi', pi_keyring=None, pi_keyring_sha256=None)
+try:
+    build.stage(args)
+except ValueError as error:
+    assert 'unexpected archive member' in str(error)
+    print('refused the intruder')
+else:
+    raise AssertionError('admitted dist/evil.sh')
+print('verified runtime member shapes')
+`)
+    expect(result.status).toBe(0)
+    expect(result.stdout).toContain('verified runtime member shapes')
+    expect(result.stdout).toContain('refused the intruder')
   })
   it.each([
     ['x86-64', ['--binding', 'test-only.mjs'], 'supplied together'],
