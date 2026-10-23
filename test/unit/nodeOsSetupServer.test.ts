@@ -120,6 +120,8 @@ describe('setup server', () => {
       expect(wizard.text).toContain('<option value="/dev/sda">')
       expect(wizard.text).not.toContain('/dev/sda1')
       expect(wizard.text).not.toContain('/dev/sdb')
+      expect(wizard.text).toContain('https://www.google.com/chrome/terms/')
+      expect(wizard.text).toContain('https://www.nvidia.com/en-us/drivers/nvidia-license/')
 
       const hostileSsid = '<script>alert(1)</script>'
       const review = await postForm(`${url}choices`, {
