@@ -14,8 +14,8 @@ import { describe, expect, it } from 'vitest'
 import {
   installBundledSkills,
   removeBundledSkills,
-  type BundledSkillsInstallDeps,
 } from '../../src/core/skills/bundledSkillsInstall'
+import { bundledSkillsDeps } from './helpers/bundledSkillsDeps'
 
 interface Area {
   readonly root: string
@@ -56,27 +56,11 @@ async function realArea(): Promise<Area> {
   }
 }
 
-function deps(
-  area: Area,
-  overrides: Partial<BundledSkillsInstallDeps> = {},
-): BundledSkillsInstallDeps {
-  return {
-    log: { warn: () => undefined },
-    vendorRoot: area.vendorRoot,
-    skillsRoot: area.skillsRoot,
-    sourcesRoot: area.sourcesRoot,
-    platform: process.platform,
-    now: () => Date.now(),
-    newId: () => 'testid',
-    ...overrides,
-  }
-}
-
 describe('bundledSkillsInstall failures', () => {
   it('installs the vendored skill and marks the copy', async () => {
     const area = await realArea()
     try {
-      const result = await installBundledSkills(deps(area))
+      const result = await installBundledSkills(bundledSkillsDeps(area))
       expect(result.failure).toBeUndefined()
       expect(result.tag).toBe('9')
       expect(result.installed).toEqual(['alpha'])
@@ -102,7 +86,7 @@ describe('bundledSkillsInstall failures', () => {
     async (kind) => {
       const area = await realArea()
       try {
-        const installed = await installBundledSkills(deps(area))
+        const installed = await installBundledSkills(bundledSkillsDeps(area))
         expect(installed.failure).toBeUndefined()
         const copySkill = path.join(
           area.sourcesRoot,
@@ -129,7 +113,7 @@ describe('bundledSkillsInstall failures', () => {
           )
           if (kind === 'extra') await writeFile(newerSkill, '# Alpha\n')
         }
-        const result = await installBundledSkills(deps(area, { vendorRoot: newer }))
+        const result = await installBundledSkills(bundledSkillsDeps(area, { vendorRoot: newer }))
         expect(result.failure?.reason.kind).toBe('error')
         expect(result.installed).toEqual([])
         expect(await readFile(copySkill, 'utf8')).toBe(original)
@@ -156,7 +140,7 @@ describe('bundledSkillsInstall failures', () => {
       }
       manifest.files.push({ path: name, sha256: 'ab'.repeat(32) })
       await writeFile(file, JSON.stringify(manifest))
-      const result = await installBundledSkills(deps(area))
+      const result = await installBundledSkills(bundledSkillsDeps(area))
       expect(result.failure?.reason.kind).toBe('error')
       // The layer that refused: the path check, not the later byte check.
       const reason = result.failure?.reason
@@ -171,7 +155,7 @@ describe('bundledSkillsInstall failures', () => {
     const area = await realArea()
     try {
       const result = await installBundledSkills(
-        deps(area, { vendorRoot: path.join(area.root, 'no-vendor') }),
+        bundledSkillsDeps(area, { vendorRoot: path.join(area.root, 'no-vendor') }),
       )
       expect(result.tag).toBeUndefined()
       expect(result.failure?.folder).toBe(path.join(area.root, 'no-vendor'))
@@ -186,7 +170,7 @@ describe('bundledSkillsInstall failures', () => {
     try {
       const warnings: string[] = []
       const result = await installBundledSkills(
-        deps(area, {
+        bundledSkillsDeps(area, {
           vendorRoot: path.join(area.root, 'no-vendor'),
           log: {
             warn: (message: string) => {
@@ -209,7 +193,7 @@ describe('bundledSkillsInstall failures', () => {
     const area = await realArea()
     try {
       await writeFile(area.skillsRoot, 'a file, not a folder\n')
-      const result = await installBundledSkills(deps(area))
+      const result = await installBundledSkills(bundledSkillsDeps(area))
       expect(result.tag).toBe('9')
       expect(result.failure).toBeDefined()
       expect(result.failure?.reason.kind).toBe('error')
@@ -224,7 +208,9 @@ describe('bundledSkillsInstall failures', () => {
     const area = await realArea()
     try {
       const result = await installBundledSkills(
-        deps(area, { extensionSkillsRoot: path.join(area.root, 'no-extension-skills') }),
+        bundledSkillsDeps(area, {
+          extensionSkillsRoot: path.join(area.root, 'no-extension-skills'),
+        }),
       )
       expect(result.failure).toBeUndefined()
       expect(result.installed).toEqual(['alpha'])
@@ -238,7 +224,9 @@ describe('bundledSkillsInstall failures', () => {
     try {
       const extensionRoot = path.join(area.root, 'extension-skills')
       await mkdir(path.join(extensionRoot, 'beta'), { recursive: true })
-      const result = await installBundledSkills(deps(area, { extensionSkillsRoot: extensionRoot }))
+      const result = await installBundledSkills(
+        bundledSkillsDeps(area, { extensionSkillsRoot: extensionRoot }),
+      )
       expect(result.failure).toBeUndefined()
       expect(result.installed).toEqual(['alpha'])
     } finally {
@@ -276,7 +264,7 @@ describe('bundledSkillsInstall failures', () => {
   it('removes the links and the copy after an install', async () => {
     const area = await realArea()
     try {
-      const installed = await installBundledSkills(deps(area))
+      const installed = await installBundledSkills(bundledSkillsDeps(area))
       expect(installed.failure).toBeUndefined()
       const result = await removeBundledSkills(area)
       expect(result.failure).toBeUndefined()

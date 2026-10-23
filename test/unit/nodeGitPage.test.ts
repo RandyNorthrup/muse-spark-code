@@ -2,14 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { scripted } from './helpers/recordCalls'
 import { createNodeGitMethods, type NodeGitPagePort } from '../../src/runtime/node/web/git'
 import { nodeActionDigest } from '../../src/runtime/node/listenerMethods'
-import {
-  stepUpActionDigest,
-  runNetworkGit,
-  type NodePageAuthPort,
-} from '../../src/webview/node/git/network'
+import { stepUpActionDigest, runNetworkGit } from '../../src/webview/node/git/network'
 import { validatedNodePort } from '../../src/webview/bridges/nodePort'
+import { scriptedVerify } from './helpers/nodePageAuth'
 import { NODE_HTTP_STATUS, UI_TEXT } from '../../src/shared/constants'
 import { nodeErrorCode } from './helpers/nodeErrorCode'
+import { nodeStepUp } from './helpers/node/records'
 import type {
   NodeMethodName,
   NodeMethodParams,
@@ -234,24 +232,19 @@ describe('M110-U1 Git page admission', () => {
   })
 })
 
+function pushAttempt(
+  port: ReturnType<typeof browser>['port'],
+  auth: ReturnType<typeof browser>['auth'],
+) {
+  return runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal())
+}
+
 function browser() {
   const request = scripted<[NodeMethodName, unknown, AbortSignal], Promise<unknown>>((method) =>
     Promise.resolve(method === 'node/git/status' ? status : { head: status.head, changed: false }),
   )
   const port = validatedNodePort({ request })
-  const verify = scripted<
-    Parameters<NodePageAuthPort['verify']>,
-    ReturnType<NodePageAuthPort['verify']>
-  >((action, actionDigest) =>
-    Promise.resolve({
-      id: 'proof',
-      sessionId: 'session',
-      action,
-      actionDigest,
-      verifiedAt: 1,
-      expiresAt: 2,
-    }),
-  )
+  const verify = scriptedVerify()
   return { request, port, auth: { verify } }
 }
 
@@ -260,7 +253,7 @@ describe('M110-U1 fresh Git verification', () => {
     const { port, request, auth } = browser()
     const input = params('node/git/push')
     expect(await stepUpActionDigest('node/git/push', input)).toBe(input.actionDigest)
-    await runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal())
+    await pushAttempt(port, auth)
     expect(auth.verify.calls).toEqual([
       ['git.network', input.actionDigest, expect.any(AbortSignal)],
     ])
@@ -269,9 +262,7 @@ describe('M110-U1 fresh Git verification', () => {
   it('H14 refuses a head or destination changed while the person verifies', async () => {
     const { port, request, auth } = browser()
     request.once(() => Promise.resolve({ ...status, head: 'f'.repeat(40) }))
-    await expect(
-      runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal()),
-    ).rejects.toThrow()
+    await expect(pushAttempt(port, auth)).rejects.toThrow()
     expect(request.calls).toHaveLength(1)
     request.once(() =>
       Promise.resolve({
@@ -279,62 +270,43 @@ describe('M110-U1 fresh Git verification', () => {
         remotes: [{ name: 'origin', destination: { ...destination, host: 'attacker.invalid' } }],
       }),
     )
-    await expect(
-      runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal()),
-    ).rejects.toThrow()
+    await expect(pushAttempt(port, auth)).rejects.toThrow()
     expect(request.calls.every(([method]) => method === 'node/git/status')).toBe(true)
   })
   it('H08 refuses wrong-purpose/altered proof and cancelled verification without dispatch', async () => {
     const { port, request, auth } = browser()
     auth.verify.once(() =>
-      Promise.resolve({
-        id: 'proof',
-        sessionId: 'session',
-        action: 'git.network',
-        actionDigest: 'f'.repeat(64),
-        verifiedAt: 1,
-        expiresAt: 2,
-      }),
+      Promise.resolve({ ...nodeStepUp(), action: 'git.network', actionDigest: 'f'.repeat(64) }),
     )
-    await expect(
-      runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal()),
-    ).rejects.toThrow()
+    await expect(pushAttempt(port, auth)).rejects.toThrow()
     expect(request.calls).toHaveLength(0)
     auth.verify.once(() =>
       Promise.resolve({
-        id: 'proof',
-        sessionId: 'session',
+        ...nodeStepUp(),
         action: 'terminal.open',
         actionDigest: params('node/git/push').actionDigest,
-        verifiedAt: 1,
-        expiresAt: 2,
       }),
     )
-    await expect(
-      runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal()),
-    ).rejects.toThrow(UI_TEXT.nodeErrors.forbidden)
+    await expect(pushAttempt(port, auth)).rejects.toThrow(UI_TEXT.nodeErrors.forbidden)
     expect(request.calls).toHaveLength(0)
     // Statically a proof, but expired before it verified: the schema
     // rejects it, so the run refuses forbidden without dispatching.
     auth.verify.once(() =>
       Promise.resolve({
-        id: 'proof',
-        sessionId: 'session',
+        ...nodeStepUp(),
         action: 'git.network',
         actionDigest: params('node/git/push').actionDigest,
         verifiedAt: 2,
         expiresAt: 1,
       }),
     )
-    await expect(
-      runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal()),
-    ).rejects.toThrow(UI_TEXT.nodeErrors.forbidden)
+    await expect(pushAttempt(port, auth)).rejects.toThrow(UI_TEXT.nodeErrors.forbidden)
     expect(request.calls).toHaveLength(0)
     // Cancellation is an abort, not a refusal: the caller stays silent.
     auth.verify.once(() => Promise.reject(new DOMException('cancelled', 'AbortError')))
     let failure: unknown = null
     try {
-      await runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal())
+      await pushAttempt(port, auth)
     } catch (error: unknown) {
       failure = error
     }

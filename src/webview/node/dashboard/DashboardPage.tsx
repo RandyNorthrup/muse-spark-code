@@ -14,6 +14,7 @@ import {
   formatUnit,
 } from '../../../shared/l10n/text'
 import type { NodeMethodPort, NodeMethodResult } from '../../../shared/hostApi/nodeMethods'
+import { RefreshButton } from '../RefreshButton'
 
 type Dashboard = NodeMethodResult<'node/dashboard/read'>
 
@@ -72,15 +73,12 @@ export function DashboardPage({
     <section aria-label={UI_TEXT.nodeLabels.dashboard}>
       <h2>{UI_TEXT.nodeLabels.dashboard}</h2>
       <div className="node-actions">
-        <button
-          type="button"
-          disabled={busy}
+        <RefreshButton
+          busy={busy}
           onClick={() => {
             run(refresh)
           }}
-        >
-          {UI_TEXT.nodeWorkspace.refresh}
-        </button>
+        />
       </div>
       {dashboard !== undefined && (
         <>

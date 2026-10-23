@@ -175,6 +175,18 @@ async function failureOf(work: Promise<unknown>): Promise<unknown> {
   throw new Error('expected a failure')
 }
 
+async function startSession(test: ReturnType<typeof backend>) {
+  const signal = new AbortController().signal
+  return await openNodeTerminal({
+    port: test.port,
+    auth: test.auth,
+    workspaceId: 'ws',
+    size: { cols: 80, rows: 24 },
+    connect: test.connect,
+    signal,
+  })
+}
+
 describe('node terminal session', () => {
   it('binds the open digest to the exact action N verifies', async () => {
     const params = {
@@ -190,15 +202,7 @@ describe('node terminal session', () => {
 
   it('opens with step-up, streams output into the emulator, and closes clean', async () => {
     const test = backend()
-    const signal = new AbortController().signal
-    const session = await openNodeTerminal({
-      port: test.port,
-      auth: test.auth,
-      workspaceId: 'ws',
-      size: { cols: 80, rows: 24 },
-      connect: test.connect,
-      signal,
-    })
+    const session = await startSession(test)
     expect(session.terminalId).toBe('t1')
     const terminal = new Terminal({ cols: 80, rows: 24, allowProposedApi: true })
     const events: string[] = []
@@ -230,15 +234,7 @@ describe('node terminal session', () => {
 
   it('chunks pastes under the frame cap without splitting characters', async () => {
     const test = backend()
-    const signal = new AbortController().signal
-    const session = await openNodeTerminal({
-      port: test.port,
-      auth: test.auth,
-      workspaceId: 'ws',
-      size: { cols: 80, rows: 24 },
-      connect: test.connect,
-      signal,
-    })
+    const session = await startSession(test)
     const paste = `ab${'😀'.repeat(NODE_TERMINAL_INPUT_BYTES)}cd`
     session.write(paste)
     session.write('')
@@ -321,15 +317,7 @@ describe('node terminal session', () => {
 
   it('fails the stream on foreign and malformed frames, and a valid end still lands', async () => {
     const test = backend()
-    const signal = new AbortController().signal
-    const session = await openNodeTerminal({
-      port: test.port,
-      auth: test.auth,
-      workspaceId: 'ws',
-      size: { cols: 80, rows: 24 },
-      connect: test.connect,
-      signal,
-    })
+    const session = await startSession(test)
     const seen: string[] = []
     const failures: unknown[] = []
     let finished = 0
@@ -358,15 +346,7 @@ describe('node terminal session', () => {
 
   it('rejects bad sizes and use after close', async () => {
     const test = backend()
-    const signal = new AbortController().signal
-    const session = await openNodeTerminal({
-      port: test.port,
-      auth: test.auth,
-      workspaceId: 'ws',
-      size: { cols: 80, rows: 24 },
-      connect: test.connect,
-      signal,
-    })
+    const session = await startSession(test)
     for (const size of [
       { cols: 0, rows: 24 },
       { cols: 80, rows: 0 },

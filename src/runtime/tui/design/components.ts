@@ -16,6 +16,63 @@ function textLine(ink: TuiInk, key: string, text: string): ReactElement {
   return createElement(ink.Text, { key }, text)
 }
 
+/** The plain title row every frameless pane shares; absent without a title. */
+function plainTitle(
+  ink: TuiInk,
+  theme: TuiTheme,
+  title: string | undefined,
+  width: number,
+): ReactElement[] {
+  return title === undefined
+    ? []
+    : [textLine(ink, 'title', paint(theme, 'muted', clipPlain(title, width)))]
+}
+
+/** One text row per body line, keyed and painted by the caller. */
+function bodyLines(
+  ink: TuiInk,
+  lines: readonly string[],
+  keyPrefix: string,
+  paintLine: (line: string) => string,
+): ReactElement[] {
+  return lines.map((line, index) =>
+    textLine(ink, `${keyPrefix}-${formatNumber(index)}`, paintLine(line)),
+  )
+}
+
+/** The plain body painter: clipped text rows in the theme's text tone. */
+function plainText(theme: TuiTheme, width: number): (line: string) => string {
+  return (line) => paint(theme, 'text', clipSgr(line, width))
+}
+
+/** The frameless pane with the plain body painter. */
+function plainPanel(
+  ink: TuiInk,
+  theme: TuiTheme,
+  title: string | undefined,
+  lines: readonly string[],
+  width: number,
+): ReactElement {
+  return plainPane(ink, theme, title, lines, width, plainText(theme, width))
+}
+
+/** The whole frameless pane: a plain title over caller-painted lines. */
+function plainPane(
+  ink: TuiInk,
+  theme: TuiTheme,
+  title: string | undefined,
+  lines: readonly string[],
+  width: number,
+  paintLine: (line: string) => string,
+): ReactElement {
+  return createElement(
+    ink.Box,
+    { flexDirection: 'column', width, overflow: 'hidden' },
+    ...plainTitle(ink, theme, title, width),
+    ...bodyLines(ink, lines, 'line', paintLine),
+  )
+}
+
 /** Clip plain text to a cell width, never splitting a glyph. Paint
 runs after: SGR never changes the width. */
 function clipPlain(text: string, width: number): string {
@@ -69,26 +126,7 @@ export function Panel(props: {
   frame?: boolean
 }): ReactElement {
   if (props.frame === false) {
-    return createElement(
-      props.ink.Box,
-      { flexDirection: 'column', width: props.width, overflow: 'hidden' },
-      ...(props.title === undefined
-        ? []
-        : [
-            textLine(
-              props.ink,
-              'title',
-              paint(props.theme, 'muted', clipPlain(props.title, props.width)),
-            ),
-          ]),
-      ...props.lines.map((line, index) =>
-        textLine(
-          props.ink,
-          `line-${formatNumber(index)}`,
-          paint(props.theme, 'text', clipSgr(line, props.width)),
-        ),
-      ),
-    )
+    return plainPanel(props.ink, props.theme, props.title, props.lines, props.width)
   }
   const tone = props.tone ?? 'border'
   const inner = Math.max(1, props.width - 2)
@@ -96,14 +134,14 @@ export function Panel(props: {
     props.ink.Box,
     { flexDirection: 'column', width: props.width, overflow: 'hidden' },
     textLine(props.ink, 'top', frameTop(props.theme, props.title ?? '', inner, tone)),
-    ...props.lines.map((line, index) =>
-      textLine(
-        props.ink,
-        `row-${formatNumber(index)}`,
+    ...bodyLines(
+      props.ink,
+      props.lines,
+      'row',
+      (line) =>
         paint(props.theme, tone, '│') +
-          paint(props.theme, 'text', fitLine(line, inner)) +
-          paint(props.theme, tone, '│'),
-      ),
+        paint(props.theme, 'text', fitLine(line, inner)) +
+        paint(props.theme, tone, '│'),
     ),
     textLine(props.ink, 'bottom', paint(props.theme, tone, `╰${'─'.repeat(inner)}╯`)),
   )
@@ -217,22 +255,7 @@ export function BottomPane(props: {
   frame?: boolean
 }): ReactElement {
   if (props.frame === false) {
-    return createElement(
-      props.ink.Box,
-      { flexDirection: 'column', width: props.width, overflow: 'hidden' },
-      textLine(
-        props.ink,
-        'title',
-        paint(props.theme, 'muted', clipPlain(props.title, props.width)),
-      ),
-      ...props.lines.map((line, index) =>
-        textLine(
-          props.ink,
-          `line-${formatNumber(index)}`,
-          paint(props.theme, 'text', clipSgr(line, props.width)),
-        ),
-      ),
-    )
+    return plainPanel(props.ink, props.theme, props.title, props.lines, props.width)
   }
   const inner = Math.max(1, props.width - 2)
   const label = ` ${clipPlain(props.title, Math.max(0, inner - 2))} `
@@ -246,14 +269,14 @@ export function BottomPane(props: {
     props.ink.Box,
     { flexDirection: 'column', width: props.width, overflow: 'hidden' },
     textLine(props.ink, 'top', top),
-    ...props.lines.map((line, index) =>
-      textLine(
-        props.ink,
-        `row-${formatNumber(index)}`,
+    ...bodyLines(
+      props.ink,
+      props.lines,
+      'row',
+      (line) =>
         paint(props.theme, 'border', '│') +
-          paint(props.theme, 'text', fitLine(line, inner)) +
-          paint(props.theme, 'border', '│'),
-      ),
+        paint(props.theme, 'text', fitLine(line, inner)) +
+        paint(props.theme, 'border', '│'),
     ),
     textLine(props.ink, 'bottom', paint(props.theme, 'border', `╰${'─'.repeat(inner)}╯`)),
   )
@@ -296,16 +319,7 @@ export function PeekPane(props: {
   lines: readonly string[]
   width: number
 }): ReactElement {
-  return createElement(
-    props.ink.Box,
-    { flexDirection: 'column', width: props.width, overflow: 'hidden' },
-    textLine(props.ink, 'title', paint(props.theme, 'muted', clipPlain(props.title, props.width))),
-    ...props.lines.map((line, index) =>
-      textLine(
-        props.ink,
-        `line-${formatNumber(index)}`,
-        paint(props.theme, 'text', `  ${clipPlain(line, Math.max(0, props.width - 2))}`),
-      ),
-    ),
+  return plainPane(props.ink, props.theme, props.title, props.lines, props.width, (line) =>
+    paint(props.theme, 'text', `  ${clipPlain(line, Math.max(0, props.width - 2))}`),
   )
 }

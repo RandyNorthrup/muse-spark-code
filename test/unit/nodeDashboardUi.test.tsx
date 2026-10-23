@@ -1,26 +1,15 @@
 /** @vitest-environment jsdom */
-import { webcrypto } from 'node:crypto'
-import { act, fireEvent, within, waitFor } from '@testing-library/react'
+import { fireEvent, within, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { mountNodeWorkspace } from '../../src/webview/node/files/main'
-import { NodePageError, validatedNodePort } from '../../src/webview/bridges/nodePort'
+import { NodePageError } from '../../src/webview/bridges/nodePort'
 import { NODE_PROTOCOL_VERSION, UI_TEXT } from '../../src/shared/constants'
 import { formatBytes, formatDateTime, formatPercent, formatUnit } from '../../src/shared/l10n/text'
 import type { NodeMethodName } from '../../src/shared/hostApi/nodeMethods'
-import type { NodePageAuthPort } from '../../src/webview/node/git/network'
-import { scripted } from './helpers/recordCalls'
+import { cleanupNodeUi, mountNodeUi } from './helpers/nodeUi'
 
-const disposers: (() => void)[] = []
 const digest = (char: string) => char.repeat(64)
 
 async function fixture() {
-  Object.defineProperty(globalThis, 'crypto', {
-    value: webcrypto,
-    configurable: true,
-    writable: true,
-  })
-  const container = document.createElement('div')
-  document.body.append(container)
   const state = {
     version: '0.19.0',
     sessions: true,
@@ -69,48 +58,24 @@ async function fixture() {
       })
     return Promise.reject(new NodePageError('unavailable'))
   }
-  const request = scripted<[NodeMethodName, unknown, AbortSignal], Promise<unknown>>(respond)
-  const verify = scripted<
-    Parameters<NodePageAuthPort['verify']>,
-    ReturnType<NodePageAuthPort['verify']>
-  >((action, actionDigest) =>
-    Promise.resolve({
-      id: 'proof',
-      sessionId: 'session',
-      action,
-      actionDigest,
-      verifiedAt: 1,
-      expiresAt: 2,
-    }),
-  )
-  await act(async () => {
-    disposers.push(
-      mountNodeWorkspace(container, {
-        port: validatedNodePort({ request }),
-        auth: { verify },
-        workspaceId: 'repo',
-        connectTerminal: () => Promise.reject(new NodePageError('unavailable')),
-      }),
-    )
-    await Promise.resolve()
-  })
-  return { ui: within(container), request, state }
+  const { ui, request } = await mountNodeUi(respond)
+  return { ui, request, state }
 }
 
-afterEach(async () => {
-  await act(async () => {
-    for (const dispose of disposers.splice(0)) dispose()
-    await Promise.resolve()
-  })
-  document.body.replaceChildren()
-})
+afterEach(cleanupNodeUi)
+
+type DashboardUi = Awaited<ReturnType<typeof fixture>>['ui']
+
+function openDashboard(ui: DashboardUi) {
+  fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.dashboard }))
+  const section = ui.getByRole('region', { name: UI_TEXT.nodeLabels.dashboard })
+  return { section, view: within(section) }
+}
 
 describe('node dashboard page', () => {
   it('reads the node and renders its readings, sessions and workspaces', async () => {
     const { ui, request } = await fixture()
-    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.dashboard }))
-    const section = ui.getByRole('region', { name: UI_TEXT.nodeLabels.dashboard })
-    const view = within(section)
+    const { section, view } = openDashboard(ui)
     expect(await view.findByText('0.19.0')).not.toBeNull()
     const text = () => section.textContent
     for (const expected of [
@@ -136,9 +101,7 @@ describe('node dashboard page', () => {
 
   it('refreshes from the node instead of its first answer', async () => {
     const { ui, state } = await fixture()
-    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.dashboard }))
-    const section = ui.getByRole('region', { name: UI_TEXT.nodeLabels.dashboard })
-    const view = within(section)
+    const { view } = openDashboard(ui)
     expect(await view.findByText('0.19.0')).not.toBeNull()
     state.version = '0.19.1'
     fireEvent.click(view.getByRole('button', { name: UI_TEXT.nodeWorkspace.refresh }))
@@ -149,9 +112,7 @@ describe('node dashboard page', () => {
     const { ui, state } = await fixture()
     state.sessions = false
     state.workspaces = false
-    fireEvent.click(ui.getByRole('button', { name: UI_TEXT.nodeLabels.dashboard }))
-    const section = ui.getByRole('region', { name: UI_TEXT.nodeLabels.dashboard })
-    const view = within(section)
+    const { section, view } = openDashboard(ui)
     expect(await view.findByText(UI_TEXT.nodeDashboard.noSessions)).not.toBeNull()
     expect(section.textContent).toContain(UI_TEXT.nodeDashboard.noWorkspaces)
     expect(section.textContent).toContain(UI_TEXT.nodeLabels.unattended)

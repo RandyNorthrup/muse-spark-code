@@ -55,25 +55,23 @@ function splashSafe(frame: TuiSceneFrame): ReactElement {
   return splashArt(frame, false)
 }
 
-function panel(frame: TuiSceneFrame): ReactElement {
+function panelArt(frame: TuiSceneFrame, extra?: { frame?: boolean }): ReactElement {
   return createElement(Panel, {
     ink: frame.ink,
     theme: themeOf(frame),
     title: 'Agents',
     lines: ['alpha is editing App.tsx', 'beta is reviewing the diff', 'gamma is idle'],
     width: Math.max(20, frame.columns - 4),
+    ...extra,
   })
 }
 
+function panel(frame: TuiSceneFrame): ReactElement {
+  return panelArt(frame)
+}
+
 function panelReader(frame: TuiSceneFrame): ReactElement {
-  return createElement(Panel, {
-    ink: frame.ink,
-    theme: themeOf(frame),
-    title: 'Agents',
-    lines: ['alpha is editing App.tsx', 'beta is reviewing the diff', 'gamma is idle'],
-    width: Math.max(20, frame.columns - 4),
-    frame: false,
-  })
+  return panelArt(frame, { frame: false })
 }
 
 function status(frame: TuiSceneFrame): ReactElement {

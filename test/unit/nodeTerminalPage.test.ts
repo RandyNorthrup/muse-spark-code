@@ -17,10 +17,8 @@ import type { NodeEvent } from '../../src/shared/node'
 import type { NodeSession } from '../../src/shared/nodeAuth'
 import type { NodePty, NodePtyFactory } from '../../src/runtime/node/toolHost'
 import { NodeProcessToolHost } from '../../src/runtime/node/toolHost'
-import { NodeStateStore } from '../../src/runtime/node/state'
-import { nodeState } from './helpers/node/records'
+import { initializedPageStore, pageRefusal } from './helpers/node/pageMethods'
 import { nodeActionDigest } from '../../src/runtime/node/listenerMethods'
-import { NodeListenerError } from '../../src/runtime/node/listenerGuard'
 import { createNodeTerminalMethods } from '../../src/runtime/node/web/terminal'
 
 const children: ChildProcess[] = []
@@ -84,10 +82,7 @@ async function setup() {
   const root = folder()
   const workspaceRoot = path.join(root, 'workspaces')
   mkdirSync(path.join(workspaceRoot, 'ws'), { recursive: true })
-  const store = new NodeStateStore(path.join(root, 'state'), () => undefined)
-  const initial = nodeState()
-  initial.auditHead = { seq: 0, hash: '0'.repeat(64) }
-  await store.initialize(initial)
+  const { store, initial } = await initializedPageStore(root)
   const reported: unknown[] = []
   const host = new NodeProcessToolHost({
     toolsUid: 1000,
@@ -117,6 +112,30 @@ async function setup() {
   return { store, host, methods, reported, root }
 }
 
+async function openSubscribed(test: Awaited<ReturnType<typeof setup>>, outer: AbortController) {
+  const { terminalId } = await test.methods.open(openParams(), outer.signal)
+  const { events, streaming } = collectEvents(test, terminalId, outer.signal)
+  return { terminalId, events, streaming }
+}
+
+function collectEvents(
+  test: Awaited<ReturnType<typeof setup>>,
+  terminalId: string,
+  signal: AbortSignal,
+) {
+  const events: NodeEvent[] = []
+  const streaming = test.methods.subscribe(
+    session(),
+    terminalId,
+    (event) => {
+      events.push(event)
+      return Promise.resolve()
+    },
+    signal,
+  )
+  return { events, streaming }
+}
+
 function openParams() {
   const params = {
     workspaceId: 'ws',
@@ -138,18 +157,6 @@ function session(): NodeSession {
     idleExpiresAt: 1000 + NODE_SESSION_IDLE_MS,
     absoluteExpiresAt: 1000 + NODE_SESSION_MAX_MS,
   }
-}
-
-async function refusal(work: Promise<unknown>): Promise<NodeListenerError> {
-  let failure: unknown = 'resolved'
-  try {
-    await work
-  } catch (error: unknown) {
-    failure = error
-  }
-  expect(failure).toBeInstanceOf(NodeListenerError)
-  if (!(failure instanceof NodeListenerError)) throw new Error('expected a typed refusal')
-  return failure
 }
 
 describe('node terminal methods', () => {
@@ -201,11 +208,13 @@ describe('node terminal methods', () => {
     const test = await setup()
     const signal = new AbortController().signal
     try {
-      const attached = await refusal(test.methods.attach({ terminalId: 'nope' }, signal))
+      const attached = await pageRefusal(test.methods.attach({ terminalId: 'nope' }, signal))
       expect(attached.code).toBe('notFound')
-      const written = await refusal(test.methods.write({ terminalId: 'nope', data: 'x' }, signal))
+      const written = await pageRefusal(
+        test.methods.write({ terminalId: 'nope', data: 'x' }, signal),
+      )
       expect(written.code).toBe('notFound')
-      const resized = await refusal(
+      const resized = await pageRefusal(
         test.methods.resize({ terminalId: 'nope', size: { cols: 80, rows: 24 } }, signal),
       )
       expect(resized.code).toBe('notFound')
@@ -222,7 +231,7 @@ describe('node terminal methods', () => {
     const signal = new AbortController().signal
     try {
       const params = openParams()
-      const opened = await refusal(
+      const opened = await pageRefusal(
         test.methods.open({ ...params, actionDigest: '1'.repeat(64) }, signal),
       )
       expect(opened.code).toBe('forbidden')
@@ -236,21 +245,11 @@ describe('node terminal methods', () => {
     const test = await setup()
     const outer = new AbortController()
     try {
-      const { terminalId } = await test.methods.open(openParams(), outer.signal)
-      const events: NodeEvent[] = []
-      const streaming = test.methods.subscribe(
-        session(),
-        terminalId,
-        (event) => {
-          events.push(event)
-          return Promise.resolve()
-        },
-        outer.signal,
-      )
+      const { terminalId, events, streaming } = await openSubscribed(test, outer)
       outer.abort()
       await streaming
       const fresh = new AbortController().signal
-      const attached = await refusal(test.methods.attach({ terminalId }, fresh))
+      const attached = await pageRefusal(test.methods.attach({ terminalId }, fresh))
       expect(attached.code).toBe('notFound')
       const trail = test.store
         .audit()
@@ -293,7 +292,7 @@ describe('node terminal methods', () => {
     )
     const signal = new AbortController().signal
     try {
-      const failure = await refusal(methods.open(openParams(), signal))
+      const failure = await pageRefusal(methods.open(openParams(), signal))
       expect(failure.code).toBe('unavailable')
       expect(test.reported).toHaveLength(1)
     } finally {
@@ -305,17 +304,7 @@ describe('node terminal methods', () => {
     const test = await setup()
     const outer = new AbortController()
     try {
-      const { terminalId } = await test.methods.open(openParams(), outer.signal)
-      const events: NodeEvent[] = []
-      const streaming = test.methods.subscribe(
-        session(),
-        terminalId,
-        (event) => {
-          events.push(event)
-          return Promise.resolve()
-        },
-        outer.signal,
-      )
+      const { terminalId, events, streaming } = await openSubscribed(test, outer)
       await test.methods.write({ terminalId, data: 'q\n' }, outer.signal)
       await test.methods.close({ terminalId }, outer.signal)
       await streaming
