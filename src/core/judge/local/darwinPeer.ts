@@ -1,20 +1,19 @@
-import { execFile, spawn } from 'node:child_process'
 import { lstat, readdir, realpath } from 'node:fs/promises'
 import path from 'node:path'
 import process from 'node:process'
 import { identityOf, lstatIdentity, sameFile } from '../../fs/fileIdentity'
 import { createInterface } from 'node:readline'
-import { promisify } from 'node:util'
 import * as z from 'zod/mini'
 import {
   LOCAL_JUDGE_MAX_RESPONSE_BYTES,
   LOCAL_JUDGE_TIMEOUT_MS,
   WORKSPACE_IDENTITY_ZERO,
 } from '../../../shared/constants'
+import { probeChildEnvironment } from '../../executables'
+import { spawnGuarded } from '../../guardedChildProcess'
 import { requireLocalExecutable } from './executable'
+import { executeGuarded } from './guardedExec'
 import type { PosixPeerDependencies, PosixPeerInstallation, PosixProcessLease } from './posixPeer'
-
-const execute = promisify(execFile)
 // Captured from the Apple-signed official Ollama 0.35.1 macOS distribution.
 const OLLAMA_REQUIREMENT = '=anchor apple generic and certificate leaf[subject.OU] = "3MU9H2V9Y9"'
 // Native ABI permission bits; these are not application tunables.
@@ -67,7 +66,7 @@ export async function requireDarwinInstallation(
   await ownedPath(installed.executable, installed.uid)
   await ownedPath(installed.modelDirectory, installed.uid)
   for (const target of [app, installed.executable]) {
-    await execute(
+    await executeGuarded(
       '/usr/bin/codesign',
       [
         '--verify',
@@ -96,18 +95,24 @@ export async function darwinProcessLease(
   signal.throwIfAborted()
   if (process.platform !== 'darwin' || !Number.isSafeInteger(pid) || pid < 1)
     throw new Error('unverified-darwin-pid')
-  const child = spawn(helper, ['lease', String(pid)], {
-    env: {},
+  const child = spawnGuarded(helper, ['lease', String(pid)], {
+    env: probeChildEnvironment({}),
     stdio: ['pipe', 'pipe', 'ignore'],
     signal,
     timeout: LOCAL_JUDGE_TIMEOUT_MS,
     killSignal: 'SIGKILL',
   })
+  const stdin = child.stdin
+  const stdout = child.stdout
+  if (stdin === null || stdout === null) {
+    child.kill('SIGKILL')
+    throw new Error('unverified-darwin-lifetime')
+  }
   let fault: Error | undefined
   child.on('error', (error) => {
     fault = error
   })
-  child.stdin.on('error', (error) => {
+  stdin.on('error', (error) => {
     fault = error
   })
   const finished = new Promise<void>((resolve) =>
@@ -115,10 +120,10 @@ export async function darwinProcessLease(
       resolve()
     }),
   )
-  const reader = createInterface({ input: child.stdout, crlfDelay: Infinity })
+  const reader = createInterface({ input: stdout, crlfDelay: Infinity })
   const lines = reader[Symbol.asyncIterator]()
   let bytes = 0
-  child.stdout.on('data', (chunk: Buffer) => {
+  stdout.on('data', (chunk: Buffer) => {
     bytes += chunk.length
     if (!(bytes > LOCAL_JUDGE_MAX_RESPONSE_BYTES)) {
       return
@@ -146,8 +151,8 @@ export async function darwinProcessLease(
   }
   const query = (command: 'identity' | 'alive') => {
     signal.throwIfAborted()
-    if (isClosed || !child.stdin.writable) throw new Error('unverified-darwin-lifetime')
-    child.stdin.write(`${command}\n`)
+    if (isClosed || !stdin.writable) throw new Error('unverified-darwin-lifetime')
+    stdin.write(`${command}\n`)
     return read()
   }
   try {
@@ -200,7 +205,7 @@ export function darwinPeerDependencies(
         signal.throwIfAborted()
         const current = pending.pop()
         if (!current) throw new Error('unverified-model-volume')
-        const { stdout } = await execute(helper, ['volume', current], {
+        const { stdout } = await executeGuarded(helper, ['volume', current], {
           env: {},
           signal,
           timeout: LOCAL_JUDGE_TIMEOUT_MS,

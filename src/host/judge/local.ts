@@ -1,8 +1,7 @@
 import { UI_TEXT } from '../../shared/l10n/text'
-import { execFile } from 'node:child_process'
-import { promisify } from 'node:util'
 import { homedir } from 'node:os'
 import { MUSE_INSTALL_TIMEOUT_MS, LOCAL_JUDGE_MAX_RESPONSE_BYTES } from '../../shared/constants'
+import { executeGuarded } from '../../core/judge/local/guardedExec'
 import { darwinPeerDependencies } from '../../core/judge/local/darwinPeer'
 import { requireLocalExecutable } from '../../core/judge/local/executable'
 import type { LocalModelPullAction } from '../../core/judge/local/recommendations'
@@ -91,13 +90,12 @@ export function localJudgeStatus(config: LocalJudgeConfiguration): {
   }
 }
 
-const execute = promisify(execFile)
 export interface HostLocalPullDependencies {
   isExplicitUserAction(): boolean
   nativeScope(): 'native' | 'remote' | 'container' | 'wsl' | 'unknown'
   installation(): { executable: string; executableDigest: string } | undefined
   consent(model: string, downloadBytes: number): Promise<boolean>
-  /** Optional subprocess seam, defaulting to direct execFile with no shell. */
+  /** Optional subprocess seam, defaulting to the guarded run with no shell. */
   run?: (
     file: string,
     args: string[],
@@ -132,7 +130,7 @@ export function hostLocalModelPullAction(deps: HostLocalPullDependencies): Local
       )
         throw new Error('explicit-local-action-required')
       try {
-        await (deps.run ?? execute)(installed.executable, ['pull', model], {
+        await (deps.run ?? executeGuarded)(installed.executable, ['pull', model], {
           windowsHide: true,
           timeout: MUSE_INSTALL_TIMEOUT_MS,
           maxBuffer: LOCAL_JUDGE_MAX_RESPONSE_BYTES,
