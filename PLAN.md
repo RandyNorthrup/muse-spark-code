@@ -36720,6 +36720,9 @@ No new escape hatch is introduced.
 | RLF-M110OS location                                  | Escape hatch                                             | Reason                                                                                                                                                                          | Date       |
 | ---------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | `test/unit/nodeOsCrypt.test.ts` (Tang URLs, 4 sites) | `eslint-disable-next-line unicorn/prefer-https`, 4 sites | Tang serves HTTP by design; the thumbprint check is the trust anchor, not TLS, and the validator must accept the http shape the tests feed it. Inline-reasoned; no rule change. | 2026-10-23 |
+| `test/unit/nodeOsAddons.test.ts` (http negatives)    | `eslint-disable-next-line unicorn/prefer-https`, 2 sites | The violations under test: the checkers must refuse non-https terms and snapshot URLs, so the tests feed them http. Inline-reasoned; no rule change.                            | 2026-10-23 |
+| `test/unit/nodeOsAddons.test.ts` (manifest nav)      | `as Record<string, unknown>`, 2 sites                    | Navigation over parsed manifest fixtures the test constructed; each cast follows a throwing shape assertion. Inline-reasoned; no rule change.                                   | 2026-10-23 |
+| `os/addons/lib/checkAddon.mjs` (release unescaper)   | `eslint-disable-next-line unicorn/prefer-string-raw`     | Escape pairs read clearest as escapes in the `\"`/`\\` unescaper. Inline-reasoned; no rule change.                                                                              | 2026-10-23 |
 
 ## 9. Security assumptions and accepted residual risk
 

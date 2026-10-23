@@ -5,6 +5,7 @@
 // where gpg exists (shellSyntax's tool-gated precedent); the transcript
 // cases run everywhere.
 import { execFileSync, spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -38,6 +39,10 @@ function hasGpg(): boolean {
   }
 }
 const HAS_GPG = hasGpg()
+
+function sha256(file: string): string {
+  return createHash('sha256').update(readFileSync(file)).digest('hex')
+}
 
 function checkKey(args: string[], env?: NodeJS.ProcessEnv): { status: number | null; out: string } {
   const run = spawnSync(process.execPath, [CHECK_KEY, ...args], {
@@ -116,6 +121,11 @@ describe('check-key', () => {
     const run = checkKey(['--transcript', TRANSCRIPT, '--fingerprints', PINS])
     expect(run.status).toBe(0)
     expect(run.out).toContain('all 1 pinned fingerprints')
+  })
+
+  it('pins the recorded keyring against drift', () => {
+    expect(sha256(KEYRING)).toBe('54dea5f6c2a26091578cf52a999cebc6b64df478d37ad4dce96376b711e3b27c')
+    expect(readFileSync(TRANSCRIPT, 'utf8')).toContain(GOOGLE_PRIMARY)
   })
 
   it('refuses a transcript that lost the pin, and tolerates garbage lines', () => {
