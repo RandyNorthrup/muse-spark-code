@@ -1459,8 +1459,10 @@ async function main(): Promise<number> {
           flushed.every(Boolean) && !stdout.isClosed && !stderr.isClosed ? code : EXEC_EXIT.failed,
           stdout.queuedBytes > 0 || stderr.queuedBytes > 0,
         )
-      } catch {
-        // Fixed words only: no paths, payloads or argv echo.
+      } catch (error: unknown) {
+        // Fixed words to the person: no paths, payloads or argv echo.
+        // The record keeps the redacted kind.
+        log.warn(`Judge setup step failed (${failureForLog(error)})`)
         stderr.write(
           `${controller.signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\n`,
         )

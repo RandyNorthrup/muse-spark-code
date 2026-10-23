@@ -444,8 +444,34 @@ export const modelsPanelStateSchema = z.strictObject({
   confidentialWorkspace: z.optional(z.boolean()),
   /** The Judge section. Absent only on a host that has not reported one yet. */
   judge: z.optional(judgePanelSnapshotSchema),
+  /**
+  D107 (M125 lane W): the local-judge setup the Judge section manages.
+  Absent while the host has not read the registration yet. An install
+  always names its model.
+  */
+  judgeSetup: z.optional(
+    z.union([
+      z.strictObject({ isInstalled: z.literal(false) }),
+      z.strictObject({
+        isInstalled: z.literal(true),
+        model: z.string().check(z.minLength(1)),
+      }),
+    ]),
+  ),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
+
+/**
+D107 (M125 lane W): the Judge section's setup slice from the host's
+read. An install without a model reads as not installed: the
+section manages only what names itself.
+*/
+export function judgeSetupSlice(
+  isInstalled: boolean,
+  model: string | undefined,
+): ModelsPanelState['judgeSetup'] {
+  return !isInstalled || model === undefined ? { isInstalled: false } : { isInstalled: true, model }
+}
 
 /** The wizard's editable fields (every key optional; absent leaves it). */
 export const prefillFieldsSchema = z.strictObject({
@@ -581,6 +607,13 @@ export const panelToHostMessageSchema = z.discriminatedUnion('type', [
   // The Judge section's first-charge button. The host ignores it unless the
   // current snapshot says a paid source still needs consent.
   z.strictObject({ type: z.literal('judge/askConsent') }),
+  // D107 (M125 lane W): the Judge section's setup buttons. Open reveals
+  // the wizard at its scan step; change reveals it and runs the scan so
+  // it lands on the recommendation; remove asks natively, then deletes
+  // only what setup added.
+  z.strictObject({ type: z.literal('judge/setupOpen') }),
+  z.strictObject({ type: z.literal('judge/setupChange') }),
+  z.strictObject({ type: z.literal('judge/setupRemove') }),
 ])
 export type PanelToHostMessage = z.infer<typeof panelToHostMessageSchema>
 

@@ -42,6 +42,7 @@ describe('formatBytes (M69)', () => {
     expect(formatBytes(512)).toBe('512 byte')
     expect(formatBytes(48_213)).toBe('48.2 kB')
     expect(formatBytes(5_242_880)).toBe('5.2 MB')
+    expect(formatBytes(5_200_000_000)).toBe('5.2 GB')
     setUiText(EN, 'de')
     expect(formatBytes(48_213)).toBe('48,2 kB')
   })

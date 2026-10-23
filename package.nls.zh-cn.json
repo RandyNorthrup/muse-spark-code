@@ -198,6 +198,8 @@
   "config.suggestedProvider.description": "工作区最多可按 id 推荐一个模型提供方预设；面板会提供使用该预设打开“模型与智能体”。为空则不推荐。工作区不能设置地址或凭据。",
   "walkthrough.gettingStarted.step.ownModel.title": "使用自己的模型开始",
   "walkthrough.gettingStarted.step.ownModel.description": "没有 Muse 订阅或 Meta API 密钥？添加您自己的模型提供方（OpenRouter、Anthropic、OpenAI 或本地服务器）并选择模型。\n[使用自己的模型开始](command:museSpark.startWithOwnModel)",
+  "walkthrough.gettingStarted.step.judgeSetup.title": "设置本地评判器",
+  "walkthrough.gettingStarted.step.judgeSetup.description": "本机上的私有评判器:扫描硬件、选择模型并安装。扫描不写入任何内容,也不调用任何内容。\n[设置本地评判器](command:museSpark.setUpLocalJudge)",
   "config.modelApiAutoCompaction.description": "默认开启。在稳定的工具边界压缩长 Model API 对话；每次摘要都是付费模型调用。付费使用同意通知会在首次收费前列出价格和每日预算。ACP 代理通过编辑器权限请求询问一次，在客户端无法询问时保持关闭；无头 exec 仅在 --auto-compaction 和 --max-budget-usd 下运行它。",
   "config.modelApiStrictTools.description": "当所选模型支持时，使用严格的工具架构。关闭后保留原有工具声明。",
   "config.modelApiParallelReads.description": "并发执行安全的只读工具调用，每次最多四个。其他工具调用按顺序执行。",

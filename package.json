@@ -1892,6 +1892,17 @@
             "completionEvents": [
               "onCommand:museSpark.startWithOwnModel"
             ]
+          },
+          {
+            "id": "judgeSetup",
+            "title": "%walkthrough.gettingStarted.step.judgeSetup.title%",
+            "description": "%walkthrough.gettingStarted.step.judgeSetup.description%",
+            "media": {
+              "markdown": "resources/walkthrough/judge-setup.md"
+            },
+            "completionEvents": [
+              "onCommand:museSpark.setUpLocalJudge"
+            ]
           }
         ]
       }

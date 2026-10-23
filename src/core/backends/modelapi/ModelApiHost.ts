@@ -18768,7 +18768,9 @@ export class ModelApiSession implements ScheduledAgentSession {
           await closeInspectSession(opened)
         })
         .catch(() => {
-          // Best effort: the operating system cleans its own temp dir.
+          this.deps.log.warn(
+            'B1 runner teardown failed; the operating system cleans its own temp dir',
+          )
         })
     }
     // The ledger registers on its first load; a session that never verified

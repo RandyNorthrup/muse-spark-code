@@ -5,9 +5,6 @@
 // contract through its own bridge.
 import * as z from 'zod/mini'
 
-export const JUDGE_SETUP_STEPS = ['scan', 'recommendation', 'licence', 'install', 'done'] as const
-export type JudgeSetupStep = (typeof JUDGE_SETUP_STEPS)[number]
-
 const nonEmpty = z.string().check(z.minLength(1))
 
 const scanSchema = z.strictObject({

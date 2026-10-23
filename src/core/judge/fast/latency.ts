@@ -79,7 +79,8 @@ suspended or skipped local engine requalifies after three in a row,
 then its window restarts; an unmeasured engine warms up after one
 (lane choice: the minimal measurement before first use). Probes carry
 no workspace content and a miss or over-budget answer restarts the
-count. The host spaces probes by JUDGE_FAST_REPROBE_MS.
+count. The caller spaces the probes; the tracker counts consecutive
+in-budget answers.
 */
 export class ProbeTracker {
   private consecutive = 0

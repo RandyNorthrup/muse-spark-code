@@ -11,6 +11,7 @@ import {
 import {
   parsePanelToHostMessage,
   parseHostToPanelMessage,
+  judgeSetupSlice,
   presetCardSchema,
   customFormatSchema,
   providerStateSchema,
@@ -34,6 +35,7 @@ import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { editedOutputTokens, modelLimitsSchema } from '../../shared/providerRouting'
 import type { UiTable } from '../l10n'
+import type { JudgeSetupSectionPort } from '../judgeSetup/judgeSetupPanel'
 import type { Logger } from '../logger'
 import type { ImportPreview } from '../providers/importExport'
 import type {
@@ -94,6 +96,8 @@ export interface ModelsPanelDeps {
   readonly vault?: ModelsVaultFactory | undefined
   /** Source lanes fill this. Absent means the section says the judge is unavailable. */
   readonly judge?: JudgePanelPort | undefined
+  /** The local-judge setup the Judge section manages (M125 lane W). */
+  readonly judgeSetup?: JudgeSetupSectionPort | undefined
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
@@ -322,6 +326,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
     state.vaultOffered = !hasVaultFailed && (vault !== undefined || deps.vault !== undefined)
     // Refresh on every post. Opening the panel never asks for a charge.
     state.judge = readJudge()
+    // The setup slice re-reads too; the record's path never crosses.
+    const setup = deps.judgeSetup?.read()
+    state.judgeSetup =
+      setup === undefined ? undefined : judgeSetupSlice(setup.isInstalled, setup.model)
     post({ type: 'modelsPanel/state', state })
   }
   const ensureVault = (): ModelsVaultBinding | undefined => {
@@ -893,6 +901,20 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         if (current?.askFirstCharge === true && deps.judge !== undefined) {
           await deps.judge.requestFirstCharge()
         }
+        break
+      }
+      case 'judge/setupOpen': {
+        deps.judgeSetup?.open()
+        break
+      }
+      case 'judge/setupChange': {
+        deps.judgeSetup?.change()
+        break
+      }
+      case 'judge/setupRemove': {
+        // The port asks natively and reports natively; the publish below
+        // re-reads the slice, so the section flips to Set up by itself.
+        if (deps.judgeSetup !== undefined) await deps.judgeSetup.remove()
         break
       }
       case 'openExternal': {

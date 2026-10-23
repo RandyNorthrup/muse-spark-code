@@ -12,6 +12,7 @@ import type { ChatSurface } from '../views/chatSurface'
 import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill, setUiText } from '../../shared/l10n/text'
 import type { SecretStore } from '../auth/credentialStore'
+import type { JudgeSetupSectionPort } from '../judgeSetup/judgeSetupPanel'
 import type { MigrationShell } from '../vault/migrationShell'
 import { ProviderCredentialStore as CredentialStore } from '../providers/credentialRecords'
 import type { UiTable } from '../l10n'
@@ -93,6 +94,8 @@ export interface ModelsPanelHostDeps {
         readonly minorRelease: () => number
       }
     | undefined
+  /** The local-judge setup the Judge section manages (M125 lane W). */
+  readonly judgeSetup?: JudgeSetupSectionPort | undefined
 }
 
 export interface ModelsPanelFeatures {
@@ -423,6 +426,7 @@ export function createModelsPanelFeatures(
         resolveWebviewBundle: host.resolveWebviewBundle,
         l10n: host.l10n,
         log: host.log,
+        judgeSetup: host.judgeSetup,
         vault: vaultBindingFactory(host, seam),
         providers,
         sessionBudget,

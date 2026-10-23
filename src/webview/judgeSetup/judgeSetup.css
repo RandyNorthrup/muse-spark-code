@@ -1,0 +1,158 @@
+/* The Set Up Local Judge wizard's styles (M125 lane W). Theme tokens
+ * only (`--vscode-*`, `--ms-*`); no fixed colours, so the four themes
+ * and the accessibility gate's contrast checks hold. Motion: none
+ * (nothing here animates).
+ */
+
+@import url('../page.css');
+@import url('../tokens.css');
+
+.js-panel {
+  color: var(--vscode-foreground);
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  padding: 12px;
+  max-width: 640px;
+}
+
+.js-panel :where(button, input, select, textarea) {
+  font: inherit;
+  color: inherit;
+}
+
+.js-panel :focus-visible {
+  outline: var(--ms-focus-width) solid var(--ms-text);
+  outline-offset: var(--ms-focus-offset);
+}
+
+.js-panel h3 {
+  margin: 12px 0 8px;
+  font-size: 1.1em;
+}
+
+.js-panel h4 {
+  margin: 12px 0 4px;
+  font-size: 1em;
+}
+
+.js-hint {
+  color: var(--vscode-descriptionForeground);
+}
+
+.js-list {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.js-list li {
+  margin: 2px 0;
+}
+
+.js-pick {
+  font-weight: 600;
+  margin: 8px 0 4px;
+}
+
+.js-facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 8px 0;
+}
+
+.js-facts dt {
+  font-weight: 600;
+}
+
+.js-facts dd {
+  margin: 0;
+}
+
+.js-error {
+  color: var(--vscode-errorForeground);
+}
+
+.js-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.js-button {
+  background: var(--vscode-button-secondaryBackground);
+  color: var(--vscode-button-secondaryForeground);
+  border: 1px solid var(--ms-boundary);
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.js-button-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.js-button:disabled,
+.js-button-primary:disabled {
+  opacity: 55%;
+  cursor: default;
+}
+
+.js-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--vscode-textLink-foreground);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.js-advanced {
+  margin: 12px 0;
+  border: 1px solid var(--vscode-panel-border);
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+
+.js-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.js-advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.js-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.js-field select {
+  background: var(--vscode-input-background);
+  color: var(--vscode-input-foreground);
+  border: 1px solid var(--vscode-input-border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  max-width: 320px;
+}
+
+.js-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.js-progress {
+  width: 100%;
+  max-width: 420px;
+}
