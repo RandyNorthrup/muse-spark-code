@@ -63,6 +63,11 @@ import { redactSecrets } from '../../shared/redact'
 import { wireWordForLog } from '../../core/logging'
 import { type SessionBudgetConfig } from './sessionBudget'
 import { ChatGptSignInError, chatGptFailureText } from '../backend/subscriptionsEntry'
+import {
+  projectJudgePanel,
+  unavailableJudgePanel,
+  type JudgePanelPort,
+} from '../../shared/judgePanel'
 
 export interface ModelsPanelDeps {
   /** `isNewAccount` registers a different ChatGPT account instead of the saved one. */
@@ -93,6 +98,8 @@ export interface ModelsPanelDeps {
   hidden; a factory that throws leaves the panel without the section too.
   */
   readonly vault?: ModelsVaultFactory | undefined
+  /** Source lanes fill this. Absent means the section says the judge is unavailable. */
+  readonly judge?: JudgePanelPort | undefined
 }
 export interface ModelsPanelNavigate {
   readonly section?: string | undefined
@@ -121,10 +128,13 @@ export type ModelsVaultFactory = (
 function navigateSection(
   section: string,
   isVaultOffered: boolean,
-): 'providers' | 'models' | 'vault' {
+): 'providers' | 'models' | 'vault' | 'judge' {
   switch (section) {
     case 'models': {
       return 'models'
+    }
+    case 'judge': {
+      return 'judge'
     }
     case 'vault': {
       return isVaultOffered ? 'vault' : 'providers'
@@ -189,6 +199,7 @@ function newDraft(preset?: PresetInfo, entry?: ProviderEntry): PanelDraft {
     blockers: [],
   }
 }
+/** One panel and ordered host edits; a disposed tab discards its draft. */
 /** One panel and ordered host edits; a disposed tab discards its draft. */
 export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const { providers, log } = deps
@@ -309,9 +320,22 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   // for the section to show, refusing with words instead of hiding.
   let vault: ModelsVaultBinding | undefined
   let vaultFailure: unknown
+  const readJudge = (): ModelsPanelState['judge'] => {
+    if (deps.judge === undefined) {
+      return unavailableJudgePanel()
+    }
+    try {
+      return projectJudgePanel(deps.judge.read())
+    } catch {
+      log.warn('Judge panel status could not be read')
+      return unavailableJudgePanel()
+    }
+  }
   const publish = (): void => {
     state.vaultOffered =
       vaultFailure === undefined && (vault !== undefined || deps.vault !== undefined)
+    // Refresh on every post. Opening the panel never asks for a charge.
+    state.judge = readJudge()
     post({ type: 'modelsPanel/state', state })
   }
   const ensureVault = (): ModelsVaultBinding | undefined => {
@@ -330,7 +354,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   // A vault navigation builds the binding first; the tab is always present,
   // so an unbuildable binding still routes to the vault, whose section
   // shows the failure's reason instead of bouncing to providers.
-  const vaultSection = (section: string | undefined): 'providers' | 'models' | 'vault' => {
+  const vaultSection = (
+    section: string | undefined,
+  ): 'providers' | 'models' | 'vault' | 'judge' => {
     if (section !== 'vault') return navigateSection(section ?? 'providers', false)
     ensureVault()
     return 'vault'
@@ -913,6 +939,16 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
           })
         }
         return
+      }
+      case 'judge/askConsent': {
+        // Subscription-only and already-granted snapshots say askFirstCharge
+        // is false. A webview that asks anyway does not open the question.
+        const current = readJudge()
+        state.judge = current
+        if (current?.askFirstCharge === true && deps.judge !== undefined) {
+          await deps.judge.requestFirstCharge()
+        }
+        break
       }
       case 'openExternal': {
         const url = new URL(message.url)

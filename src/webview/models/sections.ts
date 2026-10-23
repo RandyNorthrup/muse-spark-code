@@ -12,7 +12,7 @@ import type {
   ModelsPanelState,
   PanelToHostMessage,
 } from '../../shared/modelsPanel'
-import { CodeIcon, LockIcon, PlusIcon } from '../components/icons'
+import { BoltIcon, CodeIcon, LockIcon, PlusIcon } from '../components/icons'
 
 export async function loadTeamEnglish(): Promise<void> {
   // The hidden team English travels with its readers, never with the
@@ -22,7 +22,11 @@ export async function loadTeamEnglish(): Promise<void> {
   await deferred.loadDeferredEnglish()
 }
 import { deferred } from '../components/DeferredSurface'
-import { DeferredModelsSection, DeferredProvidersSection } from './DeferredSections'
+import {
+  DeferredJudgeSection,
+  DeferredModelsSection,
+  DeferredProvidersSection,
+} from './DeferredSections'
 import { VaultSectionMount } from './sections/vault/VaultSectionMount'
 import type { PanelUiAction, PanelUiState, WizardLife } from './reducer'
 
@@ -117,6 +121,10 @@ const AgentsSection = deferred(async () => {
   return { default: module.AgentsSection }
 })
 
+function reduceJudge(state: PanelUiState, _action: PanelUiAction): PanelUiState {
+  return state
+}
+
 export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
   {
     id: 'providers',
@@ -152,6 +160,13 @@ export const MODEL_SECTIONS: readonly PanelSectionDef[] = [
     icon: LockIcon,
     Component: VaultSectionMount,
     reduceSection: reduceVault,
+  },
+  {
+    id: 'judge',
+    getTitle: () => UI_TEXT.paidJudgeName,
+    icon: BoltIcon,
+    Component: DeferredJudgeSection,
+    reduceSection: reduceJudge,
   },
 ]
 

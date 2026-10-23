@@ -1,0 +1,3375 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "database-joins",
+      "file": "examples/rules/database-joins/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-property-naming",
+      "file": "examples/rules/boolean-property-naming/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "comment-quality",
+      "file": "examples/rules/comment-quality/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "accurate-doc-comments",
+      "file": "examples/rules/accurate-doc-comments/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-if-statements",
+      "file": "examples/rules/redundant-if-statements/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-control-flow",
+      "file": "examples/rules/function-control-flow/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "redundant-type-properties",
+      "file": "examples/rules/redundant-type-properties/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-abstraction",
+      "file": "examples/rules/unnecessary-abstraction/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "speculative-generalization",
+      "file": "examples/rules/speculative-generalization/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "wrapper-without-value",
+      "file": "examples/rules/wrapper-without-value/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "mixed-levels-of-abstraction",
+      "file": "examples/rules/mixed-levels-of-abstraction/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "function-name-behavior-mismatch",
+      "file": "examples/rules/function-name-behavior-mismatch/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "invalid-state-representation",
+      "file": "examples/rules/invalid-state-representation/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "stringly-typed-control-flow",
+      "file": "examples/rules/stringly-typed-control-flow/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "boolean-parameter",
+      "file": "examples/rules/boolean-parameter/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-mutation",
+      "file": "examples/rules/unnecessary-mutation/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "duplicate-domain-logic",
+      "file": "examples/rules/duplicate-domain-logic/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "coincidental-abstraction",
+      "file": "examples/rules/coincidental-abstraction/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "temporal-coupling",
+      "file": "examples/rules/temporal-coupling/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "hidden-global-dependency",
+      "file": "examples/rules/hidden-global-dependency/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "swallowed-errors",
+      "file": "examples/rules/swallowed-errors/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "magic-domain-values",
+      "file": "examples/rules/magic-domain-values/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "constructor-side-effects",
+      "file": "examples/rules/constructor-side-effects/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "parallel-data-structures",
+      "file": "examples/rules/parallel-data-structures/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "excessive-optional-configuration",
+      "file": "examples/rules/excessive-optional-configuration/bad/example.tsx",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/Example.cs",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/Example.java",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/Example.kt",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/_example.c",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/_example.cpp",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.go",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.js",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.php",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.py",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.rb",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.rs",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.ts",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/good/example.tsx",
+      "expect": "pass"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/Example.cs",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/Example.java",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/Example.kt",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/_example.c",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/_example.cpp",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.go",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.js",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.php",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.py",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.rb",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.rs",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.ts",
+      "expect": "fail"
+    },
+    {
+      "rule": "unnecessary-complexity",
+      "file": "examples/rules/unnecessary-complexity/bad/example.tsx",
+      "expect": "fail"
+    }
+  ]
+}

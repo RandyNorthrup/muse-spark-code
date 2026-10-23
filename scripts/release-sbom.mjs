@@ -22,7 +22,6 @@ const BOM = z
 // receipt it leaves behind (dist/acp-stage-files.json): the staged file list
 // the packager itself wrote, not a scan of a directory that may be stale.
 const ACP_STAGE_RECEIPT = path.join('dist', 'acp-stage-files.json')
-
 /** The staged file set, or a refusal when the packager has not run. */
 export function readAcpStageReceipt(read = readFileSync) {
   let parsed

@@ -1,0 +1,3 @@
+async function loadInventory(database) {
+  return [{ item: 'example-item', available: 10 }]
+}

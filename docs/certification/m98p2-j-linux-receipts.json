@@ -1,0 +1,517 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-05",
+  "officialArchive": {
+    "release": "v0.35.1",
+    "url": "https://github.com/ollama/ollama/releases/download/v0.35.1/ollama-linux-amd64.tar.zst",
+    "bytes": 1439658961,
+    "sha256": "9fcd79ac4575b2bd31b992eee18b1000c8ad126b451627c8f8cd091714cfbb10"
+  },
+  "inference": {
+    "limit": 6,
+    "attempts": 4,
+    "returned": 4,
+    "uncertain": 0,
+    "noContentSourceProbes": 1,
+    "pulls": 1,
+    "cloudCalls": 0,
+    "paidCalls": 0,
+    "removals": 0
+  },
+  "positive": {
+    "ipv4": {
+      "workspace": "M98J3L",
+      "platform": "linux",
+      "runtimeVersion": "0.35.1",
+      "model": "tev1:0.8b",
+      "attempts": 2,
+      "peers": [
+        {
+          "family": "IPv4",
+          "localPort": 56388,
+          "bytesBeforeProof": 0,
+          "pid": 3069879,
+          "creationTime": "100172232",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        },
+        {
+          "family": "IPv4",
+          "localPort": 52454,
+          "bytesBeforeProof": 0,
+          "pid": 3069879,
+          "creationTime": "100172232",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        },
+        {
+          "family": "IPv4",
+          "localPort": 52454,
+          "bytesBeforeProof": 0,
+          "pid": 3069879,
+          "creationTime": "100172232",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        },
+        {
+          "family": "IPv4",
+          "localPort": 42964,
+          "bytesBeforeProof": 0,
+          "pid": 3069879,
+          "creationTime": "100172232",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        }
+      ],
+      "records": [
+        {
+          "kind": "model",
+          "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+          "weightBytes": 811843424
+        },
+        {
+          "kind": "warm",
+          "attempt": 1,
+          "returned": false
+        },
+        {
+          "kind": "warm-returned",
+          "attempt": 1,
+          "elapsedMs": 25259.961068999997,
+          "response": {
+            "model": "tev1:0.8b",
+            "answers": {
+              "risk": {
+                "type": "noul",
+                "noul": 0.13899232088038813
+              }
+            },
+            "usage": {
+              "input_tokens": 107,
+              "output_tokens": 1
+            }
+          }
+        },
+        {
+          "kind": "source-model",
+          "elapsedMs": 4898.642730000003,
+          "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+          "weightBytes": 811843424
+        },
+        {
+          "kind": "source",
+          "attempt": 2,
+          "elapsedMs": 6471.347128000001,
+          "outcome": {
+            "outcome": "answered",
+            "result": {
+              "model": "tev1:0.8b",
+              "answers": {
+                "risk": {
+                  "type": "noul",
+                  "noul": 0.13899232088038813,
+                  "probabilities": {
+                    "true": 0.13899232088038813,
+                    "false": 0.8610076791196118
+                  }
+                }
+              },
+              "muse": {
+                "risk": {
+                  "source": "separate",
+                  "technique": "systemone",
+                  "model": "tev1:0.8b",
+                  "label": "uncalibrated",
+                  "confidence": 0.4184063050041207,
+                  "partial": false,
+                  "reservedCostUsd": 0,
+                  "settledCostUsd": 0
+                }
+              },
+              "usage": {
+                "input_tokens": 107,
+                "output_tokens": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "ipv6": {
+      "workspace": "M98J3L",
+      "platform": "linux",
+      "runtimeVersion": "0.35.1",
+      "model": "tev1:0.8b",
+      "attempts": 2,
+      "peers": [
+        {
+          "family": "IPv6",
+          "localPort": 41266,
+          "bytesBeforeProof": 0,
+          "pid": 3084453,
+          "creationTime": "100199486",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        },
+        {
+          "family": "IPv6",
+          "localPort": 41272,
+          "bytesBeforeProof": 0,
+          "pid": 3084453,
+          "creationTime": "100199486",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        },
+        {
+          "family": "IPv6",
+          "localPort": 41272,
+          "bytesBeforeProof": 0,
+          "pid": 3084453,
+          "creationTime": "100199486",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        },
+        {
+          "family": "IPv6",
+          "localPort": 52998,
+          "bytesBeforeProof": 0,
+          "pid": 3084453,
+          "creationTime": "100199486",
+          "executable": "<private-install>/install/bin/ollama",
+          "uid": 65534,
+          "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+        }
+      ],
+      "records": [
+        {
+          "kind": "model",
+          "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+          "weightBytes": 811843424,
+          "tags": {
+            "models": [
+              {
+                "name": "tev1:0.8b",
+                "model": "tev1:0.8b",
+                "modified_at": "2026-10-05T12:03:36.427229747-07:00",
+                "size": 811856202,
+                "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+                "details": {
+                  "parent_model": "Tev1-0.8B-Q8_0.gguf",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": ["qwen35"],
+                  "parameter_size": "752.39M",
+                  "quantization_level": "Q8_0",
+                  "context_length": 262144,
+                  "embedding_length": 1024
+                },
+                "capabilities": ["decision"]
+              }
+            ]
+          },
+          "manifest": {
+            "schemaVersion": 2,
+            "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+            "config": {
+              "mediaType": "application/vnd.docker.container.image.v1+json",
+              "digest": "sha256:a4d129264cb0f74e86c5e89acbfe222384164c9f36014d147ebc6107f7ebf217",
+              "size": 166
+            },
+            "layers": [
+              {
+                "mediaType": "application/vnd.ollama.image.model",
+                "digest": "sha256:fa9732e3924db99f614181a7a28384a0891ae17f478db228a47c989462b2405a",
+                "size": 811843424,
+                "from": "Tev1-0.8B-Q8_0.gguf"
+              },
+              {
+                "mediaType": "application/vnd.ollama.image.system",
+                "digest": "sha256:3542c6cff68dda24782f598e591c24a378107b381836622889bf312be7eb264c",
+                "size": 171
+              },
+              {
+                "mediaType": "application/vnd.ollama.image.license",
+                "digest": "sha256:4c6a8e842ef0d8504549facfb03f1273a8d0022991519bc1888522cc1a5517d1",
+                "size": 11345
+              },
+              {
+                "mediaType": "application/vnd.ollama.image.license",
+                "digest": "sha256:ff9fd7d3f054cdbc507b8f23dbe8b1960424ca11afd264aa43ff3fddd8a875fe",
+                "size": 1079
+              },
+              {
+                "mediaType": "application/vnd.ollama.image.params",
+                "digest": "sha256:44b2c436e8401760c59f8741cf43f877c048bdfc0a777a1b7921f72dd3efe42c",
+                "size": 17
+              }
+            ],
+            "runner": "llamacpp",
+            "format": "gguf"
+          }
+        },
+        {
+          "kind": "warm",
+          "attempt": 1,
+          "returned": false
+        },
+        {
+          "kind": "warm-returned",
+          "request": {
+            "state": "git status",
+            "questions": {
+              "risk": {
+                "type": "noul",
+                "instructions": "Can this command delete data?"
+              }
+            },
+            "model": "tev1:0.8b"
+          },
+          "attempt": 1,
+          "elapsedMs": 8354.738648999999,
+          "response": {
+            "model": "tev1:0.8b",
+            "answers": {
+              "risk": {
+                "type": "noul",
+                "noul": 0.13899232088038813
+              }
+            },
+            "usage": {
+              "input_tokens": 107,
+              "output_tokens": 1
+            }
+          }
+        },
+        {
+          "kind": "health",
+          "health": {
+            "models": [
+              {
+                "name": "tev1:0.8b",
+                "model": "tev1:0.8b",
+                "size": 896962395,
+                "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+                "details": {
+                  "parent_model": "",
+                  "format": "gguf",
+                  "family": "qwen35",
+                  "families": ["qwen35"],
+                  "parameter_size": "752.39M",
+                  "quantization_level": "Q8_0"
+                },
+                "expires_at": "2026-10-05T12:18:51.398636731-07:00",
+                "size_vram": 0,
+                "context_length": 2050
+              }
+            ]
+          }
+        },
+        {
+          "kind": "source-model",
+          "elapsedMs": 4948.304733000001,
+          "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+          "weightBytes": 811843424
+        },
+        {
+          "kind": "source",
+          "attempt": 2,
+          "elapsedMs": 10662.594832,
+          "outcome": {
+            "outcome": "answered",
+            "result": {
+              "model": "tev1:0.8b",
+              "answers": {
+                "risk": {
+                  "type": "noul",
+                  "noul": 0.13899232088038813,
+                  "probabilities": {
+                    "true": 0.13899232088038813,
+                    "false": 0.8610076791196118
+                  }
+                }
+              },
+              "muse": {
+                "risk": {
+                  "source": "separate",
+                  "technique": "systemone",
+                  "model": "tev1:0.8b",
+                  "label": "uncalibrated",
+                  "confidence": 0.4184063050041207,
+                  "partial": false,
+                  "reservedCostUsd": 0,
+                  "settledCostUsd": 0
+                }
+              },
+              "usage": {
+                "input_tokens": 107,
+                "output_tokens": 1
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "refusals": [
+    {
+      "kind": "relay",
+      "family": "127.0.0.1",
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "local-unverified"
+      }
+    },
+    {
+      "kind": "relay",
+      "family": "::1",
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "local-unverified"
+      }
+    },
+    {
+      "kind": "cancellation",
+      "elapsedMs": 335.28706900000003,
+      "sockets": 1,
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "cancelled"
+      }
+    },
+    {
+      "kind": "deadline",
+      "elapsedMs": 60001.587625,
+      "sockets": 1,
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "timeout"
+      }
+    }
+  ],
+  "actualRelays": [
+    {
+      "kind": "relay",
+      "family": "127.0.0.1",
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "local-unverified"
+      }
+    },
+    {
+      "kind": "relay",
+      "family": "::1",
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "local-unverified"
+      }
+    },
+    {
+      "kind": "cancellation",
+      "elapsedMs": 323.58584899999994,
+      "sockets": 1,
+      "bytes": 0,
+      "outcome": {
+        "outcome": "no-answer",
+        "reason": "cancelled"
+      }
+    }
+  ],
+  "actualPidReuse": {
+    "kind": "actual-pid-reuse",
+    "oldPid": 8,
+    "newPid": 8,
+    "before": {
+      "pid": 8,
+      "uid": 0,
+      "creationTime": "100262520",
+      "executable": "/usr/lib/cargo/bin/coreutils/sleep"
+    },
+    "after": {
+      "pid": 8,
+      "uid": 0,
+      "creationTime": "100262523",
+      "executable": "/usr/lib/cargo/bin/coreutils/sleep"
+    },
+    "oldLeaseAlive": false,
+    "oldIdentityRefused": true,
+    "newLeaseAlive": true,
+    "scope": "isolated PID/mount namespace only; not host-native inference certification"
+  },
+  "replacementReconnect": {
+    "kind": "replacement-reconnect",
+    "peer": {
+      "pid": 3194630,
+      "creationTime": "100306262",
+      "executable": "<private-install>/install/bin/ollama",
+      "uid": 65534,
+      "executableDigest": "8fd655c8fde7b524dc3a64ae1006f9e8d0344dec93b1796fc9f87b7c5179fbb9"
+    },
+    "bytesBeforeProof": 0,
+    "delayBeforeFreshProbeMs": 50,
+    "localPort": 58112
+  },
+  "coldSourceProbe": {
+    "attempt": 5,
+    "host": "http://127.0.0.1:11439",
+    "elapsedMs": 1287.4743760000001,
+    "proofs": [],
+    "outcome": {
+      "outcome": "no-answer",
+      "reason": "source-unavailable"
+    }
+  },
+  "replacementRefusal": {
+    "oldPid": 3185483,
+    "newPid": 3194630,
+    "nativeAcquisitions": 2,
+    "secondSocketBytesWritten": 0,
+    "outcome": {
+      "outcome": "no-answer",
+      "reason": "local-unverified"
+    },
+    "evidence": "Assertions passed before the aggregate fixture failed its subsequent fresh metadata probe with unverified-socket-inode; separate reconnect receipt above passes."
+  },
+  "driverSha256": {
+    "receipt.cjs": "03cac8f25ae90f481a905bc8ba0b6343dba1ade6f40915d87a026e69f7a0f37a",
+    "receipt-ipv6.cjs": "7f25c4288d2a44b9e88ddb6bbcd3954d5f6aa2a19ad03c23b97ace8b0e777f15",
+    "final-source.cjs": "270fddc17ea2900bbf41a392f362832f2c66603b21b74dd4312f3c9790c6dab0",
+    "adversarial.cjs": "b9a62541c3981990d64dbf9a12806984f8b54c69ce54230a3438a0704b0b2c8d",
+    "adversarial-final.cjs": "ed39a76b8adab5792587c5854b4a00dbea9a03b23841a7387bae4aabc43181d2",
+    "replacement.cjs": "ab87627cc20dafdf7ad40248856dd57a9d62b1cbacdff84eb7a85eef0b037463",
+    "reconnect.cjs": "268b3c80f8fdf376ca3541d1cdf39a55e4cf32eb0726e5cb4616a6a4750dd40e",
+    "reuse.cjs": "7c1c8a324160e71c84ca8b52ae76d1adfc2adb33e7126d3e67234753f9be7b9c",
+    "model-final.cjs": "0887bd62554a12449e1ba4229aa37b9e12d0748203116986555b862428d06503"
+  },
+  "installation": {
+    "serverUid": 65534,
+    "privateRootMode": "0700",
+    "modelRootMode": "0700",
+    "executableMode": "0755",
+    "ancestors": "root or exact UID; no group/world write, except root-owned sticky temporary ancestor",
+    "filesystem": "ext4",
+    "statfsMagic": "0xef53",
+    "mountSource": "/dev/sda2"
+  },
+  "finalModelProvenance": {
+    "kind": "final-source-model-provenance",
+    "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+    "weightBytes": 811843424,
+    "elapsedMs": 5177.459381,
+    "uid": 65534,
+    "checks": "canonical roots and contents, ownership, permissions, local mount/statfs, manifest and every blob hash, retained snapshot and final mount/anchor checks",
+    "inference": 0
+  }
+}

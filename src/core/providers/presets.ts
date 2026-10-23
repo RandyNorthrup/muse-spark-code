@@ -1412,3 +1412,56 @@ export function openRouterTokenRequestBody(options: {
     },
   }
 }
+
+// --- SystemOne service presets (M98 phase 2 lane C) ---
+//
+// These are not chat presets and are not members of PRESETS, so the models
+// panel does not list them. OpenRouter Jev reuses the OpenRouter key already
+// in M95's store. Direct TypeSafe names that store's `typesafe` slot; this
+// file does not open a second store. Cloudflare Clef is absent until its own
+// counted capture. Both routes stay opt-in and untested: a smoke capture is
+// not product certification, and neither route is auto-selected.
+
+export interface SystemOneServicePreset {
+  readonly id: string
+  /** M95 credential id the host reads. Never a key. */
+  readonly keyProviderId: string
+  readonly origin: string
+  readonly path: string
+  /** The endpoint itself was called and the common wire recorded. */
+  readonly wireCapture: boolean
+  readonly captureId: string
+  readonly tested: false
+  readonly optIn: true
+  readonly autoSelectable: false
+}
+
+export const SYSTEMONE_SERVICE_PRESETS: readonly SystemOneServicePreset[] = [
+  Object.freeze({
+    id: 'openrouter-jev',
+    keyProviderId: 'openrouter',
+    origin: 'https://openrouter.ai',
+    path: '/api/v1/systemone',
+    wireCapture: true,
+    captureId: 'docs/certification/m98-research.md#openrouter-systemone',
+    tested: false,
+    optIn: true,
+    autoSelectable: false,
+  }),
+  Object.freeze({
+    id: 'typesafe-jev',
+    keyProviderId: 'typesafe',
+    origin: 'https://api.typesafe.ai',
+    path: '/v1/systemone',
+    wireCapture: false,
+    captureId: 'https://docs.typesafe.ai/api',
+    tested: false,
+    optIn: true,
+    autoSelectable: false,
+  }),
+]
+
+/** The SystemOne route with this id, or undefined. Clef is never present. */
+export function systemOnePresetById(id: string): SystemOneServicePreset | undefined {
+  return SYSTEMONE_SERVICE_PRESETS.find((preset) => preset.id === id)
+}

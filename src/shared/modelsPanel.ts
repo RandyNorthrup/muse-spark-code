@@ -28,6 +28,7 @@ import { legacyUsdSchema } from './usdSchema'
 
 import * as z from 'zod/mini'
 import { teamPanelSliceSchema, teamAgentsSliceSchema, teamPanelMessageSchema } from './teamPanel'
+import { judgePanelSnapshotSchema } from './judgePanelSchema'
 
 /** Positive safe whole-token counts shared by manual entry and the strict panel wire. */
 const contextWindowSchema = z.int().check(z.positive())
@@ -39,7 +40,14 @@ The panel's sections; M96 registers `roles` and `agents` beside these.
 `vault` (C-M109-1 P1) is always present (RLTESTDRIVE 10); without a host
 binding (`vaultOffered`) its section shows the failure's reason.
 */
-export const modelsPanelSectionSchema = z.enum(['providers', 'models', 'roles', 'agents', 'vault'])
+export const modelsPanelSectionSchema = z.enum([
+  'providers',
+  'models',
+  'roles',
+  'agents',
+  'vault',
+  'judge',
+])
 export type ModelsPanelSection = z.infer<typeof modelsPanelSectionSchema>
 
 /** The add-provider wizard's steps, in order (mirrors lane P's `WizardStep`). */
@@ -444,6 +452,8 @@ export const modelsPanelStateSchema = z.strictObject({
   remoteWindow: z.optional(z.boolean()),
   /** True where the workspace is confidential: Copilot is hidden and refused. */
   confidentialWorkspace: z.optional(z.boolean()),
+  /** The Judge section. Absent only on a host that has not reported one yet. */
+  judge: z.optional(judgePanelSnapshotSchema),
 })
 export type ModelsPanelState = z.infer<typeof modelsPanelStateSchema>
 
@@ -578,6 +588,9 @@ const providerPanelMessageSchema = z.discriminatedUnion('type', [
     usd: z.optional(legacyUsdSchema),
     expectedUsd: z.optional(legacyUsdSchema),
   }),
+  // The Judge section's first-charge button. The host ignores it unless the
+  // current snapshot says a paid source still needs consent.
+  z.strictObject({ type: z.literal('judge/askConsent') }),
 ])
 export const panelToHostMessageSchema = z.union([
   providerPanelMessageSchema,

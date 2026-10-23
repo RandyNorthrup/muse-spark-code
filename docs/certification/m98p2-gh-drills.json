@@ -1,0 +1,402 @@
+[
+  {
+    "id": "D01",
+    "guard": "host-neutral preflight",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": ".status !== 'completed'",
+      "after": ".status === 'completed'"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "keeps Cursor preToolUse unavailable before inference because abstention needs a grant",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > keeps Cursor preToolUse unavailable before inference because abstention needs a grant",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > keeps Cursor beforeShellExecution unavailable before inference because abstention needs a grant",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > keeps Cursor beforeMCPExecution unavailable before inference because abstention needs a grant",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > safe supported results preserve each host default checks and validated neutral output",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > emits exactly one caution for a risky Cursor observation",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > keeps Copilot JSON-object arguments intact through explicit paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > no answer from budget, unavailable, failed or partial sources never vetoes a supported host"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "187ab59bfd58eb242daffc4ee6b031a8c31b369ec1eb6b0d4c0c5b9243a9dda3",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 7 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  7 failed | 14 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D02",
+    "guard": "valid Cursor neutral JSON",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "const neutral = format === 'cursor' ? '{}' : ''",
+      "after": "const neutral = '{'"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "safe supported results preserve each host default checks and validated neutral output",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > safe supported results preserve each host default checks and validated neutral output",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > emits exactly one caution for a risky Cursor observation",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > no answer from budget, unavailable, failed or partial sources never vetoes a supported host"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "5860a2233f4e7ea549068ef3c41d17ce355177693e153228037c0e6dc8a96442",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 3 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  3 failed | 18 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D03",
+    "guard": "hook-specific exit-4 abstention conversion",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (code === EXEC_EXIT.failed) code = EXEC_EXIT.ok",
+      "after": "if (code === EXEC_EXIT.failed) code = EXEC_EXIT.failed"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "no answer from budget, unavailable, failed or partial sources never vetoes a supported host",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > no answer from budget, unavailable, failed or partial sources never vetoes a supported host"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "39092545c1c2595c4a60f1b2061d2eab096dd262c94deb47cf4724446d72347e",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 20 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D04",
+    "guard": "aborted/failed-delivery no-op exit",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "const noAnswerExit = neutral === undefined ? EXEC_EXIT.failed : EXEC_EXIT.ok",
+      "after": "const noAnswerExit = EXEC_EXIT.failed"
+    },
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "namedFailure": "honors parent cancellation before dispatch and during admission without leaking the reason",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > bounds stalled stdin and destroys it without invoking a source",
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > counts stdin time against the same execution deadline",
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > uses one deadline across stdin, initialization and an engine that ignores abort; late output is dropped",
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > honors parent cancellation before dispatch and during admission without leaking the reason",
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > abstains on closed pipes before dispatch and stalled delivery",
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > does not deliver a result to a pipe closed while the source was resolving"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliBudget.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "f3b5d02180dd88d309602a09dbf361dd27c0ba0b7f7807f680554acf90da2205",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 6 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  6 failed | 9 passed (15)"
+    ],
+    "greenTests": ["Tests  15 passed (15)"]
+  },
+  {
+    "id": "D05",
+    "guard": "closed-pipe no-dispatch abstention",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (io.stdout.isClosed || io.stderr.isClosed)\n      return neutral === undefined ? EXEC_EXIT.failed : EXEC_EXIT.ok",
+      "after": "if (io.stdout.isClosed || io.stderr.isClosed)\n      return EXEC_EXIT.failed"
+    },
+    "testFile": "test/unit/judgeHookCliBudget.test.ts",
+    "namedFailure": "abstains on closed pipes before dispatch and stalled delivery",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliBudget.test.ts > judge hook shared CLI admission and lifecycle > abstains on closed pipes before dispatch and stalled delivery"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliBudget.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "9bd8b2334fac3feb3ccde8e78eceef1539482f16dbb41657bd179a7fff3c05cb",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 14 passed (15)"
+    ],
+    "greenTests": ["Tests  15 passed (15)"]
+  },
+  {
+    "id": "D06",
+    "guard": "Claude own event coverage",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "claudeEventSchema.parse(event)",
+      "after": "z.enum(['PreToolUse']).parse(event)"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "uses Claude own captured SessionEnd event instead of the VS Code Local table",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured SessionStart event instead of the VS Code Local table",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured SessionEnd event instead of the VS Code Local table",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured UserPromptSubmit event instead of the VS Code Local table",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured PostToolUse.Bash event instead of the VS Code Local table",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured Stop event instead of the VS Code Local table"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "7069aa539580842948a3afe65b5c3245fff998641e1c3d4c0842f335e27b06cc",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  5 failed | 16 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D07",
+    "guard": "Claude SessionEnd output-discard preflight",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (format === 'claude' && name === 'SessionEnd') return { neutral: '' }",
+      "after": ""
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "uses Claude own captured SessionEnd event instead of the VS Code Local table",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured SessionEnd event instead of the VS Code Local table"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "28d2ed01ef517638a43411d877c488ed39f51ec3a3096f76e363bcc47a25dfab",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 20 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D08",
+    "guard": "strict object-valued known tool fields",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "tool_input: z.record(z.string(), z.unknown()),",
+      "after": "tool_input: z.union([z.string(), z.record(z.string(), z.unknown())]),"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "strictly rejects malformed claude/PreToolUse tool_input before paid admission",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed claude/PreToolUse tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed vscode/PreToolUse tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed gemini/BeforeTool tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed copilot/PreToolUse tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed cursor/preToolUse tool_input before paid admission"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "e099ed6166b37cded7a2e6b39a331f263981b0bfa02c963db11404d94d350f50",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 5 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  5 failed | 16 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D09",
+    "guard": "JSON strings must contain argument objects",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (field.to === 'tool_input' || field.to === 'toolArgs') toolArgumentsSchema.parse(decoded)",
+      "after": "void decoded"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "strictly rejects malformed copilot/preToolUse toolArgs before paid admission",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed copilot/preToolUse toolArgs before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed cursor/beforeMCPExecution tool_input before paid admission"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "3ad5c389228bf647ccaba717ad76791757bcb17df08e88157c9d36662f5e7ee6",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 2 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  2 failed | 19 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D10",
+    "guard": "foreign strict tool slice before admission",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (row.fields.some((field) => field.to === 'tool_input' && field.transform !== 'json'))\n    toolFieldsSchema.parse({ tool_name: payload.tool_name, tool_input: payload.tool_input })",
+      "after": ""
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "strictly rejects malformed gemini/BeforeTool tool_input before paid admission",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed vscode/PreToolUse tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed gemini/BeforeTool tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed copilot/PreToolUse tool_input before paid admission",
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > strictly rejects malformed cursor/preToolUse tool_input before paid admission"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "5155a279e9105ebf4bed31de227b13f7a8a82487eabc2068cdedd2dc6d676442",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 4 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  4 failed | 17 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D11",
+    "guard": "Claude captured-event-only gate",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "claudeEventSchema.parse(event)",
+      "after": "nativeEventSchema.parse(event)"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "keeps unrecorded Claude events and VS Code unavailable events out of inference",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > keeps unrecorded Claude events and VS Code unavailable events out of inference"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "c9acb83c15567f39c4a66d3ed0d3b6de57fd1b1d89117fbc2a8ff3b787333dfa",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 20 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D12",
+    "guard": "no inference without a caution delivery",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (caution === undefined) {",
+      "after": "if (false) {"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "uses Claude own captured SessionEnd event instead of the VS Code Local table",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > uses Claude own captured SessionEnd event instead of the VS Code Local table"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "e23e9ffe14823e24ee58403326c06feb35bd3049eebf055a5be092a1fec142a7",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 20 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D13",
+    "guard": "exactly one Cursor observation response",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "outcomeState.hasCaution = true",
+      "after": "outcomeState.hasCaution = false"
+    },
+    "testFile": "test/unit/judgeHookCliContracts.test.ts",
+    "namedFailure": "emits exactly one caution for a risky Cursor observation",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCliContracts.test.ts > judge hook host-specific contracts (RVM98GH) > emits exactly one caution for a risky Cursor observation"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCliContracts.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "d3d20747faeca8d683bbad03e9902abcfb802af192bffb08afd85c336a7654e1",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 20 passed (21)"
+    ],
+    "greenTests": ["Tests  21 passed (21)"]
+  },
+  {
+    "id": "D14",
+    "guard": "native strict tool slice retained",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (['PreToolUse', 'PermissionRequest', 'PostToolUse', 'PostToolUseFailure'].includes(name))\n      toolFieldsSchema.parse({ tool_name: payload.tool_name, tool_input: payload.tool_input })",
+      "after": ""
+    },
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "namedFailure": "validates malformed bytes, envelopes and required tool fields before inference",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > validates malformed bytes, envelopes and required tool fields before inference"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCli.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "648722abbb3169237f78aa4c767bf7373ee62d5cc033f98693d47b35c2e2cc8c",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 45 passed (46)"
+    ],
+    "greenTests": ["Tests  46 passed (46)"]
+  },
+  {
+    "id": "D15",
+    "guard": "failed non-Cursor preflight abstains",
+    "file": "src/runtime/judge/hook.ts",
+    "mutation": {
+      "before": "if (output === undefined) return neutral === undefined ? EXEC_EXIT.failed : EXEC_EXIT.ok",
+      "after": "if (output === undefined) return EXEC_EXIT.failed"
+    },
+    "testFile": "test/unit/judgeHookCli.test.ts",
+    "namedFailure": "refuses a caution before inference when M91 rejects its native output",
+    "observedFailures": [
+      "FAIL  test/unit/judgeHookCli.test.ts > judge hook native advisory formats > refuses a caution before inference when M91 rejects its native output"
+    ],
+    "command": "npx vitest run test/unit/judgeHookCli.test.ts --maxWorkers=3 --testTimeout=120000",
+    "redExit": 1,
+    "greenExit": 0,
+    "deliveredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "mutatedSha256": "4e4644a465813d6c323724cedb3d9560e24621ef0568b7f36b5ad7f14a48d0de",
+    "restoredSha256": "e499111abd9a1daefe89f081651c3f708a55dac98f6d3cf66715339d25d8d656",
+    "redTests": [
+      "Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Tests  1 failed | 45 passed (46)"
+    ],
+    "greenTests": ["Tests  46 passed (46)"]
+  }
+]

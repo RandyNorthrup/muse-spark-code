@@ -1,0 +1,110 @@
+{
+  "workspace": "M98J3L, isolated UID on Kubuntu native host",
+  "runtimeVersion": "0.35.1",
+  "inferenceAttempts": 4,
+  "request": {
+    "state": "git status",
+    "questions": {
+      "risk": {
+        "type": "noul",
+        "instructions": "Can this command delete data?"
+      }
+    },
+    "model": "tev1:0.8b"
+  },
+  "response": {
+    "model": "tev1:0.8b",
+    "answers": {
+      "risk": {
+        "type": "noul",
+        "noul": 0.13899232088038813
+      }
+    },
+    "usage": {
+      "input_tokens": 107,
+      "output_tokens": 1
+    }
+  },
+  "tags": {
+    "models": [
+      {
+        "name": "tev1:0.8b",
+        "model": "tev1:0.8b",
+        "modified_at": "2026-10-05T12:03:36.427229747-07:00",
+        "size": 811856202,
+        "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+        "details": {
+          "parent_model": "Tev1-0.8B-Q8_0.gguf",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": ["qwen35"],
+          "parameter_size": "752.39M",
+          "quantization_level": "Q8_0",
+          "context_length": 262144,
+          "embedding_length": 1024
+        },
+        "capabilities": ["decision"]
+      }
+    ]
+  },
+  "health": {
+    "models": [
+      {
+        "name": "tev1:0.8b",
+        "model": "tev1:0.8b",
+        "size": 896962395,
+        "digest": "8d11b3146b7f3f4f4d5e9a64665ab2bdaf8b46e4ec42a5880b60a716ae50e3fb",
+        "details": {
+          "parent_model": "",
+          "format": "gguf",
+          "family": "qwen35",
+          "families": ["qwen35"],
+          "parameter_size": "752.39M",
+          "quantization_level": "Q8_0"
+        },
+        "expires_at": "2026-10-05T12:18:51.398636731-07:00",
+        "size_vram": 0,
+        "context_length": 2050
+      }
+    ]
+  },
+  "manifest": {
+    "schemaVersion": 2,
+    "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+    "config": {
+      "mediaType": "application/vnd.docker.container.image.v1+json",
+      "digest": "sha256:a4d129264cb0f74e86c5e89acbfe222384164c9f36014d147ebc6107f7ebf217",
+      "size": 166
+    },
+    "layers": [
+      {
+        "mediaType": "application/vnd.ollama.image.model",
+        "digest": "sha256:fa9732e3924db99f614181a7a28384a0891ae17f478db228a47c989462b2405a",
+        "size": 811843424,
+        "from": "Tev1-0.8B-Q8_0.gguf"
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.system",
+        "digest": "sha256:3542c6cff68dda24782f598e591c24a378107b381836622889bf312be7eb264c",
+        "size": 171
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:4c6a8e842ef0d8504549facfb03f1273a8d0022991519bc1888522cc1a5517d1",
+        "size": 11345
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.license",
+        "digest": "sha256:ff9fd7d3f054cdbc507b8f23dbe8b1960424ca11afd264aa43ff3fddd8a875fe",
+        "size": 1079
+      },
+      {
+        "mediaType": "application/vnd.ollama.image.params",
+        "digest": "sha256:44b2c436e8401760c59f8741cf43f877c048bdfc0a777a1b7921f72dd3efe42c",
+        "size": 17
+      }
+    ],
+    "runner": "llamacpp",
+    "format": "gguf"
+  }
+}

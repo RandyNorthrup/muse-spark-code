@@ -1,5 +1,12 @@
+import type {
+  JudgePlanRuntime,
+  JudgeRuntimeBinding,
+  JudgeRuntimeDeps,
+} from '../../core/judge/runtime'
+import type { JudgePanelSnapshot } from '../../shared/judgePanel'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
+import type { SeparateRouteFacts, SeparateSourcePorts } from '../../core/judge/sides'
 import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { JudgeAdvisory } from '../../core/judge/use'
 import type { JudgeFenceSample } from '../../core/judge/use'
@@ -14,17 +21,51 @@ import type { Logger } from '../logger'
 import type * as JudgeEntry from './judgeEntry'
 
 export interface JudgeWindowDeps {
+  readonly phase2?:
+    | {
+        readonly binding: (action: JudgeEntryParts) => JudgeRuntimeBinding | undefined
+        readonly createRuntime: (deps: JudgeRuntimeDeps) => Promise<JudgePlanRuntime>
+        /** The configured separate route's facts while it can be built (C's own availability). */
+        readonly readySeparateRoute?: (() => SeparateRouteFacts | undefined) | undefined
+      }
+    | undefined
+  /**
+  Production phase-2 inputs (M98 P2B). When `phase2` is absent but these
+  are present, the window builds the production binding itself inside
+  the lazy judge bundle; otherwise the window keeps phase-1 behaviour.
+  All fields are plain data: activation passes no new code.
+  */
+  readonly separateId?: (() => string) | undefined
+  readonly evidenceRoot?: string | undefined
+  readonly judgeP2BundlePath?: string | undefined
+  /**
+  M95's stored credential value for a provider id (SecretStorage), read
+  only when a configured SystemOne route needs its key. Never logged.
+  */
+  readonly readStoredCredential?: ((providerId: string) => Promise<string | undefined>) | undefined
+  /** Tests' seams for the SystemOne route's pinned M95 transport; production passes none. */
+  readonly separateTransport?: SeparateSourcePorts['transport']
+  readonly dailyBudgetUsd?: () => number
   readonly engine: () => JudgeEngine
   readonly context: (action: JudgeEntryParts) =>
     | {
         readonly backend: 'museCode' | 'modelApi'
         readonly modelId: string
+        readonly endpoint?: string | undefined
+        readonly profileId?: string | undefined
+        readonly providerId?: string | undefined
         readonly ownerId: string
         readonly contextLimit: number | undefined
         readonly confidential: boolean
       }
     | undefined
   readonly readSettingsText: () => string | undefined
+  /**
+  The local paths of this window's workspace settings files (each folder's
+  `.vscode/settings.json`, the `.code-workspace` file). Read within bounds,
+  only to name a separate judge set there, which paid settings never honour.
+  */
+  readonly workspaceSettingsFiles?: (() => readonly string[]) | undefined
   readonly startSession: (options: StartSessionOptions) => Promise<AgentSession>
   readonly modelApi: (action: JudgeEntryParts) => ModelApiJudgeConnection | undefined
   /** The real D78 adapter only; absence disables metered judging before consent. */
@@ -40,6 +81,7 @@ export interface JudgeWindowDeps {
 }
 
 export interface JudgeWindowPort extends JudgeAdvisory {
+  readPanelSnapshot(): JudgePanelSnapshot | undefined
   isSideSession(sessionId: string): boolean
   dispose(): void
 }
@@ -78,6 +120,7 @@ export function judgeWindowPort(
   })
   let judge: JudgeWindowPort | undefined
   return {
+    readPanelSnapshot: () => judge?.readPanelSnapshot(),
     start: (action, text) => {
       if (deps.engine() === 'off') return
       try {

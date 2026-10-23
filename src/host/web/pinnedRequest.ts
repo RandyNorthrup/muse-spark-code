@@ -41,6 +41,7 @@ import {
   WEB_FETCH_ACCEPT,
   WEB_FETCH_ACCEPT_ENCODING,
   WEB_FETCH_DEFAULT_PORT,
+  WEB_FETCH_NOT_SENT_CODE,
   WEB_FETCH_NOT_TLS_CODE,
   WEB_FETCH_USER_AGENT,
 } from '../../shared/constants'
@@ -182,6 +183,10 @@ export function pinnedHttpsRequest(
 One pinned POST; `onConnected` once its connection is up. Follows no
 redirect: the first response is the answer. Rejects as the GET does.
 `isTlsRequired` is off only for the tests' plain loopback server.
+`shouldWrite`, when given, is read once the connection is up and before any
+request byte is written (Node writes nothing until the request ends): false
+withdraws the request, which then rejects with WEB_FETCH_NOT_SENT_CODE and
+never calls `onConnected`.
 */
 export function pinnedPostRequest(
   target: PinnedTarget,
@@ -191,6 +196,7 @@ export function pinnedPostRequest(
   onConnected: () => void,
   request: RequestFunction = httpsRequest,
   isTlsRequired = true,
+  shouldWrite?: () => boolean,
 ): Promise<PinnedResponse> {
   return sendPinnedRequest(
     pinnedPostOptions(target, body, headers, signal),
@@ -199,7 +205,15 @@ export function pinnedPostRequest(
     onConnected,
     request,
     isTlsRequired,
+    shouldWrite,
   )
+}
+
+/** The error for a request withdrawn by its fence before any byte was written. */
+function withdrawn(): Error {
+  return Object.assign(new Error('Request withdrawn before sending'), {
+    code: WEB_FETCH_NOT_SENT_CODE,
+  })
 }
 
 function sendPinnedRequest(
@@ -209,6 +223,7 @@ function sendPinnedRequest(
   onConnected: () => void,
   request: RequestFunction,
   isTlsRequired: boolean,
+  shouldWrite?: () => boolean,
 ): Promise<PinnedResponse> {
   return new Promise((resolve, reject) => {
     const outgoing = request(options, (response) => {
@@ -228,12 +243,28 @@ function sendPinnedRequest(
         },
       })
     })
-    watchConnection(outgoing, isTlsRequired, onConnected)
     outgoing.on('error', reject)
-    if (body === undefined) {
-      outgoing.end()
-    } else {
-      outgoing.end(body)
+    const send = () => {
+      if (body === undefined) {
+        outgoing.end()
+      } else {
+        outgoing.end(body)
+      }
     }
+    if (shouldWrite === undefined) {
+      watchConnection(outgoing, isTlsRequired, onConnected)
+      send()
+      return
+    }
+    // Nothing is written until the connection is up and the fence still holds.
+    watchConnection(outgoing, isTlsRequired, () => {
+      if (!shouldWrite()) {
+        reject(withdrawn())
+        outgoing.destroy()
+        return
+      }
+      onConnected()
+      send()
+    })
   })
 }

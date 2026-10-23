@@ -137,3 +137,5 @@ The PNGs beside the records are that day's harness renders.
 
 - [M95 lane X review corrections](m95-x.md): credential allowlist, provider commit recovery, captured probes, path/DNS guards and translated counts, with regression drills and named integration residuals.
 - [M102 integration](m102.md): usage integration on M95's joined transport, lazy ACP usage and headless loading, golden and guard-fire evidence; round three records the stopped provider-accounting path, cold exec package timeout and universal VSIX cap blocker.
+- [M98 phase 2 joins main](m98-p2int-main.md): integrate the shipped phase-one Judge with the phase-two libraries, preserve the two lazy factories and synchronous holders, and record Windows scoped gates and remaining 0.16.0 release work.
+- [M98 phase 2 on the 0.15.0 train](m98p2-base.md): `m98/p2int` at `8a002a18f` merged onto `release/train-0.15.0` at `c15b7eeae`. P0, B, CS, D, G, H, J, FU and GH are on the base. C, E, FP, A, I and Z remain, and each remaining lane's dependency on this base is named there. Startup stays 733.7 KiB.

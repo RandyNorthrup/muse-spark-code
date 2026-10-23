@@ -140,6 +140,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly tabWithCopilot: TabWithCopilot
   /** The Muse Judge's engine (M98, PLAN.md D77): `auto` is `same` in phase 1. */
   readonly 'judge.engine': JudgeEngine
+  /** Configured separate source/model id; empty keeps today's single-model setup. */
+  readonly 'judge.separate': string
   /** The capacity estimator's setup search (M117, PLAN.md D97). */
   readonly 'estimator.optimize': EstimateOptimizeMode
   /** Public catalog price lookup for rented servers (M117, PLAN.md D97). */
@@ -302,6 +304,7 @@ const settingSchemas = {
   tabTrigger: z.enum(TAB_TRIGGER_MODES),
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
+  'judge.separate': z.string(),
   'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
   'estimator.priceLookup': z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
@@ -509,6 +512,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiRepositoryRules: readSetting(config, 'modelApiRepositoryRules', log),
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
+    'judge.separate': readSetting(config, 'judge.separate', log),
     'estimator.optimize': SETTING_DEFAULTS['estimator.optimize'],
     'estimator.priceLookup': SETTING_DEFAULTS['estimator.priceLookup'],
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),

@@ -320,7 +320,14 @@ function feature(
     backends,
     paid: isPaid,
     surfaces: editors.flatMap((editor) => backends.map((backend) => `${editor}:${backend}`)),
-    details: [],
+    details:
+      id === 'judge' || id === 'judge-subscription'
+        ? [
+            { ui: 'judgeStatusBoth' },
+            { ui: 'judgeAutoNoEvidence' },
+            { ui: 'paidConfirmJudgeEmbedding' },
+          ]
+        : [],
     facts: {},
     editors,
   }
@@ -1321,7 +1328,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidJudgeName' },
       { tip: 'paid:judge' },
       [],
-      ['judge.engine'],
+      ['judge.engine', 'judge.separate'],
       'muse-judge',
       ['modelApi'],
       true,
@@ -1332,7 +1339,7 @@ export function featureCatalog(): readonly Feature[] {
       { ui: 'paidJudgeName' },
       { ui: 'judgeSubscriptionNotice' },
       [],
-      ['judge.engine'],
+      ['judge.engine', 'judge.separate'],
       'muse-judge',
       ['museCode'],
       false,

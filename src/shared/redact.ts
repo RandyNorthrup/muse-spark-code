@@ -346,6 +346,16 @@ export const SECRET_RULES: readonly SecretRule[] = [
   },
 ]
 
+/**
+The original field spelling, recognized by the same rules as text redaction.
+Fixed non-empty values cover assignment and quoted JSON names independently
+of the field's actual value or type; no alias or case conversion is invented.
+*/
+export function isSecretFieldName(key: string): boolean {
+  const probe = `${key}=1 ${JSON.stringify(key)}:"1"`
+  return redactPatterns(probe) !== probe
+}
+
 // Every rule's literals, case ignored: text with none of them, which is most
 // of a conversation and most log lines, skips all the patterns in one linear
 // scan instead of one scan each (RV84 #9). Kept as a literal pattern; a rule

@@ -406,6 +406,16 @@
     "src/webview/schedules/DeferredReportActionEditor.tsx",
     "src/webview/schedules/ScheduleSurface.tsx",
     "test/e2e/reportsEntry.ts",
-    "test/harness/reporting/verify.mjs"
+    "test/harness/reporting/verify.mjs",
+    "src/runtime/judge/judgeEntry.ts",
+    "src/runtime/judge/judgeSourcesEntry.ts",
+    "src/runtime/judge/judgeLintEntry.ts",
+    "src/runtime/judge/judgeHookEntry.ts",
+    "src/runtime/judge/judgeLocalEntry.ts",
+    "src/runtime/judge/judgeUsesEntry.ts",
+    "src/runtime/judge/judgeServeEntry.ts",
+    "src/runtime/judge/judgeBundle.ts",
+    "src/host/validationSchemaEntry.ts",
+    "src/host/validationEntry.ts"
   ]
 }

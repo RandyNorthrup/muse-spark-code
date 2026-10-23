@@ -1571,69 +1571,76 @@ unchanged. Verify exact
 round-trip values, loading/retry/localization and client dispatch, drill these
 properties, and retain all existing caps. No new artifact or dependency.
 
-| Artifact                                 | Budget (minified, uncompressed)     |
-| ---------------------------------------- | ----------------------------------- |
-| `dist/resourceGovernor.js`               | ≤ 125 KiB                           |
-| `dist/resourceProcess.js`                | ≤ 50 KiB                            |
-| `dist/mcpVault.js`                       | ≤ 25 KiB                            |
-| `dist/resourceAdmission.js`              | ≤ 25 KiB                            |
-| Resource controls/history                | ≤ 25 KiB entries; ≤ 50 KiB closures |
-| `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB                            |
-| `dist/conversation.js`                   | ≤ 250 KiB                           |
-| `dist/conversationTransfer.js`           | ≤ 50 KiB                            |
-| `dist/tab.js`                            | ≤ 75 KiB                            |
-| `dist/extension.js`                      | ≤ 600 KiB                           |
-| `dist/modelApi.js`                       | ≤ 475 KiB                           |
-| `dist/modelApiBoundaries.js`             | ≤ 25 KiB                            |
-| `dist/team.js`                           | ≤ 75 KiB                            |
-| `dist/teamRunners.js`                    | ≤ 75 KiB                            |
-| `dist/teamScheduler.js`                  | ≤ 75 KiB                            |
-| `dist/review.js`                         | ≤ 50 KiB                            |
-| `dist/searchWorker.js`                   | ≤ 50 KiB                            |
-| `dist/pageWorker.js`                     | ≤ 300 KiB                           |
-| `dist/webview/main.js`                   | ≤ 900 KiB                           |
-| Webview original deferred surfaces       | ≤ 50 KiB                            |
-| Webview provider-usage import closure    | ≤ 25 KiB                            |
-| Webview paid usage import closure        | ≤ 25 KiB                            |
-| Webview highlighting import closure      | ≤ 125 KiB                           |
-| Webview action-dialog import closures    | ≤ 25 KiB                            |
-| Webview question UI import closure       | ≤ 25 KiB                            |
-| Webview Tasks import closure             | ≤ 25 KiB                            |
-| Webview team UI import closure           | ≤ 25 KiB                            |
-| `.vsix`                                  | ≤ 2775 KiB                          |
-| `dist/acp.js`                            | ≤ 850 KiB                           |
-| `dist/planMarkdown.js`                   | ≤ 150 KiB                           |
-| `dist/checkpointStore.js`                | ≤ 225 KiB                           |
-| `dist/uiText.js`                         | ≤ 125 KiB                           |
-| `dist/wire.js`                           | ≤ 75 KiB                            |
-| `dist/uiTextRuntime.js`                  | ≤ 25 KiB                            |
-| `dist/uiTextHooks.js`                    | ≤ 25 KiB                            |
-| `dist/uiTextSurfaces.js`                 | ≤ 25 KiB                            |
-| `dist/sessionBoard.js`                   | ≤ 75 KiB                            |
-| `dist/reviewer.js`                       | ≤ 75 KiB                            |
-| `dist/foreignHooks.js`                   | ≤ 100 KiB                           |
-| `dist/hookRuntime.js`                    | ≤ 50 KiB                            |
-| `dist/pluginHooks.js`                    | ≤ 50 KiB                            |
-| `dist/agentImport.js`                    | ≤ 125 KiB                           |
-| `dist/bundledSkills.js`                  | ≤ 50 KiB                            |
-| `dist/codeIntel.js`                      | ≤ 100 KiB                           |
-| `dist/voice.js`                          | ≤ 50 KiB                            |
-| `dist/museCodeReviewer.js`               | ≤ 75 KiB                            |
-| `dist/extensionHooks.js`                 | ≤ 75 KiB                            |
-| `dist/browserCheck.js`                   | ≤ 75 KiB                            |
-| `dist/browserRuntime.js`                 | ≤ 50 KiB                            |
-| `dist/whatsNew.js`                       | ≤ 50 KiB                            |
-| `dist/whatsNew.json`                     | ≤ 40 KiB                            |
-| `dist/webview/whatsNew.js`               | ≤ 25 KiB                            |
-| `dist/tab.js`                            | ≤ 75 KiB                            |
-| `dist/modelApiCodeIntel.js`              | ≤ 100 KiB                           |
-| `dist/mcpPool.js`                        | ≤ 75 KiB                            |
-| `dist/structuredSchema.js`               | ≤ 50 KiB                            |
-| `dist/exec.js`                           | ≤ 950 KiB                           |
-| Webview estimator import closure         | ≤ 25 KiB                            |
-| `dist/reference.js`                      | ≤ 125 KiB                           |
-| `dist/auth.js`                           | ≤ 75 KiB                            |
-| `dist/paid.js`                           | ≤ 75 KiB                            |
+| Artifact                                 | Budget (minified, uncompressed)                                                                                                                                                                                        |
+| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dist/resourceGovernor.js`               | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/resourceProcess.js`                | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/mcpVault.js`                       | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/resourceAdmission.js`              | ≤ 25 KiB                                                                                                                                                                                                               |
+| Resource controls/history                | ≤ 25 KiB entries; ≤ 50 KiB closures                                                                                                                                                                                    |
+| `docs/schemas/exec-event-v2.schema.json` | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/conversation.js`                   | ≤ 250 KiB                                                                                                                                                                                                              |
+| `dist/conversationTransfer.js`           | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/tab.js`                            | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/extension.js`                      | ≤ 600 KiB                                                                                                                                                                                                              |
+| `dist/modelApi.js`                       | ≤ 475 KiB                                                                                                                                                                                                              |
+| `dist/modelApiBoundaries.js`             | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/team.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/teamRunners.js`                    | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/teamScheduler.js`                  | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/review.js`                         | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/searchWorker.js`                   | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/pageWorker.js`                     | ≤ 300 KiB                                                                                                                                                                                                              |
+| `dist/webview/main.js`                   | ≤ 900 KiB                                                                                                                                                                                                              |
+| Webview original deferred surfaces       | ≤ 50 KiB                                                                                                                                                                                                               |
+| Webview provider-usage import closure    | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview paid usage import closure        | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview highlighting import closure      | ≤ 125 KiB                                                                                                                                                                                                              |
+| Webview action-dialog import closures    | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview question UI import closure       | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview Tasks import closure             | ≤ 25 KiB                                                                                                                                                                                                               |
+| Webview team UI import closure           | ≤ 25 KiB                                                                                                                                                                                                               |
+| `.vsix`                                  | ≤ 2775 KiB                                                                                                                                                                                                             |
+| `dist/acp.js`                            | ≤ 850 KiB                                                                                                                                                                                                              |
+| `dist/planMarkdown.js`                   | ≤ 150 KiB                                                                                                                                                                                                              |
+| `dist/checkpointStore.js`                | ≤ 225 KiB                                                                                                                                                                                                              |
+| `dist/uiText.js`                         | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/wire.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/uiTextRuntime.js`                  | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/uiTextHooks.js`                    | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/uiTextSurfaces.js`                 | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/sessionBoard.js`                   | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/reviewer.js`                       | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/foreignHooks.js`                   | ≤ 100 KiB                                                                                                                                                                                                              |
+| `dist/hookRuntime.js`                    | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/pluginHooks.js`                    | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/agentImport.js`                    | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/bundledSkills.js`                  | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/codeIntel.js`                      | ≤ 100 KiB                                                                                                                                                                                                              |
+| `dist/voice.js`                          | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/museCodeReviewer.js`               | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/extensionHooks.js`                 | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/browserCheck.js`                   | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/browserRuntime.js`                 | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/whatsNew.js`                       | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/whatsNew.json`                     | ≤ 40 KiB                                                                                                                                                                                                               |
+| `dist/webview/whatsNew.js`               | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/tab.js`                            | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/modelApiCodeIntel.js`              | ≤ 100 KiB                                                                                                                                                                                                              |
+| `dist/mcpPool.js`                        | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/structuredSchema.js`               | ≤ 50 KiB                                                                                                                                                                                                               |
+| `dist/exec.js`                           | ≤ 950 KiB                                                                                                                                                                                                              |
+| Webview estimator import closure         | ≤ 25 KiB                                                                                                                                                                                                               |
+| `dist/reference.js`                      | ≤ 125 KiB                                                                                                                                                                                                              |
+| `dist/auth.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/paid.js`                           | ≤ 75 KiB                                                                                                                                                                                                               |
+| `dist/judgeLint.js`                      | ≤ 50 KiB (unchanged phase-2 lint child).                                                                                                                                                                               |
+| `dist/judgeHook.js`                      | ≤ 100 KiB (unchanged phase-2 hook child).                                                                                                                                                                              |
+| `dist/judgeLocal.js`                     | ≤ 75 KiB (unchanged phase-2 local child).                                                                                                                                                                              |
+| `dist/judgeUses.js`                      | ≤ 25 KiB (unchanged phase-2 use child).                                                                                                                                                                                |
+| `dist/judgeServe.js`                     | ≤ 30 KiB (M98P2F serve child: authenticated serve factory and token file, out of the judge parent bundle; explicit serve action only. RLM98P2: merged judge schema measures 25.2 KiB, plus 15%, rounded up to 25 KiB). |
+| `dist/validationSchema.js`               | ≤ 50 KiB (unchanged lazy JSON Schema writer).                                                                                                                                                                          |
+| `dist/judgeP2.js`                        | ≤ 75 KiB (M98 phase-2 B/D/CS: offline calibration, injected sampling/contrastive and authenticated serve factory; explicit-action loading only; 61,039 bytes plus 15%, rounded up to 25 KiB)                           |
 
 **`dist/conversation.js` budget rationale.** (ACTDIET: first chat surface, 216.0 KiB plus 15%, rounded to 25 KiB)
 
@@ -1768,7 +1775,6 @@ vaultBoundaries scrubber. No existing cap or parser guard changes.
 **`dist/auth.js` budget rationale.** (CIFIX161B: the sign-in gate, AuthService and the three-valued credential read, loaded on the first credential, money or consent read; measured 64.8 KiB plus 15%, rounded up to 25 KiB)
 
 **`dist/paid.js` budget rationale.** (CIFIX161B: the paid gate, consent, usage and quote authority, loaded on the first paid consent, gate or usage read; measured 62.7 KiB plus 15%, rounded up to 25 KiB)
-
 **TRAIN13B (2026-10-05):** `dist/validation.js` shares only the used
 Node zod/mini runtime exports (40,416 bytes measured; new 50 KiB cap by
 the existing rule). Browser/integration parsers stay inline. All Node
@@ -13624,7 +13630,9 @@ test that fails without the rule:
    lane (test `handshakeRefusalIsThrottled`); G35 every launch confirmed by a
    liveness probe (process alive, log growing within 30 s) or reported as
    failed to start; G36 done means a clean tree, every brief step listed as
-   done, and a moved head, otherwise the lane is continued in place.
+   done, and a moved head, otherwise the lane is continued in place;
+   G130 result reducers preserve immutable raw events and
+   fold replay into a separate output, never back into retained inputs.
 2. **M96 (team and board):** G3 structural rendering of briefs (no text
    substitution; the rendered brief is checked and hashed before dispatch);
    G5 three job states (running, finished, unknown since a time); G7
@@ -13644,6 +13652,8 @@ test that fails without the rule:
    smoke call per engine per machine in the capability record, with a failed
    probe removing that engine from the machine until fixed. G37 fail-closed
    safety checks before deletes, with per-run caches in the run's workspace.
+   G130 applies to result consolidation; its regression folds the same raw
+   report twice and verifies unchanged input hashes and event counts.
 4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
    ledger-only cleanup with an identity re-check, never by name pattern; G12
    OS-service pressure and transport failure as signals; G13 spawn-rate and
@@ -13659,7 +13669,8 @@ test that fails without the rule:
    sandboxes. Also the M100 rules above for G49 to G52 on its SSH route
    (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
    `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`), plus
-   G34 smoke calls and G37 fail-closed teardown on its route.
+   G34 smoke calls and G37 fail-closed teardown on its route,
+   plus G130 immutable inputs during result consolidation.
 6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
    process-name matching; G22 every unattended delivery verified where it
    landed.
@@ -34449,6 +34460,8 @@ wiring) is now built at the core. Receipt: `docs/certification/m120.md`.
 
 **Status 2026-10-05: built.** Status evidence: `docs/certification/m98.md`.
 
+**Status 2026-10-22 (RLM98P2 lands phase 2 on main at 0.19.0 with the D121/D208 rework; the serve budget moves 25 to 30 KiB on its measured 25.2 KiB; evidence `docs/certification/m98-p2-landing.md`; M125 builds on it): built.**
+
 - **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
   from the user's own chat model first, with separate judges later. The Muse
   model, or a deterministic rule, still decides.
@@ -37142,6 +37155,204 @@ certification; acceptance 19 and final live certification stay open.
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
+**M98P2INT round-4 bounded integration (2026-10-05).** The explicit rig
+brief authorizes four ordered no-ff merges (J2fix, J3-linux, J3-macos, FUfix),
+lazy J/FU assembly and native packaging, owning unit/native files in batches
+of at most three, and the scoped gates named in the brief. No main merge,
+push, aggregate quality/full suite or local/live/paid model call is authorized.
+The local source remains opt-in; each use remains inactive without its own
+paired and borrowed-golden evidence. Existing bundle and VSIX caps remain
+unchanged; record the known package overage for the lead/VSIXDIET2. Full
+quality, coverage, installed-source and release receipts remain lead gates.
+
+**M98P2INT round-4 package-budget receipt (2026-10-05).** Four ordered
+J/FU merges and their lazy libraries pass the named bounded source/unit/native
+gates and every JavaScript/shared/CSS cap. The real universal VSIX is
+2,418,240 bytes, 165,440 over the unchanged 2,252,800-byte cap (36,219
+above the final round-3 archive); its real size gate exits 1 after packaging.
+Both actual archive inventories, all ten new missing-entry controls,
+extracted factories and signed universal Mac helpers pass. Production ACP is
+1,280,879 bytes. No cap is raised, package optimization is not widened into
+this lane, and the lead/VSIXDIET2 owns recovery. Source controls, platform
+limitations, the two discarded command overlaps and their serial green reruns,
+all final hashes/bytes and $0 / zero new inference attempts are recorded in
+`docs/certification/m98-p2int-round4.md` and its adjacent JSON receipts.
+
+**M98P2INT round-3 package-budget deferral (2026-10-05).** The required
+H/GH merges and their M91 ancestry fit all existing JavaScript bundle caps
+with H/GH in separate lazy children. The actual universal VSIX, using the
+exact signed universal helper from the prior 0.13.0 archive, exceeds the
+unchanged 2,252,800-byte cap. The first measurement is 2,379,314 bytes;
+a lossless level-9 ZIP experiment preserves every decompressed entry but
+still measures 2,367,882 bytes. The final default package is 2,382,021 bytes,
+129,221 over the unchanged cap. No member, translation or behavior is removed
+and no cap is raised. Stop package optimization at this hard boundary under
+the shared lane rule; the final exact bytes and inventories are recorded in
+`docs/certification/m98-p2int-round3.md`. This private integration is not
+release-certified; the lead owns the cumulative package reduction/decision,
+full quality, coverage, a11y and installed/live receipts. No supported H/GH
+installed CLI command or inference source is claimed by the factory wiring.
+
+**M98P2INT bounded integration gates (2026-10-05).** The explicit rig brief
+authorizes only the three named branch merges, local hook-on commits and
+direct macmini lane checks: every merged owning unit file (at most three per
+run), typecheck, lint/format, dead-code, duplication, localization, cycles,
+host inventory, production build and caps. No aggregate quality/full suite,
+push, main merge, rebase or model call is authorized. Full quality/coverage,
+hosted and installed-product certification remains with the lead after the
+remaining phase-2 lanes merge. New integration guards require named red
+controls, byte-exact restoration and whole-file green reruns.
+
+**M98P2INT host-inventory refresh (2026-10-05).** Regenerated by
+`node scripts/check-host-api.mjs --write`, closing the inherited FIXM98J,
+P0/B/D and CS snapshot deferrals on this integrated tree. Reviewed changes:
+paidHost 11 → 12 and its `WorkspaceConfiguration.get` row; Node buffer
+27 → 29, crypto 32 → 35 (including inherited J), fs 24 → 25,
+fs/promises 34 → 35, http 2 → 3 and path 65 → 66. The 271 VS Code API
+identifiers and 18 direct adapter files are unchanged. The historical lane
+failure receipts below remain intact; the exact-tree regenerated gate is
+required green here.
+
+**FIXM98B bounded-lane gate delegation (2026-10-05).** The rig brief and
+shared rules prohibit aggregate quality/full tests and reserve them for the
+lead. Run owning regression files (at most three per run), red drills,
+typecheck, scoped lint/format, dead-code, duplication, localization, host API
+and production build directly on win11, with hooks enabled. The brief
+authorizes only the P0 merge; do not merge main or the common release
+candidate. Full quality, coverage, a11y and installed/package certification
+remain lead gates on the integrated tree. Existing host-API snapshot
+deferrals remain visible; no gate or threshold is weakened.
+
+**FIXM98CS bounded repair delegation (2026-10-05).** The rig brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Run owning files directly on macmini, at most three per invocation, plus
+scoped lint/format, typechecks and the named lane gates; commit locally
+with hooks on. The lead retains aggregate quality and generated/shared
+document refreshes. No gate, threshold, ignore or timeout is weakened.
+
+- **Size.** Phase 1: M, in seven lanes. Phase 2: about XL across 2a–2j.
+  **FIXM98G2 merged-lane checks (2026-10-05).** The bounded repair brief
+  delegates full quality/coverage/installed-host certification to Z/lead.
+  Owning CLI/MCP regressions and red drills run on Mac mini; scoped lint,
+  format, five-project typecheck, dead-code, duplication, localization,
+  host API and production build remain required lane checks. The merge of
+  origin/main retains both branches' translated keys and paid startup rules.
+  The shared Node validation runtime deliberately excludes its large
+  JSON-schema converter: MCP carries the canonical generated request schema
+  in its existing file, with exact generated-schema parity enforced by the
+  owning test. Runtime request validation remains the original zod parser.
+  No budget, rule, boundary or dependency is weakened or added. Receipts:
+  `docs/certification/m98-g2.md`.
+
+**FIXM98G2 host-API snapshot deferral.** The merged source produces the
+already delegated judge additions: paidHost 11 → 12 configuration calls,
+that file added to WorkspaceConfiguration.get, node:crypto 36 → 37,
+node:stream 12 → 13 and node:util 4 → 5. The gate exits 1 until Z regenerates
+and reviews its owned `docs/ide-compatibility/host-api.md`. No new VS Code
+API is introduced by these repairs; this stale documentation gate is
+explicitly deferred, not claimed green. Follow-up: run
+`npm run check:host-api -- --write`, review these rows, rerun the check.
+
+**Closed by M98P2INT round 2 (2026-10-05).** The generated record now
+includes both G's delegated rows and B/CS/D's imports. Compared with G's
+snapshot: paidHost 11 → 12 and its WorkspaceConfiguration.get reader;
+Node buffer 30 → 32, crypto 36 → 39, fs 28 → 29, fs/promises 38 → 39,
+http 4 → 5, path 70 → 71, stream 12 → 13 and util 4 → 5. The merged
+release's 296 VS Code APIs, 24 adapters, 25 built-ins and 61 theme variables
+are unchanged by CLI factory wiring. Regeneration and the final check both
+exit 0; `docs/certification/m98-p2int-round2.md` holds the bounded receipts.
+The first duplication run caught copied display-language loading in the
+runtime entry; one local function shares the existing operation among its
+judge, exec/scanner and ACP callers, without changing its inputs or policy.
+
+**FIXM98GH bounded-lane gate delegation (2026-10-05).** The rig/shared
+brief forbids aggregate quality and edits outside GH. Owning whole-file
+regressions, 15 byte-exact red/restore drills, typechecks, scoped lint/format,
+localization, knip, duplication and dpdm pass; `docs/certification/m98p2-gh.md`
+holds the results. `check:host-api` still fails on the inherited generated
+snapshot mismatch (paid-host 11→12; crypto 37→38, stream 12→14, util 5→6).
+`npm run build` emits the bundles and passes every unchanged size cap, then
+fails on the inherited `src/runtime/judge/mcp.ts` use of `zod/mini.toJSONSchema`,
+which `src/shared/validationEntry.ts` does not export. These are the same
+failures recorded before the repair in `m98-gh.md` and RVM98GH, in G/Z-owned
+files. **GH-host-api-baseline** and **GH-validation-export-baseline** remain
+integration follow-ups: regenerate/review the snapshot, repair/review the
+shared schema export or G's schema assembly, then rerun the unchanged gates
+and full quality. No gate, threshold, ignore or cap is altered or claimed green.
+
+**FIXM98J2 bounded repair delegation (2026-10-05).** The rig brief
+authorizes hook-on local commits after owning tests and red/restored drills,
+scoped lint/format and typechecks. Run the common final scoped checks
+directly on win11, never full quality/full tests, merge, rebase or push.
+The lead retains integrated quality, packaging and installed-host gates;
+the stale host-API generated record remains Z's existing handoff.
+
+**FIXM98J2 native certification deferral.** The completed review repairs
+have four full red/restore/green receipts and 144 passing Windows unit
+tests. Qwen's three free CPU calls returned below the unchanged request
+deadline. The native PID opt-in test passed a real exit/near-PID fixture
+and fired its liveness mutation, but restored reruns failed the allocation
+precondition twice. Its strict bound remains and the path stops under the
+common retry rule: `WIN-PID-REPEATABILITY` in section 9 is an incomplete
+certification drill, not a waived native support gate. The opt-in test and
+positive/failed receipts remain for a reviewed repeatable fixture; no
+product/native guard or portable quality configuration is changed.
+
+**M98J3L Linux gate delegation and snapshot deferral (2026-10-05).** The
+rig brief requires direct, at-most-three-file tests, scoped lint/format,
+all typechecks, localization, dead-code, duplication, cycles, build and
+every existing cap, with hook-on local commits. It prohibits aggregate
+quality, merges/rebases and pushes. The existing J2 host-API snapshot is
+stale; Linux additionally introduces `node:readline` (25 built-ins total).
+The check ran and failed only the generated Node import rows: 271 VS Code
+APIs, 18 vscode importers and 59 theme variables are unchanged. Z retains
+the integrated `check:host-api -- --write` refresh and full quality/host
+certification. The gate is not weakened or claimed green.
+
+**M98-2j bounded spike delegation (2026-10-05).** The rig brief authorizes
+hook-on local commits after owning tests and deliberate failing drills,
+scoped lint/format and typecheck, with the final dead-code, duplication,
+localization, host API and production-build receipt. It prohibits a full
+quality or full test run here; the lead runs full quality on the integrated
+tree. No gate, threshold or ignore changes for this test-only spike.
+
+**M98-2j lane receipt.** The owning 47 tests, free probe, 17 failing/restored
+drills, all five typechecks, scoped ESLint/Prettier, plain knip, duplication,
+localization, host API and production build pass on win11. The host API
+snapshot is refreshed for the prototypes' Node imports (including
+`node:events`); it also resolves the pre-existing FIXM98J snapshot deferral
+below, recording paidHost's twelfth API call and judge's crypto import.
+This is a generated source record, not a new VS Code API or host policy.
+Full integrated quality/coverage/a11y and installed-host checks remain the
+lead's delegated gates. See `docs/certification/m98-2j-spike.md`.
+
+**FIXM98FU bounded-lane delegation (2026-10-05).** The rig/common brief
+prohibits aggregate quality/full-suite runs, merges, rebases and pushes.
+Hook-on repair commits use the whole owning test files with the rig's
+flags, byte-exact red drills, scoped lint/format and serial typechecks;
+the final receipt also runs dead-code, duplication, localization, host API
+and production build. Full quality/coverage/installed-host certification
+stays with Z/lead. The inherited FIXM98J host-API snapshot deferral below
+is neither widened nor claimed green. No gate or threshold is weakened.
+
+**M98P2PLAN documentation-only lane (2026-10-05).** The explicit rig brief
+limits changes to PLAN and the phase-2 planning receipt and requires only
+changed-file Prettier and whitespace checks, with hooks enabled. No source,
+dependency, runtime test or new gate changes, and no aggregate quality run,
+live/paid call, merge, rebase or push is authorized here. Full product
+certification remains with the future surface lanes and the lead above;
+this is a bounded planning receipt, not aggregate-green evidence. README
+and CHANGELOG delivery is assigned to Z because this lane ships no feature.
+
+**FIXM98CS inherited host-inventory deferral.** `npm run check:host-api`
+again exits 1 for the same existing generated-document mismatch recorded
+in the original CS receipt: paidHost configuration reads 11 → 12, its
+`WorkspaceConfiguration.get` importer, and Node importer totals buffer
+29, crypto 35, fs 25, fs/promises 35, http 3, path 66. This repair adds no
+Node/VS Code importer. Z owns `docs/ide-compatibility/host-api.md`; refresh
+it with `npm run check:host-api -- --write`, review and rerun on the
+integrated tree. No inventory gate is weakened or claimed green.
+
 **VAULTOPEN duplication deferral (2026-10-18, macmini).** `jscpd` is red on
 the untouched base: a scratch worktree at `f44f54120d` reports 37 clones
 (0.1%) over the 0.0% threshold, all in the stacked vault lanes' runtime and
@@ -37157,7 +37368,6 @@ the Windows lane (C-M109-1c) is active in those files, so their restructuring
 is deferred to the owning lanes; the gate configuration is unchanged, no
 ignore or threshold change. The lead reruns the unmodified gate on the
 integrated tree.
-
 **VAULTOPEN activation-budget note (2026-10-18, macmini).**
 `modelsActivationBudget` is red on the untouched base: growth 3086 bytes
 against the 3072 cap in a scratch worktree at `f44f54120d`. On this lane
@@ -37252,6 +37462,34 @@ removes it); the vault lane owns removing this row. Evidence:
 `docs/certification/m113-join.md` (Proof).
 
 **PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
+**M98P2Z source and host deferrals (2026-10-07).** The inherited clone and
+host-API record failures are closed structurally. Native M95 logprob and
+structured-output wrappers without committed captures remain deferred:
+E names the missing captures, and this brief authorizes zero live, paid or
+local inference. Empty/absent logprobs never become a capability. Concrete
+Models/ACP/headless source selection and first-charge binding remain
+unavailable until captured canonical codecs, the existing client/key store
+and D78 ledger are bound and fake and installed-host receipts pass. The
+lazy source assembly alone does not close that acceptance checkbox. No
+new transport, registry, credential store, ledger, ignore or gate weakening.
+A can integrate against the callable source factory and generation contract;
+I can use those contracts for its representation work but still needs named
+embedding captures and independent calibration labels. Receipt:
+`docs/certification/m98.md`.
+
+The universal ACP package also requires the compiled
+`native/darwin/muse-local-judge-peer` artifact. It is absent on this Linux
+rig; a test-owned inactive member only exercises private fake package trees
+and does not satisfy real packaging or installed macOS certification.
+
+**M98P2W bounded verification (2026-10-08).** The explicit two-hour rig brief delegates aggregate quality and live/installed-host measurement to the lead. This lane runs the specified scoped Judge/redact/golden/CLI/MCP inventory and unchanged static and production-build gates in a fresh npm-ci clone under CI=true. No gate, cap, rule or timeout is weakened. L98P2-EMBED is explicitly excluded from this fake-only lane.
+
+**FIXM98P2I6 bounded verification (2026-10-08).** The explicit rig/shared
+brief prohibits aggregate `npm run quality` in this lane and delegates it
+to the lead. Run the three owning suites and named static/build gates in
+a fresh clone instead; no gate, timeout, threshold or configuration changes.
+L98P2-EMBED's live family measurement and installed-editor certification
+remain lead-owned. Receipt: `docs/certification/m98.md`, lane I FIXM98P2I6.
 
 ## 8. Escape hatches register
 
@@ -37455,6 +37693,22 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 | ------------------------------------------------                                                                    | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                                                |
 | `src/runtime/exec/outputSchema.ts` (FIXM106O2)                                                                      | `unicorn/prefer-number-is-safe-integer`                          | JSON Schema integer means integral, including values outside the safe range; no safe-integer restriction is sent to the provider. RVM106O2 P2-4 tests and a restored red drill prove 2^53 works for integer types and enums. JSON transport precision limits are documented.                                                                                                                                                |
 | `src/host/settings.ts`, `readSetting` (REDM106H)                                                                    | Existing `as ExtensionSettings[K]` on fallback and parsed result | Every matching keyed schema validates the configured value and its default, including numeric-to-canonical money migration. TypeScript cannot correlate the generic indexed key with the schema output. Defaults and invalid money are tested.                                                                                                                                                                              |
+| Location                                                                                                            | Escape hatch                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                      | Date       |
+| --------------------------------------------                                                                        | --------------------------------------------                     | -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------                                                                                                                                                                                                                 | ---------- |
+| `src/runtime/judge/judgeEntry.ts:hasFactory`                                                                        | Same-build callable child factory predicates                     | Check the five shipped child factories before using their compiler-checked signatures; the established lazy loader rejects malformed modules and retries repaired files. No service/wire shape is inferred.                                                                                                                                                                                                                 | 2026-10-05 |
+
+| Location                                      | Escape hatch                         | Reason                                                                                                                                                                         | Date       |
+| --------------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------- |
+| `src/host/validationSchema.ts:isSchemaWriter` | Same-build callable export predicate | Node supplies an unknown module from the shipped sibling bundle; check the callable before using the compiler-checked conversion signature. No service/wire shape is inferred. | 2026-10-05 |
+
+Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
+
+| M98 phase-2 Z location              | Escape hatch                             | Reason                                                                                                                                                                                                                                             | Date       |
+| ----------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeBundle.ts`  | `value is JudgeBundle` (`isJudgeBundle`) | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it.                                                              | 2026-10-05 |
+| Location                            | Escape hatch                             | Reason                                                                                                                                                                                                                                             |
+| ----------------------------------- | -----------------------------------      | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/shared/l10n/text.ts` (ACTDIET) | `as UiText` on the descriptor clone      | Copies every own EN descriptor, retaining exactly its key/value shape without invoking regional getters. TypeScript cannot infer that shape from `Object.defineProperties`; built-bundle tests compare every key and value and locale replacement. |
 
 | File                                       | Construct                                             | Reason                                                                                                                                                                                                                                                           | Added      |
 | ------------------------------------------ | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -38681,6 +38935,64 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   full-quality receipts, as recorded in `docs/certification/m115-contracts.md`
   and `docs/certification/m115-0.md`. No new authority or shipping feature is
   enabled by this repair.
+
+- **FIXM98CS / RVM98CS (2026-10-05).** All three review findings are
+  repaired: macOS inherited/late ACL grants refuse startup, fatal/ordinary
+  exit cleanup is armed before the bearer is written, and close publishes
+  one promise before synchronous abort reentry. No reviewed P1/P2/P3 is
+  accepted as a residual. **CS-OS-INTEGRATION receipt gap:** this repair
+  adds installed macOS/Node receipts only; Linux's earlier UID/mode receipt
+  and synthetic Windows DACL controls are labelled in
+  `docs/certification/m98-cs.md`. Windows installed ACL and per-platform
+  integrated CLI/VS Code/source receipts remain with G/Z before release.
+  Safe for this bounded delivery because the boundary remains unwired and
+  unavailable as a supported command; follow up with the installed OS
+  matrix, generated host inventory, shared CHANGELOG and aggregate gates.
+- **G2-HOST-API-RECORD (FIXM98G2, 2026-10-05).** The generated host API
+  record is stale for the five already delegated judge rows listed in §7.
+  This is safe for the bounded repair review because the runtime parser,
+  API policy and gates stay unchanged; the check still fails visibly.
+  Z owns regenerating/reviewing the record and rerunning it on the final
+  integrated tree. No RVM98G2 P1/P2/P3 finding remains unresolved. Evidence:
+  `docs/certification/m98-g2.md`.
+  **Closed on this integration tree:** M98P2INT round 2 regenerated/reviewed
+  the record and the check exits 0. The original failure remains historical.
+
+- **GH-host-api-baseline / GH-validation-export-baseline (FIXM98GH).** The
+  inherited generated host record and shared `toJSONSchema` export failures
+  remain outside GH ownership (§7). Safe for a private, unwired repair lane
+  only; no installed-command or full-quality claim is made. G/Z must repair
+  the owned assembly/snapshot, review the generated diff, and run the unchanged
+  integration gates before shipping. Dispatcher/source/consent wiring and the
+  six inherited activation-fixture failures remain integration work already
+  recorded in `docs/certification/m98-gh.md`.
+  **Closed on round-3 integration:** the host record is regenerated by its
+  script and the shared Node validation module lazily exports canonical
+  `toJSONSchema` conversion; their gates pass. H/GH libraries are available
+  through the judge factory, with source/admission still injected. Installed
+  command/source certification and aggregate gates remain lead-owned. The
+  eight judge activation tests also pass on this resolved tree; the six
+  failures in GH's historical receipt do not reproduce.
+
+- **GH-Cursor-permission-abstention (FIXM98GH, RVM98GH P2).** Cursor's
+  `preToolUse`, `beforeShellExecution` and `beforeMCPExecution` require a
+  `permission` decision even on exit 0; empty output blocks, and `failClosed`
+  also blocks nonzero exits. No advisory-only abstention exists in the pinned
+  contract. These rows are unavailable before source initialization or paid
+  admission, so no safe judge result is emitted into the invalid-empty path.
+  Direct invocation of an unavailable row still reports failure and can veto
+  under a foreign `failClosed` configuration. `beforeReadFile` and
+  `beforeSubmitPrompt` likewise require a control decision and stay unavailable.
+  Safe for this unwired lane only: G/Z must not register these rows. Follow-up: settle a host-specific policy
+  with the owner and capture/prove native neutral delivery before enabling
+  them; never substitute an ALLOW grant for a missing answer. Cursor
+  observation rows preflight an empty JSON object against their own schema;
+  M91 applies `failClosed` only on the contract's blocking rows.
+
+  **Round-3 owner decision enforced:** all five named Cursor blocking rows
+  are permanently excluded from this registration list. Observation rows
+  remain available; the production-factory regression is proved red when
+  that exclusion is removed, then byte-exact restored and green.
 
 - **ENVFENCE-HELPREF (inherited integration follow-up).** This base has no
   `src/shared/featureCatalog.ts` or reference generator. The existing setting
@@ -40800,6 +41112,48 @@ collision tests do not certify these host-owned seams or the assembled team.
   before any automatic reclamation; use a fresh user-selected runner root
   after manually retiring a lost supervisor. This retains exclusion and
   never silently permits concurrent setup.
+- **FIXM98J2 / WIN-PID-REPEATABILITY (2026-10-05).** A real process exit
+  and new PID eight away passed the held-handle refusal; ignoring the native
+  exit signal made the intended assertion fail. Source restoration matched
+  SHA-256, but two restored runs reached only PID distances 44 and 28 against
+  the unchanged at-most-16 fixture precondition. This is an incomplete drill,
+  not repeatable platform certification; the bounded allocator path stops
+  under the common retry rule. No native generation/liveness guard changes
+  and no local source is product-wired. Follow-up: a reviewed repeatable
+  native fixture and complete red/green installed-source receipt.
+
+- **FIXM98J2 / CPU-TEV (2026-10-05).** The three returned free CPU calls
+  certify one-token qwen transport/provenance latency on win11, all below
+  the unchanged 60-second request deadline and all with reported GPU
+  residence zero. They do not certify `tev1:4b` CPU SystemOne latency or a
+  population percentile. Automatic qwen selection still requires calibration;
+  no CPU speed recommendation for tev is added. Follow-up: a separately
+  bounded/consented tev CPU receipt and installed-source latency under Z.
+
+- **FIXM98J2 / WIN-INSTALLED (RVM98J2, 2026-10-05).** The repaired
+  source and headless native receipts do not certify transport inside an
+  installed extension or complete runtime assembly. The product exposes no
+  local-judge runtime yet; an unregistered factory is not a support claim.
+  Z must register/package the native helper and vetted install/update anchors,
+  supply the complete model token counter and model wording, install language
+  state, run exact installed-host execution and borrowed request goldens,
+  refresh the host-API snapshot and close aggregate quality/package gates.
+- **FIXM98J2 / WIN-SSH (RVM98J2, 2026-10-05).** Authenticated self-SSH
+  forwarding remains uncaptured. Real same-user relay refusal and exact
+  per-socket tuple/executable/generation checks passed; no relay exception
+  or confidential/unverified bypass is added. Follow-up: an authenticated
+  loopback SSH fixture through the assembled installed source on win11.
+- **FIXM98J2 / COMMON-MODEL-LIFETIME (RVM98J2, 2026-10-05).** Retained
+  blob handles and snapshot revalidation prove the bytes checked before
+  dispatch, not immutable weights during inference. Arbitrary same-user
+  code injection is outside that proof. The narrow advisory claim stays;
+  no peer/hash TTL is permitted. A stronger claim needs a separately reviewed
+  immutable-file/runtime-lifetime design and real replacement drills.
+- **FIXM98J2 / POSIX-NATIVE (RVM98J2, 2026-10-05).** This Windows lane
+  neither implements nor certifies Linux/macOS native lifetime, volume,
+  installation and transport. Missing native evidence fails closed and
+  Windows receipts are not inherited. M98J3L/M98J3M own their platform files
+  and installed native receipts; Z incorporates those before support.
 
 - The `muse` CLI is closed source; we trust its stdio protocol as documented
   by Meta's SDK and validate every message shape at our boundary. Residual

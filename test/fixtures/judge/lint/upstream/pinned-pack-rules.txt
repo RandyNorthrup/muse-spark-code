@@ -1,0 +1,10 @@
+{
+  "rules": [
+    {
+      "id": "database-joins",
+      "description": "Fail when related database records are joined, matched, or merged in application code instead of in the query.",
+      "severity": "warning",
+      "kinds": ["function"]
+    }
+  ]
+}

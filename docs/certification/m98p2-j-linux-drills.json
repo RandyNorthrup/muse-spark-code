@@ -1,0 +1,260 @@
+[
+  {
+    "name": "pidfd-real-handle",
+    "file": "native/linux/MuseSparkLocalJudgePeer.c",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > binds exact UID, executable and start time while retaining a native fd"
+    ],
+    "sha256Restored": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "greenExit": 0
+  },
+  {
+    "name": "native-uid-binding",
+    "file": "native/linux/MuseSparkLocalJudgePeer.c",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > binds exact UID, executable and start time while retaining a native fd",
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > keeps a dead generation dead across a replacement process",
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > refuses absent processes, helper permissions and cancellation"
+    ],
+    "sha256Restored": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "greenExit": 0
+  },
+  {
+    "name": "native-start-time",
+    "file": "native/linux/MuseSparkLocalJudgePeer.c",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > binds exact UID, executable and start time while retaining a native fd"
+    ],
+    "sha256Restored": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "greenExit": 0
+  },
+  {
+    "name": "native-exit-evidence",
+    "file": "native/linux/MuseSparkLocalJudgePeer.c",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > keeps a dead generation dead across a replacement process"
+    ],
+    "sha256Restored": "1b43547907b98a7cd13be5d38460a92da05db0a14b86bf07610ba2ee2d88ca50",
+    "greenExit": 0
+  },
+  {
+    "name": "native-cancellation",
+    "file": "src/core/judge/local/linuxPeer.ts",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > refuses absent processes, helper permissions and cancellation"
+    ],
+    "sha256Restored": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "greenExit": 0
+  },
+  {
+    "name": "native-frame-schema",
+    "file": "src/core/judge/local/linuxPeer.ts",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > validates native extra evidence before accepting a lease",
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > validates native start evidence before accepting a lease"
+    ],
+    "sha256Restored": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "greenExit": 0
+  },
+  {
+    "name": "native-frame-pid",
+    "file": "src/core/judge/local/linuxPeer.ts",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > validates native pid evidence before accepting a lease"
+    ],
+    "sha256Restored": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "greenExit": 0
+  },
+  {
+    "name": "native-frame-uid",
+    "file": "src/core/judge/local/linuxPeer.ts",
+    "testFile": "test/unit/judgeLocalLinuxNative.test.ts",
+    "sha256Before": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxNative.test.ts > M98 Linux real pidfd lease > validates native uid evidence before accepting a lease"
+    ],
+    "sha256Restored": "e4670277312040315af992e34109a8cd7d2f8b4024c6ba9b56264f540a67bb1e",
+    "greenExit": 0
+  },
+  {
+    "name": "network-fuse-overlay-allowlist",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested nfs mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested nfs4 mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested cifs mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested 9p mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested fuse mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested fuse.sshfs mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested fuseblk mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested overlay mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested tmpfs mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses a nested unknown mount even with local parent and magic",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > decodes escaped mountpoints and respects component boundaries"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "statfs-magic",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses magic mount evidence"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "block-device-source",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > refuses source mount evidence"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "mount-component-boundary",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > decodes escaped mountpoints and respects component boundaries"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "mount-escapes",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux mountinfo/statfs proof > decodes escaped mountpoints and respects component boundaries"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "anchor-ownership",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux installation anchors > refuses foreign install/root evidence",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux installation anchors > requires the model store owner to be the exact server UID"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "anchor-permissions",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux installation anchors > refuses writable install/root evidence",
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux installation anchors > refuses ancestor install/root evidence"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "canonical-anchors",
+    "file": "src/core/judge/local/linuxVolume.ts",
+    "testFile": "test/unit/judgeLocalLinuxVolume.test.ts",
+    "sha256Before": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalLinuxVolume.test.ts > M98 Linux installation anchors > refuses redirect install/root evidence"
+    ],
+    "sha256Restored": "fa4720aeaa4247b02cc4a7bf88148124e1895481006a592b19c965599d177354",
+    "greenExit": 0
+  },
+  {
+    "name": "model-file-anchors",
+    "file": "src/core/judge/local/model.ts",
+    "testFile": "test/unit/judgeLocalModel.test.ts",
+    "sha256Before": "73cd39a036e780dae4913a05dda581581e427fefd9e9711072aef8a9d40c09cb",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses writable Linux manifest model material before hashing",
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses writable Linux blob model material before hashing",
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses writable Linux ancestor model material before hashing"
+    ],
+    "sha256Restored": "73cd39a036e780dae4913a05dda581581e427fefd9e9711072aef8a9d40c09cb",
+    "greenExit": 0
+  },
+  {
+    "name": "model-mount-snapshot",
+    "file": "src/core/judge/local/model.ts",
+    "testFile": "test/unit/judgeLocalModel.test.ts",
+    "sha256Before": "73cd39a036e780dae4913a05dda581581e427fefd9e9711072aef8a9d40c09cb",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalModel.test.ts > M98-2j captured model provenance > refuses a nonlocal Linux snapshot scope through the disk verifier"
+    ],
+    "sha256Restored": "73cd39a036e780dae4913a05dda581581e427fefd9e9711072aef8a9d40c09cb",
+    "greenExit": 0
+  },
+  {
+    "name": "nondumpable-visibility",
+    "file": "src/core/judge/local/posixPeer.ts",
+    "testFile": "test/unit/judgeLocalPosix.test.ts",
+    "sha256Before": "be39485edfc2b3ab4756dc3a55e8734fb0db80b4996439ba3e40fa114351af6a",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalPosix.test.ts > M98 J2 Linux namespace and ownership evidence > refuses nondumpable without trusting visibility"
+    ],
+    "sha256Restored": "be39485edfc2b3ab4756dc3a55e8734fb0db80b4996439ba3e40fa114351af6a",
+    "greenExit": 0
+  },
+  {
+    "name": "uncalibrated-auto",
+    "file": "src/core/judge/local/source.ts",
+    "testFile": "test/unit/judgeLocalSource.test.ts",
+    "sha256Before": "30730a7bd6dc4c904cd27cb754d299f70c3319cd1d6fb375e06c75da883067ca",
+    "redExit": 1,
+    "namedFailures": [
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > keeps uncalibrated qwen3:4b-instruct-2507-q4_K_M out of automatic selection",
+      "test/unit/judgeLocalSource.test.ts > M98 J2 source policy and exact content sockets > keeps uncalibrated tev1:0.8b out of automatic selection"
+    ],
+    "sha256Restored": "30730a7bd6dc4c904cd27cb754d299f70c3319cd1d6fb375e06c75da883067ca",
+    "greenExit": 0
+  }
+]

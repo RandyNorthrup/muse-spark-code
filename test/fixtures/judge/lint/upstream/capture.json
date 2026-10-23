@@ -1,0 +1,29 @@
+{
+  "repository": "https://github.com/codegirl-007/jevlint",
+  "revision": "73a7a94ab08a4e314709d68c2863687a4646f29b",
+  "license": "MIT, copyright 2026 codegirl-007; LICENSE retained beside these fixtures",
+  "normalization": "Only CRLF to LF; upstream JSON bytes otherwise retained in .txt fixtures",
+  "modelAttempts": 0,
+  "files": [
+    {
+      "fixture": "pinned-jevlint.txt",
+      "upstreamPath": "jevlint.json",
+      "sha256": "2fc045e6ef6a96dbd27c1261d98a54313a58e31ec19d6e18af7f78124d21e924"
+    },
+    {
+      "fixture": "pinned-jevlint-evals.txt",
+      "upstreamPath": "jevlint-evals.json",
+      "sha256": "57ffea0a2f71a7c6b9102e62bc325a842e332bbca7338a1d13ac5f31c06851ee"
+    },
+    {
+      "fixture": "pinned-pack.txt",
+      "upstreamPath": "examples/packs/database-joins/pack.json",
+      "sha256": "28132d2730bc985f20c6e7f5d6527f996bb0c8f301a8b07aebca4bf5527800e4"
+    },
+    {
+      "fixture": "pinned-pack-rules.txt",
+      "upstreamPath": "examples/packs/database-joins/rules.json",
+      "sha256": "77ef6abafe00bb2816f2cb4b5c55447751564b8b9c4a121a9bd251bf1f2004d5"
+    }
+  ]
+}

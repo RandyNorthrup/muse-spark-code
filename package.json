@@ -1287,6 +1287,32 @@
           "description": "%config.museCodeAutoReviewer.description%",
           "scope": "machine"
         },
+        "museSpark.judge.engine": {
+          "type": "string",
+          "enum": [
+            "auto",
+            "same",
+            "separate",
+            "both",
+            "off"
+          ],
+          "enumDescriptions": [
+            "%config.judge.engine.enumDescriptions.auto%",
+            "%config.judge.engine.enumDescriptions.same%",
+            "%config.judge.engine.enumDescriptions.separate%",
+            "%config.judge.engine.enumDescriptions.both%",
+            "%config.judge.engine.enumDescriptions.off%"
+          ],
+          "default": "auto",
+          "description": "%config.judge.engine.description%",
+          "scope": "machine"
+        },
+        "museSpark.judge.separate": {
+          "type": "string",
+          "default": "",
+          "description": "%config.judge.separate.description%",
+          "scope": "machine"
+        },
         "museSpark.browserCheckExtraHosts": {
           "type": "array",
           "default": [],
@@ -1417,22 +1443,6 @@
           ],
           "default": "yield",
           "description": "%config.tabWithCopilot.description%",
-          "scope": "machine"
-        },
-        "museSpark.judge.engine": {
-          "type": "string",
-          "enum": [
-            "auto",
-            "same",
-            "off"
-          ],
-          "enumDescriptions": [
-            "%config.judge.engine.enumDescriptions.auto%",
-            "%config.judge.engine.enumDescriptions.same%",
-            "%config.judge.engine.enumDescriptions.off%"
-          ],
-          "default": "auto",
-          "description": "%config.judge.engine.description%",
           "scope": "machine"
         },
         "museSpark.shell.passEnvironmentVariables": {
