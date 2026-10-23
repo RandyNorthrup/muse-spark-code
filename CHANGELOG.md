@@ -7,6 +7,15 @@ happened, not what was planned; superseded entries are kept.
 
 ## [Unreleased]
 
+- Fast judge setup in the editor: the **Muse: Set Up Local Judge**
+  command opens a wizard (scan, recommendation with Advanced model
+  and CPU-only picks, licence, install with byte progress, done with
+  timing classes, accuracy checks and the smoke count), one panel per
+  window with a status entry until setup or deferral, and the Models
+  & Agents Judge section manages the install (open, change, remove
+  behind a native question). The first run is a walkthrough step.
+  The driver's flows load on first open, never at activation.
+
 - Fast judge usage rows: Account & usage and the Models & Agents Judge
   section show the window's fast-decision rolls — turns, applied turns,
   judge calls and tokens, and each evaluated decision's state — with a

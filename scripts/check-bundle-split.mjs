@@ -623,6 +623,28 @@ if (!planReader.has(PLAN_READER.module)) {
   problems.push(`${PLAN_READER.output} no longer carries ${PLAN_READER.module}`)
 }
 
+// M125's Set Up Local Judge wizard driver (D107 lane W): the host
+// requires it on the first wizard open. The activation bundle carries
+// neither its entry nor the setup flows; the driver's bundle carries
+// the controller.
+const JUDGE_SETUP_DRIVER = {
+  output: 'dist/judgeSetupDriver.js',
+  metafile: 'dist/meta/judgeSetupDriver.json',
+  entry: 'src/host/judgeSetup/judgeSetupDriver.ts',
+  module: 'src/core/judge/setup/controller.ts',
+}
+const judgeSetupDriver = inputsOf(JUDGE_SETUP_DRIVER)
+for (const file of [JUDGE_SETUP_DRIVER.entry, JUDGE_SETUP_DRIVER.module]) {
+  if (activation.has(file)) {
+    problems.push(
+      `${BUNDLES.activation.output} carries ${file}, which loads only on the first wizard open`,
+    )
+  }
+}
+if (!judgeSetupDriver.has(JUDGE_SETUP_DRIVER.module)) {
+  problems.push(`${JUDGE_SETUP_DRIVER.output} no longer carries ${JUDGE_SETUP_DRIVER.module}`)
+}
+
 const PAGE_WORKER = { output: 'dist/pageWorker.js', metafile: 'dist/meta/pageWorker.json' }
 // What loads only on the page converter's worker, by path prefix.
 const CONVERTER_ONLY = [
@@ -1916,6 +1938,7 @@ for (const [page, entry] of [
   ['modelsWebview', 'dist/webview/models.js'],
   ['usageWebview', 'dist/webview/usage.js'],
   ['whatsNewPage', 'dist/webview/whatsNew.js'],
+  ['judgeSetupWebview', 'dist/webview/judgeSetup.js'],
 ]) {
   const meta = JSON.parse(readFileSync(`dist/meta/${page}.json`, 'utf8'))
   const reachable = new Set()
@@ -1991,6 +2014,7 @@ const nodeMetafiles = readdirSync('dist/meta')
         'resourceHistory.json',
         'reportingPageWebview.json',
         'reportingDestinationsWebview.json',
+        'judgeSetupWebview.json',
       ].includes(name),
   )
   .map((name) => `dist/meta/${name}`)

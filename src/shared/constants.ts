@@ -285,6 +285,14 @@ export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
 
+// D107 (M125 lane W): the Set Up Local Judge wizard. The panel host
+// stays at activation beside the light setup readers; the driver's
+// controller, ports and flows load from their bundle on first open.
+export const JUDGE_SETUP_PANEL_VIEW_TYPE = 'museSpark.judgeSetupPanel'
+export const JUDGE_SETUP_DRIVER_BUNDLE_FILE = 'judgeSetupDriver.js'
+export const JUDGE_SETUP_WEBVIEW_SCRIPT_FILE = 'judgeSetup.js'
+export const JUDGE_SETUP_WEBVIEW_STYLE_FILE = 'judgeSetup.css'
+
 // MODELSPLIT4: first-ever section estimates; later loads use measured boxes.
 export const MODELS_SECTION_PENDING_MS = 150
 export const MODELS_SECTION_HEADER_PX = 96
@@ -409,6 +417,8 @@ export const GLOBAL_STATE_KEYS = {
   Settings Sync, so a page seen on one machine is not shown on another.
   */
   whatsNewLastSeenVersion: 'museSpark.whatsNewLastSeenVersion',
+  /** Set Up Later (or Skip, or Hosted) in the local-judge wizard (M125 lane W): the status item stays hidden. */
+  judgeSetupDeferred: 'museSpark.judgeSetupDeferred',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -4985,9 +4995,7 @@ export const JUDGE_FAST_LATENCY_WINDOW = 50
 // A suspended or skipped local engine requalifies only after this many
 // consecutive in-budget background probes, then its window restarts.
 export const JUDGE_FAST_REQUALIFY_PROBES = 3
-// Lane-0 choice: the minimum delay between background reprobe attempts,
-// so a suspended engine is rechecked without steady load.
-export const JUDGE_FAST_REPROBE_MS = 60_000
+
 // D107 §6.1 (lane M): relevance-ranked replay entries the judge keeps
 // past the compaction tail, most relevant first. A small bound: the
 // tail already keeps the recent turns, and the summary covers the rest.
@@ -4998,23 +5006,13 @@ export const JUDGE_FAST_METHOD_DETERMINISTIC = 'deterministic'
 // D107 §4.1 (lane P): the logprob answers the judge's engines read are
 // top-5; a record affirming fewer never admits the logprob wire.
 export const JUDGE_LOGPROB_TOP_K = 5
-// Lane-0 choice: hosted latency samples older than this stop counting,
-// and the engine requalifies by sample expiry with a consented warm-up.
-export const JUDGE_FAST_SAMPLE_TTL_MS = 3_600_000
-// Lane-0 choice: the bound on the consented synthetic preload that
-// recovers an unloaded model; it cancels cleanly at any point.
-export const JUDGE_FAST_PRELOAD_MS = 120_000
-// Unsafe approves tolerated before a veto engine is refused: none
-// (JEVBENCH2: local veto waits for ~0 unsafe-approves).
-export const JUDGE_FAST_HARM_MAX = 0
+
 // D107 §11 (lane V): harm share tolerated before a fast decision stops
 // shipping: harm events (a refetch, a recall, a retry, a false stop)
 // against decisions applied, paired on-minus-off. Veto harm above stays
 // zero; this bar is for the reflex decisions' own harm.
 export const JUDGE_FAST_DECISION_HARM_MAX = 0.02
-// D107 §7.1 (lane V): recall at the destructive precision above, on the
-// labelled set, before the destructive check answers.
-export const JUDGE_FAST_MIN_RECALL = 0.95
+
 // Lane-J choice: one I/O budget for every blobhold protocol step (ready
 // handshake, ping round-trip, stop drain). Holder startup is open+fdsync,
 // sub-second; 10 s tolerates a loaded runner without hiding a wedged hold.
@@ -5034,11 +5032,8 @@ export const JUDGE_FAST_CHECK_EVIDENCE_MAX_CHARS = 4000
 // A model-backed family is used only with a profile fitted on at least
 // this many independent labels for that engine identity (D107).
 export const JUDGE_FAST_ACCURACY_MIN_LABELS = 400
-export const JUDGE_FAST_APPROVAL_MIN_LABELS = 400
-// D107: the setup scan's micro-benchmark runs within 5 s, inside a 5 s
-// total scan benchmark budget.
+// D107: the setup scan's micro-benchmark runs within 5 s.
 export const JUDGE_SCAN_BENCH_MS = 5000
-export const JUDGE_BENCH_BUDGET_MS = 5000
 // Lane-0 choice: RAM kept free past the loaded model before a local
 // judge size is recommended.
 export const JUDGE_MEMORY_HEADROOM_GIB = 2
@@ -5051,9 +5046,6 @@ export const OLLAMA_DEFAULT_PORT = 11_434
 // dump while bounding a runaway tool.
 export const JUDGE_PROBE_TIMEOUT_MS = 10_000
 export const JUDGE_PROBE_MAX_OUTPUT_BYTES = 262_144
-// Lane-0 choice: a setup-smoke question slower than the veto window
-// fails the smoke; the smoke is health and latency, never calibration.
-export const JUDGE_STATE_LATENCY_MAX_MS = 5000
 // Lane-0 choice: the ten-question setup smoke needs this many correct.
 export const JUDGE_SETUP_SMOKE_MIN_CORRECT = 8
 // Lane-W choice: the context window setup records for the local judge

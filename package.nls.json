@@ -198,6 +198,8 @@
   "config.suggestedProvider.description": "A workspace may suggest one model-provider preset by id; the panel offers to open Models & Agents with that preset chosen. Empty suggests nothing. A workspace cannot set an address or a credential.",
   "walkthrough.gettingStarted.step.ownModel.title": "Start With Your Own Model",
   "walkthrough.gettingStarted.step.ownModel.description": "No Muse subscription or Meta API key? Add your own model provider — OpenRouter, Anthropic, OpenAI or a local server — and pick a model.\n[Start with your own model](command:museSpark.startWithOwnModel)",
+  "walkthrough.gettingStarted.step.judgeSetup.title": "Set Up a Local Judge",
+  "walkthrough.gettingStarted.step.judgeSetup.description": "A private judge on this machine: scan the hardware, pick a model and install it. The scan writes nothing and calls nothing.\n[Set Up Local Judge](command:museSpark.setUpLocalJudge)",
   "config.modelApiAutoCompaction.description": "On by default. Compacts long Model API conversations at a settled tool boundary; each summary is a paid model call. The paid-use consent notice names the price and daily budget before the first charge. The ACP agent asks once through the editor permission request and stays off where the client cannot ask; headless exec runs it only with --auto-compaction under --max-budget-usd.",
   "config.modelApiStrictTools.description": "Use strict tool schemas where the selected model supports them. Disable to keep the previous tool declarations.",
   "config.modelApiParallelReads.description": "Run safe read-only tool calls concurrently, up to four at a time. Other tool calls run in order.",

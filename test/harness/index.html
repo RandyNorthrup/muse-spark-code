@@ -15,8 +15,11 @@
     <script>
       // `?bundle=models` loads the Models & Agents panel's own bundle
       // (M95) instead of the chat's, with its own stylesheet.
+      // `?bundle=judgeSetup` loads the setup wizard's (M125 lane W).
       const requestedBundle = new URLSearchParams(location.search).get('bundle')
-      const harnessBundle = ['models', 'usage'].includes(requestedBundle) ? requestedBundle : 'main'
+      const harnessBundle = ['models', 'usage', 'judgeSetup'].includes(requestedBundle)
+        ? requestedBundle
+        : 'main'
       if (harnessBundle === 'usage') document.write('<script src="/usage-harness.js"><\/script>')
       if (harnessBundle === 'models') {
         document.documentElement.classList.add('models-harness')
@@ -766,6 +769,13 @@
               modelsAnswer(message)
               break
             }
+            case 'judgeSetup/ready':
+            case 'judgeSetup/command':
+            case 'judgeSetup/openExternal': {
+              // Answered by the wizard's fake host (M125 lane W).
+              judgeSetupAnswer(message)
+              break
+            }
             case 'requestLegalFix': {
               const paths = [
                 ...new Set(
@@ -1372,7 +1382,7 @@
               break
             }
           }
-          if (['ready', 'modelsPanel/ready', 'tasksReady'].includes(message.type)) {
+          if (['ready', 'modelsPanel/ready', 'tasksReady', 'judgeSetup/ready'].includes(message.type)) {
             hasWebviewReady = true
             window.dispatchEvent(new Event('webviewReady'))
           }
@@ -2193,6 +2203,86 @@
           type: 'modelsPanel/state',
           state: { ...modelsStateFor(scenarioName), ...patch, models: modelsLive },
         })
+      }
+      // --- M125 lane W: the setup wizard's fake host. `?bundle=judgeSetup`
+      // loads the wizard's own bundle; its `judgeSetup/ready` is answered
+      // with the scenario's snapshot, and commands advance the script.
+      const judgeSetupScript = {
+        'judge-setup-scan': [
+          {
+            step: 'scan',
+            running: false,
+            summary: [
+              'macOS arm64, 16 GB RAM',
+              'GPU: Apple M2 (Metal)',
+              'CPU: arm64 with NEON',
+              'Free install disk: 42 GB',
+              'Ollama 0.6.2 with qwen3:8b',
+              'CPU probe: 1.4 GB/s',
+            ],
+          },
+        ],
+        'judge-setup-recommend': [
+          {
+            step: 'recommendation',
+            fitting: ['qwen3:8b', 'qwen3:4b'],
+            model: 'qwen3:8b',
+            backend: 'metal',
+            downloadBytes: 5200000000,
+            cpuOnly: false,
+            hosted: false,
+            reasons: ['Fastest verified p95 on this machine', 'Fits in 16 GB RAM'],
+            p95Ms: 1840,
+            classes: ['I', 'S'],
+          },
+        ],
+        'judge-setup-install': [
+          {
+            step: 'install',
+            model: 'qwen3:8b',
+            phase: 'fetch',
+            doneBytes: 2100000000,
+            totalBytes: 5200000000,
+          },
+        ],
+        'judge-setup-done': [
+          {
+            step: 'done',
+            model: 'qwen3:8b',
+            backend: 'metal',
+            classes: [
+              { timingClass: 'I', on: true, reason: 'I answers within its deadline (p95 1,840 ms).' },
+              { timingClass: 'S', on: true, reason: 'S answers within its deadline (p95 1,840 ms).' },
+              {
+                timingClass: 'B',
+                on: false,
+                reason: 'B misses its deadline (p95 1,840 ms); those decisions run as today.',
+              },
+              {
+                timingClass: 'P',
+                on: false,
+                reason: 'P misses its deadline (p95 1,840 ms); those decisions run as today.',
+              },
+            ],
+            checks: [
+              { family: 'loop.stuck', on: true, reason: 'Calibrated.' },
+              { family: 'triage.needFull', on: true, reason: 'Calibrated.' },
+              { family: 'effort.lower', on: false, reason: 'Not calibrated yet.' },
+            ],
+            smokeCorrect: 11,
+            smokeTotal: 12,
+          },
+        ],
+      }
+      const judgeSetupAnswer = (message) => {
+        if (message.type === 'judgeSetup/ready') {
+          const key =
+            scenarioName === 'judge-setup-recommend-advanced'
+              ? 'judge-setup-recommend'
+              : scenarioName
+          const frames = judgeSetupScript[key] ?? []
+          for (const snapshot of frames) send({ type: 'judgeSetup/snapshot', snapshot })
+        }
       }
       const modelsAnswer = (message) => {
         switch (message.type) {
@@ -6326,6 +6416,17 @@
           document.body.style.maxWidth = '300px'
           whenFound('.models-nav', () => clickText('Models'))
         },
+        // --- M125 lane W: the setup wizard (`?bundle=judgeSetup`), one
+        // scenario per step. The fake host answers ready with each
+        // scenario's snapshot; the steps below only open Advanced where
+        // the picture wants it.
+        'judge-setup-scan': () => {},
+        'judge-setup-recommend': () => {},
+        'judge-setup-recommend-advanced': () => {
+          whenFound('.js-advanced summary', (control) => control.click())
+        },
+        'judge-setup-install': () => {},
+        'judge-setup-done': () => {},
         'readme-open-question': () => {
           transcriptFixture()
           questionScene('open')
@@ -6439,7 +6540,9 @@
         const surface =
           harnessBundle === 'models'
             ? '.models-panel section'
-            : '.composer textarea, .todo-surface, .schedule-v2-surface'
+            : harnessBundle === 'judgeSetup'
+              ? '.js-panel'
+              : '.composer textarea, .todo-surface, .schedule-v2-surface'
         whenFound(surface, () => steps[scenario]())
       }
       let hasPageLoaded = false

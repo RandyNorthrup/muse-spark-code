@@ -358,6 +358,8 @@ const JUDGE_SERVE_ENTRY = 'src/runtime/judge/judgeServeEntry.ts'
 const JUDGE_SERVE_OUTFILE = 'dist/judgeServe.js'
 const JUDGE_SETUP_ENTRY = 'src/runtime/judge/judgeSetupEntry.ts'
 const JUDGE_SETUP_OUTFILE = 'dist/judgeSetup.js'
+const JUDGE_SETUP_DRIVER_ENTRY = 'src/host/judgeSetup/judgeSetupDriver.ts'
+const JUDGE_SETUP_DRIVER_OUTFILE = 'dist/judgeSetupDriver.js'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
@@ -1006,6 +1008,11 @@ const judgeSetupOptions = {
   entryPoints: [JUDGE_SETUP_ENTRY],
   outfile: JUDGE_SETUP_OUTFILE,
 }
+const judgeSetupDriverOptions = {
+  ...judgeP2Options,
+  entryPoints: [JUDGE_SETUP_DRIVER_ENTRY],
+  outfile: JUDGE_SETUP_DRIVER_OUTFILE,
+}
 
 const judgeOptions = {
   ...planMarkdownOptions,
@@ -1626,6 +1633,7 @@ const webviewOptions = {
     resourceHistory: 'src/webview/usage/ResourcesSection.tsx',
     models: MODELS_WEBVIEW_ENTRY,
     usage: USAGE_WEBVIEW_ENTRY,
+    judgeSetup: 'src/webview/judgeSetup/main.tsx',
     referencePage: 'src/webview/components/ReferencePage.tsx',
     [WHATS_NEW_PAGE_NAME]: WHATS_NEW_PAGE_ENTRY,
     reportingPage: 'src/webview/reporting/main.tsx',
@@ -1679,6 +1687,7 @@ function writeWebviewMetafiles(metafile, buildRecord) {
     modelsWebview: 'dist/webview/models.js',
     whatsNewPage: 'dist/webview/whatsNew.js',
     usageWebview: 'dist/webview/usage.js',
+    judgeSetupWebview: 'dist/webview/judgeSetup.js',
     referencePage: 'dist/webview/referencePage.js',
     resourceSurface: 'dist/webview/resourceSurface.js',
     resourceHistory: 'dist/webview/resourceHistory.js',
@@ -1883,6 +1892,7 @@ if (isWatch) {
     esbuild.context(judgeUsesOptions),
     esbuild.context(judgeServeOptions),
     esbuild.context(judgeSetupOptions),
+    esbuild.context(judgeSetupDriverOptions),
     esbuild.context(validationSchemaOptions),
     esbuild.context(uiTextOptions),
     ...uiTextRegionOptions.map((options) => esbuild.context(options)),
@@ -2043,6 +2053,7 @@ if (isWatch) {
     judgeUses: recorded('judgeUses', judgeUsesOptions),
     judgeServe: recorded('judgeServe', judgeServeOptions),
     judgeSetup: recorded('judgeSetup', judgeSetupOptions),
+    judgeSetupDriver: recorded('judgeSetupDriver', judgeSetupDriverOptions),
     validationSchema: recorded('validationSchema', validationSchemaOptions),
     scheduleBackground: recorded('scheduleBackground', scheduleBackgroundOptions),
     uiText: recorded('uiText', uiTextOptions),
