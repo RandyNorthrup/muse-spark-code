@@ -499,31 +499,31 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:async_hooks`       | 5     |
 | `node:buffer`            | 73    |
-| `node:child_process`     | 31    |
-| `node:crypto`            | 216   |
+| `node:child_process`     | 35    |
+| `node:crypto`            | 230   |
 | `node:dgram`             | 1     |
 | `node:dns`               | 1     |
-| `node:dns/promises`      | 6     |
-| `node:events`            | 4     |
-| `node:fs`                | 135   |
-| `node:fs/promises`       | 144   |
-| `node:http`              | 17    |
-| `node:https`             | 3     |
-| `node:module`            | 4     |
-| `node:net`               | 26    |
-| `node:os`                | 46    |
-| `node:path`              | 265   |
+| `node:dns/promises`      | 7     |
+| `node:events`            | 5     |
+| `node:fs`                | 139   |
+| `node:fs/promises`       | 152   |
+| `node:http`              | 20    |
+| `node:https`             | 4     |
+| `node:module`            | 5     |
+| `node:net`               | 28    |
+| `node:os`                | 47    |
+| `node:path`              | 274   |
 | `node:perf_hooks`        | 4     |
-| `node:process`           | 28    |
+| `node:process`           | 29    |
 | `node:readline`          | 1     |
 | `node:readline/promises` | 3     |
-| `node:stream`            | 27    |
+| `node:stream`            | 29    |
 | `node:stream/promises`   | 3     |
-| `node:string_decoder`    | 3     |
+| `node:string_decoder`    | 4     |
 | `node:timers/promises`   | 37    |
 | `node:tls`               | 1     |
 | `node:url`               | 9     |
-| `node:util`              | 11    |
+| `node:util`              | 15    |
 | `node:vm`                | 1     |
 | `node:worker_threads`    | 6     |
 | `node:zlib`              | 10    |
@@ -534,6 +534,6 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------ | --------------------------------------------------------------------------------------------------------------------- |
 | `acquireVsCodeApi` | `src/webview/hostBridge.ts`, `src/webview/main.tsx`, `src/webview/reporting/main.tsx`, `src/webview/whatsNew/main.ts` |
 
-Theme variables the styles read (71), from `design/tokens/generated/host-roles.css`, `design/tokens/generated/muse.css`, `src/webview/components/reference.css`, `src/webview/components/traffic/traffic.css`, `src/webview/developer/developerOptions.css`, `src/webview/estimator/estimator.css`, `src/webview/media/media.css`, `src/webview/models/models.css`, `src/webview/models/sections/accounts/accounts.css`, `src/webview/models/sections/vault/vault.css`, `src/webview/page.css`, `src/webview/prompts/PromptLibrary.css`, `src/webview/reporting/destinations/destinations.css`, `src/webview/reporting/styles.css`, `src/webview/schedules/reportAction.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/tokens.css`, `src/webview/usage/AccountsSection.css`, `src/webview/usage/ResourcesSection.css`, `src/webview/usage/usage.css`:
+Theme variables the styles read (75), from `design/tokens/generated/host-roles.css`, `design/tokens/generated/muse.css`, `src/webview/components/reference.css`, `src/webview/components/traffic/traffic.css`, `src/webview/developer/developerOptions.css`, `src/webview/estimator/estimator.css`, `src/webview/media/media.css`, `src/webview/models/models.css`, `src/webview/models/sections/accounts/accounts.css`, `src/webview/models/sections/vault/vault.css`, `src/webview/node/auth/pairing.css`, `src/webview/node/files/workspace.css`, `src/webview/node/terminal/Terminal.tsx`, `src/webview/page.css`, `src/webview/prompts/PromptLibrary.css`, `src/webview/reporting/destinations/destinations.css`, `src/webview/reporting/styles.css`, `src/webview/schedules/reportAction.css`, `src/webview/sharing/sharing.css`, `src/webview/styles.css`, `src/webview/tokens.css`, `src/webview/usage/AccountsSection.css`, `src/webview/usage/ResourcesSection.css`, `src/webview/usage/usage.css`:
 
-`--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-blue`, `--vscode-charts-green`, `--vscode-charts-orange`, `--vscode-charts-purple`, `--vscode-charts-red`, `--vscode-charts-yellow`, `--vscode-checkbox-border`, `--vscode-contrastActiveBorder`, `--vscode-contrastBorder`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-dropdown-background`, `--vscode-dropdown-foreground`, `--vscode-editor-background`, `--vscode-editor-findMatchHighlightBackground`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editor-foreground`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-gitDecoration-addedResourceForeground`, `--vscode-gitDecoration-deletedResourceForeground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-list-warningForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textBlockQuote-border`, `--vscode-textCodeBlock-background`, `--vscode-textLink-activeForeground`, `--vscode-textLink-foreground`, `--vscode-textPreformat-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`
+`--vscode-badge-background`, `--vscode-badge-foreground`, `--vscode-button-background`, `--vscode-button-border`, `--vscode-button-foreground`, `--vscode-button-hoverBackground`, `--vscode-button-secondaryBackground`, `--vscode-button-secondaryForeground`, `--vscode-button-secondaryHoverBackground`, `--vscode-charts-blue`, `--vscode-charts-green`, `--vscode-charts-orange`, `--vscode-charts-purple`, `--vscode-charts-red`, `--vscode-charts-yellow`, `--vscode-checkbox-border`, `--vscode-contrastActiveBorder`, `--vscode-contrastBorder`, `--vscode-debugTokenExpression-number`, `--vscode-debugTokenExpression-string`, `--vscode-descriptionForeground`, `--vscode-diffEditor-insertedLineBackground`, `--vscode-diffEditor-removedLineBackground`, `--vscode-disabledForeground`, `--vscode-dropdown-background`, `--vscode-dropdown-foreground`, `--vscode-editor-background`, `--vscode-editor-findMatchHighlightBackground`, `--vscode-editor-font-family`, `--vscode-editor-font-size`, `--vscode-editor-foreground`, `--vscode-editorCursor-foreground`, `--vscode-editorWarning-foreground`, `--vscode-editorWidget-background`, `--vscode-editorWidget-border`, `--vscode-editorWidget-foreground`, `--vscode-errorForeground`, `--vscode-focusBorder`, `--vscode-font-family`, `--vscode-font-size`, `--vscode-foreground`, `--vscode-gitDecoration-addedResourceForeground`, `--vscode-gitDecoration-deletedResourceForeground`, `--vscode-input-background`, `--vscode-input-border`, `--vscode-input-foreground`, `--vscode-input-placeholderForeground`, `--vscode-inputValidation-errorBackground`, `--vscode-inputValidation-errorBorder`, `--vscode-inputValidation-errorForeground`, `--vscode-inputValidation-warningBackground`, `--vscode-inputValidation-warningForeground`, `--vscode-list-activeSelectionBackground`, `--vscode-list-activeSelectionForeground`, `--vscode-list-hoverBackground`, `--vscode-list-warningForeground`, `--vscode-panel-border`, `--vscode-progressBar-background`, `--vscode-sideBar-background`, `--vscode-symbolIcon-functionForeground`, `--vscode-symbolIcon-keywordForeground`, `--vscode-terminal-background`, `--vscode-terminal-foreground`, `--vscode-terminal-selectionBackground`, `--vscode-terminalCursor-foreground`, `--vscode-testing-iconFailed`, `--vscode-testing-iconPassed`, `--vscode-textBlockQuote-border`, `--vscode-textCodeBlock-background`, `--vscode-textLink-activeForeground`, `--vscode-textLink-foreground`, `--vscode-textPreformat-foreground`, `--vscode-toolbar-hoverBackground`, `--vscode-widget-border`, `--vscode-widget-shadow`
