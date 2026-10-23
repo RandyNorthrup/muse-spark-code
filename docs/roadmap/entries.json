@@ -742,7 +742,7 @@
     {
       "id": "M100",
       "title": "Paired devices",
-      "summary": "Link your devices on the local network to take independent agent lanes and hand back reviewable branches, without moving credentials; only two unwired halves are written so far, the receiving admission check and the sender-side account pool.",
+      "summary": "Link your devices on the local network to take independent agent lanes and hand back reviewable branches, without moving credentials; pairing, machine-send approval and simulators built, awaiting owner binding and qualification.",
       "area": "devices"
     },
     {
