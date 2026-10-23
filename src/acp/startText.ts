@@ -26,6 +26,9 @@ function registryReasonText(reason: CreatedRegistrySaveReason): string {
     case 'io': {
       return UI_TEXT.createdRegistrySave.io
     }
+    case 'contended': {
+      return UI_TEXT.createdRegistrySave.contended
+    }
   }
 }
 

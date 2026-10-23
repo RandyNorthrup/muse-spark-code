@@ -4005,7 +4005,8 @@
     "refused": "der Systemhelfer hat das Speichern verweigert",
     "unsafe": "eine Sicherheitsprüfung der gespeicherten Registrierung ist fehlgeschlagen",
     "invalid": "die gespeicherte Registrierung ist ungültig",
-    "io": "das Speichern konnte nicht geschrieben werden"
+    "io": "das Speichern konnte nicht geschrieben werden",
+    "contended": "eine andere laufende Kopie hat immer zuerst gespeichert; versuchen Sie es erneut"
   },
   "acpQuestionFormMessage": "Muse hat eine Frage an Sie.",
   "acpQuestionAsked": "Muse hat eine Frage; dieser Editor kann sie nicht als Formular anzeigen, antworten Sie daher in Ihrer nächsten Nachricht:",

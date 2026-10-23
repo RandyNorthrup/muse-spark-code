@@ -1,11 +1,12 @@
 /** Why a created-resources registry save failed, in fixed vocabulary. */
-export type CreatedRegistrySaveReason = 'refused' | 'unsafe' | 'invalid' | 'io'
+export type CreatedRegistrySaveReason = 'refused' | 'unsafe' | 'invalid' | 'io' | 'contended'
 
 const CREATED_REGISTRY_SAVE_REASONS: readonly unknown[] = [
   'refused',
   'unsafe',
   'invalid',
   'io',
+  'contended',
 ] satisfies readonly CreatedRegistrySaveReason[]
 
 const CREATED_REGISTRY_SAVE_ERROR = 'CreatedRegistrySaveError'
@@ -14,8 +15,8 @@ const CREATED_REGISTRY_SAVE_ERROR = 'CreatedRegistrySaveError'
 A save the registry could not land: the native helper refused it for its own
 reasons (refused), a safety check on the base, the parent or the live
 manifest failed (unsafe), the live or merged manifest failed validation
-(invalid), or the stage could not be written (io). A lost compare-and-swap
-race never surfaces as one: save() merges and publishes again instead.
+(invalid), the stage could not be written (io), or another process kept
+publishing first past the republish bound (contended).
 */
 export class CreatedRegistrySaveError extends Error {
   public constructor(

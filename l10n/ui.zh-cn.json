@@ -3924,7 +3924,8 @@
     "refused": "系统助手拒绝了此次保存",
     "unsafe": "已保存注册表的安全检查失败",
     "invalid": "已保存的注册表无效",
-    "io": "保存内容无法写入"
+    "io": "保存内容无法写入",
+    "contended": "另一个正在运行的副本一直在抢先保存；请重试"
   },
   "acpQuestionFormMessage": "Muse 有一个问题要问你。",
   "acpQuestionAsked": "Muse 有一个问题；此编辑器无法以表单形式显示，请在下一条消息中回答：",
