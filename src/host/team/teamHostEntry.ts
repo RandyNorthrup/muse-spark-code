@@ -66,5 +66,8 @@ export {
 // Headless installs its lifecycle/merge policy around the same engine ports
 // (dist/teamEngine.js, loaded through teamEngineEntry as the editor loads it).
 export { createTeamHostService } from '../../core/team/teamHost'
+// Checked, journalled landing and owner-store recovery (M96c K/I/X2), loaded
+// with the team host bundle; the engine entry binds them to the merges port.
+export { landTeamTask, recoverOpenLandings } from './teamLandingEntry'
 export { setUiText } from '../../shared/l10n/text'
 export { teamProgramFreeGit } from '../../core/team/teamWorkspaces'
