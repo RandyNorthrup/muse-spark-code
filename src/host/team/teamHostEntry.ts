@@ -4,7 +4,18 @@
 import { setUiText } from '../../shared/l10n/text'
 import type { UiText } from '../../shared/l10n/en'
 import { createTeamHostService } from '../../core/team/teamHost'
-import type { TeamHostService } from '../../core/team/teamHostService'
+import type { TeamHostService, TeamStatePort } from '../../core/team/teamHostService'
+import {
+  TEAM_WINDOW_SETTINGS_KEY,
+  teamWindowSettingsSchema,
+  type TeamWindowSettings,
+} from '../../shared/teamWindowProtocol'
+
+/** The workspace's scheduler settings, defaulted; malformed state reads as unset. */
+export function readTeamWindowSettings(state: TeamStatePort): TeamWindowSettings {
+  const parsed = teamWindowSettingsSchema.safeParse(state.get(TEAM_WINDOW_SETTINGS_KEY) ?? {})
+  return parsed.success ? parsed.data : teamWindowSettingsSchema.parse({})
+}
 import type { TeamHostBundleDeps } from './teamEnginePorts'
 
 /** The window's team host service over the editor's ports and the engine's. */
@@ -15,7 +26,28 @@ export async function createTeamHost(
 ): Promise<TeamHostService> {
   setUiText(table, locale)
   const { engineTeamPorts } = await import('./teamEngineEntry')
-  return createTeamHostService({ ...deps, ...engineTeamPorts(table, locale, deps.engine) })
+  // The window scheduler (M96c) loads with its own bundle, only for a team
+  // workspace: the host service drives admission, the merge queue and the
+  // board through it. A caller may supply its own factory (headless runs).
+  let createScheduler = deps.createScheduler
+  if (createScheduler === undefined) {
+    const { createTeamSchedulerRuntime } = await import('../../core/team/teamSchedulerEntry')
+    const runtime = createTeamSchedulerRuntime(table, locale)
+    createScheduler = (scheduling) => runtime.createWindowTeamScheduler(scheduling)
+  }
+  const settings =
+    deps.settings.scheduler === undefined
+      ? {
+          ...deps.settings,
+          scheduler: () => readTeamWindowSettings(deps.state),
+        }
+      : deps.settings
+  return createTeamHostService({
+    ...deps,
+    settings,
+    createScheduler,
+    ...engineTeamPorts(table, locale, deps.engine),
+  })
 }
 
 // The lazy file adapter shares this grant authority, including its WeakMap.

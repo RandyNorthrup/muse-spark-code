@@ -5833,6 +5833,7 @@ export const EN = {
   // The team host service (M96 lane X): its tool answers and refused actions.
   teamPlanShown: 'Team plan shown; nothing started.',
   teamTasksStarted: 'Team tasks started: {count}',
+  teamTasksQueued: 'Team tasks queued: {count}',
   teamMergeRework: 'The merge met conflicts: the task went back for rework.',
   teamTaskUnknown: 'That team task is not open in this window.',
   teamWaitingUnknown: 'Nothing is waiting for this answer any more.',

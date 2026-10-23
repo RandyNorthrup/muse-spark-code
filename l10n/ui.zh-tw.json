@@ -4489,6 +4489,7 @@
   "teamRunnerUnavailable": "{tool} 無法使用：此視窗尚未載入團隊執行器。",
   "teamPlanShown": "已顯示團隊計畫；未啟動任何內容。",
   "teamTasksStarted": "已啟動的團隊工作：{count}",
+  "teamTasksQueued": "已排隊的團隊任務：{count}",
   "teamMergeRework": "合併遇到衝突：工作已退回重做。",
   "teamTaskUnknown": "該團隊工作未在此視窗中開啟。",
   "teamWaitingUnknown": "已沒有內容在等待此回答。",

@@ -4598,6 +4598,7 @@
   "teamRunnerUnavailable": "{tool} ist nicht verfügbar: Die Teamausführung wurde in diesem Fenster nicht geladen.",
   "teamPlanShown": "Teamplan angezeigt; nichts gestartet.",
   "teamTasksStarted": "Gestartete Teamaufgaben: {count}",
+  "teamTasksQueued": "Teamaufgaben in der Warteschlange: {count}",
   "teamMergeRework": "Beim Zusammenführen gab es Konflikte: Die Aufgabe ging zur Überarbeitung zurück.",
   "teamTaskUnknown": "Diese Teamaufgabe ist in diesem Fenster nicht offen.",
   "teamWaitingUnknown": "Auf diese Antwort wartet nichts mehr.",

@@ -4598,6 +4598,7 @@
   "teamRunnerUnavailable": "{tool} kullanılamıyor: ekip çalıştırıcısı bu pencerede yüklenmedi.",
   "teamPlanShown": "Ekip planı gösterildi; hiçbir şey başlatılmadı.",
   "teamTasksStarted": "Başlatılan ekip görevleri: {count}",
+  "teamTasksQueued": "Sıradaki ekip görevleri: {count}",
   "teamMergeRework": "Birleştirme çakışmalarla karşılaştı: görev yeniden çalışma için geri döndü.",
   "teamTaskUnknown": "Bu ekip görevi bu pencerede açık değil.",
   "teamWaitingUnknown": "Artık bu yanıtı bekleyen bir şey yok.",

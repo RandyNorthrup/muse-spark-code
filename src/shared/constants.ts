@@ -3618,6 +3618,7 @@ export const AGENT_DESCRIPTION_MAX_CHARS = 240
 export const AGENT_MODEL_MAX_CHARS = 64
 export const AGENT_TOOLS_MAX = 64
 // --- Team: scheduler (M96c, PLAN.md D75). Window-local; no liveness timers. ---
+export const TEAM_MERGE_PAUSE_STATE_KEY = 'museSpark.team.mergePaused'
 export const TEAM_BOARD_MAX = 64
 export const TEAM_PRIORITY_WEIGHTS = { urgent: 8, high: 4, normal: 2, low: 1 } as const
 export const TEAM_SIZE_MINUTES = { S: 5, M: 15, L: 40, XL: 90 } as const
