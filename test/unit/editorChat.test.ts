@@ -9,11 +9,11 @@
 // integration suite. The long-context tier renders from the recorded
 // xAI list capture (2026-10-04); the Meta thinking-off value needs the
 // Meta backend and stays integration-covered.
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { createConfiguredProviderServices } from '../../src/core/providers/configured'
+import { createEditorChatServices, writeEditorChatProvidersFile } from './helpers/editorChatRig'
 import {
   EditorChatRefusalError,
   editorChatBody,
@@ -28,7 +28,6 @@ import { listedPriceCard, type ModelPricing } from '../../src/core/providers/pri
 import {
   ANTHROPIC_MAX_IMAGE_BYTES,
   MODEL_API_PRICED_MODELS,
-  PROVIDERS_FILE_VERSION,
   UI_TEXT,
 } from '../../src/shared/constants'
 import capture from '../../docs/certification/m95-captures/xai/01-models-list.json'
@@ -45,87 +44,6 @@ const LOCAL_REF = 'probe-custom/custom-model'
 const PRICED_REF = 'probe-priced/priced-model'
 const UNPRICED_REF = 'probe-keyed/keyed-model'
 const OFFABLE_REF = 'probe-offable/offable-model'
-
-function toolsOnly(model: string) {
-  return { [model]: { tools: { calling: { state: 'yes', value: true } } } }
-}
-
-function writeProvidersFile(directory: string): { configFile: string; catalogFile: string } {
-  const configFile = path.join(directory, 'providers.json')
-  const catalogFile = path.join(directory, 'catalog.json')
-  writeFileSync(
-    configFile,
-    JSON.stringify({
-      v: PROVIDERS_FILE_VERSION,
-      providers: [
-        {
-          id: 'probe-custom',
-          preset: 'custom',
-          address: 'https://8.8.8.8/v1',
-          auth: 'none',
-          format: 'responses',
-          models: ['custom-model'],
-          modelLimits: { 'custom-model': { contextTokens: 4096, outputTokens: 512 } },
-          modelCapabilities: toolsOnly('custom-model'),
-        },
-        {
-          id: 'probe-keyed',
-          preset: 'custom',
-          address: 'https://8.8.4.4/v1',
-          auth: 'apiKey',
-          format: 'responses',
-          models: ['keyed-model'],
-          modelLimits: { 'keyed-model': { contextTokens: 4096, outputTokens: 512 } },
-          modelCapabilities: toolsOnly('keyed-model'),
-        },
-        {
-          id: 'probe-priced',
-          preset: 'custom',
-          address: 'https://8.8.4.4/v1',
-          auth: 'apiKey',
-          format: 'responses',
-          models: ['priced-model'],
-          modelLimits: { 'priced-model': { contextTokens: 16_384, outputTokens: 2048 } },
-          modelCapabilities: {
-            'priced-model': {
-              tools: { calling: { state: 'yes', value: true } },
-              reasoning: {
-                supported: { state: 'yes', value: true },
-                effortLevels: { state: 'yes', value: ['low', 'medium', 'high'] },
-                canDisable: { state: 'no' },
-              },
-              modalities: { image: { state: 'yes', value: { mimes: ['image/png'] } } },
-            },
-          },
-          prices: {
-            'priced-model': { input: 0.000001, output: 0.000004, request: 0.01, image: 0.05 },
-          },
-        },
-        {
-          id: 'probe-offable',
-          preset: 'custom',
-          address: 'https://8.8.4.4/v1',
-          auth: 'none',
-          format: 'responses',
-          models: ['offable-model'],
-          modelLimits: { 'offable-model': { contextTokens: 8192, outputTokens: 1024 } },
-          modelCapabilities: {
-            'offable-model': {
-              tools: { calling: { state: 'yes', value: true } },
-              reasoning: {
-                supported: { state: 'yes', value: true },
-                effortLevels: { state: 'yes', value: ['none', 'low'] },
-                canDisable: { state: 'yes', value: true },
-              },
-            },
-          },
-        },
-      ],
-    }),
-  )
-  writeFileSync(catalogFile, JSON.stringify({ providers: {} }))
-  return { configFile, catalogFile }
-}
 
 interface EditorChatRig {
   readonly directory: string
@@ -145,13 +63,8 @@ function useRig(): EditorChatRig {
 
 beforeAll(async () => {
   const directory = mkdtempSync(path.join(tmpdir(), 'editor-chat-core-'))
-  const { configFile, catalogFile } = writeProvidersFile(directory)
-  const services = createConfiguredProviderServices(undefined, {
-    configFile,
-    catalogFile,
-    secrets: { get: () => Promise.resolve(undefined) },
-    send: () => Promise.reject(new Error('no request may leave the machine')),
-  })
+  const { configFile, catalogFile } = writeEditorChatProvidersFile(directory)
+  const services = createEditorChatServices(configFile, catalogFile)
   rig.current = {
     directory,
     local: await services.registry.resolve(LOCAL_REF),

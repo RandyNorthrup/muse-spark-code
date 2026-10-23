@@ -24656,6 +24656,10 @@ proven races open in `.lane/RVHOSTID.report.md`, not a partial safety claim.
   - [ ] Acceptance 1–10 with tests and drills (`docs/certification/m95b.md`).
   - [x] README, PRIVACY, CHANGELOG and this record updated.
 
+**Status 2026-10-23 (lane RLF-M95B2, rec/rlf-m95b2 on 0.19.0): built.**
+
+A4's foreign-path guard test built (`test/unit/subscriptionForeignPaths.test.ts`: no product code names Codex/Claude/Gemini/Copilot storage outside the three reviewed files; drills D1–D2). Editor-chat provider tested for real: pure logic moved to `src/core/providers/editorChat.ts` with 14 unit tests on real resolved models (drills E1–E2), plus `test/integration/editorChat.test.ts` (10 cases over the real editor API; not run on the rig — the sandbox has no GUI session — for the lead's outside run and CI). Record: `docs/certification/rlf-m95b2.md`.
+
 **Status 2026-10-22 (lane RLM95B, rec/rlm95b on 0.19.0): building.**
 
 Landed 01 (plan-key presets MiniMax/Alibaba/Mistral, Moonshot/Ollama Cloud, Azure refusal, editor-chat opt-in; daily cap removed, D121/D208) and 02 (refusal sentences, `x-codex-*` headers; no fixed table, no output cap). HF OAuth built, closed until the owner registers the app. Acceptance: 1–3, 7–8 built, live proof waits on the owner's sign-in; 4 open on the path-guard test; 5's host cap superseded (D121/D208); 6, 9 built; 10 MET (hook envelope carries the turn's provider; drills D13–D14). Captures missing: MiniMax/Alibaba/Moonshot/Ollama. Record: `docs/certification/rlm95b.md`.
