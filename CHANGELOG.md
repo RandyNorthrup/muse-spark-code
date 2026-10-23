@@ -584,6 +584,11 @@ happened, not what was planned; superseded entries are kept.
   Synchronize the Git cancellation fixture with child readiness instead of
   copying Node and waiting for a timer.
 
+- **The judge command-line help answers.** `judge --help` lists the
+  judge flags (engine, model, budget, evidence) with their topics; a
+  `--help` flag after an action is refused as malformed input rather
+  than opening the wrong page.
+
 ### Added (M100, to curate)
 
 - Open the Devices tab from the Command Palette (`Muse Spark: Open Devices

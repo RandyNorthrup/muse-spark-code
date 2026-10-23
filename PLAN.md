@@ -35143,6 +35143,8 @@ wiring) is now built at the core. Receipt: `docs/certification/m120.md`.
 
 **Status 2026-10-22 (RLM98P2 lands phase 2 on main at 0.19.0 with the D121/D208 rework; the serve budget moves 25 to 30 KiB on its measured 25.2 KiB; evidence `docs/certification/m98-p2-landing.md`; M125 builds on it): built.**
 
+**Status 2026-10-23 (RLF-JUDGEFIX: the phase-2 gate and suite regressions on int/recovery fixed in the judge code — catches narrowed/reported, spawns guarded, money exact, CLI help, plan/packaging corrections; evidence `docs/certification/rlf-judgefix.md`; devices money/spawns and 7 over-budget non-judge bundles pre-existing, out of scope): built.**
+
 - **Goal.** Small, calibrated, advisory decisions, on out of the box (D78),
   from the user's own chat model first, with separate judges later. The Muse
   model, or a deterministic rule, still decides.
