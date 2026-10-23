@@ -4435,6 +4435,12 @@
     "removeDone": "削除しました: {paths}。",
     "setupUsage": "使い方: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} は期限内に応答します(p95 {p95})。",
+    "doneClassOver": "{class} は期限を逃します(p95 {p95});これらの判断は従来通りです。",
+    "doneCheckOn": "較正済み。",
+    "doneCheckOff": "未較正。"
+  },
   "judgeB1": {
     "allowRow": "レビューなしで許可: inspectコマンド",
     "excluded": {

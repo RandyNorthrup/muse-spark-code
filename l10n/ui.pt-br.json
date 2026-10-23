@@ -4659,6 +4659,12 @@
     "removeDone": "Removido: {paths}.",
     "setupUsage": "Uso: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} responde dentro do prazo (p95 {p95}).",
+    "doneClassOver": "{class} perde o prazo (p95 {p95}); essas decisões seguem como antes.",
+    "doneCheckOn": "Calibrado.",
+    "doneCheckOff": "Ainda não calibrado."
+  },
   "judgeB1": {
     "allowRow": "Permitido sem revisão: comando inspect",
     "excluded": {

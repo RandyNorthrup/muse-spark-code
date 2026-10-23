@@ -4435,6 +4435,12 @@
     "removeDone": "제거됨: {paths}.",
     "setupUsage": "사용법: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class}이(가) 기한 안에 응답합니다(p95 {p95}).",
+    "doneClassOver": "{class}이(가) 기한을 놓칩니다(p95 {p95}); 해당 결정은 종전대로 실행됩니다.",
+    "doneCheckOn": "보정됨.",
+    "doneCheckOff": "아직 보정되지 않음."
+  },
   "judgeB1": {
     "allowRow": "검토 없이 허용: inspect 명령",
     "excluded": {

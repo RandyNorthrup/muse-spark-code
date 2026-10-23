@@ -4547,6 +4547,12 @@
     "removeDone": "Entfernt: {paths}.",
     "setupUsage": "Verwendung: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class} antwortet innerhalb seiner Frist (p95 {p95}).",
+    "doneClassOver": "{class} verfehlt seine Frist (p95 {p95}); diese Entscheidungen laufen wie bisher.",
+    "doneCheckOn": "Kalibriert.",
+    "doneCheckOff": "Noch nicht kalibriert."
+  },
   "judgeB1": {
     "allowRow": "Ohne Prüfung erlaubt: inspect-Befehl",
     "excluded": {

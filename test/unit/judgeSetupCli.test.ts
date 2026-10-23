@@ -15,12 +15,14 @@ import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import {
   formatSetupBytes,
+  type JudgeSetupPaths,
+  type JudgeSetupPorts,
+} from '../../src/core/judge/setup/ports'
+import {
   parseSetupFlags,
   runJudgeRemove,
   runJudgeScan,
   runJudgeSetup,
-  type JudgeSetupCliPaths,
-  type JudgeSetupCliPorts,
   type JudgeSetupTextIo,
 } from '../../src/runtime/judge/setupCli'
 import { descriptorByName } from './helpers/judgeHardware/descriptors'
@@ -30,7 +32,7 @@ const DIGEST = 'ab'.repeat(32)
 const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures')
 const STORAGE_ROOT = path.join(path.sep, 'test', 'root')
 const SHIPPED_TABLE = path.join(FIXTURES, '..', '..', 'src', 'shared', 'judgeModels.json')
-const PATHS: JudgeSetupCliPaths = {
+const PATHS: JudgeSetupPaths = {
   storageRoot: STORAGE_ROOT,
   tableFile: path.join(STORAGE_ROOT, 'table.json'),
 }
@@ -86,14 +88,14 @@ const MANIFEST = JSON.stringify({
 })
 
 interface FakeCli {
-  readonly ports: JudgeSetupCliPorts
+  readonly ports: JudgeSetupPorts
   readonly out: string[]
   readonly err: string[]
   readonly removed: string[]
   registration: JudgeSetupRecord | undefined
 }
 
-function fakeCli(overrides: Partial<JudgeSetupCliPorts> = {}): FakeCli {
+function fakeCli(overrides: Partial<JudgeSetupPorts> = {}): FakeCli {
   const out: string[] = []
   const err: string[] = []
   const removed: string[] = []
@@ -136,7 +138,7 @@ function fakeCli(overrides: Partial<JudgeSetupCliPorts> = {}): FakeCli {
       removeInstall: (paths) => {
         removed.push(paths.runtimeRoot, paths.modelsDir, paths.lock, paths.record)
         cli.registration = undefined
-        return Promise.resolve({ removed: [...removed] })
+        return Promise.resolve({ removed: [...removed], missing: [] })
       },
       today: () => '2026-10-22',
       nowIso: () => '2026-10-23T00:00:00.000Z',

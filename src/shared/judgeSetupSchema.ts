@@ -25,6 +25,8 @@ const recommendationSchema = z.strictObject({
   /** The pick, when one row contends; absent fits nothing. */
   model: z.optional(nonEmpty),
   digest: z.optional(nonEmpty),
+  /** The model's download bytes, so the step can show the download size. */
+  downloadBytes: z.optional(z.number().check(z.gte(0))),
   backend: z.enum(['cuda', 'rocm', 'metal', 'cpu']),
   /** The pick's verified-path p95 in milliseconds, the worst measured. */
   p95Ms: z.optional(z.number().check(z.gte(0))),

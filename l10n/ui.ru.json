@@ -4771,6 +4771,12 @@
     "removeDone": "Удалено: {paths}.",
     "setupUsage": "Использование: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes"
   },
+  "judgeSetup": {
+    "doneClassOn": "{class}: отвечает в срок (p95 {p95}).",
+    "doneClassOver": "{class}: срок пропущен (p95 {p95}); эти решения работают как раньше.",
+    "doneCheckOn": "Откалибровано.",
+    "doneCheckOff": "Пока не откалибровано."
+  },
   "judgeB1": {
     "allowRow": "Разрешено без проверки: команда inspect",
     "excluded": {

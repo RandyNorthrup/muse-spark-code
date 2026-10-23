@@ -1,11 +1,12 @@
 // Setup's injected factory, loaded only on an explicit scan, setup or
 // remove action.
-import { productionSetupCliPorts, runJudgeRemove, runJudgeScan, runJudgeSetup } from './setupCli'
+import { productionSetupPorts } from '../../core/judge/setup/ports'
+import { runJudgeRemove, runJudgeScan, runJudgeSetup } from './setupCli'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 
 const features = {
-  productionSetupCliPorts,
+  productionSetupPorts,
   runJudgeRemove,
   runJudgeScan,
   runJudgeSetup,

@@ -5771,6 +5771,15 @@ export const EN = {
     setupUsage:
       'Usage: judge scan [--cpu-only] | judge setup [--model MODEL] [--cpu-only] --yes | judge remove --yes',
   },
+  // M125 lane W (D107 §8.1): the wizard Done step's per-class and
+  // per-check rows, formatted by the host. {class} is the timing
+  // class's name; {p95} arrives formatted with its unit.
+  judgeSetup: {
+    doneClassOn: '{class} answers within its deadline (p95 {p95}).',
+    doneClassOver: '{class} misses its deadline (p95 {p95}); those decisions run as today.',
+    doneCheckOn: 'Calibrated.',
+    doneCheckOff: 'Not calibrated yet.',
+  },
   // M125 lane F1b (D107 §9.4, §9.6): the B1 skip's transcript row. The
   // allow line is the design's exact words; the count fills {count}.
   judgeB1: {
