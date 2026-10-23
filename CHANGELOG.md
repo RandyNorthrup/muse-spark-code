@@ -28,6 +28,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- Classic Vim gets its own chat plugin. The agent package carries a
+  pure-Vimscript ACP client (`editors/vim`, Vim 8.1+): `:MuseSpark` opens
+  the chat, `:MuseSparkSend` sends the prompt, permission prompts answer
+  with `:MuseSparkAllow`/`:MuseSparkDeny`, and `:MuseSparkModel` switches
+  models mid-session (M66).
+- Xcode 26.3's external-agent route is documented and checked. The guide
+  names the exact `xcrun mcpbridge` MCP-server config to offer a session,
+  the recipe's forwarding is pinned by a test, and `test/hosts/xcode.sh`
+  probes the bridge's health and proves a session offers a real stdio MCP
+  server (M66).
 - Best-of-N shows each attempt's reported tokens in the side-by-side
   comparison, plus its reported cost where the attempt's usage reports
   carry one, and the take notice names the taken attempt's reported use
