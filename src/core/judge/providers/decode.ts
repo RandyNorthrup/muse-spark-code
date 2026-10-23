@@ -120,7 +120,8 @@ function fromCandidates(
     return reading.outcome === 'answer'
       ? { outcome: 'answer', material: reading.material, usage }
       : failure
-  } catch {
+  } catch (error: unknown) {
+    if (!(error instanceof RangeError)) throw error
     return failure
   }
 }
