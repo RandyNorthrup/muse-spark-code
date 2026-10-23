@@ -26,27 +26,28 @@ export interface PiDetectIo {
 
 const nodePiIo: PiDetectIo = {
   async readModel(maxBytes) {
-    try {
-      // /proc/device-tree is an OS-owned link to sysfs on a Pi. The reader
-      // resolves it, checks a regular file and bounds the bytes.
-      return await nodeProjectDetectIo.read(
+    // /proc/device-tree is an OS-owned link to sysfs on a Pi. The reader
+    // resolves it, checks a regular file and bounds the bytes. Any failure
+    // (absent, refused, oversized) simply means no model can be reported.
+    const [model] = await Promise.allSettled([
+      nodeProjectDetectIo.read(
         path.dirname(MAKER_PI_MODEL_PATH),
         path.basename(MAKER_PI_MODEL_PATH),
         maxBytes,
-      )
-    } catch {
-      return
-    }
+      ),
+    ])
+    return model.status === 'fulfilled' ? model.value : undefined
   },
   async isExecutable(file) {
-    try {
-      const info = await stat(file)
-      if (!info.isFile()) return false
-      await access(file, constants.X_OK)
-      return true
-    } catch {
-      return false
-    }
+    const [attempt] = await Promise.allSettled([
+      (async () => {
+        const info = await stat(file)
+        if (!info.isFile()) return false
+        await access(file, constants.X_OK)
+        return true
+      })(),
+    ])
+    return attempt.status === 'fulfilled' && attempt.value
   },
   run: (file, argument) =>
     new Promise((resolve) => {
@@ -79,7 +80,8 @@ export async function detectOnPi(
   let model: string
   try {
     model = new TextDecoder('utf-8', { fatal: true }).decode(bytes).replace(/\0$/, '').trim()
-  } catch {
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error
     return
   }
   if (!/^Raspberry Pi\b/.test(model) || /\p{Cc}/u.test(model)) return

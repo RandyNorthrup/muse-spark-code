@@ -65,8 +65,9 @@ function tokenAt(
         size,
         newline: false,
       }
-    } catch {
+    } catch (error) {
       // An invalid UTF-8 sequence is displayed byte by byte, without replacement characters.
+      if (!(error instanceof TypeError)) throw error
     }
   }
   return { text: escapeByte(byte), size: 1, newline: false }

@@ -130,11 +130,7 @@ export class DeviceLog implements DeviceLogPort {
       }
     })()
     this.pending = (async () => {
-      try {
-        await result
-      } catch {
-        return
-      }
+      await Promise.allSettled([result])
     })()
     return result
   }

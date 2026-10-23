@@ -103,6 +103,16 @@ const NOMINATING: ReadonlySet<string> = new Set(['connection', 'proxy-connection
 
 class DestinationDenied extends Error {}
 
+function isConnectFailure(error: unknown): boolean {
+  return (
+    error instanceof AggregateError ||
+    (error instanceof Error &&
+      (('code' in error && typeof error.code === 'string') ||
+        error.name === 'AbortError' ||
+        error.name === 'TimeoutError'))
+  )
+}
+
 function ignore(): void {
   // A socket that already failed has nothing more to say.
 }
@@ -384,12 +394,13 @@ export async function startCheckProxy(
     try {
       socket = await connectFirst(destination)
     } catch (error) {
-      note('http', destination, !(error instanceof DestinationDenied))
-      response
-        .writeHead(error instanceof DestinationDenied ? STATUS_FORBIDDEN : STATUS_BAD_GATEWAY, {
-          'Content-Length': '0',
-        })
-        .end()
+      if (error instanceof DestinationDenied) {
+        note('http', destination, false)
+        response.writeHead(STATUS_FORBIDDEN, { 'Content-Length': '0' }).end()
+      } else if (isConnectFailure(error)) {
+        note('http', destination, true)
+        response.writeHead(STATUS_BAD_GATEWAY, { 'Content-Length': '0' }).end()
+      } else throw error
       request.resume()
       return
     }
@@ -459,27 +470,34 @@ export async function startCheckProxy(
         )
       ) {
         void (async () => {
-          const chunks: Buffer[] = []
-          let bytes = 0
-          for await (const raw of answer) {
-            const chunk = z.instanceof(Buffer).parse(raw)
-            bytes += chunk.length
-            if (bytes > BROWSER_DEV_HTML_MAX_BYTES) throw new DestinationDenied('browser-html-size')
-            chunks.push(chunk)
+          const inspect = async (): Promise<void> => {
+            const chunks: Buffer[] = []
+            let bytes = 0
+            for await (const raw of answer) {
+              const chunk = z.instanceof(Buffer).parse(raw)
+              bytes += chunk.length
+              if (bytes > BROWSER_DEV_HTML_MAX_BYTES)
+                throw new DestinationDenied('browser-html-size')
+              chunks.push(chunk)
+            }
+            const page = Buffer.concat(chunks)
+            if (
+              answer.headers['content-encoding'] !== undefined ||
+              BROWSER_MACHINE_UI.test(page.toString('utf8'))
+            )
+              throw new DestinationDenied('browser-machine-ui-denied')
+            note('http', destination, true, stripped)
+            response.writeHead(status, head).end(page)
           }
-          const page = Buffer.concat(chunks)
-          if (
-            answer.headers['content-encoding'] !== undefined ||
-            BROWSER_MACHINE_UI.test(page.toString('utf8'))
-          )
-            throw new DestinationDenied('browser-machine-ui-denied')
-          note('http', destination, true, stripped)
-          response.writeHead(status, head).end(page)
-        })().catch(() => {
+          const [attempt] = await Promise.allSettled([inspect()])
+          if (attempt.status !== 'rejected') {
+            return
+          }
+
           answer.destroy()
           note('http', destination, false)
           response.writeHead(STATUS_FORBIDDEN, { 'Content-Length': '0' }).end()
-        })
+        })()
         return
       }
       note('http', destination, true, stripped)
@@ -514,9 +532,17 @@ export async function startCheckProxy(
     try {
       upstream = await connectFirst(destination)
     } catch (error) {
-      note('connect', destination, !(error instanceof DestinationDenied))
-      client.end(DENIED)
-      return
+      if (error instanceof DestinationDenied) {
+        note('connect', destination, false)
+        client.end(DENIED)
+        return
+      }
+      if (isConnectFailure(error)) {
+        note('connect', destination, true)
+        client.end(DENIED)
+        return
+      }
+      throw error
     }
     note('connect', destination, true)
     client.write(TUNNEL_OPEN)

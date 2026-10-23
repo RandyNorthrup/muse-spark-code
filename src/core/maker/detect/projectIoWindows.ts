@@ -133,7 +133,7 @@ $r = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${request}')) 
 if ($null -eq $r.relative) { $result = @([MuseProjectIo]::Files($r.root, $r.limit, $r.depth)) }
 else { $result = [MuseProjectIo]::Read($r.root, $r.relative, $r.limit) }
 [Console]::Write((ConvertTo-Json -Compress -InputObject $result))`
-  return await new Promise<unknown>((resolve, reject) => {
+  const stdout = await new Promise<string>((resolveOutput, rejectOutput) => {
     execFile(
       path.win32.join(systemRoot, WINDOWS_POWERSHELL_RELATIVE_PATH),
       [
@@ -156,19 +156,16 @@ else { $result = [MuseProjectIo]::Read($r.root, $r.relative, $r.limit) }
         killSignal: 'SIGKILL',
         maxBuffer: MAKER_DETECT_MAX_FILES * CHECK_COMMAND_MAX_CHARS,
       },
-      (error, stdout) => {
+      (error, output) => {
         if (error !== null) {
-          reject(error instanceof Error ? error : new Error('native helper failed'))
+          rejectOutput(error instanceof Error ? error : new Error('native helper failed'))
           return
         }
-        try {
-          resolve(JSON.parse(stdout))
-        } catch (error: unknown) {
-          reject(error instanceof Error ? error : new Error('native helper response'))
-        }
+        resolveOutput(output)
       },
     )
   })
+  return JSON.parse(stdout) as unknown
 }
 
 export const windowsProjectIo = {
