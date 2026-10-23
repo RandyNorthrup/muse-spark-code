@@ -11,10 +11,10 @@ const directories: string[] = []
 function runForResult(file: string, args: readonly string[]) {
   return new Promise<{ code: number; stdout: string }>((resolveRun) => {
     execFile(file, [...args], { windowsHide: true }, (error, stdout) => {
-      resolveRun({
-        code: error === null ? 0 : typeof error.code === 'number' ? error.code : 1,
-        stdout,
-      })
+      let code = 1
+      if (error === null) code = 0
+      else if (typeof error.code === 'number') code = error.code
+      resolveRun({ code, stdout })
     })
   })
 }
