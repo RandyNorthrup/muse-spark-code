@@ -24,6 +24,7 @@ import {
 } from '../../src/core/backends/modelapi/transport'
 import { encodeAnthropicRequest } from '../../src/core/backends/modelapi/codecs/anthropic'
 import { buildExactCountRequest } from '../../src/core/providers/tokenCount'
+import { resolveAttemptBillingRoute } from '../../src/core/backends/modelapi/billingRoute'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { MODEL_API_RETRY_MAX_MS } from '../../src/shared/constants'
 import { transportTestDeps } from './helpers/modelApiTransport'
@@ -358,6 +359,10 @@ describe('provider waits are honoured whole', () => {
     await transport.request(
       count.path,
       {
+        billingRoute: await resolveAttemptBillingRoute({
+          feature: 'tokenCount',
+          isMetaDirect: false,
+        }),
         method: 'POST',
         body: count.body,
         headers: encoded.headers,

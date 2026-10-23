@@ -3,7 +3,7 @@
 // panel's refresh and headless refresh on use share this one read, so the
 // list keeps a single parser and a single request shape.
 import { HTTP_STATUS } from '../../shared/constants'
-import { attributionHeaders, listModelIds, readProviderJson } from '../providerReads'
+import { listModelIds, providerListHeaders, readProviderJson } from '../providerReads'
 import {
   allowedProviderPaths,
   pinProviderFetch,
@@ -48,17 +48,6 @@ async function getProviderJson(
     }
   }
   return read
-}
-
-/** The request headers behind a provider's list read. */
-export function providerListHeaders(provider: ResolvedProvider): Record<string, string> {
-  const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
-  if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
-    // The 2026-10-04 captured list requests carry 2023-06-01; the current
-    // version is 2026-10-21 (platform.claude.com/docs/en/api/versioning).
-    headers['anthropic-version'] = '2026-10-21'
-  }
-  return headers
 }
 
 /**

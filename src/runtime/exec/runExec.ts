@@ -98,7 +98,7 @@ import {
   previewResponseReservation,
   type TierPrice,
 } from './runLedger'
-import { inputBoundInfoLine } from '../runtimeAccountingEntry'
+import { inputBoundInfoLine } from './inputBoundLine'
 import { isPlanModelRef } from '../../shared/providerRouting'
 import type { ExecBudgetRefusal } from './execProtocol'
 import { observeBackend, type SessionTap } from './sessionTap'

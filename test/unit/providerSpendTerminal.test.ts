@@ -192,13 +192,15 @@ describe('providers usage parsing', () => {
       ['providers', 'usage', 'anthropic', '--days', 'many'],
       ['providers', 'usage', 'anthropic', '--output', 'yaml'],
       ['providers', 'usage', 'meta'],
-      ['providers', 'usage'],
       ['providers', 'usage', 'anthropic', 'openai'],
       ['providers', 'usage', 'anthropic', '--preset', 'anthropic'],
       ['providers', 'usage', 'anthropic', '--admin'],
     ]) {
       expect(parseCommandLine(argv).command).toBe('invalid')
     }
+    // Bare `providers usage` names the missing id and lists the configured
+    // ids instead (RLTESTDRIVE2 14).
+    expect(parseCommandLine(['providers', 'usage']).command).toBe('providersUsageTargets')
   })
 
   it('keeps serve and login free of spend flags', () => {

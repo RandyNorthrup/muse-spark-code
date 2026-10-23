@@ -5828,7 +5828,13 @@ async function activateWindow(
           // report's exact decimals stringify to the same amounts).
           onSpend: (report) => {
             if (report.capability !== 'key-usage') return
-            usageRecording.limit({
+            // Bound to the live owner generation, like the snapshot path above.
+            const producer = usageRecording.scopeLimits?.({
+              accountId: ACCOUNT_DEFAULT_ID,
+              generation: estimatorOwnerGeneration(),
+              backend: 'modelApi',
+            })
+            producer?.limit({
               backend: 'modelApi',
               provider: 'openrouter',
               source: 'openRouter',

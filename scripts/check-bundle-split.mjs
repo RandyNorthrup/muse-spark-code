@@ -1600,7 +1600,6 @@ const TEXT_BLOCKS = [
       'dist/mcpPool.js',
       'dist/modelApiMcp.js',
       'dist/modelApiVerify.js',
-      'dist/productionMedia.js',
       // The byte-range execution reads the refusal and window keys of this
       // block, so it carries the block whole (one object is carried whole, D6).
       'dist/modelApiFileRange.js',
