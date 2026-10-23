@@ -45,7 +45,7 @@ import {
   HTTP_STATUS,
   UI_TEXT,
 } from '../shared/constants'
-import { listModelIds, readProviderJson } from './providerReads'
+import { listModelIds, providerListHeaders, readProviderJson } from './providerReads'
 import { credentialLockDir } from '../core/credentialPaths'
 import { fill, plural, uiLocale } from '../shared/l10n/text'
 import { modelLimitsSchema } from '../shared/providerRouting'
@@ -72,7 +72,6 @@ import {
   type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
-import { providerListHeaders } from './exec/providerList'
 // The panel's Refresh Models reads the live list through the commands.
 export { listProviderModels } from './exec/providerList'
 

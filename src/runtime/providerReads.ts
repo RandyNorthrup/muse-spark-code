@@ -19,7 +19,7 @@ import { uiLocale } from '../shared/l10n/text'
 
 const { OPENROUTER_ATTRIBUTION } = presets
 
-export function attributionHeaders(preset: ProviderPreset): Record<string, string> {
+function attributionHeaders(preset: ProviderPreset): Record<string, string> {
   return preset.id === 'openrouter'
     ? {
         [OPENROUTER_ATTRIBUTION.refererHeader]: OPENROUTER_ATTRIBUTION.referer,
@@ -27,6 +27,17 @@ export function attributionHeaders(preset: ProviderPreset): Record<string, strin
         [OPENROUTER_ATTRIBUTION.categoriesHeader]: OPENROUTER_ATTRIBUTION.categories,
       }
     : {}
+}
+
+/** The request headers behind a provider's list read. */
+export function providerListHeaders(provider: ResolvedProvider): Record<string, string> {
+  const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
+  if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
+    // The 2026-10-04 captured list requests carry 2023-06-01; the current
+    // version is 2026-10-21 (platform.claude.com/docs/en/api/versioning).
+    headers['anthropic-version'] = '2026-10-21'
+  }
+  return headers
 }
 
 /** Model ids from a list body: OpenAI's `{data: [{id}]}` or Gemini's `{models: [{name}]}`. */

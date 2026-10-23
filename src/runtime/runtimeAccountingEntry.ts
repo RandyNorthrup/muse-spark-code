@@ -53,7 +53,7 @@ import {
   type SettlementResult,
 } from './exec/runLedger'
 import type { ExecBudgetRefusal, LastResponse, Refusal, LedgerTotals } from './exec/execProtocol'
-import { fill, formatDateTime, formatPercent, plural } from '../shared/l10n/text'
+import { fill, formatDateTime, plural } from '../shared/l10n/text'
 import { formatUsd } from '../shared/l10n/exactUsd'
 
 const settingsSchema = z.strictObject({
@@ -130,29 +130,6 @@ async function tryExactCount(
     signal.throwIfAborted()
     return { ok: false as const, cause: countFailureDetail(error) }
   }
-}
-
-/**
-The start line for a ticket's input bound, or undefined when it needs
-none: the estimate names its margin, a failed count names the redacted
-HTTP failure where one was captured, and a rejected over-length count
-says so instead of sharing the failure's line.
-*/
-export function inputBoundInfoLine(ticket: {
-  readonly inputBound?: ResponseInputBound | undefined
-  readonly countFailure?: CountFailureDetail | undefined
-}): string | undefined {
-  if (ticket.inputBound === 'estimate')
-    return fill(UI_TEXT.execEstimateBound, {
-      margin: formatPercent(SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT),
-    })
-  if (ticket.inputBound === 'bytes-over-length') return UI_TEXT.execCountBytesOverLength
-  if (ticket.inputBound !== 'bytes-after-failure') return undefined
-  const failure = ticket.countFailure
-  if (failure === undefined) return UI_TEXT.execCountBytesFallback
-  // The status is a protocol identifier, not a quantity: plain digits, so
-  // no locale's grouping or digits can corrupt a line the person pastes back.
-  return fill(UI_TEXT.execCountBytesFailed, { status: String(failure.status), type: failure.kind })
 }
 
 /** The machine-local day scope, the same calendar the usage page buckets by. */

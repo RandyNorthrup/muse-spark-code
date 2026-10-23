@@ -3,7 +3,8 @@
 // estimate keeps its margin line. Real ledger tickets flow into the real
 // line selector; the failure detail is read from real ModelApiError values.
 import { describe, expect, it, beforeEach } from 'vitest'
-import { countFailureDetail, inputBoundInfoLine } from '../../src/runtime/runtimeAccountingEntry'
+import { inputBoundInfoLine } from '../../src/runtime/exec/inputBoundLine'
+import { countFailureDetail } from '../../src/runtime/runtimeAccountingEntry'
 import { ModelApiError } from '../../src/core/backends/modelapi/transport'
 import { createRunLedger } from '../../src/runtime/exec/runLedger'
 import { Usd } from '../../src/shared/usd'

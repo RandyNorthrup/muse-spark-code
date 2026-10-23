@@ -9,7 +9,7 @@ import {
   providerModelsPath,
   type ResolvedProvider,
 } from './exec/providerExec'
-import { attributionHeaders, listModelIds, readProviderJson } from './providerReads'
+import { listModelIds, providerListHeaders, readProviderJson } from './providerReads'
 
 export type ProbeOutcome =
   | { readonly ok: true; readonly modelCount: number | undefined }
@@ -31,11 +31,7 @@ export async function probeProvider(
   if (test.kind === 'paid-token') {
     return { ok: false, paid: true, reason: 'paid' }
   }
-  const headers: Record<string, string> = { ...attributionHeaders(provider.preset) }
-  if ((provider.entry.format ?? provider.preset.format) === 'anthropic') {
-    // Both captured Anthropic list requests carry this exact version.
-    headers['anthropic-version'] = '2023-06-01'
-  }
+  const headers = providerListHeaders(provider)
   if (key === undefined && provider.preset.auth === 'apiKey') {
     return { ok: false, paid: false, reason: 'no-key' }
   }

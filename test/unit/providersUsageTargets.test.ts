@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished, describe, expect, it } from 'vitest'
-import { ACP_AGENT_NAME } from '../../src/shared/constants'
+import { ACP_AGENT_NAME, PROVIDER_SPEND_DAYS_DEFAULT } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
 import { fill } from '../../src/shared/l10n/text'
 import { readProvidersFile } from '../../src/core/providers/providersFile'
@@ -57,12 +57,14 @@ function depsFor(file: string, lines: string[]): ProvidersDeps {
 }
 
 describe('providers usage without an id', () => {
-  it('parses to the usage command with no provider', () => {
-    expect(parseCommandLine(['providers', 'usage'])).toEqual({ command: 'providerKeyUsage' })
-    // The id form and the misuses keep their shapes.
+  it('parses to the id list with no provider', () => {
+    expect(parseCommandLine(['providers', 'usage'])).toEqual({ command: 'providersUsageTargets' })
+    // The id form is RLM95's spend report; the misuses keep their shapes.
     expect(parseCommandLine(['providers', 'usage', 'openrouter'])).toEqual({
-      command: 'providerKeyUsage',
+      command: 'providersUsage',
       provider: 'openrouter',
+      days: PROVIDER_SPEND_DAYS_DEFAULT,
+      json: false,
     })
     expect(parseCommandLine(['providers', 'usage', 'a', 'b'])).toMatchObject({
       command: 'invalid',
