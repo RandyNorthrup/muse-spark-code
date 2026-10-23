@@ -294,6 +294,12 @@ const ALLOW_LIST = new Map([
     'src/webview/usage/UsageApp.tsx:receive',
     'the usage panel notices its own export/delete message outcome',
   ],
+  // The first-boot setup reads its own code-acceptance reason: an
+  // already-completed setup shows the done page, never a turn reply.
+  [
+    'src/runtime/node/firstBoot/server.ts:handleRequest',
+    'the setup server shows the done page for its own already-completed acceptance reason',
+  ],
 ])
 
 const ACCESSOR = 'src/core/turns/usableReply.ts'
