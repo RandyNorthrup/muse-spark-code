@@ -119,13 +119,13 @@ async function isPrivateDirectory(deps: LeaseDependencies, isReadOnly?: boolean)
     try {
       if (!isReadOnly) await mkdir(current, { mode: OWNER_DIRECTORY_MODE })
     } catch (error: unknown) {
-      if (!hasCode(error, 'EEXIST')) throw error
+      if (!isCode(error, 'EEXIST')) throw error
     }
     let sample
     try {
       sample = await lstat(current)
     } catch (error: unknown) {
-      if (isReadOnly && hasCode(error, 'ENOENT')) return false
+      if (isReadOnly && isCode(error, 'ENOENT')) return false
       throw error
     }
     if (!sample.isDirectory() || sample.isSymbolicLink()) throw new Error('lease-directory-invalid')
@@ -141,21 +141,47 @@ async function isPrivateDirectory(deps: LeaseDependencies, isReadOnly?: boolean)
   return true
 }
 
-function hasCode(error: unknown, code: string): boolean {
+function isCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
+}
+
+function isFsError(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+}
+
+function isParseFailure(error: unknown): boolean {
+  return error instanceof SyntaxError || (error instanceof Error && error.name === '$ZodError')
+}
+
+function isStartTimeFailure(error: unknown): boolean {
+  return (
+    isFsError(error) ||
+    (error instanceof Error && (error.message.startsWith('lease-') || error.name === '$ZodError'))
+  )
+}
+
+function isAbsentAfter(error: unknown, pid: number): boolean {
+  if (isCode(error, 'ESRCH')) return true
+  try {
+    process.kill(pid, 0)
+    return false
+  } catch (killError: unknown) {
+    if (isCode(killError, 'ESRCH')) return true
+    throw killError
+  }
 }
 
 async function removeGeneration(file: string): Promise<void> {
   try {
     await unlink(file)
   } catch (error: unknown) {
-    if (hasCode(error, 'ENOENT')) return
+    if (isCode(error, 'ENOENT')) return
     // Windows can report EPERM for a second unlink while deletion is completing.
-    if (hasCode(error, 'EPERM')) {
+    if (isCode(error, 'EPERM')) {
       try {
         await lstat(file)
       } catch (sampleError: unknown) {
-        if (hasCode(sampleError, 'ENOENT')) return
+        if (isCode(sampleError, 'ENOENT')) return
         throw sampleError
       }
     }
@@ -193,12 +219,14 @@ async function readRecord(
     try {
       const parsed = recordSchema.safeParse(JSON.parse(bytes.toString('utf8')))
       return parsed.success ? parsed.data : null
-    } catch {
-      return null
+    } catch (error: unknown) {
+      if (isParseFailure(error)) return null
+      throw error
     }
   } catch (error: unknown) {
-    if (hasCode(error, 'ENOENT')) return undefined
-    return null // Unreadable is occupied too; Stop can still reach other sessions.
+    if (isCode(error, 'ENOENT')) return undefined
+    if (isFsError(error)) return null // Unreadable is occupied too; Stop can still reach other sessions.
+    throw error
   }
 }
 
@@ -282,9 +310,13 @@ async function retireGeneration(
     await link(source, receipt)
   } catch (error: unknown) {
     // A concurrent release may have removed source after publishing this receipt.
-    if (!isMatchingRecord(await readRecord(receipt, deps.maxRecordBytes), record)) {
-      if (!hasCode(error, 'EEXIST')) throw error
+    const isMatching = isMatchingRecord(await readRecord(receipt, deps.maxRecordBytes), record)
+    if (isMatching && isFsError(error)) {
+      // The receipt this link meant to publish already stands.
+    } else if (isCode(error, 'EEXIST')) {
       throw new Error('lease-retirement-changed', { cause: error })
+    } else {
+      throw error
     }
   } finally {
     // Every receipt outcome completes this generation's one cleanup transition.
@@ -300,8 +332,9 @@ async function isSameHolder(
   try {
     const start = z.optional(nonEmptyString).parse(await deps.processStartTime(record.pid))
     return start === record.startedAt
-  } catch {
-    return true // Permission/OS failure cannot prove that the holder has died.
+  } catch (error: unknown) {
+    if (isStartTimeFailure(error)) return true // Permission/OS failure cannot prove that the holder has died.
+    throw error
   }
 }
 
@@ -337,9 +370,12 @@ async function listenOwnerSocket(
       let request: z.infer<typeof stopSchema>
       try {
         request = stopSchema.parse(JSON.parse(input))
-      } catch {
-        socket.destroy()
-        return
+      } catch (error: unknown) {
+        if (isParseFailure(error)) {
+          socket.destroy()
+          return
+        }
+        throw error
       }
       if (request.id !== id) {
         socket.destroy()
@@ -358,7 +394,9 @@ async function listenOwnerSocket(
               reply = { cancelled: true }
             else if (error instanceof Error && error.message === 'lease-contender-cancel-failed')
               reply = { cancelled: false }
-            else reply = { stopped: false }
+            else if (error instanceof Error && error.message === 'lease-stop-failed')
+              reply = { stopped: false }
+            else throw error
           }
           await new Promise<void>((resolve) => {
             socket.end(`${JSON.stringify(reply)}\n`, () => {
@@ -449,11 +487,9 @@ export async function claimHardwareLease(
   let publishing: Promise<void> | undefined
   const stopSession = async () => {
     state.isCancelled = true
-    try {
-      await publishing
-    } catch {
-      // Failed publication leaves this generation a contender.
-    }
+    // Failed publication leaves this generation a contender: wait for the
+    // attempt to settle either way before stopping the session itself.
+    if (publishing !== undefined) await Promise.allSettled([publishing])
     try {
       await stop()
     } catch (error: unknown) {
@@ -500,7 +536,7 @@ export async function claimHardwareLease(
           })()
           await publishing
         } catch (error: unknown) {
-          if (!hasCode(error, 'EEXIST')) throw error
+          if (!isCode(error, 'EEXIST')) throw error
           visited.delete(slot)
           continue
         }
@@ -616,7 +652,7 @@ export function leaseIdentity(
         try {
           stat = await readFile(`/proc/${String(pid)}/stat`, 'utf8')
         } catch (error: unknown) {
-          if (hasCode(error, 'ENOENT')) return
+          if (isCode(error, 'ENOENT')) return
           throw error
         }
         const fields = stat.slice(stat.lastIndexOf(')') + 2).split(' ')
@@ -632,11 +668,7 @@ export function leaseIdentity(
           )
         } catch (error: unknown) {
           // ps also fails for a missing pid; only the kernel's ESRCH proves absence.
-          try {
-            process.kill(pid, 0)
-          } catch (error_: unknown) {
-            if (hasCode(error_, 'ESRCH')) return
-          }
+          if (isAbsentAfter(error, pid)) return
           throw error
         }
         const [, state, lstart] = PS_START.exec(output.trim()) ?? []
@@ -717,11 +749,8 @@ export async function stopHardwareLease(
           deps.maxRecordBytes,
         )
         if (!isMatchingRecord(retired, record) && (await isSameHolder(record, deps))) return result
-        try {
-          await removeGeneration(file)
-        } catch {
-          // Proven stale discovery is never a Stop failure, even if unlink cannot finish.
-        }
+        // Proven stale discovery is never a Stop failure, even if unlink cannot finish.
+        await Promise.allSettled([removeGeneration(file)])
         return
       })(),
     )
@@ -781,32 +810,37 @@ async function stopRecord(
         return
       }
       if (!input.endsWith('\n')) return
+      let reply: z.infer<typeof stopReplySchema>
       try {
-        const reply = stopReplySchema.parse(JSON.parse(input))
-        if ('stopped' in reply)
-          finish(
-            reply.stopped
-              ? { party: 'holder', status: 'stopped' }
-              : {
-                  party: 'holder',
-                  status: 'failed',
-                  reason: 'lease-stop-failed',
-                },
-          )
-        else if ('cancelled' in reply)
-          finish(
-            reply.cancelled
-              ? { party: 'contender', status: 'cancelled' }
-              : {
-                  party: 'contender',
-                  status: 'failed',
-                  reason: 'lease-contender-cancel-failed',
-                },
-          )
-        else fail('lease-stop-timeout')
-      } catch {
-        fail('lease-stop-invalid-response')
+        reply = stopReplySchema.parse(JSON.parse(input))
+      } catch (error: unknown) {
+        if (isParseFailure(error)) {
+          fail('lease-stop-invalid-response')
+          return
+        }
+        throw error
       }
+      if ('stopped' in reply)
+        finish(
+          reply.stopped
+            ? { party: 'holder', status: 'stopped' }
+            : {
+                party: 'holder',
+                status: 'failed',
+                reason: 'lease-stop-failed',
+              },
+        )
+      else if ('cancelled' in reply)
+        finish(
+          reply.cancelled
+            ? { party: 'contender', status: 'cancelled' }
+            : {
+                party: 'contender',
+                status: 'failed',
+                reason: 'lease-contender-cancel-failed',
+              },
+        )
+      else fail('lease-stop-timeout')
     })
     socket.once('end', () => {
       fail('lease-stop-unavailable')
