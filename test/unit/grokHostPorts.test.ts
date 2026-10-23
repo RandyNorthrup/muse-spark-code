@@ -1,17 +1,14 @@
 // The VS Code side of Grok sign-in, driven over the real loopback
-// listener, the real file lock in a temporary directory, and the recorded
-// discovery document: every other fetch refuses, so the tests assert our
-// own request shapes and refusal codes instead of inventing xAI's
-// answers. The authorize and token requests must name the endpoints the
-// recorded document advertises.
-import { randomUUID } from 'node:crypto'
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
+// listener, the real cross-surface lock in an isolated directory, and the
+// recorded discovery document: every other fetch refuses, so the tests
+// assert our own request shapes and refusal codes instead of inventing
+// xAI's answers. The authorize and token requests must name the endpoints
+// the recorded document advertises.
+import { readdirSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { GrokSignInError } from '../../src/core/providers/subscriptions/grok'
 import { createGrokSignIn, type GrokVsCodeDeps } from '../../src/host/providers/grokSignIn'
 import { startGrokCallback } from '../../src/host/providers/subscriptionCallback'
-import { withSubscriptionFileLock } from '../../src/host/providers/subscriptionFileLock'
 import { UI_TEXT } from '../../src/shared/constants'
 import { captureFailure } from './helpers/captureFailure'
 import {
@@ -23,7 +20,7 @@ import {
 } from './helpers/grokDiscoveryFetch'
 import { grokGrantRecord } from './helpers/grokGrant'
 import { mapSecrets } from './helpers/mapSecrets'
-import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
+import { lockDirectory, removeFolder } from './helpers/temporaryFolders'
 
 const STATE = 'test-state-sent-to-xai-0123456789abcdef'
 const OTHER_STATE = 'another-attempt-state-0123456789abcdef'
@@ -36,16 +33,17 @@ async function probe(url: string, init?: RequestInit): Promise<{ status: number;
 }
 
 function deps(overrides: Partial<GrokVsCodeDeps> & { readonly directory: string }): GrokVsCodeDeps {
+  const { directory, ...rest } = overrides
   return {
     secrets: mapSecrets({}),
-    globalStoragePath: overrides.directory,
     isRemote: false,
     clientId: CLIENT_ID,
     scopes: undefined,
     fetch: discoveryOnlyFetch(),
     openExternal: () => Promise.resolve(true),
     log: () => undefined,
-    ...overrides,
+    lock: { directory },
+    ...rest,
   }
 }
 
@@ -133,7 +131,7 @@ describe('grok host callback', () => {
 
 describe('grok VS Code port', () => {
   it('drives the browser flow through the real server to the recorded token endpoint', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const calls: FetchCall[] = []
       const secrets = mapSecrets({})
@@ -187,7 +185,7 @@ describe('grok VS Code port', () => {
   })
 
   it('refuses without a client id before any request goes out', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const calls: FetchCall[] = []
       let isOpened = false
@@ -212,7 +210,7 @@ describe('grok VS Code port', () => {
   })
 
   it('says a refused browser as browser-unavailable, keeping a rejection cause', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const closed = createGrokSignIn(
         deps({ directory, openExternal: () => Promise.resolve(false) }),
@@ -237,7 +235,7 @@ describe('grok VS Code port', () => {
   })
 
   it('reads a store failure as store-unavailable', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const signIn = createGrokSignIn(
         deps({
@@ -256,7 +254,7 @@ describe('grok VS Code port', () => {
   })
 
   it('refuses the browser flow on a remote host before opening anything', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       let isOpened = false
       const signIn = createGrokSignIn(
@@ -278,7 +276,7 @@ describe('grok VS Code port', () => {
   })
 
   it('says the device flow is unsupported without that surface', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const calls: FetchCall[] = []
       const signIn = createGrokSignIn(deps({ directory, fetch: discoveryOnlyFetch({ calls }) }))
@@ -291,7 +289,7 @@ describe('grok VS Code port', () => {
   })
 
   it('serves an unexpired grant without any request', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const calls: FetchCall[] = []
       const secrets = mapSecrets({ [GRANT_KEY]: JSON.stringify(grokGrantRecord()) })
@@ -308,7 +306,7 @@ describe('grok VS Code port', () => {
   })
 
   it('names a malformed grant grant-unreadable', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
+    const directory = await lockDirectory('grok-host-ports-')
     try {
       const secrets = mapSecrets({ [GRANT_KEY]: '{oops' })
       const signIn = createGrokSignIn(deps({ directory, secrets }))
@@ -316,103 +314,6 @@ describe('grok VS Code port', () => {
         signIn.accessToken('https://api.x.ai/v1/chat/completions', 60_000),
       )
       expect(failure).toMatchObject({ code: 'grant-unreadable' })
-    } finally {
-      await removeFolder(directory)
-    }
-  })
-})
-
-describe('subscription file lock', () => {
-  const binding = {
-    lockFile: 'test.refresh.lock',
-    tmpPrefix: '.test-lock-',
-    failBusy: () => new GrokSignInError('lock-busy'),
-  }
-
-  it('serializes two contenders and says the loser lock-busy', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
-    try {
-      const { promise: entered, resolve: markEntered } = Promise.withResolvers<undefined>()
-      const { promise: gate, resolve: release } = Promise.withResolvers<undefined>()
-      const first = withSubscriptionFileLock(
-        directory,
-        randomUUID(),
-        10_000,
-        5,
-        async () => {
-          markEntered(undefined)
-          await gate
-          return 'first'
-        },
-        binding,
-      )
-      await entered
-      const failure = await captureFailure(() =>
-        withSubscriptionFileLock(
-          directory,
-          randomUUID(),
-          60,
-          5,
-          () => Promise.resolve('second'),
-          binding,
-        ),
-      )
-      expect(failure).toMatchObject({ code: 'lock-busy' })
-      release(undefined)
-      await expect(first).resolves.toBe('first')
-    } finally {
-      await removeFolder(directory)
-    }
-  })
-
-  it('recovers a lock whose owner is gone', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
-    try {
-      // Above every platform's pid ceiling, so no live process can hold it.
-      const deadPid = 2 ** 30
-      const refusal = await captureFailure(() => process.kill(deadPid, 0))
-      expect(refusal).toMatchObject({ code: 'ESRCH' })
-      const lockPath = path.join(directory, binding.lockFile)
-      mkdirSync(lockPath, { recursive: true })
-      writeFileSync(
-        path.join(lockPath, `${randomUUID()}.json`),
-        JSON.stringify({
-          pid: deadPid,
-          startedAt: 1,
-          windowId: randomUUID(),
-          expiresAt: 1,
-        }),
-      )
-      await expect(
-        withSubscriptionFileLock(
-          directory,
-          randomUUID(),
-          5000,
-          5,
-          () => Promise.resolve('recovered'),
-          binding,
-        ),
-      ).resolves.toBe('recovered')
-    } finally {
-      await removeFolder(directory)
-    }
-  })
-
-  it('says lock-busy while a live ownerless file holds the path', async () => {
-    const directory = await temporaryDir('grok-host-ports-')
-    try {
-      writeFileSync(path.join(directory, binding.lockFile), 'legacy')
-      const failure = await captureFailure(() =>
-        withSubscriptionFileLock(
-          directory,
-          randomUUID(),
-          60,
-          5,
-          () => Promise.resolve('never'),
-          binding,
-        ),
-      )
-      expect(failure).toMatchObject({ code: 'lock-busy' })
     } finally {
       await removeFolder(directory)
     }

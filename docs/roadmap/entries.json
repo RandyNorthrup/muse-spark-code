@@ -1295,6 +1295,11 @@
       "note": "security review: Grok sign-in, connector grants, vault anchors and migration"
     },
     {
+      "id": "RLFREFRESHLOCK",
+      "public": false,
+      "note": "one refresh lock for the editor and the CLI (ChatGPT and Grok)"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

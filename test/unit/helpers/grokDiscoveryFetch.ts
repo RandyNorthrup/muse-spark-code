@@ -25,6 +25,17 @@ export interface FetchCall {
   readonly form: URLSearchParams | undefined
 }
 
+/** One fetch call's address, method and form body, for the recording fetches. */
+export function readFetchCall(url: Parameters<typeof fetch>[0], init?: RequestInit): FetchCall {
+  const href = url instanceof Request ? url.url : String(url)
+  const method = init?.method ?? (url instanceof Request ? url.method : 'GET')
+  const body = init?.body
+  let form: URLSearchParams | undefined
+  if (typeof body === 'string') form = new URLSearchParams(body)
+  else if (body instanceof URLSearchParams) form = body
+  return { url: href, method, form }
+}
+
 /**
 A fetch that answers only with the recorded discovery document and refuses
 everything else: the tests assert our request shapes from its calls, and
@@ -38,16 +49,11 @@ export function discoveryOnlyFetch(
 ): typeof fetch {
   const discovery = options.discovery === undefined ? discoveryFixture() : options.discovery
   const stub: typeof fetch = (url, init) => {
-    const href = url instanceof Request ? url.url : String(url)
-    const method = init?.method ?? (url instanceof Request ? url.method : 'GET')
-    const body = init?.body
-    let form: URLSearchParams | undefined
-    if (typeof body === 'string') form = new URLSearchParams(body)
-    else if (body instanceof URLSearchParams) form = body
-    options.calls?.push({ url: href, method, form })
-    return href === DISCOVERY_URL && method === 'GET'
+    const call = readFetchCall(url, init)
+    options.calls?.push(call)
+    return call.url === DISCOVERY_URL && call.method === 'GET'
       ? Promise.resolve(jsonResponse(discovery))
-      : Promise.reject(new Error(`no recorded answer for ${method} ${href}`))
+      : Promise.reject(new Error(`no recorded answer for ${call.method} ${call.url}`))
   }
   return stub
 }

@@ -63,7 +63,7 @@ The VS Code adapter: 56 files. Everything else reaches VS Code only through them
 | `src/host/providers/copilotClient.ts`              | 29                |
 | `src/host/providers/keyPrompt.ts`                  | 5                 |
 | `src/host/providers/providersHost.ts`              | 0                 |
-| `src/host/providers/subscriptionFeatures.ts`       | 5                 |
+| `src/host/providers/subscriptionFeatures.ts`       | 4                 |
 | `src/host/questions/questionStore.ts`              | 3                 |
 | `src/host/quickPick.ts`                            | 5                 |
 | `src/host/reporting/reportPanel.ts`                | 47                |
@@ -380,7 +380,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `Uri.from(components.path)`                                                          | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `Uri.from(components.query)`                                                         | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | `Uri.from(components.scheme)`                                                        | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| `Uri.fsPath`                                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/prompts/chatSharing.ts`, `src/host/prompts/promptEntry.ts`, `src/host/providers/chatgptSignIn.ts`, `src/host/providers/subscriptionFeatures.ts`, `src/host/reporting/reportPanel.ts`, `src/host/reporting/reportPanelEntry.ts`, `src/host/tab/tabProvider.ts`, `src/host/usage/usagePanelEntry.ts`, `src/host/views/tasksPanel.ts`, `src/host/views/webviewSetup.ts`                                                                                                                                         |
+| `Uri.fsPath`                                                                         | `src/extension.ts`, `src/host/agentImportHost.ts`, `src/host/cliFeatures.ts`, `src/host/codeIntel/languageServices.ts`, `src/host/conversation/transferDialogs.ts`, `src/host/prompts/chatSharing.ts`, `src/host/prompts/promptEntry.ts`, `src/host/providers/chatgptSignIn.ts`, `src/host/reporting/reportPanel.ts`, `src/host/reporting/reportPanelEntry.ts`, `src/host/tab/tabProvider.ts`, `src/host/usage/usagePanelEntry.ts`, `src/host/views/tasksPanel.ts`, `src/host/views/webviewSetup.ts`                                                                                                                                                                                       |
 | `Uri.joinPath`                                                                       | `src/extension.ts`, `src/host/models/modelsPanel.ts`, `src/host/prompts/promptEntry.ts`, `src/host/reporting/reportPanel.ts`, `src/host/reporting/reportPanelEntry.ts`, `src/host/usage/usagePanel.ts`, `src/host/usage/usagePanelEntry.ts`, `src/host/views/auxWebviewPanel.ts`, `src/host/views/webviewSetup.ts`, `src/host/whatsNew/whatsNewPanel.ts`                                                                                                                                                                                                                                                                                                                                   |
 | `Uri.parse`                                                                          | `src/extension.ts`, `src/host/cliFeatures.ts`, `src/host/git/gitWindow.ts`, `src/host/git/githubSession.ts`, `src/host/memoryFeatures.ts`, `src/host/models/modelsPanel.ts`, `src/host/models/modelsPanelEntry.ts`, `src/host/providers/chatgptSignIn.ts`, `src/host/providers/subscriptionFeatures.ts`, `src/host/support/reportEditorIo.ts`, `src/host/usage/usagePanel.ts`, `src/host/whatsNew/whatsNewPanel.ts`                                                                                                                                                                                                                                                                        |
 | `Uri.path`                                                                           | `src/extension.ts`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
@@ -516,19 +516,19 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:async_hooks`       | 7     |
 | `node:buffer`            | 79    |
 | `node:child_process`     | 38    |
-| `node:crypto`            | 280   |
+| `node:crypto`            | 277   |
 | `node:dgram`             | 2     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 9     |
 | `node:events`            | 5     |
 | `node:fs`                | 153   |
-| `node:fs/promises`       | 184   |
+| `node:fs/promises`       | 183   |
 | `node:http`              | 20    |
 | `node:https`             | 3     |
 | `node:module`            | 6     |
 | `node:net`               | 40    |
 | `node:os`                | 55    |
-| `node:path`              | 313   |
+| `node:path`              | 312   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 30    |
 | `node:readline`          | 3     |
@@ -536,7 +536,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:stream`            | 29    |
 | `node:stream/promises`   | 3     |
 | `node:string_decoder`    | 4     |
-| `node:timers/promises`   | 42    |
+| `node:timers/promises`   | 41    |
 | `node:tls`               | 3     |
 | `node:url`               | 9     |
 | `node:util`              | 14    |

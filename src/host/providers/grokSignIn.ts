@@ -1,27 +1,22 @@
-// VS Code ports for the Grok subscription core: the shared file lock and
-// loopback server, this app's configured xAI client id, and no host id or
-// registration. Deliberately free of the `vscode` module, so the port runs
-// in unit tests over the real server, lock and store; the caller adapts
-// the editor's storage path and opener.
-import { randomUUID } from 'node:crypto'
-import {
-  MILLISECONDS_PER_SECOND,
-  OAUTH_CODE_TTL_MS,
-  PROVIDER_SECRET_PREFIX,
-} from '../../shared/constants'
+// VS Code ports for the Grok subscription core: the cross-surface refresh
+// lock and loopback server, this app's configured xAI client id, and no
+// host id or registration. Deliberately free of the `vscode` module, so
+// the port runs in unit tests over the real server, lock and store; the
+// caller adapts the editor's opener.
+import { PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import {
   GrokSignIn,
   GrokSignInError,
   type GrokHostPort,
   type GrokRecord,
 } from '../backend/subscriptionsEntry'
+import type { NamedLockOptions } from '../../runtime/namedLock'
 import type { RecordStore } from './credentialRecords'
 import { startGrokCallback } from './subscriptionCallback'
-import { withSubscriptionFileLock } from './subscriptionFileLock'
+import { withEditorGrokRefreshLock } from './subscriptionRefreshLock'
 
 export interface GrokVsCodeDeps {
   readonly secrets: RecordStore
-  readonly globalStoragePath: string
   /** Captured remote forwarding is not available; remote sign-in refuses. */
   readonly isRemote: boolean
   /** This app's own xAI client id from configuration; unset refuses before any request. */
@@ -32,27 +27,15 @@ export interface GrokVsCodeDeps {
   readonly openExternal: (url: string) => Promise<boolean>
   /** Refused sign-in callbacks are logged here, without any request text. */
   readonly log: (message: string) => void
-  readonly lockTimeoutMs?: number
-  readonly lockPollMs?: number
+  /** Test isolation for the refresh lock; production takes the shared names. */
+  readonly lock?: NamedLockOptions
 }
 
 /** The Models & Agents panel composes this factory beside the ChatGPT one. */
 export function createGrokSignIn(deps: GrokVsCodeDeps): GrokSignIn {
-  const ownerId = randomUUID()
   const key = `${PROVIDER_SECRET_PREFIX}grok`
   const withRefreshLock: GrokHostPort['withRefreshLock'] = (work) =>
-    withSubscriptionFileLock(
-      deps.globalStoragePath,
-      ownerId,
-      deps.lockTimeoutMs ?? OAUTH_CODE_TTL_MS,
-      deps.lockPollMs ?? MILLISECONDS_PER_SECOND,
-      work,
-      {
-        lockFile: 'grok.refresh.lock',
-        tmpPrefix: '.grok-lock-',
-        failBusy: () => new GrokSignInError('lock-busy'),
-      },
-    )
+    withEditorGrokRefreshLock(work, deps.lock)
   const readStored = async (): Promise<unknown> => {
     let stored: string | undefined
     try {

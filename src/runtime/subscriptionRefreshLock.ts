@@ -20,7 +20,7 @@ import { failureCodeNames } from '../core/networkFailure'
 // through subscriptionsEntry (one `instanceof` across the boundary).
 import { ChatGptSignInError, GrokSignInError } from '../host/backend/subscriptionsEntry'
 import { StoreUnavailableError } from './keyStore'
-import { NamedLockError, personScope, withNamedLock, type NamedLockOptions } from './namedLock'
+import { NamedLockError, grantLockNames, withNamedLock, type NamedLockOptions } from './namedLock'
 
 export type ChatGptLockOptions = NamedLockOptions
 
@@ -48,17 +48,11 @@ export async function withSubscriptionRefreshLock<T, E extends Error>(
   binding: SubscriptionRefreshLockBinding<E>,
   options: NamedLockOptions = {},
 ): Promise<T> {
-  const scope = personScope()
   try {
-    return await withNamedLock(
-      work,
-      {
-        pipe: `${binding.pipe}-${scope}`,
-        folder: `${binding.folder}-${scope}`,
-        file: binding.file,
-      },
-      { ...options, timeoutMs: options.timeoutMs ?? CHATGPT_REFRESH_LOCK_TIMEOUT_MS },
-    )
+    return await withNamedLock(work, grantLockNames(binding), {
+      ...options,
+      timeoutMs: options.timeoutMs ?? CHATGPT_REFRESH_LOCK_TIMEOUT_MS,
+    })
   } catch (error) {
     if (binding.isFailure(error)) throw error
     if (error instanceof NamedLockError) {

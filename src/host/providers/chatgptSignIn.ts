@@ -1,22 +1,18 @@
 // VS Code ports for the shared subscription core. The global-storage files
-// contain only an opaque installation id and an exclusive lock, never tokens.
-import { randomUUID } from 'node:crypto'
+// contain only an opaque host id, never tokens; the refresh lock is the
+// cross-surface named lock the runtime CLI and ACP agent share.
 import * as vscode from 'vscode'
-import {
-  CHATGPT_REGISTRATION_SECRET_KEY,
-  MILLISECONDS_PER_SECOND,
-  OAUTH_CODE_TTL_MS,
-  PROVIDER_SECRET_PREFIX,
-} from '../../shared/constants'
+import { CHATGPT_REGISTRATION_SECRET_KEY, PROVIDER_SECRET_PREFIX } from '../../shared/constants'
 import {
   ChatGptSignIn,
   ChatGptSignInError,
   type ChatGptHostPort,
 } from '../backend/subscriptionsEntry'
+import type { NamedLockOptions } from '../../runtime/namedLock'
 import type { RecordStore } from './credentialRecords'
 import { loadChatGptHostId } from './chatgptHostId'
-import { startChatGptCallback } from './subscriptionCallback'
-import { fileErrorCode, withSubscriptionFileLock } from './subscriptionFileLock'
+import { fileErrorCode, startChatGptCallback } from './subscriptionCallback'
+import { withEditorChatGptRefreshLock } from './subscriptionRefreshLock'
 
 /**
 The grant's SecretStorage calls. A refusal is the editor's credential
@@ -40,28 +36,16 @@ export interface ChatGptVsCodeDeps {
   readonly openExternal?: (uri: vscode.Uri) => Thenable<boolean>
   /** Refused sign-in callbacks are logged here, without any request text. */
   readonly log: (message: string) => void
-  readonly lockTimeoutMs?: number
-  readonly lockPollMs?: number
+  /** Test isolation for the refresh lock; production takes the shared names. */
+  readonly lock?: NamedLockOptions
 }
 
 /** W composes this factory into the lazy Models panel; X implements the same core port. */
 export async function createChatGptSignIn(deps: ChatGptVsCodeDeps): Promise<ChatGptSignIn> {
   try {
     const directory = deps.globalStorageUri.fsPath
-    const windowId = randomUUID()
     const withRefreshLock: ChatGptHostPort['withRefreshLock'] = (work) =>
-      withSubscriptionFileLock(
-        directory,
-        windowId,
-        deps.lockTimeoutMs ?? OAUTH_CODE_TTL_MS,
-        deps.lockPollMs ?? MILLISECONDS_PER_SECOND,
-        work,
-        {
-          lockFile: 'chatgpt.refresh.lock',
-          tmpPrefix: '.chatgpt-lock-',
-          failBusy: () => new ChatGptSignInError('lock-busy'),
-        },
-      )
+      withEditorChatGptRefreshLock(work, deps.lock)
     const hostId = await withRefreshLock(() => loadChatGptHostId(directory))
     const key = `${PROVIDER_SECRET_PREFIX}chatgpt`
     const readStored = async (account: string): Promise<unknown> => {
