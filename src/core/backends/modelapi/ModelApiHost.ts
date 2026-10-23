@@ -286,6 +286,7 @@ import {
   tailNotes,
   triageRoute,
 } from '../../judge/fast/apply'
+import { fastEffortScale } from '../../judge/fast/engines'
 import { judgeDoneClaim } from '../../judge/fast/reflex/done'
 import { ruleEffort } from '../../judge/fast/reflex/effort'
 import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
@@ -5410,10 +5411,12 @@ export class ModelApiSession implements ScheduledAgentSession {
     ).length
     const verdict = ruleEffort({ request: typedText(turn.inputParts), filesTouched: files })
     if (verdict.decision !== 'lower') return this.effort
-    // The model's own scale from its capability record; unknown keeps
-    // the configured level.
-    const levels = resolved.policy.reasoning.effortLevels
-    return lowerEffortLevel(this.effort, levels.state === 'yes' ? levels.value : [])
+    // D107 §4.1 (lane P): the model's own record wins when its lane
+    // carried one; without a record the policy keeps today's behaviour.
+    return lowerEffortLevel(
+      this.effort,
+      fastEffortScale(resolved.capabilityRecord, resolved.policy.reasoning.effortLevels),
+    )
   }
 
   /**
