@@ -12,6 +12,21 @@ import path from 'node:path'
 import { MAKER_DETECT_MAX_BYTES, MAKER_DETECT_MAX_FILES, UI_TEXT } from '../../shared/constants'
 import type { HardwareContext } from './guard/httpCommands'
 
+function isScanFailure(error: unknown): boolean {
+  return error instanceof Error && 'code' in error && typeof error.code === 'string'
+}
+
+// Inventory reads ports and the registry: transport and filesystem failures
+// leave the inventory unknown (fail-safe); programming errors propagate.
+function isInventoryFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    !(error instanceof ReferenceError) &&
+    !(error instanceof SyntaxError) &&
+    !(error instanceof RangeError)
+  )
+}
+
 /** The only hardware detection and latch owner. Sources are host observations. */
 export function hasHardwareEvidence(context: HardwareContext): boolean {
   return (
@@ -37,8 +52,9 @@ function hasProject(root: string | undefined): boolean {
       if (hasDirectoryMarker(directory, pending, budget)) return true
     }
     return /(?:^|\/)CIRCUITPY\/?$/i.test(root.replaceAll('\\', '/'))
-  } catch {
-    return true
+  } catch (error) {
+    if (isScanFailure(error)) return true
+    throw error
   }
 }
 
@@ -226,8 +242,9 @@ export function readHardwareInventory(
       targets,
       boardRoots: mountedBoards(platform, mountRoots),
     }
-  } catch {
-    return { hasConnectedBoard: true, isInventoryKnown: false }
+  } catch (error) {
+    if (isInventoryFailure(error)) return { hasConnectedBoard: true, isInventoryKnown: false }
+    throw error
   }
 }
 

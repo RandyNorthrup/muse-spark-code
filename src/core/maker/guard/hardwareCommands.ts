@@ -214,7 +214,8 @@ function hasDeviceSignal(command: string, context: HardwareContext): boolean {
 function newAddress(address: string): string {
   try {
     return new URL(address).hostname
-  } catch {
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error
     return address
   }
 }

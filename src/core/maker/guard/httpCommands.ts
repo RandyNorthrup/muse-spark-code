@@ -55,7 +55,8 @@ export function hasRefusedPayload(text: string): boolean {
 function urlOf(text: string): URL | undefined {
   try {
     return new URL(/^[\w.-]+(?::\d+)?\//.test(text) ? `http://${text}` : text)
-  } catch {
+  } catch (error) {
+    if (!(error instanceof TypeError)) throw error
     return undefined
   }
 }
@@ -113,8 +114,9 @@ function transferAction(transfer: Transfer, context: HardwareContext): ActionCla
           'method' in body &&
           typeof body.method === 'string' &&
           READ_RPC.has(body.method)
-      } catch {
+      } catch (error) {
         /* Unresolved RPC is actuation. */
+        if (!(error instanceof SyntaxError)) throw error
       }
     }
     const isRpc = endpoint === '/server/jsonrpc' || /^wss?:/i.test(address)
@@ -229,9 +231,9 @@ export function httpAction(
 /** Only the exact, out-of-band endpoint and minimal canonical argv are exempt. */
 export function isHttpStop(command: ShellCommand, context: HardwareContext): boolean {
   if (command.redirects.length > 0 || command.isPipeline) return false
-  const [name, flag, method, address] = command.argv
-  const client = commandName(name ?? '')
-  const url = urlOf(address ?? '')
+  const [name = '', flag, method, address = ''] = command.argv
+  const client = commandName(name)
+  const url = urlOf(address)
   return (
     command.argv.length === 2 + 2 &&
     /^(?:curl|invoke-webrequest|invoke-restmethod|iwr|irm)$/.test(client) &&
@@ -242,10 +244,10 @@ export function isHttpStop(command: ShellCommand, context: HardwareContext): boo
     url.hash === '' &&
     url.username === '' &&
     url.password === '' &&
-    isRegisteredTarget(address ?? '', context) &&
+    isRegisteredTarget(address, context) &&
     context.targets?.some(
       (target) =>
-        isRegisteredTarget(address ?? '', { targets: [target] }) &&
+        isRegisteredTarget(address, { targets: [target] }) &&
         target.stop === '/printer/emergency_stop',
     ) === true
   )

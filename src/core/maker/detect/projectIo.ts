@@ -270,9 +270,16 @@ async function volumeLabel(root: string, platform: NodeJS.Platform): Promise<str
     return mount !== undefined && path.resolve(mount.target) === path.resolve(root)
       ? (mount.label ?? undefined)
       : undefined
-  } catch {
+  } catch (error) {
+    // A malformed helper answer (not JSON, or not the schema) is no label at
+    // all; anything else is a failure the caller should see.
+    if (!isLabelParseFailure(error)) throw error
     return
   }
+}
+
+function isLabelParseFailure(error: unknown): boolean {
+  return error instanceof SyntaxError || (error instanceof Error && error.name === '$ZodError')
 }
 
 export const nodeProjectDetectIo: ProjectDetectIo = { files, read, volumeLabel }

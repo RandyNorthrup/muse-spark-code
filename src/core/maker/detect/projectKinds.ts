@@ -137,12 +137,13 @@ export async function detectProjectKinds(
 ): Promise<MakerProjectDetection> {
   const markers: MakerProjectMarker[] = []
   let isCircuitPyRoot = pathModule(platform).basename(root).toUpperCase() === 'CIRCUITPY'
-  try {
-    const label = await io.volumeLabel?.(root, platform)
-    if (label?.toUpperCase() === 'CIRCUITPY') isCircuitPyRoot = true
-  } catch {
-    // Missing optional OS metadata leaves basename and root boot-log evidence in force.
-  }
+  // Missing optional OS metadata leaves basename and root boot-log evidence in force.
+  const [labelAttempt] =
+    io.volumeLabel === undefined
+      ? [{ status: 'fulfilled', value: undefined } as const]
+      : await Promise.allSettled([io.volumeLabel(root, platform)])
+  if (labelAttempt.status === 'fulfilled' && labelAttempt.value?.toUpperCase() === 'CIRCUITPY')
+    isCircuitPyRoot = true
   const pythonFiles: string[] = []
   const add = (kind: MakerProjectKind, name: string) => {
     markers.push({ kind, path: name })

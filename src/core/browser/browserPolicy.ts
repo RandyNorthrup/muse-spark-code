@@ -72,7 +72,8 @@ export function widenedHost(entry: string): string | undefined {
         !isMakerCompanionPort(Number(origin.port))
         ? origin.origin
         : undefined
-    } catch {
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error
       return undefined
     }
   }
@@ -113,8 +114,9 @@ export function isMachineBrowserUrl(url: URL): boolean {
   let pathname: string
   try {
     pathname = decodeURIComponent(url.pathname)
-  } catch {
-    return true
+  } catch (error) {
+    if (error instanceof URIError) return true
+    throw error
   }
   return (
     BROWSER_MACHINE_UI.test(`${url.hostname}${pathname}`) ||
