@@ -6,13 +6,12 @@
 // test/fixtures/nodeos-firmware/CAPTURE.md); live-network cases run
 // only where the network answers. Fixture hashes are pinned so drift
 // fails the suite.
-import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { runNodeScript, scratch, sha256File } from './helpers/nodeOs'
 import {
   acceptNvidiaTerms,
   createNvidiaState,
@@ -71,19 +70,6 @@ function hasSnapshot(): boolean {
   }
 }
 const HAS_SNAPSHOT = hasSnapshot()
-
-function runNode(script: string, args: string[]): { status: number | null; out: string } {
-  const run = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
-  return { status: run.status, out: `${run.stdout}${run.stderr}` }
-}
-
-function sha256(file: string): string {
-  return createHash('sha256').update(readFileSync(file)).digest('hex')
-}
-
-function scratch(prefix: string): string {
-  return mkdtempSync(path.join(tmpdir(), prefix))
-}
 
 function parseManifestObject(text: string): Record<string, unknown> {
   const data: unknown = JSON.parse(text)
@@ -144,7 +130,7 @@ function writeTree(
 describe('check-addon', () => {
   it('accepts the shipped chrome and nvidia manifests', () => {
     for (const manifest of [CHROME_MANIFEST, NVIDIA_MANIFEST]) {
-      const run = runNode(CHECK_ADDON, ['--manifest', manifest])
+      const run = runNodeScript(CHECK_ADDON, ['--manifest', manifest])
       expect(run.status).toBe(0)
       expect(run.out).toContain('manifest is sound')
     }
@@ -235,7 +221,7 @@ describe('check-addon', () => {
     ]
     for (const { name, mutate, anchor } of cases) {
       const manifestPath = writeManifest(dir, name, mutate)
-      const run = runNode(CHECK_ADDON, ['--manifest', manifestPath])
+      const run = runNodeScript(CHECK_ADDON, ['--manifest', manifestPath])
       expect(run.status).toBe(2)
       expect(run.out).toContain(anchor)
     }
@@ -250,18 +236,18 @@ describe('check-addon', () => {
       const keyring = childOf(manifest, 'keyring')
       keyring['fingerprints'] = 'pins.txt'
     })
-    const badPins = runNode(CHECK_ADDON, ['--manifest', manifestPath])
+    const badPins = runNodeScript(CHECK_ADDON, ['--manifest', manifestPath])
     expect(badPins.status).toBe(2)
     expect(badPins.out).toContain('is not a fingerprint')
     const malformed = path.join(dir, 'malformed.json')
     writeFileSync(malformed, '{not json')
-    const badJson = runNode(CHECK_ADDON, ['--manifest', malformed])
+    const badJson = runNodeScript(CHECK_ADDON, ['--manifest', malformed])
     expect(badJson.status).toBe(2)
     expect(badJson.out).toContain('not JSON')
-    const missing = runNode(CHECK_ADDON, ['--manifest', path.join(dir, 'absent.json')])
+    const missing = runNodeScript(CHECK_ADDON, ['--manifest', path.join(dir, 'absent.json')])
     expect(missing.status).toBe(2)
     expect(missing.out).toContain('not readable')
-    const noArgs = runNode(CHECK_ADDON, [])
+    const noArgs = runNodeScript(CHECK_ADDON, [])
     expect(noArgs.status).toBe(2)
     expect(noArgs.out).toContain('pass --manifest')
   })
@@ -269,7 +255,7 @@ describe('check-addon', () => {
   it('matches a good tree and refuses a bad one', () => {
     const dir = scratch('node-os-addon-tree-')
     const good = writeTree(dir, 'ID=debian\nVERSION_ID=13\nARCHITECTURE=arm64\n', undefined)
-    const matched = runNode(CHECK_ADDON, ['--manifest', NVIDIA_MANIFEST, '--tree', good])
+    const matched = runNodeScript(CHECK_ADDON, ['--manifest', NVIDIA_MANIFEST, '--tree', good])
     expect(matched.status).toBe(0)
     expect(matched.out).toContain('matches its tree')
     const cases: { release: string | undefined; osRelease: string | undefined; anchor: string }[] =
@@ -303,7 +289,7 @@ describe('check-addon', () => {
       ]
     for (const [index, { release, osRelease, anchor }] of cases.entries()) {
       const tree = writeTree(path.join(dir, `bad-${String(index)}`), release, osRelease)
-      const run = runNode(CHECK_ADDON, ['--manifest', NVIDIA_MANIFEST, '--tree', tree])
+      const run = runNodeScript(CHECK_ADDON, ['--manifest', NVIDIA_MANIFEST, '--tree', tree])
       expect(run.status).toBe(1)
       expect(run.out).toContain(anchor)
     }
@@ -316,14 +302,14 @@ describe('check-addon', () => {
       osRelease['sysextLevel'] = '42'
     })
     const tree = writeTree(dir, 'ID=debian\nSYSEXT_LEVEL=42\n', undefined)
-    const run = runNode(CHECK_ADDON, ['--manifest', manifestPath, '--tree', tree])
+    const run = runNodeScript(CHECK_ADDON, ['--manifest', manifestPath, '--tree', tree])
     expect(run.status).toBe(0)
   })
 })
 
 describe('nvidia key pin', () => {
   it('matches the recorded keyring by transcript', () => {
-    const run = runNode(CHECK_KEY, [
+    const run = runNodeScript(CHECK_KEY, [
       '--transcript',
       NVIDIA_TRANSCRIPT,
       '--fingerprints',
@@ -336,18 +322,28 @@ describe('nvidia key pin', () => {
   it('refuses a wrong pin by transcript', () => {
     const wrong = path.join(scratch('node-os-nvidia-pin-'), 'wrong.txt')
     writeFileSync(wrong, 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\n')
-    const run = runNode(CHECK_KEY, ['--transcript', NVIDIA_TRANSCRIPT, '--fingerprints', wrong])
+    const run = runNodeScript(CHECK_KEY, [
+      '--transcript',
+      NVIDIA_TRANSCRIPT,
+      '--fingerprints',
+      wrong,
+    ])
     expect(run.status).toBe(1)
     expect(run.out).toContain('missing pinned fingerprint')
   })
 
   it.runIf(HAS_GPG)('matches the recorded keyring with the real gpg', () => {
-    const run = runNode(CHECK_KEY, ['--keyring', NVIDIA_KEYRING, '--fingerprints', NVIDIA_PINS])
+    const run = runNodeScript(CHECK_KEY, [
+      '--keyring',
+      NVIDIA_KEYRING,
+      '--fingerprints',
+      NVIDIA_PINS,
+    ])
     expect(run.status).toBe(0)
   })
 
   it('pins the recorded fixtures against drift', () => {
-    expect(sha256(NVIDIA_KEYRING)).toBe(
+    expect(sha256File(NVIDIA_KEYRING)).toBe(
       '09edb5196bca272c091633d4e04dd6c8f3a07278834868220aa669c895f6cfd7',
     )
     const colons = readFileSync(NVIDIA_TRANSCRIPT, 'utf8')
@@ -374,14 +370,14 @@ describe('nvidia key pin', () => {
       ['firmware-realtek.json', '896d97328b86c7d42ec9b27b9a09a9e06e403694699a488a57ea8c62584f2545'],
     ]
     for (const [file, digest] of fixtures) {
-      expect(sha256(path.join(FIRMWARE_TRANSCRIPTS, file))).toBe(digest)
+      expect(sha256File(path.join(FIRMWARE_TRANSCRIPTS, file))).toBe(digest)
     }
   })
 })
 
 describe('check-firmware', () => {
   it('resolves the real firmware set from transcripts', () => {
-    const run = runNode(CHECK_FIRMWARE, [
+    const run = runNodeScript(CHECK_FIRMWARE, [
       '--firmware',
       FIRMWARE,
       '--transcript-dir',
@@ -400,7 +396,7 @@ describe('check-firmware', () => {
       unknown,
       JSON.stringify({ packages: { amd: ['no-such-firmware'], intel: ['x'], wifi: ['y'] } }),
     )
-    const missing = runNode(CHECK_FIRMWARE, [
+    const missing = runNodeScript(CHECK_FIRMWARE, [
       '--firmware',
       unknown,
       '--transcript-dir',
@@ -410,7 +406,7 @@ describe('check-firmware', () => {
     expect(missing.out).toContain('no transcript for no-such-firmware')
     const malformed = path.join(dir, 'malformed.json')
     writeFileSync(malformed, JSON.stringify({ packages: { amd: [], intel: ['x'] } }))
-    const badShape = runNode(CHECK_FIRMWARE, [
+    const badShape = runNodeScript(CHECK_FIRMWARE, [
       '--firmware',
       malformed,
       '--transcript-dir',
@@ -418,7 +414,7 @@ describe('check-firmware', () => {
     ])
     expect(badShape.status).toBe(2)
     expect(badShape.out).toContain('exactly amd, intel and wifi')
-    const badBase = runNode(CHECK_FIRMWARE, [
+    const badBase = runNodeScript(CHECK_FIRMWARE, [
       '--firmware',
       FIRMWARE,
       '--snapshot-base',
@@ -430,7 +426,7 @@ describe('check-firmware', () => {
   })
 
   it.runIf(HAS_SNAPSHOT)('resolves the real firmware set live', () => {
-    const run = runNode(CHECK_FIRMWARE, ['--firmware', FIRMWARE])
+    const run = runNodeScript(CHECK_FIRMWARE, ['--firmware', FIRMWARE])
     expect(run.status).toBe(0)
     expect(run.out).toContain('all 7 packages resolve')
   })

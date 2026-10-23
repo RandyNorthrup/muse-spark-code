@@ -4,13 +4,13 @@
 // (test/fixtures/nodeos-chrome/CAPTURE.md). Live-gpg cases run only
 // where gpg exists (shellSyntax's tool-gated precedent); the transcript
 // cases run everywhere.
-import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import { mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { type NodeOsRun, cleanup, runNodeScript, scratch, sha256File } from './helpers/nodeOs'
 import {
   acceptChromeTerms,
   createBrowserState,
@@ -40,16 +40,10 @@ function hasGpg(): boolean {
 }
 const HAS_GPG = hasGpg()
 
-function sha256(file: string): string {
-  return createHash('sha256').update(readFileSync(file)).digest('hex')
-}
-
-function checkKey(args: string[], env?: NodeJS.ProcessEnv): { status: number | null; out: string } {
-  const run = spawnSync(process.execPath, [CHECK_KEY, ...args], {
-    encoding: 'utf8',
-    env: env ?? process.env,
-  })
-  return { status: run.status, out: `${run.stdout}${run.stderr}` }
+function checkKey(args: string[], env?: NodeJS.ProcessEnv): NodeOsRun {
+  return env === undefined
+    ? runNodeScript(CHECK_KEY, args)
+    : runNodeScript(CHECK_KEY, args, { env })
 }
 
 describe('chrome consent', () => {
@@ -101,7 +95,7 @@ describe('chrome consent', () => {
   })
 
   it('round-trips the browser state owner-only', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'node-os-browser-'))
+    const dir = scratch('node-os-browser-')
     try {
       expect(loadBrowserState(dir)).toBeNull()
       const state = requestChromeInstall(acceptChromeTerms(createBrowserState()), true)
@@ -111,7 +105,7 @@ describe('chrome consent', () => {
       writeFileSync(path.join(dir, 'browser.json'), '{oops')
       expect(() => loadBrowserState(dir)).toThrow('browser state is not valid')
     } finally {
-      rmSync(dir, { recursive: true, force: true })
+      cleanup(dir)
     }
   })
 })
@@ -124,12 +118,14 @@ describe('check-key', () => {
   })
 
   it('pins the recorded keyring against drift', () => {
-    expect(sha256(KEYRING)).toBe('54dea5f6c2a26091578cf52a999cebc6b64df478d37ad4dce96376b711e3b27c')
+    expect(sha256File(KEYRING)).toBe(
+      '54dea5f6c2a26091578cf52a999cebc6b64df478d37ad4dce96376b711e3b27c',
+    )
     expect(readFileSync(TRANSCRIPT, 'utf8')).toContain(GOOGLE_PRIMARY)
   })
 
   it('refuses a transcript that lost the pin, and tolerates garbage lines', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'node-os-check-key-'))
+    const dir = scratch('node-os-check-key-')
     try {
       const recorded = readFileSync(TRANSCRIPT, 'utf8')
       const dropped = path.join(dir, 'dropped.txt')
@@ -150,12 +146,12 @@ describe('check-key', () => {
       writeFileSync(wrong, `${'0'.repeat(40)}  Nobody\n`)
       expect(checkKey(['--transcript', TRANSCRIPT, '--fingerprints', wrong]).status).toBe(1)
     } finally {
-      rmSync(dir, { recursive: true, force: true })
+      cleanup(dir)
     }
   })
 
   it('refuses bad input with a usage error', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'node-os-check-key-input-'))
+    const dir = scratch('node-os-check-key-input-')
     try {
       expect(checkKey([]).status).toBe(2)
       expect(checkKey(['--transcript', TRANSCRIPT]).status).toBe(2)
@@ -177,7 +173,7 @@ describe('check-key', () => {
         checkKey(['--transcript', path.join(dir, 'absent.txt'), '--fingerprints', PINS]).status,
       ).toBe(2)
     } finally {
-      rmSync(dir, { recursive: true, force: true })
+      cleanup(dir)
     }
   })
 
@@ -204,7 +200,7 @@ describe('check-key', () => {
   })
 
   it.runIf(HAS_GPG)('refuses a wrong pin and a missing keyring with the real gpg', () => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'node-os-check-key-live-'))
+    const dir = scratch('node-os-check-key-live-')
     try {
       const wrong = path.join(dir, 'wrong.txt')
       writeFileSync(wrong, `${'0'.repeat(40)}  Nobody\n`)
@@ -220,7 +216,7 @@ describe('check-key', () => {
       expect(unusable.status).toBe(2)
       expect(unusable.out).toContain('no keys imported')
     } finally {
-      rmSync(dir, { recursive: true, force: true })
+      cleanup(dir)
     }
   })
 })

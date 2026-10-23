@@ -5,20 +5,13 @@
 // (test/fixtures/nodeos-boot/CAPTURE.md); and the proving guest boots
 // live where QEMU, gcc and the kernel download allow it.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { createHash } from 'node:crypto'
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { z } from 'zod'
+import { type NodeOsRun, runNodeScript, scratch, sha256File } from './helpers/nodeOs'
 import { scanTranscript } from '../../scripts/lib/osBootTest.mjs'
 
 const BOOT_TEST = fileURLToPath(new URL('../../scripts/os-boot-test.mjs', import.meta.url))
@@ -76,17 +69,8 @@ const HAS_GCC = hasTool('gcc', ['--version'])
 const HAS_KERNEL_NET = hasKernelNet()
 const CAN_BOOT = HAS_QEMU && HAS_GCC && HAS_KERNEL_NET
 
-function run(args: string[], script: string = BOOT_TEST): { status: number | null; out: string } {
-  const run = spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' })
-  return { status: run.status, out: `${run.stdout}${run.stderr}` }
-}
-
-function sha256(file: string): string {
-  return createHash('sha256').update(readFileSync(file)).digest('hex')
-}
-
-function scratch(prefix: string): string {
-  return mkdtempSync(path.join(tmpdir(), prefix))
+function run(args: string[], script: string = BOOT_TEST): NodeOsRun {
+  return runNodeScript(script, args)
 }
 
 const dryRunResult = z.object({ program: z.string(), args: z.array(z.string()) })
@@ -135,11 +119,11 @@ async function fetchKernel(): Promise<string> {
   const cache = path.join(tmpdir(), 'node-os-proving-guest')
   mkdirSync(cache, { recursive: true })
   const kernel = path.join(cache, 'vmlinuz-virt')
-  if (existsSync(kernel) && sha256(kernel) === KERNEL_SHA256) return kernel
+  if (existsSync(kernel) && sha256File(kernel) === KERNEL_SHA256) return kernel
   const response = await fetch(KERNEL_URL)
   if (!response.ok) throw new Error(`kernel download answered ${String(response.status)}`)
   writeFileSync(kernel, Buffer.from(await response.arrayBuffer()))
-  if (sha256(kernel) !== KERNEL_SHA256) throw new Error('kernel download failed its hash')
+  if (sha256File(kernel) !== KERNEL_SHA256) throw new Error('kernel download failed its hash')
   return kernel
 }
 
@@ -428,10 +412,10 @@ describe('boot transcript scanner', () => {
   })
 
   it('pins the recorded transcripts against drift', () => {
-    expect(sha256(PROVING_LOG)).toBe(
+    expect(sha256File(PROVING_LOG)).toBe(
       '71dfaf56197c4d2714e72193fda0e0173b4a1385b7e308e4cea7875eb6fc628b',
     )
-    expect(sha256(PANIC_LOG)).toBe(
+    expect(sha256File(PANIC_LOG)).toBe(
       '63ffc31df0d67edf5d018791cffc85e818cf77a1d0320e18b9d6d313996fa9fb',
     )
   })
