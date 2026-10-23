@@ -15026,6 +15026,29 @@ page read 2026-10-12, and stay UNVERIFIED until a real editor confirms them
 (capture plan and certification record are linked in the full record). Full
 record: [docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
+### D217 — Judge fast path: `stat` is reported by the helper, not started (M125 F1a, 2026-10-12; numbered D108 on its branch, D108 taken by the test overhaul, then D212 until the int/recovery join of 2026-10-23, when that number was found shared with secondary roles)
+
+**Decision (lead, records the M125 F1a stat follow-up; design
+`docs/design/judge-fast-path.md`, evidence
+`docs/certification/m125-f1a.md`).** The confinement helper answers
+`stat` itself from the walked operands — `statx` on the
+walk-verified descriptor (`AT_EMPTY_PATH`, never resolving the path
+again), re-applying the device, file-type and link-count predicates —
+and prints the default report with numeric owners and UTC times. No
+program is verified or executed for `stat`, and no grant beyond the
+walked operands is needed, so the result cannot depend on which
+coreutils implementation a distribution ships. The boundary grants
+strictly less than starting the system binary did. The stat path keeps
+every operand descriptor open until the report; operand opens that fail
+with `EMFILE`/`ENFILE` refuse with `limits`, and a started program
+killed by a signal is never read as the helper's verdict (`du`, which
+dies asking for a thread the boundary denies, reports `processCreation`).
+The lane-sandbox per-program table is labelled as a sandbox measurement
+and decides nothing about a real desktop; the real-machine capture is
+produced with `node scripts/inspect-capture.mjs` and lands by the lead's
+commit. No user-facing strings: F1a refusals stay typed internal
+protocol words.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -16576,6 +16599,23 @@ calibrate per engine; the full 170 cases with seed 42 are the standing
 regression set, the 40-case prefix the smoke check. Evidence and rows:
 `docs/certification/judge-bench.md` §§3/8 (rows verified against the
 committed raw files in round 2).
+
+**Status 2026-10-23: built.** On RLM125 (recovery): every lane
+except the F1a core stands on the M98 phase 2 base with the
+`src/RLM125/01-fix-judge-stat-uutils` merge: 0, R, E, H, J, L, W, K,
+M, C, P, F1b, F2, U, V and D, plus the W panel surface (wizard host
+and webview, Judge section management, status item, walkthrough) and
+the editor/CLI runs that prove them. Proven on x86_64 with strace
+allow-lists and bubblewrap 0.11 or later; the wizard command opens in
+a real editor on both VS Code floors, and the headless scan, setup
+refusal and remove run against the built agent. Eight unwired
+`JUDGE_*` place-holders were removed again (their design values stay
+authoritative in `docs/design/judge-fast-path.md`); the MHP mapping
+for other editors went back to the D84 review. Still open: macOS
+(Q-D107-B1-MAC), any model download (owner's go), the V-report
+persistence behind the savings row, `check:catches` and knip (both
+fail identically on the M98P2 base), and the packed-product real-life
+run before release.
 
 - **Goal.** D107: the judge is our own Jev. A batched, calibrated decision
   engine makes the agent faster (decisions the big model spends a turn or
@@ -37027,6 +37067,26 @@ live `activeTurnId` read after the await is load-bearing; the rule sees
 only the pre-await narrowing. Removal guard: restructure so no narrowing
 crosses the await (e.g. establishment returning the live turn state).
 
+| RLM125 location                                        | Escape hatch                                                                                                               | Reason                                                                                                                                                          | 2026-10-23 |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/judgeSetupController.test.ts`, `snapshotOf` | `directive.snapshot as JudgeSetupSnapshot`                                                                                 | The guard proves a non-null object carrying `snapshot`; the cast names it for the step assertions. Nine unguarded casts folded into this one helper. Test-only. |
+| `test/unit/eval/evalJudgeWiring.test.ts`               | `body as { input?: readonly unknown[] }`, `item as Record<string, unknown>` (after object/null guards), `input as Request` | The stub fetch reads its own request body back: input turns or nothing; the guarded record reads the call fields; the harness only sends Requests. Test-only.   |
+| `test/unit/judgeFastSkipAudit.test.ts`                 | `as unknown as FastPathAudit`                                                                                              | Deliberately off-vocabulary program and executable, proving the audit is omitted but the skip stays. Test-only.                                                 |
+| `test/unit/judgeSetupFlow.test.ts`                     | `JSON.parse(…) as JudgeSetupRecord`                                                                                        | The fake registration store reads back the registration the flow wrote. Test-only.                                                                              |
+| `test/unit/judgeSetupTable.test.ts`                    | `JSON.parse(…) as ShippedEnvelope`                                                                                         | Names the shipped models table's envelope; the assertions check its rows. Test-only.                                                                            |
+| `test/unit/judgeHardware.test.ts`                      | `JSON.parse(…) as { tags: unknown; health: unknown }`                                                                      | The committed Ollama capture's envelope; tags and health parse below. Test-only.                                                                                |
+| `test/unit/judgeSetupParts.test.ts`                    | `JSON.parse(…) as { manifest: unknown }`                                                                                   | The committed registry capture's envelope; the manifest parses below. Test-only.                                                                                |
+| `test/unit/inspectCapture.test.ts`                     | `error as { status?; stdout?; stderr? }`, `JSON.parse(…) as { rows: { program: string }[] }`                               | A failed run answers with status and streams; the helper wrote the rows file it names. Test-only.                                                               |
+| `test/unit/judgeApprovalRace.test.ts`                  | `signals as { reviewer; veto; inspect }`                                                                                   | The ports fill every signal when the race starts them; the cast names the running set. Test-only.                                                               |
+
+RLM125 lane 0, 2026-10-22: `// eslint-disable-next-line
+unicorn/consistent-boolean-name` on `eligible` in
+`src/core/judge/fast/classes.ts`. M125 lane 0 names this function
+`eligible(class, p95, window)` in PLAN §6, and the resolver, the
+recommender, the Done screen and the Judge section share the one name;
+renaming it `isEligible` would fork the contract. Removal guard: none
+while the M125 contract stands; the lint stays on everywhere else.
+
 TOOLROUNDS, 2026-10-12: `// eslint-disable-next-line
 @typescript-eslint/no-empty-function` on `MuseSession.setModelCallAllowance`
 (`src/core/backends/musecode/MuseCodeHost.ts`). `AgentSession`
@@ -37239,9 +37299,10 @@ INT0170B, 2026-10-07: `READER_BRAND_COMPILE_TIMEOUT_MS` = 20,000 ms in `test/uni
 
 Every lint or scanner suppression (`eslint-disable`, `@ts-expect-error`, `nosemgrep`), every cast the compiler cannot verify, and every error swallowed inside generated shell, C# or Swift must be listed here with its reason. A TypeScript `catch {}` needs only an inline comment saying why the error is dropped.
 
-| M98 phase-2 Z location             | Escape hatch                             | Reason                                                                                                                                                                                | Date       |
-| ---------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/runtime/judge/judgeBundle.ts` | `value is JudgeBundle` (`isJudgeBundle`) | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it. | 2026-10-05 |
+| M98 phase-2 Z location             | Escape hatch                                       | Reason                                                                                                                                                                                | Date       |
+| ---------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/runtime/judge/judgeBundle.ts` | `value is JudgeBundle` (`isJudgeBundle`)           | Checks the callable factory export; its parameter/result signatures are trusted because entry, loader and package share one typed source tree/build. Built-factory tests exercise it. | 2026-10-05 |
+| `src/runtime/judge/judgeBundle.ts` | `value is JudgeSetupBundle` (`isJudgeSetupBundle`) | Same shape as `isJudgeBundle`, for the scan/setup/remove child bundle: checks the callable factory export; signatures trusted from the one typed source tree/build.                   | 2026-10-23 |
 
 | Location                            | Escape hatch                        | Reason                                                                                                                                                                                                                                             |
 | ----------------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

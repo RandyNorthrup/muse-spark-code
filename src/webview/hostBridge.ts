@@ -6,6 +6,7 @@ import type { ModelAccountsRequest } from '../shared/modelAccountsProtocol'
 // (a JCEF or WebView2 panel) supplies a bridge of its own and the app does
 // not change.
 
+import type { JudgeSetupPanelToHost } from '../shared/judgeSetupPanel'
 import type { PanelToHostMessage } from '../shared/modelsPanel'
 import type { VaultClientMessage } from '../shared/hostApi/vaultMessages'
 import type { WebviewToHostMessage } from '../shared/protocol'
@@ -17,10 +18,11 @@ export type MessageSource = Pick<Window, 'addEventListener' | 'removeEventListen
 
 export interface HostBridge {
   /**
-  Posts to the host. The chat panel's messages and the Models & Agents
-  panel's (M95) share this bridge; each side validates what it receives.
-  The panel's vault section (C-M109-1 P1) posts the vault's own messages
-  over the same bridge; the host routes them to the vault binding.
+  Posts to the host. The chat panel's messages, the Models & Agents
+  panel's (M95) and the setup wizard's (M125 lane W) share this bridge;
+  each side validates what it receives. The panel's vault section
+  (C-M109-1 P1) posts the vault's own messages over the same bridge;
+  the host routes them to the vault binding.
   */
   post(
     message:
@@ -28,7 +30,8 @@ export interface HostBridge {
       | PanelToHostMessage
       | UsagePageToServiceMessage
       | VaultClientMessage
-      | ModelAccountsRequest,
+      | ModelAccountsRequest
+      | JudgeSetupPanelToHost,
   ): void
   /** The state saved before the document last went away, unvalidated (`restoredUiState` checks it). */
   savedState(): unknown

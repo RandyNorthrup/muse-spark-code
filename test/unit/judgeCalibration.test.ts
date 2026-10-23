@@ -1,10 +1,21 @@
 import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { applyCalibration } from '../../src/core/judge/calibration/apply'
 import { calibrationProbability, fitCalibration } from '../../src/core/judge/calibration/fit'
+import {
+  familyCalibrationStatus,
+  loadCommittedProfiles,
+  selectCalibrationProfile,
+} from '../../src/core/judge/calibration/profiles'
 import { reportCalibration } from '../../src/core/judge/calibration/report'
+import { FAST_DECISIONS } from '../../src/core/judge/fast/classes'
 import { judgeProfileIdentitySchema } from '../../src/core/judge/schema'
 import {
+  CALIBRATION_FAMILIES,
+  CALIBRATION_TECHNIQUES,
+  identityReason,
   parseCalibrationDataset,
   parseCalibrationProfile,
   type CalibrationDataset,
@@ -12,6 +23,10 @@ import {
   type CalibrationLimits,
   type CalibrationProfile,
 } from '../../src/core/judge/calibration/schema'
+import {
+  JUDGE_CALIBRATION_FAMILIES,
+  JUDGE_CALIBRATION_TECHNIQUES,
+} from '../../src/shared/judgeCalibration/fileSchema'
 
 const limits: CalibrationLimits = {
   maxSamples: 2000,
@@ -652,5 +667,205 @@ describe('evaluation-only reports and runtime profiles', () => {
     input.identity = reordered
     input.samples.reverse()
     expect(reportCalibration(profile, input, 5, limits).status).toBe('reported')
+  })
+})
+
+const NEW_FAMILIES = [
+  'triage.needFull',
+  'context.include',
+  'loop.stuck',
+  'effort.lower',
+  'edit.misfit',
+  'failure.unmentioned',
+  'scope.outside',
+  'claim.inconsistent',
+  'done.unbacked',
+] as const
+
+function systemoneDataset(family: string, fitCount: number): CalibrationDataset {
+  const input = withFitCount(fitCount)
+  input.identity = { ...input.identity, technique: 'systemone', family }
+  // This simulates trusted evidence under test only; it is no real receipt.
+  input.evidence = 'independent'
+  return input
+}
+
+function retagFirst(input: CalibrationDataset, labelSource: string): unknown {
+  return {
+    ...input,
+    samples: input.samples.map((row, index) => (index === 0 ? { ...row, labelSource } : row)),
+  }
+}
+
+describe('lane L technique and families', () => {
+  it('accepts systemone beside logprob and stated for every supported family', () => {
+    const identity = dataset().identity
+    for (const family of CALIBRATION_FAMILIES) {
+      for (const technique of CALIBRATION_TECHNIQUES) {
+        expect(identityReason({ ...identity, family, technique })).toBeUndefined()
+      }
+    }
+    expect(identityReason({ ...identity, family: 'nonsense.family' })).toBe('unsupported-family')
+    expect(identityReason({ ...identity, technique: 'top1' })).toBe('unsupported-technique')
+  })
+
+  it('keeps one family list across the contract, the runtime and the file schema', () => {
+    expect(new Set(CALIBRATION_FAMILIES)).toEqual(new Set(JUDGE_CALIBRATION_FAMILIES))
+    expect(new Set(CALIBRATION_TECHNIQUES)).toEqual(new Set(JUDGE_CALIBRATION_TECHNIQUES))
+    for (const family of NEW_FAMILIES) {
+      expect([...FAST_DECISIONS]).toContain(family)
+    }
+  })
+
+  it('labels a systemone runtime answer calibrated (systemone)', () => {
+    const input = systemoneDataset('loop.stuck', 200)
+    const profile = fitted(input, 'isotonic')
+    const reported = reportCalibration(profile, input, 5, limits)
+    if (reported.status !== 'reported') throw new Error(reported.reason)
+    expect(applyCalibration(reported.profile, input.identity, 0.5, false, limits)).toMatchObject({
+      status: 'calibrated',
+      label: 'calibrated (systemone)',
+    })
+  })
+
+  it('fits a new family only from independent labels, never weak or setup rows', () => {
+    expect(
+      parseCalibrationDataset(
+        retagFirst(systemoneDataset('context.include', 4), 'eval-weak'),
+        limits,
+      ),
+    ).toMatchObject({ reason: 'invalid-dataset' })
+    expect(
+      parseCalibrationDataset(
+        retagFirst(systemoneDataset('context.include', 4), 'setup-smoke'),
+        limits,
+      ),
+    ).toMatchObject({ reason: 'invalid-dataset' })
+    expect(
+      parseCalibrationDataset(
+        retagFirst(systemoneDataset('context.include', 4), 'm75-routing'),
+        limits,
+      ),
+    ).toMatchObject({ reason: 'invalid-label-source' })
+    expect(parseCalibrationDataset(systemoneDataset('context.include', 4), limits).status).toBe(
+      'valid',
+    )
+  })
+
+  it('fails a systemone fit under 200 independent labels and fits at 200', () => {
+    expect(
+      fitCalibration(systemoneDataset('triage.needFull', 199), 'isotonic', limits),
+    ).toMatchObject({
+      status: 'uncalibrated',
+      reason: 'insufficient-isotonic-labels',
+    })
+    expect(
+      fitCalibration(systemoneDataset('triage.needFull', 200), 'isotonic', limits).status,
+    ).toBe('fitted')
+  })
+})
+
+describe('lane L committed profiles', () => {
+  const profilesRoot = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    '..',
+    'src',
+    'shared',
+    'judgeCalibration',
+    'profiles',
+  )
+  const fixtureRoot = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'fixtures',
+    'judgeCalibration',
+  )
+  const query = {
+    technique: 'systemone',
+    family: 'loop.stuck',
+    providerId: 'synthetic-provider',
+    model: 'synthetic-systemone',
+    endpoint: 'fixture://offline',
+  }
+
+  it('finds no committed profiles yet, so every new family reports its own profile-missing', () => {
+    const loaded = loadCommittedProfiles(profilesRoot, '2026-10-22', limits)
+    expect(loaded.failures).toEqual({})
+    expect(loaded.profiles).toEqual([])
+    for (const family of NEW_FAMILIES) {
+      expect(familyCalibrationStatus([], { ...query, family })).toEqual({
+        status: 'profile-missing',
+        family,
+      })
+    }
+  })
+
+  it('loads the synthetic valid file and names its technique, profile and evidence', () => {
+    const loaded = loadCommittedProfiles(path.join(fixtureRoot, 'valid'), '2026-10-22', limits)
+    expect(loaded.failures).toEqual({})
+    expect(loaded.profiles).toHaveLength(1)
+    expect(familyCalibrationStatus(loaded.profiles, query)).toMatchObject({
+      status: 'ready',
+      tier: 'exact',
+      technique: 'systemone',
+      fitVersion: 'synthetic-v1',
+      labelSet: 'synthetic-loader-fixture',
+      committedAt: '2026-10-22',
+      evidence: 'independent',
+    })
+  })
+
+  it('refuses every invalid file with its own reason', () => {
+    const loaded = loadCommittedProfiles(path.join(fixtureRoot, 'invalid'), '2026-10-22', limits)
+    const failures = Object.fromEntries(
+      Object.entries(loaded.failures).map(([file, reason]) => [path.basename(file), reason]),
+    )
+    expect(failures).toMatchObject({
+      'weak-evidence.json': 'weak-or-missing-evidence',
+      'missing-evaluation.json': 'weak-or-missing-evidence',
+      'future-date.json': 'future-date',
+      'path-mismatch.json': 'path-mismatch',
+      'bad.json': 'invalid-json',
+    })
+    const duplicates = ['duplicate-a.json', 'duplicate-b.json'].map((name) => failures[name])
+    expect(duplicates.filter((reason) => reason === 'duplicate-engine')).toHaveLength(1)
+    expect(loaded.profiles).toHaveLength(1)
+    const directories = Object.keys(loaded.failures).filter((file) => !file.endsWith('.json'))
+    expect(directories).toHaveLength(2)
+  })
+
+  it('prefers the exact file, then the newest family file, then the newest engine base', () => {
+    const loaded = loadCommittedProfiles(path.join(fixtureRoot, 'valid'), '2026-10-22', limits)
+    const only = loaded.profiles[0]
+    if (only === undefined) throw new Error('Missing synthetic profile')
+    expect(selectCalibrationProfile([only], query)?.tier).toBe('exact')
+    const newerFamily = {
+      ...only,
+      file: 'newer.json',
+      committedAt: '2026-10-23',
+      profile: {
+        ...only.profile,
+        identity: { ...only.profile.identity, providerId: 'other-provider' },
+      },
+    }
+    const olderFamily = { ...newerFamily, file: 'older.json', committedAt: '2026-10-21' }
+    // A newer family file wins its tier even from another engine.
+    expect(selectCalibrationProfile([olderFamily, newerFamily], query)).toMatchObject({
+      tier: 'family',
+      committed: { file: 'newer.json' },
+    })
+    // The exact file beats any family file.
+    expect(selectCalibrationProfile([newerFamily, only], query)?.tier).toBe('exact')
+    // With no family file, the newest engine base answers.
+    const engineBase = {
+      ...only,
+      profile: {
+        ...only.profile,
+        identity: { ...only.profile.identity, family: 'triage.needFull' },
+      },
+    }
+    expect(selectCalibrationProfile([engineBase], query)?.tier).toBe('engine')
+    expect(selectCalibrationProfile([], query)).toBeUndefined()
   })
 })

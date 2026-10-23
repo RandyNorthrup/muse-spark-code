@@ -23,6 +23,8 @@ import { APPROVAL_CHOICE_IDS } from '../backends/modelapi/permissions'
 import type { ToolIo } from '../backends/modelapi/tools'
 import type { MemoryStore } from '../memory/memoryStore'
 import type { AgentEvent, ItemSnapshot } from '../../shared/agentEvents'
+import type { JudgeAdvisory } from '../judge/use'
+import type { JudgeFastTurn } from '../../shared/judgeFastTurn'
 import {
   EVAL_APPROVAL_MODE,
   EVAL_BUDGET_USD,
@@ -111,6 +113,13 @@ export interface EvalTurnDeps {
   arm fails closed: its frozen change requires the parent's admission.
   */
   readonly admission?: EvalCompactionAdmission | undefined
+  /**
+  D107 (M125 lane V): the caution judge the turn runs under, if any. The
+  counted runner passes none (no paid feature is on); the live judge run
+  passes a real `JudgeUse` whose `onFence` records into the run's
+  `JudgeReplayRecorder`, and the wiring test a scripted advisory.
+  */
+  readonly judge?: JudgeAdvisory | undefined
 }
 
 /**
@@ -244,6 +253,12 @@ export interface EvalTurnOutcome {
   /** The host's terminal (`completed`, `failed`, `cancelled`), or `timedOut`. */
   readonly terminal: string
   readonly reason: string | undefined
+  /** The turn's wall time in milliseconds, from send to settle. */
+  readonly turnWallMs: number
+  /** The fast judge's per-turn records, in emission order (lane V). */
+  readonly fastTurns: readonly JudgeFastTurn[]
+  /** Held actions that skipped the reviewer and ran confined (lane V). */
+  readonly fastSkips: number
   /** Tool calls the model made, by tool name, in order. */
   readonly tools: readonly string[]
   /** Cards allowed once (shell commands, protected writes). */
@@ -305,6 +320,8 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
   const problems: string[] = []
   const items: ItemSnapshot[] = []
   const finished: TurnCompleted[] = []
+  const fastTurns: JudgeFastTurn[] = []
+  let fastSkips = 0
   let packedTokensAvoided: number | undefined
   let wake: (() => void) | undefined
   // The frozen arm's missing-admission marker, when the turn's admission
@@ -378,6 +395,9 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     noteReviewerUsage: () => {
       counts.paidUses += 1
     },
+    // D107 (M125 lane V): the turn's caution judge, when the run binds
+    // one. A mechanism must not change it (it is held fixed below).
+    ...(deps.judge !== undefined && { judge: deps.judge }),
   }
   // Lane E binds the REAL shared D78 admission behind the turn (never a
   // test double): consent once per use, reserve/recheck/settle each attempt
@@ -452,11 +472,20 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
           wake?.()
           break
         }
+        case 'judgeFastTurn': {
+          fastTurns.push(event)
+          break
+        }
+        case 'judgeFastSkip': {
+          fastSkips += 1
+          break
+        }
         default: {
           break
         }
       }
     })
+    const sentAt = deps.now()
     const { turnId } = await session.sendTurn([{ type: 'text', text: options.prompt }])
     const turn = await new Promise<TurnCompleted | undefined>((resolve) => {
       const timer = setTimeout(() => {
@@ -488,6 +517,9 @@ export async function runEvalTurn(options: EvalTurnOptions): Promise<EvalTurnOut
     return {
       terminal: failure === undefined ? terminal : 'failed',
       reason: failure?.message ?? turn?.reason,
+      turnWallMs: deps.now() - sentAt,
+      fastTurns: [...fastTurns],
+      fastSkips,
       tools: calls.map((item) => item.tool ?? item.kind),
       ...counts,
       // A copy: a card answered after the turn cannot change the outcome.

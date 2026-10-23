@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { RepeatGuard, toolRepeatKey } from '../../src/core/backends/modelapi/repeatGuard'
+import { RepeatGuard } from '../../src/core/backends/modelapi/repeatGuard'
+import { toolRepeatKey } from '../../src/core/judge/fast/reflex/loop'
 
 const call = { name: 'read_file', arguments: '{"path":"a.txt","offset":1}' }
 const reordered = { ...call, arguments: ' { "offset": 1, "path": "a.txt" } ' }

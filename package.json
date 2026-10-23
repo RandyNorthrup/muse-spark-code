@@ -129,6 +129,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.setUpLocalJudge",
+        "title": "%command.setUpLocalJudge.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.showLogs",
         "title": "%command.showLogs.title%",
         "category": "%command.category%"
@@ -1339,6 +1344,12 @@
           "description": "%config.judge.separate.description%",
           "scope": "machine"
         },
+        "museSpark.judge.fastPathOff": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.judge.fastPathOff.description%",
+          "scope": "machine"
+        },
         "museSpark.browserCheckExtraHosts": {
           "type": "array",
           "default": [],
@@ -1918,6 +1929,17 @@
             },
             "completionEvents": [
               "onCommand:museSpark.startWithOwnModel"
+            ]
+          },
+          {
+            "id": "judgeSetup",
+            "title": "%walkthrough.gettingStarted.step.judgeSetup.title%",
+            "description": "%walkthrough.gettingStarted.step.judgeSetup.description%",
+            "media": {
+              "markdown": "resources/walkthrough/judge-setup.md"
+            },
+            "completionEvents": [
+              "onCommand:museSpark.setUpLocalJudge"
             ]
           }
         ]

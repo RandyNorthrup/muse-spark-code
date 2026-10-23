@@ -1171,6 +1171,12 @@ function noticeActionLabel(action: NoticeAction): string {
     case 'declineBundledSkills': {
       return UI_TEXT.bundledSkillsNotNow
     }
+    case 'stopTurn': {
+      return UI_TEXT.stopTitle
+    }
+    case 'steerTurn': {
+      return UI_TEXT.judgeSteerTurn
+    }
   }
 }
 

@@ -32,6 +32,7 @@ import {
 const OUT_DIR = path.join('temp', 'ui-look')
 const BUNDLE_PATH = 'dist/webview/main.js'
 const MODELS_BUNDLE_PATH = 'dist/webview/models.js'
+const JUDGE_SETUP_BUNDLE_PATH = 'dist/webview/judgeSetup.js'
 const SHOT_WIDTH = 690
 const SHOT_HEIGHT = 760
 const repoRoot = process.cwd()
@@ -85,6 +86,12 @@ async function main() {
   }
   if (bundleFor(scenario) === 'models' && !existsSync(path.join(repoRoot, MODELS_BUNDLE_PATH))) {
     throw new Error(`${MODELS_BUNDLE_PATH} is missing; run npm run build:dev first`)
+  }
+  if (
+    bundleFor(scenario) === 'judgeSetup' &&
+    !existsSync(path.join(repoRoot, JUDGE_SETUP_BUNDLE_PATH))
+  ) {
+    throw new Error(`${JUDGE_SETUP_BUNDLE_PATH} is missing; run npm run build:dev first`)
   }
   await prepareLang(repoRoot, lang)
   const themes = theme === undefined ? [...THEMES] : [theme]

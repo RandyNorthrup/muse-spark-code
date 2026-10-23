@@ -3,7 +3,10 @@ import type {
   JudgeRuntimeBinding,
   JudgeRuntimeDeps,
 } from '../../core/judge/runtime'
-import type { JudgePanelSnapshot } from '../../shared/judgePanel'
+import type { JudgePanelFacts, JudgePanelSnapshot } from '../../shared/judgePanel'
+import { projectFastJudgePanel, projectJudgePanel } from '../../shared/judgePanel'
+import { FastPanelFacts } from '../../core/judge/fast/panelFacts'
+import type { JudgeFastTurn } from '../../shared/judgeFastTurn'
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
 import type { JudgeDailyLedger } from '../../core/judge/admission'
 import type { SeparateRouteFacts, SeparateSourcePorts } from '../../core/judge/sides'
@@ -120,8 +123,40 @@ export function judgeWindowPort(
     unavailable: () => UI_TEXT.judgeStatusUnavailable,
   })
   let judge: JudgeWindowPort | undefined
+  // D107 (M125 lane U): the window's fast-decision rolls. They live in
+  // the port, not the lazy bundle: a fast-only window never loads the
+  // caution judge, and its turns still count.
+  const fast = new FastPanelFacts()
+  const readPanelSnapshot = (): JudgePanelSnapshot | undefined => {
+    const fastFacts = fast.facts()
+    const base = judge?.readPanelSnapshot()
+    if (base !== undefined) {
+      return fastFacts === undefined ? base : { ...base, fast: projectFastJudgePanel(fastFacts) }
+    }
+    if (fastFacts === undefined) return undefined
+    // The caution judge never ran here: the billing it never touched
+    // stays none, and only the fast rows below say anything.
+    const engine = deps.engine()
+    const facts: JudgePanelFacts = {
+      engine,
+      effectiveSource: 'none',
+      ...(engine === 'off' && { reason: 'explicit-off' as const }),
+      locality: 'not-local',
+      experimental: false,
+      confidential: true,
+      billing: 'none',
+      paidSourceSelected: false,
+      consent: 'not-required',
+      fast: fastFacts,
+    }
+    return projectJudgePanel(facts)
+  }
+  const observeFastTurn = (event: JudgeFastTurn): void => {
+    fast.observe(event)
+  }
   return {
-    readPanelSnapshot: () => judge?.readPanelSnapshot(),
+    readPanelSnapshot,
+    observeFastTurn,
     start: (action, text) => {
       if (deps.engine() === 'off') return
       try {

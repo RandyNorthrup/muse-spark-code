@@ -1,0 +1,12 @@
+    [90m   |[39m                     [31m^[39m
+    [90m800|[39m           expect(b).toMatchObject({ kind: 'output', exitCode: 0 })
+    [90m801|[39m           writeFileSync(h.allowed, 'password = "synthetic-sensitive-ca…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[17/17]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m17 failed[39m[22m[2m | [22m[1m[32m16 passed[39m[22m[90m (33)[39m
+[2m   Start at [22m 15:25:56
+[2m   Duration [22m 117.57s[2m (tests 90%, transform 6%, import 3%, setup 1%)[22m
+

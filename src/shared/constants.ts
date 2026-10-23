@@ -329,6 +329,7 @@ export const COMMAND_IDS = {
   toggleFocusView: 'museSpark.toggleFocusView',
   toggleThinking: 'museSpark.toggleThinking',
   setUpSandbox: 'museSpark.setUpSandbox',
+  setUpLocalJudge: 'museSpark.setUpLocalJudge',
   showLogs: 'museSpark.showLogs',
   diagnostics: 'museSpark.diagnostics',
   reportProblem: 'museSpark.reportProblem',
@@ -421,6 +422,14 @@ export const MODELS_PANEL_BUNDLE_FILE = 'modelsPanel.js'
 export const MODELS_SUBSCRIPTIONS_BUNDLE_FILE = 'modelsSubscriptions.js'
 export const MODELS_WEBVIEW_SCRIPT_FILE = 'models.js'
 export const MODELS_WEBVIEW_STYLE_FILE = 'models.css'
+
+// D107 (M125 lane W): the Set Up Local Judge wizard. The panel host
+// stays at activation beside the light setup readers; the driver's
+// controller, ports and flows load from their bundle on first open.
+export const JUDGE_SETUP_PANEL_VIEW_TYPE = 'museSpark.judgeSetupPanel'
+export const JUDGE_SETUP_DRIVER_BUNDLE_FILE = 'judgeSetupDriver.js'
+export const JUDGE_SETUP_WEBVIEW_SCRIPT_FILE = 'judgeSetup.js'
+export const JUDGE_SETUP_WEBVIEW_STYLE_FILE = 'judgeSetup.css'
 
 // MODELSPLIT4: first-ever section estimates; later loads use measured boxes.
 export const MODELS_SECTION_PENDING_MS = 150
@@ -588,6 +597,8 @@ export const GLOBAL_STATE_KEYS = {
   Settings Sync, so a page seen on one machine is not shown on another.
   */
   whatsNewLastSeenVersion: 'museSpark.whatsNewLastSeenVersion',
+  /** Set Up Later (or Skip, or Hosted) in the local-judge wizard (M125 lane W): the status item stays hidden. */
+  judgeSetupDeferred: 'museSpark.judgeSetupDeferred',
 } as const
 
 // VS Code `when`-clause context keys the extension maintains.
@@ -1080,6 +1091,11 @@ export const SETTING_DEFAULTS = {
   // Phase-2 source selection is inert until the source and cascade lanes
   // certify it. Empty preserves the single-model setup; no discovery here.
   'judge.separate': '',
+  // M125 lane 0 (D107): one switch for the whole fast path, not one per
+  // decision. Off (default) runs deterministic checks first, then the
+  // fastest ready engine per decision; on keeps the M98 same-model
+  // caution judge only. Machine scoped: it chooses what runs.
+  'judge.fastPathOff': false,
 } as const
 export const PAID_DAILY_BUDGET = {
   // One machine-wide folder, independent of the selected key and workspace.
@@ -1225,6 +1241,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'estimator.optimize',
   'estimator.priceLookup',
   'judge.separate',
+  'judge.fastPathOff',
 ] as const
 
 // Muse Code SDK 1.3.0 hook process limits (PLAN.md M51).
@@ -5114,6 +5131,361 @@ export const JUDGE_FAST_B1_PROTOCOL_MAX_BYTES = 1024
 export const JUDGE_FAST_B1_ELF_MAX_BYTES = 32 * 1024 * 1024
 /** @unwired unassigned read only by tests deleted 2026-10-17 (no fakes) */
 export const JUDGE_FAST_B1_SYSTEM_MAX_FILES = 64
+// D107 §9.3.5: how often the veto rereads the judge fence while it is
+// unsettled. A veto answers in seconds; the poll granularity vanishes
+// inside the window.
+export const JUDGE_FAST_VETO_POLL_MS = 50
+// A probability in thousandths (D107 §9.6's audit): integers dodge the
+// floats a journal line cannot always carry.
+export const PERMILLE_MAX = 1000
+// D107 §9.2 and the ship rule (§11): platforms where B1 may skip the
+// reviewer — a platform receipt (drills, m125-f1.md) AND the harm bound
+// (lane V) behind each entry. Empty until both land anywhere: Linux's
+// receipt is F1b's, its harm bound lane V's; macOS waits for
+// Q-D107-B1-MAC; Windows is off by §9.2.
+export const JUDGE_FAST_B1_READY_PLATFORMS: readonly NodeJS.Platform[] = []
+// D107 §9.5: the B2 check scripts a contained run may start. No
+// option; after `--`, only plain workspace-relative path operands.
+export const JUDGE_FAST_B2_SCRIPTS: readonly string[] = [
+  'test',
+  'test:unit',
+  'lint',
+  'typecheck',
+  'type-check',
+  'check',
+  'format:check',
+]
+// D107 §9.5: configuration keys that name no program, file or code.
+// Every effective configuration source must hold only these; a key
+// outside the list in any of them means not B2.
+export const JUDGE_FAST_B2_CONFIG_KEYS: readonly string[] = [
+  'engine-strict',
+  'save-exact',
+  'save-prefix',
+  'fund',
+  'audit',
+  'legacy-peer-deps',
+  'strict-peer-dependencies',
+  'auto-install-peers',
+  'package-lock',
+  'packages',
+]
+// D107 §9.5 (1): the frozen snapshot's budgets. Past either, the run
+// is abandoned and the reviewer decides.
+export const JUDGE_FAST_B2_SNAPSHOT_MAX_MS = 3000
+export const JUDGE_FAST_B2_SNAPSHOT_MAX_MIB = 4096
+// D107 §9.5 (3): the system calls a check may make on x86_64, in the
+// design's list order. Every other call is reported and refused, and
+// any refused call discards the run. 193: the design's 188 plus the
+// capture's 5 (clone3, io_uring_setup, io_uring_enter, socket, bind),
+// each observed in all four fixture checks on 2026-10-23 (m125-f2.md).
+export const JUDGE_FAST_B2_SYSCALLS_X86_64: readonly string[] = [
+  'read',
+  'write',
+  'readv',
+  'writev',
+  'pread64',
+  'pwrite64',
+  'preadv',
+  'pwritev',
+  'preadv2',
+  'pwritev2',
+  'open',
+  'openat',
+  'openat2',
+  'creat',
+  'close',
+  'close_range',
+  'lseek',
+  'stat',
+  'fstat',
+  'lstat',
+  'newfstatat',
+  'statx',
+  'statfs',
+  'fstatfs',
+  'access',
+  'faccessat',
+  'faccessat2',
+  'readlink',
+  'readlinkat',
+  'getdents64',
+  'mkdir',
+  'mkdirat',
+  'rmdir',
+  'unlink',
+  'unlinkat',
+  'rename',
+  'renameat',
+  'renameat2',
+  'link',
+  'linkat',
+  'symlink',
+  'symlinkat',
+  'chmod',
+  'fchmod',
+  'fchmodat',
+  'fchmodat2',
+  'chown',
+  'fchown',
+  'fchownat',
+  'lchown',
+  'utimensat',
+  'truncate',
+  'ftruncate',
+  'fallocate',
+  'fadvise64',
+  'fsync',
+  'fdatasync',
+  'flock',
+  'fcntl',
+  'dup',
+  'dup2',
+  'dup3',
+  'pipe',
+  'pipe2',
+  'ioctl',
+  'getcwd',
+  'chdir',
+  'fchdir',
+  'umask',
+  'copy_file_range',
+  'sendfile',
+  'splice',
+  'memfd_create',
+  'inotify_init1',
+  'inotify_add_watch',
+  'inotify_rm_watch',
+  'getxattr',
+  'lgetxattr',
+  'fgetxattr',
+  'listxattr',
+  'llistxattr',
+  'flistxattr',
+  'mmap',
+  'munmap',
+  'mprotect',
+  'mremap',
+  'madvise',
+  'brk',
+  'msync',
+  'mincore',
+  'membarrier',
+  'pkey_alloc',
+  'pkey_free',
+  'pkey_mprotect',
+  'clone',
+  'clone3',
+  'fork',
+  'vfork',
+  'execve',
+  'execveat',
+  'exit',
+  'exit_group',
+  'wait4',
+  'waitid',
+  'kill',
+  'tkill',
+  'tgkill',
+  'pidfd_open',
+  'pidfd_send_signal',
+  'getpid',
+  'getppid',
+  'gettid',
+  'getpgid',
+  'getpgrp',
+  'setpgid',
+  'getsid',
+  'setsid',
+  'getuid',
+  'geteuid',
+  'getgid',
+  'getegid',
+  'getresuid',
+  'getresgid',
+  'getgroups',
+  'capget',
+  'set_tid_address',
+  'set_robust_list',
+  'get_robust_list',
+  'rseq',
+  'futex',
+  'sched_yield',
+  'sched_getaffinity',
+  'sched_setaffinity',
+  'sched_getparam',
+  'sched_getscheduler',
+  'sched_get_priority_max',
+  'sched_get_priority_min',
+  'getpriority',
+  'setpriority',
+  'prctl',
+  'arch_prctl',
+  'prlimit64',
+  'getrlimit',
+  'setrlimit',
+  'getrusage',
+  'times',
+  'sysinfo',
+  'uname',
+  'rt_sigaction',
+  'rt_sigprocmask',
+  'rt_sigreturn',
+  'rt_sigsuspend',
+  'rt_sigtimedwait',
+  'sigaltstack',
+  'alarm',
+  'setitimer',
+  'getitimer',
+  'clock_gettime',
+  'clock_getres',
+  'clock_nanosleep',
+  'nanosleep',
+  'gettimeofday',
+  'time',
+  'timerfd_create',
+  'timerfd_settime',
+  'timerfd_gettime',
+  'epoll_create',
+  'epoll_create1',
+  'epoll_ctl',
+  'epoll_wait',
+  'epoll_pwait',
+  'epoll_pwait2',
+  'poll',
+  'ppoll',
+  'select',
+  'pselect6',
+  'eventfd',
+  'eventfd2',
+  'io_uring_setup',
+  'io_uring_enter',
+  'socketpair',
+  'socket',
+  'bind',
+  'sendmsg',
+  'recvmsg',
+  'sendto',
+  'recvfrom',
+  'shutdown',
+  'getsockopt',
+  'setsockopt',
+  'getsockname',
+  'getpeername',
+  'getrandom',
+]
+// The 26 of the 193 with no arm64 number in the installed
+// asm-generic table (each superseded there, except arch_prctl,
+// which is x86-only), so 167 on arm64. D107 §9.5 says 28; the
+// mismatch is an open question (see m125-f2.md).
+export const JUDGE_FAST_B2_SYSCALLS_ARM64_ABSENT: readonly string[] = [
+  'open',
+  'creat',
+  'access',
+  'readlink',
+  'mkdir',
+  'rmdir',
+  'unlink',
+  'rename',
+  'link',
+  'symlink',
+  'chmod',
+  'chown',
+  'lchown',
+  'dup2',
+  'pipe',
+  'fork',
+  'vfork',
+  'getpgrp',
+  'arch_prctl',
+  'alarm',
+  'time',
+  'epoll_create',
+  'epoll_wait',
+  'poll',
+  'select',
+  'eventfd',
+]
+// M125 lane 0 (D107): the fast judge's shared numbers. Deadlines select a
+// fallback, never stop work: a missed deadline runs today's behaviour, and
+// the approval reviewer starts beside the fast path as today. Bars and
+// label floors are calibration-validity rules in D77's line (like the
+// 200-label isotonic floor above), not caps on the person's work.
+export const JUDGE_FAST_INLINE_DEADLINE_MS = 300
+export const JUDGE_FAST_SLACK_DEADLINE_MS = 5000
+export const JUDGE_FAST_BOUNDARY_DEADLINE_MS = 2000
+// Q-D107-VETO (owner, 2026-10-10): up to 5 s from the hold for both
+// approval classes; no answer by then is a veto.
+export const JUDGE_FAST_VETO_WINDOW_MS = 5000
+// The resolver's rolling complete-call p95 covers this many attempts; a
+// timeout, error or no-answer counts as a miss with infinite latency.
+export const JUDGE_FAST_LATENCY_WINDOW = 50
+// A suspended or skipped local engine requalifies only after this many
+// consecutive in-budget background probes, then its window restarts.
+export const JUDGE_FAST_REQUALIFY_PROBES = 3
+
+// D107 §6.1 (lane M): relevance-ranked replay entries the judge keeps
+// past the compaction tail, most relevant first. A small bound: the
+// tail already keeps the recent turns, and the summary covers the rest.
+export const JUDGE_FAST_KEEP_ENTRIES = 3
+// D107 (lane U): the turn record's method when the deterministic checks
+// decided, with no engine call behind them.
+export const JUDGE_FAST_METHOD_DETERMINISTIC = 'deterministic'
+// D107 §4.1 (lane P): the logprob answers the judge's engines read are
+// top-5; a record affirming fewer never admits the logprob wire.
+export const JUDGE_LOGPROB_TOP_K = 5
+
+// D107 §11 (lane V): harm share tolerated before a fast decision stops
+// shipping: harm events (a refetch, a recall, a retry, a false stop)
+// against decisions applied, paired on-minus-off. Veto harm above stays
+// zero; this bar is for the reflex decisions' own harm.
+export const JUDGE_FAST_DECISION_HARM_MAX = 0.02
+
+// Lane-J choice: one I/O budget for every blobhold protocol step (ready
+// handshake, ping round-trip, stop drain). Holder startup is open+fdsync,
+// sub-second; 10 s tolerates a loaded runner without hiding a wedged hold.
+export const JUDGE_FAST_BLOBHOLD_TIMEOUT_MS = 10_000
+// A check shows a hint or note only above this precision, from a lane L
+// profile fitted for that engine identity and family; below it, log only.
+export const JUDGE_FAST_HINT_MIN_PRECISION = 0.9
+// D107 §7.1: the destructive check answers at precision 0.8 (with recall
+// 0.95 on destructive commands); every other accuracy check answers at
+// the hint precision above.
+export const JUDGE_FAST_DESTRUCTIVE_MIN_PRECISION = 0.8
+// Lane-K choice: one cap for every evidence field a check judges over
+// or shows in its slots (a command, an excerpt, a head/tail, a claim).
+// Small fast models read these questions; 4000 chars a field keeps a
+// whole question small while keeping real excerpts intact.
+export const JUDGE_FAST_CHECK_EVIDENCE_MAX_CHARS = 4000
+// A model-backed family is used only with a profile fitted on at least
+// this many independent labels for that engine identity (D107).
+export const JUDGE_FAST_ACCURACY_MIN_LABELS = 400
+// D107: the setup scan's micro-benchmark runs within 5 s.
+export const JUDGE_SCAN_BENCH_MS = 5000
+// Lane-0 choice: RAM kept free past the loaded model before a local
+// judge size is recommended.
+export const JUDGE_MEMORY_HEADROOM_GIB = 2
+// Ollama's loopback port when OLLAMA_HOST names none.
+export const OLLAMA_DEFAULT_PORT = 11_434
+// Lane-H choice: one budget for every hardware probe's child process
+// and one cap for its output. Probes (nvidia-smi, sysctl, ioreg,
+// system_profiler, an Ollama binary) answer in milliseconds; 10 s
+// tolerates a loaded machine, and 256 KiB holds the largest display
+// dump while bounding a runaway tool.
+export const JUDGE_PROBE_TIMEOUT_MS = 10_000
+export const JUDGE_PROBE_MAX_OUTPUT_BYTES = 262_144
+// Lane-0 choice: the ten-question setup smoke needs this many correct.
+export const JUDGE_SETUP_SMOKE_MIN_CORRECT = 8
+// Lane-W choice: the context window setup records for the local judge
+// (requested as num_ctx at serve time); the table carries no window.
+export const JUDGE_SETUP_CONTEXT_TOKENS = 4096
+// Lane-W choice: starting the private runtime answers /api/version
+// within 30 s (cold disk on a loaded machine), polled twice a second.
+export const JUDGE_SETUP_VERSION_TIMEOUT_MS = 30_000
+export const JUDGE_SETUP_VERSION_POLL_MS = 500
+// Lane-W choice: the runtime archive's extracted tree stays under
+// 2 GiB; anything larger is a wrong file, not a runtime.
+export const JUDGE_SETUP_EXTRACT_MAX_MIB = 2048
 // The longest a backstop wait may run (check commands derive their own
 // ceiling from it): the shell tool itself no longer clamps (owner
 // 2026-10-16).
@@ -6426,6 +6798,7 @@ export const JSON_RPC_ERRORS = {
 export const HTTP_STATUS = {
   ok: 200,
   accepted: 202,
+  partialContent: 206,
   /** A 2xx answer ends below this (M95 lane K: the local probe). */
   multipleChoices: 300,
   badRequest: 400,
@@ -7261,6 +7634,7 @@ export const REPORT_EVENT_KINDS = [
   'unhandledRejection',
   'reactBoundary',
   'errorNotice',
+  'judgeFastSkip',
 ] as const
 export type ReportEventKind = (typeof REPORT_EVENT_KINDS)[number]
 // What the webview may post to the host: its own failures only, never host kinds.
@@ -7371,6 +7745,9 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
   'permissionRequestFailed',
   'approvalWithoutDenial',
   'questionFailed',
+  // A fast-path allow's audit record (M125, D107 §9.6): the entry's fixed
+  // code word. Not an error; the audit it labels carries the facts.
+  'fast-path-allow',
   // How Muse Code's process ended when nobody asked it to (M93): a non-zero
   // exit, or the signal that ended it.
   REPORT_EXIT_CODE,
@@ -8746,6 +9123,24 @@ Start the report with anything needing the user and any failures, then a short e
 // does not carry the backend's full review instructions into the webview.
 export const REVIEW_COMMENT_MODEL_TEXT = {
   reviewRemovedLine: '{path} (a line this change removed; it was line {line})',
+} as const
+
+// The fast judge's harness notes (M125 lanes M/C, D107 §§6-7), English
+// whatever the display language. A block of its own beside MODEL_TEXT so
+// that a bundle that never judges does not carry it: only the backends'
+// bundles (dist/modelApi.js, dist/museCode.js) and the runtime engine
+// (dist/runtimeEngine.js, which embeds both backends) read it.
+export const FAST_PATH_MODEL_TEXT = {
+  fastLoopRepeat:
+    'The last three {tool} calls repeat the same call with the same result; try a different approach before calling it again.',
+  fastLoopOscillation:
+    'The last four tool calls alternate between two calls without progress; stop and reassess before calling again.',
+  fastLoopSameFailure:
+    'The last three calls fail the same way; the failure needs a different approach, not another attempt.',
+  fastDoneBacked: "The request's checks already passed; no further verification rounds are needed.",
+  fastFailureHint:
+    'The last {tool} run reported a failure the reply does not mention; address it before continuing.',
+  fastContextLead: 'Context the judge ranked relevant to this request:',
 } as const
 
 // The prompt/agent hook handlers' text for the model (M91, PLAN.md D70),

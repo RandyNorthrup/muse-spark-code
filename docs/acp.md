@@ -940,6 +940,24 @@ prompts, rather than being silently discarded as command input. While automatic
 compaction stays off by design, the turn says nothing about it: no status of
 that feature is sent as answer text or as a notice.
 
+## Local judge setup (M125)
+
+```text
+muse-spark-code-acp judge scan
+muse-spark-code-acp judge setup [--yes]
+muse-spark-code-acp judge remove [--yes]
+```
+
+`scan` prints the OS, RAM, CPU, GPU backend, free disk, any existing
+Ollama and the model recommendation; it writes nothing and makes no
+network call. `setup` installs the recommended model and `remove`
+deletes only what setup added; both change nothing without `--yes`.
+`setup` refuses when nothing fits the machine (`Cannot set up
+(fits-nothing).`); `remove` answers `No local judge installed.` when
+there is nothing to remove. Exit codes: 0 done, 2 usage, 4 failed.
+No model is downloaded without the owner's go. The editor's **Muse:
+Set Up Local Judge** wizard manages the same install.
+
 ## Local usage history
 
 Text summaries disclose that they are read-only and link interactive work to

@@ -1742,7 +1742,7 @@ The background safety check did not finish, so no advisory is attached to this a
           "when": "judgeEngine",
           "text": {
             "fallbackKey": "config.judge.engine.enumDescriptions.auto",
-            "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+            "fallback": "The fast judge: deterministic checks first, then the fastest ready engine per decision."
           }
         }
       ]
@@ -1782,7 +1782,7 @@ The background safety check did not finish, so no advisory is attached to this a
               "when": "judgeEngine",
               "text": {
                 "fallbackKey": "config.judge.engine.enumDescriptions.auto",
-                "fallback": "Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured."
+                "fallback": "The fast judge: deterministic checks first, then the fastest ready engine per decision."
               }
             }
           ]
@@ -1798,7 +1798,7 @@ The background safety check did not finish, so no advisory is attached to this a
 
 Surfaces: vscode:modelApi. Paid: yes; consent required; admission depends on the surface.
 
-Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: `museSpark.setUpLocalJudge`. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`, `museSpark.judge.fastPathOff`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Judge
 
@@ -1814,7 +1814,7 @@ The background safety check did not finish, so no advisory is attached to this a
 
 Surfaces: vscode:museCode. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
+Commands: —. Settings: `museSpark.judge.engine`, `museSpark.judge.separate`, `museSpark.judge.fastPathOff`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#muse-judge)
 
 ### Orchestrator Playbook
 
@@ -1923,6 +1923,10 @@ Available when: `activeWebviewPanelId == 'museSpark.chatPanel' || view.museSpark
 `museSpark.setUpSandbox` — platform=win32&shellSandbox: On Windows, when this window uses the Muse Code shell sandbox, set it up with one administrator approval, then start a new conversation. shellSandbox="off" does not require setup.
 
 Available when: `isWindows || remoteName`.
+
+### Muse Spark: Set Up Local Judge
+
+`museSpark.setUpLocalJudge` — Scan this machine and install a local judge model.
 
 ### Muse Spark: Show Logs
 
@@ -3210,7 +3214,7 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.judge.engine
 
-`auto` (your own chat model; `same` in phase 1) and `same` can only add caution to a risky Auto action no rule settles: a ready caution turns an allow into a question, or into a note on the approval card. `off` runs no judge. On the Model API backend each judgment bills your key and asks once first; on Muse Code it runs on your subscription.
+`auto` runs the fast judge: deterministic checks first, then the fastest ready engine per decision within its deadline; `same` keeps only your own chat model as the caution judge. `off` runs no judge. On the Model API backend each model judgment bills your key and asks once first; on Muse Code it runs on your subscription.
 
 Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 
@@ -3222,7 +3226,7 @@ Type: `"string"`. Default: `"auto"`. Scope: `machine`.
 }
 ```
 
-- `"auto"`: judgeEngine: Your own chat model judges (`same` in phase 1); a separate judge joins it once one is configured.
+- `"auto"`: judgeEngine: The fast judge: deterministic checks first, then the fastest ready engine per decision.
 - `"same"`: Only your own chat model judges; it never switches models.
 - `"separate"`: Use only the configured separate judge after that source passes verification and permission. This selection alone does not enable a source.
 - `"both"`: Use the separate judge and your own chat model through the measured cascade. Requires a verified source and suitable calibration profiles.
@@ -3238,6 +3242,19 @@ Type: `"string"`. Default: `""`. Scope: `machine`.
 {
   "type": "string",
   "default": ""
+}
+```
+
+### museSpark.judge.fastPathOff
+
+Stop the fast judge's deterministic checks and engine calls, leaving only the same-model caution judge.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
 }
 ```
 
@@ -3979,6 +3996,7 @@ These are defaults; editor customizations take precedence.
 ## ACP / CLI commands
 
 - `judge ask|calibrate|report|mcp|serve|lint`: Muse Judge: verdicts, calibration, reports, serving and lint.
+- `judge scan|setup|remove`: Scan this machine and install a local judge model.
 - `usage [summary|daily|models|limits|export|open|serve] [options] / --usage --json`: Show usage and cost across models, or open the usage page.
 - `exec legal-scan --json / legal [--format text|json] [--out <file>] [--registry]`: Scan the workspace for licensing, attribution and header findings
 - `providers list`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.

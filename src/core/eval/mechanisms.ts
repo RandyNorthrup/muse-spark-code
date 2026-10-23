@@ -29,6 +29,7 @@ import {
   type ArmFixture,
 } from './armSources'
 import type { EvalHostChange } from './driver'
+import type { FastDecisionPin } from '../judge/fast/turnRecord'
 import { EVAL_HELD_DEPS } from './heldDeps'
 import type { EvalArm } from './runner'
 import { EVAL_TASKS, EVAL_VERIFY_PRELUDE, evalWindowTokens, type EvalTask } from './tasks'
@@ -89,6 +90,103 @@ export const EVAL_ARMS: readonly [EvalArm, ...EvalArm[]] = [
   STRICT_TOOLS_ARM,
 ]
 
+/**
+D107 (M125 lane V): the fast decisions the judge arms isolate. The six
+the hosts consult; skill, edit, scope and claim wire later and carry no
+arms, and M98's `risk.destructive` stays under its own caution judge.
+*/
+export const JUDGE_ARMED_DECISIONS = [
+  'triage.needFull',
+  'context.include',
+  'loop.stuck',
+  'effort.lower',
+  'failure.unmentioned',
+  'done.unbacked',
+] as const
+export type JudgeArmedDecision = (typeof JUDGE_ARMED_DECISIONS)[number]
+
+const JUDGE_ARM_SLUGS: Readonly<Record<JudgeArmedDecision, string>> = {
+  'triage.needFull': 'judge-triage',
+  'context.include': 'judge-context',
+  'loop.stuck': 'judge-loop',
+  'effort.lower': 'judge-effort',
+  'failure.unmentioned': 'judge-failure',
+  'done.unbacked': 'judge-done',
+}
+
+/** The fast judge's all-off baseline: every decision pins off. */
+export const JUDGE_OFF_ARM: EvalArm = {
+  name: 'judge-off',
+  mechanism:
+    'fast judge off (M125): every fast decision pins off, so the turn runs today’s behaviour alone',
+  program: ARM_PROGRAM,
+  change: frozenChange('judge-off'),
+}
+
+/** Keep's baseline: all off with evaluated compaction, keep's only stage. */
+export const JUDGE_KEEP_OFF_ARM: EvalArm = {
+  name: 'judge-keep-off',
+  mechanism:
+    'fast judge off with evaluated compaction (M125): every fast decision pins off while the host compacts as evaluated, so keep’s pair differs by keep alone',
+  program: ARM_PROGRAM,
+  change: frozenChange('judge-keep-off'),
+}
+
+/** Triage's baseline: all off with M73's packing, triage's only stage. */
+export const JUDGE_PACK_OFF_ARM: EvalArm = {
+  name: 'judge-pack-off',
+  mechanism:
+    'fast judge off with observation packing (M125): every fast decision pins off while M73’s packing projects outputs, so triage’s pair differs by the early mark alone',
+  program: ARM_PROGRAM,
+  change: frozenChange('judge-pack-off'),
+}
+
+function judgeArm(decision: JudgeArmedDecision): EvalArm {
+  const name = JUDGE_ARM_SLUGS[decision]
+  return {
+    name,
+    mechanism: `fast judge ${decision} isolated (M125): that decision runs its natural verdict, every other pins off`,
+    program: ARM_PROGRAM,
+    change: frozenChange(name),
+  }
+}
+
+export const JUDGE_TRIAGE_ARM = judgeArm('triage.needFull')
+export const JUDGE_CONTEXT_ARM = judgeArm('context.include')
+export const JUDGE_LOOP_ARM = judgeArm('loop.stuck')
+export const JUDGE_EFFORT_ARM = judgeArm('effort.lower')
+export const JUDGE_FAILURE_ARM = judgeArm('failure.unmentioned')
+export const JUDGE_DONE_ARM = judgeArm('done.unbacked')
+
+/** The judge arms, in run order: the baselines first, then one decision each. */
+export const JUDGE_EVAL_ARMS: readonly EvalArm[] = [
+  JUDGE_OFF_ARM,
+  JUDGE_KEEP_OFF_ARM,
+  JUDGE_PACK_OFF_ARM,
+  JUDGE_TRIAGE_ARM,
+  JUDGE_CONTEXT_ARM,
+  JUDGE_LOOP_ARM,
+  JUDGE_EFFORT_ARM,
+  JUDGE_FAILURE_ARM,
+  JUDGE_DONE_ARM,
+]
+
+/** The isolated decision a judge arm measures; undefined on the two baselines. */
+export function judgeArmDecision(armName: string): JudgeArmedDecision | undefined {
+  return JUDGE_ARMED_DECISIONS.find((decision) => JUDGE_ARM_SLUGS[decision] === armName)
+}
+
+/**
+The baseline a judge arm pairs against: keep's carries compaction,
+triage's carries M73's packing, the rest pair against all-off.
+*/
+export function judgeArmBaseline(armName: string): string {
+  if (armName === JUDGE_ARM_SLUGS['context.include']) return JUDGE_KEEP_OFF_ARM.name
+  return armName === JUDGE_ARM_SLUGS['triage.needFull']
+    ? JUDGE_PACK_OFF_ARM.name
+    : JUDGE_OFF_ARM.name
+}
+
 /** The only host options a frozen program may return; held dependencies are unrepresentable. */
 const armOptionsSchema = z.strictObject({
   name: z.string(),
@@ -96,6 +194,22 @@ const armOptionsSchema = z.strictObject({
   autoCompaction: z.optional(z.boolean()),
   autoCompactionEvaluated: z.optional(z.boolean()),
   evaluationAdmission: z.optional(z.boolean()),
+  /**
+  D107 (M125 lane V): the one fast decision that runs its natural
+  verdict, every other pinned off; `none` pins all off. The pin is not
+  a held dependency, so an arm may carry it.
+  */
+  fastIsolated: z.optional(
+    z.enum([
+      'triage.needFull',
+      'context.include',
+      'loop.stuck',
+      'effort.lower',
+      'failure.unmentioned',
+      'done.unbacked',
+      'none',
+    ]),
+  ),
   modelFacts: z.optional(
     z.strictObject({
       capabilities: z.strictObject({
@@ -131,10 +245,18 @@ export function isMissingEvalAdmissionError(error: unknown): error is MissingEva
   return error instanceof Error && error.name === EVAL_ADMISSION_ERROR_NAME
 }
 
+/** The frozen isolation option as the parent's pin: natural for one, off for the rest. */
+function judgeIsolationPin(isolated: string): FastDecisionPin {
+  return (decision) => {
+    return isolated === 'none' || decision !== isolated ? false : undefined
+  }
+}
+
 /** Execute the frozen snapshot, validate the child boundary, then adapt its data. */
 export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
   const options = armOptionsSchema.parse(executeArmBundle(bundle))
   if (options.name !== bundle.name) throw new Error('the frozen arm returned a different name')
+  const isolated = options.fastIsolated
   return (deps) => ({
     ...deps,
     ...(options.observationPacking !== undefined && {
@@ -162,6 +284,7 @@ export function frozenBundleChange(bundle: ArmBundle): EvalHostChange {
       },
     }),
     ...(options.modelFacts !== undefined && { modelFacts: () => options.modelFacts }),
+    ...(isolated !== undefined && { fastDecisionPin: judgeIsolationPin(isolated) }),
   })
 }
 

@@ -196,6 +196,11 @@
     "src/webview/whatsNew/main.ts",
     // M98's Judge, required only at the first eligible approval.
     "src/host/judge/judgeEntry.ts",
+    // M125's Set Up Local Judge wizard driver (D107 lane W), required by
+    // path on the first wizard open, and its webview page (esbuild
+    // entries scripts/build.mjs reads, which knip does not trace).
+    "src/host/judgeSetup/judgeSetupDriver.ts",
+    "src/webview/judgeSetup/main.tsx",
     // F1a's internal API is built by build:confine, never by the product build.
     "src/core/judge/fast/inspectExec.ts",
     "src/host/backend/searchWorker.ts",

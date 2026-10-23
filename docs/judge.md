@@ -1,10 +1,10 @@
-# Muse Judge phase 1
+# Muse Judge
 
-> **Redesign planned (D107).** PLAN.md D107 and milestone M125 plan to
-> turn the judge into our own Jev: a fast, batched, calibrated decision
-> engine that makes the agent quicker and checks its work, set up through a
-> Set Up Local Judge wizard that scans the machine first. The owner also
-> chose an approval fast path (Q-D107, 2026-10-10): a held Auto action that
+> **Phase 2 built (D107, M125).** The redesign below is implemented:
+> a fast, batched, calibrated decision engine that makes the agent
+> quicker and checks its work, set up through a Set Up Local Judge
+> wizard that scans the machine first, with the approval fast path
+> the owner chose (Q-D107, 2026-10-10): a held Auto action that
 > is a confined read-only inspect command (Linux and macOS), or the
 > workspace's own unchanged npm or pnpm check script run in a contained
 > sandbox (Linux only), may skip the slow reviewer when the judge does not
@@ -12,7 +12,10 @@
 > starts as it does today, so a veto adds no wait, and a skip saves time
 > rather than the reviewer's tokens). The
 > design is in [design/judge-fast-path.md](design/judge-fast-path.md).
-> Nothing in it is built. This page describes phase 1 as it ships today.
+> The engine, the wizard and the CLI below are built and tested; no
+> paid/live judge call or production calibration is claimed yet, and
+> no model is downloaded without the owner's go. The rest of this page
+> describes phase 1 as it ships today.
 
 Muse Spark Code (Unofficial) uses the conversation's own model to advise on
 an action's risk. Judge cannot allow an action, write code, bypass a rule or
@@ -270,3 +273,38 @@ the route's tariff and receipts, the CLI's `--budget-usd` (nine decimals) and
 run cap, and the D78 journal's totals. A C-only run's status and Account &
 usage project the route's own source, model, tariff and grant, with its own
 Ask again.
+
+# Setting up the local judge (M125)
+
+The **Muse: Set Up Local Judge** command (palette, walkthrough, the
+Models & Agents Judge section, or a status item until setup or
+deferral) opens a wizard: it scans the machine, recommends a model
+with its reasons (or says honestly when nothing fits), asks for the
+model's licence, installs with byte progress, and finishes on the
+timing classes, accuracy checks and smoke count the install earned.
+One panel per window. The Judge section afterwards manages the
+install: open, change (which rescans), or remove behind a native
+question; removal deletes only what setup added. The wizard's
+driver loads on first open, never at activation.
+
+The same setup runs headless in the agent:
+
+```text
+muse-spark-code-acp judge scan
+muse-spark-code-acp judge setup [--yes]
+muse-spark-code-acp judge remove [--yes]
+```
+
+`scan` prints the OS, RAM, CPU, GPU backend, free disk, any existing
+Ollama and the recommendation; it writes nothing and makes no network
+call. `setup` and `remove` change nothing without `--yes`. `setup`
+refuses when nothing fits (`Cannot set up (fits-nothing).`); `remove`
+answers `No local judge installed.` when there is nothing to remove.
+Exit codes: 0 done, 2 usage, 4 failed.
+
+`museSpark.judge.fastPathOff` (machine-scoped, default false) stops
+the fast judge's deterministic checks and engine calls, leaving only
+the same-model caution judge. Account & usage and the Judge section
+show the window's fast-decision rolls — turns, applied turns, judge
+calls and tokens, each evaluated decision's state — with a measured
+time saving once a paired evaluation exists.

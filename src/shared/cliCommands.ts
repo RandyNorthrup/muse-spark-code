@@ -60,6 +60,11 @@ export function cliCommands(shouldIncludeHeld = false) {
     ]),
     playbook: ['status', 'record', 'settings'].map((action) => ['playbook', action]),
     estimate: [['estimate']],
+    judgeSetup: [
+      ['judge', 'scan'],
+      ['judge', 'setup'],
+      ['judge', 'remove'],
+    ],
     report: [['report'], ['report', 'problem']],
     reports: [
       ...REPORT_KINDS.map((kind) => ['report', kind]),
@@ -114,6 +119,12 @@ export function cliCommands(shouldIncludeHeld = false) {
       name: 'judge ask|calibrate|report|mcp|serve|lint',
       description: UI_TEXT.judgeCliDescription,
       text: { ui: 'judgeCliDescription' },
+    },
+    {
+      route: 'judgeSetup',
+      name: 'judge scan|setup|remove',
+      description: UI_TEXT.referenceJudgeSetup,
+      text: { ui: 'referenceJudgeSetup' },
     },
     {
       route: 'usage',

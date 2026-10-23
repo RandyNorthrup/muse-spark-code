@@ -222,6 +222,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   readonly paidUseFence?: (feature: PaidFeature, sessionId: string) => () => boolean
   /** `museSpark.modelApiObservationPacking`, read when a conversation starts or resumes (M73). */
   readonly isObservationPackingOn?: (() => boolean) | undefined
+  /** `museSpark.judge.fastPathOff`, read at each fast-judge decision (M125 lane M, D107). */
+  readonly isFastPathOff?: (() => boolean) | undefined
   /** `museSpark.modelApiMaxToolOutputBytes`, read on every bound (TOOLCAP). */
   readonly maxToolOutputBytes?: (() => number | undefined) | undefined
   /** `museSpark.modelApiShellKeepsDirectory`, read per shell call (M91 lane S). */
@@ -612,6 +614,7 @@ export class ModelApiBackendManager {
         codeIntel: variant.codeIntel,
         isRepoMapInPrompt: variant.isRepoMapInPrompt,
         observationPacking: this.deps.isObservationPackingOn,
+        fastPathOff: this.deps.isFastPathOff,
         maxToolOutputBytes: this.deps.maxToolOutputBytes,
         autoCompaction: this.deps.isAutoCompactionOn,
         autoCompactionEvaluated: this.deps.autoCompactionEvaluated,

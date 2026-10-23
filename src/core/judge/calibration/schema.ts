@@ -136,13 +136,33 @@ function isValidIdentity(identity: CalibrationIdentity, limits: CalibrationLimit
   return Object.values(identity).every((value) => isValidIdentifier(value, limits))
 }
 
+/** M98's techniques plus lane L's `systemone`, fitted per engine identity. */
+export const CALIBRATION_TECHNIQUES: readonly string[] = ['logprob', 'stated', 'systemone']
+
+/**
+M98's families plus lane L's nine fast-judge families. The nine mirror
+the fast contract's decision ids; the calibration suite guards the
+mirror, so the two lists cannot drift apart.
+*/
+export const CALIBRATION_FAMILIES: readonly string[] = [
+  'risk.destructive',
+  'skill.fit',
+  'triage.needFull',
+  'context.include',
+  'loop.stuck',
+  'effort.lower',
+  'edit.misfit',
+  'failure.unmentioned',
+  'scope.outside',
+  'claim.inconsistent',
+  'done.unbacked',
+]
+
 export function identityReason(identity: CalibrationIdentity): CalibrationReason | undefined {
-  if (identity.family !== 'risk.destructive' && identity.family !== 'skill.fit') {
+  if (!CALIBRATION_FAMILIES.includes(identity.family)) {
     return 'unsupported-family'
   }
-  return identity.technique !== 'logprob' && identity.technique !== 'stated'
-    ? 'unsupported-technique'
-    : undefined
+  return CALIBRATION_TECHNIQUES.includes(identity.technique) ? undefined : 'unsupported-technique'
 }
 
 /** Exact structural identity, independent of JSON property order. */
@@ -176,10 +196,14 @@ export function parseCalibrationDataset(
   const repositories = new Map<string, string>()
   const splits = new Set<string>()
   for (const sample of dataset.samples) {
+    // Routing labels stay on routing; every other family — M98's risk
+    // and lane L's nine — fits only from independent labels. The
+    // setup's rows carry no label source, so they can never enter a
+    // dataset, and weak signals refuse below with the rest.
     const isPermitted =
-      dataset.identity.family === 'risk.destructive'
-        ? sample.labelSource === 'independent-hand' || sample.labelSource === 'm75'
-        : sample.labelSource === 'm75-routing'
+      dataset.identity.family === 'skill.fit'
+        ? sample.labelSource === 'm75-routing'
+        : sample.labelSource === 'independent-hand' || sample.labelSource === 'm75'
     if (!isPermitted) return calibrationFailure('invalid-label-source')
     if (ids.has(sample.id) || labels.has(sample.labelId))
       return calibrationFailure('duplicate-label')

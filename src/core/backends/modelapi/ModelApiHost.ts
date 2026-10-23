@@ -51,7 +51,8 @@ import {
 import { notify } from '../../events/notify'
 import type { ResponseAttemptOutcome } from './transport'
 import { isParallelRead, scheduleTools } from './toolScheduler'
-import { RepeatGuard, toolRepeatKey } from './repeatGuard'
+import { RepeatGuard } from './repeatGuard'
+import { toolRepeatKey } from '../../judge/fast/reflex/loop'
 import { recordPaidUse } from '../../paid/paidFeatures'
 import type { RecordedCall, UsageRecording, UsageScopeReader } from '../../usage/recording'
 import type { UsageBudgetRead } from '../../usage/usageService'
@@ -84,6 +85,7 @@ import { declaredPreviewFields } from './previewFields'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
+import process from 'node:process'
 import * as z from 'zod/mini'
 import type {
   AgentEvent,
@@ -135,6 +137,10 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
+  JUDGE_FAST_B1_READY_PLATFORMS,
+  JUDGE_FAST_KEEP_ENTRIES,
+  JUDGE_FAST_METHOD_DETERMINISTIC,
+  JUDGE_FAST_VETO_WINDOW_MS,
   MCP_ELICITATION_TIMEOUT_MS,
   MILLISECONDS_PER_SECOND,
   MEMORY_INDEX_FILE,
@@ -305,6 +311,39 @@ import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection, ModelApiSideResponse } from '../../judge/same/modelApiSource'
+import { raceB1Hold, resolveB1Executable } from '../../judge/fast/approval'
+import {
+  doneTailNote,
+  failureTailHint,
+  loopTailNote,
+  lowerEffortLevel,
+  rankedKeepIds,
+  tailNotes,
+  triageRoute,
+} from '../../judge/fast/apply'
+import { fastEffortScale } from '../../judge/fast/engines'
+import { judgeDoneClaim } from '../../judge/fast/reflex/done'
+import { ruleEffort } from '../../judge/fast/reflex/effort'
+import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
+import { detectLoop, type LoopSignal } from '../../judge/fast/reflex/loop'
+import { triageOutput } from '../../judge/fast/reflex/triage'
+import {
+  doneTurnReason,
+  effortTurnReason,
+  FastTurnRecorder,
+  keepTurnReason,
+  loopTurnReason,
+  triageTurnReason,
+  type FastDecisionPin,
+} from '../../judge/fast/turnRecord'
+import {
+  b1Realpath,
+  closeInspectSession,
+  openInspectSession,
+  type InspectSessionBinding,
+} from '../../judge/fast/inspectExec'
+import { spawnResourceProcess } from '../../resources/launcher'
+import { fastPathAuditSchema } from '../../../shared/fastPathAudit'
 import { approvalHost } from '../../web/hostName'
 import type { PageUrlCheck } from '../../web/pageUrl'
 import {
@@ -690,6 +729,26 @@ export interface ModelApiHostDeps extends ModelApiPaidHooks, StructuredOutputDep
   readonly judge?: JudgeAdvisory | undefined
   readonly allowsAccountPaidUse?: ModelApiHostDeps['allowsPaidUse']
   readonly accountRequests?: AccountRequestPort
+  /**
+  D107 §9.3: the B1 confine helper binary for this session. Unset, or a
+  path that is not there, keeps today's reviewer: B1 never races without
+  its confinement, and the helper ships only with certification (§11).
+  */
+  readonly b1HelperPath?: string | undefined
+  /**
+  D107 (M125 lane M): the fast judge's one switch
+  (`museSpark.judge.fastPathOff`), read at each decision. On keeps the
+  same-model caution judge only: no tail note, no triage mark, no effort
+  change and no kept entry. Absent reads as off's opposite: the
+  deterministic checks run.
+  */
+  readonly fastPathOff?: (() => boolean) | undefined
+  /**
+  D107 (M125 lane U): the evaluation pin lane V's arms set, read at
+  each fast decision. True forces the decision to apply, false forces
+  it not to, undefined runs the verdict. Production passes none.
+  */
+  readonly fastDecisionPin?: FastDecisionPin | undefined
   readonly client: ProviderClient
   readonly models?: ModelResolver | undefined
   readonly hasMetaCredential?: (() => boolean) | undefined
@@ -2285,6 +2344,13 @@ type ReviewedAsk =
   | { readonly decision: 'allow' }
   | { readonly decision: 'ask'; readonly note: string | undefined; readonly judgeCaution?: boolean }
 
+/** D107 §9.4: a B1 skip's delivered output, held for perform. */
+interface B1SkipOutput {
+  readonly stdout: string
+  readonly stderr: string
+  readonly exitCode: number
+}
+
 /** Why a card asks beyond the mode, as the card says under the command (M78). */
 function cardNote(judgement: PermissionJudgement | undefined): string | undefined {
   if (judgement?.settledBy === 'profile') {
@@ -2599,6 +2665,20 @@ function typedText(parts: readonly TurnPart[]): string {
     .trim()
 }
 
+/** The text a replay input item carries, for the judge's keep-list ranking. */
+function inputItemText(item: InputItem): string | undefined {
+  if (item.type === 'message') {
+    const texts: string[] = []
+    for (const part of item.content) {
+      if (part.type === 'input_text') texts.push(part.text)
+    }
+    return texts.length === 0 ? undefined : texts.join('\n')
+  }
+  return item.type === 'function_call_output' && typeof item.output === 'string'
+    ? item.output
+    : undefined
+}
+
 /** A tool's argument JSON as an object; an empty one when it is not an object. */
 function parsedArguments(argsJson: string): Record<string, unknown> {
   try {
@@ -2877,6 +2957,18 @@ export class ModelApiSession implements ScheduledAgentSession {
   */
   private readonly shellSidecarToken = randomUUID()
   private readonly judgeCardFences = new Map<string, JudgeFence>()
+  /**
+  D107 §9.3: the session's B1 runner, opened on the first shell ask that
+  reaches the hold. Undefined keeps today's path; one instance per
+  session, so a failed self-test latches off until a new session.
+  */
+  private b1RunnerTask: Promise<InspectSessionBinding | undefined> | undefined
+  /**
+  D107 §9.4: a B1 skip's delivered output, held for perform keyed by the
+  tool call's item. perform takes and deletes on read; a shell call's
+  ask-to-perform gap holds no await, so no entry orphans.
+  */
+  private readonly b1Skips = new Map<string, B1SkipOutput>()
   private readonly pendingApprovals = new Map<string, Pending<ApprovalDecision>>()
   /** Live cards for a second surface joining while a decision is still pending. */
   private readonly pendingApprovalEvents = new Map<
@@ -3064,6 +3156,21 @@ export class ModelApiSession implements ScheduledAgentSession {
   // memo of the resolved record.
   private readonly explicitOutputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
+  /**
+  D107 (M125 lane M): the fast judge's session state. The loop signals
+  cover the current turn only (a turn boundary starts a new episode);
+  the tail queue drains into the next request; the triage tallies feed
+  the Judge section's no-window share (lane U).
+  */
+  private readonly fastLoop: LoopSignal[] = []
+  private readonly fastTail: string[] = []
+  private fastStuck = false
+  private fastLastTurn: string | undefined
+  private fastLastRequest = ''
+  private fastTriageMiss = 0
+  private fastTriageNoWindow = 0
+  private readonly fastTurn = new FastTurnRecorder()
+  private fastEmittedTurn: string | undefined
   /**
   The ledger total a resumed session brought (M73), kept so a save keeps
   it even where this session does not pack; a packing session's store
@@ -5480,9 +5587,269 @@ export class ModelApiSession implements ScheduledAgentSession {
     })
   }
 
+  /** D107 (M125 lane M): the fast judge's one switch, read at each decision. */
+  private fastOff(): boolean {
+    return this.deps.fastPathOff?.() === true
+  }
+
+  /**
+  D107 §6.3 and §6.2 (lane M): one settled tool result through the loop
+  detector and the first-send triage. A loop queues its note for the
+  next request's tail, once per episode — the turn is never stopped
+  (D121), and a repeat also carries the repeat guard's own notice. A
+  skipped output packs through M73's own placeholder; anything else
+  rides whole as today, and a miss tallies for the Judge section's
+  no-window share (lane U).
+  */
+  private fastObserveResult(
+    call: { readonly name: string; readonly arguments: string; readonly call_id: string },
+    output: string,
+    exitCode: number | undefined,
+    hasFailed: boolean,
+    isParallel: boolean,
+  ): void {
+    if (this.fastOff()) return
+    this.fastLoop.push({
+      key: toolRepeatKey(call),
+      failed: hasFailed,
+      outputDigest: fingerprint(output),
+    })
+    const loop = detectLoop(this.fastLoop)
+    const loopPin = this.deps.fastDecisionPin?.('loop.stuck')
+    const isLoopRaised = loop.stuck || loopPin === true
+    const isLoopActed = isLoopRaised && !this.fastStuck && loopPin !== false
+    if (isLoopActed) {
+      this.fastTail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', call.name))
+      if (loop.stuck && loop.pattern === 'repeat') {
+        const last = this.fastLoop.at(-1)
+        let run = 0
+        if (last !== undefined) {
+          for (const signal of this.fastLoop.toReversed()) {
+            if (signal.key !== last.key || signal.outputDigest !== last.outputDigest) break
+            run += 1
+          }
+        }
+        this.emit({
+          type: 'backendNotice',
+          level: 'info',
+          text: fill(UI_TEXT.modelApiToolRepeating, {
+            tool: call.name,
+            count: formatNumber(run),
+          }),
+        })
+      }
+    }
+    this.fastStuck = isLoopRaised
+    this.fastTurn.observeLoop(isLoopRaised, isLoopActed, loopTurnReason(loop, loopPin))
+    // A parallel call settles while its round's other calls ran
+    // alongside, so the decision may still land before the next
+    // request; a lone result has no window.
+    const route = triageRoute(
+      triageOutput({ exitCode, output }),
+      isParallel ? 'real' : 'none',
+      false,
+    )
+    const triagePin = this.deps.fastDecisionPin?.('triage.needFull')
+    const isTriagePack = route.action === 'pack'
+    const isTriageActed = triagePin !== false && (isTriagePack || triagePin === true)
+    if (isTriageActed) this.packing?.markEarly(call.call_id)
+    else if (
+      triagePin === undefined &&
+      route.action === 'whole' &&
+      route.unasked !== 'recognised'
+    ) {
+      this.fastTriageMiss += 1
+      if (route.unasked === 'no-window') this.fastTriageNoWindow += 1
+    }
+    this.fastTurn.observeTriage(
+      isTriagePack || triagePin === true,
+      isTriageActed,
+      triageTurnReason(route, triagePin),
+    )
+  }
+
+  /**
+  D107 §6.4 and §7.3 (lane M): the turn boundary. The loop signals
+  cover one turn's episode; the finished turn's reply and outputs queue
+  the next turn's hints and close its turn record. A backed done queues
+  its note; an unbacked one is lane U's note under the reply, nothing
+  model-side. The replay keeps no exit code, so the verdicts read the
+  texts alone and miss more often without one — never a guess.
+  */
+  private fastOnTurn(turnId: string | undefined): void {
+    if (turnId === this.fastLastTurn) return
+    this.fastEndTurn(this.fastLastTurn)
+    this.fastLastTurn = turnId
+    this.fastLoop.length = 0
+    this.fastStuck = false
+  }
+
+  /**
+  D107 (lane U): close one turn's fast record. The done and failure
+  verdicts run over the turn's reply and outputs, then the turn event
+  carries every evaluated decision — or nothing is emitted when none
+  was. The turn end calls this before `turnCompleted`; the next turn's
+  first request is the backstop, and the emitted mark keeps the two
+  from doubling.
+  */
+  private fastEndTurn(turnId: string | undefined): void {
+    if (turnId === undefined || turnId === this.fastEmittedTurn) return
+    this.fastEmittedTurn = turnId
+    if (this.fastOff()) {
+      this.fastTurn.reset()
+      return
+    }
+    const reply = this.transcript.findLast(
+      (entry) => entry.turnId === turnId && entry.item.kind === 'agentMessage',
+    )?.item.text
+    const names = new Map<string, string>()
+    const outputs: { readonly tool: string; readonly output: string }[] = []
+    for (const entry of this.replay) {
+      if (entry.turnId !== turnId) continue
+      if (entry.item.type === 'function_call') names.set(entry.item.call_id, entry.item.name)
+      else if (
+        entry.item.type === 'function_call_output' &&
+        typeof entry.item.output === 'string'
+      ) {
+        outputs.push({ tool: names.get(entry.item.call_id) ?? 'tool', output: entry.item.output })
+      }
+    }
+    if (reply !== undefined && outputs.length > 0) {
+      this.fastEndDone(reply, outputs)
+      this.fastEndFailure(reply, outputs)
+    }
+    const event = this.fastTurn.event(turnId, 'modelApi', JUDGE_FAST_METHOD_DETERMINISTIC)
+    this.fastTurn.reset()
+    if (event !== undefined) this.emit(event)
+  }
+
+  /** D107 §6.4 (lane M): the finished turn's done claim, with its record. */
+  private fastEndDone(
+    reply: string,
+    outputs: readonly { readonly tool: string; readonly output: string }[],
+  ): void {
+    const done = judgeDoneClaim({
+      replyText: reply,
+      toolOutputs: outputs.map((output) => ({ exitCode: undefined, output: output.output })),
+    })
+    const pin = this.deps.fastDecisionPin?.('done.unbacked')
+    const isClaimed = done.decision !== 'miss'
+    const isRaised = isClaimed || pin === true
+    const isActed = pin !== false && (isClaimed || pin === true)
+    if (pin !== false && done.decision === 'backed') this.fastTail.push(doneTailNote())
+    this.fastTurn.observeDone(isRaised, isActed, doneTurnReason(done.decision, pin))
+  }
+
+  /** D107 §7.3 (lane M): the finished turn's unmentioned failure, with its record. */
+  private fastEndFailure(
+    reply: string,
+    outputs: readonly { readonly tool: string; readonly output: string }[],
+  ): void {
+    const pin = this.deps.fastDecisionPin?.('failure.unmentioned')
+    let isMentioned = false
+    for (const output of outputs) {
+      const failure = findUnmentionedFailure({
+        toolOutput: output.output,
+        exitCode: undefined,
+        replyText: reply,
+      })
+      if (failure.decision === 'mentioned') isMentioned = true
+      if (pin !== false && failure.decision === 'unmentioned') {
+        this.fastTail.push(failureTailHint(output.tool))
+        this.fastTurn.observeFailure(true, true, 'hint')
+        return
+      }
+    }
+    if (pin === true) {
+      const first = outputs[0]
+      if (first !== undefined) this.fastTail.push(failureTailHint(first.tool))
+      this.fastTurn.observeFailure(true, true, 'pinned')
+      return
+    }
+    this.fastTurn.observeFailure(false, false, isMentioned ? 'mentioned' : 'absent')
+  }
+
+  /**
+  D107 §6.6 (lane M): this request's effort. A narrowly mechanical
+  request on a few touched files runs one level below the configured
+  effort on the model's own scale; anything else sends the configured
+  level, byte for byte as today.
+  */
+  private fastEffort(resolved: ResolvedModel): string {
+    const turn = this.active
+    if (turn === undefined || this.fastOff()) return this.effort
+    const files = this.replay.filter(
+      (entry) =>
+        entry.turnId === turn.turnId &&
+        entry.item.type === 'function_call' &&
+        (entry.item.name === MODEL_API_TOOLS.writeFile ||
+          entry.item.name === MODEL_API_TOOLS.editFile),
+    ).length
+    const verdict = ruleEffort({ request: typedText(turn.inputParts), filesTouched: files })
+    const pin = this.deps.fastDecisionPin?.('effort.lower')
+    const isLower = verdict.decision === 'lower'
+    // D107 §4.1 (lane P): the model's own record wins when its lane
+    // carried one; without a record the policy keeps today's behaviour.
+    const lowered = lowerEffortLevel(
+      this.effort,
+      fastEffortScale(resolved.capabilityRecord, resolved.policy.reasoning.effortLevels),
+    )
+    const isWant = pin ?? isLower
+    const isActed = isWant && lowered !== this.effort
+    this.fastTurn.observeEffort(
+      isLower || pin === true,
+      isActed,
+      effortTurnReason(isLower, isActed, lowered !== this.effort),
+    )
+    return isActed ? lowered : this.effort
+  }
+
+  /**
+  D107 §6.1 (lane M): what this compaction keeps past its tail: the
+  replay entries the request's text ranks most relevant, most relevant
+  first, up to the keep bound. Empty with the switch off, with no
+  request yet, or on a miss — the tail then keeps exactly as today.
+  Nothing already sent is removed or reordered.
+  */
+  private fastKeepForCompaction(kept: readonly ReplayItem[]): ReplayItem[] {
+    if (this.fastOff()) return []
+    const pin = this.deps.fastDecisionPin?.('context.include')
+    const request = this.fastLastRequest
+    const isRequestEmpty = request.trim().length === 0
+    if (isRequestEmpty && pin !== true) {
+      this.fastTurn.observeKeep(false, false, 'empty')
+      return []
+    }
+    const held = new Set(kept)
+    const candidates: { readonly id: string; readonly text: string }[] = []
+    for (const [index, entry] of this.replay.entries()) {
+      if (held.has(entry)) continue
+      const text = inputItemText(entry.item)
+      if (text !== undefined && text.trim().length > 0) candidates.push({ id: String(index), text })
+    }
+    if (pin === false) {
+      this.fastTurn.observeKeep(candidates.length > 0, false, 'pinned')
+      return []
+    }
+    const ids = new Set(rankedKeepIds(request, candidates).slice(0, JUDGE_FAST_KEEP_ENTRIES))
+    const keptEntries: ReplayItem[] = []
+    for (const [index, entry] of this.replay.entries()) {
+      if (ids.has(String(index))) keptEntries.push(entry)
+    }
+    this.fastTurn.observeKeep(
+      candidates.length > 0 || pin === true,
+      keptEntries.length > 0,
+      keepTurnReason(keptEntries.length > 0, isRequestEmpty),
+    )
+    return keptEntries
+  }
+
   private body(resolved: ResolvedModel, shouldFormatDraft = true): CreateResponseBody {
     this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
+    // D107 (lane M): first, so a new turn's first request already carries
+    // the finished turn's hints at its tail.
+    this.fastOnTurn(this.active?.turnId)
     const original = this.requestReplay().map((entry) => entry.item)
     const recorded = RecordingScope.build(recordProjection, {
       inputs: original.map((item) => ({
@@ -5530,6 +5897,18 @@ export class ModelApiSession implements ScheduledAgentSession {
         content: [{ type: 'input_text', text: progress }],
       })
     }
+    // D107 (lane M): the fast judge's queued tail notes drain here, one
+    // developer message each, after everything already sent. Empty with
+    // the switch off or every decision abstaining: the input then keeps
+    // today's bytes.
+    const drained = tailNotes(this.fastTail.splice(0))
+    for (const note of drained) {
+      input.push({
+        type: 'message',
+        role: note.role,
+        content: [{ type: 'input_text', text: note.text }],
+      })
+    }
     const prompt = this.promptAndTools(
       this.getScheduledRun() === undefined ? this.promptDate : localPromptDate(this.deps.now()),
       resolved,
@@ -5562,7 +5941,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       ...(wrapUpLimit !== undefined && { tools: [] }),
       tool_choice: 'auto',
       reasoning: {
-        effort: effortForPolicy(resolved.policy, this.effort),
+        effort: effortForPolicy(resolved.policy, this.fastEffort(resolved)),
         // The provider's own client sends no summary where the catalogue
         // says the model takes none; every other request is unchanged.
         ...(resolved.policy.reasoning.planFacts?.supportsReasoningSummary !== false && {
@@ -6461,6 +6840,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       .filter((line) => line.length > 0)
       .join('\n')
     this.firstPrompt ??= text
+    // D107 (lane M): the keep-list's ranking query is always the latest
+    // request's text.
+    this.fastLastRequest = text
     const attachments = attachmentsOf(parts)
     this.recordTranscript(turnId, {
       itemId,
@@ -8311,9 +8693,50 @@ export class ModelApiSession implements ScheduledAgentSession {
     ) {
       return { isApproved: true, feedback: undefined }
     }
+    // D107 §9.3: a shell ask may race the reviewer below against B1's
+    // confined run; a hook's own helper call never races (its review is
+    // already skipped). Anything but a skip runs today's path unchanged.
+    return !isHookHelperCall && query.toolClass === 'shell'
+      ? await this.askApprovalB1(
+          itemId,
+          call,
+          signal,
+          query,
+          question,
+          requiresUserApproval,
+          judgement,
+        )
+      : await this.askApprovalReviewed(
+          itemId,
+          call,
+          signal,
+          query,
+          question,
+          requiresUserApproval,
+          judgement,
+          isHookHelperCall,
+        )
+  }
+
+  /**
+  The ask past the hook's allow (D107 §9.3): the Auto reviewer, then the
+  card. The hold runs this as its reviewer, reporting each judge fence
+  it starts through shareFence so the veto polls the one run.
+  */
+  private async askApprovalReviewed(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    query: PermissionQuery,
+    question: { readonly card: ApprovalSubject },
+    requiresUserApproval: boolean,
+    judgement: PermissionJudgement,
+    isHookHelperCall = false,
+    shareFence?: () => JudgeFence | undefined,
+  ): Promise<ApprovalOutcome> {
     let review: ReviewedAsk | undefined
     if (!requiresUserApproval && !isHookHelperCall && judgement.isReviewable) {
-      review = await this.autoReview(call, query, signal)
+      review = await this.autoReview(call, query, signal, shareFence)
       signal.throwIfAborted()
       judgement = this.permissions.judge(query, this.policy())
       if (judgement.verdict === 'deny' || !this.deps.isWorkspaceTrusted()) {
@@ -8362,7 +8785,7 @@ export class ModelApiSession implements ScheduledAgentSession {
           return
         }
 
-        caution = this.startJudge(call)
+        caution = shareFence === undefined ? this.startJudge(call) : shareFence()
         if (caution !== undefined) this.judgeCardFences.set(approvalId, caution)
         caution?.card(() => {
           if (
@@ -8425,6 +8848,126 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
     }
     return { isApproved, feedback: decision.feedback }
+  }
+
+  /**
+  One shell ask through the B1 hold (D107 §9.3): the reviewer below
+  races B1's confined run of the line, the veto polling the judge
+  fence the reviewer starts. A skip holds the delivered output for
+  perform and audits it; anything else runs today's path unchanged.
+  */
+  private async askApprovalB1(
+    itemId: string,
+    call: FunctionCallItem,
+    signal: AbortSignal,
+    query: PermissionQuery,
+    question: { readonly card: ApprovalSubject },
+    requiresUserApproval: boolean,
+    judgement: PermissionJudgement,
+  ): Promise<ApprovalOutcome> {
+    const reviewed = (): Promise<ApprovalOutcome> =>
+      this.askApprovalReviewed(
+        itemId,
+        call,
+        signal,
+        query,
+        question,
+        requiresUserApproval,
+        judgement,
+      )
+    const opened = await this.b1Runner()
+    if (opened === undefined) return await reviewed()
+    const outcome = await raceB1Hold<ApprovalOutcome>({
+      line: query.command ?? call.arguments,
+      platform: process.platform,
+      floor: {
+        settledBy: judgement.settledBy,
+        tool: {
+          network: query.toolClass === 'network',
+          paid: query.toolClass === 'paid',
+          spawn: query.toolClass === 'spawn',
+          mcpWrite: query.toolClass === 'mcp' && query.isReadOnly !== true,
+        },
+        // The hold cannot see the judge engine's locality from here, so a
+        // confidential workspace always floors: fail closed (§9.3.2).
+        confidentialNonlocal: this.deps.isConfidentialWorkspace(),
+      },
+      conditions: {
+        mode: this.permissions.currentMode,
+        isHeadlessRun: this.active?.scheduleRun !== undefined,
+        isUntrustedOrigin: this.isSubagent || this.isSideChat,
+        isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
+        sessionProcessAlive: this.hasLiveCommands(),
+        // The runner opened: its helper is there, its scratch is made,
+        // and the platform confines. The race's first run is the
+        // session's self-test; the runner latches a failure.
+        confinementReady: true,
+        platform: process.platform,
+        certifiedPlatforms: JUDGE_FAST_B1_READY_PLATFORMS,
+      },
+      startReviewer: (raceSignal, shareFence) =>
+        this.askApprovalReviewed(
+          itemId,
+          call,
+          AbortSignal.any([signal, raceSignal]),
+          query,
+          question,
+          requiresUserApproval,
+          judgement,
+          false,
+          shareFence,
+        ),
+      startJudgeFence: () => this.startJudge(call),
+      runInspect: (canonical, raceSignal) =>
+        opened.runner.run(canonical, opened.workspace, AbortSignal.any([signal, raceSignal])),
+      vetoWindowMs: JUDGE_FAST_VETO_WINDOW_MS,
+    })
+    if (outcome.kind !== 'skip') return await reviewed()
+    // The skip won and the reviewer is cancelled: only a well-formed
+    // audit sends it. A malformed one re-runs the reviewer fresh; the
+    // cancelled race's verdict is gone, so the card may ask again.
+    const executable = resolveB1Executable(outcome.parsed.program, b1Realpath)
+    const audit = fastPathAuditSchema.safeParse({
+      class: 'B1',
+      program: outcome.parsed.program,
+      ...(executable !== undefined && { executable }),
+      confinement: opened.confinement,
+      confinementVersion: opened.runner.probedAbi,
+      deadlineMs: JUDGE_FAST_VETO_WINDOW_MS,
+      excluded: outcome.excluded,
+      ...(outcome.detail !== undefined && {
+        engine: outcome.detail.engine,
+        pYesMilli: outcome.detail.pYesMilli,
+        thresholdMilli: outcome.detail.thresholdMilli,
+      }),
+    })
+    if (!audit.success) return await reviewed()
+    this.b1Skips.set(itemId, {
+      stdout: outcome.stdout,
+      stderr: outcome.stderr,
+      exitCode: outcome.exitCode,
+    })
+    this.emit({ type: 'judgeFastSkip', itemId, audit: audit.data })
+    this.emit({
+      type: 'approvalResolved',
+      approvalId: this.deps.newId(),
+      itemId,
+      decision: DECISION_APPROVED,
+      resolvedBy: UI_TEXT.judgeB1.resolver,
+    })
+    return { isApproved: true, feedback: undefined }
+  }
+
+  /**
+  The session's B1 runner, opened once. Undefined keeps today's
+  reviewer: no helper, no confinement, no race.
+  */
+  private b1Runner(): Promise<InspectSessionBinding | undefined> {
+    return (this.b1RunnerTask ??= openInspectSession(
+      this.deps.b1HelperPath,
+      this.deps.workspaceRoot,
+      (file, args, options) => spawnResourceProcess('bootstrap', file, args, options),
+    ))
   }
 
   /**
@@ -8537,6 +9080,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     call: FunctionCallItem,
     query: PermissionQuery,
     signal: AbortSignal,
+    shareFence?: () => JudgeFence | undefined,
   ): Promise<ReviewedAsk | undefined> {
     if (!this.deps.isPaidFeatureOn('autoReviewer') || this.isSubagent || this.isSideChat) {
       return undefined
@@ -8639,7 +9183,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       }
       if (!isCurrent()) return undefined
       const turnId = this.active?.turnId ?? this.turnIds.at(-1) ?? this.sessionId
-      const caution = this.startJudge(call)
+      const caution = shareFence === undefined ? this.startJudge(call) : shareFence()
       let outcome: ReviewedAsk
       try {
         outcome = await reviewPaidCall(
@@ -12212,6 +12756,27 @@ export class ModelApiSession implements ScheduledAgentSession {
         return { outcome: this.runGoal(call) }
       }
       case shellToolFor(this.deps.platform).name: {
+        // D107 §9.4: the hold already ran this line confined and won the
+        // race; perform serves its delivered output as today's outcome.
+        const skipped = this.b1Skips.get(itemId)
+        if (skipped !== undefined) {
+          this.b1Skips.delete(itemId)
+          this.noteProcessRan()
+          return {
+            outcome: shellOutcome(
+              {
+                stdout: skipped.stdout,
+                stderr: skipped.stderr,
+                exitCode: skipped.exitCode,
+                isTimedOut: false,
+                isCancelled: false,
+              },
+              undefined,
+              TOOL_OUTPUT_MAX_CHARS,
+              true,
+            ),
+          }
+        }
         return await this.runShellCall(
           itemId,
           call,
@@ -15053,6 +15618,20 @@ export class ModelApiSession implements ScheduledAgentSession {
         : (outcome.outputParts ?? outcome.output),
       post.replacement === undefined ? repeatWitness : undefined,
     )
+    // D107 (lane M): what the model will read, as the guard above sees
+    // it: a hook replacement wins over the outcome's own text.
+    let fastOutput = outcome.output
+    if (post.replacement?.target === 'toolResult') {
+      const value = post.replacement.value
+      fastOutput = typeof value === 'string' ? value : JSON.stringify(value)
+    }
+    this.fastObserveResult(
+      effectiveCall,
+      fastOutput,
+      outcome.exitCode,
+      outcome.failureReason !== undefined,
+      executed.value.isParallelExecution,
+    )
     const blocked = [
       ...(post.stopReason === undefined && post.blockedReason !== undefined
         ? [post.blockedReason]
@@ -16736,6 +17315,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.releaseScheduledResource(turn.turnId)
     turn.resourceLease?.complete(true)
     turn.resourceLease = undefined
+    this.fastEndTurn(turn.turnId)
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,
@@ -17511,6 +18091,9 @@ export class ModelApiSession implements ScheduledAgentSession {
         (entry) => canReplayReasoning || !isReasoningItem(entry.item),
       )
       tail = [...new Set([...tail, ...(this.media?.tail(this.replay) ?? [])])]
+      // D107 §6.1 (lane M): the judge keeps relevance-ranked entries past
+      // the tail; empty with the switch off or on a miss.
+      tail = [...new Set([...tail, ...this.fastKeepForCompaction(tail)])]
       const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
       snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
       const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
@@ -19380,6 +19963,20 @@ export class ModelApiSession implements ScheduledAgentSession {
       void removeShellSidecar(sideFile).catch(() => {
         // Best effort: the operating system cleans its own temp dir.
       })
+    }
+    // D107 §9.3: the session's B1 runner and its scratch go with it.
+    const b1 = this.b1RunnerTask
+    if (b1 !== undefined) {
+      this.b1RunnerTask = undefined
+      void b1
+        .then(async (opened) => {
+          await closeInspectSession(opened)
+        })
+        .catch(() => {
+          this.deps.log.warn(
+            'B1 runner teardown failed; the operating system cleans its own temp dir',
+          )
+        })
     }
     // The ledger registers on its first load; a session that never verified
     // has nothing to remove.

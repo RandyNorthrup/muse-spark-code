@@ -3082,6 +3082,20 @@ shortcut needs hundreds of independent labels for this family; none recorded
 yet, so the full judge runs instead", and the full judge runs instead. See [Judge](docs/judge.md)
 for the phase-1 contract and remaining certification.
 
+The **Muse: Set Up Local Judge** command opens the setup wizard: it
+scans the machine, recommends a model with its reasons (or says when
+nothing fits), asks for the model's licence, installs with byte
+progress, and finishes on the timing classes, accuracy checks and
+smoke count the install earned. The Models & Agents Judge section
+manages the install afterwards (open, change, remove), with a status
+item until setup or deferral; the first run is a walkthrough step.
+The same setup runs headless as `muse-spark-code-acp judge
+scan|setup|remove` (setup and removal change nothing without `--yes`).
+`museSpark.judge.fastPathOff` (machine-scoped, default false) stops the
+fast judge's deterministic checks and engine calls, leaving only the
+same-model caution judge. See [Setting up the local judge](docs/judge.md#setting-up-the-local-judge-m125)
+for detail; no model is downloaded without the owner's go.
+
 ## Web fetch
 
 The model can read one public web page it found or you

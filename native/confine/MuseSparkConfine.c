@@ -26,7 +26,9 @@
 #include <sys/resource.h>
 #include <sys/socket.h>
 #include <sys/syscall.h>
+#include <sys/sysmacros.h>
 #include <sys/wait.h>
+#include <time.h>
 
 static int rules, abi;
 static size_t visited, excluded;
@@ -352,10 +354,94 @@ static void probe(void) {
   printf("{\"abi\":%d,\"confined\":true}\n", abi);
 }
 static const char *program_path(const char *name) {
-  static const char *names[] = {"ls", "cat", "head", "tail", "wc", "stat", "du", "grep", "find", NULL};
-  static const char *paths[] = {"/bin/ls", "/bin/cat", "/usr/bin/head", "/usr/bin/tail", "/usr/bin/wc", "/usr/bin/stat", "/usr/bin/du", "/bin/grep", "/usr/bin/find"};
+  static const char *names[] = {"ls", "cat", "head", "tail", "wc", "du", "grep", "find", NULL};
+  static const char *paths[] = {"/bin/ls", "/bin/cat", "/usr/bin/head", "/usr/bin/tail", "/usr/bin/wc", "/usr/bin/du", "/bin/grep", "/usr/bin/find"};
   for (size_t i = 0; names[i]; i++) if (!strcmp(name, names[i])) return paths[i];
   refuse("program"); return NULL;
+}
+// stat is reported from the walked operands themselves, so the result cannot
+// depend on which implementation a distribution ships: no program is verified
+// or executed for it, and no grant beyond the walked operands is needed. The
+// report runs statx on the descriptor the walk verified (AT_EMPTY_PATH), never
+// by resolving the path again: a concurrent swap of an ancestor for a symlink
+// after the walk cannot redirect the report to a file outside the workspace.
+// Only a mutation of the same inode between the walk and the report (for
+// example another hard link, changing the link count) can still turn the
+// answer into a refusal. The grammar admits stat with no options, so every
+// report below is the default one. Owners stay numeric and times UTC, as for
+// every confined program: no user database is granted, and no byte of any
+// content is read here. `ls`, `find` and `du` still resolve paths themselves
+// through their system programs (pre-existing, which do the lstat): closing
+// that would mean reporting their listings from the helper too.
+// Test variants delay the report's statx through this name; production calls statx.
+#ifndef MUSE_STATX
+#define MUSE_STATX statx
+#endif
+static void check_stat(const struct statx *data) {
+  if (S_ISLNK(data->stx_mode)) refuse("operand");
+  if (makedev(data->stx_dev_major, data->stx_dev_minor) != device) refuse("operand");
+  if (!S_ISDIR(data->stx_mode) && (!S_ISREG(data->stx_mode) || data->stx_nlink != 1)) refuse("operand");
+}
+// A filesystem that does not supply a field (FUSE, NFS) gets a dash, never a
+// zero or a 1970 timestamp. stx_blksize and the device numbers have no mask
+// bits; the kernel always fills them, so they print directly.
+static void put_number(unsigned long long value, int have) {
+  if (have) printf("%llu", value);
+  else fputs("-", stdout);
+}
+static void report_time(const char *label, struct statx_timestamp when) {
+  time_t sec = (time_t)when.tv_sec;
+  struct tm fields;
+  if (gmtime_r(&sec, &fields) != &fields) refuse("clock");
+  printf("%s: %04d-%02d-%02d %02d:%02d:%02d.%09u +0000\n", label,
+    fields.tm_year + 1900, fields.tm_mon + 1, fields.tm_mday,
+    fields.tm_hour, fields.tm_min, fields.tm_sec, (unsigned int)when.tv_nsec);
+}
+static void report_time_masked(const char *label, struct statx_timestamp when, int have) {
+  if (!have) printf("%s: -\n", label);
+  else report_time(label, when);
+}
+static void print_stat(const char *path, const struct statx *data) {
+  int have_mode = (data->stx_mask & STATX_MODE) != 0;
+  unsigned int mode = (unsigned int)(data->stx_mode & 07777u);
+  char text[11];
+  text[0] = S_ISDIR(data->stx_mode) ? 'd' : '-';
+  static const char bits[] = "rwxrwxrwx";
+  for (int i = 0; i < 9; i++) text[1 + i] = (have_mode && (mode & (1u << (unsigned int)(8 - i)))) ? bits[i] : '-';
+  if (have_mode && (mode & 04000u)) text[3] = (mode & 0100u) ? 's' : 'S';
+  if (have_mode && (mode & 02000u)) text[6] = (mode & 0010u) ? 's' : 'S';
+  if (have_mode && (mode & 01000u)) text[9] = (mode & 0001u) ? 't' : 'T';
+  text[10] = 0;
+  printf("File: %s\n", path);
+  fputs("Size: ", stdout);
+  put_number((unsigned long long)data->stx_size, (data->stx_mask & STATX_SIZE) != 0);
+  fputs("  Blocks: ", stdout);
+  put_number((unsigned long long)data->stx_blocks, (data->stx_mask & STATX_BLOCKS) != 0);
+  printf("  IO Block: %u  %s\n",
+    (unsigned int)data->stx_blksize, S_ISDIR(data->stx_mode) ? "directory" : "regular file");
+  unsigned long long number = (unsigned long long)makedev(data->stx_dev_major, data->stx_dev_minor);
+  printf("Device: %llxh/%llud  Inode: ", number, number);
+  put_number((unsigned long long)data->stx_ino, (data->stx_mask & STATX_INO) != 0);
+  fputs("  Links: ", stdout);
+  put_number((unsigned long long)data->stx_nlink, (data->stx_mask & STATX_NLINK) != 0);
+  fputs("\n", stdout);
+  fputs("Access: (", stdout);
+  if (have_mode) printf("%04o", mode);
+  else fputs("-", stdout);
+  printf("/%s)  Uid: (", text);
+  if ((data->stx_mask & STATX_UID) != 0) printf("%5u", (unsigned int)data->stx_uid);
+  else fputs("-", stdout);
+  fputs("/ UNKNOWN)  Gid: (", stdout);
+  if ((data->stx_mask & STATX_GID) != 0) printf("%5u", (unsigned int)data->stx_gid);
+  else fputs("-", stdout);
+  fputs("/ UNKNOWN)\n", stdout);
+  report_time_masked("Access", data->stx_atime, (data->stx_mask & STATX_ATIME) != 0);
+  report_time_masked("Modify", data->stx_mtime, (data->stx_mask & STATX_MTIME) != 0);
+  report_time_masked("Change", data->stx_ctime, (data->stx_mask & STATX_CTIME) != 0);
+  if ((data->stx_mask & STATX_BTIME) && (data->stx_btime.tv_sec || data->stx_btime.tv_nsec))
+    report_time("Birth", data->stx_btime);
+  else
+    printf("Birth: -\n");
 }
 int main(int argc, char **argv) {
   if (!getuid() || !geteuid()) refuse("root");
@@ -381,21 +467,60 @@ int main(int argc, char **argv) {
   closedir(empty);
   int recursive = !strcmp(argv[5], "recursive");
   if (!recursive && strcmp(argv[5], "single")) refuse("request");
-  char resolved[PATH_MAX];
-  int program = system_file(program_path(argv[6]), resolved, 1); close(program);
-  system_elf(resolved, 1);
-  char cache[PATH_MAX];
-  int cache_fd = system_file("/etc/ld.so.cache", cache, 0);
-  grant(cache_fd, LANDLOCK_ACCESS_FS_READ_FILE); close(cache_fd);
+  char resolved[PATH_MAX]; resolved[0] = 0;
+  int is_stat = !strcmp(argv[6], "stat");
+  if (is_stat && recursive) refuse("request");
+  if (!is_stat) {
+    int program = system_file(program_path(argv[6]), resolved, 1); close(program);
+    system_elf(resolved, 1);
+    char cache[PATH_MAX];
+    int cache_fd = system_file("/etc/ld.so.cache", cache, 0);
+    grant(cache_fd, LANDLOCK_ACCESS_FS_READ_FILE); close(cache_fd);
+  }
+  // For stat the walk-verified descriptors stay open until the report reads
+  // them below: nothing in the stat path resolves a path a second time.
+  // (No wall-clock start here: the walk's bound is entries visited, D121.)
+  int *held = NULL;
+  struct statx *reported = NULL;
+  if (is_stat) {
+    held = calloc((size_t)(argc - 7), sizeof(*held));
+    reported = calloc((size_t)(argc - 7), sizeof(*reported));
+    if (!held || !reported) refuse("memory");
+  }
   int separator = 7;
   while (separator < argc && strcmp(argv[separator], "--")) {
     if (private_path(argv[separator])) refuse("privateOperand");
     int operand = beneath(root, argv[separator], O_PATH);
+    // More operands than the process may hold open is a limit refusal, not a
+    // hostile operand: stat keeps every walked descriptor open until the
+    // report reads it, so a long operand list exhausts RLIMIT_NOFILE first.
+    if (operand < 0 && (errno == EMFILE || errno == ENFILE)) refuse("limits");
     if (operand < 0) refuse("operand");
-    visited++; walk(operand, argv[separator], recursive, 0); close(operand); separator++;
+    visited++; walk(operand, argv[separator], recursive, 0);
+    if (is_stat) held[separator - 7] = operand;
+    else close(operand);
+    separator++;
   }
   if (separator == 7 || separator >= argc) refuse("request");
+  if (is_stat) {
+    // The tool arguments must mirror the walked operands: the grammar emits
+    // the operands there, and the reports below cover the walked operands.
+    if (argc - separator - 1 != separator - 7) refuse("request");
+    for (int i = 0; i < separator - 7; i++)
+      if (strcmp(argv[7 + i], argv[separator + 1 + i])) refuse("request");
+  }
   budget();
+  if (is_stat) {
+    // Read the verified descriptors before confinement closes them, so every
+    // refusal below still precedes the confined line on stderr.
+    for (int i = 0; i < separator - 7; i++) {
+      if (MUSE_STATX(held[i], "", AT_EMPTY_PATH | AT_SYMLINK_NOFOLLOW,
+          STATX_BASIC_STATS | STATX_BTIME, &reported[i])) refuse("operand");
+      check_stat(&reported[i]);
+      close(held[i]);
+    }
+    free(held);
+  }
   if (fchdir(root)) refuse("workspace");
   close(root);
   int null_fd = open("/dev/null", O_RDONLY | O_CLOEXEC);
@@ -416,6 +541,12 @@ int main(int argc, char **argv) {
   if (syscall(SYS_close_range, 3U, ~0U, 0)) refuse("descriptors");
   fprintf(stderr, "{\"confined\":true,\"abi\":%d,\"excluded\":%zu}\n", abi, excluded);
   if (fflush(stderr)) refuse("protocol");
+  if (is_stat) {
+    for (int i = 7; i < separator; i++) print_stat(argv[i], &reported[i - 7]);
+    free(reported);
+    if (fflush(stdout)) refuse("protocol");
+    return 0;
+  }
   execve(resolved, tool, environment);
   refuse("exec");
   return JUDGE_FAST_B1_REFUSED_EXIT;

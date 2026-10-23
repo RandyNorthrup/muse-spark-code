@@ -149,6 +149,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly 'judge.engine': JudgeEngine
   /** Configured separate source/model id; empty keeps today's single-model setup. */
   readonly 'judge.separate': string
+  /** The fast judge's one switch (M125, D107): on keeps the same-model caution judge only. */
+  readonly 'judge.fastPathOff': boolean
   /** The capacity estimator's setup search (M117, PLAN.md D97). */
   readonly 'estimator.optimize': EstimateOptimizeMode
   /** Public catalog price lookup for rented servers (M117, PLAN.md D97). */
@@ -317,6 +319,7 @@ const settingSchemas = {
   tabWithCopilot: z.enum(TAB_WITH_COPILOT_MODES),
   'judge.engine': z.enum(JUDGE_ENGINES),
   'judge.separate': z.string(),
+  'judge.fastPathOff': z.boolean(),
   'estimator.optimize': z.enum(ESTIMATE_OPTIMIZE_MODES),
   'estimator.priceLookup': z.boolean(),
   diagnosticsAfterEdits: z.boolean(),
@@ -529,6 +532,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     modelApiAutoReviewer: readSetting(config, 'modelApiAutoReviewer', log),
     'judge.engine': readSetting(config, 'judge.engine', log),
     'judge.separate': readSetting(config, 'judge.separate', log),
+    'judge.fastPathOff': readSetting(config, 'judge.fastPathOff', log),
     'estimator.optimize': SETTING_DEFAULTS['estimator.optimize'],
     'estimator.priceLookup': SETTING_DEFAULTS['estimator.priceLookup'],
     museCodeAutoReviewer: readSetting(config, 'museCodeAutoReviewer', log),

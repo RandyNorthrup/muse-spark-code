@@ -317,7 +317,9 @@ function eligibleAnswer(
     model: side.capability.model,
     modelVersion: side.capability.modelVersion,
     endpoint: side.capability.endpoint,
-    technique: meta.technique,
+    // The side's own selector names the technique its profiles were
+    // fitted under; the answer's stamp is only the fallback.
+    technique: side.technique ?? meta.technique,
     family,
     promptVersion,
     criteriaVersion,

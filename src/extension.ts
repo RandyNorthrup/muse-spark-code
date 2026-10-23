@@ -281,6 +281,18 @@ import { promptBundleLoader } from './host/prompts/promptBundle'
 import { BookmarkStore } from './core/prompts/bookmarkStore'
 import { SequenceStore } from './core/prompts/sequenceStore'
 import { judgeWindowPort } from './host/judge/judgeBundle'
+import {
+  createJudgeSetupStatusItem,
+  openJudgeSetupPanel,
+  type JudgeSetupPanel,
+  type JudgeSetupSectionPort,
+} from './host/judgeSetup/judgeSetupPanel'
+import {
+  judgeSetupPanelPaths,
+  isJudgeSetupDeferred,
+  readJudgeSetupState,
+  didRemoveJudgeSetupInstall,
+} from './host/judgeSetup/judgeSetupState'
 import { createLegalFixApplier, legalFixFileEdits } from './host/legalFixApplier'
 import { legalScanResultSchema, type LegalScanRunner } from './shared/legal'
 import { isReferenceRequest, referenceLoader } from './host/referenceLoader'
@@ -2035,6 +2047,7 @@ async function activateWindow(
     isWorkspaceTrusted: isProjectTrusted,
     getProxySettings: () =>
       readProxySettings(vscode.workspace.getConfiguration(HTTP_SETTINGS_SECTION)),
+    isFastPathOff: () => currentSettings()['judge.fastPathOff'],
   })
   // The sandbox-off warning (musecode-write-asks): once per window, in the
   // first Muse Code conversation that starts on a host without the sandbox.
@@ -3843,6 +3856,7 @@ async function activateWindow(
     codeIntel: languageServices,
     isRepoMapInPrompt: () => currentSettings().modelApiRepoMap,
     isObservationPackingOn: () => currentSettings().modelApiObservationPacking,
+    isFastPathOff: () => currentSettings()['judge.fastPathOff'],
     maxToolOutputBytes: () => currentSettings().modelApiMaxToolOutputBytes,
     pacingOwner: requestPacingOwner,
     isAutoCompactionOn: () => currentSettings().modelApiAutoCompaction,
@@ -4014,6 +4028,9 @@ async function activateWindow(
       reports.recordWebviewError(error)
     },
     record: (kind, code) => reports.record(kind, code),
+    recordAudit: (audit) => {
+      reports.recordAudit(audit)
+    },
   }
   /** The host for the next conversation, by the same selection the sign-in gate uses. */
   const ensureSelectedHost = async () => {
@@ -5682,6 +5699,69 @@ async function activateWindow(
   })
   let modelsFeatures: ModelsPanelFeatures | undefined
   let modelsFeaturesGeneration: string | undefined
+  // D107 (M125 lane W): the Set Up Local Judge wizard: one panel per
+  // window, a status entry until setup or deferral, and the Judge
+  // section's management port. One install per user, shared with the
+  // CLI; the driver's heavy flows load on first open.
+  const setupPaths = judgeSetupPanelPaths(context.extensionUri.fsPath)
+  let setupPanel: JudgeSetupPanel | undefined
+  const setupStatus = createJudgeSetupStatusItem({
+    readState: () => readJudgeSetupState(setupPaths),
+    isDeferred: () => isJudgeSetupDeferred((key) => context.globalState.get(key)),
+  })
+  context.subscriptions.push(setupStatus.item)
+  const openSetupWizard = (shouldAutoScan: boolean): void => {
+    const opened = openJudgeSetupPanel(
+      {
+        extensionUri: context.extensionUri,
+        resolveWebviewBundle,
+        l10n,
+        log,
+        paths: setupPaths,
+        onClosed: (isDeferred) => {
+          setupPanel = undefined
+          if (isDeferred) {
+            void context.globalState.update(GLOBAL_STATE_KEYS.judgeSetupDeferred, true)
+          }
+          setupStatus.refresh()
+        },
+        openHosted: async () => {
+          await vscode.commands.executeCommand(VSCODE_COMMANDS.openSettings, 'museSpark.judge')
+        },
+      },
+      setupPanel,
+      shouldAutoScan,
+    )
+    if (opened !== undefined) setupPanel = opened
+  }
+  const judgeSetupSection: JudgeSetupSectionPort = {
+    read: () => readJudgeSetupState(setupPaths),
+    open: () => {
+      openSetupWizard(false)
+    },
+    change: () => {
+      openSetupWizard(true)
+    },
+    remove: async () => {
+      const isRemoved = await didRemoveJudgeSetupInstall({
+        paths: setupPaths,
+        log,
+        confirm: async (title, message, yes) =>
+          (await vscode.window.showWarningMessage(
+            title,
+            { modal: true, detail: message },
+            yes,
+            UI_TEXT.wizardCancel,
+          )) === yes,
+        info: (message) => {
+          void vscode.window.showInformationMessage(message)
+        },
+      })
+      setupStatus.refresh()
+      return isRemoved
+    },
+  }
+
   const ensureModelsFeatures = (): ModelsPanelFeatures => {
     if (modelsFeatures === undefined || modelsFeaturesGeneration !== estimatorOwnerGeneration()) {
       modelsFeaturesGeneration = estimatorOwnerGeneration()
@@ -5883,6 +5963,7 @@ async function activateWindow(
             onTreeChange: (listener) => teamHost.onTreeChange(listener),
             handle: (message) => teamHost.handle(message),
           },
+          judgeSetup: judgeSetupSection,
           suggestedProviderSetting,
           isRemote: vscode.env.remoteName !== undefined,
           setComposerModel,
@@ -6726,6 +6807,10 @@ async function activateWindow(
     ),
     registerLoggedCommand(log, COMMAND_IDS.setUpSandbox, async () => {
       await sandbox.runCommand()
+    }),
+    // M125 lane 0 opens the Judge settings; lane W binds this entry to the wizard.
+    registerLoggedCommand(log, COMMAND_IDS.setUpLocalJudge, () => {
+      openSetupWizard(false)
     }),
     registerLoggedCommand(log, COMMAND_IDS.retryPluginHooks, () => {
       pluginJobs.reset()

@@ -7,6 +7,8 @@ import { Usd, legacyUsdSchema, type UsdAmount } from '../../shared/usd'
 import * as z from 'zod/mini'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import { EVAL_COST_DECIMALS, EVAL_REPORT_VERSION, EVAL_SPLITS } from '../../shared/constants'
+import { JUDGE_FAST_TURN_DECISIONS } from '../../shared/judgeFastTurn'
+import { JUDGE_FAST_SHIP_BLOCKS } from './judgeReplay'
 
 export const EVAL_VERDICTS = ['pass', 'fail', 'incomplete'] as const
 // CommonMark's shortest code fence.
@@ -64,6 +66,8 @@ const evalTaskFields = {
 
 export const evalTaskResultSchema = z.object({
   ...evalTaskFields,
+  /** The turn's wall time in milliseconds; absent in reports made before it. */
+  wallMs: z.optional(z.number()),
   /** Questions the model asked, each answered "proceed". */
   questions: z.number(),
   /** Paid uses the harness asked for, each refused. */
@@ -92,6 +96,7 @@ export type EvalTaskResult = z.infer<typeof evalTaskResultSchema>
 // Version 1 never recorded these. A value cannot be relabelled as legacy.
 const legacyTaskResultSchema = z.object({
   ...evalTaskFields,
+  wallMs: z.optional(z.never()),
   questions: z.optional(z.never()),
   paidRefusals: z.optional(z.never()),
   order: z.optional(z.never()),
@@ -199,6 +204,57 @@ const evalStrictToolsEngagementSchema = z.object({
   held: z.boolean(),
 })
 
+/**
+D107 (M125 lane V): the judge section, recorded by a run with judge
+arms. Fence rows carry the caution judge's ready rate and precision per
+backend; fast rows carry each isolated decision's paired win,
+wall-time, calls, tokens, precision, recall and harm per backend and
+model, with the ship rule's verdict. Absent on runs without judge arms.
+*/
+const evalJudgeFenceSchema = z.object({
+  backend: z.string(),
+  fences: z.number(),
+  readyRate: z.number(),
+  /** Undefined when no caution was made; zero is not an unmeasured precision. */
+  precision: z.optional(z.number()),
+  cautions: z.number(),
+})
+
+const evalJudgeFastSchema = z.object({
+  backend: z.string(),
+  model: z.string(),
+  decision: z.enum(JUDGE_FAST_TURN_DECISIONS),
+  /** Tasks with both the arm and its baseline run. */
+  pairs: z.number(),
+  /** Turns where the arm acted, across the paired runs. */
+  appliedTurns: z.number(),
+  /** Pass-rate delta, arm minus baseline; undefined below one pair. */
+  winPass: z.optional(z.number()),
+  /** Paired wall-time deltas in milliseconds (arm minus baseline). */
+  wallP50DeltaMs: z.optional(z.number()),
+  wallP95DeltaMs: z.optional(z.number()),
+  /** Paired medians of baseline-minus-arm: positive saves. */
+  callsAvoidedP50: z.optional(z.number()),
+  inputTokensSavedP50: z.optional(z.number()),
+  outputTokensSavedP50: z.optional(z.number()),
+  /** Over labelled runs only; undefined when none fired or none should. */
+  precision: z.optional(z.number()),
+  recall: z.optional(z.number()),
+  labelled: z.number(),
+  /** Harm events (a recall, a failed turn) on the arm and its baseline. */
+  harmOn: z.number(),
+  harmOff: z.number(),
+  /** The arm's harm against its applied turns; undefined when none applied. */
+  harmShare: z.optional(z.number()),
+  ships: z.boolean(),
+  blockedBy: z.array(z.enum(JUDGE_FAST_SHIP_BLOCKS)),
+})
+
+const evalJudgeSectionSchema = z.object({
+  fence: z.array(evalJudgeFenceSchema),
+  fast: z.array(evalJudgeFastSchema),
+})
+
 export const evalReportSchema = z.discriminatedUnion('version', [
   z.object({
     ...evalReportFields,
@@ -215,6 +271,8 @@ export const evalReportSchema = z.discriminatedUnion('version', [
     compactionEngagement: z.optional(evalCompactionEngagementSchema),
     /** Recorded by a run with a strict-tools arm (M101 lane E R6); absent otherwise. */
     strictToolsEngagement: z.optional(evalStrictToolsEngagementSchema),
+    /** Recorded by a run with judge arms (M125 lane V); absent otherwise. */
+    judge: z.optional(evalJudgeSectionSchema),
     /**
     The run stopped before every selected task could send: the call
     ceiling, the dollar budget or an unmeasurable reply ended it. A
@@ -446,6 +504,34 @@ export function formatEvalReportMarkdown(report: EvalReport): string {
         ...engagement.longContextTasks.map(
           (taskId) =>
             `| ${taskId} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsSettled)} | ${recordedCount(arm?.results.find((result) => result.taskId === taskId)?.compactionsApplied)} |`,
+        ),
+        ``,
+      )
+    }
+  }
+  if (report.version === EVAL_REPORT_VERSION && report.judge !== undefined) {
+    const judge = report.judge
+    const unknown = (value: number | undefined): string =>
+      value === undefined ? 'unknown' : String(value)
+    lines.push(`## Judge measured (M125)`, ``)
+    if (judge.fence.length > 0) {
+      lines.push(
+        `| Backend | Fences | Ready rate | Precision | Cautions |`,
+        `| --- | --- | --- | --- | --- |`,
+        ...judge.fence.map(
+          (row) =>
+            `| ${row.backend} | ${String(row.fences)} | ${formatRate(row.readyRate)} | ${row.precision === undefined ? 'unknown' : formatRate(row.precision)} | ${String(row.cautions)} |`,
+        ),
+        ``,
+      )
+    }
+    if (judge.fast.length > 0) {
+      lines.push(
+        `| Backend | Model | Decision | Pairs | Applied | Win pass | Wall p50 Δms | Wall p95 Δms | Calls saved | Input saved | Output saved | Precision | Recall | Labelled | Harm on/off | Harm share | Ships | Blocked by |`,
+        `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |`,
+        ...judge.fast.map(
+          (row) =>
+            `| ${row.backend} | ${row.model} | ${row.decision} | ${String(row.pairs)} | ${String(row.appliedTurns)} | ${unknown(row.winPass)} | ${unknown(row.wallP50DeltaMs)} | ${unknown(row.wallP95DeltaMs)} | ${unknown(row.callsAvoidedP50)} | ${unknown(row.inputTokensSavedP50)} | ${unknown(row.outputTokensSavedP50)} | ${unknown(row.precision)} | ${unknown(row.recall)} | ${String(row.labelled)} | ${String(row.harmOn)}/${String(row.harmOff)} | ${unknown(row.harmShare)} | ${row.ships ? 'yes' : 'no'} | ${row.blockedBy.length === 0 ? '—' : row.blockedBy.join(', ')} |`,
         ),
         ``,
       )
