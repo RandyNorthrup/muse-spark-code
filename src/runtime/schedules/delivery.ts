@@ -102,7 +102,7 @@ export function createRuntimeScheduleDelivery(
     let pending = bindings.get(schedule.workspaceKey)
     if (pending === undefined) {
       pending = (async () => {
-        const root = await registry.root(schedule.workspaceKey)
+        const root = await registry.root(schedule.workspaceKey, { signal: abort.signal })
         if (root === undefined || abort.signal.aborted) throw unavailable()
         const fullSessions = new Map<BackendSession, AgentSession>()
         const hostFor = async (backend: AcpBackend['kind']) => {

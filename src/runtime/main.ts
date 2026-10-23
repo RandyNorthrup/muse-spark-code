@@ -1999,6 +1999,15 @@ async function main(processResources: ProcessResources): Promise<number> {
         createRuntimeScheduleDelivery: engineModule.createRuntimeScheduleDelivery,
         setUiText: engineModule.setUiText,
       }
+      // The person's stop for the command's store waits (D121): Ctrl-C
+      // ends a wait with the abort in words instead of killing the process
+      // mid-write. The journal is crash-safe either way.
+      const stopController = new AbortController()
+      const stopCommand = () => {
+        stopController.abort()
+      }
+      process.once('SIGINT', stopCommand)
+      process.once('SIGTERM', stopCommand)
       const load = runtimeSchedulesBinding(
         path.join(distDir, 'schedules.js'),
         log,
@@ -2007,6 +2016,8 @@ async function main(processResources: ProcessResources): Promise<number> {
         scheduleSessions.ports,
         undefined,
         scheduleEngine,
+        undefined,
+        stopController.signal,
       )
       let afterWake: (() => Promise<void>) | undefined
       try {
@@ -2077,6 +2088,8 @@ async function main(processResources: ProcessResources): Promise<number> {
         )
         return EXIT_FAILED
       } finally {
+        process.off('SIGINT', stopCommand)
+        process.off('SIGTERM', stopCommand)
         await scheduleSessions.close()
       }
     }

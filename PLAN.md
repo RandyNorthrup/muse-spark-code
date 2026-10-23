@@ -35701,6 +35701,23 @@ the palette with an always-present tab showing state or reason.
 claude-haiku-5-5 verified priced from Anthropic's published page.
 Evidence: `docs/certification/rltestdrive.md`.
 
+### RLFNOLIMITS — The three bounds RLTESTDRIVE kept, plus the checkout's own (2026-10-22)
+
+**Status 2026-10-22: built.** Fixed on rig `macmini`, branch
+`rec/rlf-nolimits`. Removes under D121 the three bounds RLTESTDRIVE kept
+"for the lead" and the checkout's own deadline RLM123 kept: a stop signal
+threads through `ScheduleFsPort`, the journal, the store, the queue,
+authority, registry, consent, migrate and every caller, so
+`SCHEDULE_FS_RETRY_ATTEMPTS` goes and a read waits until the stop fires;
+MCP exit cleanup takes the server's stop, so `ORPHAN_SWEEP_ROUNDS` goes;
+the release's visibility wait ends at visibility, a mismatch or the job's
+own stop, so `VISIBILITY_TIMEOUT_MS` goes; the worktree and checkout waits
+end at git's answer or Cancel, so `GIT_WORKTREE_TIMEOUT_MS` goes. No
+removal leaves a silent hang: every wait says its words and ends at the
+person's stop. Proof: a red/green drill per removal, the no-limits gates,
+and the schedule, MCP and git suites. Evidence:
+`docs/certification/rlf-nolimits.md`.
+
 ---
 
 ## 7. Gates

@@ -137,14 +137,22 @@ function unavailableTarget(): Promise<never> {
 export async function createScheduleEngine(options: ScheduleEngineOptions) {
   const closeSignal = new AbortController()
   const now = options.now ?? Date.now
-  const store = createScheduleStore(
-    options.fs,
-    options.pauseAfterFailures === undefined
-      ? undefined
-      : { pauseAfterFailures: options.pauseAfterFailures },
-  )
-  const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json')
-  const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json')
+  // The person's stop for engine waits: close or the delivery stop. The
+  // store itself binds only the delivery stop, so close-time settlement
+  // still runs; calls that must end at close name this combined stop.
+  const combined = AbortSignal.any([closeSignal.signal, options.signal ?? closeSignal.signal])
+  const store = createScheduleStore(options.fs, {
+    ...(options.pauseAfterFailures !== undefined && {
+      pauseAfterFailures: options.pauseAfterFailures,
+    }),
+    ...(options.signal !== undefined && { signal: options.signal }),
+  })
+  const authority = createAuthorityStore(store, options.fs, 'runtime/grant-audits.json', {
+    signal: combined,
+  })
+  const registry = createWorkspaceRegistry(options.fs, 'runtime/workspaces.json', {
+    signal: combined,
+  })
   const runtimeDelivery =
     options.runtimeDelivery !== undefined && options.runtimeDeliveryFactory !== undefined
       ? options.runtimeDeliveryFactory(options.runtimeDelivery, authority, registry)
@@ -155,7 +163,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
   const host: RuntimeScheduleHost = new RuntimeScheduleHost({
     isAvailable: () => options.delivery !== undefined || runtimeDelivery !== undefined,
     now,
-    signal: AbortSignal.any([closeSignal.signal, options.signal ?? closeSignal.signal]),
+    signal: combined,
     lookupRun: (workspace, runId) => store.lookupRun(workspace, runId),
     monotonicNow: () => performance.now(),
     deliver: (
@@ -233,13 +241,17 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
         }
       : fire
   const coreScheduler = createScheduler({
-    store: { ...store, record: (fire) => store.record(terminalReason(fire)) },
+    store: {
+      ...store,
+      record: (fire, callOptions) => store.record(terminalReason(fire), callOptions),
+    },
     runs: {
       ...store,
-      advance: (intent) => store.advance(intent),
-      startDispatch: (intent, liabilityUsd) => store.startDispatch(intent, liabilityUsd),
-      lookupRun: (workspace, runId) => store.lookupRun(workspace, runId),
-      acknowledge: (fire) => store.acknowledge(terminalReason(fire)),
+      advance: (intent, callOptions) => store.advance(intent, callOptions),
+      startDispatch: (intent, liabilityUsd, callOptions) =>
+        store.startDispatch(intent, liabilityUsd, callOptions),
+      lookupRun: (workspace, runId, callOptions) => store.lookupRun(workspace, runId, callOptions),
+      acknowledge: (fire, callOptions) => store.acknowledge(terminalReason(fire), callOptions),
     },
     queue: options.queue,
     host,
@@ -269,6 +281,8 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
           ...pending,
           { workspaceKey: schedule.workspaceKey, scheduleId: schedule.id, event, dueMs },
         ]),
+        undefined,
+        { signal: combined },
       )
     },
   })
@@ -293,7 +307,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
             source: 'manual',
             eventKey: args[1],
           })
-          const fires = await store.fires(request.workspaceKey)
+          const fires = await store.fires(request.workspaceKey, { signal: combined })
           const fire = fires.find((fire) => fire.runId === runId)
           return fire?.outcome === 'ran'
             ? response
@@ -309,7 +323,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       trackDispatch(coreScheduler.fireEvent(...args)),
     recover: (workspace: string) => trackDispatch(coreScheduler.recover(workspace)),
   }
-  const consent = createBackgroundConsentStore(options.fs, 'runtime/background-consent.json')
+  const consent = createBackgroundConsentStore(options.fs, 'runtime/background-consent.json', {
+    signal: combined,
+  })
   const platform = options.platform ?? process.platform
   const homeDir = options.homeDir ?? homedir()
   const dataDir = options.dataDir ?? agentDataFolder({ platform, env: process.env, homeDir })
@@ -334,9 +350,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     now,
     nextWakeAtMs: async () => {
       let next: number | undefined
-      const workspaces = await registry.list()
+      const workspaces = await registry.list({ signal: combined })
       for (const workspace of workspaces) {
-        const jobs = await store.list(workspace)
+        const jobs = await store.list(workspace, { signal: combined })
         for (const job of jobs) {
           if (job.paused || job.nextFireAtMs === undefined) continue
           if (next === undefined || job.nextFireAtMs < next) next = job.nextFireAtMs
@@ -347,7 +363,7 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
   })
   const controls = new Map<string, ScheduleControlPort>()
   const readDeferred = async (): Promise<z.infer<typeof deferredFileSchema>> => {
-    const raw = await options.fs.read('runtime/deferred-events.json')
+    const raw = await options.fs.read('runtime/deferred-events.json', { signal: combined })
     if (raw === undefined) return []
     try {
       return deferredFileSchema.parse(JSON.parse(raw))
@@ -360,6 +376,8 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     try {
       pending = await readDeferred()
     } catch (error: unknown) {
+      // The stop ends the scan quietly: close already owns the outcome.
+      if (combined.aborted) return
       report(error)
       return
     }
@@ -383,7 +401,14 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
       }
     }
     if (isChanged)
-      await options.fs.replace('runtime/deferred-events.json', JSON.stringify(remaining))
+      await options.fs.replace(
+        'runtime/deferred-events.json',
+        JSON.stringify(remaining),
+        undefined,
+        {
+          signal: combined,
+        },
+      )
   }
   const controlFor = async (cwd: string): Promise<ScheduleControlPort> => {
     const key = workspaceKey(path.resolve(cwd))
@@ -393,7 +418,9 @@ export async function createScheduleEngine(options: ScheduleEngineOptions) {
     // retries it; receipts keep every retry idempotent. The v1 jobs stay
     // until one retry verifies and removes each of them.
     if (options.migration !== undefined)
-      await migrateSchedules(options.migration.source, store, key, options.migration.zone)
+      await migrateSchedules(options.migration.source, store, key, options.migration.zone, {
+        signal: combined,
+      })
     let consent: ScheduleControlDeps['consent'] = options.consent
     if (
       consent === undefined &&

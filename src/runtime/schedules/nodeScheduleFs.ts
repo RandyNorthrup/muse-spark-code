@@ -20,7 +20,6 @@ import { lstatIdentity, sameFile } from '../../core/fs/fileIdentity'
 import {
   CHECKPOINT_STORAGE_MODE,
   REPORT_STORAGE_FILE_MODE,
-  SCHEDULE_FS_RETRY_ATTEMPTS,
   SCHEDULE_FS_RETRY_BACKOFF_MS,
   SCHEDULE_LEASE_HEARTBEAT_MS,
   SCHEDULE_LEASE_EXPIRES_MS,
@@ -37,6 +36,7 @@ import {
   type ScheduleLeaseGuard,
   type ScheduleLockOptions,
 } from '../../core/schedules/journal'
+import { type ScheduleCallOptions } from '../../shared/scheduleV2'
 import {
   scheduleStorageHash,
   isScheduleProcessAlive,
@@ -46,8 +46,8 @@ import {
 export function isErrorCode(error: unknown, code: string): boolean {
   return error instanceof Error && 'code' in error && error.code === code
 }
-/** A held Windows handle fails a file operation transiently: below the
-attempt budget the retry, not the caller, owns a transient-coded failure. */
+/** A held Windows handle fails a file operation transiently: the retry,
+not the caller, owns a transient-coded failure until the stop fires. */
 export function isTransientStoreError(error: unknown): boolean {
   return (
     error instanceof Error &&
@@ -56,15 +56,33 @@ export function isTransientStoreError(error: unknown): boolean {
     ['EPERM', 'EBUSY', 'EACCES'].includes(error.code)
   )
 }
-async function retry<T>(work: () => Promise<T>): Promise<T> {
+/**
+No attempt count of ours (D121, RLF-NOLIMITS): a transient-coded failure
+retries until the operation succeeds, fails another way, or the stop
+fires. The backoff spaces attempts; it stops nothing. An abort throws
+the signal's reason, like the lease lock's own stop.
+*/
+async function retry<T>(work: () => Promise<T>, signal?: AbortSignal): Promise<T> {
+  signal?.throwIfAborted()
   for (let attempt = 0; ; attempt += 1) {
     try {
       return await work()
     } catch (error: unknown) {
-      if (attempt + 1 >= SCHEDULE_FS_RETRY_ATTEMPTS || !isTransientStoreError(error)) throw error
-      await scheduleFsOperation('disk.retryWait', () =>
-        delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1)),
-      )
+      if (!isTransientStoreError(error)) throw error
+      signal?.throwIfAborted()
+      try {
+        await scheduleFsOperation('disk.retryWait', () =>
+          signal === undefined
+            ? delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1))
+            : delay(SCHEDULE_FS_RETRY_BACKOFF_MS * (attempt + 1), undefined, { signal }),
+        )
+      } catch (waitError: unknown) {
+        // The backoff sleep rejects with the timer's own abort, not the
+        // signal's reason: an abort surfaces the reason, like the lease
+        // lock's own stop. Anything else keeps its kind.
+        signal?.throwIfAborted()
+        throw waitError
+      }
     }
   }
 }
@@ -505,11 +523,11 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         throw scheduleQueueFailure('scheduleStorageLinkRefused')
     }
   }
-  const retireTemporary = async (file: string) => {
+  const retireTemporary = async (file: string, signal?: AbortSignal) => {
     try {
       await retry(async () => {
         await scheduleFsOperation('disk.unlink', () => unlink(file))
-      })
+      }, signal)
       cleanup.delete(file)
     } catch (error: unknown) {
       if (isErrorCode(error, 'ENOENT')) cleanup.delete(file)
@@ -524,7 +542,9 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     content: string,
     isExclusive: boolean,
     guard?: () => Promise<void>,
+    signal?: AbortSignal,
   ) => {
+    signal?.throwIfAborted()
     const file = resolve(relative)
     await prepare(file)
     await checkParents(file)
@@ -534,7 +554,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     } catch (error: unknown) {
       if (!isErrorCode(error, 'ENOENT')) throw error
     }
-    for (const owed of cleanup) await retireTemporary(owed)
+    for (const owed of cleanup) await retireTemporary(owed, signal)
     const temporary = `${file}.${randomUUID()}.tmp`
     let handle: Awaited<ReturnType<typeof open>> | undefined
     try {
@@ -555,6 +575,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
       }
       const isPublished = await retry(async () => {
         await guard?.()
+        signal?.throwIfAborted()
         try {
           if (isExclusive) await scheduleFsOperation('disk.link', () => link(temporary, file))
           else await scheduleFsOperation('disk.rename', () => rename(temporary, file))
@@ -596,14 +617,14 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           }
         }
         return true
-      })
+      }, signal)
       return { isPublished }
     } finally {
       try {
         // Cleanup runs under the lease's stop rule, like every other
         // filesystem await; a removal failure still cannot turn a
         // successful hard-link publication into failure.
-        await scheduleLeaseCleanup(() => retireTemporary(temporary))
+        await scheduleLeaseCleanup(() => retireTemporary(temporary, signal))
       } catch {
         // A persistent removal failure stays queued for the next write
         // (which retries it and reports there) instead of rejecting a
@@ -613,7 +634,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
     }
   }
   const fs: ScheduleFsPort = {
-    async read(relative) {
+    async read(relative, options?: ScheduleCallOptions) {
       const file = resolve(relative)
       try {
         return await retry(async () => {
@@ -621,13 +642,14 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           const info = await scheduleFsOperation('disk.fileStat', () => lstat(file))
           if (info.isSymbolicLink()) throw scheduleQueueFailure('scheduleStorageLinkRefused')
           return await scheduleFsOperation('disk.read', () => readFile(file, 'utf8'))
-        })
+        }, options?.signal)
       } catch (error: unknown) {
         if (isErrorCode(error, 'ENOENT')) return
         throw error
       }
     },
-    async names(relative) {
+    async names(relative, options?: ScheduleCallOptions) {
+      options?.signal?.throwIfAborted()
       const folder = resolve(relative)
       try {
         await checkParents(path.join(folder, 'entry'))
@@ -637,14 +659,15 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
         throw error
       }
     },
-    async publish(relative, content, guard) {
-      const result = await write(relative, content, true, guard)
+    async publish(relative, content, guard, options?: ScheduleCallOptions) {
+      const result = await write(relative, content, true, guard, options?.signal)
       return result.isPublished
     },
-    async replace(relative, content, guard) {
-      await write(relative, content, false, guard)
+    async replace(relative, content, guard, options?: ScheduleCallOptions) {
+      await write(relative, content, false, guard, options?.signal)
     },
-    async remove(relative, canRetryTransient = true) {
+    async remove(relative, canRetryTransient = true, options?: ScheduleCallOptions) {
+      options?.signal?.throwIfAborted()
       const file = resolve(relative)
       try {
         await checkParents(file)
@@ -654,7 +677,7 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
           if (info.isDirectory()) await scheduleFsOperation('disk.rmdir', () => rmdir(file))
           else await scheduleFsOperation('disk.unlink', () => unlink(file))
         }
-        if (canRetryTransient) await retry(remove)
+        if (canRetryTransient) await retry(remove, options?.signal)
         else await remove()
       } catch (error: unknown) {
         if (!isErrorCode(error, 'ENOENT')) throw error
@@ -668,13 +691,17 @@ export function createNodeScheduleFs(directory: string): ScheduleFsPort {
 export function createNodeScheduleQueue(directory: string): ScheduleQueuePort {
   const fs = createNodeScheduleFs(directory)
   return {
-    async serialize(targetKey, work) {
+    async serialize(targetKey, work, options?: ScheduleCallOptions) {
       // Let concurrent singleton batches publish before the ordered queue pop.
       await delay(SCHEDULE_QUEUE_COALESCE_MS)
       await scheduleFsOperation('queue.lock', () =>
-        fs.lock(`target:${targetKey}`, async () => {
-          await work()
-        }),
+        fs.lock(
+          `target:${targetKey}`,
+          async () => {
+            await work()
+          },
+          options,
+        ),
       )
     },
   }

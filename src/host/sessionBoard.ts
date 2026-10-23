@@ -21,11 +21,7 @@ import { parseWorktreeList } from '../core/worktrees'
 import { failureForLog } from '../core/backends/musecode/logText'
 import type { BoardRow } from '../shared/sessionBoard'
 import type { BestOfNRun } from '../shared/bestOfN'
-import {
-  GIT_WORKTREE_TIMEOUT_MS,
-  SESSION_LIST_LIMIT,
-  SESSION_LIST_MAX_PAGES,
-} from '../shared/constants'
+import { SESSION_LIST_LIMIT, SESSION_LIST_MAX_PAGES } from '../shared/constants'
 import { metadataGit } from './git'
 import type { Logger } from './logger'
 
@@ -77,7 +73,7 @@ async function readWorktrees(deps: SessionBoardDeps): Promise<readonly BoardWork
   let porcelain: string
   try {
     const git = await metadataGit(deps.runGit, workspaceRoot)
-    porcelain = await git(WORKTREE_LIST_ARGS, GIT_WORKTREE_TIMEOUT_MS)
+    porcelain = await git(WORKTREE_LIST_ARGS)
   } catch (error: unknown) {
     deps.log.warn(`The session board could not list worktrees: ${failureForLog(error)}`)
     return []
@@ -92,7 +88,7 @@ async function readWorktrees(deps: SessionBoardDeps): Promise<readonly BoardWork
     try {
       // Read in each worktree: its effective configuration names its filters.
       const git = await metadataGit(deps.runGit, entry.path)
-      const status = await git(STATUS_ARGS, GIT_WORKTREE_TIMEOUT_MS)
+      const status = await git(STATUS_ARGS)
       changedFiles = status.split(LINE_BREAK).filter((line) => line !== '').length
     } catch {
       deps.log.warn('The session board could not read a worktree’s changes')

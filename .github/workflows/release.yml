@@ -434,8 +434,8 @@ jobs:
     permissions:
       contents: read
       actions: read
-    # Fresh publishes share one 30-minute visibility poll across all
-    # artifacts (npm took 19 for 0.16.0); the timeout must cover every
+    # Fresh publishes share one visibility poll across all artifacts
+    # (npm took 19 minutes for 0.16.0); the timeout must cover every
     # publish plus that poll.
     timeout-minutes: 60
     # The token lives in this environment, which only version tags may
@@ -490,8 +490,8 @@ jobs:
     permissions:
       contents: read
       actions: read
-    # Fresh publishes share one 30-minute visibility poll across all
-    # artifacts; the timeout must cover every publish plus that poll.
+    # Fresh publishes share one visibility poll across all artifacts;
+    # the timeout must cover every publish plus that poll.
     timeout-minutes: 60
     # Its own job, so either registry failing leaves the other published;
     # the token lives in the same tag-only environment as VSCE_PAT.
@@ -533,8 +533,8 @@ jobs:
     needs: release
     if: ${{ !cancelled() && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
-    # A fresh publish polls registry visibility for up to 30 minutes (npm took
-    # 19 for 0.16.0); the timeout must cover the poll plus the publish itself.
+    # A fresh publish polls registry visibility until it shows (npm took
+    # 19 minutes for 0.16.0); the timeout must cover the poll plus the publish itself.
     timeout-minutes: 40
     # npm trusted publishing (OIDC, 2026-10-04): npm trusts this workflow file in
     # this environment to publish muse-spark-code-acp, so no npm token is stored

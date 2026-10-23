@@ -35,6 +35,9 @@ export type CreateRuntimeSchedulesArgs = [
   // D121: the person's pause-after-failures count (0 never pauses), read
   // live on every settlement when it is a function. Absent never pauses.
   pauseAfterFailures?: number | (() => number),
+  // The caller's own stop (D121, RLF-NOLIMITS): the CLI binds Ctrl-C here,
+  // so store waits end at the person's stop with the abort in words.
+  signal?: AbortSignal,
 ]
 
 interface RuntimeSchedulesModule {
@@ -61,6 +64,8 @@ export function runtimeSchedulesBinding(
   // D121: the person's pause-after-failures count (0 never pauses), read
   // live on every settlement when it is a function. Absent never pauses.
   pauseAfterFailures?: number | (() => number),
+  // The caller's own stop (D121, RLF-NOLIMITS): the CLI binds Ctrl-C here.
+  signal?: AbortSignal,
 ): () => Promise<RuntimeSchedulesBinding> {
   const load = lazyBundleLoader({
     bundlePath,
@@ -79,7 +84,10 @@ export function runtimeSchedulesBinding(
       }
       if (runtimeDelivery === undefined) {
         binding =
-          delivery === undefined && migration === undefined && pauseAfterFailures === undefined
+          delivery === undefined &&
+          migration === undefined &&
+          pauseAfterFailures === undefined &&
+          signal === undefined
             ? load().createRuntimeSchedules(UI_TEXT, uiLocale())
             : load().createRuntimeSchedules(
                 UI_TEXT,
@@ -89,6 +97,7 @@ export function runtimeSchedulesBinding(
                 migration,
                 scheduleEngine,
                 pauseAfterFailures,
+                signal,
               )
       } else
         binding = load().createRuntimeSchedules(
@@ -99,6 +108,7 @@ export function runtimeSchedulesBinding(
           migration,
           scheduleEngine,
           pauseAfterFailures,
+          signal,
         )
     }
     try {

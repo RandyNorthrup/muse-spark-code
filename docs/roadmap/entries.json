@@ -1265,6 +1265,11 @@
       "note": "MCP client for both protocol eras (recovery)"
     },
     {
+      "id": "RLFNOLIMITS",
+      "public": false,
+      "note": "recovery: the three bounds RLTESTDRIVE kept, plus the checkout's own, removed under D121"
+    },
+    {
       "id": "SDK142",
       "public": false,
       "note": "Muse Code CLI fingerprint and documentation update"

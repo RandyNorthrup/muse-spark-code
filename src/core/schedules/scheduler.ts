@@ -136,7 +136,7 @@ export function createScheduler(deps: SchedulerDeps) {
     return reading
   }
   const load = async (workspaceKey: string, id: string) => {
-    const jobs = await deps.store.list(workspaceKey)
+    const jobs = await deps.store.list(workspaceKey, { signal })
     return jobs.find((job) => job.id === id)
   }
   const settle = async (intent: ScheduleRunIntent, input: unknown) => {
@@ -148,8 +148,8 @@ export function createScheduler(deps: SchedulerDeps) {
       intent.event,
     )
     knownSettlements.set(intent.runId, fire)
-    await deps.runs.acknowledge(fire)
-    await deps.store.record(fire)
+    await deps.runs.acknowledge(fire, { signal })
+    await deps.store.record(fire, { signal })
     knownSettlements.delete(intent.runId)
   }
   const uncertain = (
@@ -184,24 +184,26 @@ export function createScheduler(deps: SchedulerDeps) {
     if (!canAct(intent.schedule.workspaceKey)) return
     const known =
       knownSettlements.get(intent.runId) ??
-      (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId))
+      (await deps.runs.acknowledged(intent.schedule.workspaceKey, intent.runId, { signal }))
     if (!canAct(intent.schedule.workspaceKey)) return
     if (known !== undefined) {
       await settle(intent, known)
       return
     }
     const ledger = scheduleDeliveryStateSchema.parse(
-      await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId),
+      await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId, { signal }),
     )
     if (!canAct(intent.schedule.workspaceKey)) return
     if (ledger.status === 'settled' || ledger.status === 'uncertain') {
-      await deps.runs.advance(intent)
+      await deps.runs.advance(intent, { signal })
       await settle(intent, ledger.fire)
       return
     }
     if (ledger.status === 'dispatchStarted') {
       if (
-        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId)
+        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId, {
+          signal,
+        })
       )
         return
       // The journal forbids another send. A still-live host may supply known
@@ -225,7 +227,7 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     const job = await load(intent.schedule.workspaceKey, intent.schedule.id)
     if (!canAct(intent.schedule.workspaceKey)) return
-    const isAdmitted = await deps.runs.advance(intent)
+    const isAdmitted = await deps.runs.advance(intent, { signal })
     // Past this point the admission is consumed; a process that may no longer
     // act still hands nothing to a host, and settles nothing either: the next
     // holder replays the idempotent admission and delivers exactly once.
@@ -277,16 +279,20 @@ export function createScheduler(deps: SchedulerDeps) {
       return
     }
     const delivery = { ...intent, schedule: fresh }
-    if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd))) {
+    if (!(await deps.runs.startDispatch(intent, fresh.grant.paidCapUsd, { signal }))) {
       // A lost race is not an uncertain outcome. When another live owner
       // started the dispatch, this process records nothing and leaves the fire
       // to its owner; the real result and its cost are never lost to a false
       // record here.
       if (
-        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId)
+        await deps.runs.isLiveDispatchOwnedElsewhere?.(intent.schedule.workspaceKey, intent.runId, {
+          signal,
+        })
       )
         return
-      const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId)
+      const state = await deps.runs.lookupRun(intent.schedule.workspaceKey, intent.runId, {
+        signal,
+      })
       await settle(
         intent,
         state.status === 'settled' || state.status === 'uncertain' ? state.fire : uncertain(intent),
@@ -425,13 +431,13 @@ export function createScheduler(deps: SchedulerDeps) {
     const workspaces = new Set<string>()
     for (const entry of entries) {
       workspaces.add(entry.intent.schedule.workspaceKey)
-      await deps.runs.admit({ ...entry.intent, missed: entry.missed })
+      await deps.runs.admit({ ...entry.intent, missed: entry.missed }, { signal })
     }
     await drain([...workspaces])
   }
   const drain = async (workspaces: readonly string[]) => {
     const queues = await Promise.all(
-      workspaces.map(async (workspace) => await deps.runs.pending(workspace)),
+      workspaces.map(async (workspace) => await deps.runs.pending(workspace, { signal })),
     )
     const outstanding = queues.flat()
     for (const [runId, fire] of knownSettlements) {
@@ -482,40 +488,45 @@ export function createScheduler(deps: SchedulerDeps) {
     }
     const work = Array.from(selected, async ([key, group]) => {
       try {
-        await deps.queue.serialize(key, async () => {
-          // Pop from the shared queue, not the caller's original singleton or
-          // batch. Entries from other sources/windows participate in ordering.
-          const first = group[0]
-          if (first === undefined) return
-          for (const _entry of group) {
-            if (signal.aborted) break
-            // The drain selects only what this process may act on. A fire
-            // whose workspace this process no longer holds stays pending for
-            // whoever holds it; this process neither advances nor settles it.
-            if (!canAct(first.schedule.workspaceKey)) break
-            const queue = await deps.runs.pending(first.schedule.workspaceKey)
-            const intent = queue.find(
-              (intent) =>
-                (intent.schedule.parallel ? `run:${intent.runId}` : targetKey(intent.schedule)) ===
-                key,
-            )
-            if (intent === undefined) break
-            try {
-              await execute(intent)
-              blocked.delete(intent.runId)
-            } catch (error: unknown) {
-              blocked.set(intent.runId, 'recoveryFailed')
-              throw error
+        await deps.queue.serialize(
+          key,
+          async () => {
+            // Pop from the shared queue, not the caller's original singleton or
+            // batch. Entries from other sources/windows participate in ordering.
+            const first = group[0]
+            if (first === undefined) return
+            for (const _entry of group) {
+              if (signal.aborted) break
+              // The drain selects only what this process may act on. A fire
+              // whose workspace this process no longer holds stays pending for
+              // whoever holds it; this process neither advances nor settles it.
+              if (!canAct(first.schedule.workspaceKey)) break
+              const queue = await deps.runs.pending(first.schedule.workspaceKey, { signal })
+              const intent = queue.find(
+                (intent) =>
+                  (intent.schedule.parallel
+                    ? `run:${intent.runId}`
+                    : targetKey(intent.schedule)) === key,
+              )
+              if (intent === undefined) break
+              try {
+                await execute(intent)
+                blocked.delete(intent.runId)
+              } catch (error: unknown) {
+                blocked.set(intent.runId, 'recoveryFailed')
+                throw error
+              }
+              // An admitted but unfinished target entry keeps the head of this
+              // serial queue. Do not let the next batch overtake its settlement.
+              const retained = await deps.runs.pending(intent.schedule.workspaceKey, { signal })
+              if (retained.some((entry) => entry.runId === intent.runId)) {
+                blocked.set(intent.runId, 'targetPending')
+                break
+              }
             }
-            // An admitted but unfinished target entry keeps the head of this
-            // serial queue. Do not let the next batch overtake its settlement.
-            const retained = await deps.runs.pending(intent.schedule.workspaceKey)
-            if (retained.some((entry) => entry.runId === intent.runId)) {
-              blocked.set(intent.runId, 'targetPending')
-              break
-            }
-          }
-        })
+          },
+          { signal },
+        )
       } finally {
         for (const intent of group) pending.delete(intent.runId)
       }
@@ -603,8 +614,8 @@ export function createScheduler(deps: SchedulerDeps) {
     async poll(workspaceKey: string): Promise<void> {
       if (signal.aborted || !deps.host.holds(workspaceKey)) return
       const reading = clock(workspaceKey)
-      await deps.runs.maintain(workspaceKey, reading.nowMs)
-      const jobs = await deps.store.list(workspaceKey)
+      await deps.runs.maintain(workspaceKey, reading.nowMs, { signal })
+      const jobs = await deps.store.list(workspaceKey, { signal })
       const entries = []
       for (const job of jobs) {
         if (
@@ -639,7 +650,8 @@ export function createScheduler(deps: SchedulerDeps) {
           missed: plan.missed,
         })
       }
-      for (const entry of entries) await deps.runs.admit({ ...entry.intent, missed: entry.missed })
+      for (const entry of entries)
+        await deps.runs.admit({ ...entry.intent, missed: entry.missed }, { signal })
       await drain([workspaceKey])
     },
     async fireEvent(

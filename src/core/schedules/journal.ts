@@ -8,15 +8,26 @@ import {
   SCHEDULE_JOURNAL_SEAL_MAX_BYTES,
 } from '../../shared/constants'
 import { parseJsonWithExactNumbers } from '../../shared/exactJson'
+import { type ScheduleCallOptions } from '../../shared/scheduleV2'
 
 export interface ScheduleFsPort {
-  read(file: string): Promise<string | undefined>
-  names(directory: string): Promise<readonly string[]>
+  read(file: string, options?: ScheduleCallOptions): Promise<string | undefined>
+  names(directory: string, options?: ScheduleCallOptions): Promise<readonly string[]>
   /** Complete, synced bytes, atomically published exclusively. */
-  publish(file: string, content: string, guard?: () => Promise<void>): Promise<boolean>
+  publish(
+    file: string,
+    content: string,
+    guard?: () => Promise<void>,
+    options?: ScheduleCallOptions,
+  ): Promise<boolean>
   /** Complete, synced bytes and atomic replacement; old bytes survive failure. */
-  replace(file: string, content: string, guard?: () => Promise<void>): Promise<void>
-  remove(file: string, canRetryTransient?: boolean): Promise<void>
+  replace(
+    file: string,
+    content: string,
+    guard?: () => Promise<void>,
+    options?: ScheduleCallOptions,
+  ): Promise<void>
+  remove(file: string, canRetryTransient?: boolean, options?: ScheduleCallOptions): Promise<void>
   lock<T>(
     key: string,
     work: (guard: ScheduleLeaseGuard) => Promise<T>,
@@ -147,18 +158,18 @@ export function createScheduleJournal<T extends Collections>(
     | undefined
   const pointerFile = `${directory}/current.json`
   const fences = `generationFences/${createHash('sha256').update(directory).digest('hex')}`
-  const pointer = async () => {
+  const pointer = async (call?: ScheduleCallOptions) => {
     // Tiny append-only activation fences never carry state or prompts. Only
     // the newest segment is read. A mutable pointer is a hint; a paused stale
     // rename cannot supersede the exclusive epoch's committed generation.
-    const folders = await fs.names(fences)
+    const folders = await fs.names(fences, call)
     const segments = newestScheduleSlots(folders, /^\d+$/)
     for (const segment of segments) {
-      const entries = await fs.names(`${fences}/${segment}`)
+      const entries = await fs.names(`${fences}/${segment}`, call)
       const names = newestScheduleSlots(entries, /^\d+\.json$/)
       const name = names[0]
       if (name === undefined) continue
-      const bytes = await fs.read(`${fences}/${segment}/${name}`)
+      const bytes = await fs.read(`${fences}/${segment}/${name}`, call)
       if (bytes === undefined) throw new Error('scheduleIndexMissing')
       const result = pointerSchema.parse(parseScheduleStoredJson(bytes))
       if (
@@ -170,10 +181,10 @@ export function createScheduleJournal<T extends Collections>(
     }
     return
   }
-  const read = async () => {
-    const active = await pointer()
+  const read = async (call?: ScheduleCallOptions) => {
+    const active = await pointer(call)
     if (active === undefined) {
-      if ((await fs.read(`${directory}/initialized`)) !== undefined)
+      if ((await fs.read(`${directory}/initialized`, call)) !== undefined)
         throw new Error('scheduleIndexMissing')
       // A published generation without its pointer is an interrupted activation,
       // never a new empty success. Initial creation may safely retry it.
@@ -191,7 +202,7 @@ export function createScheduleJournal<T extends Collections>(
     const folder = `${directory}/${active.generation}`
     if (deltaCache?.folder !== folder) deltaCache = { folder, entries: new Map() }
     const cachedDeltas = deltaCache.entries
-    const content = await fs.read(`${folder}/state.json`)
+    const content = await fs.read(`${folder}/state.json`, call)
     if (content === undefined) throw new Error('scheduleIndexMissing')
     if (snapshotCache?.content !== content) {
       const envelope = envelopeSchema.parse(parseScheduleStoredJson(content))
@@ -210,12 +221,12 @@ export function createScheduleJournal<T extends Collections>(
     let ops = 0
     let isSealed = false
     let fencingToken = snapshot.fencingToken ?? 0
-    const entries = await fs.names(folder)
+    const entries = await fs.names(folder, call)
     const names = entries
       .filter((name) => /^\d+\.json$/.test(name))
       .toSorted((a, b) => Number.parseInt(a) - Number.parseInt(b))
     for (const name of names) {
-      const deltaContent = await fs.read(`${folder}/${name}`)
+      const deltaContent = await fs.read(`${folder}/${name}`, call)
       if (deltaContent === undefined) throw new Error('scheduleIndexMissing')
       const cached = cachedDeltas.get(name)
       const delta =
@@ -260,16 +271,21 @@ export function createScheduleJournal<T extends Collections>(
       fencingToken,
     }
   }
-  const retire = async (keep: string, revision: number, guard: () => Promise<void>) => {
-    const names = await fs.names(directory)
+  const retire = async (
+    keep: string,
+    revision: number,
+    guard: () => Promise<void>,
+    call?: ScheduleCallOptions,
+  ) => {
+    const names = await fs.names(directory, call)
     for (const name of names) {
       if (name === keep || !z.uuid().safeParse(name).success) continue
       // Locked retirement is debt, not a failed committed transaction. Every
       // later mutation retries it. A Windows reader never blocks activation.
       try {
         const content =
-          (await fs.read(`${directory}/${name}/state.json`)) ??
-          (await fs.read(`${directory}/${name}/staging.json`))
+          (await fs.read(`${directory}/${name}/state.json`, call)) ??
+          (await fs.read(`${directory}/${name}/staging.json`, call))
         if (
           content !== undefined &&
           envelopeSchema.parse(parseScheduleStoredJson(content)).revision > revision
@@ -277,13 +293,16 @@ export function createScheduleJournal<T extends Collections>(
           continue
         // A partial retirement may already have removed both headers. The
         // writer lease excludes live staging; only the kept generation is current.
-        const children = await fs.names(`${directory}/${name}`)
+        const children = await fs.names(`${directory}/${name}`, call)
         for (const child of children) {
           await guard()
-          await fs.remove(`${directory}/${name}/${child}`, false)
+          await fs.remove(`${directory}/${name}/${child}`, false, call)
         }
-        await fs.remove(`${directory}/${name}`, false)
+        await fs.remove(`${directory}/${name}`, false, call)
       } catch {
+        // The stop is not debt: an abort ends the mutation instead of
+        // leaving the generation for the next pass.
+        call?.signal?.throwIfAborted()
         // Retirement is debt, not the committed transaction: a generation
         // left behind is retried on every later mutation, so a failed
         // entry waits for the next pass instead of failing this one.
@@ -297,6 +316,7 @@ export function createScheduleJournal<T extends Collections>(
     guard: () => Promise<void>,
     fencingToken = current.fencingToken,
     isReadOnly = false,
+    call?: ScheduleCallOptions,
   ) => {
     const value = parse(input)
     let state = current
@@ -327,6 +347,7 @@ export function createScheduleJournal<T extends Collections>(
             `${directory}/${state.generation}/${String(revision)}.json`,
             seal,
             guard,
+            call,
           ))
         )
           throw new Error('scheduleJournalOwnershipLost')
@@ -339,6 +360,7 @@ export function createScheduleJournal<T extends Collections>(
         `${directory}/${generation}/staging.json`,
         JSON.stringify({ moneyVersion: 2, revision: baseRevision, value: null }),
         guard,
+        call,
       )
       await fs.publish(
         `${directory}/${generation}/state.json`,
@@ -350,10 +372,11 @@ export function createScheduleJournal<T extends Collections>(
           value: isLarge || state.generation === undefined ? value : state.value,
         }),
         guard,
+        call,
       )
       const activation = JSON.stringify({ generation, revision: baseRevision, epoch })
       try {
-        await fs.replace(pointerFile, activation, guard)
+        await fs.replace(pointerFile, activation, guard, call)
       } catch (error: unknown) {
         // Read-only fencing preserves exactly the committed value. Its epoch
         // CAS can advance authority while a Windows handle blocks the hint;
@@ -368,11 +391,12 @@ export function createScheduleJournal<T extends Collections>(
           `${fences}/${String(Math.floor(epoch / SCHEDULE_JOURNAL_MAX_OPS))}/${String(epoch)}.json`,
           activation,
           guard,
+          call,
         ))
       )
         throw new Error('scheduleJournalOwnershipLost')
-      await fs.publish(`${directory}/initialized`, '')
-      await retire(generation, baseRevision, guard)
+      await fs.publish(`${directory}/initialized`, '', undefined, call)
+      await retire(generation, baseRevision, guard, call)
       if (isLarge || state.generation === undefined) return
       state = { ...state, generation, epoch, ops: 0, bytes: 0, sealed: false }
       revision = revisionSchema.parse(state.revision + 1)
@@ -383,13 +407,18 @@ export function createScheduleJournal<T extends Collections>(
         `${directory}/${state.generation}/${String(revision)}.json`,
         content,
         guard,
+        call,
       ))
     )
       throw new Error('scheduleJournalOwnershipLost')
-    await retire(state.generation, state.revision, guard)
+    await retire(state.generation, state.revision, guard, call)
   }
-  const acquire = async (guard: ScheduleLeaseGuard, isReadOnly = false) => {
-    let current = await read()
+  const acquire = async (
+    guard: ScheduleLeaseGuard,
+    isReadOnly = false,
+    call?: ScheduleCallOptions,
+  ) => {
+    let current = await read(call)
     const fencingToken = revisionSchema.parse(
       Math.max(current.fencingToken + 1, guard.fencingToken ?? 0),
     )
@@ -397,31 +426,40 @@ export function createScheduleJournal<T extends Collections>(
     // revision slot. Read-only takeover also occupies a suspended writer's
     // CAS slot, even when the new holder has no state mutation to make.
     if (current.generation !== undefined) {
-      await commit(current, current.value, guard, fencingToken, isReadOnly)
-      current = await read()
+      await commit(current, current.value, guard, fencingToken, isReadOnly, call)
+      current = await read(call)
       if (current.fencingToken !== fencingToken) throw new Error('scheduleJournalOwnershipLost')
     }
     return { current, fencingToken }
   }
   return {
-    read: async () =>
-      await fs.lock(directory, async (guard) => {
-        const { current } = await acquire(guard, true)
-        return current
-      }),
+    read: async (call?: ScheduleCallOptions) =>
+      await fs.lock(
+        directory,
+        async (guard) => {
+          const { current } = await acquire(guard, true, call)
+          return current
+        },
+        call,
+      ),
     async transact<R>(
       work: (
         value: T,
         revision: number,
       ) => Promise<{ value: T; result: R }> | { value: T; result: R },
+      call?: ScheduleCallOptions,
     ): Promise<R> {
-      return await fs.lock(directory, async (guard) => {
-        const { current, fencingToken } = await acquire(guard)
-        const next = await work(structuredClone(current.value), current.revision)
-        if (JSON.stringify(current.value) !== JSON.stringify(next.value))
-          await commit(current, next.value, guard, fencingToken)
-        return next.result
-      })
+      return await fs.lock(
+        directory,
+        async (guard) => {
+          const { current, fencingToken } = await acquire(guard, false, call)
+          const next = await work(structuredClone(current.value), current.revision)
+          if (JSON.stringify(current.value) !== JSON.stringify(next.value))
+            await commit(current, next.value, guard, fencingToken, false, call)
+          return next.result
+        },
+        call,
+      )
     },
   }
 }

@@ -288,7 +288,7 @@ export class AgentScheduleTools {
         return this.refuse(authority, 'depth')
       if (!(await this.deps.canTarget(authority, draft.target)))
         return this.refuse(authority, 'target')
-      const jobs = await this.deps.admission.store.list(authority.workspaceKey)
+      const jobs = await this.deps.admission.store.list(authority.workspaceKey, { signal })
       const schedules = jobs.map((job) => scheduleV2Schema.parse(job))
       const siblings = schedules.filter(
         (job) =>
@@ -444,7 +444,7 @@ export class AgentScheduleTools {
       if (!this.sameOwner(authority, current)) return this.refuse(current, 'changed')
       const blocked = eligibility(current)
       if (blocked !== undefined) return this.refuse(current, blocked)
-      const jobs = await this.deps.admission.store.list(current.workspaceKey)
+      const jobs = await this.deps.admission.store.list(current.workspaceKey, { signal })
       const schedules = jobs
         .map((job) => scheduleV2Schema.parse(job))
         .filter((job) => isOwned(job, current))
@@ -452,7 +452,7 @@ export class AgentScheduleTools {
         return { outcome: 'listed', schedules: schedules.map((job) => scheduleViewV2Of(job)) }
       if (schedules.every((job) => job.id !== id)) return this.refuse(current, 'missing')
       signal.throwIfAborted()
-      return (await this.deps.admission.store.remove(current.workspaceKey, id))
+      return (await this.deps.admission.store.remove(current.workspaceKey, id, { signal }))
         ? { outcome: 'cancelled', id }
         : this.refuse(current, 'missing')
     })
