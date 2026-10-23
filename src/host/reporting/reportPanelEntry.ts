@@ -11,6 +11,7 @@ import {
   GITHUB_MEDIA_TYPE,
   GITHUB_API_VERSION,
   SCHEDULE_STORE_SUBFOLDER,
+  SETTINGS_SECTION,
   UI_TEXT,
 } from '../../shared/constants'
 import { reportWorkspaceKey } from '../../core/reporting/sources/local'
@@ -270,7 +271,7 @@ export function createReportingWindow(
           generatorVersion: deps.generatorVersion,
           network: async () => {
             const mode = readSettings(
-              vscode.workspace.getConfiguration('museSpark'),
+              vscode.workspace.getConfiguration(SETTINGS_SECTION),
               deps.context.log,
             )['reports.network']
             const revision = authenticationRevision
@@ -288,7 +289,7 @@ export function createReportingWindow(
                 surface: 'editor' as const,
                 get mode() {
                   return readSettings(
-                    vscode.workspace.getConfiguration('museSpark'),
+                    vscode.workspace.getConfiguration(SETTINGS_SECTION),
                     deps.context.log,
                   )['reports.network']
                 },
@@ -321,19 +322,22 @@ export function createReportingWindow(
             }
           },
           get keepHistory() {
-            return readSettings(vscode.workspace.getConfiguration('museSpark'), deps.context.log)[
-              'reports.keepHistory'
-            ]
+            return readSettings(
+              vscode.workspace.getConfiguration(SETTINGS_SECTION),
+              deps.context.log,
+            )['reports.keepHistory']
           },
           get planMaxBytes() {
-            return readSettings(vscode.workspace.getConfiguration('museSpark'), deps.context.log)[
-              'reports.planMaxBytes'
-            ]
+            return readSettings(
+              vscode.workspace.getConfiguration(SETTINGS_SECTION),
+              deps.context.log,
+            )['reports.planMaxBytes']
           },
           get enabledAgents() {
-            return readSettings(vscode.workspace.getConfiguration('museSpark'), deps.context.log)[
-              'reports.agentSources'
-            ]
+            return readSettings(
+              vscode.workspace.getConfiguration(SETTINGS_SECTION),
+              deps.context.log,
+            )['reports.agentSources']
           },
         })),
       now: () => new Date().toISOString(),

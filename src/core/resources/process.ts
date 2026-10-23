@@ -24,8 +24,8 @@ import {
   RESOURCE_TREE_SPAWN_CAP,
   RESOURCE_TREE_SPAWN_WINDOW_MS,
   TREE_EXIT_WAIT_MS,
-  WINDOWS_TASKKILL_RELATIVE_PATH,
 } from '../../shared/constants'
+import { WINDOWS_TASKKILL_RELATIVE_PATH } from '../../shared/browserCheckConstants'
 import { noWorkspaceChildEnvironment } from '../execGuard'
 import { once } from 'node:events'
 import { realpathSync } from 'node:fs'

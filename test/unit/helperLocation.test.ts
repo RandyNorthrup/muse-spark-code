@@ -1,6 +1,6 @@
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LINUX_DICTATION } from '../../src/shared/constants'
+import { LINUX_DICTATION } from '../../src/shared/linuxDictationConstants'
 import {
   helperEnvironment,
   locateCaptureHelper,

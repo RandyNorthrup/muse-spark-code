@@ -10,10 +10,8 @@ import type { ApprovalStage, RequirementRef } from '../../shared/agentEvents'
 import {
   BROWSER_CHECK_SUBJECT_KIND,
   BROWSER_CHECK_WIDEN_SUBJECT_KIND,
-  MODEL_API_SUBAGENT_TOOLS,
-  UI_TEXT,
-  WEB_FETCH_SUBJECT_KIND,
-} from '../../shared/constants'
+} from '../../shared/browserCheckConstants'
+import { MODEL_API_SUBAGENT_TOOLS, UI_TEXT, WEB_FETCH_SUBJECT_KIND } from '../../shared/constants'
 import { fill, templateParts } from '../../shared/l10n/text'
 import type { TeamWorkerLabel } from '../../shared/teamView'
 import type { PendingApproval } from '../state/uiState'

@@ -2,7 +2,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it, vi } from 'vitest'
 import { Dictation, type DictationStatus, type HelperChild } from '../../src/core/voice/dictation'
 import type { CoreLogger } from '../../src/core/logging'
-import { DICTATION_HELPER_COMMANDS } from '../../src/shared/constants'
+import { DICTATION_HELPER_COMMANDS } from '../../src/shared/dictationConstants'
 
 const quiet = () => undefined
 const log: CoreLogger = { trace: quiet, info: quiet, warn: quiet, error: quiet }

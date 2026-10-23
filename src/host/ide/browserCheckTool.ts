@@ -37,9 +37,8 @@ import type { BrowserChecker, CheckAdmission } from '../../core/browser/browserR
 import {
   BROWSER_CHECK_MARKER_BYTES,
   IDE_BROWSER_CHECK_TOOL,
-  MCP_ANNOTATIONS_OPEN_WORLD,
-  MODEL_TEXT,
-} from '../../shared/constants'
+} from '../../shared/browserCheckConstants'
+import { MCP_ANNOTATIONS_OPEN_WORLD, MODEL_TEXT } from '../../shared/constants'
 import type { Logger } from '../logger'
 import { unlessCancelled } from './webFetchTool'
 
