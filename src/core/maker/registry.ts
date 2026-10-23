@@ -138,11 +138,7 @@ export class MachineRegistry {
       }
     })()
     this.pending = (async () => {
-      try {
-        await result
-      } catch {
-        return
-      }
+      await Promise.allSettled([result])
     })()
     return result
   }

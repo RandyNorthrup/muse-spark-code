@@ -58,17 +58,16 @@ export async function askMakerPermission(
 ): Promise<ApprovalAnswer> {
   const snapshot = makerApprovalRequestSchema.parse(request)
   let decision: ApprovalAnswer['decision'] = 'reject_once'
-  try {
-    const response = await ask(
-      UI_TEXT.makerApprovalTitle,
-      JSON.stringify(snapshot, null, 2),
-      makerPermissionOptions(),
-    )
-    if (response.outcome.outcome === 'selected' && response.outcome.optionId === 'allow_once')
-      decision = 'allow_once'
-  } catch {
-    /* A closed/disconnected editor rejects this use. */
-  }
+  // A closed/disconnected editor rejects this use.
+  const [attempt] = await Promise.allSettled([
+    ask(UI_TEXT.makerApprovalTitle, JSON.stringify(snapshot, null, 2), makerPermissionOptions()),
+  ])
+  if (
+    attempt.status === 'fulfilled' &&
+    attempt.value.outcome.outcome === 'selected' &&
+    attempt.value.outcome.optionId === 'allow_once'
+  )
+    decision = 'allow_once'
   return { id: snapshot.id, digest: snapshot.digest, target: snapshot.target, decision }
 }
 

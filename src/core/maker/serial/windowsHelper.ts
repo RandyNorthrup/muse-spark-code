@@ -17,12 +17,8 @@ const SERIAL_BUILD: JobBuild = {
   references: ['System.Web.Extensions.dll'],
   label: 'serial helper',
   isPresent: async (file) => {
-    try {
-      await access(file)
-      return true
-    } catch {
-      return false
-    }
+    const [attempt] = await Promise.allSettled([access(file)])
+    return attempt.status === 'fulfilled'
   },
 }
 

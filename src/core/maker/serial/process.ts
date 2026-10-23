@@ -103,9 +103,7 @@ export async function startSerialProcess(
   }
   const chunks: Buffer[] = []
   let length = 0
-  let written = 0
   let status = ''
-  let onAbort: (() => void) | undefined
   const timer = setTimeout(() => {
     void close('duration')
   }, deps.durationMs)
@@ -116,6 +114,7 @@ export async function startSerialProcess(
     length += Math.min(bytes.length, remaining)
     if (length >= deps.maxBytes) void close('limit')
   })
+  let onAbort: (() => void) | undefined
   // Resolvers stay in the executor, compatible with Node 20 hosts.
   const readiness = new Promise<void>((resolve, reject) => {
     const readyTimer = setTimeout(() => {
@@ -125,9 +124,10 @@ export async function startSerialProcess(
     const fail = (code: string, nextReason: SerialCapture['reason'] = 'failed') => {
       clearTimeout(readyTimer)
       reject(new Error(code))
-      void close(nextReason).catch(() => {
-        reason = 'failed'
-      })
+      void (async () => {
+        const [attempt] = await Promise.allSettled([close(nextReason)])
+        if (attempt.status === 'rejected') reason = 'failed'
+      })()
     }
     child.once('error', () => {
       fail('serial-helper-start-failed')
@@ -196,16 +196,14 @@ export async function startSerialProcess(
         .catch(reject)
     })
   })
-  try {
-    await readiness
-  } catch (error: unknown) {
-    try {
-      await close('failed')
-    } finally {
-      await result
-    }
-    throw error
+  const [ready] = await Promise.allSettled([readiness])
+  if (ready.status === 'rejected') {
+    const [closed] = await Promise.allSettled([close('failed')])
+    await result
+    if (closed.status === 'rejected') throw closed.reason
+    throw ready.reason
   }
+  let written = 0
   return {
     pid: child.pid,
     result,

@@ -58,6 +58,7 @@ export function jsonDiagnostics(
   try {
     value = JSON.parse(parseText(text, isJsonc))
   } catch (error: unknown) {
+    if (!(error instanceof SyntaxError)) throw error
     const description = error instanceof Error ? error.message : ''
     const position = /position (\d+)/.exec(description)?.[1]
     let offset =

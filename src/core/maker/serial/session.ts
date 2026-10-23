@@ -121,12 +121,19 @@ async function isApproved(
   }
 }
 
+function isReleaseFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (('code' in error && typeof error.code === 'string') || error.message.startsWith('lease-'))
+  )
+}
+
 async function releaseAfterStop(release: () => Promise<void>, hasStopped: boolean): Promise<void> {
   try {
     await release()
   } catch (error: unknown) {
     // Stop has acted on the process; its acknowledgement never depends on lease cleanup.
-    if (!hasStopped) throw error
+    if (!hasStopped || !isReleaseFailure(error)) throw error
   }
 }
 
@@ -159,11 +166,10 @@ export async function runSerialAction(
     stopping ??= (async () => {
       let opened = process
       if (opening !== undefined) {
-        try {
-          opened = await opening
-        } catch {
-          return // The cancelled opener has settled with its port closed.
-        }
+        // The cancelled opener has settled with its port closed.
+        const [attempt] = await Promise.allSettled([opening])
+        if (attempt.status !== 'fulfilled') return
+        opened = attempt.value
       }
       await opened?.close()
     })()
@@ -285,18 +291,18 @@ export async function runSerialAction(
         return { status: 'complete', capture }
       } catch (error: unknown) {
         if (error instanceof SerialStartError) {
-          await deps.log({ request, outcome: error.reason === 'changed' ? 'changed' : 'rejected' })
-          if (error.reason === 'changed') continue
-          return { status: 'refused', reason: error.reason }
-        }
-        if (approvalDeps.signal.aborted) {
+          const outcome = error.reason === 'changed' ? 'changed' : 'rejected'
+          await deps.log({ request, outcome })
+          if (error.reason !== 'changed') return { status: 'refused', reason: error.reason }
+        } else if (approvalDeps.signal.aborted) {
           await deps.log({ request, outcome: 'stopped' })
           return { status: 'refused', reason: 'context' }
+        } else {
+          await deps.log({ request, outcome: 'failed' })
+          if (error instanceof Error && error.message === 'serial-helper-busy')
+            return { status: 'busy' }
+          throw error
         }
-        await deps.log({ request, outcome: 'failed' })
-        if (error instanceof Error && error.message === 'serial-helper-busy')
-          return { status: 'busy' }
-        throw error
       } finally {
         await process?.close()
         opening = undefined

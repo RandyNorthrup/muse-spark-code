@@ -162,11 +162,13 @@ async function startLeaseHelper(
           await stop()
           child.stdin.write(`stopped:${callId.data}\n`)
         } catch (error: unknown) {
-          let word = 'failed'
+          let word: string
           if (error instanceof Error && error.message === 'lease-contender-cancelled')
             word = 'cancelled'
           else if (error instanceof Error && error.message === 'lease-contender-cancel-failed')
             word = 'cancel-failed'
+          else if (error instanceof Error && error.message === 'lease-stop-failed') word = 'failed'
+          else throw error
           child.stdin.write(`${word}:${callId.data}\n`)
         } finally {
           pendingStops.delete(callId.data)
