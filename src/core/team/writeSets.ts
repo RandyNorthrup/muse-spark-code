@@ -1,6 +1,11 @@
 import type * as z from 'zod/mini'
 import { teamRetirementSchema, type TeamWriteSetLease } from '../../shared/team'
-import { canonicalTeamPath, type SharedFiles, teamPathMatcher } from './sharedFiles'
+import {
+  canonicalTeamPath,
+  splitDeclaredRegion,
+  type SharedFiles,
+  teamPathMatcher,
+} from './sharedFiles'
 
 type Attempt = TeamWriteSetLease['holder']
 export interface PlannedWriteSet {
@@ -20,11 +25,39 @@ function canOverlap(left: string, right: string, isCaseInsensitive: boolean): bo
     ? prefix(left).startsWith(prefix(right)) || prefix(right).startsWith(prefix(left))
     : teamPathMatcher(left, isCaseInsensitive)(right)
 }
+
+/** Whole-file work overlaps every region; two regions overlap only when named alike. */
+function isRegionOverlap(
+  left: string | undefined,
+  right: string | undefined,
+  isCaseInsensitive: boolean,
+): boolean {
+  if (left === undefined || right === undefined) return true
+  return isCaseInsensitive ? left.toLowerCase() === right.toLowerCase() : left === right
+}
+
+/** Path overlap with validated region splits; unvalidated patterns stay whole. */
+function canPatternsOverlap(a: string, b: string, shared: SharedFiles): boolean {
+  const left = splitDeclaredRegion(a, shared)
+  const right = splitDeclaredRegion(b, shared)
+  return (
+    canOverlap(left.path, right.path, shared.isCaseInsensitive) &&
+    isRegionOverlap(left.region, right.region, shared.isCaseInsensitive)
+  )
+}
+
 function canWrite(set: PlannedWriteSet, path: string): boolean {
   return (
     set.writePaths === undefined ||
     set.writePaths.some((pattern) => teamPathMatcher(pattern, set.isCaseInsensitive)(path))
   )
+}
+
+/** A declared region writes its file; permits never carry regions. */
+function canWriteRegion(set: PlannedWriteSet, path: string, shared: SharedFiles): boolean {
+  if (set.writePaths === undefined) return true
+  const file = splitDeclaredRegion(path, shared).path
+  return set.writePaths.some((pattern) => teamPathMatcher(pattern, set.isCaseInsensitive)(file))
 }
 
 export function expandWriteSet(
@@ -33,14 +66,17 @@ export function expandWriteSet(
   writePaths?: readonly string[],
   isInPlace = false,
   isCaseInsensitive = process.platform === 'win32' || process.platform === 'darwin',
+  shared?: SharedFiles,
 ): PlannedWriteSet {
   const allowed = writePaths?.map((path) => canonicalTeamPath(path, isCaseInsensitive))
+  const isPermitted = (pattern: string, permit: string): boolean =>
+    shared === undefined
+      ? canOverlap(pattern, permit, isCaseInsensitive)
+      : canPatternsOverlap(pattern, permit, shared)
   const patterns = (writes ?? [])
     .map((path) => canonicalTeamPath(path, isCaseInsensitive))
     .filter(
-      (pattern) =>
-        allowed === undefined ||
-        allowed.some((permit) => canOverlap(pattern, permit, isCaseInsensitive)),
+      (pattern) => allowed === undefined || allowed.some((permit) => isPermitted(pattern, permit)),
     )
   const set: PlannedWriteSet = {
     patterns,
@@ -57,13 +93,18 @@ export function expandWriteSet(
     ...baseFiles.map((path) => canonicalTeamPath(path, isCaseInsensitive)),
     ...patterns.filter((pattern) => !/[*?{[]/.test(pattern)),
   ])
+  // Without a table there are no regions: M96c's matching runs exactly.
+  const isWritable = (path: string): boolean =>
+    shared === undefined ? canWrite(set, path) : canWriteRegion(set, path, shared)
+  const isCovered = (path: string): boolean =>
+    patterns.some((pattern) =>
+      shared === undefined
+        ? teamPathMatcher(pattern, isCaseInsensitive)(path)
+        : canPatternsOverlap(pattern, path, shared),
+    )
   return {
     ...set,
-    paths: [...files].filter(
-      (path) =>
-        canWrite(set, path) &&
-        patterns.some((pattern) => teamPathMatcher(pattern, isCaseInsensitive)(path)),
-    ),
+    paths: [...files].filter((path) => isWritable(path) && isCovered(path)),
   }
 }
 
@@ -74,18 +115,25 @@ export function writeSetOverlap(
 ): string[] {
   if (left.exclusiveWriter || right.exclusiveWriter) return ['**']
   const paths = new Set([...left.paths, ...right.paths])
-  const overlap = [...paths].filter(
-    (path) =>
-      shared.shouldSerialize(path) &&
-      canWrite(left, path) &&
-      canWrite(right, path) &&
-      left.patterns.some((pattern) => teamPathMatcher(pattern, left.isCaseInsensitive)(path)) &&
-      right.patterns.some((pattern) => teamPathMatcher(pattern, right.isCaseInsensitive)(path)),
-  )
+  const overlap = [...paths].filter((path) => {
+    // The file's own rule governs: regions lease under it, never past it.
+    const file = splitDeclaredRegion(path, shared).path
+    return (
+      shared.shouldSerialize(file) &&
+      canWriteRegion(left, path, shared) &&
+      canWriteRegion(right, path, shared) &&
+      left.patterns.some((pattern) => canPatternsOverlap(pattern, path, shared)) &&
+      right.patterns.some((pattern) => canPatternsOverlap(pattern, path, shared))
+    )
+  })
   for (const a of left.patterns) {
-    if (!shared.shouldSerializePattern(a)) continue
+    if (!shared.shouldSerializePattern(splitDeclaredRegion(a, shared).path)) continue
     for (const b of right.patterns) {
-      if (!shared.shouldSerializePattern(b) || !canOverlap(a, b, shared.isCaseInsensitive)) continue
+      if (
+        !shared.shouldSerializePattern(splitDeclaredRegion(b, shared).path) ||
+        !canPatternsOverlap(a, b, shared)
+      )
+        continue
       const leftPermits = left.writePaths ?? ['**']
       const rightPermits = right.writePaths ?? ['**']
       for (const permitA of leftPermits) {
@@ -93,7 +141,7 @@ export function writeSetOverlap(
           const constraints = [a, b, permitA, permitB]
           if (
             constraints.every((pattern) =>
-              constraints.every((other) => canOverlap(pattern, other, shared.isCaseInsensitive)),
+              constraints.every((other) => canPatternsOverlap(pattern, other, shared)),
             )
           )
             overlap.push(prefix(a).length >= prefix(b).length ? a : b)
@@ -186,7 +234,7 @@ export class WriteSetLeases {
     const held = this.held.get(holder.taskId)
     if (held === undefined || !isSame(held.lease.holder, holder)) return { kind: 'stale' }
     const normalized = canonicalTeamPath(path, held.set.isCaseInsensitive)
-    if (!canWrite(held.set, normalized)) throw new RangeError('write-paths')
+    if (!canWriteRegion(held.set, normalized, this.shared)) throw new RangeError('write-paths')
     for (const other of this.held.values()) {
       if (
         other.family !== held.family &&
@@ -300,15 +348,18 @@ export class FileHintQuestions {
       .map((hint) => ({
         ownWindow,
         hint,
-        paths: hint.paths.filter(
-          (path) =>
-            shared.shouldSerialize(path) &&
-            canWrite(set, path) &&
+        // Hints stay path-granular: any shared file asks, whatever the regions.
+        paths: hint.paths.filter((path) => {
+          const file = splitDeclaredRegion(path, shared).path
+          return (
+            shared.shouldSerialize(file) &&
+            canWriteRegion(set, path, shared) &&
             (set.exclusiveWriter ||
               set.patterns.some((pattern) =>
-                teamPathMatcher(pattern, set.isCaseInsensitive)(path),
-              )),
-        ),
+                canOverlap(splitDeclaredRegion(pattern, shared).path, file, set.isCaseInsensitive),
+              ))
+          )
+        }),
       }))
       .filter((question) => question.paths.length > 0)
     return questions.map((question) => {

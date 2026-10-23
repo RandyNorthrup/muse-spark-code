@@ -3342,6 +3342,18 @@
     "checkSlots": "Prüfslots",
     "perCopy": "Jede Arbeitskopie"
   },
+  "coordinatorStoreTooLarge": "Der Datensatz des Rechner-Koordinators ist zu groß, um ihn sicher zu lesen, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorStoreAmbiguous": "Der Datensatz des Rechner-Koordinators ist beschädigt oder unklar, daher behält dieses Fenster seinen eigenen Scheduler. Es wurde nichts gelöscht.",
+  "coordinatorStoreIdentity": "Der Datensatz des Rechner-Koordinators gehört zu einem anderen Speicher, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorEpochReused": "Der Rechner-Koordinator hat eine wiederverwendete Sitzung abgelehnt, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorLedgerOwned": "Ein anderer Prozess koordiniert diesen Rechner bereits, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorLedgerOwnerUncertain": "Der Rechner-Koordinator kann nicht feststellen, ob ein anderer Prozess diesen Rechner noch koordiniert, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorSyncFailed": "Der Rechner-Koordinator konnte seinen Datensatz nicht speichern, daher behält dieses Fenster seinen eigenen Scheduler.",
+  "coordinatorModeWindowStorage": "Rechnerweite Koordination ist ausgeschaltet: Dieser Speicher kann sie nicht aufnehmen. Dieses Fenster behält seinen eigenen Scheduler.",
+  "coordinatorModeWindowNative": "Rechnerweite Koordination ist ausgeschaltet: Die Prozesssteuerung dieses Rechners ist noch nicht qualifiziert. Dieses Fenster behält seinen eigenen Scheduler.",
+  "coordinatorModeWindowScope": "Rechnerweite Koordination ist ausgeschaltet: Die vollständige Prozessabgrenzung ist hier nicht nachgewiesen. Dieses Fenster behält seinen eigenen Scheduler.",
+  "coordinatorModeBlockedGrants": "Rechnerweite Koordination ist blockiert: Frühere Zuteilungen sind noch offen. Dieses Fenster behält seinen eigenen Scheduler, bis sie abgeschlossen sind.",
+  "coordinatorEndpointPathTooLong": "Der Rechner-Koordinator kann hier nicht lauschen: Die Adresse ist zu lang. Dieses Fenster behält seinen eigenen Scheduler.",
   "teamTrafficMetrics": {
     "utilisation": "Slotauslastung",
     "queueDepth": "Warteschlangenlänge",
@@ -5674,6 +5686,34 @@
   "teamSuggestFreeLocal": "{model} ist kostenlos und lokal und kann {role}-Arbeit leisten",
   "teamSuggestFallbackDetail": "{role} hat nur einen Eintrag; fügen Sie {model} als Reserve hinzu",
   "teamSuggestBudget": "{role}-Tagesobergrenze von {amount}, aus dem restlichen Tagesbudget",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Eine Funktion mit Tests",
   "teamPreviewResearchLibrary": "Eine Bibliothek recherchieren",
   "teamPreviewReviewBranch": "Meinen Branch reviewen",

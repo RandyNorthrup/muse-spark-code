@@ -3276,6 +3276,18 @@
     "checkSlots": "チェック用枠",
     "perCopy": "各作業コピー"
   },
+  "coordinatorStoreTooLarge": "マシンコーディネーターの記録が大きすぎて安全に読めないため、このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorStoreAmbiguous": "マシンコーディネーターの記録が壊れているか不明瞭なため、このウィンドウは独自のスケジューラを使い続けます。何も削除されませんでした。",
+  "coordinatorStoreIdentity": "マシンコーディネーターの記録は別のストアのものなので、このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorEpochReused": "マシンコーディネーターは再利用されたセッションを拒否したため、このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorLedgerOwned": "別のプロセスがすでにこのマシンを調整しているため、このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorLedgerOwnerUncertain": "マシンコーディネーターは別のプロセスがまだこのマシンを調整しているか判断できないため、このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorSyncFailed": "マシンコーディネーターは記録を保存できなかったため、このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorModeWindowStorage": "マシン全体の調整はオフです: このストアでは保持できません。このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorModeWindowNative": "マシン全体の調整はオフです: このマシンのプロセス制御はまだ認定されていません。このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorModeWindowScope": "マシン全体の調整はオフです: 完全なプロセス分離はここでは証明されていません。このウィンドウは独自のスケジューラを使い続けます。",
+  "coordinatorModeBlockedGrants": "マシン全体の調整はブロックされています: 以前の付与がまだ開いています。このウィンドウはそれらが確定するまで独自のスケジューラを使い続けます。",
+  "coordinatorEndpointPathTooLong": "マシンコーディネーターはここで待ち受けできません: アドレスが長すぎます。このウィンドウは独自のスケジューラを使い続けます。",
   "teamTrafficMetrics": {
     "utilisation": "実行枠の使用率",
     "queueDepth": "待ち列の長さ",
@@ -5540,6 +5552,27 @@
   "teamSuggestFreeLocal": "{model} は無料かつローカルで、{role} 作業ができます",
   "teamSuggestFallbackDetail": "{role} にはエントリが1つだけです。フォールバックとして {model} を追加してください",
   "teamSuggestBudget": "残りの日次予算から {role} の日次上限 {amount}",
+  "trafficSuggestAddReviewer": {
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "テスト付きの機能",
   "teamPreviewResearchLibrary": "ライブラリを調査する",
   "teamPreviewReviewBranch": "自分のブランチをレビューする",

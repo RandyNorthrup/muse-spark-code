@@ -3474,6 +3474,18 @@
     "checkSlots": "Sloty kontroli",
     "perCopy": "Każda kopia robocza"
   },
+  "coordinatorStoreTooLarge": "Rejestr koordynatora maszyny jest zbyt duży, aby bezpiecznie go odczytać, więc to okno zachowuje własny harmonogram.",
+  "coordinatorStoreAmbiguous": "Rejestr koordynatora maszyny jest uszkodzony lub niejasny, więc to okno zachowuje własny harmonogram. Niczego nie usunięto.",
+  "coordinatorStoreIdentity": "Rejestr koordynatora maszyny należy do innego magazynu, więc to okno zachowuje własny harmonogram.",
+  "coordinatorEpochReused": "Koordynator maszyny odrzucił ponownie użytą sesję, więc to okno zachowuje własny harmonogram.",
+  "coordinatorLedgerOwned": "Inny proces już koordynuje tę maszynę, więc to okno zachowuje własny harmonogram.",
+  "coordinatorLedgerOwnerUncertain": "Koordynator maszyny nie może stwierdzić, czy inny proces nadal koordynuje tę maszynę, więc to okno zachowuje własny harmonogram.",
+  "coordinatorSyncFailed": "Koordynator maszyny nie mógł zapisać swojego rejestru, więc to okno zachowuje własny harmonogram.",
+  "coordinatorModeWindowStorage": "Koordynacja maszyny jest wyłączona: ten magazyn nie może jej pomieścić. To okno zachowuje własny harmonogram.",
+  "coordinatorModeWindowNative": "Koordynacja maszyny jest wyłączona: sterowanie procesami tej maszyny nie jest jeszcze kwalifikowane. To okno zachowuje własny harmonogram.",
+  "coordinatorModeWindowScope": "Koordynacja maszyny jest wyłączona: pełne odizolowanie procesów nie zostało tu udowodnione. To okno zachowuje własny harmonogram.",
+  "coordinatorModeBlockedGrants": "Koordynacja maszyny jest zablokowana: wcześniejsze przydziały są nadal otwarte. To okno zachowuje własny harmonogram do czasu ich rozliczenia.",
+  "coordinatorEndpointPathTooLong": "Koordynator maszyny nie może nasłuchiwać tutaj: adres jest zbyt długi. To okno zachowuje własny harmonogram.",
   "teamTrafficMetrics": {
     "utilisation": "Wykorzystanie slotów",
     "queueDepth": "Długość kolejki",
@@ -5942,6 +5954,48 @@
   "teamSuggestFreeLocal": "{model} jest darmowy i lokalny i może wykonywać pracę {role}",
   "teamSuggestFallbackDetail": "{role} ma jeden wpis; dodaj {model} jako rezerwę",
   "teamSuggestBudget": "Dzienny limit {role} wynoszący {amount} z pozostałego dziennego budżetu",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them",
+    "few": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them",
+    "many": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more",
+    "few": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more",
+    "many": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load",
+    "few": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load",
+    "many": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly",
+    "few": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly",
+    "many": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load",
+    "few": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load",
+    "many": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine",
+    "few": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine",
+    "many": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them",
+    "few": "{count} tasks wait for you; answering unblocks them",
+    "many": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Funkcja z testami",
   "teamPreviewResearchLibrary": "Zbadaj bibliotekę",
   "teamPreviewReviewBranch": "Przejrzyj moją gałąź",

@@ -3342,6 +3342,18 @@
     "checkSlots": "Ellenőrzési helyek",
     "perCopy": "Minden munkapéldány"
   },
+  "coordinatorStoreTooLarge": "A gépkoordinátor nyilvántartása túl nagy a biztonságos olvasáshoz, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorStoreAmbiguous": "A gépkoordinátor nyilvántartása sérült vagy nem egyértelmű, ezért ez az ablak megtartja saját ütemezőjét. Semmit nem töröltünk.",
+  "coordinatorStoreIdentity": "A gépkoordinátor nyilvántartása egy másik tárolóhoz tartozik, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorEpochReused": "A gépkoordinátor elutasított egy újrahasznált munkamenetet, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorLedgerOwned": "Egy másik folyamat már koordinálja ezt a gépet, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorLedgerOwnerUncertain": "A gépkoordinátor nem tudja megmondani, hogy egy másik folyamat koordinálja-e még ezt a gépet, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorSyncFailed": "A gépkoordinátor nem tudta menteni a nyilvántartását, ezért ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeWindowStorage": "A gép szintű koordináció ki van kapcsolva: ez a tároló nem tudja befogadni. Ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeWindowNative": "A gép szintű koordináció ki van kapcsolva: a gép folyamatvezérlése még nem minősített. Ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeWindowScope": "A gép szintű koordináció ki van kapcsolva: a teljes folyamatelszigetelés itt nincs bizonyítva. Ez az ablak megtartja saját ütemezőjét.",
+  "coordinatorModeBlockedGrants": "A gép szintű koordináció blokkolva van: korábbi kiosztások még nyitva vannak. Ez az ablak megtartja saját ütemezőjét, amíg le nem zárulnak.",
+  "coordinatorEndpointPathTooLong": "A gépkoordinátor nem tud itt figyelni: a cím túl hosszú. Ez az ablak megtartja saját ütemezőjét.",
   "teamTrafficMetrics": {
     "utilisation": "Helyek kihasználtsága",
     "queueDepth": "Sor hossza",
@@ -5674,6 +5686,34 @@
   "teamSuggestFreeLocal": "A(z) {model} ingyenes és helyi, és képes {role}-munkára",
   "teamSuggestFallbackDetail": "A(z) {role} egyetlen bejegyzéssel rendelkezik; adja hozzá tartaléknak a következőt: {model}",
   "teamSuggestBudget": "{role} napi korlát: {amount}, a fennmaradó napi keretből",
+  "trafficSuggestAddReviewer": {
+    "one": "{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it",
+    "other": "{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them"
+  },
+  "trafficSuggestRaiseIntensity": {
+    "one": "{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it",
+    "other": "{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more"
+  },
+  "trafficSuggestAddProviderEntry": {
+    "one": "{entry} was throttled {count} time; adding {model} on {provider} spreads the load",
+    "other": "{entry} was throttled {count} times; adding {model} on {provider} spreads the load"
+  },
+  "trafficSuggestDeclareSharedFile": {
+    "one": "{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly",
+    "other": "{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly"
+  },
+  "trafficSuggestAddRunner": {
+    "one": "The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load",
+    "other": "The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load"
+  },
+  "trafficSuggestLowerIntensity": {
+    "one": "The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine",
+    "other": "The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine"
+  },
+  "trafficSuggestUserWaiters": {
+    "one": "{count} task waits for you; answering unblocks it",
+    "other": "{count} tasks wait for you; answering unblocks them"
+  },
   "teamPreviewFeatureTests": "Egy funkció tesztekkel",
   "teamPreviewResearchLibrary": "Egy könyvtár felkutatása",
   "teamPreviewReviewBranch": "Az ágam áttekintése",

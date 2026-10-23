@@ -3829,6 +3829,46 @@ export const RUNNER_MAX_JOBS = 64
 export const RUNNER_LABELS_MAX = 32
 export const RUNNER_PORT_MAX = 65_535
 // --- End Team scheduler constants. ---
+// --- Machine coordinator (M96d, PLAN.md D75) ---
+//
+// Bounds on the coordinator's own durable records: strict, bounded
+// publication is the crash-consistency contract (the design's §2), not a
+// cap on the person's work. A record beyond these bounds is refused, and
+// a store beyond them is not loaded.
+/** The coordinator store schema this build reads and writes. */
+export const COORDINATOR_STORE_VERSION = 1
+export const COORDINATOR_GRANT_ID_MAX_CHARS = 256
+export const COORDINATOR_OWNER_MAX_CHARS = 256
+export const COORDINATOR_RESOURCE_MAX_CHARS = 512
+export const COORDINATOR_LEDGER_MAX_BYTES = 1024 * 1024
+/**
+A Unix discovery-socket path must fit every platform's `sun_path`:
+macOS allows 104 bytes, Linux 108, so 104 keeps one limit everywhere.
+*/
+export const COORDINATOR_SOCKET_PATH_MAX_BYTES = 104
+/** A discovery beacon line beyond this is a foreign speaker, never our broker. */
+export const COORDINATOR_BEACON_MAX_BYTES = 4096
+/**
+Linux `statfs` filesystem magics (`linux/magic.h`) the coordinator
+uses to qualify its control store: only positively known local,
+durable filesystems enrol; FAT/exFAT, network and unknown kinds
+select the window-scoped fallback before enrolment.
+*/
+export const COORDINATOR_LINUX_FS_LOCAL = [0xef_53, 0x58_46_53_42, 0x91_23_68_3e] as const
+export const COORDINATOR_LINUX_FS_FAT = 0x4d_44
+export const COORDINATOR_LINUX_FS_EXFAT = 0x20_11_ba_b0
+export const COORDINATOR_LINUX_FS_NFS = 0x69_69
+export const COORDINATOR_LINUX_FS_SMB2 = 0xfe_53_4d_42
+export const COORDINATOR_LINUX_FS_TMPFS = 0x01_02_19_94
+/**
+The tested-tree cache keeps this many (tree hash, check identity)
+outcomes; older ones evict least-recently-used first. A lost entry
+only costs a retest, never a skipped one.
+*/
+export const COORDINATOR_TESTED_TREE_CACHE_MAX = 200
+/** A tested-trees file beyond this is not loaded: the queue retests. */
+export const COORDINATOR_TESTED_TREE_FILE_MAX_BYTES = 1024 * 1024
+// --- End Machine coordinator constants. ---
 // A tool name as the API takes a function name (MCP and IDE tools included).
 export const AGENT_TOOL_NAME_PATTERN = /^[A-Za-z0-9_-]{1,64}$/
 // What the prompt calls each source of an agent, so the model knows whose

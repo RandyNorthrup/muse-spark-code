@@ -4111,6 +4111,31 @@ export const EN = {
     checkSlots: 'Check Slots',
     perCopy: 'Each Working Copy',
   },
+  // M96d machine coordinator: every refusal says why the window keeps its own scheduler.
+  coordinatorStoreTooLarge:
+    'The machine coordinator’s record is too large to read safely, so this window keeps its own scheduler.',
+  coordinatorStoreAmbiguous:
+    'The machine coordinator’s record is damaged or unclear, so this window keeps its own scheduler. Nothing was deleted.',
+  coordinatorStoreIdentity:
+    'The machine coordinator’s record belongs to another store, so this window keeps its own scheduler.',
+  coordinatorEpochReused:
+    'The machine coordinator refused a reused session, so this window keeps its own scheduler.',
+  coordinatorLedgerOwned:
+    'Another process already coordinates this machine, so this window keeps its own scheduler.',
+  coordinatorLedgerOwnerUncertain:
+    'The machine coordinator cannot tell whether another process still coordinates this machine, so this window keeps its own scheduler.',
+  coordinatorSyncFailed:
+    'The machine coordinator could not save its record, so this window keeps its own scheduler.',
+  coordinatorModeWindowStorage:
+    'Machine-wide coordination is off: this store cannot hold it. This window keeps its own scheduler.',
+  coordinatorModeWindowNative:
+    'Machine-wide coordination is off: this machine’s process control is not qualified yet. This window keeps its own scheduler.',
+  coordinatorModeWindowScope:
+    'Machine-wide coordination is off: complete process containment is not proved here. This window keeps its own scheduler.',
+  coordinatorModeBlockedGrants:
+    'Machine-wide coordination is blocked: earlier grants are still open. This window keeps its own scheduler until they settle.',
+  coordinatorEndpointPathTooLong:
+    'The machine coordinator cannot listen here: the address is too long. This window keeps its own scheduler.',
   teamTrafficMetrics: {
     utilisation: 'Lane Utilisation',
     queueDepth: 'Queue Depth',
@@ -7326,6 +7351,39 @@ export const EN = {
   teamSuggestFallbackDetail: '{role} has one entry; add {model} as its fallback',
   // {role}: the role; {amount}: the suggested day cap.
   teamSuggestBudget: '{role} day cap of {amount}, from the remaining daily budget',
+  // M96d Traffic suggestions: {count} below is the measured count.
+  trafficSuggestAddReviewer: forms({
+    one: '{count} change waits for review with no free reviewer lane; adding {model} to {role} unblocks it',
+    other:
+      '{count} changes wait for review with no free reviewer lane; adding {model} to {role} unblocks them',
+  }),
+  trafficSuggestRaiseIntensity: forms({
+    one: '{count} task is ready but the running caps are full; raising intensity from {from} to {to} starts it',
+    other:
+      '{count} tasks are ready but the running caps are full; raising intensity from {from} to {to} starts more',
+  }),
+  trafficSuggestAddProviderEntry: forms({
+    one: '{entry} was throttled {count} time; adding {model} on {provider} spreads the load',
+    other: '{entry} was throttled {count} times; adding {model} on {provider} spreads the load',
+  }),
+  trafficSuggestDeclareSharedFile: forms({
+    one: '{path} caused {count} conflict out of {total}; declaring it a shared file with regions lets the next change land cleanly',
+    other:
+      '{path} caused {count} conflicts out of {total}; declaring it a shared file with regions lets the next changes land cleanly',
+  }),
+  trafficSuggestAddRunner: forms({
+    one: 'The load guard tripped {count} time; adding a runner (now {runners}) absorbs the load',
+    other: 'The load guard tripped {count} times; adding a runner (now {runners}) absorbs the load',
+  }),
+  trafficSuggestLowerIntensity: forms({
+    one: 'The load guard tripped {count} time; lowering intensity from {from} to {to} eases the machine',
+    other:
+      'The load guard tripped {count} times; lowering intensity from {from} to {to} eases the machine',
+  }),
+  trafficSuggestUserWaiters: forms({
+    one: '{count} task waits for you; answering unblocks it',
+    other: '{count} tasks wait for you; answering unblocks them',
+  }),
   teamPreviewFeatureTests: 'A feature with tests',
   teamPreviewResearchLibrary: 'Research a library',
   teamPreviewReviewBranch: 'Review my branch',

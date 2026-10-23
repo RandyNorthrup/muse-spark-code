@@ -501,7 +501,7 @@ export function currentProcessOwner(): Promise<ProcessOwner> {
 }
 
 /** Whether a process with this id exists (one we may not signal still does). */
-function isProcessAlive(pid: number): boolean {
+export function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0)
     return true
@@ -528,6 +528,53 @@ interface ExactEvidence {
 const exactReadings = new Map<number, { evidence: ExactEvidence | undefined; retryAt: number }>()
 const pendingReadings = new Map<number, Promise<ExactEvidence | undefined>>()
 const darwinBoot: { value?: string } = {}
+/** A boot probe's command failed (missing tool, denied, non-zero exit, signal): unknown boot. */
+function isBootProbeFailure(error: unknown): boolean {
+  return error instanceof Error && 'code' in error
+}
+/**
+This boot's identity on every platform: Linux `boot_id`, macOS
+`kern.bootsessionuuid`, the Windows boot GUID beside our own birth.
+Never throws: an unreadable boot binds no birth.
+*/
+export async function systemBootIdentity(
+  platform: NodeJS.Platform = process.platform,
+): Promise<string | undefined> {
+  try {
+    switch (platform) {
+      case 'linux': {
+        return await systemBootId(platform)
+      }
+      case 'darwin': {
+        // Ships in base macOS: no Xcode shim or developer tool.
+        const output =
+          darwinBoot.value ??
+          (await run(
+            '/usr/sbin/sysctl',
+            ['-n', 'kern.bootsessionuuid'],
+            noWorkspaceChildEnvironment(platform, {}, realpathSync),
+          ))
+        const boot = output.trim()
+        if (boot !== '') darwinBoot.value = boot
+        return boot === '' ? undefined : boot
+      }
+      case 'win32': {
+        // The sealed native reader prints our own creation FILETIME and
+        // this boot's identifier in one run; only the boot half is kept.
+        const output = await runWindowsBirthReader(['--exact', String(process.pid)])
+        const boot = output?.trim().split(':', 2)[1]
+        return boot !== undefined && /^[a-f0-9-]{36}$/iu.test(boot) ? boot : undefined
+      }
+      default: {
+        return undefined
+      }
+    }
+  } catch (error: unknown) {
+    // Only a failed probe command reads as an unknown boot; anything else keeps its kind.
+    if (!isBootProbeFailure(error)) throw error
+    return undefined
+  }
+}
 async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined> {
   try {
     switch (process.platform) {
@@ -545,18 +592,11 @@ async function readExactEvidence(pid: number): Promise<ExactEvidence | undefined
         // Both tools ship in base macOS: no Xcode shim or developer tool.
         // The boot and start probes are independent, so they run together:
         // a first vault open pays one spawn latency, not two in sequence.
-        const [bootOutput, started] = await Promise.all([
-          darwinBoot.value ??
-            run(
-              '/usr/sbin/sysctl',
-              ['-n', 'kern.bootsessionuuid'],
-              noWorkspaceChildEnvironment(process.platform, {}, realpathSync),
-            ),
+        const [boot, started] = await Promise.all([
+          systemBootIdentity('darwin'),
           darwinStartTime(pid),
         ])
-        const boot = bootOutput.trim()
-        if (boot) darwinBoot.value = boot
-        if (boot && started !== undefined)
+        if (boot !== undefined && started !== undefined)
           return { birth: String(started), started, boot, namespace: 'native' }
 
         break
