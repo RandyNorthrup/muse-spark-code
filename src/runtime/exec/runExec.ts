@@ -1408,6 +1408,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       throw error_
     }
   } catch (error_: unknown) {
+    log.error(failureForLog(error_))
     if (
       error_ instanceof Error &&
       'code' in error_ &&
