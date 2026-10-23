@@ -24404,7 +24404,7 @@ proven races open in `.lane/RVHOSTID.report.md`, not a partial safety claim.
 
 **Status 2026-10-22 (lane RLM95B, rec/rlm95b on 0.19.0): building.**
 
-Landed 01 (plan-key presets MiniMax/Alibaba/Mistral, Moonshot/Ollama Cloud, Azure refusal, editor-chat opt-in; daily cap removed, D121/D208) and 02 (refusal sentences, `x-codex-*` headers; no fixed table, no output cap). HF OAuth built, closed until the owner registers the app. Acceptance: 1–3, 7–8 built, live proof waits on the owner's sign-in; 4 open on the path-guard test; 5's host cap superseded (D121/D208); 6, 9 built; 10 NOT MET (no hook events on plan turns). Captures missing: MiniMax/Alibaba/Moonshot/Ollama. Record: `docs/certification/rlm95b.md`.
+Landed 01 (plan-key presets MiniMax/Alibaba/Mistral, Moonshot/Ollama Cloud, Azure refusal, editor-chat opt-in; daily cap removed, D121/D208) and 02 (refusal sentences, `x-codex-*` headers; no fixed table, no output cap). HF OAuth built, closed until the owner registers the app. Acceptance: 1–3, 7–8 built, live proof waits on the owner's sign-in; 4 open on the path-guard test; 5's host cap superseded (D121/D208); 6, 9 built; 10 MET (hook envelope carries the turn's provider; drills D13–D14). Captures missing: MiniMax/Alibaba/Moonshot/Ollama. Record: `docs/certification/rlm95b.md`.
 
 **Status 2026-10-13 (lane PLANROUTE, branch fix/chatgpt-plan-route): building.**
 

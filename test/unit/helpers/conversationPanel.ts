@@ -31,6 +31,7 @@ import {
   type ModelApiHostDeps,
 } from '../../../src/core/backends/modelapi/ModelApiHost'
 import { ModelApiClient } from '../../../src/core/backends/modelapi/client'
+import type { ExtensionHookDefinition } from '../../../src/core/backends/modelapi/extensionHooks'
 import { resolveShellSandbox } from '../../../src/core/backends/musecode/sandbox'
 import { fileContextIo } from '../../../src/host/backend/contextIo'
 import { createFileSessionStore } from '../../../src/host/backend/fileSessionStore'
@@ -62,7 +63,11 @@ request that would need the key fails on its missing key before a byte is
 sent. A loaded rig over the same folder (`loadedModelApiRig`) is the next
 window's host: it revives what this one saved.
 */
-export function modelApiRig(directory: string): ModelApiRig {
+export function modelApiRig(
+  directory: string,
+  loadExtensionHooks?: () => Promise<readonly ExtensionHookDefinition[]>,
+  hasHookShell?: boolean,
+): ModelApiRig {
   let ids = 0
   const warnings: string[] = []
   const log = {
@@ -96,8 +101,12 @@ export function modelApiRig(directory: string): ModelApiRig {
     io: createToolIo({
       platform: process.platform,
       listFiles: () => Promise.resolve([]),
-      systemRoot: undefined,
-      env: () => ({}),
+      systemRoot:
+        hasHookShell === true && process.platform === 'win32'
+          ? process.env['SystemRoot']
+          : undefined,
+      env: () =>
+        hasHookShell === true && process.platform !== 'win32' ? { SHELL: '/bin/sh' } : {},
       searchWorkerPath: path.join(directory, 'searchWorker.js'),
       log: () => undefined,
       unsavedFiles: () => [],
@@ -125,6 +134,7 @@ export function modelApiRig(directory: string): ModelApiRig {
     getAccountId: () => Promise.resolve(TEST_ACCOUNT_ID),
     hasMetaCredential: () => false,
     store,
+    ...(loadExtensionHooks !== undefined && { loadExtensionHooks }),
   }
   return { host: new ModelApiHost(deps), store, warnings }
 }

@@ -16,6 +16,8 @@ happened, not what was planned; superseded entries are kept.
   "Plan" instead of a price and links the plan's own limits page.
 - Hugging Face sign-in is ready in the providers list; it opens once the
   project's OAuth app is registered.
+- Hook events on plan turns name the turn's provider (`model_provider`)
+  with the qualified model, instead of always saying Meta.
 
 ### Release infrastructure
 
