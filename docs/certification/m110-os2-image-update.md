@@ -30,6 +30,7 @@ Files (all under `os/update/`, plus tests and this record):
 | `pi-tryboot-backend`          | 397   | `531cb310e0a9f980d2095f9910f7d280c728ac110ac175f4ddbf9723fc20a500` |
 | `mark-good`                   | 330   | `008e3486b9ae44116ab4511680cd065c52d9105296d1e18ee01e671fe282791b` |
 | `channel.py`                  | 203   | `36433bfbd7b455c3c336e7f3f5d5696ff17ca20271f8391f85240b9c0e8cbba6` |
+| `channel.py` (round 6, TUF)   | 848   | `ba1758ab648b4d18aaeccf7e43f53c56f097d4e5503dbb67a2e22e01b9fab60f` |
 | `pi-eeprom-check`             | 200   | `f9bd424a2eeb82bbb773d0c06efdad4580b8d95eb052e80eeeeb70722599fed2` |
 | `check-rauc-conf.py` (new)    | 90    | `c335db1043d2f925ec32f53728d8ae21d119b2dbc7e9b1b4d580e2a429808e32` |
 | `muse-mark-good.service`      | 30    | `b857db92233a84b14c163e336e5f510c09d6c370dc88426f275df892926686de` |
@@ -39,7 +40,7 @@ Files (all under `os/update/`, plus tests and this record):
 Tests: `test/unit/osImageBuildUpdateTryboot.test.mjs` (22),
 `test/unit/osImageBuildUpdateSlots.test.mjs` (15),
 `test/unit/osImageBuildUpdateMarkGood.test.mjs` (22),
-`test/unit/osImageBuildUpdateChannel.test.mjs` (20),
+`test/unit/osImageBuildUpdateChannel.test.mjs` (20; 27 after round 6),
 `test/unit/osImageBuildUpdateEeprom.test.mjs` (14).
 
 ## Round 3: FIXM110OS3 against RVM110OS2F (2 P1, 7 P2, 2 P3)
@@ -332,6 +333,10 @@ valid end state; a writer blocks while a foreign holder sleeps on the lock
 `PI_TRYBOOT_NO_LOCK`.
 
 ## 7. Signed channel, strict state, same bytes (P2-10/11/12, P3-15)
+
+SUPERSEDED by round 6 below: the single-key channel is replaced by a
+real TUF client; the PLAN §9 OS2-TUF row is resolved. The rest of this
+section stands as the round-2 record.
 
 HONESTY: renamed from "TUF" to "signed channel (single key)" in code, tests
 and this record. It enforces one detached RSA signature plus
@@ -637,3 +642,65 @@ changed, pre-existing): a refused `mark-good` on a passing probe also
 exits 1 with the marker kept, so a persistently refusing RAUC on the good
 path loops the same way — bounding that path is follow-up scope, not
 this lane.
+
+## Round 6: RLM110A0 replaces the single-key channel with a real TUF client (OS2-TUF follow-up)
+
+Lane RLM110A0, worktree `/Users/randy/lanes/RLM110A0`, branch
+`rec/rlm110a0`, on the macmini rig. No image build, no boot, no RAUC
+binary, no network, no paid call. Tests at the repository default
+timeout, 1 file per run; no `--testTimeout` was used.
+
+`os/update/channel.py` rewritten (848 lines) as a real TUF client with a
+fixed topology: root rotation under dual thresholds (old and new),
+timestamp/snapshot/targets thresholds over unique keys, version
+monotonicity with no skips at any role, expiry of every role and of the
+trusted state against the channel start time, rollback continuity for
+timestamp, snapshot and the targets each snapshot names, SHA-256
+length-plus-hash parent bindings, bundle bytes/length/name checks
+against the targets entry, no-downgrade against installed state,
+RSA-PSS verification through the system openssl (no crypto of its own),
+a 2048-bit floor with unknown schemes unusable, canonical JSON with
+floats refused, every keyid recomputed, `--first-boot` seeding from an
+explicit trust anchor, and atomic trusted-state writes. By design there
+are no delegations (a targets file that names any is refused), no
+consistent snapshots, one signature scheme and one hash; a machine whose
+openssl cannot do RSA-PSS refuses the channel outright. No runtime
+consumes the channel yet (OS2-RUNTIME is unbuilt); RAUC still verifies
+every bundle's X.509 signature before writing.
+
+| Commit      | What                                                        |
+| ----------- | ----------------------------------------------------------- |
+| `1c5e49574` | TUF client rewrite plus 27 tests with an independent signer |
+| (this)      | PLAN §9 OS2-TUF row resolved, CHANGELOG entry, this record  |
+
+Files after round 6 (everything else unchanged from round 5):
+
+| File         | Lines | SHA-256                                                            |
+| ------------ | ----- | ------------------------------------------------------------------ |
+| `channel.py` | 848   | `ba1758ab648b4d18aaeccf7e43f53c56f097d4e5503dbb67a2e22e01b9fab60f` |
+
+The test signer is independent of the client: its own canonical-JSON
+writer, keyid computation and openssl invocations; PSS support is probed
+up front and the suite fails loud without it. Throwaway keys live in one
+shared `$TMPDIR` dir per run; each test works in its own temp dir.
+
+### Round-6 red drills (break, named test fails, restore byte-exact)
+
+| Guard                   | Break                                 | Named failure                    | Restored SHA-256       |
+| ----------------------- | ------------------------------------- | -------------------------------- | ---------------------- |
+| 2048-bit floor          | `MIN_RSA_BITS` 2048 back to 512       | Channel: weak-key test failed    | `ba1758ab…b9fab60f` OK |
+| Threshold counts unique | duplicate-keyid `continue` removed    | Channel: unique-keys test failed | `ba1758ab…b9fab60f` OK |
+| Snapshot rollback       | trusted-version comparison `if False` | Channel: rollback test failed    | `ba1758ab…b9fab60f` OK |
+
+### Round-6 verification (macmini rig, repository default timeout)
+
+- `npx vitest run test/unit/osImageBuildUpdateChannel.test.mjs
+--maxWorkers=3`: 1 file passed, **27 passed, 0 failed**. The shared rig
+  ran at load ~22 through the run; each test owns one behavior and one
+  budget (the six malformed shapes and the four key refusals are separate
+  tests sharing one beforeAll-built channel), so every test finished
+  inside the 5 s default.
+- `python3 os/check.py` still passes (`OS1 image policy: 0 problems`).
+- `npx eslint --max-warnings=0`, `npx prettier --check` and `node --check`
+  on the test file clean; `channel.py` parses (`ast`) and carries no new
+  dependency.

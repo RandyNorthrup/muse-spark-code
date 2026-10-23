@@ -113,6 +113,14 @@ happened, not what was planned; superseded entries are kept.
   Runtime isolation and repository-program canary qualification remain required
   before the node service is supported.
 
+### Security
+
+- Replaced the single-key OS2 update channel with a real TUF client:
+  threshold roles over unique keys, root rotation under dual thresholds,
+  timestamp/snapshot/targets with expiry and rollback continuity against
+  persisted trusted metadata, SHA-256 bindings, RSA-PSS verification and a
+  2048-bit key floor. No runtime consumes the channel yet.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
