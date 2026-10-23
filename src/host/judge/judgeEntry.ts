@@ -258,15 +258,12 @@ export function createWindowJudge(
             rows.failed(id)
           },
           settled: (usage, costUsd) => {
-            // The leg settles in quoted floats; the row records an exact
-            // amount. A quote that cannot canonicalize leaves the row to
-            // the estimated-cost path.
-            const settledCostUsd =
-              Number.isFinite(costUsd) && costUsd >= 0 ? Usd.from(costUsd).toAmount() : undefined
+            // The leg settles an exact amount; the row records it
+            // re-canonicalized.
             rows.finished(
               id,
               usage === undefined ? undefined : { ...usage, cachedTokens: 0, reasoningTokens: 0 },
-              settledCostUsd,
+              Usd.from(costUsd).toAmount(),
             )
           },
         }
@@ -276,10 +273,8 @@ export function createWindowJudge(
         reserve: async (usd) => {
           const ledger = deps.ledger
           if (ledger === undefined) return { reserved: false, reason: 'ledger-unavailable' }
-          // The leg quotes in floats; the quote canonicalizes to an exact
-          // amount at this seam. A quote that is not finite and nonnegative
-          // cannot price the leg.
-          if (!Number.isFinite(usd) || usd < 0) return { reserved: false, reason: 'unpriced' }
+          // The leg quotes an exact amount; the seam re-canonicalizes
+          // before it reaches the ledger.
           const exact = Usd.from(usd).toAmount()
           const remaining = await ledger.remainingUsd()
           if (remaining !== undefined && compareUsdAmounts(exact, remaining) > 0)
@@ -293,7 +288,7 @@ export function createWindowJudge(
             return {
               reserved: true,
               claim: {
-                reservedUsd: usd,
+                reservedUsd: exact,
                 check: () => {
                   if (isClosed) throw new Error('judge claim is closed')
                 },
@@ -312,13 +307,13 @@ export function createWindowJudge(
           return {
             reserved: true,
             claim: {
-              reservedUsd: usd,
+              reservedUsd: exact,
               // D78's live admission (Stop, day change, reduced cap), which
               // lane C reads again right before dispatch.
               check: () => {
                 claim.check()
               },
-              settle: (actualUsd) => claim.settle(Usd.from(actualUsd).toAmount()),
+              settle: (actualUsd) => claim.settle(actualUsd),
               refund: () => claim.settle(Usd.from(0).toAmount()),
             },
           }

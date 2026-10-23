@@ -15,16 +15,14 @@ import {
   JUDGE_MAX_BODY_BYTES,
   UI_TEXT,
 } from '../../shared/constants'
-import { Usd } from '../../shared/usd'
-import { USD_DECIMAL_RADIX, USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
+import { compareUsdAmounts, Usd } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
+import { USD_LIABILITY_DECIMALS } from '../../shared/usdConstants'
 import type { FdWriter } from '../exec/fdWriter'
 import { readPromptStdin } from '../exec/keyInput'
 import { JudgeCliInputError, type JudgeCliCommand, type JudgeCliOptions } from './args'
 import { runJudgeMcp } from './mcp'
 import { isServedJudgeModel } from '../../core/judge/served'
-
-/** Nano-USD in one USD: the run cap's liability precision. */
-const NANO_USD_PER_USD = USD_DECIMAL_RADIX ** USD_LIABILITY_DECIMALS
 
 /** Z supplies current context; resolution must not start a chat backend/session. */
 export interface JudgeCliSource {
@@ -32,7 +30,7 @@ export interface JudgeCliSource {
   readonly model: string
   readonly runtime: JudgeRuntime
   readonly billing: 'free' | 'paid'
-  readonly worstCaseUsd: (request: JudgeRequest) => number | undefined
+  readonly worstCaseUsd: (request: JudgeRequest) => UsdAmount | undefined
   /**
   The binding's declared embedding model, when an embedding transport is
   configured. An embedding answer honestly names that model instead of
@@ -80,7 +78,7 @@ export interface JudgeCliDeps {
   admitPaid?(
     source: JudgeCliSource,
     request: JudgeRequest,
-    reservedUsd: number,
+    reservedUsd: UsdAmount,
     signal: AbortSignal,
   ): Promise<JudgeOutcome>
   readonly calibrate?: OfflineCommand
@@ -152,7 +150,9 @@ function isAligned(request: JudgeRequest, outcome: JudgeOutcome): boolean {
 /** Per-process cap is conservatively retained, including failed/uncertain calls. */
 function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
   // Exact nano-USD (RVM98P2R2 8): the run cap and every reservation are integers.
-  let remainingUnits = options.budgetNanoUsd
+  let remainingUnits = Number(
+    Usd.from(options.budgetUsd).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS),
+  )
   return async (raw: unknown, signal: AbortSignal): Promise<JudgeOutcome> => {
     signal.throwIfAborted()
     const request = judgeRequestSchema.parse(raw)
@@ -182,9 +182,10 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
     if (source.billing === 'paid') {
       if (remainingUnits <= 0) return noAnswer('over-budget')
       const cost = source.worstCaseUsd(request)
-      if (cost === undefined || !Number.isFinite(cost) || cost <= 0) return noAnswer('unpriced')
-      // The plan's number enters once, as its shortest decimal text, and a
-      // liability rounds up to the nano-USD: never `cost * units` in floats.
+      if (cost === undefined || compareUsdAmounts(cost, Usd.from(0).toAmount()) <= 0)
+        return noAnswer('unpriced')
+      // The plan's amount enters once, and a liability rounds up to the
+      // nano-USD: never `cost * units` in floats.
       const reservedUnits = Number(
         Usd.from(cost).ceiling(USD_LIABILITY_DECIMALS).units(USD_LIABILITY_DECIMALS),
       )
@@ -192,7 +193,12 @@ function judgeCaller(options: JudgeCliOptions, deps: JudgeCliDeps) {
       if (deps.admitPaid === undefined) return noAnswer('consent-needed')
       remainingUnits -= reservedUnits
       rawOutcome = await untilAborted(
-        deps.admitPaid(source, request, reservedUnits / NANO_USD_PER_USD, signal),
+        deps.admitPaid(
+          source,
+          request,
+          Usd.fromUnits(BigInt(reservedUnits), USD_LIABILITY_DECIMALS).toAmount(),
+          signal,
+        ),
         signal,
       )
     } else {

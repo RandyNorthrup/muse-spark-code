@@ -4,6 +4,7 @@
 // stay on the answer. Our confidence is entropy, never the vendor's number.
 import * as z from 'zod/mini'
 import { Usd } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usdSchema'
 import { entropyConfidence } from '../math'
 import {
   jevChoiceAnswerSchema,
@@ -60,8 +61,8 @@ export class SystemOneWireError extends Error {
 }
 
 export interface SystemOneCosts {
-  readonly reservedCostUsd: number
-  readonly settledCostUsd: number
+  readonly reservedCostUsd: UsdAmount
+  readonly settledCostUsd: UsdAmount
 }
 
 export interface PreparedSystemOne {
@@ -276,8 +277,8 @@ export function prepareSystemOne(
       output_tokens: usage.data.output_tokens,
     },
     withCosts(costs: SystemOneCosts): JudgeResult {
-      // Quoted dollars canonicalize at this seam: the receipt the schema
-      // carries is always an exact amount.
+      // Costs arrive exact; the seam re-canonicalizes so the receipt the
+      // schema carries is always a canonical amount.
       const reservedCostUsd = Usd.from(costs.reservedCostUsd).toAmount()
       const settledCostUsd = Usd.from(costs.settledCostUsd).toAmount()
       const noted: Record<string, JudgeMuse> = {}

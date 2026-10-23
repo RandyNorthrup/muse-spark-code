@@ -2,6 +2,7 @@
 // This is an offline artifact, not a provider wire shape or a permission grant.
 import * as z from 'zod/mini'
 import { JUDGE_MIN_READY_RATE } from '../../shared/constants'
+import { legacyUsdSchema } from '../../shared/usdSchema'
 import { reportCalibration } from './calibration/report'
 import { judgeEvidenceRowIdentity } from './schema'
 import {
@@ -17,7 +18,9 @@ const arm = z.strictObject({
   caution: z.boolean(),
   probability: rate,
   latencyMs: nonnegative,
-  costUsd: nonnegative,
+  // Recorded evidence: historical numbers normalize once, new records
+  // carry exact amounts. The decision never reads the cost.
+  costUsd: legacyUsdSchema,
 })
 const recordSchema = z.strictObject({
   same: z.strictObject({ profile: z.unknown(), dataset: z.unknown() }),

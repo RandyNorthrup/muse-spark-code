@@ -19,7 +19,10 @@ import {
 import captures from './fixtures/judgeSystemOneCaptures.json'
 import { Usd } from '../../src/shared/usd'
 
-const costs = { reservedCostUsd: 0.02, settledCostUsd: 0.01 }
+const costs = {
+  reservedCostUsd: Usd.from(0.02).toAmount(),
+  settledCostUsd: Usd.from(0.01).toAmount(),
+}
 
 function requestOf(capture: { request: unknown }): JudgeRequest {
   return judgeRequestSchema.parse(capture.request)

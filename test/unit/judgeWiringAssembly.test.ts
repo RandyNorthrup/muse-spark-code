@@ -1,4 +1,5 @@
 import { describe, expect, inject, it } from 'vitest'
+import { Usd } from '../../src/shared/usd'
 import { assertCurrentProductionBuild } from './productionBuild'
 import { embeddedBinding, phase2Binding, surfaceInput } from './helpers/judgePhase2Rig'
 import { shippedJudgeP2Features } from './helpers/judgeP2Features'
@@ -34,7 +35,7 @@ describe('phase-2 paths through the shipped lazy assembly', () => {
       const deps = await factory.createCommandDeps({
         binding: () => fixture.value,
         billing: 'free',
-        worstCaseUsd: () => 0,
+        worstCaseUsd: () => Usd.from(0).toAmount(),
       })
       const streams = io(surfaceInput(action))
       expect(

@@ -48,7 +48,7 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
     const deps = createJudgeCommandDeps({
       binding: () => current,
       billing: 'paid',
-      worstCaseUsd: () => 0,
+      worstCaseUsd: () => Usd.from(0).toAmount(),
       loadEmbedding,
     })
     const signal = new AbortController().signal
@@ -70,11 +70,11 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
           ? undefined
           : {
               ...current.embedding,
-              source: { ...current.embedding.source, uncachedCostUsd: 0.2 },
+              source: { ...current.embedding.source, uncachedCostUsd: Usd.from(0.2).toAmount() },
             },
     }
-    expect(resolved.worstCaseUsd(REQUEST)).toBe(0.0002)
-    expect(await deps.admitPaid?.(resolved, REQUEST, 0.0001, signal)).toEqual({
+    expect(resolved.worstCaseUsd(REQUEST)).toBe('0.0002')
+    expect(await deps.admitPaid?.(resolved, REQUEST, Usd.from(0.0001).toAmount(), signal)).toEqual({
       outcome: 'no-answer',
       reason: 'over-budget',
     })
@@ -95,7 +95,7 @@ describe('P1: the CLI/MCP run budget constrains the dispatched binding', () => {
     const deps = createJudgeCommandDeps({
       binding: () => rig.value,
       billing: 'free',
-      worstCaseUsd: () => 0,
+      worstCaseUsd: () => Usd.from(0).toAmount(),
       loadEmbedding,
     })
     const parsed = command('ask', ['--engine', 'same', '--model', 'chosen', '--budget-usd', '0'])
@@ -115,7 +115,7 @@ describe('P2: embedding answers name their embedding model', () => {
       const deps = createJudgeCommandDeps({
         binding: () => rig.value,
         billing: 'free',
-        worstCaseUsd: () => 0,
+        worstCaseUsd: () => Usd.from(0).toAmount(),
         loadEmbedding,
       })
       const parsed = command(action, ['--engine', 'same', '--model', 'chosen'])
@@ -165,7 +165,7 @@ describe('P2: embedding answers name their embedding model', () => {
     const deps = createJudgeCommandDeps({
       binding: () => intruder,
       billing: 'free',
-      worstCaseUsd: () => 0,
+      worstCaseUsd: () => Usd.from(0).toAmount(),
       loadEmbedding,
     })
     const streams = io(JSON.stringify(REQUEST))

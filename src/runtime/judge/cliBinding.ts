@@ -68,16 +68,13 @@ export async function cliJudgeBinding(deps: {
               // reported cost into the daily journal every paid headless use
               // shares (PAID_DAILY_BUDGET).
               reserve: async (usd) => {
-                // The leg quotes in floats; the quote canonicalizes to an
-                // exact amount at this seam before it reaches the ledger.
-                if (!Number.isFinite(usd) || usd < 0) return { reserved: false, reason: 'unpriced' }
+                // The leg quotes an exact amount; the seam re-canonicalizes
+                // before it reaches the ledger.
+                const exact = Usd.from(usd).toAmount()
                 const ledger = await deps.daily()
                 let claim: SpendClaim | undefined
                 try {
-                  claim = await ledger.reserve(
-                    Usd.from(usd).toAmount(),
-                    AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS),
-                  )
+                  claim = await ledger.reserve(exact, AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS))
                 } catch (error: unknown) {
                   return { reserved: false, reason: 'over-budget', cause: error }
                 }
@@ -92,14 +89,14 @@ export async function cliJudgeBinding(deps: {
                 return {
                   reserved: true,
                   claim: {
-                    reservedUsd: usd,
+                    reservedUsd: exact,
                     // The runtime claim's live admission (Stop, day change,
                     // reduced cap), read again right before dispatch.
                     check: () => {
                       live.check()
                     },
                     settle: async (actualUsd) => {
-                      await live.settle(Usd.from(actualUsd).toAmount())
+                      await live.settle(actualUsd)
                     },
                     refund: async () => {
                       await live.settle(Usd.from(0).toAmount())
@@ -149,7 +146,8 @@ export async function cliJudgeBinding(deps: {
       // A built route prices its own attempt, so the plan is paid and goes
       // through the run cap; the CLI's judge sides are otherwise free.
       ...(worstCaseUsd !== undefined && {
-        attemptCostUsd: (_request, side) => (side === 'separate' ? worstCaseUsd : 0),
+        attemptCostUsd: (_request, side) =>
+          side === 'separate' ? worstCaseUsd : Usd.from(0).toAmount(),
       }),
     })
 }

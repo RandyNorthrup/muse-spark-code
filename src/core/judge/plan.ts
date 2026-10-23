@@ -22,6 +22,8 @@ import {
 } from './resolve'
 import type { JudgeRuntimeBinding } from './runtime'
 import { judgeRequestSchema, type JudgeOutcome, type JudgeRequest } from './schema'
+import { compareUsdAmounts, sumUsd, Usd } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
 
 /** One dispatched side, frozen at resolution. */
 export interface JudgePlanSide {
@@ -33,7 +35,7 @@ export interface JudgePlanSide {
   /** The fitted profile identity the side was resolved with, if recorded. */
   readonly profileIdentity: unknown
   /** This side's priced attempt for this request; undefined is unpriced. */
-  readonly tariffUsd: number | undefined
+  readonly tariffUsd: UsdAmount | undefined
 }
 
 /** The embedding route frozen at resolution, with the tariff it was priced at. */
@@ -41,7 +43,7 @@ export interface JudgePlanEmbedding {
   readonly binding: JudgeEmbeddingBinding
   readonly source: EmbeddingSource
   /** Paid same-provider tariff; zero for a free verified-local source. */
-  readonly tariffUsd: number
+  readonly tariffUsd: UsdAmount
   /** The consent epoch seen at resolution; a later epoch refuses, never widens. */
   readonly consentEpoch: string
 }
@@ -61,7 +63,7 @@ export interface JudgePlan {
   /** The adoption receipt that `auto` was resolved against, if one was recorded. */
   readonly evidence?: { readonly record: unknown; readonly qualified: boolean } | undefined
   /** The whole run's ceiling; undefined when any planned leg is unpriced. */
-  readonly worstCaseUsd: number | undefined
+  readonly worstCaseUsd: UsdAmount | undefined
   /**
   `phase2` dispatches the planned sides. `phase1` means the plan resolved
   to `same` with no request-level same side and no embedding: the
@@ -142,9 +144,10 @@ function tariffOf(
   request: JudgeRequest,
   source: 'same' | 'separate',
   hasFreeSides: boolean,
-): number | undefined {
-  const cost = binding.attemptCostUsd?.(request, source) ?? (hasFreeSides ? 0 : undefined)
-  return cost === undefined || !Number.isFinite(cost) || cost < 0 ? undefined : cost
+): UsdAmount | undefined {
+  return (
+    binding.attemptCostUsd?.(request, source) ?? (hasFreeSides ? Usd.from(0).toAmount() : undefined)
+  )
 }
 
 function planSide(
@@ -176,7 +179,8 @@ function planEmbedding(
   return Object.freeze({
     binding: Object.freeze({ ...embedding, source }),
     source,
-    tariffUsd: source.locality === 'same-provider' ? source.uncachedCostUsd : 0,
+    tariffUsd:
+      source.locality === 'same-provider' ? source.uncachedCostUsd : Usd.from(0).toAmount(),
     consentEpoch: embedding.consentEpoch(),
   })
 }
@@ -214,12 +218,14 @@ export function planJudgeRun(
     ...sides.map((side) => side?.tariffUsd),
     ...(embedding === undefined ? [] : [embedding.tariffUsd]),
   ]
-  const worstCaseUsd = legs.every(
-    (leg): leg is number => leg !== undefined && Number.isFinite(leg) && leg >= 0,
+  const priced = legs.filter((leg): leg is UsdAmount => leg !== undefined)
+  const worstCaseUsd = priced.length === legs.length ? sumUsd(...priced) : undefined
+  const zero = Usd.from(0).toAmount()
+  const isPricedSide = sides.some(
+    (side) =>
+      side !== undefined &&
+      (side.tariffUsd === undefined || compareUsdAmounts(side.tariffUsd, zero) > 0),
   )
-    ? legs.reduce((total, leg) => total + leg, 0)
-    : undefined
-  const isPricedSide = sides.some((side) => side !== undefined && (side.tariffUsd ?? 1) > 0)
   const adoption = context.separate?.adoption
   const evidence =
     adoption === undefined

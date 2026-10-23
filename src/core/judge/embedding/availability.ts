@@ -6,6 +6,7 @@ import type { PaidFeatureGate } from '../../paid/paidFeatures'
 import type { JudgeDailyLedger } from '../admission'
 import type { JudgeCascadeOptions, JudgeCascadeSide } from '../cascade'
 import { JUDGE_ISOTONIC_MIN_LABELS } from '../../../shared/constants'
+import { compareUsdAmounts, Usd } from '../../../shared/usd'
 import { judgeEvidenceRowIdentity, judgeProfileIdentitySchema } from '../schema'
 import { parseWeightEnvelope } from './schema'
 import type { EmbeddingSource } from './route'
@@ -102,12 +103,9 @@ export function embeddingAvailability(
     source.providerPolicy !== 'allow'
   )
     return refuse('confidential-refused')
-  if (
-    !Number.isFinite(source.uncachedCostUsd) ||
-    (source.locality === 'same-provider'
-      ? source.uncachedCostUsd <= 0
-      : source.uncachedCostUsd !== 0)
-  )
+  // A same-provider quote must be positive; a local source must be free.
+  const quoteSign = compareUsdAmounts(source.uncachedCostUsd, Usd.from(0).toAmount())
+  if (source.locality === 'same-provider' ? quoteSign <= 0 : quoteSign !== 0)
     return refuse('unpriced')
   const stored = parseWeightEnvelope(embedding.weights)
   const manifest = manifestSchema.safeParse(embedding.manifest)

@@ -60,7 +60,11 @@ async function cliRun(input: {
     daily: () => Promise.resolve(daily),
     transport: { resolve: transport.resolve, send: transport.send },
   })
-  const deps = await factory.createCommandDeps({ binding, billing: 'free', worstCaseUsd: () => 0 })
+  const deps = await factory.createCommandDeps({
+    binding,
+    billing: 'free',
+    worstCaseUsd: () => Usd.from(0).toAmount(),
+  })
   const request = captures.openrouterRecordedNoul.request
   const streams = io(
     action === 'ask'

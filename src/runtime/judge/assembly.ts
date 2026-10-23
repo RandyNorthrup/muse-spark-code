@@ -5,12 +5,14 @@
 import { createJudgeRuntime, type JudgeRuntimeDeps } from '../../core/judge/runtime'
 import { isJudgePlan } from '../../core/judge/plan'
 import type { JudgeRequest } from '../../core/judge/schema'
+import { compareUsdAmounts } from '../../shared/usd'
+import type { UsdAmount } from '../../shared/usdSchema'
 import type { JudgeCliDeps } from './commands'
 
 export function createJudgeCommandDeps(
   deps: JudgeRuntimeDeps & {
     readonly billing: 'free' | 'paid'
-    readonly worstCaseUsd: (request: JudgeRequest) => number | undefined
+    readonly worstCaseUsd: (request: JudgeRequest) => UsdAmount | undefined
   },
 ): JudgeCliDeps {
   const runtime = createJudgeRuntime({ ...deps, paidGrants: new Set<string>() })
@@ -73,7 +75,7 @@ export function createJudgeCommandDeps(
       // The reservation must cover the plan's whole ceiling; the plan is
       // the one that dispatches, so the cap cannot be widened afterwards.
       const ceiling = source.worstCaseUsd(request)
-      return ceiling === undefined || ceiling > reservedUsd
+      return ceiling === undefined || compareUsdAmounts(ceiling, reservedUsd) > 0
         ? Promise.resolve({ outcome: 'no-answer', reason: 'over-budget' })
         : source.runtime.judge(request, signal)
     },

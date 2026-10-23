@@ -23,6 +23,8 @@ import {
 } from '../schema'
 import { systemOneUsd } from './policy'
 import { prepareSystemOne } from './wire'
+import { compareUsdAmounts, Usd } from '../../../shared/usd'
+import type { UsdAmount } from '../../../shared/usdSchema'
 
 /** HTTP success is the only status whose body is a SystemOne result. */
 const HTTP_OK = 200
@@ -65,10 +67,10 @@ export interface SystemOnePostResult {
 }
 
 export interface SystemOneClaim {
-  readonly reservedUsd: number
+  readonly reservedUsd: UsdAmount
   /** The durable claim's live admission (Stop, day change, reduced cap): throws when it no longer holds. */
   check(): void
-  settle(usd: number): Promise<void>
+  settle(usd: UsdAmount): Promise<void>
   refund(): Promise<void>
 }
 
@@ -86,7 +88,7 @@ export interface SystemOneJudgeDependencies {
   configuration(): SystemOneSelection | undefined
   readKey(keyProviderId: string): Promise<string | undefined>
   measureTokens(text: string): number
-  reserve(usd: number): Promise<SystemOneReserveResult>
+  reserve(usd: UsdAmount): Promise<SystemOneReserveResult>
   post(request: SystemOnePost): Promise<SystemOnePostResult>
 }
 
@@ -212,7 +214,7 @@ function bindingRefusal(
 
 async function reserveUntilAborted(
   deps: SystemOneJudgeDependencies,
-  quote: number,
+  quote: UsdAmount,
   signal: AbortSignal,
 ): Promise<SystemOneReserveResult | undefined> {
   const pending = deps.reserve(quote)
@@ -265,20 +267,20 @@ function measureBody(
 function pricedReservation(
   bodyTokens: number,
   capability: SystemOneModelCapability,
-): number | NoAnswerReason {
+): { readonly cost: UsdAmount } | { readonly refusal: NoAnswerReason } {
   if (
     !Number.isFinite(capability.inputUsdPerMillion) ||
     capability.inputUsdPerMillion <= 0 ||
     !Number.isFinite(capability.outputUsdPerMillion) ||
     capability.outputUsdPerMillion < 0
   ) {
-    return 'unpriced'
+    return { refusal: 'unpriced' }
   }
   try {
-    return systemOneUsd(bodyTokens, 0, capability)
+    return { cost: Usd.from(systemOneUsd(bodyTokens, 0, capability)).toAmount() }
   } catch (error: unknown) {
     if (!(error instanceof TypeError)) throw error
-    return 'engine-failure'
+    return { refusal: 'engine-failure' }
   }
 }
 
@@ -330,13 +332,13 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         return refused('engine-failure')
       }
       const quote = pricedReservation(quoteInput, route.capability)
-      if (typeof quote !== 'number') return refused(quote)
+      if ('refusal' in quote) return refused(quote.refusal)
       const deadline = AbortSignal.timeout(JUDGE_REQUEST_TIMEOUT_MS)
       const signal = AbortSignal.any([callerSignal, deadline])
       if (isSignalAborted(signal)) return refused(abortReason(callerSignal, deadline))
       let reserved: SystemOneReserveResult | undefined
       try {
-        reserved = await reserveUntilAborted(deps, quote, signal)
+        reserved = await reserveUntilAborted(deps, quote.cost, signal)
       } catch (error: unknown) {
         if (signal.aborted) return refused(abortReason(callerSignal, deadline))
         deps.log?.warn(`SystemOne reserve failed: ${failureForLog(error)}`)
@@ -396,12 +398,14 @@ export function createSystemOneJudge(deps: SystemOneJudgeDependencies): JudgeRun
         if (response.status !== HTTP_OK) return refused('engine-failure')
         try {
           const prepared = prepareSystemOne(response.body, request, route.capability.responseModels)
-          const actual = systemOneUsd(
-            prepared.usage.input_tokens,
-            prepared.usage.output_tokens,
-            route.capability,
-          )
-          if (actual > claim.reservedUsd) return refused('engine-failure')
+          const actual = Usd.from(
+            systemOneUsd(
+              prepared.usage.input_tokens,
+              prepared.usage.output_tokens,
+              route.capability,
+            ),
+          ).toAmount()
+          if (compareUsdAmounts(actual, claim.reservedUsd) > 0) return refused('engine-failure')
           const result = prepared.withCosts({
             reservedCostUsd: claim.reservedUsd,
             settledCostUsd: actual,
