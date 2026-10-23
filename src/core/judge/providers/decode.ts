@@ -130,8 +130,11 @@ function statedFromText(request: ByoDecodeRequest, text: string, usage: ByoUsage
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
-  } catch {
-    return failure
+  } catch (error: unknown) {
+    // A stated answer that is not JSON is a decode failure; JSON.parse
+    // throws only SyntaxError, and anything else rethrows.
+    if (error instanceof SyntaxError) return failure
+    throw error
   }
   const reading = materialForStated({
     kind: request.kind,

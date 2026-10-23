@@ -54,8 +54,12 @@ async function readRequest(request: IncomingMessage): Promise<JudgeRequest | und
     )
     const parsed = judgeRequestSchema.safeParse(body)
     return parsed.success ? parsed.data : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A body that is not UTF-8 JSON holds no request: the fatal decode
+    // throws TypeError and JSON.parse throws SyntaxError; the rest rethrows.
+    if (error instanceof SyntaxError) return undefined
+    if (error instanceof TypeError) return undefined
+    throw error
   }
 }
 function isAligned(request: JudgeRequest, result: JudgeResult): boolean {

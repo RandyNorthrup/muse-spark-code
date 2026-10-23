@@ -133,8 +133,11 @@ function settingsOf(text: string): Readonly<Record<string, unknown>> | undefined
   let parsed: unknown
   try {
     parsed = JSON.parse(plainJson(text))
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // A settings file that is not JSON holds no settings; JSON.parse
+    // throws only SyntaxError, and anything else rethrows.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
   const record = recordSchema.safeParse(parsed)
   if (!record.success) return undefined

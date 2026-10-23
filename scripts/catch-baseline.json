@@ -7,14 +7,14 @@
       "CLEANUP": 8
     },
     "core": {
-      "SWALLOW": 72,
-      "GENERIC": 263,
-      "CLEANUP": 241
+      "SWALLOW": 80,
+      "GENERIC": 288,
+      "CLEANUP": 243
     },
     "host": {
-      "SWALLOW": 19,
-      "GENERIC": 106,
-      "CLEANUP": 92
+      "SWALLOW": 20,
+      "GENERIC": 109,
+      "CLEANUP": 93
     },
     "root": {
       "SWALLOW": 1,
@@ -22,9 +22,9 @@
       "CLEANUP": 2
     },
     "runtime": {
-      "SWALLOW": 33,
-      "GENERIC": 194,
-      "CLEANUP": 130
+      "SWALLOW": 37,
+      "GENERIC": 201,
+      "CLEANUP": 132
     },
     "shared": {
       "SWALLOW": 0,
@@ -1109,6 +1109,51 @@
       "class": "GENERIC"
     },
     {
+      "file": "src/core/judge/cascade.ts",
+      "identity": "e585728b4e5637ed58d0efcf0bc9b6fc269ddc288b00dd86deb40bb815a4b207",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/cascade.ts",
+      "identity": "3fa16814b2a479a87cb0e7d5d4c49cd5f3a469faf5f0f4c29f2b253768ba94d5",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/cascade.ts",
+      "identity": "6b2c768563930f07f895d0683af807ad62ec4e8968bf47f6c459bd3b51f51938",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/cascade.ts",
+      "identity": "deed00e680e621b2a9a940c1b5c5b8dee6562c67ace351d7efc00ec6822437ad",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/cascade.ts",
+      "identity": "ac219af109dc908adc4e6cb1a4c90209c99cc1890e5048e2105ba2d2781186dc",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/contrastive.ts",
+      "identity": "8ec358382ac379a161f33b8a56d2f16bd468e60294c7528dbeaa2df23e51bf99",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/embedding/route.ts",
+      "identity": "8c6024f0936cf1f8cd5b0ab528b6db0dc4e999021e19b8ebc32284ffa42b2c2f",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/core/judge/embedding/route.ts",
+      "identity": "73639eaa39a6875fca8fc9ad906886692278b8b3eabec82bae15d9eba9adba8a",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/embedding/route.ts",
+      "identity": "fa0da9070247cece6eb5c349fc95e7832008d8fba452697535ecc57504329ca6",
+      "class": "CLEANUP"
+    },
+    {
       "file": "src/core/judge/fast/inspectExec.ts",
       "identity": "b823199ea82b755e9cf80061d6c8bf25aac74d2b5f92c3112ba5cd82321e0964",
       "class": "CLEANUP"
@@ -1142,6 +1187,136 @@
       "file": "src/core/judge/fast/inspectExec.ts",
       "identity": "41e2752639b5534dfa879f71609db8fe1f3fd06ca633096fd4cc7741f5c5d014",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/local/posixPeer.ts",
+      "identity": "ae7aaf553b389fff61761e518765f6f6ad997c316032f5a7268bbf8cc413c4e6",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/local/source.ts",
+      "identity": "f4fd70e8b5c8da01589101a2f85d23af21d22b1da49aab22fa523b9c608e4e55",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/local/transport.ts",
+      "identity": "b96fc782279674d24482d7742f994ccef303632e763277ae6ee96945ea66d0da",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/providers/decode.ts",
+      "identity": "fc434904eb2182c6ffd288aaaa2f3bb10391b2de8427245466e562f00cf7f8c2",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/providers/run.ts",
+      "identity": "d5e31aea22b85155dbd3d1d28f27659a60e249ac8e58b37877db7e23649e163c",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/providers/run.ts",
+      "identity": "7e47f4ba5dcfbdfa92323a19185fb97a4eaf65f2898edfd65cc9d7877c648070",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/providers/run.ts",
+      "identity": "e6599cf1c05910f730f1806415fae8e6437c78bae02e82489b5da4b4174c90ff",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/providers/run.ts",
+      "identity": "06cf8024c870af6f941af00766323538eac7677eb1ac4b33dbb9a243e329c3a6",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/providers/run.ts",
+      "identity": "8cae8b0c441f752febc72cf2f6d5c971c558f0e8ef4e95fd4b8ba30380c81bb7",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/providers/run.ts",
+      "identity": "fad18aa841a6f6c276ad5752297c034356370b0f5b0d3bf9293cf00d84587689",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/sampling.ts",
+      "identity": "c6d378a126e4e40f7abe2af6be0fdd969e9718180e024e8fde2be1a1c6a67798",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/sampling.ts",
+      "identity": "ffb5878cd17d948849d7f8e352ee356a94361f3ccaadbb23fd0cb6d4fe90a9c8",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/sampling.ts",
+      "identity": "4a7af46ab508ace417acab2f4a43cbbed79f60916ff82f8a5732da1ff87c6a96",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/side.ts",
+      "identity": "69bb72b76e19b4d55aab09a721a98588056fe5c8d35723397f705699704d855a",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/side.ts",
+      "identity": "941253555ec6edb546f0759810fc7159c177a40dd7922cc908b45c5302955038",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "188c6c6fccd978a7bd53d30dc86b2ffc270a9c527182fce566990c156e2b7b17",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "045378ac11af3c54343c01f0037c784b93efe4177f15285110bd019bfa026b86",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "f4a723c4453725e752345f24b2f682b22d828fade845b65a8958f971c06fbe76",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "f82b1064c54c0f53a32bc56166cc2101a5326ffef2ffd8e0a62052e11849ee6b",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "26ea52d9ea47ada46feb732fd507f59b25066b6a29bea23abc5ea7ee6a1acbb3",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "c6cf8610ce2b12d1d82a92287676a68378a74ef4f9f1d506dbf0cb97ff310ffe",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "3a6311f469f430233bf1095ecc923cdeacfd6c2b31f0f95218a5ee83dfaad7b5",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "6abf8841189cc2cc9594fb868f6ed74602f2c0aa5f5af9fb98bc83fabcbd3574",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "6d086c35827dc47def65cd1d0cdff46454b2af80906550f5a22ffe37c7f04327",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/systemone/source.ts",
+      "identity": "50d8e718c568487ce13bc59d4b26dfa3a7606498e9d85398e5473b6868b0dea1",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/core/judge/uses/fences.ts",
+      "identity": "60c945b4e8f8e0cf5366c8031a544769a2bd1d2a407acd590c810f0061819e5b",
+      "class": "SWALLOW"
     },
     {
       "file": "src/core/legal/licenseTemplates.ts",
@@ -3459,6 +3634,11 @@
       "class": "CLEANUP"
     },
     {
+      "file": "src/host/judge/judgeBinding.ts",
+      "identity": "c78d6dc6eb88ed50308d978da6b5b660130047e3cff5a16d8920606b2e0bbd0b",
+      "class": "SWALLOW"
+    },
+    {
       "file": "src/host/judge/museCodeSameJudge.ts",
       "identity": "17208cd264a28d3d8a8eb6971327cd567d33ad9261847e60897ef7fec4f133d3",
       "class": "CLEANUP"
@@ -3467,6 +3647,26 @@
       "file": "src/host/judge/museCodeSameJudge.ts",
       "identity": "f813f2ccd5519402a5f98446858a098acb3a770b625eb7acb1323ed54e139d7b",
       "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/judge/uses.ts",
+      "identity": "0418d123c3ea6349f3cdfb7a325253b81cb7d18339fd82b4855dc5134d88dd2b",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/host/judge/uses.ts",
+      "identity": "896b4f5d88c1adfa976fe6fe8c1b804a02fd21b8e6e87a49222699cb4e4a07a7",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/judge/workspaceScope.ts",
+      "identity": "cd9a88ab9b061a6fa1e5e260aa5d0a4a1fdd0bbb8f078c07123d9666545d5d6c",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/host/judge/workspaceScope.ts",
+      "identity": "cae54230aeef5722b6da0fb5323dfa43e6ccd0640e0da74bebf31d4bbb72e39f",
+      "class": "GENERIC"
     },
     {
       "file": "src/host/legalFixApplier.ts",
@@ -4549,6 +4749,66 @@
       "class": "SWALLOW"
     },
     {
+      "file": "src/runtime/judge/args.ts",
+      "identity": "fb01a70f4a0cce27eeef74b9ac5d9e9bf4daa27ca67f4d5c5da3f7ff02209e8f",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/cliBinding.ts",
+      "identity": "ee727d5ea1c07ce1e364a078a823ea062b5b80cbe289ae4b82d80612bb360cb8",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/cliBinding.ts",
+      "identity": "22d9e6a05f445d3f791b14c4af298db579ef023add3a8f520a71c4ab0c9f43dd",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/commands.ts",
+      "identity": "8492b389d9a19bed8c45a3564914d4626a5e46cb76e04370ecc17f44c26c07c9",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/commands.ts",
+      "identity": "4c049f5566b660133e66bc42fb4e7d1f5e5af5fa64e51561c6b1fd04d5087539",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/judge/hook.ts",
+      "identity": "5355e6cb16c26e949b0bde5a854a5f9f95d9533db53c395ee276e44fef9cae00",
+      "class": "CLEANUP"
+    },
+    {
+      "file": "src/runtime/judge/lint.ts",
+      "identity": "ab502aad9d8bb2cfd46e4c372935602e81c09d239b1d4d467b84f4432f794675",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/mcp.ts",
+      "identity": "20373299aba177de4d0a46e60779874493b9b2fa4fd46cf186275bc872e5949c",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/mcp.ts",
+      "identity": "bd3c140c7d9bfcb6c7b7e711f02aa9d889bf4bfd88bac3f11cb76b5259f30ea1",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/judge/mcp.ts",
+      "identity": "26479d61e245ebe5dbae462bbff3ba46cccc646daab41b69ad0614fb1b4cfac0",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/judge/serve.ts",
+      "identity": "dcab23bf8f4ecb9fac1e1809ebd2339fe33f1b8b27a65507edbe05a5862636b8",
+      "class": "SWALLOW"
+    },
+    {
+      "file": "src/runtime/judge/serve.ts",
+      "identity": "da7d5c165e9a35f4b53083ef2eea4425736e3bd4b029befc0bf56f8b71f1d68f",
+      "class": "SWALLOW"
+    },
+    {
       "file": "src/runtime/keyStore.ts",
       "identity": "3b1ce5ef4954f1e86b784ea6cddcf997753371639e1a67dd12029b4ca71344bc",
       "class": "CLEANUP"
@@ -4627,6 +4887,11 @@
       "file": "src/runtime/main.ts",
       "identity": "1d77ea3b9e829656b704e6bc741c27416e53c4e7e93ee2758abc9f1fe3321723",
       "class": "GENERIC"
+    },
+    {
+      "file": "src/runtime/main.ts",
+      "identity": "2395b30d3bade923ebd712dd8cede1da4bc941872fc36f6c3ed1e9f3f270fd82",
+      "class": "SWALLOW"
     },
     {
       "file": "src/runtime/main.ts",

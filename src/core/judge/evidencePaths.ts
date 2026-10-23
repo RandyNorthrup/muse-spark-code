@@ -221,6 +221,7 @@ export function filePhase2EvidenceStore(deps: {
     try {
       text = deps.readFile(phase2EvidenceFile(deps.root, kind, slug))
     } catch {
+      deps.warn?.(`Ignoring unreadable phase-2 ${kind} record ${slug}`)
       return undefined
     }
     if (text === undefined) return undefined
