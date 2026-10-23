@@ -678,18 +678,12 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   const merges: TeamMergePort = {
     plan: async (task) => {
       const { spec } = await mergeSpec(task)
-      const planned = await planTeamMerge(
+      // The planner's file shape is the port's, field for field.
+      return await planTeamMerge(
         { runGit, realPath: (candidate) => WORKER_NATIVE_IO.realPath(candidate) },
         spec,
         deps.platform,
       )
-      return planned.map((file) => ({
-        path: file.path,
-        change: file.change,
-        isBinary: file.isBinary,
-        isProtected: file.isProtected,
-        outsideWritePaths: file.outsideWritePaths,
-      }))
     },
     merge: async (task, signal, options) => {
       signal.throwIfAborted()

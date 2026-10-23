@@ -143,6 +143,7 @@ export const ACP_BUNDLES = [
   'teamWorkerOps.js',
   'teamMerge.js',
   'execTeam.js',
+  'execLedgerLease.js',
   'teamRunners.js',
   'teamScheduler.js',
   'schedules.js',

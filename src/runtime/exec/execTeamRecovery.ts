@@ -5,29 +5,17 @@ import { realpathSync } from 'node:fs'
 import { open, readdir, readFile, realpath, rename, rm, rmdir, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { setTimeout as delay } from 'node:timers/promises'
 import * as z from 'zod/mini'
 import { noWorkspaceChildEnvironment } from '../../core/execGuard'
 import { isErrno } from '../../core/fs/errno'
 import { execFileGuarded } from '../../core/guardedChildProcess'
-import { acquireFileLease, type FileLeaseEnv } from '../../core/locks/fileLease'
-import { nodeLeasePort } from '../../core/locks/nodeLeasePort'
-import {
-  currentProcessOwner,
-  isProcessOwnerGone,
-  processStartTime,
-} from '../../core/locks/processOwner'
+import { processStartTime } from '../../core/locks/processOwner'
 import { isTeamGitError, type TeamGit } from '../../core/team/teamGit'
 import { isTeamRefError, teamAgentsRef, teamBranchName } from '../../core/team/refFence'
 import {
   EXEC_TEAM_CLEANUP_FILE,
   EXEC_TEAM_GIT_TIMEOUT_MS,
   EXEC_TEAM_HOLD_REF_PREFIX,
-  EXEC_TEAM_LEDGER_LEASE_MS,
-  EXEC_TEAM_LEDGER_LEASE_POLL_MS,
-  EXEC_TEAM_LEDGER_LEASE_TIMEOUT_MS,
-  EXEC_TEAM_LEDGER_LEASE_UNREADABLE_MS,
-  EXEC_TEAM_LEDGER_LOCK_FILE,
   EXEC_TEAM_MARKER_SCAN_BYTES,
   EXEC_TEAM_RUN_PREFIX,
 } from '../../shared/constants'
@@ -107,42 +95,11 @@ other's files while they wait.
 */
 const ledgerGates = new Map<string, Promise<void>>()
 
-// Holder object (the `setUiText` shape): the cached environment mutates
-// the holder, never a top-level binding.
-const ledgerLeaseEnvState: { env?: Promise<FileLeaseEnv> } = {}
-
-async function makeLedgerLeaseEnv(): Promise<FileLeaseEnv> {
-  return {
-    port: nodeLeasePort,
-    now: () => Date.now(),
-    monotonic: () => performance.now(),
-    sleep: (ms: number) => delay(ms),
-    owner: await currentProcessOwner(),
-    isOwnerGone: (owner) => isProcessOwnerGone(owner),
-    leaseMs: EXEC_TEAM_LEDGER_LEASE_MS,
-    honoredLeaseMs: EXEC_TEAM_LEDGER_LEASE_MS,
-    unreadableMs: EXEC_TEAM_LEDGER_LEASE_UNREADABLE_MS,
-    timeoutMs: EXEC_TEAM_LEDGER_LEASE_TIMEOUT_MS,
-    pollMs: EXEC_TEAM_LEDGER_LEASE_POLL_MS,
-  }
-}
-
-function leaseEnvOf(): Promise<FileLeaseEnv> {
-  ledgerLeaseEnvState.env ??= makeLedgerLeaseEnv()
-  return ledgerLeaseEnvState.env
-}
-
 /** One ledger turn under the folder's cross-process lease; busy refuses loudly. */
 async function withLedgerLease<T>(folder: string, work: () => Promise<T>): Promise<T> {
-  const lease = await acquireFileLease(
-    path.join(folder, EXEC_TEAM_LEDGER_LOCK_FILE),
-    await leaseEnvOf(),
-  )
-  try {
-    return await work()
-  } finally {
-    await lease.release()
-  }
+  // The fenced lease loads on the first ledger turn (dist/execLedgerLease.js).
+  const { withExecLedgerLease } = await import('./execLedgerLeaseEntry')
+  return await withExecLedgerLease(folder, work)
 }
 
 async function withLedgerGate<T>(folder: string, work: () => Promise<T>): Promise<T> {
