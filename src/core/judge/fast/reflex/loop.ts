@@ -24,14 +24,23 @@ export function canonicalJson(value: unknown): unknown {
     : value
 }
 
+/** What JSON.parse and the canonical walk throw for arguments no tool can take. */
+function isUnreadableJson(error: unknown): error is SyntaxError | RangeError {
+  return error instanceof SyntaxError || error instanceof RangeError
+}
+
 /** Object key order and insignificant JSON whitespace never distinguish two calls. */
 export function toolRepeatKey(call: ToolIdentity): string {
   let args: string
   try {
     const parsed: unknown = JSON.parse(call.arguments)
     args = JSON.stringify(canonicalJson(parsed))
-  } catch {
-    // Invalid JSON still belongs to the tool's validated refusal path.
+  } catch (error: unknown) {
+    // Invalid JSON still belongs to the tool's validated refusal path:
+    // JSON.parse throws SyntaxError, and nesting deeper than the stack
+    // throws RangeError (in the parse or the canonical walk). Anything
+    // else rethrows.
+    if (!isUnreadableJson(error)) throw error
     args = call.arguments
   }
   return JSON.stringify([call.name, args])
