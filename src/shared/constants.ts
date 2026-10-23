@@ -5148,10 +5148,17 @@ export const TREE_EXIT_WAIT_MS = 10_000
 // 0.6.0 gate observed, and a respawning child ends the sweep with words
 // instead of sweeping forever.
 export const ORPHAN_SWEEP_ROUNDS = 5
+// Safety limit (D121 clarification, RLF-SAFELIMITS): an OS hand-off with
+// no caller deadline stops waiting after this and counts the adapter as
+// launched (detached, never killed). OS hand-off adapters (opener,
+// clipboard) return promptly once started; Windows PowerShell's cold
+// start for Set-Clipboard (seconds) sets the bound, and the deadline
+// covers admission plus the adapter run.
+export const RESOURCE_HANDOFF_TIMEOUT_MS = 10_000
 /**
 The usage-page opener's own wait bound (D121): the terminal must not wait on
-a stuck OS opener past this; the page, once handed off, is the OS's. Every
-other hand-off waits for its adapter's exit, start, or the caller's cancel.
+a stuck OS opener past this; the page, once handed off, is the OS's. Other
+hand-offs name their own deadline, or the safety default above applies.
 */
 export const USAGE_PAGE_OPEN_TIMEOUT_MS = 10_000
 export const OUTPUT_REF_PREFIX = 'tool_patch-'

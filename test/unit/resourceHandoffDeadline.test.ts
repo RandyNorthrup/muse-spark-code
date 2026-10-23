@@ -1,7 +1,9 @@
-// The OS hand-off's wait (src/core/resources/commands.ts, D121): without a
-// deadline the caller passes, the wait ends at the adapter's exit, its
-// start, or the caller's cancel — never at a bound of ours. An explicit
-// deadline detaches a still-running adapter (launched, never killed).
+// The OS hand-off's wait (src/core/resources/commands.ts, D121): the
+// caller's own deadline ends the wait when passed; otherwise the safety
+// default (RESOURCE_HANDOFF_TIMEOUT_MS) still ends it, counting the
+// adapter as launched. The adapter's exit, its start, or the caller's
+// cancel ends it sooner. A still-running adapter at the deadline is
+// detached (launched, never killed).
 import { existsSync, mkdirSync, mkdtempSync } from 'node:fs'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
