@@ -1,0 +1,105 @@
+[
+  {
+    "drill": "r3-descendant-retention",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "tests": 66,
+    "expected": [
+      "testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects",
+      "testR3IdeJvmExitKillsSeparateSessionWorkerWhoseRuntimeParentExited"
+    ],
+    "failedTests": [
+      "testR3ParentFirstDeathKillsSeparateSessionWorkerAndReconnects",
+      "testR3IdeJvmExitKillsSeparateSessionWorkerWhoseRuntimeParentExited"
+    ],
+    "observed": true,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-process-identity",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "tests": 66,
+    "expected": ["reusedPidWithDifferentStartInstantCannotBeSignalled"],
+    "failedTests": ["reusedPidWithDifferentStartInstantCannotBeSignalled"],
+    "observed": true,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-supervisor-first",
+    "file": "RuntimeProcess.kt",
+    "exit": 0,
+    "tests": 66,
+    "expected": ["runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup"],
+    "failedTests": [],
+    "observed": false,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-supervisor-first-acknowledged",
+    "file": "RuntimeProcess.kt",
+    "exit": 1,
+    "tests": 66,
+    "expected": ["runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup"],
+    "failedTests": ["runtimeStopsItsSeparateSessionWorkerBeforeForceCleanup"],
+    "observed": true,
+    "sha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5",
+    "restoredSha256": "73da4ad3de615d3f3e2848d277ddf924f4ea02a0af333b69692c08ba2c881ce5"
+  },
+  {
+    "drill": "r3-native-epoch",
+    "file": "MuseToolWindowFactory.kt",
+    "exit": 1,
+    "tests": 69,
+    "expected": [
+      "testRetiredQueuedEditorRequestsCannotMutateReplacementNativeStateBeforeCancellation"
+    ],
+    "failedTests": [
+      "testRetiredQueuedEditorRequestsCannotMutateReplacementNativeStateBeforeCancellation"
+    ],
+    "observed": true,
+    "sha256": "d1124d86332c4053d850653372626216739c68e9789e265887b2fd4a4d1e028f",
+    "failureMessages": {
+      "testRetiredQueuedEditorRequestsCannotMutateReplacementNativeStateBeforeCancellation": "junit.framework.AssertionFailedError: Replacement Tab, commands and document must all survive retired work expected:<[true, true, true]> but was:<[false, false, false]>"
+    },
+    "restoredSha256": "d1124d86332c4053d850653372626216739c68e9789e265887b2fd4a4d1e028f"
+  },
+  {
+    "drill": "r3-write-action-epoch",
+    "file": "DocumentServices.kt",
+    "exit": 1,
+    "tests": 69,
+    "expected": [
+      "testRetiredEpochCannotEditAfterWriteCommandStarts",
+      "testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt"
+    ],
+    "failedTests": [
+      "testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt",
+      "testRetiredEpochCannotEditAfterWriteCommandStarts"
+    ],
+    "observed": true,
+    "sha256": "1cf47a529a1faf5de76cb57310e47d11539fb216425c7cc9f058e9a84fb9106c",
+    "failureMessages": {
+      "testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt": "java.lang.AssertionError: expected java.lang.Exception to be thrown, but nothing was thrown",
+      "testRetiredEpochCannotEditAfterWriteCommandStarts": "java.lang.AssertionError: expected java.lang.Exception to be thrown, but nothing was thrown"
+    },
+    "restoredSha256": "1cf47a529a1faf5de76cb57310e47d11539fb216425c7cc9f058e9a84fb9106c"
+  },
+  {
+    "drill": "r3-write-loop-epoch",
+    "file": "DocumentServices.kt",
+    "exit": 1,
+    "tests": 69,
+    "expected": ["testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt"],
+    "failedTests": ["testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt"],
+    "observed": true,
+    "sha256": "1cf47a529a1faf5de76cb57310e47d11539fb216425c7cc9f058e9a84fb9106c",
+    "failureMessages": {
+      "testEpochIsRecheckedBeforeEachEditWhenADocumentListenerRetiresIt": "java.lang.AssertionError: expected java.lang.Exception to be thrown, but nothing was thrown"
+    },
+    "restoredSha256": "1cf47a529a1faf5de76cb57310e47d11539fb216425c7cc9f058e9a84fb9106c"
+  }
+]

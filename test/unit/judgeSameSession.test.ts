@@ -49,7 +49,7 @@ describe('runJudgeInBackground', () => {
   it('returns at once and settles the call after', async () => {
     let calls = 0
     const errors: unknown[] = []
-    runJudgeInBackground(
+    const work = runJudgeInBackground(
       async () => {
         await new Promise((resolve) => setTimeout(resolve, 20))
         calls += 1
@@ -62,7 +62,7 @@ describe('runJudgeInBackground', () => {
       },
     )
     expect(calls).toBe(0)
-    await new Promise((resolve) => setTimeout(resolve, 60))
+    await work
     expect(calls).toBe(1)
     expect(errors).toEqual([])
   })
@@ -70,7 +70,7 @@ describe('runJudgeInBackground', () => {
   it('aborts past the timeout and reports the failure once', async () => {
     const errors: unknown[] = []
     let didAbort = false
-    runJudgeInBackground(
+    const work = runJudgeInBackground(
       (signal) =>
         new Promise<void>((_resolve, reject) => {
           signal.addEventListener('abort', () => {
@@ -85,34 +85,34 @@ describe('runJudgeInBackground', () => {
         },
       },
     )
-    await new Promise((resolve) => setTimeout(resolve, 80))
+    await work
     expect(didAbort).toBe(true)
     expect(errors).toHaveLength(1)
   })
 
   it('refuses a non-positive timeout loudly', () => {
     const errors: unknown[] = []
-    expect(() => {
+    expect(() =>
       runJudgeInBackground(mustNotRun, {
         timeoutMs: 0,
         onError: (error) => {
           errors.push(error)
         },
-      })
-    }).toThrow(RangeError)
+      }),
+    ).toThrow(RangeError)
     expect(errors).toEqual([])
   })
 
   it('hands the call failure itself to onError', async () => {
     const failure = new Error('judge call failed')
     const errors: unknown[] = []
-    runJudgeInBackground(() => Promise.reject(failure), {
+    const work = runJudgeInBackground(() => Promise.reject(failure), {
       timeoutMs: 5000,
       onError: (error) => {
         errors.push(error)
       },
     })
-    await new Promise((resolve) => setTimeout(resolve, 60))
+    await work
     expect(errors).toEqual([failure])
   })
 })

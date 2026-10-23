@@ -171,6 +171,14 @@ function sideName(sides) {
 // loaded by file name and is not a row: the registry names stable bundles.
 // It still carries import edges and input attribution.
 const isStableBundle = (file) => !file.includes('/chunks/')
+// The portable browser graph (dist/webview/portable/) is never loaded by
+// file name from a Node process either: the authenticated manifest loader
+// serves it to browsers from the built portable manifest, and the portable
+// budget gates measure it. It stays out of the registry's rows and out of
+// candidate matching, so a bare `main.js`/`whatsNew.js` request resolves to
+// the VS Code webview asset the loader names instead of its portable twin.
+const isFilenameRegistryBundle = (file) =>
+  isStableBundle(file) && !file.includes('webview/portable/')
 
 // The solid webview archive's members below dist/webview/, as the packager
 // stages them (scripts/package-vsix.mjs): everything the build emits except
@@ -200,11 +208,11 @@ async function buildRegistry() {
   const onDisk = onDiskDist(path.join(root, 'dist'))
   const known = new Set()
   for (const file of emitted) {
-    if (isStableBundle(file)) known.add(file)
+    if (isFilenameRegistryBundle(file)) known.add(file)
   }
   // Files the build writes without esbuild (dist/providerCatalog.js).
   for (const file of onDisk) {
-    if (isStableBundle(file)) known.add(`dist/${file}`)
+    if (isFilenameRegistryBundle(`dist/${file}`)) known.add(`dist/${file}`)
   }
   const reachable = emitted.union(known)
   const scan = scanRequests(root, GENERATED)

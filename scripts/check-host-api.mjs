@@ -55,7 +55,14 @@ const SOURCE_ROOT = 'src'
 const WEBVIEW_ROOT = 'src/webview'
 // Code other hosts load as it is: the engine, the protocol, the React app,
 // and the ACP agent with its process (M63, D62), which run with no VS Code.
-const PORTABLE_ROOTS = ['src/core', 'src/shared', 'src/webview', 'src/acp', 'src/runtime']
+const PORTABLE_ROOTS = [
+  'src/core',
+  'src/shared',
+  'src/webview',
+  'src/acp',
+  'src/runtime',
+  'src/host/compose',
+]
 // Host modules another adapter reuses (D60, M61): the conversation, both
 // backends and their tool harness, the Model API backend's own bundle, which
 // the ACP agent loads as the extension does (M57, D6), the credential store,
@@ -633,6 +640,18 @@ const graph = importGraph(sourceFiles)
 const hostFiles = sourceFiles.filter((file) => !file.startsWith(`${WEBVIEW_ROOT}/`))
 
 const problems = []
+// The whole VS Code API boundary is owned by lane A (D84). Type-only
+// imports count too; regeneration never excuses a misplaced adapter.
+for (const [file, node] of graph) {
+  if (
+    file !== 'src/extension.ts' &&
+    node.external.has(VSCODE_MODULE) &&
+    !file.startsWith('src/host/vscode/')
+  ) {
+    problems.push(`${file}: vscode imports belong in src/host/vscode/ or src/extension.ts`)
+  }
+}
+
 const portable = [
   ...sourceFiles.filter((file) => PORTABLE_ROOTS.some((root) => file.startsWith(`${root}/`))),
   ...PORTABLE_HOST,

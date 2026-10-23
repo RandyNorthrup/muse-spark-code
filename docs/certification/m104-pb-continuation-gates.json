@@ -1,0 +1,774 @@
+{
+  "machine": "Kubuntu",
+  "workspace": "/home/randy/lanes/M104PB",
+  "continuationBase": "e6c82ab3e",
+  "authorizedMerge": "8083b588c",
+  "mergedContractTip": "74b99c4a0",
+  "testedHeadBeforeFinalReviewCommit": "eead2af7da49888e81e2058134d13eef5ddde541",
+  "sourceSha256": [
+    {
+      "file": "src/core/backends/modelapi/ModelApiHost.ts",
+      "sha256": "4d16e4ea2c1d1f90624fb6e8976bf70c69d46552cf839674dd8819a71195d585"
+    },
+    {
+      "file": "src/core/judge/same/batches.ts",
+      "sha256": "c44c9f79b557c19c77114361e7b9dcbe5e44051687acc904b650ff786b71ec56"
+    },
+    {
+      "file": "src/core/judge/same/scheduler.ts",
+      "sha256": "59822d2848c81d3a75ee51ab4cdb4398e0e8703a77b32634f799cadf4679813f"
+    },
+    {
+      "file": "src/core/judge/use.ts",
+      "sha256": "0b4396a71cdd815d812d033717a379959dc2ed35f639545f3624820af715f095"
+    },
+    {
+      "file": "src/core/paid/paidFeatures.ts",
+      "sha256": "18e6d602ef4fb48fbc56f84468b44c4c29d3101c357ec34408c2c8efcd9c09c1"
+    },
+    {
+      "file": "src/core/tab/tabEngine.ts",
+      "sha256": "9aa07b293694b5828d649e03c170bedaaf99b163bc7f13383ff345017026c1d7"
+    },
+    {
+      "file": "src/core/voice/dictation.ts",
+      "sha256": "3505a321d2abf6623479cf8e5ab75cef31f74e550864b4e68d78527796ec23bf"
+    },
+    {
+      "file": "src/core/voice/museVoice.ts",
+      "sha256": "f691a08cab2ba4b63478cd01beab138948d2274cd73c8aedfd01dbadd5aab326"
+    },
+    {
+      "file": "src/host/git/conversationGit.ts",
+      "sha256": "ba006d4fafaf556c6600395d5c4f620220009195f58d52d4bbb75addb00705ba"
+    },
+    {
+      "file": "src/host/git/conversationGitEntry.ts",
+      "sha256": "27d8c068d952561d4298759a52b6f66c97bc5d28d91dc1a627572e274b572042"
+    },
+    {
+      "file": "src/host/git/ownedRepository.ts",
+      "sha256": "ebabd7c80b04609532a3e76b3486f3de9b1879bc55438912db46fb93ec464681"
+    },
+    {
+      "file": "src/host/git/repositoryPort.ts",
+      "sha256": "aa52f3ebb4523b1c7589dbe96ac81fbb1b556eaf8cc5b68606765104955f3257"
+    },
+    {
+      "file": "src/host/judge/judgeBundle.ts",
+      "sha256": "6ece027d60124b41892c96735e60597058f13e9d0c61df4e863bcc4f4a67d32c"
+    },
+    {
+      "file": "src/host/judge/judgeEntry.ts",
+      "sha256": "8de5756927e15f28b04b4cc3884efa14fb3cbfbbdc7c8b79fc8d4086408d81b6"
+    },
+    {
+      "file": "src/host/judge/judgeTransport.ts",
+      "sha256": "7acab79ec79a4667cc983eb45998ba82fe21948c79569e1127e4f5d3dde3c470"
+    },
+    {
+      "file": "src/host/judge/judgeUsage.ts",
+      "sha256": "35a304da6b77336c62ccc49a335cba2e17fa8e9f740f660a69fd37f896bbb8b7"
+    },
+    {
+      "file": "src/host/judge/judgeUse.ts",
+      "sha256": "4c2ae6fff84bc95f87f338d886b269dc3eef7519f287aa18fb7f5f886bc2ba7d"
+    },
+    {
+      "file": "src/host/review/museCodeReviewer.ts",
+      "sha256": "7bdd38a24785410c0e43a90c71e11a5276f9517dcf160389a0765cf3c5f2774e"
+    },
+    {
+      "file": "src/host/review/museCodeReviewerBundle.ts",
+      "sha256": "7781ab6c5ba6f6dfeaefc78f01b5e7491a50ba24cf07203d8f83d65ecba759da"
+    },
+    {
+      "file": "src/runtime/backends.ts",
+      "sha256": "a981549236a50d1aa367d947791ac9adea0b3d29defbe76222b025bccc8e45dd"
+    },
+    {
+      "file": "src/runtime/features/auth.ts",
+      "sha256": "7f7eb92e1a43a59262799586823e760cdd7ed030d01495e05d073dfd1458ace6"
+    },
+    {
+      "file": "src/runtime/features/autoReviewer.ts",
+      "sha256": "73d338dcd093b5a31fb6e3e01d8dd59c8143007fc19001b3421b9bdcf25b3916"
+    },
+    {
+      "file": "src/runtime/features/engines.ts",
+      "sha256": "65b8c426c66111f1bf0a377afb31cda275011d269094c4a7e85853212c01d3f9"
+    },
+    {
+      "file": "src/runtime/features/git.ts",
+      "sha256": "37b2eddf6a1b453057d24d7cb7bccbcb082d2232fbd7f8a4182fb3da366ebae5"
+    },
+    {
+      "file": "src/runtime/features/judge.ts",
+      "sha256": "aecade39db61588053bb1540a008da7e9aec0e61a2476eaf5511c6b9b8b0681d"
+    },
+    {
+      "file": "src/runtime/features/paidUse.ts",
+      "sha256": "2c106d6d616c5f66a85c74affc83114af58748ff8fa7faea8c70b39adb2dd9d7"
+    },
+    {
+      "file": "src/runtime/features/tab.ts",
+      "sha256": "aa8a7f1e615720c3545e897ee1c50a4f3f27d5e27ce1694dbb43371b0a443fd8"
+    },
+    {
+      "file": "src/runtime/features/voice.ts",
+      "sha256": "61e25ccbc9c9780178b3af4b9a358bb71acc89cbb98d00a828eadcfa3b24fe23"
+    },
+    {
+      "file": "src/runtime/paidGrants.ts",
+      "sha256": "6f065a289b0c36595a85923f59bd478cbf3890b778d4573cdba0ce669245764b"
+    },
+    {
+      "file": "test/m104/engines/auth.test.ts",
+      "sha256": "66c1cf2e0c92f0dafc463a9a281fb91601c65f51a5540024fcbfe54777b2df52"
+    },
+    {
+      "file": "test/m104/engines/autoReviewer.test.ts",
+      "sha256": "317ff9ec9d6e4b7f5023339b37e52c473f5c0a76c03a90f7a022d364a726e90d"
+    },
+    {
+      "file": "test/m104/engines/checkpoints.test.ts",
+      "sha256": "a1102ebe078959b490baf7cc56122dcd1ef76673b7794141d17e29372ca81197"
+    },
+    {
+      "file": "test/m104/engines/git.test.ts",
+      "sha256": "92a706ff47a393d88c0336b69d8b18a59f46d03c827122ed2bce4df7972a461b"
+    },
+    {
+      "file": "test/m104/engines/judge.test.ts",
+      "sha256": "595c445044dffe567387ca91c5bba5db666be38bec631158bb26e4a6d83b75aa"
+    },
+    {
+      "file": "test/m104/engines/paidComposition.test.ts",
+      "sha256": "c7c8c94cc51ec1ef2a5c56ab08b5f76330b6477f0473e6423a38e9ecdba227cf"
+    },
+    {
+      "file": "test/m104/engines/paidHarness.ts",
+      "sha256": "0906502b565ed2dc18c72f277f3a24b1a5f7222cc36bdfb122790de6afa40aa7"
+    },
+    {
+      "file": "test/m104/engines/paidUse.test.ts",
+      "sha256": "0ec105d21f206dc164141eafa17604b376ad3927bf02ee2a6a8f7dc97d73dc93"
+    },
+    {
+      "file": "test/m104/engines/sessionCommands.test.ts",
+      "sha256": "88e841b0f7385a363dd0fa955943875ff03fe601fc9d7cc3c7cd1446f586ae42"
+    },
+    {
+      "file": "test/m104/engines/tab.test.ts",
+      "sha256": "3ca5c4c66c4f79c479a8817b4fb5e1849484270eb7568c14e6feadeb954813ed"
+    },
+    {
+      "file": "test/m104/engines/voice.test.ts",
+      "sha256": "8e95d80fdf7042f3da30d652d1d1ea9a5f7bfb7e2d059ed6efde5bb6e03a7981"
+    },
+    {
+      "file": "test/m104/engines/workflows.test.ts",
+      "sha256": "90e434047c782bd75dd83432b33dbb0837b1b94e60657c5db903df1132b5c647"
+    },
+    {
+      "file": "test/unit/helpers/judgeBody.ts",
+      "sha256": "96140918eaa1b5dbd2616d4b3106709cf5ea88ca7b2c3ebe104b267db23edcf3"
+    },
+    {
+      "file": "test/unit/judgeTransport.test.ts",
+      "sha256": "6e3693c0d27a5aad6051b437d4a3c384e4d8046e5251d2cb4b47166084d4fdf8"
+    },
+    {
+      "file": "test/unit/modelApiHost.test.ts",
+      "sha256": "ccd6fbb7ad67c8e5aed5265d4855ee8f8d992442c1e6326ee7b9f70ca9dd3f30"
+    }
+  ],
+  "gateResults": [
+    {
+      "gate": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "elapsedSeconds": 87.63,
+      "log": "temp/m104-pb/continuation-final-typecheck.log"
+    },
+    {
+      "gate": "engine-typecheck",
+      "command": ["npx", "tsc", "-p", "test/m104/engines/tsconfig.json", "--noEmit"],
+      "exitCode": 0,
+      "elapsedSeconds": 18.11,
+      "log": "temp/m104-pb/continuation-final-engine-typecheck.log"
+    },
+    {
+      "gate": "changed-eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/judge/same/batches.ts",
+        "src/core/judge/same/scheduler.ts",
+        "src/core/judge/use.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/core/voice/dictation.ts",
+        "src/core/voice/museVoice.ts",
+        "src/host/git/conversationGit.ts",
+        "src/host/git/conversationGitEntry.ts",
+        "src/host/git/ownedRepository.ts",
+        "src/host/git/repositoryPort.ts",
+        "src/host/judge/judgeBundle.ts",
+        "src/host/judge/judgeEntry.ts",
+        "src/host/judge/judgeTransport.ts",
+        "src/host/judge/judgeUsage.ts",
+        "src/host/judge/judgeUse.ts",
+        "src/host/review/museCodeReviewer.ts",
+        "src/host/review/museCodeReviewerBundle.ts",
+        "src/runtime/backends.ts",
+        "src/runtime/features/auth.ts",
+        "src/runtime/features/autoReviewer.ts",
+        "src/runtime/features/engines.ts",
+        "src/runtime/features/git.ts",
+        "src/runtime/features/judge.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/tab.ts",
+        "src/runtime/features/voice.ts",
+        "src/runtime/paidGrants.ts",
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/checkpoints.test.ts",
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/judge.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/sessionCommands.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/voice.test.ts",
+        "test/m104/engines/workflows.test.ts",
+        "test/unit/helpers/judgeBody.ts",
+        "test/unit/judgeTransport.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 25.26,
+      "log": "temp/m104-pb/continuation-final-changed-eslint.log"
+    },
+    {
+      "gate": "changed-prettier",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "docs/certification/m104-pb-drills.json",
+        "docs/certification/m104-pb-requests.md",
+        "docs/certification/m104-pb.md",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/judge/same/batches.ts",
+        "src/core/judge/same/scheduler.ts",
+        "src/core/judge/use.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/core/voice/dictation.ts",
+        "src/core/voice/museVoice.ts",
+        "src/host/git/conversationGit.ts",
+        "src/host/git/conversationGitEntry.ts",
+        "src/host/git/ownedRepository.ts",
+        "src/host/git/repositoryPort.ts",
+        "src/host/judge/judgeBundle.ts",
+        "src/host/judge/judgeEntry.ts",
+        "src/host/judge/judgeTransport.ts",
+        "src/host/judge/judgeUsage.ts",
+        "src/host/judge/judgeUse.ts",
+        "src/host/review/museCodeReviewer.ts",
+        "src/host/review/museCodeReviewerBundle.ts",
+        "src/runtime/backends.ts",
+        "src/runtime/features/auth.ts",
+        "src/runtime/features/autoReviewer.ts",
+        "src/runtime/features/engines.ts",
+        "src/runtime/features/git.ts",
+        "src/runtime/features/judge.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/tab.ts",
+        "src/runtime/features/voice.ts",
+        "src/runtime/paidGrants.ts",
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/checkpoints.test.ts",
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/judge.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/sessionCommands.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/voice.test.ts",
+        "test/m104/engines/workflows.test.ts",
+        "test/unit/helpers/judgeBody.ts",
+        "test/unit/judgeTransport.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.89,
+      "log": "temp/m104-pb/continuation-final-changed-prettier.log"
+    },
+    {
+      "gate": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 1,
+      "elapsedSeconds": 4.13,
+      "log": "temp/m104-pb/continuation-final-deadcode.log"
+    },
+    {
+      "gate": "duplication",
+      "command": ["npx", "jscpd"],
+      "exitCode": 0,
+      "elapsedSeconds": 1.5,
+      "log": "temp/m104-pb/continuation-final-duplication.log"
+    },
+    {
+      "gate": "localization",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "elapsedSeconds": 2.86,
+      "log": "temp/m104-pb/continuation-final-localization.log"
+    },
+    {
+      "gate": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 1,
+      "elapsedSeconds": 18.9,
+      "log": "temp/m104-pb/continuation-final-host-api.log"
+    },
+    {
+      "gate": "production-build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "elapsedSeconds": 11.02,
+      "log": "temp/m104-pb/continuation-final-production-build.log"
+    },
+    {
+      "gate": "knip-discovery-probe",
+      "command": ["npx", "knip", "--config", "temp/m104-pb.knip.jsonc"],
+      "exitCode": 0,
+      "elapsedSeconds": 4.78,
+      "log": "temp/m104-pb/continuation-final-knip-discovery-probe.log"
+    },
+    {
+      "gate": "changed-eslint-final",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/judge/same/batches.ts",
+        "src/core/judge/same/scheduler.ts",
+        "src/core/judge/use.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/core/voice/dictation.ts",
+        "src/core/voice/museVoice.ts",
+        "src/host/git/conversationGit.ts",
+        "src/host/git/conversationGitEntry.ts",
+        "src/host/git/ownedRepository.ts",
+        "src/host/git/repositoryPort.ts",
+        "src/host/judge/judgeBundle.ts",
+        "src/host/judge/judgeEntry.ts",
+        "src/host/judge/judgeTransport.ts",
+        "src/host/judge/judgeUsage.ts",
+        "src/host/judge/judgeUse.ts",
+        "src/host/review/museCodeReviewer.ts",
+        "src/host/review/museCodeReviewerBundle.ts",
+        "src/runtime/backends.ts",
+        "src/runtime/features/auth.ts",
+        "src/runtime/features/autoReviewer.ts",
+        "src/runtime/features/engines.ts",
+        "src/runtime/features/git.ts",
+        "src/runtime/features/judge.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/tab.ts",
+        "src/runtime/features/voice.ts",
+        "src/runtime/paidGrants.ts",
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/checkpoints.test.ts",
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/judge.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/sessionCommands.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/voice.test.ts",
+        "test/m104/engines/workflows.test.ts",
+        "test/unit/helpers/judgeBody.ts",
+        "test/unit/judgeTransport.test.ts",
+        "test/unit/modelApiHost.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "temp/m104-pb/changed-eslint-final.log"
+    },
+    {
+      "gate": "changed-prettier-final",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "docs/certification/m104-pb-continuation-gates.json",
+        "docs/certification/m104-pb-drills.json",
+        "docs/certification/m104-pb-requests.md",
+        "docs/certification/m104-pb.md",
+        "src/core/backends/modelapi/ModelApiHost.ts",
+        "src/core/judge/same/batches.ts",
+        "src/core/judge/same/scheduler.ts",
+        "src/core/judge/use.ts",
+        "src/core/paid/paidFeatures.ts",
+        "src/core/tab/tabEngine.ts",
+        "src/core/voice/dictation.ts",
+        "src/core/voice/museVoice.ts",
+        "src/host/git/conversationGit.ts",
+        "src/host/git/conversationGitEntry.ts",
+        "src/host/git/ownedRepository.ts",
+        "src/host/git/repositoryPort.ts",
+        "src/host/judge/judgeBundle.ts",
+        "src/host/judge/judgeEntry.ts",
+        "src/host/judge/judgeTransport.ts",
+        "src/host/judge/judgeUsage.ts",
+        "src/host/judge/judgeUse.ts",
+        "src/host/review/museCodeReviewer.ts",
+        "src/host/review/museCodeReviewerBundle.ts",
+        "src/runtime/backends.ts",
+        "src/runtime/features/auth.ts",
+        "src/runtime/features/autoReviewer.ts",
+        "src/runtime/features/engines.ts",
+        "src/runtime/features/git.ts",
+        "src/runtime/features/judge.ts",
+        "src/runtime/features/paidUse.ts",
+        "src/runtime/features/tab.ts",
+        "src/runtime/features/voice.ts",
+        "src/runtime/paidGrants.ts",
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/checkpoints.test.ts",
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/judge.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidHarness.ts",
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/sessionCommands.test.ts",
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/voice.test.ts",
+        "test/m104/engines/workflows.test.ts",
+        "test/unit/helpers/judgeBody.ts",
+        "test/unit/judgeTransport.test.ts",
+        "test/unit/modelApiHost.test.ts"
+      ],
+      "exitCode": 0,
+      "log": "temp/m104-pb/changed-prettier-final.log"
+    },
+    {
+      "gate": "final-assertion-types",
+      "command": ["npx", "tsc", "-p", "test/unit/tsconfig.json", "--noEmit"],
+      "exitCode": 0,
+      "log": "temp/m104-pb/final-assertion-types.log"
+    }
+  ],
+  "testResults": [
+    {
+      "files": [
+        "test/m104/engines/auth.test.ts",
+        "test/m104/engines/autoReviewer.test.ts",
+        "test/m104/engines/checkpoints.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 8.6,
+      "passed": 31,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-1.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/codeIntel.test.ts",
+        "test/m104/engines/editReview.test.ts",
+        "test/m104/engines/editorContext.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.91,
+      "passed": 24,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-2.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/git.test.ts",
+        "test/m104/engines/hooks.test.ts",
+        "test/m104/engines/judge.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.65,
+      "passed": 25,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-3.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/lifetime.test.ts",
+        "test/m104/engines/mcp.test.ts",
+        "test/m104/engines/network.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.08,
+      "passed": 22,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-4.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/paidBudget.test.ts",
+        "test/m104/engines/paidComposition.test.ts",
+        "test/m104/engines/paidRequest.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.03,
+      "passed": 27,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-5.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/paidUse.test.ts",
+        "test/m104/engines/review.test.ts",
+        "test/m104/engines/sessionCommands.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 4.3,
+      "passed": 25,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-6.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/tab.test.ts",
+        "test/m104/engines/transfer.test.ts",
+        "test/m104/engines/usageInsights.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.12,
+      "passed": 27,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-7.log"
+    },
+    {
+      "files": [
+        "test/m104/engines/verify.test.ts",
+        "test/m104/engines/voice.test.ts",
+        "test/m104/engines/workflows.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.6,
+      "passed": 16,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-8.log"
+    },
+    {
+      "files": ["test/m104/engines/worktrees.test.ts"],
+      "exitCode": 0,
+      "elapsedSeconds": 2.13,
+      "passed": 8,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-9.log"
+    },
+    {
+      "files": [
+        "test/unit/authService.test.ts",
+        "test/unit/museCodeReviewer.test.ts",
+        "test/unit/museCodeReviewerBundle.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 12.17,
+      "passed": 160,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-10.log"
+    },
+    {
+      "files": [
+        "test/unit/workflowDetails.test.ts",
+        "test/unit/goals.test.ts",
+        "test/unit/bestOfNManager.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.41,
+      "passed": 29,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-11.log"
+    },
+    {
+      "files": [
+        "test/unit/bestOfNRunner.test.ts",
+        "test/unit/conversationGit.test.ts",
+        "test/unit/conversationGitBundle.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.48,
+      "passed": 123,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-12.log"
+    },
+    {
+      "files": [
+        "test/unit/museVoice.test.ts",
+        "test/unit/tabEngine.test.ts",
+        "test/unit/paidFeatures.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.57,
+      "passed": 62,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-13.log"
+    },
+    {
+      "files": [
+        "test/unit/judgeWindow.test.ts",
+        "test/unit/judgeTransport.test.ts",
+        "test/unit/judgeUse.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 3.62,
+      "passed": 42,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-14.log"
+    },
+    {
+      "files": [
+        "test/unit/judgeSameSession.test.ts",
+        "test/unit/judgeSameMuseCode.test.ts",
+        "test/unit/judgeSameModelApi.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.62,
+      "passed": 37,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-15.log"
+    },
+    {
+      "files": [
+        "test/unit/judgeAdmission.test.ts",
+        "test/unit/judgeAdmissionLedger.test.ts",
+        "test/unit/judgeUsage.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.57,
+      "passed": 62,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-16.log"
+    },
+    {
+      "files": [
+        "test/unit/modelApiHost.test.ts",
+        "test/unit/modelApiBundle.test.ts",
+        "test/unit/checkpointModelApiStop.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 29.9,
+      "passed": 677,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-17.log"
+    },
+    {
+      "files": [
+        "test/unit/verifyLoop.test.ts",
+        "test/unit/shellEnvironmentOrigins.test.ts",
+        "test/unit/editReview.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 5.15,
+      "passed": 126,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-18.log"
+    },
+    {
+      "files": [
+        "test/unit/checkpointStore.test.ts",
+        "test/unit/checkpointRestore.test.ts",
+        "test/unit/review.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 12.1,
+      "passed": 51,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-19.log"
+    },
+    {
+      "files": [
+        "test/unit/reviewMaterial.test.ts",
+        "test/unit/renamePlan.test.ts",
+        "test/unit/modelApiClient.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 5.08,
+      "passed": 73,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-20.log"
+    },
+    {
+      "files": [
+        "test/unit/sessionBudgetJournal.test.ts",
+        "test/unit/sessionTransfer.test.ts",
+        "test/unit/worktreeCommands.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 2.41,
+      "passed": 85,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-21.log"
+    },
+    {
+      "files": [
+        "test/unit/worktrees.test.ts",
+        "test/unit/traceLogs.test.ts",
+        "test/unit/insights.test.ts"
+      ],
+      "exitCode": 0,
+      "elapsedSeconds": 1.75,
+      "passed": 17,
+      "failed": 0,
+      "pending": 0,
+      "log": "temp/m104-pb/continuation-test-22.log"
+    }
+  ],
+  "totalFiles": 64,
+  "totalPassed": 1749,
+  "totalFailed": 0,
+  "totalPending": 0,
+  "ownedEngineFiles": 25,
+  "ownedEnginePassed": 205,
+  "cumulativeDrills": 146,
+  "newContinuationDrills": 51,
+  "deadcodeRemaining": "43 unused files plus createRuntimeCheckpoints: A-owned discovery/lazy wiring; no ignores changed",
+  "hostApiRemaining": "F-owned generated Node import inventory only; portable value/type graph passes",
+  "limitations": [
+    "Component receipts do not qualify installed editors or providers or change registry status.",
+    "F53/F55/F56 lack concrete engine/contract prerequisites and exceed the bounded finding rule.",
+    "Model API workflow orchestration and paid voice hard daily admission remain prerequisites.",
+    "Full quality and installed/native/provider/live gates belong to the lead; the rig brief forbids this lane aggregate.",
+    "Logs under temp are local scratch; these persistent results and mutation hashes are the handoff record."
+  ]
+}

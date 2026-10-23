@@ -11,6 +11,10 @@ import {
   type McpVaultPoolPort,
   type McpVaultRoutePorts,
 } from '../../core/vault/mcpSecrets'
+import { environmentValue } from '../../core/execGuard'
+import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
+import { UI_TEXT } from '../../shared/constants'
+import { readTextIfPresent } from '../fsAtomic'
 import type { Logger } from '../logger'
 import {
   isExistingDirectory,
@@ -19,10 +23,6 @@ import {
   resolveMcpVaultCommand,
 } from './mcpProcess'
 import type { McpVaultBroker, McpVaultStartDeps } from './mcpVault'
-import { environmentValue } from '../../core/execGuard'
-import { readMcpServerEntries } from '../../core/backends/musecode/museConfigView'
-import { UI_TEXT } from '../../shared/constants'
-import { readTextIfPresent } from '../fsAtomic'
 import { admitResource } from '../../core/resources/admission'
 
 /**

@@ -1,0 +1,617 @@
+[
+  {
+    "guard": "scoped runtime dependency paths",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity accepts scoped runtime dependencies and refuses unsafe paths or invalid hashes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "runtime inventory traversal",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity accepts scoped runtime dependencies and refuses unsafe paths or invalid hashes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "release waits for native signing",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences attaches verified native bytes before checksums, attestation and publication"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "release requires native signing success",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences attaches verified native bytes before checksums, attestation and publication"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "receipt directories remain separate",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences attaches verified native bytes before checksums, attestation and publication"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "native assets staged before release",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences attaches verified native bytes before checksums, attestation and publication"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "native checksums cover receipt and archives",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences attaches verified native bytes before checksums, attestation and publication"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "native GitHub attachment inventory",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences attaches verified native bytes before checksums, attestation and publication"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "runtime product version",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses mismatched runtime versions and dependency pins before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "runtime dependency pin",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses mismatched runtime versions and dependency pins before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "runtime no-follow inventory",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses nested runtime symlinks before they are copied or a native child runs"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "required portable assets",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses an incomplete runtime before invoking any native command"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "unique portable modules",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses missing, changed, duplicate and unlisted portable modules before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "portable main entry",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses missing, changed, duplicate and unlisted portable modules before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "portable module digest",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses missing, changed, duplicate and unlisted portable modules before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "portable module size",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses missing, changed, duplicate and unlisted portable modules before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "unlisted portable source",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses missing, changed, duplicate and unlisted portable modules before dispatch"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "injected runtime stays exact",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards records every runtime and deferred byte and refuses native mutation of the injected tree"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "runtime receipt inventory is required",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity accepts scoped runtime dependencies and refuses unsafe paths or invalid hashes",
+      "native release integrity refuses old MHP receipts and absent or empty runtime inventories before a channel command"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "runtime receipt inventory is nonempty",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity refuses old MHP receipts and absent or empty runtime inventories before a channel command"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "release receipt protocol",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity refuses old MHP receipts and absent or empty runtime inventories before a channel command",
+      "native release integrity rejects a changed protocol receipt before signing or publishing"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "Windows host selection",
+    "file": "scripts/package-hosts/ci.mjs",
+    "failures": [
+      "parity distribution uses the adopted contract selects Xcode alone with either Windows or POSIX source paths"
+    ],
+    "sha256": "d5e9841c8e605e15358855bd70229a73a4936b5d8fe7184b8f07af2abbbfae5a"
+  },
+  {
+    "guard": "broken host path is not absent",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards fails a broken host symlink instead of reporting an absent-folder skip"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "optional signing password",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": ["native release integrity allows an unencrypted signing key without a password"],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "runtime entry file",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses a runtime entry that is a directory before invoking a native command"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "every native channel published",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity keeps the all-published signal false for missing registry credentials"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "GitHub Release tag identity",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity requires the exact archive and receipt to be attached before registry publication"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "GitHub Release asset bytes",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity requires the exact archive and receipt to be attached before registry publication"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "publish after GitHub attachment",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences keeps every native channel behind the existing release environment"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "clean packaging stage",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards stages runtime bytes and records exact artifact hashes and source tree"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "native asset name uniqueness",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects colliding native asset names across two hosts before copying"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "host selection",
+    "file": "scripts/package-hosts/ci.mjs",
+    "failures": [
+      "native distribution guards selects one changed host on PRs and all hosts for shared changes or weekly runs",
+      "parity distribution uses the adopted contract selects Xcode alone with either Windows or POSIX source paths"
+    ],
+    "sha256": "d5e9841c8e605e15358855bd70229a73a4936b5d8fe7184b8f07af2abbbfae5a"
+  },
+  {
+    "guard": "unknown host",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards rejects unknown hosts, unsafe artifact paths and incompatible protocols"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "absent host",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards names every absent host and never executes a child",
+      "MHP 1.2 every-host conformance runner runs the existing host harness with the full contract and checks its observations",
+      "native release integrity stages every verified native asset and receipt into the common release inventory",
+      "native release integrity rejects colliding native asset names across two hosts before copying",
+      "native release integrity names absent hosts in the channel summary and fails missing reports for present hosts",
+      "native release integrity keeps the all-published signal false for missing registry credentials"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "existing incomplete host",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards fails an existing host without its integration manifest",
+      "native distribution guards refuses a host path that is a file rather than an adapter folder",
+      "native distribution guards fails a broken host symlink instead of reporting an absent-folder skip"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "artifact traversal",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards rejects unknown hosts, unsafe artifact paths and incompatible protocols"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "symlink containment",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": ["native distribution guards refuses a symlink outside the host tree"],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "manifest MHP range",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards rejects unknown hosts, unsafe artifact paths and incompatible protocols",
+      "parity distribution uses the adopted contract accepts exactly the reviewed native snapshot version and refuses every old promise"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "nonempty build",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards rejects unknown hosts, unsafe artifact paths and incompatible protocols"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "nonempty artifact list",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards rejects unknown hosts, unsafe artifact paths and incompatible protocols"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "credential stripping",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards removes credentials and child injection variables, preserving ordinary environment",
+      "native release integrity gives the signer only its own credentials and updates signed byte hashes",
+      "native release integrity publishes exact signed artifacts with only its channel credential"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "nonempty archive",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards stages runtime bytes and records exact artifact hashes and source tree"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "harness version",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner rejects zero tests, duplicates, skips, wrong host and wrong protocol",
+      "parity distribution uses the adopted contract requires the observed harness protocol to match the runtime snapshot"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "no skipped scenarios",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner rejects zero tests, duplicates, skips, wrong host and wrong protocol"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "host correlation",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner rejects zero tests, duplicates, skips, wrong host and wrong protocol"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "observed behavior",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner rejects incorrect conversation behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect approval behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect dirty-buffer behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect atomic-edit behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect diff-hunks behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect diagnostics behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect checkpoint behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect paid-consent behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect tab-completion behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect settings behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect session-reload behavior",
+      "MHP 1.2 every-host conformance runner rejects incorrect panel-order behavior"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "host directory",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards refuses a host path that is a file rather than an adapter folder"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "strict distribution manifest",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards rejects unknown hosts, unsafe artifact paths and incompatible protocols"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "child injection stripping",
+    "file": "scripts/package-hosts/manifest.mjs",
+    "failures": [
+      "native distribution guards removes credentials and child injection variables, preserving ordinary environment"
+    ],
+    "sha256": "bac6c5a99f509554d711757cab7311edfb2c18caac4db3183915ef8381b9e6c0"
+  },
+  {
+    "guard": "duplicate archive names",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards rejects duplicate output names from two native artifacts"
+    ],
+    "sha256": "4015c60bf123caf846c0bd484d24de1a41fe629cfc6f9361221dbab1444990d8"
+  },
+  {
+    "guard": "strict report boundary",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner rejects zero tests, duplicates, skips, wrong host and wrong protocol"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "extra result count",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner rejects extra results even if all required scenarios are present"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "duplicate scenario correlation",
+    "file": "test/hostApi/run.mjs",
+    "failures": [
+      "MHP 1.2 every-host conformance runner reports duplicate scenario identities with the explicit correlation error"
+    ],
+    "sha256": "90f094825c1db1105d8e2853f89ef7e519b7af75cbb0a2d99b5ea5021714dc5e"
+  },
+  {
+    "guard": "receipt host",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects a changed host receipt before signing or publishing"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "receipt version",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects a changed version receipt before signing or publishing"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "receipt tree",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects a changed tree receipt before signing or publishing"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "nonempty receipt inventory",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects a changed empty inventory receipt before signing or publishing"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "exact receipt inventory",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects additional files, missing assets and empty archives"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "receipt byte hash",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity rejects a changed hash receipt before signing or publishing",
+      "native release integrity refuses a publishing command that rebuilds or mutates the uploaded bytes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "complete signing credentials",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity refuses partial signing credentials before invoking a signer"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "signing command required",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity fails supplied signing credentials without a real injected signing command"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "channel credential isolation",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity gives the signer only its own credentials and updates signed byte hashes",
+      "native release integrity publishes exact signed artifacts with only its channel credential"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "signed byte hashes",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity gives the signer only its own credentials and updates signed byte hashes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "unsigned Xcode local-only fence",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity names missing signing credentials and local-only Xcode builds without creating credentials"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "missing publishing credential",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity reports every missing registry credential and manual channel loudly"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "publishing command required",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity fails supplied registry credentials without a real injected publish command"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "publisher cannot rebuild",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity refuses a publishing command that rebuilds or mutates the uploaded bytes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "stage collision",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity stages every verified native asset and receipt into the common release inventory"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "missing channel outcome fails",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity names absent hosts in the channel summary and fails missing reports for present hosts"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "outcome host correlation",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity refuses another host report, fabricated absence and malformed channel outcomes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "no fabricated absent host outcome",
+    "file": "scripts/package-hosts/release.mjs",
+    "failures": [
+      "native release integrity refuses another host report, fabricated absence and malformed channel outcomes"
+    ],
+    "sha256": "f78b91243b8b9af87e7d2c11779f9e74f367ff8939a28d0f6aff2522c4953ae8"
+  },
+  {
+    "guard": "native host harness CI fence",
+    "file": ".github/workflows/hosts-native.yml",
+    "failures": [
+      "native workflow release fences runs shared conformance and packages each discovered host without credentials"
+    ],
+    "sha256": "43751f6bf5b43c423adf590705ecc1fe8e08ab161e761cc2aa01370cfe8957ce"
+  },
+  {
+    "guard": "protected native release environment",
+    "file": ".github/workflows/release.yml",
+    "failures": [
+      "native workflow release fences keeps every native channel behind the existing release environment"
+    ],
+    "sha256": "83f15415f739219852b7f9cf8c2392dc5c1d770c95c7a345f15d3f4b53538026"
+  },
+  {
+    "guard": "required runtime bundles",
+    "file": "scripts/package-hosts/package.mjs",
+    "failures": [
+      "native distribution guards refuses an incomplete runtime before invoking any native command"
+    ],
+    "sha256": "78f9d519e0853b8644838d5f0a9948aa2492ae760890b9e986d57cf3ec6d2f14"
+  }
+]

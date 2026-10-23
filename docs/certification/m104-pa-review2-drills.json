@@ -1,0 +1,82 @@
+[
+  {
+    "name": "before-fix-real-controller",
+    "command": ["npx", "vitest", "run", "test/unit/runtimeController.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeController.test.ts > museCode: contributed host admission refuses preparation through the real portable controller",
+      "FAIL  test/unit/runtimeController.test.ts > museCode: selected hosts reach adoption and login warm-up while ACP binding fences remain",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: selected hosts reach adoption and login warm-up while ACP binding fences remain",
+      "FAIL  test/unit/runtimeController.test.ts > museCode: absent host contributions retain the runtime's honest refusal",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: absent host contributions retain the runtime's honest refusal",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: contributed host admission refuses preparation through the real portable controller"
+    ],
+    "summary": "6 failed, 23 passed; original production source, before the added release case"
+  },
+  {
+    "name": "host-admission-refusal",
+    "command": ["npx", "vitest", "run", "test/unit/runtimeController.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeController.test.ts > museCode: contributed host admission refuses preparation through the real portable controller",
+      "FAIL  test/unit/runtimeController.test.ts > museCode: absent host contributions retain the runtime's honest refusal",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: absent host contributions retain the runtime's honest refusal",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: contributed host admission refuses preparation through the real portable controller"
+    ],
+    "elapsedSeconds": 5.18,
+    "beforeSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "afterSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "restored": true
+  },
+  {
+    "name": "selected-host-delegation",
+    "command": ["npx", "vitest", "run", "test/unit/runtimeController.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeController.test.ts > museCode: selected hosts reach adoption and login warm-up while ACP binding fences remain",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: selected hosts reach adoption and login warm-up while ACP binding fences remain"
+    ],
+    "elapsedSeconds": 6.13,
+    "beforeSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "afterSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "restored": true
+  },
+  {
+    "name": "stable-owned-host-identity",
+    "command": ["npx", "vitest", "run", "test/unit/runtimeController.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeController.test.ts > museCode: selected hosts reach adoption and login warm-up while ACP binding fences remain",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: selected hosts reach adoption and login warm-up while ACP binding fences remain"
+    ],
+    "elapsedSeconds": 5.54,
+    "beforeSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "afterSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "restored": true
+  },
+  {
+    "name": "released-host-admission",
+    "command": ["npx", "vitest", "run", "test/unit/runtimeController.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeController.test.ts > release waits for contributed host admission and fences its late result before model reads"
+    ],
+    "elapsedSeconds": 5.59,
+    "beforeSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "afterSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "restored": true
+  },
+  {
+    "name": "immutable-acp-session-fence",
+    "command": ["npx", "vitest", "run", "test/unit/runtimeController.test.ts", "--maxWorkers=3"],
+    "exitCode": 1,
+    "failedTests": [
+      "FAIL  test/unit/runtimeController.test.ts > museCode: selected hosts reach adoption and login warm-up while ACP binding fences remain",
+      "FAIL  test/unit/runtimeController.test.ts > modelApi: selected hosts reach adoption and login warm-up while ACP binding fences remain"
+    ],
+    "elapsedSeconds": 5.51,
+    "beforeSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "afterSha256": "9603af1df67a2c8dc360652dec1e40fc206e333743da1257ae82467a6a6d2086",
+    "restored": true
+  }
+]

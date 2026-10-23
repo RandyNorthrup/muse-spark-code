@@ -1,0 +1,444 @@
+{
+  "rig": "kubuntu",
+  "platform": "Linux x86_64",
+  "date": "2026-10-07",
+  "base": "271d3bea270652d59798b50167b79b63c1941b72",
+  "CI": true,
+  "freshClone": "temp/pe4/fresh",
+  "install": "CI=true npm ci (898 already-pinned packages, exit 0); no dependency change",
+  "commands": [
+    {
+      "name": "eclipse-final-full",
+      "command": ["xvfb-run", "-a", "/tmp/apache-maven-3.9.11/bin/mvn", "-B", "-o", "verify"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/eclipse",
+      "exit": 0,
+      "seconds": 55.754,
+      "tests": {
+        "total": 87,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "jetbrains-final-full",
+      "command": [
+        "./gradlew",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--offline",
+        "--no-daemon",
+        "test",
+        "detekt",
+        "ktlintCheck"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/jetbrains",
+      "exit": 0,
+      "seconds": 92.022,
+      "tests": {
+        "total": 84,
+        "failures": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "eclipse-repeat-1",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "-o",
+        "verify",
+        "-pl",
+        "io.musespark:io.musespark.eclipse.tests",
+        "-am",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest,RuntimeStressTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/eclipse",
+      "exit": 0,
+      "seconds": 47.636,
+      "tests": {
+        "total": 61,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "jetbrains-repeat-1",
+      "command": [
+        "./gradlew",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--offline",
+        "--no-daemon",
+        "test",
+        "--rerun-tasks",
+        "--tests",
+        "*NativeHostServicesTest",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--tests",
+        "*RuntimeStressTest",
+        "--tests",
+        "*MhpConnectionTest",
+        "--tests",
+        "*RuntimeProcessTest",
+        "--tests",
+        "*FirstFrameDescendantsTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/jetbrains",
+      "exit": 0,
+      "seconds": 74.65,
+      "tests": {
+        "total": 46,
+        "failures": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "eclipse-repeat-2",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "-o",
+        "verify",
+        "-pl",
+        "io.musespark:io.musespark.eclipse.tests",
+        "-am",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest,RuntimeStressTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/eclipse",
+      "exit": 0,
+      "seconds": 46.825,
+      "tests": {
+        "total": 61,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "jetbrains-repeat-2",
+      "command": [
+        "./gradlew",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--offline",
+        "--no-daemon",
+        "test",
+        "--rerun-tasks",
+        "--tests",
+        "*NativeHostServicesTest",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--tests",
+        "*RuntimeStressTest",
+        "--tests",
+        "*MhpConnectionTest",
+        "--tests",
+        "*RuntimeProcessTest",
+        "--tests",
+        "*FirstFrameDescendantsTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/jetbrains",
+      "exit": 0,
+      "seconds": 70.957,
+      "tests": {
+        "total": 46,
+        "failures": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "eclipse-repeat-3",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/tmp/apache-maven-3.9.11/bin/mvn",
+        "-B",
+        "-o",
+        "verify",
+        "-pl",
+        "io.musespark:io.musespark.eclipse.tests",
+        "-am",
+        "-Dtest=PeerTest,SessionTest,NativeUiTest,RuntimeStressTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/eclipse",
+      "exit": 0,
+      "seconds": 47.554,
+      "tests": {
+        "total": 61,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "jetbrains-repeat-3",
+      "command": [
+        "./gradlew",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "--offline",
+        "--no-daemon",
+        "test",
+        "--rerun-tasks",
+        "--tests",
+        "*NativeHostServicesTest",
+        "--tests",
+        "*NativeDialogsTest",
+        "--tests",
+        "*NativeSurfaceTest",
+        "--tests",
+        "*RuntimeStressTest",
+        "--tests",
+        "*MhpConnectionTest",
+        "--tests",
+        "*RuntimeProcessTest",
+        "--tests",
+        "*FirstFrameDescendantsTest"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/hosts/jetbrains",
+      "exit": 0,
+      "seconds": 73.311,
+      "tests": {
+        "total": 46,
+        "failures": 0,
+        "skipped": 0
+      }
+    },
+    {
+      "name": "ts-owning-1",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "--maxWorkers=3"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 3.852,
+      "tests": {
+        "total": 57,
+        "files": 2,
+        "timeout": "repository default (5 s)"
+      }
+    },
+    {
+      "name": "ts-owning-2",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "--maxWorkers=3"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 3.776,
+      "tests": {
+        "total": 57,
+        "files": 2,
+        "timeout": "repository default (5 s)"
+      }
+    },
+    {
+      "name": "ts-owning-3",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "--maxWorkers=3"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 3.663,
+      "tests": {
+        "total": 57,
+        "files": 2,
+        "timeout": "repository default (5 s)"
+      }
+    },
+    {
+      "name": "generator-with-alias-control-1",
+      "command": ["node", "--test", "test/m104/linux/mhpErrors.test.mjs"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 0.531
+    },
+    {
+      "name": "generator-with-alias-control-2",
+      "command": ["node", "--test", "test/m104/linux/mhpErrors.test.mjs"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 0.589
+    },
+    {
+      "name": "generator-with-alias-control-3",
+      "command": ["node", "--test", "test/m104/linux/mhpErrors.test.mjs"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 0.665
+    },
+    {
+      "name": "typecheck-host",
+      "command": ["npm", "run", "typecheck:host"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 13.449
+    },
+    {
+      "name": "typecheck-webview",
+      "command": ["npm", "run", "typecheck:webview"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 8.701
+    },
+    {
+      "name": "typecheck-unit",
+      "command": ["npm", "run", "typecheck:unit"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 43.106
+    },
+    {
+      "name": "typecheck-e2e",
+      "command": ["npm", "run", "typecheck:e2e"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 22.934
+    },
+    {
+      "name": "typecheck-integration",
+      "command": ["npm", "run", "typecheck:integration"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 8.025
+    },
+    {
+      "name": "lint-full",
+      "command": ["npm", "run", "lint"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 300.168
+    },
+    {
+      "name": "prettier-changed",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "--ignore-unknown",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MhpPeer.java",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/PeerTest.java",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/SessionTest.java",
+        "hosts/jetbrains/build.gradle.kts",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/MhpConnection.kt",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/RuntimeProcess.kt",
+        "hosts/jetbrains/src/test/kotlin/io/github/randynorthrup/musespark/MhpConnectionTest.kt",
+        "knip.jsonc",
+        "scripts/mhp-schema.mjs",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/MhpErrors.java",
+        "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeStressTest.java",
+        "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeExitFixture.java",
+        "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/MhpErrors.kt",
+        "scripts/mhp-errors.mjs",
+        "test/m104/linux/mhpErrors.test.mjs",
+        "test/m104/linux/jetbrains/FirstFrameDescendantsTest.kt"
+      ],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 9.162
+    },
+    {
+      "name": "knip-plain",
+      "command": ["npm", "run", "deadcode"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 14.858
+    },
+    {
+      "name": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 1.441
+    },
+    {
+      "name": "localization",
+      "command": ["npm", "run", "check:l10n"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 4.524
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 21.3
+    },
+    {
+      "name": "mhp-and-generator-drift",
+      "command": ["npm", "run", "check:mhp"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 1.82
+    },
+    {
+      "name": "generator-direct-drift",
+      "command": ["node", "scripts/mhp-errors.mjs", "--check"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 0.055
+    },
+    {
+      "name": "build-final",
+      "command": ["npm", "run", "build"],
+      "cwd": "/home/randy/lanes/FIXM104PE4/temp/pe4/fresh",
+      "exit": 0,
+      "seconds": 14.932
+    }
+  ],
+  "codeCommit": "fd1a497b0e0773ed839c85636f3cf32ae3b047da",
+  "byteMatchedFiles": [
+    "CHANGELOG.md",
+    "PLAN.md",
+    "README.md",
+    "hosts/eclipse/plugin/src/io/musespark/eclipse/MhpErrors.java",
+    "hosts/eclipse/plugin/src/io/musespark/eclipse/MhpPeer.java",
+    "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+    "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java",
+    "hosts/eclipse/tests/src/io/musespark/eclipse/tests/PeerTest.java",
+    "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeExitFixture.java",
+    "hosts/eclipse/tests/src/io/musespark/eclipse/tests/RuntimeStressTest.java",
+    "hosts/eclipse/tests/src/io/musespark/eclipse/tests/SessionTest.java",
+    "hosts/jetbrains/build.gradle.kts",
+    "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/MhpConnection.kt",
+    "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/MhpErrors.kt",
+    "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/RuntimeProcess.kt",
+    "hosts/jetbrains/src/test/kotlin/io/github/randynorthrup/musespark/MhpConnectionTest.kt",
+    "knip.jsonc",
+    "scripts/mhp-errors.mjs",
+    "scripts/mhp-schema.mjs",
+    "test/m104/linux/jetbrains/FirstFrameDescendantsTest.kt",
+    "test/m104/linux/mhpErrors.test.mjs"
+  ],
+  "hooks": {
+    "codeCommit": "lint-staged (ESLint/Prettier) and staged gitleaks passed"
+  }
+}

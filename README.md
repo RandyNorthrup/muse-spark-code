@@ -37,7 +37,14 @@ key to the CLI.
 The [roadmap](ROADMAP.md) shows what is in the next release, what is being
 built, what is planned and what each release shipped.
 
+The [Xcode native-host prototype](hosts/xcode/README.md) pairs a macOS app
+with Xcode Source Editor commands. Its authenticated container and approved
+buffer-edit path have native core/fake-runtime receipts. Its relay uses the
+shared MHP 1.5 panel contract; editor/voice/Tab integration and installed
+qualification are still required before it can be offered as a supported host.
+
 **Contents:** [What's new](#whats-new-in-0182) · [Roadmap](ROADMAP.md) ·
+
 [Highlights](#highlights) · [Screenshots](#screenshots) ·
 [Get started](#get-started) · [Backends](#backends) · [Subscriptions](#subscriptions) ·
 [Permission modes](#permission-modes) ·
@@ -58,7 +65,36 @@ Candidate schedule budgets and consent, and rental cost evidence, use exact deci
 reports write money version 2; historical numeric reports retain their original
 hash verification and migrate when read.
 
-## What's new in 0.18.2
+## What's new in 0.19.0
+
+- **Provider refusals read as the provider's refusal.** A wrong key reads as
+  a rejected key and an unknown model as no such model; a quota or spend-cap
+  refusal is never retried, while a bare rate limit still is.
+- **The conversation keeps the model you chose.** After a restart the next
+  message goes out on the model shown, the panel shows the model each request
+  really used, and a message that would run on another model is not sent.
+- **The chat no longer takes the keyboard from a file you just opened**, and
+  a question that arrives while you are elsewhere waits with its badge.
+- **No time limits of ours on slow machines.** Reports wait for a slow
+  GitHub, Marketplace, Open VSX or npm answer instead of giving up after
+  5 seconds, and steps that read or end processes through Windows
+  PowerShell, `taskkill` or the process table are no longer killed after
+  20 seconds. Stop, or a deadline you set, still ends them.
+- **GitHub sign-in and Git without VS Code's Git extension**: commit, push
+  and open pull requests from editors that have no Git extension of their own.
+- **llama.cpp server and LM Studio presets** in Models & Agents, and reports
+  that cover more ground without a model call.
+- **One package per platform**: the Marketplace and Open VSX serve your
+  platform's own package, carrying only its native pieces, with a fallback
+  for other systems.
+- **The browser check runs on Chrome for Testing 156.**
+- **Known issue:** in VS Code on Linux the vault can be set up only when your
+  account can reach the machine's TPM (usually the `tss` group); the
+  terminal agent uses your desktop keyring.
+
+The full list is in the [CHANGELOG](CHANGELOG.md#0190---2026-10-21).
+
+### Earlier in 0.18.2
 
 - **The landing screen shows the extension's own mark.** The empty chat panel
   showed the Meta logo beside the product name; it now shows the product's
@@ -74,196 +110,6 @@ hash verification and migrate when read.
   out as not exact; nothing was deleted.
 - **Report a Problem opens again** if you had changed a setting with a second
   dot in its name; it used to answer "That did not work".
-
-### Earlier in 0.18.0
-
-- **Several accounts per provider, in the terminal and in ACP editors.**
-  `muse-spark-code-acp providers accounts` lists, adds, orders and removes a
-  provider's accounts and sets their thresholds; `auth set --provider <id>
---account <id>` stores a key for one account; `exec --account <id>` runs on
-  the account you name. In an ACP editor on a Model API key, `/accounts`
-  shows the list and the current account. Changing account inside a session,
-  pooled runs and an Accounts page in the editor are not available yet.
-- **See a tool call's arguments while the model writes them.** On a Model API
-  key with `muse-spark-1.3-contributor`, a tool row in the panel and in ACP
-  editors shows the file path, command, search pattern or URL as soon as it
-  is complete; content and edits stay hidden and nothing runs until the call
-  is complete. Other models keep the finished-call row for now.
-- **Reviewing Git changes works without a Git filter.** Without Git LFS or
-  another filter configured, every native review was refused since 0.15.0.
-- **The activity-bar icon is the extension's own mark**, the squiggled "m".
-
-### Earlier in 0.17.2
-
-- **Long replies from your own providers and a ChatGPT plan finish.**
-  Since 0.15.0 a reply from a provider you added in Models & Agents, or
-  from a ChatGPT plan sign-in, was cut off 30 seconds after the request
-  started. A reply now has no limit on its total time; one that goes
-  silent ends after 5 minutes, and the message says so.
-
-### Earlier in 0.17.1
-
-- **The provider picker works again.** Models & Agents lists every provider
-  again, Anthropic and custom servers included; 0.16.0 and 0.17.0 showed only
-  "That did not work" and an empty list.
-- **Saving a provider keeps what worked.** Save checks everything first, then
-  saves in order; if a later step fails, the saved parts stay saved and the
-  panel says what was not. Edit and Change Key keep the saved connection.
-- **The wizard's spending limit is your real conversation limit.** It shows
-  the current limit, writes only when you change it, and asks before
-  replacing a limit someone changed meanwhile.
-- **Title Case labels.** English buttons, menus, tabs and titles capitalize
-  every major word; sentences and messages keep sentence case.
-- **Smaller fixes.** Chat action menus fan close around the row's **…**
-  button, highlighted-text actions included; a question's own-answer field no
-  longer overlaps the options and buttons around it, sharing a chat from an
-  ACP editor or the terminal shows its preview, an ACP session on a Model API
-  key starts without account details, DeepSeek's Thinking off sends
-  DeepSeek's own switch, a nearly spent budget stops with the budget message
-  instead of a Meta error, a Muse Code older than 1.4.3 that hits its
-  approval-record fault now gets the update command, and Help and these notes
-  describe only what works today and name the features still being built.
-
-### Earlier in 0.17.0
-
-- **Deterministic reports.** `/report` builds project, quality, milestone,
-  release and change reports from local facts, in Markdown, HTML, JSON or text,
-  with saved history and comparisons; nothing is sent to a model.
-- **Orchestrator playbook CLI/ACP.** Read journal records and change settings
-  locally with the CLI or ACP agent.
-- **Refreshed design.** Shared design tokens and generated palettes style every
-  panel surface; an optional pinned OFL font pack serves standalone installs.
-
-### Earlier in 0.16.0
-
-- **Loop guarantees.** Strict tool contracts and bounded hosted search
-  govern Model API tool calls. Independent reads can
-  run concurrently while their results keep call order. The loop bounds
-  continuations, refuses cut-short tool execution and stops repeated unchanged
-  calls. Structured side calls validate answers; headless runs can require a
-  bounded final-answer schema. See [Agent loop guarantees](#agent-loop-guarantees)
-  for capability gates and remaining native-reader qualifications.
-- **CPU and memory thresholds.** Set machine-scoped limits to throttle, then
-  pause, new background work.
-- **Disk floors.** Disk-heavy launches wait below the free-space floor and
-  critical-volume writes refuse with a reason. Temporary cleanup requires
-  recorded ownership and proved tree exit. See
-  [Keeping your machine responsive](#keeping-your-machine-responsive) for the
-  settings, available routes and remaining integration qualifications.
-
-- **Questions stay within reach.** Each question and MCP form has one interactive
-  card pinned above the composer. Its transcript marker opens and focuses that card.
-- **Agent outcomes and receipts.** Inspect agent activity, evidence-backed outcomes
-  and attempt history. Continue asks before resuming the same child; Retry requires
-  an isolated checkpoint. ACP editors can use `/agents` for the same local controls.
-
-### Earlier in 0.15.0
-
-- **Bring your own models.** Add OpenAI, Anthropic and Gemini keys or local
-  models in **Models & Agents**. ChatGPT sign-in is a Subscription Sharing
-  preview for eligible Plus/Pro accounts; Copilot uses a compatible VS Code
-  host's models. Features follow each selected model's capabilities.
-- **/legal.** Scan licensing, copyright and source evidence without a model
-  call, export the report, and confirm supported header repairs. The report
-  states its coverage limits; it is not a legal certificate.
-- **Usage & Cost.** Open the local page for provider totals, token
-  counts, budgets and exports. Reported, estimated and unknown costs stay distinct.
-
-### Earlier in 0.14.5
-
-- **Prompt actions in one small menu.** Save, share and use saved prompts
-  from the bookmark button on the composer toolbar or the right-click menu;
-  the three full-width buttons that covered the chat box are gone.
-- **ACP Registry sign-in.** Clients that announce terminal sign-in the older
-  way now get the sign-in option too.
-
-### Earlier in 0.14.4
-
-- **Save your prompts.** Right-click one of your own messages and choose
-  **Save**, or save from the composer or editor. Your personal prompt library
-  is available in every workspace; workspace prompts stay with their project.
-- **Reuse prepared text.** Search the library and fill its variables before
-  inserting a prompt. **Use** prepares the text; it does not submit a model
-  request.
-- **Share prompts and chats.** Choose a conversation-only or full export,
-  review the exact Markdown, HTML or JSON preview, then confirm copying,
-  saving or opening it in your browser. Confidential or unknown content is
-  refused with an explanation; detected secrets and private paths are scrubbed.
-- **ACP and terminal.** Use local `/prompt` and `/share chat` commands in ACP
-  editors, or `muse-spark-code-acp prompts` and `share chat` in the terminal.
-  Help & Reference lists the commands and the opt-in prompt sync setting.
-  Terminal prompt commands print saved ids, matching prompts and prepared text;
-  add `--json` for their structured result. A terminal `use` prepares text only:
-  it does not insert into an editor or send a model request.
-
-### Earlier in 0.14.3
-
-- **Questions never block.** A question Muse asks you is pinned in the
-  attention dock above the composer and kept in the transcript. After your
-  own delay (`museSpark.questions.deferAfterSeconds`, unset by default so
-  questions never defer on their own), Muse carries on with work that
-  does not need the answer.
-- **Answer later.** An unanswered question becomes an **Open Question** you can
-  answer any time using **Answer** on its transcript marker or the open-question chip; **Dismiss** closes it
-  without an answer. A late answer reaches Muse once, as your own message, and
-  approves nothing.
-- **Find open questions.** The view badge, tab title and History show how many
-  are open; **Next Open Question** and **Previous Open Question**
-  (Ctrl+Alt+J and Ctrl+Alt+Shift+J) cycle through them.
-- **ACP editors.** Editors with forms get each question as a form, withdrawn at
-  the deadline (`--questions-defer-after`); other editors get the text.
-  `/questions` lists open questions and `/answer <n> <text>` answers one.
-
-- **Faster startup.** Optional panels and menus load when first opened, keeping
-  the chat panel quick to start.
-
-**0.14.2**
-
-- **Help & Reference.** Type `/help` or run **Muse Spark: Open Help & Reference**
-  for every command, setting, slash command, keyboard shortcut, CLI/ACP option
-  and paid feature.
-- **Search and copy.** Find features by name or shortcut, copy details, and open
-  related settings.
-- **Accurate details.** Help is generated from the extension's own tables.
-  Defaults, availability and paid costs are now described for each backend.
-- **Editors and terminal.** Use `/help` in the chat panel and ACP editors, or
-  `muse-spark-code-acp help reference` in the terminal.
-
-**0.14.1**
-
-- **Safer shell commands.** Commands the agent runs no longer see your
-  credential variables (API keys, tokens, passwords). Name any you want passed
-  through in `museSpark.shell.passEnvironmentVariables`; scheduled and other
-  unattended commands never get them.
-- **Exact store badges.** The Marketplace and Open VSX pages show the version
-  you are installing, not a cached older one.
-- **Faster start.** The chat panel loads about 100 KiB less at startup; syntax
-  highlighting, dialogs and Tasks load when first needed.
-- **Fix:** stopped or timed-out commands on macOS and Linux now wait until
-  their processes have exited.
-
-**0.14.0**
-
-- **Tab Completions** (see [Tab completions](#tab-completions)). Alt+\ invokes
-  ghost text. First-use consent names the model price and the separate
-  $1.00/day default hard budget; your stored Model API key pays on either backend.
-- **Git and Pull Requests** (see [Git and pull requests](#git-and-pull-requests)).
-  Draft a commit or PR in the conversation, commit and push with confirmation,
-  and open a foreign PR in a held worktree until you confirm its trust card.
-- **Hooks and plugins** (see [Hooks](#hooks)). Import popular agent hook formats,
-  run Setup and Manual hooks on both backends, and use bounded Amp and OpenCode
-  plugins on the Model API backend. Hooks keep their permission and paid-use limits.
-- **Report a Problem** (see [Reporting a problem](#reporting-a-problem)). Preview
-  the exact scrubbed report, remove items, then copy, save or open an issue.
-  The draft stays local. On the Model API backend, Account & usage and report
-  preparation also read Meta’s public service status without sending the draft
-  or an API key.
-- **Muse Judge phase 1** (see [Muse Judge](#muse-judge)). The conversation model
-  can add uncalibrated caution to an approval; it cannot grant permission.
-  Model API Judge asks for paid-use consent and shares the durable daily budget.
-
-Earlier releases are in the
-[changelog](https://github.com/RandyNorthrup/muse-spark-code/blob/main/CHANGELOG.md).
 
 ## /report
 
@@ -528,7 +374,7 @@ Muse Code's subscription and its existing explicit key-paid opt-ins are unchange
    [GitHub Release](https://github.com/RandyNorthrup/muse-spark-code/releases):
 
    ```bash
-   code --install-extension muse-spark-code-linux-x64-0.14.0.vsix
+   code --install-extension muse-spark-code-linux-x64-0.19.0.vsix
    ```
 
    Each release ships one `.vsix` per platform
@@ -780,6 +626,38 @@ Get it from the
 | **JetBrains IDEs** (IntelliJ IDEA, PyCharm, WebStorm, …) | Install the ACP agent (below), then add it to AI Assistant (below). Not yet tested here                                                                                                                                                            |
 | **Zed**                                                  | Install the ACP agent (below), then add it to Zed's settings (below)                                                                                                                                                                               |
 | **Neovim, Emacs, JupyterLab**                            | Install the ACP agent (below), then follow [docs/acp.md](docs/acp.md#configure-the-editor) (CodeCompanion, agent-shell, Jupyter AI)                                                                                                                |
+
+**Standalone panel carriers (M104, experimental):** `muse-spark-code-acp
+panel --stdio` speaks negotiated MHP 1.5 NDJSON to a native editor host;
+`muse-spark-code-acp panel --companion` opens the authenticated loopback
+carrier through that host's `ui/openExternal` service. Exactly one transport
+is required. Both accept the agent's existing backend, trust and paid-use
+flags; the Model API key stays in the OS credential store. The native host
+must offer lifecycle plus surfaces (stdio) or UI (companion), and answer
+correlated service requests. These commands stream the shared conversation
+through the authenticated portable browser renderer and UI bridge. Native
+MHP 1.5 adoption, auxiliary surfaces, feature adapters and assembled editor
+qualification remain incomplete. See
+[the integration evidence and remaining gaps](docs/certification/m104-int.md)
+and [macOS qualification](docs/certification/m104-pf.md).
+
+Eclipse's experimental native host discovers the Windows npm shim and resolves
+it to Node plus the verified installed ACP script without starting a shell.
+Discovery refuses linked package directories or ancestors below the canonical
+npm prefix.
+`MUSE_SPARK_RUNTIME` accepts an absolute native/shim path or a JSON pair of
+absolute Node and ACP script paths. See [the Eclipse launch contract](hosts/eclipse/README.md)
+for layout validation and override examples; installed Windows qualification remains open.
+
+The [complete parity inventory](docs/certification/m104-pf-inventory.md) names
+all 56 feature rows, editor families, backend/provider profiles and the
+remaining installed-artifact receipts. Component tests do not promote support.
+
+Portable session changes retire previous surface IDs and open fresh bindings.
+Settings and storage are owned by the runtime; initialization selects the
+editor's language. CLI trust never overrides an editor's restricted workspace.
+Runtime parity receipts and the owning feature-factory contracts are in
+[the lane A record](docs/certification/m104-pa.md).
 
 **The ACP agent** needs Node.js 22 or later. Install it from npm:
 
@@ -1191,6 +1069,115 @@ Revoking testing authority closes admission immediately and attempts to stop
 recorded profiles before saving. Persistence failures are reported; a durable
 revocation audit prevents restoring the previous enabled grant. Removing an
 unknown profile reports an error without changing the current grant.
+
+The [policy record](docs/certification/m108-policy.md), checked 2026-10-05,
+lists every provider's pooling decision with its clause, source and date.
+“Confirmation required” quotes the restriction and offers Confirm, Only at
+my own caps, or Cancel; one-account-per-person rules also apply at user caps.
+Accounts sharing a vendor limit group add no capacity against that limit.
+These rules hold on every device and in developer mode. Nothing creates
+accounts, changes request identity or moves a credential to another device.
+The source checkout includes experimental stdio LSP and independent runtime
+supervision for M104. The LSP uses the M94 Tab engine and its caps, file
+eligibility, usage and daily ledger. Paid Tab is off until `--tab` and
+`--trust-workspace` are supplied; its editor consent prompt names the price
+and budget. A native-store Model API key is required only when dispatching.
+One private broker serves each canonical workspace, with eight clients and
+60 seconds of idle time. Conflicting runtime options are refused.
+
+From a built checkout, these offline commands exercise help and Stop:
+
+```sh
+node dist/acp.js lsp --help
+node dist/acp.js supervise --version
+node dist/acp.js stop
+node scripts/gen-reference.mjs
+npm run check:reference
+```
+
+Configure the installed agent's `lsp` command in your editor, with
+`--workspace` pointing to its project root. Neovim supplies `MuseLsp`, Emacs
+supplies `muse-spark-lsp` through Eglot, Sublime has an optional LSP package
+configuration, Qt Creator can use its generic language client, and Zed has
+Rust extension source. Each shim's Stop route runs a separate authenticated
+control command; it can run while the request queue is blocked.
+
+Stop gives TERM 500 ms, then uses verified per-member KILL. Workload launches
+wait for registration with the shared process authority: Linux kernel start
+ticks, macOS kernel microseconds from the shipped signed helper, or Windows
+creation FILETIME/job membership. The POSIX EOF guardian uses that same
+registry after supervisor SIGKILL. Zombies count as exited; observed detached
+or reparented descendants retain their exact identities. A descendant that
+double-forks wholly between observations can still escape this sampling
+policy. Windows uses a named native job and awaits Windows qualification.
+
+The broker and supervisor select a verified private root in platform order: Linux
+`XDG_RUNTIME_DIR`, then configured `XDG_STATE_HOME` / `XDG_CACHE_HOME`, then
+`~/.local/state/muse-spark`; macOS's per-user temporary directory from the
+signed helper, then `~/Library/Application Support/Muse Spark`; Windows
+`%LOCALAPPDATA%\Muse Spark`. Diagnostics record each refused candidate and
+its failing ancestor, and the selected real path. If none qualifies, startup
+refuses. Supervision also requires a verified stable home fallback for path-only
+root locators (`runtime-roots/`): Linux's home state fallback, macOS Application
+Support, or `~/AppData/Local/Muse Spark` on Windows. No control token is in a
+locator. Independent Stop searches every verified platform candidate in the
+order above, then previously selected roots from those locators, verifying each
+again. It finds runs even after XDG/TMPDIR changes or an earlier refused root
+becomes trusted. Each owner record names its canonical trust root. Unusable
+records and trust-root mismatches are reported and skipped without signalling;
+duplicate well-formed owner UUID/generations refuse before any signal, retaining
+ownership. POSIX Stop sockets use the verified platform runtime root even when
+a registry is deeply nested. An address beyond the portable OS limit refuses
+startup with `ESTOP_SOCKET_PATH` before control state or child launch. No matching run exits 1 with `ESTOP_NO_RUN`; ambiguous
+ownership exits 1 with `ESTOP_AMBIGUOUS`. Normal completion removes its locator;
+uncertain cleanup retains it. Verification walks the whole real path to the filesystem/volume root.
+POSIX ancestors must be root/user-owned. Group write is allowed only for
+the user's private group: its gid is the user's primary gid, its name matches
+the user name, and system membership lookups prove it has no other members.
+Unavailable membership information refuses that exception. Linux requires
+`/usr/bin/getent` for those lookups; macOS uses the signed native helper.
+World write is refused except at a root-owned sticky ancestor with an
+immediately user-owned child. The private leaf must be user-owned 0700 and ACL-free on macOS. Windows
+refuses reparse points and other SIDs' mutating grants throughout the ancestry,
+with protected owner/SYSTEM security at the private leaf.
+
+Private directories receive final permissions at creation; unsafe existing
+namespaces are refused. Records are exclusively created without following
+links, and their empty held file's owner, mode, link count and native ACL are
+verified. Before contents, the resolved record pathname must still name that
+held inode, and the parent must still name the verified directory. Windows
+uses CREATE_NEW, protected file security and retained native handles for the
+same checks. Same-user processes can already edit these files and signal the
+user's processes; they are outside this cross-user trust boundary.
+
+POSIX actions recheck the exact birth immediately before synchronous signal,
+without an intervening await. A residual remains between that recheck and
+kill if the PID is reused during that interval; no pidfd binding is installed.
+Windows acts through one retained process handle. Stop requires per-member
+exit receipts rather than counting an admitted signal as completion. After
+owner death it requires the guardian's exclusively created completed receipt
+for every observed descendant, bound to the current random generation, owner
+UUID, resource ticket, guardian/root PIDs and births, and member identities.
+A copied or older receipt cannot retire current ownership. An absent, pending or invalid receipt makes `stop` exit 1 with
+“Cannot verify Stop — processes may still be running” and observed PIDs;
+ownership stays on disk. A later completed guardian receipt allows retirement.
+Intentional Stop returns 0, including the Windows job helper's 143/137
+termination results. Ordinary workload exit codes are preserved; unexpected
+POSIX signal death returns 128 + the signal number and names the signal on
+stderr.
+
+LSP Stop and shutdown remain available when ordinary requests fill their
+queue. Stop during guardian startup waits for child cleanup. Deny or closing
+Tab's paid-use question snoozes Tab for that editor connection until it
+reconnects; another editor connection asks independently.
+
+The required merge sources do not contain the panel/review controller.
+The production LSP explicitly refuses open-panel/Fix/Explain and does not
+advertise review code actions; injected conformance services test diagnostics,
+version/hash checks and approved workspace edits. Native GUI qualification,
+Zed SDK compilation and full editor parity remain open. See the
+[reference](docs/runtime-reference.md) and
+[M104 H/L certification](docs/certification/m104-h.md).
 
 ## Permission modes
 
@@ -4741,7 +4728,7 @@ prints the full reference in the installed language without a model call. Each c
 itself: `muse-spark-code-acp help <command>` (or `<command> --help`) prints that
 command's own usage, options with defaults and bounds, and two examples, for
 `serve`, `login`, `auth`, `providers`, `exec`, `scan-secrets`, `report`, `legal`,
-`fonts`, `playbook`, `setup`, `usage`, `resources`, `share` and `prompts`.
+`fonts`, `playbook`, `setup`, `usage`, `resources`, `share`, `prompts`, `lsp` and `panel`.
 `exec --help`, `report --help` and `scan-secrets --help` print command-local help
 (each command's own options, e.g. the problem report's `--description`,
 `--no-facts` and `--no-events`); `--help` prints concise ACP usage.
@@ -5494,6 +5481,8 @@ shows the dialog there.
   the moment after the extension starts, before its recorder has loaded.
 - **Other editors:** `muse-spark-code-acp report` prints the same kind of
   report in a terminal ([docs/acp.md](docs/acp.md#report-a-problem-m93)).
+  On agent-driven surfaces, including the companion panel, a report request
+  opens the same dialog: the agent package ships its bundle.
 
 What the recorder keeps, where, for how long, and what each export does:
 [PRIVACY.md](docs/PRIVACY.md#reporting-a-problem).
@@ -6098,6 +6087,14 @@ Optional surfaces also load their shared English text on first use; startup
 keeps first-paint text and the complete translated-table validation contract.
 Surface and keyboard budgets follow the emitted production graph.
 
+The MHP 1.5.0 panel contract for native and companion adapters is
+[documented here](docs/ide-compatibility/host-api-panel-1.1.md). Its JSON
+Schemas reuse the shared panel payload validators. The 1.5 adoption retains
+closed native shapes over pre-normalization inputs, including the 0.17 payloads;
+older peers are refused by the version handshake.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes.
 After every complete four-channel release, the workflow runs
 `scripts/refresh-badges.mjs` to refresh these README badges and purge GitHub's
 image-proxy copies. It needs no secret; stale caches or network failures warn
@@ -6125,6 +6122,87 @@ skips only requests, for example:
 ```sh
 BADGE_CHECK_SKIP_NETWORK='offline local verification' npm run check:badges
 ```
+
+M104's portable panel foundation is under development. VS Code builds only
+its own bridge, with chat/Tasks in `dist/webview/main.js` and What's New in
+`dist/webview/whatsNew.js`. Native and companion hosts use the separate
+`dist/webview/portable/main.js`, `whatsNew.js`, `bridge.js`, `fallbacks.js` and their shared
+chunks; common React host-service fallbacks and manager pages load through
+`PanelBridge.loadFallbacks()`. Portable delivery has two independent caps:
+1,100 KiB for the larger native or companion startup variant's requested built resources,
+and 1,486 KiB for every delivered JavaScript entry and chunk, including lazy features.
+Both bundle gates boot the production page in headless Chrome with the shared
+native/companion browser fakes and authenticated loader. They wait for the
+synchronous first-render `muse:chat-mounted` mark and count built resources
+whose requests started before it once per variant, by path, byte length and SHA-256.
+Context-level routes include dedicated workers, iframes, fonts and extensionless
+outputs. Unknown URLs, WebSockets, arbitrary data/blob fetches or imports,
+EventSource, WebTransport and WebRTC data channels fail with
+`PORTABLE_STARTUP_UNBUILT_REQUEST`, even when application code catches the error.
+Only the authenticated loader's exact module blobs from already-counted built
+bytes are admitted. Worker CSP violations report through the same measurement
+boundary. A measurement-only worker preface refuses transport constructors and
+relays violations through the owning worker before termination. Its probe bytes,
+like frame init scripts and the synthetic main document, are excluded; each
+receipt identifies the original immutable built output. Shared and
+service-worker and nested-worker boot activity is refused with
+`PORTABLE_STARTUP_UNROUTABLE_TARGET` because those targets cannot be fully routed
+by the measurement. Imports awaited
+inside arguments or helpers are included; requests after the mark remain deferred. Chrome must be
+installed (`CHROME_PATH` can select it). Optional features must remain deferred.
+The VS Code budgets are unchanged. Native
+UI requests on native stdio use the correlated MHP host-service channel.
+Companion windows receive correlated React UI requests on authenticated
+`POST /host/events` and return method-validated replies to `POST /host/message`,
+separately from panel payloads. Their packaged `modules.json` lets a nonce
+loader fetch and verify both static and deferred modules through the window's
+private bearer closure. The ACP package includes that portable graph; the new
+Node factories require F's exact inventory update before this integration ships. ACP now
+submits rich parts through the same composed conversation controller; its
+translation and permission prompts remain in the ACP view.
+The [integration record](docs/certification/m104-int.md) lists all 56 features
+and the remaining native bootstrap, auxiliary-view and editor conformance
+work. These development artifacts do not qualify a new editor as supported.
+
+The panel command now composes the shared checkpoint, verifier, plan, transfer,
+Tasks, What's New and report adapters through checked lazy entries. Other engine
+and auxiliary record providers use exact typed native contracts; absent catalog,
+credential, process or storage attestations leave those services unavailable.
+Standalone paid consent requires a verified selected-model quote and configured
+hard shared ledger; the stock carrier refuses before a popup when either is absent.
+MHP includes saved-plan/manager/role/diff/walkthrough messages, fresh diagnostics,
+file/save and HTML publication acknowledgements, and protected native GitHub
+leases. OAuth tokens and pasted keys stay with native credential services.
+Native carriers must adopt and qualify the new contract before shipment. The
+[continuation integration record](docs/certification/m104-pa-integration.md)
+lists the current scoped receipts, bounded stops and exact owner handoffs.
+The VSIX includes the shared `dist/hostProtocol.js` required at extension load;
+its package-member test and production deferred-bundle activation test cover
+that dependency. ACP and native packaging inventories still require F's adoption.
+
+The replacement MHP 1.5.0 contract is frozen in the generated
+[service schema](src/shared/hostApi/mhp-v1.schema.json) and
+[panel schema](src/shared/hostApi/mhp-v1.1.schema.json). The legacy-named
+[native guide](docs/ide-compatibility/host-api-panel-1.1.md) describes the closed
+input-shape policy. The editor initiates
+`initialize` with its metadata, locale, theme and capabilities; the runtime
+answers with its capabilities. Only 1.5 is supported. `node scripts/mhp-schema.mjs
+--adopt-version=mhp/1.5.0` performed the reviewed version adoption; repeating
+adoption of the current version refuses. `npm run check:mhp` checks the frozen
+snapshots and locks. Their legacy filenames remain native build inputs.
+MHP 1.5 replaces 1.1 and 1.2, and supersedes 1.3 and 1.4; both legacy-named snapshots carry the current 1.5 schemas
+and reuse the shared panel payload validators.
+Regenerate with `node scripts/mhp-schema.mjs`; verify both version locks and
+snapshots with `node scripts/mhp-schema.mjs --check`. Runtime and native
+bridge implementation and editor qualification remain in M104's other lanes. The
+[JetBrains development plugin](hosts/jetbrains/README.md) has native fake-runtime
+panel and Tab qualification; its [follow-up record](docs/certification/m104-e3.md)
+lists the compatibility matrix and remaining assembled-runtime work.
+
+The native JVM hosts share schema-generated MHP error tables. Regenerate them
+with `node scripts/mhp-errors.mjs`; `npm run check:mhp` verifies their freshness.
+The generator's drift controls run with
+`node --test test/m104/linux/mhpErrors.test.mjs`.
 
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
@@ -6198,7 +6276,7 @@ the checkout) load from `dist/conversationGit.js` with the first
 conversation or "Open a pull request in a conversation…" command.
 The importer loads its UI adapter only on the first import. Node bundles
 require the shared English fallback (`dist/uiText.js`), and each keeps
-its own installed-language state. The webview is React 19 bundled to one IIFE with
+its own installed-language state. The webview is React 19 bundled as ES modules with
 its stylesheet; `zod/mini` validates every host ⇄ webview message; the voice
 helpers are Windows PowerShell and Swift with no dependencies.
 
@@ -6348,8 +6426,11 @@ Model API backend's own bundle, 225 KiB for the checkpoint store, 150 KiB for
 the conversation's Git bundle, 125 KiB for
 the shared English fallback (`dist/uiText.js`, also in the ACP package), 50 KiB for
 the search worker, 300 KiB for
-web fetch's page converter worker, 900 KiB for the webview's entry and all
-static JavaScript imports, and 850 KiB for
+web fetch's page converter worker, 900 KiB for webview startup plus 50 KiB
+for its deferred JavaScript, 1100 KiB for the built resources of each measured native/companion startup variant
+including its authenticated loader and built resources requested before chat's
+first-render mark, 1486 KiB for the complete portable graph
+including every lazy JavaScript entry and chunk, and 850 KiB for
 the ACP agent (`dist/acp.js`).
 
 The webview's Git panel loads when it has state to show; Account & usage

@@ -74,6 +74,8 @@
 !dist/uiTextSurfaces.js
 !dist/runtime.bundles.json.br
 !dist/wire.js
+!dist/hostProtocol.js
+!dist/runtimeProcessAuthority.js
 !dist/searchWorker.js
 !dist/pageWorker.js
 !dist/imageResizeWorker.js

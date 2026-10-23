@@ -143,14 +143,14 @@ function firstIntent(
 ): Promise<{ intentId: string; digest: string }> {
   return new Promise((resolve, reject) => {
     const outgoing = request(
-      new URL('/events', panel.url),
+      new URL('/panel/events', panel.url),
       { method: 'POST', headers: connectorHeaders(panel, token), setHost: false },
       (response) => {
         let pending = ''
         response.on('data', (chunk: Buffer) => {
           pending += chunk.toString('utf8')
-          // The stream opens with a ': connected' comment frame; take the first data frame.
-          const data = pending.split('\n\n').find((part) => part.startsWith('data: '))
+          // The stream opens with a ': connected' comment frame; take the first data line.
+          const data = pending.split('\n').find((line) => line.startsWith('data: '))
           if (data === undefined) return
           response.destroy()
           const parsed = JSON.parse(data.slice('data: '.length)) as {
@@ -175,7 +175,7 @@ async function decideOnPage(launchUrl: string, isApproved: boolean): Promise<voi
   const intent = await firstIntent(panel, token)
   const posted = await connectorCall(
     panel,
-    '/post',
+    '/panel/message',
     'POST',
     JSON.stringify({
       type: 'decide',
@@ -185,7 +185,7 @@ async function decideOnPage(launchUrl: string, isApproved: boolean): Promise<voi
     }),
     connectorHeaders(panel, token),
   )
-  expect(posted.status).toBe(202)
+  expect(posted.status).toBe(204)
 }
 
 /** Starts a save and answers its awaitingApproval reply; the page's URL was handed to `opened`. */

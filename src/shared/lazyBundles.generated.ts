@@ -124,12 +124,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'checkpointStore.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'CHECKPOINT_STORE_BUNDLE_FILE',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -142,13 +142,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'commands.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/host/cliFeatures.ts', symbol: 'createCliFeatures', side: ['vscode'] },
-      { importer: 'src/host/memoryFeatures.ts', symbol: 'createMemoryFeatures', side: ['vscode'] },
-      { importer: 'src/host/planFeatures.ts', symbol: 'createPlanFiles', side: ['vscode'] },
+      { importer: 'src/host/planFeatures.ts', symbol: 'createPlanFiles', side: ['acp', 'vscode'] },
+      { importer: 'src/host/vscode/cliFeatures.ts', symbol: 'createCliFeatures', side: ['vscode'] },
       {
-        importer: 'src/host/worktreeFeatures.ts',
+        importer: 'src/host/vscode/memoryFeatures.ts',
+        symbol: 'createMemoryFeatures',
+        side: ['vscode'],
+      },
+      {
+        importer: 'src/host/vscode/worktreeFeatures.ts',
         symbol: 'createWorktreeFeatures',
         side: ['vscode'],
       },
@@ -159,7 +163,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/providers/subscriptionFeatures.ts',
+        importer: 'src/host/vscode/providers/subscriptionFeatures.ts',
         symbol: 'configured',
         side: ['vscode'],
       },
@@ -190,9 +194,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'conversation.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/shared/constants.ts', symbol: 'CONVERSATION_BUNDLE_FILE', side: ['vscode'] },
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'CONVERSATION_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {
@@ -208,12 +216,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'conversationTransfer.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/host/conversation/conversationController.ts',
         symbol: 'ConversationController.transferBundle',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -336,6 +344,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/host/backend/toolIo.ts', symbol: 'createToolIo', side: ['acp', 'vscode'] },
     ],
   },
+  { file: 'hostProtocol.js', side: 'both', requestedBy: [] },
   {
     file: 'imageResizeWorker.js',
     side: 'both',
@@ -372,6 +381,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         side: ['acp', 'vscode'],
       },
     ],
+  },
+  {
+    file: 'lsp.js',
+    side: 'acp',
+    requestedBy: [{ importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] }],
   },
   { file: 'mcpPool.js', side: 'both', requestedBy: [] },
   {
@@ -579,12 +593,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'planMarkdown.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'PLAN_MARKDOWN_BUNDLE_FILE',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -604,7 +618,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/reporting/reportPanelEntry.ts',
+        importer: 'src/host/vscode/reporting/reportPanelEntry.ts',
         symbol: 'createReportingWindow',
         side: ['vscode'],
       },
@@ -721,13 +735,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'report.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       { importer: 'src/extension.ts', symbol: 'activateWindow', side: ['vscode'] },
       {
         importer: 'src/host/conversation/conversationController.ts',
         symbol: 'ConversationController.reportProblemHandler',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -737,7 +751,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       { importer: 'src/extension.ts', symbol: 'reportChecksFor', side: ['vscode'] },
       {
-        importer: 'src/host/reporting/reportPanelEntry.ts',
+        importer: 'src/host/vscode/reporting/reportPanelEntry.ts',
         symbol: 'createReportingWindow',
         side: ['vscode'],
       },
@@ -766,7 +780,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/reporting/reportPanelEntry.ts',
+        importer: 'src/host/vscode/reporting/reportPanelEntry.ts',
         symbol: 'createReportingWindow',
         side: ['vscode'],
       },
@@ -786,6 +800,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/host/backend/productionAudioEntry.ts',
         symbol: 'conversionBindings',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/runtime/lsp/processAuthority.ts',
+        symbol: 'processAuthority',
         side: ['acp', 'vscode'],
       },
       { importer: 'src/runtime/resources/load.ts', symbol: 'lazyRuntimeResources', side: ['acp'] },
@@ -884,13 +903,39 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimeBackendServices.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_BACKEND_SERVICES_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
+    file: 'runtimeContext.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RUNTIME_CONTEXT_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
     file: 'runtimeEngine.js',
     side: 'acp',
     requestedBy: [
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'runExec', side: ['acp'] },
+      { importer: 'src/runtime/lsp/lspEntry.ts', symbol: 'runLsp', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'main', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'runtimeFor', side: ['acp'] },
       { importer: 'src/runtime/main.ts', symbol: 'serve', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'runtimeEngines.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RUNTIME_ENGINES_BUNDLE_FILE', side: ['acp'] },
     ],
   },
   {
@@ -902,6 +947,68 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimePanel.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RUNTIME_PANEL_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'runtimePanelPorts.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_PANEL_PORTS_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
+    file: 'runtimePresentation.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_PRESENTATION_BUNDLE_FILE',
+        side: ['acp'],
+      },
+    ],
+  },
+  {
+    file: 'runtimeProcessAuthority.js',
+    side: 'both',
+    requestedBy: [
+      { importer: 'src/runtime/lsp/lspEntry.ts', symbol: 'runLsp', side: ['acp'] },
+      {
+        importer: 'src/runtime/lsp/registry.ts',
+        symbol: 'writePrivateRecord',
+        side: ['acp', 'vscode'],
+      },
+      { importer: 'src/runtime/lsp/supervisor.ts', symbol: 'readTreeReceipt', side: ['acp'] },
+      { importer: 'src/runtime/lsp/supervisor.ts', symbol: 'stopOwner', side: ['acp'] },
+      { importer: 'src/runtime/lsp/supervisor.ts', symbol: 'stopRuntime', side: ['acp'] },
+      { importer: 'src/runtime/lsp/supervisor.ts', symbol: 'stopWorkspace', side: ['acp'] },
+      { importer: 'src/runtime/lsp/supervisor.ts', symbol: 'superviseRuntime', side: ['acp'] },
+      { importer: 'src/runtime/lsp/watchdogEntry.ts', symbol: 'watch', side: ['acp'] },
+      {
+        importer: 'src/runtime/privateDirectory.ts',
+        symbol: 'createTrustedRoot',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/runtime/privateDirectory.ts',
+        symbol: 'privateDirectory',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/runtime/privateDirectory.ts',
+        symbol: 'writeWindowsPrivateRecord',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
     file: 'runtimeQuestions.js',
     side: 'acp',
     requestedBy: [
@@ -910,6 +1017,14 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'RUNTIME_QUESTIONS_BUNDLE_FILE',
         side: ['acp'],
       },
+    ],
+  },
+  {
+    file: 'runtimeWatchdog.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/runtime/lsp/lspEntry.ts', symbol: 'runLsp', side: ['acp'] },
+      { importer: 'src/runtime/lsp/supervisor.ts', symbol: 'superviseRuntime', side: ['acp'] },
     ],
   },
   {
@@ -957,8 +1072,16 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'RecordingScope.run',
         side: ['acp', 'vscode'],
       },
-      { importer: 'src/host/backend/fileScheduleStore.ts', symbol: 'currentJob', side: ['vscode'] },
-      { importer: 'src/host/backend/fileScheduleStore.ts', symbol: 'snapshot', side: ['vscode'] },
+      {
+        importer: 'src/host/backend/fileScheduleStore.ts',
+        symbol: 'currentJob',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/host/backend/fileScheduleStore.ts',
+        symbol: 'snapshot',
+        side: ['acp', 'vscode'],
+      },
       {
         importer: 'src/host/schedules/schedulesBridge.ts',
         symbol: 'createSchedulesBridge',
@@ -970,13 +1093,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'scheduleSurfaces.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       { importer: 'src/extension.ts', symbol: 'loadScheduleSurfaces', side: ['vscode'] },
       {
         importer: 'src/host/conversation/conversationController.ts',
         symbol: 'ConversationController.scheduleSurfaces',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -998,12 +1121,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'sessionBoard.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/host/conversation/conversationController.ts',
         symbol: 'ConversationController.sessionBoard',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -1029,7 +1152,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'tab.js',
     side: 'vscode',
     requestedBy: [
-      { importer: 'src/host/tab/tabBundle.ts', symbol: 'TAB_BUNDLE_FILE', side: ['vscode'] },
+      { importer: 'src/host/vscode/tab/tabBundle.ts', symbol: 'TAB_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   {
@@ -1264,7 +1387,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [
       {
-        importer: 'src/host/reporting/reportPanel.ts',
+        importer: 'src/host/vscode/reporting/reportPanel.ts',
         symbol: 'ReportPanel.show',
         side: ['vscode'],
       },
@@ -1276,7 +1399,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'webview/usage.js',
     side: 'both',
     requestedBy: [
-      { importer: 'src/host/usage/usagePanel.ts', symbol: 'UsagePanel.open', side: ['vscode'] },
+      {
+        importer: 'src/host/vscode/usage/usagePanel.ts',
+        symbol: 'UsagePanel.open',
+        side: ['vscode'],
+      },
       {
         importer: 'src/runtime/usage/usageCompanionEntry.ts',
         symbol: 'openUsageCompanion',

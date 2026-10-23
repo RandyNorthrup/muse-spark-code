@@ -67,15 +67,15 @@ export async function readJson(request: IncomingMessage, maxBytes: number): Prom
   if (singleHeader(request, 'content-type') !== 'application/json')
     throw new Error('EPANEL_CONTENT_TYPE')
   const length = singleHeader(request, 'content-length')
-  if (length !== undefined && (!/^\d+$/.test(length) || Number(length) > maxBytes))
-    throw new Error('EPANEL_BODY')
+  if (length !== undefined && !/^\d+$/.test(length)) throw new Error('EPANEL_BODY')
+  if (length !== undefined && Number(length) > maxBytes) throw new Error('EPANEL_TOO_LARGE')
   let size = 0
   const chunks: Buffer[] = []
   const stream = request.iterator({ destroyOnReturn: false })
   for await (const chunk of stream) {
     if (!Buffer.isBuffer(chunk)) throw new TypeError('EPANEL_BODY')
     size += chunk.length
-    if (size > maxBytes) throw new Error('EPANEL_BODY')
+    if (size > maxBytes) throw new Error('EPANEL_TOO_LARGE')
     chunks.push(chunk)
   }
   const parsed: unknown = JSON.parse(

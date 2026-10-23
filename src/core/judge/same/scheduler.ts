@@ -23,7 +23,7 @@ open nor surfaces an unhandled rejection.
 export function runJudgeInBackground(
   call: (signal: AbortSignal) => Promise<void>,
   options: BackgroundJudgeOptions,
-): void {
+): Promise<void> {
   if (!Number.isFinite(options.timeoutMs) || options.timeoutMs <= 0) {
     throw new RangeError('judge background calls need a positive timeout')
   }
@@ -34,11 +34,13 @@ export function runJudgeInBackground(
   // A pending judge never holds the process open on its own.
   const nodeTimer = timer as unknown as { unref?: () => void }
   nodeTimer.unref?.()
-  void call(controller.signal)
-    .catch((error: unknown) => {
+  return (async () => {
+    try {
+      await call(controller.signal)
+    } catch (error: unknown) {
       options.onError(error)
-    })
-    .finally(() => {
+    } finally {
       clearTimeout(timer)
-    })
+    }
+  })()
 }

@@ -354,9 +354,9 @@ export const DEFERRED = [
     output: 'dist/usagePanel.js',
     metafile: 'dist/meta/usagePanel.json',
     files: [
-      'src/host/usage/usagePanelEntry.ts',
-      'src/host/usage/usagePanel.ts',
-      'src/host/paid/paidDailyBudget.ts',
+      'src/host/vscode/usage/usagePanelEntry.ts',
+      'src/host/vscode/usage/usagePanel.ts',
+      'src/host/vscode/paid/paidDailyBudget.ts',
     ],
   },
   {
@@ -403,6 +403,68 @@ export const DEFERRED = [
       'src/runtime/schedules/nodeBackgroundIo.ts',
       'src/runtime/schedules/effectiveDefinition.ts',
       'src/runtime/windowsTrustedPath.ts',
+    ],
+  },
+  {
+    output: 'dist/runtimeBackendServices.js',
+    metafile: 'dist/meta/runtimeBackendServices.json',
+    use: 'portable backend tool recording and guarded services',
+    files: ['src/runtime/panel/backendEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeContext.js',
+    metafile: 'dist/meta/runtimeContext.json',
+    use: 'portable confined plan context',
+    files: ['src/runtime/panel/contextEntry.ts'],
+  },
+  {
+    output: 'dist/runtimeEngines.js',
+    metafile: 'dist/meta/runtimeEngines.json',
+    use: 'portable guarded engine factories',
+    files: ['src/runtime/panel/engineEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePresentation.js',
+    metafile: 'dist/meta/runtimePresentation.json',
+    use: 'portable auxiliary presentation',
+    files: ['src/host/views/runtimePresentationEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePanelPorts.js',
+    metafile: 'dist/meta/runtimePanelPorts.json',
+    use: 'runtime panel feature composition',
+    files: ['src/runtime/panel/runtimeFeatures.ts', 'src/runtime/panel/runtimeFeaturesEntry.ts'],
+  },
+  {
+    output: 'dist/runtimePanel.js',
+    metafile: 'dist/meta/runtimePanel.json',
+    use: 'the runtime panel command',
+    files: [
+      'src/runtime/panel/panelEntry.ts',
+      'src/runtime/panel/runPanel.ts',
+      'src/runtime/panel/connection.ts',
+      'src/runtime/panel/delivery.ts',
+      'src/runtime/panel/surfaces.ts',
+      'src/runtime/panel/runtimeController.ts',
+      'src/runtime/companion/server.ts',
+      'src/runtime/companion/events.ts',
+    ],
+  },
+  {
+    output: 'dist/runtimeProcessAuthority.js',
+    metafile: 'dist/meta/runtimeProcessAuthority.json',
+    use: 'the first supervised launch or guardian action',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/lsp.js', metafile: 'dist/meta/lsp.json' },
+      { output: 'dist/runtimeWatchdog.js', metafile: 'dist/meta/runtimeWatchdog.json' },
+    ],
+    files: [
+      'src/runtime/lsp/processAuthority.ts',
+      'src/runtime/trustedPath.ts',
+      'src/runtime/lsp/stopReceipt.ts',
     ],
   },
   {
@@ -505,6 +567,17 @@ export const ON_FIRST_USE = [
     output: 'dist/resourceGovernor.js',
     metafile: 'dist/meta/resourceGovernor.json',
     use: 'the first governed spawn',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/lsp.js', metafile: 'dist/meta/lsp.json' },
+      { output: 'dist/runtimeWatchdog.js', metafile: 'dist/meta/runtimeWatchdog.json' },
+      {
+        output: 'dist/runtimeProcessAuthority.js',
+        metafile: 'dist/meta/runtimeProcessAuthority.json',
+      },
+    ],
     files: [
       'src/core/resources/resourceGovernorEntry.ts',
       'src/core/resources/launchHost.ts',
@@ -515,6 +588,9 @@ export const ON_FIRST_USE = [
       'src/core/resources/createdRegistry.ts',
       'src/core/resources/sampler/system.ts',
       'src/core/resources/trees/registry.ts',
+      ...['actions', 'linux', 'mac', 'posix', 'posixTable', 'windows', 'run'].map(
+        (name) => `src/core/resources/trees/${name}.ts`,
+      ),
       'src/runtime/resources/entry.ts',
       'src/runtime/resources/host.ts',
       'src/runtime/resources/settings.ts',
@@ -625,7 +701,10 @@ export const ON_FIRST_USE = [
     metafile: 'dist/meta/reportingPanel.json',
     use: 'the first report tab',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
-    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
+    files: [
+      'src/host/vscode/reporting/reportPanelEntry.ts',
+      'src/host/vscode/reporting/reportPanel.ts',
+    ],
   },
   {
     output: 'dist/reportInputs.js',
@@ -709,6 +788,19 @@ export const ON_FIRST_USE = [
     ],
   },
   {
+    output: 'dist/lsp.js',
+    metafile: 'dist/meta/lsp.json',
+    use: 'the LSP command',
+    files: [
+      'src/runtime/lsp/lspEntry.ts',
+      'src/runtime/lsp/server.ts',
+      'src/runtime/lsp/transport.ts',
+      'src/runtime/lsp/documents.ts',
+      'src/runtime/lsp/broker.ts',
+      'src/runtime/tabServe.ts',
+    ],
+  },
+  {
     output: 'dist/conversation.js',
     metafile: 'dist/meta/conversation.json',
     use: 'the first chat surface',
@@ -783,12 +875,13 @@ export const ON_FIRST_USE = [
     use: 'the first Tab request or menu',
     files: [
       'src/host/tab/tabEntry.ts',
-      'src/host/tab/tabProvider.ts',
-      'src/host/tab/tabStatus.ts',
+      'src/host/vscode/tab/tabProvider.ts',
+      'src/host/vscode/tab/tabStatus.ts',
       'src/host/tab/tabLedger.ts',
       'src/host/tab/tabSpendGate.ts',
       'src/core/tab/tabCache.ts',
       'src/core/tab/tabContext.ts',
+      'src/core/tab/tabEligibility.ts',
       'src/core/tab/tabEngine.ts',
       'src/core/tab/tabHooks.ts',
       'src/core/tab/tabReply.ts',
@@ -845,7 +938,7 @@ export const ON_FIRST_USE = [
     use: 'the window dictation setup construction',
     files: [
       'src/host/voice/dictationEntry.ts',
-      'src/host/voice/dictationHost.ts',
+      'src/host/vscode/voice/dictationHost.ts',
       'src/host/voice/voiceBundle.ts',
       'src/core/voice/helperLocation.ts',
     ],
@@ -891,9 +984,9 @@ export const ON_FIRST_USE = [
     ],
     files: [
       'src/host/models/modelsSubscriptionsEntry.ts',
-      'src/host/providers/subscriptionFeatures.ts',
-      'src/host/providers/chatgptSignIn.ts',
-      'src/host/providers/copilotClient.ts',
+      'src/host/vscode/providers/subscriptionFeatures.ts',
+      'src/host/vscode/providers/chatgptSignIn.ts',
+      'src/host/vscode/providers/copilotClient.ts',
     ],
   },
   // ACTIVATIONROOM: the CLI-backed and workspace command flows (the MCP
@@ -996,7 +1089,7 @@ export const ON_FIRST_USE = [
     use: 'the first What’s New page or notice',
     files: [
       'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/vscode/whatsNew/whatsNewPanel.ts',
       'src/host/whatsNew/whatsNewHtml.ts',
       'src/core/whatsNew/whatsNewContent.ts',
       'src/shared/whatsNewMessages.ts',
@@ -1025,7 +1118,7 @@ export const ON_FIRST_USE = [
     use: 'the first paid consent, gate or usage read',
     files: [
       'src/host/paid/paidEntry.ts',
-      'src/host/paid/paidHost.ts',
+      'src/host/vscode/paid/paidHost.ts',
       'src/core/paid/paidConsent.ts',
       'src/core/paid/paidFeatures.ts',
       'src/core/paid/paidAuthority.ts',
@@ -1336,6 +1429,10 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/exec/execEntry.ts'), 'dist/exec.js'],
   [path.resolve('src/core/backends/modelapi/codeIntelEntry.ts'), 'dist/modelApiCodeIntel.js'],
   [path.resolve('src/runtime/schedules/backgroundEntry.ts'), 'dist/scheduleBackground.js'],
+  [path.resolve('src/runtime/lsp/lspEntry.ts'), 'dist/lsp.js'],
+  [path.resolve('src/runtime/lsp/processAuthority.ts'), 'dist/runtimeProcessAuthority.js'],
+  [path.resolve('src/runtime/trustedPath.ts'), 'dist/runtimeProcessAuthority.js'],
+  [path.resolve('src/runtime/lsp/stopReceipt.ts'), 'dist/runtimeProcessAuthority.js'],
   [path.resolve('src/host/support/reportEntry.ts'), 'dist/report.js'],
   [
     path.resolve('src/host/conversation/conversationTransferEntry.ts'),
@@ -1411,7 +1508,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|lspEntry|processAuthority|trustedPath|stopReceipt)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
@@ -1440,6 +1537,7 @@ const WIRE_FILES = [
   'src/shared/schedule.ts',
   'src/shared/media.ts',
   'src/shared/questions.ts',
+  'src/shared/presentationProtocol.ts',
 ]
 const WIRE_SOURCES = new Set(WIRE_FILES.map((file) => path.resolve(file)))
 /** @type {import('esbuild').Plugin} */
@@ -1449,7 +1547,7 @@ export const sharedWire = {
     build.onResolve(
       {
         filter:
-          /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol|scheduleV2|scheduleEvents|schedule|media|questions)(?:\.ts)?$/,
+          /(?:^|\/)(?:protocol|agentEvents|scheduleProtocol|scheduleV2|scheduleEvents|schedule|media|questions|presentationProtocol)(?:\.ts)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
@@ -1487,6 +1585,24 @@ export const sharedResourceAdmission = {
           : undefined
       },
     )
+  },
+}
+
+const HOST_PROTOCOL_SOURCES = new Set(
+  ['src/shared/hostApi/methods.ts', 'src/shared/hostApi/panel.ts'].map((file) =>
+    path.resolve(file),
+  ),
+)
+/** Share the validated native service vocabulary across Node carrier bundles. */
+export const sharedHostProtocol = {
+  name: 'shared-host-protocol',
+  setup(build) {
+    build.onResolve({ filter: /\/(?:methods|panel)(?:\.ts)?$/ }, (args) => {
+      const source = path.resolve(args.resolveDir, `${args.path.replace(/\.ts$/, '')}.ts`)
+      return HOST_PROTOCOL_SOURCES.has(source)
+        ? { path: './hostProtocol.js', external: true }
+        : undefined
+    })
   },
 }
 

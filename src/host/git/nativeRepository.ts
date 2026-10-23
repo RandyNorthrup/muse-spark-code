@@ -22,7 +22,7 @@ import { readNativeStatus, toPushHead } from '../../core/git/status'
 import { GIT_PUSH_CREDENTIAL_VARIABLES, UI_TEXT } from '../../shared/constants'
 import { quietGitEnvironment } from '../../core/execGuard'
 import { type GitProcess } from '../git'
-import { GitUnavailableError, type CheckoutRepository } from './gitExtension'
+import { GitUnavailableError, type CheckoutRepository } from '../vscode/git/gitExtension'
 import { realpathSync } from 'node:fs'
 
 export interface NativeRepositoryDeps {

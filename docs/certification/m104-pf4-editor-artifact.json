@@ -1,0 +1,142 @@
+{
+  "checkpointParent": "9795c3774abe86265dccfc3713729f37864ec838",
+  "protocol": "mhp/1.3.0",
+  "machine": "macmini",
+  "os": "macOS 15.7.4 (24G517)",
+  "editor": "Xcode 26.3 (17C529)",
+  "architecture": "x86_64",
+  "core": {
+    "scheme": "NativeCore",
+    "tests": 60,
+    "outcome": "passed after all 20 controls"
+  },
+  "compiledOnly": {
+    "appAndExtension": "Debug build-for-testing; CODE_SIGNING_ALLOWED=NO",
+    "voiceHelper": "unsigned universal x86_64/arm64; embedded version 0.14.1; never launched"
+  },
+  "modelAttempts": 0,
+  "installedExtensionReceipt": false,
+  "consoleReceipt": "needs owner at the console",
+  "inventory": [
+    {
+      "path": "hosts/xcode/Shared/MhpSchema.swift",
+      "bytes": 7830,
+      "sha256": "875f5d5e676600231b6b1a33deccbd0b62797aa4f6e2b9f057e0ce2d739f3f4c"
+    },
+    {
+      "path": "hosts/xcode/Shared/MhpSession.swift",
+      "bytes": 11123,
+      "sha256": "a8bf7bd0d5373eea2edcbdb7a9d2a90f397b8b9d4a08a4cf64a451478e409c6f"
+    },
+    {
+      "path": "hosts/xcode/Shared/NativeChannel.swift",
+      "bytes": 13250,
+      "sha256": "58ebc6c5d600dbe2d4597dc99fb3650372d196806784800954a773d9e8edbfc5"
+    },
+    {
+      "path": "hosts/xcode/Shared/BufferEdit.swift",
+      "bytes": 4689,
+      "sha256": "ad8df0601b435e33548be5286be224714a5c27d611b93e76d1a63edca3f4041d"
+    },
+    {
+      "path": "hosts/xcode/Shared/RuntimeLauncher.swift",
+      "bytes": 12539,
+      "sha256": "15964bae959b2aa82d591cac12c6aaecf8e24468c488d8fdb9bbc394156b7239"
+    },
+    {
+      "path": "hosts/xcode/App/NativeUi.swift",
+      "bytes": 9786,
+      "sha256": "407d5ba57bbe052e8603a47e626b2b0e32264b369d680838903aa6f8e1d1e2ae"
+    },
+    {
+      "path": "hosts/xcode/App/PanelModel.swift",
+      "bytes": 10633,
+      "sha256": "d0bc0f9c35e862ac93b1f79026969d0ae8ed47cbcd7a7b3700b64477cd6b0181"
+    },
+    {
+      "path": "hosts/xcode/Extension/SourceEditorCommand.swift",
+      "bytes": 3333,
+      "sha256": "716609cb2d08f130443fec1e75167b23b387cb40747ffc6544f0f8e3e2ac3e1b"
+    },
+    {
+      "path": "hosts/xcode/MuseSpark.xcodeproj/project.pbxproj",
+      "bytes": 36423,
+      "sha256": "6fe259e9e8332378b35a8d1bd2d1f6eac441ed7c4163b849184d8ca95e62e0da"
+    },
+    {
+      "path": "hosts/xcode/Scripts/generate.mjs",
+      "bytes": 6725,
+      "sha256": "c97949c3e9b6cb2b18cc9615e4d6c6f84f8c62ace4b2ef9ed62e12f5e8f14071"
+    },
+    {
+      "path": "test/m104/mac/EditorServiceTests.swift",
+      "bytes": 7880,
+      "sha256": "8faee631499a81972f97e9d50411d2b0007683866e7131f2077017693e28c8fa"
+    },
+    {
+      "path": "test/m104/mac/MhpHostTests.swift",
+      "bytes": 22886,
+      "sha256": "fbc4f6c73a0b0632af366e1cbcf5e4ecd0da06842c12725eb9709481187a6fb1"
+    },
+    {
+      "path": "test/m104/mac/nativeDrills.mjs",
+      "bytes": 12442,
+      "sha256": "8aa94d118513f493f232baf5fc5221c6cd2c2f9827bc868fa9997b1caaeaeb5f"
+    },
+    {
+      "path": "src/shared/hostApi/mhp-v1.1.schema.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    },
+    {
+      "path": "native/darwin/Dictation.swift",
+      "bytes": 36576,
+      "sha256": "f1704d5e620f4e7317420d50bfd7a2eb48d1ad3b5549f6ff89d32f2e7d040d4d"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/NativeHostTests.xctest/Contents/MacOS/NativeHostTests",
+      "bytes": 1267744,
+      "sha256": "eb097e2ca0b0a70ba3c6e5d246bf995ac62d4722040b4824b282b89785df154d"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/NativeHostTests.xctest/Contents/Resources/mhp.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/Muse Spark for Xcode.app/Contents/MacOS/Muse Spark for Xcode",
+      "bytes": 25496,
+      "sha256": "7c15959092b0475dfff02d7115ea8a9dd625e929091171cf325848ebdf06ab71"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/Muse Spark for Xcode.app/Contents/MacOS/Muse Spark for Xcode.debug.dylib",
+      "bytes": 1645584,
+      "sha256": "05586ca042331b2a7d4d730bfdab15c39ed44fc0a8ca6e95b74786bfe5f86045"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/Muse Spark for Xcode.app/Contents/Resources/mhp.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/Muse Spark for Xcode.app/Contents/PlugIns/MuseSparkEditor.appex/Contents/MacOS/MuseSparkEditor",
+      "bytes": 19528,
+      "sha256": "742607ee49ee696dcbc50b52225320ddf29050a15ecfc86789a2b0091efba4fd"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/Muse Spark for Xcode.app/Contents/PlugIns/MuseSparkEditor.appex/Contents/MacOS/MuseSparkEditor.debug.dylib",
+      "bytes": 854640,
+      "sha256": "1cd6063d9d8622e46a1b82312226f030970fcb8e851d09eb6f5aec4d2454f810"
+    },
+    {
+      "path": "temp/m104pf4/DerivedData/Build/Products/Debug/Muse Spark for Xcode.app/Contents/PlugIns/MuseSparkEditor.appex/Contents/Resources/mhp.json",
+      "bytes": 977290,
+      "sha256": "6d8c3980f6c6e10fd49cab98bc5f7d6a78395fda78d00f6a1d1be28679e63bec"
+    },
+    {
+      "path": "temp/m104pf4/voice-universal",
+      "bytes": 311344,
+      "sha256": "99389895360c33d1151a99a54c31b4fc3a25b614ce3dde4fe4023a36609e29fb"
+    }
+  ]
+}

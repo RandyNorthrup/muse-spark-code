@@ -1,10 +1,11 @@
 import type { StartSessionOptions, AgentSession } from '../../core/agent/agentBackend'
-import type { JudgeDailyLedger } from '../../core/judge/admission'
+import type { PaidFeatureGate, PaidUsage } from '../../core/paid/paidFeatures'
+import type { PaidUseConsent } from '../../core/paid/paidConsent'
+import type { JudgeTokenPrices, JudgeDailyLedger } from '../../core/judge/admission'
 import type { JudgeEntryParts } from '../../core/judge/entries'
 import type { JudgeAdvisory } from '../../core/judge/use'
 import type { JudgeFenceSample } from '../../core/judge/use'
 import type { ModelApiJudgeConnection } from '../../core/judge/same/modelApiSource'
-import type { PaidFeatures } from '../paid/paidHost'
 import type { JudgeStatus } from '../../shared/judge'
 import type { AgentEvent } from '../../shared/agentEvents'
 import { UI_TEXT, type JudgeEngine } from '../../shared/constants'
@@ -29,7 +30,13 @@ export interface JudgeWindowDeps {
   readonly modelApi: (action: JudgeEntryParts) => ModelApiJudgeConnection | undefined
   /** The real D78 adapter only; absence disables metered judging before consent. */
   readonly ledger?: JudgeDailyLedger | undefined
-  readonly paid: PaidFeatures
+  readonly priceOf?: ((modelId: string) => JudgeTokenPrices | undefined) | undefined
+  readonly paid: {
+    readonly gate: Pick<PaidFeatureGate, 'isOn'>
+    readonly consent: Pick<PaidUseConsent, 'remembered'>
+    readonly usage: PaidUsage
+    readonly allowsJudgeUse: (modelId: string) => Promise<boolean>
+  }
   readonly emit: (action: JudgeEntryParts, event: AgentEvent) => void
   readonly status: (action: JudgeEntryParts, status: JudgeStatus) => void
   readonly notice: (text: string) => void
@@ -42,6 +49,7 @@ export interface JudgeWindowDeps {
 export interface JudgeWindowPort extends JudgeAdvisory {
   isSideSession(sessionId: string): boolean
   dispose(): void
+  settled?(): Promise<void>
 }
 
 interface JudgeBundle {
@@ -92,5 +100,8 @@ export function judgeWindowPort(
     discardSession: (session) => judge?.discardSession(session),
     isSideSession: (session) => judge?.isSideSession(session) ?? false,
     dispose: () => judge?.dispose(),
+    settled: async () => {
+      await judge?.settled?.()
+    },
   }
 }

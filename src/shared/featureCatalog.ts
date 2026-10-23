@@ -1578,3 +1578,87 @@ export function sharingHelp(table: UiText = UI_TEXT): string {
     .map((feature) => `${feature.syntax}\n${feature.label}: ${feature.detail}`)
     .join('\n\n')
 }
+
+// Source reference for M104L's runtime and shim additions. English documentation
+// metadata is not runtime UI; the LSP reads localized UI_TEXT at request time.
+export const FEATURE_CATALOG = [
+  {
+    command: 'panel --stdio',
+    behavior:
+      'Native editor transport uses only MHP 1.5. The frozen input export refuses unknown named-object members before dispatch, preserves declared record/catchall entries and arbitrary JSON state, and validates exact-money inputs before normalization. Superseded peers are refused. Native distribution and installed-editor qualification remain experimental.',
+  },
+  {
+    command: 'panel --companion',
+    behavior:
+      'The authenticated companion shares the frozen MHP 1.5 panel contract and bounded sequenced deliveries. The runtime owns conversation, paid consent and accounting; the editor owns its native services. Installed-editor and resource-chip parity remain open.',
+  },
+  {
+    command: 'Eclipse: MUSE_SPARK_RUNTIME',
+    behavior:
+      'Native panel launch uses absolute PATH directories or an absolute override. Windows npm shims resolve to a native node.exe and prefix/node_modules/muse-spark-code-acp/dist/acp.js; package name and real in-package script/manifest paths are checked before launch. Discovery refuses symbolic links or junctions below the canonical prefix through the package dist directory. The override also accepts a strict JSON pair of absolute native Node and installed ACP script paths on every platform, retaining canonical package resolution through linked ancestors. Native .exe installs remain supported. Fixed panel and --stdio arguments are passed separately, with no shell or shim interpretation. Installed Windows qualification remains pending.',
+  },
+  {
+    command: 'lsp',
+    behavior:
+      'Stdio LSP frontend. One broker per canonical workspace, with private directories created with final owner-only permissions and verified through a no-follow fd or Windows handle; private records created exclusively with held-file permissions/ACL, resolved record identity and directory identity verified before contents are written; one StrictModes verifier checks the full real ancestry to the filesystem root, including root-owned sticky parents only with user-owned children and group write only for a primary group named for the user with proven exclusive membership; unknown membership refuses; platform root selection records refusals and its chosen path, refusing startup if none qualifies; UTF-16 full document sync; cancellable requests and standard initialization/method error codes; ordinary invoked completion items plus inline completion when negotiated.',
+  },
+  {
+    command: 'lsp --workspace <directory>',
+    behavior: 'Choose the workspace root. Defaults to the process working directory.',
+  },
+  {
+    command: 'lsp --tab --trust-workspace',
+    behavior:
+      'Opt into paid, invoked Tab completions. Uses M94 engine, output and context caps, private-file/ignore checks, cross-process daily ledger and paid-use consent. Deny or closing consent snoozes Tab for that editor connection until reconnect. Model API key stays in the OS store.',
+  },
+  {
+    command: 'lsp --tab-model <model> --tab-daily-budget-usd <amount>',
+    behavior:
+      'Select a supported M94 Tab model and daily USD budget from 0.05 to 50. Contributor models also require --allow-contributor-models.',
+  },
+  {
+    command: 'supervise <runtime arguments>',
+    behavior:
+      'Run the installed runtime behind independent authenticated Stop control. POSIX control sockets use the verified platform runtime root independently of registry depth; oversized addresses refuse before control state or child launch. Stop during guardian startup waits for the child and cleanup. Workload launches wait for exact M107 process registration. All Stop actions use verified per-member signals and exit receipts; POSIX EOF guardian uses the same authority, zombies count as exited, and observed detached descendants remain enrolled. Windows uses a named native job. Intentional Stop exits 0, including job 143/137; ordinary exit codes are preserved; unexpected POSIX signal death exits 128 + signal and names it on stderr. POSIX retains the final exact-read-to-signal interval without a pidfd; native Windows/Linux qualification remains pending.',
+  },
+  {
+    command: 'stop',
+    behavior:
+      'Stop supervised owners in the current canonical workspace without entering the request queue. Search every verified platform root, then verified prior roots from path-only locators in the stable home fallback, even after XDG/TMPDIR changes. Supervision requires that verified locator namespace. Preflight every owner before signalling; unusable records and canonical trust-root mismatches are reported and skipped without signalling; duplicate well-formed owner UUID/generations refuse with ownership retained. No matching run exits 1 (ESTOP_NO_RUN); duplicates exit 1 (ESTOP_AMBIGUOUS). Owner death requires an exclusively created completed guardian receipt bound to the current random generation, owner UUID, resource ticket, guardian/root birth identities and observed members; copied, stale and incomplete receipts refuse; without one, exit 1 reports inability to verify and observed PIDs, retaining ownership for a later verified Stop.',
+  },
+  {
+    command: 'muse.stop / muse.usage / muse.help',
+    behavior:
+      'LSP executeCommand routes for Stop, paid Tab usage and localized help. Stop and shutdown have two reserved request slots independent of ordinary saturation.',
+  },
+  {
+    command: 'muse.openPanel / muse.fix / muse.explain / muse.apply',
+    behavior:
+      'Controller integration contract. Production panel/review controller is absent from this base: panel, Fix and Explain return an explicit error; review code actions are not advertised. Injected conformance services prove version/hash checks, approval and cancellation after final policy admission before workspace/applyEdit.',
+  },
+  {
+    command: 'Neovim: MuseLsp / MusePanel / MuseStop',
+    behavior:
+      'Native LSP with invoked omnifunc items and negotiated inline requests, supervised companion launch and independent workspace Stop; CodeCompanion ACP uses supervision. Neovim 0.12.5 lacks a public fresh-inline invocation API.',
+  },
+  {
+    command: 'Emacs: muse-spark-lsp / muse-spark-panel / muse-spark-stop',
+    behavior:
+      'Eglot LSP, supervised companion and independent workspace Stop; agent-shell ACP uses supervision. Native batch qualification is pending on this rig.',
+  },
+  {
+    command: 'Sublime: LSP-muse-spark / muse_panel / muse_stop',
+    behavior:
+      'Optional LSP package registration and supervised companion/independent workspace Stop. Native GUI qualification is pending.',
+  },
+  {
+    command: 'Qt Creator: generic language client / panel / stop',
+    behavior:
+      'Configure the installed LSP in the native generic language client; the Lua shim supplies supervised companion and independent Stop. Native GUI qualification is pending.',
+  },
+  {
+    command: 'Zed: muse_spark language server / panel task / stop task',
+    behavior:
+      'Rust LSP extension source plus quoted shell tasks and supervised ACP. Offline SDK compilation and native edit-prediction qualification are pending.',
+  },
+] as const

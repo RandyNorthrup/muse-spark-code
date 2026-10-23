@@ -381,6 +381,11 @@ const settingSchemas = {
 
 type SettingKey = keyof typeof settingSchemas
 
+/** The standalone runtime validates updates with the same schemas as VS Code. */
+export function settingSchema(key: string): z.ZodMiniType | undefined {
+  return Object.entries(settingSchemas).find(([name]) => name === key)?.[1]
+}
+
 // An invalid value is reported once per logger, not on every read: the
 // settings are read about seven times for each message sent (M39).
 const reported = new WeakMap<Logger, Set<string>>()

@@ -1,0 +1,292 @@
+[
+  {
+    "name": "ui-renderer-result",
+    "source": "src/webview/bridges/uiResponder.ts",
+    "suite": "test/unit/uiResponder.test.ts",
+    "mutation": {
+      "old": "return parseMhpResult(frame.method, { jsonrpc: MHP.jsonRpcVersion, id: frame.id, result })",
+      "new": "return { jsonrpc: MHP.jsonRpcVersion, id: frame.id, result }"
+    },
+    "exit": 1,
+    "restoredSha256": "4b0cb3b1dcdee074c67916935dd2fa9c4728f74ea19fe5deff921b03e204ca6b",
+    "seconds": 4.08,
+    "failedTests": [
+      " test/unit/uiResponder.test.ts > returns the original typed id and rejects a renderer result invalid for its method"
+    ]
+  },
+  {
+    "name": "ui-typed-cancel",
+    "source": "src/webview/bridges/uiResponder.ts",
+    "suite": "test/unit/uiResponder.test.ts",
+    "mutation": {
+      "old": "calls.get(frame.params.id)?.abort()",
+      "new": "for (const call of calls.values()) call.abort()"
+    },
+    "exit": 1,
+    "restoredSha256": "4b0cb3b1dcdee074c67916935dd2fa9c4728f74ea19fe5deff921b03e204ca6b",
+    "seconds": 2.56,
+    "failedTests": [
+      " test/unit/uiResponder.test.ts > refuses duplicate work, cancels only its typed id and disposes every remaining prompt"
+    ]
+  },
+  {
+    "name": "ui-retired-bound",
+    "source": "src/runtime/panel/uiRequests.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutation": {
+      "old": "this.retired.size >= MHP_PANEL.maximumQueuedMessages",
+      "new": "false"
+    },
+    "exit": 1,
+    "restoredSha256": "ce01aa1d96e8cc7cce431496b325f5c8b238ebb91159594982b00f86cca15490",
+    "seconds": 1.55,
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > closes a window before cancelled correlations can exceed the admission bound"
+    ]
+  },
+  {
+    "name": "loader-duplicate",
+    "source": "src/webview/bridges/moduleLoader.ts",
+    "suite": "test/unit/portableAssets.test.ts",
+    "mutation": {
+      "old": "modules.size !== manifest.modules.length",
+      "new": "false"
+    },
+    "exit": 1,
+    "restoredSha256": "0a2de730bd8bbde28204eb0b4dfda821a32c5aca0b551d70dad58c726d4185e0",
+    "seconds": 5.5,
+    "failedTests": [
+      " test/unit/portableAssets.test.ts > loads the static and deferred authenticated graph under nonce CSP, and refuses altered module bytes"
+    ]
+  },
+  {
+    "name": "loader-span",
+    "source": "src/webview/bridges/moduleLoader.ts",
+    "suite": "test/unit/portableAssets.test.ts",
+    "mutation": {
+      "old": "imported.end > bound || source.slice(imported.start, imported.end) !== imported.text",
+      "new": "false"
+    },
+    "exit": 1,
+    "restoredSha256": "0a2de730bd8bbde28204eb0b4dfda821a32c5aca0b551d70dad58c726d4185e0",
+    "seconds": 5.92,
+    "failedTests": [
+      " test/unit/portableAssets.test.ts > loads the static and deferred authenticated graph under nonce CSP, and refuses altered module bytes"
+    ]
+  },
+  {
+    "name": "loader-cycle",
+    "source": "src/webview/bridges/moduleLoader.ts",
+    "suite": "test/unit/portableAssets.test.ts",
+    "mutation": {
+      "old": "if (ancestors.has(path)) return Promise.reject(new Error('MHP_MODULE_CYCLE'))",
+      "new": "if (false) return Promise.reject(new Error('MHP_MODULE_CYCLE'))"
+    },
+    "exit": 1,
+    "restoredSha256": "0a2de730bd8bbde28204eb0b4dfda821a32c5aca0b551d70dad58c726d4185e0",
+    "seconds": 39.75,
+    "failedTests": [
+      " test/unit/portableAssets.test.ts > loads the static and deferred authenticated graph under nonce CSP, and refuses altered module bytes"
+    ]
+  },
+  {
+    "name": "loader-unlisted",
+    "source": "src/webview/bridges/moduleLoader.ts",
+    "suite": "test/unit/portableAssets.test.ts",
+    "mutation": {
+      "old": "if (module === undefined) throw new Error('MHP_MODULE_UNLISTED')",
+      "new": "if (module === undefined) { await window.fetch(path); throw new Error('MHP_MODULE_UNLISTED') }"
+    },
+    "exit": 1,
+    "restoredSha256": "0a2de730bd8bbde28204eb0b4dfda821a32c5aca0b551d70dad58c726d4185e0",
+    "seconds": 8.5,
+    "failedTests": [
+      " test/unit/portableAssets.test.ts > loads the static and deferred authenticated graph under nonce CSP, and refuses altered module bytes"
+    ]
+  },
+  {
+    "name": "acp-external-permissions",
+    "source": "src/host/conversation/conversationController.ts",
+    "suite": "test/unit/acpComposition.test.ts",
+    "mutation": {
+      "old": "this.deps.arePermissionsExternal === true ? undefined : this.autoApprovalChoice(event)",
+      "new": "this.autoApprovalChoice(event)"
+    },
+    "exit": 1,
+    "restoredSha256": "86081751527cd5cad5957078d4869fab7088dc9fc6f403e69a3d02d339288ade",
+    "seconds": 2.58,
+    "failedTests": [
+      " test/unit/acpComposition.test.ts > adopts the real composed controller (contributor=false), preserves rich parts, leaves approvals to ACP and refuses disposed submissions",
+      " test/unit/acpComposition.test.ts > adopts the real composed controller (contributor=true), preserves rich parts, leaves approvals to ACP and refuses disposed submissions"
+    ]
+  },
+  {
+    "name": "acp-contributor-flag",
+    "source": "src/runtime/panel/acpComposition.ts",
+    "suite": "test/unit/acpComposition.test.ts",
+    "mutation": {
+      "old": "          confirmContributor: () => Promise.resolve(deps.options.allowsContributorModels),",
+      "new": ""
+    },
+    "exit": 1,
+    "restoredSha256": "95e3f52f7fadf9b924d846edec7727d7cd2483c7839bd3136f3da33716a2288b",
+    "seconds": 2.43,
+    "failedTests": [
+      " test/unit/acpComposition.test.ts > adopts the real composed controller (contributor=true), preserves rich parts, leaves approvals to ACP and refuses disposed submissions"
+    ]
+  },
+  {
+    "name": "ui-result",
+    "source": "src/runtime/panel/uiRequests.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutationDescription": "Bypass method-correlated UI result validation",
+    "exit": 1,
+    "restoredSha256": "3147bf2793df8cfadc576037fcc3c251671c9084b3d76906951616f8b78d993d",
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > rejects a malformed result and a result from a different window",
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > rejects a malformed result and a result from a different window"
+    ],
+    "phase": "recovered pre-crash integration snapshot"
+  },
+  {
+    "name": "loader-integrity",
+    "source": "src/webview/bridges/moduleLoader.ts",
+    "suite": "test/unit/portableAssets.test.ts",
+    "mutationDescription": "Bypass module length/SHA-256 integrity refusal",
+    "exit": 1,
+    "restoredSha256": "5d1ffe64640f40dc28b1c7d28d3472c831ddc1647e97e4a9c3f01d44ba2ce4f9",
+    "failedTests": [
+      " test/unit/portableAssets.test.ts > loads the static and deferred authenticated graph under nonce CSP, and refuses altered module bytes"
+    ],
+    "phase": "recovered pre-crash integration snapshot"
+  },
+  {
+    "name": "acp-admission",
+    "source": "src/host/conversation/conversationController.ts",
+    "suite": "test/unit/acpComposition.test.ts",
+    "mutationDescription": "Admit a submission after controller disposal",
+    "exit": 1,
+    "restoredSha256": "52aded320661486537015ce40cab9c24465030f60e44cd710ddc08d535166c5d",
+    "failedTests": [
+      " test/unit/acpComposition.test.ts > adopts the real composed controller, preserves rich parts, leaves approvals to ACP and refuses disposed submissions"
+    ],
+    "phase": "recovered pre-crash integration snapshot"
+  },
+  {
+    "source": "src/runtime/settingsStore.ts",
+    "suite": "test/unit/runtimeSettingsStore.test.ts",
+    "exit": 1,
+    "restored": true,
+    "name": "storage-drain",
+    "restoredSha256": "4fb11579c4e9b9240e1257ca7892793204aab1b5dd4478a1cc73aac0a849b770",
+    "mutationDescription": "Restore fail-fast Promise.all before an unrelated held write drains",
+    "failedTests": [
+      " test/unit/runtimeSettingsStore.test.ts > runtime settings and storage > drains every admitted write before reporting a failed publication"
+    ]
+  },
+  {
+    "name": "ui-shared-budget",
+    "source": "src/runtime/panel/delivery.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutation": {
+      "old": "code: 'MHP_PANEL_BACKPRESSURE'",
+      "new": "code: 'MHP_PANEL_TOO_LARGE'"
+    },
+    "exit": 1,
+    "restoredSha256": "cd2f7a0863c7bfe7bb05db10456937b700545bf6e4e9d4f7809dd56ddd1fba3b",
+    "seconds": 1.39,
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > shares the panel admission budget across the separate UI transport"
+    ]
+  },
+  {
+    "name": "ui-value-preserved",
+    "source": "src/runtime/panel/uiRequests.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutation": {
+      "old": "pending.resolve(parseMhpResult(pending.method, frame).result)",
+      "new": "parseMhpResult(pending.method, frame)\n        pending.resolve(null)"
+    },
+    "exit": 1,
+    "restoredSha256": "ce01aa1d96e8cc7cce431496b325f5c8b238ebb91159594982b00f86cca15490",
+    "seconds": 1.35,
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > preserves an exact id and validates the result for its method"
+    ]
+  },
+  {
+    "name": "ui-cancel-correlation",
+    "source": "src/runtime/panel/uiRequests.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutation": {
+      "old": "params: { id },",
+      "new": "params: { id: 'other-window' },"
+    },
+    "exit": 1,
+    "restoredSha256": "ce01aa1d96e8cc7cce431496b325f5c8b238ebb91159594982b00f86cca15490",
+    "seconds": 1.37,
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > cancels the exact prompt, validates its late result and refuses a replay"
+    ]
+  },
+  {
+    "name": "ui-disconnect-reason",
+    "source": "src/runtime/panel/uiRequests.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutation": {
+      "old": "for (const pending of this.pending.values()) pending.reject(new Error('MHP_UI_DISCONNECTED'))",
+      "new": "for (const pending of this.pending.values()) pending.reject(new Error('MHP_UI_CANCELLED'))"
+    },
+    "exit": 1,
+    "restoredSha256": "ce01aa1d96e8cc7cce431496b325f5c8b238ebb91159594982b00f86cca15490",
+    "seconds": 1.39,
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > disconnect rejects pending work and reconnect cannot replay a queued prompt"
+    ]
+  },
+  {
+    "name": "ui-single-stream",
+    "source": "src/runtime/panel/uiRequests.ts",
+    "suite": "test/unit/panelUiRequests.test.ts",
+    "mutation": {
+      "old": "if (this.connected) throw new Error('MHP_UI_ALREADY_CONNECTED')",
+      "new": "if (false) throw new Error('MHP_UI_ALREADY_CONNECTED')"
+    },
+    "exit": 1,
+    "restoredSha256": "ce01aa1d96e8cc7cce431496b325f5c8b238ebb91159594982b00f86cca15490",
+    "seconds": 1.9,
+    "failedTests": [
+      " test/unit/panelUiRequests.test.ts > window-owned fallback UI correlation > refuses invalid parameters, an aborted request and overlapping streams"
+    ]
+  },
+  {
+    "name": "ui-params-before-render",
+    "source": "src/webview/bridges/uiResponder.ts",
+    "suite": "test/unit/uiResponder.test.ts",
+    "mutation": {
+      "old": "const params = MHP_METHODS[frame.method].params.parse(frame.params)",
+      "new": "const params = frame.params"
+    },
+    "exit": 1,
+    "restoredSha256": "4b0cb3b1dcdee074c67916935dd2fa9c4728f74ea19fe5deff921b03e204ca6b",
+    "seconds": 4.08,
+    "failedTests": [
+      " test/unit/uiResponder.test.ts > refuses bad envelopes and validates parameters before calling the renderer"
+    ]
+  },
+  {
+    "name": "manifest-no-symlink",
+    "source": "src/runtime/panel/portablePage.ts",
+    "suite": "test/unit/portableAssets.test.ts",
+    "mutation": {
+      "old": "if ((await realpath(manifestPath)) !== manifestPath) throw new Error('MHP_ASSET_PATH')",
+      "new": "if (false) throw new Error('MHP_ASSET_PATH')"
+    },
+    "exit": 1,
+    "restoredSha256": "1f46aeb7d68c4ea95cce622fa19a1ad12f62bcab85fbe748404ac8cced94dcfb",
+    "seconds": 8.73,
+    "failedTests": [
+      " test/unit/portableAssets.test.ts > admits only exact packaged module paths and refuses an unlisted module or linked asset"
+    ]
+  }
+]

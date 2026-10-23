@@ -7,7 +7,11 @@
 
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import { createWhatsNewPagesFor, type WhatsNewPages, type WhatsNewPagesDeps } from './whatsNewPanel'
+import {
+  createWhatsNewPagesFor,
+  type WhatsNewPages,
+  type WhatsNewPagesDeps,
+} from '../vscode/whatsNew/whatsNewPanel'
 
 /** The window's What's New tab. */
 export function createWhatsNewPages(

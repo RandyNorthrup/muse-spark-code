@@ -1,0 +1,235 @@
+[
+  {
+    "name": "typecheck",
+    "command": ["npm", "run", "typecheck"],
+    "exitCode": 0,
+    "log": "temp/fixm104pa2/typecheck.log",
+    "summary": "All five repository TypeScript projects pass."
+  },
+  {
+    "name": "eslint",
+    "command": [
+      "npx",
+      "eslint",
+      "--max-warnings=0",
+      "src/runtime/panel/runtimeController.ts",
+      "test/unit/runtimeController.test.ts"
+    ],
+    "exitCode": 0,
+    "seconds": 19.25,
+    "log": "temp/fixm104pa2/final-eslint.log",
+    "summary": []
+  },
+  {
+    "name": "prettier",
+    "command": [
+      "npx",
+      "prettier",
+      "--check",
+      "src/runtime/panel/runtimeController.ts",
+      "test/unit/runtimeController.test.ts",
+      "PLAN.md",
+      "CHANGELOG.md",
+      "docs/certification/m104-pa.md",
+      "docs/certification/m104-pa-review2-drills.json"
+    ],
+    "exitCode": 0,
+    "seconds": 10.21,
+    "log": "temp/fixm104pa2/final-prettier.log",
+    "summary": []
+  },
+  {
+    "name": "deadcode",
+    "command": ["npm", "run", "deadcode"],
+    "exitCode": 0,
+    "seconds": 5.01,
+    "log": "temp/fixm104pa2/final-deadcode.log",
+    "summary": []
+  },
+  {
+    "name": "duplication",
+    "command": ["npx", "jscpd"],
+    "exitCode": 0,
+    "seconds": 1.64,
+    "log": "temp/fixm104pa2/final-duplication.log",
+    "summary": ["Found 0 clones."]
+  },
+  {
+    "name": "localization",
+    "command": ["npm", "run", "check:l10n"],
+    "exitCode": 0,
+    "seconds": 2.64,
+    "log": "temp/fixm104pa2/final-localization.log",
+    "summary": ["l10n: 14 tables, 165 manifest strings, 651 source files; 0 problems"]
+  },
+  {
+    "name": "host-api",
+    "command": ["npm", "run", "check:host-api"],
+    "exitCode": 0,
+    "seconds": 16.88,
+    "log": "temp/fixm104pa2/final-host-api.log",
+    "summary": []
+  },
+  {
+    "name": "mhp-schemas",
+    "command": ["npm", "run", "check:mhp"],
+    "exitCode": 0,
+    "seconds": 1.48,
+    "log": "temp/fixm104pa2/final-mhp-schemas.log",
+    "summary": []
+  },
+  {
+    "name": "cycles",
+    "command": ["npm", "run", "cycles"],
+    "exitCode": 0,
+    "seconds": 6.0,
+    "log": "temp/fixm104pa2/final-cycles.log",
+    "summary": []
+  },
+  {
+    "name": "build",
+    "command": ["npm", "run", "build"],
+    "exitCode": 0,
+    "seconds": 8.88,
+    "log": "temp/fixm104pa2/final-build.log",
+    "summary": [
+      "ok   dist/extension.js: 459.0 KiB (budget 600 KiB)",
+      "ok   dist/conversation.js: 195.4 KiB (budget 250 KiB)",
+      "ok   dist/runtimePanel.js: 95.3 KiB (budget 100 KiB)",
+      "ok   dist/runtimePanelPorts.js: 56.1 KiB (budget 75 KiB)",
+      "ok   dist/modelApi.js: 447.1 KiB (budget 475 KiB)",
+      "ok   dist/checkpointStore.js: 77.1 KiB (budget 225 KiB)",
+      "ok   dist/webview/portable/main.js: 1007.6 KiB (budget 1100 KiB)",
+      "ok   dist/acp.js: 822.9 KiB (budget 850 KiB)"
+    ]
+  },
+  {
+    "name": "controller-ports-acp",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimeController.test.ts",
+      "test/unit/runtimePanelPorts.test.ts",
+      "test/unit/acpComposition.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 5.2,
+    "log": "temp/fixm104pa2/final-controller-ports-acp.log",
+    "summary": ["Test Files  3 passed (3)", "Tests  37 passed (37)"],
+    "testsPassed": 37
+  },
+  {
+    "name": "runtime-settings",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/runtimePanelState.test.ts",
+      "test/unit/runtimeSettingsStore.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 6.82,
+    "log": "temp/fixm104pa2/final-runtime-settings.log",
+    "summary": ["Test Files  2 passed (2)", "Tests  24 passed (24)"],
+    "testsPassed": 24
+  },
+  {
+    "name": "shared-conversation",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/unit/conversationController.test.ts",
+      "test/unit/controllerRegistry.test.ts",
+      "test/unit/conversationComposition.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 21.1,
+    "log": "temp/fixm104pa2/final-shared-conversation.log",
+    "summary": ["Test Files  3 passed (3)", "Tests  587 passed (587)"],
+    "testsPassed": 587
+  },
+  {
+    "name": "native-acp-exec-pipes",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/panelStdio.e2e.test.ts",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 1,
+    "seconds": 92.55,
+    "log": "temp/fixm104pa2/final-native-acp-exec-pipes.log",
+    "summary": [
+      "\u23af\u23af\u23af\u23af\u23af\u23af\u23af Failed Tests 1 \u23af\u23af\u23af\u23af\u23af\u23af\u23af",
+      "Test Files  1 failed | 2 passed (3)",
+      "Tests  1 failed | 59 passed (60)"
+    ]
+  },
+  {
+    "name": "native-pipes-isolated",
+    "command": ["npx", "vitest", "run", "test/e2e/panelStdio.e2e.test.ts", "--maxWorkers=3"],
+    "exitCode": 0,
+    "testsPassed": 14,
+    "log": "temp/fixm104pa2/final-native-pipes-isolated.log",
+    "summary": ["Test Files 1 passed (1)", "Tests 14 passed (14)"]
+  },
+  {
+    "name": "acp-exec-pipes",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/acpStdio.e2e.test.ts",
+      "test/e2e/execStdio.e2e.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 79.5,
+    "log": "temp/fixm104pa2/final-acp-exec-pipes.log",
+    "summary": ["Test Files  2 passed (2)", "Tests  46 passed (46)"],
+    "testsPassed": 46
+  },
+  {
+    "name": "companion-pipes-sessions-events",
+    "command": [
+      "npx",
+      "vitest",
+      "run",
+      "test/e2e/panelCompanion.e2e.test.ts",
+      "test/unit/companionSessions.test.ts",
+      "test/unit/companionEvents.test.ts",
+      "--maxWorkers=3"
+    ],
+    "exitCode": 0,
+    "seconds": 9.98,
+    "log": "temp/fixm104pa2/final-companion-pipes-sessions-events.log",
+    "summary": ["Test Files  3 passed (3)", "Tests  18 passed (18)"],
+    "testsPassed": 18
+  },
+  {
+    "name": "prettier-complete",
+    "command": [
+      "npx",
+      "prettier",
+      "--check",
+      "src/runtime/panel/runtimeController.ts",
+      "test/unit/runtimeController.test.ts",
+      "PLAN.md",
+      "CHANGELOG.md",
+      "docs/certification/m104-pa.md",
+      "docs/certification/m104-pa-review2-checks.json",
+      "docs/certification/m104-pa-review2-drills.json"
+    ],
+    "exitCode": 0,
+    "log": "temp/fixm104pa2/final-prettier-complete.log",
+    "summary": "All changed files formatted."
+  }
+]

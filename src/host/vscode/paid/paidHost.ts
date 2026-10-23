@@ -1,0 +1,449 @@
+import type { UsageRecording } from '../../../core/usage/recording'
+import {
+  paidWindowOnceFeatures,
+  autoReviewPrice,
+  paidQuoteSchema,
+  modelApiPaidTier,
+  paidFeatureName,
+  paidFeaturePrice,
+  paidStoreReasonText,
+  type PaidState,
+  type PaidUseRequest,
+} from '../../../shared/paid'
+import { randomUUID } from 'node:crypto'
+import { Usd, legacyUsdSchema, type UsdAmount } from '../../../shared/usd'
+// The host side of the paid Model API features (M33–M35, PLAN.md D30): the
+// gate over VS Code's settings, the extension's global state and a modal
+// confirmation naming the price, the popup before each paid use (M58,
+// PLAN.md D48), the window's tally, and the `paidState` message every panel
+// renders its badge, toggles and tally from.
+
+import * as vscode from 'vscode'
+import * as z from 'zod/mini'
+import { PaidUseConsent, type PaidUseAnswer, paidUseQuestion } from '../../../core/paid/paidConsent'
+import { PaidFeatureGate, PaidUsage, paidStateOf } from '../../../core/paid/paidFeatures'
+import {
+  IS_AUTO_COMPACTION_EVALUATED,
+  GLOBAL_STATE_KEYS,
+  PAID_APPROVAL_ORDER_DIRECTORY,
+  PAID_FEATURE_SETTINGS,
+  PAID_FEATURES,
+  type PaidFeature,
+  SETTINGS_SECTION,
+  SUBAGENT_PRICE_ACCEPTANCE_VERSION,
+  UI_TEXT,
+  WORKSPACE_STATE_KEYS,
+} from '../../../shared/constants'
+import { fill } from '../../../shared/l10n/text'
+import { formatDailyBudget } from '../../../shared/l10n/exactUsd'
+
+import type { Logger } from '../../logger'
+import {
+  paidAuthorityKey,
+  latestPaidGrant,
+  nextPaidApprovalOrder,
+  type PaidAuthority,
+} from '../../../core/paid/paidAuthority'
+
+// What an earlier version (or a hand edit) stored is validated, never trusted.
+const acceptedSchema = z.array(z.enum(PAID_FEATURES))
+// Feature → grant generation; keys that are not a paid feature are ignored.
+const generationsSchema = z.record(z.string(), z.int().check(z.nonnegative()))
+const quoteGrantSchema = z.object({
+  quote: paidQuoteSchema,
+  order: z.optional(z.number().check(z.int(), z.gte(0))),
+  generation: z.string(),
+})
+const dailyBudgetSchema = legacyUsdSchema
+
+/** A feature's grant generation: 0 until its price acceptance first changes. */
+function generationOf(generations: Readonly<Record<string, number>>, feature: PaidFeature): number {
+  return generations[feature] ?? 0
+}
+
+interface MementoLike {
+  get(key: string): unknown
+  update(key: string, value: unknown): Thenable<void>
+}
+
+export interface PaidFeaturesDeps {
+  readonly authority?: PaidAuthority
+  readonly orderDirectory?: string
+  readonly usageRecording?: UsageRecording | undefined
+  readonly globalState: MementoLike
+  /** Where "Allow Always in This Workspace" is kept (M58). */
+  readonly workspaceState: MementoLike & { keys(): readonly string[] }
+  /** Whether the feature's setting is on, as the settings reader validated it. */
+  readonly isSettingOn: (feature: PaidFeature) => boolean
+  readonly isAvailable?: (feature: PaidFeature) => boolean
+  readonly autoCompactionEvaluated?: () => boolean
+  readonly isDefaultOn?: (feature: PaidFeature) => boolean
+  readonly dailyBudgetUsd?: (feature?: PaidFeature) => UsdAmount | undefined
+  /** Separate from startup review, since subscription judging has no price popup. */
+  readonly isJudgeOn?: (() => boolean) | undefined
+  /** Whether a Model API key is stored, as last read (M44). */
+  readonly isKeyStored: () => boolean
+  /** A trusted workspace with a folder open: "always" is offered and kept only there. */
+  readonly canRememberPaidUse: () => boolean
+  /** Tab's budget and, once its ledger was read, today's cross-window total (M94). */
+  readonly tabDay?: () => {
+    readonly budgetUsd: UsdAmount
+    readonly todayUsd: UsdAmount | undefined
+  }
+  readonly log: Logger
+}
+
+export interface PaidFeatures {
+  readonly gate: PaidFeatureGate
+  readonly consent: PaidUseConsent
+  readonly usage: PaidUsage
+  readonly allowsJudgeUse: (modelId: string) => Promise<boolean>
+  readonly state: () => PaidState
+  /** Whether a change to the configuration touched a paid feature's setting. */
+  readonly affects: (event: vscode.ConfigurationChangeEvent) => boolean
+}
+
+/** What the confirmation says the feature does and costs, in the display language. */
+function confirmationDetail(feature: PaidFeature): string {
+  const details: Readonly<Record<PaidFeature, string>> = {
+    autoCompaction: UI_TEXT.paidConfirmAutoCompaction,
+    webSearch: UI_TEXT.paidConfirmWebSearch,
+    imageGeneration: UI_TEXT.paidConfirmImage,
+    voice: UI_TEXT.paidConfirmVoice,
+    scheduledPrompts: UI_TEXT.paidConfirmScheduled,
+    subagents: UI_TEXT.paidConfirmSubagents,
+    autoReviewer: UI_TEXT.paidConfirmAutoReviewer,
+    bestOfN: UI_TEXT.paidConfirmBestOfN,
+    legalExplanation: UI_TEXT.legalExplainConfirm,
+    teamWorkers: UI_TEXT.paidConfirmTeamWorkers,
+    // Tab (M94, PLAN.md D73): the confirmation quotes both tiers' rates
+    // (`paidFeaturePrice('tab')`); the per-use popup quotes the request's
+    // own model instead (paidConsent.ts).
+    tab: UI_TEXT.paidConfirmTab,
+    hookModels: UI_TEXT.paidConfirmHookModel,
+    judge: UI_TEXT.paidConfirmJudge,
+  }
+  if (feature === 'judge') {
+    const budget = dailyBudgetSchema.safeParse(
+      vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+    )
+    // The person's D78 limit, or that none is set (D208); an invalid hand edit
+    // reads as none, and no charge is enabled by this formatter.
+    return fill(details.judge, {
+      price: paidFeaturePrice(feature),
+      budget: formatDailyBudget(budget.success ? budget.data : 0),
+    })
+  }
+  return fill(details[feature], { price: paidFeaturePrice(feature) })
+}
+
+async function isTurnOnConfirmed(feature: PaidFeature): Promise<boolean> {
+  const accept = UI_TEXT.paidConfirmAccept
+  const answer = await vscode.window.showWarningMessage(
+    fill(UI_TEXT.paidConfirmTitle, { feature: paidFeatureName(feature) }),
+    { modal: true, detail: confirmationDetail(feature) },
+    accept,
+  )
+  return answer === accept
+}
+
+/**
+The popup before a paid use (M58): Allow once, Allow always in this
+workspace (only where it can be kept), or Deny, which is also what closing
+the popup answers.
+*/
+export async function askPaidUse(
+  request: PaidUseRequest,
+  canRemember: boolean,
+  dailyBudgetUsd?: UsdAmount,
+): Promise<PaidUseAnswer> {
+  // No verified price, nothing to accept (M48, M78): refused before any popup.
+  if (
+    (request.feature === 'subagents' && modelApiPaidTier(request.task.modelId) === undefined) ||
+    (request.feature === 'autoReviewer' &&
+      autoReviewPrice(request.modelId, request.pricing) === undefined) ||
+    (request.feature === 'judge' &&
+      (autoReviewPrice(request.modelId) === undefined ||
+        Usd.from(request.dailyBudgetUsd).compare(Usd.from(0)) < 0))
+  ) {
+    return 'deny'
+  }
+  if (request.feature === 'bestOfN' && modelApiPaidTier(request.modelId) === undefined) {
+    return 'deny'
+  }
+  if (request.feature === 'tab') {
+    // Tab bills the request's model per token (M94, PLAN.md D73): with no
+    // verified rate, or no usable budget to quote, nothing is asked and the
+    // request is refused before any popup.
+    if (modelApiPaidTier(request.modelId) === undefined) {
+      return 'deny'
+    }
+    if (Usd.from(request.budgetUsd).compare(Usd.from(0)) < 0) {
+      return 'deny'
+    }
+  }
+  // No verified price, nothing to accept (M48, M78): refused before any popup.
+  if (request.feature === 'hookModels' && modelApiPaidTier(request.modelId) === undefined) {
+    return 'deny'
+  }
+  const { title, detail } = await paidUseQuestion(request)
+  const once: vscode.MessageItem = { title: UI_TEXT.allowOnce }
+  const always: vscode.MessageItem = {
+    title:
+      request.feature === 'scheduledPrompts' && request.schedule !== undefined
+        ? UI_TEXT.scheduleV2.messages.allowAlways
+        : UI_TEXT.paidAllowAlways,
+  }
+  const deny: vscode.MessageItem = { title: UI_TEXT.paidDeny, isCloseAffordance: true }
+  const answer = await vscode.window.showWarningMessage(
+    title,
+    {
+      modal: true,
+      detail:
+        dailyBudgetUsd === undefined
+          ? detail
+          : `${detail}\n\n${fill(UI_TEXT.paidDailyBudgetLine, { budget: formatDailyBudget(dailyBudgetUsd) })}`,
+    },
+    ...(canRemember ? [once, always, deny] : [once, deny]),
+  )
+  if (answer === once) {
+    return 'once'
+  }
+  return answer === always && canRemember ? 'always' : 'deny'
+}
+
+export function createPaidFeatures(deps: PaidFeaturesDeps): PaidFeatures {
+  const readAccepted = (): ReadonlySet<PaidFeature> => {
+    const parsed = acceptedSchema.safeParse(
+      deps.globalState.get(GLOBAL_STATE_KEYS.paidConfirmations) ?? [],
+    )
+    const accepted = new Set(parsed.success ? parsed.data : [])
+    if (
+      deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) !==
+      SUBAGENT_PRICE_ACCEPTANCE_VERSION
+    ) {
+      accepted.delete('subagents')
+    }
+    return accepted
+  }
+  const readGenerations = (): Readonly<Record<string, number>> => {
+    const parsed = generationsSchema.safeParse(
+      deps.globalState.get(GLOBAL_STATE_KEYS.paidGrantGenerations) ?? {},
+    )
+    return parsed.success ? parsed.data : {}
+  }
+  const quoteGeneration = () =>
+    JSON.stringify([
+      generationOf(readGenerations(), 'webSearch'),
+      deps.workspaceState.get(WORKSPACE_STATE_KEYS.paidQuoteGrants) ?? 0,
+    ])
+  const gate = new PaidFeatureGate({
+    isSettingOn: (feature) =>
+      feature === 'judge'
+        ? (deps.isJudgeOn?.() ?? deps.isSettingOn(feature))
+        : deps.isSettingOn(feature),
+    isAvailable: (feature) =>
+      (feature !== 'autoCompaction' ||
+        (deps.autoCompactionEvaluated?.() ?? IS_AUTO_COMPACTION_EVALUATED)) &&
+      deps.isAvailable?.(feature) !== false,
+    ...(deps.isDefaultOn !== undefined && { isDefaultOn: deps.isDefaultOn }),
+    // Tab is on by default and asks once, at its first request, with the
+    // price and the daily budget (owner 2026-10-04, Q-M94a): no turn-on
+    // price confirmation, at activation or anywhere else.
+    asksOnFirstUse: new Set<PaidFeature>(['tab']),
+    setSetting: async (feature, isOn) => {
+      // The judge's switch is the engine enum, not a boolean (M98, PLAN.md
+      // D77): turning it off parks it at `off`, turning it on restores `auto`.
+      const value = feature === 'judge' ? (isOn ? 'auto' : 'off') : isOn
+      await vscode.workspace
+        .getConfiguration(SETTINGS_SECTION)
+        .update(PAID_FEATURE_SETTINGS[feature], value, vscode.ConfigurationTarget.Global)
+    },
+    readAccepted,
+    writeAccepted: async (accepted) => {
+      // A price accepted or withdrawn voids every "always" given under the
+      // old acceptance, in every workspace (M58) — and this window's once
+      // with it (M94): it was given under the old price. `consent` below is
+      // assigned before this ever runs.
+      const previous = readAccepted()
+      const generations = { ...readGenerations() }
+      for (const feature of PAID_FEATURES) {
+        if (previous.has(feature) === accepted.has(feature)) {
+          continue
+        }
+        generations[feature] = generationOf(generations, feature) + 1
+        consent.revokeWindowOnce(feature)
+      }
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidGrantGenerations, generations)
+      await deps.globalState.update(
+        GLOBAL_STATE_KEYS.subagentPriceAcceptance,
+        accepted.has('subagents') ? SUBAGENT_PRICE_ACCEPTANCE_VERSION : undefined,
+      )
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidConfirmations, [...accepted])
+    },
+    confirm: isTurnOnConfirmed,
+    isWindowFocused: () => vscode.window.state.focused,
+    log: deps.log,
+  })
+  const readQuoteGrants = () => {
+    const prefix = `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${PAID_APPROVAL_ORDER_DIRECTORY}:`
+    return deps.workspaceState
+      .keys()
+      .filter((key) => key.startsWith(prefix))
+      .flatMap((key) => {
+        const parsed = quoteGrantSchema.safeParse(deps.workspaceState.get(key))
+        return parsed.success &&
+          parsed.data.generation === quoteGeneration() &&
+          key.startsWith(
+            `${prefix}${paidAuthorityKey(parsed.data.quote)}:${parsed.data.generation}:`,
+          )
+          ? [parsed.data]
+          : []
+      })
+  }
+  const consent = new PaidUseConsent({
+    isOn: (feature) => gate.isOn(feature),
+    // Tab's "Allow Once" covers this window until it closes (M94 Q-M94a):
+    // memory only, so it never persists past the window. "Allow always"
+    // stays workspace-scoped, as for every feature.
+    windowOnceFeatures: paidWindowOnceFeatures(),
+    // The once holds only under the price acceptance it was given under,
+    // shared by every window (the generations "always" is checked against):
+    // another window's withdrawal and new acceptance makes this one ask again.
+    windowOnceGeneration: (feature) => generationOf(readGenerations(), feature),
+    isJudgeEnabled: () => deps.isKeyStored() && (deps.isJudgeOn?.() ?? deps.isSettingOn('judge')),
+    acceptJudgePrice: () => gate.acceptJudgePrice(),
+    canRemember: deps.canRememberPaidUse,
+    ...(deps.authority !== undefined && { authority: deps.authority }),
+    quoteGeneration,
+    nextQuoteOrder: async () => {
+      if (deps.orderDirectory !== undefined) return nextPaidApprovalOrder(deps.orderDirectory)
+      const current = z
+        .int()
+        .check(z.nonnegative())
+        .parse(deps.globalState.get(GLOBAL_STATE_KEYS.paidApprovalOrder) ?? 0)
+      const order = current + 1
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidApprovalOrder, order)
+      return order
+    },
+    readQuoteGrant: (quote) =>
+      latestPaidGrant(
+        readQuoteGrants().filter(
+          (grant) => paidAuthorityKey(grant.quote) === paidAuthorityKey(quote),
+        ),
+      ),
+    writeQuoteGrant: async (grant) => {
+      // This record carries the generation captured before the popup. A
+      // delayed update can never become a grant in a later generation.
+      await deps.workspaceState.update(
+        `${WORKSPACE_STATE_KEYS.paidQuoteGrants}:${PAID_APPROVAL_ORDER_DIRECTORY}:${paidAuthorityKey(grant.quote)}:${grant.generation}:${String(grant.order ?? 0)}:${grant.quote.id}`,
+        grant,
+      )
+      if (grant.generation !== quoteGeneration()) return
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidConfirmations, [
+        ...new Set([...readAccepted(), 'webSearch']),
+      ])
+    },
+    revokeQuoteGrants: async () => {
+      await deps.workspaceState.update(WORKSPACE_STATE_KEYS.paidQuoteGrants, randomUUID())
+    },
+    readGrants: () => {
+      const parsed = generationsSchema.safeParse(
+        deps.workspaceState.get(WORKSPACE_STATE_KEYS.paidWorkspaceGrants) ?? {},
+      )
+      const grants = parsed.success ? parsed.data : {}
+      const generations = readGenerations()
+      return new Set(
+        PAID_FEATURES.filter(
+          (feature) =>
+            (feature === 'webSearch' && readQuoteGrants().length > 0) ||
+            (grants[feature] !== undefined &&
+              grants[feature] === generationOf(generations, feature) &&
+              (feature !== 'subagents' ||
+                deps.globalState.get(GLOBAL_STATE_KEYS.subagentPriceAcceptance) ===
+                  SUBAGENT_PRICE_ACCEPTANCE_VERSION)),
+        ),
+      )
+    },
+    writeGrants: async (grants) => {
+      if (grants.has('subagents')) {
+        await deps.globalState.update(
+          GLOBAL_STATE_KEYS.subagentPriceAcceptance,
+          SUBAGENT_PRICE_ACCEPTANCE_VERSION,
+        )
+      }
+      // A default-on feature's first "always" accepted its price too. Keep
+      // that acceptance so turning it off invalidates this generation (D78).
+      await deps.globalState.update(GLOBAL_STATE_KEYS.paidConfirmations, [
+        ...new Set([...readAccepted(), ...grants]),
+      ])
+      const generations = readGenerations()
+      await deps.workspaceState.update(
+        WORKSPACE_STATE_KEYS.paidWorkspaceGrants,
+        Object.fromEntries(
+          [...grants].map((feature) => [feature, generationOf(generations, feature)]),
+        ),
+      )
+    },
+    ask: (request, canRemember) =>
+      askPaidUse(request, canRemember, deps.dailyBudgetUsd?.(request.feature)),
+    // A choice that could not be saved is said at once, not only logged: the
+    // use was allowed and charged, and the person will be asked again.
+    onNotKept: (notice) => {
+      void vscode.window.showWarningMessage(
+        fill(UI_TEXT.paidAlwaysNotKept, {
+          feature: paidFeatureName(notice.feature),
+          kind: paidStoreReasonText(notice.kind),
+        }),
+      )
+    },
+    log: deps.log,
+  })
+  const usage = new PaidUsage(deps.log, deps.usageRecording)
+  const openedAt = Date.now()
+  if (deps.usageRecording !== undefined) {
+    void deps.usageRecording
+      .today()
+      .then((records) => {
+        usage.restore(records.filter((record) => record.at < openedAt))
+      })
+      .catch(() => {
+        deps.log.warn('Paid usage history could not be restored')
+      })
+  }
+  return {
+    gate,
+    consent,
+    usage,
+    state: () => {
+      const state = paidStateOf(gate, usage, deps.isKeyStored(), consent.remembered())
+      const day = deps.tabDay?.()
+      if (day === undefined) {
+        return state
+      }
+      return {
+        ...state,
+        tab:
+          day.todayUsd === undefined
+            ? { budgetUsd: day.budgetUsd }
+            : { budgetUsd: day.budgetUsd, todayUsd: day.todayUsd },
+      }
+    },
+    allowsJudgeUse: async (modelId) => {
+      if (autoReviewPrice(modelId) === undefined) return false
+      const budget = dailyBudgetSchema.safeParse(
+        deps.dailyBudgetUsd?.() ??
+          vscode.workspace.getConfiguration(SETTINGS_SECTION).get('paidDailyBudgetUsd'),
+      )
+      return await consent.allows({
+        feature: 'judge',
+        modelId,
+        dailyBudgetUsd: budget.success ? budget.data : Usd.from(0).toAmount(),
+      })
+    },
+    affects: (event) =>
+      PAID_FEATURES.some((feature) =>
+        event.affectsConfiguration(`${SETTINGS_SECTION}.${PAID_FEATURE_SETTINGS[feature]}`),
+      ),
+  }
+}

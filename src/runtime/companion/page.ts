@@ -22,6 +22,7 @@ export function launchPage(nonce: string): string {
     const page = new DOMParser().parseFromString(html, 'text/html');
     // Keep the original document's CSP nonce when installing the trusted renderer.
     for (const element of page.querySelectorAll('script[nonce], style[nonce]')) element.setAttribute('nonce', '${nonce}');
+    for (const element of page.querySelectorAll('meta[http-equiv="Content-Security-Policy"]')) element.setAttribute('content', element.getAttribute('content').replace(/'nonce-[^']*'/g, "'nonce-${nonce}'"));
     window.fetch = (input, init) => {
       const request = new Request(input instanceof Request ? input : new URL(input, location.href), init);
       if (new URL(request.url).origin !== location.origin) return Promise.reject(new Error('EPANEL_ORIGIN'));
@@ -33,6 +34,11 @@ export function launchPage(nonce: string): string {
     // explicitly and install them inline under the existing nonce CSP.
     for (const element of page.querySelectorAll('script[src], link[rel="stylesheet"]')) {
       const source = element.getAttribute('src') || element.getAttribute('href');
+      if (element.tagName === 'SCRIPT' && element.getAttribute('type') === 'module' && page.getElementById('muse-modules')) {
+        element.setAttribute('data-muse-entry', source);
+        element.removeAttribute('src');
+        continue;
+      }
       const asset = await window.fetch(source);
       if (!asset.ok) throw new Error('EPANEL_LAUNCH');
       const inline = page.createElement(element.tagName === 'SCRIPT' ? 'script' : 'style');

@@ -1,0 +1,3397 @@
+{
+  "base": "2a53c0cbfd990af8dbd7f70c5186f2792d1c0093",
+  "rig": "kubuntu",
+  "protocol": "mhp/1.5.0",
+  "modelAttempts": 0,
+  "sources": [
+    {
+      "file": "scripts/mhp-schema.mjs",
+      "sha256": "6eacfc101babd237638210ded32a286944486fbb18b0e01847908165c8fcb7bd"
+    },
+    {
+      "file": "src/shared/hostApi/mhp-v1.1.schema.json",
+      "sha256": "0e181cc2bd6882e89966cd0d19995a894155365222685f64b57b98a53011372a"
+    },
+    {
+      "file": "src/shared/hostApi/mhp-v1.schema.json",
+      "sha256": "87750f0da97eaad1fe2b9b09e9131e7d62fb4540bff8e15417a7bead5dfae032"
+    },
+    {
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/Contract.java",
+      "sha256": "c4fac3d9b4de9c12ce27010b96f6719a420f71cfc1294fbe6711dd41db5b4aef"
+    },
+    {
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/JsonBoundary.kt",
+      "sha256": "80273e134e90a0854a846c8d3eb71c75051236a9d112b4dba8ccbf275aeb44c1"
+    },
+    {
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeTheme.kt",
+      "sha256": "fcf82f435c9ff8518b391162b4c17cb42dfe78403d5cbbf75d7b165f006d9715"
+    },
+    {
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeHostServices.kt",
+      "sha256": "21b8c9be9271174d66c85b87b93e618b95b449f05c8beac35b5e2d5f25731bdf"
+    },
+    {
+      "file": "hosts/visualstudio/Protocol/SchemaContract.cs",
+      "sha256": "c7a24b73cc6f6516d322f67882ac57c99c343c2e30a08b100078a56b0170e620"
+    },
+    {
+      "file": "hosts/xcode/Shared/MhpSchema.swift",
+      "sha256": "02468ce3ee1b392ac8c344c454c946c6ab0ee169c4342db4e8680a9677796e4d"
+    },
+    {
+      "file": "hosts/jetbrains/src/main/resources/embedded.mjs",
+      "sha256": "201e3aa98e0639da2a2bb5f0055c7e5fc26b645188722fff0397a09a25e1d06e"
+    },
+    {
+      "file": "hosts/jetbrains/test/fixtures/panel_ui.py",
+      "sha256": "e0b0fe258f342c11896440da6d2d47cf6b1929d9e2cf2ed16d94ed689f9907e2"
+    }
+  ],
+  "checks": [
+    {
+      "run": "red-jb-bounds-and-theme",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--offline"
+      ],
+      "cwd": "hosts/jetbrains",
+      "exit": 1,
+      "seconds": 66.672,
+      "log": "temp/f1-red-jb-bounds-and-theme.log"
+    },
+    {
+      "run": "jb-final",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--offline"
+      ],
+      "cwd": "hosts/jetbrains",
+      "exit": 1,
+      "seconds": 65.134,
+      "log": "temp/f1-jb-final.log"
+    },
+    {
+      "run": "red-eclipse-bounds",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-B",
+        "--offline",
+        "verify"
+      ],
+      "cwd": "hosts/eclipse",
+      "exit": 1,
+      "seconds": 52.685,
+      "log": "temp/f1-red-eclipse-bounds.log"
+    },
+    {
+      "run": "red-eclipse-vocabulary",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-B",
+        "--offline",
+        "verify"
+      ],
+      "cwd": "hosts/eclipse",
+      "exit": 1,
+      "seconds": 31.691,
+      "log": "temp/f1-red-eclipse-vocabulary.log"
+    },
+    {
+      "run": "eclipse-default-final",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-B",
+        "--offline",
+        "verify"
+      ],
+      "cwd": "hosts/eclipse",
+      "exit": 0,
+      "seconds": 54.407,
+      "log": "temp/f1-eclipse-default-final.log"
+    },
+    {
+      "run": "eclipse-2026-03",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-B",
+        "--offline",
+        "verify",
+        "-Declipse.release=2026-03"
+      ],
+      "cwd": "hosts/eclipse",
+      "exit": 0,
+      "seconds": 53.22,
+      "log": "temp/f1-eclipse-2026-03.log"
+    },
+    {
+      "run": "red-jb-upper",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--offline"
+      ],
+      "cwd": "hosts/jetbrains",
+      "exit": 1,
+      "seconds": 77.779,
+      "log": "temp/f1-red-jb-upper.log"
+    },
+    {
+      "run": "red-jb-vocabulary",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--offline"
+      ],
+      "cwd": "hosts/jetbrains",
+      "exit": 1,
+      "seconds": 81.042,
+      "log": "temp/f1-red-jb-vocabulary.log"
+    },
+    {
+      "run": "jb-restored-upper",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "./gradlew",
+        "test",
+        "detekt",
+        "ktlintCheck",
+        "-PprivateIdePath=/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3",
+        "-PnativeUi=true",
+        "--offline"
+      ],
+      "cwd": "hosts/jetbrains",
+      "exit": 1,
+      "seconds": 77.906,
+      "log": "temp/f1-jb-restored-upper.log"
+    },
+    {
+      "run": "red-eclipse-upper",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-B",
+        "--offline",
+        "verify"
+      ],
+      "cwd": "hosts/eclipse",
+      "exit": 1,
+      "seconds": 64.561,
+      "log": "temp/f1-red-eclipse-upper.log"
+    },
+    {
+      "run": "eclipse-restored-upper",
+      "command": [
+        "xvfb-run",
+        "-a",
+        "/home/randy/.cache/rvf104pe-toolchains/idea-2025.3.3/plugins/maven/lib/maven3/bin/mvn",
+        "-B",
+        "--offline",
+        "verify"
+      ],
+      "cwd": "hosts/eclipse",
+      "exit": 0,
+      "seconds": 62.01,
+      "log": "temp/f1-eclipse-restored-upper.log"
+    }
+  ],
+  "reports": [
+    {
+      "run": "eclipse-default-first",
+      "totals": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "ed411b137c173e819fa5bee33e365ad992df80d98582f3a65e57a63ad85c146f",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "fa700e460d476861ed898a36d1191dbb7fa5a9ed4f09467cc17266b2d1eb6f50",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "d5df51bc5a61c62419aa1d0618cbce08fbc8f1cbe05bcb4af3cf8ba87e303268",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "8ad7f85dfd9dfa43aeb1f4d1d684609dad51c1c555da37891d7f8cc7c19a8ae9",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "f9bafbeb0759fdeb3af386e8fedd626a0c4164aaf11d24123e7e7b182d888416",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "c3f12f45d6ca85087ac968a6cef607ab67b9cc0fcdd9f5b084ed1c20ed701b5e",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "ac2b671ea28d09585a94657fe386adab5cfc7dc4ddb02de1e42cd68684882537",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "a410396731e69aa5fe670d8cf2db4ecd54df8ac3f45720932197218855ddc415",
+          "tests": 27,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "31534448b40680988a2b844ecbb441ff76eb2e3f54b61989cd6a759b32e1af0e",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "red-jb-bounds-and-theme",
+      "totals": {
+        "tests": 85,
+        "failures": 4,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.DocumentServicesTest.xml",
+          "sha256": "46fc6ea6b66f5f0193b2994a6281fe9e43de71c6dd71876c5f5b1382316eba6b",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.FirstFrameDescendantsTest.xml",
+          "sha256": "af64ab6df41dbb9e661fff02b9aad3aeb8f82ca1d0bc70966b31a56cdbec073f",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MetadataProposalTest.xml",
+          "sha256": "720663079b5a87ef4068af8f6340c01996d9c845c98cec672ddb22e4e8c1d989",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.Mhp13Test.xml",
+          "sha256": "152da31b406b8d70adc02c37448e8311c93f35d51d8c3e713a475ed3db96d1de",
+          "tests": 4,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "inputAnnotationsAndExclusiveBoundsRetainClosedPayloadsAndOpenState",
+              "kind": "failure",
+              "message": "java.lang.AssertionError: expected java.lang.Exception to be thrown, but nothing was thrown"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpBoundaryTest.xml",
+          "sha256": "c5d732924c73253bab74dcbfcc1ad093eb8f3e90737da37626c5408aca7cd774",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpConnectionTest.xml",
+          "sha256": "89847f9ee8b88c0b1b237dea1bff1412bfd897e1300eccab43a966c1aab04c5b",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeBrowserTest.xml",
+          "sha256": "ee8bf9da2ec2f7379f3a6705edd9023c588afbfc47a57f36ee11f9456a29f2a2",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeDialogsTest.xml",
+          "sha256": "8feb46b86b3921a482d993e45a4e140bc91a4f218827c2e37aa24ab038827704",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeHostServicesTest.xml",
+          "sha256": "105e95f3a531319f0d236549f61f04f4b26336c71200f18695ff35d3999ada77",
+          "tests": 9,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            },
+            {
+              "case": "testSettledDiagnosticsAttestTheCheckedDocumentVersion",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeJcefSmokeTest.xml",
+          "sha256": "28987bbb5da0af2f9f647266a735497a4cb88f6d4879415fc298519eed81f479",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeLifecycleTest.xml",
+          "sha256": "2e3f6ca2993c39a9e4a1a64d785410d71d14a7069c50b6ad36b82392909af5f8",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeNoticeIdentityTest.xml",
+          "sha256": "17855692e7a4eb6e93782662b23787cb77668daf864e2ad5e67822bac6380f77",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeSurfaceTest.xml",
+          "sha256": "ecd8d4930a6821aff5fddba8de41af749e2f5ec7463c0773553eda563452b079",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeTabTest.xml",
+          "sha256": "f4f1d5071cff37714ba0bec2ac5796b98fc1bcb2b88be09c17b5bf4f4b7efac1",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeThemeTest.xml",
+          "sha256": "611cac703480744249837f5759de61c5dd410445d375b11ba150b43912d960d0",
+          "tests": 1,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "testMapsEverySharedPanelThemeTokenToNativeValues",
+              "kind": "failure",
+              "message": "junit.framework.AssertionFailedError: Missing --vscode-dropdown-foreground"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeWidgetsTest.xml",
+          "sha256": "f0825c744b4457d6dce6d08c44f8f5b654957a71c65e1835ee66236ae9006b10",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PanelSurfaceTest.xml",
+          "sha256": "8756736d1003f5262455dfe68e7a770f31d16fa69f377f25ddb5fc611a0ebb0b",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PipeTest.xml",
+          "sha256": "9dd435cc6fd3819c48d98c6ee9010ff8c53eadb67da6aa821b2508ad47c5af5e",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeProcessTest.xml",
+          "sha256": "454aa843280c5f14653bffda4b2bbeed515c92c3194e2c48cf54f36a7b261bca",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeStressTest.xml",
+          "sha256": "f8239065b783bdc61e7f4492eada7425cec936d4ce4a7605b921a5ec9093ab4c",
+          "tests": 15,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "jb-final",
+      "totals": {
+        "tests": 85,
+        "failures": 2,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.DocumentServicesTest.xml",
+          "sha256": "c1b171bd885af5d2e8d1ed52f7306df6b28be584a0e3c6e32645234f904b6c3b",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.FirstFrameDescendantsTest.xml",
+          "sha256": "05f64794c3e096ad5c3c39e2169824bbea7049674163cb29e3ece14d820ef84e",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MetadataProposalTest.xml",
+          "sha256": "f8fbccbb18264827a9d57b4a2d7e7b06c5994de3fda8b41b38033c5c7a8bc42a",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.Mhp13Test.xml",
+          "sha256": "fe9a4806c3699f21514c84d90f664801755b4898e8542d9df4faf2014be42053",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpBoundaryTest.xml",
+          "sha256": "917ef8ce3f49d583d6877a4e00ba1de2ca4e8602d684e88703d118d9f95d3370",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpConnectionTest.xml",
+          "sha256": "199f198028a701c1d3e05c7058179c41cb95de0a873a2817a860980f786c3847",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeBrowserTest.xml",
+          "sha256": "34aedc9af7f9378b7cc7f8d6871265450e6b55c1a1cc2ef8c270bb41433a1e88",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeDialogsTest.xml",
+          "sha256": "9e3f41547d5f60acc01c3a5c99f55ead3a6cafa952a247a553437d7a3b44641c",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeHostServicesTest.xml",
+          "sha256": "dbb6f9131d0131f23cdfaec724681535dd186770a59b91b6cf7648a397128859",
+          "tests": 9,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            },
+            {
+              "case": "testSettledDiagnosticsAttestTheCheckedDocumentVersion",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeJcefSmokeTest.xml",
+          "sha256": "5d23ef45b56547c4b5a12e72ae2b83c1eea4bd5b0566771e7cf5d1e5eb417cf1",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeLifecycleTest.xml",
+          "sha256": "a1604a24514a0283bf31140a72bd5215051ff69cec72ecec0ac727910909415f",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeNoticeIdentityTest.xml",
+          "sha256": "c31a016f45f17ae2032656906d07199fa59c6bb3c2fa8e07feb6d1dd22a6d0f7",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeSurfaceTest.xml",
+          "sha256": "baf0c8261a554508433495e6623476cfc284f3aee60388d2100abca8361a0054",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeTabTest.xml",
+          "sha256": "0a637917c67f6653c0805ddb9bab72568686bc84df38755adfe9e783b5958eaf",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeThemeTest.xml",
+          "sha256": "24e4f7eeb1364f9b9b490ea49a4a1f2ce385877736cd0a8cb2ef252bf1a83992",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeWidgetsTest.xml",
+          "sha256": "2f2e887486d08ec0bdd54ac934ac62683ba675c88fb0201713a37c6b18d57005",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PanelSurfaceTest.xml",
+          "sha256": "76ee4a5c365a738d92f1ef86300271545c8c8142fc4550b3253db9239992078b",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PipeTest.xml",
+          "sha256": "d40609f374c272f0c105733a7b13a3fea61b809a5065c11409592830f2e4118e",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeProcessTest.xml",
+          "sha256": "6163d1997f88369cd7f77a520f0eb3a1cc6446de12cc1f1931a7db5f40c00d72",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeStressTest.xml",
+          "sha256": "7e969fa1985f5db5f32989b8aa1a0c890c2fb59d29cf695ec34fe1b49f9a4474",
+          "tests": 15,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "red-eclipse-bounds",
+      "totals": {
+        "tests": 88,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "3c980bb74947d402574a6c03a0a528559b09b9bfaf6a13e34067f989d475d3d1",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "b8cfa7b1da3bc57041a7026db1b6fe8f8ff0c06969c78904d2dba726a3d6875f",
+          "tests": 4,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "inputAnnotationsAndExclusiveNumericBoundsKeepTheirSemantics",
+              "kind": "failure",
+              "message": "expected java.lang.IllegalArgumentException to be thrown, but nothing was thrown"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "3ee07426f7bc536b834c52c1d1d96fd40aca83d9d6e56c4dc208f6fc802e16a0",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "596adce1ed61e8ec51c3d2ef48ea4d2e60b59cc124beca20f94a2b9eec3f0215",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "4ded4abef25eea6532c2baca578cda5f5512c9353bc2e61bc075bb127d915eb5",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "a5b7ab77dfd30c8209e8decfcf9757868a10c4eadf7b675916f42697b1607ad7",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "dee7964c3c559941739b76353ba907ce1e6be3d89c20ad9e461e2d0b2d017206",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "abe77a1f5a9c0f60a2a1dce3ccf0c71a058674044e3c938543777357e265a749",
+          "tests": 27,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "466446fadc2baa19be44372c46c05d0c0e0b691b4487a5bc559452fbf583ae59",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "red-eclipse-vocabulary",
+      "totals": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 72,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "0f86f43c898e1a3a1cf55432bd660ef9f3efdeaa0459e5615b7baaa50fe37645",
+          "tests": 9,
+          "failures": 0,
+          "errors": 2,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "proposedHtmlPortRequiresCapabilityAndValidatesCompleteBoundedResults",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "proposedHtmlPortRefusesInlineRemoteAndDuplicateScripts",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "a1929d5b228b84e31e5cff1fcb74782a626849405358c316f5fa0b0c6ea6ad11",
+          "tests": 4,
+          "failures": 0,
+          "errors": 4,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "exportedSchemaRejectsInvalidVersionsRangesAndSecrets",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "recursiveStateAndAllSchemaKeywordsAreEnforced",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "strictJsonRejectsDuplicatesBatchesAndTrailingObjects",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "inputAnnotationsAndExclusiveNumericBoundsKeepTheirSemantics",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "0c4e9a20bab69da6cc5d929882aef2ec327c2b29064701e1b64a2aefce560090",
+          "tests": 2,
+          "failures": 0,
+          "errors": 2,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "schemaHonorsArrayMaximumAndNullableType",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "editorInitiatesMetadataAndAcceptsIndependentRuntimeCapabilities",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "1d16e5c8932ea72bcbedb6b2ada34c289c46ba3862c0da1c2737e117475254da",
+          "tests": 9,
+          "failures": 0,
+          "errors": 9,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "nativeNoticeAdmissionIsBoundedAndDisposedUiCannotMutate",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "cancellationAndWindowRetirementCannotReturnConsent",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "nativeNoticesKeepTypedIdsAndCanonicalNumericLifetimes",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "fileRequestsMapNativeChoicesToMhpResults",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "runtimeHtmlLoadsIntoTheOwnedSurfaceOnly",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "pricedPromptReturnsExactOpaqueAndNumericIdentifiers",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "unavailableRuntimeSettingIsExplicitlyRefused",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "runtimeSurfaceCloseAndWindowRetirementDisposeNativeBrowsers",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "nativeClipboardAndRegisteredCommandAreOwnedByTheWindow",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "4e7e8b6a9ec1acbb5516cae84206456b3d6e550d33b51c24748e685d044dd3d4",
+          "tests": 6,
+          "failures": 0,
+          "errors": 6,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "closePurgesCountsDropsClearsStateAndRefusesReuse",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "backpressureDoesNotConsumeSurfaceSequence",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "reloadRetainsStateAndSequencesAndSuppressesDuplicateReplay",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "rejectedPayloadDoesNotAdvanceAndSurfaceKindsAreIsolated",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "panelRefusesUnreadyWrongSurfaceDirectionAndSequence",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "transportFailureStillRetiresTheSurfaceAndRefusesReuse",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "597e2e13d3a9246e81e026878e6df8251a8dcea3f5ba6643e141fec05a4b21c5",
+          "tests": 16,
+          "failures": 0,
+          "errors": 16,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "malformedUtf8IsRefusedBeforeDispatch",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "unnegotiatedTrafficAndUnsupportedRuntimeGroupsAreRefused",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "unhandledServiceMethodsKeepTheirTypedCapabilityRefusal",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "handshakeCorrelationDirectionAndResultValidation",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "queueCapsPurgeAndOversizedFrameNeverAllocate",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "correlatedCompletionResultsAreValidatedBeforeResolving",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "numericIdsShareDuplicateAndCancellationIdentity",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "cancelledCorrelationRecordsRemainBounded",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "cancelledAndTimedOutRequestsAcceptValidatedLateReplies",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "everySchemaErrorKeepsItsNumericCodeAndTechnicalMessageOnTheWire",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "legacyNegotiationRefusesCarrier",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "rawLineReadIsBoundedBeforeJsonParsing",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "cancellationReachesPendingHostWorkWithoutApplyingIt",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "transportFailureAfterInitializationShutsDownItsOwner",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "fakeRuntimeMultiplexesFragmentedCrlfServiceAndCarrier",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "closeReturnsWhileTheRuntimeDoesNotReadItsPipe",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "9d72b500e91e88800577fff2429dabde3d367c12b484010a19a42edd485f057a",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "b3f65d4738a05bc67a440875d856b42d32f25a18d40e6602364e61d4fcd091e9",
+          "tests": 27,
+          "failures": 0,
+          "errors": 27,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "aFullBrowserQueueCanStillReportFailedDelivery",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "runtimeCommandRunNotifiesItsRegisteredExecution",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "invokeGhostTextAndTabAcceptUseFakeRuntimeAndOneUndo",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "sessionCloseTerminatesAnUnreadingRuntimeThatIgnoresGracefulStop",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "userMenuReplacesANotYetCreatedPlaceholderWithoutCreatingIt",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "userMenuScansPlaceholdersBeforeAndAfterTheOwnedView",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "userMenuOpenAdoptsTheOwnedSessionInsteadOfPublishingAnUnownedOne",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "closeKillsCapturedDescendantsAfterTheParentExits",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "cleanupFailureStillKillsRuntimeTreeAndContinuesOtherSteps",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "pluginStopAdmissionRefusesSessionAcquisition",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "settledDiagnosticsAttestTheCheckedDocumentVersion",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "browserReadyResumesRetainedDeliveriesAndFailuresAreReported",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "realProblemsFeedTheNativeVerifyLoopAndLifecycleClosesRuntime",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "automaticCompletionSurvivesTheTypingCaretEvent",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "nonUiCloseDuringSettledMutationLeavesCleanupOnTheDisplay",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "rootKilledBeforeCloseStillKillsItsReparentedChild",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "admittedBrowserMessagesWaitForReloadAndRemainCounted",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "foldedViewerCompletionUsesFullDocumentRange",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "restrictedViewerCompletionUsesDocumentCoordinatesAndOneUndo",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "settledDiagnosticsWaitForAnalysisAfterASavedEdit",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "nonUiNativeRequestsAreRefusedBeforeTouchingState",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "recursiveFileGlobsIncludeAndExcludeProjectRootFiles",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "interruptedQueuedEditorRequestCannotApplyLater",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "descendantObservationTreatsAVanishedProcEntryAsExited",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "userMenuOpenReplacesAnUnboundRestoredViewWithTheOwnedSession",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "nativeHtmlRenderRejectsStaleRepliesAndRoutesWhatsNewClicks",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "nonUiCloseDisposesLiveViewsAfterThePluginStops",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "3eb0e76c6a52b17a23bad48f9aa96abfc585eb331afa82e4df11d073e4a54016",
+          "tests": 6,
+          "failures": 0,
+          "errors": 6,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "invalidOrOverlappingRangesAreRefusedBeforeAnyEdit",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "invalidOrOverlappingRangesAreRefusedBeforeAnyEdit",
+              "kind": "error",
+              "message": "Cannot invoke \"io.musespark.eclipse.Documents.close()\" because \"this.documents\" is null"
+            },
+            {
+              "case": "standardLanguageIdsMatchRuntimeCompletionRegistrations",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "standardLanguageIdsMatchRuntimeCompletionRegistrations",
+              "kind": "error",
+              "message": "Cannot invoke \"io.musespark.eclipse.Documents.close()\" because \"this.documents\" is null"
+            },
+            {
+              "case": "currentVersionEditIsAtomicAndOneUndoRestoresBuffer",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "currentVersionEditIsAtomicAndOneUndoRestoresBuffer",
+              "kind": "error",
+              "message": "Cannot invoke \"io.musespark.eclipse.Documents.close()\" because \"this.documents\" is null"
+            },
+            {
+              "case": "staleVersionAndDirtyBufferNeverChangeUserText",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "staleVersionAndDirtyBufferNeverChangeUserText",
+              "kind": "error",
+              "message": "Cannot invoke \"io.musespark.eclipse.Documents.close()\" because \"this.documents\" is null"
+            },
+            {
+              "case": "completionAcceptsCurrentDirtyBufferWithoutLosingOtherText",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "completionAcceptsCurrentDirtyBufferWithoutLosingOtherText",
+              "kind": "error",
+              "message": "Cannot invoke \"io.musespark.eclipse.Documents.close()\" because \"this.documents\" is null"
+            },
+            {
+              "case": "unsavedReadSelectionAndSaveUseEditorBuffer",
+              "kind": "error",
+              "message": "MHP_SCHEMA_UNSUPPORTED"
+            },
+            {
+              "case": "unsavedReadSelectionAndSaveUseEditorBuffer",
+              "kind": "error",
+              "message": "Cannot invoke \"io.musespark.eclipse.Documents.close()\" because \"this.documents\" is null"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "run": "eclipse-default-final",
+      "totals": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "1e16d0992d93da7cdd8548b8a253fb4731ebc4b93971dcde428979c68c6e825f",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "0784bfd993a3f6fa1d7b134c46c9078335c4606bd13f350ca3b810a4831855de",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "19a8c692a31c274d96af62262354a3160b2c86879386791f892046c189565c5c",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "d56ae9f811a068881a55e2267f64fff643e14cd04aec5db202f1bd8ed28bba01",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "ded0c56e459ed19bb971e28310ce48bdcb4253385508f9ccb15149ddfd8f4e60",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "993790cb83417517747f832d4352aff4a8869c8fb4703c5c52dfdef5b78c76bd",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "ad291703c94be058e34313ef6814e09088242f91c4dc49a8c55c55e705c4038e",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "3b7f0ed69e6cb6838fc3b95d523fe5fde95cd8887617ecabddeb572e20f1a35d",
+          "tests": 27,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "dbba8d5d2d67acdd3529017e55c6df769f22a345d01893c524f589e67b75bab5",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "eclipse-2026-03",
+      "totals": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "2af42750350936ec7b5a5cc08a61903e6371ee0aec60eaa3c9f202803546b394",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "330e726d8527853c8188610cd8758473c286c9d9b80e2ed3bd5ee0c394422b41",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "7093d653c72815c87a124b8c59d9a59159e01a95362e88676faeaa69ee8f460b",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "3b06b97995426a0a48788e26ebd9bd618368d17be0a71f789e5885e6d348f850",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "5acab19efbf267af9a98483d81726f1a9e05f4d501e2950ebd11bfaa3e57152b",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "323b13eb7b3f215d3cdc50c305a1c243df7ac32260d3b7e5176e067091349adb",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "ef48c7f633d1a85061fcfeb1229bc6834cac20360ae069ea24564cc8cd2aa246",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "c1655e348f83e36caaf94a3e25b0928dc9792d1ce5d0797e92bd0587c91f738a",
+          "tests": 27,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "44dc2c0bb933a6def00b5989f65d9ad7a10f8a6de001ae6fba7833be66bca8cb",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "red-jb-upper",
+      "totals": {
+        "tests": 85,
+        "failures": 3,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.DocumentServicesTest.xml",
+          "sha256": "02f2da7ec3aded885a17c1242bc1dacbe6b93488aaede31a710b08e79385119d",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.FirstFrameDescendantsTest.xml",
+          "sha256": "2d995116719caaf1344f11b0476e9efc8d8191f18cd153b90902eb5f69691fe0",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MetadataProposalTest.xml",
+          "sha256": "0d9a6a2b2d7cce21ebef3cc1d5a72520b5be2afb45a58331eab8c96112f1140e",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.Mhp13Test.xml",
+          "sha256": "c12071236bf2a81e22b901db522626d8572e8583843cd14aeac142512e24089c",
+          "tests": 4,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "inputAnnotationsAndExclusiveBoundsRetainClosedPayloadsAndOpenState",
+              "kind": "failure",
+              "message": "java.lang.AssertionError: expected java.lang.Exception to be thrown, but nothing was thrown"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpBoundaryTest.xml",
+          "sha256": "ab0e56e639d6c6d0191f46c1f0e6e7854132383bb8b1f8e0b2883f55534f02b5",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpConnectionTest.xml",
+          "sha256": "efc4fc11c916ef63c2a9adc7882d99956b2559e13ed2e7fb489d52cf5c446d40",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeBrowserTest.xml",
+          "sha256": "b80a8456b20c62d9f71cf67e39844412a0d9ac341d3a576d1a1254b9fb715442",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeDialogsTest.xml",
+          "sha256": "358f45633080e75aa1a3ae22b8a4055ba8f0547339a4486eda07366d4c54c544",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeHostServicesTest.xml",
+          "sha256": "18c1aed8da2d2afe6596bda4163fe7a50952072d327d53a584859c443445cd3f",
+          "tests": 9,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            },
+            {
+              "case": "testSettledDiagnosticsAttestTheCheckedDocumentVersion",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeJcefSmokeTest.xml",
+          "sha256": "364146dc78eb5d589b88e7654ffef9ee005015024ef40ea2213ae952992469cb",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeLifecycleTest.xml",
+          "sha256": "e98309b81e71e936ad2f98d8857e938aaaca940333815917294b13252f21903f",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeNoticeIdentityTest.xml",
+          "sha256": "a0be98bc4afeeff7d9072551d618719f5c28c7c69b19e8b6bc9e430f7d10d6bd",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeSurfaceTest.xml",
+          "sha256": "49221a7b5b4034c1bb2c5059a6c1a8c8e3b012541ff5343e9f56c51b9a058c45",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeTabTest.xml",
+          "sha256": "270a29f2b904ca04b81620af1ba65b3a38355d41c7addea5bf5de6ac80d1a83c",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeThemeTest.xml",
+          "sha256": "1767ca657a8e6d8776a5668b0e509b9b833111a341d1acb84c8dd8ebe273858b",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeWidgetsTest.xml",
+          "sha256": "db5544226dbf70a5f02128106102346aab6f125891a77c590de7dba460674674",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PanelSurfaceTest.xml",
+          "sha256": "acbb463099889a4393090ecad5f4214d4d3c497ded3d34d76e5d5e00ca7ba134",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PipeTest.xml",
+          "sha256": "5c11cb21ad013663f4ef211be4107f05907135d38e9d4fbe9fc4e94431617f78",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeProcessTest.xml",
+          "sha256": "b374428208756d0a60938c2fd4fd8177bbb1470ff78aadb62543bdb4737177e9",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeStressTest.xml",
+          "sha256": "402275fb0ae1d5d207a71eead0c3ecf2592b00fb051b3b7dc567b2b0098fe615",
+          "tests": 15,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "red-jb-vocabulary",
+      "totals": {
+        "tests": 85,
+        "failures": 3,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.DocumentServicesTest.xml",
+          "sha256": "637c39b7e5a62a8b94b0fb9459f40bcc0536f3c3095a63f3c3088c62ab6b0cb4",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.FirstFrameDescendantsTest.xml",
+          "sha256": "0bbb3a25ceca722dbde799c9c08ee965c3c1dde2be81fef6e4deeff713b39987",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MetadataProposalTest.xml",
+          "sha256": "ad26b8a9d0738c7f8df34a1c3e3df9c7076d11e7b5ca92c376c036eb5f308d03",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.Mhp13Test.xml",
+          "sha256": "0a781e1214b54ad7dfe25d8a52c1683a7395cf93c6b071d38f9fe0bd90b9bfbc",
+          "tests": 4,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "inputAnnotationsAndExclusiveBoundsRetainClosedPayloadsAndOpenState",
+              "kind": "failure",
+              "message": "java.lang.IllegalArgumentException: MHP_SCHEMA_KEYWORD_UNSUPPORTED"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpBoundaryTest.xml",
+          "sha256": "30578cf1ca04cf75f33ac1e65357aa533a882bf823fc08d96829ae993b799ff5",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpConnectionTest.xml",
+          "sha256": "b55d1bc0a5d694e030bea758c6f662bf2b56b00b84a0e3f08bbf00457bf3eb84",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeBrowserTest.xml",
+          "sha256": "e42109e2ab83670827040db50ceaa7ee87c4243fc9c757af236623fc2ad68e6e",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeDialogsTest.xml",
+          "sha256": "ee2df37260cd4a9384129961134a670e010512cc64637cbf517a1fd489e526b6",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeHostServicesTest.xml",
+          "sha256": "7418c14fe57c41cab82898ddc1623d99c632bc2f0af39bc72aadb78e8914807c",
+          "tests": 9,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            },
+            {
+              "case": "testSettledDiagnosticsAttestTheCheckedDocumentVersion",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeJcefSmokeTest.xml",
+          "sha256": "fd3b8fdcd8f0ca36816717ba230155691b0dc0f24b5f9638ab8dc319c1eefc3f",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeLifecycleTest.xml",
+          "sha256": "f8220b7ff0a64336a695292697878ed8c2d92dc5f9ada9d815680f4da1292f40",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeNoticeIdentityTest.xml",
+          "sha256": "171e7a5caa9c2db32d6ceba9394085b75d381ea55d02c7a9054a403564243d11",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeSurfaceTest.xml",
+          "sha256": "61850107226871517ad86a43cc023fdb45a0c302247c48a246ed911413f8413d",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeTabTest.xml",
+          "sha256": "315c7eb4a7738373410471d03d0b4cb3244e29cc70b197f59c28f59eeb916c98",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeThemeTest.xml",
+          "sha256": "7b22693569685a19013db93f9920aa903978eff947e5ccb2f6499488609a6756",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeWidgetsTest.xml",
+          "sha256": "e9e342fc238dd354d783119cd9583cdd70aeec598c4dabf1d89b636b3bfc67a6",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PanelSurfaceTest.xml",
+          "sha256": "ee509cfbe0716c22ed8dbd90a92166f666472ed3f91cfc1dad8cd32e0e2f9780",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PipeTest.xml",
+          "sha256": "a291d7118f0526fb4124acbfcb3bceb1d822e2333d2058c926175ba633644ba5",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeProcessTest.xml",
+          "sha256": "519cc3e9e5b477b869b9d1ad59a6f244e98f15181af49606180f098fb29d91df",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeStressTest.xml",
+          "sha256": "93986609c8ac3dc6dfc4bb3c56800901398be41bfc5d073a6566f4a2d256348d",
+          "tests": 15,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "jb-restored-upper",
+      "totals": {
+        "tests": 85,
+        "failures": 2,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.DocumentServicesTest.xml",
+          "sha256": "b70d963928ba3edee6f11122acf7ff1749d1afbb99ef856c5502b32d4143166a",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.FirstFrameDescendantsTest.xml",
+          "sha256": "798e7c3153125a5f4fe04b101fbff6c0a47dfab7010b2ea9696bb218f258e22b",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MetadataProposalTest.xml",
+          "sha256": "f7178e6abe38b0f9757c1296aabdc65fc3630784af10d9c64ddd262cad902e63",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.Mhp13Test.xml",
+          "sha256": "8e7593d3d82833d5c7cbfe0605c9e19d249fee5c141df246d5e18ed9af04c6aa",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpBoundaryTest.xml",
+          "sha256": "7d70439be5f29f2ed1b28cb37f98c2544c24080d804d71a3539103f5797999ed",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.MhpConnectionTest.xml",
+          "sha256": "40628d4d199e96373799cdf48ab09a6d740bbc20f44b431bb5b48fe41a3b4060",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeBrowserTest.xml",
+          "sha256": "28e5b81fecc337e04b10518626a1686e3c87afa90434ccb1c3bb8191878f693d",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeDialogsTest.xml",
+          "sha256": "30712345ef8b492c214c7c7073dda60c1c284fb1e241561b0f13c6605577cbd8",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeHostServicesTest.xml",
+          "sha256": "16927c306a56b855a6173124bd444c50e00171a21a9e3d878e17ec2407984f6b",
+          "tests": 9,
+          "failures": 2,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "testSettledDiagnosticsStayPendingAfterAnEditUntilHighlightingCompletes",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            },
+            {
+              "case": "testSettledDiagnosticsAttestTheCheckedDocumentVersion",
+              "kind": "failure",
+              "message": "java.lang.IllegalStateException: Not a JSON Object: null"
+            }
+          ]
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeJcefSmokeTest.xml",
+          "sha256": "13b3285347f1ba6311e5784514848aa2a69ffe8948b34a3ad18834b9a3c1cdb1",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeLifecycleTest.xml",
+          "sha256": "2d5e18b8ee47921020999a9b0b7f9495daadf5e565dd9c31fc33e5f726633155",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeNoticeIdentityTest.xml",
+          "sha256": "cad2e09c8a099c3c01594dbcf5adcdebbdff257fd5f5efbc44b650a44add7271",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeSurfaceTest.xml",
+          "sha256": "36a747d3eebf88dfac4001c7ae62a5713eddd2b5f96570911ecddb6a78a6f8b2",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeTabTest.xml",
+          "sha256": "7a969ff4c0e4de9a5c1bad15b7628e8f6cba11a33aeb2154cd5f03260475eec4",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeThemeTest.xml",
+          "sha256": "41d22eaea73caba2ab4ffc347ecc29e34e679194c1c00320b1f2e4b0ac0b9632",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.NativeWidgetsTest.xml",
+          "sha256": "b9fef09493b3b33c005294ae42cc67e2ec8c79fa551761b6d338693833390113",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PanelSurfaceTest.xml",
+          "sha256": "4f726b49f7e97863416027336b4d297e767cc0ce1255bf4c709639985ee7e859",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.PipeTest.xml",
+          "sha256": "805ecc5956c6de4073d888aeb8a25e907b699062c22346b6c9994b41d38406af",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeProcessTest.xml",
+          "sha256": "25e9d0552606c2c0076a7f609cc6fdfce7225e0a4532f90a8f3487d0473985ab",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/jetbrains/build/test-results/test/TEST-io.github.randynorthrup.musespark.RuntimeStressTest.xml",
+          "sha256": "16b759f799be039593e73bd3800bbd4703529ec35992610ccb86cfbe5afde3ae",
+          "tests": 15,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "red-eclipse-upper",
+      "totals": {
+        "tests": 88,
+        "failures": 1,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "ce94edc2afc17fe7286a358c16a0d8d8d573ee11551cb24163315a50ff4230e7",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "9043bf206a3dabca7f9aac2bd9e376c8ecc1cbdf12dc48abe8db010f3a6520c1",
+          "tests": 4,
+          "failures": 1,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            {
+              "case": "inputAnnotationsAndExclusiveNumericBoundsKeepTheirSemantics",
+              "kind": "failure",
+              "message": "expected java.lang.IllegalArgumentException to be thrown, but nothing was thrown"
+            }
+          ]
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "df3892fd4bc3f175c9a31bd459a02d7f258e0e5abdfb4f3594b64c5a8ee3588e",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "4ad8e3d731e2ba0508a6fa68979cbf05318544855fbb5360ac43387acf46d716",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "88df11148b3c80466492e19f77ec86bfd0a8fe4d3e998fb25ad008f48884e264",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "b109eeafd8cf91f292449f8c9687070bb564353932b6c3d83ac87652fde8b650",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "b6abd3775c7443913b1298c758ac85130c0795bcabe106de71f743505ac3ce5c",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "49507a96fefafdc63d063eb14f945ceec112d177c1839acc48fc302148255cc7",
+          "tests": 27,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "1992c4e493412913defa55f44e73c0a13dfaa9d4fb0cf15c891446ec8f449fb1",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    },
+    {
+      "run": "eclipse-restored-upper",
+      "totals": {
+        "tests": 88,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "files": [
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.BrowserTest.xml",
+          "sha256": "6558cb76658e1597ca3a09a0d0d337a381309e9eedafcbdcf62a3dd66a9a4dc1",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.ContractTest.xml",
+          "sha256": "5e6c0922141acd13459d7e9d5d25772c897ac3d04d1c7564a9bbce69bb14d876",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.Mhp13Test.xml",
+          "sha256": "5877824e1f8f362bbb2b8621e658f3e7273fd2646a217ac2874b815c7a01fe50",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.NativeUiTest.xml",
+          "sha256": "db61b427e7cc443ca2568370e0c9c1a0ee7ea4c21a049f37bd98e9a8a8999060",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PanelTest.xml",
+          "sha256": "b957c5027e9537029e2ccaa21a2c37400b4a64242713db5fb7c365fc1257a976",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.PeerTest.xml",
+          "sha256": "22610ce738cf2129ff1e5a60e476e2eb7a7a4540662fec50726ed6406f280667",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.RuntimeStressTest.xml",
+          "sha256": "8dea72eba4ee1d9ed3c09fb7ffaa381a3a8bd72e59df1e478699380cf4e4b968",
+          "tests": 9,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.SessionTest.xml",
+          "sha256": "879dd7cf433abbeb8a4e54ba7c6d296a0c44466627ceec15a9a646e1cace0673",
+          "tests": 27,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "file": "hosts/eclipse/tests/target/surefire-reports/TEST-io.musespark.eclipse.tests.WorkbenchTest.xml",
+          "sha256": "eeef9477d6cf93b31336af0444dd63a10c8b6a1683c1ece9deb0cfce96ac9f35",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ]
+    }
+  ],
+  "drills": [
+    {
+      "guard": "embedded-exclusive-bounds",
+      "exit": 1,
+      "sha256": "201e3aa98e0639da2a2bb5f0055c7e5fc26b645188722fff0397a09a25e1d06e",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "native-closed-input-export",
+      "exit": 1,
+      "sha256": "6eacfc101babd237638210ded32a286944486fbb18b0e01847908165c8fcb7bd",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "current-native-runtime-initialization",
+      "file": "hosts/jetbrains/test/fixtures/panel_ui.py",
+      "exit": 1,
+      "sha256": "e0b0fe258f342c11896440da6d2d47cf6b1929d9e2cf2ed16d94ed689f9907e2",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-jb-bounds-and-theme",
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/JsonBoundary.kt",
+      "exit": 1,
+      "sha256": "80273e134e90a0854a846c8d3eb71c75051236a9d112b4dba8ccbf275aeb44c1",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-jb-bounds-and-theme",
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/NativeTheme.kt",
+      "exit": 1,
+      "sha256": "fcf82f435c9ff8518b391162b4c17cb42dfe78403d5cbbf75d7b165f006d9715",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-eclipse-bounds",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/Contract.java",
+      "exit": 1,
+      "sha256": "c4fac3d9b4de9c12ce27010b96f6719a420f71cfc1294fbe6711dd41db5b4aef",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-eclipse-vocabulary",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/Contract.java",
+      "exit": 1,
+      "sha256": "c4fac3d9b4de9c12ce27010b96f6719a420f71cfc1294fbe6711dd41db5b4aef",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "csharp-exclusive-bounds",
+      "file": "hosts/visualstudio/Protocol/SchemaContract.cs",
+      "exit": 1,
+      "sha256": "c7a24b73cc6f6516d322f67882ac57c99c343c2e30a08b100078a56b0170e620",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-jb-upper",
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/JsonBoundary.kt",
+      "exit": 1,
+      "sha256": "80273e134e90a0854a846c8d3eb71c75051236a9d112b4dba8ccbf275aeb44c1",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-jb-vocabulary",
+      "file": "hosts/jetbrains/src/main/kotlin/io/github/randynorthrup/musespark/JsonBoundary.kt",
+      "exit": 1,
+      "sha256": "80273e134e90a0854a846c8d3eb71c75051236a9d112b4dba8ccbf275aeb44c1",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-eclipse-upper",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/Contract.java",
+      "exit": 1,
+      "sha256": "c4fac3d9b4de9c12ce27010b96f6719a420f71cfc1294fbe6711dd41db5b4aef",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-csharp-upper",
+      "file": "hosts/visualstudio/Protocol/SchemaContract.cs",
+      "exit": 1,
+      "sha256": "c7a24b73cc6f6516d322f67882ac57c99c343c2e30a08b100078a56b0170e620",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-js-upper",
+      "file": "hosts/jetbrains/src/main/resources/embedded.mjs",
+      "exit": 1,
+      "sha256": "201e3aa98e0639da2a2bb5f0055c7e5fc26b645188722fff0397a09a25e1d06e",
+      "restoredByteExact": true
+    },
+    {
+      "guard": "red-superseded-version",
+      "file": "src/shared/constants.ts",
+      "exit": 1,
+      "sha256": "258c6a1e95e0185e92090619e8885e9d335941938f768f771c864d389a1cf4e1",
+      "restoredByteExact": true
+    }
+  ],
+  "images": [
+    {
+      "file": "hosts/jetbrains/build/reports/panel-approval.png",
+      "sha256": "b8b66421b607e2acffdbff0b124797a918078cd1100b398db2dbef99a3ef341a",
+      "bytes": 29225,
+      "width": 760,
+      "height": 640,
+      "coverage": "real JCEF authored runtime, readiness and file-write approval controls"
+    },
+    {
+      "file": "hosts/jetbrains/build/reports/panel-ui.png",
+      "sha256": "dd9b0a9bd8d325c46c2758f70b0a5219f70f626c6f61b86d9e2d80430f0ba1c5",
+      "bytes": 30821,
+      "width": 760,
+      "height": 640,
+      "coverage": "real JCEF authored runtime, readiness and file-write approval controls"
+    }
+  ],
+  "testedSourceHead": "cf43be7c85342a6abec230d5cef4ae7712ad5015",
+  "laneChecks": [
+    {
+      "run": "csharp-restore",
+      "command": [
+        "dotnet",
+        "restore",
+        "--source",
+        "/var/tmp/l-M104F1/native-schema-probe/empty-source"
+      ],
+      "exit": 0,
+      "seconds": 10.107,
+      "log": "temp/f1-csharp-restore.log"
+    },
+    {
+      "run": "csharp-build",
+      "command": ["dotnet", "build", "--no-restore"],
+      "exit": 0,
+      "seconds": 13.259,
+      "log": "temp/f1-csharp-build.log"
+    },
+    {
+      "run": "csharp-positive",
+      "command": ["dotnet", "/var/tmp/l-M104F1/native-schema-probe/bin/Debug/net10.0/probe.dll"],
+      "exit": 0,
+      "seconds": 0.265,
+      "log": "temp/f1-csharp-positive.log"
+    },
+    {
+      "run": "csharp-red-build",
+      "command": ["dotnet", "build", "--no-restore"],
+      "exit": 0,
+      "seconds": 1.343,
+      "log": "temp/f1-csharp-red-build.log"
+    },
+    {
+      "run": "csharp-red",
+      "command": ["dotnet", "/var/tmp/l-M104F1/native-schema-probe/bin/Debug/net10.0/probe.dll"],
+      "exit": 1,
+      "seconds": 0.263,
+      "log": "temp/f1-csharp-red.log"
+    },
+    {
+      "run": "csharp-restored-build",
+      "command": ["dotnet", "build", "--no-restore"],
+      "exit": 0,
+      "seconds": 1.327,
+      "log": "temp/f1-csharp-restored-build.log"
+    },
+    {
+      "run": "csharp-restored",
+      "command": ["dotnet", "/var/tmp/l-M104F1/native-schema-probe/bin/Debug/net10.0/probe.dll"],
+      "exit": 0,
+      "seconds": 0.266,
+      "log": "temp/f1-csharp-restored.log"
+    },
+    {
+      "run": "e2e-panel",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/e2e/panelStdio.e2e.test.ts",
+        "test/e2e/panelCompanion.e2e.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 30.42,
+      "log": "temp/f1-e2e-panel.log"
+    },
+    {
+      "run": "host-api-distribution",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/hostApi/distribution.test.mjs",
+        "test/hostApi/release.test.mjs",
+        "--config",
+        "test/hostApi/vitest.config.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 9.239,
+      "log": "temp/f1-host-api-distribution.log"
+    },
+    {
+      "run": "eslint-final",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "hosts/eclipse/tests/runtime-fixture.test.mjs",
+        "hosts/jetbrains/src/main/resources/embedded.mjs",
+        "hosts/jetbrains/test/embedded.test.mjs",
+        "hosts/jetbrains/test/panel-runtime.test.mjs",
+        "hosts/visualstudio/Test/fake-runtime.mjs",
+        "scripts/mhp-schema.mjs",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/hostApi/panel.ts",
+        "src/webview/portable.tsx",
+        "test/e2e/panelCompanion.e2e.test.ts",
+        "test/e2e/panelProcess.ts",
+        "test/e2e/panelStdio.e2e.test.ts",
+        "test/hostApi/distribution.test.mjs",
+        "test/hostApi/release.test.mjs",
+        "test/m104/windows/vscodeEntry.ts",
+        "test/unit/companionMhp.test.ts",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "test/unit/panelBridges.test.ts",
+        "test/unit/panelConnection.test.ts",
+        "test/unit/panelSurfaces.test.ts",
+        "test/unit/runtimePanelState.test.ts",
+        "test/unit/xcodeHost.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 32.683,
+      "log": "temp/f1-eslint-final.log"
+    },
+    {
+      "run": "mhp-final",
+      "command": ["node", "scripts/mhp-schema.mjs", "--check"],
+      "exit": 0,
+      "seconds": 1.957,
+      "log": "temp/f1-mhp-final.log"
+    },
+    {
+      "run": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 3.867,
+      "log": "temp/f1-l10n.log"
+    },
+    {
+      "run": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 43.714,
+      "log": "temp/f1-host-api.log"
+    },
+    {
+      "run": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 3.808,
+      "log": "temp/f1-reference.log"
+    },
+    {
+      "run": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 20.182,
+      "log": "temp/f1-deadcode.log"
+    },
+    {
+      "run": "duplication",
+      "command": ["npx", "jscpd"],
+      "exit": 1,
+      "seconds": 5.86,
+      "log": "temp/f1-duplication.log"
+    },
+    {
+      "run": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 1,
+      "seconds": 14.979,
+      "log": "temp/f1-build.log"
+    },
+    {
+      "run": "bundle-split",
+      "command": ["node", "scripts/check-bundle-split.mjs"],
+      "exit": 0,
+      "seconds": 3.805,
+      "log": "temp/f1-bundle-split.log"
+    },
+    {
+      "run": "host-globals",
+      "command": ["node", "scripts/check-host-globals.mjs"],
+      "exit": 0,
+      "seconds": 0.073,
+      "log": "temp/f1-host-globals.log"
+    },
+    {
+      "run": "notices",
+      "command": ["node", "scripts/third-party-notices.mjs"],
+      "exit": 0,
+      "seconds": 0.332,
+      "log": "temp/f1-notices.log"
+    },
+    {
+      "run": "visual",
+      "command": ["npm", "run", "check:visual"],
+      "exit": 1,
+      "seconds": 411.095,
+      "log": "temp/f1-visual.log"
+    },
+    {
+      "run": "red-csharp-upper-build",
+      "command": ["dotnet", "build", "--no-restore"],
+      "exit": 0,
+      "seconds": 7.492,
+      "log": "temp/f1-red-csharp-upper-build.log"
+    },
+    {
+      "run": "red-csharp-upper",
+      "command": ["dotnet", "/var/tmp/l-M104F1/native-schema-probe/bin/Debug/net10.0/probe.dll"],
+      "exit": 1,
+      "seconds": 0.268,
+      "log": "temp/f1-red-csharp-upper.log"
+    },
+    {
+      "run": "csharp-final-build",
+      "command": ["dotnet", "build", "--no-restore"],
+      "exit": 0,
+      "seconds": 1.482,
+      "log": "temp/f1-csharp-final-build.log"
+    },
+    {
+      "run": "csharp-final",
+      "command": ["dotnet", "/var/tmp/l-M104F1/native-schema-probe/bin/Debug/net10.0/probe.dll"],
+      "exit": 0,
+      "seconds": 0.272,
+      "log": "temp/f1-csharp-final.log"
+    },
+    {
+      "run": "red-js-upper",
+      "command": ["node", "--test", "hosts/jetbrains/test/embedded.test.mjs"],
+      "exit": 1,
+      "seconds": 1.159,
+      "log": "temp/f1-red-js-upper.log"
+    },
+    {
+      "run": "node-restored-final",
+      "command": [
+        "node",
+        "--test",
+        "hosts/jetbrains/test/panel-runtime.test.mjs",
+        "hosts/jetbrains/test/embedded.test.mjs",
+        "hosts/jetbrains/test/bundle-size.test.mjs",
+        "hosts/eclipse/tests/runtime-fixture.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 1.204,
+      "log": "temp/f1-node-restored-final.log"
+    },
+    {
+      "run": "red-superseded-version",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "seconds": 11.709,
+      "log": "temp/f1-red-superseded-version.log"
+    },
+    {
+      "run": "contracts-restored-final",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "test/unit/panelBridges.test.ts",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 12.811,
+      "log": "temp/f1-contracts-restored-final.log"
+    }
+  ],
+  "schemaSemanticComparison": [
+    {
+      "file": "src/shared/hostApi/mhp-v1.schema.json",
+      "baseSha256": "8cf9004f35e9ec40de503d7957e4427b3748d3e4ca7e1746bebe049d66922c59",
+      "candidateSha256": "87750f0da97eaad1fe2b9b09e9131e7d62fb4540bff8e15417a7bead5dfae032",
+      "closedNamedObjects": 0,
+      "otherChanges": [
+        {
+          "path": "/conventions/initialize",
+          "before": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.4.0 and its capabilities",
+          "after": "hostToRuntime; editor sends host metadata, locale, theme, folders, trust and capabilities; runtime returns mhp/1.5.0 and its capabilities"
+        },
+        {
+          "path": "/methods/initialize/result/properties/result/properties/protocolVersion/const",
+          "before": "mhp/1.4.0",
+          "after": "mhp/1.5.0"
+        },
+        {
+          "path": "/protocol",
+          "before": "mhp/1.4.0",
+          "after": "mhp/1.5.0"
+        },
+        {
+          "path": "/range/maximumExclusive",
+          "before": "mhp/1.5.0",
+          "after": "mhp/1.6.0"
+        },
+        {
+          "path": "/range/minimum",
+          "before": "mhp/1.4.0",
+          "after": "mhp/1.5.0"
+        }
+      ]
+    },
+    {
+      "file": "src/shared/hostApi/mhp-v1.1.schema.json",
+      "baseSha256": "d8353dccb110649d00386fe6fb8aa0e98f7deb32d083d2b340620452a24ca6fa",
+      "candidateSha256": "0e181cc2bd6882e89966cd0d19995a894155365222685f64b57b98a53011372a",
+      "closedNamedObjects": 1250,
+      "otherChanges": [
+        {
+          "path": "/conventions/initialize",
+          "before": "hostToRuntime; select mhp/1.4.0 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION",
+          "after": "hostToRuntime; select mhp/1.5.0 only when offered; every incompatible range receives MHP_INCOMPATIBLE_VERSION"
+        },
+        {
+          "path": "/conventions/transport",
+          "before": "one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.4 envelopes",
+          "after": "one bounded UTF-8 NDJSON stream multiplexes JSON-RPC and MHP 1.5 envelopes"
+        },
+        {
+          "path": "/methods/initialize/result/properties/result/properties/protocolVersion/const",
+          "before": "mhp/1.4.0",
+          "after": "mhp/1.5.0"
+        },
+        {
+          "path": "/panel/envelope/oneOf/0/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/envelope/oneOf/1/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/error/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/invariants/0",
+          "before": "Panel frames require negotiated mhp/1.4.0. Validate shared payload and bound surface kind before delivery.",
+          "after": "Panel frames require negotiated mhp/1.5.0. Validate shared payload and bound surface kind before delivery."
+        },
+        {
+          "path": "/panel/lifecycle/oneOf/0/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/lifecycle/oneOf/1/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/lifecycle/oneOf/2/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/lifecycle/oneOf/3/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/panel/lifecycle/oneOf/4/properties/mhp/const",
+          "before": "1.4",
+          "after": "1.5"
+        },
+        {
+          "path": "/protocol",
+          "before": "mhp/1.4.0",
+          "after": "mhp/1.5.0"
+        },
+        {
+          "path": "/range/maximumExclusive",
+          "before": "mhp/1.5.0",
+          "after": "mhp/1.6.0"
+        },
+        {
+          "path": "/range/minimum",
+          "before": "mhp/1.4.0",
+          "after": "mhp/1.5.0"
+        }
+      ]
+    }
+  ],
+  "duplicatedRangesIdenticalToBase": [
+    {
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
+      "lines": [29, 40],
+      "sha256": "973f83690fca3269ef7545266e2a71baa59231cc7aa5b7673633cb0c11a3085f",
+      "byteExactToBase": true
+    },
+    {
+      "file": "src/runtime/features/paidBudget.ts",
+      "lines": [14, 25],
+      "sha256": "4cee9959adde0ac1a065cac96b180d9b92ffc028ceafcff41fc9377efde50b4b",
+      "byteExactToBase": true
+    },
+    {
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
+      "lines": [55, 61],
+      "sha256": "368fb0610d3ecf23724c3e89788afaccd941ee8c5c162600d39a44e17cb0c5df",
+      "byteExactToBase": true
+    },
+    {
+      "file": "src/runtime/features/paidBudget.ts",
+      "lines": [42, 48],
+      "sha256": "15e75d5e5afff4f1ac1dbb5202d8cfa1354fe6583dd66b3b7d0804feb495e03e",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/e2e/panelProcess.ts",
+      "lines": [58, 64],
+      "sha256": "dbd49290cedfa83015b39a0c2b4d960a998ef6ad617d6b094faeff11e98c002d",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/companionUpload.test.ts",
+      "lines": [99, 105],
+      "sha256": "d1c98c6b4ae8abc03b66c65f9018e0b9be996afd0432497d286dbd810fd3165e",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/m104/engines/paidUse.test.ts",
+      "lines": [205, 212],
+      "sha256": "b67d968794f8a886beb45d3bd94854da462efb23149ada0763107d3123bb8d0a",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/m104/engines/paidUse.test.ts",
+      "lines": [227, 234],
+      "sha256": "0d9f18885b2e8ce6ad59d6216f6d852293573b88e299cc655988525b47687a4a",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/m104/engines/paidUse.test.ts",
+      "lines": [216, 227],
+      "sha256": "7eb17a74448f531dd9aca6dec5f20c7f4e68984590bb8b1f4dc481b1a75dffbd",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/m104/engines/paidUse.test.ts",
+      "lines": [239, 250],
+      "sha256": "e8dcfe44551f69855232163b8d85377b97376bae73bec8c2cfc6a0b30ef1c9da",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/acpAccounts.test.ts",
+      "lines": [21, 26],
+      "sha256": "ea298334958abac4a0f7d936704557761808f72d3a68c516eb9c8c2c40c0182d",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/acpSharing.test.ts",
+      "lines": [16, 21],
+      "sha256": "042c73bc05c64f4171dd9306c312b24318c5a4a73e9761339afc784f61662ab9",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/acpPaid.test.ts",
+      "lines": [295, 300],
+      "sha256": "ca5f2d95e4598dcbe4bd8e67071b3c4cf46e38226e54e4180ac62c8e2a2bdce1",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/acpPaid.test.ts",
+      "lines": [312, 317],
+      "sha256": "79512ba4c8bd85ddb30e1de91677e1e59234e550198416e89f45e999c85aa038",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/conversationComposition.test.ts",
+      "lines": [58, 66],
+      "sha256": "e789f41ffcdf054522c8263eeaadc1607eee98a2db8035230c7e176b360c0084",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/promptMenus.test.ts",
+      "lines": [188, 196],
+      "sha256": "4eb4235149317954e25f3cb5a48dd00c5f311dca2629335996195eeb8b81f9b9",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "lines": [54, 59],
+      "sha256": "372dfa212bfd0e4dbfac367730c9362a1231244dd8646c2b0740e754986b47b3",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "lines": [273, 278],
+      "sha256": "36fdc63e172230413341c033d2135b9a072a1aefe9ffa4b27aa2d9ee30f52747",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "lines": [177, 183],
+      "sha256": "8196fdd3ec9c58f7d26ca9b3d24f5c9cb514f8b981c3a584a39c845bf6a5199d",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "lines": [293, 299],
+      "sha256": "0b8ea9b24b9faf6232b07fe226c5b08e901a9642a8413e899d5718a3a7da3716",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "lines": [177, 183],
+      "sha256": "8196fdd3ec9c58f7d26ca9b3d24f5c9cb514f8b981c3a584a39c845bf6a5199d",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/paidConsent.test.ts",
+      "lines": [309, 315],
+      "sha256": "d6faca75158a41756f2c1771a686309aea8d94c5c8ed73f0bea03694a9f6f3aa",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/windowsTrustedPath.test.ts",
+      "lines": [206, 211],
+      "sha256": "3405b059457e5d8bcce567530475ddfe6d68e9ecd92635f91fc60d36d904470a",
+      "byteExactToBase": true
+    },
+    {
+      "file": "test/unit/windowsTrustedPath.test.ts",
+      "lines": [279, 284],
+      "sha256": "b14998fa5c47d0221c197d0c956056e75e244fe52d4f2a566c87f3cbecc79dfa",
+      "byteExactToBase": true
+    }
+  ],
+  "portableCSharpProbe": {
+    "sdk": "installed .NET SDK 10.0.112, Newtonsoft.Json from the SDK",
+    "qualification": "portable validator only; no net48, WPF, VSIX or installed Visual Studio qualification",
+    "sourceHashes": [
+      {
+        "file": "Program.cs",
+        "sha256": "f7f0bf54914a5a23a8e660cdbedfaf84b7cfe4e4e4a51d2251958ca4cd101dec"
+      },
+      {
+        "file": "SchemaContract.cs",
+        "sha256": "c7a24b73cc6f6516d322f67882ac57c99c343c2e30a08b100078a56b0170e620"
+      },
+      {
+        "file": "JsonSyntax.cs",
+        "sha256": "b596c45539f4b98d1ec3580ddcef55dce0fbd93204110df2d7d972789b019e41"
+      },
+      {
+        "file": "probe.csproj",
+        "sha256": "12b4f22fd1a219343cf15b2b2518d043a3cf29a0e9832c75ad03262f0939a682"
+      }
+    ]
+  },
+  "visualFailure": {
+    "phase": "reviewed baseline reconstruction",
+    "revision": "484964c46c307b48a5f00b127c4bf358dd27aebf",
+    "capturesCompleted": 2448,
+    "totalManifestCaptures": 9792,
+    "scene": "agents-details/dark/690/en",
+    "failure": "never rendered: .agent-node-clickable",
+    "candidateCompared": false,
+    "baselineUpdated": false
+  },
+  "postCommitReview": {
+    "commit": "cf43be7c85342a6abec230d5cef4ae7712ad5015",
+    "stagedDiffEmpty": true,
+    "committedDiffByteExactToReviewedStaging": true,
+    "patchSha256": "6cfbe6bef4eda6c8c898c84c8876d79a1ca3a388b0868d8e971789fecf05ff75"
+  },
+  "documentChecks": [
+    {
+      "run": "prettier-write-final",
+      "exit": 0,
+      "seconds": 15.585
+    },
+    {
+      "run": "prettier-final",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/acp.md",
+        "docs/certification/m104-f1-native-reports.json",
+        "docs/certification/m104.md",
+        "docs/ide-compatibility/host-api-panel-1.1.md",
+        "docs/orchestration-gotchas.md",
+        "docs/roadmap/entries.json",
+        "docs/runtime-reference.md",
+        "hosts/eclipse/README.md",
+        "hosts/eclipse/tests/runtime-fixture.test.mjs",
+        "hosts/jetbrains/README.md",
+        "hosts/jetbrains/src/main/resources/embedded.mjs",
+        "hosts/jetbrains/test/embedded.test.mjs",
+        "hosts/jetbrains/test/panel-runtime.test.mjs",
+        "hosts/visualstudio/README.md",
+        "hosts/visualstudio/Test/fake-runtime.mjs",
+        "hosts/xcode/README.md",
+        "scripts/mhp-schema.mjs",
+        "src/shared/constants.ts",
+        "src/shared/featureCatalog.ts",
+        "src/shared/hostApi/mhp-v1.1.lock.json",
+        "src/shared/hostApi/mhp-v1.1.schema.json",
+        "src/shared/hostApi/mhp-v1.lock.json",
+        "src/shared/hostApi/mhp-v1.schema.json",
+        "src/shared/hostApi/panel.ts",
+        "src/webview/portable.tsx",
+        "test/e2e/panelCompanion.e2e.test.ts",
+        "test/e2e/panelProcess.ts",
+        "test/e2e/panelStdio.e2e.test.ts",
+        "test/hostApi/distribution.test.mjs",
+        "test/hostApi/release.test.mjs",
+        "test/hostApi/scenarios/contract.json",
+        "test/m104/windows/vscodeEntry.ts",
+        "test/unit/companionMhp.test.ts",
+        "test/unit/mhpContract.test.ts",
+        "test/unit/mhpPanelContract.test.ts",
+        "test/unit/panelBridges.test.ts",
+        "test/unit/panelConnection.test.ts",
+        "test/unit/panelSurfaces.test.ts",
+        "test/unit/runtimePanelState.test.ts",
+        "test/unit/xcodeHost.test.ts"
+      ],
+      "exit": 0,
+      "seconds": 21.905,
+      "log": "temp/f1-prettier-final.log"
+    },
+    {
+      "run": "plan",
+      "command": ["npm", "run", "check:plan"],
+      "exit": 0,
+      "seconds": 0.69,
+      "log": "temp/f1-plan.log"
+    },
+    {
+      "run": "roadmap",
+      "command": ["npm", "run", "check:roadmap"],
+      "exit": 0,
+      "seconds": 0.92,
+      "log": "temp/f1-roadmap.log"
+    },
+    {
+      "run": "mhp-post-drills",
+      "command": ["node", "scripts/mhp-schema.mjs", "--check"],
+      "exit": 0,
+      "seconds": 1.991,
+      "log": "temp/f1-mhp-post-drills.log"
+    },
+    {
+      "run": "reference-post-docs",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 3.587,
+      "log": "temp/f1-reference-post-docs.log"
+    }
+  ],
+  "logs": [
+    {
+      "file": "temp/f1-build.log",
+      "bytes": 19256,
+      "sha256": "c6afcc5a53ba2d236ca806f6b8aac46f7777c5a2f2f9678ec9a4e668eb486d15"
+    },
+    {
+      "file": "temp/f1-bundle-split.log",
+      "bytes": 6779,
+      "sha256": "3f7043ba865fc3ea2d44b6d5920f54859c318df227110f834ff8a9c57a7cbb25"
+    },
+    {
+      "file": "temp/f1-commit-1-retry.log",
+      "bytes": 1126,
+      "sha256": "556e3bd908a604ca13ca81234a24dd7ff4182b27432df14cf57127ae16b0c85d"
+    },
+    {
+      "file": "temp/f1-contracts-restored-final.log",
+      "bytes": 759,
+      "sha256": "fac0d9c1ab38adb58b7b3a030b4d8512235e4b5fbd5391b430e7a954c6bf3896"
+    },
+    {
+      "file": "temp/f1-csharp-build.log",
+      "bytes": 153,
+      "sha256": "c1c1fd91fbd353af0f381a0108fda6063fd2ea25780198801426d1d98c0a6fef"
+    },
+    {
+      "file": "temp/f1-csharp-final-build.log",
+      "bytes": 153,
+      "sha256": "7ffcdc53ea8116be6a09b700a12d2aa26583f995a2eac3da16f97c892ccd2dba"
+    },
+    {
+      "file": "temp/f1-csharp-final.log",
+      "bytes": 54,
+      "sha256": "fdb4b8d2dd2620ba2a2cfdf43f2e4971454735bec6b6ff184ab8d2ab4c99409b"
+    },
+    {
+      "file": "temp/f1-csharp-positive.log",
+      "bytes": 54,
+      "sha256": "fdb4b8d2dd2620ba2a2cfdf43f2e4971454735bec6b6ff184ab8d2ab4c99409b"
+    },
+    {
+      "file": "temp/f1-csharp-red-build.log",
+      "bytes": 153,
+      "sha256": "01cca51d27935acf0e1a36cdc650cfd07c2a8b75d6229d8e44ea9c69addd7425"
+    },
+    {
+      "file": "temp/f1-csharp-red.log",
+      "bytes": 31,
+      "sha256": "518592190c654f440f08edfbeab2f74edb8d7d84404bfc7e1a55e7130d17b766"
+    },
+    {
+      "file": "temp/f1-csharp-restore.log",
+      "bytes": 112,
+      "sha256": "d27eb7d3c6e95d676317976e95bec5cf2bd01a942cccb39bbec40e1d19ded24d"
+    },
+    {
+      "file": "temp/f1-csharp-restored-build.log",
+      "bytes": 153,
+      "sha256": "d00befdca14e9203e9231d9ab19b23dc97e1dd2c268f87233097bc178f1786b3"
+    },
+    {
+      "file": "temp/f1-csharp-restored.log",
+      "bytes": 54,
+      "sha256": "fdb4b8d2dd2620ba2a2cfdf43f2e4971454735bec6b6ff184ab8d2ab4c99409b"
+    },
+    {
+      "file": "temp/f1-deadcode.log",
+      "bytes": 630,
+      "sha256": "d54e82bcff87b918c402aa52fa37bd700392a0e8e3c9aaced3834d41c723e914"
+    },
+    {
+      "file": "temp/f1-duplication.log",
+      "bytes": 5488,
+      "sha256": "39c676c7ce416a58c9952b4f1cc42b7dd7af8c64275b7c7f6adb9bd28f522bda"
+    },
+    {
+      "file": "temp/f1-e2e-panel.log",
+      "bytes": 713,
+      "sha256": "1eec1634a6f6c98b3fc2cc76d01ed45f73be987c33be2957b41b5edd1b3024a0"
+    },
+    {
+      "file": "temp/f1-eclipse-2026-03.log",
+      "bytes": 24564,
+      "sha256": "8906586c7af1e5f4ed21788ea03c2d27ed3f99730ffbb7a0337c483484af1abf"
+    },
+    {
+      "file": "temp/f1-eclipse-default-final.log",
+      "bytes": 24770,
+      "sha256": "e796641e6f0d08ff1ff605a10b301c7a0dd1b057c05d91b1d94b50decad4b462"
+    },
+    {
+      "file": "temp/f1-eclipse-restored-upper.log",
+      "bytes": 24655,
+      "sha256": "6750c0e6366bed4dfc1b483d85e24972c2050476c3bea796dca3819297a55d2e"
+    },
+    {
+      "file": "temp/f1-eslint-final.log",
+      "bytes": 877,
+      "sha256": "e9fc9aca9c7540a3f702c8330012142358212d93d8ec3fced37deccea7727834"
+    },
+    {
+      "file": "temp/f1-host-api-distribution.log",
+      "bytes": 763,
+      "sha256": "78f330e6ac3fe61b370abacaf857b64fd810cb8d0a496fc7245ccb6b923632cc"
+    },
+    {
+      "file": "temp/f1-host-api.log",
+      "bytes": 207,
+      "sha256": "96bc71dcfe64be71e10321c7d6aaee24813e821e2868b72600c3123ad4f541ee"
+    },
+    {
+      "file": "temp/f1-host-globals.log",
+      "bytes": 4046,
+      "sha256": "3ecbed35abf70ad717fc85f819993ba22ad92576d03ebe32f5e622e975a7eafa"
+    },
+    {
+      "file": "temp/f1-jb-context.log",
+      "bytes": 22755,
+      "sha256": "47dd514b083baf65a44a51e560b404f0a57298ab789e67a9e28f0769db05864e"
+    },
+    {
+      "file": "temp/f1-jb-final.log",
+      "bytes": 22754,
+      "sha256": "50296531bdc94d4ca2d080f86f4341201ab2cffb19eb8e0dfd54c50c9788ab33"
+    },
+    {
+      "file": "temp/f1-jb-lint.log",
+      "bytes": 1052,
+      "sha256": "4dcc72d795706fd2d892de1c24100c21808f905c35a965170c719982b33d3208"
+    },
+    {
+      "file": "temp/f1-jb-repair-2.log",
+      "bytes": 22926,
+      "sha256": "b696a5e6b82f665df2022e992c9832922170460b0f3e4a6aa293e11b8d21ce09"
+    },
+    {
+      "file": "temp/f1-jb-restored-upper.log",
+      "bytes": 23817,
+      "sha256": "782ef5f349b0f65a2344e0c295952f3606b95fb9e2a98284af9b880a14db85e0"
+    },
+    {
+      "file": "temp/f1-l10n.log",
+      "bytes": 181,
+      "sha256": "0d0bbe35b49c20c9ba1da849e23ac62130c77661503562d86f041afd37ee71e8"
+    },
+    {
+      "file": "temp/f1-mhp-final.log",
+      "bytes": 19,
+      "sha256": "77b3e5e436755e27ae9ba6ef53c9dea4dde141b1e42ab315a46bd6ffeabcdf64"
+    },
+    {
+      "file": "temp/f1-mhp-post-drills.log",
+      "bytes": 19,
+      "sha256": "77b3e5e436755e27ae9ba6ef53c9dea4dde141b1e42ab315a46bd6ffeabcdf64"
+    },
+    {
+      "file": "temp/f1-node-final.log",
+      "bytes": 1356,
+      "sha256": "fdc0b2f55723877dad27c25e66a1b41bc40e690a9a4ce3e41328c5d319327cf0"
+    },
+    {
+      "file": "temp/f1-node-restored-final.log",
+      "bytes": 1354,
+      "sha256": "d7cd93ee410b3e46953f780d349d45c702fffc26297c2e0c06fc0d9566ec392d"
+    },
+    {
+      "file": "temp/f1-notices.log",
+      "bytes": 72,
+      "sha256": "ef2d00f3e4f18f45abec6919be243e3119c82a54e878db3581c031227c5407ce"
+    },
+    {
+      "file": "temp/f1-plan.log",
+      "bytes": 144,
+      "sha256": "7d92b0a61352418afffc6815b26141a0a3249a0d70bcafae45b1cedad2e85c87"
+    },
+    {
+      "file": "temp/f1-prettier-final.log",
+      "bytes": 1481,
+      "sha256": "c65dc566151e5a45556eb2491a950b9c6acfc9f2c1ed77f77b3cf15b89ef092a"
+    },
+    {
+      "file": "temp/f1-red-closed-export.log",
+      "bytes": 393,
+      "sha256": "df6eb3b1bb5965046e75252040ec1fd04073c51f4695ce4df5c790c3bf8a69b5"
+    },
+    {
+      "file": "temp/f1-red-csharp-upper-build.log",
+      "bytes": 153,
+      "sha256": "d4801e39e7333b9953c6d0d1425ef0b3bbf09cf98587262a9b37a1caba771284"
+    },
+    {
+      "file": "temp/f1-red-csharp-upper.log",
+      "bytes": 31,
+      "sha256": "a7218106560d1b9a4f5b4282b155b8d807f33ecdc61a24416c51871c0882bb6d"
+    },
+    {
+      "file": "temp/f1-red-eclipse-bounds.log",
+      "bytes": 27724,
+      "sha256": "7eca1c0a069cb90cfd4c6a25359cea5cebd905dedf90f3088ae2b0fd6dee9b64"
+    },
+    {
+      "file": "temp/f1-red-eclipse-upper.log",
+      "bytes": 27937,
+      "sha256": "c1efd24a45b4698b5cd310211b3be3c2524e018b6a3631bcece35f74f923bd69"
+    },
+    {
+      "file": "temp/f1-red-eclipse-vocabulary.log",
+      "bytes": 553318,
+      "sha256": "f40e6296a5df88efffeec3b1a49f1f2a1f9fba279f291ab40c1f4509cbddff2f"
+    },
+    {
+      "file": "temp/f1-red-embedded-bounds.log",
+      "bytes": 1696,
+      "sha256": "83987e536a955e18302fb18f396ca6341cbf5057e914e73cdf400903ef63a36a"
+    },
+    {
+      "file": "temp/f1-red-jb-bounds-and-theme.log",
+      "bytes": 23104,
+      "sha256": "86adba1c36b443a1931cf78c6f791dfc1039163627315acf708e4614150dd50e"
+    },
+    {
+      "file": "temp/f1-red-jb-upper.log",
+      "bytes": 23793,
+      "sha256": "78e17073b31e0e08b73e073c48b69d22b695d8dc9f8428ab6fcf6a79b27069de"
+    },
+    {
+      "file": "temp/f1-red-jb-vocabulary.log",
+      "bytes": 23469,
+      "sha256": "550e93fa9af499114bb9e3460ff6d325ff28fb1c8850a6d4109062484e0ef149"
+    },
+    {
+      "file": "temp/f1-red-js-upper.log",
+      "bytes": 1695,
+      "sha256": "5ba6e6d7bb6712d0ac522b0e21d1baef401efe21405ee473b8862d95bd73a3c8"
+    },
+    {
+      "file": "temp/f1-red-panel-fixture.log",
+      "bytes": 993,
+      "sha256": "2c5e7be132252238005864c4b471dfa5ed0b81efae56dc872da7813c0aadb171"
+    },
+    {
+      "file": "temp/f1-red-superseded-version.log",
+      "bytes": 7781,
+      "sha256": "01754d6ce617a7a16abc7b99b69d00282c3cc5c9770ee7733522555acc9494de"
+    },
+    {
+      "file": "temp/f1-reference-post-docs.log",
+      "bytes": 233,
+      "sha256": "73e587c563b307d7fccace5c24e9d14a1ff2e249cbbbd05ec3fb6dea25c0ebcc"
+    },
+    {
+      "file": "temp/f1-reference.log",
+      "bytes": 233,
+      "sha256": "73e587c563b307d7fccace5c24e9d14a1ff2e249cbbbd05ec3fb6dea25c0ebcc"
+    },
+    {
+      "file": "temp/f1-roadmap.log",
+      "bytes": 894,
+      "sha256": "e9e415bd9d0fc6e9aea6b4cb90239175b2fecf90ee404a630b88c51b82d8203e"
+    },
+    {
+      "file": "temp/f1-ts-carrier.log",
+      "bytes": 744,
+      "sha256": "2074d0e394b9eab62919ebb631e1c00430fc14b797f08526c2bf7dfdd830466b"
+    },
+    {
+      "file": "temp/f1-ts-contract.log",
+      "bytes": 1013,
+      "sha256": "b247bb9119ffc5a4f85cb66ebe045be4eb08c366b6fe92cac148b929ea83763d"
+    },
+    {
+      "file": "temp/f1-ts-state.log",
+      "bytes": 966,
+      "sha256": "6d329c1ce84eef42d4a60ac75c48669cd40f5e75e59c87aefb7c4eee58a18418"
+    },
+    {
+      "file": "temp/f1-typecheck.log",
+      "bytes": 1417,
+      "sha256": "5bacb23bddaaf6facafe98c434a10326a48f8eb0044ebf8bc7244aa719b6e985"
+    },
+    {
+      "file": "temp/f1-visual.log",
+      "bytes": 2864,
+      "sha256": "abe691a9ee591041ec9e2d9da641c9e9ffe7b1020226b56507b9e990056899b1"
+    }
+  ]
+}

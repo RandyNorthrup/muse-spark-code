@@ -10,7 +10,10 @@ import {
   webviewPacingOutputs,
   webviewStartupOutputs,
   webviewPanelOutputs,
+  portableWebviewBudgetGroups,
 } from './lib/webviewBundles.mjs'
+
+import { measurePortableStartup } from './lib/portableStartup.mjs'
 
 const BYTES_PER_KIB = 1024
 // M99: bound the generated notes independently of their ZIP compression.
@@ -82,6 +85,13 @@ const BUDGETS = [
   // 23,804 B when split out (23.2 KiB); plus 15%, rounded up to 25 KiB
   // (PLAN.md D6).
   { path: 'dist/conversationTransfer.js', budgetKiB: 50 },
+  // M104 B2: carrier/runtime ports on the panel command; existing ACP cap stays 850.
+  { path: 'dist/runtimePanel.js', budgetKiB: 100 },
+  { path: 'dist/runtimePanelPorts.js', budgetKiB: 75 },
+  { path: 'dist/runtimeContext.js', budgetKiB: 50 },
+  { path: 'dist/runtimeEngines.js', budgetKiB: 150 },
+  { path: 'dist/runtimeBackendServices.js', budgetKiB: 200 },
+  { path: 'dist/runtimePresentation.js', budgetKiB: 50 },
   // M94: provider, engine and ledger on first Tab use (PLAN.md D6).
   { path: 'dist/tab.js', budgetKiB: 75 },
   // M118: portable stores, native/panel adapters and chat renderer: 163.4 KiB + 15%, rounded to 25 KiB.
@@ -415,7 +425,10 @@ const BUDGETS = [
   // Shared existing Node boundary schemas: 41.3 KB plus 15%, rounded to 25
   // KiB. M115W: the main protocol carries the v2 surface's validated draft
   // and targets, 55.5 KiB measured, plus 15%, rounded up to 25 KiB.
-  { path: 'dist/wire.js', budgetKiB: 75 },
+  // RLM104: the merged MHP panel presentation protocol, 75.6 KiB measured
+  // plus 15%, rounded up to 87 KiB.
+  { path: 'dist/wire.js', budgetKiB: 87 },
+  { path: 'dist/hostProtocol.js', budgetKiB: 50 },
   { path: 'dist/searchWorker.js', budgetKiB: 50 },
   // M101: pure raster worker, 58.7 KiB + 15%, rounded to 25 KiB.
   { path: 'dist/imageResizeWorker.js', budgetKiB: 75 },
@@ -438,6 +451,11 @@ const BUDGETS = [
   // measured size plus about 15 %, rounded up to 50 KiB (D6 amendment).
   // M105's trusted media inspector stays in its first-use media bundle.
   { path: 'dist/acp.js', budgetKiB: 850 },
+  // New runtime-only LSP/guardian budgets; extension and ACP activation caps stay fixed.
+  { path: 'dist/lsp.js', budgetKiB: 106 },
+  { path: 'dist/runtimeWatchdog.js', budgetKiB: 11 },
+  // Exact process authority split from all three runtime bundles; first measurement 41.1 KiB + 15%, rounded up.
+  { path: 'dist/runtimeProcessAuthority.js', budgetKiB: 50 },
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   // TRAINFIX: train growth + plan-model preflight measures 100.2 KiB; +15%, rounded to 25 KiB.
   { path: 'dist/headless.js', budgetKiB: 125 },
@@ -507,6 +525,25 @@ for (const { path, budgetKiB } of BUDGETS) {
   }
   const label = pageMetafile ? `${path} + static imports` : path
   console.log(`${status} ${label}: ${sizeKiB.toFixed(1)} KiB (budget ${budgetKiB} KiB)`)
+}
+
+// M104 F4: independent startup/delivery caps and their dated measurement
+// evidence are shared with the split check in lib/webviewBundles.mjs.
+const portableMeta = JSON.parse(readFileSync('dist/meta/portable.json', 'utf8'))
+const portableStartup = await measurePortableStartup(portableMeta)
+const portableBudgets = portableWebviewBudgetGroups(portableMeta, portableStartup)
+for (const { name, budgetKiB, outputs } of portableBudgets) {
+  const missing = outputs.filter((file) => !existsSync(file))
+  if (missing.length > 0) {
+    hasFailure = true
+    console.log(`MISS portable ${name}: missing chunks ${missing.join(', ')}`)
+    continue
+  }
+  const bytes = outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > budgetKiB * BYTES_PER_KIB) hasFailure = true
+  console.log(
+    `${bytes <= budgetKiB * BYTES_PER_KIB ? 'ok  ' : 'OVER'} portable ${name}: ${(bytes / BYTES_PER_KIB).toFixed(1)} KiB (budget ${budgetKiB} KiB)`,
+  )
 }
 
 // TRAIN15C: provider usage loads only for a nonempty provider report; its
@@ -598,4 +635,15 @@ console.log(
 if (hasFailure) {
   console.error('bundle size budget exceeded or a bundle is missing; see PLAN.md section 2 (D6)')
   process.exit(1)
+}
+
+const portableGroups = webviewDeferredBudgetGroups(portableMeta, QUESTION_UI_BUDGET_KIB, true)
+for (const group of portableGroups) {
+  if (['deferred JS', 'code highlighting', 'action dialogs', 'tasks tab'].includes(group.name))
+    continue
+  const bytes = group.outputs.reduce((sum, file) => sum + statSync(file).size, 0)
+  if (bytes > group.budgetKiB * BYTES_PER_KIB) process.exitCode = 1
+  console.log(
+    `${bytes > group.budgetKiB * BYTES_PER_KIB ? 'FAIL' : 'ok  '} portable ${group.name}: ${(bytes / BYTES_PER_KIB).toFixed(1)} / ${String(group.budgetKiB)} KiB`,
+  )
 }

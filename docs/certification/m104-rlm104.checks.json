@@ -1,0 +1,65 @@
+{
+  "machine": "linuxlt",
+  "baseRevision": "f3941b8548f3d9ef9126f2dd48ce94ba28f3e53b",
+  "codeCommits": [
+    "2550dff5937a4273aabb26f16e61ca5035de696e",
+    "8273d1035f53b307ab2319457f923dce935d401f",
+    "ac5c8a429624e7cf0b0aaf3afaaa21025b4399a2",
+    "9ecf6e3348653c3e0eb04d2e6a80a9948f7643b7",
+    "2d87a3db39ef59dfdceb2a64c558404c375af0a9",
+    "adc5ca49a7aba384c5c97cb9f1b354605fe28e48",
+    "0ac46a881cfec870ee38c32affb2dc3094512e05",
+    "15edf3f3cefe48e15a6531a3075fa634c34208c1"
+  ],
+  "sourceNote": "Hashes cover the RLM104-authored fix files (suite fallout + JetBrains helper); merges carry branch bytes unchanged apart from recorded resolutions.",
+  "sources": [
+    {
+      "path": "src/runtime/connector/approvalPage.ts",
+      "sha256": "63cf01aaecb2f9e620a70024596e7f260ee48b70315664dc3af0f3c6580e199e"
+    },
+    {
+      "path": "src/runtime/paidGrants.ts",
+      "sha256": "3746e608bc89061d740a7c5e4a4ba140f042ce67254d3a7c05b9c1e539c7158d"
+    },
+    {
+      "path": "src/runtime/privateDirectory.ts",
+      "sha256": "fdcf60254432820dce42cbfb1286747eedd78193c11683163f8f58b043ea2394"
+    },
+    {
+      "path": "src/shared/portablePaid.ts",
+      "sha256": "51f694bc99006aa9b1c78de169cd8b9081e1189dffbd77ba5f70d44191a0913b"
+    },
+    {
+      "path": "src/webview/companionChannel.ts",
+      "sha256": "55758017965e7d145d9c66625178e350981937da39a3e97e404676053b0b0afc"
+    },
+    {
+      "path": "test/unit/connectorApprovalButtons.test.ts",
+      "sha256": "f7200748c631c42e7a95a38af5f6bcfaa48c603be86f6cc4a8f1cc3a75267445"
+    },
+    {
+      "path": "test/unit/connectorServe.test.ts",
+      "sha256": "f207e11c30b8b63d539d0be1772efb0d614b0099f202735e604b2b517d65f8ce"
+    },
+    {
+      "path": "test/unit/estimatorSurfaces.test.tsx",
+      "sha256": "30e5bf4e7e9627069bed7dafec36d76ea4ef06214a00381ad58effabb4010ca9"
+    },
+    {
+      "path": "test/unit/manifest.test.ts",
+      "sha256": "8509f415b9239b53c771596f42fc15830b5ce536f0ab6f0d48bf04cfc133bcc5"
+    },
+    {
+      "path": "test/unit/pathGuardSpawns.test.ts",
+      "sha256": "278452cd615ab65ad2de9d80d77f4915eaaed7cbcf677c86857b50480d6b0fd1"
+    },
+    {
+      "path": "hosts/jetbrains/src/test/kotlin/io/github/randynorthrup/musespark/FixtureMetadata.kt",
+      "sha256": "f9e750a9b53b1f1ce4e60f113224359f18ffbc0bb38ccd5441751c65f111bf21"
+    },
+    {
+      "path": "hosts/jetbrains/src/test/kotlin/io/github/randynorthrup/musespark/MhpConnectionTest.kt",
+      "sha256": "07606962f3467467bda2cfeb919e24a83eac7bea3c37ba97c21c063a3cf0749c"
+    }
+  ]
+}

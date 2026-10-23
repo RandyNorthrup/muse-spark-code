@@ -1,0 +1,18 @@
+
+> muse-spark-code@0.13.0 test:a11y
+> node scripts/a11y.mjs
+
+
+Exempt: scrollable-region-focusable on a listbox its focused control drives with aria-activedescendant (WCAG 2.1.1 is met: the arrows move through the options and the active one is scrolled into view, so the region needs no Tab stop of its own):
+  light/slash-tips: .mention-menu
+  light/slash-commands: .mention-menu
+  dark/slash-tips: .mention-menu
+  dark/slash-commands: .mention-menu
+  hc-dark/slash-tips: .mention-menu
+  hc-dark/slash-commands: .mention-menu
+  hc-light/slash-tips: .mention-menu
+  hc-light/slash-commands: .mention-menu
+
+Not measured, as axe cannot: the contrast of 1512 elements it could not see (under a menu or dialog the user opened, or scrolled out of the view) and of 20 glyph-only elements (non-text contrast, WCAG 1.4.11, is not axe's).
+
+a11y: 564 pages (141 scenarios × 4 themes), 0 rules violated on 0 elements, 0 rules undecided on 0 elements, 8 exempt, 0 pages without a result

@@ -6,5 +6,6 @@
     "lib": ["ES2023"],
     "types": ["node", "vscode", "mocha"]
   },
-  "include": ["./**/*.ts", "../../src/shared/**/*.ts"]
+  "include": ["./**/*.ts", "../../src/shared/**/*.ts"],
+  "exclude": ["../../src/shared/browser/**"]
 }

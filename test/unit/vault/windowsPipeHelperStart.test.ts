@@ -22,6 +22,9 @@ const fixture: { root: string; helper?: WindowsVaultExecutable; dispose?: () => 
   root: '',
 }
 describe.runIf(process.platform === 'win32')('Windows pipe helper start', () => {
+  // The native helper builds and broker starts take as long as the machine
+  // needs (a slow hosted Windows runner passed the 30 s hook budget, PR #258):
+  // no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
     fixture.root = await mkdtemp(path.join(await realpath(os.tmpdir()), 'vs-pipestart-'))
     // Not made here: the build makes its storage folder on first use, and
@@ -44,7 +47,7 @@ describe.runIf(process.platform === 'win32')('Windows pipe helper start', () => 
       readSlotSource: () => readFile(path.resolve('native/windows/MuseSparkVault.cs'), 'utf8'),
       readPipeSource: () => readFile(path.resolve('native/windows/MuseSparkVaultPipe.cs'), 'utf8'),
     })
-  })
+  }, 0)
   afterAll(async () => {
     fixture.dispose?.()
     await rm(fixture.root, { recursive: true, force: true })

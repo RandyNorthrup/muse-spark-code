@@ -63,6 +63,7 @@ import {
   UI_TEXT_REGIONS,
   regionalUiText,
   compressedEnglish,
+  compactBrowserEnglish,
   compactBrowserUiText,
 } from './lib/uiTextRegions.mjs'
 
@@ -81,6 +82,7 @@ import { sharedHighlightGrammar } from './lib/highlightGrammar.mjs'
 import { deferredTeamView } from './lib/deferredTeamView.mjs'
 import { HOST_PLUGINS } from './lib/hostPlugins.mjs'
 import { runBuildPool } from './lib/buildPool.mjs'
+import { writePortableManifest } from './lib/portableModules.mjs'
 import {
   sharedUiText,
   sharedValidation,
@@ -96,6 +98,7 @@ import {
   sharedVaultStore,
   sharedVaultPosix,
   sharedVaultWindows,
+  sharedHostProtocol,
 } from './lib/deferredBundles.mjs'
 import {
   CONTENT_FILE as WHATS_NEW_CONTENT_OUTFILE,
@@ -153,7 +156,7 @@ const SHARING_RUNTIME_OUTFILE = 'dist/sharingRuntime.js'
 // M124 (D106): the MCP connector, loaded only by `muse-spark-code-acp mcp`.
 const CONNECTOR_ENTRY = 'src/runtime/connector/entry.ts'
 const CONNECTOR_OUTFILE = 'dist/connector.js'
-const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
+const PROMPTS_ENTRY = 'src/host/vscode/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
@@ -252,7 +255,7 @@ const MEDIA_OUTFILE = 'dist/media.js'
 // loaded the first time a recording command runs.
 // RVMEDIAV 8: the window's attached-media registry, contributor consent and
 // attach binding, required on the first attach beside dist/media.js.
-const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
+const MEDIA_HOST_ENTRY = 'src/host/vscode/media/mediaHostEntry.ts'
 const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
 const SCREEN_RECORD_ENTRY = 'src/host/media/screenRecordEntry.ts'
 const SCREEN_RECORD_OUTFILE = 'dist/screenRecord.js'
@@ -274,7 +277,7 @@ const WEB_FETCH_ENTRY = 'src/host/web/webFetchEntry.ts'
 const WEB_FETCH_OUTFILE = 'dist/webFetch.js'
 const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
-const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
+const MODELS_PANEL_ENTRY = 'src/host/vscode/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 // CIFIX161B: the sign-in gate and the three-valued credential read, loaded
 // the first time a credential, money or consent path needs them.
@@ -292,7 +295,7 @@ const COMMANDS_ENTRY = 'src/host/commands/commandsEntry.ts'
 const COMMANDS_OUTFILE = 'dist/commands.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
-const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
+const USAGE_PANEL_ENTRY = 'src/host/vscode/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 // M109 lane W: the vault's window (the panel host and the broker client),
@@ -301,7 +304,7 @@ const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 // broker-backed service lands (docs/certification/m109.md). The native
 // editor, the write-only crypto and the action dialogs load later from
 // dist/vaultActions.js (RVAPP-CM1091D5 BYTES).
-const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_ENTRY = 'src/host/vscode/vault/vaultPanelEntry.ts'
 const VAULT_OUTFILE = 'dist/vault.js'
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action code (dist/vaultActions.js),
 // loaded on the first action that needs it instead of when the panel opens.
@@ -338,11 +341,19 @@ const WEBVIEW_ENTRY = 'src/webview/main.tsx'
 // The Models & Agents panel's own app (M95 lane M), beside the chat.
 const MODELS_WEBVIEW_ENTRY = 'src/webview/models/models.tsx'
 const USAGE_WEBVIEW_ENTRY = 'src/webview/usage/usage.tsx'
+const FALLBACKS_ENTRY = 'src/webview/fallbacks/index.ts'
+const BRIDGE_ENTRY = 'src/webview/bridges/select.ts'
 const WEBVIEW_OUTDIR = 'dist/webview'
+const PORTABLE_ENTRY = 'src/webview/portable.tsx'
+const PORTABLE_OUTDIR = 'dist/webview/portable'
 const WHATS_NEW_PAGE_ENTRY = 'src/webview/whatsNew/main.ts'
 const WHATS_NEW_PAGE_NAME = 'whatsNew'
 const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
 const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
+const RUNTIME_PANEL_PORTS_ENTRY = 'src/runtime/panel/runtimeFeaturesEntry.ts'
+const RUNTIME_PANEL_PORTS_OUTFILE = 'dist/runtimePanelPorts.js'
+const RUNTIME_PANEL_ENTRY = 'src/runtime/panel/panelEntry.ts'
+const RUNTIME_PANEL_OUTFILE = 'dist/runtimePanel.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
 // M110-N: isolated runtime mode, loaded only for explicit node commands.
@@ -392,7 +403,7 @@ const common = {
 /** @type {import('esbuild').BuildOptions} */
 const hostOptions = {
   ...common,
-  plugins: [...HOST_PLUGINS],
+  plugins: [...HOST_PLUGINS, sharedHostProtocol],
   entryPoints: [HOST_ENTRY],
   outfile: HOST_OUTFILE,
   platform: 'node',
@@ -450,6 +461,7 @@ const modelApiOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -509,7 +521,7 @@ const playbookSchedulesInputsOptions = {
 const reportingPanelOptions = {
   ...hostOptions,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
-  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  entryPoints: ['src/host/vscode/reporting/reportPanelEntry.ts'],
   outfile: 'dist/reportingPanel.js',
 }
 
@@ -692,6 +704,7 @@ const reviewOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -715,6 +728,7 @@ const reportOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -765,6 +779,7 @@ const recorderOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -807,6 +822,7 @@ const planMarkdownOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -897,6 +913,7 @@ const whatsNewOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1007,6 +1024,7 @@ const agentImportOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1085,6 +1103,7 @@ const bundledSkillsOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1124,6 +1143,7 @@ const conversationGitOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1215,6 +1235,7 @@ const checkpointStoreOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1272,6 +1293,7 @@ const browserCheckOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1292,6 +1314,7 @@ const browserRuntimeOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     sharedModelApiBoundaries,
@@ -1314,6 +1337,7 @@ const acpOptions = {
     sharedValidation,
     deferredCohort,
     sharedWire,
+    sharedHostProtocol,
     sharedResourceAdmission,
     sharedStructuredSchema,
     deferredTeamView,
@@ -1409,6 +1433,60 @@ const nodeOptions = {
   banner: {},
 }
 
+/** @type {import('esbuild').BuildOptions} */
+const runtimePanelOptions = {
+  ...acpOptions,
+  entryPoints: [RUNTIME_PANEL_ENTRY],
+  outfile: RUNTIME_PANEL_OUTFILE,
+  banner: {},
+}
+
+const runtimeBackendServicesOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/runtime/panel/backendEntry.ts'],
+  outfile: 'dist/runtimeBackendServices.js',
+}
+const runtimeContextOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/runtime/panel/contextEntry.ts'],
+  outfile: 'dist/runtimeContext.js',
+}
+const runtimeEnginesOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/runtime/panel/engineEntry.ts'],
+  outfile: 'dist/runtimeEngines.js',
+}
+const runtimePresentationOptions = {
+  ...runtimePanelOptions,
+  entryPoints: ['src/host/views/runtimePresentationEntry.ts'],
+  outfile: 'dist/runtimePresentation.js',
+}
+
+const runtimePanelPortsOptions = {
+  ...runtimePanelOptions,
+  entryPoints: [RUNTIME_PANEL_PORTS_ENTRY],
+  outfile: RUNTIME_PANEL_PORTS_OUTFILE,
+}
+
+const lspOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/lspEntry.ts'],
+  outfile: 'dist/lsp.js',
+  banner: undefined,
+}
+const processAuthorityOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/processAuthority.ts'],
+  outfile: 'dist/runtimeProcessAuthority.js',
+  banner: undefined,
+}
+const watchdogOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/watchdogEntry.ts'],
+  outfile: 'dist/runtimeWatchdog.js',
+  banner: undefined,
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -1474,6 +1552,13 @@ const vaultBrokerBindingsOptions = {
   ...vaultBrokerOptions,
   entryPoints: ['src/runtime/vault/brokerBindings.ts'],
   outfile: 'dist/vaultBrokerBindings.js',
+}
+
+const hostProtocolOptions = {
+  ...modelApiOptions,
+  plugins: [sharedUiText, sharedValidation, sharedWire],
+  entryPoints: ['src/shared/hostApi/hostProtocolEntry.ts'],
+  outfile: 'dist/hostProtocol.js',
 }
 
 const vaultBoundariesOptions = {
@@ -1613,6 +1698,76 @@ function writeMetafileHashes(name, metafile, buildRecord) {
   )
 }
 
+// Native hosts and the companion load this independent graph. No portable
+// bridge or fallback can share a static chunk with VS Code's chat entry.
+const portableOptions = {
+  ...webviewOptions,
+  // Its cap counts the whole graph; reuse the parser instead of paying for
+  // VS Code's separate resource-only copy that protects chat's startup cap.
+  plugins: webviewOptions.plugins.filter((plugin) => plugin !== resourceBrowserValidation),
+  metafile: true,
+  entryPoints: {
+    main: PORTABLE_ENTRY,
+    whatsNew: 'src/webview/whatsNew/portable.ts',
+    presentation: 'src/shared/browser/presentation.ts',
+    fallbacks: FALLBACKS_ENTRY,
+    bridge: BRIDGE_ENTRY,
+  },
+  outdir: PORTABLE_OUTDIR,
+}
+
+async function buildPortable(buildRecord) {
+  const record = (options) => (isProduction ? withCompiledRecording(options, buildRecord) : options)
+  const [graph, loader] = await Promise.all([
+    esbuild.build(record(portableOptions)),
+    esbuild.build(
+      record({
+        ...common,
+        entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+        outfile: `${PORTABLE_OUTDIR}/loader.js`,
+        metafile: true,
+        plugins: isProduction ? [compactBrowserEnglish] : [],
+        charset: 'utf8',
+        platform: 'browser',
+        format: 'iife',
+        target: BROWSER_TARGET,
+      }),
+    ),
+  ])
+  writePortableManifest(graph.metafile, PORTABLE_OUTDIR)
+  return {
+    metafile: {
+      inputs: { ...graph.metafile.inputs, ...loader.metafile.inputs },
+      outputs: { ...graph.metafile.outputs, ...loader.metafile.outputs },
+    },
+  }
+}
+
+const portableWatchOptions = {
+  ...portableOptions,
+  plugins: [
+    ...(portableOptions.plugins ?? []),
+    {
+      name: 'portable-manifest',
+      setup(build) {
+        build.onEnd((result) => {
+          if (result.errors.length === 0) writePortableManifest(result.metafile, PORTABLE_OUTDIR)
+        })
+      },
+    },
+  ],
+}
+const portableLoaderOptions = {
+  ...common,
+  plugins: isProduction ? [compactBrowserEnglish] : [],
+  charset: 'utf8',
+  entryPoints: ['src/webview/bridges/moduleLoader.ts'],
+  outfile: `${PORTABLE_OUTDIR}/loader.js`,
+  platform: 'browser',
+  format: 'iife',
+  target: BROWSER_TARGET,
+}
+
 function writeWebviewMetafiles(metafile, buildRecord) {
   const pages = {
     webview: 'dist/webview/main.js',
@@ -1665,6 +1820,17 @@ writeFileSync(
   `module.exports=JSON.parse(${JSON.stringify(readFileSync(PROVIDER_CATALOG_OUTFILE, 'utf8'))});\n`,
 )
 // Content-hashed chunks from an earlier build must never enter a package.
+rmSync(PORTABLE_OUTDIR, { recursive: true, force: true })
+// These entries belonged to the earlier combined graph; never package them.
+for (const file of [
+  'bridge.js',
+  'fallbacks.js',
+  'fallbacks.css',
+  'bridge.js.map',
+  'fallbacks.js.map',
+  'fallbacks.css.map',
+])
+  rmSync(path.join(WEBVIEW_OUTDIR, file), { force: true })
 const whatsNewContent = writeWhatsNewContent()
 console.log(
   `What's New: ${String(whatsNewContent.releases)} releases from CHANGELOG.md into ${WHATS_NEW_CONTENT_OUTFILE}`,
@@ -1697,9 +1863,18 @@ if (isWatch) {
     esbuild.context(conversationOptions),
     esbuild.context(conversationTransferOptions),
     esbuild.context(scheduleSurfacesOptions),
+    esbuild.context(runtimePanelOptions),
+    esbuild.context(runtimePanelPortsOptions),
+    esbuild.context(runtimeContextOptions),
+    esbuild.context(runtimeEnginesOptions),
+    esbuild.context(runtimeBackendServicesOptions),
+    esbuild.context(runtimePresentationOptions),
     esbuild.context(tabOptions),
     esbuild.context(promptsOptions),
     esbuild.context(sharingRuntimeOptions),
+    esbuild.context(lspOptions),
+    esbuild.context(watchdogOptions),
+    esbuild.context(processAuthorityOptions),
     esbuild.context(connectorOptions),
     esbuild.context(modelApiOptions),
     esbuild.context(resourceGovernorOptions),
@@ -1829,6 +2004,7 @@ if (isWatch) {
       outfile: 'dist/questionNotes.js',
     }),
     esbuild.context(runtimeQuestionsOptions),
+    esbuild.context(hostProtocolOptions),
     esbuild.context(browserCheckOptions),
     esbuild.context(browserRuntimeOptions),
     esbuild.context(searchWorkerOptions),
@@ -1837,6 +2013,8 @@ if (isWatch) {
     esbuild.context(webviewOptions),
     esbuild.context(fontInstallOptions),
     esbuild.context(nodeOptions),
+    esbuild.context(portableWatchOptions),
+    esbuild.context(portableLoaderOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -1867,10 +2045,19 @@ if (isWatch) {
     extension: recorded('extension', hostOptions),
     conversation: recorded('conversation', conversationOptions),
     scheduleSurfaces: recorded('scheduleSurfaces', scheduleSurfacesOptions),
+    runtimePanel: recorded('runtimePanel', runtimePanelOptions),
+    runtimePanelPorts: recorded('runtimePanelPorts', runtimePanelPortsOptions),
+    runtimeContext: recorded('runtimeContext', runtimeContextOptions),
+    runtimeEngines: recorded('runtimeEngines', runtimeEnginesOptions),
+    runtimeBackendServices: recorded('runtimeBackendServices', runtimeBackendServicesOptions),
+    runtimePresentation: recorded('runtimePresentation', runtimePresentationOptions),
     tab: recorded('tab', tabOptions),
     prompts: recorded('prompts', promptsOptions),
     sharingRuntime: recorded('sharingRuntime', sharingRuntimeOptions),
     connector: recorded('connector', connectorOptions),
+    lsp: recorded('lsp', lspOptions),
+    runtimeWatchdog: recorded('runtimeWatchdog', watchdogOptions),
+    runtimeProcessAuthority: recorded('runtimeProcessAuthority', processAuthorityOptions),
     modelApi: recorded('modelApi', modelApiOptions),
     resourceGovernor: recorded('resourceGovernor', resourceGovernorOptions),
     resourceProcess: recorded('resourceProcess', resourceProcessOptions),
@@ -2003,12 +2190,18 @@ if (isWatch) {
     estimateContracts: recorded('estimateContracts', estimateContractsOptions),
     vaultBoundaries: recorded('vaultBoundaries', vaultBoundariesOptions),
     modelApiBoundaries: recorded('modelApiBoundaries', modelApiBoundariesOptions),
+    hostProtocol: recorded('hostProtocol', hostProtocolOptions),
     browserCheck: recorded('browserCheck', browserCheckOptions),
     browserRuntime: recorded('browserRuntime', browserRuntimeOptions),
     searchWorker: recorded('searchWorker', searchWorkerOptions),
     pageWorker: recorded('pageWorker', pageWorkerOptions),
     imageResizeWorker: recorded('imageResizeWorker', imageResizeWorkerOptions),
     webview: recorded('webview', webviewOptions),
+    portable: () => {
+      const buildRecord = newBuildRecord()
+      buildRecords.set('portable', buildRecord)
+      return buildPortable(buildRecord)
+    },
   }
   const extraSpecs = [
     ['acp', () => esbuild.build(acpOptions)],
@@ -2111,6 +2304,8 @@ if (isWatch) {
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(CONVERSATION_TRANSFER_OUTFILE)
+  reportSize(RUNTIME_PANEL_OUTFILE)
+  reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
   reportSize(TAB_OUTFILE)
   reportSize(PROMPTS_OUTFILE)
   reportSize(SHARING_RUNTIME_OUTFILE)
@@ -2189,6 +2384,8 @@ if (isWatch) {
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.js'))
   reportSize(path.join(WEBVIEW_OUTDIR, 'usage.css'))
   reportSize(PROVIDER_CATALOG_OUTFILE)
+  reportSize(path.join(PORTABLE_OUTDIR, 'main.js'))
+  reportSize(path.join(PORTABLE_OUTDIR, 'main.css'))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.js`))
   reportSize(path.join(WEBVIEW_OUTDIR, `${WHATS_NEW_PAGE_NAME}.css`))
   reportSize(ACP_OUTFILE)

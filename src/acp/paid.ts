@@ -30,7 +30,7 @@ import {
   type PaidFeature,
   UI_TEXT,
 } from '../shared/constants'
-import type { PaidUseRequest, PaidUseDecision } from '../shared/paid'
+import type { PaidUseRequest, PaidUseDecision, SearchSettlement } from '../shared/paid'
 import { PaidAuthority, type PaidGrant } from '../core/paid/paidAuthority'
 import {
   paidFeatureName,
@@ -346,7 +346,11 @@ export class AcpPaidUse {
   }
 
   /** A billed use, tallied for the log: the agent has no usage dialog. */
-  public noteUse(feature: PaidFeature, units: number): void {
+  public noteUse(
+    feature: PaidFeature,
+    units: number,
+    _searchPriceUsd?: UsdAmount | SearchSettlement,
+  ): void {
     const total = (this.used.get(feature) ?? 0) + units
     this.used.set(feature, total)
     this.deps.log.info(

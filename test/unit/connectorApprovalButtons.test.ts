@@ -39,7 +39,7 @@ async function authedFetch(input: RequestInfo | URL, init?: RequestInit): Promis
   else if ('href' in input) source = input.href
   else source = input.url
   const url = new URL(source, network.origin)
-  if (url.pathname === '/post') network.posts += 1
+  if (url.pathname === '/panel/message') network.posts += 1
   const requestInit: { method: string; headers: Record<string, string>; body?: string } = {
     method: init?.method ?? 'GET',
     headers: {

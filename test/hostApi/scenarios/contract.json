@@ -1,0 +1,122 @@
+{
+  "protocol": "mhp/1.5.0",
+  "backends": ["musecode", "modelapi"],
+  "scenarios": [
+    {
+      "id": "conversation",
+      "actions": [
+        { "op": "send", "text": "first" },
+        { "op": "send", "text": "second" }
+      ],
+      "expected": { "turns": ["first", "second"], "responses": 2 }
+    },
+    {
+      "id": "approval",
+      "actions": [
+        { "op": "approval", "choice": "allow" },
+        { "op": "approval", "choice": "deny" },
+        { "op": "approval", "choice": "cancel" }
+      ],
+      "expected": { "executions": 1, "decisions": ["allow", "deny", "cancel"] }
+    },
+    {
+      "id": "dirty-buffer",
+      "actions": [
+        { "op": "dirty", "value": true },
+        { "op": "edit", "version": 1, "text": "bad" }
+      ],
+      "expected": {
+        "text": "original",
+        "version": 1,
+        "refusals": ["MHP_DIRTY_BUFFER"],
+        "undoDepth": 0
+      }
+    },
+    {
+      "id": "atomic-edit",
+      "actions": [
+        { "op": "edit", "version": 1, "text": "changed" },
+        { "op": "edit", "version": 1, "text": "duplicate" },
+        { "op": "undo" }
+      ],
+      "expected": {
+        "text": "original",
+        "version": 3,
+        "refusals": ["MHP_VERSION_MISMATCH"],
+        "undoDepth": 0,
+        "undoTransactions": 1
+      }
+    },
+    {
+      "id": "diff-hunks",
+      "actions": [
+        { "op": "hunk", "id": "one", "choice": "accept" },
+        { "op": "hunk", "id": "two", "choice": "reject" }
+      ],
+      "expected": { "hunks": { "one": "accept", "two": "reject" } }
+    },
+    {
+      "id": "diagnostics",
+      "actions": [
+        { "op": "diagnostic", "message": "fixture error", "severity": "error" },
+        { "op": "verify" }
+      ],
+      "expected": { "verifyErrors": ["fixture error"] }
+    },
+    {
+      "id": "checkpoint",
+      "actions": [
+        { "op": "checkpoint" },
+        { "op": "edit", "version": 1, "text": "changed" },
+        { "op": "restore" }
+      ],
+      "expected": { "text": "original", "checkpoints": 1 }
+    },
+    {
+      "id": "paid-consent",
+      "actions": [
+        { "op": "paid", "choice": "once", "microUsd": 400000 },
+        { "op": "paid", "choice": "deny", "microUsd": 400000 },
+        { "op": "paid", "choice": "always", "microUsd": 400000 },
+        { "op": "paid", "microUsd": 400000 }
+      ],
+      "expected": {
+        "chargedMicroUsd": 800000,
+        "paidExecutions": 2,
+        "prompts": ["once", "deny", "always"],
+        "refusals": ["PAID_DENIED", "PAID_BUDGET_EXCEEDED"]
+      }
+    },
+    {
+      "id": "tab-completion",
+      "actions": [{ "op": "completion", "text": "completion" }, { "op": "acceptCompletion" }],
+      "expected": { "text": "originalcompletion", "acceptedCompletions": 1 }
+    },
+    {
+      "id": "settings",
+      "actions": [
+        { "op": "setting", "key": "museSpark.paidDailyBudgetUsd", "value": 5 },
+        { "op": "readSetting", "key": "museSpark.paidDailyBudgetUsd" }
+      ],
+      "expected": { "settingValue": 5 }
+    },
+    {
+      "id": "session-reload",
+      "actions": [{ "op": "send", "text": "kept" }, { "op": "reload" }],
+      "expected": { "turns": ["kept"], "sameSession": true, "stateRequested": true }
+    },
+    {
+      "id": "panel-order",
+      "actions": [
+        { "op": "panel", "seq": 1 },
+        { "op": "panel", "seq": 1 },
+        { "op": "panel", "seq": 3 },
+        { "op": "panel", "seq": 2 }
+      ],
+      "expected": {
+        "deliveredSequences": [1, 2],
+        "refusals": ["MHP_PANEL_OUT_OF_ORDER", "MHP_PANEL_OUT_OF_ORDER"]
+      }
+    }
+  ]
+}

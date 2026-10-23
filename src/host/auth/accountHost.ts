@@ -9,7 +9,6 @@
 // Type-only through the SDK's own module (see museCodeBackendManager.ts):
 // activation never value-imports the package root.
 import type { Connection } from '@muse-code/sdk/dist/src/connection/connection.js'
-import * as z from 'zod/mini'
 import { admitResource, resourceWindowsJob } from '../../core/resources/admission'
 import { environmentValue } from '../../core/execGuard'
 import { spawnResourceConnection } from '../resources/museResourceLaunch'
@@ -24,15 +23,8 @@ import {
 } from '../../shared/constants'
 import type { MuseCodeBackendManager } from '../backend/museCodeBackendManager'
 import type { Logger } from '../logger'
-
-// `AccountState` as captured (1.3.0 and 1.4.0): `label` and `avatarUrl` are
-// not in the schema, so parsing drops them.
-const accountStateSchema = z.object({
-  state: z.string(),
-  credentialRequired: z.boolean(),
-})
-
-export type AccountState = z.infer<typeof accountStateSchema>
+import { accountStateSchema, isCapturedSignedOut, type AccountState } from './accountState'
+export type { AccountState } from './accountState'
 
 export interface AccountSession {
   /** `closed` settles when the host's output ends: it exited or died. */
@@ -46,24 +38,6 @@ export type ConnectAccountHost = (signal: AbortSignal) => Promise<AccountSession
 /** The error's name only: a CLI message can carry a path or an account. */
 function errorName(error: unknown): string {
   return error instanceof Error ? error.name : 'unknown error'
-}
-
-/** Whether a stored credential (a sign-in or a key the CLI saved) is the one in use. */
-export function isStoredSignIn(account: AccountState): boolean {
-  return (
-    account.state === MUSE_ACCOUNT_STATES.accountLogin ||
-    account.state === MUSE_ACCOUNT_STATES.apiKey
-  )
-}
-
-/**
-The answer every captured `account/read` after a sign-out gave
-(docs/certification/sign-in-detection.md). Nothing else counts as signed
-out: `envKey` masks the stored lane, and other answers were never
-captured (AGENTS.md rule 13, the review of PR #49).
-*/
-export function isCapturedSignedOut(account: AccountState): boolean {
-  return account.state === MUSE_ACCOUNT_STATES.loggedOut && account.credentialRequired
 }
 
 type AccountConnection = AccountSession['connection']

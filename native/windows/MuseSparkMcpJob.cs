@@ -300,10 +300,19 @@ public static class MuseSparkMcpJob {
       controlPipe, controlNonce, jobMemoryLimit, false, null, null, attestation);
   }
 
+  public static int RunRegistered(string executable, string[] arguments, string cwd, uint parentPid,
+    string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
+    ulong jobMemoryLimit, string registeredJobName, bool independent) {
+    if (String.IsNullOrWhiteSpace(registeredJobName)) throw new ArgumentException("missing registered job");
+    return RunCore(executable, arguments, cwd, parentPid, childEnvironment, verbatimArguments,
+      controlPipe, controlNonce, jobMemoryLimit, false, null, null, null, registeredJobName, independent);
+  }
+
   static int RunCore(string executable, string[] arguments, string cwd, uint parentPid,
     string[] childEnvironment, bool verbatimArguments, string controlPipe, string controlNonce,
     ulong jobMemoryLimit, bool debugPipes, Action<uint, IntPtr> beforeResume,
-    Action<uint> afterCreate, MuseSparkJobAttestation attestation) {
+    Action<uint> afterCreate, MuseSparkJobAttestation attestation,
+    string registeredJobName = null, bool independent = false) {
     IntPtr job = IntPtr.Zero, input = IntPtr.Zero, output = IntPtr.Zero, error = IntPtr.Zero;
     IntPtr parent = IntPtr.Zero;
     IntPtr attributeList = IntPtr.Zero, handleList = IntPtr.Zero, jobList = IntPtr.Zero;
@@ -318,11 +327,10 @@ public static class MuseSparkMcpJob {
       if (parent == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       if (WaitForSingleObject(parent, 0) != WAIT_TIMEOUT)
         throw new Exception("creating Node process has already exited");
-      if (attestation == null) ConfirmOwner(controlPipe, controlNonce, parent);
-      else attestation.Control = OpenOwner(controlPipe, controlNonce, parent);
-      // C1: the private launch pipe also names the job the owner's registry queries.
-      // An attested job is unnamed: no other process can open it and keep it alive.
-      job = CreateJobObjectW(IntPtr.Zero, attestation == null ? "Local\\" + controlPipe : null);
+      if (registeredJobName == null && attestation == null) ConfirmOwner(controlPipe, controlNonce, parent);
+      else if (attestation != null) attestation.Control = OpenOwner(controlPipe, controlNonce, parent);
+      // Attested launches remain unnamed; LSP registers the named launcher before GO.
+      job = CreateJobObjectW(IntPtr.Zero, attestation != null ? null : registeredJobName ?? "Local\\" + controlPipe);
       if (job == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
       var limits = new EXTENDED_LIMITS();
       limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
@@ -337,6 +345,12 @@ public static class MuseSparkMcpJob {
       }
       if (!SetInformationJobObject(job, 9, ref limits, Marshal.SizeOf(typeof(EXTENDED_LIMITS))))
         throw new Win32Exception(Marshal.GetLastWin32Error());
+      if (registeredJobName != null) {
+        // LSP root is the launcher itself. Registry proves its birth/job before GO.
+        if (!AssignProcessToJobObject(job, System.Diagnostics.Process.GetCurrentProcess().Handle))
+          throw new Win32Exception(Marshal.GetLastWin32Error());
+        ConfirmOwner(controlPipe, controlNonce, parent);
+      }
       if (attestation != null) {
         RequireContainment(job);
         // Before any process joins, so no limit message can be missed.
@@ -431,7 +445,7 @@ public static class MuseSparkMcpJob {
       if (ResumeThread(process.hThread) == 0xffffffff)
         throw new Win32Exception(Marshal.GetLastWin32Error());
       if (attestation != null) return Attest(job, process.hProcess, parent, attestation);
-      uint wait = WaitForMultipleObjects(2, new IntPtr[] { process.hProcess, parent }, false, 0xffffffff);
+      uint wait = independent ? WaitForSingleObject(process.hProcess, 0xffffffff) : WaitForMultipleObjects(2, new IntPtr[] { process.hProcess, parent }, false, 0xffffffff);
       if (wait == WAIT_OBJECT_0 + 1) return 4;
       if (wait != WAIT_OBJECT_0) throw new Win32Exception(Marshal.GetLastWin32Error());
       uint exitCode;
@@ -452,7 +466,10 @@ public static class MuseSparkMcpJob {
       if (handleList != IntPtr.Zero) Marshal.FreeHGlobal(handleList);
       if (jobList != IntPtr.Zero) Marshal.FreeHGlobal(jobList);
       if (environmentBlock != IntPtr.Zero) Marshal.FreeHGlobal(environmentBlock);
-      if (job != IntPtr.Zero) CloseHandle(job);
+      // A registered launcher is itself a member. Keep its kill-on-close handle
+      // until Main returns and the OS closes it, rather than self-kill here
+      // before the requested workload exit code reaches the process boundary.
+      if (job != IntPtr.Zero && registeredJobName == null) CloseHandle(job);
       if (parent != IntPtr.Zero) CloseHandle(parent);
       if (attestation != null && attestation.Control != null) attestation.Control.Dispose();
       if (attestation != null && attestation.Port != IntPtr.Zero) CloseHandle(attestation.Port);

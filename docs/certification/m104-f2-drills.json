@@ -1,0 +1,370 @@
+{
+  "baseRevision": "2a53c0cbf",
+  "machine": "kubuntu",
+  "timeout": "repository defaults; no override",
+  "drills": [
+    {
+      "drill": "ampersand",
+      "file": "src/host/whatsNew/whatsNewHtml.ts",
+      "beforeSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "mutatedSha256": "4d576926709919d174f2599f3b64ef6e757b9b7e4cbd4baec5ed9a13a2ac7774",
+      "restoredSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "exit": 1,
+      "seconds": 10.9,
+      "log": "temp/red-html-ampersand.log",
+      "logSha256": "6f59b95bccdac65fb87dbab9269397be5802283052bce31975addc4a878acc38",
+      "logBytes": 932097,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > preserves &quot; as attribute data without creating markup",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter & once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > keeps translated launch errors as literal text: &lt;img src=x&gt;",
+        "FAIL  test/unit/portablePageSecurity.test.ts > preserves opaque session identifiers without markup: &quot;",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the launch-text metacharacter & once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the session-attribute delimiter & once",
+        "FAIL  test/unit/xcodePlistSecurity.test.ts > serializes every XML metacharacter in product, version and command labels as character data",
+        "Tests  7 failed | 28 passed (35)"
+      ]
+    },
+    {
+      "drill": "double-quote",
+      "file": "src/host/whatsNew/whatsNewHtml.ts",
+      "beforeSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "mutatedSha256": "6f37492cff007fbec390e048d853a3f7432f68dc0a91438973b881de02e0db41",
+      "restoredSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "exit": 1,
+      "seconds": 10.9,
+      "log": "temp/red-html-double-quote.log",
+      "logSha256": "3d175a3d15c4fac78334815a156a421aa1af967143cc85dfb71625979b7a7aa2",
+      "logBytes": 621382,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > preserves \" onload=\"attacker() as attribute data without creating markup",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter \" once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > preserves opaque session identifiers without markup: \" onload=\"attacker()",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the session-attribute delimiter \" once",
+        "Tests  4 failed | 31 passed (35)"
+      ]
+    },
+    {
+      "drill": "less-than",
+      "file": "src/host/whatsNew/whatsNewHtml.ts",
+      "beforeSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "mutatedSha256": "771343ecd7c37c9662462bc859d9d015f178c8ae6522125cdeed0e75e751b62c",
+      "restoredSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "exit": 1,
+      "seconds": 10.7,
+      "log": "temp/red-html-less-than.log",
+      "logSha256": "67fecab119ff8a7930a1d18515697f30020eabf9d1a75b724ce51a7e81a7b165",
+      "logBytes": 621987,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter < once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > keeps translated launch errors as literal text: <img src=x onerror=\"attacker()\">",
+        "FAIL  test/unit/portablePageSecurity.test.ts > keeps translated launch errors as literal text: </p><script>attacker()</script>",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the launch-text metacharacter < once",
+        "FAIL  test/unit/xcodePlistSecurity.test.ts > serializes every XML metacharacter in product, version and command labels as character data",
+        "Tests  5 failed | 30 passed (35)"
+      ]
+    },
+    {
+      "drill": "greater-than",
+      "file": "src/host/whatsNew/whatsNewHtml.ts",
+      "beforeSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "mutatedSha256": "f84171b36f1743633e35c0912f760b1f21d306e1167a7a13839bad7b4bc7fdaf",
+      "restoredSha256": "ed29d458111fb70c25cbae0b2fb2b22abe700c960712cc217e646cacf437cbf9",
+      "exit": 1,
+      "seconds": 10.8,
+      "log": "temp/red-html-greater-than.log",
+      "logSha256": "6b26c3320cd9c4cbe4a0a0231a2106e02072a3b4a488a5f94b157fab2db855d2",
+      "logBytes": 620367,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter > once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the launch-text metacharacter > once",
+        "FAIL  test/unit/xcodePlistSecurity.test.ts > serializes every XML metacharacter in product, version and command labels as character data",
+        "Tests  3 failed | 32 passed (35)"
+      ]
+    },
+    {
+      "drill": "unescaped-xcode-brand",
+      "file": "hosts/xcode/Scripts/generate.mjs",
+      "beforeSha256": "a8719449f9341a010e77db6160961330d3194b08fd3e8ad717d55283ae56270e",
+      "mutatedSha256": "4b4e77c54e544b64eb076f2ad42b4aac5cb607f1afa6f8695897ba63083e177a",
+      "restoredSha256": "a8719449f9341a010e77db6160961330d3194b08fd3e8ad717d55283ae56270e",
+      "exit": 1,
+      "log": "temp/red-xcode-brand.log",
+      "logSha256": "0099aefcc6fec65dfb5579d31ae1785d8e27ecb7fdc5be3a249e559b51830502",
+      "logBytes": 1768,
+      "failures": [
+        "FAIL  test/unit/xcodePlistSecurity.test.ts > serializes every XML metacharacter in product, version and command labels as character data",
+        "Tests  1 failed (1)"
+      ]
+    },
+    {
+      "drill": "page-nonce",
+      "file": "src/host/ui/pageHtml.ts",
+      "beforeSha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a",
+      "mutatedSha256": "e68494ff3b4bdbc465da2081fcc938aa3bdee48183041266c5032ee7f7378006",
+      "restoredSha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a",
+      "exit": 1,
+      "seconds": 10.9,
+      "log": "temp/red-page-nonce.log",
+      "logSha256": "7f59c2363baa302b36cd7594d09f0239886cc9b033970366584fa7d405bb4103",
+      "logBytes": 1983,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > refuses a nonce that could change markup or CSP: nonce\" onload=\"attacker()",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > refuses a nonce that could change markup or CSP: nonce' 'unsafe-inline",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > refuses a nonce that could change markup or CSP: nonce; script-src *",
+        "Tests  3 failed | 17 passed (20)"
+      ]
+    },
+    {
+      "drill": "page-attribute",
+      "file": "src/host/ui/pageHtml.ts",
+      "beforeSha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a",
+      "mutatedSha256": "8568283fec18433a841e7002f2e9388d6cd01ccdbc28b6222fa74de7ad5f9c55",
+      "restoredSha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a",
+      "exit": 1,
+      "seconds": 10.5,
+      "log": "temp/red-page-attribute.log",
+      "logSha256": "ff3e51b3199f3d8b986fd221fb6a41002d40b93fd0918825de74b94909d80dbb",
+      "logBytes": 1239173,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > preserves &quot; as attribute data without creating markup",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > preserves \" onload=\"attacker() as attribute data without creating markup",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter & once",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter \" once",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter < once",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > encodes the attribute metacharacter > once",
+        "Tests  6 failed | 14 passed (20)"
+      ]
+    },
+    {
+      "drill": "page-data",
+      "file": "src/host/ui/pageHtml.ts",
+      "beforeSha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a",
+      "mutatedSha256": "979589b275484b5881858a90d02c557696b922f1d0e69a7712c93d6bcf09fe09",
+      "restoredSha256": "5b236842d514786ef9d6fcb36078fea8a957932e5868ce12fd3f52c315d87f3a",
+      "exit": 1,
+      "seconds": 11.0,
+      "log": "temp/red-page-data.log",
+      "logSha256": "7f562e9fae921d1bd2dc277f016d83405fd26979007a0d1f791d7cfdb1be13f3",
+      "logBytes": 310727,
+      "failures": [
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > escapes a surface id that could close the data element",
+        "FAIL  test/unit/pageHtml.test.ts > portable page HTML > round-trips hostile binding data and line separators in a single inert element",
+        "Tests  2 failed | 18 passed (20)"
+      ]
+    },
+    {
+      "drill": "portable-text",
+      "file": "src/runtime/panel/portablePage.ts",
+      "beforeSha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453",
+      "mutatedSha256": "c8d6cde7e35d2f4f6dc5577d0947f3087b90546ec713f1871291017d50ca65f3",
+      "restoredSha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453",
+      "exit": 1,
+      "seconds": 12.0,
+      "log": "temp/red-portable-text.log",
+      "logSha256": "adfbfd69af88c6a6ad83dbd43d5f3b7a1f816989225116e7d9ae26a5bc00c8dd",
+      "logBytes": 930796,
+      "failures": [
+        "FAIL  test/unit/portablePageSecurity.test.ts > keeps translated launch errors as literal text: &lt;img src=x&gt;",
+        "FAIL  test/unit/portablePageSecurity.test.ts > keeps translated launch errors as literal text: <img src=x onerror=\"attacker()\">",
+        "FAIL  test/unit/portablePageSecurity.test.ts > keeps translated launch errors as literal text: </p><script>attacker()</script>",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the launch-text metacharacter & once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the launch-text metacharacter < once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the launch-text metacharacter > once",
+        "Tests  6 failed | 9 passed (15)"
+      ]
+    },
+    {
+      "drill": "portable-session",
+      "file": "src/runtime/panel/portablePage.ts",
+      "beforeSha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453",
+      "mutatedSha256": "0ed538bd1f0a998e706c61e0ecba43a3b61a3afd02181f888b7693eb9611ddb3",
+      "restoredSha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453",
+      "exit": 1,
+      "seconds": 11.8,
+      "log": "temp/red-portable-session.log",
+      "logSha256": "0892be724e2063d1a2f914ba838d75baa77e741e1970123485dd3e9a75214372",
+      "logBytes": 621498,
+      "failures": [
+        "FAIL  test/unit/portablePageSecurity.test.ts > preserves opaque session identifiers without markup: &quot;",
+        "FAIL  test/unit/portablePageSecurity.test.ts > preserves opaque session identifiers without markup: \" onload=\"attacker()",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the session-attribute delimiter & once",
+        "FAIL  test/unit/portablePageSecurity.test.ts > encodes the session-attribute delimiter \" once",
+        "Tests  4 failed | 11 passed (15)"
+      ]
+    },
+    {
+      "drill": "portable-manifest",
+      "file": "src/runtime/panel/portablePage.ts",
+      "beforeSha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453",
+      "mutatedSha256": "c1dd3a5a60ec17f6dc1df63c3b993d9cb16dae5fd5f5deccfb636906e037b8fe",
+      "restoredSha256": "3e6e66e69e00e65a5b6d731280aeef428574257d83fbbcea94d28006229ad453",
+      "exit": 1,
+      "seconds": 11.2,
+      "log": "temp/red-portable-manifest.log",
+      "logSha256": "6574356bcb7de282eccb61e178d3f466221704a06fff59254a3e40b8f8d1a1cd",
+      "logBytes": 1615,
+      "failures": [
+        "FAIL  test/unit/portablePageSecurity.test.ts > embeds manifest import text as inert JSON, including closing tags and line separators",
+        "Tests  1 failed | 14 passed (15)"
+      ]
+    },
+    {
+      "drill": "embedded-regexp",
+      "file": "hosts/jetbrains/src/main/resources/embedded.mjs",
+      "beforeSha256": "b369c5b30a0cefa8fc3d10e470087f52fbb9721ba93347266953a5f4f5c8d4cc",
+      "mutatedSha256": "66b90603eca9f58ce43060b87a2983267692626ba095ad04a8799e8fb9e3b21d",
+      "restoredSha256": "b369c5b30a0cefa8fc3d10e470087f52fbb9721ba93347266953a5f4f5c8d4cc",
+      "exit": 1,
+      "seconds": 1.1,
+      "log": "temp/red-embedded-regexp.log",
+      "logSha256": "5c11856abd363a4ec861f73e0daed4bde5f4aeffd8dcfbeb13214e1d51b2d8b9",
+      "logBytes": 2578,
+      "failures": [
+        "\u2716 refuses unknown schema regex source instead of compiling or dispatching it (1.829314ms)",
+        "\u2716 requires a listener and validates payloads before forwarding (2.279504ms)",
+        "\u2716 failing tests:",
+        "\u2716 refuses unknown schema regex source instead of compiling or dispatching it (1.829314ms)",
+        "\u2716 requires a listener and validates payloads before forwarding (2.279504ms)"
+      ]
+    },
+    {
+      "drill": "eclipse-regular-file",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+      "beforeSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "mutatedSha256": "c82aeffd72269d9135e8f258cfac8c0a61e2c7e16502d7f92d596115ff3aeb8e",
+      "restoredSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "exit": 1,
+      "seconds": 1.3,
+      "log": "temp/red-eclipse-regular-file.log",
+      "logSha256": "28419842c240ff492b559c8f52d4dfb5a373ef5cb8e1be9f5fdf20e753867d2b",
+      "logBytes": 555,
+      "failures": ["FAILURES!!!", "Tests run: 3,  Failures: 1"]
+    },
+    {
+      "drill": "eclipse-executable",
+      "file": "hosts/eclipse/plugin/src/io/musespark/eclipse/RuntimeProcess.java",
+      "beforeSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "mutatedSha256": "b402facafacac86fc5540c241b1dacb5f03448ceb8f52925e9cf3a4c938574d4",
+      "restoredSha256": "0fd051cdf1ee22b08d52cb3a1cda9fc11cec0861ee1867d5545bad9fb4d6c994",
+      "exit": 1,
+      "seconds": 1.3,
+      "log": "temp/red-eclipse-executable.log",
+      "logSha256": "e3813ffb1a213ac3877274a9d320f6bc2395b23f58bf81a32e9fcdc7143541b2",
+      "logBytes": 555,
+      "failures": ["FAILURES!!!", "Tests run: 3,  Failures: 1"]
+    },
+    {
+      "drill": "jetbrains-script-placeholders",
+      "file": "hosts/jetbrains/build-resources.mjs",
+      "beforeSha256": "f37395af92c11dace00a68227f7cb49e1e6e009e02ecd822616e6e26d37fde5a",
+      "mutatedSha256": "6038297b952583b3973db0a9a0a5aef324b9bdbd9300e2b445a785b9adbe644e",
+      "restoredSha256": "f37395af92c11dace00a68227f7cb49e1e6e009e02ecd822616e6e26d37fde5a",
+      "exit": 1,
+      "seconds": 10.9,
+      "log": "temp/red-jetbrains-pages.log",
+      "logSha256": "79202004d533f59ef4f11c09c618c59600523420e675e6a7b5d8174c886e15ba",
+      "logBytes": 621459,
+      "failures": [
+        "FAIL  test/unit/jetbrainsPagesSecurity.test.ts > generates chat with external nonce-bearing scripts and no executable bridge placeholder",
+        "FAIL  test/unit/jetbrainsPagesSecurity.test.ts > generates tasks with external nonce-bearing scripts and no executable bridge placeholder",
+        "FAIL  test/unit/jetbrainsPagesSecurity.test.ts > generates whatsNew with external nonce-bearing scripts and no executable bridge placeholder",
+        "Tests  3 failed (3)"
+      ]
+    }
+  ],
+  "offlineSast": {
+    "version": "1.177.0",
+    "scope": "Four local site-reproduction patterns; supplemental, not the registry auto gate",
+    "configSha256": "95e106e4a82fb447b077d84bc215b9849c16ffa6fc1ab09e3a4bfa11a8b8474f",
+    "rules": "rules:\n  - id: m104-f2.manual-html-escaping\n    languages: [javascript, typescript]\n    severity: ERROR\n    message: Use the existing contextual serializer rather than chained entity replacements.\n    pattern-either:\n      - pattern: $VALUE.replaceAll('&', '&amp;')\n      - pattern: $VALUE.replaceAll('<', '&lt;')\n      - pattern: $VALUE.replaceAll('>', '&gt;')\n      - pattern: $VALUE.replaceAll('\"', '&quot;')\n  - id: m104-f2.generated-script-placeholder\n    languages: [javascript, typescript]\n    severity: ERROR\n    message: The native host inserts its reviewed bridge; the generator must not emit executable placeholders.\n    pattern: $HTML.replace('</head>', '<script nonce=\"__MUSE_NONCE__\">__MUSE_BRIDGE__</script></head>')\n  - id: m104-f2.dynamic-schema-regexp\n    languages: [javascript, typescript]\n    severity: ERROR\n    message: Schema pattern source must select a reviewed literal, never be compiled.\n    pattern: new RegExp($SOURCE, 'u')\n  - id: m104-f2.launcher-command\n    languages: [java]\n    severity: ERROR\n    message: Resolve a regular executable and pass its complete command as an argument list.\n    pattern: new ProcessBuilder($LAUNCHER, \"panel\", \"--stdio\")\n",
+    "beforeCount": 16,
+    "afterCount": 0,
+    "beforeErrors": 0,
+    "afterErrors": 0,
+    "beforeResultSha256": "8ab179b710007e15530dc07596d43c1d425c5a1fc498d02c03e0ff567b7c3341",
+    "afterResultSha256": "37bea748507b2ec622bec5bdec2618331a9412d615e4c277b82dd26c5a83f130",
+    "sites": [
+      {
+        "owner": "hosts/eclipse/plugin/src/io/musespark/eclipse/WindowSession.java",
+        "line": 57,
+        "rule": "temp.m104-f2.launcher-command"
+      },
+      {
+        "owner": "hosts/jetbrains/build-resources.mjs",
+        "line": 52,
+        "rule": "temp.m104-f2.generated-script-placeholder"
+      },
+      {
+        "owner": "hosts/jetbrains/build-resources.mjs",
+        "line": 77,
+        "rule": "temp.m104-f2.generated-script-placeholder"
+      },
+      {
+        "owner": "hosts/jetbrains/src/main/resources/embedded.mjs",
+        "line": 46,
+        "rule": "temp.m104-f2.dynamic-schema-regexp"
+      },
+      {
+        "owner": "hosts/xcode/Scripts/generate.mjs",
+        "line": 110,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "hosts/xcode/Scripts/generate.mjs",
+        "line": 110,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "hosts/xcode/Scripts/generate.mjs",
+        "line": 110,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/host/ui/pageHtml.ts",
+        "line": 8,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 81,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 81,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 81,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 86,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      },
+      {
+        "owner": "src/runtime/panel/portablePage.ts",
+        "line": 86,
+        "rule": "temp.m104-f2.manual-html-escaping"
+      }
+    ]
+  }
+}

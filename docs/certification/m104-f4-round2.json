@@ -1,0 +1,398 @@
+{
+  "date": "2026-10-09",
+  "machine": "kubuntu",
+  "branch": "m104/fix-portable-size",
+  "sourceBase": "4d7a838a751c4e2753b9ef48c408ac1d2d945630",
+  "decisionOwner": "lead, M104 F4 round-two rig brief",
+  "measurementRevision": "036b42ec4d259be6049fffd4a1f9206d5e9112e9",
+  "measurementReceipt": "docs/certification/m104-f4-portable-size.json",
+  "totalCapFormula": "floor(1323336 * 1.15 / 1024)",
+  "graphs": [
+    {
+      "name": "startup JS",
+      "roots": ["dist/webview/portable/main.js", "dist/webview/portable/loader.js"],
+      "beforeBytes": 777108,
+      "afterBytes": 777108,
+      "outputs": 59,
+      "capKiB": 1100,
+      "capBytes": 1126400,
+      "headroomBytes": 349292
+    },
+    {
+      "name": "total JS",
+      "beforeBytes": 1323336,
+      "afterBytes": 1323336,
+      "outputs": 177,
+      "capKiB": 1486,
+      "capBytes": 1521664,
+      "headroomBytes": 198328
+    }
+  ],
+  "startupQualified": true,
+  "totalQualified": true,
+  "unrelatedCapsChanged": false,
+  "restoredBuild": {
+    "allPortableOutputsByteExact": true,
+    "outputs": 177,
+    "metafileSha256": "7c06650928f40f36c3ff7c8979ef332acd5831775ac87f9c49539cb2596ed626"
+  },
+  "regressions": [
+    {
+      "name": "size-before",
+      "log": "temp/f4r2-regression-before.log",
+      "logSha256": "264eff86f17338c129bc6e085786f6f0a20f986c6e02fef146d30eff2659cb80",
+      "exit": 1,
+      "summary": "8 failed | 61 passed (69)"
+    },
+    {
+      "name": "split-before",
+      "log": "temp/f4r2-split-regression-before.log",
+      "logSha256": "9c068a276ddf2e6c666053a09ce53d8961d411977ccd3b2518ba1730e1a8ecf4",
+      "exit": 1,
+      "summary": "2 failed | 57 passed (59)"
+    }
+  ],
+  "tests": [
+    {
+      "name": "entries",
+      "command": ["npx", "vitest", "run", "test/unit/webviewEntries.test.mjs", "--maxWorkers=3"],
+      "exit": 0,
+      "seconds": 9.17,
+      "log": "temp/f4r2-final-entries.log",
+      "logSha256": "cc95e6aa94b7bcccde3379caa5096fc8bebc55870eec34f04179709661686ec6",
+      "passed": 3,
+      "files": 1,
+      "failed": 0,
+      "skipped": 0,
+      "repositoryTimeouts": true
+    },
+    {
+      "name": "bundle-final",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 36.93,
+      "log": "temp/f4r2-final-bundle-final.log",
+      "logSha256": "b2392d736d75f41964c6108402cd512e80028157e7d9378551429b850ad6dca2",
+      "passed": 143,
+      "files": 3,
+      "failed": 0,
+      "skipped": 0,
+      "repositoryTimeouts": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "entries",
+      "command": ["npx", "vitest", "run", "test/unit/webviewEntries.test.mjs", "--maxWorkers=3"],
+      "exit": 0,
+      "seconds": 9.17,
+      "log": "temp/f4r2-final-entries.log",
+      "logSha256": "cc95e6aa94b7bcccde3379caa5096fc8bebc55870eec34f04179709661686ec6"
+    },
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exit": 0,
+      "seconds": 294.53,
+      "log": "temp/f4r2-final-typecheck.log",
+      "logSha256": "5bacb23bddaaf6facafe98c434a10326a48f8eb0044ebf8bc7244aa719b6e985"
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exit": 0,
+      "seconds": 16.99,
+      "log": "temp/f4r2-final-build.log",
+      "logSha256": "8f6f60d25a99153036d2e06af6f18dca99295bc3c787f2c7624772b87392e381"
+    },
+    {
+      "name": "bundle-final",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 0,
+      "seconds": 36.93,
+      "log": "temp/f4r2-final-bundle-final.log",
+      "logSha256": "b2392d736d75f41964c6108402cd512e80028157e7d9378551429b850ad6dca2"
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/lib/webviewBundles.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs"
+      ],
+      "exit": 0,
+      "seconds": 3.53,
+      "log": "temp/f4r2-final-eslint.log",
+      "logSha256": "17e01fe327fec32f4f93010fc172aef661b8a1975c1f8df9d98e75c8b9de81c0"
+    },
+    {
+      "name": "format",
+      "command": [
+        "npx",
+        "prettier",
+        "--check",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/lib/webviewBundles.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/certification/m104.md",
+        "docs/certification/m104-int.md",
+        "docs/roadmap/entries.json"
+      ],
+      "exit": 0,
+      "seconds": 16.91,
+      "log": "temp/f4r2-final-format.log",
+      "logSha256": "3e2c59f442d32e1986569025229b17a699e925f932a911e35f578810a4121401"
+    },
+    {
+      "name": "deadcode",
+      "command": ["npm", "run", "deadcode"],
+      "exit": 0,
+      "seconds": 5.84,
+      "log": "temp/f4r2-final-deadcode.log",
+      "logSha256": "563cab05817d2956c16af01c9322ca3b0f0fd1f3e8b4c7019c2e419b00f375e9"
+    },
+    {
+      "name": "duplication",
+      "command": ["npm", "run", "duplication"],
+      "exit": 0,
+      "seconds": 1.85,
+      "log": "temp/f4r2-final-duplication.log",
+      "logSha256": "88886e27e8b11e3f460918f8d3058507e52d0c9b2598c74199eda66e790645f1"
+    },
+    {
+      "name": "l10n",
+      "command": ["npm", "run", "check:l10n"],
+      "exit": 0,
+      "seconds": 3.54,
+      "log": "temp/f4r2-final-l10n.log",
+      "logSha256": "0d0bbe35b49c20c9ba1da849e23ac62130c77661503562d86f041afd37ee71e8"
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exit": 0,
+      "seconds": 3.29,
+      "log": "temp/f4r2-final-reference.log",
+      "logSha256": "73e587c563b307d7fccace5c24e9d14a1ff2e249cbbbd05ec3fb6dea25c0ebcc"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exit": 0,
+      "seconds": 36.97,
+      "log": "temp/f4r2-final-host-api.log",
+      "logSha256": "96bc71dcfe64be71e10321c7d6aaee24813e821e2868b72600c3123ad4f541ee"
+    },
+    {
+      "name": "mhp",
+      "command": ["npm", "run", "check:mhp"],
+      "exit": 0,
+      "seconds": 1.96,
+      "log": "temp/f4r2-final-mhp.log",
+      "logSha256": "41c891184315e51ea086d2d07abe73c322edabfaef09e9f9a5cb22858d845c70"
+    },
+    {
+      "name": "plan",
+      "command": ["npm", "run", "check:plan"],
+      "exit": 0,
+      "seconds": 0.57,
+      "log": "temp/f4r2-final-plan.log",
+      "logSha256": "7d92b0a61352418afffc6815b26141a0a3249a0d70bcafae45b1cedad2e85c87"
+    },
+    {
+      "name": "roadmap",
+      "command": ["npm", "run", "check:roadmap"],
+      "exit": 0,
+      "seconds": 0.86,
+      "log": "temp/f4r2-final-roadmap.log",
+      "logSha256": "e9e415bd9d0fc6e9aea6b4cb90239175b2fecf90ee404a630b88c51b82d8203e"
+    }
+  ],
+  "drills": [
+    {
+      "name": "startup-enforcement-disabled",
+      "command": ["npx", "vitest", "run", "test/unit/bundleSize.test.mjs", "--maxWorkers=3"],
+      "exit": 1,
+      "seconds": 8.79,
+      "summary": "4 failed | 65 passed (69)",
+      "beforeSha256": "353a30e8bb62219d5a302c1f23140e23ee8b7c7ef3309a7b3a89d3b3169d4897",
+      "log": "temp/f4r2-startup-enforcement-disabled.log",
+      "logSha256": "934c613706fa1e1db44b858c10d784d091a350b1f7968b15c263180bdd360131",
+      "restoredSha256": "353a30e8bb62219d5a302c1f23140e23ee8b7c7ef3309a7b3a89d3b3169d4897",
+      "byteExact": true
+    },
+    {
+      "name": "total-enforcement-disabled",
+      "command": ["npx", "vitest", "run", "test/unit/bundleSize.test.mjs", "--maxWorkers=3"],
+      "exit": 1,
+      "seconds": 8.71,
+      "summary": "2 failed | 67 passed (69)",
+      "beforeSha256": "353a30e8bb62219d5a302c1f23140e23ee8b7c7ef3309a7b3a89d3b3169d4897",
+      "log": "temp/f4r2-total-enforcement-disabled.log",
+      "logSha256": "a242e2c1afc1bcd5e9176e01adb59d04506b44601927f7e80f1d0b3efbf47c70",
+      "restoredSha256": "353a30e8bb62219d5a302c1f23140e23ee8b7c7ef3309a7b3a89d3b3169d4897",
+      "byteExact": true
+    },
+    {
+      "name": "startup-artifact-overflow",
+      "file": "dist/webview/portable/loader.js",
+      "measuredBeforeBytes": 777108,
+      "mutatedGraphBytes": 1126401,
+      "beforeSha256": "a1298b9b1848e49bd80283b687b1d6e78fbb06d615fe6161c8dd6b9c9e27577c",
+      "checks": [
+        {
+          "command": ["node", "scripts/check-bundle-size.mjs"],
+          "exit": 1,
+          "seconds": 0.11,
+          "log": "temp/f4r2-startup-artifact-overflow-size.log",
+          "logSha256": "1ad901fd20e0a1712fd0027ead647fd1f009849370fd985201b531585e44e465"
+        },
+        {
+          "command": ["node", "scripts/check-bundle-split.mjs"],
+          "exit": 1,
+          "seconds": 3.42,
+          "log": "temp/f4r2-startup-artifact-overflow-split.log",
+          "logSha256": "e0a021bd0b62d3205b553eec499caeebf11345a0853c0037007be69e9dc8d1c7"
+        }
+      ],
+      "restoredSha256": "a1298b9b1848e49bd80283b687b1d6e78fbb06d615fe6161c8dd6b9c9e27577c",
+      "byteExact": true
+    },
+    {
+      "name": "total-artifact-overflow",
+      "file": "dist/webview/portable/whatsNew.js",
+      "measuredBeforeBytes": 1323336,
+      "mutatedGraphBytes": 1521665,
+      "beforeSha256": "85d09a2f2fe9841554ebfd85f80e744cc0657b7e380ee419d8a7aae3979f8b4f",
+      "checks": [
+        {
+          "command": ["node", "scripts/check-bundle-size.mjs"],
+          "exit": 1,
+          "seconds": 0.11,
+          "log": "temp/f4r2-total-artifact-overflow-size.log",
+          "logSha256": "999b6ea8000b3d188ab83b7590adb25901358167d2a73feefb70e42b48dd63d1"
+        },
+        {
+          "command": ["node", "scripts/check-bundle-split.mjs"],
+          "exit": 1,
+          "seconds": 3.4,
+          "log": "temp/f4r2-total-artifact-overflow-split.log",
+          "logSha256": "ea5e414e26c0c62ecb227ca561f2ef0a0804fb0d10c6b7bb7ae70c81c94ccac0"
+        }
+      ],
+      "restoredSha256": "85d09a2f2fe9841554ebfd85f80e744cc0657b7e380ee419d8a7aae3979f8b4f",
+      "byteExact": true
+    },
+    {
+      "name": "loader-accounting-disabled",
+      "command": [
+        "npx",
+        "vitest",
+        "run",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundles.test.mjs",
+        "--maxWorkers=3"
+      ],
+      "exit": 1,
+      "seconds": 9.13,
+      "summary": "2 failed | 82 passed (84)",
+      "beforeSha256": "eabd2e70e7e5755f5077851fb4138e03098d4c2bb0f454b365426bc353ab5e22",
+      "log": "temp/f4r2-loader-accounting-disabled.log",
+      "logSha256": "05438c1ba5e5ba03084ae2076c9a3d1de64d9235b7e1bc54a7841af9f89275e5",
+      "restoredSha256": "eabd2e70e7e5755f5077851fb4138e03098d4c2bb0f454b365426bc353ab5e22",
+      "byteExact": true
+    },
+    {
+      "name": "estimator-eager-import",
+      "command": ["npm", "run", "build"],
+      "exit": 1,
+      "seconds": 16.46,
+      "diagnostic": "src/webview/estimator/EstimatorPanel.tsx must occur in exactly one deferred portable webview chunk",
+      "beforeStartupBytes": 777108,
+      "mutatedStartupBytes": 798315,
+      "mutatedTotalBytes": 1323473,
+      "beforeSha256": "f54746be3640f4135a193e8f05da74bd266ec386131cd74d6c735dd1565ad8a9",
+      "log": "temp/f4r2-estimator-eager-import-corrected.log",
+      "logSha256": "69cfff89f4b4be79fb5a55f37f1592ec8db2b64dc5f89f4443573a1e6aed260b",
+      "restoredSha256": "f54746be3640f4135a193e8f05da74bd266ec386131cd74d6c735dd1565ad8a9",
+      "byteExact": true
+    }
+  ],
+  "excludedAttempts": [
+    {
+      "name": "first-repaired-cohort-over-specific-assertion",
+      "log": "temp/f4r2-bundle-after.log",
+      "logSha256": "002a8c7734a9801121401dcd153586681adbc37953daafe5b3183d3a1443bd3d"
+    },
+    {
+      "name": "estimator-named-import-compilation",
+      "log": "temp/f4r2-estimator-eager-import.log",
+      "logSha256": "6aab29ab7093c23f881aba04062dbfe21dc5d0db0e0963d892e2489e66cbb5cd"
+    },
+    {
+      "name": "eslint",
+      "command": [
+        "npx",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/lib/webviewBundles.mjs",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/webviewBundle.test.mjs",
+        "test/unit/webviewBundles.test.mjs"
+      ],
+      "exit": 1,
+      "seconds": 3.43,
+      "log": "temp/f4r2-eslint-pre-map.log",
+      "logSha256": "ec60fb4c404d50e0598bd85e6787acb7dbfae66f245989cd43c07aa1d2056d13"
+    }
+  ],
+  "aggregateQualityRun": false,
+  "aggregateQualityOwner": "lead; aggregate quality forbidden by shared lane brief",
+  "remainingQualification": "Inherited native/editor/security/resource-parity blockers stay with their owners; no support promotion.",
+  "sourceSha256": {
+    "scripts/check-bundle-size.mjs": "353a30e8bb62219d5a302c1f23140e23ee8b7c7ef3309a7b3a89d3b3169d4897",
+    "scripts/check-bundle-split.mjs": "b974ac68eec7c73e746c89b0a75bfe00fb6917946142b55df02e5d3a3eade0e4",
+    "scripts/lib/webviewBundles.mjs": "eabd2e70e7e5755f5077851fb4138e03098d4c2bb0f454b365426bc353ab5e22",
+    "test/unit/bundleSize.test.mjs": "cd9e09024b67941ba46adfd86d5e107c32b195739edb42f8313b40ceb5f819a2",
+    "test/unit/webviewBundle.test.mjs": "ecd2159228ed9ac78b5d20810a439d1a2354dddb0dfca05eb56994bc533e5667",
+    "test/unit/webviewBundles.test.mjs": "ee59f4ead162d68e446fc9a05a53151b8b1b5fd91671ef531abea0762b875715"
+  },
+  "finalDocumentationBuild": {
+    "command": ["npm", "run", "build"],
+    "exit": 0,
+    "log": "temp/f4r2-committable-build.log",
+    "logSha256": "c11cc3bd844cda3f379e826145b5cecf9e2300b3212b0050f68de80aab1a6856",
+    "allPortableOutputsByteExact": true
+  }
+}

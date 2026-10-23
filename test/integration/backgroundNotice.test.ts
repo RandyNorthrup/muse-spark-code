@@ -9,7 +9,7 @@
 import * as assert from 'node:assert/strict'
 import * as vscode from 'vscode'
 import { BackgroundNotifier } from '../../src/host/conversation/turnNotifications'
-import { vscodeBackgroundNoticeDeps } from '../../src/host/conversation/vscodeBackgroundNotices'
+import { vscodeBackgroundNoticeDeps } from '../../src/host/vscode/conversation/vscodeBackgroundNotices'
 import { createLogger } from '../../src/host/logger'
 import { SETTINGS_SECTION } from '../../src/shared/constants'
 

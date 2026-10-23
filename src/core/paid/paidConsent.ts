@@ -367,6 +367,25 @@ export interface PaidUseConsentDeps {
   readonly log: CoreLogger
 }
 
+/**
+The workspace's grants moved on under a queued write (Ask again revoked
+them while the popup was open): the write must not land, and the use it
+would have covered is refused. Thrown with this class (never a plain
+Error carrying the code as text) so `remember` can tell revocation apart
+from a storage failure without matching message text.
+*/
+export class PaidOwnerReplacedError extends Error {
+  public constructor() {
+    super('MHP_PAID_OWNER_REPLACED')
+    this.name = 'PaidOwnerReplacedError'
+  }
+}
+
+/** Whether the grant write lost its generation (never a storage failure). */
+export function isPaidOwnerReplaced(error: unknown): boolean {
+  return error instanceof PaidOwnerReplacedError
+}
+
 export class PaidUseConsent {
   private revocation = 0
   private readonly listeners = new Set<() => void>()
@@ -439,7 +458,9 @@ export class PaidUseConsent {
   /**
   Keeps "always" for the feature. A store that cannot be written is
   logged and leaves this use allowed once, so the next one asks again
-  instead of this one failing.
+  instead of this one failing. A write that lost the M104 runtime's
+  owner generation (`PaidOwnerReplacedError`) is rethrown: the use it
+  would have covered is refused outright, never allowed once.
   */
   /** The not-kept notice for a failed write, carrying the asking session (P2-3). */
   private notKeptNotice(
@@ -461,6 +482,7 @@ export class PaidUseConsent {
       else await this.deps.rememberGrant(feature)
       return true
     } catch (error: unknown) {
+      if (isPaidOwnerReplaced(error)) throw error
       if (error instanceof StaleEpochError) {
         // Carried past the outer account fence
         // (`AccountPaidUseConsent.allows`): a revocation that landed while
@@ -550,15 +572,22 @@ export class PaidUseConsent {
       (!(await this.deps.acceptJudgePrice()) || !this.isEnabled(feature))
     )
       return undefined
-    if (
-      answer === 'always' &&
-      canRemember &&
-      this.deps.canRemember() &&
-      (await this.remember(feature, notifySession))
-    ) {
-      this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
-      this.notify()
-      return 'always'
+    if (answer === 'always' && canRemember && this.deps.canRemember()) {
+      let wasKept: boolean
+      try {
+        wasKept = await this.remember(feature, notifySession)
+      } catch (error: unknown) {
+        // Fail closed on revocation only: an "always" whose grant write
+        // lost the M104 runtime's owner generation authorizes nothing.
+        if (!isPaidOwnerReplaced(error)) throw error
+        this.deps.log.info(`Paid use of ${feature}: "always" was not kept, so it is refused`)
+        return undefined
+      }
+      if (wasKept) {
+        this.deps.log.info(`Paid use of ${feature}: allowed always in this workspace`)
+        this.notify()
+        return 'always'
+      }
     }
     if (answer === 'once' && this.isWindowOnceFeature(feature)) {
       this.windowOnce.set(feature, this.deps.windowOnceGeneration?.(feature))
@@ -696,6 +725,7 @@ export class PaidUseConsent {
       if (effect.type !== 'save') continue
       tag = effect.grant
       let isOk = false
+      let isRevoked = false
       let saveFailure: PaidStoreFailureKind | undefined
       try {
         if (this.deps.writeQuoteGrant !== undefined)
@@ -710,6 +740,7 @@ export class PaidUseConsent {
         // Keep only the closed kind until currentness has been rechecked;
         // a revoked use must not be described as allowed once. Every
         // rejection is classified, including a non-Error one.
+        isRevoked = isPaidOwnerReplaced(error)
         saveFailure = paidStoreFailureKind(error)
         this.deps.log.warn(
           `Paid search quote could not be kept (${wireWordForLog(error instanceof Error ? error.name : typeof error)})`,
@@ -719,6 +750,12 @@ export class PaidUseConsent {
       if (saveFailure !== undefined)
         this.deps.onNotKept?.(this.notKeptNotice('webSearch', saveFailure, notifySession))
       this.authority.dispatch({ type: 'saved', grant: effect.grant, ok: isOk })
+      if (isRevoked) {
+        // Fail closed on revocation only (M58): a lost generation authorizes nothing.
+        this.authority.dispatch({ type: 'invalidate', grant: effect.grant })
+        this.deps.log.info('Paid use of webSearch: "always" was not kept, so it is refused')
+        return undefined
+      }
       if (isOk) this.notify()
     }
     this.deps.log.info('Paid use of webSearch: allowed once')
