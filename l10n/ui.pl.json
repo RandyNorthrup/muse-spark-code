@@ -4707,6 +4707,8 @@
   "judgeStatusSubscription": "Subskrypcja",
   "judgeStatusPaid": "Płatne",
   "judgeFastOff": "Szybka ścieżka wyłączona",
+  "judgeLooksStuck": "Wygląda na to, že utknął — ostatnie wywołania narzędzi nie przynoszą postępu.",
+  "judgeSteerTurn": "Skoryguj",
   "judgeNotSetUp": "Oceniający: nieskonfigurowany — Skonfiguruj",
   "judgeInstalling": "Oceniający: instalowanie ({percent})",
   "referenceJudgeSetup": "Skanuje ten komputer i instaluje lokalny model oceniający.",

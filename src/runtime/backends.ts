@@ -258,6 +258,9 @@ function museCodeManager(deps: RuntimeBackendDeps, workspaceRoot: string | undef
     userProfileDir: deps.env['USERPROFILE'],
     isWorkspaceTrusted: () => options.trustWorkspace,
     getProxySettings: () => NO_EDITOR_PROXY,
+    // The fast judge's deterministic checks run in every editor (D107);
+    // the switch is the panel's setting, absent here.
+    isFastPathOff: () => false,
   })
 }
 

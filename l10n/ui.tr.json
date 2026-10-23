@@ -4485,6 +4485,8 @@
   "judgeStatusSubscription": "Abonelik",
   "judgeStatusPaid": "Ücretli",
   "judgeFastOff": "Hızlı yol kapalı",
+  "judgeLooksStuck": "Takılmış görünüyor — son araç çağrıları ilerleme sağlamıyor.",
+  "judgeSteerTurn": "Yönlendir",
   "judgeNotSetUp": "Değerlendirici: Kurulmadı — Kur",
   "judgeInstalling": "Değerlendirici: Kuruluyor ({percent})",
   "referenceJudgeSetup": "Bu makineyi tarar ve yerel bir değerlendirici modeli kurar.",

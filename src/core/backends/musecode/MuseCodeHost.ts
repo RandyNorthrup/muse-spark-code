@@ -80,6 +80,11 @@ import {
 } from '../../../shared/constants'
 import { isEffortLevel } from '../../../shared/effort'
 import { fill } from '../../../shared/l10n/text'
+import { doneTailNote, failureTailHint, loopTailNote } from '../../judge/fast/apply'
+import { judgeDoneClaim } from '../../judge/fast/reflex/done'
+import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
+import { detectLoop, toolRepeatKey, type LoopSignal } from '../../judge/fast/reflex/loop'
+import { fingerprint } from '../../verify/fingerprint'
 import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
 import {
@@ -263,6 +268,13 @@ export interface MuseCodeFeaturePorts {
   the person may use one.
   */
   readonly contributorMode?: boolean
+  /**
+  D107 (M125 lane C): the fast judge's one switch
+  (`museSpark.judge.fastPathOff`), read at each decision. On keeps the
+  same-model caution judge only: no tail hint, no stuck chip. Absent
+  reads as off's opposite: the deterministic checks run.
+  */
+  readonly isFastPathOff?: () => boolean
 }
 
 const SESSION_LIST_CHANGED = 'session/listChanged'
@@ -1341,6 +1353,17 @@ export class MuseSession implements ScheduledAgentSession {
   private drainingSchedules = false
   private modeOpsCache: ModeSyncOps | undefined
   private readonly leaseGeneration: number
+  /**
+  D107 (M125 lane C): the fast judge's session state. The loop signals
+  and the turn's outputs cover one turn's episode; the tail queue drains
+  into the next `turn/start`.
+  */
+  private readonly fastLoop: LoopSignal[] = []
+  private readonly fastTail: string[] = []
+  private fastStuck = false
+  private fastLastTurn: string | undefined
+  private fastReply: string | undefined
+  private readonly fastTurnOutputs: { readonly tool: string; readonly output: string }[] = []
 
   public constructor(
     public readonly sessionId: string,
@@ -1351,6 +1374,7 @@ export class MuseSession implements ScheduledAgentSession {
     private readonly canRunUserShell: boolean,
     private readonly usageDeltas?: MuseUsageDeltas,
     initialApprovalMode?: string,
+    private readonly isFastPathOff?: () => boolean,
   ) {
     this.owner = new SessionOwner(initialApprovalMode)
     this.log = channel.log
@@ -1824,6 +1848,85 @@ export class MuseSession implements ScheduledAgentSession {
     }
   }
 
+  /** D107 (M125 lane C): the fast judge's one switch, read at each decision. */
+  private fastOff(): boolean {
+    return this.isFastPathOff?.() === true
+  }
+
+  /** One delivered event through the fast judge's turn tracking. */
+  private fastOnEvent(event: AgentEvent): void {
+    if (this.fastOff()) return
+    if (event.type === 'turnStarted') {
+      this.fastOnTurn(event.turnId)
+      return
+    }
+    if (event.type !== 'itemCompleted') return
+    if (event.item.kind === 'agentMessage' && typeof event.item.text === 'string') {
+      this.fastReply = event.item.text
+      return
+    }
+    this.fastObserveItem(event.item)
+  }
+
+  /**
+  D107 §6.3 (lane C): one completed tool call through the loop
+  detector. A loop queues its hint for the next turn's input tail, once
+  per episode, and raises the stuck chip's event for the surface; the
+  turn is never stopped (D121). No effort frame is ever sent (D107
+  §6.6: effort routing is not built for Muse Code in M125).
+  */
+  private fastObserveItem(item: ItemSnapshot): void {
+    if (this.fastOff() || item.kind !== 'toolCall') return
+    const tool = item.tool ?? ''
+    this.fastTurnOutputs.push({ tool, output: item.visibleOutput ?? '' })
+    this.fastLoop.push({
+      key: toolRepeatKey({ name: tool, arguments: item.args ?? '' }),
+      failed: item.status === 'failed',
+      outputDigest: fingerprint(`${item.visibleOutput ?? ''}\n${item.failureReason ?? ''}`),
+    })
+    const loop = detectLoop(this.fastLoop)
+    if (loop.stuck && !this.fastStuck) {
+      this.fastTail.push(loopTailNote(loop.pattern, tool))
+      this.emit({ type: 'judgeStuck', pattern: loop.pattern })
+    }
+    this.fastStuck = loop.stuck
+  }
+
+  /**
+  D107 §6.4 and §7.3 (lane C): the turn boundary. The finished turn's
+  reply and outputs queue the next turn's hints; a backed done queues
+  its note. An unbacked done is a surface note (lane U), nothing
+  model-side. The snapshots keep no exit code, so the verdicts read the
+  texts alone and miss more often without one — never a guess.
+  */
+  private fastOnTurn(turnId: string): void {
+    const previous = this.fastLastTurn
+    this.fastLastTurn = turnId
+    const reply = this.fastReply
+    const outputs = this.fastTurnOutputs.splice(0)
+    this.fastReply = undefined
+    this.fastLoop.length = 0
+    this.fastStuck = false
+    if (previous === undefined || reply === undefined || outputs.length === 0 || this.fastOff())
+      return
+    const done = judgeDoneClaim({
+      replyText: reply,
+      toolOutputs: outputs.map((output) => ({ exitCode: undefined, output: output.output })),
+    })
+    if (done.decision === 'backed') this.fastTail.push(doneTailNote())
+    for (const output of outputs) {
+      const failure = findUnmentionedFailure({
+        toolOutput: output.output,
+        exitCode: undefined,
+        replyText: reply,
+      })
+      if (failure.decision === 'unmentioned') {
+        this.fastTail.push(failureTailHint(output.tool))
+        return
+      }
+    }
+  }
+
   /** Merge captured native attempt history for both live updates and local inspection. */
   public observeAgent(item: ItemSnapshot): ItemSnapshot {
     if (item.kind !== 'subagent' && item.kind !== 'workflow') return item
@@ -1896,6 +1999,9 @@ export class MuseSession implements ScheduledAgentSession {
       this.unqueuedTurns.add(mapped.event.turnId)
     }
     this.emit(mapped.event)
+    // D107 (lane C): the fast judge observes the delivered stream, never
+    // a replay: a resumed turn's old calls queue nothing for the next one.
+    if (!isReplay) this.fastOnEvent(mapped.event)
   }
 
   /** @internal An event for this session's listeners, once, in arrival order. */
@@ -2107,7 +2213,14 @@ export class MuseSession implements ScheduledAgentSession {
       ack = await this.command(
         'turn/start',
         {
-          input: mspInput(parts),
+          // D107 (lane C): the fast judge's queued hints ride as trailing
+          // text parts, after everything already decided. Empty with the
+          // switch off or every decision abstaining: the input then keeps
+          // today's bytes.
+          input: [
+            ...mspInput(parts),
+            ...this.fastTail.splice(0).map((text): TurnPart => ({ type: 'text', text })),
+          ],
           ...(displayText !== undefined && { displayText }),
         },
         undefined,
@@ -2950,6 +3063,7 @@ export class MuseCodeHost implements AgentHost {
         ? undefined
         : this.createUsageDeltas(this.usageRecording, record.sessionId, modelId, isNew),
       initialApprovalMode,
+      this.features.isFastPathOff,
     )
     this.sessions.set(record.sessionId, handle)
     const waiting = this.unclaimed.get(record.sessionId) ?? []

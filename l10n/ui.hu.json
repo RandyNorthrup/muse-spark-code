@@ -4485,6 +4485,8 @@
   "judgeStatusSubscription": "Előfizetés",
   "judgeStatusPaid": "Fizetős",
   "judgeFastOff": "Gyors út kikapcsolva",
+  "judgeLooksStuck": "Úgy tűnik, elakadt — az utolsó eszközhívások nem hoznak előrelépést.",
+  "judgeSteerTurn": "Terelés",
   "judgeNotSetUp": "Értékelő: Nincs beállítva — Beállítás",
   "judgeInstalling": "Értékelő: Telepítés ({percent})",
   "referenceJudgeSetup": "Átvizsgálja ezt a gépet, és telepít egy helyi értékelőmodellt.",

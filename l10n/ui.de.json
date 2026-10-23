@@ -4485,6 +4485,8 @@
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Kostenpflichtig",
   "judgeFastOff": "Schneller Pfad aus",
+  "judgeLooksStuck": "Scheint festzustecken — die letzten Tool-Aufrufe machen keine Fortschritte.",
+  "judgeSteerTurn": "Lenken",
   "judgeNotSetUp": "Beurteiler: Nicht eingerichtet — Einrichten",
   "judgeInstalling": "Beurteiler: Wird installiert ({percent})",
   "referenceJudgeSetup": "Diesen Rechner prüfen und ein lokales Beurteilermodell installieren.",

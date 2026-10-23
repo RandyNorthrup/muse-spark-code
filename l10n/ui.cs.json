@@ -4707,6 +4707,8 @@
   "judgeStatusSubscription": "Předplatné",
   "judgeStatusPaid": "Placené",
   "judgeFastOff": "Rychlá cesta vypnuta",
+  "judgeLooksStuck": "Vypadá to, že uvázl — poslední volání nástrojů nikam nevedou.",
+  "judgeSteerTurn": "Navést",
   "judgeNotSetUp": "Posuzovatel: Nenastaveno — Nastavit",
   "judgeInstalling": "Posuzovatel: Instaluje se ({percent})",
   "referenceJudgeSetup": "Naskenuje tento počítač a nainstaluje místní model posuzovatele.",

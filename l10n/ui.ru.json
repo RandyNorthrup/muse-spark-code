@@ -4707,6 +4707,8 @@
   "judgeStatusSubscription": "Подписка",
   "judgeStatusPaid": "Платно",
   "judgeFastOff": "Быстрый путь выкл.",
+  "judgeLooksStuck": "Похоже, агент застрял — последние вызовы инструментов не дают прогресса.",
+  "judgeSteerTurn": "Направить",
   "judgeNotSetUp": "Оценщик: не настроен — Настроить",
   "judgeInstalling": "Оценщик: установка ({percent})",
   "referenceJudgeSetup": "Проверяет эту машину и устанавливает локальную модель оценщика.",

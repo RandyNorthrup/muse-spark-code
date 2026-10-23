@@ -141,6 +141,8 @@ export interface BackendManagerDeps {
   readonly getProxySettings: () => ProxySettings
   /** The commands' deadlines and the watchdog's silence; the constants unless a test shortens them. */
   readonly featurePorts?: MuseCodeFeaturePorts | undefined
+  /** `museSpark.judge.fastPathOff`, read at each fast-judge decision (M125 lane C, D107). */
+  readonly isFastPathOff?: (() => boolean) | undefined
   readonly commandTimeouts?: CommandTimeouts
 }
 
@@ -479,6 +481,7 @@ export class MuseCodeBackendManager {
         {
           ...backend.museCodeEffortPort,
           ...withContributorMode(this.deps.featurePorts, this.contributorModeEnabled()),
+          ...(this.deps.isFastPathOff !== undefined && { isFastPathOff: this.deps.isFastPathOff }),
         },
         undefined,
         this.deps.accountHome,

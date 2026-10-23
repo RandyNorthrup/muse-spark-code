@@ -4374,6 +4374,8 @@
   "judgeStatusSubscription": "구독",
   "judgeStatusPaid": "유료",
   "judgeFastOff": "고속 경로 꺼짐",
+  "judgeLooksStuck": "멈춘 것 같습니다 — 최근 도구 호출이 진전되지 않고 있습니다.",
+  "judgeSteerTurn": "방향 조정",
   "judgeNotSetUp": "판단자: 설정되지 않음 — 설정",
   "judgeInstalling": "판단자: 설치 중 ({percent})",
   "referenceJudgeSetup": "이 기기를 검사하고 로컬 판단자 모델을 설치합니다.",

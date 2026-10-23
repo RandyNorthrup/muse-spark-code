@@ -4596,6 +4596,8 @@
   "judgeStatusSubscription": "Suscripción",
   "judgeStatusPaid": "De pago",
   "judgeFastOff": "Vía rápida desactivada",
+  "judgeLooksStuck": "Parece atascado — las últimas llamadas a herramientas no avanzan.",
+  "judgeSteerTurn": "Redirigir",
   "judgeNotSetUp": "Evaluador: sin configurar — Configurar",
   "judgeInstalling": "Evaluador: instalando ({percent})",
   "referenceJudgeSetup": "Analiza este equipo e instala un modelo de evaluación local.",

@@ -643,6 +643,8 @@ export type UiAction =
   | { readonly type: 'redoRequested'; readonly entryId: string }
   /** A fault notice offers one recovery attempt, kept spent in saved state. */
   | { readonly type: 'noticeActionRequested'; readonly entryId: string }
+  /** The stuck chip's Steer (M125 lane C, D107 §6.3): focus the composer for a steering message. */
+  | { readonly type: 'steerRequested' }
   /** An image the composer refused before encoding it (M25): the banner, as a host refusal. */
   | { readonly type: 'attachmentRefused'; readonly name: string; readonly reason: string }
   /** The app asked the host to drop these images (M25). */
@@ -3952,6 +3954,11 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
             : entry,
         ),
       }
+    }
+    case 'steerRequested': {
+      // The click already holds the surface: the composer's landing rule
+      // takes the keyboard from here.
+      return { ...state, focusRequests: state.focusRequests + 1 }
     }
     case 'redoRequested': {
       return {

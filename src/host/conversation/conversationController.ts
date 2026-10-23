@@ -2895,6 +2895,15 @@ export class ConversationController {
         }
         break
       }
+      case 'judgeStuck': {
+        // D107 (lane C): the stuck chip with its way on: Stop ends the
+        // turn, Steer focuses the composer for a steering message.
+        this.notice('warning', UI_TEXT.judgeLooksStuck, undefined, undefined, [
+          'stopTurn',
+          'steerTurn',
+        ])
+        break
+      }
       default: {
         break
       }

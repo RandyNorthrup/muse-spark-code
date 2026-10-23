@@ -558,6 +558,11 @@ const agentEventSchema = z.discriminatedUnion('type', [
     itemId: stringSchema,
     audit: fastPathAuditSchema,
   }),
+  z.object({
+    /** The fast judge named a stuck turn (M125 lane C, D107 §6.3): the pattern, never content. */
+    type: z.literal('judgeStuck'),
+    pattern: z.enum(['repeat', 'oscillation', 'same-failure']),
+  }),
   // The agent asked the user something (`request_user_input`).
   z.object({
     type: z.literal('questionRequested'),

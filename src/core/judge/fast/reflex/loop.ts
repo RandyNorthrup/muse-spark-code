@@ -1,8 +1,42 @@
 // M125 lane R (D107): loop, stall and done detection over the observed
 // tool stream. Generalises the Model API repeat guard to both backends:
-// the caller (either backend) supplies canonical call keys the same way,
-// and this module names repeats, oscillations and same-failure runs.
-// Pure and synchronous; it only names a pattern, never stops anything.
+// the canonical call key lives here so either backend supplies it the
+// same way, and this module names repeats, oscillations and
+// same-failure runs. Pure and synchronous; it only names a pattern,
+// never stops anything.
+export interface ToolIdentity {
+  readonly name: string
+  readonly arguments: string
+}
+
+/** JSON with object keys sorted, so key order never distinguishes two values. */
+export function canonicalJson(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((entry: unknown) => canonicalJson(entry))
+  return typeof value === 'object' && value !== null
+    ? Object.fromEntries(
+        Object.entries(value)
+          .toSorted(([left], [right]) => {
+            if (left === right) return 0
+            return left < right ? -1 : 1
+          })
+          .map(([key, entry]: [string, unknown]) => [key, canonicalJson(entry)]),
+      )
+    : value
+}
+
+/** Object key order and insignificant JSON whitespace never distinguish two calls. */
+export function toolRepeatKey(call: ToolIdentity): string {
+  let args: string
+  try {
+    const parsed: unknown = JSON.parse(call.arguments)
+    args = JSON.stringify(canonicalJson(parsed))
+  } catch {
+    // Invalid JSON still belongs to the tool's validated refusal path.
+    args = call.arguments
+  }
+  return JSON.stringify([call.name, args])
+}
+
 export interface LoopSignal {
   /** Canonical tool-call identity (the backend's repeat key). */
   readonly key: string

@@ -4596,6 +4596,8 @@
   "judgeStatusSubscription": "Abonnement",
   "judgeStatusPaid": "Payant",
   "judgeFastOff": "Chemin rapide désactivé",
+  "judgeLooksStuck": "Semble bloqué — les derniers appels d’outils ne progressent pas.",
+  "judgeSteerTurn": "Réorienter",
   "judgeNotSetUp": "Évaluateur : non configuré — Configurer",
   "judgeInstalling": "Évaluateur : installation ({percent})",
   "referenceJudgeSetup": "Analyse cette machine et installe un modèle local.",
