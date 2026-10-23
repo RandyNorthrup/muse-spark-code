@@ -19,6 +19,17 @@ import {
   isMirroredInRtl,
   onboardingPackSchema,
   previewViewportSchema,
+  type AuthFactor,
+  type BarPopover,
+  type LauncherMode,
+  type LauncherResult,
+  type LauncherResultKind,
+  type LockAction,
+  type OnboardingPack,
+  type PreviewDevice,
+  type PreviewViewport,
+  type SystemPromptKind,
+  type WorkbenchRegion,
 } from '../../../src/shared/desktopContracts'
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
@@ -62,17 +73,28 @@ describe('M111 lane 0 desktop contracts', () => {
       expect(list.length).toBeGreaterThan(1)
     }
     expect(COMPACT_PANES.chatWidthPx).toBeLessThan(COMPACT_PANES.sidebarWidthPx + 200)
+    const region: WorkbenchRegion = WORKBENCH_REGIONS[0]
+    const popover: BarPopover = BAR_POPOVERS[0]
+    const mode: LauncherMode = LAUNCHER_MODES[0]
+    const factor: AuthFactor = AUTH_FACTORS[0]
+    const action: LockAction = LOCK_ACTIONS[0]
+    const prompt: SystemPromptKind = SYSTEM_PROMPT_KINDS[0]
+    expect([region, popover, mode, factor, action, prompt].every((v) => v.length > 0)).toBe(true)
   })
 
   it('schemas accept the mockups shapes and reject unknown fields', () => {
-    expect(
-      launcherResultSchema.parse({ kind: 'calculation', id: 'calc-1', title: '7.456 mi' }).kind,
-    ).toBe('calculation')
+    const result: LauncherResult = launcherResultSchema.parse({
+      kind: 'calculation',
+      id: 'calc-1',
+      title: '7.456 mi',
+    })
+    const kind: LauncherResultKind = result.kind
+    expect(kind).toBe('calculation')
     expect(() =>
       launcherResultSchema.parse({ kind: 'app', id: 'a', title: 'A', extra: 1 }),
     ).toThrow()
     expect(() => launcherResultSchema.parse({ kind: 'nope', id: 'a', title: 'A' })).toThrow()
-    const pack = {
+    const pack: OnboardingPack = {
       id: 'web',
       name: 'Web development',
       version: '1.0.0',
@@ -84,13 +106,13 @@ describe('M111 lane 0 desktop contracts', () => {
     expect(onboardingPackSchema.parse(pack)).toEqual(pack)
     expect(() => onboardingPackSchema.parse({ ...pack, downloadBytes: -1 })).toThrow()
     for (const device of PREVIEW_DEVICES) {
-      expect(
-        previewViewportSchema.parse({
-          deviceId: device.id,
-          widthPx: device.widthPx,
-          heightPx: device.heightPx,
-        }).deviceId,
-      ).toBe(device.id)
+      const preset: PreviewDevice = device
+      const viewport: PreviewViewport = previewViewportSchema.parse({
+        deviceId: preset.id,
+        widthPx: preset.widthPx,
+        heightPx: preset.heightPx,
+      })
+      expect(viewport.deviceId).toBe(preset.id)
     }
   })
 
