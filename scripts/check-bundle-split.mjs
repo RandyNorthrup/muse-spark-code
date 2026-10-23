@@ -1379,6 +1379,12 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
               input === 'src/core/providers/accountCredentialRecord.ts' &&
               output === VAULT_MIGRATION.output
             ) &&
+            // RLM109: the ChatGPT slot's migration codec parses the stored
+            // grant with the record schema leaf, so the chunk carries it.
+            !(
+              input === 'src/core/providers/subscriptions/chatgptRecord.ts' &&
+              output === VAULT_MIGRATION.output
+            ) &&
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageService.js') &&
             // C-M113-2: the session and usage inputs read M102's journal
             // through its store, whose static record import carries the card.
