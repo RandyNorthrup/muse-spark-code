@@ -14,7 +14,12 @@ import type {
   PackDefinition,
   PackPlatform,
 } from '../../src/runtime/node/packs/definition'
-import { PACK_INDEX_VERSION, verifyIndex, type PackIndex } from '../../src/runtime/node/packs/index'
+import {
+  PACK_INDEX_VERSION,
+  verifyIndex,
+  type IndexVerdict,
+  type PackIndex,
+} from '../../src/runtime/node/packs/index'
 import {
   PackManager,
   type PackFetch,
@@ -170,6 +175,28 @@ function testWorld(): TestWorld {
   return { server, typescript, python, shell, crosscutting, mobile }
 }
 
+/** Verify an index the tests built, with matching checksums throughout. */
+async function verifyTestIndex(index: PackIndex, isSignatureOk: boolean): Promise<IndexVerdict> {
+  const bytes = new TextEncoder().encode(JSON.stringify(index))
+  return await verifyIndex({
+    indexBytes: bytes,
+    expectedSha256: sha256Hex(bytes),
+    actualSha256: sha256Hex(bytes),
+    index,
+    installedRevision: undefined,
+    now: NOW.getTime(),
+    verifySignature: () => Promise.resolve(isSignatureOk),
+  })
+}
+
+/** Install the web experience's ticked pack, asserting the clean receipt. */
+async function installWebPack(manager: PackManager): Promise<void> {
+  expect(await manager.installExperience('web', ['typescript'])).toEqual({
+    ok: true,
+    notice: undefined,
+  })
+}
+
 /** A missing layer reads as absent; anything else fails the test loudly. */
 async function isLayerPresent(file: string): Promise<boolean> {
   try {
@@ -186,31 +213,13 @@ async function isLayerPresent(file: string): Promise<boolean> {
 describe('verifyIndex', () => {
   it('accepts a signed, checksummed, fresh, locked index', async () => {
     const { server } = testWorld()
-    const bytes = server.indexBytes()
-    const verdict = await verifyIndex({
-      indexBytes: bytes,
-      expectedSha256: sha256Hex(bytes),
-      actualSha256: sha256Hex(bytes),
-      index: server.index,
-      installedRevision: undefined,
-      now: NOW.getTime(),
-      verifySignature: () => Promise.resolve(true),
-    })
+    const verdict = await verifyTestIndex(server.index, true)
     expect(verdict).toEqual({ ok: true })
   })
 
   it('refuses a bad signature before anything else', async () => {
     const { server } = testWorld()
-    const bytes = server.indexBytes()
-    const verdict = await verifyIndex({
-      indexBytes: bytes,
-      expectedSha256: sha256Hex(bytes),
-      actualSha256: sha256Hex(bytes),
-      index: server.index,
-      installedRevision: undefined,
-      now: NOW.getTime(),
-      verifySignature: () => Promise.resolve(false),
-    })
+    const verdict = await verifyTestIndex(server.index, false)
     expect(verdict).toEqual({ ok: false, reason: 'bad-signature' })
   })
 
@@ -250,16 +259,7 @@ describe('verifyIndex', () => {
     const { shell } = testWorld()
     for (const expiresAt of [PAST, 'not-a-date']) {
       const index = makeIndex([shell], { expiresAt })
-      const bytes = new TextEncoder().encode(JSON.stringify(index))
-      const verdict = await verifyIndex({
-        indexBytes: bytes,
-        expectedSha256: sha256Hex(bytes),
-        actualSha256: sha256Hex(bytes),
-        index,
-        installedRevision: undefined,
-        now: NOW.getTime(),
-        verifySignature: () => Promise.resolve(true),
-      })
+      const verdict = await verifyTestIndex(index, true)
       expect(verdict).toEqual({ ok: false, reason: 'expired' })
     }
   })
@@ -270,16 +270,7 @@ describe('verifyIndex', () => {
       artifacts: [{ name: 'tool', version: '1.0.0', url: 'https://packs.example/tool.tar.gz' }],
     }
     const index = makeIndex([unlocked])
-    const bytes = new TextEncoder().encode(JSON.stringify(index))
-    const verdict = await verifyIndex({
-      indexBytes: bytes,
-      expectedSha256: sha256Hex(bytes),
-      actualSha256: sha256Hex(bytes),
-      index,
-      installedRevision: undefined,
-      now: NOW.getTime(),
-      verifySignature: () => Promise.resolve(true),
-    })
+    const verdict = await verifyTestIndex(index, true)
     expect(verdict).toEqual({ ok: false, reason: 'unlocked-artifact' })
   })
 })
@@ -353,10 +344,7 @@ describe('PackManager', () => {
   it('installs a ticked pack list instead of the persona default', async () => {
     const { server } = testWorld()
     const manager = managerFor(server)
-    expect(await manager.installExperience('web', ['typescript'])).toEqual({
-      ok: true,
-      notice: undefined,
-    })
+    await installWebPack(manager)
     expect(await manager.experiences()).toEqual([
       { name: 'web', packs: ['typescript'], installedAt: NOW.toISOString() },
     ])
@@ -368,10 +356,7 @@ describe('PackManager', () => {
     const { server } = testWorld()
     const manager = managerFor(server)
     expect(await manager.installExperience('web')).toEqual({ ok: true, notice: undefined })
-    expect(await manager.installExperience('web', ['typescript'])).toEqual({
-      ok: true,
-      notice: undefined,
-    })
+    await installWebPack(manager)
     const installed = await manager.installedPacks()
     expect(new Set(installed.keys())).toEqual(new Set(['typescript']))
     expect(await manager.experiences()).toEqual([
@@ -505,10 +490,7 @@ describe('PackManager', () => {
     server.serve(linuxTool.artifact, linuxTool.bytes)
     server.serve(macTool.artifact, macTool.bytes)
     const linux = managerFor(server, { host: { os: 'linux', arch: 'x64' } })
-    expect(await linux.installExperience('web', ['typescript'])).toEqual({
-      ok: true,
-      notice: undefined,
-    })
+    await installWebPack(linux)
     const linuxDigest = linuxTool.artifact.sha256 ?? ''
     const macDigest = macTool.artifact.sha256 ?? ''
     expect(await isLayerPresent(layerPath(linuxDigest))).toBe(true)

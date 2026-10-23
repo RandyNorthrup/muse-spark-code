@@ -14,7 +14,7 @@
 import { lookup, resolve6 } from 'node:dns/promises'
 import { createServer, Socket, type Server } from 'node:net'
 import { ADDRESS_FAMILIES, EGRESS_CONNECT_HEAD_MAX_BYTES } from '../../../shared/constants'
-import { isErrno } from '../../../core/fs/errno'
+import { isDnsFailure } from '../../../core/fs/errno'
 import { addressFamily, nat64PrefixesOf } from '../../../core/web/publicAddress'
 import {
   checkRate,
@@ -117,7 +117,7 @@ export async function startEgressServer(options: EgressServerOptions): Promise<E
       const answers = await resolve6('ipv4only.arpa')
       found = { isKnown: true, prefixes: nat64PrefixesOf(answers) }
     } catch (error: unknown) {
-      if (!isErrno(error)) throw error
+      if (!isDnsFailure(error)) throw error
       const code = errorCode(error)
       found = { isKnown: code === 'ENOTFOUND' || code === 'ENODATA', prefixes: [] }
     }
@@ -268,7 +268,7 @@ export async function startEgressServer(options: EgressServerOptions): Promise<E
         const entries = await lookup(target.host, { all: true, verbatim: true })
         resolved = entries.map((entry) => entry.address)
       } catch (error: unknown) {
-        if (!isErrno(error)) throw error
+        if (!isDnsFailure(error)) throw error
         refuse('unresolved', target.host, target.port, [], errorCode(error))
         return
       }

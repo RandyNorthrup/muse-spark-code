@@ -10,6 +10,12 @@ export const TOOLCHAINS_VERSION = 1
 /** The file's name beside the pack store. */
 export const TOOLCHAINS_FILE = 'toolchains.json'
 
+/** A gate command one installed pack provides: a name and its argv. */
+export const toolchainCheckSchema = z.strictObject({
+  name: z.string().check(z.minLength(1)),
+  command: z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
+})
+
 /** One installed pack's capability: its tools, gates and languages. */
 export const toolchainPackSchema = z.strictObject({
   name: z.string().check(z.minLength(1)),
@@ -21,12 +27,7 @@ export const toolchainPackSchema = z.strictObject({
       version: z.string().check(z.minLength(1)),
     }),
   ),
-  checks: z.array(
-    z.strictObject({
-      name: z.string().check(z.minLength(1)),
-      command: z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
-    }),
-  ),
+  checks: z.array(toolchainCheckSchema),
 })
 export type ToolchainPack = z.infer<typeof toolchainPackSchema>
 

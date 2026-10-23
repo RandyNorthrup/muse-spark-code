@@ -12,6 +12,7 @@ import { execFile } from 'node:child_process'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { DEVCONTAINER_CLI_PIN } from '../../../shared/constants'
+import { execCallback } from './spawn'
 
 const lifecycleCommandSchema = z.union([
   z.string(),
@@ -343,23 +344,20 @@ function runCli(
   cwd: string,
 ): Promise<{ readonly exitCode: number; readonly stdout: string; readonly stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = execFile(cliPath, [...argv], { cwd }, (error, stdout, stderr) => {
-      if (error === null) {
-        resolve({ exitCode: 0, stdout, stderr })
-        return
-      }
-      const code: unknown = 'code' in error ? error.code : undefined
-      if (typeof code !== 'number') {
-        reject(
+    const child = execFile(
+      cliPath,
+      [...argv],
+      { cwd },
+      execCallback(
+        resolve,
+        reject,
+        (_cause, _stdout, stderr) =>
           new DevcontainerError(
             'cli-failed',
             `devcontainer ${argv[0] ?? ''} failed to spawn: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
           ),
-        )
-        return
-      }
-      resolve({ exitCode: code, stdout, stderr })
-    })
+      ),
+    )
     child.on('error', () => {
       /* the callback above already typed it */
     })
@@ -489,23 +487,15 @@ export async function devcontainerExec(
         cwd,
         ...(options.maxBytes !== undefined && { maxBuffer: options.maxBytes }),
       },
-      (error, stdout, stderr) => {
-        if (error === null) {
-          resolve({ exitCode: 0, stdout, stderr })
-          return
-        }
-        const code: unknown = 'code' in error ? error.code : undefined
-        if (typeof code !== 'number') {
-          reject(
-            new DevcontainerError(
-              'cli-failed',
-              `devcontainer exec failed to run: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
-            ),
-          )
-          return
-        }
-        resolve({ exitCode: code, stdout, stderr })
-      },
+      execCallback(
+        resolve,
+        reject,
+        (_cause, _stdout, stderr) =>
+          new DevcontainerError(
+            'cli-failed',
+            `devcontainer exec failed to run: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
+          ),
+      ),
     )
     child.on('error', () => {
       /* the callback above already typed it */

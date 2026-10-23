@@ -22,7 +22,6 @@ export const workerTaskFrameSchema = z.strictObject({
   epoch: z.number().check(z.int(), z.gte(0)),
   body: z.unknown(),
 })
-export type WorkerTaskFrame = z.infer<typeof workerTaskFrameSchema>
 
 /** An admitted task: the runtime's dispatcher feeds the ticket onward. */
 export interface WorkerTicket {

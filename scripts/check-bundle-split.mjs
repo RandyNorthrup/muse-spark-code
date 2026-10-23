@@ -1358,7 +1358,10 @@ const TEXT_BLOCKS = [
   {
     block: 'TOOLCHAINS_MODEL_TEXT',
     sentinels: ['toolchainsContextLine', 'noToolchains'],
-    readers: ['dist/modelApiBoundaries.js'],
+    // The native toolchains tool (M110t TA) plugs into the backend's tool
+    // registry, instructions and dispatch, which the backend, its code-intel
+    // sidecar and its verify sidecar each bundle.
+    readers: ['dist/modelApi.js', 'dist/modelApiCodeIntel.js', 'dist/modelApiVerify.js'],
   },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   { block: 'WORKER_MODEL_TEXT', sentinels: ['boundedExcerpt'], readers: [] },

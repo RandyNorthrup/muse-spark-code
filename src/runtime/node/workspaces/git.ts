@@ -13,6 +13,7 @@
 // bottom is drill-proven against real git.
 import { execFile } from 'node:child_process'
 import { workerEnvironment } from '../../../core/team/workers/workerEnv'
+import { settleExecFile } from './spawn'
 
 /** What the broker provisions for one workspace's git use. */
 export interface BrokerGitProvisions {
@@ -377,15 +378,16 @@ export async function runWorkspaceGit(
         ...(options.maxBytes !== undefined && { maxBuffer: options.maxBytes }),
       },
       (error, stdout, stderr) => {
-        if (error === null) {
-          resolve({ exitCode: 0, stdout, stderr })
+        const settled = settleExecFile(error, stdout, stderr)
+        if ('spawnFailed' in settled) {
+          reject(
+            new Error(`git ${verb ?? ''} failed to run: ${settled.spawnFailed.message}`, {
+              cause: settled.spawnFailed,
+            }),
+          )
           return
         }
-        const code: unknown = 'code' in error ? error.code : undefined
-        if (typeof code !== 'number') {
-          reject(new Error(`git ${verb ?? ''} failed to run: ${error.message}`, { cause: error }))
-          return
-        }
+        const code = settled.exited.exitCode
         if (!okCodes.includes(code)) {
           reject(
             new GitFailedError(

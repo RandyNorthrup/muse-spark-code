@@ -7,6 +7,7 @@
 
 import * as z from 'zod/mini'
 import { packNameSchema } from '../../../shared/profile'
+import { toolchainCheckSchema } from '../../../shared/toolchains'
 
 /** A dotted numeric version with an optional prerelease and build suffix. */
 export const versionSchema = z
@@ -35,12 +36,11 @@ export const packArtifactSchema = z.strictObject({
 })
 export type PackArtifact = z.infer<typeof packArtifactSchema>
 
-/** A gate command the pack's toolchains provide (TA proposes, M68 runs). */
-export const packCheckSchema = z.strictObject({
-  name: z.string().check(z.minLength(1)),
-  command: z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
-})
-export type PackCheck = z.infer<typeof packCheckSchema>
+/**
+A gate command the pack's toolchains provide (TA proposes, M68 runs):
+the capability file's check shape, never a second copy of it.
+*/
+export const packCheckSchema = toolchainCheckSchema
 
 /**
 A constraint on the shared toolchain set: `package` at a version the
@@ -59,17 +59,24 @@ export const packToolSchema = z.strictObject({
   name: z.string().check(z.minLength(1)),
   version: versionSchema,
 })
-export type PackTool = z.infer<typeof packToolSchema>
 
-/** One toolchain pack definition, as the signed index carries it. */
-export const packDefinitionSchema = z.strictObject({
+/**
+The header every pack definition carries, index and build alike:
+identity, words, languages, and the packs installed first, in order
+(the base everything stands on).
+*/
+const packHeaderShape = {
   name: packNameSchema,
   version: versionSchema,
   description: z.string().check(z.minLength(1)),
   license: z.string().check(z.minLength(1)),
   languages: z.array(z.string().check(z.minLength(1))),
-  /** Packs installed first, in order (the base everything stands on). */
   requires: z.array(z.string().check(z.minLength(1))),
+}
+
+/** One toolchain pack definition, as the signed index carries it. */
+export const packDefinitionSchema = z.strictObject({
+  ...packHeaderShape,
   artifacts: z.array(packArtifactSchema).check(z.minLength(1)),
   /** The locked tools, for the pack list, constraints and the audit. */
   tools: z.array(packToolSchema).check(z.minLength(1)),
@@ -93,7 +100,6 @@ export const packBinSchema = z.strictObject({
   name: z.string().check(z.minLength(1)),
   as: z.string().check(z.minLength(1)),
 })
-export type PackBin = z.infer<typeof packBinSchema>
 
 /** One upstream download the pack build locks, by URL. */
 export const packUpstreamSchema = z.strictObject({
@@ -129,25 +135,28 @@ export const packUpstreamSchema = z.strictObject({
   */
   bin: z.optional(z.array(packBinSchema)),
 })
-export type PackUpstream = z.infer<typeof packUpstreamSchema>
+
+/**
+A versioned tool's version and licence, shared by every tool shape
+that carries both.
+*/
+const packToolVersionShape = {
+  version: z.string().check(z.minLength(1)),
+  /** The tool's licence, as an SPDX id. */
+  license: z.string().check(z.minLength(1)),
+}
 
 /** One tool the pack build installs through a toolchain manager. */
 export const packManagedToolSchema = z.strictObject({
   name: z.string().check(z.minLength(1)),
-  version: z.string().check(z.minLength(1)),
-  /** The tool's licence, as an SPDX id. */
-  license: z.string().check(z.minLength(1)),
+  ...packToolVersionShape,
 })
-export type PackManagedTool = z.infer<typeof packManagedToolSchema>
 
 /** One Go tool the pack build installs (`go install module@version`). */
 export const packGoToolSchema = z.strictObject({
   module: z.string().check(z.minLength(1)),
-  version: z.string().check(z.minLength(1)),
-  /** The tool's licence, as an SPDX id. */
-  license: z.string().check(z.minLength(1)),
+  ...packToolVersionShape,
 })
-export type PackGoTool = z.infer<typeof packGoToolSchema>
 
 /** The tools the pack build installs through toolchain managers. */
 export const packManagedSchema = z.strictObject({
@@ -166,7 +175,6 @@ export const packManagedSchema = z.strictObject({
   /** `rustup toolchain install` into the layer. */
   rust: z.optional(z.array(packManagedToolSchema).check(z.minLength(1))),
 })
-export type PackManaged = z.infer<typeof packManagedSchema>
 
 /** One Debian package the pack build takes from a snapshot. */
 export const packAptPackageSchema = z.strictObject({
@@ -174,7 +182,6 @@ export const packAptPackageSchema = z.strictObject({
   /** The package's licence, as an SPDX id. */
   license: z.string().check(z.minLength(1)),
 })
-export type PackAptPackage = z.infer<typeof packAptPackageSchema>
 
 /**
 Debian packages the pack build takes from a snapshot. Versions resolve
@@ -186,22 +193,15 @@ export const packAptSchema = z.strictObject({
   snapshot: z.string().check(z.regex(/^\d{8}T\d{6}Z$/)),
   packages: z.array(packAptPackageSchema).check(z.minLength(1)),
 })
-export type PackApt = z.infer<typeof packAptSchema>
 
 /** One smoke command the pack CI runs against the built layer. */
 export const packSmokeSchema = z.strictObject({
   command: z.array(z.string().check(z.minLength(1))).check(z.minLength(1)),
 })
-export type PackSmoke = z.infer<typeof packSmokeSchema>
 
 /** One pack build definition, as deploy/packs/ carries it. */
 export const packBuildDefinitionSchema = z.strictObject({
-  name: packNameSchema,
-  version: versionSchema,
-  description: z.string().check(z.minLength(1)),
-  license: z.string().check(z.minLength(1)),
-  languages: z.array(z.string().check(z.minLength(1))),
-  requires: z.array(z.string().check(z.minLength(1))),
+  ...packHeaderShape,
   checks: z.array(packCheckSchema),
   constraints: z.array(packConstraintSchema),
   clickThrough: z.boolean(),
