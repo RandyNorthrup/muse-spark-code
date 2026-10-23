@@ -1,0 +1,615 @@
+[
+  {
+    "control": "raise ValueError(\"OS1 unknown target\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the target input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 runtime SHA-256 mismatch\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the runtime input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 decoded archive exceeds limit\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs bounds archive metadata before decoding or writing"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 archive seek exceeds limit\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs bounds archive seek before decoding or writing"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 input SHA-256 mismatch\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a corrupt pinned download and removes partial bytes"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 wrong runtime package/version\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the package input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 archive member limit\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs bounds archive members before decoding or writing"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 unsafe archive member\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs rejects untrusted archive path package/../outside before extraction",
+      "M110-OS1 immutable image inputs rejects untrusted archive path package\\outside before extraction",
+      "M110-OS1 immutable image inputs rejects untrusted archive path /absolute before extraction",
+      "M110-OS1 immutable image inputs refuses an archive symlink without writing an earlier valid member",
+      "M110-OS1 immutable image inputs refuses an ambiguous archive directory package//outside before filesystem access",
+      "M110-OS1 immutable image inputs refuses an ambiguous archive directory package/C:/outside before filesystem access",
+      "M110-OS1 immutable image inputs refuses an ambiguous archive directory package/C:outside before filesystem access",
+      "M110-OS1 immutable image inputs refuses an ambiguous archive directory package/.. /outside before filesystem access",
+      "M110-OS1 immutable image inputs refuses an ambiguous archive directory package/../outside before filesystem access",
+      "M110-OS1 immutable image inputs refuses an ambiguous archive directory package/folder\nother before filesystem access"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 archive exceeds expansion limit\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": ["M110-OS1 immutable image inputs bounds archive bytes before installing input"],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 unexpected archive member: \" + relative)",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs rejects untrusted archive path package/key before extraction"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 binding SHA-256 mismatch\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the binding input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 input exceeds download limit\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs bounds download bytes before installing input"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "raise ValueError(\"OS1 Node input is not a regular file\")",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the node input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "binding and digest paired",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs rejects incompatible composer arguments for x86-64"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "Pi refuses UEFI ISO",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs rejects incompatible composer arguments for pi4"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "installer never carries persistent var",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the installer input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "failed staging cleanup",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the node input and its staging boundary",
+      "M110-OS1 immutable image inputs validates the package input and its staging boundary",
+      "M110-OS1 immutable image inputs validates the binding input and its staging boundary"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "artifact aliases excluded",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs publishes final artifact bytes and digests without stale self-references or aliases"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "artifact self-reference excluded",
+    "file": "os/build.py",
+    "sourceSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs publishes final artifact bytes and digests without stale self-references or aliases"
+    ],
+    "restoredSha256": "cfb58c66b6f044b0b657170e6719e035ed282d4c385a455f0bf1190269448546"
+  },
+  {
+    "control": "postinst refuses preconfigured node state",
+    "file": "os/mkosi.postinst",
+    "sourceSha256": "476c23ce18493e6febbd57e76b5bfe8e90c36dfccda5ebbc45d7959d9ff82b5b",
+    "exit": 1,
+    "failedTests": ["AssertionError: postinst admitted preconfigured node state"],
+    "restoredSha256": "476c23ce18493e6febbd57e76b5bfe8e90c36dfccda5ebbc45d7959d9ff82b5b"
+  },
+  {
+    "control": "postinst refuses unqualified Muse Code CLI",
+    "file": "os/mkosi.postinst",
+    "sourceSha256": "476c23ce18493e6febbd57e76b5bfe8e90c36dfccda5ebbc45d7959d9ff82b5b",
+    "exit": 1,
+    "failedTests": ["AssertionError: postinst admitted unqualified Muse Code CLI"],
+    "restoredSha256": "476c23ce18493e6febbd57e76b5bfe8e90c36dfccda5ebbc45d7959d9ff82b5b"
+  },
+  {
+    "control": "postinst refuses Chrome before terms consent",
+    "file": "os/mkosi.postinst",
+    "sourceSha256": "476c23ce18493e6febbd57e76b5bfe8e90c36dfccda5ebbc45d7959d9ff82b5b",
+    "exit": 1,
+    "failedTests": ["AssertionError: postinst admitted Chrome before terms consent"],
+    "restoredSha256": "476c23ce18493e6febbd57e76b5bfe8e90c36dfccda5ebbc45d7959d9ff82b5b"
+  },
+  {
+    "control": "Debian base",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.conf guard (Distribution=debian)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "Debian 13",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.conf guard (Release=trixie)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "snapshot pin",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.conf guard (Snapshot=20261005T000000Z)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "source epoch pin",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.conf guard (SourceDateEpoch=1791158400)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "partition seed",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.conf guard (8821992e-4707-4882-96ce-a8b16b671a09)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "artifact digests",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.conf guard (Checksum=yes)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "resolver mount ordering",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/systemd/system/systemd-resolved.service.d/muse-var.conf guard (RequiresMountsFor=/var/tmp)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "verified installer usr",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened initrd-overlay/usr/lib/systemd/system/muse-overlay-usr.service guard (remount,bind,ro)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "initrd vendor dependency",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.initrd.postinst guard (/usr/lib/systemd/system/initrd-root-fs.target.wants)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "root mount points",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/10-root.conf guard (/usr/ /var/ /boot/ /efi/)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "EFI and UKI payloads",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/00-esp.conf guard (CopyFiles=/efi:/)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "usr integrity",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/20-usr-a.conf guard (Verity=data)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "verity pairing",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/21-usr-a-verity.conf guard (VerityMatchKey=usr-a)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "read-only usr",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/20-usr-a.conf guard (ReadOnly=yes)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "persistent var",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/40-var.conf guard (Format=ext4)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "var growth",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/40-var.conf guard (GrowFileSystem=yes)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "separate users",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/sysusers.d/muse-node.conf guard (61101:61101)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "private state",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/tmpfiles.d/muse-node.conf guard (0700 muse-node muse-node)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "non-root service",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/systemd/system/muse-node.service guard (User=muse-node)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "no privilege gain",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/systemd/system/muse-node.service guard (NoNewPrivileges=yes)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "immutable runtime",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/systemd/system/muse-node.service guard (ProtectSystem=strict)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "no implicit listener",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened overlay/usr/lib/systemd/system/muse-node.service guard (ExecStart=)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "Node version",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": ["M110-OS1 immutable image inputs refuses a weakened pins.json guard (24.18.0)"],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "Pi firmware pin",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened pi/manifest.json guard (\"package\": \"raspi-firmware\")"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "equal slots",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/30-usr-b.conf guard (SizeMinBytes=1536M)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "inactive slot admission",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/30-usr-b.conf guard (NoAuto=yes)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "inactive slot empty",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/30-usr-b.conf guard ([Partition])"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "Node digest",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened pins.json guard (55aa7153)"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "Pi kernel pin",
+    "file": "os/check.py",
+    "sourceSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened pi/manifest.json guard (\"package\": \"linux-image-6.18.50+rpt-rpi-v8\")"
+    ],
+    "restoredSha256": "ec2f7a0ca9dbe8ac0d26d298a19f05bb5df6dc2cd98a5007b9edce1d3f05aacf"
+  },
+  {
+    "control": "native fixture refuses wrong UID before host filesystem access",
+    "file": "test/unit/helpers/osBootProbe.mjs",
+    "sourceSha256": "00767e442f917de2ed327289135639c6543b9f34bbf758714e5d4ab134ce24ca",
+    "restoredSha256": "00767e442f917de2ed327289135639c6543b9f34bbf758714e5d4ab134ce24ca",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses to execute the native boot fixture outside the service UID"
+    ]
+  },
+  {
+    "control": "truncated Pi boot partition",
+    "file": "os/pi/compose.py",
+    "sourceSha256": "9a6bb894428ccd9a3419d3d49fd9d324826a912d44d947238a32a7acf1a49180",
+    "restoredSha256": "9a6bb894428ccd9a3419d3d49fd9d324826a912d44d947238a32a7acf1a49180",
+    "exit": 1,
+    "failedTests": ["M110-OS1 immutable image inputs refuses a truncated native Pi boot partition"]
+  },
+  {
+    "control": "None  # DRILL: signature step removed",
+    "file": "os/pi/compose.py",
+    "sourceSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses hostile Pi staging input (bad-signature)"
+    ],
+    "restoredSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0"
+  },
+  {
+    "control": "stack.append(\"..\")  # DRILL: escape admitted",
+    "file": "os/pi/compose.py",
+    "sourceSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a hostile Pi .deb member (symlink-outside) before staging"
+    ],
+    "restoredSha256": "38bf75ec6a85fad9799908457fe122a71e8dcc8441a3f44dc2b6ef43d195a3b0"
+  },
+  {
+    "control": "True,  # DRILL: installer lock removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.profiles/installer.conf guard (KernelCommandLine=systemd.volatile=overlay)",
+      "M110-OS1 immutable image inputs refuses a weakened mkosi.profiles/installer.conf guard (KernelCommandLine=systemd.volatile=overlay\n)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  },
+  {
+    "control": "pass  # DRILL: fingerprint lock removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened pi/manifest.json guard (\"archiveSigningFingerprint\": \"CF8A1AF502A2AA2D763BAE7E82B129927FA3303E\")",
+      "M110-OS1 immutable image inputs refuses hostile Pi staging input (bad-fingerprint)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  },
+  {
+    "control": "if False:  # DRILL: wanted-file admission removed",
+    "file": "os/build.py",
+    "sourceSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs admits only the wanted regular files from an xz archive (link)"
+    ],
+    "restoredSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73"
+  },
+  {
+    "control": "pass  # DRILL: ESP lock removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs refuses a weakened repart/00-esp.conf guard (260M)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  },
+  {
+    "control": "if False:  # DRILL: version lock removed",
+    "file": "os/build.py",
+    "sourceSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs validates the mkosi input and its staging boundary"
+    ],
+    "restoredSha256": "469b75d2327fe19b99700c3d4121cbd3d57e433424968672958514a1a8bece73"
+  },
+  {
+    "control": "pass  # DRILL: index agreement removed",
+    "file": "os/check.py",
+    "sourceSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83",
+    "exit": 1,
+    "failedTests": [
+      "M110-OS1 immutable image inputs checks Pi package pins against the verified index (disagree)",
+      "M110-OS1 immutable image inputs checks Pi package pins against the verified index (missing)",
+      "M110-OS1 immutable image inputs checks Pi package pins against the verified index (ambiguous)"
+    ],
+    "restoredSha256": "08d606a9fdbee14cad57a1ea4eac9012487924af34ef5fc84eedba2f0e4b6a83"
+  }
+]

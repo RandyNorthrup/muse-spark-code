@@ -1,0 +1,183 @@
+{
+  "recipeCommit": "905ad6b30",
+  "testOnly": true,
+  "modelAttempts": 0,
+  "finalMediaReceipts": [
+    {
+      "image": "out/x86-64/muse-node-x86-64-installer.iso",
+      "imageSha256": "24ab27cc800d17d3ca1fe3f963850a2383d2e0cd2aef3aa23ef79b65dfe3fc6b",
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "x86-64",
+      "cpu": "max",
+      "optical": true,
+      "corruptUsr": false,
+      "timeoutSeconds": 300,
+      "timedOut": false,
+      "exit": 0,
+      "markers": {
+        "OS1_READY_OK": true,
+        "OS1_TOOLS_DENIED_OK": true,
+        "data block 0 is corrupted": false
+      },
+      "passed": true,
+      "restoration": null,
+      "vcpus": 2,
+      "consoleLog": "out/qualification/x86-64-optical/console.log"
+    },
+    {
+      "image": "out/x86-64/muse-node-x86-64.raw",
+      "imageSha256": "37455f0766f19a62db87a2bf37cfab956fab6aec2bb9a3b38d9b1c44977bcbd4",
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "x86-64",
+      "cpu": "max",
+      "vcpus": 1,
+      "optical": false,
+      "corruptUsr": false,
+      "timeoutSeconds": 300,
+      "timedOut": false,
+      "exit": 0,
+      "markers": {
+        "OS1_READY_OK": true,
+        "OS1_TOOLS_DENIED_OK": true,
+        "data block 0 is corrupted": false
+      },
+      "passed": true,
+      "restoration": null,
+      "consoleLog": "out/qualification/x86-64-raw/console.log"
+    },
+    {
+      "image": "out/x86-64/muse-node-x86-64.raw",
+      "imageSha256": "37455f0766f19a62db87a2bf37cfab956fab6aec2bb9a3b38d9b1c44977bcbd4",
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "x86-64",
+      "cpu": "max",
+      "vcpus": 1,
+      "optical": false,
+      "corruptUsr": true,
+      "timeoutSeconds": 300,
+      "timedOut": true,
+      "exit": null,
+      "markers": {
+        "OS1_READY_OK": false,
+        "OS1_TOOLS_DENIED_OK": false,
+        "data block 0 is corrupted": true
+      },
+      "passed": true,
+      "restoration": {
+        "beforeSha256": "a595cae176debe7d31ee6a4260b23118e96385e6e85058948a7c941cbbe2037c",
+        "restoredSha256": "a595cae176debe7d31ee6a4260b23118e96385e6e85058948a7c941cbbe2037c"
+      },
+      "consoleLog": "out/qualification/x86-64-raw-corrupt/console.log"
+    },
+    {
+      "image": "out/arm64/muse-node-arm64-installer.iso",
+      "imageSha256": "7240688f22490e22dbdf039e48295daa81bd66e435f0dd73dc41b5cf06351976",
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "arm64",
+      "cpu": "cortex-a72",
+      "vcpus": 2,
+      "optical": true,
+      "corruptUsr": false,
+      "timeoutSeconds": 600,
+      "timedOut": false,
+      "exit": 0,
+      "markers": {
+        "OS1_READY_OK": true,
+        "OS1_TOOLS_DENIED_OK": true,
+        "data block 0 is corrupted": false
+      },
+      "passed": true,
+      "restoration": null,
+      "consoleLog": "out/qualification/arm64-optical/console.log"
+    },
+    {
+      "image": "out/arm64/muse-node-arm64.raw",
+      "imageSha256": "1035010955837bc56891d56d3e4ca15a28ac4980732ce0d9a6cb5e87c28b8fca",
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "arm64",
+      "cpu": "cortex-a72",
+      "vcpus": 2,
+      "optical": false,
+      "corruptUsr": false,
+      "timeoutSeconds": 600,
+      "timedOut": false,
+      "exit": 0,
+      "markers": {
+        "OS1_READY_OK": true,
+        "OS1_TOOLS_DENIED_OK": true,
+        "data block 0 is corrupted": false
+      },
+      "passed": true,
+      "restoration": null,
+      "consoleLog": "out/qualification/arm64-raw/console.log"
+    }
+  ],
+  "priorFailures": [
+    {
+      "image": "out/x86-64/muse-node-x86-64.raw",
+      "imageSha256": "37455f0766f19a62db87a2bf37cfab956fab6aec2bb9a3b38d9b1c44977bcbd4",
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "x86-64",
+      "cpu": "max",
+      "optical": false,
+      "corruptUsr": false,
+      "timeoutSeconds": 300,
+      "timedOut": false,
+      "exit": 0,
+      "markers": {
+        "OS1_READY_OK": false,
+        "OS1_TOOLS_DENIED_OK": false,
+        "data block 0 is corrupted": false
+      },
+      "passed": false,
+      "restoration": null,
+      "capture": "failed-x86-raw-timer",
+      "consoleLog": "out/qualification/failed-x86-raw-timer/console.log"
+    },
+    {
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "arm64",
+      "optical": false,
+      "corruptUsr": false,
+      "timeoutSeconds": 600,
+      "timedOut": true,
+      "exit": null,
+      "markers": {
+        "OS1_READY_OK": false,
+        "OS1_TOOLS_DENIED_OK": false,
+        "data block 0 is corrupted": false
+      },
+      "passed": false,
+      "restoration": null,
+      "capture": "failed-arm64-max",
+      "consoleLog": "out/qualification/failed-arm64-max/console.log"
+    },
+    {
+      "testOnly": true,
+      "acceleration": "TCG",
+      "architecture": "x86-64",
+      "optical": true,
+      "corruptUsr": false,
+      "timeoutSeconds": 300,
+      "timedOut": true,
+      "exit": null,
+      "markers": {
+        "OS1_READY_OK": false,
+        "OS1_TOOLS_DENIED_OK": false,
+        "data block 0 is corrupted": false
+      },
+      "passed": false,
+      "restoration": null,
+      "capture": "failed-x86-optical-preset",
+      "consoleLog": "out/qualification/failed-x86-optical-preset/console.log"
+    }
+  ],
+  "piRecipeCommit": "1a8dfb09e"
+}

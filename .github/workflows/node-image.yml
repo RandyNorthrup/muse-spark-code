@@ -1,0 +1,250 @@
+name: Node image
+
+on:
+  workflow_call:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      [
+        'deploy/container/**',
+        'deploy/compose/**',
+        'deploy/quadlet/**',
+        'scripts/*node-image*.mjs',
+        'test/node-image/**',
+        'test/fixtures/node-image/**',
+        'test/unit/nodeImage*.test.mjs',
+        '.github/workflows/node-image.yml',
+      ]
+  schedule:
+    - cron: '43 5 * * 0'
+
+permissions:
+  contents: read
+
+# Retention must never race staged native images waiting for their index.
+concurrency:
+  group: muse-node-images
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.event_name != 'schedule'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.18.0
+      - run: npm ci --ignore-scripts --no-audit
+      - name: SHA-256 pinned image tools
+        run: |
+          node deploy/container/install-tools.mjs "$RUNNER_TEMP/image-tools"
+          echo "$RUNNER_TEMP/image-tools" >> "$GITHUB_PATH"
+      - name: image guards and container lint
+        run: |
+          hadolint deploy/container/Containerfile
+          actionlint .github/workflows/node-image.yml
+          npx vitest run test/unit/nodeImagePackaging.test.mjs test/unit/nodeImageArchive.test.mjs test/unit/nodeImageRetention.test.mjs --maxWorkers=3 --testTimeout=120000
+      - name: private fixture image (never published or uploaded)
+        run: |
+          node test/node-image/build-fixture.mjs
+          docker buildx build --platform "linux/${{ matrix.arch }}" --file temp/m110-fake-context/Containerfile --tag m110-private-fixture --load temp/m110-fake-context
+      - name: two users, real PTY, clean environment, owner-only state and memory
+        env:
+          M110_TEST_IMAGE: m110-private-fixture
+        run: npx vitest run --config test/node-image/vitest.config.mjs test/node-image/runtime.test.mjs --maxWorkers=3 --testTimeout=120000
+      - name: rootless Podman runs the same fixture suite
+        env:
+          M110_TEST_IMAGE: m110-private-fixture
+        run: |
+          docker save m110-private-fixture -o "$RUNNER_TEMP/fixture.tar"
+          podman load -i "$RUNNER_TEMP/fixture.tar"
+          mkdir "$RUNNER_TEMP/podman-cli"
+          printf '#!/bin/sh\nexec podman "$@"\n' > "$RUNNER_TEMP/podman-cli/docker"
+          chmod 755 "$RUNNER_TEMP/podman-cli/docker"
+          PATH="$RUNNER_TEMP/podman-cli:$PATH" npx vitest run --config test/node-image/vitest.config.mjs test/node-image/runtime.test.mjs --maxWorkers=3 --testTimeout=120000
+
+  build:
+    needs: checks
+    # Only the verified release train builds product; PRs run fakes above.
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    permissions:
+      contents: read
+      actions: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: exact version tag on main
+        run: |
+          test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.18.0
+      - run: npm ci --ignore-scripts --no-audit
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: muse-spark-code-acp
+          path: release
+      - name: pinned image tools
+        run: |
+          node deploy/container/install-tools.mjs "$RUNNER_TEMP/image-tools"
+          echo "$RUNNER_TEMP/image-tools" >> "$GITHUB_PATH"
+      - name: stage the exact released node package
+        run: |
+          mkdir -p dist
+          python3 deploy/container/unpack.py release/muse-spark-code-acp-*.tgz dist/node-runtime
+          node scripts/package-node-image.mjs dist/node-runtime/package dist/node-context
+          test "$(node -p 'require("./dist/node-context/runtime/package.json").version')" = "${GITHUB_REF_NAME#v}"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+        with:
+          version: v0.30.1
+          driver-opts: image=moby/buildkit@sha256:cec9f139f45e93c5c69c60f8b07cfad9f43f4ef6b6a6cd917527fea5ff2e3dea
+      - name: native build with pinned SPDX generator and full provenance
+        run: |
+          docker buildx build --platform "linux/${{ matrix.arch }}" --file dist/node-context/Containerfile \
+            --label "org.opencontainers.image.version=${GITHUB_REF_NAME#v}" --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --sbom=generator=docker/buildkit-syft-scanner@sha256:ae4f3b554449e7e25548e7d8ccc029d17357348e30c6e3df01b92bc93654d6a9 \
+            --provenance=mode=max --output "type=oci,dest=dist/node-${{ matrix.arch }}.tar" dist/node-context
+      - name: original layers, size, config, notices and attestations before registry upload
+        run: |
+          node scripts/check-node-image.mjs "dist/node-${{ matrix.arch }}.tar" "dist/receipt-${{ matrix.arch }}.json"
+          python3 deploy/container/unpack.py "dist/node-${{ matrix.arch }}.tar" dist/node-oci-layout
+          trivy image --input dist/node-oci-layout --scanners vuln --severity CRITICAL --ignore-unfixed --exit-code 1
+      - name: push only the checked OCI bytes with their attestations
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          ref="ghcr.io/randynorthrup/muse-spark-code-node:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${{ matrix.arch }}"
+          printf '%s\n' "$REGISTRY_TOKEN" | docker run --rm -i --read-only --tmpfs /run:rw,nosuid,nodev \
+            --mount "type=bind,src=$PWD/dist/node-${{ matrix.arch }}.tar,dst=/image.tar,readonly" \
+            --mount "type=bind,src=$PWD/deploy/container/push-oci.sh,dst=/push.sh,readonly" \
+            --env "REGISTRY_USER=$GITHUB_ACTOR" --env "DESTINATION=$ref" --entrypoint /bin/sh \
+            quay.io/skopeo/stable@sha256:a585e4a3b8a045baa87c7f1b2f940d6d299ebede85ab3f2419d52d2264eefc93 \
+            -e /push.sh
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: node-receipt-${{ matrix.arch }}
+          path: dist/receipt-${{ matrix.arch }}.json
+          retention-days: 14
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: marketplace
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.18.0
+      - run: npm ci --ignore-scripts --no-audit
+      - run: node deploy/container/install-tools.mjs "$RUNNER_TEMP/image-tools"
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          pattern: node-receipt-*
+          merge-multiple: true
+          path: receipts
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: join checked digests, sign, attest and verify the release identity
+        env:
+          IMAGE: ghcr.io/randynorthrup/muse-spark-code-node
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export PATH="$RUNNER_TEMP/image-tools:$PATH"
+          amd64=$(node -p 'require("./receipts/receipt-amd64.json").digest')
+          arm64=$(node -p 'require("./receipts/receipt-arm64.json").digest')
+          candidate="$IMAGE:build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-index"
+          docker buildx imagetools create --tag "$candidate" "$IMAGE@$amd64" "$IMAGE@$arm64"
+          digest=$(docker buildx imagetools inspect --format '{{json .Manifest}}' "$candidate" | jq -r .digest)
+          export REFERENCE="$IMAGE@$digest"
+          cosign sign --yes "$REFERENCE"
+          for arch in amd64 arm64; do
+            node deploy/container/attestation-predicates.mjs "$arch"
+            cosign attest --yes --type spdxjson --predicate receipts/sbom.json "$REFERENCE"
+            cosign attest --yes --type slsaprovenance --predicate receipts/provenance.json "$REFERENCE"
+          done
+          node --input-type=module -e 'import {verifyReleaseIdentity} from "./scripts/check-node-image.mjs"; verifyReleaseIdentity(process.env.REFERENCE,process.env.GITHUB_REF_NAME)'
+          identity="https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/node-image.yml@refs/tags/$GITHUB_REF_NAME"
+          cosign verify-attestation --certificate-identity "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com --type spdxjson "$REFERENCE" >/dev/null
+          cosign verify-attestation --certificate-identity "$identity" --certificate-oidc-issuer https://token.actions.githubusercontent.com --type slsaprovenance "$REFERENCE" >/dev/null
+          gh api --paginate --slurp '/users/randynorthrup/packages/container/muse-spark-code-node/versions?per_page=100' > "$RUNNER_TEMP/node-channel-versions.json"
+          node --input-type=module -e 'import {assertNodeImageTag} from "./scripts/retain-node-images.mjs"; assertNodeImageTag(process.env.GITHUB_REF_NAME)'
+          channel=''
+          channel_lookup_failed=0
+          channel=$(node --input-type=module -e 'import {readFileSync} from "node:fs"; import {nodeImageChannel} from "./scripts/retain-node-images.mjs"; console.log(nodeImageChannel(process.env.GITHUB_REF_NAME,JSON.parse(readFileSync(process.env.RUNNER_TEMP+"/node-channel-versions.json","utf8")),{file:"docker",args:[]}))') || channel_lookup_failed=1
+          docker buildx imagetools create --tag "$IMAGE:$GITHUB_REF_NAME" "$REFERENCE"
+          if [ "$channel_lookup_failed" = 0 ] && [ -n "$channel" ]; then
+            docker buildx imagetools create --tag "$IMAGE:$channel" "$REFERENCE"
+          fi
+          for tag in "$GITHUB_REF_NAME" ${channel:+"$channel"}; do
+            promoted=$(docker buildx imagetools inspect --format '{{json .Manifest}}' "$IMAGE:$tag" | jq -r .digest)
+            test "$promoted" = "$digest"
+          done
+          if [ "$channel_lookup_failed" != 0 ]; then
+            printf 'node image channel promotion refused; version tag verified\n' >&2
+            exit 1
+          fi
+          printf 'Muse Spark Code Node (Unofficial): %s\n' "$REFERENCE" >> "$GITHUB_STEP_SUMMARY"
+
+  retention:
+    needs: [checks, build, publish]
+    if: always() && (github.event_name == 'schedule' || needs.publish.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24.18.0
+      - run: npm ci --ignore-scripts --no-audit
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: retain complete OCI graphs for ten releases and the current channels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/retain-node-images.mjs

@@ -760,6 +760,32 @@ run in Zed, Emacs (agent-shell), Neovim (CodeCompanion) and JupyterLab
 (Jupyter AI) only against that stand-in, so none of them is yet tried for
 real either.
 
+## Muse Node
+
+Muse Node is Muse Spark Code on your own machine: one home PC holds your
+workspaces and serves them over your home LAN, to a browser on another PC
+and to a terminal UI on the machine itself. The home node is the first
+deliverable (M110a0); the later phases add bare-metal OS images, packs, an
+orchestrator host and team mode.
+
+Today it is groundwork, not a runnable node: the contracts and threat
+model, the service listener library, the passkey libraries, the terminal
+and dashboard surfaces, the TUI design system, and the installer's LAN
+profile with its operator guides. `serve`, `stop`, `lock` and `unlock`
+refuse with `The node feature is unavailable.` until their service binding
+lands; `init`, `status` and `wipe` run. Nothing listens on any network yet.
+
+- [Install on a home PC](docs/node/home.md): native Linux and Docker
+  Desktop on macOS and Windows, firewall rules, wipe and stale-lock
+  recovery.
+- [Serving](docs/node/serve.md): what `serve` will own and what each
+  command refuses today.
+- [The workspace volume and the tool host](docs/node/toolhost.md): what
+  `wipe` destroys and the inert tool-host unit.
+- The LAN installer lives in `deploy/install/`; its proof and the open
+  host runbooks are in
+  [the hosts record](docs/certification/m110a0-hosts.md).
+
 ## MCP connector for other agents (M124)
 
 **In progress: the local phase.** `muse-spark-code-acp mcp` serves Muse
@@ -3195,8 +3221,9 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   page still loading after 15 seconds is read as it stands.
 - **The browser.** Google's Chrome for Testing headless shell, one exact
   version pinned by each extension release (now 156.0.8078.47), on Windows
-  x64, Linux x64 and macOS (Intel and Apple silicon; the Apple silicon build
-  has not yet been run by this project's own checks). The first check asks
+  x64, Linux x64/ARM64 and macOS (Intel and Apple silicon; the Linux ARM64
+  and Apple silicon builds have not yet been run by this project's own
+  browser checks). The first check asks
   before downloading it, about 100 to 120 MB from Google's
   `storage.googleapis.com`, into the extension's own storage; with
   `museSpark.browserCheckRuntime` (machine-scoped) set to `download` it
@@ -3244,6 +3271,7 @@ backend, `mcp__ide__browserCheck` on Muse Code. It costs nothing.
   | Platform    | Archive bytes | Archive SHA-256                                                    |
   | ----------- | ------------- | ------------------------------------------------------------------ |
   | Linux x64   | 125,799,226   | `0d5acc62c3e213f8c87d3c298d66ffcf9a236d12ea4b9f85318bf85dbc279daa` |
+  | Linux ARM64 | 125,696,256   | `955059fa7020d7be85eb503e21339fd4d718f51f5996d3b60633fbf908bda132` |
   | macOS arm64 | 103,927,850   | `2fd1c09a3e1ebde9e69e6aba92f1dd3f21ad247b55d9bf66e39213ff4205436d` |
   | macOS x64   | 109,256,749   | `5e230044c6ac989597f4a4e301a0a710d257e07d6f7754754da2bf62ea3d272c` |
   | Windows x64 | 126,051,683   | `e0af9b23f8051cca4f37ca49cd425e8055701bfc0383c198d67f8d5cc5884249` |
@@ -5921,6 +5949,12 @@ The unbound features include:
 - <a id="estimates"></a>Capacity estimates
 - <a id="the-vault"></a>Credential vault
 
+The M110 base agent toolset layer pins all development tools for amd64 and
+arm64, stages verified artifacts for an offline build, and measures the
+base and separate compiler pack against their budgets. See the
+[toolset build commands and integration limits](deploy/toolset/README.md);
+this layer is groundwork for the node and sandbox editions.
+
 ## Development
 
 The internal B1 confinement build is `npm run build:confine` on Linux.
@@ -6392,6 +6426,30 @@ mode. Resource-tree launchers use its exact kernel start microseconds, parent,
 group and exited state before authorizing process actions; this mode runs
 before any audio or privacy setup. Native tests build and sign the production
 helper in private fixtures, so they work in a clean checkout.
+The home-node service groundwork stays in the lazy `dist/node.js` (75 KiB
+cap). Its HTTPS listener requires an explicitly selected private/loopback
+address, a pinned non-CA certificate and A1's real memory-session verifier;
+unbound privileged routes refuse. HTTP and terminal WebSocket operations use
+the shared method port in every editor, with strict same-origin guards,
+request limits and an action-bound step-up for each physical/maker action.
+Authenticated Stop requires no step-up. This is an internal integration
+library; the runnable home node still awaits the sign-in, certificate,
+controller and deployment bindings and platform receipts listed in
+[the node certification](docs/certification/m110-n-node-service.md#named-listener-handoffs).
+
+The passkey and browser-pairing libraries build separately with
+`npm run build:node-auth`, under unchanged 500/350 KiB server/page caps
+(the page cap includes CSS). Challenges are stateless authenticated tokens,
+so abandoned sign-ins cannot fill an issuance table. Successful proofs alone
+retain one-use nonces until expiry; proof-work limits apply per source.
+Console recovery still requires a fresh setup code, and refused recovery
+preserves healthy sessions. TLS issuance
+publishes the key and certificate together under `node-tls/`; retry after
+a crash discards private uncommitted staging or recovers the same complete
+leaf and fingerprint without overwriting it. Auth audit records distinguish
+`verified` proofs from `allowed` issued access, and record refusal when
+persistence outlasts proof freshness. These libraries still require the
+[A1 integration bindings and platform receipts](docs/certification/m110-a1-passkeys-and-the-pinned-certificate.md#integration-bindings).
 
 The session board and best-of-N implementation loads on its first action
 from `dist/sessionBoard.js`. Paid Auto reviewer execution loads only after
@@ -7029,3 +7087,9 @@ selected-entry switch and Idle hooks read spark-hooks.json. Idle continuation re
 within the task's admission and continuation limits.
 
 Containment-helper compilation uses heavy bootstrap admission, a bounded deadline and output, and whole-tree cancellation before its result is used. CLI and ACP process launches share runtime resource admission, including login and browser openers.
+
+The bundled workflow-skills copy/link installer is shared by editor and node
+adapters. It verifies the complete staged copy against the vendored release
+hashes before publication and preserves user-owned skill folders. Node image
+and first-boot integration remains in progress (see
+[the B0 certification record](docs/certification/m110-b0-base-agent-toolset.md)).

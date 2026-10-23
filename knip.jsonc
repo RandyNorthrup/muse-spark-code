@@ -217,6 +217,12 @@
     // The Models & Agents panel's own entry (M95 lane M), required by path.
     "src/webview/models/models.tsx",
     "src/runtime/main.ts",
+    // M110-N's standalone bundle, required only by an explicit node command.
+    "src/runtime/node/main.ts",
+    // M110 A3's node-auth bundles (scripts/build-node-auth.mjs): the service
+    // entry and the pairing page, each an esbuild entry knip does not trace.
+    "src/runtime/node/auth/entry.ts",
+    "src/webview/node/auth/entry.tsx",
     "src/runtime/sharing/sharingEntry.ts",
     // M105 media attachments, the window's media registry and screen
     // recording, each required by path on first use (dist/media.js,
@@ -270,6 +276,9 @@
     // entry keeps knip's graph on the probe's real imports.
     "test/unit/helpers/estimatorZoneProbe.ts",
     "test/unit/**/*.test.{ts,tsx,mjs}",
+    // TD's golden replay, invoked by path; the entry is bundled by it.
+    "test/harness/tui/replay.mjs",
+    "test/harness/tui/replay-entry.ts",
     // Standalone browser checks invoked by path; usageHost is bundled by them.
     "test/harness/usage-check.mjs",
     "test/harness/usage-resource-scenes.mjs",
@@ -314,6 +323,10 @@
     "test/harness/playbook.mjs",
     // M98 local-judge TCP owner/relay fixtures, started by path in the tests.
     "test/unit/helpers/localJudgeRelay.mjs",
+    // M110-C: copied into the private image and executed as its real UID probes.
+    "test/fixtures/node-image/node.mjs",
+    "test/fixtures/node-image/tool-host.mjs",
+    "test/fixtures/node-image/acp.mjs",
     "test/integration/**/*.test.ts",
     // The TypeScript fixture VS Code's language service reads in the code
     // intelligence integration test (M67); main.ts imports the rest.
@@ -652,7 +665,10 @@
   // scripts/sast.mjs, which knip reads as code, not as a binary call.
   // System programs the tests start by name: mkfifo (POSIX coreutils) makes
   // the M80 stuck-output pipe and the pipe M86 refuses to open
-  // (test/unit/writeRecorder.test.ts); both cases skip Windows.
+  // (test/unit/writeRecorder.test.ts); both cases skip Windows. The M110-OS2
+  // update tests start dash (the image's /bin/sh, preferred where present),
+  // flock (util-linux; named skip where absent) and openssl (throwaway
+  // channel keys) by name.
   // M9 uses the installed CMake/strip toolchain for prebuilt native artifacts;
   // cc/c++ compile only the fake-engine and hostile-plugin test fixtures.
   // readelf checks the actual packaged loader search paths in real-engine tests.
@@ -661,6 +677,8 @@
   // (MUSE_LIVE_E2E=1 only, never CI).
   // These are system programs, not npm dependencies.
   "ignoreBinaries": [
+    // The TUI suite probes the real terminfo database for its tier table.
+    "tput",
     "gitleaks",
     "muse",
     "mkfifo",
@@ -669,7 +687,11 @@
     "readelf",
     "cc",
     "^c\\+\\+$",
-    "ssh-keygen"
+    "ssh-keygen",
+    "dash",
+    "flock",
+    "openssl",
+    "gpgv"
   ],
 
   "ignoreExportsUsedInFile": true,

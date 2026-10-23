@@ -1,0 +1,68 @@
+[
+  {
+    "drill": "state-generation",
+    "source": "src/runtime/node/state.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 serializes concurrent updates and rejects stale generation 14ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H15 serializes concurrent updates and rejects stale generation"
+    ],
+    "sha256Before": "dea2542fa8458e769347abfba13c15999ee60895f7d32bd51316f8166d416440",
+    "sha256After": "dea2542fa8458e769347abfba13c15999ee60895f7d32bd51316f8166d416440"
+  },
+  {
+    "drill": "audit-integrity",
+    "source": "src/runtime/node/state.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H15 verifies audit content, ordering and its state head after restart 36ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H15 verifies audit content, ordering and its state head after restart"
+    ],
+    "sha256Before": "dea2542fa8458e769347abfba13c15999ee60895f7d32bd51316f8166d416440",
+    "sha256After": "dea2542fa8458e769347abfba13c15999ee60895f7d32bd51316f8166d416440"
+  },
+  {
+    "drill": "audit-retention",
+    "source": "src/runtime/node/state.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 retains a verified anchor while enforcing audit byte and age caps 19ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H09 retains a verified anchor while enforcing audit byte and age caps"
+    ],
+    "sha256Before": "dea2542fa8458e769347abfba13c15999ee60895f7d32bd51316f8166d416440",
+    "sha256After": "dea2542fa8458e769347abfba13c15999ee60895f7d32bd51316f8166d416440"
+  },
+  {
+    "drill": "private-permissions",
+    "source": "src/runtime/node/privateFiles.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H11 refuses a public state root and symlink state files 15ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H11 refuses a public state root and symlink state files"
+    ],
+    "sha256Before": "da9a5a3489b6eb6bff5058686dbbfc75cc9b0cc14965e9fac485b06293f0766a",
+    "sha256After": "da9a5a3489b6eb6bff5058686dbbfc75cc9b0cc14965e9fac485b06293f0766a"
+  },
+  {
+    "drill": "private-read-bound",
+    "source": "src/runtime/node/privateFiles.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H09 bounds private reads even when a file is larger than its admission size 11ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H09 bounds private reads even when a file is larger than its admission size"
+    ],
+    "sha256Before": "da9a5a3489b6eb6bff5058686dbbfc75cc9b0cc14965e9fac485b06293f0766a",
+    "sha256After": "da9a5a3489b6eb6bff5058686dbbfc75cc9b0cc14965e9fac485b06293f0766a"
+  },
+  {
+    "drill": "private-path",
+    "source": "src/runtime/node/privateFiles.ts",
+    "exitCode": 1,
+    "failedTests": [
+      "\u00d7 H11 refuses a public state root and symlink state files 10ms",
+      "FAIL  test/unit/nodeStateStore.test.ts > M110-N durable state and audit > H11 refuses a public state root and symlink state files"
+    ],
+    "sha256Before": "da9a5a3489b6eb6bff5058686dbbfc75cc9b0cc14965e9fac485b06293f0766a",
+    "sha256After": "da9a5a3489b6eb6bff5058686dbbfc75cc9b0cc14965e9fac485b06293f0766a"
+  }
+]

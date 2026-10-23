@@ -6,8 +6,8 @@
 
 import type { PreparationFailure } from './browserRun'
 
-/** The four pinned runtimes; any other OS or architecture refuses. */
-export type RuntimePlatform = 'win64' | 'linux64' | 'mac-x64' | 'mac-arm64'
+/** The pinned runtimes; any other OS or architecture refuses. */
+export type RuntimePlatform = 'win64' | 'linux64' | 'linux-arm64' | 'mac-x64' | 'mac-arm64'
 
 /** Why a preparation ended without a runtime. */
 export type PreparationReason = PreparationFailure | 'cancelled'

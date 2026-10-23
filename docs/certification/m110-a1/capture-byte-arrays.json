@@ -1,0 +1,31 @@
+{
+  "reconstructedProofsEqual": true,
+  "secretGateFalsePositiveFields": 4,
+  "publicBinaryFields": [
+    {
+      "name": "assertions[0]",
+      "bytes": 37,
+      "sha256": "49a4246b690bd096ce11d2bac6108bb2e5b4d4b6f11b19906bc57c8b520febe5"
+    },
+    {
+      "name": "assertions[1]",
+      "bytes": 37,
+      "sha256": "91182692dfc15674ddb4dec8e763af511ba73e477cb2e6e2bcb9be1481ab46d5"
+    },
+    {
+      "name": "noUv",
+      "bytes": 37,
+      "sha256": "bfed310beb0ac8f66135e4644244f4db9caa21d36ef36f7aeb445e6e1cfda224"
+    },
+    {
+      "name": "sdkAssertion",
+      "bytes": 37,
+      "sha256": "49a4246b690bd096ce11d2bac6108bb2e5b4d4b6f11b19906bc57c8b520febe5"
+    },
+    {
+      "name": "sdkRegistration",
+      "bytes": 164,
+      "sha256": "428672bd54a3058c41414ef8c38861dfc92120fee7e798215eddbc29d2935ad5"
+    }
+  ]
+}

@@ -1,0 +1,3 @@
+[90mLive peek: alpha[39m
+[37m  reading src/webview/node/terminal/Terminal.tsx around the resize observer[39m
+[37m  the unconditional refit feeds the observer its own resize and loops the frame[39m

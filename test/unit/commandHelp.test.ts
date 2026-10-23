@@ -73,7 +73,9 @@ describe('deep command help', () => {
         if (argv.length === 1 && argv[0] === 'report') continue
         count += 1
         const command = parseCommandLine([...argv, '--help'])
-        expect(['help', 'vaultHelp']).toContain(command.command)
+        // The home node answers its own --help through its dispatcher (A3),
+        // like the vault's own screen and the reports command's own usage.
+        expect(['help', 'vaultHelp', 'node']).toContain(command.command)
         if (command.command !== 'help') continue
         const help = formatCommandHelp(EN, 'muse-spark-code-acp', command.route ?? '')
         expect(help, argv.join(' ')).toContain('--help')

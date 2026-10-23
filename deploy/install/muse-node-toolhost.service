@@ -1,0 +1,44 @@
+[Unit]
+Description=Muse Spark Code Node tool host (Unofficial)
+# The tool host bundle ships in a later release; until then this unit stays
+# inert and the node runs without repository tools.
+ConditionPathExists=/opt/muse/dist/nodeToolHost.js
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=muse-tools
+Group=muse-bus
+UMask=0007
+RuntimeDirectory=muse-tools
+RuntimeDirectoryMode=0750
+ExecStartPre=+/usr/bin/install -d -o muse-tools -g muse-tools -m 0700 /run/muse-tools/home
+Environment=HOME=/run/muse-tools/home
+Environment=XDG_CONFIG_HOME=/run/muse-tools/home/config
+Environment=XDG_RUNTIME_DIR=/run/muse-tools/home
+WorkingDirectory=/var/lib/muse-spark-code-node/workspaces
+ExecStart=/usr/bin/node /opt/muse/dist/nodeToolHost.js --socket /run/muse-tools/host.sock --workspace /var/lib/muse-spark-code-node/workspaces
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+# The socket is 0660 muse-tools:muse-bus; the tools home stays 0700 so the
+# node cannot see tool state. Shells need no network beyond the workspace.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+SystemCallArchitectures=native
+ReadWritePaths=/var/lib/muse-spark-code-node/workspaces
+
+[Install]
+WantedBy=multi-user.target

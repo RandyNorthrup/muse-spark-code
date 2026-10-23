@@ -1217,8 +1217,9 @@ for (const file of RULES_FILE_ONLY) {
 // loader, its offer and its types only.
 const BUNDLED_SKILLS_ONLY = [
   'src/host/skills/bundledSkillsEntry.ts',
-  'src/host/skills/bundledSkillsInstall.ts',
+  'src/core/skills/bundledSkillsInstall.ts',
   'src/host/skills/bundledSkillsCommands.ts',
+  'src/core/context/baseAgentToolset.ts',
 ]
 const bundledSkills = inputsOf(BUNDLED_SKILLS)
 for (const file of BUNDLED_SKILLS_ONLY) {
@@ -1491,6 +1492,21 @@ const webviewReview = SHIPPED.filter(
       'src/webview/components/ReviewPane.tsx',
     ),
 )
+// M110-N: ordinary ACP and every editor keep only a checked lazy loader.
+const NODE_SERVICE = { output: 'dist/node.js', metafile: 'dist/meta-acp/node.json' }
+const nodeService = inputsOf(NODE_SERVICE)
+const nodeRequired = ['main', 'state', 'service', 'supervisor', 'keyStore', 'toolHost', 'gitRunner']
+for (const name of nodeRequired) {
+  const input = `src/runtime/node/${name}.ts`
+  if (!nodeService.has(input)) problems.push(`${NODE_SERVICE.output} no longer carries ${input}`)
+}
+for (const bundle of SHIPPED) {
+  if (bundle.output === NODE_SERVICE.output) continue
+  for (const input of inputsOf(bundle).keys()) {
+    if (input !== 'src/runtime/node/bundle.ts' && input.startsWith('src/runtime/node/'))
+      problems.push(`${bundle.output} carries the isolated node service: ${input}`)
+  }
+}
 if (webviewReview.length !== 1) {
   problems.push('exactly one webview graph must carry ReviewPane')
 }
@@ -2107,6 +2123,7 @@ nodeMetafiles.push(
   'dist/meta-acp/acp.json',
   'dist/meta-acp/acpQuestions.json',
   'dist/meta-acp/runtimeQuestions.json',
+  'dist/meta-acp/node.json',
 )
 // INT0170: classic zod stays out of the Node bundles that read zod/mini from
 // dist/validation.js. CONSENT017's paidConsent.ts imported 'zod', and

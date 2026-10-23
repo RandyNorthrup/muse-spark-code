@@ -738,6 +738,132 @@ set|status|clear --provider <id> --admin` stores the separate admin
   domain, team mode on the terms decision, and updates on the owner's
   key ceremony.
 
+### Added
+
+- Added a pinned amd64/arm64 base agent toolset layer with offline builds,
+  verified artifact staging, bundled skill assets, an unprivileged smoke
+  fixture and measured base/compiler-pack budgets. Deployment and native
+  ARM64 qualification remain integration work.
+
+- Added portable default-on first-boot toolset preparation with explicit-off
+  settings preserved, and a verified Chrome for Testing Linux ARM64 pin
+  through the existing runtime store. Native ARM64 execution qualification
+  remains pending.
+
+- Prepared home-node labels, messages and errors in all 14 display languages;
+  this groundwork enables no node command or listener.
+- Home-node contract groundwork (M110a0 lane 0): validated config, state,
+  session, audit and event records with versioned JSON Schemas; 32 scoped
+  file, terminal, git, dashboard, maker and sign-in method contracts; injected
+  authentication, tool-host and clock ports; test-only fakes; the LAN threat
+  model, platform capture checklist and explicit integration bindings.
+  The node service and browser sign-in are not yet available.
+
+- Home-node service listener (M110-N, integration groundwork): explicitly
+  selected LAN/loopback HTTPS with a pinned certificate and full console/TUI
+  fingerprint; strict browser-origin guards, header-only memory authentication,
+  bounded requests and first-frame WebSocket authentication. Shared method
+  dispatch requires A1's verifier and binds every maker action to a fresh,
+  single-use payload proof; authenticated Stop remains available without step-up.
+  Production authentication, issuance and deployment still require their lane
+  bindings and platform receipts.
+
+- Home-node install on a home PC (M110a0 S0): the native Linux installer's
+  LAN profile (checksum plus release-attestation verification, fixed
+  `muse-node`/`muse-tools` users, two systemd units, the node's port
+  only), Docker Desktop guides for macOS and Windows, a production `node`
+  binding whose wipe destroys the key slots, identity, state root and
+  workspace volume together, and the hosts proof record with the open
+  runbooks. Serving still refuses until its binding lands; the full
+  install, attestation success and container runs await their PCs.
+- Home-node operator guides (M110a0 J): `docs/node/` (home, serve,
+  toolhost), README's Muse Node section, the SECURITY and PRIVACY rows,
+  AGENTS.md's layout and rule-8 rows, and the A0 attempt log. The macOS
+  Docker beat was attempted and is blocked: Desktop's backend runs but
+  its socket never appeared.
+
+- Muse Node OS image-side updates (M110 OS2, simulator evidence only): RAUC
+  slot configs for UEFI and Raspberry Pi; a custom Pi tryboot backend with
+  one-shot trials on the controller-first layout (controller FAT 1, boot A/B
+  2/3) that reads the booted slot from binary device-tree integers and only
+  touches the `muse-pi-ctl` controller mount; a trial-only mark-good with a
+  monotonic deadline, `timeout(1)` per-call limits and handled-fallback exit
+  codes; a single-key signed update channel (not TUF, see PLAN §9 OS2-TUF);
+  and a Pi EEPROM/bootloader readiness check that reads upstream
+  `rpi-eeprom-update` status. No image was built or booted; RAUC, QEMU and
+  Pi hardware receipts are still open.
+
+### Fixed
+
+- Offline toolset installation now verifies image-owned manifest pins and
+  installs only their named Debian packages. Failed installer or bundled-skill
+  staging removes the fresh incomplete build context so the command can retry.
+- The bundled workflow-skills installer is shared portable core logic for
+  node and editor adapters. It verifies every staged file against the
+  vendored release before replacing a working copy, and refuses unsafe or
+  case-aliased release paths.
+- Home-node workspace requests ride one runner with a request id and
+  AbortController per kind: a new search aborts its pending Show more page,
+  clearing the results or the query retires it, late or superseded pages are
+  dropped, and Show more is disabled while its page is in flight; invalid
+  UTF-8 on read is a typed `notText` refusal (HTTP 415) and an upload of
+  non-UTF-8 bytes over the open file closes the editor with a clear notice.
+- Home-node workspace "Show more" appends search, Git change and branch pages
+  instead of replacing the visible list; cancel keeps the single-flight lock
+  until the aborted request settles; uploads over the open file reload its
+  buffer and digest and refuse a dirty draft even with the path box cleared;
+  file/Git refusals throw typed listener errors so conflict-class failures map
+  to `conflict` (HTTP 409) instead of `unavailable`; short inspected branch
+  names normalize to the full `refs/heads/` network ref on both sides.
+- OS1 Pi staging now follows the real apt chain (signed InRelease listing
+  index files, pinned Packages index digest, per-.deb stanza Filename,
+  SHA-256 and Size), copies trees through descriptor-anchored handles with
+  absolute link targets refused and missing sources an error, admits `.deb`
+  members incrementally through the shared bounded reader with in-process
+  stdlib zstd decoding, locks the initrd bind-ro enablement line, sizes the
+  Node skip ceiling from the pinned tarball's 5,774 members, and requires
+  the exact mkosi version token with a successful probe.
+- The internal M110 terminal surface now requires freshly focused approval
+  keys after complete request presentation, ignores buffered and pasted
+  decisions, and disables choices when the action and paid terms cannot fit.
+  Terminal escape sequences, setup-time EOF, failed output and numeric chat
+  are handled correctly; socket tests now use real Windows named pipes.
+  The node/TUI launcher and Ink integration remain unshipped.
+- Home-node authentication groundwork uses stateless HMAC challenges, with
+  replay records only after successful passkey proofs. A paced 25-address
+  issuance flood cannot prevent owner sign-in or console-code recovery;
+  proof-work limits and backoff apply per source. Healthy-owner recovery
+  refusal preserves sessions, and expired proofs require verified and denied
+  audit records.
+- Home-node TLS issuance publishes the key and certificate in one atomic
+  commit; retries recover abandoned staging or the unchanged committed pair.
+- Home-node auth audit distinguishes verification from issued access, so a
+  proof that expires during persistence is recorded as refused. Certificate
+  fixtures explicitly request new leaves on OpenSSL/LibreSSL, and the
+  cross-origin regression uses a correctly signed negative proof.
+- Home-node WebSocket upgrades accept the browser's `websocket` Fetch
+  Metadata destination while HTTP requests keep `empty`; both transports
+  continue to reject foreign origins and sites.
+- Home-node attendance uses monotonic time from verification and activity
+  for the 30-minute idle and 12-hour absolute limits. Reverification preserves
+  the absolute limit; future, expired and over-long session metadata is refused.
+- Home-node tool requests preserve empty arguments after a nonempty executable,
+  including through the scripted tool-host contract.
+- The home-node tool-host contract now supplies ordered terminal output and
+  spontaneous exit delivery, bounded buffering and disconnect disposal.
+- Home-node Git contracts require a closed configuration and safe Git policy;
+  network approvals bind the resolved SSH destination and verified host key.
+  Runtime isolation and repository-program canary qualification remain required
+  before the node service is supported.
+
+### Security
+
+- Replaced the single-key OS2 update channel with a real TUF client:
+  threshold roles over unique keys, root rotation under dual thresholds,
+  timestamp/snapshot/targets with expiry and rollback continuity against
+  persisted trusted metadata, SHA-256 bindings, RSA-PSS verification and a
+  2048-bit key floor. No runtime consumes the channel yet.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
@@ -4107,6 +4233,7 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
   before walking the mount hierarchy.
 - Its optional probes preserve missing/null Windows counters as unknown
   and combine Linux DRM and Nvidia readings so the busiest GPU is counted.
+
 - ACP help and argument errors now use one complete localized usage table,
   including the Setup hooks command, so the installed package passes the
   release job's strict English fallback check.
@@ -4125,6 +4252,16 @@ Correction (2026-10-10): Live argument previews did not work for users in this r
   missing-browser-chunk checks accept Windows filesystem error paths.
 - Fake-child plugin dispatch fixtures use drive-qualified plugin paths on
   Windows while retaining native-platform parsing and containment checks.
+- Node OS Pi staging (RVM110OS1, M110-OS1): the composer verifies the signed
+  Raspberry Pi Packages index with `gpgv` against the manifest-pinned
+  fingerprint and index digest, takes each `.deb` SHA-256 from the verified
+  index, and extracts through member admission that never follows symlinks;
+  Pi builds take the archive keyring as `--pi-keyring` with its digest.
+  The policy gate locks the manifest pins and the installer profile's
+  volatile-overlay cmdline, the ESP size (260M) and the Debian repositories;
+  the composer checks the mkosi version pin and reads Node through the
+  bounded xz-capable archive path. The prior certificate text claiming index
+  verification for the recorded media is corrected.
 - Retry after a failed optional panel reloads its complete module graph with
   the conversation and draft saved. Cold menus respect outside dismissal and
   late imports cannot take focus; failed menus accept Escape and return focus

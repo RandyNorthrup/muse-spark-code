@@ -1,0 +1,39 @@
+{
+  "archiveSigningFingerprint": "CF8A1AF502A2AA2D763BAE7E82B129927FA3303E",
+  "releaseDate": "2026-10-08T19:48:32Z",
+  "packagesIndex": "main/binary-arm64/Packages.gz",
+  "packagesIndexSha256": "81158a38dbb347200ac3222c4183d1297b6f7c3bf39cda642355ddd3e66b1b3c",
+  "packagesIndexUrl": "https://archive.raspberrypi.com/debian/dists/trixie/InRelease",
+  "packages": [
+    {
+      "package": "linux-image-6.18.50+rpt-rpi-2712",
+      "version": "1:6.18.50-1+rpt1",
+      "url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux-image-6.18.50+rpt-rpi-2712_6.18.50-1+rpt1_arm64.deb",
+      "sha256": "41a73543781af93f591adddcbf1e2fcc478450784ba2a27be2f07af84ce2bbb6"
+    },
+    {
+      "package": "linux-image-6.18.50+rpt-rpi-v8",
+      "version": "1:6.18.50-1+rpt1",
+      "url": "https://archive.raspberrypi.com/debian/pool/main/l/linux/linux-image-6.18.50+rpt-rpi-v8_6.18.50-1+rpt1_arm64.deb",
+      "sha256": "8d44827fea22875e0f801252bdbc0f541c03144e970caafa3115bf485ff3c4bd"
+    },
+    {
+      "package": "raspi-firmware",
+      "version": "1:1.20260915-1",
+      "url": "https://archive.raspberrypi.com/debian/pool/main/r/raspi-firmware/raspi-firmware_1.20260915-1_all.deb",
+      "sha256": "56b6f8792fb27bcc22f101a5a0d27af637e0d13e85dfc0fde5ff140abc929b0f"
+    }
+  ],
+  "targets": {
+    "pi4": {
+      "kernel": "6.18.50+rpt-rpi-v8",
+      "kernelFile": "kernel8.img",
+      "deviceTree": "bcm2711-rpi-4-b.dtb"
+    },
+    "pi5": {
+      "kernel": "6.18.50+rpt-rpi-2712",
+      "kernelFile": "kernel_2712.img",
+      "deviceTree": "bcm2712-rpi-5-b.dtb"
+    }
+  }
+}

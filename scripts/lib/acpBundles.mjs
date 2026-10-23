@@ -61,6 +61,8 @@ export const ACP_BUNDLES = [
   'estimator.js',
   'estimateActions.js',
   'headless.js',
+  // M110-N: the isolated node runtime, loaded only for explicit node commands.
+  'node.js',
   'sharingRuntime.js',
   // M124 (D106): the MCP connector ships in the ACP package; `mcp` loads it on use.
   'connector.js',

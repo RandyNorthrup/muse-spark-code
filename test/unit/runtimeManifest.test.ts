@@ -48,9 +48,11 @@ describe('the shipped runtime pin (M81 A1)', () => {
       'linux64',
       'mac-x64',
       'mac-arm64',
+      'linux-arm64',
     ])
     const records = Object.entries(manifest?.platforms ?? {})
     for (const [platform, record] of records) {
+      if (record === undefined) throw new Error('Shipped platform pin missing')
       expect(record.url, platform).toBe(
         `https://storage.googleapis.com/chrome-for-testing-public/156.0.8078.47/${platform}/chrome-headless-shell-${platform}.zip`,
       )
@@ -62,6 +64,9 @@ describe('the shipped runtime pin (M81 A1)', () => {
     }
     expect(manifest?.platforms.linux64.archiveSha256).toBe(
       '0d5acc62c3e213f8c87d3c298d66ffcf9a236d12ea4b9f85318bf85dbc279daa',
+    )
+    expect(manifest?.platforms['linux-arm64']?.archiveSha256).toBe(
+      '955059fa7020d7be85eb503e21339fd4d718f51f5996d3b60633fbf908bda132',
     )
   })
 
@@ -101,7 +106,7 @@ describe('the shipped runtime pin (M81 A1)', () => {
     expect(runtimePlatform('darwin', 'x64')).toBe('mac-x64')
     expect(runtimePlatform('darwin', 'arm64')).toBe('mac-arm64')
     expect(runtimePlatform('win32', 'arm64')).toBeUndefined()
-    expect(runtimePlatform('linux', 'arm64')).toBeUndefined()
+    expect(runtimePlatform('linux', 'arm64')).toBe('linux-arm64')
     expect(runtimePlatform('win32', 'ia32')).toBeUndefined()
     expect(runtimePlatform('freebsd', 'x64')).toBeUndefined()
   })

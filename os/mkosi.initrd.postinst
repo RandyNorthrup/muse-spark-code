@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+# mkosi's final initrd hook removes /etc unit enablement. Register this vendor
+# dependency under /usr so that the conditional bind survives that cleanup.
+wants="$BUILDROOT/usr/lib/systemd/system/initrd-root-fs.target.wants"
+mkdir -p "$wants"
+ln -s ../muse-overlay-usr.service "$wants/muse-overlay-usr.service"

@@ -426,6 +426,9 @@ const FONT_INSTALL_ENTRY = 'src/runtime/fonts/fontsEntry.ts'
 const FONT_INSTALL_OUTFILE = 'dist/fontsInstall.js'
 const ACP_ENTRY = 'src/runtime/main.ts'
 const ACP_OUTFILE = 'dist/acp.js'
+// M110-N: isolated runtime mode, loaded only for explicit node commands.
+const NODE_ENTRY = 'src/runtime/node/main.ts'
+const NODE_OUTFILE = 'dist/node.js'
 const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
 const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
@@ -1717,6 +1720,12 @@ const vaultRuntimeOptions = {
   entryPoints: [VAULT_RUNTIME_ENTRY],
   outfile: VAULT_RUNTIME_OUTFILE,
 }
+const nodeOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_ENTRY],
+  outfile: NODE_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2193,6 +2202,7 @@ if (isWatch) {
     esbuild.context(imageResizeWorkerOptions),
     esbuild.context(webviewOptions),
     esbuild.context(fontInstallOptions),
+    esbuild.context(nodeOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2413,6 +2423,7 @@ if (isWatch) {
     ['playbook', () => esbuild.build(playbookOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
+    ['node', () => esbuild.build(nodeOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2428,6 +2439,7 @@ if (isWatch) {
   let playbook
   let runtimeAccounts
   let vaultRuntime
+  let node
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2441,6 +2453,7 @@ if (isWatch) {
       playbook,
       runtimeAccounts,
       vaultRuntime,
+      node,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2499,6 +2512,8 @@ if (isWatch) {
       JSON.stringify(providerListBuild.metafile),
     )
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
+    const { metafile: nodeMetafile } = await node
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'node.json'), JSON.stringify(nodeMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
@@ -2606,4 +2621,5 @@ if (isWatch) {
   reportSize(ACP_OUTFILE)
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
+  reportSize(NODE_OUTFILE)
 }

@@ -1,0 +1,194 @@
+[
+  {
+    "drill": "F-root",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses a workspace root reached through a symlink above that root"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-links",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses leaf/ancestor symlinks and hard-linked files"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-hardlinks",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses leaf/ancestor symlinks and hard-linked files"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-identity-recheck",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 refuses an ancestor swap during a held-file read before returning bytes"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-file-cap",
+    "hazard": "H09",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 rejects oversized files, multibyte writes and uploads before publication"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-upload-digest",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 rejects wrong upload digest and wrong publisher receipt"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-publication-digest",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H10 rejects wrong upload digest and wrong publisher receipt"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "B-params",
+    "hazard": "H10",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > H10 parses params before dispatch and results before use"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-results",
+    "hazard": "H10",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > H10 parses params before dispatch and results before use"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-memory-only",
+    "hazard": "H06",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > H06 uses only the Authorization header with no cookies, persistence, URL token or cache"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-origin",
+    "hazard": "H06",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > H06 refuses noncanonical origin http://node.local"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-stream-cap",
+    "hazard": "H09",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > H09 bounds streamed responses before parsing JSON"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "B-cancelled-result",
+    "hazard": "H08",
+    "file": "src/webview/bridges/nodePort.ts",
+    "suite": "test/unit/nodeBrowserPort.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeBrowserPort.test.ts > M110-U1 memory-only node bridge > refuses a result delivered after cancellation"
+    ],
+    "before": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42",
+    "restored": "b60f76a4be2aeebf8b8d2fbdeaae89f8f31534f9efe4c56db573c5a44fe0df42"
+  },
+  {
+    "drill": "F-scan",
+    "hazard": "H09",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 stops a directory flood before inspecting invalid entries"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-cursors",
+    "hazard": "H09",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > H09 refuses invalid or over-bound cursors before filesystem access"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  },
+  {
+    "drill": "F-utf8",
+    "hazard": "H10",
+    "file": "src/runtime/node/web/files.ts",
+    "suite": "test/unit/nodeFilesPage.test.ts",
+    "exit": 1,
+    "failures": [
+      "test/unit/nodeFilesPage.test.ts > M110-U1 files runtime boundary > refuses unknown workspace, missing file, invalid UTF-8 and cancellation"
+    ],
+    "before": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee",
+    "restored": "6cf18254c8daf26b0bdfbabcce639bc7231c6b25418b389a6c48c058d19d99ee"
+  }
+]
