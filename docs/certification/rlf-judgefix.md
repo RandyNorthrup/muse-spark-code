@@ -202,7 +202,8 @@ back to 4. Re-drill after the devices migration: raw
 ## 9. Gates (final, this worktree)
 
 typecheck 0, prettier 0, eslint 0, check:l10n 0, check:reference 0,
-check:host-api 0 (regenerated: child_process 44→39, util 19→14),
+check:host-api 0 (regenerated twice: child_process 44→39
+judge guards, →38 devices guards; util 19→14),
 check:roadmap 0, check:catches 0, check:usable-reply 0, duplication
 0, cycles 0, deadcode 0, check-bundle-split 0, check-bundle-size 1
 (7 pre-existing OVERs, investigated §8, triaged to release),
@@ -257,6 +258,7 @@ judge suite fails in the related run.
 - b555e8005 fix(devices): exact-money caps, tallies and panel liability
 - 2a83caaf6 fix(devices): guard worker spawns, review the fixed ones
 - e2244e115 fix(judge): report judge legs through the neutral log formatter
+- 28be71ee3 chore(host-api): regenerate after devices spawn guards
 - (records: this file, CHANGELOG entry, PLAN.md M98 status line)
 
 ## 11. logText out of the judge bundles (lead follow-up)
@@ -288,6 +290,11 @@ judgeSources meta, the detector must name exactly
 carries it — the file's own inject-detect-restore idiom, so the
 case proves its own whistle every run. (Proven green in the
 targeted `-t` run; the full suite needs a quiet rig, §12.)
+Swap-covering suites post-rebuild: providers decide/decode +
+SystemOne wire 41/41, hook CLI + serve lifecycle + lint rules
+21/21, wiring assembly + redesign sides 21/21, `vitest related`
+over the 8 touched sources 34 passed / 23 platform-skipped /
+0 failed.
 
 ## 12. Whistleblower verdict: they all fire (lead follow-up)
 
