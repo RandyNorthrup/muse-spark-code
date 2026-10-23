@@ -106,6 +106,7 @@ import {
   type KeyringEntry,
 } from './keyStore'
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import type { GrokProviderAction } from './grokProviderCommands'
 import type { ProvidersDeps } from './providersCommands'
 import { takeCredentials } from './credentialVariables'
 import { keepGitCredentialRoutes } from './gitUserEnvironment'
@@ -398,9 +399,9 @@ function authDeps(): AuthCommandDeps {
   }
 }
 
-async function chatGptDeps() {
-  const bundle = await import('./chatGptProviderCommands')
-  const commands = bundle.runtimeChatGptCommandDeps({
+/** The terminal's shared subscription-command base: store, fetch, file and printing. */
+function terminalSubscriptionBase() {
+  return {
     uiText: UI_TEXT,
     locale: uiLocale(),
     secrets,
@@ -410,21 +411,55 @@ async function chatGptDeps() {
       PROVIDERS_CONFIG_DIR_NAME,
       PROVIDERS_FILE_NAME,
     ),
-    callbackText: () => UI_TEXT.acpChatGpt.callback,
-    openBrowser: (url) => {
+    openBrowser: (url: string) => {
       writeLine(process.stdout, url)
       return Promise.resolve()
     },
-    print: (line) => {
+    print: (line: string) => {
       writeLine(process.stdout, line)
     },
-    printError: (line) => {
+    printError: (line: string) => {
       writeLine(process.stderr, line)
+    },
+  }
+}
+
+async function chatGptDeps() {
+  const bundle = await import('./chatGptProviderCommands')
+  const commands = bundle.runtimeChatGptCommandDeps({
+    ...terminalSubscriptionBase(),
+    callbackText: () => UI_TEXT.acpChatGpt.callback,
+  })
+  return {
+    signIns: bundle.chatGptAuthenticationMethods(() =>
+      Promise.resolve(commands.binding.createHost({ clientId: undefined, scopes: undefined })),
+    ),
+    run: (action: ChatGptProviderAction) => bundle.runChatGptProviderCommand(action, commands),
+  }
+}
+
+async function grokDeps() {
+  const bundle = await import('./grokProviderCommands')
+  const commands = bundle.runtimeGrokCommandDeps({
+    ...terminalSubscriptionBase(),
+    callbackText: () => UI_TEXT.acpGrok.callback,
+    presentDeviceCode: (prompt) => {
+      writeLine(
+        process.stdout,
+        fill(UI_TEXT.acpGrok.code, { url: prompt.verificationUri, code: prompt.userCode }),
+      )
+      return Promise.resolve()
     },
   })
   return {
-    signIns: bundle.chatGptAuthenticationMethods(() => commands.createHost()),
-    run: (action: ChatGptProviderAction) => bundle.runChatGptProviderCommand(action, commands),
+    // The agent lists the same commands the terminal runs; verification
+    // only reads the stored grant, so no client configuration is needed.
+    signIns: bundle.grokAuthenticationMethods(
+      () =>
+        Promise.resolve(commands.binding.createHost({ clientId: undefined, scopes: undefined })),
+      {},
+    ),
+    run: (action: GrokProviderAction) => bundle.runGrokProviderCommand(action, commands),
   }
 }
 
@@ -1099,6 +1134,7 @@ async function serve(
     // "Allow always" lapses for a paid feature started without its flag (M58).
     await runtime.forgetUnflaggedGrants()
     const providerCommands = await chatGptDeps()
+    const grokCommands = await grokDeps()
     const openRouterCommands = await import('./openRouterCommands')
     const openRouterSignIns = openRouterCommands.openRouterAuthenticationMethods(
       await providersDeps(),
@@ -1205,7 +1241,7 @@ async function serve(
         }),
       },
       signIn: signInMethod(options),
-      providerSignIns: [...providerCommands.signIns, ...openRouterSignIns],
+      providerSignIns: [...providerCommands.signIns, ...grokCommands.signIns, ...openRouterSignIns],
       defaultCwd: process.cwd(),
       sharing: {
         commands: acpSharingCommands,
@@ -1918,6 +1954,10 @@ async function main(processResources: ProcessResources): Promise<number> {
     }
     case 'chatGptProvider': {
       const providers = await chatGptDeps()
+      return await providers.run(command.action)
+    }
+    case 'grokProvider': {
+      const providers = await grokDeps()
       return await providers.run(command.action)
     }
     case 'serve': {

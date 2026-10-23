@@ -1376,6 +1376,9 @@ export const EN = {
     // {reason}: this app's own word for what it could not build or read.
     requestNotBuilt:
       'This app could not prepare the ChatGPT plan request ({reason}). Nothing was sent.',
+    grokNoticeTitle: 'You’re Using Your Grok Subscription',
+    grokNoticeDetail:
+      'SuperGrok or X Premium requests share your subscription allowance; they add none.',
   },
   untitledConversation: 'Untitled',
   crashTitle: 'The Panel Hit an Error',
@@ -6048,6 +6051,9 @@ export const EN = {
   signInNotOffered: 'Not offered here.',
   // A sign-in the picker shows disabled: ChatGPT sign-in needs a local window.
   signInRemoteWindow: 'Unavailable in a remote window. Sign in from a local window.',
+  // A sign-in the picker shows disabled: Grok sign-in needs the terminal's device flow there.
+  signInRemoteWindowGrok:
+    'Unavailable in a remote window. Sign in from the terminal on that host: muse-spark-code-acp providers add grok --device.',
   getKey: 'Get a Key',
   enterKey: 'Enter Key…',
   // {provider}: the preset's name.
@@ -6292,6 +6298,95 @@ export const EN = {
     // {reason}: why the providers file could not be saved: invalid or io-error.
     providersFileUnwritable:
       'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
+  },
+  acpGrok: {
+    usage:
+      'Usage: muse-spark-code-acp providers add|remove|status grok [--device] [--client-id <id>] [--scopes <scopes>]',
+    actions: {
+      add: 'Continue With Grok',
+      // The device-code flow for SSH and remote hosts (`providers add grok --device`).
+      'add-device': 'Continue With Grok (Device Code)',
+      remove: 'Remove Grok Sign-In',
+      status: 'Check Grok Sign-In',
+    },
+    notice:
+      'A SuperGrok or X Premium subscription is required. Requests use your subscription allowance. Continue in your browser to sign in.',
+    // The device flow's description: the code and address are shown by the terminal.
+    deviceNotice:
+      'A SuperGrok or X Premium subscription is required. Requests use your subscription allowance. Open the shown address and enter the code to sign in.',
+    alreadyAdded: 'Grok is already added. Remove it before signing in again.',
+    states: {
+      'signed-in': 'Grok is signed in.',
+      expired: 'Grok sign-in has expired; it will refresh on use, or remove it and sign in again.',
+      'signed-out': 'Grok is not signed in.',
+    },
+    callback: 'Grok sign-in is complete. Return to your editor or terminal.',
+    failure: 'Grok sign-in could not be completed. Try again or remove it and sign in again.',
+    // {url}: xAI's verification address; {code}: the user code.
+    code: 'To sign in with Grok, open {url} and enter the code {code}. Waiting for xAI; press Ctrl+C to cancel.',
+    // Said when this app's own xAI client id is not configured: no request goes out.
+    clientIdUnset:
+      "Muse Spark Code's xAI sign-in awaits xAI's registration: xAI has not issued this app a client id. Once it has, set it in the Muse Spark: Grok Client Id setting, or pass --client-id to providers add grok.",
+    // Each sign-in, refresh or catalogue failure says its own cause; none is general.
+    discoveryInvalid:
+      "xAI's sign-in configuration at auth.x.ai was not in the documented form. Try again later.",
+    callbackInvalid: "The browser's answer did not match this Grok sign-in. Try again.",
+    callbackTimeout:
+      'No answer from the browser reached this app in time, so the Grok sign-in stopped. Try again.',
+    stateMismatch: "The browser's answer belonged to a different Grok sign-in attempt. Try again.",
+    tokenAnswerInvalid:
+      "xAI's token answer for this Grok sign-in was not in the documented form. Try again.",
+    idTokenInvalid: "xAI's identity token for this Grok sign-in could not be verified. Try again.",
+    scopeRefused:
+      'xAI granted this Grok sign-in less access than requested. Remove Grok, sign in again and allow the requested access.',
+    originMismatch: 'This app refused to send the Grok sign-in anywhere but https://api.x.ai.',
+    deviceExpired: 'The device code expired before it was approved. Sign in again.',
+    deviceDenied: 'The Grok sign-in was denied at xAI.',
+    // {reason}: xAI's own error code for refusing the device flow.
+    deviceRefused: 'xAI refused the Grok device sign-in ({reason}). Try again.',
+    verificationRefused:
+      "xAI's reply named a sign-in address that cannot be opened safely, so it was refused.",
+    // {reason}: xAI's own refresh error code, such as invalid_grant.
+    signInRefused:
+      'xAI no longer accepts this Grok sign-in ({reason}). Remove Grok and sign in again.',
+    expired: 'xAI granted too little time to finish this request. Sign in again.',
+    grantUnreadable:
+      'The Grok sign-in stored on this computer could not be read. Remove Grok and sign in again.',
+    // {reason}: the HTTP status, or Node's own network codes.
+    requestFailed: 'A request to xAI failed ({reason}). Try again.',
+    storeUnavailable:
+      'This computer’s credential store is unavailable. Sign in from an interactive desktop session with an unlocked credential store; on Linux, start Secret Service first.',
+    // {reason}: the operating system's own code for the failure.
+    lockUnavailable: 'The local sign-in lock could not be opened ({reason}). Try again.',
+    // {reason}: xAI's own error code for refusing the authorize request.
+    authorizeRefused:
+      'xAI refused the Grok sign-in request ({reason}). Try again or remove it and sign in again.',
+    // Another window or process kept the sign-in lock past the wait.
+    lockBusy:
+      'Another window or process is signing in to Grok or refreshing the sign-in. Wait for it to finish and try again.',
+    // The person or the editor ended the wait.
+    cancelled: 'The Grok sign-in was cancelled before it finished.',
+    // Said when the editor or terminal could not show the sign-in address.
+    browserUnavailable:
+      'The sign-in address could not be opened in a browser. Open it yourself, or try again from a desktop session.',
+    // {reason}: the operating system's code, or this app's own word, for the local failure.
+    localFailed: 'A local step of the Grok sign-in failed ({reason}). Try again.',
+    // {reason}: why the providers file could not be read: unparseable or invalid.
+    providersFileUnreadable:
+      'The providers file could not be read ({reason}). Fix or remove it, then try again.',
+    // {reason}: why the providers file could not be saved: invalid or io-error.
+    providersFileUnwritable:
+      'The providers file could not be saved ({reason}). Check that its folder is writable, then try again.',
+    // {reason}: the HTTP status and xAI's own error code.
+    catalogueRefused: "xAI refused the Grok subscription's model list ({reason}).",
+    catalogueUnreadable:
+      "xAI's model list for this Grok subscription was not in the documented form.",
+    catalogueEmpty: 'xAI lists no model this Grok subscription can use in this app.',
+    addedModelsUnlisted:
+      "None of the Grok models added here is in the subscription's current model list. Remove Grok and add it again to choose from the current list.",
+    // {model}: the model reference asked for, as written.
+    modelNotAdded:
+      "{model} is not among the Grok models added here. Choose one from the subscription's list.",
   },
   // D207: each sign-in failure below says its own cause; the general line
   // stays for the callers the merges kept.

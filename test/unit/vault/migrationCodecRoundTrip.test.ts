@@ -38,6 +38,10 @@ describe('provider credential migration codec', () => {
   it('refuses the chatgpt slot, which another codec owns', () => {
     expect(() => providerCredentialMigrationCredential('chatgpt', now)).toThrow(VaultMigrationFault)
   })
+
+  it('refuses the grok slot, which another codec owns', () => {
+    expect(() => providerCredentialMigrationCredential('grok', now)).toThrow(VaultMigrationFault)
+  })
 })
 
 describe('account secret migration codec', () => {

@@ -376,6 +376,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.connectGrok",
+        "title": "%command.connectGrok%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.sharePrompt",
         "title": "%command.sharePrompt.title%",
         "category": "%command.category%"
@@ -1536,6 +1541,12 @@
           "type": "string",
           "default": "",
           "description": "%config.suggestedProvider.description%"
+        },
+        "museSpark.grokClientId": {
+          "type": "string",
+          "default": "",
+          "description": "%config.grokClientId.description%",
+          "scope": "machine"
         },
         "museSpark.modelApiAutoCompaction": {
           "type": "boolean",

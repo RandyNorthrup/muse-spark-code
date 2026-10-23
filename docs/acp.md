@@ -215,6 +215,21 @@ the extension. Fake-server inference now passes; installed-editor and live
 success certification remain open. Copilot requires VS Code and is unavailable
 in the standalone agent.
 
+**Grok subscription sign-in (awaiting xAI's registration):** the agent
+advertises `providers add grok` as a terminal sign-in method, and
+`providers add grok --device` for SSH and remote hosts (it prints a code
+and address instead of opening a browser). Maintenance remains available
+through `providers remove grok` and `providers status grok` in the
+terminal. The OAuth client id travels on the command line
+(`--client-id <id>`, with `--scopes <scopes>` where xAI names
+app-specific scopes); until xAI issues this app a client id, sign-in
+refuses before any request with the registration notice. These use the
+same runtime adapter, OS credential store and process lock as ChatGPT.
+Add prints the SuperGrok/X Premium subscription notice before the
+browser URL and writes only the subscription catalogue's models to the
+user-level providers file. Status makes no network request; Remove
+attempts revocation and clears the local grant and configuration.
+
 Configured API-key and local providers use the same captured codecs and
 pinned request factory as VS Code, reading the user-level `providers.json`
 and origin-bound records from this agent's OS credential store. Mistral's

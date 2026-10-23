@@ -17,14 +17,31 @@ export const BUNDLES = {
 export const SUBSCRIPTION_ONLY = [
   'src/core/providers/subscriptions/chatgpt.ts',
   'src/core/providers/subscriptions/chatgptHostId.ts',
-  'src/core/providers/subscriptions/registry.ts',
   // D207 (2026-10-17): the Copilot adapter's failure rides with the
   // subscription dispatch, like ChatGptSignInError rides in chatgpt.ts. The
   // host adapter reads it through subscriptionsEntry so both bundles share
   // the subscriptions bundle's copy (one `instanceof` across the boundary).
   'src/core/providers/subscriptions/copilotFailure.ts',
-  // The plan catalogue's entry parse, read by the registry beside it.
+  // RLGROKAUTH: the Grok sign-in core, read through subscriptionsEntry like chatgpt.ts.
+  'src/core/providers/subscriptions/grok.ts',
+  // RLGROKAUTH: the OIDC mechanics both subscription sign-ins share.
+  'src/core/providers/subscriptions/oidc.ts',
+]
+// RLGROKAUTH: subscription dispatch and terminal commands, split out of
+// dist/subscriptions.js beside the registry (only files owned by the
+// commands bundle are pinned; shared utilities it also carries stay
+// unlisted, and every bundle reads the sign-in cores through
+// subscriptionsEntry).
+export const SUBSCRIPTION_COMMANDS_ONLY = [
+  'src/core/providers/subscriptions/registry.ts',
   'src/core/providers/subscriptions/chatgptPlanFacts.ts',
+  'src/runtime/subscriptionProviderCommands.ts',
+  'src/runtime/chatGptProviderCommands.ts',
+  'src/runtime/grokProviderCommands.ts',
+  'src/runtime/chatGptHost.ts',
+  'src/runtime/grokHost.ts',
+  'src/runtime/subscriptionCallback.ts',
+  'src/runtime/subscriptionRefreshLock.ts',
 ]
 export const CONFIGURED_TRANSPORT_ONLY = ['authSource.ts', 'providerClient.ts']
 export const SHARED_TRANSPORT_ONLY = ['transport.ts', 'sse.ts', 'ndjson.ts']
@@ -990,6 +1007,15 @@ export const ON_FIRST_USE = [
       'src/host/providers/copilotClient.ts',
     ],
   },
+  // RLGROKAUTH: subscription dispatch and terminal commands (the registry
+  // beside the sign-in flows), split out of dist/subscriptions.js; every
+  // bundle reads the sign-in cores through subscriptionsEntry.
+  {
+    output: 'dist/subscriptionCommands.js',
+    metafile: 'dist/meta/subscriptionCommands.json',
+    use: 'the first subscription action',
+    files: ['src/host/backend/subscriptionCommandsEntry.ts', ...SUBSCRIPTION_COMMANDS_ONLY],
+  },
   // ACTIVATIONROOM: the CLI-backed and workspace command flows (the MCP
   // servers and hooks pickers, the skills flows, the worktree flows, the
   // memory flow and the Plans picker), required on the first of those
@@ -1365,6 +1391,10 @@ export function checkDeferredBundles(inputsOf, metafileOf) {
         (source.startsWith(`${MODEL_API_DIR}/codecs/`) ||
           source.startsWith('src/core/providers/')) &&
         !(bundle === BUNDLES.subscriptions && SUBSCRIPTION_ONLY.includes(source)) &&
+        !(
+          bundle.output === 'dist/subscriptionCommands.js' &&
+          SUBSCRIPTION_COMMANDS_ONLY.includes(source)
+        ) &&
         !(source === 'src/core/providers/configured.ts' && bundle === BUNDLES.configured) &&
         !(
           bundle.output === 'dist/providerPolicy.js' &&
@@ -1530,8 +1560,10 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
   [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
   [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/host/backend/subscriptionCommandsEntry.ts'), 'dist/subscriptionCommands.js'],
   [path.resolve('src/host/backend/configuredProvidersEntry.ts'), 'dist/configuredProviders.js'],
-  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptions.js'],
+  [path.resolve('src/runtime/chatGptProviderCommands.ts'), 'dist/subscriptionCommands.js'],
+  [path.resolve('src/runtime/grokProviderCommands.ts'), 'dist/subscriptionCommands.js'],
   [path.resolve('src/core/media/inspectEntry.ts'), 'dist/media.js'],
   [path.resolve('src/core/questions/deferralEntry.ts'), 'dist/questionNotes.js'],
   [path.resolve('src/host/backend/toolRangeEntry.ts'), 'dist/toolRange.js'],
@@ -1647,12 +1679,14 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|subscriptionCommandsEntry|grokProviderCommands)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (
           args.kind !== 'dynamic-import' &&
-          !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry|runExec)$/.test(args.path)
+          !/(?:providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|runExec)$/.test(
+            args.path,
+          )
         )
           return
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)

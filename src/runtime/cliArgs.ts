@@ -17,6 +17,9 @@ import {
   type AcpBackendKind,
   type AcpPaidFeature,
   CHATGPT_NEW_ACCOUNT_FLAG,
+  GROK_CLIENT_ID_FLAG,
+  GROK_DEVICE_FLAG,
+  GROK_SCOPES_FLAG,
   MILLISECONDS_PER_SECOND,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
@@ -56,6 +59,7 @@ export type UsageCommand =
       readonly out?: string
     }
 import type { ChatGptProviderAction } from './chatGptProviderCommands'
+import type { GrokProviderAction } from './grokProviderCommands'
 import type { GitHubAuthAction } from './authCommands'
 import { questionDeferSeconds } from '../shared/questionDeadline'
 import { parsePlaybookCommand } from './playbook/command'
@@ -167,6 +171,7 @@ export type RuntimeCommand =
       readonly json: boolean
     }
   | { readonly command: 'chatGptProvider'; readonly action: ChatGptProviderAction }
+  | { readonly command: 'grokProvider'; readonly action: GrokProviderAction }
   | {
       readonly command: 'scan-secrets'
       readonly file: string
@@ -245,6 +250,50 @@ export function parseChatGptProviderAction(
     default: {
       return undefined
     }
+  }
+}
+/**
+Exact Grok grammar: only `add` takes flags (`--device`, `--client-id <id>`,
+`--scopes <scopes>`), each at most once, values never empty. A client id is
+a public identifier, not a secret, so it travels on the command line.
+*/
+export function parseGrokProviderAction(argv: readonly string[]): GrokProviderAction | undefined {
+  const [command, action, provider, ...rest] = argv
+  if (command !== 'providers' || provider !== 'grok') return
+  if (action === 'remove' || action === 'status') {
+    return rest.length === 0 ? { action, isDeviceFlow: false } : undefined
+  }
+  if (action !== 'add') return
+  let isDeviceFlow = false
+  let clientId: string | undefined
+  let scopes: string | undefined
+  for (let index = 0; index < rest.length; index++) {
+    const word = rest[index] ?? ''
+    if (word === GROK_DEVICE_FLAG) {
+      if (isDeviceFlow) return
+      isDeviceFlow = true
+      continue
+    }
+    if (word === GROK_CLIENT_ID_FLAG || word === GROK_SCOPES_FLAG) {
+      const value = rest[index + 1] ?? ''
+      if (value === '' || value.startsWith('-')) return
+      if (word === GROK_CLIENT_ID_FLAG) {
+        if (clientId !== undefined) return
+        clientId = value
+      } else {
+        if (scopes !== undefined) return
+        scopes = value
+      }
+      index++
+      continue
+    }
+    return
+  }
+  return {
+    action: 'add',
+    isDeviceFlow,
+    ...(clientId !== undefined && { clientId }),
+    ...(scopes !== undefined && { scopes }),
   }
 }
 /**
@@ -495,6 +544,8 @@ export function parseCommandLine<T>(
       route = flags.filter((word) => !word.startsWith('-')).join(' ')
     else if (argv[0] === 'providers' && argv[2] === 'chatgpt')
       route = `chatGptProvider ${argv[1] ?? 'add'}`
+    else if (argv[0] === 'providers' && argv[2] === 'grok')
+      route = `grokProvider ${argv[1] ?? 'add'}`
     else if (argv[0] === 'exec' && argv[1] === 'legal-scan') route = 'legal'
     else if (argv[0] === 'report' && argv[1] !== undefined) {
       // P2-1: `problem` aliases bare report, so both reach the problem
@@ -601,6 +652,12 @@ export function parseCommandLine<T>(
     return action === undefined
       ? { command: 'invalid', reason: UI_TEXT.acpChatGpt.usage, exitCode: 2 }
       : { command: 'chatGptProvider', action }
+  }
+  if (argv[0] === 'providers' && argv[2] === 'grok') {
+    const action = parseGrokProviderAction(argv)
+    return action === undefined
+      ? { command: 'invalid', reason: UI_TEXT.acpGrok.usage, exitCode: 2 }
+      : { command: 'grokProvider', action }
   }
   if (argv[0] === 'help') {
     if (argv.length === 1) return { command: 'help' }

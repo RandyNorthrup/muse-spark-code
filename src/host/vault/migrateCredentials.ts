@@ -45,6 +45,8 @@ import type { SecretStore } from '../auth/credentialStore'
 import type { Logger } from '../logger'
 import { withMigrationLock, type MigrationMirror } from './migrationShell'
 
+/** The Grok subscription record owns its codec in its own lane; never taken here. */
+const GROK_PROVIDER_ID = 'grok'
 /**
 Never dereferenced or fetched: the private channel compares it for
 equality only, binding journal rows the way a provider origin binds a key.
@@ -66,6 +68,7 @@ export function listMigrationKeys(
 ): string[] {
   const keys: string[] = [SECRET_KEYS.modelApiKey]
   for (const id of providerIds) {
+    if (id === GROK_PROVIDER_ID) continue
     const key = providerSecretKey(id)
     if (!keys.includes(key)) keys.push(key)
   }
@@ -91,6 +94,7 @@ export function buildMigrationCredentials(
 ): MigrationCredential[] {
   const credentials = [modelApiMigrationCredential(now)]
   for (const id of providerIds) {
+    if (id === GROK_PROVIDER_ID) continue
     if (id === CHATGPT_SUBSCRIPTION_PROVIDER_ID) {
       credentials.push(chatgptSubscriptionMigrationCredential(now))
       continue

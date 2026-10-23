@@ -189,6 +189,7 @@ export const GOOEY_MENU = {
 export const COMMAND_IDS = {
   connectChatGpt: 'museSpark.connectChatGpt',
   connectCopilot: 'museSpark.connectCopilot',
+  connectGrok: 'museSpark.connectGrok',
   openInSidebar: 'museSpark.openInSidebar',
   openInNewTab: 'museSpark.openInNewTab',
   openTasks: 'museSpark.openTasks',
@@ -322,13 +323,17 @@ export const CHATGPT_REGISTRATION_SECRET_KEY = 'museSpark.provider.chatgpt.regis
 /** `providers add chatgpt --new-account`: "Use a different ChatGPT account" (a new registration). */
 export const CHATGPT_NEW_ACCOUNT_FLAG = '--new-account'
 export const CHATGPT_GRANT_LOCK_PIPE = 'muse-spark-chatgpt-grant'
+export const GROK_GRANT_LOCK_PIPE = 'muse-spark-grok-grant'
 /**
 POSIX locks use the short platform root /tmp, independent of TMPDIR.
 Each entry names its process and a random suffix. Keep these names short
 for sockaddr_un (103 usable bytes on macOS, 107 on Linux).
 */
 export const CHATGPT_GRANT_LOCK_DIR = 'muse-spark-grant'
+export const GROK_GRANT_LOCK_DIR = 'muse-spark-grok'
 export const CHATGPT_GRANT_LOCK_FILE = 'grant.lock'
+/** The Grok grant's own lock file beside the ChatGPT one. */
+export const GROK_GRANT_LOCK_FILE = 'grok-grant.lock'
 /** Hex characters of the user-identity hash in the lock name. */
 export const CHATGPT_GRANT_LOCK_SCOPE_CHARS = 12
 /** A private per-user folder holds the socket; created mode 0700. */
@@ -336,6 +341,26 @@ export const CHATGPT_GRANT_LOCK_DIR_MODE = 0o700
 /** Group/other permissions must be absent on an existing lock directory. */
 export const NAMED_LOCK_FOREIGN_MODE_MASK = 0o077
 export const CHATGPT_REFRESH_LOCK_RETRY_MS = 100
+/**
+RLGROKAUTH (research `docs/research/providers/xai-grok-oauth.md`, discovery
+fixture `test/fixtures/grok/discovery.json`, both 2026-10-22): the Grok
+subscription sign-in reads this app's own xAI OAuth client id from
+configuration, never another application's. `providers add grok` takes the
+browser flow unless `--device` asks for the RFC 8628 device flow;
+`--client-id` and `--scopes` carry the configuration on the CLI.
+*/
+export const GROK_DEVICE_FLAG = '--device'
+export const GROK_CLIENT_ID_FLAG = '--client-id'
+export const GROK_SCOPES_FLAG = '--scopes'
+/** The scopes asked for while xAI has named no app-specific one: pure OpenID, both in `scopes_supported`. */
+export const GROK_DEFAULT_SCOPES = 'openid offline_access'
+/** RFC 8628's device-code grant, as the discovery document names it. */
+export const GROK_DEVICE_GRANT_TYPE = 'urn:ietf:params:oauth:grant-type:device_code'
+/** RFC 8628 §3.5: poll no faster than the reply's `interval`, 5 s where it names none; `slow_down` adds 5 s. */
+export const GROK_DEVICE_DEFAULT_INTERVAL_S = 5
+export const GROK_DEVICE_SLOW_DOWN_STEP_S = 5
+/** A Grok access token below this remaining life is refreshed before use. */
+export const GROK_TOKEN_MIN_VALIDITY_MS = 30_000
 /**
 POSIX ownership by entry (docs/certification/chatgpt-grant-lock.md, "PLANFIX
 R2"): each contender binds a socket under a random name of this many bytes
@@ -839,6 +864,12 @@ export const SETTING_DEFAULTS = {
   // Display only (the panel offers the preset); a workspace may set it, so
   // it is not machine scoped. Lane W owns the setting's wiring.
   suggestedProvider: '',
+  // Grok subscription sign-in (RLGROKAUTH): this app's own xAI OAuth client
+  // id (`museSpark.grokClientId`), empty until xAI issues one. Machine
+  // scoped, since a repository must not choose the OAuth client; a client
+  // id is a public identifier, not a secret. Sign-in refuses until it is
+  // set, before any request goes out.
+  grokClientId: '',
   // Inline completions (M94, PLAN.md D73): the paid feature's own setting,
   // on by default (owner, 2026-10-04). The first request waits for D48's
   // paid-use answer naming the price and daily budget; no dispatch before it.
@@ -981,6 +1012,9 @@ export const MACHINE_SCOPED_SETTINGS = [
   'accounts.severalOnThisDevice',
   // Reading the user's `gh` token is the user's choice (M123, D104 source c).
   'github.useGhLogin',
+  // RLGROKAUTH: the OAuth client id chooses which xAI sign-in
+  // (and whose subscription billing) the account uses (PLAN.md D15).
+  'grokClientId',
   // Tab chooses what runs, what is billed and how much is approved (M94,
   // PLAN.md D73): every Tab setting is machine-scoped, so a workspace's
   // settings cannot change what Tab spends.
