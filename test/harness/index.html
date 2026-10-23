@@ -3039,7 +3039,8 @@
           setDraft('/co')
         },
         models: () => {
-          click('Model')
+          // The pill names the current model too (RLF-A11Y), so it is found by class.
+          whenFound('.pill', (pill) => pill.click())
         },
         // --- M95: the picker grouped by provider, pinned first ---
         'models-byo': () => {
@@ -3075,13 +3076,11 @@
               },
             ],
           })
-          click('Model')
+          whenFound('.pill', (pill) => pill.click())
         },
         'pill-toggle': () => {
-          click('Model')
-          whenFound('.palette', () =>
-            whenFound(`button[aria-label="${shown('Model')}"]`, (model) => model.click()),
-          )
+          whenFound('.pill', (pill) => pill.click())
+          whenFound('.palette', () => whenFound('.pill', (pill) => pill.click()))
         },
         mention: () => {
           textarea().focus()
