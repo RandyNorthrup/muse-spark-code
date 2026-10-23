@@ -3,9 +3,8 @@
 // completed setup answers every route with the done page until its unit
 // stops the server.
 import { createHash, timingSafeEqual } from 'node:crypto'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
-import path from 'node:path'
 import * as z from 'zod/mini'
+import { loadOwnerJson, saveOwnerJson } from '../ownerStore'
 import { setupChoicesSchema, setupNetworkSchema, type SetupChoices } from './schemas'
 import { issueRecoveryKey, normalizeSetupCode } from './setupCode'
 import type { SeedOutcome } from './seed'
@@ -27,6 +26,7 @@ const setupStateSchema = z.strictObject({
 export type SetupState = z.infer<typeof setupStateSchema>
 
 const STATE_FILE = 'setup.json'
+const STATE_LABEL = 'setup state'
 
 /** The code's hash: what the store keeps instead of the code. */
 export function hashSetupCode(code: string): string {
@@ -63,40 +63,14 @@ export function applySeed(state: SetupState, outcome: SeedOutcome): SetupState {
   }
 }
 
-function stateFile(dir: string): string {
-  return path.join(dir, STATE_FILE)
-}
-
 /** Read the state, or null before the first save. A damaged file throws. */
 export function loadSetupState(dir: string): SetupState | null {
-  let text: string
-  try {
-    text = readFileSync(stateFile(dir), 'utf8')
-  } catch (error: unknown) {
-    if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
-      return null
-    }
-    throw new Error('setup state is not readable', { cause: error })
-  }
-  let raw: unknown
-  try {
-    raw = JSON.parse(text)
-  } catch (error: unknown) {
-    throw new Error('setup state is not valid', { cause: error })
-  }
-  const checked = setupStateSchema.safeParse(raw)
-  if (!checked.success) throw new Error('setup state is not valid', { cause: checked.error })
-  return checked.data
+  return loadOwnerJson(dir, STATE_FILE, STATE_LABEL, setupStateSchema)
 }
 
 /** Save the state owner-only. */
 export function saveSetupState(dir: string, state: SetupState): void {
-  try {
-    mkdirSync(dir, { recursive: true, mode: 0o700 })
-    writeFileSync(stateFile(dir), JSON.stringify(state), { mode: 0o600 })
-  } catch (error: unknown) {
-    throw new Error('setup state is not writable', { cause: error })
-  }
+  saveOwnerJson(dir, STATE_FILE, STATE_LABEL, state)
 }
 
 export type AcceptCodeResult =
