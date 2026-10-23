@@ -220,6 +220,9 @@ describe('M117 diagnostic × real surface replacement table', () => {
         // template when dist/estimatePrices.js cannot load; every surface
         // shows that sentence through its own adapter (matrix columns).
         'src/host/estimator/priceCatalogBundle.ts',
+        // The history loader renders the same template when
+        // dist/estimateHistory.js cannot load (M117 C-M117-2).
+        'src/host/estimator/historyBundle.ts',
         'src/host/views/webviewSetup.ts',
       ].toSorted(byText),
     )
