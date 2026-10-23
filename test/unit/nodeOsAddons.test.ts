@@ -160,28 +160,28 @@ describe('check-addon', () => {
       {
         name: 'nvidia',
         mutate: (manifest) => {
-          manifest.bogus = true
+          manifest['bogus'] = true
         },
         anchor: 'unknown field: bogus',
       },
       {
         name: 'wrongdir',
         mutate: (manifest) => {
-          manifest.name = 'nvidia'
+          manifest['name'] = 'nvidia'
         },
         anchor: 'does not match name',
       },
       {
         name: 'nvidia',
         mutate: (manifest) => {
-          manifest.kind = 'deb'
+          manifest['kind'] = 'deb'
         },
         anchor: 'kind must be sysext or confext',
       },
       {
         name: 'nvidia',
         mutate: (manifest) => {
-          manifest.architectures = ['amd64', 'arm64', 'amd64']
+          manifest['architectures'] = ['amd64', 'arm64', 'amd64']
         },
         anchor: 'architectures must be a unique non-empty list',
       },
@@ -189,7 +189,7 @@ describe('check-addon', () => {
         name: 'nvidia',
         mutate: (manifest) => {
           const sources = childOf(manifest, 'sources')
-          delete sources.arm64
+          delete sources['arm64']
         },
         anchor: 'sources must cover exactly the architectures',
       },
@@ -197,7 +197,7 @@ describe('check-addon', () => {
         name: 'nvidia',
         mutate: (manifest) => {
           // eslint-disable-next-line unicorn/prefer-https -- the violation under test: the checker must refuse a non-https terms URL.
-          manifest.terms = 'http://www.nvidia.com/en-us/drivers/nvidia-license/'
+          manifest['terms'] = 'http://www.nvidia.com/en-us/drivers/nvidia-license/'
         },
         anchor: 'terms must be an https URL',
       },
@@ -205,7 +205,7 @@ describe('check-addon', () => {
         name: 'nvidia',
         mutate: (manifest) => {
           const apt = childOf(childOf(childOf(manifest, 'sources'), 'amd64'), 'apt')
-          apt.suite = 'stable'
+          apt['suite'] = 'stable'
         },
         anchor: 'suite and component together',
       },
@@ -213,7 +213,7 @@ describe('check-addon', () => {
         name: 'nvidia',
         mutate: (manifest) => {
           const apt = childOf(childOf(childOf(manifest, 'sources'), 'amd64'), 'apt')
-          apt.packages = ['not a package!']
+          apt['packages'] = ['not a package!']
         },
         anchor: 'apt.packages must be a unique non-empty list',
       },
@@ -221,14 +221,14 @@ describe('check-addon', () => {
         name: 'nvidia',
         mutate: (manifest) => {
           const keyring = childOf(manifest, 'keyring')
-          keyring.fingerprints = 'missing.txt'
+          keyring['fingerprints'] = 'missing.txt'
         },
         anchor: 'fingerprints is not readable',
       },
       {
         name: 'nvidia',
         mutate: (manifest) => {
-          manifest.kernelModules = { open: false, proprietary: false, mokSign: true }
+          manifest['kernelModules'] = { open: false, proprietary: false, mokSign: true }
         },
         anchor: 'at least one of open and proprietary',
       },
@@ -248,7 +248,7 @@ describe('check-addon', () => {
     writeFileSync(pins, 'not-a-fingerprint\n')
     const manifestPath = writeManifest(dir, 'nvidia', (manifest) => {
       const keyring = childOf(manifest, 'keyring')
-      keyring.fingerprints = 'pins.txt'
+      keyring['fingerprints'] = 'pins.txt'
     })
     const badPins = runNode(CHECK_ADDON, ['--manifest', manifestPath])
     expect(badPins.status).toBe(2)
@@ -313,7 +313,7 @@ describe('check-addon', () => {
     const dir = scratch('node-os-addon-level-')
     const manifestPath = writeManifest(dir, 'nvidia', (manifest) => {
       const osRelease = childOf(manifest, 'osRelease')
-      osRelease.sysextLevel = '42'
+      osRelease['sysextLevel'] = '42'
     })
     const tree = writeTree(dir, 'ID=debian\nSYSEXT_LEVEL=42\n', undefined)
     const run = runNode(CHECK_ADDON, ['--manifest', manifestPath, '--tree', tree])
