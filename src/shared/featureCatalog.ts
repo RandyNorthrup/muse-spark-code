@@ -427,6 +427,18 @@ export function featureCatalog(): readonly Feature[] {
       ['vscode', 'acp'],
     ),
     feature(
+      'editor-chat',
+      // Native Muse and BYO rows share recorded price confirmation and M102 accounting.
+      { ui: 'editorChatTitle' },
+      { ui: 'referenceEditorChat' },
+      ['modelsAndAgents'],
+      ['editorChatModels'],
+      'editor-chat',
+      ['museCode', 'modelApi'],
+      true,
+      ['vscode'],
+    ),
+    feature(
       'reports',
       { ui: 'reportShowCommand' },
       { ui: 'reportSlashDescription' },

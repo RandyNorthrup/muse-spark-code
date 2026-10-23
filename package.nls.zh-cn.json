@@ -268,5 +268,6 @@
   "config.reports.keepHistory.description": "在此计算机上保留每种类型最近的 50 份报告，用于历史记录和比较。",
   "config.reports.agentSources.description": "选择读取您自己的 Claude Code 或 Codex 用量和限制文件。默认不启用任何来源。绝不会将会话正文和凭据文件作为报告来源读取。",
   "config.reports.planMaxBytes.description": "报告读取的最大计划文件（字节）。除非您自行设置，否则不限：0（默认值）表示无论多大都读取整个计划，超过设定值的计划将以注明您的限制的 input-size 偏差被拒绝。仅使用本机的设置。",
-  "config.linuxDictationModel.description": "在本地 Linux x64/arm64 上启用免费离线英语听写。首次下载 74 MiB 模型前会询问。关闭将停止听写并删除模型和未完成的下载；再次开启并重新加载窗口即可启用。Windows/macOS 不变。"
+  "config.linuxDictationModel.description": "在本地 Linux x64/arm64 上启用免费离线英语听写。首次下载 74 MiB 模型前会询问。关闭将停止听写并删除模型和未完成的下载；再次开启并重新加载窗口即可启用。Windows/macOS 不变。",
+  "config.editorChatModels.description": "明确提供给编辑器聊天的模型引用。任何已安装的扩展都可通过这些模型使用您的提供商密钥产生费用。默认关闭；需要已知价格或本地模型。请在模型与代理中配置。"
 }

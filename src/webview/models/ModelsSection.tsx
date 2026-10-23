@@ -14,6 +14,9 @@ import { FilterBar } from './components/FilterBar'
 import { ScanStatus } from './components/ScanStatus'
 import type { SectionProps } from './sections'
 import { ContextWindow } from './components/ContextWindow'
+import { deferred } from '../components/DeferredSurface'
+
+const EditorChatToggle = deferred(() => import('./EditorChatToggle'))
 
 function PriceNote({ priceNote }: { readonly priceNote: ModelPriceNote }) {
   switch (priceNote) {
@@ -175,6 +178,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
             >
               {row.label ?? row.modelId}
               <RowBadges row={row} />
+              {row.editorChat !== undefined && <EditorChatToggle row={row} post={post} />}
             </span>,
             row.priceNote === 'local' ? (
               <ContextWindow
@@ -199,34 +203,34 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
             <span key="output">
               <OutputPriceCell row={row} />
             </span>,
-            <input
-              key="offered"
-              type="checkbox"
-              aria-label={fill(UI_TEXT.tickModel, { model: row.ref })}
-              checked={row.ticked}
-              onChange={(event) => {
-                post({
-                  type: 'models/tick',
-                  scope: { scope: 'provider', providerId: row.providerId },
-                  ref: row.ref,
-                  ticked: event.target.checked,
-                })
-              }}
-            />,
-            <input
-              key="pinned"
-              type="checkbox"
-              aria-label={fill(UI_TEXT.pinModel, { model: row.ref })}
-              checked={row.pinned}
-              onChange={(event) => {
-                post({
-                  type: 'models/pin',
-                  providerId: row.providerId,
-                  ref: row.ref,
-                  pinned: event.target.checked,
-                })
-              }}
-            />,
+            ...(['offered', 'pinned'] as const).map((key) => (
+              <input
+                key={key}
+                type="checkbox"
+                aria-label={fill(key === 'offered' ? UI_TEXT.tickModel : UI_TEXT.pinModel, {
+                  model: row.ref,
+                })}
+                checked={key === 'offered' ? row.ticked : row.pinned}
+                disabled={row.providerId === 'meta'}
+                onChange={(event) => {
+                  post(
+                    key === 'offered'
+                      ? {
+                          type: 'models/tick',
+                          scope: { scope: 'provider', providerId: row.providerId },
+                          ref: row.ref,
+                          ticked: event.target.checked,
+                        }
+                      : {
+                          type: 'models/pin',
+                          providerId: row.providerId,
+                          ref: row.ref,
+                          pinned: event.target.checked,
+                        },
+                  )
+                }}
+              />
+            )),
           ],
         }))}
         sortKey={panelState.sort.key}
@@ -235,7 +239,7 @@ export function ModelsSection({ panelState, post, highlightedItem }: SectionProp
         onSort={onSort}
         onRowActivate={(id) => {
           const row = panelState.models.find((candidate) => candidate.ref === id)
-          if (row !== undefined) {
+          if (row !== undefined && row.providerId !== 'meta') {
             post({
               type: 'models/tick',
               scope: { scope: 'provider', providerId: row.providerId },

@@ -683,7 +683,7 @@
     {
       "id": "M95b",
       "title": "ChatGPT and Copilot sign-in",
-      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and compatible editors can use Copilot models, with the plan's own limits instead of a dollar cap, though a successful reply from either real service has not been checked yet.",
+      "summary": "Eligible ChatGPT Plus or Pro accounts sign in through the browser and Copilot models stay usable, with the plan limits instead of a dollar cap; plan models use their own windows and effort, refusals name recovery, and limit windows show in Plan Usage.",
       "area": "models-providers",
       "release": "0.15.0",
       "labels": ["preview"]
@@ -691,7 +691,7 @@
     {
       "id": "M95c",
       "title": "More providers and integrations",
-      "summary": "More providers such as Amazon Bedrock, chosen models offered to the editor's own chat under a daily cap, providers' own paid search, and Tab completions on other providers.",
+      "summary": "More providers such as Amazon Bedrock, native Muse and BYO models in VS Code-family chat with recorded price confirmation, complete cost accounting and a shared daily cap, providers’ own paid search, and Tab completions on other providers.",
       "area": "models-providers"
     },
     {

@@ -25,6 +25,8 @@ export interface ModelsPanelSeam {
   readonly tester: KeyTester
   readonly fetcher: ModelFetcher
   readonly exchanger: CodeExchanger | undefined
+  /** The Hugging Face code exchanger; undefined until the app is registered. */
+  readonly huggingfaceExchanger?: CodeExchanger | undefined
   readonly usage: KeyUsageReader | undefined
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine

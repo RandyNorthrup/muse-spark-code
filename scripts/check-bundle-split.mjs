@@ -1336,6 +1336,11 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
                 (file) => input === `src/core/providers/${file}`,
               )
             ) &&
+            // RLM95B (2026-10-22): the editor-chat provider validates the
+            // editor's model ref with the shared parse, like providerPolicy.
+            // The ref must not fork validation, and the bundle must not wait
+            // on the providers bundle: the tiny module rides along.
+            !(output === 'dist/editorChat.js' && input === 'src/core/providers/modelRef.ts') &&
             !(output === BUNDLES.subscriptions.output && SUBSCRIPTION_ONLY.includes(input)) &&
             !(
               input === 'src/core/providers/configured.ts' && output === BUNDLES.configured.output

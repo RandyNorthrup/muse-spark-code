@@ -27,6 +27,13 @@ const ledgerWith = (root: string, log: Logger) =>
     sleep: () => Promise.resolve(),
     log,
   })
+type TestLedger = ReturnType<typeof ledgerWith>
+const admitTestReservation = async (ledger: TestLedger) => {
+  const admitted = await ledger.admit(Usd.from(1).toAmount(), Usd.from(100).toAmount())
+  expect(admitted.admitted).toBe(true)
+  if (!admitted.admitted) throw new Error('the test admission is admitted')
+  return admitted.reservation
+}
 
 const ownFile = (root: string) => path.join(root, tabLocalDate(Date.now()), 'window1.json')
 
@@ -70,13 +77,24 @@ describe('createTabLedger failure words', () => {
     await usingTempDir('muse-tab-ledger-', async (root) => {
       const { log, warns } = memoryLog()
       const ledger = ledgerWith(root, log)
-      const admitted = await ledger.admit(Usd.from(1).toAmount(), Usd.from(100).toAmount())
-      expect(admitted.admitted).toBe(true)
-      if (!admitted.admitted) return
+      const reservation = await admitTestReservation(ledger)
       rmSync(ownFile(root), { force: true })
       mkdirSync(ownFile(root), { recursive: true })
-      await ledger.settle(admitted.reservation, Usd.from(1).toAmount())
+      await expect(ledger.settle(reservation, Usd.from(1).toAmount())).resolves.toBe(false)
       expect(warns.some((line) => line.includes('keeping its reservation'))).toBe(true)
+    })
+  })
+
+  it('reports a durable settlement as settled', async () => {
+    await usingTempDir('muse-tab-ledger-', async (root) => {
+      const { log } = memoryLog()
+      const ledger = ledgerWith(root, log)
+      const reservation = await admitTestReservation(ledger)
+      await expect(ledger.settle(reservation, Usd.from(0.4).toAmount())).resolves.toBe(true)
+      const total = await ledger.todayUsage()
+      expect(total.ok).toBe(true)
+      if (!total.ok) throw new Error(total.detail)
+      expect(total.totalUsd).toBe(Usd.from(0.4).toAmount())
     })
   })
 })
