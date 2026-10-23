@@ -9,10 +9,10 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 const CODE_ALPHABET = '0123456789ABCDEFGHJKMNPQRSTVWXYZ'
 const CODE_CHARS = 20
 const CODE_GROUP = 5
+const RECOVERY_CHARS = 40
 
-/** Issue a code of 100 bits, grouped for typing: `XXXXX-XXXXX-XXXXX-XXXXX`. */
-export function issueSetupCode(): string {
-  const bytes = randomBytes(CODE_CHARS)
+function issueGroupedCode(chars: number): string {
+  const bytes = randomBytes(chars)
   let flat = ''
   for (const byte of bytes) {
     const char = CODE_ALPHABET[byte % CODE_ALPHABET.length]
@@ -22,6 +22,16 @@ export function issueSetupCode(): string {
   const groups: string[] = []
   for (let at = 0; at < flat.length; at += CODE_GROUP) groups.push(flat.slice(at, at + CODE_GROUP))
   return groups.join('-')
+}
+
+/** Issue a code of 100 bits, grouped for typing: `XXXXX-XXXXX-XXXXX-XXXXX`. */
+export function issueSetupCode(): string {
+  return issueGroupedCode(CODE_CHARS)
+}
+
+/** Issue a disk recovery key of 200 bits, shown once at setup. */
+export function issueRecoveryKey(): string {
+  return issueGroupedCode(RECOVERY_CHARS)
 }
 
 /** Normalize a typed code: case and separators do not matter. */

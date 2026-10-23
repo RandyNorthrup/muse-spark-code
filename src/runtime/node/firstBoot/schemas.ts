@@ -43,10 +43,11 @@ export const setupHostnameSchema = z
   )
 
 /** An install target: a device path, never a relative or escaped one. */
-export const setupDiskTargetSchema = z
-  .string()
-  .check(z.minLength(DISK_TARGET_MIN_LENGTH))
-  .check(z.regex(/^\/dev\/[A-Za-z0-9_./-]+$/))
+export const setupDiskTargetSchema = z.string().check(
+  z.minLength(DISK_TARGET_MIN_LENGTH),
+  z.regex(/^\/dev\/[A-Za-z0-9_./-]+$/),
+  z.refine((target) => !target.includes('..'), 'a disk target never escapes /dev'),
+)
 
 export const setupEncryptionSchema = z.enum(['tpm', 'passphrase', 'none'])
 

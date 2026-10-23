@@ -6448,6 +6448,7 @@
     "summaryTitle": "Übersicht",
     "setupDone": "Die Einrichtung ist abgeschlossen. Das Gerät startet Ihren Node.",
     "setupFailed": "Die Einrichtung konnte nicht abgeschlossen werden: {reason}",
+    "seedRefused": "Die Einrichtungsdateien der Karte wurden nicht verwendet: {reason}",
     "continueButton": "Weiter"
   }
 }

@@ -6616,6 +6616,7 @@
     "summaryTitle": "Riepilogo",
     "setupDone": "Configurazione completata. La macchina sta avviando il tuo nodo.",
     "setupFailed": "Impossibile completare la configurazione: {reason}",
+    "seedRefused": "I file di configurazione della scheda non sono stati usati: {reason}",
     "continueButton": "Continua"
   }
 }

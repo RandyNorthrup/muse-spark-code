@@ -6616,6 +6616,7 @@
     "summaryTitle": "Resumen",
     "setupDone": "La configuración terminó. La máquina está iniciando tu nodo.",
     "setupFailed": "La configuración no pudo terminar: {reason}",
+    "seedRefused": "Los archivos de configuración de la tarjeta no se usaron: {reason}",
     "continueButton": "Continuar"
   }
 }

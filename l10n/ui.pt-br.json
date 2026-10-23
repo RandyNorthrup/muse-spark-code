@@ -6616,6 +6616,7 @@
     "summaryTitle": "Resumo",
     "setupDone": "Configuração concluída. A máquina está iniciando seu nó.",
     "setupFailed": "Não foi possível concluir a configuração: {reason}",
+    "seedRefused": "Os arquivos de configuração do cartão não foram usados: {reason}",
     "continueButton": "Continuar"
   }
 }
