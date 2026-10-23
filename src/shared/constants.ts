@@ -1907,9 +1907,6 @@ export const GIT_OUTPUT_MAX_BYTES = 64 * 1024 * 1024
 export const GIT_TIMEOUT_MS = 15_000
 /** Boolean fsmonitor=false is supported from Git 2.36. */
 export const UNTRUSTED_CHECKOUT_MIN_GIT_MINOR = 36
-// `git worktree add` checks a whole tree out, and `remove` deletes one (M32);
-// a held checkout's listing, index and writes share the same bound (M71).
-export const GIT_WORKTREE_TIMEOUT_MS = 5 * 60 * 1000
 // What a failed git call's error keeps of its stderr (M72's process runner).
 export const GIT_STDERR_MAX_CHARS = 4096
 // Apple's Xcode stub exits with this code while naming xcodebuild when its
