@@ -68,7 +68,7 @@ export interface MachineDriver {
   readonly payloadTerminator?: '\n'
   status(signal: AbortSignal): Promise<MachineStatus>
   /** Resolve transport inputs, then read state; invoke the returned guard
-   * synchronously at the write, including after any transport queue. */
+  synchronously at the write, including after any transport queue. */
   send(payload: string, signal: AbortSignal, beforeWrite: () => Promise<() => void>): Promise<void>
   stop(signal: AbortSignal): Promise<readonly MachineWarning[]>
   cancel(): void
@@ -76,6 +76,17 @@ export interface MachineDriver {
 
 function fingerprint(status: MachineStatus): string {
   return payloadDigest(JSON.stringify(status))
+}
+
+// After a write begins, a transport failure leaves the outcome unknown;
+// only programming errors (never a port or network result) propagate.
+function isDispatchFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    !(error instanceof ReferenceError) &&
+    !(error instanceof SyntaxError) &&
+    !(error instanceof RangeError)
+  )
 }
 
 export function protectMachine(
@@ -117,8 +128,8 @@ export function protectMachine(
     }, deps.policy.requestDeadlineMs)
   }
   const isStopLogged = async (outcome: 'stopped' | 'failed'): Promise<boolean> => {
-    try {
-      await withMakerDeadline(async () => {
+    const [attempt] = await Promise.allSettled([
+      withMakerDeadline(async () => {
         await deps.log.append({
           machine: record.id,
           action: 'stop',
@@ -126,11 +137,9 @@ export function protectMachine(
           approval: null,
           outcome,
         })
-      }, deps.policy.requestDeadlineMs)
-      return true
-    } catch {
-      return false
-    }
+      }, deps.policy.requestDeadlineMs),
+    ])
+    return attempt.status === 'fulfilled'
   }
   return {
     // Return a new copy so a caller cannot change the registration used below.
@@ -282,17 +291,19 @@ export function protectMachine(
               deps.policy.requestDeadlineMs,
             )
           } catch (error) {
-            if (dispatch.didBeginWrite) {
+            if (dispatch.didBeginWrite && isDispatchFailure(error)) {
               dispatchOutcome = 'sentOutcomeUnknown'
               requiresStatusRead = true
               generation += 1
-            } else {
-              if (!(error instanceof MachineError) || error.code !== 'machineStateChanged')
-                throw error
+            } else if (
+              !dispatch.didBeginWrite &&
+              error instanceof MachineError &&
+              error.code === 'machineStateChanged'
+            ) {
               await audit(payload, 'failed', approval)
               approval = null
               continue
-            }
+            } else throw error
           } finally {
             active.delete(controller)
           }
@@ -307,13 +318,12 @@ export function protectMachine(
             if (auditState.isRecorded) return true
             if (auditState.pending !== undefined) return await auditState.pending
             auditState.pending = (async () => {
-              try {
-                await audit(payload, dispatchOutcome, sentApproval)
-                auditState.isRecorded = true
-                return true
-              } catch {
-                return false
-              }
+              const [attempt] = await Promise.allSettled([
+                audit(payload, dispatchOutcome, sentApproval),
+              ])
+              if (attempt.status !== 'fulfilled') return false
+              auditState.isRecorded = true
+              return true
             })()
             try {
               return await auditState.pending
@@ -323,22 +333,20 @@ export function protectMachine(
           }
           const isLogRecorded = (await isAuditRecorded()) || (await isAuditRecorded())
           if (!isLogRecorded) {
-            try {
-              await withMakerDeadline(async () => {
+            // The caller still receives the dispatch outcome and missing audit.
+            await Promise.allSettled([
+              withMakerDeadline(async () => {
                 await deps.host.notify('auditUnrecorded')
-              }, deps.policy.requestDeadlineMs)
-            } catch {
-              /* The caller still receives the dispatch outcome and missing audit. */
-            }
+              }, deps.policy.requestDeadlineMs),
+            ])
           }
           if (dispatchOutcome === 'sentOutcomeUnknown') {
-            try {
-              await withMakerDeadline(async () => {
+            // The result still carries uncertainty when the surface is unavailable.
+            await Promise.allSettled([
+              withMakerDeadline(async () => {
                 await deps.host.notify('sentOutcomeUnknown')
-              }, deps.policy.requestDeadlineMs)
-            } catch {
-              /* The result still carries uncertainty when the surface is unavailable. */
-            }
+              }, deps.policy.requestDeadlineMs),
+            ])
           }
           return {
             outcome:
@@ -351,11 +359,8 @@ export function protectMachine(
         }
         throw new MachineError('machineStateChanged')
       } catch (error) {
-        try {
-          await audit(payload, 'failed', approval)
-        } catch {
-          /* The intent failure already prevents dispatch; preserve the original error. */
-        }
+        // The intent failure already prevents dispatch; preserve the original error.
+        await Promise.allSettled([audit(payload, 'failed', approval)])
         throw error
       } finally {
         isSending = false
@@ -367,8 +372,9 @@ export function protectMachine(
       for (const controller of active) controller.abort()
       try {
         driver.cancel()
-      } catch {
-        /* A broken stream cancellation must not prevent the fixed Stop. */
+      } catch (error) {
+        // A broken stream cancellation must not prevent the fixed Stop.
+        if (!isDispatchFailure(error)) throw error
       }
       let warnings: readonly MachineWarning[]
       try {
@@ -382,13 +388,12 @@ export function protectMachine(
       }
       const isLogRecorded = await isStopLogged('stopped')
       for (const warning of warnings) {
-        try {
-          await withMakerDeadline(async () => {
+        // The caller still receives the warning when its notification surface failed.
+        await Promise.allSettled([
+          withMakerDeadline(async () => {
             await deps.host.notify(warning)
-          }, deps.policy.requestDeadlineMs)
-        } catch {
-          /* The caller still receives the warning when its notification surface failed. */
-        }
+          }, deps.policy.requestDeadlineMs),
+        ])
       }
       return { warnings, logRecorded: isLogRecorded }
     },
