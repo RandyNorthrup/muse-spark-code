@@ -1,5 +1,5 @@
 import * as z from 'zod/mini'
-import { failureForLog } from '../../core/backends/musecode/logText'
+import { errorNameForLog } from '../../core/logging'
 import type { Logger } from '../../host/logger'
 import { handleMcpMessage, mcpRequestKeys, type McpTool } from '../../core/mcp'
 import {
@@ -167,7 +167,7 @@ export async function runJudgeMcp(
           }
         }
       } catch (error: unknown) {
-        log?.warn(`Judge MCP line failed: ${failureForLog(error)}`)
+        log?.warn(`Judge MCP line failed: ${errorNameForLog(error)}`)
         fail(EXEC_EXIT.failed)
       } finally {
         queuedBytes -= size
@@ -203,7 +203,7 @@ export async function runJudgeMcp(
     return code
   } catch (error: unknown) {
     if (!output.hasFailed) throw error
-    log?.warn(`Judge MCP loop failed: ${failureForLog(error)}`)
+    log?.warn(`Judge MCP loop failed: ${errorNameForLog(error)}`)
     return EXEC_EXIT.failed
   } finally {
     output.hasFailed = true

@@ -1,7 +1,7 @@
 import type { Readable } from 'node:stream'
 import type { JudgeRuntime } from '../../core/judge/engine'
 import type { Logger } from '../../host/logger'
-import { failureForLog } from '../../core/backends/musecode/logText'
+import { errorNameForLog } from '../../core/logging'
 import {
   judgeOutcomeSchema,
   judgeRequestSchema,
@@ -275,7 +275,7 @@ export async function runJudgeCommand(
           outcome = await untilAborted(judge(request, signal), signal)
         } catch (error: unknown) {
           if (error instanceof JudgeCliInputError) throw error
-          deps.log?.warn(`Judge request failed: ${failureForLog(error)}`)
+          deps.log?.warn(`Judge request failed: ${errorNameForLog(error)}`)
           outcome = noAnswer(signal.aborted ? 'timeout' : 'engine-failure')
         }
         io.stdout.write(`${JSON.stringify(outcome)}\n`)
@@ -297,7 +297,7 @@ export async function runJudgeCommand(
     }
   } catch (error: unknown) {
     // Fixed localized words only: no private stdin, model error or argv echo.
-    deps.log?.warn(`Judge command failed: ${failureForLog(error)}`)
+    deps.log?.warn(`Judge command failed: ${errorNameForLog(error)}`)
     io.stderr.write(`${signal.aborted ? UI_TEXT.execTimedOut : UI_TEXT.execRequestShape}\n`)
     code = signal.aborted ? EXEC_EXIT.failed : EXEC_EXIT.usage
   } finally {

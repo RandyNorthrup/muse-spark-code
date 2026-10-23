@@ -21,6 +21,16 @@ export function wireWordForLog(value: string): string {
   return WIRE_WORD.test(value) ? value : 'an unrecognized value'
 }
 
+/**
+A failure as the log names it when no protocol says more: the error's name,
+never its message (which can name a path or an account). Callers behind a
+protocol that names failures (MSP, stderr captures) use that protocol's own
+formatter instead.
+*/
+export function errorNameForLog(error: unknown): string {
+  return error instanceof Error ? error.name : 'an unknown failure'
+}
+
 export interface CoreLogger {
   /** The finest detail (M39): shown when the Muse Spark channel's level is Trace. */
   trace(message: string): void
