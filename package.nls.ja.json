@@ -9,6 +9,7 @@
   "command.openInSidebar.title": "サイド バーで開く",
   "command.openInNewTab.title": "新しいタブで開く",
   "command.openTasks.title": "タスクをタブで開く",
+  "command.openDevices.title": "デバイスをタブで開く",
   "command.focusInput.title": "フォーカスの切り替え",
   "command.insertMentionReference.title": "選択範囲の @ メンションを挿入",
   "command.toggleFocusView.title": "フォーカス ビューの切り替え",

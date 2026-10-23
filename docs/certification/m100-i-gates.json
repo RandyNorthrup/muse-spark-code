@@ -1,0 +1,293 @@
+{
+  "rig": "kubuntu",
+  "date": "2026-10-06",
+  "testTimeout": "repository default; only the genuine native TLS stall has a named 15 s timeout",
+  "environment": {
+    "TMPDIR": "/dev/shm/m100i-temp",
+    "CHROME_PATH": "/opt/google/chrome/chrome"
+  },
+  "tests": {
+    "files": 27,
+    "passed": 750,
+    "failed": 0,
+    "receipt": "m100-i-tests.json"
+  },
+  "gates": [
+    {
+      "name": "cycles",
+      "command": ["npm", "run", "cycles"],
+      "exitCode": 0,
+      "seconds": 10.26,
+      "log": "temp/m100/gate-cycles.log"
+    },
+    {
+      "name": "localization",
+      "command": ["npm", "run", "check:l10n"],
+      "exitCode": 0,
+      "seconds": 2.51,
+      "log": "temp/m100/gate-localization.log"
+    },
+    {
+      "name": "reference",
+      "command": ["npm", "run", "check:reference"],
+      "exitCode": 0,
+      "seconds": 0.4,
+      "log": "temp/m100/gate-reference.log"
+    },
+    {
+      "name": "host-api-write",
+      "command": ["npm", "run", "check:host-api", "--", "--write"],
+      "exitCode": 0,
+      "seconds": 17.78,
+      "log": "temp/m100/gate-host-api-write.log"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "seconds": 17.21,
+      "log": "temp/m100/gate-host-api.log"
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "seconds": 5.32,
+      "log": "temp/m100/gate-build.log"
+    },
+    {
+      "name": "vsix",
+      "command": ["npm", "run", "package"],
+      "exitCode": 0,
+      "seconds": 28.18,
+      "log": "temp/m100/gate-vsix.log"
+    },
+    {
+      "name": "acp",
+      "command": ["npm", "run", "package:acp"],
+      "exitCode": 0,
+      "seconds": 9.51,
+      "log": "temp/m100/gate-acp.log"
+    },
+    {
+      "name": "typecheck",
+      "command": ["npm", "run", "typecheck"],
+      "exitCode": 0,
+      "seconds": 80.33,
+      "log": "temp/m100/gate-typecheck.log"
+    }
+  ],
+  "restoredChecks": [
+    {
+      "name": "unit-typecheck",
+      "command": ["npm", "run", "typecheck:unit"],
+      "exitCode": 0,
+      "seconds": 38.7,
+      "log": "temp/m100/restored-unit-typecheck.log"
+    },
+    {
+      "name": "lint",
+      "command": [
+        "npx",
+        "--no-install",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/build.mjs",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/check-host-api.mjs",
+        "scripts/check-host-globals.mjs",
+        "scripts/lib/deferredBundles.mjs",
+        "scripts/lib/webviewBundles.mjs",
+        "scripts/package-acp.mjs",
+        "scripts/package-vsix.mjs",
+        "src/core/devices/pairing.ts",
+        "src/host/devices/deviceMessageHandler.ts",
+        "src/host/devices/devicePairing.ts",
+        "src/shared/constants.ts",
+        "test/unit/DevicesView.test.tsx",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/deviceMessageHandler.test.ts",
+        "test/unit/devicePairingAdapter.test.ts",
+        "test/unit/deviceTransport.test.ts",
+        "test/unit/webviewBundles.test.mjs",
+        "scripts/gen-reference.mjs",
+        "src/core/devices/devicePanel.ts",
+        "src/host/devices/deviceBundle.ts",
+        "src/host/devices/deviceEntry.ts",
+        "src/shared/featureCatalog.ts",
+        "test/unit/deviceBundle.test.ts",
+        "test/unit/deviceIntegration.test.ts",
+        "test/unit/devicePanel.test.ts",
+        "test/unit/featureCatalog.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 20.76,
+      "log": "temp/m100/restored-lint.log"
+    },
+    {
+      "name": "css",
+      "command": [
+        "npx",
+        "--no-install",
+        "stylelint",
+        "src/webview/models/sections/agents/devices.css",
+        "--max-warnings=0"
+      ],
+      "exitCode": 0,
+      "seconds": 1.11,
+      "log": "temp/m100/restored-css.log"
+    },
+    {
+      "name": "format",
+      "command": [
+        "npx",
+        "--no-install",
+        "prettier",
+        "--check",
+        ".github/workflows/build.yml",
+        "CHANGELOG.md",
+        "PLAN.md",
+        "README.md",
+        "SECURITY.md",
+        "docs/PRIVACY.md",
+        "docs/ide-compatibility/host-api.md",
+        "knip.jsonc",
+        "package.json",
+        "scripts/build.mjs",
+        "scripts/check-bundle-size.mjs",
+        "scripts/check-bundle-split.mjs",
+        "scripts/check-host-api.mjs",
+        "scripts/check-host-globals.mjs",
+        "scripts/lib/deferredBundles.mjs",
+        "scripts/lib/webviewBundles.mjs",
+        "scripts/package-acp.mjs",
+        "scripts/package-vsix.mjs",
+        "src/core/devices/pairing.ts",
+        "src/host/devices/deviceMessageHandler.ts",
+        "src/host/devices/devicePairing.ts",
+        "src/shared/constants.ts",
+        "test/unit/DevicesView.test.tsx",
+        "test/unit/bundleSize.test.mjs",
+        "test/unit/deferredBundles.test.ts",
+        "test/unit/deviceMessageHandler.test.ts",
+        "test/unit/devicePairingAdapter.test.ts",
+        "test/unit/deviceTransport.test.ts",
+        "test/unit/webviewBundles.test.mjs",
+        "docs/certification/m100-i-drills.json",
+        "docs/certification/m100.md",
+        "docs/devices-reference.md",
+        "scripts/gen-reference.mjs",
+        "src/core/devices/devicePanel.ts",
+        "src/host/devices/deviceBundle.ts",
+        "src/host/devices/deviceEntry.ts",
+        "src/shared/featureCatalog.ts",
+        "test/unit/deviceBundle.test.ts",
+        "test/unit/deviceIntegration.test.ts",
+        "test/unit/devicePanel.test.ts",
+        "test/unit/featureCatalog.test.mjs"
+      ],
+      "exitCode": 0,
+      "seconds": 10.18,
+      "log": "temp/m100/restored-format.log"
+    },
+    {
+      "name": "host-api",
+      "command": ["npm", "run", "check:host-api"],
+      "exitCode": 0,
+      "seconds": 17.72,
+      "log": "temp/m100/restored-host-api.log"
+    },
+    {
+      "name": "build",
+      "command": ["npm", "run", "build"],
+      "exitCode": 0,
+      "seconds": 5.66,
+      "log": "temp/m100/restored-build.log"
+    },
+    {
+      "name": "keyboard",
+      "command": ["node", "scripts/devices-keyboard.mjs"],
+      "exitCode": 0,
+      "seconds": 9.13,
+      "log": "temp/m100/restored-keyboard.log"
+    },
+    {
+      "name": "a11y-en",
+      "command": [
+        "node",
+        "scripts/a11y.mjs",
+        "devices-off",
+        "devices-pairing",
+        "devices-connected",
+        "devices-incompatible",
+        "devices-waiting",
+        "devices-uncertain-narrow",
+        "devices-blocked-narrow",
+        "devices-paused-narrow",
+        "devices-offline-narrow",
+        "devices-pairing-narrow",
+        "devices-caps-narrow",
+        "devices-unlink-narrow"
+      ],
+      "exitCode": 0,
+      "seconds": 26.59,
+      "log": "temp/m100/restored-a11y-en.log"
+    },
+    {
+      "name": "a11y-pseudo",
+      "command": [
+        "node",
+        "scripts/a11y.mjs",
+        "--lang=pseudo",
+        "devices-off",
+        "devices-pairing",
+        "devices-connected",
+        "devices-incompatible",
+        "devices-waiting",
+        "devices-uncertain-narrow",
+        "devices-blocked-narrow",
+        "devices-paused-narrow",
+        "devices-offline-narrow",
+        "devices-pairing-narrow",
+        "devices-caps-narrow",
+        "devices-unlink-narrow"
+      ],
+      "exitCode": 0,
+      "seconds": 28.06,
+      "log": "temp/m100/restored-a11y-pseudo.log"
+    }
+  ],
+  "otherChecks": [
+    {
+      "command": ["npm", "run", "deadcode"],
+      "exitCode": 0,
+      "notes": "plain knip; two inherited configuration hints, no error"
+    },
+    {
+      "command": ["npm", "run", "duplication"],
+      "exitCode": 0,
+      "notes": "zero clones after shared fixture reuse"
+    },
+    {
+      "command": ["node", "scripts/devices-keyboard.mjs"],
+      "exitCode": 0,
+      "notes": "final positive run after the platform-modifier mutation, four themes; original U artifact restored"
+    },
+    {
+      "command": [
+        "npx",
+        "--no-install",
+        "eslint",
+        "--max-warnings=0",
+        "scripts/devices-keyboard.mjs"
+      ],
+      "exitCode": 0
+    }
+  ],
+  "noLiveCalls": true,
+  "modelAttempts": 0,
+  "noPublish": true,
+  "shipmentQualified": false
+}

@@ -5,14 +5,12 @@ import {
   TASKS_MOVE_TO_WINDOW_COMMAND,
   TASKS_PANEL_VIEW_TYPE,
   UI_TEXT,
-  WEBVIEW_SCRIPT_FILE,
-  WEBVIEW_STYLE_FILE,
 } from '../../shared/constants'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { fill } from '../../shared/l10n/text'
 import { type TasksHostMessage, tasksWebviewMessageSchema } from '../../shared/tasksProtocol'
-import { buildWebviewHtml, createNonce } from '../html'
 import { logRejection } from '../logger'
+import { showAuxWebviewContent } from './auxWebviewPanel'
 import type { TasksTabPort, TasksTabView } from './tasksTabPort'
 import { webviewBundleErrorHtml } from './webviewBundle'
 import { resolveWebviewBundleDir, WebviewBundleError } from './webviewBundleRoot'
@@ -153,23 +151,7 @@ export class TasksPanel implements TasksTabPort, vscode.Disposable {
       this.finishOpen(panel)
       return
     }
-    panel.webview.options = {
-      enableScripts: true,
-      enableCommandUris: false,
-      localResourceRoots: [bundleRoot],
-    }
-    panel.webview.html = buildWebviewHtml({
-      scriptUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_SCRIPT_FILE))
-        .toString(),
-      styleUri: panel.webview
-        .asWebviewUri(vscode.Uri.joinPath(bundleRoot, WEBVIEW_STYLE_FILE))
-        .toString(),
-      cspSource: panel.webview.cspSource,
-      nonce: createNonce(),
-      l10n: this.context.l10n,
-      surface: 'tasks',
-    })
+    showAuxWebviewContent(panel, bundleRoot, this.context.l10n, 'tasks')
     this.finishOpen(panel)
   }
 

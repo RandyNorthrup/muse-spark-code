@@ -54,6 +54,10 @@ const BUDGETS = [
   // off activation; measured 22.88 KiB when split out, +15% rounded up to 27 KiB (PLAN.md D6).
   { path: 'dist/approvalModes.js', budgetKiB: 27 },
   { path: 'dist/extension.js', budgetKiB: 600 },
+  // M100: measured 74.8 KiB + 15%, rounded to the next 25 KiB (D6). Re-measured
+  // with the Windows storage binding (P-I-WINDOWS-STORAGE, its C# shipped
+  // outside the bundle): 100.4 KiB x 1.15 = 115.4, rounded up to 125 (D6).
+  { path: 'dist/devices.js', budgetKiB: 125 },
   // M107: 89.5 / 1.8 KiB measured; +15%, rounded up to 25 KiB.
   { path: 'dist/resourceGovernor.js', budgetKiB: 125 },
   // POSTSPAWN: the governed launcher, split from the governor; 35.6 KiB

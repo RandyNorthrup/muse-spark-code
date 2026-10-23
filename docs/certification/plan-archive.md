@@ -877,3 +877,83 @@ docs/plan-archive/milestones.md`: clean.
 - `npm run check:plan`: `plan-format-v1; 224 milestones; 0 drift`.
 - `npm run roadmap:generate`: `ROADMAP.md` rewritten for the lane's own
   `entries.json` change, not for the archive moves.
+
+## RLM100: room for the M100 landing (2026-10-22)
+
+The M100 first-slice merge put `PLAN.md` at 3,633,473 bytes, 68,315 over
+the `check:plan` gate (85% of the 4 MiB bound, 3,565,158). Twenty-five
+§7 blocks moved to `docs/plan-archive/gates.md` with four summaries (no
+`--allow-fact-change`; §7 parses as no facts). All line numbers are at
+`5d64f91ce`.
+
+| Entry                                                                                                | Lines                                                                                                               | Bytes  |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------ |
+| M95 section-7 gate view (2026-10-04/05, superseded by the section-6 record)                          | 35309–35783                                                                                                         | 49,768 |
+| Candidate-lane gate records (2026-10-10/11), 9 blocks incl. CM971R4 and the verbatim second CM1091A3 | 34829–34836, 34894–34931, 34952–34964, 34966–34973, 34975–34983, 34985–34994, 34996–35008, 35010–35025, 35120–35136 | 9,568  |
+| Finished lane gate records (2026-10-06/11), 9 blocks                                                 | 35027–35035, 35037–35047, 35062–35080, 35140–35148, 35184–35193, 35261–35269, 36367–36373, 36375–36384, 36386–36395 | 6,775  |
+| Closed gate items (LEDGER, MSM9M35, TOOLCAP, FIXM101), 6 blocks                                      | 34840–34862, 36491–36507, 36513, 36528–36535, 36537–36546, 36548–36555                                              | 7,484  |
+
+After: 3,562,273 bytes (84.9%), 2,885 bytes of room; the lane's M100
+status update (~1.4 KiB) fits inside it. Gross moved 73,597 bytes.
+
+What each summary keeps: Move 1 points at the live §6 M95 record and
+keeps W's gates (B-W-host-api deferral, M95-K summary), the STAR
+ledger-format deferral, T-finding 5 (§9) and the lead's full quality.
+Move 2 keeps delivery registration (C-M115-1), the Linux-desktop
+companionMediaBrowser run (PORTM105), the five native-queue failures
+(`m115-cm1152.md`), MSM115-DELIVERY's waits (M113 rows, M115w), the
+lead's OAuth/visual/Windows steps, whatsnew-budget (§6 M115) and the
+windowsTrustedPath deferral. Move 3 notes the test-overhaul deletion
+(m114Panel), the in-main focus-steal fix, D140's Q67 answer and the
+kept RVM94KR3G deferral. Move 4 keeps M101's still-owed full-tree
+quality receipt.
+
+Closed-verdict evidence: LEDGER superseded by D208; MSM9M35 fixed with
+no cap change (deferral closed in the record); TOOLCAP and M101
+compaction shipped in 0.19.0; CM971R4 resolved per §3; the CM1091A3
+copies are byte-identical; Q67 answered by D140; paidHost counts are in
+the refreshed host-API record; the focus-steal fix and test-overhaul
+are ancestors of this head. M100's own §7 records stay (unreleased
+milestone, and this lane's active work); so do the open/deferred items
+(M114PANEL's case excepted), the R10/REDM106L1/FIXM106L2 cluster, the
+CIFIX017W blocker, the M95 capture fragment and every record a live
+branch implicates (below).
+
+Proofs:
+
+- Reassembly: identical to the old `PLAN.md` (SHA-256
+  `ca0aed67ff30da47b06c5ca76fb35c032c6b959bf0602d5351f52f0ee250b650`),
+  parsed facts identical, drift 0 (dry-run and write agree).
+- `npx prettier --check PLAN.md docs/plan-archive/gates.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 222 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` unchanged (no
+  milestone/status change); `npm run check:reference`: current.
+- `plan-archive status`: decisions 125, gates 279 (+25), milestones
+  185 blocks, all intact.
+- Suites at the repository's own timeout: `planReader` +
+  `planCitation` + `autoCompact` (89 passed); `paidMoneyStructure`
+  (45 passed, 1 failed) and `estimatorPlanSnapshotRealPlan` (35
+  passed, 8 failed) fail identically on the pre-move file (same test
+  names; pre-existing, out of scope).
+- Merge proof over the 56 unmerged branches: 15 touch no `PLAN.md`
+  against their merge base (no PLAN conflict possible); 40 merge with
+  byte-identical PLAN conflict sets before and after (0–6 pre-existing
+  hunks each, counted per file from `git merge-tree`). One branch,
+  `release/0.19.0-revnotes`, is excluded: `git cherry` against this
+  head is empty (all its content already merged; Oct-18 head, predates
+  the Oct-21 release), so it is not open work. Had it been live, its
+  LEDGER-adjacent edit would have implicated Move 4's LEDGER range.
+  Ranges the live branches implicate were dropped before the write:
+  CIFIX017W (rec/rlm120's and the M107 branches' insertion anchors
+  there) and the M95INT-r1/KNIPC/DEFLAKE4/DEFLAKE3/FIXM94L0/MRG78/FIXM98J
+  records (rec/rlm96b deletes the same passages itself).
+
+## 2026-10-22: the RLM100 archive at the int/recovery join
+
+int/recovery and RLM100 each archived many of the same §7 records into
+`docs/plan-archive/gates.md` from different commits (int/recovery at
+`c7bdd3e94`, RLM100 at `5d64f91ce`), so a text merge interleaved two sets
+of markers. The joined file is int/recovery's archive plus the 19 RLM100
+blocks whose body hash it did not already hold (260 were byte-identical
+passages already archived), each rendered by `renderBlock` under its own
+heading with `addToArchive`; `archiveProblems` reports none.

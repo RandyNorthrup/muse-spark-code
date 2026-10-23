@@ -26,6 +26,7 @@ export const PRODUCTION_BUILD_SUITES = [
   '/feedbackBrowser.test.mjs',
   '/packagedBundles.test.mjs',
   '/webviewBundleRoot.test.ts',
+  '/devicesPhase2Harness.test.mjs',
 ]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {

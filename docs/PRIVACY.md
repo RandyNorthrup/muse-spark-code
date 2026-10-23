@@ -1,5 +1,18 @@
 # Privacy
 
+Paired Devices remains unshipped and off by default. The installed Devices
+command opens a tab whose code loads only on first use; opening it starts no
+listener and sends nothing anywhere. Public invitations expose
+the certificate/fingerprint and chosen endpoint, never a private key. Local
+pairing state and journals do not sync; secrets stay with the execution host.
+Explicit future delegation would send only its bounded task context to the
+paired peer, without credentials, provider configuration, approval history or
+paid consent. Revocation blocks future communication but cannot erase context
+already received by an offline peer. Same-user processes and administrators
+remain trusted-account risks. Generic software simulators do not establish
+physical hardware support, and remote/headless receivers are refused. See the
+[integration record](certification/m100.md) for the outstanding shipment gates.
+
 Muse Spark Code (Unofficial) is a VS Code extension that sends what you type
 to Meta's Muse Spark model. This page says what leaves your machine, where it
 goes, and what stays local. It is written for the extension's users; the

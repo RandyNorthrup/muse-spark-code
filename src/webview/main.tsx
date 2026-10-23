@@ -12,6 +12,7 @@ import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../shared/constants'
 import type { WebviewToHostMessage } from '../shared/protocol'
 import { App } from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { UnavailableSurface } from './components/DeferredSurface'
 import { DeferredReportDialog } from './components/DeferredReportDialog'
 import { type ErrorReporter, reportWebviewErrorMessage, webviewErrorReport } from './errorReport'
 import { vsCodeHostBridge } from './hostBridge'
@@ -21,6 +22,18 @@ import { installSurfaceRetry, retrySurface } from './surfaceRetry'
 import { restoredUiState } from './state/snapshot'
 import { createUiStore, listenToHost, persistStore, type UiStore } from './state/store'
 import './styles.css'
+
+// The Devices document (its webview state, the QR chunks, the bridge) lives in
+// the lazy Devices chunk: no surface's startup carries any of it.
+const DevicesSurface = lazy(async () => {
+  try {
+    const { DevicesSurface } = await import('./models/sections/agents/DevicesApp')
+    return { default: DevicesSurface }
+  } catch (error: unknown) {
+    vsCodeHostBridge(window).post(webviewErrorReport('promise', error))
+    return { default: DevicesUnavailable }
+  }
+})
 
 const TasksApp = lazy(async () => {
   const { TasksApp } = await import('./TasksApp')
@@ -66,10 +79,37 @@ function CrashReportDialog({
   )
 }
 
-if (document.body.dataset['surface'] === 'tasks') {
+if (document.body.dataset['surface'] === 'devices') {
+  mountDevices(rootElement)
+} else if (document.body.dataset['surface'] === 'tasks') {
   mountTasks(rootElement)
 } else {
   mountChat(rootElement)
+}
+
+function DevicesUnavailable() {
+  return (
+    <main className="body">
+      <UnavailableSurface isModal={false} failed className="gate" />
+    </main>
+  )
+}
+
+function mountDevices(element: Element): void {
+  const api = acquireVsCodeApi()
+  const tableError = installEmbeddedTable(document)
+  if (tableError !== undefined) throw tableError
+  createRoot(element).render(
+    <Suspense
+      fallback={
+        <main>
+          <p role="status">{UI_TEXT.loadingOutput}</p>
+        </main>
+      }
+    >
+      <DevicesSurface api={api} />
+    </Suspense>,
+  )
 }
 
 function mountTasks(element: Element): void {

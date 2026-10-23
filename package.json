@@ -104,6 +104,11 @@
         "category": "%command.category%"
       },
       {
+        "command": "museSpark.openDevices",
+        "title": "%command.openDevices.title%",
+        "category": "%command.category%"
+      },
+      {
         "command": "museSpark.insertMentionReference",
         "title": "%command.insertMentionReference.title%",
         "category": "%command.category%"
@@ -2032,6 +2037,7 @@
     "micromark-extension-gfm": "3.0.0",
     "parse5": "8.0.1",
     "pngjs": "7.0.0",
+    "qrcode-generator": "2.0.4",
     "react-markdown": "10.1.0",
     "remark-gfm": "4.0.1",
     "smol-toml": "1.9.1"

@@ -20,6 +20,30 @@ export function errorLogger(errors: string[]): Logger {
   }
 }
 
+/** A kept message with its level, so a test can say what was said where. */
+export interface LoggedMessage {
+  readonly level: 'trace' | 'info' | 'warn' | 'error'
+  readonly message: string
+}
+
+/** A log that keeps every message with its level, in order. */
+export function levelLogger(logged: LoggedMessage[]): Logger {
+  return {
+    trace: (message: string): void => {
+      logged.push({ level: 'trace', message })
+    },
+    info: (message: string): void => {
+      logged.push({ level: 'info', message })
+    },
+    warn: (message: string): void => {
+      logged.push({ level: 'warn', message })
+    },
+    error: (message: string): void => {
+      logged.push({ level: 'error', message })
+    },
+  }
+}
+
 /** A log that keeps only warnings, so a test can say what was warned. */
 export function warningLogger(warnings: string[]): Logger {
   return {

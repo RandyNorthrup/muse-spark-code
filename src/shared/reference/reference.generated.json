@@ -1405,6 +1405,21 @@
       "editors": ["vscode"]
     },
     {
+      "id": "devices",
+      "name": { "command": "museSpark.openDevices" },
+      "summary": { "ui": "referenceDevices" },
+      "description": { "ui": "referenceDevices" },
+      "commands": ["museSpark.openDevices"],
+      "settings": [],
+      "docs": "https://github.com/RandyNorthrup/muse-spark-code#paired-devices-integration-in-development",
+      "backends": ["museCode", "modelApi"],
+      "paid": false,
+      "surfaces": ["vscode:museCode", "vscode:modelApi"],
+      "details": [],
+      "facts": {},
+      "editors": ["vscode"]
+    },
+    {
       "id": "exports",
       "name": { "ui": "exportJsonItem" },
       "summary": { "tip": "exportJson" },
@@ -2238,6 +2253,16 @@
       "description": "Open this conversation’s task list in a separate editor tab.",
       "text": { "ui": "referenceTasks" },
       "canRun": false
+    },
+    {
+      "id": "museSpark.openDevices",
+      "name": "Open Devices in a Tab",
+      "nameKey": "command.openDevices.title",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Open the Devices tab to link this editor with your other devices.",
+      "text": { "ui": "referenceDevices" },
+      "canRun": true
     },
     {
       "id": "museSpark.insertMentionReference",
@@ -8106,6 +8131,12 @@
       "command": "bestOfN.close",
       "key": "Escape",
       "when": "bestOfN.close",
+      "text": { "ui": "referenceModalKeys" }
+    },
+    {
+      "command": "devices.unlink",
+      "key": "Escape",
+      "when": "devices.unlink",
       "text": { "ui": "referenceModalKeys" }
     }
   ]

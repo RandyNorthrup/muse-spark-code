@@ -584,6 +584,180 @@ happened, not what was planned; superseded entries are kept.
   Synchronize the Git cancellation fixture with child readiness instead of
   copying Node and waiting for a timer.
 
+### Added (M100, to curate)
+
+- Open the Devices tab from the Command Palette (`Muse Spark: Open Devices
+  in a Tab`) to set up paired devices on the local network. The tab loads
+  its code only when opened; invitations render as QR codes with a copyable
+  text fallback. Pairing, discovery, remote execution and per-action
+  approvals stay off until owner binding lands: those actions refuse
+  explicitly with recovery guidance instead of proceeding unchecked.
+  Available in VS Code on a local desktop window; remote (SSH, Tunnels, WSL,
+  container) and web windows refuse with recovery guidance before storing
+  anything.
+
+- Show the phase-2 Devices views (QR with text fallback, discovery details,
+  owners and grants with revoke, step-up prompts, power and pressure, blocked
+  recovery) over the real panel snapshot behind the existing Devices budgets.
+
+- Join the unshipped Devices pairing, pinned TLS channel and durable receiver
+  behind an editor-neutral lazy method port. Its callers must supply actual local
+  storage, execution, approval and snapshot authorities. No installed Devices
+  command, physical adapter or unattended receiver is registered by this change.
+
+- Add the generated Devices help inventory and its stale-reference gate.
+
+- Define the unshipped Devices phase-2 contracts every later lane codes
+  against: versioned channel, capability, grant and result envelopes with
+  byte/queue caps and strict zod parsing, pacing helpers (at most 3 pending
+  handshakes, backoff capped at 10 minutes, one failed authentication stops),
+  owner-bound grants with device-answered step-up, typed refusals and result
+  acknowledgements, plus injected channel/capability/grant/result ports.
+  Phase-2 model guidance rides the declared lazy reader; seven status
+  strings ship in all 14 tables. Bind the SSH-limit rules to gotchas
+  G50–G52 and add the phase-2 threat model with the D101 reconcile note.
+
+- Add the unshipped Devices QR invite, mDNS discovery binding and discovery
+  switch with no new dependencies: a QR invite decodes to the identical text
+  invite, mDNS is off by default and advertises only an opaque service id,
+  port and protocol version, a spoofed record never replaces the saved peer
+  pin, manual entry pairs with discovery fully blocked, and a denied bind
+  answers the fixed Blocked-or-unreachable setup. Discovery choices, live
+  verdicts and asynchronous completions now share one state machine: an older
+  ON cannot undo a blocked verdict, a later OFF wins, failed persistence is
+  reported with a fresh read, and revoked policy settles startup to off.
+
+- Verify the unshipped Devices dispatch inputs against a content-addressed
+  manifest before start, refusing missing or mismatched items and bases, and
+  advertise measured device capabilities with live pressure for placement.
+  No listener or second device is added.
+
+- Run unshipped Devices work on Windows, Linux and macOS worker hosts behind
+  one admission contract: per-process policy on Windows with an explicit
+  recorded environment and structured exit-code-plus-JSON results, systemd
+  unit supervision on Linux, and supervised whole-coalition enforcement on
+  macOS; unenforceable caps refuse before activation. No production wiring
+  or installed host is registered by this change.
+
+- Bind the unshipped Devices pairing store and attempt journal to
+  OS-protected storage, with owner-only ACLs and a bounded storage helper
+  owned by the Devices bundle; without a platform protection the stores
+  refuse to open. No user key material moves.
+
+### Fixed (M100, to curate)
+
+- Settle observed Devices worker capacity exits with their usage and recovery
+  message, release the reservation once, and preserve the failure on reconciliation.
+  Bound macOS Aqua detection to the session line and retry preparation after a
+  transient capacity rejection.
+
+- Refuse a failed Devices worker launch only when its driver proves nothing
+  remains for the attempt; otherwise hold it as uncertain, keeping its occupancy
+  and worker slot, until the driver observes reclamation or local recovery runs.
+
+- Wait for the Devices document's ready handshake before host observations and
+  harness scenes, replaying cached state on reload. Verify owner revocation
+  with a refusal that appears only after revoke; keyboard checks validate
+  readiness separately from permission actions.
+
+- Keep the Devices keyboard gate aligned with the shared localized panel-load
+  failure heading and retry control while retaining missing-asset refusal checks.
+
+- Register the lazy Devices QR budget, skip loading without an encoder and
+  show loading, failure and retry when configured; fit large QR codes to narrow
+  panels while preserving their quiet zone.
+
+- Keep Devices harness setup in correlated replies and bind owner/prompt scenes
+  to their peer. Show throttled cards consistently, retain refusal-only grant
+  replies, and label all six grant quota dimensions with localized units.
+
+- Include the Devices runtime in isolated ACP/VSIX package fixtures so positive
+  archive checks and missing-bundle refusals exercise the complete inventory.
+
+- Keep the real-TLS Devices flood test focused on bounded transport and
+  snapshot work, with memory-backed repeated journal advances and separate
+  durable-storage coverage at the existing deadline.
+
+- Keep Devices failure and retry text in the shared panel shell so its full
+  English prose loads lazily and chat retains its startup review budget.
+
+- Admit the shipped Devices runtime in the recorder's exact package-frame
+  vocabulary while continuing to reject arbitrary frame paths.
+
+- Keep the badge checker's conditional CI-token header within the existing
+  lint rule while preserving its GitHub-only request binding.
+
+- Enforce the unshipped Devices phase-2 contracts from the shared contract
+  alone: the capability schema refuses advertisements past the byte cap,
+  owner/grant/result-ack queue caps ship as callable guards, a grant ceiling
+  check refuses widened grants with typed `scope-denied`, the handshake
+  backoff jitters from an injected source within a stated bound, and result
+  acknowledgements bind to their epoch. The threat model names each threat
+  with its owning lane and planned test.
+
+- Keep the unshipped Devices panel validators in their own shared module so
+  provider/team schemas retain independent lazy bundles within existing caps.
+
+- Coalesce unshipped Devices background snapshots to one running and one pending
+  capture. Data frames retain the channel's capacity backpressure while Stop
+  stays independent; a flood cannot build an unlimited snapshot queue.
+
+- The Devices reset-Stop test awaits cancellation's complete journal writes
+  before removing its fixture, including when an assertion fails.
+
+- Carry Devices view/request correlation through pairing replies and return the
+  imported public invitation for the full fingerprint comparison. Serialize
+  complete snapshots with a host-owned revision that increases across off states
+  and replies; abort drops UI data without cancelling durable work. The keyboard
+  pairing regression now waits for the focus effect without a fixed sleep.
+
+- The fake-only Devices keyboard check uses the platform's Select All modifier,
+  so confirmation import and cap editing work on Linux and Windows too.
+
+- Register the measured Devices browser closure and separate lazy Node bundle,
+  preserving the existing startup and deferred caps. Bind authenticated channel
+  resets to receiver Stop before reporting or snapshot work.
+
+- The unshipped paired-device receiver cancels live attempts before consulting
+  its journal, including after a failed flush, corruption or file loss. Full
+  attempt identity stays bound to the live lease; unavailable cancellation
+  evidence is reported and occupancy remains held until durable retirement.
+
+- Authenticated device cancellation has a fixed reserved decoder capacity
+  that data cannot consume. Stop reaches its priority path even with 31 queued
+  data frames and data overflow before or after Stop in the same chunk; each
+  excess data frame gets its own capacity refusal. Corrupt framing resets the
+  channel and starts local Stop for every live or pending attempt on that pair
+  before reporting, retaining occupancy and spending liabilities. A pending approval or start
+  confirmation cannot delay Stop. Cancellation identities survive queued
+  dispatch, identical retry, compaction and journal reopen; late cancellation
+  confirmations cannot reblock a durably retired receiver.
+
+- M100 queues receiver grants with pairing actions and preserves a later Pause
+  across pending secret reads and writes; stale grants cannot resume the pair.
+
+- M100's device store keeps expected pairing/grant policy refusals distinct
+  from persistence failures, preserving unrelated pairs after stale requests.
+
+- M100's pairing/storage test fixtures create and clean their own OS temporary
+  directories, so a clean worktree does not need an ignored `temp/` directory.
+
+- Harden the unshipped paired-device transport: listener startup settles on
+  unlink, close or its startup deadline, and a stale listener disposer cannot
+  close a replacement listener or its connections. Setup and incomplete-frame
+  deadlines check monotonic and wall clocks at progress transitions, including
+  backwards wall jumps and delayed timer callbacks. Frame reassembly copies
+
+- Port the pending paired Devices integration onto 0.17.1, preserving the
+  current provider/account stores and lazy loading budgets. Native and paired-host
+  qualification still gate availability.
+
+### Documentation (M100, to curate)
+
+- M100 phase 2 records its SSH-limit rules (one paced channel per pair, the
+  Windows worker context, one failed authentication stops) in G50–G52 rather
+  than duplicate rows, and its verification rules as G60 (shard membership
+
 ## [0.19.0] - 2026-10-21
 
 ### Highlights

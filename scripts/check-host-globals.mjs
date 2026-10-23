@@ -21,6 +21,7 @@ const HOST_BUNDLES = [
   'dist/uiTextSurfaces.js',
   'dist/uiTextMedia.js',
   'dist/extension.js',
+  'dist/devices.js',
   'dist/resourceAdmission.js',
   'dist/resourceGovernor.js',
   'dist/resourceProcess.js',

@@ -975,6 +975,14 @@ Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model
 
 Commands: `museSpark.openTasks`, `museSpark.moveToBackground`, `museSpark.stopBackgroundTasks`. Settings: `museSpark.notifyOnBackgroundTurn`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#tasks)
 
+### Open Devices in a Tab
+
+Open the Devices tab to link this editor with your other devices.
+
+Surfaces: vscode:museCode, vscode:modelApi. Paid: no extra feature charge; model usage still applies.
+
+Commands: `museSpark.openDevices`. Settings: —. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paired-devices-integration-in-development)
+
 ### Export Session as JSON…
 
 A portable file you can import or share.
@@ -1791,6 +1799,10 @@ Availability depends on the backend. Installed skills also add their own slash c
 ### Muse Spark: Open Tasks in a Tab
 
 `museSpark.openTasks` — Open this conversation’s task list in a separate editor tab.
+
+### Muse Spark: Open Devices in a Tab
+
+`museSpark.openDevices` — Open the Devices tab to link this editor with your other devices.
 
 ### Muse Spark: Insert @-Mention for Selection
 
@@ -3801,6 +3813,7 @@ These are defaults; editor customizations take precedence.
 - `elicitation`: `Escape`; when `elicitation`; Cancel
 - `deferred.close`: `Escape`; when `deferred.close`; Close the dialog or move focus within it.
 - `bestOfN.close`: `Escape`; when `bestOfN.close`; Close the dialog or move focus within it.
+- `devices.unlink`: `Escape`; when `devices.unlink`; Close the dialog or move focus within it.
 
 ## ACP / CLI commands
 

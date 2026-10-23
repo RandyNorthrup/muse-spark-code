@@ -28,6 +28,8 @@
   --ms-disabled: #858b98;
   --ms-hover: #303642;
   --ms-pressed: #0646c4;
+  --ms-qr-field: #fff;
+  --ms-qr-module: #000;
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
@@ -160,6 +162,8 @@
   --ms-disabled: #737780;
   --ms-hover: #edf1f7;
   --ms-pressed: #0646c4;
+  --ms-qr-field: #fff;
+  --ms-qr-module: #000;
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
@@ -292,6 +296,8 @@
   --ms-disabled: #737780;
   --ms-hover: #fff;
   --ms-pressed: #000;
+  --ms-qr-field: #fff;
+  --ms-qr-module: #000;
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
@@ -420,6 +426,8 @@
   --ms-disabled: #858b98;
   --ms-hover: #000;
   --ms-pressed: #fff;
+  --ms-qr-field: #fff;
+  --ms-qr-module: #000;
   --ms-diff-added: #2ea04333;
   --ms-diff-removed: #f8514933;
   --ms-shadow: #0000004d;
