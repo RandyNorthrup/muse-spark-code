@@ -21,10 +21,14 @@ const CAPTURES = [
   'github-issues-page1',
   'github-labels',
   'github-search-issues',
+  'github-releases',
+  'github-tags',
+  'github-search-commits',
+  'github-repository',
 ]
 
 describe('watchdog issue capture fixtures', () => {
-  it('holds exactly the five captured folders', async () => {
+  it('holds exactly the nine captured folders', async () => {
     const entries = await readdir(ISSUES, { withFileTypes: true })
     expect(
       entries
@@ -47,6 +51,25 @@ describe('watchdog issue capture fixtures', () => {
     expect(issue.number).toBe(146)
     expect(comments).toHaveLength(issue.comments)
     expect(search.items.map((item) => item.number)).toContain(issue.number)
+  })
+
+  it('captured the release, tag and commit rows the triage reads', async () => {
+    const releases = JSON.parse(
+      await readFile(path.join(ISSUES, 'github-releases', 'response.body.json'), 'utf8'),
+    ) as { tag_name: string }[]
+    const tags = JSON.parse(
+      await readFile(path.join(ISSUES, 'github-tags', 'response.body.json'), 'utf8'),
+    ) as { name: string }[]
+    const commits = JSON.parse(
+      await readFile(path.join(ISSUES, 'github-search-commits', 'response.body.json'), 'utf8'),
+    ) as { total_count: number; items: { sha: string }[] }
+    const repository = JSON.parse(
+      await readFile(path.join(ISSUES, 'github-repository', 'response.body.json'), 'utf8'),
+    ) as { default_branch: string; full_name: string }
+    expect(releases[0]?.tag_name).toBe(tags[0]?.name)
+    expect(commits.items).toHaveLength(commits.total_count)
+    expect(repository.full_name).toBe('RandyNorthrup/muse-spark-code')
+    expect(repository.default_branch).toBe('main')
   })
 
   it.each(CAPTURES)('matches the receipt hash for %s', async (capture) => {

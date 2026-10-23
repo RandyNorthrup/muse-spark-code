@@ -1926,6 +1926,9 @@
       "findings": "Zjištění",
       "questions": "Otevřené otázky"
     },
+    "triage": {
+      "unreadable": "Triáž se nevrátila jako zjištění."
+    },
     "refusal": {
       "spamHeld": "Zadrženo jako podezřelý spam: nic nebylo zveřejněno.",
       "approvalRequired": "Tento příspěvek nejprve potřebuje vaše schválení."

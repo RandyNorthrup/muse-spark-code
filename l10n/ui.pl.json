@@ -1926,6 +1926,9 @@
       "findings": "Ustalenia",
       "questions": "Otwarte pytania"
     },
+    "triage": {
+      "unreadable": "Segregacja nie wróciła jako ustalenia."
+    },
     "refusal": {
       "spamHeld": "Wstrzymano jako podejrzany spam: nic nie opublikowano.",
       "approvalRequired": "Ten wpis wymaga najpierw Twojej zgody."

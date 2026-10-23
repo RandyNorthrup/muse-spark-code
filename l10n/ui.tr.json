@@ -1868,6 +1868,9 @@
       "findings": "Bulgular",
       "questions": "Açık sorular"
     },
+    "triage": {
+      "unreadable": "Triyaj bulgu olarak dönmedi."
+    },
     "refusal": {
       "spamHeld": "Olası istenmeyen ileti olarak tutuldu: hiçbir şey yayımlanmadı.",
       "approvalRequired": "Bu gönderi önce onayınızı gerektirir."

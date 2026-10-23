@@ -1897,6 +1897,9 @@
       "findings": "Hallazgos",
       "questions": "Preguntas abiertas"
     },
+    "triage": {
+      "unreadable": "La clasificación no volvió como hallazgos."
+    },
     "refusal": {
       "spamHeld": "Retenido como posible spam: no se publicó nada.",
       "approvalRequired": "Esta publicación necesita primero su aprobación."

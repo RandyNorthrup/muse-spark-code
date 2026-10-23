@@ -1839,6 +1839,9 @@
       "findings": "조사 결과",
       "questions": "미결 질문"
     },
+    "triage": {
+      "unreadable": "트리아지가 조사 결과로 돌아오지 않았습니다."
+    },
     "refusal": {
       "spamHeld": "스팸 의심으로 보류되었습니다. 게시된 내용이 없습니다.",
       "approvalRequired": "이 게시물은 먼저 승인이 필요합니다."

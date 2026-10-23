@@ -1868,6 +1868,9 @@
       "findings": "Megállapítások",
       "questions": "Nyitott kérdések"
     },
+    "triage": {
+      "unreadable": "Az osztályozás nem megállapításokként tért vissza."
+    },
     "refusal": {
       "spamHeld": "Gyanított levélszemétként visszatartva: semmi sem lett közzétéve.",
       "approvalRequired": "Ehhez a bejegyzéshez előbb az ön jóváhagyása kell."

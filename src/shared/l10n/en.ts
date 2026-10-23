@@ -2298,6 +2298,9 @@ export const EN = {
       findings: 'Findings',
       questions: 'Open questions',
     },
+    triage: {
+      unreadable: 'The triage did not come back as findings.',
+    },
     refusal: {
       spamHeld: 'Held as suspected spam: nothing was posted.',
       approvalRequired: 'This post needs your approval first.',

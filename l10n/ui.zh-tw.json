@@ -1839,6 +1839,9 @@
       "findings": "調查結果",
       "questions": "待答問題"
     },
+    "triage": {
+      "unreadable": "分類未能以調查結果形式返回。"
+    },
     "refusal": {
       "spamHeld": "因疑似垃圾訊息已被扣留：未發佈任何內容。",
       "approvalRequired": "此貼文需要先獲得您的批准。"

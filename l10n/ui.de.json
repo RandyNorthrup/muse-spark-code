@@ -1868,6 +1868,9 @@
       "findings": "Ergebnisse",
       "questions": "Offene Fragen"
     },
+    "triage": {
+      "unreadable": "Die Sichtung kam nicht als Ergebnisse zurück."
+    },
     "refusal": {
       "spamHeld": "Als möglicher Spam zurückgehalten: nichts wurde veröffentlicht.",
       "approvalRequired": "Dieser Beitrag braucht zuerst Ihre Freigabe."

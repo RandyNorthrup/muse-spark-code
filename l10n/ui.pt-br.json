@@ -1897,6 +1897,9 @@
       "findings": "Constatações",
       "questions": "Perguntas abertas"
     },
+    "triage": {
+      "unreadable": "A triagem não voltou como constatações."
+    },
     "refusal": {
       "spamHeld": "Retido como possível spam: nada foi publicado.",
       "approvalRequired": "Esta publicação precisa primeiro da sua aprovação."
