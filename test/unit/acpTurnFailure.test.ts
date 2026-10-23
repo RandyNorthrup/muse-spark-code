@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { turnFailureError, type TurnCompleted } from '../../src/acp/agent'
+import { hostExitError, turnFailureError, type TurnCompleted } from '../../src/acp/agent'
 
 function failed(overrides: Partial<TurnCompleted>): TurnCompleted {
   return { type: 'turnCompleted', turnId: 't1', terminal: 'failed', ...overrides }
@@ -32,5 +32,13 @@ describe('turnFailureError', () => {
 
   it('falls back to the kind, then the terminal, for the message', () => {
     expect(turnFailureError(failed({})).message).toContain('failed')
+  })
+})
+
+describe('hostExitError', () => {
+  it('says a dead backend is never retryable in its session', () => {
+    const error = hostExitError('Muse Code was stopped by SIGKILL')
+    expect(error.data).toEqual({ retryable: false })
+    expect(error.message).toContain('SIGKILL')
   })
 })
