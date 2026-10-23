@@ -609,6 +609,19 @@ set|status|clear --provider <id> --admin` stores the separate admin
 - Hook events on plan turns name the turn's provider (`model_provider`)
   with the qualified model, instead of always saying Meta.
 
+### Vault
+
+- Stored sign-ins that are not plain API keys (OAuth and subscription
+  records, and the default account saved over a provider slot) now move
+  into the vault with everything else on unlock, and stay working there
+  through rotation, lock and sign-out.
+- The ChatGPT subscription's stored tokens move into the vault the same
+  way, and pooled (non-default) accounts migrate from the account pool
+  where their host lists one.
+- Past the retain window a migrated slot's legacy entry retires and
+  the slot keeps reading from the vault, including across lock and
+  sign-out.
+
 ### Release infrastructure
 
 - The release's Open VSX check reads the universal package at its own
