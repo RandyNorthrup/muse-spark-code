@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Bu isteğe odaklanmak için Tab tuşuna, ardından numarasına basın. Yapıştırılan seçimler yok sayılır.",
   "tuiApprovalTooLarge": "İsteğin tamamı sığmıyor. Terminali büyütün; seçimler devre dışı.",
   "tuiKeys": "Esc: tümünü durdur | Tab: görünümler | ↑/↓: kaydır | Enter: gönder | sayılar: seç",
-  "tuiUsage": "Kullanım: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Kullanım: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Terminal görüntüleyicisi kurulu değil.",
   "tuiLineKeys": "Esc: tümünü durdur. /stop /chat /diff /tasks /status. Enter gönderir. Onayı numarasıyla seçin; yalnızca Enter hiçbir zaman onaylamaz.",
   "tuiUnexpectedFailure": "Terminalde beklenmedik bir hata oluştu ve durdu.",

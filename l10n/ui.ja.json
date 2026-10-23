@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Tab キーでこのリクエストにフォーカスし、番号を押してください。貼り付けた選択は無視されます。",
   "tuiApprovalTooLarge": "リクエスト全体を表示できません。ターミナルを拡大してください。選択肢は無効です。",
   "tuiKeys": "Esc: すべて停止 | Tab: 表示切替 | ↑/↓: スクロール | Enter: 送信 | 数字: 選択",
-  "tuiUsage": "使用方法: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "使用方法: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "端末レンダラーがインストールされていません。",
   "tuiLineKeys": "Esc: すべて停止。/stop /chat /diff /tasks /status。Enterで送信。承認は番号で選択してください。Enterだけでは承認されません。",
   "tuiUnexpectedFailure": "端末で予期しない障害が発生したため、停止しました。",

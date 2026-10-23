@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Premi Tab per selezionare questa richiesta, poi premi il suo numero. Le scelte incollate vengono ignorate.",
   "tuiApprovalTooLarge": "La richiesta completa non entra. Ingrandisci il terminale; le scelte sono disabilitate.",
   "tuiKeys": "Esc: ferma tutto | Tab: viste | ↑/↓: scorri | Enter: invia | numeri: scegli",
-  "tuiUsage": "Uso: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Uso: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Il renderer del terminale non è installato.",
   "tuiLineKeys": "Esc: ferma tutto. /stop /chat /diff /tasks /status. Enter invia. Scegli un’approvazione per numero; Enter da solo non approva mai.",
   "tuiUnexpectedFailure": "Il terminale ha rilevato un errore imprevisto e si è fermato.",

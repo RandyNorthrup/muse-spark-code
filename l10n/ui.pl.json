@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Naciśnij Tab, aby ustawić fokus na tym żądaniu, a następnie naciśnij jego numer. Wklejone wybory są ignorowane.",
   "tuiApprovalTooLarge": "Całe żądanie się nie mieści. Powiększ terminal; wybory są wyłączone.",
   "tuiKeys": "Esc: zatrzymaj wszystko | Tab: widoki | ↑/↓: przewijaj | Enter: wyślij | cyfry: wybierz",
-  "tuiUsage": "Użycie: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Użycie: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Moduł renderowania terminala nie jest zainstalowany.",
   "tuiLineKeys": "Esc: zatrzymaj wszystko. /stop /chat /diff /tasks /status. Enter wysyła. Wybierz zgodę numerem; sam Enter nigdy nie zatwierdza.",
   "tuiUnexpectedFailure": "Terminal napotkał nieoczekiwany błąd i zatrzymał się.",

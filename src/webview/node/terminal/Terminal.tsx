@@ -69,13 +69,6 @@ export function TerminalTabs({ port, auth, workspaceId, connect, run, busy }: Te
   const [attachId, setAttachId] = useState('')
   const [error, setError] = useState('')
   const keys = useRef(0)
-  const live = useRef(true)
-  useEffect(
-    () => () => {
-      live.current = false
-    },
-    [],
-  )
 
   const fail = useCallback((failure: unknown) => {
     // Cancellation is silent; the name check (not instanceof) holds
@@ -117,7 +110,16 @@ export function TerminalTabs({ port, auth, workspaceId, connect, run, busy }: Te
         ])
         setActive(key)
       } catch (error_: unknown) {
-        if (live.current) fail(error_)
+        // Unmount aborts the signal, so a stale failure is always an
+        // aborted one here: the abort check alone drops it. A typed
+        // refusal displays; anything else is a bug and is rethrown to
+        // the window's failure channel.
+        if (signal.aborted) return
+        if (isNodePageError(error_)) {
+          fail(error_)
+          return
+        }
+        throw error_
       }
     })
   }, [auth, connect, fail, port, run, workspaceId])
@@ -138,7 +140,16 @@ export function TerminalTabs({ port, auth, workspaceId, connect, run, busy }: Te
           setActive(key)
           setAttachId('')
         } catch (error_: unknown) {
-          if (live.current) fail(error_)
+          // Unmount aborts the signal, so a stale failure is always an
+          // aborted one here: the abort check alone drops it. A typed
+          // refusal displays; anything else is a bug and is rethrown to
+          // the window's failure channel.
+          if (signal.aborted) return
+          if (isNodePageError(error_)) {
+            fail(error_)
+            return
+          }
+          throw error_
         }
       })
     },

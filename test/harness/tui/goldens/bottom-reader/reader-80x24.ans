@@ -1,0 +1,3 @@
+Terminal
+$ npm run quality:gates
+all gates green in 41s

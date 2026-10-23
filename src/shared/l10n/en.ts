@@ -249,7 +249,8 @@ export const EN = {
     'Press Tab to focus this request, then press its number. Pasted choices are ignored.',
   tuiApprovalTooLarge: 'The full request does not fit. Enlarge the terminal; choices are disabled.',
   tuiKeys: 'Esc: Stop all | Tab: views | ↑/↓: scroll | Enter: send | numbers: choose',
-  tuiUsage: 'Usage: muse-spark-code-acp tui [--screen-reader] [--no-color]',
+  tuiUsage:
+    'Usage: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]',
   tuiRendererMissing: 'The terminal renderer is not installed.',
   tuiLineKeys:
     'Esc: Stop all. /stop /chat /diff /tasks /status. Enter sends. Choose an approval by number; Enter alone never approves.',

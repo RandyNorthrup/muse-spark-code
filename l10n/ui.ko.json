@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Tab 키로 이 요청에 초점을 맞춘 다음 번호를 누르세요. 붙여넣은 선택은 무시됩니다.",
   "tuiApprovalTooLarge": "전체 요청을 표시할 수 없습니다. 터미널을 확대하세요. 선택지가 비활성화되었습니다.",
   "tuiKeys": "Esc: 모두 중지 | Tab: 보기 | ↑/↓: 스크롤 | Enter: 보내기 | 숫자: 선택",
-  "tuiUsage": "사용법: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "사용법: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "터미널 렌더러가 설치되지 않았습니다.",
   "tuiLineKeys": "Esc: 모두 중지. /stop /chat /diff /tasks /status. Enter로 보냅니다. 승인은 번호로 선택하세요. Enter만 누르면 승인되지 않습니다.",
   "tuiUnexpectedFailure": "터미널에 예상치 못한 오류가 발생하여 중지되었습니다.",

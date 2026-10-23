@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Stisknutím Tab zaměřte tento požadavek a pak stiskněte jeho číslo. Vložené volby se ignorují.",
   "tuiApprovalTooLarge": "Celý požadavek se nevejde. Zvětšete terminál; volby jsou zakázány.",
   "tuiKeys": "Esc: zastavit vše | Tab: pohledy | ↑/↓: posun | Enter: odeslat | čísla: volba",
-  "tuiUsage": "Použití: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Použití: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Vykreslovač terminálu není nainstalován.",
   "tuiLineKeys": "Esc: zastavit vše. /stop /chat /diff /tasks /status. Enter odesílá. Schválení vyberte číslem; samotný Enter nikdy neschvaluje.",
   "tuiUnexpectedFailure": "Terminál narazil na neočekávanou chybu a zastavil se.",

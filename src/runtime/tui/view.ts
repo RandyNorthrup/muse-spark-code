@@ -37,6 +37,10 @@ export interface InkBinding {
   }
 }
 
+/** What TD's components need from a renderer: Text and Box. T's binding
+and any real Ink module both satisfy it. */
+export type TuiInk = Pick<InkBinding, 'Text' | 'Box'>
+
 export interface TuiLine {
   text: string
   color?: 'red' | 'green'

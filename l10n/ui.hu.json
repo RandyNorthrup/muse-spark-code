@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "A Tab megnyomásával fókuszáljon erre a kérésre, majd nyomja meg a számát. A beillesztett választások figyelmen kívül maradnak.",
   "tuiApprovalTooLarge": "A teljes kérés nem fér el. Növelje a terminál méretét; a választások le vannak tiltva.",
   "tuiKeys": "Esc: minden leállítása | Tab: nézetek | ↑/↓: görgetés | Enter: küldés | számok: választás",
-  "tuiUsage": "Használat: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Használat: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "A terminál megjelenítője nincs telepítve.",
   "tuiLineKeys": "Esc: minden leállítása. /stop /chat /diff /tasks /status. Az Enter küld. Jóváhagyást számmal válasszon; az Enter önmagában sosem hagy jóvá.",
   "tuiUnexpectedFailure": "A terminál váratlan hibába ütközött és leállt.",

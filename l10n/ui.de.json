@@ -214,7 +214,7 @@
   "tuiApprovalFocus": "Drücken Sie Tab, um diese Anfrage zu fokussieren, und dann ihre Nummer. Eingefügte Auswahl wird ignoriert.",
   "tuiApprovalTooLarge": "Die vollständige Anfrage passt nicht hinein. Vergrößern Sie das Terminal; die Auswahl ist deaktiviert.",
   "tuiKeys": "Esc: alles stoppen | Tab: Ansichten | ↑/↓: scrollen | Enter: senden | Zahlen: wählen",
-  "tuiUsage": "Aufruf: muse-spark-code-acp tui [--screen-reader] [--no-color]",
+  "tuiUsage": "Aufruf: muse-spark-code-acp tui [--screen-reader] [--no-color] [--reduced-motion] [--nerd-font]",
   "tuiRendererMissing": "Der Terminalrenderer ist nicht installiert.",
   "tuiLineKeys": "Esc: alles stoppen. /stop /chat /diff /tasks /status. Enter sendet. Genehmigungen per Zahl wählen; Enter allein genehmigt nie.",
   "tuiUnexpectedFailure": "Das Terminal ist auf einen unerwarteten Fehler gestoßen und wurde angehalten.",
