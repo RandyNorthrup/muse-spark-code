@@ -51,6 +51,7 @@ export interface ModelsPanelHostDeps {
   readonly connectChatGpt?: (isNewAccount: boolean) => Promise<void>
   readonly team?: TeamPanelBinding | undefined
   readonly connectCopilot?: () => Promise<void>
+  readonly connectGrok?: () => Promise<void>
   readonly removeSubscription?: (id: string) => Promise<void>
   readonly isConfidential?: () => boolean
   readonly secrets: SecretStore
@@ -433,6 +434,7 @@ export function createModelsPanelFeatures(
         sessionBudget,
         connectChatGpt: host.connectChatGpt,
         connectCopilot: host.connectCopilot,
+        connectGrok: host.connectGrok,
         removeSubscription: host.removeSubscription,
         isConfidential: host.isConfidential,
         isRemote: host.isRemote,

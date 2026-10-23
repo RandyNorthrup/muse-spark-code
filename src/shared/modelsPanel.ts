@@ -506,7 +506,7 @@ const providerPanelMessageSchema = z.discriminatedUnion('type', [
   // reusing the saved registration.
   z.strictObject({
     type: z.literal('providers/connectSubscription'),
-    providerId: z.enum(['chatgpt', 'copilot']),
+    providerId: z.enum(['chatgpt', 'copilot', 'grok']),
     isNewAccount: z.optional(z.literal(true)),
   }),
   // Without a provider it tests the wizard's draft; with one it tests

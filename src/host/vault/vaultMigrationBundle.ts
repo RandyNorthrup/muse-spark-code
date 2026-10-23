@@ -26,7 +26,7 @@ export interface VaultMigrationFactoryDeps {
   /** The raw SecretStorage; the shell mirrors through the migration, never the reverse. */
   readonly secrets: SecretStore
   readonly shell: MigrationShell
-  /** Configured provider ids; the controller adds the ChatGPT slot itself when stored. */
+  /** Configured provider ids; the controller adds the stored ChatGPT slot itself, and grok stays with its lane. */
   readonly listProviderIds: () => Promise<readonly string[]>
   /**
   Pooled account ids per provider, from the host's account metadata.

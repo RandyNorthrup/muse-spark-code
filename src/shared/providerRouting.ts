@@ -15,7 +15,7 @@ export { outputTokenMinimumMessage } from './outputTokenMinimum'
 
 /** Subscription (plan) providers by model-ref prefix: their turns spend
 allowance, never the Meta key. */
-export const PLAN_MODEL_PROVIDERS: readonly string[] = ['chatgpt', 'copilot']
+export const PLAN_MODEL_PROVIDERS: readonly string[] = ['chatgpt', 'copilot', 'grok']
 
 /**
 Whether a validated model ref addresses a plan model. Only validated

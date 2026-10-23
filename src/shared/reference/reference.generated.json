@@ -53,9 +53,14 @@
         "museSpark.modelsAndAgents",
         "museSpark.addModelProvider",
         "museSpark.connectChatGpt",
-        "museSpark.connectCopilot"
+        "museSpark.connectCopilot",
+        "museSpark.connectGrok"
       ],
-      "settings": ["museSpark.suggestedProvider", "museSpark.modelApiSessionBudgetUsd"],
+      "settings": [
+        "museSpark.suggestedProvider",
+        "museSpark.modelApiSessionBudgetUsd",
+        "museSpark.grokClientId"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#backends",
       "backends": ["museCode", "modelApi"],
       "paid": false,
@@ -2757,6 +2762,16 @@
       "canRun": false
     },
     {
+      "id": "museSpark.connectGrok",
+      "name": "Continue With Grok",
+      "nameKey": "command.connectGrok",
+      "category": "Muse Spark",
+      "categoryKey": "command.category",
+      "description": "Add a model provider with an API key and pick a model.",
+      "text": { "ui": "startWithOwnModelDetail" },
+      "canRun": false
+    },
+    {
       "id": "museSpark.sharePrompt",
       "name": "Share Prompt…",
       "nameKey": "command.sharePrompt.title",
@@ -4327,6 +4342,17 @@
       "schema": { "type": "string", "default": "" }
     },
     {
+      "id": "museSpark.grokClientId",
+      "name": "museSpark.grokClientId",
+      "description": "This app's own xAI OAuth client id for Grok subscription sign-in (Continue With Grok). Empty until xAI issues one; sign-in refuses until it is set. A client id is a public identifier, not a secret.",
+      "descriptionKey": "config.grokClientId.description",
+      "type": "string",
+      "default": "",
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "string", "default": "" }
+    },
+    {
       "text": {
         "conditions": [
           {
@@ -5069,6 +5095,17 @@
         ["providers", "add", "chatgpt"],
         ["providers", "remove", "chatgpt"],
         ["providers", "status", "chatgpt"]
+      ]
+    },
+    {
+      "route": "grokProvider",
+      "name": "providers add|remove|status grok [--device] [--client-id <id>] [--scopes <scopes>]",
+      "description": "List, add, test or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" },
+      "invocations": [
+        ["providers", "add", "grok"],
+        ["providers", "remove", "grok"],
+        ["providers", "status", "grok"]
       ]
     },
     {

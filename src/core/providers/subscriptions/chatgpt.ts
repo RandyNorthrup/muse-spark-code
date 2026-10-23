@@ -1,6 +1,6 @@
 // M95b S: shared sign-in core. Hosts supply the browser, callback, secret
 // store and an inter-process lock; no editor API or other app's store is read.
-import { createHash, createPublicKey, verify } from 'node:crypto'
+import { createPublicKey, verify } from 'node:crypto'
 import * as z from 'zod/mini'
 import {
   CREDENTIAL_RECORD_VERSION,
@@ -12,6 +12,18 @@ import {
 import { failureCodeNames } from '../../networkFailure'
 import { ChatGptSignInError, createChatGptHostId, isChatGptHostId } from './chatgptHostId'
 export { ChatGptSignInError } from './chatgptHostId'
+import {
+  checkMinimumValidity,
+  isOidcAudience,
+  decodeJwtPart,
+  isSameOriginRequest,
+  oidcAccountHash,
+  oidcClaimsSchema,
+  oidcJwksSchema,
+  parseLoopbackCallbackUrl,
+  splitJwt,
+  subscriptionRequest,
+} from './oidc'
 import {
   CHATGPT_ISSUER,
   CHATGPT_ORIGIN,
@@ -33,7 +45,6 @@ const DIRECT_SCOPE = 'chatgpt.tokens.use.direct'
 const SCOPES = `openid profile email offline_access resource.invoke ${DIRECT_SCOPE}`
 const DYNAMIC_CLIENT = 'dynamic_agent_client'
 const CALLBACK_PATH = '/auth/callback'
-const JWT_SEGMENT_COUNT = 3
 const nonempty = z.string().check(z.minLength(1))
 const positive = z.number().check(z.gt(0))
 const discoverySchema = z.object({
@@ -83,12 +94,6 @@ export const chatGptRegistrationSchema = z.object({
 })
 export type ChatGptRegistration = z.infer<typeof chatGptRegistrationSchema>
 
-/**
-The local verdict for a stored grant: signed in until its access token's
-time passes, expired after (an expired token refreshes on use, so the
-grant stays a completed sign-in). `providers status chatgpt` and `auth
-status` share this one verdict (RLTESTDRIVE item 7).
-*/
 export function chatGptGrantStatus(record: ChatGptRecord, now: number): 'signed-in' | 'expired' {
   return record.expiresAt > now ? 'signed-in' : 'expired'
 }
@@ -109,20 +114,8 @@ function checkScope(scope: string): void {
 }
 
 function callbackUrl(value: string): URL {
-  const parsed = z.url().safeParse(value)
-  if (!parsed.success) throw new ChatGptSignInError('invalid-callback')
-  const url = new URL(parsed.data)
-  if (
-    url.protocol !== 'http:' ||
-    url.hostname !== '127.0.0.1' ||
-    url.port === '' ||
-    Number(url.port) <= 0 ||
-    url.pathname !== CALLBACK_PATH ||
-    url.username !== '' ||
-    url.password !== '' ||
-    url.hash !== ''
-  )
-    throw new ChatGptSignInError('invalid-callback')
+  const url = parseLoopbackCallbackUrl(value, CALLBACK_PATH)
+  if (url === undefined) throw new ChatGptSignInError('invalid-callback')
   return url
 }
 
@@ -196,6 +189,31 @@ export function buildChatGptAuthorizeUrl(options: {
   return url.href
 }
 
+/** The loopback core every host shares: one parse, one failure class. */
+export interface ChatGptCallbackBinding {
+  parse(url: string, redirectUri: string): void
+  fail(
+    code: 'invalid-callback' | 'callback-timeout' | 'cancelled' | 'local-failed',
+    reason?: string,
+    cause?: unknown,
+  ): ChatGptSignInError
+  isFailure(error: unknown): error is ChatGptSignInError
+}
+
+/** The loopback core every host shares, bound to one attempt's state. */
+export function chatGptCallbackBinding(
+  state: string,
+  clientId: string | undefined,
+): ChatGptCallbackBinding {
+  return {
+    parse: (url, redirectUri) => {
+      parseChatGptCallback(url, redirectUri, state, clientId)
+    },
+    fail: (code, reason?, cause?) => new ChatGptSignInError(code, reason, { cause }),
+    isFailure: (error): error is ChatGptSignInError => error instanceof ChatGptSignInError,
+  }
+}
+
 /**
 Validate the captured callback fields. A new registration's callback names
 the issued client; a reauthorization with the saved `clientId` may omit it
@@ -259,39 +277,9 @@ export function parseChatGptCallback(
 }
 
 const jwtHeaderSchema = z.object({ alg: z.literal('RS256'), kid: nonempty })
-const claimsSchema = z.object({
-  // Owner captures acdc0f60 / 577bc807 (0 + 1 attempts) include OIDC sub.
-  sub: z.optional(nonempty),
-  iss: z.literal(CHATGPT_ISSUER),
-  aud: z.union([nonempty, z.array(nonempty).check(z.minLength(1))]),
-  azp: z.optional(nonempty),
-  exp: positive,
-  nonce: z.optional(nonempty),
-})
-const jwksSchema = z.object({
-  keys: z.array(
-    z.object({
-      kty: nonempty,
-      kid: nonempty,
-      n: z.optional(nonempty),
-      e: z.optional(nonempty),
-      alg: z.optional(nonempty),
-      use: z.optional(nonempty),
-    }),
-  ),
-})
 
-function jwtPart(value: string): unknown {
-  if (!/^[A-Za-z0-9_-]+$/u.test(value)) throw new ChatGptSignInError('invalid-id-token')
-  try {
-    const decoded: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'))
-    return decoded
-  } catch (error) {
-    // Only malformed JSON reads as an invalid token; anything else is not
-    // the token and reaches the caller.
-    if (!(error instanceof SyntaxError)) throw error
-    throw new ChatGptSignInError('invalid-id-token')
-  }
+function invalidIdToken(): never {
+  throw new ChatGptSignInError('invalid-id-token')
 }
 
 /**
@@ -299,7 +287,7 @@ The stored account identity: the product's SHA-256 over the verified
 issuer and subject. Raw identity claims never leave this derivation.
 */
 export function chatGptAccountIdHash(issuer: string, subject: string): string {
-  return createHash('sha256').update(`${issuer}\0${subject}`).digest('hex')
+  return oidcAccountHash(issuer, subject)
 }
 
 /** Return only a hash after verification; raw identity claims stay in this function. */
@@ -312,28 +300,25 @@ export function verifyChatGptIdToken(options: {
   /** OIDC permits a refresh ID token to omit the original nonce. */
   readonly isRefresh?: boolean
 }): string | undefined {
-  const [headerPart, claimsPart, signature, extra] = options.token.split('.', JWT_SEGMENT_COUNT + 1)
-  if (
-    headerPart === undefined ||
-    claimsPart === undefined ||
-    signature === undefined ||
-    extra !== undefined ||
-    !/^[A-Za-z0-9_-]+$/u.test(signature)
-  ) {
+  const parts = splitJwt(options.token)
+  if (parts === undefined) {
     throw new ChatGptSignInError('invalid-id-token')
   }
-  const header = parse(jwtHeaderSchema, jwtPart(headerPart), 'invalid-id-token')
-  const claims = parse(claimsSchema, jwtPart(claimsPart), 'invalid-id-token')
-  const jwks = parse(jwksSchema, options.jwks, 'invalid-id-token')
-  const audience = typeof claims.aud === 'string' ? [claims.aud] : claims.aud
-  if (
-    !Number.isFinite(options.now) ||
-    claims.exp * MILLISECONDS_PER_SECOND <= options.now ||
-    !audience.includes(options.clientId) ||
-    (audience.length > 1 && claims.azp !== options.clientId) ||
-    (claims.azp !== undefined && claims.azp !== options.clientId) ||
-    (claims.nonce === undefined ? options.isRefresh !== true : claims.nonce !== options.nonce)
-  ) {
+  const header = parse(
+    jwtHeaderSchema,
+    decodeJwtPart(parts.header, invalidIdToken),
+    'invalid-id-token',
+  )
+  const claims = parse(
+    oidcClaimsSchema(CHATGPT_ISSUER),
+    decodeJwtPart(parts.claims, invalidIdToken),
+    'invalid-id-token',
+  )
+  const jwks = parse(oidcJwksSchema(), options.jwks, 'invalid-id-token')
+  if (!isOidcAudience(claims, options.clientId, options.now)) {
+    throw new ChatGptSignInError('invalid-id-token')
+  }
+  if (claims.nonce === undefined ? options.isRefresh !== true : claims.nonce !== options.nonce) {
     throw new ChatGptSignInError('invalid-id-token')
   }
   const keys = jwks.keys.filter((key) => key.kid === header.kid)
@@ -353,14 +338,14 @@ export function verifyChatGptIdToken(options: {
     if (
       !verify(
         'RSA-SHA256',
-        Buffer.from(`${headerPart}.${claimsPart}`),
+        Buffer.from(`${parts.header}.${parts.claims}`),
         publicKey,
-        Buffer.from(signature, 'base64url'),
+        Buffer.from(parts.signature, 'base64url'),
       )
     )
       throw new ChatGptSignInError('invalid-id-token')
-  } catch {
-    throw new ChatGptSignInError('invalid-id-token')
+  } catch (error) {
+    throw new ChatGptSignInError('invalid-id-token', undefined, { cause: error })
   }
   return claims.sub === undefined ? undefined : chatGptAccountIdHash(claims.iss, claims.sub)
 }
@@ -411,21 +396,13 @@ export class ChatGptSignIn {
       if (error instanceof ChatGptSignInError) throw error
       // Anything untyped is named by its own codes (Node's network codes,
       // or the error's name), never as an unexplained outage.
-      throw new ChatGptSignInError('request-failed', failureCodeNames(error))
+      throw new ChatGptSignInError('request-failed', failureCodeNames(error), { cause: error })
     }
   }
 
   private async request(url: string, form?: URLSearchParams): Promise<Response> {
     try {
-      const response = await this.host.fetch(url, {
-        method: form === undefined ? 'GET' : 'POST',
-        redirect: 'error',
-        signal: AbortSignal.timeout(OAUTH_CODE_TTL_MS),
-        ...(form !== undefined && {
-          headers: { 'content-type': 'application/x-www-form-urlencoded' },
-          body: form,
-        }),
-      })
+      const response = await subscriptionRequest(this.host.fetch, url, form)
       if (!response.ok) {
         if (
           url === `${CHATGPT_ISSUER}/api/accounts/oauth/token` &&
@@ -454,7 +431,7 @@ export class ChatGptSignIn {
       return response
     } catch (error) {
       if (error instanceof ChatGptSignInError) throw error
-      throw new ChatGptSignInError('request-failed', failureCodeNames(error))
+      throw new ChatGptSignInError('request-failed', failureCodeNames(error), { cause: error })
     }
   }
 
@@ -652,17 +629,8 @@ export class ChatGptSignIn {
 
   /** Origin binding is checked before any refresh, even for a still-valid token. */
   public async accessToken(requestUrl: string, minimumValidityMs: number): Promise<string> {
-    if (!Number.isFinite(minimumValidityMs) || minimumValidityMs < 0) {
-      // This app's own caller asked for an impossible validity: a defect here, not ChatGPT.
-      throw new RangeError('minimumValidityMs')
-    }
-    const request = z.url().safeParse(requestUrl)
-    if (
-      !request.success ||
-      new URL(request.data).origin !== CHATGPT_ORIGIN ||
-      new URL(request.data).username !== '' ||
-      new URL(request.data).password !== ''
-    ) {
+    checkMinimumValidity(minimumValidityMs)
+    if (!isSameOriginRequest(requestUrl, CHATGPT_ORIGIN)) {
       throw new ChatGptSignInError('origin-mismatch')
     }
     return await this.guard(() =>

@@ -120,6 +120,8 @@
     "src/host/paid/paidEntry.ts",
     "src/host/web/pageWorker.ts",
     "src/runtime/chatGptProviderCommands.ts",
+    "src/runtime/grokProviderCommands.ts",
+    "src/host/backend/subscriptionCommandsEntry.ts",
     "src/runtime/exec/execEntry.ts",
     "src/runtime/exec/execTeamEntry.ts",
     "src/runtime/exec/providerExec.ts",
