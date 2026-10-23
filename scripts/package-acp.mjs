@@ -169,6 +169,21 @@ try {
     }
   }
   cpSync(RUNNER_HELPERS, path.join(STAGE, RUNNER_HELPERS), { recursive: true })
+  // Classic Vim's plugin (M66): the person copies it beside their Vim
+  // packages (editors/vim/README.md). Every file below must stage; a
+  // missing one stops packaging, never ships a half plugin.
+  for (const file of [
+    'plugin/muse_spark.vim',
+    'autoload/muse_spark.vim',
+    'doc/muse_spark.txt',
+    'README.md',
+  ]) {
+    const source = path.join('editors', 'vim', file)
+    if (!existsSync(source) || !statSync(source).isFile()) {
+      throw new Error(`Required Vim plugin file is missing: ${source}`)
+    }
+  }
+  cpSync(path.join('editors', 'vim'), path.join(STAGE, 'editors', 'vim'), { recursive: true })
   const tables = readdirSync('l10n')
     .filter((file) => /^ui\.[^/]+\.json$/.test(file))
     .map((file) => [
@@ -223,6 +238,7 @@ try {
       'jetbrains',
       'neovim',
       'emacs',
+      'vim',
       'jupyter',
       'ai',
       'agent',
@@ -235,6 +251,7 @@ try {
       'ci',
       'dist',
       'design',
+      'editors',
       'native',
       'l10n',
       'schemas',

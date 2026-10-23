@@ -418,6 +418,29 @@ require("codecompanion").setup({
 `:CodeCompanionChat` opens a chat; a permission prompt lists its keys
 (Accept, Reject, Cancel) in the chat buffer.
 
+In classic Vim (not Neovim), the agent package carries its own plugin,
+`editors/vim` (tested with Vim 9.1 and the 0.19.0 package: pure Vimscript,
+no Python or Lua). Copy it beside your Vim packages and restart Vim:
+
+```sh
+mkdir -p ~/.vim/pack/musespark/start
+cp -r <agent-package>/editors/vim ~/.vim/pack/musespark/start/muse-spark
+```
+
+where `<agent-package>` is the installed `muse-spark-code-acp` folder
+(`npm root -g` holds it after a global install). `:MuseSpark` opens the
+chat and starts the agent; write each prompt below the last `You:` line
+and run `:MuseSparkSend`. A permission prompt lists its numbered options
+in the chat; answer with `:MuseSparkAllow {n}` or `:MuseSparkDeny`.
+`:MuseSparkModel` and `:MuseSparkMode` switch the running session (pick a
+contributor model only with `--allow-contributor-models` in
+`g:muse_spark_args`, which lists them). Before `:MuseSpark`,
+`g:muse_spark_args` takes extra agent arguments (e.g.
+`['--trust-workspace']`; the interactive options above, never `--model`,
+which only `exec` takes), and `g:muse_spark_command` the agent itself
+when it is not on `PATH`. `:help muse_spark` lists every command and
+option.
+
 In JupyterLab 4, [Jupyter AI](https://github.com/jupyterlab/jupyter-ai) 3
 (`pip install jupyter-ai`; tested with 3.2.0 and JupyterLab 4.6.3) runs
 ACP agents as chat personas. Save this as
@@ -452,6 +475,34 @@ the agent passes to Muse Code (below).
 Other editors take the same command and arguments in their own agent or
 ACP settings (JetBrains AI Assistant, Xcode's Intelligence settings, Qt
 Creator's ACP Client, sublime-acp, Devin Desktop's custom agents).
+
+## Xcode 26.3
+
+Xcode 26.3 lends its own tools (build, test, project, simulator, file
+access) to external agents over MCP; the agent reaches them through
+Apple's bridge, a local stdio server ([Apple's
+guide](https://developer.apple.com/documentation/xcode/giving-agentic-coding-tools-access-to-xcode)).
+In Xcode, open the project and switch on "Allow external agents to use
+Xcode tools" (Settings → Intelligence). Then offer the bridge to the
+session from your ACP client:
+
+```json
+{
+  "type": "stdio",
+  "name": "xcode",
+  "command": "/usr/bin/xcrun",
+  "args": ["mcpbridge"],
+  "env": []
+}
+```
+
+In classic Vim's plugin that object goes in `g:muse_spark_mcp_servers`;
+other clients take the same command and arguments in their own MCP-server
+settings. The bridge finds Xcode itself (`MCP_XCODE_PID` names one
+process when several run); keep the project open while the session runs,
+and Xcode shows the connection while the agent is active. The tools need
+no key of their own; the session's turns bill its own backend as usual.
+Headless `exec` takes no MCP servers, so this route needs an ACP client.
 
 ## Interactive ACP options
 
