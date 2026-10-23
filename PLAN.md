@@ -35422,20 +35422,20 @@ binding (M108 handoffs, kept on the tags). Receipts:
 ## 7. Gates
 
 **RLM104 check:catches deferral (2026-10-22).** `check:catches` fails
-with 107 sites the `catch-baseline.json` does not know: runtime +21/+37/+7,
-webview +8/+7/+1, host +3/+5, shared +3/+3, core +1/+1
-(SWALLOW/GENERIC/CLEANUP). Attribution, proved by scanning the 01 branch
-tree with the gate's own `scanCatches`: 99 sites are identity-identical to
-branch code (the LSP bridge, panel protocol, companion features and
-fallbacks predate the baseline, which neither branch carries); 7 more are
-branch-identical catch blocks whose owner function the merge unioned (new
-identity, same block); the last is main's own `runExec` result catch,
-textually unchanged, identity-shifted by the union around it (main passes
-the gate; the worktree baseline is main's, unmodified). This lane authors
-no new catch block. Converting the branch's ~100 sites to NARROW/REPORTED
-is a hardening lane's work, so RLM104 defers it and does not rewrite the
-baseline: regenerating now would accept the debt without the intentional
-fix the gate requires.
+with 135 sites the `catch-baseline.json` does not know (75 GENERIC, 41
+SWALLOW, 19 CLEANUP). The 107 first recorded was measured on the 01-merge
+tree; the +28 is the 02 merge, D84 path moves and union line shifts.
+Attribution, proved by verbatim block scan of every site against the 01
+branch, the 02 branch and main: 130 blocks exist word-for-word in those
+trees at the same path (the LSP bridge, panel protocol, companion
+features and fallbacks predate the baseline, which neither branch
+carries); the other 5 exist word-for-word on main at their pre-D84 paths
+(pure adapter moves). Per-commit grep over every non-merge lane commit
+shows zero added `catch` lines, and the two merges only union branch
+bytes, so this lane authors no new catch block. Converting the ~135
+sites to NARROW/REPORTED is a hardening lane's work, so RLM104 defers it
+and does not rewrite the baseline: regenerating now would accept the debt
+without the intentional fix the gate requires.
 
 **RLM104 check:plan deferral (2026-10-22).** `check:plan` fails on size:
 PLAN.md is 3,691,829 bytes against the 3,565,158-byte 85% bound, over by
