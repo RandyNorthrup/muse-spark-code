@@ -20,7 +20,8 @@ import {
 // the holder, never a top-level binding.
 const ledgerLeaseEnvState: { env?: Promise<FileLeaseEnv> } = {}
 
-async function makeLedgerLeaseEnv(): Promise<FileLeaseEnv> {
+/** The ledger lease environment, exported so the lease's own tests share it. */
+export async function execLedgerLeaseEnv(): Promise<FileLeaseEnv> {
   return {
     port: nodeLeasePort,
     now: () => Date.now(),
@@ -37,7 +38,7 @@ async function makeLedgerLeaseEnv(): Promise<FileLeaseEnv> {
 }
 
 function leaseEnvOf(): Promise<FileLeaseEnv> {
-  ledgerLeaseEnvState.env ??= makeLedgerLeaseEnv()
+  ledgerLeaseEnvState.env ??= execLedgerLeaseEnv()
   return ledgerLeaseEnvState.env
 }
 

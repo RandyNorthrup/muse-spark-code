@@ -636,7 +636,12 @@ export async function createExecTeam(
                         outcomeHead,
                       )
                     } catch (error: unknown) {
-                      throw await failPreserved(gitFailureDetail(error, task.taskId), error)
+                      deps.log.warn(failureForLog(error))
+                      const preserved = await failPreserved(
+                        gitFailureDetail(error, task.taskId),
+                        error,
+                      )
+                      throw preserved
                     }
                     throw heldMergeError(hold, ref)
                   }
@@ -656,7 +661,12 @@ export async function createExecTeam(
                       outcome.changedFiles ?? [],
                     )
                   } catch (error: unknown) {
-                    throw await failPreserved(gitFailureDetail(error, outcomeHead), error)
+                    deps.log.warn(failureForLog(error))
+                    const preserved = await failPreserved(
+                      gitFailureDetail(error, outcomeHead),
+                      error,
+                    )
+                    throw preserved
                   }
                   if (scan.status === 'markers')
                     throw await failPreserved(
@@ -668,7 +678,12 @@ export async function createExecTeam(
                   try {
                     merged = await ports.merges.merge(task, signal, { allowProtected: false })
                   } catch (error: unknown) {
-                    throw await failPreserved(gitFailureDetail(error, task.taskId), error)
+                    deps.log.warn(failureForLog(error))
+                    const preserved = await failPreserved(
+                      gitFailureDetail(error, task.taskId),
+                      error,
+                    )
+                    throw preserved
                   }
                   if (merged.status === 'merged') {
                     copies.delete(task.taskId)

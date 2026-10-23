@@ -14,12 +14,12 @@ import type { TeamToolContext, TeamToolResult } from '../../src/core/team/teamSe
 import type { TeamCap, TeamPoolEntry, TeamRoleConfig, TeamSnapshot } from '../../src/shared/team'
 import { TEAM_WORKSPACE_KEYS, decideTeamConversationMode } from '../../src/shared/teamConversation'
 import { TeamHostBinding } from '../../src/host/teamHostBinding'
-import type { EngineTeamPortsDeps } from '../../src/host/team/teamEnginePorts'
 import { OPTIONAL_RUNTIME_AVAILABILITY, TEAM_MODEL_TEXT, UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
 import {
   harness,
   ORCHESTRATOR_MODEL as ORCHESTRATOR,
+  UNUSED_ENGINE,
   type Harness,
 } from './helpers/teamHostHarness'
 
@@ -543,23 +543,6 @@ describe('the team host service', () => {
     expect(h.merged).toEqual([])
   })
 })
-
-/** The binding hands these engine ports to dist/team.js; the window tests below never reach them. */
-const UNUSED_ENGINE: EngineTeamPortsDeps = {
-  repositoryRoot: () => undefined,
-  storageRoot: '',
-  platform: process.platform,
-  isTrusted: () => false,
-  listModels: () => Promise.reject(new Error('not used')),
-  startWorker: () => Promise.reject(new Error('not used')),
-  now: () => 0,
-  log: {
-    trace: () => undefined,
-    info: () => undefined,
-    warn: () => undefined,
-    error: () => undefined,
-  },
-}
 
 function binding(
   stored: unknown,
