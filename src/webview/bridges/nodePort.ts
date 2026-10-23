@@ -75,6 +75,151 @@ export function validatedNodePort(transport: {
   }
 }
 
+/** The smallest surface the terminal stream needs from a WebSocket. DOM
+sockets satisfy it directly; the page passes `(url) => new WebSocket(url)`. */
+export interface NodeTerminalRawSocket {
+  send(data: string): void
+  close(): void
+  addEventListener(
+    type: 'open' | 'message' | 'close' | 'error',
+    listener: (event: { readonly data?: unknown }) => void,
+  ): void
+  removeEventListener(
+    type: 'open' | 'message' | 'close' | 'error',
+    listener: (event: { readonly data?: unknown }) => void,
+  ): void
+}
+
+/** The terminal's wire: an open, authenticated stream. The factory opens the
+socket and sends the bearer in the first frame (the server closes a socket
+whose first frame is not its auth); the session only ever sends input,
+resize and close frames, and receives the server's typed events. `send` and
+`close` never throw for a socket that is already gone: they end the stream
+quietly, and anything else they cannot do surfaces typed. */
+export interface NodeTerminalWire {
+  send(data: string): void
+  close(): void
+  onMessage(handler: (data: string) => void): () => void
+  onClose(handler: () => void): () => void
+}
+
+/** Opens and authenticates one terminal stream. Rejects typed when the
+socket cannot open or the server refuses it. */
+export type NodeTerminalSocketFactory = (terminalId: string) => Promise<NodeTerminalWire>
+
+/** The terminal stream beside the method port: same origin and memory-only
+bearer, over the server's WebSocket route. A1 owns the bearer;
+reload/sign-out clears that caller-owned state. */
+export function nodeTerminalSocket(options: {
+  origin: string
+  bearer(): string | undefined
+  openSocket(url: string): NodeTerminalRawSocket
+}): NodeTerminalSocketFactory {
+  const origin = new URL(options.origin)
+  if (
+    origin.protocol !== 'https:' ||
+    origin.origin !== options.origin ||
+    origin.username !== '' ||
+    origin.password !== ''
+  )
+    throw new NodePageError('forbidden')
+  const url = new URL('/node/terminal/stream', origin)
+  url.protocol = 'wss:'
+  const address = url.href
+  return async (terminalId: string): Promise<NodeTerminalWire> => {
+    const bearer = nodeTokenSchema.safeParse(options.bearer())
+    if (!bearer.success) throw new NodePageError('unauthenticated')
+    const socket = options.openSocket(address)
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          socket.removeEventListener('open', onOpen)
+          socket.removeEventListener('error', onFail)
+          socket.removeEventListener('close', onFail)
+        }
+        const onOpen = () => {
+          cleanup()
+          resolve()
+        }
+        const onFail = () => {
+          cleanup()
+          reject(new NodePageError('unavailable'))
+        }
+        socket.addEventListener('open', onOpen)
+        socket.addEventListener('error', onFail)
+        socket.addEventListener('close', onFail)
+      })
+    } catch (error: unknown) {
+      socket.close()
+      throw error
+    }
+    try {
+      socket.send(JSON.stringify({ type: 'auth', bearer: bearer.data, terminalId }))
+    } catch (error: unknown) {
+      // The socket opened but takes nothing: end it and say so, typed,
+      // with the send failure attached.
+      socket.close()
+      throw new NodePageError('unavailable', { cause: error })
+    }
+    const messages = new Set<(data: string) => void>()
+    const closes = new Set<() => void>()
+    let isGone = false
+    const onMessage = (event: { readonly data?: unknown }) => {
+      if (typeof event.data !== 'string') {
+        // The server sends text frames only: anything else is a server
+        // fault, and ending the stream says so through the close below.
+        socket.close()
+        return
+      }
+      for (const handler of messages) handler(event.data)
+    }
+    const onClose = () => {
+      if (isGone) return
+      isGone = true
+      socket.removeEventListener('message', onMessage)
+      socket.removeEventListener('close', onClose)
+      for (const handler of closes) handler()
+    }
+    socket.addEventListener('message', onMessage)
+    socket.addEventListener('close', onClose)
+    const closeWire = () => {
+      if (isGone) return
+      isGone = true
+      socket.removeEventListener('message', onMessage)
+      socket.removeEventListener('close', onClose)
+      socket.close()
+    }
+    return {
+      send(data) {
+        if (isGone) return
+        try {
+          socket.send(data)
+        } catch (error: unknown) {
+          // A failed send means a dead socket: only a DOM failure lands
+          // here. This close keeps its listeners, so the stream's end
+          // still reports through onClose; the wire's own close below
+          // stays quiet because its caller already knows.
+          if (!(error instanceof DOMException)) throw error
+          socket.close()
+        }
+      },
+      close: closeWire,
+      onMessage(handler) {
+        messages.add(handler)
+        return () => {
+          messages.delete(handler)
+        }
+      },
+      onClose(handler) {
+        closes.add(handler)
+        return () => {
+          closes.delete(handler)
+        }
+      },
+    }
+  }
+}
+
 /** N's captured local catalog route, not a guessed MHP envelope. A1 owns
 the memory-only bearer; reload/sign-out clears that caller-owned state. */
 export function nodeHttpsPort(options: {

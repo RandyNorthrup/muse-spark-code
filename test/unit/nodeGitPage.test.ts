@@ -3,7 +3,7 @@ import { scripted } from './helpers/recordCalls'
 import { createNodeGitMethods, type NodeGitPagePort } from '../../src/runtime/node/web/git'
 import { nodeActionDigest } from '../../src/runtime/node/listenerMethods'
 import {
-  networkGitDigest,
+  stepUpActionDigest,
   runNetworkGit,
   type NodePageAuthPort,
 } from '../../src/webview/node/git/network'
@@ -259,7 +259,7 @@ describe('M110-U1 fresh Git verification', () => {
   it('H14 uses the exact same canonical digest as N and sends only the verified tuple', async () => {
     const { port, request, auth } = browser()
     const input = params('node/git/push')
-    expect(await networkGitDigest('node/git/push', input)).toBe(input.actionDigest)
+    expect(await stepUpActionDigest('node/git/push', input)).toBe(input.actionDigest)
     await runNetworkGit(port, auth, 'node/git/push', 'repo', status, 'origin', signal())
     expect(auth.verify.calls).toEqual([
       ['git.network', input.actionDigest, expect.any(AbortSignal)],
