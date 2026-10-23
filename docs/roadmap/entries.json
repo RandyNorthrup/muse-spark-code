@@ -1255,6 +1255,11 @@
       "note": "recovery port of fix/limits-int2's rule-abiding parts onto 0.19.0"
     },
     {
+      "id": "RLFMACPATH",
+      "public": false,
+      "note": "recovery: the spaces app-data path stays whole, pinned by real-code tests"
+    },
+    {
       "id": "RLTESTDRIVE",
       "public": false,
       "note": "recovery: the owner's 0.19.0 test-drive defects, fixed"
