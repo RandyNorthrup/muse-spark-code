@@ -1,0 +1,6 @@
+# Pinned NVIDIA repository key (M110os OS5). The primary of
+# https://developer.download.nvidia.com/compute/cuda/repos/debian13/x86_64/8793F200.pub,
+# pinned 2026-10-23 (fixture capture: test/fixtures/nodeos-nvidia/CAPTURE.md).
+# check-key passes only when the install keyring carries every fingerprint
+# here. A rotation is pinned deliberately, never accepted silently.
+02182E60104FCDC26EAE1B8597A5D4CB8793F200  Kitmaker (Debian 13 Trixie)
