@@ -5,7 +5,6 @@ import {
   QUESTION_DEFER_SETTING,
   SETTINGS_SECTION,
 } from '../../../shared/constants'
-import type { QuestionClock } from '../../../shared/questions'
 
 /** Machine scope deliberately excludes values supplied by a repository or workspace folder. */
 export function questionsDeferAfterSeconds(): number {
@@ -17,16 +16,4 @@ export function questionsDeferAfterSeconds(): number {
     questionDeferSeconds(typeof value === 'number' ? value : QUESTION_DEFER_DEFAULT_SECONDS) ??
     QUESTION_DEFER_DEFAULT_SECONDS
   )
-}
-
-export function questionClock(): QuestionClock {
-  return {
-    now: () => Date.now(),
-    setTimer(delayMs, callback) {
-      const timer = setTimeout(callback, delayMs)
-      return () => {
-        clearTimeout(timer)
-      }
-    },
-  }
 }
