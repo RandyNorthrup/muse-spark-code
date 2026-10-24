@@ -27,8 +27,16 @@ function isNotification(value: unknown): value is Notification {
   )
 }
 
-async function collectUntil(collected: Notification[], count: number): Promise<Notification[]> {
-  for (let attempt = 0; attempt < 100 && collected.length < count; attempt += 1) {
+// Events arrive in any order and a folder's own creation arrives too, so a
+// test waits for the paths it needs, never for a count of events.
+const WAIT_ATTEMPTS = 60
+
+async function collectUntil(
+  collected: Notification[],
+  wanted: readonly string[],
+): Promise<Notification[]> {
+  const hasAll = () => wanted.every((file) => collected.some((item) => item.relativePath === file))
+  for (let attempt = 0; attempt < WAIT_ATTEMPTS && !hasAll(); attempt += 1) {
     await delay(50)
   }
   return collected.splice(0)
@@ -59,7 +67,7 @@ describe('workspace file watcher', () => {
         await writeFile(path.join(folder, 'note.md'), 'hello')
         await mkdir(path.join(folder, 'docs'), { recursive: true })
         await writeFile(path.join(folder, 'docs', 'plan.md'), 'nested')
-        const seen = await collectUntil(collected, 2)
+        const seen = await collectUntil(collected, ['note.md', 'docs/plan.md'])
         const paths = seen.map((item) => item.relativePath)
         expect(paths).toContain('note.md')
         expect(paths).toContain('docs/plan.md')
@@ -104,7 +112,11 @@ describe('workspace file watcher', () => {
         await writeFile(path.join(folder, 'root.txt'), 'root')
         await mkdir(path.join(folder, 'sub'), { recursive: true })
         await writeFile(path.join(folder, 'sub', 'nested.txt'), 'nested')
-        for (let attempt = 0; attempt < 100 && events.length < 2; attempt += 1) {
+        const hasBoth = () => {
+          const found = new Set(events.map((event) => event.fields['path']))
+          return found.has('root.txt') && found.has('sub/nested.txt')
+        }
+        for (let attempt = 0; attempt < WAIT_ATTEMPTS && !hasBoth(); attempt += 1) {
           await delay(50)
         }
         const paths = events.map((event) => event.fields['path'])
@@ -135,7 +147,7 @@ describe('workspace file watcher', () => {
       const { collected, subscription } = watchAll(watcher)
       try {
         await unlink(path.join(folder, 'gone.txt'))
-        const seen = await collectUntil(collected, 1)
+        const seen = await collectUntil(collected, ['gone.txt'])
         expect(seen.map((item) => item.relativePath)).toContain('gone.txt')
         expect(seen.find((item) => item.relativePath === 'gone.txt')?.identity).toBe('missing')
         expect(reported).toEqual([])
