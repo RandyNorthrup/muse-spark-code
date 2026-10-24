@@ -58,16 +58,9 @@ export async function providersHeaders(
   const account = providerHeadersAccount(entry.id)
   const kept = await keptHeaders(deps, entry, origin)
   if (options.set === undefined && options.unset === undefined) {
-    if (kept === undefined) {
-      return failed(deps, fill(UI_TEXT.providerHeaders.unreadable, { provider: entry.id }))
-    }
-    const names = Object.keys(kept)
-    deps.print(
-      names.length === 0
-        ? fill(UI_TEXT.providerHeaders.none, { provider: entry.id })
-        : fill(UI_TEXT.providerHeaders.list, { provider: entry.id, names: names.join(', ') }),
-    )
-    return EXIT_OK
+    return kept === undefined
+      ? failed(deps, fill(UI_TEXT.providerHeaders.unreadable, { provider: entry.id }))
+      : printNames(deps, entry.id, kept)
   }
   // A damaged record is replaced by the first change, as in the editor.
   let headers = kept ?? {}
@@ -93,11 +86,20 @@ export async function providersHeaders(
   await (Object.keys(headers).length === 0
     ? deps.secrets.delete(account)
     : deps.secrets.store(account, formatStoredHeaders(origin, headers)))
+  return printNames(deps, entry.id, headers)
+}
+
+/** Prints the header names a provider sends (never a value), and succeeds. */
+function printNames(
+  deps: ProvidersDeps,
+  provider: string,
+  headers: Readonly<Record<string, string>>,
+): number {
   const names = Object.keys(headers)
   deps.print(
     names.length === 0
-      ? fill(UI_TEXT.providerHeaders.none, { provider: entry.id })
-      : fill(UI_TEXT.providerHeaders.list, { provider: entry.id, names: names.join(', ') }),
+      ? fill(UI_TEXT.providerHeaders.none, { provider })
+      : fill(UI_TEXT.providerHeaders.list, { provider, names: names.join(', ') }),
   )
   return EXIT_OK
 }
