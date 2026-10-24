@@ -8,8 +8,10 @@
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { CoreLogger } from '../../core/logging'
 import type { UiText } from '../../shared/l10n/en'
-import { isPlaybookBundle } from '../../runtime/playbook/playbookBundle'
-import type * as PlaybookBundle from '../../runtime/playbook/playbookEntry'
+import {
+  isPlaybookAnswerSlice,
+  type PlaybookAnswerSlice,
+} from '../../runtime/playbook/playbookBundle'
 import { UI_TEXT } from '../../shared/l10n/text'
 
 /** What the composer shows for a `/playbook` command: the journal's answer. */
@@ -21,7 +23,7 @@ export interface PlaybookAnswer {
 /**
 Everything the answer needs from the host window. The bundle loads through
 `loadBundle` so tests hand in the journal bundle's slice; production
-requires `dist/acpPlaybook.js`, whose shape `isPlaybookBundle` checks
+requires `dist/acpPlaybook.js`, whose shape `isPlaybookAnswerSlice` checks
 (PLAN.md §8: same-build signatures are trusted after checking).
 */
 export interface PlaybookSource {
@@ -42,10 +44,10 @@ export async function answerPlaybookCommand(
 ): Promise<PlaybookAnswer | undefined> {
   if (!/^\s*\/playbook(?:\s|$)/u.test(text)) return undefined
   if (source === undefined) return { ok: false, text: UI_TEXT.playbookUnavailable }
-  let bundle: typeof PlaybookBundle
+  let bundle: PlaybookAnswerSlice
   try {
     const loaded = source.loadBundle()
-    if (!isPlaybookBundle(loaded)) throw new Error('no playbook bundle')
+    if (!isPlaybookAnswerSlice(loaded)) throw new Error('no playbook bundle')
     bundle = loaded
   } catch (error: unknown) {
     // A bundle path or load failure must never reach the log: its kind only.
