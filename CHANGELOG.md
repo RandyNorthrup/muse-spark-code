@@ -303,6 +303,12 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- An editor speaking to the ACP agent is told why a session cannot open
+  again. Since the error boundary began allowing only listed sentences, a
+  missing sign-in, a missing key, an unavailable credential store or a
+  missing Muse Code CLI all reached the editor as "That did not work"; the
+  readiness check's own sentences are listed now, and the CLI refusal says
+  that Muse Code is not installed without naming the folders it searched.
 - Development dependencies carry this week's security fixes: `markdown-it`
   14.3.3 (GHSA-gfr2-rv44-r23c; its dated audit exception is removed),
   `@azure/msal-node` 7.1.0 (GHSA-xcx6-jx8p-x3h5) and `undici` 8.12.2 and
