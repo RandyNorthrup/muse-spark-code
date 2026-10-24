@@ -7,11 +7,8 @@
 // (helpers/providerWire.ts); the CLI tests run the real command over a
 // real providers file and a map-backed secret port, with
 // the value arriving on standard input.
-import { mkdtempSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
 import { PassThrough } from 'node:stream'
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { CustomHeadersAuthSource, NoAuthSource } from '../../src/core/backends/modelapi/authSource'
 import {
   formatStoredHeaders,
@@ -27,17 +24,13 @@ import {
 } from '../../src/core/providers/providersFile'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { readSecretLine } from '../../src/runtime/hiddenInput'
-import { resolveEndpointHost } from '../../src/runtime/providerPaths'
-import {
-  providersRemove,
-  userFileIo,
-  type ProvidersDeps,
-} from '../../src/runtime/providersCommands'
+import { providersRemove, type ProvidersDeps } from '../../src/runtime/providersCommands'
 import { providersHeaders } from '../../src/runtime/providersHeadersCommand'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { makeTurnBody } from './helpers/turnBodies'
+import { providersCommandHarness } from './helpers/providersCommandHarness'
 import { storedKey, turnRequest, wireServices, type WireRequest } from './helpers/providerWire'
 
 const OPENAI = 'https://api.openai.com'
@@ -163,11 +156,15 @@ describe('the header record', () => {
   })
 })
 
+const harnesses = providersCommandHarness()
+afterAll(async () => {
+  await harnesses.cleanup()
+})
+
 /** The real command over a real providers file; the value arrives on stdin. */
 async function harness(stdin: string) {
-  const folder = mkdtempSync(path.join(tmpdir(), 'provider-headers-cli-'))
-  const filePath = path.join(folder, 'providers.json')
-  const written = await writeProvidersFileAtomic(filePath, {
+  const base = await harnesses.make('provider-headers-cli-')
+  const written = await writeProvidersFileAtomic(base.filePath, {
     ...emptyProvidersFile(),
     providers: [entry],
   })
@@ -188,22 +185,12 @@ async function harness(stdin: string) {
   }
   const input = new PassThrough()
   input.end(stdin)
-  const printed: string[] = []
-  const errors: string[] = []
   const deps: ProvidersDeps = {
-    ...userFileIo(filePath),
+    ...base.deps,
     secrets: store,
-    resolveHost: resolveEndpointHost,
-    fetch: globalThis.fetch.bind(globalThis),
     readSecret: (prompt) => readSecretLine(prompt, input, new PassThrough()),
-    print: (line) => {
-      printed.push(line)
-    },
-    printError: (line) => {
-      errors.push(line)
-    },
   }
-  return { deps, store, printed, errors }
+  return { deps, store, printed: base.printed, errors: base.errors }
 }
 
 describe('providers headers (CLI)', () => {
