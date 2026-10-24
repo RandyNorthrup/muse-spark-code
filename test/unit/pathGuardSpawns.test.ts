@@ -25,9 +25,10 @@ const LAUNCH_NAME = 'spawnResourceProcess'
 Wrappers that end in a process start, taking the program as their first
 argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
 (`spawnSync` under the POSIX supervisor), `runResourceCommand` (the
-governed runner), `execResourceFile` and `handoffResourceFile` (the
-governed command boundary in commands.ts: guarded lookup + child env for
-the run workspace). A bare call with a literal or a variable command alike
+governed runner), `execResourceFile`, `handoffResourceFile` and
+`spawnResourceFile` (the governed command boundary in commands.ts: guarded
+lookup + child env for the run workspace; the last hands its caller the
+piped process). A bare call with a literal or a variable command alike
 is a spawn the direct-start walk cannot see (round 5: the playbook's bare
 `git` variable and the team probes' bare names stayed green; round 6: the
 report's `gh` through an unscanned `execResourceFile`).
@@ -38,6 +39,7 @@ const WRAPPER_NAMES = new Set([
   'runResourceCommand',
   'execResourceFile',
   'handoffResourceFile',
+  'spawnResourceFile',
 ])
 
 interface KnownSpawn {
@@ -245,6 +247,24 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: 'checkoutChildEnvironment',
     reason:
       'checkout runs through the governed exec boundary (guarded lookup + guarded child env for the checkout directory); the caller gate is rechecked after admission and at Windows GO',
+  },
+  'src/core/resources/commands.ts': {
+    kind: 'guarded',
+    anchor: 'resolveCommand',
+    reason:
+      "the boundary's own bounded runner shares its piped launch: every command resolves through resolveCommand with the child env for the run workspace",
+  },
+  'src/core/backends/modelapi/ModelApiHost.ts': {
+    kind: 'guarded',
+    anchor: "spawnResourceFile('bootstrap'",
+    reason:
+      'the packaged B1 inspect helper (absolute path) through the governed boundary: refused inside the inspected workspace, guarded child env for it (M125 F1b)',
+  },
+  'src/core/judge/setup/runtime.ts': {
+    kind: 'guarded',
+    anchor: "spawnResourceFile('contained'",
+    reason:
+      'the pinned private Ollama server by absolute path through the governed boundary: admitted and contained, refused unless it exists outside its run folder, guarded child env, one stop for its tree (M125 lane H)',
   },
 }
 

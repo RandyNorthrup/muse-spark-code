@@ -120,7 +120,8 @@ function ports(overrides: Partial<JudgeSetupPorts> = {}): JudgeSetupPorts {
       readFile: (file) => Promise.resolve(files.get(file)),
       findFreePort: () => Promise.resolve(11_434),
       runtimeFree: () => Promise.resolve(true),
-      startRuntime: () => ({ pid: 4242, port: 11_434, stop: () => Promise.resolve() }),
+      startRuntime: () =>
+        Promise.resolve({ pid: 4242, port: 11_434, stop: () => Promise.resolve() }),
       waitForVersion: () => Promise.resolve(true),
       readRegistration: () => registration,
       writeRegistration: (_file, record) => {
