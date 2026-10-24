@@ -9,7 +9,7 @@ import { validateDevicePair } from '../../src/core/devices/pairing'
 import { WindowsVaultSlots } from '../../src/runtime/vault/slots/windowsVaultSlots'
 import { completeDevicePair } from './helpers/devicePairs'
 import {
-  buildWindowsVaultHelper,
+  buildWindowsVaultSlotHelper,
   disposeWindowsVaultHelper,
   type WindowsVaultHelper,
 } from './helpers/windowsVaultHelper'
@@ -25,7 +25,10 @@ describe.runIf(process.platform === 'win32')('M100 lane K Windows DPAPI pair key
   // needs (a slow hosted Windows runner passed the 30 s hook budget, PR
   // #258): no time limit of ours on this setup (owner 2026-10-16).
   beforeAll(async () => {
-    fixture.built = await buildWindowsVaultHelper('lane-k-dpapi-')
+    // The slot helper seals keys (the client platform hands it to the
+    // slots); the pipe helper is the broker's relay and answers no slot
+    // request.
+    fixture.built = await buildWindowsVaultSlotHelper('lane-k-dpapi-')
   }, 0)
 
   afterAll(async () => {

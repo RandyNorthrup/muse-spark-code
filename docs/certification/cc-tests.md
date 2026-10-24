@@ -490,3 +490,28 @@ runs on Windows through a junction instead of returning early.
 Red (before): 1 failed as above (and the link case passed vacuously).
 Green: 5 passed; by hand, `node scripts/fault-rig.mjs run s1-stream-cut`
 prints `s1-stream-cut: PASS` and exits 0.
+
+### devicePairKeyDpapi: the suite seals with the slot helper
+
+Cause: the Windows-only DPAPI case handed `WindowsVaultSlots` the vault's
+**pipe** helper (`windowsPipeExecutable`: the broker's relay), not the
+**slot** helper that seals keys. The product hands the slots the slot helper,
+compiled from `MuseSparkVault.cs` with its Cng, Hello and Lock parts
+(`src/runtime/vault/windowsClientPlatform.ts`). The pipe helper answered the
+slot request by exiting 1 with no reply frame (measured by running it
+directly with a `probe` and a `wrap` request: `exit 1`, no bytes), and the
+slot protocol turned that into `No access`. The case only runs on Windows,
+which the lane's rig was not.
+
+Fix: the client platform's slot source list is exported
+(`WINDOWS_VAULT_SLOT_SOURCES`) and the shared test helper gains
+`buildWindowsVaultSlotHelper`, which compiles exactly those sources as the
+client platform does; the DPAPI case uses it. The pipe-start suite keeps the
+pipe helper (same code, now behind one shared builder). DPAPI is per-user
+crypto with no named store entry: nothing of the owner's Credential Manager
+is read or written.
+
+Red (before): `Error: No access` from `invokeWindowsVault`. Green: 1 passed.
+The pipe-start suite (under `vault/`) is not run on this PC by instruction;
+its builder is unchanged apart from the shared setup, and the unit typecheck
+covers it.

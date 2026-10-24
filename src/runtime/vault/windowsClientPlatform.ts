@@ -26,7 +26,7 @@ import { registerWindowsVaultHost, windowsProcessIdentity } from './windowsHost'
 import { vaultBrokerDataDir } from './vaultStoreScope'
 
 /** The pipe and slot sources every Windows package ships; the slot helper compiles as one unit. */
-const SLOT_SOURCES = [
+export const WINDOWS_VAULT_SLOT_SOURCES = [
   'native/windows/MuseSparkVault.cs',
   'native/windows/MuseSparkVaultCng.cs',
   'native/windows/MuseSparkVaultHello.cs',
@@ -52,7 +52,7 @@ export async function windowsVaultClientPlatform(
   // the serve relay and the owner-only files, the slot helper seals.
   const storageDir = path.join(context.dataDir, 'vault', 'helpers')
   const slotParts = await Promise.all(
-    SLOT_SOURCES.map((name) => readFile(path.join(installRoot, name), 'utf8')),
+    WINDOWS_VAULT_SLOT_SOURCES.map((name) => readFile(path.join(installRoot, name), 'utf8')),
   )
   const slotSource = slotParts.join('\n')
   const slotHelper = await windowsVaultExecutable({
@@ -63,7 +63,7 @@ export async function windowsVaultClientPlatform(
   const pipeHelper = await windowsPipeExecutable({
     storageDir,
     systemRoot,
-    readSlotSource: () => readFile(path.join(installRoot, SLOT_SOURCES[0]), 'utf8'),
+    readSlotSource: () => readFile(path.join(installRoot, WINDOWS_VAULT_SLOT_SOURCES[0]), 'utf8'),
     readPipeSource: () => readFile(path.join(installRoot, PIPE_SOURCE), 'utf8'),
   })
   const plainPipeHelper = {
