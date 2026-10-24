@@ -69,6 +69,17 @@ members=$(tar -tzf "$TARBALL" 2>/dev/null) || die "tarball unreadable: $TARBALL"
 echo "$members" | grep -q -x -F 'package/dist/node.js' || die 'tarball has no node runtime'
 echo "$members" | grep -q -x -F 'package/LICENSE' || die 'tarball has no licence'
 echo "$members" | grep -q -x -F 'package/THIRD_PARTY_NOTICES.txt' || die 'tarball has no notices'
+# What dist/node.js loads when it runs: the serve and sign-in bundles it
+# requires beside itself, the shared text and parser chunks every node bundle
+# shares, and package.json (the version the dashboard reports). A node
+# without any of them cannot start or cannot serve.
+SERVE_MEMBERS='package/dist/nodeServe.js package/dist/nodeAuth.js package/dist/uiText.js'
+SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextHooks.js package/dist/uiTextMedia.js"
+SERVE_MEMBERS="$SERVE_MEMBERS package/dist/uiTextRuntime.js package/dist/uiTextSurfaces.js"
+SERVE_MEMBERS="$SERVE_MEMBERS package/dist/validation.js package/dist/modelApiBoundaries.js package/package.json"
+for member in $SERVE_MEMBERS; do
+  echo "$members" | grep -q -x -F "$member" || die "tarball has no ${member#package/}"
+done
 if echo "$members" | grep -q -x -F 'package/dist/nodeToolHost.js'; then
   TOOLHOST='yes'
 else
@@ -85,12 +96,13 @@ fi
 
 mkdir -p "$dest/dist" "$ROOT/etc/systemd/system" "$ROOT/var/lib/muse-spark-code-node/workspaces"
 if [ "$TOOLHOST" = 'yes' ]; then
-  tar -xzf "$TARBALL" -C "$dest" --strip-components=1 \
-    package/dist/node.js package/dist/nodeToolHost.js package/LICENSE package/THIRD_PARTY_NOTICES.txt
+  TOOLHOST_MEMBER='package/dist/nodeToolHost.js'
 else
-  tar -xzf "$TARBALL" -C "$dest" --strip-components=1 \
-    package/dist/node.js package/LICENSE package/THIRD_PARTY_NOTICES.txt
+  TOOLHOST_MEMBER=''
 fi
+# shellcheck disable=SC2086 # the member lists are separate words on purpose
+tar -xzf "$TARBALL" -C "$dest" --strip-components=1 \
+  package/dist/node.js $SERVE_MEMBERS $TOOLHOST_MEMBER package/LICENSE package/THIRD_PARTY_NOTICES.txt
 find "$dest" -type d -exec chmod 0755 {} +
 find "$dest" -type f -exec chmod 0644 {} +
 cp "$here/muse-node.service" "$here/muse-node-toolhost.service" "$ROOT/etc/systemd/system/"

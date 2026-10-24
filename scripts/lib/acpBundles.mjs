@@ -81,6 +81,9 @@ export const ACP_BUNDLES = [
   'headless.js',
   // M110-N: the isolated node runtime, loaded only for explicit node commands.
   'node.js',
+  // RLF-NODESERVE: the lazy bundles `serve` requires beside node.js.
+  'nodeServe.js',
+  'nodeAuth.js',
   'sharingRuntime.js',
   // M124 (D106): the MCP connector ships in the ACP package; `mcp` loads it on use.
   'connector.js',

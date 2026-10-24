@@ -1868,7 +1868,7 @@ async function main(): Promise<number> {
               homeDir: homedir(),
             }),
             signal: controller.signal,
-            binding: loaded.productionNodeBinding({ print, version: packageVersion() }),
+            binding: loaded.productionNodeBinding({ print, version: packageVersion }),
             now: Date.now,
             print,
             readSecret: () =>

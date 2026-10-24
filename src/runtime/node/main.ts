@@ -252,7 +252,7 @@ async function cliMain(argv: readonly string[]): Promise<number> {
           process.env['MUSE_NODE_DATA_ROOT'] ??
           nodeDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
         signal: controller.signal,
-        binding: productionNodeBinding({ print, version: packageVersion() }),
+        binding: productionNodeBinding({ print, version: packageVersion }),
         now: Date.now,
         print,
         readSecret: () => readSecretLine(UI_TEXT.nodeLabels.unlock, process.stdin, process.stderr),

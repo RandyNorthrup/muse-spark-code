@@ -231,7 +231,8 @@ export const NODE_AUTH_TERMINAL_STREAM = '/node/terminal/stream'
 export const NODE_FILE_TREE_ROW_PX = 32
 export const NODE_FILE_TREE_VISIBLE_ROWS = 12
 export const NODE_FILE_TREE_OVERSCAN_ROWS = 4
-export const NODE_WORKSPACE_ASSET = './node/files/main.js'
+/** The workspace surface's stylesheet, beside the page script that mounts it. */
+export const NODE_WORKSPACE_STYLE = './node/files/main.css'
 export const NODE_WORKSPACE_BUDGET_KIB = 375
 export const NODE_EDITOR_BUDGET_KIB = 600
 /** U2: the lazy terminal chunk (xterm.js) is budgeted apart from the
@@ -270,6 +271,7 @@ export const NODE_RESTART_MAX_MS = 30_000
 export const NODE_APPROVAL_TTL_MS = 5 * 60 * 1000
 export const NODE_BUNDLE_FILE = 'node.js'
 export const NODE_AUTH_BUNDLE_FILE = 'nodeAuth.js'
+export const NODE_SERVE_BUNDLE_FILE = 'nodeServe.js'
 export const NODE_STOP_POLL_MS = 100
 export const NODE_DATA_SUBFOLDER = 'node'
 export const NODE_DAYS_TO_MS = 24 * 60 * 60 * 1000

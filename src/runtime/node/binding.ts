@@ -2,12 +2,24 @@
 // stopped-node wipe, and explicit refusals where the A1/M104/M109/T
 // integrations are still open. Missing adapters fail explicitly with the
 // node's said words; nothing here pretends to serve, stop, lock or unlock.
+// Serving itself lives in the lazy dist/nodeServe.js, loaded when serve
+// starts, so every other command keeps dist/node.js small.
 import { open, rm, unlink } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import path from 'node:path'
-import { NODE_FILE_MODE, NODE_KEYS_FILE, NODE_LOCK_FILE, UI_TEXT } from '../../shared/constants'
-import { serveNode, stopNode } from './serve'
+import {
+  NODE_FILE_MODE,
+  NODE_KEYS_FILE,
+  NODE_LOCK_FILE,
+  NODE_SERVE_BUNDLE_FILE,
+  UI_TEXT,
+} from '../../shared/constants'
+import { uiLocale } from '../../shared/l10n/text'
+import type { UiText } from '../../shared/l10n/en'
 import { NodePrivateFiles } from './privateFiles'
+import type { ServeNodeOptions } from './serve'
 import type { NodeStateStore } from './state'
+import { stopNode } from './stop'
 
 /** Authenticated local transport, TLS/web sign-in, slot codec and tool-peer binding. */
 export interface NodeServiceBinding {
@@ -45,24 +57,66 @@ export async function ownService(store: NodeStateStore): Promise<() => Promise<v
 export interface ProductionNodeBindingOptions {
   /** The serve console: the fingerprint line and fixed failure sentences. */
   readonly print: (line: string) => void
-  /** The product version the dashboard reports. */
-  readonly version: string
-  /** The auth bundle beside dist/node.js; tests hand the module in. */
-  readonly authBundlePath?: string | undefined
+  /** The product version the dashboard reports, read when serve starts. */
+  readonly version: () => string
+  /** How the serve bundle is loaded: Node's `require` of dist/nodeServe.js, unless a test hands in the module. */
+  readonly loadServeBundle?: (() => unknown) | undefined
+  /** How the auth bundle beside dist/nodeServe.js is loaded, passed to serve; tests hand the module in. */
   readonly loadAuthBundle?: (() => unknown) | undefined
+}
+
+/** The lazy serve bundle's surface: exactly serveEntry.ts's export. */
+interface NodeServeBundle {
+  runNodeServe(options: ServeNodeOptions, table: UiText, locale: string): Promise<void>
+}
+
+function isNodeServeBundle(value: unknown): value is NodeServeBundle {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'runNodeServe' in value &&
+    typeof value.runNodeServe === 'function'
+  )
+}
+
+/** Node's own `require` of dist/nodeServe.js beside the running bundle. */
+function requireServeBundle(): unknown {
+  const file = path.join(__dirname, NODE_SERVE_BUNDLE_FILE)
+  return createRequire(file)(file)
+}
+
+function loadServeBundle(options: ProductionNodeBindingOptions): NodeServeBundle {
+  let loaded: unknown
+  try {
+    loaded =
+      options.loadServeBundle === undefined ? requireServeBundle() : options.loadServeBundle()
+  } catch (error: unknown) {
+    // The bundle's absence fails serve: the cause stays out of the console.
+    options.print(UI_TEXT.nodeMessages.unexpectedFailure)
+    throw new Error(UI_TEXT.nodeErrors.unavailable, { cause: error })
+  }
+  if (!isNodeServeBundle(loaded)) {
+    options.print(UI_TEXT.nodeMessages.unexpectedFailure)
+    throw new Error(UI_TEXT.nodeErrors.unavailable)
+  }
+  return loaded
 }
 
 export function productionNodeBinding(options: ProductionNodeBindingOptions): NodeServiceBinding {
   return {
-    serve: (store, signal) =>
-      serveNode({
-        store,
-        signal,
-        print: options.print,
-        version: options.version,
-        authBundlePath: options.authBundlePath,
-        loadAuthBundle: options.loadAuthBundle,
-      }),
+    serve: async (store, signal) => {
+      await loadServeBundle(options).runNodeServe(
+        {
+          store,
+          signal,
+          print: options.print,
+          version: options.version,
+          loadAuthBundle: options.loadAuthBundle,
+        },
+        UI_TEXT,
+        uiLocale(),
+      )
+    },
     command: (action, input) => {
       // Live status and the lock commands ride T's local control transport,
       // still open: without it the CLI cannot ask the running service.

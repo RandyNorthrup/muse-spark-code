@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { mkdtemp, realpath, rm } from 'node:fs/promises'
+import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { expect, it } from 'vitest'
@@ -41,4 +42,22 @@ export async function nodeTempRoot(prefix: string): Promise<string> {
   // macOS's system /var alias is resolved before creating a private root.
   const temporary = await realpath(tmpdir())
   return await mkdtemp(path.join(temporary, prefix))
+}
+
+/** A loopback port nothing listens on right now. */
+export async function vacantPort(): Promise<number> {
+  const server = createServer()
+  await new Promise<void>((resolve) => {
+    server.listen(0, '127.0.0.1', () => {
+      resolve()
+    })
+  })
+  const address = server.address()
+  const port = typeof address === 'object' && address !== null ? address.port : 0
+  await new Promise<void>((resolve) => {
+    server.close(() => {
+      resolve()
+    })
+  })
+  return port
 }

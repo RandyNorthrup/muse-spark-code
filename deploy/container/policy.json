@@ -12,8 +12,17 @@
     "LICENSE",
     "THIRD_PARTY_NOTICES.txt",
     "dist/acp.js",
+    "dist/modelApiBoundaries.js",
     "dist/node.js",
-    "dist/nodeToolHost.js"
+    "dist/nodeAuth.js",
+    "dist/nodeServe.js",
+    "dist/nodeToolHost.js",
+    "dist/uiText.js",
+    "dist/uiTextHooks.js",
+    "dist/uiTextMedia.js",
+    "dist/uiTextRuntime.js",
+    "dist/uiTextSurfaces.js",
+    "dist/validation.js"
   ],
   "releaseIdentity": "https://github.com/RandyNorthrup/muse-spark-code/.github/workflows/node-image.yml@refs/tags/",
   "oidcIssuer": "https://token.actions.githubusercontent.com"
