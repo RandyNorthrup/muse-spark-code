@@ -14,6 +14,11 @@ import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import {
+  pageFreshUntil,
+  subscriptionAckSchema,
+  subscriptionIdOf,
+} from '../../src/core/backends/modelapi/mcp/changes'
+import {
   parseElicitationParams,
   validateElicitationSchema,
   validateElicitationValues,
@@ -35,10 +40,7 @@ import {
   McpError,
   type McpToolInfo,
   newestMutualModern,
-  pageFreshUntil,
   resultTypeOf,
-  subscriptionAckSchema,
-  subscriptionIdOf,
   toolInfoSchema,
   unsupportedVersions,
 } from '../../src/core/backends/modelapi/mcp/protocol'

@@ -10,13 +10,12 @@
 import * as z from 'zod/mini'
 import {
   MCP_ERROR_UNSUPPORTED_PROTOCOL_VERSION,
-  MCP_META_SUBSCRIPTION_ID,
   MCP_MODERN_PROTOCOL_VERSIONS,
 } from '../../../../shared/constants'
 
 export const JSON_RPC_VERSION = '2.0'
 
-const requestIdSchema = z.union([z.string(), z.number()])
+export const requestIdSchema = z.union([z.string(), z.number()])
 export type RequestId = z.infer<typeof requestIdSchema>
 
 const errorObjectSchema = z.object({
@@ -147,69 +146,6 @@ export const discoverResultSchema = z.object({
   }),
 })
 export type DiscoverResult = z.infer<typeof discoverResultSchema>
-
-/** A modern server's tools capability: whether it has tools, and whether their list changes. */
-export interface ModernTools {
-  readonly hasTools: boolean
-  readonly listChanged: boolean
-}
-
-/** The tools capability a discovery result names. */
-export function modernTools(discover: DiscoverResult): ModernTools {
-  const { tools } = discover.capabilities
-  return { hasTools: tools !== undefined, listChanged: tools?.listChanged === true }
-}
-
-/** A cacheable result's freshness hint, read leniently: only a positive number counts. */
-const cacheHintSchema = z.object({ ttlMs: z.optional(z.unknown()) })
-
-/**
-A listing's freshness after one more page (spec `server/utilities/caching`,
-"Freshness Calculation" and "Interaction with Pagination"): each page is
-fresh while `now < receivedAt + ttlMs`, so the listing is fresh until its
-earliest page lapses. A page whose `ttlMs` is absent, zero or negative is
-immediately stale and leaves the listing with no clock (undefined), as
-does a listing that already had none.
-*/
-export function pageFreshUntil(
-  page: unknown,
-  receivedAt: number,
-  freshUntil: number | undefined,
-): number | undefined {
-  if (freshUntil === undefined) {
-    return undefined
-  }
-  const hint = cacheHintSchema.safeParse(page)
-  const ttlMs = hint.success ? hint.data.ttlMs : undefined
-  return typeof ttlMs === 'number' && Number.isFinite(ttlMs) && ttlMs > 0
-    ? Math.min(freshUntil, receivedAt + ttlMs)
-    : undefined
-}
-
-const metaSchema = z.object({ _meta: z.optional(z.record(z.string(), z.unknown())) })
-
-/**
-The subscription a notification belongs to: the id of the
-`subscriptions/listen` that opened it, in `_meta` (spec
-`basic/patterns/subscriptions#receiving-notifications`).
-*/
-export function subscriptionIdOf(params: unknown): unknown {
-  const parsed = metaSchema.safeParse(params)
-  return parsed.success ? parsed.data._meta?.[MCP_META_SUBSCRIPTION_ID] : undefined
-}
-
-/** `notifications/subscriptions/acknowledged`: the filter the server honours. */
-export const subscriptionAckSchema = z.object({
-  notifications: z.optional(z.object({ toolsListChanged: z.optional(z.boolean()) })),
-})
-
-const cancelledSchema = z.object({ requestId: requestIdSchema })
-
-/** The request a `notifications/cancelled` names, or undefined. */
-export function cancelledRequestOf(params: unknown): RequestId | undefined {
-  const parsed = cancelledSchema.safeParse(params)
-  return parsed.success ? parsed.data.requestId : undefined
-}
 
 /**
 A `-32022`'s `data`: the versions the server serves, and what was asked
