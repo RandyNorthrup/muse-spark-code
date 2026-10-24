@@ -183,3 +183,60 @@ the vt100 probe). They need a POSIX filesystem with owner-only modes;
 this worktree is on NTFS, and WSL's `/mnt/c` (9p, no metadata) cannot
 hold them, while temp files stay in the worktree. Hosted CI's Linux and
 macOS jobs run them.
+
+## Item 3 — `playbookConversation.test.ts` (MSM116): fakes found, not rewritten here
+
+`test/unit/playbookConversation.test.ts` (1,239 lines, 43 cases, from
+MSM116 `9244225a4e` through cc/rlm116) drives
+`createPlaybookConversation` (`src/host/playbook/playbookConversation.ts`)
+over hand-built ports. Each one stands in for our own code or the editor
+API; none is an outside boundary that is not ours:
+
+- `window: PlaybookWindow`: an object literal with `keepCalls` stubs for
+  `standing`, `openReview`, `dispatch`, `answer`, `recordDesign`,
+  `subscribe` and the review ticket. It stands in for
+  `createPlaybookWindow` (`playbookWindow.ts`), its worker
+  (`playbookWorker.ts`), the policy and the journal. The cases assert
+  the calls the stub saw, not what the real window did.
+- `ui: PlaybookUi`: scripted `showQuickPick`/`showInputBox`. In
+  production this is `vscode.window` (`playbookEntry.ts` passes
+  `deps.ui`): a stand-in for the editor API.
+- `host.backend()`: scripted `readSession`/`readSessionOutput`. These
+  stand in for our `AgentHost` (the Model API or Muse Code backend), with
+  hand-written child items and patch pages.
+- The review request's `submit`/`listen` and `host.notice` are the
+  conversation controller's own.
+
+Roughly 17 cases touch only the window (dispatch admission and refusal,
+round ends, best-of-N, Muse Code rows, conversation end). Those can be
+rewritten on the real window, worker, journal and git repository, as
+`teamPlaybookRounds.test.ts` and `playbookWindow.test.ts` do (the
+`thread()` boundary, `panelRepository`, the compiled job assembly on
+Windows). About 16 need a child session's own items and stored patch
+from a real backend. Only a real model turn makes a real child session,
+so in a unit test a stand-in is the only way to feed them. About 10 run
+the notice's button through VS Code's pickers, which exist only in a
+real VS Code (no suite here answers a picker programmatically). By the
+2026-10-17 rule, those two groups leave the unit suite. Their behaviours
+go to `docs/real-life/unproven.md`, and are proved by the packed
+product's real-life run, or by an integration suite that can drive the
+quick-input UI.
+
+Not done in this lane, for one reason: a correct rewrite means deleting
+about 26 of the 43 cases (the backend and picker groups). Coverage and
+the unproven record are the lead's decision, so this lane does not make
+it. Each remaining case is also a governed round on the real worker
+(`GOVERNED_ROUND_TIMEOUT_MS` notes up to 15 s a round on Windows), which
+needs a lane of its own. The suite is unchanged.
+
+## Gates (final tree `900fabd867`, Windows 11)
+
+`prettier --check .` 0 · `npm run lint:js` 0 · `npm run typecheck` (all
+six projects) 0 · `pathGuardSpawns` 7 passed, exit 0 (base: 1 failed) ·
+`check:catches` 0 (base 0: no SWALLOW or GENERIC rise) · `deadcode` 0 ·
+duplication 0 (0 clones) · cycles 0 · `npm run build` 0 (`dist/node.js`
+71.3 of 75 KiB; no budget raised) · `build-node-auth` 0
+(`dist/nodeAuth.js` 498.8 KiB, as on base).
+
+Not claimed: no README, CHANGELOG or Help line. Neither fix has been
+used through the packed product yet; that run is the lead's.
