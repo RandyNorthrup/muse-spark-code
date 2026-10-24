@@ -11,8 +11,7 @@ import {
 } from '../../core/verify/checkCommands'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import { stripJsonc } from '../../core/jsonc'
-import { FilePlaybookJournal } from '../../core/orchestration/playbook/journal'
-import { OrchestratorPlaybook } from '../../core/orchestration/playbook/policy'
+import { createFileJournalPolicy } from '../../core/orchestration/playbook/policy'
 import {
   createCapacityAdmission,
   createReadingHolder,
@@ -151,12 +150,7 @@ export async function runPlaybookCheckCli(
     }
     const holder = createReadingHolder<ResourceStatus>()
     await holder.refresh(deps.readResourceStatus)
-    const policy = new OrchestratorPlaybook({
-      journal: new FilePlaybookJournal(deps.agentDataFolder, deps.workspaceFolder),
-      teamId: deps.teamId,
-      laneId: deps.laneId,
-      workspaceFolder: deps.workspaceFolder,
-      now: deps.now ?? Date.now,
+    const policy = createFileJournalPolicy(deps, {
       // The caller answers for the person at the terminal: the run is their
       // own check operation. Stamping still comes from here.
       authorizeOverride: () => true,

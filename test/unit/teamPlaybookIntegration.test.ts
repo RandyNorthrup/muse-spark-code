@@ -206,12 +206,15 @@ describe('createTeamPlaybookIntegration', () => {
     const { capacity, playbook } = integration({
       facts: () => ({ ...noFacts(), entries, ci: ci.current }),
     })
-    let target: unknown
-    await playbook.check({ id: 'quality', heavy: true, fullGate: false }, (run) => {
-      target = run
-      return Promise.resolve()
-    })
-    expect(target).toEqual({ kind: 'worker', id: 'e-idle' })
+    const checkTarget = async (): Promise<unknown> => {
+      let target: unknown
+      await playbook.check({ id: 'quality', heavy: true, fullGate: false }, (run) => {
+        target = run
+        return Promise.resolve()
+      })
+      return target
+    }
+    await expect(checkTarget()).resolves.toEqual({ kind: 'worker', id: 'e-idle' })
     capacity.set(
       resourceStatusSchema.parse({
         level: 'pause',
@@ -228,11 +231,7 @@ describe('createTeamPlaybookIntegration', () => {
       ),
     ).rejects.toThrow()
     // ...while the heavy check still offloads to the idle worker.
-    await playbook.check({ id: 'quality', heavy: true, fullGate: false }, (run) => {
-      target = run
-      return Promise.resolve()
-    })
-    expect(target).toEqual({ kind: 'worker', id: 'e-idle' })
+    await expect(checkTarget()).resolves.toEqual({ kind: 'worker', id: 'e-idle' })
   })
 
   it('merges a lane through the real policy and runs its effect', () => {

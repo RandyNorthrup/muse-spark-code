@@ -1,7 +1,7 @@
-import { appendFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { appendFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { onTestFinished, describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import { scratchFolders } from './helpers/playbook/scratchFolders'
 import { acpPlaybook, type AcpPlaybookBundle } from '../../src/acp/playbook'
 import {
   FilePlaybookJournal,
@@ -20,17 +20,6 @@ import {
 } from '../../src/runtime/playbook/playbookEntry'
 import { createPlaybookSurface } from '../../src/runtime/playbook/surface'
 import { UI_TEXT } from '../../src/shared/constants'
-
-/** A scratch workspace/data pair, removed when the test finishes. */
-function scratchFolders(prefix: string) {
-  const directory = mkdtempSync(path.join(tmpdir(), prefix))
-  onTestFinished(() => {
-    rmSync(directory, { recursive: true, force: true })
-  })
-  const workspaceFolder = path.join(directory, 'workspace')
-  mkdirSync(workspaceFolder, { recursive: true })
-  return { workspaceFolder, agentDataFolder: path.join(directory, 'data') }
-}
 
 function surface() {
   const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-surface-')

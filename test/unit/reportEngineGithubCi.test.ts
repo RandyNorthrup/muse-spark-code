@@ -6,6 +6,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
+import type { ReportNetworkTransport } from '../../src/core/reporting/sources/cache'
 import { githubReportSource } from '../../src/core/reporting/sources/github'
 import { storesReportSource } from '../../src/core/reporting/sources/stores'
 import { createReportingServices } from '../../src/runtime/reporting/engine'
@@ -16,9 +17,11 @@ import { networkRig, recordingTransport } from './helpers/reportKindNetwork'
 
 const HEAD_SHA = 'e9ebe7aad7ee658821d4a43a0bf967bbd87c9aa5'
 
-function services(
-  noteGithubCi?: (outcome: { readonly runs: number } | { readonly failed: true }) => void,
-) {
+function services(options?: {
+  noteGithubCi?: (outcome: { readonly runs: number } | { readonly failed: true }) => void
+  transport?: ReportNetworkTransport
+  network?: boolean
+}) {
   const root = mkdtempSync(path.join(tmpdir(), 'm116-engine-ci-'))
   onTestFinished(() => {
     rmSync(root, { recursive: true, force: true })
@@ -27,12 +30,15 @@ function services(
     ['/pulls?', []],
     ['/check-runs?', CAPTURED_CHECKS_RUNNING],
   ]
-  const lane = recordingTransport((request) => {
-    for (const [fragment, body] of bodies) {
-      if (request.url.includes(fragment)) return Promise.resolve(Response.json(body))
-    }
-    return Promise.reject(new Error(`unexpected github request ${request.url}`))
-  })
+  const lane = recordingTransport(
+    options?.transport ??
+      ((request) => {
+        for (const [fragment, body] of bodies) {
+          if (request.url.includes(fragment)) return Promise.resolve(Response.json(body))
+        }
+        return Promise.reject(new Error(`unexpected github request ${request.url}`))
+      }),
+  )
   const rig = networkRig({ transport: lane.transport })
   return createReportingServices({
     workspaceRoot: root,
@@ -41,21 +47,23 @@ function services(
     generatorVersion: 'test',
     keepHistory: false,
     enabledAgents: [],
-    networkSources: {
-      github: githubReportSource({
-        remote: 'https://github.com/RandyNorthrup/muse-spark-code.git',
-        headSha: HEAD_SHA,
-        defaultBranch: 'main',
-        reader: rig.reader,
-      }),
-      stores: storesReportSource({
-        reader: rig.reader,
-        project: { name: 'muse-spark-code' },
-        releaseVersion: '0.19.0',
-        adapters: [],
-      }),
-    },
-    ...(noteGithubCi !== undefined && { noteGithubCi }),
+    ...(options?.network !== false && {
+      networkSources: {
+        github: githubReportSource({
+          remote: 'https://github.com/RandyNorthrup/muse-spark-code.git',
+          headSha: HEAD_SHA,
+          defaultBranch: 'main',
+          reader: rig.reader,
+        }),
+        stores: storesReportSource({
+          reader: rig.reader,
+          project: { name: 'muse-spark-code' },
+          releaseVersion: '0.19.0',
+          adapters: [],
+        }),
+      },
+    }),
+    ...(options?.noteGithubCi !== undefined && { noteGithubCi: options.noteGithubCi }),
   })
 }
 
@@ -71,8 +79,10 @@ const quality: ReportOptions = {
 describe('report engine CI observation', () => {
   it('reports the observed CI check runs after the github read', async () => {
     const seen: unknown[] = []
-    const engine = services((outcome) => {
-      seen.push(outcome)
+    const engine = services({
+      noteGithubCi: (outcome) => {
+        seen.push(outcome)
+      },
     })
     const result = await engine.generate?.(quality)
     expect(result?.status).toBe('generated')
@@ -81,38 +91,12 @@ describe('report engine CI observation', () => {
   })
 
   it('reports a failed read as failed, never as zero runs', async () => {
-    const root = mkdtempSync(path.join(tmpdir(), 'm116-engine-ci-offline-'))
-    onTestFinished(() => {
-      rmSync(root, { recursive: true, force: true })
-    })
-    const rig = networkRig({
-      transport: () => Promise.reject(new TypeError('fetch failed')),
-    })
     const seen: unknown[] = []
-    const engine = createReportingServices({
-      workspaceRoot: root,
-      storageRoot: path.join(root, 'reports'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: 'test',
-      keepHistory: false,
-      enabledAgents: [],
-      networkSources: {
-        github: githubReportSource({
-          remote: 'https://github.com/RandyNorthrup/muse-spark-code.git',
-          headSha: HEAD_SHA,
-          defaultBranch: 'main',
-          reader: rig.reader,
-        }),
-        stores: storesReportSource({
-          reader: rig.reader,
-          project: { name: 'muse-spark-code' },
-          releaseVersion: '0.19.0',
-          adapters: [],
-        }),
-      },
+    const engine = services({
       noteGithubCi: (outcome) => {
         seen.push(outcome)
       },
+      transport: () => Promise.reject(new TypeError('fetch failed')),
     })
     const result = await engine.generate?.(quality)
     expect(result?.status).toBe('generated')
@@ -120,21 +104,12 @@ describe('report engine CI observation', () => {
   })
 
   it('calls nothing when no generation attempted the github read', async () => {
-    const root = mkdtempSync(path.join(tmpdir(), 'm116-engine-ci-local-'))
-    onTestFinished(() => {
-      rmSync(root, { recursive: true, force: true })
-    })
     const seen: unknown[] = []
-    const engine = createReportingServices({
-      workspaceRoot: root,
-      storageRoot: path.join(root, 'reports'),
-      l10n: { table: EN, locale: 'en' },
-      generatorVersion: 'test',
-      keepHistory: false,
-      enabledAgents: [],
+    const engine = services({
       noteGithubCi: (outcome) => {
         seen.push(outcome)
       },
+      network: false,
     })
     const result = await engine.generate?.(quality)
     expect(result?.status).toBe('generated')
