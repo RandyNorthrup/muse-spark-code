@@ -116,8 +116,9 @@ export class RuntimeAuth implements AuthPort {
     return Promise.reject(new Error(UI_TEXT.cliNotFound))
   }
 
+  /** The key and the CLI's sign-in are kept where this process cannot end them for the person: said, with the commands. */
   public signOut(): Promise<AuthSnapshot> {
-    return Promise.reject(new Error(UI_TEXT.actionFailed))
+    return Promise.reject(new Error(UI_TEXT.signOutInTerminal))
   }
 
   public markAuthRequired(reason: string): AuthSnapshot {

@@ -36,6 +36,7 @@ import { setUiText } from '../../shared/l10n/text'
 import type { RuntimeBackend } from '../backends'
 import type { ServeOptions } from '../cliArgs'
 import { runtimeEditorContext } from '../features/editorContext'
+import { createRuntimeDocuments } from '../features/documents'
 import { createRuntimePaid } from '../features/paid'
 import { runtimeDailyBudgetUsd } from '../dailyBudgetSetting'
 import { createRuntimeWorkspaceFiles } from '../features/workspaceFiles'
@@ -277,6 +278,11 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       signalFor: (sessionId) => registry.heldOrAdopting(sessionId)?.signal,
     },
   )
+  const outputs = createRuntimeDocuments({
+    host: connection,
+    dataFolder: deps.dataFolder,
+    signal: ending.signal,
+  })
   const publishPaid = () => {
     for (const held of registry.controllers()) held.publishPaidState()
   }
@@ -329,6 +335,10 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
             controllers: () => controllersOf(registry.controllers()),
             runGit: deps.runGit,
             git: () => git,
+            openDocument: async (title, content) => {
+              await outputs.open(title, content)
+            },
+            paidChanged: publishPaid,
             distDir: deps.distDir,
             dataFolder: deps.dataFolder,
             files,
@@ -546,6 +556,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         stopSettings?.()
         editorContext.dispose()
         git?.dispose()
+        await outputs.dispose()
         await registry.releaseEvery()
         await runtime?.close()
       })()

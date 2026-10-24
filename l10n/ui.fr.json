@@ -2226,6 +2226,7 @@
   "gitNoRepository": "Cet espace de travail n’est pas dans un dépôt git ouvert par le Git de VS Code.",
   "gitWorkspaceNotRepository": "Cet espace de travail n’est dans aucun dépôt git.",
   "gitProgramMissing": "Git n’est pas installé sur cet ordinateur, ou il ne figure pas dans le PATH.",
+  "signOutInTerminal": "Pour vous déconnecter, exécutez « muse-spark-code-acp auth clear » (Model API) ou « muse logout » (Muse Code) dans un terminal, puis vérifiez de nouveau.",
   "gitNothingToCommit": "Il n’y a rien à valider.",
   "gitNothingStaged": "Rien n’est indexé. Cochez « Inclure les modifications non indexées et les nouveaux fichiers », ou indexez d’abord des modifications.",
   "gitCommitMessageEmpty": "Rédigez d’abord un message de commit.",

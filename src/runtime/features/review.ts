@@ -22,6 +22,7 @@ import type { Logger } from '../../host/logger'
 import { lazyReview, type ReviewTurnFeatures } from '../../host/review/reviewBundle'
 import { MUSE_EDIT_SCHEME, REVIEW_BUNDLE_FILE, UI_TEXT } from '../../shared/constants'
 import type { HostServices } from '../../shared/hostApi/methods'
+import { editorPick } from './pick'
 
 export interface RuntimeReviewDeps {
   readonly host: HostServices
@@ -76,6 +77,7 @@ export function createRuntimeReview(deps: RuntimeReviewDeps): RuntimeReview {
         throw error
       }
     })
+  const pick = editorPick(host, deps.signal)
   const reviewing = lazyReview({
     bundlePath: path.join(deps.distDir, REVIEW_BUNDLE_FILE),
     log: deps.log,
@@ -83,23 +85,9 @@ export function createRuntimeReview(deps: RuntimeReviewDeps): RuntimeReview {
     runGit: deps.runGit,
     pickOne: async (items, title, placeholder) => {
       check()
-      const picked = await host.request(
-        'ui/pick',
-        {
-          title,
-          placeholder,
-          items: items.map((item) => ({
-            id: item.id,
-            title: item.label,
-            ...(item.description !== undefined && { description: item.description }),
-            ...(item.detail !== undefined && { detail: item.detail }),
-          })),
-          multiple: false,
-        },
-        deps.signal,
-      )
+      const picked = await pick(items, title, placeholder)
       check()
-      return typeof picked?.[0] === 'string' ? picked[0] : undefined
+      return picked
     },
     editReview: {
       platform,

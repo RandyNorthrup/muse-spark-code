@@ -2182,6 +2182,7 @@
   "gitNoRepository": "此工作區不在 VS Code 的 Git 已開啟的 git 存放庫中。",
   "gitWorkspaceNotRepository": "此工作區不在 git 存放庫中。",
   "gitProgramMissing": "此電腦上未安裝 Git，或它不在 PATH 中。",
+  "signOutInTerminal": "若要登出，請在終端機中執行「muse-spark-code-acp auth clear」(Model API) 或「muse logout」(Muse Code)，然後重新檢查。",
   "gitNothingToCommit": "沒有要認可的內容。",
   "gitNothingStaged": "沒有暫存任何內容。請勾選「包含未暫存的變更和新檔案」，或先暫存一些變更。",
   "gitCommitMessageEmpty": "請先撰寫認可訊息。",

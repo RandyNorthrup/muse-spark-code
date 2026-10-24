@@ -31,6 +31,7 @@ import {
   ACP_AGENT_NAME,
   META_IMAGE_MAX_BYTES,
   MODEL_API_BASE_URL,
+  RUNTIME_PANEL_PORTS_BUNDLE_FILE,
   UI_TEXT,
 } from '../../shared/constants'
 import type { HostServices } from '../../shared/hostApi/methods'
@@ -43,6 +44,7 @@ import { RuntimeAuth } from '../features/auth'
 import { createRuntimeReview } from '../features/review'
 import { createRuntimeTransfer } from '../features/transfer'
 import type { RuntimePaid } from '../features/paid'
+import { lazyPlans } from '../features/portsBundle'
 import { unavailable } from '../features/unavailable'
 import { unavailableGit } from '../features/unavailableGit'
 import { readConfinedBytes, type RuntimeWorkspaceFiles } from '../features/workspaceFiles'
@@ -67,6 +69,10 @@ export interface RuntimeConversationPorts {
   readonly runGit: ConversationDeps['runGit']
   /** The connection's Git, once opened; none in a workspace with no repository. */
   readonly git: () => PanelGit | undefined
+  /** The editor shows this text in a tab of its own (a tool row's output). */
+  readonly openDocument: (title: string, content: string) => Promise<void>
+  /** The paid state the surfaces show changed outside the gate and the tally ("Ask again"). */
+  readonly paidChanged: () => void
   /** The folder holding the shipped bundles (dist/). */
   readonly distDir: string
   /** The agent's data folder. */
@@ -190,6 +196,19 @@ export async function runtimeConversationDeps(
     log,
   })
   context.own(() => transfer.dispose())
+  const plans = lazyPlans({
+    bundlePath: path.join(ports.distDir, RUNTIME_PANEL_PORTS_BUNDLE_FILE),
+    log,
+    plans: {
+      host,
+      workspaceRoot,
+      platform,
+      distDir: ports.distDir,
+      confirm: isConfirmed,
+      signal: context.signal,
+      log,
+    },
+  })
   await auth.refresh()
   const composition: ConversationCompositionPorts = {
     editor: {
@@ -224,7 +243,11 @@ export async function runtimeConversationDeps(
       consent: {
         // D48: every use asks first, in the editor; nothing is checked against a limit the person did not set.
         allows: (request) => paid.allows(workspaceRoot, context.sessionId(), request, false),
-        forget: () => unavailable(),
+        // Every use asks again here (M58); the badge and toggles show it at once.
+        forget: async () => {
+          await paid.forget(workspaceRoot, context.sessionId())
+          ports.paidChanged()
+        },
       },
       usage: {
         add: (feature, units, searchPriceUsd) => {
@@ -295,7 +318,7 @@ export async function runtimeConversationDeps(
         .map((document) => fileURLToPath(document.uri)),
     editReview: reviewing.editReview,
     review: reviewing.review,
-    openDocument: () => unavailable(),
+    openDocument: ports.openDocument,
     openFile: async (file, range) => {
       const confined = await confineWorkspacePath(
         workspaceRoot,
@@ -360,7 +383,7 @@ export async function runtimeConversationDeps(
     dictation: { isAvailable: false, reason: UI_TEXT.dictationUnavailable },
     exports: transfer.exports,
     transferFiles: transfer.transferFiles,
-    plans: undefined,
+    plans,
     isWorkspaceTrusted: isTrusted,
     isWorktreeHeld: () => false,
     createGit: (gitSurface) =>

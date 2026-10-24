@@ -2204,6 +2204,7 @@
   "gitNoRepository": "Ez a munkaterület nincs olyan git-adattárban, amelyet a VS Code Git-integrációja megnyitott.",
   "gitWorkspaceNotRepository": "Ez a munkaterület nincs git-adattárban.",
   "gitProgramMissing": "A Git nincs telepítve erre a számítógépre, vagy nincs a PATH-ban.",
+  "signOutInTerminal": "A kijelentkezéshez futtasd egy terminálban a „muse-spark-code-acp auth clear” (Model API) vagy a „muse logout” (Muse Code) parancsot, majd ellenőrizz újra.",
   "gitNothingToCommit": "Nincs mit véglegesíteni.",
   "gitNothingStaged": "Semmi sincs előkészítve. Jelölje be „A nem előkészített módosítások és az új fájlok belefoglalása” lehetőséget, vagy előbb készítsen elő módosításokat.",
   "gitCommitMessageEmpty": "Előbb írjon commitüzenetet.",

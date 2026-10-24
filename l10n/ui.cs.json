@@ -2248,6 +2248,7 @@
   "gitNoRepository": "Tento pracovní prostor není v úložišti git, které má Git ve VS Code otevřené.",
   "gitWorkspaceNotRepository": "Tento pracovní prostor není v úložišti git.",
   "gitProgramMissing": "Git není v tomto počítači nainstalován nebo není v proměnné PATH.",
+  "signOutInTerminal": "Pro odhlášení spusťte v terminálu „muse-spark-code-acp auth clear“ (Model API) nebo „muse logout“ (Muse Code) a poté zkontrolujte znovu.",
   "gitNothingToCommit": "Není co potvrdit.",
   "gitNothingStaged": "Nic není připravené. Zaškrtněte „Zahrnout nepřipravené změny a nové soubory“, nebo nejdříve nějaké změny připravte.",
   "gitCommitMessageEmpty": "Nejdříve napište zprávu potvrzení.",

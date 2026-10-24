@@ -19,6 +19,9 @@ const FOLDER = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-portable-')))
 /** What each portable bundle must export for the runtime to use it. */
 const PORTABLE_BUNDLES: Readonly<Record<string, readonly string[]>> = {
   'conversation.js': ['createConversation', 'questionsForHost'],
+  'nativeGit.js': ['createNativeGit', 'openPanelGit'],
+  'runtimePanelPorts.js': ['createPlans'],
+  'commands.js': ['choosePlan'],
 }
 
 beforeAll(() => {

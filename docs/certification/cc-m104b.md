@@ -48,14 +48,14 @@ raised, new code in lazy chunks with measured budgets (D6).
 | 4b–5a, 7a | `3c61b9a1a`   | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C8 fire (below)                                                       |
 | 6         | `1081aca0e`   | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
 | 5b        | `728a52409`   | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
-| 5c        | (this commit) | git and pull requests in the panel: the native route over the editor's services, in `dist/nativeGit.js`; the GitHub sign-in (device flow, `gh`) shared with VS Code                                                                | `runtimePanelGit` 6/6, `runtimeSettingsStore` 13/13, `pathGuardSpawns` record moved; drills G1–G7 fire                                      |
+| 5c        | `40106f850`   | git and pull requests in the panel: the native route over the editor's services, in `dist/nativeGit.js`; the GitHub sign-in (device flow, `gh`) shared with VS Code                                                                | `runtimePanelGit` 6/6, `runtimeSettingsStore` 13/13, `pathGuardSpawns` record moved; drills G1–G7 fire                                      |
+| 5d        | (this commit) | Ask again, saved plans, a tool row's output in an editor tab, sign-out said in words                                                                                                                                               | `runtimePanelSessions` 14/14; drills D1–D6 fire                                                                                             |
 
 ### Next step, exactly
 
 Continue slice 5 with the runtime's remaining ports (below, "Shared
-composition": checkpoints, plans, `openDocument`, the IDE tool server, usage
-insights, dictation, the Model API manager port, sign-out, the session log
-export, "Ask again", host actions), then 7b (the other surfaces), 8, 9. The
+composition": checkpoints, the IDE tool server, usage insights, dictation,
+the Model API manager port, the session log export, host actions), then 7b (the other surfaces), 8, 9. The
 rig-specific facts are in "Rig notes".
 
 ### Slices left, in order, with the intended design
@@ -91,14 +91,17 @@ rig-specific facts are in "Rig notes".
    trash), export and import (`transfer.ts`: the editor's save and open
    dialogs, a preview file the editor opens before the person decides), and
    the unsaved editor files, which reach the backend's tools
-   (`RuntimeBackendDeps.unsavedFiles`), and git with pull requests (5c,
-   `src/runtime/panel/git/panelGit.ts`). Still refused in words
+   (`RuntimeBackendDeps.unsavedFiles`), git with pull requests (5c,
+   `src/runtime/panel/git/panelGit.ts`), and (5d) "Ask again", saved plans
+   (`dist/runtimePanelPorts.js`), a tool row's output in an editor tab and the
+   sign-out sentence. Still refused in words
    (`unavailable()`), each to be built against int's interfaces: checkpoints
    (`store: undefined`; they need the admission git's commit and push run
-   through), plans, `openDocument`, the IDE tool server (`ideMcpEndpoint`), usage
-   insights, dictation and Muse Voice, the Model API manager port
-   (best-of-N, voice budget), sign-out, Muse Code install, the session log
-   export, "Ask again" for paid use, and most host actions.
+   through), the IDE tool server (`ideMcpEndpoint`), usage insights,
+   dictation and Muse Voice, the Model API manager port (best-of-N, voice
+   budget), Muse Code install, the session log export (Muse Code writes it
+   to a path; the editor's dialog hands the runtime text), and most host
+   actions.
 6. **Paid use in the panel (D48, D208). Done.** `src/runtime/features/paid.ts`
    builds int's own `PaidFeatureGate` and `PaidUsage` over the runtime's
    settings (a setting the person never set is on by default on the Model API,
@@ -584,6 +587,42 @@ base: unreviewed starts under `src/runtime/node/`, not this lane's).
 | G6    | the `gh` setting can be set by a workspace                 | exit 1: "keeps a machine-scoped setting the person's alone"     |
 | G7    | the push question leaves out that a force is never made    | exit 1: "asks before it pushes, names every part of the push …" |
 
+## Slice 5d — Ask again, saved plans, tool output tabs, sign-out words
+
+What a person gets: Account & usage's "Ask again" makes every paid feature
+ask again (the badge and toggles show it at once). Plans… lists the saved
+plans (`.agents/plans/`) in the editor's pick and opens one or implements it,
+and a plan from Plan mode saves after the one yes `.agents/` needs. A tool
+row's "open output" shows the whole text in an editor tab (a file of the data
+folder, removed when the connection ends). Sign out, which only the person can
+do where the sign-in is kept (the stored key, Muse Code's own login), is said
+in words with the two commands instead of "That did not work".
+
+How: `AcpPaidUse.forget` (the ACP agent never calls it) drops the folder
+consent's held answers and lapses each feature's Always; the grants file keeps
+one generation per feature, so Ask again lapses Always in every folder, as
+turning a feature off already does. Plans are int's `createPlanFiles` over
+`createPlanIo`, built inside the new `dist/runtimePanelPorts.js` (22.6 KiB, row
+30 KiB; it is where the checkpoint store goes) and reached through
+`lazyPlans`; the plan reader (`planMarkdown.js`) and the Plans… list
+(`commands.js`) are int's own chunks, now in the ACP package list. The session
+bundle is 113.3 of 120 KiB. No checkpoint exists in the panel, so a plan save
+records no edit.
+
+Suites: `runtimePanelSessions` (14), with a real `PlanStore` writing the plan
+the panel then lists, and the editor's pick and open answered as an editor
+would. `runtimePortableBundles` also loads `nativeGit.js`,
+`runtimePanelPorts.js` and `commands.js` without the `vscode` module.
+
+| Drill | Break                                         | Result                                                             |
+| ----- | --------------------------------------------- | ------------------------------------------------------------------ |
+| D1    | the tab's file is written empty               | exit 1: "shows a tool row's full output in a tab …"                |
+| D2    | the files are not removed with the connection | exit 1: same case                                                  |
+| D3    | the editor's pick is ignored                  | exit 1: "lists the saved plans in the editor's pick …" (times out) |
+| D4    | Ask again leaves Always in the grants file    | exit 1: "asks again for every feature when the person says so"     |
+| D5    | the sign-out refusal is the generic failure   | exit 1: "says how to sign out …"                                   |
+| D6    | Ask again does not tell the surfaces          | exit 1: "asks again …" (times out)                                 |
+
 ## Commits
 
 | Commit       | Slice                                                    |
@@ -596,4 +635,5 @@ base: unreviewed starts under `src/runtime/node/`, not this lane's).
 | `3c61b9a1a`  | slices 4b–5a, 7a: the chat in `panel --stdio`            |
 | `1081aca0e`  | slice 6: paid use in the panel                           |
 | `728a52409`  | slice 5b: review, export and import, unsaved files       |
-| (this)       | slice 5c: git and pull requests in the panel             |
+| `40106f850`  | slice 5c: git and pull requests in the panel             |
+| (this)       | slice 5d: Ask again, plans, output tabs, sign-out words  |

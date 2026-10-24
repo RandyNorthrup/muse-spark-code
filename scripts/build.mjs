@@ -1814,6 +1814,14 @@ const runtimePanelSessionOptions = {
   outfile: RUNTIME_PANEL_SESSION_OUTFILE,
   banner: {},
 }
+// Its heavier ports (saved plans), required the first time one is used.
+const RUNTIME_PANEL_PORTS_OUTFILE = 'dist/runtimePanelPorts.js'
+const runtimePanelPortsOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panel/portsEntry.ts'],
+  outfile: RUNTIME_PANEL_PORTS_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2317,6 +2325,7 @@ if (isWatch) {
     esbuild.context(superviseOptions),
     esbuild.context(runtimePanelOptions),
     esbuild.context(runtimePanelSessionOptions),
+    esbuild.context(runtimePanelPortsOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2549,6 +2558,7 @@ if (isWatch) {
     ['supervise', () => esbuild.build(superviseOptions)],
     ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
     ['runtimePanelSession', () => esbuild.build(runtimePanelSessionOptions)],
+    ['runtimePanelPorts', () => esbuild.build(runtimePanelPortsOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2570,6 +2580,7 @@ if (isWatch) {
   let supervise
   let runtimePanel
   let runtimePanelSession
+  let runtimePanelPorts
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2589,6 +2600,7 @@ if (isWatch) {
       supervise,
       runtimePanel,
       runtimePanelSession,
+      runtimePanelPorts,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2667,6 +2679,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimePanelSession.json'),
       JSON.stringify(runtimePanelSessionMetafile),
+    )
+    const { metafile: runtimePanelPortsMetafile } = await runtimePanelPorts
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelPorts.json'),
+      JSON.stringify(runtimePanelPortsMetafile),
     )
   }
   console.log('bundle sizes:')
@@ -2781,5 +2798,6 @@ if (isWatch) {
   reportSize(SUPERVISE_OUTFILE)
   reportSize(RUNTIME_PANEL_OUTFILE)
   reportSize(RUNTIME_PANEL_SESSION_OUTFILE)
+  reportSize(RUNTIME_PANEL_PORTS_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }
