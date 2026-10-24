@@ -428,3 +428,19 @@ Fix: the case waits for the server's accept (`waitForTui('peer accepted')`)
 before it writes.
 
 Green: 3 of 3 runs passed (3 passed, 14 POSIX cases skipped on Windows).
+
+### scheduleFsRetryStop: deny a file that exists
+
+Cause: the stop case read `probe/missing.json` under a folder denied to the
+current user (`icacls /deny *<SID>:(OI)(CI)F` on Windows, `chmod 0` on
+POSIX). Windows grants every user traverse past a denied folder, so a
+missing name under it is looked up and reported missing (ENOENT), which the
+schedule store reads as "no file": the read resolved at once
+(`promise resolved "undefined" instead of rejecting`) instead of waiting on a
+transient denial. On POSIX the same read is EACCES.
+
+Fix: the case publishes `probe/file.json` before the denial and reads it, as
+the suite's retry case does; the read is a transient denial on every OS, and
+the stop ends it with its reason.
+
+Red (before): 1 failed as above. Green: 2 passed.
