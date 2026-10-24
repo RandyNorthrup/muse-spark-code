@@ -12,12 +12,7 @@ import { tabDayKey, tabSettleUsd } from '../../core/tab/tabSpend'
 import { estimateCostUsd } from '../../core/usage/insights'
 import type { Logger } from '../logger'
 import type { TabLedger } from './tabLedger'
-import type {
-  TabReportedUsage,
-  TabReservation,
-  TabSpendFacts,
-  TabSpendGate,
-} from '../vscode/tab/tabBundle'
+import type { TabReportedUsage, TabReservation, TabSpendFacts, TabSpendGate } from './tabContract'
 
 export interface TabSpendGateDeps {
   readonly ledger: TabLedger
