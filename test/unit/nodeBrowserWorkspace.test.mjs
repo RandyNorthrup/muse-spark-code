@@ -110,10 +110,11 @@ describe('M110-U1 actual CodeMirror browser surface', () => {
         () => globalThis.document.documentElement.scrollWidth <= globalThis.innerWidth,
       ),
     ).toBe(true)
-    mkdirSync('docs/certification/m110-u1-shots', { recursive: true })
-    await page.screenshot({
-      path: 'docs/certification/m110-u1-shots/editor-dark-320.png',
-      fullPage: true,
-    })
+    // The narrow picture is a local look into the gitignored temp/ folder; the
+    // committed record picture (docs/certification/m110-u1-shots/) is never
+    // rewritten by a test run.
+    const shots = path.resolve('temp', 'm110-u1-shots')
+    mkdirSync(shots, { recursive: true })
+    await page.screenshot({ path: path.join(shots, 'editor-dark-320.png'), fullPage: true })
   })
 })

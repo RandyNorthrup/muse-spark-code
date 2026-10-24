@@ -165,7 +165,9 @@ Chrome: keyboard typing and undo/redo, exact UTF-8 save with original digest,
 stale-save draft/data preservation, read-only merge panes, German screen-reader
 announcements and control-character labels, and keyboard opening at 320 px.
 It uses the repository test timeout. The [dark narrow screenshot](m110-u1-shots/editor-dark-320.png)
-is captured from this fixture; no screenshot contains a credential.
+is captured from this fixture; no screenshot contains a credential. A test run
+writes its picture to the gitignored `temp/m110-u1-shots/`, never over this one
+(cc-tests, 2026-10-23).
 
 ## Final verification
 
