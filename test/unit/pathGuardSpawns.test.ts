@@ -254,11 +254,11 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     reason:
       "the boundary's own bounded runner shares its piped launch: every command resolves through resolveCommand with the child env for the run workspace",
   },
-  'src/core/backends/modelapi/ModelApiHost.ts': {
+  'src/core/backends/modelapi/b1Hold.ts': {
     kind: 'guarded',
     anchor: "spawnResourceFile('bootstrap'",
     reason:
-      'the packaged B1 inspect helper (absolute path) through the governed boundary: refused inside the inspected workspace, guarded child env for it (M125 F1b)',
+      'the packaged B1 inspect helper (absolute path) through the governed boundary: refused inside the inspected workspace, guarded child env for it (M125 F1b; the hold rides dist/modelApiB1.js)',
   },
   'src/core/judge/setup/runtime.ts': {
     kind: 'guarded',

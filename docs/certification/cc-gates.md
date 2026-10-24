@@ -225,3 +225,156 @@ After a fresh production build every step after the size check passes:
 bundle split 0, lazy registry 0, host globals 0, third-party notices 0,
 legal build records 0 (156 bundles, 0 problems). `nodeSurface.test.ts`
 4/4.
+
+## Item 5 — `npm run -s build`, size step: 12 bundles over budget, and reportInputs
+
+Measured on `d81327d360`: 12 bundles over their unchanged budgets, and
+`dist/reportInputs.js` inside only because RLM95 had raised its budget
+from 100 KiB (its value on `f3941b8548`) to 116 KiB. That budget is back
+to 100 KiB. No other budget was raised, changed or removed, no gate was
+loosened; three new lazy bundles got budgets of their own by D6 (part 2).
+
+| Bundle                        | Before (budget)  | After (budget)           |
+| ----------------------------- | ---------------- | ------------------------ |
+| dist/modelApi.js              | 575.0 KiB (525)  | 521.8 KiB (525)          |
+| dist/uiText.js                | 128.6 KiB (125)  | 122.6 KiB (125)          |
+| dist/modelsPanel.js           | 159.5 KiB (150)  | 133.0 KiB (150)          |
+| dist/wire.js                  | 79.2 KiB (75)    | 74.2 KiB (75)            |
+| dist/modelApiBoundaries.js    | 55.3 KiB (50)    | 46.5 KiB (50)            |
+| dist/reportingPanel.js        | 51.4 KiB (50)    | 46.9 KiB (50)            |
+| dist/usageService.js          | 101.4 KiB (100)  | 97.0 KiB (100)           |
+| dist/teamScheduler.js         | 76.0 KiB (75)    | 72.0 KiB (75)            |
+| dist/estimateContracts.js     | 25.6 KiB (25)    | 20.9 KiB (25)            |
+| dist/teamWorkerOps.js         | 17.3 KiB (17)    | 12.8 KiB (17)            |
+| dist/vaultBrokerBindings.js   | 37.3 KiB (37.24) | 32.9 KiB (37.24)         |
+| dist/webview resource history | 50.3 KiB (50)    | 49.3 KiB (50)            |
+| dist/reportInputs.js          | 102.6 KiB (116)  | 98.4 KiB (100, restored) |
+
+### Part 1 — dead constants out of every bundle, English and shared modules in their lazy places
+
+- **Folded constants** (`scripts/lib/foldedConstants.mjs`, production
+  builds only, beside `compressedModelText.mjs`). esbuild 0.28 keeps any
+  top-level constant written as arithmetic (`5 * 60_000`) or as a
+  template over other constants in every bundle that imports anything
+  from `src/shared/constants.ts`, used or not; plain literals, objects and
+  arrays it drops. A bundle reading one constant carried 4,597 B of the
+  file; folded, 9 B. Every merged lane's new tunables had grown every
+  bundle, which is why so many sat a few hundred bytes over. The fold
+  writes each such initializer (and object property / array element) as
+  the literal it evaluates to with the same JavaScript operators in the
+  same order; strings fold only from literals and constants folded above;
+  imports, calls other than `Math`'s rounding and bounds, member reads
+  other than the file's own literal objects and `Number`'s safe-integer
+  bounds, and non-finite or negative-zero values stay as written. The
+  source keeps its readable derivations; `compressedModelText` folds
+  before it compresses; every production bundle gets the plugin appended
+  after its own. This fitted reportInputs, reportingPanel,
+  usageService, teamWorkerOps, teamScheduler, vaultBrokerBindings,
+  estimateContracts and wire.
+- **uiText.js**: the English of first-use surfaces moved into the
+  `surfaces` region (`dist/uiTextSurfaces.js`, read on first use by the
+  shared fallback's accessors): the setup wizard and its CLI steps, the
+  Judge section, the judge's paid asks, the device and desktop surfaces.
+  uiTextSurfaces.js 12.6 → 19.1 KiB (budget 25).
+- **modelsPanel.js** reads the redaction, vault-schema and money modules
+  from the shared boundary chunks like every other Node consumer
+  (`sharedModelApiBoundaries` in its build options) instead of a copy.
+- **Resource history**: each resource root now installs only the English
+  it reads (`browser-resource-history-english` beside
+  `browser-resource-english`). The closure is mostly zod core; with
+  today's zod even main's sources measure 51,297 B there.
+
+Tests: `test/unit/foldedConstants.test.mjs` builds the real constants.ts
+as written and folded and requires every export identical (functions by
+source, collections by entries), shows the folded build carries less of
+the file for a one-constant entry, and pins exactness and the cases left
+as written. 4/4.
+
+Drills (2026-10-24):
+
+- Multiplication folded wrongly (`a * b + 1`): the test exits 1, "exports
+  every constant with the value the source gives it" lists the drifted
+  constants (ACP_MAX_MESSAGE_BYTES, ACP_MESSAGE_HEADROOM_BYTES, …);
+  restored, 4/4.
+- The fold switched off (`foldConstantSource` returning its input) and a
+  production build: `check-bundle-size` exit 1 with 10 OVER lines
+  (reportInputs 102.6/100, reportingPanel 51.4/50, modelApi 525.7/525,
+  modelApiBoundaries 50.5/50, usageService 101.4/100, teamWorkerOps
+  17.3/17, teamScheduler 75.9/75, vaultBrokerBindings 37.3/37.24,
+  estimateContracts 25.6/25, wire 78.7/75); restored and rebuilt, exit 0,
+  no OVER line.
+
+### Part 2 — dist/modelApi.js and dist/modelApiBoundaries.js, fitted by weight
+
+Measured with the folded-constants build: `dist/modelApi.js` 585,670 B
+against 537,600 B (525 KiB), `dist/modelApiBoundaries.js` 52,511 B
+against 51,200 B (50 KiB); exit 1. 0.19.0 built the backend at
+533,481 B: the growth was RLM125's fast judge (the B1 hold, the reflex
+decisions and their host methods) and RLM108's billing, and the boundary
+grew by the file-tool edit helpers RLINTFIX moved into it. No budget was
+raised or changed and no gate loosened; code not needed at load moved
+into chunks loaded on first use through the existing cohort, and one
+duplicate became shared. Each step measured with the production
+plugins and folding (the same byte count the build gives):
+
+| Move                                                                                                                                                                                                                                                                          | dist/modelApi.js                         |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| The B1 hold to the new `dist/modelApiB1.js` (`b1Hold.ts`: the runner's opening, the race, the audit; with approval, inspectExec, inspectGrammar, fastPathAudit); loaded on the first shell ask that reaches the hold with a packaged helper, never without one                | −16,176 B                                |
+| What a tool call or goal command runs to the new `dist/modelApiToolRun.js` (executeTool's file and shell execution, the memory tool's placing and running, the browser check's placement and report, the goal rules), loaded on the first of them                             | −22,196 B                                |
+| The fast judge to the new `dist/modelApiFast.js` (`fastJudge.ts`: the loop and triage observation, the effort and keep-list verdicts, the turn boundary and tail; with apply, engines, turnEnd, turnRecord and the reflex checks), loaded when each turn or compaction starts | −9,660 B                                 |
+| `workspacePath.ts` shared from `dist/modelApiBoundaries.js` (it was inlined in about thirty Node bundles); the edit helpers out of the boundary (the backend keeps the three small ones it reads)                                                                             | −1,554 B                                 |
+| An attached image's resize (`imageResize.ts`) into the existing `dist/modelApiImage.js`                                                                                                                                                                                       | −1,711 B                                 |
+| **Now**                                                                                                                                                                                                                                                                       | **534,373 B** (521.8 KiB, 3,227 B under) |
+
+`dist/modelApiBoundaries.js` is 47,590 B (46.5 KiB): the edit helpers
+(`toolEdit.ts` 3,714 B, `codeText.ts` 622 B, and the 2,048 B partial copy
+of `workspacePath.ts` only they needed) now ride `dist/modelApiToolRun.js`,
+the chunk that runs the file tools; the byte-range execution, loaded only
+from it, reads them there (`TOOL_EDIT_*` in deferredBundles.mjs), and
+`workspacePath.ts` is a boundary source in full, so activation drops its
+copy too (`dist/extension.js` 523,928 → 521,904 B).
+
+New budgets (D6: measured × 1.15, rounded up to the next 25 KiB):
+`dist/modelApiB1.js` 18,761 B → 21,575 B → 25 KiB;
+`dist/modelApiToolRun.js` 70,934 B → 81,575 B → 100 KiB;
+`dist/modelApiFast.js` 13,019 B → 14,972 B → 25 KiB. `dist/modelApiImage.js`
+is 16,080 B under its existing 25 KiB.
+
+Wiring, as for `dist/modelApiImage.js`: entries `modelApiB1Entry.ts`,
+`modelApiToolRunEntry.ts`, `modelApiFastEntry.ts`; build options, watch
+contexts and shipped specs; the cohort filter and `DEFERRED_OUTFILES`;
+`ON_FIRST_USE` records with the backend as parent (the split gate fails
+the backend carrying any of their files); the split gate's file lists
+and text-block readers (`MODEL_API_MODEL_TEXT` and
+`TOOLCHAINS_MODEL_TEXT` add the tool-run chunk, `FAST_PATH_MODEL_TEXT`
+moves from the backend to the fast chunk); the host-globals, notices
+and agent package lists; the VSIX allowlist; knip's entries; the
+regenerated lazy registry and notices. The split gate gained one guard:
+the tool-run chunk carries `toolEdit.ts`, the byte-range execution reads
+it there with no copy, and the boundary carries none. The spawn
+inventory's B1 entry follows the helper's start into `b1Hold.ts`.
+
+Drills (2026-10-23), each a production build and both gates, then
+restored:
+
+- B1: the host imports `modelApiB1Entry` statically. Size exit 1, `OVER
+dist/modelApi.js: 538.2 KiB (budget 525 KiB)`; split exit 1, "dist/modelApi.js
+  carries src/core/backends/modelapi/b1Hold.ts, which loads only on the
+  first shell ask through the B1 hold" (and the entry, approval,
+  inspectExec, inspectGrammar, fastPathAudit).
+- Tool run: the entry imported statically. Size exit 1, `548.3 KiB`;
+  split exit 1, "dist/modelApi.js carries
+  src/core/backends/modelapi/modelApiToolRunEntry.ts, which loads only on
+  the first tool call or goal command it runs".
+- Fast judge: the entry imported statically. Size exit 1, `532.0 KiB`;
+  split exit 1, 13 problems: the entry, `fastJudge.ts`, apply, engines,
+  turnEnd, turnRecord and the five reflex checks, and "dist/modelApi.js
+  carries FAST_PATH_MODEL_TEXT … which only dist/modelApiFast.js,
+  dist/museCode.js, dist/runtimeEngine.js read".
+- The edit-helper guard: the byte-range build no longer pointed at the
+  tool-run chunk. Size exit 0; split exit 1, "dist/modelApiFileRange.js no
+  longer reads src/core/toolEdit.ts from dist/modelApiToolRun.js" and
+  "… carries its own copy of src/core/toolEdit.ts".
+
+Restored and rebuilt: size, split, lazy registry `--check`, host
+globals, third-party notices and legal build records all exit 0.

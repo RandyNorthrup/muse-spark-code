@@ -35,12 +35,10 @@ const BUDGETS = [
   // local source, estimate included.
   { path: 'dist/reportingNetwork.js', budgetKiB: 100 },
   // C-M113-2: session and usage inputs, 84.1 KiB measured +15%, rounded up.
-  // RLTESTDRIVE2 12: 100.0 KiB measured (the manifest reader shares the
-  // settings-file JSONC stripper), cap 101.
-  // RLM95: 100.2 KiB measured +15% = 115.2 KiB, rounded up. The landed
-  // provider lanes' usage/spend/files text and the lane's status phrase
-  // ride the reporting inputs; no lighter placement exists.
-  { path: 'dist/reportInputs.js', budgetKiB: 116 },
+  // CC-GATES: back to the 100 KiB it had on f3941b8548 (RLM95 had raised
+  // it to 116 KiB); it fits by weight now that constants.ts's unused
+  // constants fold out of every bundle (scripts/lib/foldedConstants.mjs).
+  { path: 'dist/reportInputs.js', budgetKiB: 100 },
   // C-M113-4: playbook and schedules inputs, 52090 bytes (50.9 KiB)
   // measured +15% = 58.5 KiB, rounded up to the next whole KiB.
   { path: 'dist/playbookSchedulesInputs.js', budgetKiB: 59 },
@@ -298,6 +296,24 @@ const BUDGETS = [
   // D6: 18,708 × 1.15 = 21,514.2 B, rounded up to the next 25 KiB
   // multiple = 25,600 B (25 KiB).
   { path: 'dist/modelApiImage.js', budgetKiB: 25 },
+  // The B1 hold (M125, D107 §9.3: the confined runner, the floor, the veto
+  // race and the skip's audit), loaded on the first shell ask that reaches
+  // the hold with a packaged helper: 18,761 B measured (2026-10-23); D6:
+  // 18,761 × 1.15 = 21,575.15 B, rounded up to the next 25 KiB multiple =
+  // 25,600 B (25 KiB).
+  { path: 'dist/modelApiB1.js', budgetKiB: 25 },
+  // What a tool call or goal command runs (the file and shell tools'
+  // execution with their edit helpers, the memory tool, the browser check's
+  // placement and report, the goal rules), loaded on the first of them:
+  // 70,934 B measured (2026-10-23); D6: 70,934 × 1.15 = 81,574.1 B, rounded
+  // up to the next 25 KiB multiple = 102,400 B (100 KiB).
+  { path: 'dist/modelApiToolRun.js', budgetKiB: 100 },
+  // The fast judge's session side (M125 lane M, D107: the loop detector,
+  // the first-send triage, the effort and keep-list verdicts, the turn
+  // boundary), loaded when each turn or compaction starts: 13,019 B
+  // measured (2026-10-23); D6: 13,019 × 1.15 = 14,971.85 B, rounded up to
+  // the next 25 KiB multiple = 25,600 B (25 KiB).
+  { path: 'dist/modelApiFast.js', budgetKiB: 25 },
   // The plan reader, the panel's Markdown parser, loaded on the first plan
   // action (M79): 114.7 KiB when split out, 139.0 KiB with the brief's writer.
   { path: 'dist/planMarkdown.js', budgetKiB: 150 },
