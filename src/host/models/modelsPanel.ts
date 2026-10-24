@@ -1440,6 +1440,10 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         publish()
         return
       }
+      case 'providers/headers': {
+        await providers.manageHeaders(await entryOf(message.providerId))
+        break
+      }
       case 'providers/remove': {
         discardCredential(message.providerId)
         state.drafts.edits = Object.fromEntries(

@@ -284,9 +284,10 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     usage: [
       (command) => `${command} providers list|add|test|refresh|remove`,
       (command) => `${command} providers models <entry> [--add <model>] [--remove <model>]`,
+      (command) => `${command} providers headers <id> [set|unset <name>]`,
       (command) => `${command} providers usage <id> [--days <n>] [--output json]`,
     ],
-    routes: ['providersAdd', 'providersModels', 'providersUsage'],
+    routes: ['providersAdd', 'providersModels', 'providersHeaders', 'providersUsage'],
     options: [
       { name: 'preset', shape: '<preset>' },
       { name: 'as', shape: '<id>' },
@@ -948,6 +949,7 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
   // PROVSPEND: `auth set|clear --admin` is shown on the auth topic, not here.
   providersAdd: ['admin'],
   providersModels: [],
+  providersHeaders: [],
   usage: [],
   legal: [],
   report: [],

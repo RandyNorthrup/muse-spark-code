@@ -47,7 +47,12 @@ import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
-import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
+import {
+  ApiKeyAuthSource,
+  CustomHeadersAuthSource,
+  NoAuthSource,
+} from '../backends/modelapi/authSource'
+import * as requestHeaders from './requestHeaders'
 import {
   CodecClient,
   type WireCodec,
@@ -747,7 +752,7 @@ export function createConfiguredProviderServices(
         (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
       throw invalidEntry(entry, { kind: 'addressMismatch', address: configuredUrl.origin })
-    const auth =
+    const credentialAuth =
       entry.auth === 'none'
         ? new NoAuthSource(base.origin)
         : new ApiKeyAuthSource(
@@ -759,6 +764,25 @@ export function createConfiguredProviderServices(
               ? 'x-api-key'
               : (preset.authHeader ?? 'bearer'),
           )
+    // M95c part 6: the person's custom headers ride every request to this
+    // provider (turns, counts, lists, key tests), read per attempt and
+    // bound to the origin they were entered for.
+    const auth = new CustomHeadersAuthSource(credentialAuth, async () => {
+      const stored = await options.secrets.get(requestHeaders.providerHeadersAccount(entry.id))
+      try {
+        return requestHeaders.parseStoredHeaders(entry.id, stored)
+      } catch (error: unknown) {
+        // A damaged record is said, never read as "no headers": a request
+        // without them could reach the wrong tenant or project.
+        if (!(error instanceof requestHeaders.StoredHeadersError)) throw error
+        throw new ModelApiError(
+          fill(UI_TEXT.providerHeadersUnreadable, { provider: entry.id }),
+          0,
+          undefined,
+          undefined,
+        )
+      }
+    })
     let target: PinnedTarget | undefined
     const readLimits = pacingReaderFor(preset.id)
     return {

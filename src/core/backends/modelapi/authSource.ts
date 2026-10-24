@@ -11,6 +11,12 @@ export interface AuthHeaders {
   readonly values: Readonly<Record<string, string>>
   readonly keyDigest: string
   readonly redact: (text: string) => string
+  /**
+  Values beside the credential that are secret too (a provider's custom
+  request headers, M95c part 6): the transport scrubs them from what the
+  provider streams back, as it scrubs the key.
+  */
+  readonly secretValues?: readonly string[] | undefined
 }
 
 export interface AuthSource {
@@ -100,6 +106,38 @@ export class ApiKeyAuthSource implements AuthSource {
       values,
       keyDigest: createHash('sha256').update(key).digest('hex'),
       redact: (text) => redactSecrets(text, [key]),
+    }
+  }
+}
+
+/**
+A provider's custom request headers (M95c part 6) on top of its
+credential: read again for every attempt, bound to the origin they were
+entered for (a request elsewhere refuses as a moved key does), and
+scrubbed from every error, log line and streamed answer. The credential's
+own fields are written last, so a header can never stand in for the key.
+*/
+export class CustomHeadersAuthSource implements AuthSource {
+  public constructor(
+    private readonly inner: AuthSource,
+    private readonly read: () => Promise<
+      { readonly origin: string; readonly headers: Readonly<Record<string, string>> } | undefined
+    >,
+  ) {}
+
+  public async headers(requestUrl: string): Promise<AuthHeaders> {
+    const credential = await this.inner.headers(requestUrl)
+    const stored = await this.read()
+    if (stored === undefined) return credential
+    const requestOrigin = origin(requestUrl)
+    const storedOrigin = origin(stored.origin)
+    if (storedOrigin !== requestOrigin) throw new CredentialOriginError(storedOrigin, requestOrigin)
+    const secrets = Object.values(stored.headers)
+    return {
+      values: { ...stored.headers, ...credential.values },
+      keyDigest: credential.keyDigest,
+      redact: (text) => credential.redact(redactSecrets(text, secrets)),
+      secretValues: [...(credential.secretValues ?? []), ...secrets],
     }
   }
 }

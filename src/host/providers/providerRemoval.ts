@@ -11,6 +11,7 @@ import {
   type RecordStore,
 } from './credentialRecords'
 import type { ProviderEntry, ProvidersStore } from './providerPorts'
+import { providerHeadersAccount } from '../../core/providers/requestHeaders'
 
 /** A removal waiting out its Undo window. */
 export interface PendingRemoval {
@@ -81,6 +82,8 @@ export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemova
     await deleteProviderCredential(deps.secrets, id)
     // Removing the provider removes its admin report key too.
     await deleteProviderAdminCredential(deps.secrets, id)
+    // And its custom request headers (M95c part 6), which may hold a credential.
+    await deps.secrets.delete(providerHeadersAccount(id))
   }
 
   const dropPending = async (id: string): Promise<readonly PendingRemoval[]> => {

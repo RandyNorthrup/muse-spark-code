@@ -43,6 +43,7 @@ import {
   type ImportPreview,
 } from './importExport'
 import { saveWizardDraft, type WizardDraft, type WizardSaveOutcome } from './wizardSave'
+import { manageProviderHeaders } from './providerHeaders'
 import { workspaceSuggestedPreset } from './workspaceSuggestion'
 import type {
   AddressCheck,
@@ -65,6 +66,11 @@ import type {
 
 export interface ProvidersHostUi {
   readonly showInputBox: typeof vscode.window.showInputBox
+  /** One pick from `items` (M95c part 6's header list); undefined when dismissed. */
+  readonly pickOne: (
+    items: readonly vscode.QuickPickItem[],
+    placeholder: string,
+  ) => Promise<vscode.QuickPickItem | undefined>
   /** States the one-token cost and asks before sending it (D74). */
   readonly confirmPaidTest: (message: string) => Promise<boolean>
   /** Asks once about a private-network address (D74). */
@@ -140,6 +146,11 @@ export interface ProvidersHost {
   /** The address verdict: refused stops, private asks once, else ok. */
   readonly confirmAddress: (address: string) => Promise<AddressCheck>
   readonly promptForKey: (preset: PresetInfo) => Promise<string | undefined>
+  /**
+  M95c part 6: add or remove the saved provider's custom request headers
+  in the editor's own pickers; values go straight to the credential store.
+  */
+  readonly manageHeaders: (entry: ProviderEntry) => Promise<void>
   readonly testCredential: (entry: ProviderEntry, credential: string) => Promise<KeyTestResult>
   /** Tests the stored credential; "needs a key" when none was entered. */
   readonly testStoredCredential: (entry: ProviderEntry) => Promise<KeyTestResult>
@@ -322,6 +333,7 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         }
       }
     },
+    manageHeaders: (entry) => manageProviderHeaders(entry, deps),
     testCredential: (entry, credential) => runTest(entry, credential),
     testStoredCredential: async (entry) => {
       const credential = await credentialFor(deps.credentials, entry)

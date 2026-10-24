@@ -405,6 +405,11 @@ export function createModelsPanelFeatures(
         void vscode.window.showWarningMessage(openRouterDiscardedKeyNotice())
       },
       showInputBox: vscode.window.showInputBox,
+      pickOne: async (items, placeholder) =>
+        await vscode.window.showQuickPick(items, {
+          placeHolder: placeholder,
+          ignoreFocusOut: true,
+        }),
       confirmPaidTest: async (message) =>
         (await vscode.window.showWarningMessage(
           message,

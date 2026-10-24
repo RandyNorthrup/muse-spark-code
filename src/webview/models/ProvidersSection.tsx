@@ -367,6 +367,15 @@ function ProviderRow({
         >
           {UI_TEXT.changeKey}
         </button>
+        <button
+          type="button"
+          className="models-button"
+          onClick={() => {
+            post({ type: 'providers/headers', providerId: provider.id })
+          }}
+        >
+          {UI_TEXT.providerHeadersButton}
+        </button>
         {panelState.presets.some(
           (preset) => preset.id === provider.presetId && preset.connectOAuth,
         ) && (
