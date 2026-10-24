@@ -2987,6 +2987,20 @@ export const PLAYBOOK_CONFIGURABLE_RULES = [
 ] as const
 export const PLAYBOOK_SAFETY_RULE = 'neverAround'
 export const PLAYBOOK_RESOLUTIONS = ['impossible', 'caught', 'remains'] as const
+// D220: why-note codes that report progress, never a failure or a refusal.
+// Every other code sorts as failing in the one report ordering (shared
+// playbookRecordReportFlags); the CLI's buckets and the policy's orderReport
+// share this set, so owner/unresolved rows come first in all editors.
+export const PLAYBOOK_INFORMATIONAL_NOTE_CODES: readonly string[] = [
+  'checksPassed',
+  'reordered',
+  'offloaded',
+  'localCheck',
+  'ciGate',
+  'ownerFirst',
+  'ruleDisabled',
+  'briefRecorded',
+]
 // M116 panel install (C-M116-6). The VS Code window runs the governor on a
 // worker thread: the policy is synchronous (a durable journal write per
 // decision, git plumbing, the repository's own hooks), and the extension

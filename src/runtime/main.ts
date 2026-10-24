@@ -823,6 +823,14 @@ function runtimeReports(
                   )
                   .read(context),
             },
+            // D220: the playbook, milestone and fleet kinds order through the
+            // journal the reader reads, loaded only when one of them orders.
+            playbookOrder: () =>
+              playbookSchedules().createPlaybookReportOrder(
+                { agentDataFolder: dataFolder, workspaceRoot: cwd },
+                l10n.table,
+                l10n.locale,
+              ),
             schedules: {
               read: (context) =>
                 playbookSchedules()
