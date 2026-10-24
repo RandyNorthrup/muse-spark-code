@@ -410,7 +410,7 @@
   "referenceInstallSkills": "project_setup、feature_delivery、quality_retrofit を Muse Code の設定へコピーし、スキルとしてリンクします。",
   "referenceExecContract": "ヘッドレス実行ではワークスペースの信頼と権限の回避を許可しません。 ヘッドレス実行で許可されるのは plan または acceptEdits のみです。 ホスト型ウェブ検索には保証された上限がないため拒否します。 画像生成には acceptEdits が必要です。 プロンプトの入力元は1つだけ選んでください。 プロンプトとキーに同時に stdin は使えません。 Model API には --max-budget-usd が必要です。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自動圧縮は --auto-compaction と --max-budget-usd の下でのみ実行されます。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: コマンドごとの使い方、オプション、例。help --all: コマンド、設定、機能の説明とドキュメント。",
-  "referenceWatchdog": "ターミナルから GitHub 課題を監視:一覧表示、ステータス、一時停止、再開、ポーリング、証拠、適用、決定、解決。",
+  "referenceWatchdog": "ターミナルから GitHub 課題を監視:一覧表示、ステータス、一時停止、再開、ポーリング、ポリシー、証拠、適用、決定、解決。",
   "referenceKeyStdin": "auth set: ターミナルでキーを読み取り、このコンピューターの資格情報ストアに保管します。会話はこのキーに課金されます。 exec / scan-secrets --key-stdin: キーは端末ではなくパイプから読み込んでください。 stdin → memory; prompt stdin + key stdin = プロンプトとキーに同時に stdin は使えません。",
   "referenceModalKeys": "ダイアログを閉じるか、内部のフォーカスを移動します。",
   "referenceRenameKeys": "この会話の名前変更を確定またはキャンセルします。",
@@ -1816,7 +1816,7 @@
       "notPaused": "{repository} のウォッチドッグは一時停止していません。",
       "invalidRepository": "リポジトリは owner/name 形式で指定してください。",
       "watching": "{repository} を監視しています。",
-      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>` を使用してください。",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>` を使用してください。",
       "notSignedIn": "最初に GitHub にサインインして、`auth github` を実行してください。",
       "invalidIssue": "課題番号を指定してください。",
       "invalidEvidence": "検証証拠の形式が期待通りではありませんでした。",
@@ -1838,7 +1838,11 @@
       "closedNote": "クローズしました。",
       "notVerified": "未検証:{notes}。",
       "unknownIssue": "この課題は監視されていません。",
-      "alreadyPosted": "返信は投稿済みです。"
+      "alreadyPosted": "返信は投稿済みです。",
+      "policyHeading": "{repository} のポリシー:",
+      "policySet": "{repository} の {key} を設定しました。",
+      "policyInvalid": "{key} にはこの値を使えません。{allowed} を使用してください。",
+      "policyUnknownKey": "不明なポリシーキーです。label、template、watch-labels、ignore-authors、posts、close のいずれかを使用してください。"
     },
     "poll": {
       "skippedPullRequest": "issue ではなくプルリクエスト",

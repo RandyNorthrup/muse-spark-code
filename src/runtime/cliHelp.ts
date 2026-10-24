@@ -452,13 +452,14 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     purpose: (table) => table.cliHelp.purposeWatchdog,
     usage: [
       (command) =>
-        `${command} watchdog <list|status|pause|resume|poll|evidence|apply|decide|resolve ...>`,
+        `${command} watchdog <list|status|pause|resume|poll|policy|evidence|apply|decide|resolve ...>`,
     ],
     routes: [],
     options: [],
     examples: [
       (command) => `${command} watchdog list`,
       (command) => `${command} watchdog poll owner/name`,
+      (command) => `${command} watchdog policy owner/name`,
     ],
     ...GENERIC_EXITS,
   },

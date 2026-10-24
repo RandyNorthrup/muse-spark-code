@@ -410,7 +410,7 @@
   "referenceInstallSkills": "project_setup, feature_delivery, quality_retrofit을 Muse Code 설정에 복사하고 스킬로 연결합니다.",
   "referenceExecContract": "헤드리스 실행에서는 작업 영역 신뢰와 권한 우회를 거부합니다. 헤드리스 실행에서는 plan 또는 acceptEdits만 허용합니다. 호스팅 웹 검색에는 보장된 한도가 없어 거부합니다. 이미지 생성에는 acceptEdits가 필요합니다. 프롬프트 입력 소스를 하나만 선택하세요. 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다. Model API에는 --max-budget-usd가 필요합니다. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.자동 압축은 --auto-compaction 및 --max-budget-usd에서만 실행됩니다.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 명령별 사용법, 옵션 및 예제. help --all: 명령, 설정, 기능에 대한 설명과 문서입니다.",
-  "referenceWatchdog": "터미널에서 GitHub 이슈 감시: 나열, 상태, 일시 중지, 다시 시작, 폴링, 증거, 적용, 결정, 해결.",
+  "referenceWatchdog": "터미널에서 GitHub 이슈 감시: 나열, 상태, 일시 중지, 다시 시작, 폴링, 정책, 증거, 적용, 결정, 해결.",
   "referenceKeyStdin": "auth set: 터미널에서 키를 읽어 이 컴퓨터의 자격 증명 저장소에 보관합니다. 대화 요금은 이 키로 청구됩니다. exec / scan-secrets --key-stdin: 터미널이 아닌 파이프에서 키를 읽으세요. stdin → memory; prompt stdin + key stdin = 프롬프트와 키가 동시에 stdin을 사용할 수 없습니다.",
   "referenceModalKeys": "대화 상자를 닫거나 내부에서 초점을 이동합니다.",
   "referenceRenameKeys": "이 대화의 이름 변경을 확인하거나 취소합니다.",
@@ -1816,7 +1816,7 @@
       "notPaused": "{repository}의 와치독은 일시 중지되어 있지 않습니다.",
       "invalidRepository": "리포지토리를 owner/name 형식으로 지정하세요.",
       "watching": "{repository} 감시 중.",
-      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`를 사용하세요.",
+      "usage": "`watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`를 사용하세요.",
       "notSignedIn": "먼저 GitHub에 로그인한 다음 `auth github`을 실행하세요.",
       "invalidIssue": "이슈 번호를 지정하세요.",
       "invalidEvidence": "확인 증거의 형식이 예상과 달랐습니다.",
@@ -1838,7 +1838,11 @@
       "closedNote": "종료했습니다.",
       "notVerified": "확인되지 않음: {notes}.",
       "unknownIssue": "이 이슈는 감시 대상이 아닙니다.",
-      "alreadyPosted": "답변이 이미 게시되었습니다."
+      "alreadyPosted": "답변이 이미 게시되었습니다.",
+      "policyHeading": "{repository}의 정책:",
+      "policySet": "{repository}의 {key}을(를) 설정했습니다.",
+      "policyInvalid": "{key}에는 이 값을 사용할 수 없습니다. {allowed}을(를) 사용하세요.",
+      "policyUnknownKey": "알 수 없는 정책 키입니다. label, template, watch-labels, ignore-authors, posts, close 중 하나를 사용하세요."
     },
     "poll": {
       "skippedPullRequest": "이슈가 아닌 풀 리퀘스트",

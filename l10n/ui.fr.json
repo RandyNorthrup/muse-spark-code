@@ -412,7 +412,7 @@
   "referenceInstallSkills": "Copier project_setup, feature_delivery et quality_retrofit dans la configuration de Muse Code et les lier comme compétences.",
   "referenceExecContract": "Les exécutions sans interface refusent la confiance dans l’espace de travail et le contournement des autorisations. Sans interface, seuls plan et acceptEdits sont autorisés. La recherche web hébergée n’a pas de plafond garanti et est refusée. La génération d’images exige acceptEdits. Choisissez une seule source d’invite. L’invite et la clé ne peuvent pas utiliser stdin ensemble. La Model API exige --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. La compaction automatique ne s'exécute qu'avec --auto-compaction sous --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Utilisation, options et exemples pour une commande. help --all: Commandes, paramètres et fonctionnalités, avec descriptions et documentation.",
-  "referenceWatchdog": "Surveiller les problèmes GitHub depuis le terminal : lister, statut, pause, reprise, sondage, preuves, application, décision et résolution.",
+  "referenceWatchdog": "Surveiller les problèmes GitHub depuis le terminal : lister, statut, pause, reprise, sondage, politique, preuves, application, décision et résolution.",
   "referenceKeyStdin": "auth set: Lit votre clé dans un terminal et la conserve dans le magasin d’identifiants de cet ordinateur. Les conversations sont facturées à la clé. exec / scan-secrets --key-stdin: Lisez la clé depuis un tube, pas un terminal. stdin → memory; prompt stdin + key stdin = L’invite et la clé ne peuvent pas utiliser stdin ensemble.",
   "referenceModalKeys": "Fermer la boîte de dialogue ou y déplacer le focus.",
   "referenceRenameKeys": "Confirmer ou annuler le renommage de cette conversation.",
@@ -1874,7 +1874,7 @@
       "notPaused": "La veille pour {repository} n’est pas en pause.",
       "invalidRepository": "Indiquez un dépôt sous la forme propriétaire/nom.",
       "watching": "Surveillance de {repository}.",
-      "usage": "Utilisez `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "usage": "Utilisez `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
       "notSignedIn": "Connectez-vous d’abord à GitHub, puis exécutez `auth github`.",
       "invalidIssue": "Indiquez un numéro de problème.",
       "invalidEvidence": "Les preuves de vérification n’avaient pas la forme attendue.",
@@ -1898,7 +1898,11 @@
       "closedNote": "Fermé.",
       "notVerified": "Non vérifié : {notes}.",
       "unknownIssue": "Ce problème n’est pas surveillé.",
-      "alreadyPosted": "La réponse est déjà publiée."
+      "alreadyPosted": "La réponse est déjà publiée.",
+      "policyHeading": "Politique pour {repository} :",
+      "policySet": "{key} défini pour {repository}.",
+      "policyInvalid": "Cette valeur n’est pas autorisée pour {key}. Utilisez {allowed}.",
+      "policyUnknownKey": "Clé de politique inconnue. Utilisez label, template, watch-labels, ignore-authors, posts ou close."
     },
     "poll": {
       "skippedPullRequest": "une demande de tirage, pas un problème",

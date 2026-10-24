@@ -413,7 +413,7 @@
   "referenceInstallSkills": "Skopiować project_setup, feature_delivery i quality_retrofit do konfiguracji Muse Code i połączyć je jako umiejętności.",
   "referenceExecContract": "Uruchomienia bez interfejsu odmawiają zaufania obszarowi roboczemu i omijania uprawnień. Bez interfejsu dozwolone są tylko plan lub acceptEdits. Hostowane wyszukiwanie w sieci nie ma gwarantowanego limitu i jest odrzucane. Generowanie obrazów wymaga acceptEdits. Wybierz dokładnie jedno źródło polecenia. Polecenie i klucz nie mogą jednocześnie używać stdin. Model API wymaga --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatyczna kompresja działa tylko z --auto-compaction w ramach --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Użycie, opcje i przykłady jednego polecenia. help --all: Polecenia, ustawienia i funkcje wraz z opisami i dokumentacją.",
-  "referenceWatchdog": "Obserwowanie zgłoszeń GitHub z terminala: wyświetlanie, stan, wstrzymanie, wznowienie, sondowanie, dowody, zastosowanie, rozstrzygnięcie i realizacja.",
+  "referenceWatchdog": "Obserwowanie zgłoszeń GitHub z terminala: wyświetlanie, stan, wstrzymanie, wznowienie, sondowanie, zasady, dowody, zastosowanie, rozstrzygnięcie i realizacja.",
   "referenceKeyStdin": "auth set: Odczytuje Twój klucz w terminalu i przechowuje go w magazynie poświadczeń tego komputera. Rozmowy są rozliczane z klucza. exec / scan-secrets --key-stdin: Odczytaj klucz z potoku, nie z terminala. stdin → memory; prompt stdin + key stdin = Polecenie i klucz nie mogą jednocześnie używać stdin.",
   "referenceModalKeys": "Zamknij okno lub przenieś fokus wewnątrz niego.",
   "referenceRenameKeys": "Potwierdź lub anuluj zmianę nazwy tej rozmowy.",
@@ -1903,7 +1903,7 @@
       "notPaused": "Strażnik dla {repository} nie jest wstrzymany.",
       "invalidRepository": "Podaj repozytorium jako właściciel/nazwa.",
       "watching": "Obserwowanie {repository}.",
-      "usage": "Użyj `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "usage": "Użyj `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
       "notSignedIn": "Najpierw zaloguj się do GitHuba, potem uruchom `auth github`.",
       "invalidIssue": "Podaj numer zgłoszenia.",
       "invalidEvidence": "Dowód weryfikacji nie miał oczekiwanego kształtu.",
@@ -1928,7 +1928,11 @@
       "closedNote": "Zamknięte.",
       "notVerified": "Nie zweryfikowano: {notes}.",
       "unknownIssue": "To zgłoszenie nie jest obserwowane.",
-      "alreadyPosted": "Odpowiedź jest już opublikowana."
+      "alreadyPosted": "Odpowiedź jest już opublikowana.",
+      "policyHeading": "Zasady dla {repository}:",
+      "policySet": "Ustawiono {key} dla {repository}.",
+      "policyInvalid": "Ta wartość nie jest dozwolona dla {key}. Użyj: {allowed}.",
+      "policyUnknownKey": "Nieznany klucz zasad. Użyj label, template, watch-labels, ignore-authors, posts lub close."
     },
     "poll": {
       "skippedPullRequest": "żądanie ściągnięcia, nie zgłoszenie",

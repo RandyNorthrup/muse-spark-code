@@ -412,7 +412,7 @@
   "referenceInstallSkills": "Copiar project_setup, feature_delivery e quality_retrofit para a configuração do Muse Code e vinculá-las como habilidades.",
   "referenceExecContract": "Execuções sem interface recusam confiança no espaço de trabalho e desvio de permissões. Sem interface, apenas plan ou acceptEdits são permitidos. A pesquisa web hospedada não tem limite garantido e é recusada. A geração de imagens exige acceptEdits. Escolha exatamente uma fonte de prompt. O prompt e a chave não podem usar stdin ao mesmo tempo. A Model API exige --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. A compactação automática só é executada com --auto-compaction sob --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Uso, opções e exemplos de um comando. help --all: Comandos, configurações e recursos, com descrições e documentação.",
-  "referenceWatchdog": "Vigiar problemas do GitHub pelo terminal: listar, status, pausar, retomar, sondar, evidência, aplicar, decidir e resolver.",
+  "referenceWatchdog": "Vigiar problemas do GitHub pelo terminal: listar, status, pausar, retomar, sondar, política, evidência, aplicar, decidir e resolver.",
   "referenceKeyStdin": "auth set: Lê sua chave em um terminal e a guarda no armazenamento de credenciais deste computador. As conversas são cobradas da chave. exec / scan-secrets --key-stdin: Leia a chave de um pipe, não de um terminal. stdin → memory; prompt stdin + key stdin = O prompt e a chave não podem usar stdin ao mesmo tempo.",
   "referenceModalKeys": "Fechar a janela ou mover o foco dentro dela.",
   "referenceRenameKeys": "Confirmar ou cancelar a renomeação desta conversa.",
@@ -1874,7 +1874,7 @@
       "notPaused": "O vigia de {repository} não está pausado.",
       "invalidRepository": "Informe um repositório como dono/nome.",
       "watching": "Vigiando {repository}.",
-      "usage": "Use o comando `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "usage": "Use o comando `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
       "notSignedIn": "Entre no GitHub primeiro e execute `auth github`.",
       "invalidIssue": "Informe um número de problema.",
       "invalidEvidence": "A evidência de verificação não tinha a forma esperada.",
@@ -1898,7 +1898,11 @@
       "closedNote": "Fechado.",
       "notVerified": "Não verificado: {notes}.",
       "unknownIssue": "Este problema não está sendo vigiado.",
-      "alreadyPosted": "A resposta já está publicada."
+      "alreadyPosted": "A resposta já está publicada.",
+      "policyHeading": "Política de {repository}:",
+      "policySet": "{key} definido para {repository}.",
+      "policyInvalid": "Esse valor não é permitido para {key}. Use {allowed}.",
+      "policyUnknownKey": "Chave de política desconhecida. Use label, template, watch-labels, ignore-authors, posts ou close."
     },
     "poll": {
       "skippedPullRequest": "uma solicitação de pull, não um problema",
