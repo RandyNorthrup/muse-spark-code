@@ -9,17 +9,19 @@
 // revision in `MCP-Protocol-Version`; a 404 on a known session means it
 // expired (the connection starts a new one). A modern request also carries
 // its envelope's version in `MCP-Protocol-Version`, its method in
-// `Mcp-Method` and its tool in `Mcp-Name`, and a modern refusal in a 400
-// or 404 body is read for its code and versions (never its text).
-// Closing sends DELETE for the session. The headers of the server's entry
-// (a bearer token) go with every message; a 401 or 403 says that sign-ins
-// made with `muse mcp login` are Muse Code's own, which this backend never
-// reads. A redirect is refused, so credentials never follow one elsewhere.
-// Every reply is read up to MCP_MESSAGE_MAX_BYTES. The server's own event
-// stream (GET) is not opened: a notification it would carry arrives with
-// the next reply instead.
+// `Mcp-Method`, its tool in `Mcp-Name` and its tool's annotated arguments
+// in `Mcp-Param-{Name}` (headers.ts), and a modern refusal in a 400 or
+// 404 body is read for its code and versions (never its text). A modern
+// `subscriptions/listen` holds its POST's own event stream until the
+// server or the client ends it. Closing sends DELETE for the session. The
+// headers of the server's entry (a bearer token) go with every message; a
+// 401 or 403 says that sign-ins made with `muse mcp login` are Muse Code's
+// own, which this backend never reads. A redirect is refused, so
+// credentials never follow one elsewhere. Every reply is read up to
+// MCP_MESSAGE_MAX_BYTES. A legacy server's own event stream (GET) is not
+// opened: a notification it would carry arrives with the next reply
+// instead.
 
-import { Buffer } from 'node:buffer'
 import {
   BYTES_PER_MIB,
   HTTP_STATUS,
@@ -33,6 +35,7 @@ import {
 import type { CoreLogger } from '../../../logging'
 import { parseSse } from '../sse'
 import { type McpTransport, McpSessionExpiredError } from './connection'
+import { encodeHeaderValue } from './headers'
 import {
   incomingMessageSchema,
   isRequest,
@@ -63,23 +66,6 @@ const ACCEPTED_MEDIA_TYPES = `${JSON_MEDIA_TYPE}, ${EVENT_STREAM_MEDIA_TYPE}`
 const WWW_AUTHENTICATE = 'www-authenticate'
 const AUTH_SCHEME = /^[A-Za-z][A-Za-z0-9_-]*$/
 const TOOLS_CALL = 'tools/call'
-// The Base64 sentinel (spec `streamable-http#value-encoding`).
-const SENTINEL_START = '=?base64?'
-const SENTINEL_END = '?='
-// An HTTP field value (RFC 9110): visible ASCII, space and tab.
-const HEADER_SAFE = /^[\t \u{21}-\u{7E}]*$/u
-
-/**
-A tool name for the `Mcp-Name` header: as-is when it is plain header-safe
-ASCII, else the Base64 sentinel over its UTF-8 bytes (a value that
-already matches the sentinel is encoded too, so it cannot be mistaken).
-*/
-export function encodeHeaderValue(value: string): string {
-  const isSentinel = value.startsWith(SENTINEL_START) && value.endsWith(SENTINEL_END)
-  return !isSentinel && value === value.trim() && HEADER_SAFE.test(value)
-    ? value
-    : `${SENTINEL_START}${Buffer.from(value, 'utf8').toString('base64')}${SENTINEL_END}`
-}
 
 /** The modern revision a message carries in its envelope, if it carries one. */
 function modernVersionOf(message: OutgoingMessage): string | undefined {
@@ -198,7 +184,10 @@ export class McpHttpTransport implements McpTransport {
 
   public constructor(private readonly options: HttpTransportOptions) {}
 
-  private headers(message?: OutgoingMessage): Headers {
+  private headers(
+    message?: OutgoingMessage,
+    paramHeaders?: Readonly<Record<string, string>>,
+  ): Headers {
     const headers = new Headers(this.options.headers)
     headers.set(CONTENT_TYPE, JSON_MEDIA_TYPE)
     headers.set(ACCEPT, ACCEPTED_MEDIA_TYPES)
@@ -220,6 +209,12 @@ export class McpHttpTransport implements McpTransport {
         if (typeof name === 'string') {
           headers.set(NAME_HEADER, encodeHeaderValue(name))
         }
+      }
+      // A tool call's annotated arguments, mirrored by the connection
+      // from the tool's latest listing; a legacy message never has any.
+      const mirrored = Object.entries(paramHeaders ?? {})
+      for (const [header, value] of mirrored) {
+        headers.set(header, value)
       }
     }
     return headers
@@ -342,7 +337,12 @@ export class McpHttpTransport implements McpTransport {
     return id !== undefined && isAnswerTo(message, id)
   }
 
-  public async send(message: OutgoingMessage, signal: AbortSignal): Promise<void> {
+  /** One message POSTed; the reply when it is a success, else its refusal thrown. */
+  private async post(
+    message: OutgoingMessage,
+    signal: AbortSignal,
+    paramHeaders?: Readonly<Record<string, string>>,
+  ): Promise<Response> {
     if (this.isClosed) {
       throw new McpError('the connection is closed')
     }
@@ -350,7 +350,7 @@ export class McpHttpTransport implements McpTransport {
     try {
       response = await this.options.fetch(this.options.url, {
         method: 'POST',
-        headers: this.headers(message),
+        headers: this.headers(message, paramHeaders),
         body: JSON.stringify(message),
         signal,
         redirect: 'error',
@@ -371,10 +371,52 @@ export class McpHttpTransport implements McpTransport {
     if (!response.ok) {
       throw await this.refusal(response)
     }
+    return response
+  }
+
+  public async send(
+    message: OutgoingMessage,
+    signal: AbortSignal,
+    paramHeaders?: Readonly<Record<string, string>>,
+  ): Promise<void> {
+    const response = await this.post(message, signal, paramHeaders)
     const request = isRequest(message) ? message : undefined
     const isAnswered = await this.readReply(response, request?.id)
     if (request !== undefined && !isAnswered) {
       throw new McpError(`the server's reply to ${request.method} carried no answer`)
+    }
+  }
+
+  /**
+  Holds a `subscriptions/listen` POST's event stream (spec
+  `basic/patterns/subscriptions`), delivering each message as it comes,
+  until the stream ends: resolves when the server ends it or the signal
+  closes it (the client's cancellation on HTTP), rejects when the listen
+  itself is refused. A JSON reply answers the listen at once (a refusal
+  or a graceful end) and is delivered like any answer.
+  */
+  public async subscribe(message: OutgoingMessage, signal: AbortSignal): Promise<void> {
+    let response: Response
+    try {
+      response = await this.post(message, signal)
+    } catch (error: unknown) {
+      // Closing the stream before the reply is the cancellation itself.
+      if (signal.aborted) {
+        return
+      }
+      throw error
+    }
+    const type = response.headers.get(CONTENT_TYPE) ?? ''
+    if (!type.includes(EVENT_STREAM_MEDIA_TYPE) || response.body === null) {
+      await this.readReply(response, undefined)
+      return
+    }
+    try {
+      await this.readEvents(response.body, undefined)
+    } catch (error: unknown) {
+      // Closing the stream is the cancellation; anything else is the
+      // stream's own failure, which the connection hears as a drop.
+      if (!signal.aborted) throw error
     }
   }
 

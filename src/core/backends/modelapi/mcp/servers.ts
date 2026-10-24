@@ -59,6 +59,13 @@ export type McpLaunch = McpStdioLaunch | McpHttpLaunch
 export interface McpServerSpec {
   readonly name: string
   readonly view: McpServerView
+  /**
+  What names this server's launch, as its entry writes it (name, transport,
+  command, args, cwd, url) before `${VAR}` expansion: its kept era verdict
+  is keyed by a hash of this (verdicts.ts), so no environment value reaches
+  the key. Never shown or logged.
+  */
+  readonly identity: string
   readonly isRequired: boolean
   readonly isEnabled: boolean
   /** What to start, or why it cannot be. */
@@ -289,6 +296,15 @@ function specOf(
   const base = {
     name: view.name,
     view,
+    // An absent field is written as null (JSON arrays keep their places).
+    identity: JSON.stringify([
+      view.name,
+      view.transport,
+      entry['command'],
+      entry['args'],
+      entry['cwd'],
+      entry['url'],
+    ]),
     isRequired: view.mode === 'required',
     isEnabled: view.isEnabled,
   }
