@@ -473,3 +473,20 @@ Fix: the driver takes the folder with `path.dirname`.
 
 Red (before): 1 failed, 6 unhandled errors. Green: deviceOwnerBind 1 passed;
 deviceTwoProcess (same driver, other scenario) 1 passed.
+
+### faultRig: the rig resolves its own folder as a path
+
+Cause: `scripts/fault-rig.mjs` found the repository with
+`path.dirname(new URL(import.meta.url).pathname)`. On Windows that pathname
+is `/C:/Users/…`, and `path.resolve` made it `C:\C:\Users\…`, so the first
+scenario failed creating its output folder
+(`ENOENT: no such file or directory, mkdir 'C:\C:\Users\…\temp\fault-rig'`)
+and printed nothing the case could read (`expected '' to contain 's1-stream-cut: PASS'`).
+The suite's symlinked-checkout case returned early on Windows.
+
+Fix: the rig resolves from `import.meta.dirname`. The symlinked-checkout case
+runs on Windows through a junction instead of returning early.
+
+Red (before): 1 failed as above (and the link case passed vacuously).
+Green: 5 passed; by hand, `node scripts/fault-rig.mjs run s1-stream-cut`
+prints `s1-stream-cut: PASS` and exits 0.
