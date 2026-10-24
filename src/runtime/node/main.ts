@@ -1,6 +1,7 @@
 // The runtime dispatches here only for an explicit node command. A1/M104/C
 // install the named service binding; missing dependencies fail explicitly.
 import { createHash, generateKeyPairSync, randomBytes, randomUUID } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { rm } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import path from 'node:path'
@@ -156,6 +157,7 @@ export async function runNodeCommand(command: NodeCommand, deps: NodeCommandDeps
   const status = await binding.command(command.action, {
     root: deps.root,
     all: command.all,
+    signal: deps.signal,
     readSecret: deps.readSecret,
   })
   if (command.action === 'status') deps.print(JSON.stringify(nodeDashboardSchema.parse(status)))
@@ -207,6 +209,7 @@ function isNodeRefusal(error: unknown): error is Error {
       UI_TEXT.nodeErrors.unavailable,
       UI_TEXT.nodeErrors.forbidden,
       UI_TEXT.nodeErrors.running,
+      UI_TEXT.nodeErrors.unsupported,
     ].includes(error.message)
   )
 }
@@ -214,6 +217,21 @@ function isNodeRefusal(error: unknown): error is Error {
 /** The CLI's last resort: a fixed word on stderr, never the failure's text. */
 function report(_error: unknown): void {
   process.stderr.write(`${UI_TEXT.nodeErrors.failed}\n`)
+}
+
+/** The package root holds `package.json`; this file runs from `dist/`. */
+function packageVersion(): string {
+  const manifest: unknown = JSON.parse(
+    readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'),
+  )
+  const version =
+    typeof manifest === 'object' && manifest !== null && 'version' in manifest
+      ? manifest.version
+      : undefined
+  if (typeof version !== 'string') {
+    throw new TypeError('package.json has no version')
+  }
+  return version
 }
 
 async function cliMain(argv: readonly string[]): Promise<number> {
@@ -224,6 +242,9 @@ async function cliMain(argv: readonly string[]): Promise<number> {
   process.on('SIGTERM', stop)
   process.on('SIGINT', stop)
   try {
+    const print = (line: string): void => {
+      process.stdout.write(`${line}\n`)
+    }
     return await runNodeArgs(
       argv,
       {
@@ -231,11 +252,9 @@ async function cliMain(argv: readonly string[]): Promise<number> {
           process.env['MUSE_NODE_DATA_ROOT'] ??
           nodeDataFolder({ platform: process.platform, env: process.env, homeDir: homedir() }),
         signal: controller.signal,
-        binding: productionNodeBinding(),
+        binding: productionNodeBinding({ print, version: packageVersion() }),
         now: Date.now,
-        print: (line) => {
-          process.stdout.write(`${line}\n`)
-        },
+        print,
         readSecret: () => readSecretLine(UI_TEXT.nodeLabels.unlock, process.stdin, process.stderr),
       },
       UI_TEXT,

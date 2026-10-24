@@ -1,6 +1,6 @@
 import { NODE_WORKSPACE_ASSET, UI_TEXT } from '../../shared/constants'
-import type { NodeWorkspaceBinding } from '../node/files/main'
-import type * as WorkspaceModule from '../node/files/main'
+import type { NodeWorkspaceBinding } from './files/main'
+import type * as WorkspaceModule from './files/main'
 
 declare global {
   interface Window {

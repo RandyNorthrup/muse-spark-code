@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { afterEach, describe, expect, it } from 'vitest'
-import { mountNodeSurface } from '../../src/webview/bridges/nodeSurface'
+import { mountNodeSurface } from '../../src/webview/node/nodeSurface'
 import { validatedNodePort } from '../../src/webview/bridges/nodePort'
 import { UI_TEXT } from '../../src/shared/constants'
 import type { NodeWorkspaceBinding } from '../../src/webview/node/files/main'

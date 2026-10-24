@@ -305,6 +305,23 @@ export function createNodeTerminalMethods(port: NodeTerminalPagePort, sessionId:
     }
   }
 
+  /** Best-effort disposal of every live terminal: each close is attempted
+  and filed, and the registry is dropped. The binding calls this when the
+  owning session ends; with no tools peer every close refuses and nothing
+  was ever live. */
+  const dispose = async (): Promise<void> => {
+    // The snapshot first, so a close that re-enters cannot skip or repeat.
+    const live = new Set(terminals.keys())
+    terminals.clear()
+    for (const id of live) {
+      try {
+        await port.host.closeTerminal(id)
+      } catch (error: unknown) {
+        port.report(error)
+      }
+    }
+  }
+
   return {
     open: guard(open),
     write: guard(write),
@@ -312,9 +329,11 @@ export function createNodeTerminalMethods(port: NodeTerminalPagePort, sessionId:
     close: guard(close),
     attach: guard(attach),
     subscribe,
+    dispose,
   } satisfies Record<
     string,
     | ((input: never, signal: AbortSignal) => Promise<NodeMethodResult<TerminalMethod>>)
     | NodeTerminalSubscription
+    | (() => Promise<void>)
   >
 }
