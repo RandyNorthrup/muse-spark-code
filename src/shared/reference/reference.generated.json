@@ -5443,6 +5443,12 @@
       "invocations": [["stop"]]
     },
     {
+      "route": "panel",
+      "name": "panel --stdio [--workspace <directory>]",
+      "description": "Serve an editor’s Muse panel host over MHP: this agent’s settings and storage, for the folder it starts in.",
+      "invocations": [["panel"]]
+    },
+    {
       "route": "scan-secrets",
       "name": "scan-secrets",
       "description": "Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.",
@@ -8314,6 +8320,40 @@
     {
       "route": "stop",
       "name": "stop: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --stdio",
+      "description": "Speak MHP on standard input and output, one JSON message per line.",
+      "text": { "cli": "panel-stdio" },
+      "contract": {
+        "type": "boolean",
+        "repeatable": false,
+        "route": "usage serve",
+        "protocol": "usageCompanion",
+        "default": false
+      }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --workspace <value>",
+      "description": "Use this directory as the workspace.",
+      "text": { "cli": "cwd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --verbose",
+      "description": "--verbose                        Log every detail on stderr",
+      "text": { "cli": "verbose" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "panel",
+      "name": "panel: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

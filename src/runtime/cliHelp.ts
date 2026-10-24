@@ -499,6 +499,24 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     ...GENERIC_EXITS,
   },
   {
+    name: 'panel',
+    purpose: (table) => table.cliHelp.purposePanel,
+    note: (table) => table.cliHelp.notePanel,
+    usage: [(command) => `${command} panel --stdio [--workspace <directory>]`],
+    routes: ['panel'],
+    options: [
+      { name: 'stdio', shape: '' },
+      { name: 'workspace', shape: '<directory>' },
+      { name: 'verbose', shape: '' },
+      { name: 'help', shape: '' },
+    ],
+    examples: [
+      (command) => `${command} panel --stdio`,
+      (command) => `${command} supervise panel --stdio --workspace .`,
+    ],
+    ...GENERIC_EXITS,
+  },
+  {
     name: 'playbook',
     purpose: (table) => table.cliHelp.purposePlaybook,
     usage: [
@@ -1020,4 +1038,5 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
   'scan-secrets': [],
   lsp: [],
   stop: [],
+  panel: [],
 }

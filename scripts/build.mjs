@@ -1797,6 +1797,15 @@ const superviseOptions = {
   outfile: SUPERVISE_OUTFILE,
   banner: {},
 }
+// M104 lane B: the runtime panel (`panel`), loaded only by that command;
+// dist/acp.js keeps its loader alone.
+const RUNTIME_PANEL_OUTFILE = 'dist/runtimePanel.js'
+const runtimePanelOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panel/panelEntry.ts'],
+  outfile: RUNTIME_PANEL_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2298,6 +2307,7 @@ if (isWatch) {
     esbuild.context(nodeOptions),
     esbuild.context(lspOptions),
     esbuild.context(superviseOptions),
+    esbuild.context(runtimePanelOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2528,6 +2538,7 @@ if (isWatch) {
     ['node', () => esbuild.build(nodeOptions)],
     ['lsp', () => esbuild.build(lspOptions)],
     ['supervise', () => esbuild.build(superviseOptions)],
+    ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2547,6 +2558,7 @@ if (isWatch) {
   let node
   let lsp
   let supervise
+  let runtimePanel
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2564,6 +2576,7 @@ if (isWatch) {
       node,
       lsp,
       supervise,
+      runtimePanel,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2633,6 +2646,11 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'lsp.json'), JSON.stringify(lspMetafile))
     const { metafile: superviseMetafile } = await supervise
     writeFileSync(path.join(ACP_METAFILE_DIR, 'supervise.json'), JSON.stringify(superviseMetafile))
+    const { metafile: runtimePanelMetafile } = await runtimePanel
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanel.json'),
+      JSON.stringify(runtimePanelMetafile),
+    )
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
@@ -2744,5 +2762,6 @@ if (isWatch) {
   reportSize(NODE_OUTFILE)
   reportSize(LSP_OUTFILE)
   reportSize(SUPERVISE_OUTFILE)
+  reportSize(RUNTIME_PANEL_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

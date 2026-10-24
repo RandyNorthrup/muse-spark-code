@@ -876,7 +876,8 @@
     "tab-model": "Le modèle utilisé par les complétions Tab.",
     "tab-daily-budget-usd": "Arrêter Tab pour la journée à ce montant en dollars américains ; 0, la valeur par défaut, ne fixe aucun budget.",
     "tab-max-output-tokens": "Limiter chaque requête Tab à ce nombre de jetons de sortie ; 0, la valeur par défaut, est le maximum propre au modèle.",
-    "tab-trigger": "Servir Tab pendant la frappe (automatic) ou seulement à la demande (onInvoke)."
+    "tab-trigger": "Servir Tab pendant la frappe (automatic) ou seulement à la demande (onInvoke).",
+    "panel-stdio": "Parler MHP sur l’entrée et la sortie standard, un message JSON par ligne."
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : configuration, récupération, réinitialisation, état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient. Après confirmation explicite, la réinitialisation peut aussi remplacer un verrou d’écriture dont le propriétaire est inconnu.",
@@ -4427,6 +4428,8 @@
     "noteLsp": "Sans --tab, rien n’est facturé et le magasin d’identifiants n’est jamais lu. Avec, chaque nouveau prix est d’abord demandé dans l’éditeur ; Toujours autoriser dans cet espace de travail n’est proposé qu’avec --trust-workspace.",
     "purposeSupervise": "Exécuter une autre commande de cet agent de sorte que stop puisse l’arrêter avec tous les processus qu’elle a lancés.",
     "purposeStop": "Arrêter chaque exécution supervisée lancée dans ce dossier, avec tous les processus qu’elle a lancés.",
+    "purposePanel": "Servir l’hôte du panneau Muse d’un éditeur via MHP : les paramètres et le stockage de cet agent, pour le dossier où il démarre.",
+    "notePanel": "Un paramètre écrit ici est celui que cet agent lit lui-même : les paramètres utilisateur restent dans settings.json et resources.json du dossier de données. Les paramètres qui choisissent ce qui s’exécute ou ce qui est facturé ne relèvent que de vous et refusent la portée de l’espace de travail. Aucune clé ni aucun jeton n’est jamais stocké.",
     "purposeSetup": "Exécuter les hooks Setup puis quitter.",
     "purposeUsage": "Afficher l’utilisation et le coût de tous les modèles.",
     "purposeResources": "Afficher la charge de la machine et l’historique récent.",
@@ -6958,6 +6961,10 @@
       "many": "{count} d’exécutions supervisées n’ont pas pu être arrêtées entièrement."
     },
     "unavailable": "La supervision n’est pas disponible dans cette installation."
+  },
+  "hostService": {
+    "unavailable": "Le panneau d’exécution n’est pas disponible dans cette installation.",
+    "needsStdio": "panel nécessite --stdio : l’hôte de l’éditeur lui parle sur l’entrée et la sortie standard."
   },
   "acpConnector": {
     "title": "Approuver les demandes du connecteur",

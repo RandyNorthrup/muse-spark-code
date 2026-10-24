@@ -585,6 +585,9 @@ const BUDGETS = [
   // M104 lane H: `supervise`, `stop` and the server's `muse.stop`: 30.6 KiB
   // measured +15% = 35.2 KiB, rounded up to 25 KiB.
   { path: 'dist/supervise.js', budgetKiB: 50 },
+  // M104 lane B (cc-m104b): the runtime panel, loaded only by `panel`:
+  // 67,782 bytes (66.2 KiB) measured +15% = 76.1 KiB, rounded up to 25 KiB.
+  { path: 'dist/runtimePanel.js', budgetKiB: 100 },
   // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
   // denied-merge holds and marker gate, loaded only for --team. Measured
   // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)

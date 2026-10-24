@@ -11049,6 +11049,8 @@ export const VAULT_TOTP_PERIOD_SECONDS = 30
 // documents, requests or runs.
 export const LSP_BUNDLE_FILE = 'lsp.js'
 export const SUPERVISE_BUNDLE_FILE = 'supervise.js'
+// M104 lane B: the runtime panel, loaded only by `panel`.
+export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
 /** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
 export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
 /** A header block past this is malformed input (the common 8 KiB HTTP header bound). */
