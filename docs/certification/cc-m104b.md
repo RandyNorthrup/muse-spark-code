@@ -39,28 +39,16 @@ raised, new code in lazy chunks with measured budgets (D6).
 
 ### Slices done
 
-| Slice | Commit       | What                                                                                                       | Proof                                                                                                                                                |
-| ----- | ------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | `c17faa0c2a` | `src/runtime/settingsStore.ts` over the runtime's own settings files                                       | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                           |
-| 2     | `f432fac54d` | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                      | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                               |
-| 3     | `097aba7b42` | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas | **Not proven.** First run of `runtimePanel` timed out (6 of 8): the bundle crashed at load (below). Fixed; not re-run. `wireEntry` 2/2 after the fix |
+| Slice | Commit        | What                                                                                                       | Proof                                                                                                                                       |
+| ----- | ------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | `c17faa0c2a`  | `src/runtime/settingsStore.ts` over the runtime's own settings files                                       | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                  |
+| 2     | `f432fac54d`  | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                      | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                      |
+| 3     | (this commit) | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
 
 ### Next step, exactly
 
-1. `npm run build` (production; also measures `dist/runtimePanel.js` against
-   its new 100 KiB row and checks `dist/wire.js`, expected about 76,200 of
-   76,800 bytes) — then run `test/unit/runtimePanel.test.ts` (8 cases, in
-   the shared production build list). Fix what fails; the suite's
-   two-process case is also the proof of slice 1's cross-process lock
-   (drill: remove `withNamedLock` from `RuntimeSettingsStore.change`, keep
-   the queue, expect that case to fail).
-2. Drills for slice 3 (break, exit 1, restore by blob hash): the version
-   refusal in `connection.ts` `initialize`; the workspace binding in
-   `panelEntry.ts` `boundWorkspace`; `stateFailure`'s permission code;
-   shutdown's exit 0 (`closed(isFatal)`); the oversized-line close.
-3. Full gates (below), then the slice 3 rows of this record turned from
-   "not proven" to proven, the commit table updated.
-4. Slice 4 onward, in this order (designs below).
+Slice 4 onward (below). Slice 3 is proven (its section at the end), the
+rig-specific facts are in "Rig notes".
 
 ### Slices left, in order, with the intended design
 
@@ -171,23 +159,16 @@ raised, new code in lazy chunks with measured budgets (D6).
 - **Text groups** must not be named after a CLI route (the reference pulls
   them into the panel's English): the panel's group is `hostService`.
 
-### Gates last run (on the slice 3 tree unless noted)
+### Rig notes (Mac mini, 2026-10-24)
 
-| Gate                                                                               | Exit | When / note                                                      |
-| ---------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
-| `check:catches`                                                                    | 0    | after the last connection.ts change                              |
-| `check:l10n`                                                                       | 0    | 14 tables, 0 problems                                            |
-| `check:host-api`                                                                   | 0    | after `-- --write` (Node built-in counts only)                   |
-| `cycles`                                                                           | 0    |                                                                  |
-| `check:plan`                                                                       | 0    | with the PLAN status line                                        |
-| `reference:generate`                                                               | 0    | `check:reference` not re-run after                               |
-| `gen-lazy-registry` (write)                                                        | 0    | from the pre-fix build's metafiles                               |
-| `typecheck:host`                                                                   | 0    | before the `failureForLog` and wireEntry edits; not re-run after |
-| eslint (changed files)                                                             | 0    | pre-commit hook, `--max-warnings=0`, at `097aba7b42`             |
-| `typecheck:unit`, `deadcode` (knip)                                                | 0    | slice 2 / slice 1 trees; not re-run on slice 3                   |
-| `runtimePanel.test.ts`                                                             | 1    | 6 of 8 timed out: the load crash above; fix in, not re-run       |
-| `wireEntry.test.ts`                                                                | 0    | 2/2 after the fix                                                |
-| `npm run build`, `duplication`, `format:check`, `check:mhp`, `typecheck` (all six) | —    | not run on slice 3                                               |
+- Gates and suites run directly in the worktree (no rig scripts). Node 24.21.0.
+- `test/unit/runtimeLsp.test.ts` (lane H's suite) fails 5 of 9 cases here:
+  the two `--tab` hook cases (each 120 s) and the three `supervise`/`stop`
+  cases (each 240 s). The same 5 fail identically on an archive of this
+  branch's base commit `8173c8649` (before any edit of this session), run as
+  its own git repository under `temp/`. They are not caused by this lane and
+  are not re-run into green; hosted CI or the lead's other rig decides them.
+- Gate results are in "Gates" at the end of this record.
 
 ---
 
@@ -324,6 +305,56 @@ int/recovery `acb48b7f35` on this PC: the staged agent answers its
 session list with the generic failure instead of the sign-in refusal, with
 or without this change.
 
+## Slice 3 — `panel --stdio`, proven
+
+`muse-spark-code-acp panel --stdio [--workspace <dir>]` (dist/runtimePanel.js,
+loaded only by `panel`): the MHP 1.5 handshake (D226: one version; a range
+without it is `MHP_INCOMPATIBLE_VERSION`), the host's folder bound to the one
+workspace the process started in, `settings/*` and `storage/*` answered by
+slice 1's store, request cancellation, shutdown (exit 0) and a host that
+leaves (exit 1), an oversized line ending the connection (exit 1, said on
+stderr), and every other panel envelope refused with
+`MHP_PANEL_UNKNOWN_SURFACE`.
+
+Suite `test/unit/runtimePanel.test.ts` (9 cases, each under 1.5 s, the
+repository's own 5 s timeout): the real `dist/acp.js` of the shared
+production build, spawned and driven over real stdio by frames built and
+parsed with the frozen contract (`src/shared/hostApi`); every per-user folder
+points into the suite's folder; no provider, key or network. The host keeps
+its end of the pipe open after `shutdown`, as a running editor does, so each
+shutdown case also proves the runtime ends by itself.
+
+Found by the drills and fixed:
+
+- **A fatal close left the process alive.** An oversized line ended the
+  connection (`resolve(1)`), but `process.stdin` stayed open and flowing, so a
+  host that kept its pipe open held the runtime forever. The close now
+  destroys the input (`panelEntry.ts`).
+- **The workspace-binding case never reached the comparison.** It used a
+  folder that did not exist, so the refusal came from `ENOENT`, and breaking
+  the `isSamePath` comparison went unnoticed. The case now tries a folder that
+  exists and one that does not.
+
+| Drill | Break                                                                                             | Result                                                                                             |
+| ----- | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| P1    | the version refusal in `connection.ts` `initialize` removed                                       | exit 1: "refuses a version range without MHP 1.5, …"                                               |
+| P2    | `stateFailure`: machine setting answers `invalidParams`                                           | exit 1: "writes a setting where the runtime reads it, …" (with P1 in one run: 2 distinct failures) |
+| P3    | `boundWorkspace`'s `isSamePath` comparison removed                                                | first run exit 0 (not caught: see above); after the test fix exit 1                                |
+| P4    | both oversized-line checks in `readLines` removed                                                 | exit 1: "ends the connection, saying why, on a line longer than MHP allows" (5 s timeout)          |
+| P5    | `closed(isFatal)` always resolves 1                                                               | exit 1: 5 cases that expect exit 0 after shutdown                                                  |
+| P6    | `deps.stdin.destroy()` removed from `closed`                                                      | exit 1: 6 cases time out (the process outlives its connection)                                     |
+| L1    | slice 1's `withNamedLock` removed from `RuntimeSettingsStore.change` (the in-process queue stays) | exit 1 in 3 of 3 runs: "loses no setting when two runtimes write the same file at once"            |
+
+Every file was restored from `HEAD` and matched its blob hash. `dist/wire.js`
+is 76,202 of 76,800 bytes (budget 75 KiB, the same shape as int's: the two
+panel schemas fit by weight); `dist/runtimePanel.js` 66.8 of 100 KiB.
+
+jscpd found three clones this lane had introduced (slice 2's registry suite
+against `sessionTitles`, and `runtimePanel` against lane H's `runtimeLsp`
+environment helper). The shared test helpers `helpers/acpLocalAgentDeps.ts`
+and `helpers/isolatedRuntimeEnvironment.ts` replace the copies; both suites'
+neighbours (`sessionTitles`, `runtimeLsp`) read them too.
+
 ## Commits
 
 | Commit       | Slice                                         |
@@ -331,4 +362,5 @@ or without this change.
 | `c17faa0c2a` | slice 1: settings and storage store           |
 | `f432fac54d` | slice 2: the controller registry, ACP over it |
 | `097aba7b42` | slice 3 (work in progress): `panel --stdio`   |
+| (next)       | slice 3 proven, with the drills               |
 | (this)       | the handoff above                             |

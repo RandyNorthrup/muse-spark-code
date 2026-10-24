@@ -12,12 +12,12 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
-import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { runtimeDailyBudgetUsd } from '../../src/runtime/dailyBudgetSetting'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import {
   MHP,
   MHP_ERROR_CODES,
+  MHP_PANEL,
   RUNTIME_PANEL_STATE,
   SETTING_DEFAULTS,
 } from '../../src/shared/constants'
@@ -27,28 +27,20 @@ import { panelInitializeResultSchema } from '../../src/shared/hostApi/panel'
 import { failureFrameSchema, parseMhpResult } from '../../src/shared/hostApi/protocol'
 import { assertCurrentProductionBuild } from './productionBuild'
 import { removeFolder } from './helpers/temporaryFolders'
+import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 
 const ROOT = process.cwd()
 const AGENT = path.join(ROOT, 'dist', 'acp.js')
-const SUITE_MS = 240_000
 const FOLDER = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-panel-')))
 const HOME = path.join(FOLDER, 'home')
 const WORKSPACE = path.join(FOLDER, 'workspace')
+const OTHER_FOLDER = path.join(FOLDER, 'other')
+const MISSING_FOLDER = path.join(FOLDER, 'missing')
 const STARTED = new Set<ChildProcessWithoutNullStreams>()
 
 /** The runtime's per-user folders, all inside this suite's own folder. */
 function environment(): NodeJS.ProcessEnv {
-  return {
-    ...withoutCredentials(process.env),
-    HOME,
-    USERPROFILE: HOME,
-    LOCALAPPDATA: path.join(HOME, 'local'),
-    APPDATA: path.join(HOME, 'roaming'),
-    XDG_DATA_HOME: path.join(HOME, 'data'),
-    XDG_CONFIG_HOME: path.join(HOME, 'config'),
-    XDG_STATE_HOME: path.join(HOME, 'state'),
-    GIT_CEILING_DIRECTORIES: FOLDER,
-  }
+  return isolatedRuntimeEnvironment(HOME, FOLDER)
 }
 
 const DATA_FOLDER = agentDataFolder({
@@ -168,15 +160,16 @@ async function initialized(): Promise<Host> {
   return host
 }
 
+/** Shutdown, then the exit code: the host keeps its end of the pipe open, as a running editor does. */
 async function shutDown(host: Host): Promise<number | null> {
   parseMhpResult('shutdown', await host.request('shutdown', {}))
-  host.child.stdin.end()
   return await host.exited
 }
 
 beforeAll(() => {
   assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
   mkdirSync(WORKSPACE, { recursive: true })
+  mkdirSync(OTHER_FOLDER, { recursive: true })
 })
 
 afterAll(async () => {
@@ -184,7 +177,7 @@ afterAll(async () => {
   await removeFolder(FOLDER)
 })
 
-describe('panel --stdio', { timeout: SUITE_MS }, () => {
+describe('panel --stdio', () => {
   it('negotiates MHP 1.5, refuses a second handshake, and exits 0 after shutdown', async () => {
     const host = serve(['panel', '--stdio'])
     // Nothing before the handshake.
@@ -220,17 +213,19 @@ describe('panel --stdio', { timeout: SUITE_MS }, () => {
       code: MHP_ERROR_CODES.incompatibleVersion,
       message: 'MHP_INCOMPATIBLE_VERSION',
     })
-    expect(
-      failureOf(
-        await host.request(
-          'initialize',
-          initializeParams({ folders: [{ uri: pathToFileURL(HOME).href, name: 'home' }] }),
+    for (const folder of [OTHER_FOLDER, MISSING_FOLDER])
+      expect(
+        failureOf(
+          await host.request(
+            'initialize',
+            initializeParams({ folders: [{ uri: pathToFileURL(folder).href, name: 'other' }] }),
+          ),
         ),
-      ),
-    ).toMatchObject({
-      code: MHP_ERROR_CODES.invalidParams,
-      message: 'MHP_WORKSPACE_BINDING_MISMATCH',
-    })
+        folder,
+      ).toMatchObject({
+        code: MHP_ERROR_CODES.invalidParams,
+        message: 'MHP_WORKSPACE_BINDING_MISMATCH',
+      })
     host.child.stdin.end()
     expect(await host.exited).toBe(1)
   })
@@ -341,6 +336,13 @@ describe('panel --stdio', { timeout: SUITE_MS }, () => {
       message: 'MHP_WRONG_DIRECTION',
     })
     expect(await shutDown(host)).toBe(0)
+  })
+
+  it('ends the connection, saying why, on a line longer than MHP allows', async () => {
+    const host = await initialized()
+    host.child.stdin.write(`${'x'.repeat(MHP_PANEL.maximumEnvelopeBytes + 1)}\n`)
+    expect(await host.exited).toBe(1)
+    expect(host.stderr()).toContain('MHP_PANEL_TOO_LARGE')
   })
 
   it('ends with exit 1 when the host goes away without shutdown', async () => {

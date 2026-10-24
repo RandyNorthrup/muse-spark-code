@@ -15,16 +15,14 @@ import { Connection } from '@muse-code/sdk'
 import { afterEach, describe, expect, it } from 'vitest'
 import * as z from 'zod/mini'
 import { createAcpAgent } from '../../src/acp/agent'
-import { AcpMakerSurface } from '../../src/acp/maker'
-import { AcpPaidUse } from '../../src/acp/paid'
 import type { SessionListEvent, SessionRecord } from '../../src/core/agent/agentBackend'
 import { toSessionRow } from '../../src/core/agent/sessionRows'
 import { MuseCodeHost } from '../../src/core/backends/musecode/MuseCodeHost'
 import { sessionEnvelopeSchema } from '../../src/core/backends/musecode/sessionRecords'
 import { buildSessionBoard } from '../../src/core/sessionBoard'
-import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
 import { MSP_KNOWN_SCHEMA_FINGERPRINTS, UI_TEXT } from '../../src/shared/constants'
+import { acpLocalAgentDeps } from './helpers/acpLocalAgentDeps'
 import { type Answer, refuseUnscripted, ReplayWire } from './helpers/museReplay'
 import { titleCapture as capture, recordedAnswer as recorded } from './helpers/sessionTitleCapture'
 
@@ -176,20 +174,7 @@ describe('Muse Code session titles, end to end', () => {
         args: [],
         command: 'muse login',
       },
-      defaultCwd: folder,
-      paid: new AcpPaidUse({
-        flagged: [],
-        canRemember: () => false,
-        grants: paidGrantFile({
-          file: path.join(folder, 'paid-grants.json'),
-          log,
-          sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-        }),
-        log,
-      }),
-      maker: new AcpMakerSurface({ log }),
-      log,
-      questions: 'decline',
+      ...acpLocalAgentDeps(folder, log),
     })
     const listed = await acp
       .client({ name: 'session-titles' })

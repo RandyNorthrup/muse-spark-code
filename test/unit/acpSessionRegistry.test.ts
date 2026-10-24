@@ -12,10 +12,8 @@ import path from 'node:path'
 import * as acp from '@agentclientprotocol/sdk/unstable'
 import { afterEach, describe, expect, it } from 'vitest'
 import { createAcpAgent } from '../../src/acp/agent'
-import { AcpMakerSurface } from '../../src/acp/maker'
-import { AcpPaidUse } from '../../src/acp/paid'
-import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
+import { acpLocalAgentDeps } from './helpers/acpLocalAgentDeps'
 import { modelApiRig } from './helpers/conversationPanel'
 import { createEditorChatServices, writeEditorChatProvidersFile } from './helpers/editorChatRig'
 
@@ -57,20 +55,7 @@ function agentOverModelApi() {
       args: [],
       command: 'muse-spark-code-acp auth set',
     },
-    defaultCwd: folder,
-    paid: new AcpPaidUse({
-      flagged: [],
-      canRemember: () => false,
-      grants: paidGrantFile({
-        file: path.join(folder, 'paid-grants.json'),
-        log,
-        sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
-      }),
-      log,
-    }),
-    maker: new AcpMakerSurface({ log }),
-    log,
-    questions: 'decline',
+    ...acpLocalAgentDeps(folder, log),
   })
   return { agent, folder, rig }
 }
@@ -86,15 +71,24 @@ async function codeOf(request: Promise<unknown>): Promise<number | undefined> {
   return undefined
 }
 
+/** Initializes the connection and starts a session in the folder. */
+async function newSession(
+  editor: Parameters<Parameters<ReturnType<typeof acp.client>['connectWith']>[1]>[0],
+  folder: string,
+): Promise<string> {
+  await editor.request('initialize', {
+    protocolVersion: acp.PROTOCOL_VERSION,
+    clientCapabilities: {},
+  })
+  const { sessionId } = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+  return sessionId
+}
+
 describe('ACP sessions in the runtime’s controller registry', () => {
   it('holds a new session, lets it go on close, and finds nothing after', async () => {
     const { agent, folder, rig } = agentOverModelApi()
     await acp.client({ name: 'registry' }).connectWith(agent, async (editor) => {
-      await editor.request('initialize', {
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
-      })
-      const { sessionId } = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+      const sessionId = await newSession(editor, folder)
       expect(rig.host.sessionCount).toBe(1)
       expect(await codeOf(editor.request('session/close', { sessionId }))).toBeUndefined()
       // Closed: the registry holds nothing under the id, so a second close
@@ -112,11 +106,7 @@ describe('ACP sessions in the runtime’s controller registry', () => {
   it('lets every held session go on logout', async () => {
     const { agent, folder } = agentOverModelApi()
     await acp.client({ name: 'registry' }).connectWith(agent, async (editor) => {
-      await editor.request('initialize', {
-        protocolVersion: acp.PROTOCOL_VERSION,
-        clientCapabilities: {},
-      })
-      const { sessionId } = await editor.request('session/new', { cwd: folder, mcpServers: [] })
+      const sessionId = await newSession(editor, folder)
       await editor.request('logout', {})
       expect(await codeOf(editor.request('session/close', { sessionId }))).toBe(RESOURCE_NOT_FOUND)
     })
