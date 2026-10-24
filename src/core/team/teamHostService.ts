@@ -27,6 +27,9 @@ import type {
   TeamToolContext,
   TeamToolRunner,
 } from './teamSeams'
+import type { PlaybookWhyNote } from '../../shared/playbook'
+import type { BoardSubmission } from './scheduler/board'
+import type { TeamPlaybookStart } from './teamPlaybookBoard'
 
 /**
 What a conversation engine takes from the service: the Model API host
@@ -289,6 +292,42 @@ export interface TeamMergePort {
   readonly diff: (outcome: TeamWorkerOutcome) => Promise<string>
 }
 
+/**
+The team runner's playbook binding (M116, PLAN.md D218): the window's own
+playbook starts and releases each task's round on its worker thread, where
+the synchronous policy and its git reads run (on Windows inside the
+worker's contained job), never on the extension host. The head is the
+team's own governed git read of the dispatch base. Absent, the team runs
+exactly as before.
+*/
+export interface TeamPlaybookPort {
+  /**
+  Start the task's round once every other admission passed, with the board
+  facts read for this start. A refusal carries the policy's why-note, and a
+  brief the policy cannot record (an unfilled template marker) says so; the
+  task then does not start. Anything else thrown is the caller's.
+  */
+  readonly start: (
+    start: TeamPlaybookStart,
+  ) => Promise<
+    | { readonly started: true }
+    | { readonly refused: PlaybookWhyNote }
+    | { readonly briefInvalid: true }
+  >
+  /** Release the task's round when the task ends; it is never completed here. */
+  readonly release: (taskId: string) => Promise<void>
+  /**
+  The dispatch base: the orchestrator's HEAD for an in-place task, else
+  the base commit the task's copy branches from, with the branch ref when
+  the checkout has one. A refusal says so and the task does not start.
+  */
+  readonly head: (mode: BoardSubmission['workspaceMode']) => Promise<TeamPlaybookHead>
+}
+
+/** The dispatch base, or why it could not be read. */
+export type TeamPlaybookHead =
+  { readonly ref: string | undefined; readonly commit: string } | { readonly refused: string }
+
 /** Paid use (rule 12): one D48 popup per `delegate` call that starts key tasks. */
 export interface TeamPaidPort {
   readonly allowKeyTasks: (
@@ -319,6 +358,8 @@ export interface TeamHostServiceDeps {
   readonly merges: TeamMergePort
   readonly paid: TeamPaidPort
   readonly cards: TeamCardPort
+  /** The team runner's playbook (D218); absent, dispatches run as before. */
+  readonly playbook?: TeamPlaybookPort | undefined
   readonly newId: () => string
   readonly now: () => number
   readonly log: {

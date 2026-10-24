@@ -19,6 +19,8 @@ import {
   type PlaybookWindow,
   type PlaybookWindowDeps,
 } from './playbookWindow'
+import type { TeamPlaybookPort } from '../../core/team/teamHostService'
+import { teamPlaybookRounds, type TeamPlaybookReadings } from './teamPlaybook'
 import { workspaceFile } from '../../core/orchestration/panelLanes'
 import type { SubagentAdmission } from '../../core/backends/modelapi/subagentTools'
 import {
@@ -64,6 +66,11 @@ export interface PlaybookWindowBundle extends PlaybookWindow {
   conversation(host: PlaybookConversationHost): PlaybookConversation
   /** A Model API conversation's new child work (`ModelApiHostDeps.playbook`). */
   readonly admit: SubagentAdmission
+  /**
+  The team runner's rounds (M116, PLAN.md D218) on this window's worker; the
+  window adds what only it observes, CI and the latest resource reading.
+  */
+  team(readings: () => TeamPlaybookReadings): Omit<TeamPlaybookPort, 'head'>
 }
 
 /** The window's playbook; the caller's table is installed before any of it words a result. */
@@ -101,6 +108,7 @@ export function createPlaybookWindow(
       )
     },
     admit: playbookAdmission(window),
+    team: (readings) => teamPlaybookRounds(window, readings),
     answerBundle: () => ({
       parsePlaybookCommand,
       createPlaybookSurface: () => window.surface,

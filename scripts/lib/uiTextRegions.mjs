@@ -26,10 +26,12 @@ export const UI_TEXT_REGIONS = [
     output: 'dist/uiTextHooks.js',
     keys: /^(?:hook|paid\w*Hook|usagePaidHook|setupHook|manualHook|plugin|extensionHook|foreignHook|agentImport)/,
   },
+  // The playbook's words (M116) ride the optional surfaces: read only once a
+  // playbook answer, note or record is shown, never at a bundle's start.
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|playbook)/,
   },
 ]
 

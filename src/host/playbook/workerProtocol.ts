@@ -19,6 +19,7 @@ import {
   playbookRoundSchema,
   playbookWhyNoteSchema,
 } from '../../shared/playbook'
+import { resourceStatusSchema } from '../../shared/resources'
 import { playbookChangeSchema, playbookSnapshotSchema } from '../../runtime/playbook/command'
 import {
   playbookAgentRecordsSchema,
@@ -103,6 +104,38 @@ export const panelDesignFieldsSchema = z.strictObject({
     .check(z.trim(), z.minLength(1), z.maxLength(REVIEW_FINDING_PATH_MAX_CHARS)),
 })
 
+/**
+One team task's round (M116, PLAN.md D218): the task record's own facts, its
+dispatch base, and the team's board facts as the host read them for this
+start (entry worker states, task branches and whether each merged into the
+integration target, CI as known or unknown, and the latest resource reading,
+absent while unknown).
+*/
+const teamStartSchema = z.strictObject({
+  type: z.literal('teamStart'),
+  id: request,
+  task: z.strictObject({
+    taskId: id,
+    brief: z.string().check(z.trim(), z.minLength(1)),
+    files: z.array(file).check(z.minLength(1), z.maxLength(PLAYBOOK_RECORD_MAX)),
+    reason: text,
+    sessionId: session,
+  }),
+  head: z.strictObject({ ref: z.optional(file), commit: z.string().check(z.regex(/^[a-f\d]+$/u)) }),
+  entries: z
+    .array(z.strictObject({ id, running: z.int().check(z.gte(0)), usable: z.boolean() }))
+    .check(z.maxLength(PLAYBOOK_RECORD_MAX)),
+  branches: z
+    .array(z.strictObject({ branch: file, mergedIntoTarget: z.boolean() }))
+    .check(z.maxLength(PLAYBOOK_RECORD_MAX)),
+  ci: z.discriminatedUnion('known', [
+    z.strictObject({ known: z.literal(true), hasCi: z.boolean() }),
+    z.strictObject({ known: z.literal(false) }),
+  ]),
+  capacity: z.optional(resourceStatusSchema),
+})
+export type PlaybookTeamStart = Omit<z.infer<typeof teamStartSchema>, 'type' | 'id'>
+
 /** The dispatches a conversation in the panel makes. */
 const dispatchKind = z.enum(['subagent', 'delegate', 'bestOfN'])
 export type PlaybookDispatchKind = z.infer<typeof dispatchKind>
@@ -158,6 +191,9 @@ export const toPlaybookWorkerSchema = z.discriminatedUnion('type', [
     moduleId: id,
     fields: panelDesignFieldsSchema,
   }),
+  teamStartSchema,
+  // The team task ended: its admitted round is released, never completed here.
+  z.strictObject({ type: z.literal('teamRelease'), id: request, taskId: id }),
 ])
 export type ToPlaybookWorker = z.infer<typeof toPlaybookWorkerSchema>
 
@@ -204,6 +240,8 @@ export const playbookResultSchemas = {
     rounds: z.array(panelModuleSummarySchema).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   }),
   done: z.strictObject({ ok: z.boolean() }),
+  /** A team task's round (D218): started, or a brief the policy cannot record. */
+  teamStart: z.enum(['started', 'briefInvalid']),
   dispatch: z.enum(['ungoverned', 'completed']),
 } as const
 

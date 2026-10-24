@@ -15,6 +15,7 @@ import {
   stopContinuationLimitFor,
   TEAM_EXHAUSTED_DEFAULT,
   TEAM_MODEL_TEXT,
+  TEAM_PLAYBOOK_MODEL_TEXT,
   TEAM_ROLE_TOOLSETS,
   TEAM_ROLE_WHEN_TO_USE_MAX_CHARS,
   UI_TEXT,
@@ -35,6 +36,7 @@ import {
   type TeamSnapshot,
   type TeamUsage,
 } from '../../shared/team'
+import type { PlaybookWhyNote } from '../../shared/playbook'
 import type { ReviewFinding } from '../../shared/reviewFindings'
 import type { TeamTreeData, TeamWorker } from '../../shared/teamView'
 import type { TeamWorkerConfirmation } from '../../shared/paid'
@@ -56,6 +58,7 @@ import {
 } from './teamPool'
 import { builtinRoles, type BuiltinRole } from './builtInRoles'
 import { isSameTeamModel } from './sameModel'
+import type { TeamPlaybookStart } from './teamPlaybookBoard'
 import { cancelArgs, collectArgs, delegateArgs, mergeArgs, type DelegateArgs } from './teamTools'
 import type {
   TeamDecisionSource,
@@ -198,6 +201,15 @@ function describeError(error: unknown): string {
   return redactSecrets(error instanceof Error ? error.message : String(error))
 }
 
+/** The playbook's refusal of a task, in the model's English. */
+function playbookRefusalText(note: PlaybookWhyNote): string {
+  return fill(TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookRefused, {
+    rule: note.rule,
+    code: note.code,
+    module: note.module ?? '',
+  })
+}
+
 function roleMode(role: TeamRoleConfig): 'read-only' | 'own-branch' | 'in-place' {
   return role.workspace ?? builtinRole(role.role)?.workspace ?? 'read-only'
 }
@@ -326,6 +338,8 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const probes = new Map<string, { readonly identity: string; readonly isReady: boolean }>()
   const probeGenerations = new Map<string, number>()
   const tasks = new Map<string, TeamTaskRecord>()
+  /** Tasks whose playbook round started, released when the task ends (D218). */
+  const openPlaybookWork = new Set<string>()
   const leases = new Map<string, string>()
   const copyOwners = new Set<string>()
   let ordinal = 0
@@ -462,6 +476,80 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
   const entryState = (entry: StaffedEntry): string => {
     if (hasHeadroom(entry)) return 'ready'
     return isUsable(entry) ? 'capped' : 'unavailable'
+  }
+
+  /**
+  The team runner's playbook board facts (M116, PLAN.md D218), read live for
+  each start: the entry worker states under the entry ids the offloading
+  caller addresses, and each finished task's branch with whether it merged
+  into the working tree (the team's integration target).
+  */
+  const playbookFacts = (): Pick<TeamPlaybookStart, 'entries' | 'branches'> => {
+    const seen = new Set<string>()
+    return {
+      entries: roles().flatMap((role) =>
+        pool(role)
+          .filter((entry) => {
+            if (seen.has(entry.id)) return false
+            seen.add(entry.id)
+            return true
+          })
+          .map((entry) => ({
+            id: entry.id,
+            running: running(entry.id),
+            usable: isUsable(entry),
+          })),
+      ),
+      branches: allTasks()
+        .map((task) =>
+          task.outcome?.branch === undefined
+            ? undefined
+            : { branch: task.outcome.branch, mergedIntoTarget: task.mergePhase === 'done' },
+        )
+        .filter((branch) => branch !== undefined),
+    }
+  }
+
+  /**
+  Start the task's playbook round now that every admission passed (D218):
+  the dispatch base, the brief the policy records, then the round on the
+  window's worker. A team without the binding, or a task with no files, is
+  ungoverned. A refusal says so and the task does not start; anything else
+  thrown is the caller's. The round is released when the task ends; it is
+  never completed here, since verification receipts are the merge path's.
+  */
+  const startPlaybookWork = async (
+    task: TeamTaskRecord,
+  ): Promise<
+    { readonly started: true } | { readonly ungoverned: true } | { readonly refused: string }
+  > => {
+    if (deps.playbook === undefined || task.files.length === 0) return { ungoverned: true }
+    const head = await deps.playbook.head(roleMode(task.role))
+    if ('refused' in head) return { refused: head.refused }
+    const facts = {
+      taskId: task.taskId,
+      brief: task.brief,
+      files: task.files,
+      reason: task.reason,
+      sessionId: task.sessionId,
+    }
+    const started = await deps.playbook.start({ task: facts, head, ...playbookFacts() })
+    if ('refused' in started) return { refused: playbookRefusalText(started.refused) }
+    // A brief the policy cannot record refuses this task alone.
+    if ('briefInvalid' in started)
+      return { refused: TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookBriefInvalid }
+    openPlaybookWork.add(task.taskId)
+    return { started: true }
+  }
+
+  /** Release the task's round, if it started one; a failed release only warns. */
+  const releasePlaybookWork = async (task: TeamTaskRecord): Promise<void> => {
+    if (!openPlaybookWork.delete(task.taskId) || deps.playbook === undefined) return
+    try {
+      await deps.playbook.release(task.taskId)
+    } catch (error: unknown) {
+      deps.log.warn(`Team playbook release failed for ${task.taskId}: ${failureForLog(error)}`)
+    }
   }
 
   const stableRoles = (): readonly TeamStableRole[] =>
@@ -1035,6 +1123,9 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
     phase: TaskPhase,
     failure?: string,
   ): Promise<void> => {
+    // The round ends with the task, whatever ended it; the task's own end
+    // never waits on the window's worker.
+    void releasePlaybookWork(task)
     // Stop owns cancellation; a late handoff still owns its retained copy.
     if (task.controller.signal.aborted) task.phase = hasCopy(task) ? 'interrupted' : 'stopped'
     else task.phase = phase
@@ -1209,6 +1300,14 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
       let isLaunched = false
       try {
         admit(task, entry)
+        const governed = await startPlaybookWork(task)
+        if ('refused' in governed) {
+          task.phase = 'failed'
+          task.failure = governed.refused
+          await persist()
+          deps.log.warn(`Team task ${task.taskId} refused by the playbook: ${governed.refused}`)
+          continue
+        }
         await launch(task)
         isLaunched = true
       } catch (error: unknown) {
@@ -1653,6 +1752,16 @@ export function createTeamHostService(deps: TeamHostServiceDeps): TeamHostServic
           const task = reserved.get(step)
           if (task?.entry !== undefined) {
             task.consented = new Set([paidScope(task.entry.agent)])
+            const governed = await startPlaybookWork(task)
+            if ('refused' in governed) {
+              task.lease?.release()
+              if (task.continueFrom !== undefined) task.continueFrom.phase = 'done'
+              tasks.delete(task.taskId)
+              reserved.delete(step)
+              await persist()
+              started.push({ role: step.item.role, refused: governed.refused })
+              continue
+            }
             await launch(task)
             reserved.delete(step)
             started.push(taskView(task))
