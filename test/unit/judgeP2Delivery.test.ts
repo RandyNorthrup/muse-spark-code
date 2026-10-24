@@ -183,10 +183,6 @@ function expectFired(result: Control, message: string) {
   expect(result.restored).toBe(true)
 }
 
-function guard(file: string, mutate: () => void, script: string, message: string) {
-  expectFired(control(file, mutate, script), message)
-}
-
 function leakInto(file: string, name: string, source: string) {
   return () => {
     const { meta, result } = output(file, name)
@@ -252,6 +248,103 @@ const judgeMissing = (() => {
   }
   return { size, pack, restored: digest(JUDGE_BUNDLE) === hash, green: gate('check-bundle-size') }
 })()
+
+// The cases that ran several real gates or a real `vsce ls` each run their
+// controls here as well, for the same reason: on a Windows workstation one
+// bundle-split gate took 11 to 18 s (2.2 s where the cases' 60 s deadlines
+// were measured), so a case running five passed its deadline. Every case
+// below still asserts each of its own controls' exit, message and
+// restoration.
+const childControls = children.flatMap(({ name, sources }) =>
+  sources.map((source) => ({
+    name,
+    source,
+    leaks: [...targets, ['judgeP2', 'dist/meta/judgeP2.json'] as const].map(([parent, file]) =>
+      control(file, leakInto(file, parent, source), 'check-bundle-split'),
+    ),
+    missing: control(
+      `dist/meta/${name}.json`,
+      dropFrom(`dist/meta/${name}.json`, name, source),
+      'check-bundle-split',
+    ),
+  })),
+)
+
+/** The real VSIX list before, without and after a file's allowlist entry. */
+function allowlistControl(file: string) {
+  const listing = '.vscodeignore'
+  const original = readFileSync(listing)
+  const hash = digest(listing)
+  const before = vsixListing()
+  let without: string[]
+  try {
+    writeFileSync(listing, original.toString('utf8').replace(`!${file}\n`, ''))
+    without = vsixListing()
+  } finally {
+    writeFileSync(listing, original)
+  }
+  return { before, without, restored: digest(listing) === hash, after: vsixListing() }
+}
+
+const sizeControls = (
+  [
+    ['judgeSources', 75],
+    ['judgeLint', 50],
+    ['judgeHook', 100],
+    ['judgeLocal', 75],
+    ['judgeUses', 25],
+    // RLM98P2: merged judge schema measures 25.2 KiB + 15%, rounded to 30.
+    ['judgeServe', 30],
+    ['validationSchema', 50],
+  ] as const
+).map(([name, cap]) => {
+  const file = `dist/${name}.js`
+  return {
+    name,
+    file,
+    oversize: control(
+      file,
+      () => {
+        writeFileSync(file, ' '.repeat(cap * 1024 + 1))
+      },
+      'check-bundle-size',
+    ),
+    global: control(
+      file,
+      () => {
+        writeFileSync(file, `${readFileSync(file, 'utf8')}\nnavigator\n`)
+      },
+      'check-host-globals',
+    ),
+    allowlist: allowlistControl(file),
+  }
+})
+const judgeAllowlist = allowlistControl(JUDGE_BUNDLE)
+
+const englishControls = ['judgeP2', ...children.map((child) => child.name)].map((name) => {
+  const file = `dist/meta/${name}.json`
+  return {
+    name,
+    duplicate: control(
+      file,
+      () => {
+        const { meta, result } = output(file, name)
+        result.inputs['src/shared/l10n/en.ts'] = { bytesInOutput: 1 }
+        writeFileSync(file, JSON.stringify(meta))
+      },
+      'check-bundle-split',
+    ),
+    unloaded: control(
+      file,
+      () => {
+        const { meta, result } = output(file, name)
+        result.imports = result.imports.filter((entry) => entry.path !== './uiText.js')
+        writeFileSync(file, JSON.stringify(meta))
+      },
+      'check-bundle-split',
+    ),
+  }
+})
 
 // The Muse Code backend's log text is a backend detail: judge code reports
 // through errorNameForLog (src/core/logging.ts), so no judge child bundle
@@ -324,97 +417,34 @@ describe('phase-2 judge production delivery', () => {
     },
   )
 
-  it.each(children.flatMap(({ name, sources }) => sources.map((source) => ({ name, source }))))(
+  it.each(childControls)(
     'fires each $name child split guard for $source with byte-exact restoration',
-    ({ name, source }) => {
-      for (const [parent, file] of [...targets, ['judgeP2', 'dist/meta/judgeP2.json'] as const]) {
-        guard(
-          file,
-          leakInto(file, parent, source),
-          'check-bundle-split',
-          `carries ${source}, which belongs to dist/${name}.js`,
-        )
-      }
-      const file = `dist/meta/${name}.json`
-      guard(
-        file,
-        dropFrom(file, name, source),
-        'check-bundle-split',
-        `dist/${name}.js no longer carries ${source}`,
-      )
+    ({ name, source, leaks, missing }) => {
+      for (const result of leaks)
+        expectFired(result, `carries ${source}, which belongs to dist/${name}.js`)
+      expectFired(missing, `dist/${name}.js no longer carries ${source}`)
     },
     REAL_SPLIT_CASE_MS,
   )
 
-  it.each([
-    ['judgeSources', 75],
-    ['judgeLint', 50],
-    ['judgeHook', 100],
-    ['judgeLocal', 75],
-    ['judgeUses', 25],
-    // RLM98P2: merged judge schema measures 25.2 KiB + 15%, rounded to 30.
-    ['judgeServe', 30],
-    ['validationSchema', 50],
-  ] as const)(
-    'fires %s size, globals and actual package allowlist guards',
-    (name, cap) => {
-      const file = `dist/${name}.js`
-      guard(
-        file,
-        () => {
-          writeFileSync(file, ' '.repeat(cap * 1024 + 1))
-        },
-        'check-bundle-size',
-        `OVER ${file}`,
-      )
-      guard(
-        file,
-        () => {
-          writeFileSync(file, `${readFileSync(file, 'utf8')}\nnavigator\n`)
-        },
-        'check-host-globals',
-        `FAIL ${file}`,
-      )
-      const listing = '.vscodeignore'
-      const original = readFileSync(listing)
-      const hash = digest(listing)
-      expect(vsixListing()).toContain(file)
-      try {
-        writeFileSync(listing, original.toString('utf8').replace(`!${file}\n`, ''))
-        expect(vsixListing()).not.toContain(file)
-      } finally {
-        writeFileSync(listing, original)
-      }
-      expect(digest(listing)).toBe(hash)
-      expect(vsixListing()).toContain(file)
+  it.each(sizeControls)(
+    'fires $name size, globals and actual package allowlist guards',
+    ({ file, oversize, global, allowlist }) => {
+      expectFired(oversize, `OVER ${file}`)
+      expectFired(global, `FAIL ${file}`)
+      expect(allowlist.before).toContain(file)
+      expect(allowlist.without).not.toContain(file)
+      expect(allowlist.restored).toBe(true)
+      expect(allowlist.after).toContain(file)
     },
     REAL_VSIX_CASE_MS,
   )
 
-  it.each(['judgeP2', ...children.map((child) => child.name)])(
-    'refuses %s duplicated English fallback and a missing shared-table import',
-    (name) => {
-      const file = `dist/meta/${name}.json`
-      guard(
-        file,
-        () => {
-          const { meta, result } = output(file, name)
-          result.inputs['src/shared/l10n/en.ts'] = { bytesInOutput: 1 }
-          writeFileSync(file, JSON.stringify(meta))
-        },
-        'check-bundle-split',
-        `dist/${name}.js duplicates src/shared/l10n/en.ts`,
-      )
-      guard(
-        file,
-        () => {
-          const { meta, result } = output(file, name)
-          result.imports = result.imports.filter((entry) => entry.path !== './uiText.js')
-          writeFileSync(file, JSON.stringify(meta))
-        },
-        'check-bundle-split',
-        `dist/${name}.js no longer loads the shared English table`,
-      )
+  it.each(englishControls)(
+    'refuses $name duplicated English fallback and a missing shared-table import',
+    ({ name, duplicate, unloaded }) => {
+      expectFired(duplicate, `dist/${name}.js duplicates src/shared/l10n/en.ts`)
+      expectFired(unloaded, `dist/${name}.js no longer loads the shared English table`)
     },
     REAL_SPLIT_CASE_MS,
   )
@@ -434,18 +464,10 @@ describe('phase-2 judge production delivery', () => {
   it(
     'includes the new member in the actual VSIX list and excludes it when its allowlist entry is removed',
     () => {
-      expect(vsixListing()).toContain('dist/judgeP2.js')
-      const file = '.vscodeignore'
-      const original = readFileSync(file)
-      const hash = digest(file)
-      try {
-        writeFileSync(file, original.toString('utf8').replace('!dist/judgeP2.js\n', ''))
-        expect(vsixListing()).not.toContain('dist/judgeP2.js')
-      } finally {
-        writeFileSync(file, original)
-      }
-      expect(digest(file)).toBe(hash)
-      expect(vsixListing()).toContain('dist/judgeP2.js')
+      expect(judgeAllowlist.before).toContain(JUDGE_BUNDLE)
+      expect(judgeAllowlist.without).not.toContain(JUDGE_BUNDLE)
+      expect(judgeAllowlist.restored).toBe(true)
+      expect(judgeAllowlist.after).toContain(JUDGE_BUNDLE)
     },
     REAL_VSIX_CASE_MS,
   )

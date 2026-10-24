@@ -583,3 +583,24 @@ the new step's completion event.
 Red (before): the three messages above. Green: billingRouteInventory 2,
 reportProblem 55 passed; manifest's walkthrough case passes (two other
 manifest cases are left, below).
+
+### judgeP2Delivery: real-gate controls run at collection
+
+Cause: 31 cases ran their real gates inside the case: five
+`check-bundle-split` runs per child source, two gates and a real `vsce ls`
+per size case, one `vsce ls` per allowlist case. The cases' 60 s deadlines
+were measured where one bundle-split run takes 2.2 s; on this Windows PC one
+takes 11 to 18 s (profiled: CPU in TypeScript parsing and file reads, no
+single Windows-only cost), so every such case passed its deadline
+(`Test timed out in 60000ms`).
+
+Fix: the suite's own pattern for its leak controls (RVM98P2R3 10): the child
+split, size/globals/allowlist and English-fallback controls run once while
+the file is collected (no deadline there), and each case asserts exactly
+what it asserted before: every control's exit, message and byte-exact
+restoration, and the VSIX list before, without and after each allowlist
+entry. No deadline was changed.
+
+Red (before, the full run): 33 failed, 31 by the 60 s deadline. Green: 101
+passed; the file took 3,792 s here. The 2 cases left fail on the
+integration's bundle budgets (below).
