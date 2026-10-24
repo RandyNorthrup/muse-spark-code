@@ -157,6 +157,16 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- **Buttons and rows announce their visible text.** The model pill, the
+  open-questions chip, schedule buttons, team tree rows and the context
+  meter failed the Label in Name check; their accessible names now carry
+  the words on screen.
+- **History actions keep their contrast on a selected row.** Archive,
+  Delete and Recap failed contrast in high-contrast light; controls on
+  the selected row now inherit its text color.
+- **Tab's paid badge no longer blanks the chat.** Pricing the badge before
+  any usage surface opened crashed the panel; the prices load their
+  wording first.
 - **A vault no longer reports itself lost when it was never set up.** The
   vault's rollback record in the operating system's credential store is now
   keyed to the vault it protects, so nothing outside that vault can read
