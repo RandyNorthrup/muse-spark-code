@@ -87,3 +87,19 @@ picture `docs/certification/m110-u1-shots/editor-dark-320.png` on every run.
 
 Fix: it writes `temp/m110-u1-shots/editor-dark-320.png` (gitignored); the
 M110-U1 record says so. No comparison is made of either picture.
+
+### nodeBrowserWorkspace: redo on Windows is Ctrl+Y
+
+Cause: the first case redoes with `ControlOrMeta+Shift+Z`. CodeMirror's
+history keymap binds redo as `Mod-y` (`Mod-Shift-z` on macOS) plus
+`Ctrl-Shift-z` on Linux only (`@codemirror/commands`), so on Windows the key
+did nothing: the undo left the original text, Save stayed disabled, and the
+case ran into the 15 s test deadline.
+
+Fix: the case presses Ctrl+Y on Windows and keeps `ControlOrMeta+Shift+Z`
+elsewhere (Chrome runs on the test's own machine).
+
+Red (before): the step log showed `after undo export const greeting = "hello"`,
+`after redo export const greeting = "hello"`, then
+`locator resolved to <button disabled type="button">Save file</button>` until
+`Test timed out in 15000ms`. Green: 5 passed.
