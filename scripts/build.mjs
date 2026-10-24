@@ -444,7 +444,8 @@ const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
-// M110t TP2: the pack index verifier (sigstore), loaded on the first pack fetch.
+// M110t TP2: the pack index verifier (Sigstore's verification packages),
+// loaded on the first pack fetch.
 const PACKS_VERIFY_ENTRY = 'src/runtime/node/packs/verifyEntry.ts'
 const PACKS_VERIFY_OUTFILE = 'dist/packsVerify.js'
 // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
