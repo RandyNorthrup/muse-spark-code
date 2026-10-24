@@ -1,8 +1,1 @@
-[
-  {
-    "advisory": "GHSA-gfr2-rv44-r23c",
-    "package": "markdown-it",
-    "reason": "Quadratic-time rendering of one multi-line link reference definition (>=14.1.0 <14.3.3). The fixed 14.3.3 was published 2026-10-16 and is inside .npmrc's seven-day release-age rule until 2026-10-23. Development tooling only: @vscode/vsce under ovsx renders this repository's own README and CHANGELOG while packaging. Nothing in the VSIX or the ACP package imports markdown-it, and no user or model input reaches it. Pin 14.3.3 through overrides once it passes the release-age rule, then remove this exception.",
-    "expires": "2026-10-24"
-  }
-]
+[]

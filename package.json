@@ -2093,7 +2093,15 @@
     "diff": "8.0.3",
     "source-map-js": "1.2.2",
     "follow-redirects": "1.16.1",
-    "vite": "8.3.4"
+    "vite": "8.3.4",
+    "markdown-it": "14.3.3",
+    "@azure/msal-node": "7.1.0",
+    "jsdom": {
+      "undici": "8.12.2"
+    },
+    "cheerio": {
+      "undici": "7.30.1"
+    }
   },
   "dependencies": {
     "@codemirror/merge": "6.12.2",
