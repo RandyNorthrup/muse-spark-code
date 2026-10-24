@@ -1,4 +1,4 @@
-// D6's unchanged cap: compact only UI JSON whitespace, preserve every value
+// D6's cap: compact only UI JSON whitespace, preserve every value
 // and all other asset bytes, then use maximum DEFLATE and atomic replacement.
 import { spawnSync } from 'node:child_process'
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from 'node:fs'

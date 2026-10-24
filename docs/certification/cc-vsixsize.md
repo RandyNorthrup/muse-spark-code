@@ -195,6 +195,23 @@ manifest strings. No file in the package should not ship. Fitting needs
 one of: the lead's D6 decision on the cap (PLAN.md D6; not raised here),
 or a decision to take features or locales out of the VSIX.
 
+## Decision (2026-10-24, owner; applied by CC-INT1)
+
+The lead asked the owner with the measurements above. The owner's answer:
+**"Move budget to measured +15%"**. D6's rule applied to this branch's
+measured win32-x64 package: 4,273,804 × 1.15 = 4,914,874.6 bytes, rounded up
+to the next 25 KiB multiple = **4800 KiB (4,915,200 bytes)**, replacing
+3700 KiB (3,788,800 bytes). It is set once, `MAX_VSIX_BYTES` in
+`scripts/check-vsix-size.mjs` (read by `package-vsix.mjs` and CI's per-target
+step); PLAN.md D6 (VSIXBUDGET), D209 (amended) and §10 carry the decision;
+`README.md` and `docs/RELEASING.md` name the new number;
+`test/unit/vsixBudget.test.mjs` holds its edge. On this branch's own
+measurement the package is then 641,396 bytes (13.1%) under 4,915,200; the
+merged tree packs to 4,273,511 bytes (641,689 under, size line `VSIX:
+4273511 bytes (budget 4915200)`, exit 0). Nothing else was raised. The
+figures and exit codes of the merged tree's run are in
+`docs/certification/cc-int1.md`.
+
 ## Checks (exit codes)
 
 - `npm ci`: 0 (both trees).

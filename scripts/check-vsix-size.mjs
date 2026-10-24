@@ -1,15 +1,14 @@
-// REL0160B: measured universal VSIX 2,911,436 bytes +5%, rounded up
-// to 25 KiB = 3,072,000 bytes. Authorized rebuild budget (PLAN.md D6).
-// CAPS017 (0.17.0), PROVISIONAL: 3,272,933 bytes on Kubuntu with the real x64
-// Linux helper but an empty arm64 helper and no macOS artifacts; D6's
-// 25 x ceil(3,196.2 KiB x 1.15 / 25) = 3700 KiB. The hosted CI universal
-// VSIX on the release PR sets the final cap (lead decision, PLAN.md D6).
-// D209: one package per platform, each meeting this same unchanged budget.
+// Budget history (PLAN.md D6): REL0160B 3,072,000 bytes; CAPS017 3700 KiB
+// (3,788,800 bytes), held through 0.19.0.
+// D209: one package per platform, each meeting this same budget.
+// CC-INT1 (2026-10-24), the owner's decision ("Move budget to measured
+// +15%"): the win32-x64 VSIX measured 4,273,804 bytes on cc/vsixsize;
+// 4,273,804 x 1.15 rounded up to 25 KiB = 4800 KiB (4,915,200 bytes).
 import { statSync } from 'node:fs'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-export const MAX_VSIX_BYTES = 3700 * 1024
+export const MAX_VSIX_BYTES = 4800 * 1024
 
 export function checkVsixSize(file) {
   const size = statSync(file).size
@@ -27,7 +26,7 @@ if (
 ) {
   try {
     // One package per platform (PLAN.md D209): every target meets the
-    // same unchanged budget, so every artifact is checked, not just one.
+    // same budget, so every artifact is checked, not just one.
     const artifacts = process.argv.slice(2)
     if (artifacts.length === 0) throw new Error('At least one VSIX path required')
     for (const artifact of artifacts)
