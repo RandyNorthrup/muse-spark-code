@@ -350,7 +350,9 @@ export class CodecClient implements ProviderClient {
               const isExecutable =
                 key === 'arguments' ||
                 (key === 'delta' && parsed.type === 'response.function_call_arguments.delta')
-              return isExecutable ? redactContent(value) : redact(value)
+              return isExecutable
+                ? redactContent(this.deps.auth.scrubContent?.(value) ?? value)
+                : redact(value)
             })
             const validated = parseCanonicalEvent(safe)
             eventParsed(validated)

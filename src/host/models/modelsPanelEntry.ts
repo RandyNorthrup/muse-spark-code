@@ -400,6 +400,7 @@ export function createModelsPanelFeatures(
     loopbackFetch: fetchLoopback,
     now: () => Date.now(),
     setComposerModel: host.setComposerModel,
+    manageHeaders: seam.manageHeaders,
     ui: {
       onDiscardedKey: () => {
         void vscode.window.showWarningMessage(openRouterDiscardedKeyNotice())

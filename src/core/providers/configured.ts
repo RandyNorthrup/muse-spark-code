@@ -776,7 +776,7 @@ export function createConfiguredProviderServices(
         // without them could reach the wrong tenant or project.
         if (!(error instanceof requestHeaders.StoredHeadersError)) throw error
         throw new ModelApiError(
-          fill(UI_TEXT.providerHeadersUnreadable, { provider: entry.id }),
+          fill(UI_TEXT.providerHeaders.unreadable, { provider: entry.id }),
           0,
           undefined,
           undefined,

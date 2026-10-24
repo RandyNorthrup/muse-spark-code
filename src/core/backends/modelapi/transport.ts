@@ -1686,19 +1686,13 @@ export class RequestTransport {
         this.deps.log.trace(
           `Model API ${init.method} ${credentials.redact(path)} answered ${String(response.status)} in ${String(this.deps.now() - startedAt)} ms`,
         )
-        const secrets = [
-          ...Object.entries(credentials.values)
-            .filter(([name]) =>
-              ['authorization', 'x-api-key', 'x-goog-api-key', 'api-key'].includes(
-                name.toLowerCase(),
-              ),
-            )
-            .map(([, value]) =>
-              value.startsWith('Bearer ') ? value.slice('Bearer '.length) : value,
+        const secrets = Object.entries(credentials.values)
+          .filter(([name]) =>
+            ['authorization', 'x-api-key', 'x-goog-api-key', 'api-key'].includes(
+              name.toLowerCase(),
             ),
-          // A provider's custom request header values are secret too (M95c part 6).
-          ...(credentials.secretValues ?? []),
-        ]
+          )
+          .map(([, value]) => (value.startsWith('Bearer ') ? value.slice('Bearer '.length) : value))
         // A held slot spans send to completion: the wrapper frees it when
         // the caller settles the body, so streaming answers stay counted
         // while they stream. A null body is already complete: its slot

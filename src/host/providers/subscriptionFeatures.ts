@@ -42,6 +42,7 @@ import {
   type ProviderUsageRow,
 } from '../../shared/usage'
 import { fill, setUiText as setHostUiText } from '../../shared/l10n/text'
+import { manageProviderHeaders } from './providerHeaders'
 
 /** The subscription sign-ins' API origins, beside their panel entries. */
 const SUBSCRIPTION_ADDRESS = {
@@ -188,6 +189,8 @@ export function createSubscriptionFeatures(options: {
   }
   const panelSeam = {
     ...seam,
+    // M95c part 6: the header manager loads here, with the seam, never with the panel.
+    manageHeaders: manageProviderHeaders,
     catalog: {
       ...seam.catalog,
       get: (id: string) => {

@@ -59,13 +59,13 @@ export async function providersHeaders(
   const kept = await keptHeaders(deps, entry, origin)
   if (options.set === undefined && options.unset === undefined) {
     if (kept === undefined) {
-      return failed(deps, fill(UI_TEXT.providerHeadersUnreadable, { provider: entry.id }))
+      return failed(deps, fill(UI_TEXT.providerHeaders.unreadable, { provider: entry.id }))
     }
     const names = Object.keys(kept)
     deps.print(
       names.length === 0
-        ? fill(UI_TEXT.providerHeadersNone, { provider: entry.id })
-        : fill(UI_TEXT.providerHeadersList, { provider: entry.id, names: names.join(', ') }),
+        ? fill(UI_TEXT.providerHeaders.none, { provider: entry.id })
+        : fill(UI_TEXT.providerHeaders.list, { provider: entry.id, names: names.join(', ') }),
     )
     return EXIT_OK
   }
@@ -81,13 +81,13 @@ export async function providersHeaders(
       return failed(
         deps,
         problem === 'reserved'
-          ? fill(UI_TEXT.providerHeadersNameReserved, { name })
-          : UI_TEXT.providerHeadersNameInvalid,
+          ? fill(UI_TEXT.providerHeaders.nameReserved, { name })
+          : UI_TEXT.providerHeaders.nameInvalid,
       )
     }
-    const typed = await deps.readSecret(fill(UI_TEXT.providerHeadersValue, { name, origin }))
+    const typed = await deps.readSecret(fill(UI_TEXT.providerHeaders.value, { name, origin }))
     const value = typed.trim()
-    if (!isHeaderValueValid(value)) return failed(deps, UI_TEXT.providerHeadersValueInvalid)
+    if (!isHeaderValueValid(value)) return failed(deps, UI_TEXT.providerHeaders.valueInvalid)
     headers = withHeader(headers, name, value)
   }
   await (Object.keys(headers).length === 0
@@ -96,8 +96,8 @@ export async function providersHeaders(
   const names = Object.keys(headers)
   deps.print(
     names.length === 0
-      ? fill(UI_TEXT.providerHeadersNone, { provider: entry.id })
-      : fill(UI_TEXT.providerHeadersList, { provider: entry.id, names: names.join(', ') }),
+      ? fill(UI_TEXT.providerHeaders.none, { provider: entry.id })
+      : fill(UI_TEXT.providerHeaders.list, { provider: entry.id, names: names.join(', ') }),
   )
   return EXIT_OK
 }

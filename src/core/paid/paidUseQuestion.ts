@@ -34,17 +34,17 @@ function tabByoQuestion(
   quote: TabByoQuote,
 ): { readonly title: string; readonly detail: string } {
   let billed: string
-  if (quote.kind === 'local') billed = UI_TEXT.tabByoBilledLocal
+  if (quote.kind === 'local') billed = UI_TEXT.tabByo.billedLocal
   else if (quote.kind === 'plan')
-    billed = fill(UI_TEXT.tabByoBilledPlan, { provider: quote.provider })
+    billed = fill(UI_TEXT.tabByo.billedPlan, { provider: quote.provider })
   else {
     // A priced card always carries rates; one without cannot be quoted.
     if (quote.rates === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
     const perMillion = (rate: number) =>
       formatUsd(rate * TOKENS_PER_MILLION, MODEL_API_PRICE_DECIMALS)
-    billed = fill(UI_TEXT.tabByoBilledKey, {
+    billed = fill(UI_TEXT.tabByo.billedKey, {
       provider: quote.provider,
-      price: fill(UI_TEXT.tabByoRates, {
+      price: fill(UI_TEXT.tabByo.rates, {
         input: perMillion(quote.rates.input),
         cached: perMillion(quote.rates.cached),
         output: perMillion(quote.rates.output),
@@ -55,11 +55,11 @@ function tabByoQuestion(
   return Usd.from(budgetUsd).compare(Usd.from(0)) === 0
     ? {
         title: UI_TEXT.paidUseTabTitle,
-        detail: fill(UI_TEXT.paidUseTabByoDetailNoBudget, { model, billed }),
+        detail: fill(UI_TEXT.tabByo.detailNoBudget, { model, billed }),
       }
     : {
         title: UI_TEXT.paidUseTabTitle,
-        detail: fill(UI_TEXT.paidUseTabByoDetail, {
+        detail: fill(UI_TEXT.tabByo.detail, {
           model,
           billed,
           budget: formatUsd(budgetUsd, 2),

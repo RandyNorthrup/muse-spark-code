@@ -374,7 +374,7 @@ function ProviderRow({
             post({ type: 'providers/headers', providerId: provider.id })
           }}
         >
-          {UI_TEXT.providerHeadersButton}
+          {UI_TEXT.providerHeaders.button}
         </button>
         {panelState.presets.some(
           (preset) => preset.id === provider.presetId && preset.connectOAuth,
