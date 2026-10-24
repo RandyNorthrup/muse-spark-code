@@ -470,6 +470,41 @@ describe('reports CLI subprocess', () => {
   })
 })
 
+/** The saved fixture through a fresh report process whose clock is in `zone`. */
+async function inZone(zone: string, args: readonly string[]) {
+  return await runCli(state.command, ['--from', 'fixture.json', ...args], state.root, {
+    PATH: process.env['PATH'],
+    SystemRoot: process.env['SystemRoot'],
+    LC_ALL: 'en_US.UTF-8',
+    TZ: zone,
+  })
+}
+
+describe('report determinism across processes, time zones and languages', () => {
+  // A saved report names its own instants, so no machine-local day enters
+  // its bytes: every zone, a fresh process each time, prints the same text,
+  // and a language changes the words, never from one zone to the next.
+  const zones = ['UTC', 'Asia/Kolkata', 'Pacific/Kiritimati', 'America/Los_Angeles'] as const
+  let germanInUtc: string | undefined
+
+  it.each(zones)('prints the same saved report in %s, in English and in German', async (zone) => {
+    const english = await inZone(zone, ['--format', 'md'])
+    expect(english).toEqual({
+      code: 0,
+      stdout: await readFile(
+        path.join(sourceRoot, 'test/fixtures/reports/project.md.golden'),
+        'utf8',
+      ),
+      stderr: '',
+    })
+    const german = await inZone(zone, ['--format', 'md', '--lang', 'de'])
+    expect(german.code).toBe(0)
+    expect(german.stdout).toEqual(expect.stringContaining('# Projekt'))
+    germanInUtc ??= german.stdout
+    expect(german.stdout).toBe(germanInUtc)
+  })
+})
+
 describe('session and usage report kinds over real journals', () => {
   it('R17 production report builds share one admission implementation on every platform', async () => {
     expect(admissionCopies).toHaveLength(3)

@@ -280,6 +280,41 @@ the VS Code dialog and `/report problem` through an editor (no GUI, and no
 nested ACP session while Muse's allowance is used up until 2026-10-25
 17:00 Pacific).
 
+Report determinism across processes, time zones and languages
+(`test/e2e/reports.e2e.test.ts`, 4 new cases, real built CLI, a fresh
+process per case): a saved report prints the same bytes as its golden in
+UTC, Asia/Kolkata, Pacific/Kiritimati and America/Los_Angeles, and the
+German rendering is identical across the four zones. Red/green: a
+`reportTimestamp` that follows the machine's zone (`getTimezoneOffset`)
+fails the three non-UTC cases and the existing golden cases on this
+Pacific-time Mac (exit 1); restored byte-exact (`57743634ec85` before and
+after), exit 0 (31 passed).
+
+Gates (merge-04 tree, rig MacBook, 2026-10-24): prettier 0; eslint 0;
+typecheck 0 (5 projects); l10n 0; reference 0; host-api 0; plan 0
+(PLAN.md is within 146 bytes of its 85% gate, so the M93 status is one
+line; archiving closed history to `docs/plan-archive/` is the next
+change's first job); roadmap 0 (regenerated); catches 0; duplication 0;
+cycles 0; deadcode 0; build 0 with every budget holding.
+`vitest related` over the 31 changed source files, excluding the vault
+suites and the four OS credential-store suites the MacBook rule forbids:
+21,855 passed, 10 failed, 101 skipped (695 files). One failure was this
+change's (`reportRecorderUnavailable`: the report now says why recording
+was unavailable; its expectation was updated, passes). The other nine,
+measured on the untouched base (`96cdfb921`, extracted to `temp/base`) and
+on this tree with the same files: `outputSchema` (1), `resourceCreatedSweep`
+(4) and `vsixCompression` (2) fail identically on both; `resourceProbesDarwin`
+(1) reads the live Mac's headroom and failed 2 of 3 runs on the base and 3 of
+3 on this tree (a value taken from the running machine, not from this
+change); `scheduleFireFailures` (1) hit its 5 s deadline once inside the
+3-worker run and passes alone on both trees (cause UNMEASURED, load).
+`security:audit` exit 1: 13 advisories (high: `@azure/msal-node`,
+`undici`, `zod`) on a `package.json` and lockfile unchanged since 0.19.0,
+where the PC's run of 2026-10-22 saw 4; the advisory feed moved, and a bump
+or a reviewed dated exception (PLAN.md D29) is the lead's call. SAST exit 1:
+`semgrep is not installed` here (installing it is a global install the rules
+forbid); hosted CI owns the scan.
+
 ## Prior checkpoint
 
 On 2026-10-21 this lane stopped blocked at the 733-byte overage with the
