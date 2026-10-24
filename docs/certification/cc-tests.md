@@ -261,3 +261,27 @@ reason beside it), as the suite's FIFO case already skipped Windows.
 Red (before): 5 failed with `EPERM: operation not permitted, symlink 'src\a.ts'`.
 After: 6 skipped on Windows (5 plus the FIFO case), unchanged on Linux and
 macOS.
+
+### judgeHardware: Windows has no execute bit; C:\Windows is a real root there
+
+Cause, two cases:
+
+- `findOnPath` judged a file runnable by `access(X_OK)`, which on Windows
+  only proves the file exists, so the 0644 "ghost" was found
+  (`expected 'C:\Users\…' to be undefined`). Windows starts a file by its
+  extension.
+- "useless roots" passed `undefined`, which takes `probeGpu`'s default (this
+  machine's `SystemRoot`) and so read this PC's real display adapter
+  (`{ vendor: 'unknown', model: 'Virtual Display Driver', … }`), and
+  `C:\Windows`, which is a real root on Windows.
+
+Fix: the hardware probe counts a file runnable on Windows only when its
+extension is a program's (`WINDOWS_PROGRAM_EXTENSIONS`), so an extensionless
+`ollama` on a Windows PATH no longer counts. The PATH case names its target
+`.cmd` on Windows (the ghost stays extensionless); the roots case uses an
+empty root and a missing folder, useless on every machine.
+
+Red (before): 2 failed as above. Green: 18 passed, 2 skipped (Linux-only DRM
+and cpuinfo readings, as before). Red drill: the Windows extension check
+disabled → the PATH case failed (`expected 'C:\Users\Randy\Coding\mx-cc-tests\tem…' to be undefined`);
+restored.
