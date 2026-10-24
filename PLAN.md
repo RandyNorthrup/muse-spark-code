@@ -11273,421 +11273,46 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
 
 ### D96 — The orchestrator playbook (M116, 2026-10-06)
 
-The owner, 2026-10-06: "and the orchestrator will be trained to use our three
-strikes method? this is working very good for us and i think it is pretty
-foundational".
-
-The method is the one this repository has been built with: the owner's
-rulings of 2026-09-27 to 2026-10-05 (redesign at the third round, review in
-one pass, contracts first, small things first, offload to the rigs, one
-integration trunk, break every gate on purpose, loud failures with owner
-items first, never route around a safety check). D96 makes it the
-orchestrator's own, **built in, on by default, and enforced by code**, not
-only written into a prompt. It applies to every orchestrator: M96's team
-host (the lead, team leads and roles), M110's orchestrator hosts, M115w's
-watchdog, and the panel's main conversation whenever it orchestrates
-(subagents, `delegate`, best-of-N, its review loop). It is also this
-repository's own working rule (AGENTS.md rule 14).
-
-**What exists** (read on main):
-
-- Reviews end in a `muse-review` block of findings (`src/shared/reviewFindings.ts`:
-  file, lines, severity, title, detail), with no class and no notion of a
-  round.
-- The verify loop counts failing check rounds per session and stops at
-  `CHECK_FIX_MAX_ROUNDS` (`verifyLedger.ts`), but nothing counts review rounds
-  per module or changes the kind of fix that follows.
-- First-party skills live in `first-party-skills/` beside the vendored
-  package (M92's `muse_gadgets`), loaded and installed by M89's bundled-skills
-  path (D68).
-- M96's charters, board and scheduler, M96c's merge queue and check slots,
-  and M113's plan reader with its lanes tables and delivery-order list are
-  the planner's inputs, as each merges.
-
-1. **Three strikes.**
-   - **What is counted.** Review rounds per **module** (a file set: the
-     lane's declared files, or a team's module globs, or else the file's
-     directory two levels under the workspace's source root) and per
-     **finding class** (decision 2's classes).
-   - **The rule.** The original build and two fix rounds may be patches. When
-     the review after the second fix round still has findings in the same
-     module, the next round is **not another patch**: the policy refuses a
-     fourth patch round on that module (`PLAYBOOK_PATCH_ROUNDS_MAX`, 2 fix
-     rounds after the build).
-   - **A design decision instead.** The orchestrator writes one: the class of
-     failure, why the patches did not end it, and the structural change that
-     removes it (one atomic claim instead of a multi-step one; no allow-list
-     instead of a better allow-list). It goes in the project's plan where
-     there is one (a `D<n>` amendment in this repository's format, or the
-     skill's `quality-ledger`), and in the playbook's record.
-   - **A redesign lane** builds it. The next review is given the old findings
-     and must mark each one `impossible` (with the structural reason),
-     `caught` (a check now catches it) or `remains`. Only `impossible` closes
-     a finding; `caught` alone does not close a strike. A redesign that still
-     leaves findings goes to the user, first in every report.
-   - **Recorded and shown:** the counts per module and class, each decision
-     and its outcome, in the Agent map (a strike badge on the lane) and in
-     `/report` (D93's `playbook` kind, and the milestone and fleet kinds).
-2. **Review in one pass.**
-   - **Every class at once:** validation and security; failure paths and
-     honesty (no empty success, no silent fallback); concurrency and
-     lifecycle; tests and gates; docs. A review states the classes it
-     covered (`coverage`); one that leaves a class out is incomplete, asked
-     again, and not counted as a round.
-   - **Findings carry their class.** The `muse-review` block gains an
-     optional `class`; the playbook's reviewer charter asks for it. M70's
-     `/review` prompt is unchanged, and a finding without a class counts
-     under the module alone.
-   - **Fixes land together.** The next review does not start until every
-     finding of the last one is answered: fixed, or disputed with a reason.
-     There is no one-finding-per-round loop.
-3. **Contracts first.**
-   - **Lane 0** (contracts, strings, fakes, the handoffs) lands and is
-     reviewed before any wave lane of its milestone is dispatched.
-   - **A prerequisite audit runs before each wave:** a lane whose `Starts`
-     names a lane or milestone that has not merged is not started, and the
-     note names what is missing.
-4. **Small first, in a logical order.** The queue is ordered by dependency
-   first (a topological order), then by estimate (smaller first), then by id;
-   M113's reader supplies the plan's lanes tables and the delivery-order list,
-   and M96c's pick uses the order.
-5. **Offload.** Heavy builds and tests go to worker nodes (M100's devices,
-   M96c's runners, M110's nodes) when one is offered, under M107's governor;
-   the user's own machine stays light. One full gate per change, in CI where
-   the project has CI; locally, scoped checks.
-6. **Integrate continuously.** A rolling integration trunk per milestone
-   (`feature/m<id>-…`), into which each lane merges as it certifies; every
-   lane's brief lists the merges already in the trunk.
-7. **Break on purpose.** A lane that adds a gate or a test (a new test file,
-   a new gate script, a new lint rule) certifies only with a drill record:
-   the break, the observed failure, and the byte-exact restore (AGENTS.md
-   rule 3).
-8. **Loud failures, owner items first.** Every report and status message the
-   orchestrator writes starts with what needs the user and whatever is
-   failing (M113's **Needs you**), never buried below progress.
-9. **Never route around a safety check.**
-   - **Hook bypass is detected by outcome; the command guard is advisory.**
-     At work start the harness snapshots reachable commits. Before any
-     harness-managed push or completion, every commit newly reachable from
-     the work's refs runs the repository's own pre-commit and commit-msg on
-     its tree/message in an isolated temporary worktree under ordinary tool
-     admission. Pre-push runs once for the exact range with a clean index.
-     Push admission also checks commits introduced since the workspace's first
-     recorded work, so opening later work cannot hide an unverified ancestor. Hooks are never
-     rewritten. A passing commit has a durable commit id / hook-set digest /
-     result receipt. Failure or inability to run is a strike, blocks push
-     and completion, and shows scrubbed hook output. No receipt means no push.
-     Obvious bypass commands still receive an early warning and refusal;
-     shell wrappers, aliases and generated arguments are not parsed as a
-     security boundary.
-   - **No permission laundering:** an action refused to one agent is not
-     asked again through another (a delegate, a role, a tool with the same
-     effect) for `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour) on the same subject;
-     it is reported to the user instead.
-   - **A safety classifier's block** is never retried or rerouted; the user
-     decides (the owner's 2026-10-02 ruling).
-10. **Configurable, with a reason.** Each of rules 1 to 8 is a team setting
-    (`playbook.<rule>`, on by default) that can be turned off only with a
-    stated reason, recorded with who turned it off and when, and shown
-    beside the rule. **Rule 9 has no off switch:** turning it off would itself
-    route around a safety check. `PLAYBOOK_PATCH_ROUNDS_MAX` may be lowered,
-    not raised.
-11. **Enforced, and explained.**
-    - **A policy module** (`src/core/orchestration/playbook/**`, no `vscode`)
-      that every planner calls before it dispatches, reviews, merges or
-      reports: the round counter that refuses a fourth patch round, the
-      coverage and fix-together checks, the contract-first gate, the
-      prerequisite audit, the queue order, the offload preference, the drill
-      requirement, the route-around guard.
-    - **A first-party skill,** `orchestrator-playbook`
-      (`first-party-skills/orchestrator_playbook/`), bundled by D68's path on
-      both backends, which teaches the method and the design-decision
-      template; the module enforces it whether or not the model reads it.
-    - **A "why it did this" note** on every enforced decision, in the
-      transcript, the Agent map and the record: "Playbook: round 3 on
-      `src/core/schedules/store` — a redesign is required (two fix rounds
-      left concurrency findings)".
-    - **No model call of its own,** and no change to any request's prefix: the
-      skill loads as skills do, and the notes are host rows.
-12. **Every editor** shows the same: the notes and badges in the panel, the
-    companion page and the native hosts; ACP's `/playbook` (status, record,
-    settings); the CLI's `playbook status|record|settings`; the TUI's and
-    the desktop's Agent map.
-13. **Lane-0 review amendment (RVM116L0, 2026-10-06).**
-    - A module has a trusted stable `id`, assigned once and persisted with
-      its key/file-set snapshots in the journal. A changed key or file set
-      for existing code carries typed lineage: `renamedFrom`, `splitFrom`
-      or `mergedFrom`, naming module ids. A rename keeps its id; splits and
-      merges inherit the maximum predecessor round, per class and aggregate.
-      P refuses a declaration whose files overlap a struck module's last
-      file set without lineage unless a recorded lead/owner override exists.
-      No counter resets on a new lane, branch, key or file set.
-    - `beforeReview` and `afterReview` receive `implementerId`, `reviewerId`
-      and both session ids from the harness's trusted lane registry, never
-      self-declared model metadata. Every round persists these identities.
-      P refuses equal agent ids or shared sessions before consuming a review.
-    - Journal findings retain normalized severity (`P1`–`P3`); their answers
-      are finding-scoped dispositions: fixed, disputed(reason),
-      residual(name, why safe for now, follow-up), or override(lead/owner,
-      reason, time). P fixes every P1; only an explicit lead/owner override
-      can except it. P2 residuals require redesign and a named follow-up;
-      an ordinary dispute grants no exception. The trusted adapter maps
-      critical/high/medium-or-lower to P1/P2/P3 and treats missing or unknown
-      severity as P1 until clarified. P validates prior ids, scrubs free text
-      and reconstructs this policy from the journal after restart.
-    - Acceptance fakes take the prior finding id as a fixture parameter,
-      detach every lane's module data, and test board dependencies and
-      estimates independently of the plan's delivery-order literal.
-
-14. **Lane-P redesign (REDM116P, 2026-10-06).** One synchronous journal
-    reducer owns publication and emits tagged tool effects. Leases exclude
-    all members of a module family and name the lane and generation; every
-    review must present its admitted generation. Expired member leases do
-    not block another member's current work. File identities retain bounded
-    content fingerprints; edited moves inherit through Git history/rename
-    evidence and content similarity at `PLAYBOOK_CONTENT_SIMILARITY_PERCENT`.
-    Claimed lineage is published before admission. Merges reconcile maximum
-    strikes and lifetime counts throughout the family; only a complete
-    independent redesign can close an existing strike epoch.
-
-15. **RVM116P3 repair (FIXM116P3, 2026-10-06).** Keep the synchronous
-    outcome/journal architecture. Resolve the source hook directory once and
-    run native Git hooks with that absolute hooksPath and a credential/Git/
-    hook-disable scrubbed environment. Configured hook sets fail closed on
-    missing/non-executable hooks and missing Husky dispatch/body files; Husky
-    startup scripts cannot silently suppress a body. Snapshot all refs and
-    every worktree HEAD before/after work, including new branches/tags/notes.
-    Peel annotated tags; deletion-only pushes require no hook receipt. Scrub
-    outer errors, require explicit renewal/cancellation generations, contain
-    hook descendants, clean partial worktree registration, and connect hook
-    strikes to patch refusal and independent redesign even without findings.
-    Hook-digest epoch v2 invalidates earlier potentially skipped-body receipts;
-    startup presence is checked on receipt reuse. POSIX executions end their
-    process group; every Windows Git child requires the trusted harness
-    job/tree runner and refuse without it.
-    Each review finding receives a named regression and byte-exact red drill
-    in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
-
-16. **The panel's install before M96 (C-M116-6, 2026-10-11).** The VS Code
-    window binds the same policy, journal and outcomes the CLI and the ACP
-    agent use; there is no second implementation.
-    - **What a playbook review is.** A panel `/review` counts as a round
-      only when the host itself saw a child agent of the conversation (a
-      subagent, or a taken best-of-N attempt) change one of the reviewed
-      files. That child is the implementer and the conversation the reviewer
-      (`conversation:<sessionId>`), each with its own session; no role id is
-      minted for a session that would be both. Every other review keeps its
-      request bytes: no charter, no round, no note, no journal read.
-    - **Modules** are item 1's default: the directory at
-      `PLAYBOOK_MODULE_DIRECTORY_DEPTH` under the root, a root file being its
-      own. The id is the journal's. A module whose file set grows is declared
-      again as itself (`renamedFrom` its own id); code moved in from another
-      module names it (`splitFrom`, `mergedFrom`), so strikes travel with it.
-    - **Dispatches.** A subagent spawn, a `delegate` follow-up and a
-      best-of-N run from a conversation with an open module (findings owed,
-      a pending redesign or an escalation) are a fix or redesign round on
-      that module: admitted before the work starts, held until the child
-      ends, then the hook receipts of what it committed are verified. With
-      nothing open, or no journal on the machine at all, the dispatch is not
-      the playbook's and runs exactly as before.
-    - **A redesign's board** is its design decision: the decision the person
-      accepted in the panel is the merged, reviewed contracts lane, and the
-      redesign lane (`panel-redesign-<uuid>`) starts after it. That
-      acceptance is the only override authority, for exactly that module and
-      only while it is being recorded. The panel merges nothing and offloads
-      nothing, so drill requirements and check admission fail closed there.
-    - **Where it runs.** The policy is synchronous (a durable journal write
-      per decision, git plumbing, the repository's own hooks), so the window
-      runs it on a worker thread that loads the same `dist/playbook.js` the
-      window requires on first use. Requests and answers are validated in
-      both directions. A worker that crashes, exits, speaks outside the
-      protocol, or says nothing for `PLAYBOOK_WORKER_SILENCE_MS` while it
-      owes an answer is ended and everything it owed is refused as
-      unavailable, never allowed; work that had already started is reported
-      to its conversation as not certified. Restricted Mode opens no playbook
-      review and governs no round. The CLI and the ACP agent keep their
-      in-process path over the same modules.
-    - **Windows.** The worker binds `PlaybookHookAdmission.runContained` to
-      one named job per decision over the shipped MuseSparkJob type (§9,
-      FIXM116P3-Windows-job-binding, closed).
-    - **Review RVCM1166A (2026-10-11), one P1 and five P2, all fixed.**
-      The classification above is one function (`reviewedChanges` in
-      `panelLanes.ts`) that the window and the governor both call, so a
-      review the governor would call ordinary never reaches a worker, a
-      journal or Restricted Mode's refusal. It compares files by resolved
-      identity (`resolvedLongPath`: links, junctions, drive spellings, 8.3
-      names, and case where the file system has none), and the journal names
-      each file by its real path under the real workspace. "No journal on
-      the machine" means the journal folder is confirmed absent (`ENOENT`);
-      a folder that cannot be looked at refuses. A window that has closed
-      starts nothing, whenever the request was made, and a worker that is
-      lost aborts the admitted work that was still running. On Windows the
-      job is kill-on-close on its helper's own handle and is never forgotten
-      before its end was seen; on macOS and Linux a lost supervisor's process
-      group is ended by its caller (§9).
-    - **Review RVCM1166B (2026-10-11), five P2, all fixed as classes.**
-      One rule runs through them: what could not be read, loaded or ended is
-      a failure with its own name, never "nothing".
-      (1) A job a stopped worker left is the window's own until its end was
-      seen. A termination by name that fails keeps the name; it is tried
-      again before the next work and as the window closes, and a window
-      that closes with one still listed says so in its log (§9).
-      (2) The editor host's variables are matched by the platform's own
-      rule for a variable's name: without regard to case on Windows, where
-      a child reads `electron_run_as_node` as Electron's switch all the
-      same; as spelled elsewhere. One function, so the shell tools and the
-      playbook's commands have the same fix.
-      (3) A path that cannot be read is not a path outside the workspace:
-      `workspaceFile` answers "not the child's file" only for a resolved,
-      different identity. It throws, so the review is refused with the
-      reason, for a path (or workspace root) whose identity nothing can
-      tell: one that cannot be read, and on Windows a missing name shaped
-      like a short name (`NAME~1`), which may have stood for any long one
-      (elsewhere such a name is what it spells). It throws as well for a
-      file of the workspace whose name the journal cannot hold because it
-      reads as a secret, which used to be passed over. A review with no
-      child's file to compare resolves no path at all and stays ordinary.
-      One caller keeps "undefined" for all of these, on purpose: a
-      finding's file is the reviewer's own words, so a finding whose file
-      cannot be placed goes under no module, as one placed elsewhere does,
-      and the round is counted all the same; if it undid the round, a
-      reply's wording could keep a round from being counted.
-      (4) The panel's channel always answers a panel that asked. A bundle
-      that cannot load, or a hello that fails or is not answered within
-      `PLAYBOOK_PANEL_TIMEOUT_MS`, is `playbookFailed`; the Agent map says
-      the playbook is unavailable and offers Retry. Only a host that has no
-      playbook at all stays silent, and the map is then what it always was.
-      (5) Rows whose records could not be read are `playbookAgentsFailed`,
-      never an empty record: the map keeps what it showed, says it may be
-      out of date, and reads again on Retry.
-      **The sweep for that class** found four more in the conversation's
-      binding. A child's changed files were read with a budget of one
-      output page and a failed read counted as "changed nothing"; they are
-      now read whole (a stored patch page by page up to
-      `PATCH_DOCUMENT_MAX_PAGES`). A contribution the host cannot read is a
-      finding about that child, never a refusal of the conversation (D96.17,
-      "An unreviewable contribution is a finding about that child"). Evidence
-      longer than the journal's bound was cut to fit; a review of more
-      files, or of more children, than the journal holds refuses, and only
-      when a child has a part in the review. A journal that cannot say
-      whether the "subagents start unasked" line is owed answers `/playbook`
-      with the unavailable words and the map's hello with `playbookFailed`,
-      never with "no gap".
-
-17. **Subagents a backend starts itself (C-M116-6, lead's ruling
-    2026-10-11).** Item 16 binds the dispatches the person makes in the
-    panel. A model also starts children on its own; where that is admitted
-    differs by backend, and the claim says exactly where.
-    - **Model API: whole, in every mode.** The host itself starts each
-      child, so the window's playbook is asked from inside the tool call:
-      `subagent_spawn` is a `subagent` round and a `subagent_send_message`
-      that is a new task for a child is a `delegate` round, each asked after
-      the paid consent and the tool's own admission and before anything
-      starts. The round ends with the child's own result. A note to a child
-      at work is not a round, and an exact retry of a spawn starts none. A
-      refusal is the tool call's failure: the model reads the journal's rule
-      and reason codes in English, the row shows the why-note in the display
-      language, no child starts and no grant is spent. A best-of-N attempt's
-      host has no playbook: its children are not the conversation's.
-    - **Muse Code: counted from its first live row, never admitted before start.**
-      Captured Muse Code 1.4.4 and 1.4.6 send no spawn request in prompting,
-      Auto or Bypass modes. Each live subagent opens an observed round keyed
-      by subagentId and itemId before childSessionId appears; revision 2
-      attaches the session for review evidence. Reminder children never count.
-      The CLI has already started the child: a refusal shows its why-note
-      and cannot stop that start. The standing sentence in status and the
-      Agent map says this in every language, without consulting the journal.
-      Its own row leaving in progress, the next review, disposal or window
-      reload closes the round; a history repost closes nothing. Disposal
-      closes the binding first, cancels waiters and rejects later admissions.
-      A turned-down spawn's completion hook is Model API only.
-    - **The person's own actions on a child (review RVCM1166C, finding 1;
-      lead's ruling 2026-10-11).** Every action in the panel that starts or
-      resumes a child's work is a dispatch, on both backends. These are
-      dispatches: the Agent map's **Continue**, **Retry**, **Resume** and
-      **Reopen**, and a message to a child that would be new work. Each is
-      a `delegate` round, admitted before the backend's session is asked
-      for anything: nothing is sent to Muse Code (`subagent/<action>`,
-      `subagent/followupTask`, `subagent/sendMessage`) and the Model API's
-      host is not called until the round is admitted; a refusal sends
-      nothing and shows the playbook's sentence. These are not:
-      **Interrupt**, **Stop**, **Close** and **Read result**, which start
-      nothing, and a note to a child at work. Whether a message is new work
-      is the host's decision, from the child's own row as the host last saw
-      it. It is a note only to a child whose row is in progress with a
-      control status of `accepted`, `starting` or `running`, or with none.
-      To a child that is queued, interrupted, finished, closed or failed,
-      or whose row the host never saw, it is new work. The flag the webview
-      sends (a follow-up, by the row it last drew) can make a message a
-      dispatch and can never make it a note. The controller forgets a
-      child's row when it sends Interrupt, Stop or Close, so a message that
-      follows before the backend's next row is a dispatch. What is sent
-      once admitted is what was sent before; the gate adds nothing to it,
-      and a window with no playbook sends everything as it always did.
-      The gate stands in the controller, before `AgentSession`, which both
-      backends implement. The Model API's host is unchanged
-      (`dist/modelApi.js` has 22 bytes to its pin). Residual, named and
-      measured (lane CM1166C, 2026-10-12, kubuntu production build): that
-      host's own state can change a moment before its row says so, when a
-      MODEL interrupts a child by tool (the state is set, the turn
-      cancelled, then the row said); a person's note sent in that moment is
-      taken by the host as a task, and the playbook was not asked. The
-      designed gate is two parts: the controller reads the child's row again
-      where the message runs and marks the message new work when the row no
-      longer says at work (that half fits in `dist/conversation.js`), and
-      the host fail-closes the rest — a note that would start a task from
-      `interrupted` or `result_ready` refuses with a retry sentence, so the
-      person sends it again as the follow-up the playbook admits. The host
-      half costs 63 bytes in `dist/modelApi.js` (41 over the pin), so it
-      waits for the bundle diet landing separately; the scratch measurement
-      was reverted byte-exact and only the number is recorded here.
-    - **A finding's file is the reviewer's own words (lead's ruling
-      2026-10-11).** A finding whose file cannot be read, resolved or named
-      is kept under no module, and the round is still counted: a reviewer's
-      wording must never be able to stop a round from being counted. Test:
-      `playbookGovernor`, "counts the round of a reply that names a file
-      nobody can place, without that finding".
-    - **An unreviewable contribution is a finding about that child (review
-      RVCM1166D, finding 1; lead's ruling 2026-10-11).** One child's file
-      or patch refuses no review: the binding reports each of the four
-      causes with that child's label — a file whose name reads as a secret
-      (withheld, never named), a stored patch over
-      `PATCH_DOCUMENT_MAX_PAGES` pages of `OUTPUT_PAGE_BYTES` (with its size
-      and the bound), a patch that does not read (with no number to give),
-      more changed files than `PLAYBOOK_RECORD_MAX` (with the count and the
-      bound) — and every other child's review, and any review of files no
-      child touched, proceed normally. The governor journals the finding
-      once per child round (`contributionBlocked`, with the cause and the
-      secret-free sentence) and counts the round against the modules the
-      child's readable changes touch (under no module when none is
-      readable); the child's own map row names it. A model must not be able
-      to stop the playbook with an awkward file, nor to make its own round
-      disappear. Tests: `playbookConversation`, one row per cause with a
-      clean second child; `playbookGovernor`, journaled once, counted, and
-      the clean child's round after it.
-    - **The CLI reviewer's own decision (lead's ruling 2026-10-11).**
-      An approval frame with `subagentOrigin` and no request is the CLI
-      reviewer's own decision for that child, never a waiting card: the
-      mapper keeps the captured origin on the event, and the conversation
-      shows it as decided by the Muse Code reviewer for that child
-      (attributed by subagent id), leaving the wire's own word for who
-      decided out of the transcript. A frame that names an approval the
-      person was asked for still settles the person's own card. Tests:
-      `mapNotification`, the origin both frames keep; `conversationController`,
-      the decision shown and the card settled.
-    - **The claim, as published:** Model API child work is admitted before
-      dispatch; Muse Code subagents start without asking, their rounds are
-      counted and their work reviewed, and the playbook cannot stop a start.
-    - **Evidence.** Live captures on Kubuntu (1.4.6) and linuxlt (1.4.4),
-      contributor model, stdio `muse serve --trust-workspace`, delegation
-      `run.subagent_delegation_mode="auto"`, recorded every frame. The older
-      1.3.0 premise is superseded. Upstream draft now requests admission
-      before a start; the lead dedupes and files it.
-    - **Presence before loading.** With no playbook folder the activation
-      shim returns no port and loads nothing, even if playbook.js is absent.
-      ENOENT alone means absent; other filesystem errors load the bundle to
-      report the failure. With a playbook, Model API failures refuse dispatch;
-      Muse Code failures report honestly after the observed start.
+The orchestrator playbook is built in, on by default and enforced in code: one
+policy module (`src/core/orchestration/playbook/**`, no `vscode`) that every
+orchestrator (M96's team host, M110's hosts, M115w, and the panel's
+conversation whenever it orchestrates) calls before it dispatches, reviews,
+merges or reports, with a why-note on every enforced decision, no model call
+of its own, and the same record in every editor (the panel and its Agent map,
+ACP's `/playbook`, the CLI's `playbook status|record|settings`, the TUI and
+the desktop). Its rules: (1) review rounds are counted per module (a stable
+journal id; renames, splits and merges carry typed lineage and keep their
+strikes; leases cover the module family) and per finding class, and after the
+person's number of fix rounds (`patchRoundsMax`, 0 = until the work converges,
+D121) the next round is a written design decision and a redesign lane whose
+review marks each old finding `impossible`, `caught` or `remains`, only
+`impossible` closing it; (2) a review covers every class in one pass or is not
+counted, findings carry class and P1–P3 severity, and the next review waits
+until each finding is fixed, disputed, a named residual or overridden by the
+lead or owner (a P1 only by override); (3) contracts first, with a
+prerequisite audit before each wave; (4) dependency, then estimate, then id
+order; (5) heavy checks offload to workers or CI under M107; (6) one rolling
+integration trunk; (7) a new gate or test certifies only with its drill; (8)
+owner items and failures first; (9) never route around a safety check: hook
+bypass is detected by outcome (per-commit hook receipts before any push or
+completion, contained and scrubbed), a refused action is never asked again
+through another agent within the hour, and a classifier block is never
+retried. Rules 1–8 turn off only with a recorded reason; rule 9 never. In VS
+Code (C-M116-6) the window runs the same policy, journal and outcomes on a
+worker thread of `dist/playbook.js`: a panel `/review` is a round only when a
+child of the conversation changed a reviewed file; a dispatch from a
+conversation with an open module is admitted before it starts, held until the
+child ends and its hook receipts verified, and with nothing open or no journal
+it runs as before; a lost or silent worker refuses as unavailable, never
+allows; Windows git and hook calls run in one named kill-on-close job per
+decision. Model API child work (`subagent_spawn`, a new task by message, and
+the Agent map's Continue, Retry, Resume and Reopen on both backends) is
+admitted before dispatch; Muse Code starts subagents without asking, so their
+rounds are counted from the first live row and their work reviewed, and the
+playbook cannot stop that start. An unreviewable contribution is a finding
+about that child, and a finding whose file cannot be placed counts under no
+module. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ---
 
@@ -13237,28 +12862,28 @@ bindings and native packaging are certified, the editor surfaces stay closed.
 Mac mini's native OS-store receipt is blocked by SSH host-key verification;
 no trust settings were changed. These are reported to the lead for integration,
 not replaced with fake production ports.
+**Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
+explicitly approves the 116 Title Case scenes, `models-errors` with the
+provider-picker repair, and the three What's New scenes as class (b'):
+the page renders 0.17.1's changed release notes. Inspect every changed frame
+before approving the refresh; verify release highlights, sentence case,
+unclipped controls and intact question spacing. Complete all six themes,
+the repository's reviewed baseline update, every curated README recapture,
+freshness records, the full zero-changed-scene replay and the SHA-256
+old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
+"0.17.1 visual refresh". Stop only for an incorrect frame.
+**Q-CMICCOMP-RELEASE (2026-10-10, linuxlt).** New companion mic entry points
+remain hidden until the lead supplies Windows/macOS fake-device Chrome and
+actual free-helper recognition receipts (including macOS compilation/signing/TCC).
+The existing ACP protocol cannot mutate an editor's draft: the implementation
+reviews in the browser and submits only on explicit Send through its owning
+ACP session. CLI emits reviewed text on stdout. Native MHP editor-owner binding
+and real editor receipts remain C-M104-1 / C-M63-1; no new host row is claimed
+complete. See `docs/certification/m35-companion.md`.
 
 - **M116 Muse Code admission experiment (2026-10-11):** can denyUnmatched
   plus a host-controlled allow rule gate subagent starts? The capture shows
   a policy denial there. Not implemented in C-M116-6; requires a new capture.
-  **Q-VIS0171-RELEASE-NOTES resolved by lead (2026-10-10, linuxlt).** Round 2
-  explicitly approves the 116 Title Case scenes, `models-errors` with the
-  provider-picker repair, and the three What's New scenes as class (b'):
-  the page renders 0.17.1's changed release notes. Inspect every changed frame
-  before approving the refresh; verify release highlights, sentence case,
-  unclipped controls and intact question spacing. Complete all six themes,
-  the repository's reviewed baseline update, every curated README recapture,
-  freshness records, the full zero-changed-scene replay and the SHA-256
-  old-baseline drill. Evidence remains in `docs/certification/cifix017.md`,
-  "0.17.1 visual refresh". Stop only for an incorrect frame.
-  **Q-CMICCOMP-RELEASE (2026-10-10, linuxlt).** New companion mic entry points
-  remain hidden until the lead supplies Windows/macOS fake-device Chrome and
-  actual free-helper recognition receipts (including macOS compilation/signing/TCC).
-  The existing ACP protocol cannot mutate an editor's draft: the implementation
-  reviews in the browser and submits only on explicit Send through its owning
-  ACP session. CLI emits reviewed text on stdout. Native MHP editor-owner binding
-  and real editor receipts remain C-M104-1 / C-M63-1; no new host row is claimed
-  complete. See `docs/certification/m35-companion.md`.
 
 - **Q-CM1013B-MODULE-VISIBILITY (2026-10-11):** the first live receipt
   records CommonJS writes in the ESM packing fixture but no request evidence.
@@ -32471,140 +32096,18 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
-**Lane C-M116-6: the playbook in the VS Code panel (2026-10-11, building).**
-D96.16 and D96.17. A series of commits, each reviewed.
-
-1. **The governor (committed first; nothing calls it yet).**
-   `src/core/orchestration/panelLanes.ts` (the panel's lane facts),
-   `src/runtime/playbook/governor.ts` (the policy, the journal and the panel
-   integration bound to them), `src/host/playbook/` (`workerProtocol.ts`,
-   `playbookWorker.ts`, `playbookWindow.ts`, `playbookEntry.ts`,
-   `containedJob.ts`), and the lazy bundle `dist/playbook.js` with its
-   budget, split guard, package, inventory and layout rows. Suites
-   `playbookGovernor`, `playbookWindow` and `playbookContainedJob` (native
-   on Windows); drills in `docs/certification/m116.md`.
-2. **The record in the panel (committed second).** Activation holds a loader
-   and data only (`src/host/playbook/playbookBundle.ts`); the window's
-   playbook loads on the first request. The panel speaks to it over one
-   envelope each way (`playbook`), parsed in the lazy bundle on the host and
-   in the Agent map's lazy chunk in the webview
-   (`src/runtime/playbook/panelWire.ts`, `src/host/playbook/playbookPanel.ts`,
-   `PlaybookLink` in `src/webview/playbook/PlaybookMap.tsx`). The Agent map
-   offers **Playbook Settings** (status, record, settings) once the window
-   names a journal, and its rows read their records by the ids the host
-   recorded the agents under. `/playbook` in the composer answers from the
-   same journal through M126 F9's handler, taken byte-identical
-   (`playbookAnswer.ts`), with its source supplied by the window's bundle
-   rather than `dist/acpPlaybook.js`, which the VSIX does not ship. A host
-   that passes neither a port nor the channel, or a window with no folder,
-   shows the map exactly as before; with no journal on the machine no worker
-   starts for the rows.
-3. **Review RVCM1166A of commit 1 (committed third).** One P1 and five P2,
-   each fixed as a class with a regression test and a red drill
-   (`docs/certification/m116.md`, "Review RVCM1166A"): the Windows job dies
-   with its helper and is not forgotten before its end was seen, and a lost
-   POSIX supervisor's group is ended by its caller; a lost worker aborts
-   running work; only a confirmed-absent journal folder is "no journal"; a
-   closed window starts nothing; files compare by resolved identity; one
-   shared classification decides what a playbook review is.
-   - **Activation shrank by 4,265 bytes in that commit** (`dist/extension.js`
-     564,335 to 560,070). The POSIX supervisor's source was a tagged template
-     at module level in `processTree.ts`, which the bundler keeps in every
-     bundle that imports the file; it had been riding in the activation
-     bundle since before this lane. It is returned by a function now, and
-     only the bundles that supervise a tree carry it.
-   - **A suite renamed afterwards** (`aa6785cab9`): commit 2's
-     `playbookPanel.test.ts` collided, on a file system without case, with
-     `PlaybookPanel.test.tsx`, and `lint:js:unit` failed there. It is
-     `playbookPanelChannel.test.ts`.
-4. **The editor host's variables stay with the host (its own commit, lead's
-   rulings 2026-10-11).** A VS Code extension host carries
-   `ELECTRON_RUN_AS_NODE=1` and eight `VSCODE_*` variables (read in a real
-   one, VS Code 1.140.0 on Linux; certification), and its `process.execPath`
-   is VS Code's own binary. The supervisor needs the switch to run as Node;
-   no git or hook command the playbook starts may inherit it, because it
-   turns any Electron program such a command launches into a bare Node, nor
-   the window's own handles. One list decides, the one the shell tools
-   already used, moved unchanged to `src/core/hostVariables.ts` so that both
-   read it (`ELECTRON_*`; `VSCODE_*` but for the five names VS Code's
-   terminal keeps for the person; `SNAP*`; `GDK_PIXBUF_*`). The policy
-   removes those from the environment it builds for every command, which is
-   also what the Windows job's calls are given; `runTreeSync` removes them
-   whatever its caller holds and then gives the supervisor alone the switch
-   when it runs under Electron; the supervisor removes the switch from the
-   call's environment.
-   - **A guard for commit 2's collision**, with it:
-     `test/unit/trackedPaths.test.ts` fails when two tracked paths differ
-     only by letter case, or two TypeScript sources only by case and
-     extension, anywhere in the repository. It runs with the unit suites on
-     every OS.
-5. **Enforcement (its own commit; D96.16 and D96.17).** A conversation's
-   use of its window's playbook lives in the lazy bundle
-   (`src/host/playbook/playbookConversation.ts`); the controller lends it a
-   notice, its backend and whether that backend asks before a spawn, and
-   calls in at a review turn, a `delegate` follow-up, a best-of-N start, a
-   spawn request of Muse Code's and a why-note's button. The Model API host
-   asks from inside `subagent_spawn` and a new task's
-   `subagent_send_message` (`ModelApiHostDeps.playbook`, absent on the CLI,
-   the ACP agent and an attempt's host). Why-notes are transcript notices
-   with the playbook's button; the answers to findings and a redesign's
-   design decision are asked in VS Code's own pickers; a playbook review's
-   charter is followed by the harness's facts about each module. Suites
-   `playbookConversation`, and the M116 groups of `conversationController`,
-   `modelApiHost`, `playbookGovernor`, `playbookSkill`,
-   `playbookPanelChannel`, `AgentMap` and `Transcript`.
-   - **Bundle bytes at this commit** (kubuntu, production build; before is
-     `67d8650f41`): `dist/conversation.js` 252,704 to 254,362 of 256,000
-     (+1,658: the call sites above and the spawn-request bookkeeping of
-     D96.17, nothing of the policy); `dist/modelApi.js` 530,442 to 530,861
-     of 537,600, and under its pin of 530,883 in `deferredBundles.test.ts`
-     by 22 bytes, which is why the wait for a child's result is built in
-     the playbook's bundle and the host only answers "is it over";
-     `dist/playbook.js` 119,412 to 128,101 of 153,600; `dist/extension.js`
-     560,104 to 560,259 of 614,400.
-6. **Review RVCM1166B of commits 2 to 4 (its own commit).** Five P2, each
-   fixed as a class with a regression test and a red drill, and a sweep of
-   the playbook's host and webview code for the class behind three of them
-   (D96.16, "Review RVCM1166B"; `docs/certification/m116.md`, "Commit 6").
-   The spawn-request bookkeeping of D96.17 moved out of the controller into
-   the binding in the same commit (lead's ruling): the controller forwards
-   an approval's resolution and a new child's row, and the binding alone
-   knows which requests were a subagent's, which round each opened and
-   whether a child began unasked. New suite `hostVariables`; new tests in
-   `playbookWindow`, `playbookGovernor`, `playbookConversation`,
-   `playbookPanelChannel`, `playbookWindowBundle`, `AgentMap` and
-   `conversationController`.
-   - **Bundle bytes at this commit** (kubuntu, production build; before is
-     item 5's commit): `dist/conversation.js` 254,362 to 254,077 of 256,000
-     (285 fewer: the bookkeeping left); `dist/modelApi.js` 530,861,
-     unchanged, pin 530,883; `dist/playbook.js` 128,101 to 130,206 of
-     153,600; `dist/extension.js` 560,259 to 560,367 of 614,400 (the
-     channel's typed failure); the webview's surface English 25,348 to
-     25,380 of 25,600 (one new string, the stale-record line).
-7. **Review RVCM1166C of item 5, finding 1 (its own commit).** The Agent
-   map's Continue, Retry, Resume and Reopen, and a message to a child that
-   would be new work, are dispatches (D96.17, "The person's own actions on
-   a child"). One gate in the controller, before the backend's session;
-   whether a message is new work is decided from the child's row as the
-   host last saw it, never from the webview's flag alone. Nothing in
-   `dist/modelApi.js`. A table test in `conversationController` has a row
-   for every action and for every way a child's row can stand, each against
-   a playbook that refuses and one that admits.
-8. **Capture rewrite and RVCM1166C lifecycle classes (series commit 4).**
-   Implement rulings (a), (b), (c), (e), (f), remove Muse Code request holding,
-   test all surviving round endings, disposal in flight, matching and no-load
-   behavior. Then series commit 5 records blocked child contributions once,
-   lets clean reviews proceed, and closes or measures the Model API note race.
-   Series commit 6 attributes unrequested child approvals to the CLI reviewer.
-   Each piece gets scoped gates, byte measurements and byte-exact red drills.
-9. **Restores.** The walked-back claims return with the code that makes
-   each true, in the wording D96.17 fixes; the certification and the red
-   drills of item 5's suites land with them.
-
-Not built in this lane, tracked: why-notes attached to a tool row (the
-transcript shows them as notices); a standalone playbook page outside the
-Agent map; an `override` answer for a P1 finding (the panel offers fixed,
-disputed and residual).
+**Lane C-M116-6: the playbook in the VS Code panel (2026-10-11; landed on int/recovery by cc/rlm116).**
+D96's VS Code part: the window's governor and worker
+(`src/runtime/playbook/governor.ts`, `src/host/playbook/`, the lazy
+`dist/playbook.js`), the record in the panel (the Agent map's Playbook
+Settings and `/playbook` from the same journal), enforcement (review turns,
+`delegate` follow-ups, best-of-N, Muse Code's child rows, why-note buttons and
+the person's own child actions), one host-variable list
+(`src/core/hostVariables.ts`), and reviews RVCM1166A to D, each closed as a
+class with regressions and red drills. The series, its bundle measurements and
+what it leaves unbuilt (why-notes on tool rows, a standalone playbook page, a
+P1 `override` answer in the panel): `docs/certification/msm116.md`, "PLAN
+record".
 
 **Round-four delivery repair (FIXM116I4, 2026-10-07, implemented and certified locally).**
 Commit an ACP queued-answer lease only when its carrying turn reaches the
@@ -32829,22 +32332,9 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
   that calls it (`dist/team.js` once M96 merges; before that a lazy
   `dist/playbook.js` with the panel's orchestration); `dist/extension.js`
   gains at most 1 KiB, and no cap rises. C-M116-6 (2026-10-11):
-  `dist/playbook.js` is 111.5 KiB (the window's client and its panel
-  channel and, as its worker thread, the governor with the policy, journal,
-  outcomes and the Windows job runner; 109.7 KiB before the panel's channel),
-  under a 150 KiB budget by D6's rule; it shares `dist/uiText.js`,
-  `dist/validation.js`, `dist/wire.js`, `dist/resourceAdmission.js` and
-  the redaction bundle rather than carrying copies. Measured against the
-  commit before the window loads it: `dist/extension.js` +911 bytes
-  (564,335; the loader, the data it needs and the two controller ports),
-  `dist/conversation.js` +1,397 bytes (252,704 of 256,000; M126 F9's answer
-  and the channel's case), the webview's playbook closure 21.9 of 25 KiB.
-  After review RVCM1166A: `dist/playbook.js` 116.1 KiB (118,836 bytes: the
-  job's lifetime, its names and the resolved file identities), and
-  `dist/extension.js` 560,070 bytes, 4,265 fewer than before: the POSIX
-  supervisor's source was a tagged template at module level in
-  `processTree.ts`, which the bundler kept in the activation bundle, and is
-  returned by a function now. The lane's activation growth is negative.
+  `dist/playbook.js` carries the window's client, its panel channel and, as
+  its worker thread, the governor, under its own 150 KiB budget; the
+  measurements are in `docs/certification/msm116.md`, "PLAN record".
 - **Size.** S–M: about 60 lane-hours.
 - **Certification checklist** (§6.0, plus):
   - [ ] The fake review loop's round-3 switch and its drill
@@ -36177,10 +35667,10 @@ No new escape hatch is introduced.
 | `src/core/backends/modelapi/hookModelEntry.ts` (`requestHookStep` body) | inner body `as Omit<CreateResponseBody, 'prompt_cache_key' \| 'prompt_cache_retention'>` | D121 sends no output cap of ours: the spread holds the record's maximum or is absent, so the key is missing at runtime exactly then. The shared body type still requires the key (widening it would force dead fallbacks at every reader), so the cast states the one shape the compiler cannot verify.                                                                        | 2026-10-19 |
 | `src/core/backends/modelapi/modelPolicy.ts` (`estimatedStreamTokens`)   | `body as { readonly max_output_tokens?: number \| undefined }`                           | The pacing estimate reads the same absent key: it counts the input side alone then. Same reason as above; the next line's `?? 0` is necessary only on this view.                                                                                                                                                                                                               | 2026-10-19 |
 
-| JOIN0190 location                                                                                                                                                            | Escape hatch                                                  | Reason                                                                                                                                                                                             | Date       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
-| `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
+| JOIN0190 location                                                                                                                                                                                                                  | Escape hatch                                                  | Reason                                                                                                                                                                                             | Date       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`, `PLAYBOOK_JOB_NAME_PREFIX`, `PLAYBOOK_JOB_PIPE_ROOT`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 7 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
+| `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                                                                           | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
 
 | RLWINFIX location                                         | Escape hatch                                               | Reason                                                                                                                                                                                                               | Date       |
 | --------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -36891,124 +36381,18 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   are fixed; none is accepted as a residual.
 
 - **FIXM116P3-Windows-job-binding (M116 I/W handoff; closed by C-M116-6,
-  2026-10-11).** The synchronous policy cannot call the existing asynchronous
-  job registry directly. Its trusted `PlaybookHookAdmission.runContained`
-  port requires the prepared job/tree runner, the original effect and scrubbed
-  spawn options, and returns only after the entire tree has ended. No Git
-  child (including ref/index plumbing and worktree cleanup) dispatches on
-  Windows without that port.
-  - **The binding.** The VS Code window's playbook worker binds the port to
-    `src/host/playbook/containedJob.ts` over the shipped MuseSparkJob type;
-    no native code was added. One named job per decision: a helper process
-    joins a fresh job and serves each git and hook call over a private pipe.
-    Everything a call starts belongs to that job from its creation. After
-    each call the helper ends every other member of the job, each by its
-    start identity, and answers only once it is the job's only member, so
-    the call's whole tree has ended before `runContained` returns. A tree
-    it cannot end within `PLAYBOOK_JOB_SWEEP_MS` fails the call and
-    terminates the job. A closed or idle pipe terminates the job, the helper
-    included; a worker stopped in the middle of a decision has its job
-    terminated by name from the window.
-  - **A lost helper (review RVCM1166A, P1, 2026-10-11).** The job is
-    kill-on-close and the helper holds its only handle, so a helper that
-    dies, however it dies, takes its whole job with it by the operating
-    system's rule, with nobody left to ask (measured here: a contained
-    process was gone 33 ms after its helper was killed). `Join` does not
-    set that limit, and decision 3 allows no new native code, so the helper
-    sets it on the handle it holds through the loaded type's own Win32
-    binding (`held`, and `SetInformationJobObject` with a `uint` length);
-    a type without them fails before any pipe exists, and a unit check on
-    every OS reads the shipped source for both. A job's name is published
-    from before its first call until its end was seen: the helper gone, or
-    a termination by name that then finds the job empty. A failed call does
-    not return, and a decision does not close, before that; a job that
-    cannot be confirmed over keeps its name, is tried again before the next
-    one opens, and is ended by name by the window when its worker stops. A
-    lost helper is a refused call and a kill, never a forgotten job.
-    Follow-up: a public kill-on-close join on the type itself, at the next
-    reviewed change to `native/windows/MuseSparkJob.cs`.
-  - **The window's side of the same rule (review RVCM1166B, P2,
-    2026-10-11).** The window forgot a stopped worker's jobs as it asked
-    for their end: one try, and a failed one was only logged. The names a
-    stopped worker leaves are now the window's own record, apart from the
-    live worker's list, each with the job type that can end it. A name
-    leaves that record only when a termination by name succeeded, which it
-    does only once the job has no member left or no longer exists. A try
-    that fails keeps the name; the
-    window tries again before it starts any further work and once more as
-    it closes, one pass at a time, and a window that closes with a name
-    still listed writes how many to its log. Residual, named: a window
-    cannot outlive its own close, so a job it could not end by then is
-    left to kill-on-close (the helper's death ends it) and to the log
-    line; nothing after the extension host exits can retry.
-  - **The same bound on macOS and Linux.** There the call's containment is
-    `runTreeSync`'s supervisor process. The supervisor now leads a process
-    group of its own and the call is born into it (the supervisor refuses to
-    start a call when it does not lead its group), so the caller knows the
-    group from the supervisor's pid alone, with nothing the supervisor has
-    to say first. After every call the caller ends what is left of that
-    group and waits to see it gone: nothing, after a supervisor that
-    finished; the whole call, after one that was lost (killed, or cut off at
-    the caller's bound), and that call fails. A first version had the
-    supervisor report its child's group on a pipe; a call that killed its
-    supervisor at once won that race on the Linux rig, so the report is
-    gone. The supervisor's own walk treats a member of its group as the
-    call's whoever its parent is by now, which is what its native group
-    sweep did before (it cannot signal its own group without ending itself;
-    the caller's sweep is the native one). Lead's conditions (2026-10-11),
-    since `processTree.ts` is shared with the CLI and the ACP agent: the
-    caller makes the supervisor a group leader with `detached` on
-    `spawnSync`, which Node honours but does not document (the two places in
-    its source are quoted in `docs/certification/m116.md`), so the design
-    rests on the supervisor's own check and not on the option: a test runs
-    it through a spawn that drops the option and sees the refusal, and
-    another pins, on the Node that runs the suite, that the call's group is
-    the one the supervisor's pid names and is not the caller's. The group is
-    new with each call, so ending it reaches the call's own processes or
-    nobody. Residual, unchanged in kind: a
-    descendant that left the group is known only to the supervisor, so a
-    lost supervisor cannot end it; the governed cgroup binding (FIXM116P4,
-    below) is the handoff for that.
-  - **The supervisor inside VS Code (2026-10-11).** There
-    `process.execPath` is VS Code's own binary, and it runs the supervisor's
-    source only with `ELECTRON_RUN_AS_NODE` in its environment; without it
-    the same start is VS Code itself (both seen with VS Code 1.140.0 on the
-    Linux rig; certification). The extension host's environment also holds
-    the window's own `VSCODE_*` variables. No command the playbook starts is
-    given any of them: one list (`src/core/hostVariables.ts`, the shell
-    tools' own, which is VS Code's terminal's) is removed by the policy from
-    every command's environment, the Windows job's calls included, and by
-    `runTreeSync` from whatever its caller passes. The supervisor alone is
-    then given `ELECTRON_RUN_AS_NODE` when it runs under Electron, and
-    removes it from the call's environment.
-  - **Why one job per decision, not per call.** A governed round here is
-    about sixty git and hook calls. Measured on the owner's machine
-    (2026-10-11): a Windows PowerShell start per call is 0.16 to 0.2 s
-    before any work, and longer when it starts cold; the shared helper costs
-    one start (about 0.18 s to connect, warm) and then 37 ms per git call
-    against 38 ms for git alone.
-  - **Fail closed.** No helper, no assembly, a file that is not the
-    assembly, a pipe that cannot be reached within `PLAYBOOK_JOB_CONNECT_MS`
-    or a damaged frame: the call fails and nothing runs uncontained. Without
-    the job type the worker binds nothing, and the policy refuses every git
-    call as before.
-  - **Certified natively** on the win11 rig by
-    `playbookContainedJob.test.ts`: the parent/grandchild timeout fixture
-    (both gone when the call returns), a detached child left by a successful
-    call, exact bytes of both streams, the environment, directory and
-    arguments, output past the bound, a program that cannot start, job
-    termination on close and at the end of the synchronous stretch, and the
-    fail-closed cases. `playbookWindow.test.ts` runs whole review and
-    dispatch rounds through it there. Drills: `docs/certification/m116.md`.
-  - **Residual.** The helper's pipe has the default access list, so another
-    account on the same machine that finds the random pipe name could connect
-    first, read-only. It cannot ask for a call, and it is given no output
-    (the helper answers only calls); the worker then cannot connect and the
-    decision fails closed. Safe for now: a local denial only, and never an
-    allow. Follow-up: an explicit current-user access list on the pipe when
-    the helper moves off Windows PowerShell 5.1's framework. The CLI's and the
-    ACP agent's `/playbook` read and change the journal and run no git, so
-    they bind no job.
+  2026-10-11).** The VS Code window's playbook worker binds
+  `PlaybookHookAdmission.runContained` to `src/host/playbook/containedJob.ts`
+  over the shipped MuseSparkJob type: one named kill-on-close job per decision,
+  whose helper ends every other member after each call, so the call's whole
+  tree has ended before `runContained` returns; what cannot be contained
+  fails closed and never runs uncontained. On macOS and Linux `runTreeSync`'s
+  supervisor leads a fresh process group that the caller ends after every
+  call. Residuals, safe for now: a job the window could not end before it
+  closed is left to kill-on-close; a descendant that left the POSIX group waits
+  for FIXM116P4's cgroup binding; the helper's pipe keeps the default access
+  list (a local denial only, never an allow). Record:
+  `docs/certification/msm116.md`, "PLAN record".
 - **FIXM116P4-M107-governed-tree-binding (M116 I/W handoff).** The shared
   synchronous runner prefers `PlaybookHookAdmission.runContained` on Linux
   when a prepared cgroup/scope is available. I/W must bind M107's governed
