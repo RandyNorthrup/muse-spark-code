@@ -25,6 +25,13 @@ import { fill } from '../../src/shared/l10n/text'
 
 const CONNECTION = UI_TEXT.accounts.unavailable
 
+/** The terminal sentence for an id the accounts metadata has no row for. */
+function missingAccountsEntry(provider: string): string {
+  return fill(UI_TEXT.accounts.unavailableReason, {
+    reason: fill(UI_TEXT.accounts.noAccountsEntry, { provider }),
+  })
+}
+
 const folders: string[] = []
 afterEach(async () => {
   for (const folder of folders.splice(0)) await rm(folder, { recursive: true, force: true })
@@ -177,9 +184,10 @@ describe('account errors name their cause', () => {
       expect(JSON.parse(lines[0] ?? '')).toEqual([
         { id: 'default', label: UI_TEXT.accounts.defaultLabel, order: 0, thresholds: {} },
       ])
-      // A provider with no accounts entry is named, never the connection:
-      // the runtime is on the account service, so that sentence would lie.
-      // The terminal reads the missing entry as the CLI's unknown id (RLM108).
+      // A provider with no accounts entry is named, never the connection
+      // and never "Unknown provider": the runtime is on the account
+      // service, and the id may be a configured provider that simply has
+      // no accounts row (RLTESTDRIVE2 15). List and auth set say this.
       const errors: string[] = []
       const exit = await runAccountsCommand(
         { action: 'list', provider: 'testprov' },
@@ -193,7 +201,7 @@ describe('account errors name their cause', () => {
         },
       )
       expect(exit).toBe(1)
-      expect(errors).toEqual([fill(UI_TEXT.providerUnknown, { provider: 'testprov' })])
+      expect(errors).toEqual([missingAccountsEntry('testprov')])
       // ACP keeps its fixed sentence for the same refusal (FIXM108H): the
       // cause never crosses that boundary.
       let failure: unknown
@@ -258,7 +266,7 @@ describe('account errors name their cause', () => {
     }
   })
 
-  it('names the unknown provider id instead of reporting a connection problem', async () => {
+  it('names a missing accounts entry for list and add, never the connection', async () => {
     const folder = await scratch()
     const services = offlineServices(folder)
     try {
@@ -276,7 +284,7 @@ describe('account errors name their cause', () => {
       const exit = await runAccountsCommand({ action: 'list', provider: 'anthropic-s2' }, deps)
       expect(exit).toBe(1)
       expect(lines).toEqual([])
-      expect(errors).toEqual(['Unknown provider: anthropic-s2.'])
+      expect(errors).toEqual([missingAccountsEntry('anthropic-s2')])
       const secondExit = await runAccountsCommand(
         {
           action: 'add',
@@ -286,7 +294,10 @@ describe('account errors name their cause', () => {
         deps,
       )
       expect(secondExit).toBe(1)
-      expect(errors).toEqual(['Unknown provider: anthropic-s2.', 'Unknown provider: anthropic-s2.'])
+      expect(errors).toEqual([
+        missingAccountsEntry('anthropic-s2'),
+        missingAccountsEntry('anthropic-s2'),
+      ])
     } finally {
       services.dispose()
     }
@@ -342,7 +353,7 @@ describe('account errors name their cause', () => {
         },
       )
       expect(exit).toBe(1)
-      expect(errors).toEqual(['Unknown provider: anthropic-s2.'])
+      expect(errors).toEqual([missingAccountsEntry('anthropic-s2')])
     } finally {
       services.dispose()
     }

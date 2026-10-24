@@ -20983,7 +20983,7 @@ it process lifetime, the journal, hints and the load guard. The research is
 
 ### M96d — The machine coordinator spike, and the scheduler optimisations (D75)
 
-**Status 2026-10-10: planned.** Coordinator design and test-only safety
+**Status 2026-10-10 (historical): planned.** Coordinator design and test-only safety
 specification delivered by C-M96d-1, with RVCM96D1's Windows service-mediated
 launch gap corrected and exercised natively; production implementation, independent
 acceptance and the lead ruling remain outstanding.
