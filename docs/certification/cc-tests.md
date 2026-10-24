@@ -414,3 +414,17 @@ a real host does; POSIX keeps `SHELL=/bin/sh`.
 Red (before): `EBUSY … rmdir` (with the folder removal taken out:
 `expected [] to have a length of 3 but got +0`). Green: 1 passed; the rig's
 other 8 suites, 51 tests, still pass.
+
+### tuiSocket: wait for the pipe server's accept
+
+Cause: the Windows-only named-pipe case connected a client and read the
+server's accepted socket as soon as the client's `connect` fired. On a
+Windows pipe that event can land before the server's `connection` callback
+has run, so the peer was still undefined (`expected undefined to be defined`,
+2 of 2 runs before the fix). The suite's own `open` helper already waits for
+the accept.
+
+Fix: the case waits for the server's accept (`waitForTui('peer accepted')`)
+before it writes.
+
+Green: 3 of 3 runs passed (3 passed, 14 POSIX cases skipped on Windows).
