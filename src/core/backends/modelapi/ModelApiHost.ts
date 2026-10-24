@@ -342,7 +342,7 @@ import {
   openInspectSession,
   type InspectSessionBinding,
 } from '../../judge/fast/inspectExec'
-import { spawnResourceProcess } from '../../resources/launcher'
+import { spawnResourceFile } from '../../resources/launcher'
 import { fastPathAuditSchema } from '../../../shared/fastPathAudit'
 import { approvalHost } from '../../web/hostName'
 import type { PageUrlCheck } from '../../web/pageUrl'
@@ -9007,7 +9007,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     return (this.b1RunnerTask ??= openInspectSession(
       this.deps.b1HelperPath,
       this.deps.workspaceRoot,
-      (file, args, options) => spawnResourceProcess('bootstrap', file, args, options),
+      // The packaged helper through the governed boundary: refused when it
+      // sits inside the workspace, the guarded child environment for it.
+      (file, args, options) => spawnResourceFile('bootstrap', file, args, options),
     ))
   }
 

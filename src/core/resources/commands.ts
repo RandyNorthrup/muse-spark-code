@@ -5,6 +5,7 @@ import {
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
+  type ResourcePipedProcess,
   type ResourceProcessOptions,
 } from './launch'
 import { NO_WORKSPACE, type GuardedChildEnv } from '../executables'
@@ -161,7 +162,44 @@ export async function handoffResourceFile(
   })
 }
 
-/** execFile-compatible bounded results, using the ordinary governed command runner. */
+/**
+One governed process the caller drives over its pipes (a helper it speaks
+to, a server it keeps): the command resolves outside the workspace the
+child runs in, and the child gets the guarded environment for it, as every
+bare-name launch does. The caller owns the process and the stop that
+covers its tree. `bootstrap` keeps the bootstrap admission for a trusted
+helper the launcher itself depends on.
+*/
+export async function spawnResourceFile(
+  profile: 'contained' | 'probe' | 'bootstrap',
+  command: string,
+  args: readonly string[],
+  options: Pick<ResourceProcessOptions, 'cwd' | 'signal' | 'beforeSpawn'> & {
+    readonly env: NodeJS.ProcessEnv
+    /**
+    The workspace the child runs in (guards its lookup and PATH).
+    Defaults to the spawn's own working directory, else this process's.
+    */
+    readonly workspaceRoot?: string | undefined
+  },
+): Promise<ResourcePipedProcess> {
+  const workspace =
+    options.workspaceRoot === undefined
+      ? defaultGovernedWorkspace(typeof options.cwd === 'string' ? options.cwd : process.cwd())
+      : { workspaceRoot: options.workspaceRoot }
+  return await spawnResourceProcess(
+    profile,
+    resolveCommand(command, options.env, workspace),
+    args,
+    {
+      env: childEnvironment(options.env, workspace),
+      ...(options.cwd !== undefined && { cwd: options.cwd }),
+      ...(options.signal !== undefined && { signal: options.signal }),
+      ...(options.beforeSpawn !== undefined && { beforeSpawn: options.beforeSpawn }),
+    },
+  )
+}
+
 /**
 One governed helper launch: resolve, confine and spawn, returning the
 process and the stop that covers it. `execResourceFile` and
@@ -179,25 +217,19 @@ async function launchGovernedFile(
     readonly workspaceRoot?: string | undefined
   } & Pick<ResourceProcessOptions, 'beforeSpawn'>,
 ): Promise<{
-  readonly launched: Awaited<ReturnType<typeof spawnResourceProcess>>
+  readonly launched: ResourcePipedProcess
   readonly signal: AbortSignal | undefined
 }> {
-  const env = options.env ?? process.env
-  const workspace =
-    options.workspaceRoot === undefined
-      ? defaultGovernedWorkspace(typeof options.cwd === 'string' ? options.cwd : process.cwd())
-      : { workspaceRoot: options.workspaceRoot }
-  const file = resolveCommand(command, env, workspace)
-  const childEnv = childEnvironment(env, workspace)
   // Only the caller's own cancel or `timeout` stops the command, as with
   // execFile: no deadline of ours (a cold Windows PowerShell can take longer).
   // An absent, 0 or Infinity timeout names none (as `src/host/git.ts` reads it).
   const signal = callerStop(options.signal, options.timeout)
-  const launched = await spawnResourceProcess(profile, file, args, {
-    env: childEnv,
+  const launched = await spawnResourceFile(profile, command, args, {
+    env: options.env ?? process.env,
     ...(options.cwd !== undefined && { cwd: options.cwd }),
     ...(signal !== undefined && { signal }),
     ...(options.beforeSpawn !== undefined && { beforeSpawn: options.beforeSpawn }),
+    ...(options.workspaceRoot !== undefined && { workspaceRoot: options.workspaceRoot }),
   })
   return { launched, signal }
 }

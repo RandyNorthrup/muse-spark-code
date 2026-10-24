@@ -8,6 +8,7 @@ import type {
   execResourceFile as ResourceCommandRunner,
   execResourceFileBytes as ResourceBytesRunner,
   handoffResourceFile as ResourceHandoffRunner,
+  spawnResourceFile as ResourceFileSpawner,
 } from './commands'
 
 // The lazy launch shims, apart from admission's state (admission.ts): the
@@ -52,6 +53,14 @@ export async function handoffResourceFile(
 ): Promise<void> {
   const bundle = await import('./resourceProcessEntry.js')
   await bundle.handoffResourceFile(...args)
+}
+
+/** A governed process its caller drives, through the same lazy boundary. */
+export async function spawnResourceFile(
+  ...args: Parameters<typeof ResourceFileSpawner>
+): Promise<ResourcePipedProcess> {
+  const bundle = await import('./resourceProcessEntry.js')
+  return await bundle.spawnResourceFile(...args)
 }
 
 /** Bounded helper commands share the same lazy process boundary. */

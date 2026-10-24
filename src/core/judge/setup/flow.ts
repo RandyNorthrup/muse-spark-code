@@ -280,7 +280,7 @@ export interface JudgeSetupFlowPorts {
     binary: string,
     port: number,
     modelsDir: string,
-  ) => { readonly pid: number; readonly port: number; readonly stop: () => Promise<void> }
+  ) => Promise<{ readonly pid: number; readonly port: number; readonly stop: () => Promise<void> }>
   /** True once the loopback runtime answers /api/version with 200. */
   readonly waitForVersion: (port: number, signal: AbortSignal) => Promise<boolean>
   readonly readRegistration: (file: string) => JudgeSetupRecord | undefined
@@ -499,10 +499,10 @@ export async function runJudgeSetupFlow(
   ports.writeRegistration(layout.record, record)
   // Preload: the private runtime answers for itself on its loopback port.
   onProgress({ phase: 'preload' })
-  let started: ReturnType<JudgeSetupFlowPorts['startRuntime']> | undefined
+  let started: Awaited<ReturnType<JudgeSetupFlowPorts['startRuntime']>> | undefined
   try {
     try {
-      started = ports.startRuntime(layout.bin, port, layout.models)
+      started = await ports.startRuntime(layout.bin, port, layout.models)
     } catch (error: unknown) {
       // REPORTED: a spawn failure fails the phase with the port's own
       // refusal attached; a non-Error is not ours to name.

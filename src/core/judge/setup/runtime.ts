@@ -2,17 +2,14 @@
 // process per user on a free loopback port, the lock proving it; paths
 // under the install root only, never machine-wide. Spawning needs the
 // pinned binary, so its live proof waits for the archives (rule 9);
-// ports, locks, paths and the stop sequence prove here against real
-// sockets, files and processes.
-import { spawn, type ChildProcess } from 'node:child_process'
+// ports, locks and paths prove here against real sockets, files and
+// processes. The server starts and stops through the governed launch.
 import { readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import * as os from 'node:os'
 import path from 'node:path'
-import { probeChildEnvironment } from '../../executables'
 import { isErrno } from '../../fs/errno'
-
-const STOP_GRACE_MS = 5000
+import { spawnResourceFile } from '../../resources/launcher'
 
 export interface JudgeRuntimePaths {
   readonly root: string
@@ -128,65 +125,41 @@ export interface StartedRuntime {
 }
 
 /**
-Start the pinned server on its loopback port with its models
-directory. The binary answers for itself: the caller waits on
-/api/version. Live-proof deferred: needs the pinned archives.
+Start the pinned server on its loopback port with its models directory,
+through the governed launch like every process we start: admitted,
+contained, the binary refused unless it exists outside the folder the
+server runs in, the guarded child environment, and one stop for its whole
+tree. The binary answers for itself: the caller waits on /api/version.
+Live-proof deferred: needs the pinned archives.
 */
-export function startRuntime(
+export async function startRuntime(
   binary: string,
   port: number,
   modelsDir: string,
   extraEnv: NodeJS.ProcessEnv = {},
-): StartedRuntime {
-  const child: ChildProcess = spawn(binary, ['serve'], {
-    stdio: 'ignore',
-    detached: false,
-    shell: false,
+): Promise<StartedRuntime> {
+  const launched = await spawnResourceFile('contained', binary, ['serve'], {
     cwd: os.tmpdir(),
-    env: probeChildEnvironment({
+    env: {
       ...extraEnv,
       OLLAMA_HOST: `127.0.0.1:${String(port)}`,
       OLLAMA_MODELS: modelsDir,
-    }),
+    },
   })
-  child.on('error', () => {
-    // The async echo of a spawn failure Node also reports by leaving
-    // pid undefined: the throw below is the loud report; this
-    // listener only keeps the emitter from crashing the process.
-  })
-  const pid = child.pid
-  if (pid === undefined) throw new Error('runtime spawn produced no pid')
-  let isStopped = false
+  // Nothing reads the server's own log: its pipes drain, so a full pipe
+  // never stalls it.
+  launched.child.stdin.end()
+  launched.child.stdout.resume()
+  launched.child.stderr.resume()
+  const pid = launched.child.pid
+  if (pid === undefined) {
+    await launched.stop()
+    throw new Error('runtime spawn produced no pid')
+  }
+  let stopping: Promise<void> | undefined
   return {
     pid,
     port,
-    stop: async () => {
-      if (isStopped) return
-      isStopped = true
-      await stopProcess(pid)
-    },
-  }
-}
-
-/** SIGTERM, a grace period, then SIGKILL; already-gone is done. */
-export async function stopProcess(pid: number): Promise<void> {
-  try {
-    process.kill(pid, 'SIGTERM')
-  } catch (error: unknown) {
-    if (!isErrno(error)) throw error
-    return
-  }
-  const deadline = Date.now() + STOP_GRACE_MS
-  for (;;) {
-    if (!isPidAlive(pid)) return
-    if (Date.now() >= deadline) break
-    await new Promise((resolve) => {
-      setTimeout(resolve, 100)
-    })
-  }
-  try {
-    process.kill(pid, 'SIGKILL')
-  } catch (error: unknown) {
-    if (!isErrno(error)) throw error
+    stop: () => (stopping ??= launched.stop()),
   }
 }

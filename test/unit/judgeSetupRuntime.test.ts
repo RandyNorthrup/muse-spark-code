@@ -1,9 +1,7 @@
-// M125 lane H: runtime paths, ports, locks and the stop sequence.
-// Real sockets (bound to prove free), real lock files (held, refused,
-// stolen from the dead, never from the living), and the stop sequence
-// against real sleeping processes. Spawning itself waits for the
-// pinned binary — except its loud failure, which needs none.
-import { spawn } from 'node:child_process'
+// M125 lane H: runtime paths, ports and locks. Real sockets (bound to
+// prove free) and real lock files (held, refused, stolen from the dead,
+// never from the living). Spawning itself waits for the pinned binary —
+// except its loud refusal through the governed launch, which needs none.
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -15,7 +13,6 @@ import {
   findFreePort,
   runtimePaths,
   startRuntime,
-  stopProcess,
 } from '../../src/core/judge/setup/runtime'
 import { FIXTURE_HOOK_TIMEOUT_MS } from './helpers/fixtureBudget'
 
@@ -83,28 +80,9 @@ describe('setup runtime', () => {
     await rm(lock)
   })
 
-  it('stops a real process and tolerates the already gone', async () => {
-    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], {
-      stdio: 'ignore',
-      shell: false,
-    })
-    if (child.pid === undefined) throw new Error('scratch process produced no pid')
-    await stopProcess(child.pid)
-    let isAlive = true
-    try {
-      process.kill(child.pid, 0)
-    } catch (error: unknown) {
-      if (!isErrno(error)) throw error
-      isAlive = false
-    }
-    expect(isAlive).toBe(false)
-    await stopProcess(child.pid)
-    await stopProcess(2_147_483_647)
-  })
-
-  it('fails a missing binary loudly', () => {
-    expect(() => startRuntime(path.join(scratch, 'no-such-ollama'), 11_434, scratch)).toThrow(
-      'runtime spawn produced no pid',
-    )
+  it('refuses a missing binary loudly at the governed launch', async () => {
+    await expect(
+      startRuntime(path.join(scratch, 'no-such-ollama'), 11_434, scratch),
+    ).rejects.toThrow('Governed command unavailable')
   })
 })
