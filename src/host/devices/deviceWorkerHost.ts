@@ -5,6 +5,7 @@ import { constants as fsConstants } from 'node:fs'
 import * as z from 'zod/mini'
 import type { Logger } from '../logger'
 import { failureForLog } from '../../core/backends/musecode/logText'
+import { environmentValue, windowsPowerShellEnvironment } from '../../core/execGuard'
 import { isErrno } from '../../core/fs/errno'
 import { workerEnvironment } from '../../core/team/refFence'
 import { DevicePairingError } from '../../core/devices/pairing'
@@ -240,6 +241,14 @@ async function resolveTool(
   throw new DeviceWorkerHostError('preflight')
 }
 
+/** The worker environment with Windows PowerShell 5.1's own module path. */
+function windowsPowerShellChildEnvironment(env: Record<string, string>): Record<string, string> {
+  const systemRoot = environmentValue(env, 'win32', 'SystemRoot')
+  if (systemRoot === undefined || !path.win32.isAbsolute(systemRoot))
+    throw new DeviceWorkerHostError('preflight')
+  return Object.freeze(windowsPowerShellEnvironment(env, systemRoot))
+}
+
 function environment(input: NodeJS.ProcessEnv, platform: NodeJS.Platform): Record<string, string> {
   const out: Record<string, string> = {}
   const entries = Object.entries(workerEnvironment(input, platform))
@@ -413,14 +422,24 @@ export class DeviceWorkerHost implements DeviceReceiverExecution {
         try {
           if (!(await this.deps.driver.selfTest())) throw new DeviceWorkerHostError('helper')
           const transport = querySchema.parse(await this.deps.driver.query())
-          const env = environment(this.deps.environment, this.deps.driver.platform)
+          const workerEnv = environment(this.deps.environment, this.deps.driver.platform)
           const command = await this.deps.command(request, boundary)
           const resolver = this.deps.resolveTool ?? resolveTool
-          const executable = await resolver(command.executable, env, this.deps.driver.platform)
+          const executable = await resolver(
+            command.executable,
+            workerEnv,
+            this.deps.driver.platform,
+          )
           const executableName = path.posix.basename(executable.replaceAll('\\', '/')).toLowerCase()
           const isPowerShell =
             this.deps.driver.platform === 'win32' &&
             ['powershell.exe', 'pwsh.exe'].includes(executableName)
+          // Windows PowerShell 5.1 gets its own module path (WINPSMOD): a
+          // PowerShell 7 parent's PSModulePath breaks its core modules.
+          const env =
+            isPowerShell && executableName === 'powershell.exe'
+              ? windowsPowerShellChildEnvironment(workerEnv)
+              : workerEnv
           if (
             isPowerShell &&
             command.args.some((arg) => arg.toLowerCase().startsWith('-executionpolicy'))

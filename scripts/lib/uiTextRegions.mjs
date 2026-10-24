@@ -481,9 +481,12 @@ export const compactBrowserUiText = {
       // JOIN0190: the ChatGPT plan sign-in's English loads with its deferred
       // readers (the models page's provider sections), out of the shared
       // surface closure, the way the playbook's English already does.
+      // RLGROKAUTH's Grok sign-in English has the same reader and rides the
+      // same chunk (4,394 bytes of JSON that had put the shared surface
+      // closure over its 25 KiB cap).
       const chatGptKeys = deferredKeys.filter(
         (key) =>
-          (key === 'acpChatGpt' || key.startsWith('acpChatGpt.')) &&
+          ['acpChatGpt', 'acpGrok'].some((name) => key === name || key.startsWith(`${name}.`)) &&
           !helpKeys.includes(key) &&
           !accountKeys.includes(key) &&
           !scheduleKeys.includes(key) &&
@@ -514,7 +517,7 @@ export const compactBrowserUiText = {
               (file) =>
                 /[/\\]src[/\\]webview[/\\]/.test(file) &&
                 !eagerSources.has(file) &&
-                /UI_TEXT\.acpChatGpt/.test(readFileSync(file, 'utf8')),
+                /UI_TEXT\.acp(?:ChatGpt|Grok)/.test(readFileSync(file, 'utf8')),
             ),
       )
       // Each deferred runners module installs it before its body runs.

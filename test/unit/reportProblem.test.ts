@@ -51,6 +51,8 @@ describe('report tunables', () => {
       'unhandledRejection',
       'reactBoundary',
       'errorNotice',
+      // M125: the fast path's skip audit, which the report recorder keeps.
+      'judgeFastSkip',
     ])
     expect([...REPORT_WEBVIEW_ERROR_KINDS]).toEqual([
       'windowError',

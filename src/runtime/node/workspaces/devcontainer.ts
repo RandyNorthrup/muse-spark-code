@@ -133,15 +133,25 @@ export function parseMountString(mount: string): DevcontainerMount {
 }
 
 /**
+The path rules of the machine whose paths these are: the CLI reports the
+node's own paths, so the node's platform decides, never the process reading
+them (a Windows reader would drive-qualify and case-fold Linux paths).
+*/
+function pathsOf(platform: NodeJS.Platform): path.PlatformPath {
+  return platform === 'win32' ? path.win32 : path.posix
+}
+
+/**
 Whether the path stays inside the root once resolved (no escape);
 case folds on case-insensitive platforms so casing never escapes it.
 */
 export function isPathInside(root: string, candidate: string, platform: NodeJS.Platform): boolean {
+  const paths = pathsOf(platform)
   const isFold = platform === 'win32' || platform === 'darwin'
   const from = isFold ? root.toLowerCase() : root
   const to = isFold ? candidate.toLowerCase() : candidate
-  const relative = path.relative(from, to)
-  return relative !== '' && !relative.startsWith('..') && !path.isAbsolute(relative)
+  const relative = paths.relative(from, to)
+  return relative !== '' && !relative.startsWith('..') && !paths.isAbsolute(relative)
 }
 
 /** Splice the resolved source into the mount string, every other field byte-kept. */
@@ -173,20 +183,21 @@ export function gateMount(
   configDir: string,
   platform: NodeJS.Platform,
 ): { readonly ok: true; readonly absolutized?: string } | { readonly ok: false } {
+  const paths = pathsOf(platform)
   const parsed = parseMountString(mount)
   if (parsed.type === 'volume' || parsed.type === 'tmpfs') {
     const source = parsed.source
     const isPathSource =
       source !== undefined &&
-      (path.isAbsolute(source) || source.includes('/') || source.includes('\\'))
+      (paths.isAbsolute(source) || source.includes('/') || source.includes('\\'))
     return { ok: !isPathSource }
   }
   if (parsed.type !== 'bind') return { ok: false }
   if (parsed.source === undefined) return { ok: false }
   if (!parsed.target) return { ok: false }
-  const resolved = path.isAbsolute(parsed.source)
-    ? path.normalize(parsed.source)
-    : path.resolve(configDir, parsed.source)
+  const resolved = paths.isAbsolute(parsed.source)
+    ? paths.normalize(parsed.source)
+    : paths.resolve(configDir, parsed.source)
   if (resolved !== workspaceDir && !isPathInside(workspaceDir, resolved, platform)) {
     return { ok: false }
   }
@@ -220,7 +231,8 @@ export function gateDevcontainerConfig(
   }
   if (config.initializeCommand !== undefined) return { ok: false, reason: 'host-command' }
   if (config.runArgs !== undefined) return { ok: false, reason: 'run-args' }
-  const configDir = path.dirname(config.configFilePath.fsPath)
+  const paths = pathsOf(platform)
+  const configDir = paths.dirname(config.configFilePath.fsPath)
   const mounts = config.mounts ?? []
   for (const mount of mounts) {
     if (!gateMount(mount, workspaceDir, configDir, platform).ok) {
@@ -237,9 +249,9 @@ export function gateDevcontainerConfig(
   ]
   for (const dockerfile of dockerfiles) {
     if (dockerfile === undefined) continue
-    const resolved = path.isAbsolute(dockerfile)
-      ? path.normalize(dockerfile)
-      : path.resolve(configDir, dockerfile)
+    const resolved = paths.isAbsolute(dockerfile)
+      ? paths.normalize(dockerfile)
+      : paths.resolve(configDir, dockerfile)
     if (resolved !== workspaceDir && !isPathInside(workspaceDir, resolved, platform)) {
       return { ok: false, reason: 'host-context' }
     }
@@ -248,9 +260,9 @@ export function gateDevcontainerConfig(
   const contexts = [config.context, ...(typeof buildContext === 'string' ? [buildContext] : [])]
   for (const context of contexts) {
     if (context === undefined) continue
-    const contextDir = path.isAbsolute(context)
-      ? path.normalize(context)
-      : path.resolve(configDir, context)
+    const contextDir = paths.isAbsolute(context)
+      ? paths.normalize(context)
+      : paths.resolve(configDir, context)
     if (contextDir !== workspaceDir && !isPathInside(workspaceDir, contextDir, platform)) {
       return { ok: false, reason: 'host-context' }
     }
@@ -271,21 +283,24 @@ Merge the gated repo definition with the node's additions into the
 override config the CLI runs instead of the repo file: sources
 absolute, bind mounts absolutized, proxy and network injected,
 customizations dropped. The repo file is never read at up time.
+`platform` is the node's, whose paths the CLI reported (as for the gates).
 */
 export function mergeDevcontainerConfig(
   resolved: DevcontainerResolved,
   workspaceDir: string,
   additions: DevcontainerNodeAdditions,
+  platform: NodeJS.Platform,
 ): Record<string, unknown> {
+  const paths = pathsOf(platform)
   const config = resolved.configuration
-  const configDir = path.dirname(config.configFilePath.fsPath)
+  const configDir = paths.dirname(config.configFilePath.fsPath)
   const merged: Record<string, unknown> = {}
   if (config.name !== undefined) merged['name'] = config.name
   if (config.image !== undefined) merged['image'] = config.image
   if (config.dockerFile !== undefined) {
-    merged['dockerFile'] = path.isAbsolute(config.dockerFile)
+    merged['dockerFile'] = paths.isAbsolute(config.dockerFile)
       ? config.dockerFile
-      : path.resolve(configDir, config.dockerFile)
+      : paths.resolve(configDir, config.dockerFile)
   }
   if (config.features !== undefined) merged['features'] = config.features
   for (const key of [
@@ -299,7 +314,7 @@ export function mergeDevcontainerConfig(
   }
   if (config.mounts !== undefined) {
     merged['mounts'] = config.mounts.map((mount) => {
-      const gated = gateMount(mount, workspaceDir, configDir, process.platform)
+      const gated = gateMount(mount, workspaceDir, configDir, platform)
       if (!gated.ok) throw new DevcontainerRefusedError('host-mount')
       return gated.absolutized ?? mount
     })
@@ -308,16 +323,16 @@ export function mergeDevcontainerConfig(
     const build: Record<string, unknown> = { ...config.build }
     for (const key of ['dockerfile', 'context'] as const) {
       const value = build[key]
-      if (typeof value === 'string' && !path.isAbsolute(value)) {
-        build[key] = path.resolve(configDir, value)
+      if (typeof value === 'string' && !paths.isAbsolute(value)) {
+        build[key] = paths.resolve(configDir, value)
       }
     }
     merged['build'] = build
   }
   if (config.context !== undefined) {
-    merged['context'] = path.isAbsolute(config.context)
+    merged['context'] = paths.isAbsolute(config.context)
       ? config.context
-      : path.resolve(configDir, config.context)
+      : paths.resolve(configDir, config.context)
   }
   if (config.remoteUser !== undefined) merged['remoteUser'] = config.remoteUser
   const containerEnv: Record<string, string> = { ...config.containerEnv }

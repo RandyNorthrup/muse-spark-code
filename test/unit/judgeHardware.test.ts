@@ -166,17 +166,21 @@ describe('judge hardware scan', () => {
   it('finds executables on a scratch PATH and skips relative entries', async () => {
     const bin = path.join(scratch, 'bin')
     await mkdir(bin, { recursive: true })
-    const target = path.join(bin, 'rlm125-probe-target')
+    // Windows has no execute bit: a program there is a file whose extension
+    // is a program's, which the ghost (no extension) lacks.
+    const targetName =
+      process.platform === 'win32' ? 'rlm125-probe-target.cmd' : 'rlm125-probe-target'
+    const target = path.join(bin, targetName)
     await writeFile(target, '#!/bin/sh\necho hi\n')
     await chmod(target, 0o755)
     const ghost = path.join(bin, 'rlm125-probe-ghost')
     await writeFile(ghost, 'not executable')
     await chmod(ghost, 0o644)
     const pathValue = ['relative-dir', bin].join(path.delimiter)
-    expect(await findOnPath(['rlm125-probe-target'], pathValue)).toBe(target)
+    expect(await findOnPath([targetName], pathValue)).toBe(target)
     expect(await findOnPath(['rlm125-probe-ghost'], pathValue)).toBeUndefined()
-    expect(await findOnPath(['rlm125-probe-target'], '')).toBeUndefined()
-    expect(await findOnPath(['rlm125-probe-target'], undefined)).toBeUndefined()
+    expect(await findOnPath([targetName], '')).toBeUndefined()
+    expect(await findOnPath([targetName], undefined)).toBeUndefined()
   })
 
   it('runs real tools with their own failure reasons', async () => {
@@ -251,12 +255,15 @@ describe('judge hardware scan', () => {
       backend: 'cpu',
       reason: 'no GPU reading: CPU only',
     })
-    expect(await probeGpu('win32', undefined)).toEqual({
+    // Roots useless on every machine: an empty one, and one that does not
+    // exist. (`undefined` takes the default, this machine's SystemRoot, and
+    // `C:\Windows` is a real root on Windows.)
+    expect(await probeGpu('win32', '')).toEqual({
       vendor: 'unknown',
       backend: 'cpu',
       reason: 'no GPU reading: CPU only',
     })
-    expect(await probeGpu('win32', String.raw`C:\Windows`)).toEqual({
+    expect(await probeGpu('win32', path.join(scratch, 'no-windows-root'))).toEqual({
       vendor: 'unknown',
       backend: 'cpu',
       reason: 'no GPU reading: CPU only',

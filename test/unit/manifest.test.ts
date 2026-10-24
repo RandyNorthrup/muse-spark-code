@@ -337,6 +337,8 @@ describe('package.json manifest', () => {
       'chat',
       // M95 (PLAN.md D74): the step whose command link opens the wizard.
       'ownModel',
+      // M125 lane W: the step that opens the local judge's setup wizard.
+      'judgeSetup',
     ])
     const events = walkthrough?.steps.flatMap((step) => step.completionEvents ?? []) ?? []
     expect(events).toContain(`onView:${CHAT_VIEW_ID}`)
@@ -344,6 +346,7 @@ describe('package.json manifest', () => {
     expect(events).toContain(`onContext:${CONTEXT_KEYS.signedIn}`)
     expect(events).toContain(`onCommand:${COMMAND_IDS.createRulesFile}`)
     expect(events).toContain(`onCommand:${COMMAND_IDS.startWithOwnModel}`)
+    expect(events).toContain(`onCommand:${COMMAND_IDS.setUpLocalJudge}`)
   })
 
   it('binds nothing on Windows that Windows itself takes first (M26)', () => {

@@ -3,11 +3,13 @@
 // bytes, real exits), and the audit lands in a real state store. Opens bill
 // a step-up digest, writes count input bytes, output counts output bytes,
 // and close audits the session's end with its sizes; unknown ids refuse.
+// The store and the tool host run natively on Linux or WSL only; on Windows
+// each case proves the store's refusal in words (nodeNativeTest).
 import { spawn, type ChildProcess } from 'node:child_process'
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect } from 'vitest'
 import {
   NODE_PROTOCOL_VERSION,
   NODE_SESSION_IDLE_MS,
@@ -18,6 +20,7 @@ import type { NodeSession } from '../../src/shared/nodeAuth'
 import type { NodePty, NodePtyFactory } from '../../src/runtime/node/toolHost'
 import { NodeProcessToolHost } from '../../src/runtime/node/toolHost'
 import { initializedPageStore, pageRefusal } from './helpers/node/pageMethods'
+import { nodeNativeTest } from './helpers/nodeNative'
 import { nodeActionDigest } from '../../src/runtime/node/listenerMethods'
 import { createNodeTerminalMethods } from '../../src/runtime/node/web/terminal'
 
@@ -160,51 +163,54 @@ function session(): NodeSession {
 }
 
 describe('node terminal methods', () => {
-  it('opens, streams, resizes and closes a terminal, auditing start and end with sizes', async () => {
-    const test = await setup()
-    const signal = new AbortController().signal
-    try {
-      const { terminalId } = await test.methods.open(openParams(), signal)
-      expect(typeof terminalId).toBe('string')
-      const seen: string[] = []
-      const done = Promise.withResolvers<undefined>()
-      const wait = test.methods.subscribe(
-        session(),
-        terminalId,
-        (event) => {
-          if (event.type === 'terminalOutput') {
-            seen.push(event.data)
-            if (seen.join('').includes('hello')) {
-              done.resolve(undefined)
+  nodeNativeTest(
+    'opens, streams, resizes and closes a terminal, auditing start and end with sizes',
+    async () => {
+      const test = await setup()
+      const signal = new AbortController().signal
+      try {
+        const { terminalId } = await test.methods.open(openParams(), signal)
+        expect(typeof terminalId).toBe('string')
+        const seen: string[] = []
+        const done = Promise.withResolvers<undefined>()
+        const wait = test.methods.subscribe(
+          session(),
+          terminalId,
+          (event) => {
+            if (event.type === 'terminalOutput') {
+              seen.push(event.data)
+              if (seen.join('').includes('hello')) {
+                done.resolve(undefined)
+              }
             }
-          }
-          return Promise.resolve()
-        },
-        signal,
-      )
-      await test.methods.write({ terminalId, data: 'hello\n' }, signal)
-      await done.promise
-      await test.methods.resize({ terminalId, size: { cols: 100, rows: 30 } }, signal)
-      await test.methods.close({ terminalId }, signal)
-      await wait
-      const trail = test.store
-        .audit()
-        .filter((entry) => entry.kind === 'terminal' && entry.terminalId === terminalId)
-      expect(trail.map((entry) => (entry.kind === 'terminal' ? entry.phase : ''))).toEqual([
-        'start',
-        'end',
-      ])
-      const end = trail[1]
-      expect(end?.kind === 'terminal' ? end.inputBytes : -1).toBe(6)
-      expect(end?.kind === 'terminal' ? end.outputBytes : -1).toBe(6)
-      expect(end?.kind === 'terminal' ? end.source : '').toBe('person')
-      expect(test.reported).toEqual([])
-    } finally {
-      await test.host.stopAll('stopped')
-    }
-  })
+            return Promise.resolve()
+          },
+          signal,
+        )
+        await test.methods.write({ terminalId, data: 'hello\n' }, signal)
+        await done.promise
+        await test.methods.resize({ terminalId, size: { cols: 100, rows: 30 } }, signal)
+        await test.methods.close({ terminalId }, signal)
+        await wait
+        const trail = test.store
+          .audit()
+          .filter((entry) => entry.kind === 'terminal' && entry.terminalId === terminalId)
+        expect(trail.map((entry) => (entry.kind === 'terminal' ? entry.phase : ''))).toEqual([
+          'start',
+          'end',
+        ])
+        const end = trail[1]
+        expect(end?.kind === 'terminal' ? end.inputBytes : -1).toBe(6)
+        expect(end?.kind === 'terminal' ? end.outputBytes : -1).toBe(6)
+        expect(end?.kind === 'terminal' ? end.source : '').toBe('person')
+        expect(test.reported).toEqual([])
+      } finally {
+        await test.host.stopAll('stopped')
+      }
+    },
+  )
 
-  it('refuses unknown terminals, except a close, which is done', async () => {
+  nodeNativeTest('refuses unknown terminals, except a close, which is done', async () => {
     const test = await setup()
     const signal = new AbortController().signal
     try {
@@ -226,7 +232,7 @@ describe('node terminal methods', () => {
     }
   })
 
-  it('refuses an open whose step-up digest does not bind its action', async () => {
+  nodeNativeTest('refuses an open whose step-up digest does not bind its action', async () => {
     const test = await setup()
     const signal = new AbortController().signal
     try {
@@ -241,7 +247,7 @@ describe('node terminal methods', () => {
     }
   })
 
-  it('disposes the PTY when its last subscriber disconnects', async () => {
+  nodeNativeTest('disposes the PTY when its last subscriber disconnects', async () => {
     const test = await setup()
     const outer = new AbortController()
     try {
@@ -261,7 +267,7 @@ describe('node terminal methods', () => {
     }
   })
 
-  it('reports a host failure as unavailable and files it', async () => {
+  nodeNativeTest('reports a host failure as unavailable and files it', async () => {
     const test = await setup()
     const failing = new NodeProcessToolHost({
       toolsUid: 1000,
@@ -300,7 +306,7 @@ describe('node terminal methods', () => {
     }
   })
 
-  it('envelopes every event with the protocol version, order and node', async () => {
+  nodeNativeTest('envelopes every event with the protocol version, order and node', async () => {
     const test = await setup()
     const outer = new AbortController()
     try {

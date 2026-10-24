@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import ts from 'typescript'
 import { listFiles } from '@vscode/vsce/out/package.js'
-import { afterAll, beforeAll, expect, it } from 'vitest'
-import { buildProductionPackage } from './helpers/productionPackage'
+import { afterAll, beforeAll, expect, inject, it } from 'vitest'
+import { PRODUCTION_BUILD_KEY, buildProductionPackage } from './helpers/productionPackage'
 import { UI_TEXT_REGIONS } from '../../scripts/lib/uiTextRegions.mjs'
 
 const root = path.resolve(import.meta.dirname, '../..')
@@ -61,6 +61,15 @@ function buildBundles() {
   })
   return bundles
 }
+// A URI handed to `asWebviewUri` names one of the webview's own resources,
+// which the browser loads from the webview bundle root (dist/webview/ or its
+// verified copy); Node never requires it. Its file name can equal a Node
+// bundle's: dist/webview/judgeSetup.js is the judge setup wizard's page,
+// dist/judgeSetup.js the agent-only `judge setup` command.
+const isWebviewResource = (node) =>
+  ts.isCallExpression(node) &&
+  ts.isPropertyAccessExpression(node.expression) &&
+  node.expression.name.text === 'asWebviewUri'
 function requiredBundles(bundles, folder) {
   const byName = new Map(bundles.keys().map((file) => [path.posix.basename(file), file]))
   const required = new Set(['dist/extension.js'])
@@ -128,7 +137,7 @@ function requiredBundles(bundles, folder) {
       const next = new Set([...seen, expression])
       const found = new Set()
       function walk(node) {
-        if (ts.isFunctionLike(node)) return
+        if (ts.isFunctionLike(node) || isWebviewResource(node)) return
         if (ts.isStringLiteralLike(node)) {
           const name = normalize(node.text)
           if (byName.has(path.posix.basename(name))) found.add(name)
@@ -162,7 +171,13 @@ function requiredBundles(bundles, folder) {
         pending.push(output)
       }
     }
-    visit(tree, (node) => {
+    function follow(node) {
+      // Nothing under a webview resource names a Node bundle.
+      if (isWebviewResource(node)) return
+      inspect(node)
+      ts.forEachChild(node, follow)
+    }
+    function inspect(node) {
       // A path alone may name a standalone program (acp.js), rather than a
       // required module. Follow paths passed to runtime loaders, including
       // bundlePath factories, and direct require calls in the emitted code.
@@ -185,23 +200,25 @@ function requiredBundles(bundles, folder) {
       )
         return
       for (const argument of node.arguments) references(argument)
-    })
+    }
+    follow(tree)
   }
   return required
 }
 const fixture = { root: '', required: new Set(), packaged: new Set() }
-// A real production build is preparation; assertions keep repository deadlines.
+// Copying the shared production build is preparation; assertions keep
+// repository deadlines.
 const PRODUCTION_BUILD_TIMEOUT_MS = 60_000
 beforeAll(async () => {
   const bundles = buildBundles()
   for (const region of UI_TEXT_REGIONS) bundles.set(region.output, ['src/shared/l10n/en.ts'])
   fixture.root = mkdtempSync(path.join(tmpdir(), 'estimator-package-inventory-'))
   writeFileSync(path.join(fixture.root, '.prettierrc.json'), read('.prettierrc.json'))
-  try {
-    buildProductionPackage(root, fixture.root)
-  } catch (error) {
-    throw new Error(readFileSync(path.join(fixture.root, 'build.log'), 'utf8'), { cause: error })
-  }
+  // A copy of the run's shared production build (global setup), never a
+  // rebuild inside this hook: on Windows a private build alone outlasted the
+  // hook's deadline, and a build failure is reported by the global setup with
+  // its own diagnostics.
+  buildProductionPackage(root, fixture.root, inject(PRODUCTION_BUILD_KEY))
   fixture.required = requiredBundles(bundles, fixture.root)
   // Inventory all real emitted bundles with the builder's unchanged ignore
   // policy, without traversing the private build's source/test fixture trees.

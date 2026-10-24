@@ -31,6 +31,22 @@ function hasGnuTar() {
 }
 
 const fixture = { root: '', oci: '', config: {}, layers: [], statements: [] }
+// Windows names its interpreter `python` (its `python3` is the Store's alias).
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3'
+/**
+tar runs in the fixture root and is handed paths relative to it: GNU tar (Git
+for Windows ships one) reads a drive path such as `C:/…` as `host:path` on
+another machine, while every tar reads a relative path the same way.
+*/
+function tar(args, options = {}) {
+  return execFileSync(
+    'tar',
+    args.map((arg) =>
+      path.isAbsolute(arg) ? path.relative(fixture.root, arg).replaceAll(path.sep, '/') : arg,
+    ),
+    { cwd: fixture.root, ...options },
+  )
+}
 const notices = [
   'opt/muse/image-notices/debian-packages.tsv',
   'opt/muse/image-notices/node.txt',
@@ -56,7 +72,7 @@ const layer = (files, names = ['.']) => {
     writeFileSync(file, content)
   }
   const archive = `${directory}.tar.gz`
-  execFileSync('tar', ['-czf', archive, '-C', directory, ...names])
+  tar(['-czf', archive, '-C', directory, ...names])
   return put(readFileSync(archive), 'application/vnd.oci.image.layer.v1.tar+gzip')
 }
 const writeIndex = (mutate = (statements) => statements, binding) => {
@@ -92,8 +108,9 @@ const inspect = () =>
     scanLayer: () => undefined,
     extractLayer: (file) => {
       const directory = path.join(mkdtempSync(path.join(fixture.root, 'extraction-')), 'files')
-      execFileSync('python3', ['deploy/container/unpack.py', file, directory])
-      const names = execFileSync('tar', ['-tf', file], { encoding: 'utf8' }).trim().split('\n')
+      execFileSync(PYTHON, ['deploy/container/unpack.py', file, directory])
+      // Windows' own tar ends its lines with CRLF.
+      const names = tar(['-tf', file], { encoding: 'utf8' }).trim().split(/\r?\n/u)
       return { directory, names }
     },
   })
@@ -147,7 +164,7 @@ describe('OCI release gates', () => {
     writeIndex()
     const archive = path.join(fixture.root, 'clean.tar')
     const receipt = path.join(fixture.root, 'receipt.json')
-    execFileSync('tar', ['-cf', archive, '-C', fixture.oci, '.'])
+    tar(['-cf', archive, '-C', fixture.oci, '.'])
     const result = spawnSync(process.execPath, ['scripts/check-node-image.mjs', archive, receipt], {
       encoding: 'utf8',
     })
@@ -357,7 +374,7 @@ describe('OCI release gates', () => {
     fixture.layers.push(layer({ 'deleted.txt': canary }), layer({ '.wh.deleted.txt': '' }))
     writeIndex()
     const archive = path.join(fixture.root, 'image.tar')
-    execFileSync('tar', ['-cf', archive, '-C', fixture.oci, '.'])
+    tar(['-cf', archive, '-C', fixture.oci, '.'])
     const result = spawnSync(
       process.execPath,
       ['scripts/check-node-image.mjs', archive, path.join(fixture.root, 'receipt.json')],
@@ -405,7 +422,7 @@ describe('OCI release gates', () => {
     fixture.config = Buffer.from('M110PRIVATE')
     writeIndex()
     const archive = path.join(fixture.root, 'malformed.tar')
-    execFileSync('tar', ['-cf', archive, '-C', fixture.oci, '.'])
+    tar(['-cf', archive, '-C', fixture.oci, '.'])
     const result = spawnSync(
       process.execPath,
       ['scripts/check-node-image.mjs', archive, path.join(fixture.root, 'receipt.json')],
@@ -419,25 +436,32 @@ describe('OCI release gates', () => {
     mkdirSync(outside)
     cpSync('LICENSE', path.join(outside, 'LICENSE'))
     const archive = path.join(fixture.root, 'unsafe.tar')
-    execFileSync('tar', [
-      '-cf',
-      archive,
-      '--transform=s|LICENSE|../escape|',
-      '-C',
-      outside,
-      'LICENSE',
-    ])
+    tar(['-cf', archive, '--transform=s|LICENSE|../escape|', '-C', outside, 'LICENSE'])
     const result = spawnSync(
-      'python3',
+      PYTHON,
       ['deploy/container/unpack.py', archive, path.join(fixture.root, 'unsafe')],
       { encoding: 'utf8' },
     )
     expect(result.status).not.toBe(0)
     expect(result.stderr).toContain('Unsafe archive member path')
-    symlinkSync('../outside/LICENSE', path.join(outside, 'link'))
-    execFileSync('tar', ['-cf', archive, '-C', outside, 'link'])
+    // The archive's symlink member comes from a real symlink where the test
+    // account may make one. Windows grants that only with the symbolic-link
+    // privilege, so there Python's tarfile writes the same member without one.
+    if (process.platform === 'win32') {
+      execFileSync(PYTHON, [
+        '-c',
+        "import sys, tarfile; archive = tarfile.open(sys.argv[1], 'w'); member = tarfile.TarInfo('link'); member.type = tarfile.SYMTYPE; member.linkname = '../outside/LICENSE'; archive.addfile(member); archive.close()",
+        archive,
+      ])
+    } else {
+      symlinkSync('../outside/LICENSE', path.join(outside, 'link'))
+      tar(['-cf', archive, '-C', outside, 'link'])
+    }
+    const listed = tar(['-tvf', archive], { encoding: 'utf8' })
+    expect(listed).toMatch(/^l/u)
+    expect(listed).toContain('link -> ../outside/LICENSE')
     const safe = path.join(fixture.root, 'no-links')
-    execFileSync('python3', ['deploy/container/unpack.py', archive, safe])
+    execFileSync(PYTHON, ['deploy/container/unpack.py', archive, safe])
     expect(() => readFileSync(path.join(safe, 'link'))).toThrow()
   })
   it.runIf(hasGnuTar())(
@@ -451,14 +475,14 @@ describe('OCI release gates', () => {
       writeFileSync(path.join(source, 'first'), 'xx')
       writeFileSync(path.join(source, 'second'), 'xx')
       const archive = path.join(fixture.root, 'bounded.tar')
-      execFileSync('tar', ['-cf', archive, '-C', source, '.'])
+      tar(['-cf', archive, '-C', source, '.'])
       for (const limits of [
         { maxExtractedBytes: 1, maxExtractedFiles: 100 },
         { maxExtractedBytes: 100, maxExtractedFiles: 1 },
       ]) {
         writeFileSync(policy, JSON.stringify(limits))
         const destination = path.join(mkdtempSync(path.join(fixture.root, 'bounded-')), 'files')
-        const result = spawnSync('python3', [extractor, archive, destination], { encoding: 'utf8' })
+        const result = spawnSync(PYTHON, [extractor, archive, destination], { encoding: 'utf8' })
         expect(result.status).toBe(1)
         expect(result.stderr).toContain('Archive extraction limit exceeded')
       }
@@ -466,11 +490,11 @@ describe('OCI release gates', () => {
       const existing = path.join(fixture.root, 'existing-empty')
       mkdirSync(existing)
       expect(() =>
-        execFileSync('python3', [extractor, archive, existing], { stdio: 'pipe' }),
+        execFileSync(PYTHON, [extractor, archive, existing], { stdio: 'pipe' }),
       ).toThrow()
-      execFileSync('tar', ['--hard-dereference', '-cf', archive, '-C', source, 'first', 'first'])
+      tar(['--hard-dereference', '-cf', archive, '-C', source, 'first', 'first'])
       const duplicate = spawnSync(
-        'python3',
+        PYTHON,
         [extractor, archive, path.join(fixture.root, 'duplicate')],
         {
           encoding: 'utf8',

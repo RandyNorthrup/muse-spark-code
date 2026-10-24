@@ -2,7 +2,7 @@
 // keyring must carry every pinned fingerprint; anything else refuses.
 // Node builtins only, so the device and CI run it bare.
 import { spawnSync } from 'node:child_process'
-import { existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fingerprintsFromColons } from '../../lib/fingerprints.mjs'
@@ -31,24 +31,35 @@ export function findGpg(explicit) {
   }
 }
 
+// The keyring's copy inside the throwaway home.
+const CANDIDATE_KEYRING = 'candidate-keyring'
+
 /**
 Import a keyring into a throwaway home and list its fingerprints. The
 import's own exit status is ignored on purpose: gpg reports failure
 when its agent cannot start even though the keys imported (seen in a
 sandbox without socket support). The listing afterwards is the verdict:
-no fingerprints means nothing usable imported.
+no fingerprints means nothing usable imported. gpg runs inside the home
+and is handed only names relative to it: a gpg built for MSYS (Git for
+Windows) reads a Windows path such as `C:\Users\…` as a relative one and
+fails, while every build reads a relative name the same way.
 */
 export function listKeyringFingerprints({ keyringPath, gpgPath }) {
   if (!existsSync(keyringPath)) return { ok: false, error: `keyring not found: ${keyringPath}` }
   const home = mkdtempSync(path.join(tmpdir(), 'node-os-keyring-'))
   try {
-    spawnSync(gpgPath, ['--batch', '--homedir', home, '--import', keyringPath], {
+    copyFileSync(keyringPath, path.join(home, CANDIDATE_KEYRING))
+    spawnSync(gpgPath, ['--batch', '--homedir', '.', '--import', CANDIDATE_KEYRING], {
+      cwd: home,
       encoding: 'utf8',
     })
     const listed = spawnSync(
       gpgPath,
-      ['--batch', '--homedir', home, '--list-keys', '--with-colons'],
-      { encoding: 'utf8' },
+      ['--batch', '--homedir', '.', '--list-keys', '--with-colons'],
+      {
+        cwd: home,
+        encoding: 'utf8',
+      },
     )
     if (listed.status !== 0) {
       return { ok: false, error: `keyring listing failed: ${(listed.stderr ?? '').trim()}` }

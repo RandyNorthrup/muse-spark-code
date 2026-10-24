@@ -38,6 +38,8 @@ function resolvedFixture(name: string): DevcontainerResolved {
   return devcontainerResolvedSchema.parse(readFixture(name))
 }
 
+// The recorded configurations are the Linux node's, so their paths follow
+// POSIX rules on every machine that reads them (path.posix below).
 const LINUX = 'linux' as const
 const DARWIN = 'darwin' as const
 
@@ -128,7 +130,7 @@ describe('gateMount', () => {
 
 describe('gateDevcontainerConfig', () => {
   const drill = resolvedFixture('read-config-drill.json')
-  const WS = path.dirname(path.dirname(drill.configuration.configFilePath.fsPath))
+  const WS = path.posix.dirname(path.posix.dirname(drill.configuration.configFilePath.fsPath))
   it('accepts the recorded dockerfile + features + bind config once trusted', () => {
     expect(gateDevcontainerConfig(drill, WS, true, LINUX)).toEqual({ ok: true })
   })
@@ -141,19 +143,23 @@ describe('gateDevcontainerConfig', () => {
   it('accepts the recorded python and node image configs', () => {
     for (const name of ['read-config-python.json', 'read-config-node.json']) {
       const resolved = resolvedFixture(name)
-      const root = path.dirname(path.dirname(resolved.configuration.configFilePath.fsPath))
+      const root = path.posix.dirname(
+        path.posix.dirname(resolved.configuration.configFilePath.fsPath),
+      )
       expect(gateDevcontainerConfig(resolved, root, true, LINUX)).toEqual({ ok: true })
     }
   })
   it('refuses the recorded host-command and compose configs', () => {
     const evilA = resolvedFixture('read-config-evil-a.json')
-    const rootA = path.dirname(path.dirname(evilA.configuration.configFilePath.fsPath))
+    const rootA = path.posix.dirname(path.posix.dirname(evilA.configuration.configFilePath.fsPath))
     expect(gateDevcontainerConfig(evilA, rootA, true, LINUX)).toEqual({
       ok: false,
       reason: 'host-command',
     })
     const evilCompose = resolvedFixture('read-config-evil-compose.json')
-    const rootCompose = path.dirname(path.dirname(evilCompose.configuration.configFilePath.fsPath))
+    const rootCompose = path.posix.dirname(
+      path.posix.dirname(evilCompose.configuration.configFilePath.fsPath),
+    )
     expect(gateDevcontainerConfig(evilCompose, rootCompose, true, LINUX)).toEqual({
       ok: false,
       reason: 'compose-refused',
@@ -233,14 +239,16 @@ describe('gateDevcontainerConfig', () => {
 
 describe('mergeDevcontainerConfig', () => {
   const drill = resolvedFixture('read-config-drill.json')
-  const WS = path.dirname(path.dirname(drill.configuration.configFilePath.fsPath))
-  const CFG = path.dirname(drill.configuration.configFilePath.fsPath)
+  const WS = path.posix.dirname(path.posix.dirname(drill.configuration.configFilePath.fsPath))
+  const CFG = path.posix.dirname(drill.configuration.configFilePath.fsPath)
   it('injects the proxy and network, drops customizations', () => {
-    const merged = mergeDevcontainerConfig(drill, WS, {
-      proxyUrl: 'http://proxy:8080',
-      network: 'ws-net',
-    })
-    expect(merged['dockerFile']).toBe(path.join(CFG, 'Dockerfile'))
+    const merged = mergeDevcontainerConfig(
+      drill,
+      WS,
+      { proxyUrl: 'http://proxy:8080', network: 'ws-net' },
+      LINUX,
+    )
+    expect(merged['dockerFile']).toBe(path.posix.join(CFG, 'Dockerfile'))
     expect(merged['features']).toEqual(drill.configuration.features)
     expect(merged['containerEnv']).toEqual({
       http_proxy: 'http://proxy:8080',
@@ -258,9 +266,9 @@ describe('mergeDevcontainerConfig', () => {
         build: { dockerfile: 'docker/Dockerfile.alt', context: '..', args: { V: '1' } },
       },
     }
-    const merged = mergeDevcontainerConfig(withBuild, WS, {})
+    const merged = mergeDevcontainerConfig(withBuild, WS, {}, LINUX)
     expect(merged['build']).toEqual({
-      dockerfile: path.join(CFG, 'docker/Dockerfile.alt'),
+      dockerfile: path.posix.join(CFG, 'docker/Dockerfile.alt'),
       context: WS,
       args: { V: '1' },
     })
@@ -275,7 +283,7 @@ describe('mergeDevcontainerConfig', () => {
     }
     let reason = ''
     try {
-      mergeDevcontainerConfig(evil, WS, {})
+      mergeDevcontainerConfig(evil, WS, {}, LINUX)
     } catch (error: unknown) {
       if (error instanceof DevcontainerRefusedError) reason = error.reason
     }
@@ -283,8 +291,8 @@ describe('mergeDevcontainerConfig', () => {
   })
   it('merges proxy env over the recorded python containerEnv', () => {
     const python = resolvedFixture('read-config-python.json')
-    const root = path.dirname(path.dirname(python.configuration.configFilePath.fsPath))
-    const merged = mergeDevcontainerConfig(python, root, { proxyUrl: 'http://proxy:8080' })
+    const root = path.posix.dirname(path.posix.dirname(python.configuration.configFilePath.fsPath))
+    const merged = mergeDevcontainerConfig(python, root, { proxyUrl: 'http://proxy:8080' }, LINUX)
     expect(merged['image']).toBe('mcr.microsoft.com/devcontainers/python:3-3.14-trixie')
     const env = merged['containerEnv'] as Record<string, string>
     expect(env['http_proxy']).toBe('http://proxy:8080')

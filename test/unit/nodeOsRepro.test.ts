@@ -109,7 +109,9 @@ describe('os-repro-check', () => {
   it('starts through a symlinked directory', () => {
     const dir = scratch('node-os-repro-link-')
     const link = path.join(dir, 'scripts')
-    symlinkSync(path.dirname(REPRO_CHECK), link, 'dir')
+    // Windows's directory link is a junction (no privilege needed; a symlink
+    // needs the symbolic-link privilege, which a test account does not hold).
+    symlinkSync(path.dirname(REPRO_CHECK), link, process.platform === 'win32' ? 'junction' : 'dir')
     const first = writeTree(path.join(dir, 'a'), { 'f.txt': 'same' })
     const second = writeTree(path.join(dir, 'b'), { 'f.txt': 'same' })
     const result = run(['--compare', first, second], path.join(link, 'os-repro-check.mjs'))

@@ -238,9 +238,12 @@ describe.skipIf(!IS_DRILL)('devcontainer up and exec, live', () => {
       expect(gateDevcontainerConfig(resolved, workspace, true, process.platform)).toEqual({
         ok: true,
       })
-      const merged = mergeDevcontainerConfig(resolved, workspace, {
-        proxyUrl: 'http://127.0.0.1:9',
-      })
+      const merged = mergeDevcontainerConfig(
+        resolved,
+        workspace,
+        { proxyUrl: 'http://127.0.0.1:9' },
+        process.platform,
+      )
       expect(merged['image']).toBe(DRILL_IMAGE)
       const overrideConfig = path.join(root, 'override.json')
       writeFileSync(overrideConfig, JSON.stringify(merged))

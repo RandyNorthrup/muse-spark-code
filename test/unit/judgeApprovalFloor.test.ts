@@ -99,8 +99,9 @@ describe('B1 floor', () => {
   it('names --force anywhere in the line', () => {
     expect(heldReason(b1Floor('find . --force -print', floorContext()))).toBe('forceFlag')
     expect(heldReason(b1Floor('cat --force=x allowed.txt', floorContext()))).toBe('forceFlag')
-    // A pattern merely containing the letters is not the flag.
-    const innocent = b1Floor('grep -e forceful allowed.txt', floorContext())
+    // A pattern merely containing the letters is not the flag; the line
+    // passes where B1 runs (Linux and macOS; Windows refuses at the floor).
+    const innocent = b1Floor('grep -e forceful allowed.txt', floorContext(), 'linux')
     expect(innocent.pass).toBe(true)
   })
 
@@ -247,8 +248,11 @@ describe('B1 program table', () => {
   })
 
   it('resolves through realpath and audits the missing as absent', () => {
+    // B1's programs are fixed POSIX paths: they resolve where B1 runs (Linux
+    // and macOS) and audit as absent on Windows, where B1 is off.
     const resolved = resolveB1Executable('cat', realpathSync)
-    expect(resolved?.endsWith('/cat')).toBe(true)
+    if (process.platform === 'win32') expect(resolved).toBeUndefined()
+    else expect(resolved?.endsWith('/cat')).toBe(true)
     expect(resolveB1Executable('stat', realpathSync)).toBeUndefined()
     expect(resolveB1Executable('cat', missingRealpath)).toBeUndefined()
     expect(() => resolveB1Executable('cat', brokenRealpath)).toThrow('boom')

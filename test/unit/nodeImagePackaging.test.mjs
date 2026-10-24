@@ -15,6 +15,8 @@ import { stageNodeImage } from '../../scripts/package-node-image.mjs'
 
 const policy = JSON.parse(readFileSync('deploy/container/policy.json', 'utf8'))
 const fixture = { root: '', runtime: '', stage: '' }
+// A directory link: a junction on Windows, a symlink elsewhere.
+const DIR_LINK = process.platform === 'win32' ? 'junction' : 'dir'
 beforeEach(() => {
   mkdirSync('temp', { recursive: true })
   fixture.root = mkdtempSync(path.resolve('temp/m110-c-package-'))
@@ -77,10 +79,18 @@ describe('node image package boundary', () => {
     },
   )
   it('refuses symlinks, including a fixture.runtime fixture.root alias', () => {
-    symlinkSync(path.join(fixture.runtime, 'LICENSE'), path.join(fixture.runtime, 'linked'))
+    // Windows grants a file link only with the symbolic-link privilege, which
+    // a test account does not hold; its directory link is a junction (no
+    // privilege needed), which lstat reads as a link there.
+    if (process.platform !== 'win32') {
+      symlinkSync(path.join(fixture.runtime, 'LICENSE'), path.join(fixture.runtime, 'linked'))
+      expect(() => stageNodeImage(fixture.runtime, fixture.stage)).toThrow('symlink')
+      rmSync(path.join(fixture.runtime, 'linked'))
+    }
+    symlinkSync(path.join(fixture.runtime, 'dist'), path.join(fixture.runtime, 'linked'), DIR_LINK)
     expect(() => stageNodeImage(fixture.runtime, fixture.stage)).toThrow('symlink')
     rmSync(path.join(fixture.runtime, 'linked'))
-    symlinkSync(fixture.runtime, path.join(fixture.root, 'alias'))
+    symlinkSync(fixture.runtime, path.join(fixture.root, 'alias'), DIR_LINK)
     expect(() => stageNodeImage(path.join(fixture.root, 'alias'), fixture.stage)).toThrow('symlink')
   })
   it('refuses an existing context and a context within the source', () => {

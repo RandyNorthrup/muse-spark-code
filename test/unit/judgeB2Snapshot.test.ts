@@ -34,7 +34,13 @@ async function fixture(): Promise<string> {
   return workspace
 }
 
-describe('B2 snapshot copy', () => {
+// B2 is off on Windows by design (PLAN.md M125: B2 on Linux only, off on
+// Windows; it is not wired into any product path there), and the fixture's
+// relative file link is one Windows grants only with the symbolic-link
+// privilege, which a test account does not hold.
+const IS_B2_HOST = process.platform !== 'win32'
+
+describe.runIf(IS_B2_HOST)('B2 snapshot copy', () => {
   it('copies files, links and modes without .git', async () => {
     const workspace = await fixture()
     const target = `${workspace}-snap`
@@ -88,7 +94,7 @@ describe('B2 snapshot copy', () => {
   })
 })
 
-describe('B2 snapshot reader', () => {
+describe.runIf(IS_B2_HOST)('B2 snapshot reader', () => {
   it('reads through the guard and never outside', async () => {
     const workspace = await fixture()
     const target = `${workspace}-snap`
