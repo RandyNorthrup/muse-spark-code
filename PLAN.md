@@ -12627,6 +12627,50 @@ produced with `node scripts/inspect-capture.mjs` and lands by the lead's
 commit. No user-facing strings: F1a refusals stay typed internal
 protocol words.
 
+### D218 — The team runner's playbook board reads live team facts (lead, 2026-10-22; lane RLM116 Q1; numbered D212 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with secondary roles)
+
+`readBoard` comes from the team's real facts: `workers` are its entry worker
+states (available when idle and admitted) under the entry ids the offloading
+caller uses; `mergedPrerequisites` are task branches merged into the
+integration target, no other; `hasCi` is the CI the report engine really
+observed (M113's check runs), unknown never true. The team runner starts each
+file-bearing task's round at its real effect site, after every admission and
+before launch, and releases it when the task ends, on the window's playbook
+worker (never the extension host; on Windows inside its contained job).
+`pick`/`merge` wait for the merge planner binding. Record:
+`docs/certification/cc-rlm116.md`.
+
+### D219 — Check admission reads host capacity; headless `playbook run` (lead, 2026-10-22; lane RLM116 Q2; numbered D213 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with the MCP protocol eras)
+
+Real capacity comes from the hosts that offload work (the ACP agent and the
+team runner), never the panel, whose fail-closed port stays: a sync holder
+serves the latest M107 reading, refreshed asynchronously, and admission pauses
+a local check only at the governor's paused level; unknown never pauses work.
+`muse-spark-code-acp playbook run <name> [--heavy] [--full-gate]` runs one
+workspace check through the same admission, journal and record, with no
+limits of ours (D121), and exits with the check's own code; `/playbook`
+stays read-only. Record: `docs/certification/cc-rlm116.md`.
+
+### D220 — One report ordering through `collectPlaybookReport` (lead, 2026-10-22; lane RLM116 Q3; numbered D214 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with the stabilized ACP surface)
+
+Playbook, milestone and fleet rows reach the M113 engine ordered by
+`collectPlaybookReport` over the journal the report reads, asked for only
+when one of those kinds orders; the playbook CLI text uses the same
+comparator, so `orderedPlaybookRecords` and `orderReport` are one. Ordering is
+presentation: `orderReport` returns its why-note and stores nothing; severity
+survives the engine's key sort as a bucket prefix; milestone residuals merge
+the journal's residual register through the one section builder. Record:
+`docs/certification/cc-rlm116.md`.
+
+### D221 — ACP child resumes admitted through `SubagentAdmission` (lead, 2026-10-22; lane RLM116's ACP admission follow-up; numbered D215 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with physical device safety)
+
+The ACP agent's only child-work effects, `/agents continue|retry`, go through
+the same `SubagentAdmission` port as the Model API host, as `delegate` rounds
+asked last around the control call: a refusal answers the person and reaches
+no backend; without the port the control runs as before. The admission is the
+host capacity of D219, refreshed on every resume; no journal is read or
+written. Record: `docs/certification/cc-rlm116.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -32183,10 +32227,11 @@ Playbook Settings, `/playbook` from the same journal), the enforcement
 (review turns, `delegate` follow-ups, best-of-N, Muse Code spawn requests,
 why-note buttons), the person's own child actions as dispatches, and three
 review rounds (RVCM1166A/B/C) each fixed as a class with regressions and red
-drills (`docs/certification/msm116.md`). Open: planner/board binding (needs
-M96), M107 governor, M110/M115w callers, M113 report rows, headless exec
-surface, installed-editor checks, and the ACP/terminal admission follow-up
-(the lead opens it).
+drills (`docs/certification/msm116.md`). cc/rlm116 (2026-10-23) bound the team
+board and rounds (D218), host capacity admission and `playbook run` (D219),
+the report rows (D220) and ACP child resumes (D221). Open: `pick`/`merge`
+with the merge planner binding (RLF-TEAMWIRE), M110/M115w callers,
+installed-editor checks.
 
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a
@@ -34055,6 +34100,15 @@ changed. Owner decision pending: raise the 525 KiB cap or schedule a
 VERIFYCHUNK-style split of a lead-chosen conditional bundle part.
 Receipts: `docs/certification/rlm108.md`, `dist/meta/modelApi.json`.
 
+**cc/rlm116 MSM116 bytes in over-budget bundles (2026-10-24, open, justified
+deferral).** The panel playbook's own code adds 423 B to `dist/modelApi.js`
+(the host's `SubagentAdmission` call, D96.17) and 98 B to `dist/wire.js`
+(`openPlaybook` and the one playbook envelope), both over their caps at the
+base. Every other over-budget bundle the branch touches is the same size or
+smaller (`dist/uiText.js` -910 B, `dist/reportingPanel.js` -22 B). No cap
+changed; the modelApi decision above covers the first. Receipts:
+`docs/certification/cc-rlm116.md`.
+
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
 - [x] Repair and drill historical-label readiness and the strict provider-budget fixture.
@@ -35488,17 +35542,18 @@ does), loads it with Node require, and proves the activation table is the one
 it reads, the single load, and the refusal of a missing or malformed module
 before a repaired one loads (2026-09-30).
 
-| File                                            | Construct                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
-| ----------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                     | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                           | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
-| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                    | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
-| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                              | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
-| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
-| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
-| `src/host/playbook/playbookBundle.ts`           | `value is typeof PlaybookEntry` (`isPlaybookWindowBundle`, type predicate) | M116 C-M116-6: `require` of `dist/playbook.js` returns `unknown`; the guard checks that `createPlaybookWindow` is a function, not its parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `playbookWindowBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, reads and changes a journal through it, and refuses a malformed module.                                        | 2026-10-11 |
-| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
-| `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                           | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
+| File                                            | Construct                                                                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                                                                             | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                                                                                   | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                                                                            | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                                                                                      | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)                                                             | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
+| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate)                                                         | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
+| `src/host/playbook/playbookBundle.ts`           | `value is typeof PlaybookEntry` (`isPlaybookWindowBundle`, type predicate)                                                         | M116 C-M116-6: `require` of `dist/playbook.js` returns `unknown`; the guard checks that `createPlaybookWindow` is a function, not its parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `playbookWindowBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, reads and changes a journal through it, and refuses a malformed module.                                        | 2026-10-11 |
+| `src/runtime/playbook/playbookBundle.ts`        | `value is PlaybookAnswerSlice` (`isPlaybookAnswerSlice`) and `value is typeof PlaybookEntry` (`isPlaybookBundle`), type predicates | D219: `require` of `dist/acpPlaybook.js` (or the window's answer slice) returns `unknown`; the guards check each function the slice or the whole bundle exports, trusted across one source tree and build. `playbookBundle.test.ts` and `playbookWindowBundle.test.ts` load the real builds and refuse a missing export.                                                                                                                                                                          | 2026-10-23 |
+| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                                                                            | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
+| `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                                                                                   | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
 
 | File                                      | Construct                                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
 | ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
