@@ -23,8 +23,13 @@ import { headlessToolIo } from '../helpers/headlessToolIo'
 
 // A passing summary the triage packs: shell outputs always end with an
 // exit line, so blank-success never fires for them; the strict
-// pass-summary does. Repeated for a measurable packed saving.
-const SUMMARY_CHECK = String.raw`printf 'Test Files  1 passed (1)\nTests  3 passed (3)\n%.0s' {1..300}`
+// pass-summary does. Repeated for a measurable packed saving. The shell
+// tool runs the host's shell (bash, or Windows PowerShell on Windows), so the
+// command is written in each.
+const SUMMARY_CHECK =
+  process.platform === 'win32'
+    ? "1..300 | ForEach-Object { 'Test Files  1 passed (1)'; 'Tests  3 passed (3)' }"
+    : String.raw`printf 'Test Files  1 passed (1)\nTests  3 passed (3)\n%.0s' {1..300}`
 
 interface ScriptedTurn {
   readonly bashCalls: number

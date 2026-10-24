@@ -377,3 +377,17 @@ and opens no session; each case then expects `notApplicable` with `grammar`
 there (its own reason elsewhere).
 
 Red (before): the file failed in its hook, 4 skipped. Green: 4 passed.
+
+### evalJudgeWiring: the summary check is written in the host's shell
+
+Cause: the paired run's scripted model asks the shell tool for a repeated
+vitest summary written in bash (`printf … {1..300}`). The shell tool runs the
+host's shell, which on Windows is Windows PowerShell, where that line prints
+no summary; the triage then had nothing to pack and the armed turn saved no
+input tokens (`expected 0 to be greater than 0`).
+
+Fix: on Windows the same summary is printed by
+`1..300 | ForEach-Object { 'Test Files  1 passed (1)'; 'Tests  3 passed (3)' }`;
+bash keeps its line. The triage's pass-summary patterns read either.
+
+Red (before): 1 failed as above. Green: 3 passed.
