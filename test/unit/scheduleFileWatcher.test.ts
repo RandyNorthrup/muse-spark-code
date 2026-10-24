@@ -71,6 +71,9 @@ describe('workspace file watcher', () => {
         const paths = seen.map((item) => item.relativePath)
         expect(paths).toContain('note.md')
         expect(paths).toContain('docs/plan.md')
+        // macOS also reports the watched folder under its own name when the
+        // watch starts; that names no file and is never delivered.
+        expect(paths).not.toContain(path.basename(folder))
         for (const item of seen) {
           expect(item.identity.length).toBeGreaterThan(0)
           expect(item.observedAt).toBeGreaterThan(0)
