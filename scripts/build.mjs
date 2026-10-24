@@ -1806,6 +1806,14 @@ const runtimePanelOptions = {
   outfile: RUNTIME_PANEL_OUTFILE,
   banner: {},
 }
+// Its conversations, loaded by `runtimePanel.js` once the handshake is done.
+const RUNTIME_PANEL_SESSION_OUTFILE = 'dist/runtimePanelSession.js'
+const runtimePanelSessionOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/panel/sessionEntry.ts'],
+  outfile: RUNTIME_PANEL_SESSION_OUTFILE,
+  banner: {},
+}
 
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
@@ -2308,6 +2316,7 @@ if (isWatch) {
     esbuild.context(lspOptions),
     esbuild.context(superviseOptions),
     esbuild.context(runtimePanelOptions),
+    esbuild.context(runtimePanelSessionOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2539,6 +2548,7 @@ if (isWatch) {
     ['lsp', () => esbuild.build(lspOptions)],
     ['supervise', () => esbuild.build(superviseOptions)],
     ['runtimePanel', () => esbuild.build(runtimePanelOptions)],
+    ['runtimePanelSession', () => esbuild.build(runtimePanelSessionOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2559,6 +2569,7 @@ if (isWatch) {
   let lsp
   let supervise
   let runtimePanel
+  let runtimePanelSession
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2577,6 +2588,7 @@ if (isWatch) {
       lsp,
       supervise,
       runtimePanel,
+      runtimePanelSession,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2650,6 +2662,11 @@ if (isWatch) {
     writeFileSync(
       path.join(ACP_METAFILE_DIR, 'runtimePanel.json'),
       JSON.stringify(runtimePanelMetafile),
+    )
+    const { metafile: runtimePanelSessionMetafile } = await runtimePanelSession
+    writeFileSync(
+      path.join(ACP_METAFILE_DIR, 'runtimePanelSession.json'),
+      JSON.stringify(runtimePanelSessionMetafile),
     )
   }
   console.log('bundle sizes:')
@@ -2763,5 +2780,6 @@ if (isWatch) {
   reportSize(LSP_OUTFILE)
   reportSize(SUPERVISE_OUTFILE)
   reportSize(RUNTIME_PANEL_OUTFILE)
+  reportSize(RUNTIME_PANEL_SESSION_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

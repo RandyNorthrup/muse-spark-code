@@ -7140,7 +7140,8 @@
   },
   "hostService": {
     "unavailable": "Panel środowiska uruchomieniowego nie jest dostępny w tej instalacji.",
-    "needsStdio": "panel wymaga --stdio: host edytora rozmawia z nim przez standardowe wejście i wyjście."
+    "needsStdio": "panel wymaga --stdio: host edytora rozmawia z nim przez standardowe wejście i wyjście.",
+    "notAvailable": "To nie jest jeszcze dostępne w tym edytorze."
   },
   "acpConnector": {
     "title": "Zatwierdź żądania konektora",

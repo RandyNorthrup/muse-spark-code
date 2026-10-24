@@ -39,49 +39,55 @@ raised, new code in lazy chunks with measured budgets (D6).
 
 ### Slices done
 
-| Slice | Commit        | What                                                                                                       | Proof                                                                                                                                       |
-| ----- | ------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1     | `c17faa0c2a`  | `src/runtime/settingsStore.ts` over the runtime's own settings files                                       | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                  |
-| 2     | `f432fac54d`  | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                      | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                      |
-| 3     | (this commit) | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
+| Slice     | Commit        | What                                                                                                                                                                                                                               | Proof                                                                                                                                       |
+| --------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1         | `c17faa0c2a`  | `src/runtime/settingsStore.ts` over the runtime's own settings files                                                                                                                                                               | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                  |
+| 2         | `f432fac54d`  | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                                                                                                                                              | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                      |
+| 3         | `a26bb6a23`   | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas                                                                                                                         | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
+| 4a        | `9d44d6774`   | the conversation bundle loads without the `vscode` module (portable question clock; `questionsForHost(store, deferAfterSeconds)`)                                                                                                  | `runtimePortableBundles` 1/1; drill B1 fires                                                                                                |
+| 4b–5a, 7a | (this commit) | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C11 fire (below)                                                      |
 
 ### Next step, exactly
 
-Slice 4 onward (below). Slice 3 is proven (its section at the end), the
+Continue slice 5 with the runtime's remaining ports (below, "Ports still
+refused in words"), then 6 (paid use), 7b (the other surfaces), 8, 9. The
 rig-specific facts are in "Rig notes".
 
 ### Slices left, in order, with the intended design
 
-4. **The runtime conversation (`RuntimeConversation`, RLM104
-   `runtimeController.ts`).** `ConversationController` runs in the panel
-   process through `conversationLoader(...).createConversation(deps)`, one
-   per session, held by slice 2's `ControllerRegistry` (the same class ACP
-   uses). Prerequisite found on int: `conversationEntry.ts` imports
-   `../vscode/questions/questionStore` at runtime (it imports `vscode`), so
-   the conversation bundle cannot load outside VS Code until
-   `questionClock`/`questionsDeferAfterSeconds` come from a portable module
-   (RLM104 moved `questionClock` to `questions/questionStorage` and passed
-   `deferAfterSeconds` in). The controller additions RLM104 needed
-   (`modelAllowsFeature`, `onSessionAttached`, `replayHistory`,
-   `startFreshSession`, `selectedModelId`) must be re-applied to int's
-   13,960-line controller by hand; `arePermissionsExternal`,
-   `submitParts`, `useExternalPermissionMode` were for ACP-on-controller and
-   are **not** wanted (item 2 keeps ACP's own turns).
-5. **Shared composition (`src/host/compose/conversationDeps.ts`) and
-   `src/host/vscode/hostServices.ts`.** int's `ConversationDeps` has about
-   120 members (RLM104's base had fewer: int added playbook, judge uses,
-   team MCP, orchestrator slot, bookmarks, sequences, legal fixes, estimator
-   generation and more). extension.ts composes them inline at about lines
-   4967–5470. The design: move that mapping into `composeConversationDeps`
-   (editor-agnostic, `HostServices` for async editor actions) so VS Code
-   and the runtime share one copy; VS Code's behaviour must not change
-   (typecheck, the unit suites, and the integration suite inside VS Code,
-   which was never run on this PC). Then `src/runtime/features/**` supply
-   the runtime's ports (RLM104 had 24 modules, about 3,100 lines: auth,
-   checkpoints, codeIntel, editReview, git, hooks, judge, mcp, paidUse,
-   review, tab, verify, voice, webFetch, worktrees...), each against int's
-   current interfaces, each an honest refusal where the host lacks the
-   capability (MHP `unsupportedCapability`), never an empty success.
+4. **The runtime conversation. Done (4a, 4b).** `RuntimeConversation`
+   (`src/runtime/panel/runtimeConversation.ts`) runs int's own
+   `ConversationController` in the panel process and is held by slice 2's
+   `ControllerRegistry`. The controller got `onSessionAttached`,
+   `replayHistory`, `startFreshSession` and `selectedModelId`;
+   `modelAllowsFeature` is **not** applied: int's controller gates effort on
+   the served catalogue (`servedLevels`) already, and the other gates
+   (compaction, handoff, attachments) read the host kind, which is the same
+   gate ACP uses; it returns when a capability record source exists in the
+   runtime. `arePermissionsExternal`, `submitParts`,
+   `useExternalPermissionMode` stay out (ACP keeps its own turns).
+5. **Shared composition. Partly done (5a).** `composeConversationDeps`
+   (`src/host/compose/conversationDeps.ts`) is the one mapping of what is
+   the same in every editor (settings, the paid gate, the model API manager,
+   the session board, best-of-N edits, verify guidance); VS Code builds its
+   controller from it (its modals, clipboard, save-all and new windows come
+   in as `ConversationEditorPorts`) and the runtime builds the same from MHP
+   requests. This deviates from the intended design in one way: the shared
+   function takes five narrow editor ports, not the whole MHP `HostServices`,
+   so VS Code needs no 554-line MHP adapter of its own (it would implement
+   every MHP method for five calls). VS Code's behaviour is unchanged by
+   construction (the closures moved; typecheck and lint pass); the
+   integration suite inside VS Code was not run here (see "Not run").
+   `src/runtime/features/**` holds the runtime's ports. Done: auth
+   (`RuntimeAuth`, over the backend's readiness; keys only in the editor's
+   terminal), workspace files and mentions (confined, race-checked reads),
+   editor context. Still refused in words (`unavailable()`), each to be built
+   against int's interfaces: git (the M123 native route exists in
+   `src/runtime/panel/git/**`), checkpoints (`store: undefined`), edit
+   review, review, plans, exports, transfer files, `openDocument`, the IDE
+   tool server (`ideMcpEndpoint`), usage insights, dictation and Muse Voice,
+   the Model API manager port (best-of-N, voice budget), sign-out,
+   Muse Code install, and most host actions.
 6. **Paid use in the panel (D48, D208).** Compose int's `PaidUseConsent`
    exactly as `src/acp/paid.ts`'s `AcpPaidUse` does: the question asked
    through MHP `ui/confirm` with D48's three answers, keyed grants in the
@@ -95,14 +101,17 @@ rig-specific facts are in "Rig notes".
    pre-D208 path: do not port them; drop RLM104's `paidGrants.ts`
    revocation lane (int's `isAnswerCurrent` already refuses a revoked
    question, cc-rlm104 "Dropped as duplicates").
-7. **Chat surfaces over MHP** (RLM104 `surfaces.ts`, `uiRequests.ts`,
-   `delivery.ts`'s per-surface readiness and drop): `surfaces/open`, panel
-   envelopes admitted with `parseMhpPanelEnvelope` (sequence, readiness,
-   binding), the runtime-to-host request path with correlation and
-   `$/cancelRequest` (no deadline of ours: a consent question waits for the
-   person). Slice 3's connection refuses every panel envelope with
-   `MHP_PANEL_UNKNOWN_SURFACE` and asks the host nothing; both grow here.
-   `panelEventId` and the presentation types return with their readers.
+7. **Chat surfaces over MHP. Chat done (7a).** `connection.ts` asks the
+   host (correlated ids, `$/cancelRequest`, no deadline of ours),
+   `surfaces.ts` admits lifecycle and envelopes with the frozen contract,
+   `delivery.ts` holds a surface's frames until it is ready and drops them,
+   counted, when it closes. `surfaces/open` is asked once the handshake is
+   done; a conversation without a backend session yet is bound to an id of
+   its own and its surface is replaced when the first session starts (MHP
+   binds a surface to one session for good). Still to do (7b): the other
+   surface kinds (tasks, whatsNew, usage, maker, models, traffic, settings,
+   walkthrough, diff, plans, manager, roles), host actions that open them,
+   and `panelEventId` with its readers.
 8. **`--companion`** over int's companion server (`src/runtime/companion/`,
    its launch code and bearer, cc-rlm104 item 4 `/panel/*` routes), with
    `fallbackUi.ts` and `portableAssets.ts` moving in with their first
@@ -158,6 +167,36 @@ rig-specific facts are in "Rig notes".
   GENERIC; record it in the handler through `failureForLog`.
 - **Text groups** must not be named after a CLI route (the reference pulls
   them into the panel's English): the panel's group is `hostService`.
+
+- **The agent's package did not carry the controller.** The lazy-registry
+  gate found, once the panel loaded `conversation.js` in the agent, that the
+  package lacked it and the four chunks the controller loads on use
+  (`conversationTransfer.js`, `report.js`, `sessionBoard.js`,
+  `scheduleSurfaces.js`); `scripts/lib/acpBundles.mjs` lists them now and the
+  registry rows read `both`.
+- **A session change must finish before its surface opens.** The first
+  version opened the new surface inside `onSessionAttached`. The editor
+  answers `surfaces/open` at once and its webview says `ready` while the
+  controller is still taking the session, so the replay found no session and
+  the transcript was never shown. The surface now opens after the message
+  that caused the change has been handled (`settled`), which drill C3 proves.
+- **A surface needs a session id before there is a session.** MHP binds a
+  surface to one session, and a signed-out person must still see the sign-in
+  gate. The conversation holds an id of its own until the backend starts a
+  session; the surface is replaced when it does. RLM104 refused the whole
+  handshake while the backend was not ready.
+- **`z.core` is not in `dist/validation.js`.** The bundle-split gate refused
+  a read of `z.core.$ZodError` from the shared validation bundle; the check
+  reads the error's name instead.
+- **The credential store cannot be faked, so a ready backend cannot be
+  reached hermetically through the real process.** `runtimePanelSessions`
+  runs `runPanel` in the suite's process over streams, with the product's own
+  runtime, a Model API host over a real file store reported ready, and a
+  credential store that fails the suite if anything reads it;
+  `runtimePanelConversation` runs the packed process and covers the gate.
+- **The lint prefers** `Iterator#toArray` to a spread of a Map iterator, but
+  the host's ES2023 lib has no `toArray`: take the values through an
+  `Iterable`-typed local, then spread.
 
 ### Rig notes (Mac mini, 2026-10-24)
 
@@ -355,12 +394,82 @@ environment helper). The shared test helpers `helpers/acpLocalAgentDeps.ts`
 and `helpers/isolatedRuntimeEnvironment.ts` replace the copies; both suites'
 neighbours (`sessionTitles`, `runtimeLsp`) read them too.
 
+## Slice 4a — the conversation bundle loads without `vscode`
+
+`dist/conversation.js` required `vscode` at load, through the question
+store's setting reader and clock, so no other editor's runtime could create a
+conversation. The clock moved to the portable question storage and the editor
+passes the defer-after setting in. `runtimePortableBundles` requires the
+shared production build's bundle in a plain Node process.
+
+| Drill | Break                                                       | Result                                |
+| ----- | ----------------------------------------------------------- | ------------------------------------- |
+| B1    | the `vscode`-importing question store put back in the entry | exit 1: "Cannot find module 'vscode'" |
+
+## Slices 4b–5a and 7a — the chat in `panel --stdio`
+
+What a person gets: an editor that speaks MHP 1.5 starts
+`muse-spark-code-acp panel --stdio` in its workspace, and the runtime asks it
+to open a chat surface (`surfaces/open`). The webview's messages go to int's
+own conversation controller; its replies come back in panel envelopes; the
+sign-in gate, the composer's state, the model list, the session's
+information, settings changes and the editor's selection reach it; closing the
+editor's connection ends every session. Which backend runs is the person's
+`museSpark.backend` setting (`auto` is Muse Code, as `serve` defaults), the
+editor's `trusted` decides the workspace's trust, and a change of either, or
+of any setting the backend is built from, ends the conversations and starts a
+fresh one.
+
+Where it lives: `connection.ts` (requests both ways, `$/cancelRequest`),
+`surfaces.ts` and `delivery.ts` (lifecycle, sequence, readiness, drops),
+`runtimeConversation.ts` (one conversation, any number of surfaces),
+`panelSession.ts` (backend, registry, first surface, settings, trust,
+selection, documents; `dist/runtimePanelSession.js`, 75.1 KiB of 120),
+`panelEntry.ts` (the transport, now 76.7 KiB of 100), `runtimeFeatures.ts`
+(the controller's dependencies), `features/` (auth, files, editor context).
+
+Suites, on the shared production build, real code only:
+
+- `runtimePanelConversation` (2): the packed process, a backend that is not
+  ready; the editor serves `surfaces/open` and `terminal/*`. The gate shows
+  with its methods; Sign in asks the editor's terminal to run `login`; the
+  contract's refusals (a skipped sequence, an unknown surface, a frame the
+  wrong way round, a surface for a session the runtime does not hold) are
+  said with their codes and the surface still works after them.
+- `runtimePanelSessions` (6): `runPanel` over streams with the product's
+  runtime and a Model API host over a real file session store: a session
+  starts and the surface is bound to it; clearing the conversation closes the
+  old surface and opens a fresh one on a new session; a reloaded surface is
+  shown the transcript again; a settings change reaches every surface; the
+  editor withdrawing trust, and a change of what the backend is built from,
+  each end the conversation and start another; shutdown lets every session
+  go.
+
+| Drill | Break                                                                    | Result                                                                  |
+| ----- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------- |
+| C1    | `onSessionAttached` no longer tells the panel (`sessionChanged` not run) | exit 1: all 6 sessions cases (no surface for the session)               |
+| C2    | the new session's surface is never scheduled to open                     | exit 1: all 6 sessions cases                                            |
+| C3    | the surface opens inside `onSessionAttached` (the first version)         | exit 1: "shows a reloaded surface the conversation again" (the race)    |
+| C4    | a trust change is ignored                                                | exit 1: "ends its conversations … stops trusting the workspace"         |
+| C5    | a settings change is not published to the surfaces                       | exit 1: "shows every surface the person's settings when they change"    |
+| C6    | the old session's surfaces are not retired                               | exit 1: the clear, trust and backend-change cases                       |
+| C7    | an admitted frame does not advance the surface's input sequence          | exit 1: "shows the sign-in gate …" (its second message is out of order) |
+| C8    | an `opened` for a session the runtime does not hold is ignored           | exit 1: "refuses, in the contract's words, …"                           |
+
+Every file was restored and matched its hash.
+
+Not run: the integration suite inside VS Code (`npm run test:integration`);
+VS Code builds its controller from the shared mapping now, and its behaviour
+is unchanged by construction, but only hosted CI starts VS Code.
+
 ## Commits
 
-| Commit       | Slice                                         |
-| ------------ | --------------------------------------------- |
-| `c17faa0c2a` | slice 1: settings and storage store           |
-| `f432fac54d` | slice 2: the controller registry, ACP over it |
-| `097aba7b42` | slice 3 (work in progress): `panel --stdio`   |
-| (next)       | slice 3 proven, with the drills               |
-| (this)       | the handoff above                             |
+| Commit       | Slice                                                    |
+| ------------ | -------------------------------------------------------- |
+| `c17faa0c2a` | slice 1: settings and storage store                      |
+| `f432fac54d` | slice 2: the controller registry, ACP over it            |
+| `097aba7b42` | slice 3 (work in progress): `panel --stdio`              |
+| `a26bb6a23`  | slice 3 proven, with the drills                          |
+| `9d44d6774`  | slice 4a: the conversation bundle loads without `vscode` |
+| (this)       | slices 4b–5a, 7a: the chat in `panel --stdio`            |
+| (this)       | the handoff above                                        |

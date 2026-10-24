@@ -28,6 +28,10 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimeLsp.test.ts',
   // M104 lane B: the runtime panel runs from dist/acp.js and dist/runtimePanel.js.
   'test/unit/runtimePanel.test.ts',
+  // M104 lane B: the chat in the runtime panel runs the conversation controller from dist/acp.js.
+  'test/unit/runtimePanelConversation.test.ts',
+  // M104 lane B: conversations in the runtime panel load the controller and the session bundle from dist/.
+  'test/unit/runtimePanelSessions.test.ts',
   // M104 lane B: the bundles the runtime panel loads run without the vscode module.
   'test/unit/runtimePortableBundles.test.ts',
 ])

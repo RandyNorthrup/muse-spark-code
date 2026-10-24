@@ -6612,7 +6612,8 @@
   },
   "hostService": {
     "unavailable": "이 설치에서는 런타임 패널을 사용할 수 없습니다.",
-    "needsStdio": "panel에는 --stdio가 필요합니다. 편집기의 호스트는 표준 입력과 출력으로 통신합니다."
+    "needsStdio": "panel에는 --stdio가 필요합니다. 편집기의 호스트는 표준 입력과 출력으로 통신합니다.",
+    "notAvailable": "이 기능은 아직 이 편집기에서 사용할 수 없습니다."
   },
   "acpConnector": {
     "title": "커넥터 요청 승인",

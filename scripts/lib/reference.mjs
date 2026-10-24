@@ -148,6 +148,7 @@ export async function referenceSources(root) {
     'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
+    'src/host/compose/conversationDeps.ts',
     'src/host/vscode/paid/paidHost.ts',
     'src/acp/agent.ts',
     ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
@@ -470,10 +471,13 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
       "isModelApi: () => paidBackend === 'modelApi'",
       "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
       'inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined',
-      "!paid.gate.isOn('voice')",
-      "!usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')",
-      "currentSettings().dictationEngine === 'system'",
       'reserveDaily: (costUsd) => dailyPaid.reserveExact(costUsd)',
+    ],
+    // M104 lane B: Muse Voice's gate moved with the shared mapping that VS Code and the runtime panel both use.
+    'src/host/compose/conversationDeps.ts': [
+      "!paid.gate.isOn('voice')",
+      "!usablePaidFeatures(auth.current.backend, isKeyStored()).includes('voice')",
+      "currentSettings().dictationEngine === 'system'",
       'return museVoiceSetup',
     ],
     'src/acp/agent.ts': ["if (host.info.kind !== 'museCode')"],

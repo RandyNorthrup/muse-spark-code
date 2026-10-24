@@ -6788,7 +6788,8 @@
   },
   "hostService": {
     "unavailable": "Çalışma zamanı paneli bu kurulumda kullanılamıyor.",
-    "needsStdio": "panel için --stdio gerekir: düzenleyicinin ana bilgisayarı onunla standart giriş ve çıkışta konuşur."
+    "needsStdio": "panel için --stdio gerekir: düzenleyicinin ana bilgisayarı onunla standart giriş ve çıkışta konuşur.",
+    "notAvailable": "Bu özellik bu düzenleyicide henüz kullanılamıyor."
   },
   "acpConnector": {
     "title": "Bağlayıcı isteklerini onayla",

@@ -6964,7 +6964,8 @@
   },
   "hostService": {
     "unavailable": "El panel del entorno de ejecución no está disponible en esta instalación.",
-    "needsStdio": "panel necesita --stdio: el host del editor le habla por la entrada y la salida estándar."
+    "needsStdio": "panel necesita --stdio: el host del editor le habla por la entrada y la salida estándar.",
+    "notAvailable": "Esto aún no está disponible en este editor."
   },
   "acpConnector": {
     "title": "Aprobar solicitudes del conector",

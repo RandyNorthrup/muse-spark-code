@@ -6612,7 +6612,8 @@
   },
   "hostService": {
     "unavailable": "此安装中无法使用运行时面板。",
-    "needsStdio": "panel 需要 --stdio：编辑器的宿主通过标准输入和输出与它通信。"
+    "needsStdio": "panel 需要 --stdio：编辑器的宿主通过标准输入和输出与它通信。",
+    "notAvailable": "此功能在该编辑器中暂不可用。"
   },
   "acpConnector": {
     "title": "批准连接器请求",

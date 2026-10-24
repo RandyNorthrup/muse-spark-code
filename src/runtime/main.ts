@@ -2427,6 +2427,9 @@ async function main(processResources: ProcessResources): Promise<number> {
             env: process.env,
             homeDir: homedir(),
           }),
+          distDir,
+          createRuntime: (serveOptions, questions) => runtimeFor(serveOptions, log, questions),
+          runGit: processGitRunner(),
         },
       )
     }

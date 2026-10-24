@@ -74,6 +74,16 @@ export const ACP_BUNDLES = [
   'supervise.js',
   // M104 lane B: the runtime panel, loaded by `panel`.
   'runtimePanel.js',
+  'runtimePanelSession.js',
+  // M104 lane B: the runtime panel runs the editor's conversation controller
+  // (conversation.js) in the agent, and the chunks the controller loads on
+  // use: a session export or import, the problem report, the session board
+  // and the schedule surfaces.
+  'conversation.js',
+  'conversationTransfer.js',
+  'report.js',
+  'sessionBoard.js',
+  'scheduleSurfaces.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker
