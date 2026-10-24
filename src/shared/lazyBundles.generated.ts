@@ -764,7 +764,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'NATIVE_GIT_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
-  { file: 'packsVerify.js', side: 'acp', requestedBy: [] },
   {
     file: 'node.js',
     side: 'acp',
@@ -772,8 +771,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/shared/constants.ts', symbol: 'NODE_BUNDLE_FILE', side: ['acp'] },
     ],
   },
-  { file: 'nodeAuth.js', side: 'unreached', requestedBy: [] },
-  { file: 'nodeAuthPage.js', side: 'unreached', requestedBy: [] },
+  { file: 'packsVerify.js', side: 'acp', requestedBy: [] },
   {
     file: 'pageWorker.js',
     side: 'both',
@@ -1057,6 +1055,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/resources/launcher.ts',
         symbol: 'handoffResourceFile',
+        side: ['acp', 'vscode'],
+      },
+      {
+        importer: 'src/core/resources/launcher.ts',
+        symbol: 'spawnResourceFile',
         side: ['acp', 'vscode'],
       },
       {
@@ -1610,13 +1613,6 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'MODELS_WEBVIEW_SCRIPT_FILE',
         side: ['vscode'],
       },
-    ],
-  },
-  {
-    file: 'webview/node/files/main.js',
-    side: 'vscode',
-    requestedBy: [
-      { importer: 'src/shared/constants.ts', symbol: 'WEBVIEW_SCRIPT_FILE', side: ['vscode'] },
     ],
   },
   { file: 'webview/referencePage.js', side: 'vscode', requestedBy: [] },

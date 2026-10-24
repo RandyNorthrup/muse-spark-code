@@ -8,24 +8,22 @@ import { UI_TEXT } from '../../shared/constants'
 import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 
-/** The bundle's two files below its verified folder. */
-export interface PanelBundleFiles {
-  readonly script: string
-  readonly style: string
+/** The page's script and sheet as the webview reads them, below its verified folder. */
+export interface PanelPageUris {
+  readonly scriptUri: string
+  readonly styleUri: string
 }
 
-/** The verified bundle's document: scripts on, only the bundle's own folder readable. */
+/** The verified bundle's document: scripts on, only the bundle's own folder (`root`) readable. */
 export function showPanelDocument(
   panel: vscode.WebviewPanel,
-  dir: string,
-  files: PanelBundleFiles,
+  root: vscode.Uri,
+  page: PanelPageUris,
   l10n: UiTable,
 ): void {
-  const root = vscode.Uri.file(dir)
   panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
   panel.webview.html = buildWebviewHtml({
-    scriptUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(root, files.script)).toString(),
-    styleUri: panel.webview.asWebviewUri(vscode.Uri.joinPath(root, files.style)).toString(),
+    ...page,
     cspSource: panel.webview.cspSource,
     nonce: createNonce(),
     l10n,

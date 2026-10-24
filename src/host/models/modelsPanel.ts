@@ -253,10 +253,18 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       },
     }
   }
+  const root = vscode.Uri.file(resolved.dir)
   showPanelDocument(
     panel,
-    resolved.dir,
-    { script: MODELS_WEBVIEW_SCRIPT_FILE, style: MODELS_WEBVIEW_STYLE_FILE },
+    root,
+    {
+      scriptUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(root, MODELS_WEBVIEW_SCRIPT_FILE))
+        .toString(),
+      styleUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(root, MODELS_WEBVIEW_STYLE_FILE))
+        .toString(),
+    },
     deps.l10n,
   )
   const state: ModelsPanelState = {

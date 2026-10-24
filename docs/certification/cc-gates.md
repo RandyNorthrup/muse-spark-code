@@ -179,3 +179,49 @@ cases). `judgeB2Baseline` (Windows git refuses its
 `GIT_CONFIG_GLOBAL=//./nul`) and `judgeB1HoldDrill` (Linux/macOS helper)
 fail or skip on this PC before and after; their edited helpers
 typecheck and lint and run on Linux CI.
+
+## Item 4 — `npm run -s build`, lazy-registry step: 7 problems
+
+Measured on `d81327d360` after `node scripts/build.mjs --production`:
+`gen-lazy-registry --check` exit 1, 7 problems. Two causes:
+
+- `NODE_WORKSPACE_ASSET = './node/files/main.js'` (M110-U1) named the
+  node workspace page's script, which only the separate harness build
+  (`test/harness/build-node.mjs`, "C/M104 adds this to the release
+  build") emits. The chat page never loads that script by name — the
+  node's binding supplies it (`loadWorkspace`); it only links the
+  stylesheet beside it. On a production build the name fell back to its
+  basename and resolved to the chat bundle `webview/main.js`, attributed
+  to `src/shared/constants.ts` (in every chunk, the agent's too): "loads
+  webview/main.js in the agent, and its package does not carry it", and
+  `webview/main.js`, `webview/referencePage.js` and
+  `webview/resourceSurface.js` turned `both`. The constant now names what
+  the chat page loads, `NODE_WORKSPACE_STYLESHEET =
+'./node/files/main.css'` (same URL as before, still pinned by
+  `nodeSurface.test.ts`).
+- The committed registry kept rows for `nodeAuth.js`, `nodeAuthPage.js`
+  (`npm run build:node-auth`, a separate command) and
+  `webview/node/files/main.js` (the harness): leftovers of other builds
+  in the lane's `dist/`, which the registry, written from the production
+  build, never lists (RLF-HYGIENE). Regenerated from a clean production
+  build: those three rows go, `packsVerify.js` returns to its sorted
+  place, and `resourceProcess.js` gains the new `spawnResourceFile` load
+  (item 3).
+
+The shared panel document (item 2) first hid the two panel script loads
+from the registry's scan; each panel now builds its webview URIs where
+it resolves its bundle (`asWebviewUri(… JUDGE_SETUP_WEBVIEW_SCRIPT_FILE)`
+on one line), so `webview/judgeSetup.js` stays told apart from the
+runtime's `judgeSetup.js` and both rows keep their requesters.
+
+Drill (2026-10-23): the constant back to `'./node/files/main.js'`:
+`gen-lazy-registry --check` exit 1, "src/shared/constants.ts:367
+(NODE_WORKSPACE_STYLESHEET) loads webview/main.js in the agent, and its
+package does not carry it" plus the three side rows; restored, "ok lazy
+registry: 169 bundles, 272 loads by file name resolved … is current",
+exit 0.
+
+After a fresh production build every step after the size check passes:
+bundle split 0, lazy registry 0, host globals 0, third-party notices 0,
+legal build records 0 (156 bundles, 0 problems). `nodeSurface.test.ts`
+4/4.
