@@ -173,6 +173,9 @@ export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): P
           else log.warn(`MHP_NOTIFICATION_UNSUPPORTED ${method}`)
         },
         closed: (isFatal) => {
+          // The connection is over, whatever the host still sends: stop
+          // reading, or an open pipe would keep the process alive.
+          deps.stdin.destroy()
           resolve(isFatal ? 1 : 0)
         },
       },

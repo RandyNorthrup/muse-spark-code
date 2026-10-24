@@ -23,7 +23,6 @@ import {
   type MessageConnection,
 } from 'vscode-jsonrpc/node'
 import { afterAll, afterEach, beforeAll, describe, expect, inject, it } from 'vitest'
-import { withoutCredentials } from '../../src/runtime/credentialVariables'
 import { agentDataFolder } from '../../src/runtime/dataFolder'
 import {
   LSP_COMMANDS,
@@ -34,6 +33,7 @@ import {
 import { EN } from '../../src/shared/l10n/en'
 import { assertCurrentProductionBuild } from './productionBuild'
 import { removeFolder } from './helpers/temporaryFolders'
+import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
 
 const ROOT = process.cwd()
 const AGENT = path.join(ROOT, 'dist', 'acp.js')
@@ -57,17 +57,7 @@ interface Served {
 
 /** The runtime's per-user folders, all inside this suite's own folder. */
 function environment(): NodeJS.ProcessEnv {
-  return {
-    ...withoutCredentials(process.env),
-    HOME,
-    USERPROFILE: HOME,
-    LOCALAPPDATA: path.join(HOME, 'local'),
-    APPDATA: path.join(HOME, 'roaming'),
-    XDG_DATA_HOME: path.join(HOME, 'data'),
-    XDG_CONFIG_HOME: path.join(HOME, 'config'),
-    XDG_STATE_HOME: path.join(HOME, 'state'),
-    GIT_CEILING_DIRECTORIES: FOLDER,
-  }
+  return isolatedRuntimeEnvironment(HOME, FOLDER)
 }
 
 function launch(args: readonly string[], cwd: string): ChildProcessWithoutNullStreams {
