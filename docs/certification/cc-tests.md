@@ -391,3 +391,26 @@ Fix: on Windows the same summary is printed by
 bash keeps its line. The triage's pass-summary patterns read either.
 
 Red (before): 1 failed as above. Green: 3 passed.
+
+### extensionHookPlanProvider: the rig's hooks get the Windows variables a host has
+
+Cause: the Model API rig ran hooks with an empty environment on Windows
+(`SHELL=/bin/sh` only on POSIX). The product starts a Windows hook as
+Windows PowerShell → `& cmd.exe /D /S /C <command>`, and PowerShell starts
+cmd.exe by PATHEXT: without it, it hands the file to the shell's file
+association, which starts it detached and without the hook's standard input.
+The recorder hook therefore wrote nothing (`expected [] to have a length of 3`),
+and its detached processes still held the folder when `usingTempDir`
+removed it, so `EBUSY: resource busy or locked, rmdir` replaced that
+message. Measured by hand: PowerShell → cmd → node with only `SystemRoot`
+delivered nothing; with `SystemRoot` and `PATHEXT` it delivered the payload.
+The product passes the real environment (`hookEnvironment` keeps COMSPEC,
+PATHEXT, SystemRoot, WINDIR), so it is not affected.
+
+Fix: the rig's hook environment on Windows carries `SystemRoot`, `WINDIR`,
+`COMSPEC` and `PATHEXT` from the test's own environment (no credential), as
+a real host does; POSIX keeps `SHELL=/bin/sh`.
+
+Red (before): `EBUSY … rmdir` (with the folder removal taken out:
+`expected [] to have a length of 3 but got +0`). Green: 1 passed; the rig's
+other 8 suites, 51 tests, still pass.
