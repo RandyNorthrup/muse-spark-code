@@ -16681,6 +16681,17 @@ persistence behind the savings row, `check:catches` and knip (both
 fail identically on the M98P2 base), and the packed-product real-life
 run before release.
 
+**Status 2026-10-23 (RVINT4): built.** The fourth integration round
+(`8ae18f2266..2640d6daea`) kept both sides of each lane merge except
+one dropped proof. Merge `47562e98c7` lost the only test that a
+signaled program's stderr is not the helper's verdict. The runner
+still refuses that case (`confinement`, or `processCreation` for
+`du`) in `src/core/judge/fast/inspectExec.ts`. The proof is back in
+`test/unit/inspectNative.test.ts`: it fails when the runner reads the
+forged refusal (vitest exit 1, reason `network`) and passes on Linux
+after the restore (vitest exit 0). Windows does not run that branch.
+Evidence: `docs/certification/rvint4.md`.
+
 - **Goal.** D107: the judge is our own Jev. A batched, calibrated decision
   engine makes the agent faster (decisions the big model spends a turn or
   a round-trip on) and more accurate (checks on its own work), works out

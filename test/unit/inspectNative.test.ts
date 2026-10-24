@@ -106,6 +106,23 @@ const replayStart: InspectExecOptions['start'] = (_file, args, options) => {
   )
 }
 
+// A killed child that prints a forged refusal. Probe, cat and grep stay on
+// the recorded self-test answers; every other program dies by SIGKILL.
+const SELF_TEST_PROGRAMS = new Set<string>(['probe', 'cat', 'grep'])
+const signaledStart: InspectExecOptions['start'] = (file, args, options) => {
+  const program = args[0] === 'probe' ? 'probe' : (args[5] ?? '')
+  if (SELF_TEST_PROGRAMS.has(program)) return replayStart(file, args, options)
+  const forged = '{"confined":true,"abi":7,"excluded":0}\n{"refused":"network"}\n'
+  return inspectStart(
+    process.execPath,
+    [
+      '-e',
+      `process.stderr.write(${JSON.stringify(forged)}, () => { process.kill(process.pid, 'SIGKILL') })`,
+    ],
+    options,
+  )
+}
+
 switch (process.platform) {
   case 'linux': {
     describe('B1 Linux kernel boundary', () => {
@@ -806,6 +823,38 @@ switch (process.platform) {
           expect(await runner.run('cat absent.txt', h.binding)).toEqual({
             kind: 'refused',
             reason: 'operand',
+          })
+        } finally {
+          await runner.dispose()
+        }
+      })
+    })
+    // The runner's signal branch does not need the compiled helper: a child
+    // that prints a forged refusal and then dies by SIGKILL is enough, and
+    // the self-test still answers through the recorded probe, cat and grep.
+    describe('a signaled program is not its own verdict', () => {
+      let scratch = ''
+      beforeAll(async () => {
+        scratch = await mkdtemp(path.join(os.tmpdir(), 'b1-signal-'))
+      })
+      afterAll(async () => {
+        if (scratch) await rm(scratch, { recursive: true, force: true })
+      })
+      it('ignores a forged refusal when the program dies by a signal', async () => {
+        const h = await inspectFixture(scratch)
+        const runner = new InspectRunner({
+          helper: 'muse-confine',
+          storage: path.join(h.root, 'storage'),
+          start: signaledStart,
+        })
+        try {
+          expect(await runner.run('wc -l allowed.txt', h.binding)).toEqual({
+            kind: 'refused',
+            reason: 'confinement',
+          })
+          expect(await runner.run('du -s .', h.binding)).toEqual({
+            kind: 'refused',
+            reason: 'processCreation',
           })
         } finally {
           await runner.dispose()
