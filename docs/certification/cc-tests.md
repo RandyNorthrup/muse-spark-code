@@ -79,3 +79,11 @@ Budget unchanged.
 Red (before): `expected 25840 to be less than or equal to 25600`.
 Green: 9 passed; the browser English build measures the surface chunk at
 24,240 B and the plan sign-in chunk at 2,559 B (it holds `acpGrok`).
+
+### nodeBrowserWorkspace: the narrow picture goes to temp/
+
+Cause: the 320 px case wrote its full-page picture over the committed record
+picture `docs/certification/m110-u1-shots/editor-dark-320.png` on every run.
+
+Fix: it writes `temp/m110-u1-shots/editor-dark-320.png` (gitignored); the
+M110-U1 record says so. No comparison is made of either picture.
