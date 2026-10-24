@@ -15,7 +15,7 @@ import {
   importFromAgents as runImport,
 } from './commands/agentImportCommands'
 import { fileImportIo, fileImportWriter, isPathPresent } from './importIo'
-import { type AgentImportHostDeps, runAgentImportUi } from './agentImportHost'
+import { type AgentImportHostDeps, runAgentImportUi } from './vscode/agentImportHost'
 
 // One gate for the extension host: a second import asked for while one is
 // open is told so, and starts nothing over the first one's questions.

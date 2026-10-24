@@ -33704,6 +33704,10 @@ logged.
 
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
 
+On int (cc/rlm104, 2026-10-24): the MHP contract (D226) and lane A's
+`src/host/vscode/` boundary; every other lane, with its int-specific
+design, is listed in `docs/certification/cc-rlm104.md`.
+
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would
 refuse registration on stock Ubuntu with umask 0002. The native schedule

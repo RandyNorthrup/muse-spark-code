@@ -16,7 +16,7 @@ import {
   SessionBudgetInvalidError,
   type SessionBudgetConfig,
 } from '../../src/host/models/sessionBudget'
-import { vscodeSessionBudgetSource } from '../../src/host/models/modelsPanelEntry'
+import { vscodeSessionBudgetSource } from '../../src/host/vscode/models/modelsPanelEntry'
 import { canonicalUsd, usdAmountSchema } from '../../src/shared/usdSchema'
 
 const SETTING = 'modelApiSessionBudgetUsd'

@@ -223,7 +223,7 @@ describe('M117 diagnostic × real surface replacement table', () => {
         // The history loader renders the same template when
         // dist/estimateHistory.js cannot load (M117 C-M117-2).
         'src/host/estimator/historyBundle.ts',
-        'src/host/views/webviewSetup.ts',
+        'src/host/vscode/views/webviewSetup.ts',
       ].toSorted(byText),
     )
   })

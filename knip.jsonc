@@ -21,7 +21,7 @@
     "src/runtime/reporting/reportsEntry.ts",
     "src/runtime/reporting/reportInputsEntry.ts",
     "src/runtime/reporting/playbookSchedulesInputsEntry.ts",
-    "src/host/reporting/reportPanelEntry.ts",
+    "src/host/vscode/reporting/reportPanelEntry.ts",
     "src/webview/reporting/main.tsx",
     "src/extension.ts",
     "src/core/resources/resourceGovernorEntry.ts",
@@ -56,7 +56,7 @@
     "src/runtime/node/packs/verifyBundle.ts",
     "src/runtime/usage/usageServiceEntry.ts",
     "src/runtime/usage/usageCompanionEntry.ts",
-    "src/host/usage/usagePanelEntry.ts",
+    "src/host/vscode/usage/usagePanelEntry.ts",
     "src/webview/usage/usage.tsx",
     "src/runtime/companion/voiceEntry.ts",
     "src/webview/voice/companion.ts",
@@ -95,7 +95,7 @@
     "src/core/legal/entry.ts",
     // The legal header-fix planner, built as dist/legalFix.js (D6), loaded by path.
     "src/core/legal/legalFixEntry.ts",
-    "src/host/prompts/promptEntry.ts",
+    "src/host/vscode/prompts/promptEntry.ts",
 
     "src/host/validationSchemaEntry.ts",
     // The Model API backend's own bundle (M57), required by path at runtime.
@@ -109,7 +109,7 @@
     // subscription action.
     "src/host/backend/subscriptionCommandsEntry.ts",
     "src/host/backend/configuredProvidersEntry.ts",
-    "src/host/models/modelsPanelEntry.ts",
+    "src/host/vscode/models/modelsPanelEntry.ts",
     // The sign-in gate's own bundle (CIFIX161B), required by path on the
     // first credential, money or consent read.
     "src/host/auth/authEntry.ts",
@@ -234,7 +234,7 @@
     // recording, each required by path on first use (dist/media.js,
     // dist/mediaHost.js, dist/screenRecord.js).
     "src/host/media/mediaEntry.ts",
-    "src/host/media/mediaHostEntry.ts",
+    "src/host/vscode/media/mediaHostEntry.ts",
     "src/host/media/screenRecordEntry.ts",
     // M112 A: same-build ACP question factory, loaded by path on first use.
     "src/acp/questionDeferralEntry.ts",
@@ -253,7 +253,7 @@
     "src/runtime/judge/judgeBundle.ts",
     "src/runtime/schedules/backgroundEntry.ts",
     // The vault's window (M109 W), required by path on the first vault command.
-    "src/host/vault/vaultPanelEntry.ts",
+    "src/host/vscode/vault/vaultPanelEntry.ts",
     // The vault's explicit-action code, required by path on the first vault
     // action (RVAPP-CM1091D5 BYTES).
     "src/host/vault/vaultActionsEntry.ts",

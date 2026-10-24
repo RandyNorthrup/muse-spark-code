@@ -1,6 +1,6 @@
 // A host without the Copilot dispatch adapter names where the grant lives.
 // The adapter is VS Code's Language Model API
-// (src/host/providers/copilotClient.ts), injected only by editor hosts, so
+// (src/host/vscode/providers/copilotClient.ts), injected only by editor hosts, so
 // the terminal and headless hosts never have one. Real registry, real file,
 // real Meta client, real refusal text; the Meta client is never reached on
 // this path (Codex on PR #213: no stand-in for the provider).

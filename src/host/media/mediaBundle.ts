@@ -5,7 +5,7 @@ import type { Logger } from '../logger'
 import { lazyBundleLoader } from '../lazyBundle'
 import { UI_TEXT } from '../../shared/constants'
 import type { createMediaAttachments } from './mediaEntry'
-import type { createAttachedMedia, windowMediaAttachDeps } from './mediaHostEntry'
+import type { createAttachedMedia, windowMediaAttachDeps } from '../vscode/media/mediaHostEntry'
 
 interface MediaBundle {
   readonly createMediaAttachments: typeof createMediaAttachments
