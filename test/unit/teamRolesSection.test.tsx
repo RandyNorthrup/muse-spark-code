@@ -654,28 +654,27 @@ describe('M96 U1 Roles UI', () => {
     expect(screen.getByRole('status')).toHaveTextContent(UI_TEXT.teamEditor.empty)
   })
   it('gives the Agents section its title-case labels and routes its actions', async () => {
-    const rig = panelRig()
-    const slice = await rig.read()
-    const { posted, post } = collectingPost()
-    const props = sectionProps(slice, post)
-    render(
-      <AgentsSection
-        {...props}
-        panelState={makeState({
-          roles: slice,
-          agents: {
-            tree: teamTreeSchema.parse({
-              orchestrator: { model: 'main', backend: 'modelApi', slot: 'default' },
-              roles: [],
-            }),
-          },
-        })}
-      />,
-    )
+    const { posted } = await agentsRig({
+      orchestrator: { model: 'main', backend: 'modelApi', slot: 'default' },
+      roles: [],
+    })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamEditor.stopAll }))
     expect(posted).toContainEqual({ type: 'agents/stopAll' })
   })
 })
+
+async function agentsRig(tree: unknown) {
+  const { slice } = await pairSlice()
+  const { posted, post } = collectingPost()
+  const props = sectionProps(slice, post)
+  render(
+    <AgentsSection
+      {...props}
+      panelState={makeState({ roles: slice, agents: { tree: teamTreeSchema.parse(tree) } })}
+    />,
+  )
+  return { posted, post, slice }
+}
 
 describe('M120 lane P preference editor UI', () => {
   it('edits borrow timers in seconds and toggles auto-order through the controller', async () => {
@@ -789,55 +788,42 @@ describe('M120 lane P preference editor UI', () => {
   })
 
   it('moves a waiting task from the Agent map, and only a waiting one', async () => {
-    const { slice } = await pairSlice()
-    const { posted, post } = collectingPost()
-    const props = sectionProps(slice, post)
-    render(
-      <AgentsSection
-        {...props}
-        panelState={makeState({
-          roles: slice,
-          agents: {
-            tree: teamTreeSchema.parse({
-              orchestrator: { model: 'main', backend: 'modelApi', slot: 'default' },
-              roles: [
-                {
-                  id: 'engineering',
-                  name: 'Engineering',
-                  mode: 'own-branch',
-                  toolGroups: [],
-                  entries: [
-                    {
-                      id: 'a',
-                      provider: 'meta',
-                      payKind: 'local',
-                      caps: [],
-                      running: 1,
-                      state: 'ready',
-                      warnings: [],
-                      workers: [{ taskId: 'task-1', brief: 'run it', status: 'running' }],
-                    },
-                  ],
-                  queued: [{ taskId: 'task-2', brief: 'queue it', status: 'queued' }],
-                  unmerged: [],
-                  interrupted: [],
-                },
-                {
-                  id: 'code-review',
-                  name: 'Code review',
-                  mode: 'read-only',
-                  toolGroups: [],
-                  entries: [],
-                  queued: [],
-                  unmerged: [],
-                  interrupted: [],
-                },
-              ],
-            }),
-          },
-        })}
-      />,
-    )
+    const { posted } = await agentsRig({
+      orchestrator: { model: 'main', backend: 'modelApi', slot: 'default' },
+      roles: [
+        {
+          id: 'engineering',
+          name: 'Engineering',
+          mode: 'own-branch',
+          toolGroups: [],
+          entries: [
+            {
+              id: 'a',
+              provider: 'meta',
+              payKind: 'local',
+              caps: [],
+              running: 1,
+              state: 'ready',
+              warnings: [],
+              workers: [{ taskId: 'task-1', brief: 'run it', status: 'running' }],
+            },
+          ],
+          queued: [{ taskId: 'task-2', brief: 'queue it', status: 'queued' }],
+          unmerged: [],
+          interrupted: [],
+        },
+        {
+          id: 'code-review',
+          name: 'Code review',
+          mode: 'read-only',
+          toolGroups: [],
+          entries: [],
+          queued: [],
+          unmerged: [],
+          interrupted: [],
+        },
+      ],
+    })
     for (
       let round = 0;
       round < 3 && screen.queryByRole('button', { name: UI_TEXT.teamMoveTask }) === null;

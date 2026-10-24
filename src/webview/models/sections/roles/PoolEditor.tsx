@@ -78,6 +78,64 @@ function isFreeOrLocalOffer(offer: TeamPanelOffer): boolean {
   return offer.agent.pays === 'local' || (offer.inputRate === 0 && offer.outputRate === 0)
 }
 
+/** A draggable row's props: pool entries and secondary roles reorder alike. */
+function dragReorderProps(
+  id: string,
+  index: number,
+  dragged: string | undefined,
+  setDragged: (id: string | undefined) => void,
+  move: (id: string, to: number) => void,
+) {
+  return {
+    draggable: true,
+    onDragStart: () => {
+      setDragged(id)
+    },
+    onDragOver: (event: { preventDefault: () => void }) => {
+      event.preventDefault()
+    },
+    onDrop: (event: { preventDefault: () => void }) => {
+      event.preventDefault()
+      if (dragged !== undefined) move(dragged, index)
+      setDragged(undefined)
+    },
+  }
+}
+
+/** The row's order button: its position and label, Alt+Arrow to reorder. */
+function OrderButton({
+  id,
+  index,
+  count,
+  label,
+  name,
+  onMove,
+}: {
+  readonly id: string
+  readonly index: number
+  readonly count: number
+  readonly label: string
+  readonly name?: string | undefined
+  readonly onMove: (id: string, to: number) => void
+}) {
+  return (
+    <button
+      type="button"
+      className="team-editor-order"
+      aria-label={name}
+      onKeyDown={(event) => {
+        const action = webviewKey('team.pool', event)
+        if (action === undefined) return
+        event.preventDefault()
+        const next = index + (action === 'previous' ? -1 : 1)
+        if (next >= 0 && next < count) onMove(id, next)
+      }}
+    >
+      {formatNumber(index + 1)} · {label}
+    </button>
+  )
+}
+
 /** An entry's secondary roles (M120 lane P, D212): ordered, dragged to order. */
 function SecondaryRoles({
   role,
@@ -129,32 +187,15 @@ function SecondaryRoles({
             <li
               key={target}
               className="team-editor-actions"
-              draggable
-              onDragStart={() => {
-                setDragged(target)
-              }}
-              onDragOver={(event) => {
-                event.preventDefault()
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                if (dragged !== undefined) move(dragged, index)
-                setDragged(undefined)
-              }}
+              {...dragReorderProps(target, index, dragged, setDragged, move)}
             >
-              <button
-                type="button"
-                className="team-editor-order"
-                onKeyDown={(event) => {
-                  const action = webviewKey('team.pool', event)
-                  if (action === undefined) return
-                  event.preventDefault()
-                  const next = index + (action === 'previous' ? -1 : 1)
-                  if (next >= 0 && next < secondary.length) move(target, next)
-                }}
-              >
-                {formatNumber(index + 1)} · {roleName(target)}
-              </button>
+              <OrderButton
+                id={target}
+                index={index}
+                count={secondary.length}
+                label={roleName(target)}
+                onMove={move}
+              />
               <button
                 type="button"
                 className="models-button"
@@ -321,34 +362,17 @@ export function PoolEditor({
             <li
               key={entry.id}
               className="team-editor-entry"
-              draggable
-              onDragStart={() => {
-                setDragged(entry.id)
-              }}
-              onDragOver={(event) => {
-                event.preventDefault()
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                if (dragged !== undefined) move(dragged, index)
-                setDragged(undefined)
-              }}
+              {...dragReorderProps(entry.id, index, dragged, setDragged, move)}
             >
               <div className="team-editor-actions">
-                <button
-                  type="button"
-                  className="team-editor-order"
-                  aria-label={label}
-                  onKeyDown={(event) => {
-                    const action = webviewKey('team.pool', event)
-                    if (action === undefined) return
-                    event.preventDefault()
-                    const next = index + (action === 'previous' ? -1 : 1)
-                    if (next >= 0 && next < role.pool.length) move(entry.id, next)
-                  }}
-                >
-                  {formatNumber(index + 1)} · {label}
-                </button>
+                <OrderButton
+                  id={entry.id}
+                  index={index}
+                  count={role.pool.length}
+                  label={label}
+                  name={label}
+                  onMove={move}
+                />
                 <button
                   type="button"
                   className="models-button"
