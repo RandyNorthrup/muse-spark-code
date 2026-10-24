@@ -28,6 +28,20 @@ function record(value: unknown): PlaybookRecord {
   return playbookRecordSchema.parse(value)
 }
 
+// Fail-closed read ports, each mirroring a real panel/governor port: the
+// ordering path grants no effect, so every effect refuses here.
+function failClosedPolicy(agentDataFolder: string, workspaceFolder: string) {
+  return createFileJournalPolicy(
+    { agentDataFolder, workspaceFolder, teamId: 'panel', laneId: 'surface' },
+    {
+      authorizeOverride: () => false,
+      drillRequirements: { guards: () => [] },
+      checkAdmission: { admit: () => false },
+      hookAdmission: { admit: () => false },
+    },
+  )
+}
+
 const infoNote = record({
   kind: 'note',
   value: { rule: 'onePassReview', code: 'checksPassed', at: 1, needsUser: false },
@@ -233,17 +247,7 @@ describe('D220 one report ordering', () => {
 
   it('orders report items through the policy when loudFailures is on', async () => {
     const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-report-order-')
-    // Fail-closed read ports, each mirroring a real panel/governor port: the
-    // ordering path grants no effect, so every effect refuses here.
-    const policy = createFileJournalPolicy(
-      { agentDataFolder, workspaceFolder, teamId: 'panel', laneId: 'surface' },
-      {
-        authorizeOverride: () => false,
-        drillRequirements: { guards: () => [] },
-        checkAdmission: { admit: () => false },
-        hookAdmission: { admit: () => false },
-      },
-    )
+    const policy = failClosedPolicy(agentDataFolder, workspaceFolder)
     const items = [
       { id: 'info', needsUser: false, failing: false },
       { id: 'failure', needsUser: false, failing: true },
@@ -271,15 +275,7 @@ describe('D220 one report ordering', () => {
     const { workspaceFolder, agentDataFolder } = scratchFolders('m116w-report-nojournal-')
     const journalFile = new FilePlaybookJournal(agentDataFolder, workspaceFolder).file
     expect(existsSync(journalFile)).toBe(false)
-    const policy = createFileJournalPolicy(
-      { agentDataFolder, workspaceFolder, teamId: 'panel', laneId: 'surface' },
-      {
-        authorizeOverride: () => false,
-        drillRequirements: { guards: () => [] },
-        checkAdmission: { admit: () => false },
-        hookAdmission: { admit: () => false },
-      },
-    )
+    const policy = failClosedPolicy(agentDataFolder, workspaceFolder)
     const items = [
       { id: 'info', needsUser: false, failing: false },
       { id: 'failure', needsUser: false, failing: true },

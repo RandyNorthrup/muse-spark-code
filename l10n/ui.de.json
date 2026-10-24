@@ -3454,6 +3454,7 @@
   "agentRetryNoSubagent": "Erneuter Versuch ist für diesen Agenten nicht verfügbar: Dieser Agent hat keinen Subagenten für einen erneuten Versuch.",
   "agentRetryNoCheckpoint": "Erneuter Versuch ist für diesen Agenten nicht verfügbar: Er hat keinen isolierten Kontrollpunkt. Änderungen im gemeinsamen Arbeitsbereich bleiben erhalten.",
   "agentContinueUnavailable": "Fortsetzen ist für diesen Agenten oder seinen aktuellen Zustand nicht verfügbar.",
+  "playbookResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "Dieser Agent ist nicht mehr in dieser Unterhaltung.",
   "referenceAgentOutcomes": "Agenten zeigen Aktivität und nachweisgestützte Ergebnisse. Wählen Sie einen beendeten Agenten für seinen begrenzten Beleg und Versuchsverlauf. Fortsetzen bewahrt nach Bestätigung Sitzung und Änderungen; ein erneuter Versuch erfordert einen isolierten Kontrollpunkt. Fehlende Nachweise gelten als ungeprüft. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "für Details auf einen Agenten klicken",

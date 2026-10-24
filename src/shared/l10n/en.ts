@@ -4273,6 +4273,8 @@ export const EN = {
   agentRetryNoCheckpoint:
     'Retry is unavailable for this agent: it has no isolated checkpoint. Shared workspace changes are kept.',
   agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  playbookResumePaused:
+    'The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.',
   agentGone: 'That agent is no longer in this conversation.',
   referenceAgentOutcomes:
     'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
