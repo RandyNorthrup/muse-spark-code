@@ -995,3 +995,67 @@ records (C-M106-2 R5, block `gates-b96bda2b6-35300`); the other three
 were still in `PLAN.md`. This block lands as it was moved (hash
 verified), so C-M106-2 R5 now stands in two hashed blocks and the three
 M106 records left `PLAN.md` at the join, behind this block's pointer.
+
+## 2026-10-23: eight §2 design records for int/recovery (branch cc/plan)
+
+At int/recovery `d81327d36` `PLAN.md` stood at 3,737,114 bytes (89.1% of
+the 4 MiB bound), 171,956 over the `check:plan` gate. The integrator named
+the decisions no unmerged branch works in: D89, D83, D87, D107, D88, D100,
+D80 and D104. One `move --batch` (dry run first, same report) moved their
+design records to `docs/plan-archive/decisions.md`, each under its own
+heading; `PLAN.md` keeps each heading and a paragraph that states the rule
+in force, written from the decision with its amendments, ending with
+`Full record`. No `--allow-fact-change`. gates.md and milestones.md are
+untouched, so C-M106-2 R5's two hashed blocks stand as they were.
+
+| Decision | Block                       | Lines (at `d81327d36`) |  Bytes | SHA-256     |
+| -------- | --------------------------- | ---------------------- | -----: | ----------- |
+| D83      | `decisions-d81327d36-6716`  | 6716–7022              | 29,456 | `3f211964…` |
+| D80      | `decisions-d81327d36-7356`  | 7356–7531              | 13,095 | `9021df86…` |
+| D87      | `decisions-d81327d36-7766`  | 7766–8090              | 21,074 | `4331b4a8…` |
+| D88      | `decisions-d81327d36-8096`  | 8096–8410              | 19,843 | `cb1ca309…` |
+| D89      | `decisions-d81327d36-8416`  | 8416–8997              | 50,946 | `bb9727ce…` |
+| D100     | `decisions-d81327d36-13256` | 13256–13473            | 15,122 | `aa6dcb2a…` |
+| D104     | `decisions-d81327d36-13800` | 13800–14005            | 12,364 | `0925da37…` |
+| D107     | `decisions-d81327d36-14137` | 14137–14447            | 21,036 | `874fd5a6…` |
+
+Moved 182,936 bytes; the eight paragraphs add 8,882. After: 3,563,060
+bytes (84.9%), 2,098 bytes under the gate.
+
+Kept in place: D87's opening paragraph (the owner's 2026-10-05 quote),
+because `ms/msm107` inserts its unlanded 2026-10-17 "every resource limit
+is the person's" amendment between D87's heading and that paragraph; the
+`---` rules between decisions; D86, D90, D91, D92 and D93 (`rec/rlplan`
+touches D86, D92 and D93).
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` before the write,
+  SHA-256 `2bd1f8f5…`. Parsed facts identical; format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/decisions.md`: clean.
+- `npm run check:plan`: `plan-format-v1; 240 milestones; 0 drift`.
+- `npm run roadmap:generate`: `ROADMAP.md` unchanged; `npm run
+check:roadmap`: 240 entries, current.
+- `npm run check:reference`: current.
+- `plan-archive status`: decisions 135 blocks (+8), gates 328, milestones
+  186, all intact.
+- `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure`:
+  135 passed. `devices`: passed. `estimatorPlanSnapshotRealPlan`: 8
+  failed, 35 passed, the same 8 test names failing on the pre-move file
+  (§6 lane data; pre-existing).
+- Merge proof (`git merge-file --diff-algorithm=histogram`, each
+  unmerged branch's `PLAN.md` onto the old file and onto the new, a
+  region counted new when no old region's branch side holds its branch
+  lines): 96 unmerged branches, 41 change no `PLAN.md`, 55 merged twice.
+  52 merge with the same or fewer conflicts; the branches that append
+  decisions after D107 (the limits, drops, azure, datedfacts, mcpgaps,
+  keystore and CLI-help heads) now merge there with fewer conflicts or
+  none. A first run that also moved D87's opening paragraph gave
+  `ms/msm107` a new region, so that paragraph stayed.
+  Three refs gain regions in D104 and D107: `src/RLM109/02-c-m109-lease`,
+  `03-c-m109-lease` and `04-c-m109-join`, inputs of RLM109, which landed
+  as `rec/rlm109`. At their merge base (`52a37ad49`) neither decision
+  exists; they carry the train's copies (D107 byte-identical to
+  int/recovery's, D104 without its 2026-10-16 amendment), so any archive
+  of D104 or D107 conflicts there. Each already has 64 or 65 conflict
+  regions against int/recovery.
