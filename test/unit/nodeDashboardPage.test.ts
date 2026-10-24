@@ -2,11 +2,12 @@
 // assemble the service's state with the machine's readings, and the audit
 // pages newest-first over the real hash-chained store. Port inputs (sessions,
 // readings) are parameters; the store, the paging and the schema's cross-field
-// refinement are real.
+// refinement are real. The store runs natively on Linux or WSL only; on
+// Windows each case proves the store's refusal in words (nodeNativeTest).
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect } from 'vitest'
 import {
   NODE_MAX_PAGE_ITEMS,
   NODE_PROTOCOL_VERSION,
@@ -16,6 +17,7 @@ import {
 import type { NodeAudit } from '../../src/shared/node'
 import type { NodeSession } from '../../src/shared/nodeAuth'
 import { initializedPageStore, pageRefusal } from './helpers/node/pageMethods'
+import { nodeNativeTest } from './helpers/nodeNative'
 import {
   createNodeDashboardMethods,
   type NodeDashboardPagePort,
@@ -72,7 +74,7 @@ async function setup(overrides: Partial<NodeDashboardPagePort> = {}) {
 }
 
 describe('node dashboard methods', () => {
-  it('reads the dashboard with attendance derived from sessions', async () => {
+  nodeNativeTest('reads the dashboard with attendance derived from sessions', async () => {
     const test = await setup()
     const signal = new AbortController().signal
     const dashboard = await test.methods.read({}, signal)
@@ -85,7 +87,7 @@ describe('node dashboard methods', () => {
     expect(test.reported).toEqual([])
   })
 
-  it('reads unattended with no sessions and stays sealed', async () => {
+  nodeNativeTest('reads unattended with no sessions and stays sealed', async () => {
     const test = await setup({ sessions: () => Promise.resolve([]) })
     const signal = new AbortController().signal
     const dashboard = await test.methods.read({}, signal)
@@ -93,15 +95,18 @@ describe('node dashboard methods', () => {
     expect(dashboard.keyStoreSealed).toBe(true)
   })
 
-  it('refuses a locked node that still holds sessions as unavailable, and files it', async () => {
-    const test = await setup({ locked: () => Promise.resolve(true) })
-    const signal = new AbortController().signal
-    const failed = await pageRefusal(test.methods.read({}, signal))
-    expect(failed.code).toBe('unavailable')
-    expect(test.reported).toHaveLength(1)
-  })
+  nodeNativeTest(
+    'refuses a locked node that still holds sessions as unavailable, and files it',
+    async () => {
+      const test = await setup({ locked: () => Promise.resolve(true) })
+      const signal = new AbortController().signal
+      const failed = await pageRefusal(test.methods.read({}, signal))
+      expect(failed.code).toBe('unavailable')
+      expect(test.reported).toHaveLength(1)
+    },
+  )
 
-  it('pages the audit newest-first over the real store', async () => {
+  nodeNativeTest('pages the audit newest-first over the real store', async () => {
     const test = await setup()
     const signal = new AbortController().signal
     const dashboard = await test.methods.read({}, signal)
@@ -132,7 +137,7 @@ describe('node dashboard methods', () => {
     expect(tail.nextCursor).toBeNull()
   })
 
-  it('walks a long trail page by page and restarts an unknown cursor', async () => {
+  nodeNativeTest('walks a long trail page by page and restarts an unknown cursor', async () => {
     const generated: NodeAudit[] = []
     for (let seq = 1; seq <= NODE_MAX_PAGE_ITEMS + 2; seq += 1) {
       generated.push({

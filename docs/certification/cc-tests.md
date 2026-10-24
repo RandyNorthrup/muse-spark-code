@@ -103,3 +103,22 @@ Red (before): the step log showed `after undo export const greeting = "hello"`,
 `after redo export const greeting = "hello"`, then
 `locator resolved to <button disabled type="button">Save file</button>` until
 `Test timed out in 15000ms`. Green: 5 passed.
+
+### nodeDashboardPage, nodeTerminalPage: the store's Windows refusal
+
+Cause: both suites run the node's page methods over the real state store
+(`initializedPageStore`), whose private-files layer refuses on Windows by
+design (`src/runtime/node/privateFiles.ts`: "A0 runs natively on Linux or
+WSL; a DACL adapter is not qualified"), with "This operation is not supported
+on this node." The node service never runs on Windows, so the 11 cases failed
+on the product's own refusal.
+
+Fix: the cases run through `nodeNativeTest`, the node suites' existing
+harness: the real case on Linux and macOS, and on Windows the proof that the
+store refuses in those words.
+
+Red (before): 11 failed with `This operation is not supported on this node.`
+Green: 11 passed. Red drill: the store's Windows refusal disabled
+(`privateFiles.ts`) → 5 of 5 dashboard cases failed,
+`expected [Function] to throw error including 'not supported' but got 'process.getuid is not a function'`;
+restored.
