@@ -359,6 +359,31 @@ export function VaultSection({
           </div>
         </details>
       ))}
+      {/* D217: retired migration slots, each with its own Undo. The key
+          beside the label is technical detail, spliced like item handles. */}
+      {(state.retired ?? []).length > 0 && (
+        <>
+          <h3>{UI_TEXT.vault.retiredEntries}</h3>
+          {(state.retired ?? []).map((entry) => (
+            <details key={entry.key}>
+              <summary>
+                {entry.label} ({entry.key})
+              </summary>
+              <div className="vault-actions">
+                <button
+                  type="button"
+                  disabled={!isUnlocked}
+                  onClick={() => {
+                    post({ type: 'vaultUndoRetired', key: entry.key })
+                  }}
+                >
+                  {UI_TEXT.undoAction}
+                </button>
+              </div>
+            </details>
+          ))}
+        </>
+      )}
       {editingGrant && isUnlocked && (
         <VaultGrantEditor
           items={visibleItems}

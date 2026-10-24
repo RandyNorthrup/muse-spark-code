@@ -678,6 +678,63 @@ export class VaultMigration {
       await this.save({ ...row, phase: 'undone' }, lease)
     })
   }
+  /**
+  D217: undo a retired slot — restore its vault bytes to the legacy store
+  byte-exact and return the slot to `active` with the retain window
+  restarted, so the next unlock does not retire it again at once. Only
+  `retired` rows undo; every other phase refuses with `window`, and an
+  `active` row never lands on the abandon path above through this call.
+  A legacy copy that reappeared with different bytes is never
+  overwritten (`conflict`); identical bytes are already current, so the
+  slot reactivates without writing. A vault copy that fails validation
+  or its journaled digest refuses, never restores damage.
+  */
+  async undoRetired(key: string): Promise<void> {
+    const entry = this.credential(key)
+    await this.run(async (lease) => {
+      const row = await this.record(entry, lease)
+      if (row?.phase !== 'retired') throw new VaultMigrationFault('window')
+      let item: VaultItem | undefined
+      let encoded: Uint8Array | undefined
+      let live: Uint8Array | null = null
+      try {
+        item = await this.deps.vault.read(entry.itemId)
+        lease.assertCurrent()
+        validateMigrationItem(item, entry.itemId)
+        if (itemDigest(item) !== row.digest) throw new VaultMigrationFault('verification')
+        encoded = entry.encode(item)
+        lease.assertCurrent()
+        live = await this.deps.legacy.read(entry.key)
+        lease.assertCurrent()
+        if (live === null) {
+          await this.deps.legacy.write(entry.key, encoded, () => {
+            lease.assertCurrent()
+          })
+          lease.assertCurrent()
+        } else if (!areSameBytes(encoded, live)) {
+          // A newer save the engine did not write: keep it, restore nothing.
+          throw new VaultMigrationFault('conflict')
+        }
+        const base = { ...row }
+        delete base.retireIntent
+        delete base.retireNote
+        delete base.retirementNoticePending
+        await this.save(
+          {
+            ...base,
+            retainLegacy: true,
+            phase: 'active',
+            startedRelease: this.currentRelease(),
+          },
+          lease,
+        )
+      } finally {
+        live?.fill(0)
+        encoded?.fill(0)
+        eraseItem(item)
+      }
+    })
+  }
   async retire(key: string): Promise<boolean> {
     const entry = this.credential(key)
     return await this.run(async (lease) => {

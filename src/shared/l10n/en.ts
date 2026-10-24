@@ -790,6 +790,8 @@ export const EN = {
   referenceVaultPanel:
     'Open the per-user credential vault in the Models & Agents panel: set it up or unlock it, manage items and grants, and lock it. Not yet available on Windows.',
   referenceVaultLock: 'Lock the per-user credential vault now, ending every use in every window.',
+  referenceVaultUndoRetired:
+    'Restore a retired vault entry as the current value, picked from the list of retired entries.',
   referenceAuthClear: 'Remove the stored Model API key.',
   referenceAuthStatus:
     'List the stored keys (the Model API key and every configured provider key); the exit code reports whether any key is stored.',
@@ -8179,6 +8181,15 @@ export const EN = {
     signInYourself: 'Sign In Yourself',
     moveToVault: 'Move to Vault',
     undoMigration: 'Undo Migration',
+    // D217: a retired slot's value restored as current (panel, palette, terminal).
+    retiredEntries: 'Retired entries',
+    retiredUndoDone: 'The retired value is current again.',
+    retiredUndoGone: 'This retired entry is already gone. Nothing was restored.',
+    retiredUndoCurrent: 'This entry is still current. There is nothing to undo.',
+    retiredUndoChanged: 'This entry changed since it retired. The current value was kept.',
+    retiredUndoDamaged: 'The retired value is damaged. Nothing was restored.',
+    retiredUndoUnknown: 'This is not a migrated entry. There is nothing to undo.',
+    noRetiredEntries: 'No retired entries.',
     importFile: 'Import File',
     keepFile: 'Keep File',
     deleteFile: 'Delete the File',
@@ -8271,8 +8282,9 @@ export const EN = {
     resetHeadless:
       'Resetting the vault needs an interactive terminal; headless runs cannot reset it.',
     resetContinue: 'Continue',
+    // D217: retired entries go with the reset; their vault copies are their only copies.
     resetWarning:
-      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again.',
+      'Resetting erases this vault for good: every stored secret is gone, and rollback protection restarts with a new anchor when you set the vault up again. Retired entries are deleted too: the vault holds their only copies.',
     resetTypeWord: 'Type {word} to reset the vault.',
     resetDone: 'The vault was reset. Set it up again to store secrets.',
     vaultLost:

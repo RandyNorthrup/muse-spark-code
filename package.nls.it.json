@@ -253,6 +253,7 @@
   "config.github.useGhLogin.description": "Consente alle pull request di usare l'accesso esistente a GitHub CLI (`gh auth token`), provato per ultimo, dopo l'accesso a GitHub dell'editor e quello di Muse Spark. Il token viene letto per una sola richiesta alla volta e non viene mai salvato. Disattivato per impostazione predefinita; solo impostazioni utente, quindi un repository non può attivarlo.",
   "command.vault.title": "Cassaforte",
   "command.lockVault.title": "Blocca la cassaforte ora",
+  "command.vaultUndoRetired.title": "Ripristina voce ritirata della cassaforte",
   "config.vault.enabled.description": "Attiva o disattiva la cassaforte delle credenziali personale. Un valore legacy museSpark.vault memorizzato si applica finché questa impostazione non viene configurata.",
   "config.vault.protection.description": "Conservata per compatibilità; questa preferenza non ha effetto in questa versione.",
   "config.vault.agentFence.description": "Controlla l’isolamento delle credenziali per i comandi shell interattivi di Model API. Verifiche, pianificazioni, worker e hook restano isolati.",
