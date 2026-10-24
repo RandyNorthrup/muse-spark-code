@@ -4599,6 +4599,17 @@ function outboundSentences(): ReadonlySet<string> {
     UI_TEXT.acpNetworkUnreachable,
     UI_TEXT.acpNetworkProxyCredentials,
     UI_TEXT.acpNetworkUntrustedCertificate,
+    // The readiness check's fixed refusals (runtime/backends.ts): the
+    // editor shows the sentence the person acts on, as the terminal does.
+    UI_TEXT.acpMuseCodeSignedOut,
+    UI_TEXT.acpNoStoredKey,
+    UI_TEXT.acpStoreDown,
+    UI_TEXT.acpChatGpt.states['signed-out'],
+    UI_TEXT.acpChatGpt.failure,
+    UI_TEXT.planUi.copilotTerminalGrant,
+    UI_TEXT.subscriptionKey.signInAgain,
+    UI_TEXT.subscriptionKey.cannotRead,
+    UI_TEXT.subscriptionKey.keychainBacked,
     'Invalid params',
     'Invalid request',
     'Authentication required',
@@ -4721,6 +4732,13 @@ function outboundSentence(message: string): string | undefined {
     if (unprefixed.startsWith(prefix)) unprefixed = unprefixed.slice(prefix.length)
   }
   if (outboundSentences().has(unprefixed)) return message
+  // The readiness check's CLI refusal names the folders it searched after
+  // its fixed sentence (`Searched: …`): only the sentence leaves, never a
+  // path, and the built error keeps the SDK's prefix.
+  const lead = [UI_TEXT.cliNotFound, UI_TEXT.cliPathNotAbsolute].find((sentence) =>
+    unprefixed.startsWith(`${sentence} `),
+  )
+  if (lead !== undefined) return `${message.slice(0, message.length - unprefixed.length)}${lead}`
   for (const { prefix, suffix } of outboundTemplates()) {
     if (
       unprefixed.startsWith(prefix) &&
