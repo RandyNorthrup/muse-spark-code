@@ -107,20 +107,28 @@ export const watchdogOutcomeSchema = z.enum([
 ])
 export type WatchdogOutcome = z.infer<typeof watchdogOutcomeSchema>
 
-/** One watched issue. `runId` is minted per flow: a record without one
-(a restart that dropped it) must fail rather than post twice. */
+/** One watched issue. `runId` is minted per flow and names every reply it
+posts: a record without one (a restart that dropped it) must fail rather
+than post twice. `triageRound` counts the triages the flow has taken in,
+so each round's reply is its own post. `lastTextHash` is the hash of the
+title and body the findings were judged on: an edit changes it. */
 export const watchdogIssueSchema = z.strictObject({
   repository: z.string(),
   issueNumber: z.number(),
   issueId: z.number(),
   state: watchdogStateSchema,
-  runId: z.string(),
+  // Written into the HTML comment that names each reply: nothing that could close it.
+  runId: z.string().check(z.regex(/^[\w-]+$/u)),
   seenAtMs: z.number(),
   ackCommentId: z.optional(z.number()),
+  /** The needs-info reply's comment: an answer is a later comment. */
+  replyCommentId: z.optional(z.number()),
   labelsApplied: z.array(z.string()),
+  triageRound: z.number(),
   findings: z.optional(triageFindingsSchema),
   outcome: z.optional(watchdogOutcomeSchema),
   lastTitle: z.string(),
+  lastTextHash: z.string(),
   lastCommentCount: z.number(),
   lastIssueUpdatedAt: z.string(),
   updatedAtMs: z.number(),
@@ -145,41 +153,36 @@ const TRANSITIONS: Readonly<
   Record<WatchdogState, Partial<Readonly<Record<WatchdogEvent, WatchdogState>>>>
 > = {
   seen: { acknowledged: 'acknowledged', closed: 'closed' },
-  acknowledged: { triaged: 'triaged', closed: 'closed', reopened: 'acknowledged' },
+  acknowledged: {
+    triaged: 'triaged',
+    closed: 'closed',
+    reopened: 'acknowledged',
+    edited: 'acknowledged',
+  },
   triaged: {
     infoRequested: 'awaitingInfo',
     planned: 'planned',
     replied: 'replied',
     closed: 'closed',
+    edited: 'acknowledged',
   },
-  awaitingInfo: {
-    infoReceived: 'triaged',
-    planned: 'planned',
-    replied: 'replied',
-    closed: 'closed',
-  },
-  planned: { replied: 'replied', closed: 'closed', reopened: 'planned' },
+  // The reporter's answer or edit makes the findings stale: the flow
+  // returns to acknowledged and triages again, in a new round.
+  awaitingInfo: { infoReceived: 'acknowledged', edited: 'acknowledged', closed: 'closed' },
+  planned: { replied: 'replied', closed: 'closed', reopened: 'planned', edited: 'planned' },
   replied: { closed: 'closed', reopened: 'replied', edited: 'acknowledged' },
   closed: { reopened: 'acknowledged', edited: 'closed', polled: 'closed' },
 }
 
-/** The machine's one step. `polled` and `edited` re-drive an open flow
-without repeating a post; anything unlisted throws, never silently. An
-edit drops the flow back to `acknowledged`: its findings are stale, and
-the poll clears them. */
+/** The machine's one step. `polled` re-drives an open flow where it is;
+anything unlisted throws, never silently. An edit (or the reporter's
+answer) drops the flow back to `acknowledged`: its findings are stale, and
+the poll clears them. A post is never repeated by it: each reply is named
+by its flow, round and kind. */
 export function nextWatchdogState(state: WatchdogState, event: WatchdogEvent): WatchdogState {
   // An open flow re-reads its issue every poll and stays where it is.
   if (event === 'polled' && state !== 'closed') return state
-  // An edited open issue is triaged again; a post is never repeated.
-  if (event === 'edited' && (state === 'acknowledged' || state === 'triaged')) return 'acknowledged'
   const next = TRANSITIONS[state][event]
   if (next === undefined) throw new Error(`watchdog cannot move from ${state} on ${event}`)
   return next
-}
-
-/** The language detector's choice under rule 9: English. The templates
-stay in the person's installed language; detection beyond English waits
-for the pinned trigram table. */
-export function detectWatchdogLanguage(_text: string): 'en' {
-  return 'en'
 }

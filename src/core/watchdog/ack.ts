@@ -3,28 +3,47 @@
 // goes first: a crash between the two retries the label (GitHub dedupes
 // it) instead of posting twice. Anything already carrying the marker —
 // posted by this watchdog on any machine — is adopted, never repeated.
-import { WATCHDOG_ACK_MARKER, WATCHDOG_REPLY_MARKER } from '../../shared/constants'
-import { UI_TEXT } from '../../shared/l10n/text'
+import { WATCHDOG_ACK_MARKER, WATCHDOG_REPLY_MARKER_PREFIX } from '../../shared/constants'
+import { EN } from '../../shared/l10n/en'
 import type { GitHubClient, GitHubIssue, GitHubIssueComment } from '../git/github'
 import type { GitHubRepository } from '../git/githubRemote'
 import type { WatchdogIssue, WatchdogPolicy } from '../../shared/watchdog'
 
-/** The shared post footer: the kind's marker plus the automated note. */
+/** The shared post footer: the kind's marker plus the automated note. A
+public post is English: the reporter's language is not detected (PLAN
+D95.14: "otherwise English"), and the person's own display language says
+nothing about the reporter's. */
 export function signWatchdogPost(body: string, marker: string): string {
-  return `${body}\n\n${marker}\n\n_${UI_TEXT.watchdog.ack.automatedNote}_`
+  return `${body}\n\n${marker}\n\n_${EN.watchdog.ack.automatedNote}_`
 }
 
 export function composeAckBody(policy: WatchdogPolicy): string {
-  const template = policy.ackTemplate ?? UI_TEXT.watchdog.ack.body
+  const template = policy.ackTemplate ?? EN.watchdog.ack.body
   return signWatchdogPost(template, WATCHDOG_ACK_MARKER)
 }
 
-export function isWatchdogPost(body: string): boolean {
-  return body.includes(WATCHDOG_ACK_MARKER) || body.includes(WATCHDOG_REPLY_MARKER)
+export type WatchdogReplyKind = 'needsInfo' | 'duplicate' | 'alreadyFixed' | 'invalid' | 'fixed'
+
+/** One reply's marker: its flow, its triage round and its kind. */
+export function watchdogReplyMarker(
+  record: Pick<WatchdogIssue, 'runId' | 'triageRound'>,
+  kind: WatchdogReplyKind,
+): string {
+  return `${WATCHDOG_REPLY_MARKER_PREFIX} run=${record.runId} round=${String(record.triageRound)} kind=${kind} -->`
 }
 
-export function isWatchdogReply(body: string): boolean {
-  return body.includes(WATCHDOG_REPLY_MARKER)
+/** Any post of ours: an acknowledgement, or a reply (which proves it). */
+export function isWatchdogPost(body: string): boolean {
+  return body.includes(WATCHDOG_ACK_MARKER) || body.includes(WATCHDOG_REPLY_MARKER_PREFIX)
+}
+
+/** Whether this very reply (flow, round, kind) is already out there. */
+export function isWatchdogReply(
+  body: string,
+  record: Pick<WatchdogIssue, 'runId' | 'triageRound'>,
+  kind: WatchdogReplyKind,
+): boolean {
+  return body.includes(watchdogReplyMarker(record, kind))
 }
 
 export type AckSkipNote =

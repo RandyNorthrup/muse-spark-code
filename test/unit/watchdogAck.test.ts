@@ -14,7 +14,9 @@ import {
   findEmbeddedInstructions,
   resolvePostApproval,
 } from '../../src/core/watchdog/guard'
+import { EN } from '../../src/shared/l10n/en'
 import { collectingLogger } from './helpers/collectingLogger'
+import { installGerman, restoreEnglish } from './helpers/kindGermanTable'
 import { capturedComments } from './helpers/watchdog/fixtures'
 import { serveGithub, watchdogCaptured } from './helpers/watchdog/servedGithub'
 
@@ -50,6 +52,22 @@ describe('acknowledgement', () => {
     expect(body).toContain(UI_TEXT.watchdog.ack.automatedNote)
     expect(isWatchdogPost(body)).toBe(true)
     expect(isWatchdogPost('Thanks, looking into it.')).toBe(false)
+  })
+
+  it('posts in English whatever language the person reads', async () => {
+    // The reporter's language is not detected, so a public post is English
+    // (PLAN D95.14); the person's German display text must not leak into it.
+    const logged: string[] = []
+    try {
+      await installGerman(collectingLogger(logged))
+      expect(UI_TEXT.watchdog.ack.body).not.toBe(EN.watchdog.ack.body)
+      const body = composeAckBody(defaultWatchdogPolicy('owner/name'))
+      expect(body).toContain(EN.watchdog.ack.body)
+      expect(body).toContain(EN.watchdog.ack.automatedNote)
+      expect(body).not.toContain(UI_TEXT.watchdog.ack.body)
+    } finally {
+      restoreEnglish()
+    }
   })
 
   it('honors the repository template override', () => {

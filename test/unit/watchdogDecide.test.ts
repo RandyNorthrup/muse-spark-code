@@ -5,7 +5,7 @@
 // the captures, except the marked comments, which are synthetic
 // modifications of captured bodies, marked as such.
 import { describe, expect, it } from 'vitest'
-import { WATCHDOG_REPLY_MARKER, UI_TEXT } from '../../src/shared/constants'
+import { WATCHDOG_REPLY_MARKER_PREFIX, UI_TEXT } from '../../src/shared/constants'
 import {
   defaultWatchdogPolicy,
   watchdogIssueSchema,
@@ -18,6 +18,7 @@ import {
   resolveWatchdogIssue,
   type WatchdogDecideDeps,
 } from '../../src/core/watchdog/decide'
+import { watchdogReplyMarker } from '../../src/core/watchdog/ack'
 import { composeReplyBody } from '../../src/core/watchdog/reply'
 import { createWatchdogStore } from '../../src/core/watchdog/store'
 import { createNodeScheduleFs } from '../../src/runtime/schedules/nodeScheduleFs'
@@ -33,22 +34,26 @@ import {
 
 const roots = fileRoots()
 
+/** The captured issue every decide case works on. */
+const ISSUE = 146
+
 function recordFor(
-  number: number,
   state: WatchdogIssue['state'],
   verdict: TriageFindings['verdict'],
 ): WatchdogIssue {
   return watchdogIssueSchema.parse({
     repository: WATCHDOG_REPOSITORY,
-    issueNumber: number,
-    issueId: number,
+    issueNumber: ISSUE,
+    issueId: ISSUE,
     state,
     runId: 'run-1',
     seenAtMs: 1,
     ackCommentId: 9,
     labelsApplied: ['triage'],
+    triageRound: 1,
     findings: findingsFor(verdict, 'The window crashes on open.'),
     lastTitle: 't',
+    lastTextHash: 'h',
     lastCommentCount: 1,
     lastIssueUpdatedAt: '2026-10-22T00:00:00Z',
     updatedAtMs: 1,
@@ -103,7 +108,7 @@ async function seedTriaged(
   state: WatchdogIssue['state'] = 'triaged',
 ) {
   await store.exclusive(WATCHDOG_REPOSITORY, (data) => ({
-    data: { policy: data.policy, issues: [recordFor(146, state, verdict)] },
+    data: { policy: data.policy, issues: [recordFor(state, verdict)] },
     result: undefined,
   }))
 }
@@ -139,8 +144,39 @@ describe('watchdog decide', () => {
     })
     const body = postedReplyBody(calls)
     expect(body).toContain('- What did you do?')
-    expect(body).toContain(WATCHDOG_REPLY_MARKER)
+    expect(body).toContain(watchdogReplyMarker(recordFor('triaged', 'needsInfo'), 'needsInfo'))
     expect(calls.some((call) => call.method === 'PATCH')).toBe(false)
+    // The reply's comment is kept: the reporter's answer is a later one.
+    const stored = await deps.store.list()
+    expect(stored[0]?.issues[0]?.replyCommentId).toBe(
+      capturedObjects('github-issue-comments')[0]?.['id'],
+    )
+  })
+
+  it('posts a later round’s reply although an earlier round’s is out there', async () => {
+    // Round 1 asked its questions (its marker is on the issue); the reporter
+    // answered and the flow triaged again in round 2 as a duplicate.
+    const earlier = capturedObjects('github-issue-comments').map((comment) => ({
+      ...comment,
+      body: `questions\n\n${watchdogReplyMarker({ runId: 'run-1', triageRound: 1 }, 'needsInfo')}`,
+    }))
+    const { deps, calls } = await decideHarness(
+      decisionRoutes({
+        [`GET ${WATCHDOG_BASE}/issues/146/comments`]: { status: 200, body: earlier },
+      }),
+      true,
+    )
+    await seedTriaged(deps.store, 'duplicate')
+    await deps.store.exclusive(WATCHDOG_REPOSITORY, (data) => ({
+      data: {
+        policy: data.policy,
+        issues: data.issues.map((record) => ({ ...record, triageRound: 2 })),
+      },
+      result: undefined,
+    }))
+    const decision = await decideWatchdogIssue(deps, WATCHDOG_REPOSITORY, 146)
+    expect(decision).toMatchObject({ outcome: 'duplicate', posted: true })
+    expect(postedReplyBody(calls)).toContain('run=run-1 round=2 kind=duplicate')
   })
 
   it('replies and closes by policy, or holds its post on a denied gate', async () => {
@@ -192,7 +228,7 @@ describe('watchdog decide', () => {
   it('adopts a reply already out there and retries its close', async () => {
     const marked = capturedObjects('github-issue-comments').map((comment) => ({
       ...comment,
-      body: `taken\n\n${WATCHDOG_REPLY_MARKER}`,
+      body: `taken\n\n${watchdogReplyMarker(recordFor('triaged', 'alreadyFixed'), 'alreadyFixed')}`,
     }))
     const { deps, calls } = await decideHarness(
       decisionRoutes({
@@ -213,31 +249,26 @@ describe('watchdog decide', () => {
   })
 
   it('fills every reply template and refuses spam and evidence-free fixes', () => {
-    expect(
-      composeReplyBody('needsInfo', findingsFor('needsInfo', 'The window crashes on open.')),
-    ).toContain('- What did you do?')
-    expect(
-      composeReplyBody('duplicate', findingsFor('duplicate', 'The window crashes on open.')),
-    ).toContain('#3')
-    expect(
-      composeReplyBody('alreadyFixed', findingsFor('alreadyFixed', 'The window crashes on open.')),
-    ).toContain('0.19.0')
-    expect(
-      composeReplyBody('invalid', findingsFor('invalid', 'The window crashes on open.')),
-    ).toContain('The window crashes on open.')
-    expect(
-      composeReplyBody('planEntry', findingsFor('valid', 'The window crashes on open.'), {
-        pullRequestNumber: 12,
-        pullRequestUrl: 'https://github.com/o/n/pull/12',
-        version: '0.19.1',
-      }),
-    ).toContain('[#12](https://github.com/o/n/pull/12)')
-    expect(() =>
-      composeReplyBody('spam', findingsFor('spam', 'The window crashes on open.')),
-    ).toThrow()
-    expect(() =>
-      composeReplyBody('planEntry', findingsFor('valid', 'The window crashes on open.')),
-    ).toThrow()
+    const run = { runId: 'run-1', triageRound: 1 }
+    const said = 'The window crashes on open.'
+    expect(composeReplyBody('needsInfo', findingsFor('needsInfo', said), run)).toContain(
+      '- What did you do?',
+    )
+    expect(composeReplyBody('duplicate', findingsFor('duplicate', said), run)).toContain('#3')
+    expect(composeReplyBody('alreadyFixed', findingsFor('alreadyFixed', said), run)).toContain(
+      '0.19.0',
+    )
+    expect(composeReplyBody('invalid', findingsFor('invalid', said), run)).toContain(said)
+    const fixed = composeReplyBody('planEntry', findingsFor('valid', said), run, {
+      pullRequestNumber: 12,
+      pullRequestUrl: 'https://github.com/o/n/pull/12',
+      version: '0.19.1',
+    })
+    expect(fixed).toContain('[#12](https://github.com/o/n/pull/12)')
+    expect(fixed).toContain(WATCHDOG_REPLY_MARKER_PREFIX)
+    expect(fixed).toContain('kind=fixed')
+    expect(() => composeReplyBody('spam', findingsFor('spam', said), run)).toThrow()
+    expect(() => composeReplyBody('planEntry', findingsFor('valid', said), run)).toThrow()
   })
 })
 

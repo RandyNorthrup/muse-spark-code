@@ -3,10 +3,10 @@
 // and the automated note. A reply never embeds issue text: the questions
 // are the triage's own words, and the duplicate, version and pull
 // request are identifiers, not prose.
-import { WATCHDOG_REPLY_MARKER } from '../../shared/constants'
+import { EN } from '../../shared/l10n/en'
 import { UI_TEXT, fill } from '../../shared/l10n/text'
-import type { TriageFindings, WatchdogOutcome } from '../../shared/watchdog'
-import { signWatchdogPost } from './ack'
+import type { TriageFindings, WatchdogIssue, WatchdogOutcome } from '../../shared/watchdog'
+import { signWatchdogPost, watchdogReplyMarker, type WatchdogReplyKind } from './ack'
 import { fenceIssueText } from './guard'
 
 export interface FixedReplyEvidence {
@@ -20,6 +20,26 @@ function required(value: string | number | undefined, what: string): string | nu
   return value
 }
 
+/** The kind each outcome's reply carries in its marker. Spam has none:
+nothing answers spam. */
+export function replyKindFor(outcome: WatchdogOutcome): WatchdogReplyKind {
+  switch (outcome) {
+    case 'needsInfo':
+    case 'duplicate':
+    case 'alreadyFixed':
+    case 'invalid': {
+      return outcome
+    }
+    case 'planEntry':
+    case 'fixLane': {
+      return 'fixed'
+    }
+    case 'spam': {
+      throw new Error('a watchdog reply never answers spam')
+    }
+  }
+}
+
 function outcomeBody(
   outcome: WatchdogOutcome,
   findings: TriageFindings,
@@ -27,22 +47,22 @@ function outcomeBody(
 ): string {
   switch (outcome) {
     case 'needsInfo': {
-      return fill(UI_TEXT.watchdog.reply.needsInfo, {
+      return fill(EN.watchdog.reply.needsInfo, {
         questions: findings.questions.map((question) => `- ${question}`).join('\n'),
       })
     }
     case 'duplicate': {
-      return fill(UI_TEXT.watchdog.reply.duplicate, {
+      return fill(EN.watchdog.reply.duplicate, {
         duplicate: String(required(findings.duplicateOf, 'its duplicate issue')),
       })
     }
     case 'alreadyFixed': {
-      return fill(UI_TEXT.watchdog.reply.alreadyFixed, {
+      return fill(EN.watchdog.reply.alreadyFixed, {
         fixedIn: String(required(findings.fixedIn, 'its fixed version')),
       })
     }
     case 'invalid': {
-      return fill(UI_TEXT.watchdog.reply.invalid, { reason: findings.summary })
+      return fill(EN.watchdog.reply.invalid, { reason: findings.summary })
     }
     case 'spam': {
       throw new Error('a watchdog reply never answers spam')
@@ -50,7 +70,7 @@ function outcomeBody(
     case 'planEntry':
     case 'fixLane': {
       if (fixed === undefined) throw new Error('a watchdog reply needs its fix evidence')
-      return fill(UI_TEXT.watchdog.reply.fixed, {
+      return fill(EN.watchdog.reply.fixed, {
         pullRequest: `[#${String(fixed.pullRequestNumber)}](${fixed.pullRequestUrl})`,
         version: fixed.version,
       })
@@ -58,13 +78,18 @@ function outcomeBody(
   }
 }
 
-/** The signed reply for the outcome. Spam and evidence-free fixes throw. */
+/** The signed reply for the outcome, marked with the record's flow and
+round. Spam and evidence-free fixes throw. */
 export function composeReplyBody(
   outcome: WatchdogOutcome,
   findings: TriageFindings,
+  record: Pick<WatchdogIssue, 'runId' | 'triageRound'>,
   fixed?: FixedReplyEvidence,
 ): string {
-  return signWatchdogPost(outcomeBody(outcome, findings, fixed), WATCHDOG_REPLY_MARKER)
+  return signWatchdogPost(
+    outcomeBody(outcome, findings, fixed),
+    watchdogReplyMarker(record, replyKindFor(outcome)),
+  )
 }
 
 /** The plan draft the valid outcome hands its host: the fenced issue,
