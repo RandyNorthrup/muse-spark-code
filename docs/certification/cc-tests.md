@@ -245,3 +245,19 @@ on the first `git init`. The product already writes `NUL` there
 Fix: the suite uses `NUL` on Windows and `os.devNull` elsewhere.
 
 Red (before): 6 of 7 failed with the message above. Green: 7 passed.
+
+### judgeB2Snapshot: B2 is off on Windows
+
+Cause: every case builds its workspace with a relative file symlink
+(`current -> src/a.ts`), which Windows grants only with the symbolic-link
+privilege (`EPERM … symlink`); 5 cases failed in the fixture.
+
+Why a skip is correct here: PLAN.md M125 puts B2 "on Linux only … off on
+Windows" (the frozen snapshot feeds `contain/linux.ts`), and no product path
+reaches `copyB2Snapshot` or its reader on any platform yet, so there is no
+Windows path to refuse. The two suites run where B2 does (`runIf`, with the
+reason beside it), as the suite's FIFO case already skipped Windows.
+
+Red (before): 5 failed with `EPERM: operation not permitted, symlink 'src\a.ts'`.
+After: 6 skipped on Windows (5 plus the FIFO case), unchanged on Linux and
+macOS.
