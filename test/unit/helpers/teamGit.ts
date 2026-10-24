@@ -2,7 +2,7 @@
 // the binary runs, and its failures come back as the product's own team
 // error with real codes. Shared so the team suites cannot drift apart.
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, rmSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { onTestFinished } from 'vitest'
@@ -34,9 +34,13 @@ export const realTeamGit: TeamGit = (args, cwd, input, env) => {
   }
 }
 
-/** A scratch repository with one empty commit on `main`, removed when the test finishes. */
+/**
+A scratch repository with one empty commit on `main`, removed when the test
+finishes. Its root is the path the file system resolves (macOS's temporary
+folder sits behind a link), because the team merge refuses a linked root.
+*/
 export function scratchTeamRepo(prefix: string): string {
-  const root = mkdtempSync(path.join(tmpdir(), prefix))
+  const root = realpathSync(mkdtempSync(path.join(tmpdir(), prefix)))
   onTestFinished(() => {
     rmSync(root, { recursive: true, force: true })
   })

@@ -21,6 +21,7 @@ import { configureResources } from '../../src/core/resources/admission'
 import { runtimeWindowsJob } from '../../src/runtime/resources/jobs'
 import {
   currentOwner,
+  holdRefFor,
   preserveFailedMerge,
   predictedAgentsRef,
   recordCleanupOwner,
@@ -241,6 +242,34 @@ describe('preserveFailedMerge over real git (finding 5)', () => {
       })
       expect(preserved).toEqual({ kind: 'kept' })
       await expect(stat(copy)).resolves.toBeDefined()
+    },
+  )
+
+  it(
+    'names the hold in the ledger before the fetch creates it (pre-creation tombstone)',
+    { timeout: REAL_GIT_TIMEOUT_MS },
+    async () => {
+      // The fetch cannot run (the copy is gone), so the ref was never
+      // created: only a record written ahead of the fetch can name it, which
+      // is what lets a later sweep find a ref a killed run half-created.
+      await preserveFailedMerge({
+        git: realTeamGit,
+        repo,
+        runFolder,
+        copyFolder: path.join(root, 'missing-copy'),
+        role: 'reviewer',
+        taskId: 'task-tombstone',
+        head,
+      })
+      const ledger = JSON.parse(
+        await readFile(path.join(runFolder, EXEC_TEAM_CLEANUP_FILE), 'utf8'),
+      ) as { holds: { ref: string }[] }
+      expect(ledger.holds.map((entry) => entry.ref)).toContain(
+        holdRefFor('reviewer', 'task-tombstone'),
+      )
+      await expect(
+        git(['rev-parse', '--verify', holdRefFor('reviewer', 'task-tombstone')], repo),
+      ).rejects.toThrow()
     },
   )
 })
