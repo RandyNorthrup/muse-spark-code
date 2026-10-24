@@ -1,10 +1,12 @@
-// The production node binding S0 installs: real stopped-node wipe plus
-// explicit refusals where the A1/M104/M109 integrations are still open.
-// Missing adapters fail explicitly with the node's said words; nothing
-// here pretends to serve, stop, lock or unlock.
+// The production node binding S0 installs: real serve and stop, real
+// stopped-node wipe, and explicit refusals where the A1/M104/M109/T
+// integrations are still open. Missing adapters fail explicitly with the
+// node's said words; nothing here pretends to serve, stop, lock or unlock.
 import { open, rm, unlink } from 'node:fs/promises'
 import path from 'node:path'
 import { NODE_FILE_MODE, NODE_KEYS_FILE, NODE_LOCK_FILE, UI_TEXT } from '../../shared/constants'
+import { serveNode, stopNode } from './serve'
+import { NodePrivateFiles } from './privateFiles'
 import type { NodeStateStore } from './state'
 
 /** Authenticated local transport, TLS/web sign-in, slot codec and tool-peer binding. */
@@ -15,6 +17,7 @@ export interface NodeServiceBinding {
     input: {
       root: string
       all: boolean
+      signal: AbortSignal
       readSecret: () => Promise<string>
     },
   ): Promise<unknown>
@@ -39,10 +42,34 @@ export async function ownService(store: NodeStateStore): Promise<() => Promise<v
   }
 }
 
-export function productionNodeBinding(): NodeServiceBinding {
+export interface ProductionNodeBindingOptions {
+  /** The serve console: the fingerprint line and fixed failure sentences. */
+  readonly print: (line: string) => void
+  /** The product version the dashboard reports. */
+  readonly version: string
+  /** The auth bundle beside dist/node.js; tests hand the module in. */
+  readonly authBundlePath?: string | undefined
+  readonly loadAuthBundle?: (() => unknown) | undefined
+}
+
+export function productionNodeBinding(options: ProductionNodeBindingOptions): NodeServiceBinding {
   return {
-    serve: () => Promise.reject(new Error(UI_TEXT.nodeErrors.unavailable)),
-    command: () => Promise.reject(new Error(UI_TEXT.nodeErrors.unavailable)),
+    serve: (store, signal) =>
+      serveNode({
+        store,
+        signal,
+        print: options.print,
+        version: options.version,
+        authBundlePath: options.authBundlePath,
+        loadAuthBundle: options.loadAuthBundle,
+      }),
+    command: (action, input) => {
+      // Live status and the lock commands ride T's local control transport,
+      // still open: without it the CLI cannot ask the running service.
+      return ['status', 'lock', 'unlock'].includes(action)
+        ? Promise.reject(new Error(UI_TEXT.nodeErrors.unavailable))
+        : stopNode({ files: new NodePrivateFiles(input.root), signal: input.signal })
+    },
     wipe: async (store) => {
       let release: (() => Promise<void>) | undefined
       try {

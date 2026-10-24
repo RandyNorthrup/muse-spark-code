@@ -286,6 +286,11 @@ export const nodeMethodErrorSchema = z.strictObject({
   ]),
 })
 export interface NodeMethodPort {
+  /**
+  Failures are the listener's typed errors; dispatch treats anything else
+  as a bug and surfaces it. Ports convert their plain failures (service,
+  tools, engine) before they return.
+  */
   request<M extends NodeMethodName>(
     method: M,
     params: NodeMethodParams<M>,
