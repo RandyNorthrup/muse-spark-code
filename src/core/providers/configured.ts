@@ -173,6 +173,13 @@ export interface ConfiguredProviderOptions {
   default applies.
   */
   readonly promptCacheTtl?: () => PromptCacheTtl
+  /**
+  M95c part 3: the person's `museSpark.modelApiPromptCacheBreakpoints`
+  setting, read live per request. On, the Responses codec marks OpenAI's
+  explicit cache breakpoints where the model takes them (GPT-5.6 and
+  later); off or unset, it marks none.
+  */
+  readonly promptCacheBreakpoints?: () => boolean
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -1486,6 +1493,8 @@ export function createConfiguredProviderServices(
                   // the wire only where the codec takes it (OpenAI GPT-5.6
                   // and later); the codec omits `default` itself.
                   cacheTtl: options.promptCacheTtl?.() ?? 'default',
+                  // M95c part 3: the codec gates the model and profile itself.
+                  cacheBreakpoints: options.promptCacheBreakpoints?.() === true,
                 },
               )
             if (isAzure) path = '/responses'

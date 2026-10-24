@@ -1191,6 +1191,10 @@ export const SETTING_DEFAULTS = {
   // picks 12 hours; machine-scoped beside the retention choice, since a
   // repository must not raise what cache writes are billed.
   modelApiPromptCacheTtl: 'default' as PromptCacheTtl,
+  // M95c part 3: off until a paired run on OpenAI shows the breakpoints
+  // lower cost at equal capability (PLAN.md M95c); machine-scoped like the
+  // lifetime, since a repository must not choose what cache writes bill.
+  modelApiPromptCacheBreakpoints: false,
   modelApiScheduledPrompts: true,
   // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
   schedules: ARE_SCHEDULES_ON_BY_DEFAULT,
@@ -1434,6 +1438,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'sandboxNetwork',
   'modelApiPromptCacheRetention',
   'modelApiPromptCacheTtl',
+  'modelApiPromptCacheBreakpoints',
   'modelApiScheduledPrompts',
   'modelApiSubagents',
   'modelApiBestOfN',

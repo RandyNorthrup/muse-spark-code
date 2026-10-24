@@ -115,6 +115,7 @@
   "config.modelApiPromptCacheTtl.description": "在 GPT-5.6 及更高版本上向 OpenAI 缓存请求的最小生存时间（prompt_cache_options.ttl），仅在使用您自己的密钥的直接 Responses API 请求中发送。12 小时生存时间按输入价格的 2.5 倍（而非 1.25 倍）对缓存写入计费；两种情况下读取费用相同。较早的模型继续使用 prompt_cache_retention。",
   "config.modelApiPromptCacheTtl.enumDescriptions.default": "OpenAI 的默认值：最小生存时间 30 分钟，缓存写入按输入价格的 1.25 倍计费。",
   "config.modelApiPromptCacheTtl.enumDescriptions.12h": "为间隔较长时间重复使用的稳定指令设置最小生存时间 12 小时，缓存写入按输入价格的 2.5 倍计费。",
+  "config.modelApiPromptCacheBreakpoints.description": "在 GPT-5.6 及更高版本上标记 OpenAI 的显式提示缓存断点 (prompt_cache_breakpoint)：一个位于对话稳定开头之后，一个位于最新消息上，以便后续轮次重用二者。仅在使用你自己的密钥直接发送的 Responses API 请求中发送。缓存写入按缓存有效期所定的费率计费。",
   "config.turnCheckpoints.description": "默认开启：保存模型自身的文件、图像、工作区记忆和符号重命名工具的写入，以便在已连接的 Model API 会话中进行还原和重做，而且只有文件仍与模型留下的内容完全一致时才会操作。命令、钩子、MCP 工具的更改、你自己的编辑以及其他窗口的写入均不会撤销；副本保存在扩展存储中，不会写入工作区的 .git。需要 PATH 中有 git，且工作区受信任。",
   "config.bundledSkills.description": "默认开启：附带的项目质量工作流和自有技能可用于 Model API 后端，同名项目或个人技能优先。Muse Code 只读取自己的文件夹，因此请使用 Muse Spark：为 Muse Code 安装附带技能来安装；每个窗口提示一次，直到安装或选择“暂不”。质量工作流的交付辅助工具需要 Python 3.12 或更新版本。",
   "config.diagnosticsAfterEdits.description": "每轮编辑后，把 VS Code 语言服务器报告的最多 8 个已编辑文件的错误和警告，连同自上次检查以来的变化，交给模型 (Model API 后端；一旦模型写入了编辑器会作为代码运行的文件，在你发送下一条消息之前不再提供)，或提示 Muse Code 自行检查。默认开启。",

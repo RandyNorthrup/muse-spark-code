@@ -886,6 +886,12 @@
           "description": "%config.modelApiPromptCacheTtl.description%",
           "scope": "machine"
         },
+        "museSpark.modelApiPromptCacheBreakpoints": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.modelApiPromptCacheBreakpoints.description%",
+          "scope": "machine"
+        },
         "museSpark.modelApiScheduledPrompts": {
           "type": "boolean",
           "default": true,

@@ -60,6 +60,8 @@ export function createSubscriptionFeatures(options: {
   readonly personCap?: () => number | undefined
   /** RLPROVSYNC: the person's cache-lifetime choice, read live per request. */
   readonly promptCacheTtl?: () => PromptCacheTtl
+  /** M95c part 3: the person's explicit cache breakpoints choice, read live per request. */
+  readonly promptCacheBreakpoints?: () => boolean
   readonly l10n: UiTable
   readonly globalState: {
     get(key: string): unknown
@@ -145,6 +147,9 @@ export function createSubscriptionFeatures(options: {
       log: options.log,
       ...(options.personCap !== undefined && { personCap: options.personCap }),
       ...(options.promptCacheTtl !== undefined && { promptCacheTtl: options.promptCacheTtl }),
+      ...(options.promptCacheBreakpoints !== undefined && {
+        promptCacheBreakpoints: options.promptCacheBreakpoints,
+      }),
       hasMetaKey: async () => Boolean(await options.secrets.get(SECRET_KEYS.modelApiKey)),
       loadUsage: () =>
         tallies.filter((row) => !['chatgpt', 'copilot', 'grok'].includes(row.providerId)),

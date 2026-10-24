@@ -93,6 +93,117 @@ export interface ResponsesEncodeOptions {
   codec sends only on a model whose id parses as GPT-5.6 or later.
   */
   readonly cacheTtl?: PromptCacheTtl | undefined
+  /**
+  The person's `museSpark.modelApiPromptCacheBreakpoints` (M95c part 3):
+  explicit breakpoints on the stable prefix and the rolling end, sent
+  only on the API profile and only to a model whose id parses as GPT-5.6
+  or later (`markCacheBreakpoints`). Absent or false sends none.
+  */
+  readonly cacheBreakpoints?: boolean | undefined
+}
+
+/**
+OpenAI's explicit prompt-cache breakpoint (M95c part 3), exactly as the
+Responses create reference types it on message `input_text`,
+`input_image` and `input_file` parts and on `function_call_output`
+parts: `{"mode": "explicit"}`, marking the end of a reusable prefix
+(developers.openai.com/api/docs/guides/prompt-caching and
+developers.openai.com/api/reference/resources/responses/methods/create,
+read 2026-10-23).
+*/
+const CACHE_BREAKPOINT = { mode: 'explicit' } as const
+
+/**
+Whether a message part may carry a breakpoint: the reference types it on
+`input_text`, `input_image` and `input_file` only (never `output_text`),
+and blank text holds no prefix worth marking.
+*/
+function isMarkableMessagePart(part: InputContentPart): boolean {
+  switch (part.type) {
+    case 'input_text': {
+      return part.text !== ''
+    }
+    case 'input_image':
+    case 'input_file': {
+      return true
+    }
+    case 'output_text':
+    case 'input_video': {
+      return false
+    }
+  }
+}
+
+/** A tool result's parts carry one where they are text or an image; a string output has none. */
+function isMarkableOutputPart(part: FunctionOutputPart): boolean {
+  return part.type === 'input_image' || part.text !== ''
+}
+
+/** The index of the item's last part that may carry a breakpoint, or -1. */
+function markablePartIndex(item: InputItem): number {
+  if (item.type === 'message')
+    return item.content.findLastIndex((part) => isMarkableMessagePart(part))
+  return item.type === 'function_call_output' && typeof item.output !== 'string'
+    ? item.output.findLastIndex((part) => isMarkableOutputPart(part))
+    : -1
+}
+
+/** A part carrying the breakpoint: the reference's own field beside the part's. */
+type MarkedPart<Part> = Part & { readonly prompt_cache_breakpoint: typeof CACHE_BREAKPOINT }
+
+/** The item with a breakpoint on the part at `index` (a fresh copy; the input is not touched). */
+function withBreakpoint(item: InputItem, index: number): InputItem {
+  if (item.type === 'message') {
+    const content = [...item.content]
+    const part = content[index]
+    if (part !== undefined) {
+      const marked: MarkedPart<InputContentPart> = {
+        ...part,
+        prompt_cache_breakpoint: CACHE_BREAKPOINT,
+      }
+      content[index] = marked
+    }
+    return { ...item, content }
+  }
+  if (item.type === 'function_call_output' && typeof item.output !== 'string') {
+    const output = [...item.output]
+    const part = output[index]
+    if (part !== undefined) {
+      const marked: MarkedPart<FunctionOutputPart> = {
+        ...part,
+        prompt_cache_breakpoint: CACHE_BREAKPOINT,
+      }
+      output[index] = marked
+    }
+    return { ...item, output }
+  }
+  return item
+}
+
+/**
+Explicit breakpoints by the rule the Anthropic codec places its own (M95c
+part 3): one on the stable prefix, the first item that can carry one,
+and one rolling on the last such item. A trailing developer message is
+the request-only suffix (goal progress, rebuilt every request) and stays
+unmarked, as the Anthropic codec leaves it outside its cached prefix.
+Top-level `instructions` cannot hold one (the guide), so the stable
+prefix is the instructions, the tools and the first markable item. The
+request keeps implicit mode (no `prompt_cache_options.mode` is sent):
+its implicit breakpoint stays, beside the three explicit ones that mode
+leaves free, of which this places at most two.
+*/
+export function markCacheBreakpoints(input: readonly InputItem[]): InputItem[] {
+  const isSuffix = (item: InputItem, index: number) =>
+    index === input.length - 1 && item.type === 'message' && item.role === 'developer'
+  const markable = input.map((item, index) =>
+    isSuffix(item, index) ? -1 : markablePartIndex(item),
+  )
+  const first = markable.findIndex((part) => part !== -1)
+  const last = markable.findLastIndex((part) => part !== -1)
+  return input.map((item, index) => {
+    const part = markable[index] ?? -1
+    return part !== -1 && (index === first || index === last) ? withBreakpoint(item, part) : item
+  })
 }
 
 /**
@@ -560,9 +671,14 @@ export function createResponsesCodec(
         capabilities?.toolChoiceModes?.includes(body.tool_choice) === true
           ? body.tool_choice
           : 'auto'
+      // M95c part 3: explicit breakpoints only where the person turned
+      // them on, on the API profile, and on a model the guide lists
+      // (GPT-5.6 and later); anywhere else the input goes unmarked.
+      const shouldMark = options?.cacheBreakpoints === true && !isChatgpt && isCacheTtlModel(model)
+      const marked = shouldMark ? markCacheBreakpoints(mapped) : mapped
       return {
         model: body.model,
-        input: isChatgpt ? body.input : mapped,
+        input: isChatgpt ? body.input : marked,
         instructions: isChatgpt ? body.instructions : cleanWireText(body.instructions),
         ...(hasTools && {
           tools: isChatgpt

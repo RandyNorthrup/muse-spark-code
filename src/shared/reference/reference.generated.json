@@ -2063,7 +2063,11 @@
       "summary": { "setting": "modelApiPromptCacheRetention" },
       "description": { "setting": "modelApiPromptCacheRetention" },
       "commands": [],
-      "settings": ["museSpark.modelApiPromptCacheRetention", "museSpark.modelApiPromptCacheTtl"],
+      "settings": [
+        "museSpark.modelApiPromptCacheRetention",
+        "museSpark.modelApiPromptCacheTtl",
+        "museSpark.modelApiPromptCacheBreakpoints"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": false,
@@ -3428,6 +3432,17 @@
       "scope": "machine",
       "refinements": [],
       "schema": { "type": "string", "enum": ["default", "12h"], "default": "default" }
+    },
+    {
+      "id": "museSpark.modelApiPromptCacheBreakpoints",
+      "name": "museSpark.modelApiPromptCacheBreakpoints",
+      "description": "Marks OpenAI's explicit prompt-cache breakpoints (prompt_cache_breakpoint) on GPT-5.6 and later: one after the conversation's stable start and one on its latest message, so later turns can reuse both. Sent only on direct Responses API requests with your own key. Cache writes bill at the rate the cache lifetime sets.",
+      "descriptionKey": "config.modelApiPromptCacheBreakpoints.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
     },
     {
       "id": "museSpark.modelApiScheduledPrompts",
