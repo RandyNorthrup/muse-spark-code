@@ -459,3 +459,17 @@ and that the owner's connection still echoes, ends that connection, and then
 awaits the close. The endpoint is unchanged.
 
 Red (before): timed out at 15 s. Green: 6 passed, 2 skipped, twice.
+
+### deviceOwnerBind (e2e): the peer's folder by the platform's separator
+
+Cause: the two-process driver found the peer's confirmation file by cutting
+the peer's invitation path at its last `/`. On Windows the path is built with
+`\`, so `lastIndexOf('/')` was -1 and the cut dropped one character of the
+file name: both sides waited on a path that never appears
+(`[error] peer confirmation not found`, then `child exited 1 before LISTENING`
+and six unhandled rejections from the other signal waits).
+
+Fix: the driver takes the folder with `path.dirname`.
+
+Red (before): 1 failed, 6 unhandled errors. Green: deviceOwnerBind 1 passed;
+deviceTwoProcess (same driver, other scenario) 1 passed.
