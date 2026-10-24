@@ -6312,6 +6312,7 @@ export const REPORT_WORKING_KINDS = [
   'security',
   'estimate',
   'playbook',
+  'issues',
   'schedules',
 ] as const
 export const REPORT_FORMATS = ['md', 'html', 'json', 'text'] as const

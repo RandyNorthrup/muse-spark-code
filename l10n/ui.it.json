@@ -1865,6 +1865,15 @@
       "replied": "Risposto",
       "closed": "Chiuso"
     },
+    "waits": {
+      "seen": "La conferma non è ancora stata pubblicata",
+      "acknowledged": "In attesa del suo triage",
+      "triaged": "In attesa della tua decisione",
+      "awaitingInfo": "In attesa della risposta di chi ha segnalato",
+      "planned": "In attesa della correzione e della sua verifica",
+      "replied": "Niente: risposto",
+      "closed": "Niente: chiuso"
+    },
     "cli": {
       "empty": "Il guardiano non sta ancora osservando alcun repository.",
       "notWatched": "Questo repository non è osservato.",
@@ -2246,7 +2255,7 @@
     "many": "{count} problemi in più"
   },
   "reportCliUsage": "Genera un rapporto deterministico da fonti identificate, senza chiamare un modello.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Tipi: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Tipi: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Segnala un problema…",
   "reportCrashOffer": "Muse Spark Code si è chiuso in modo imprevisto l’ultima volta — segnalarlo?",
   "reportCrashAction": "Segnala un problema",

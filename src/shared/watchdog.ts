@@ -124,6 +124,8 @@ export const watchdogIssueSchema = z.strictObject({
   /** The needs-info reply's comment: an answer is a later comment. */
   replyCommentId: z.optional(z.number()),
   labelsApplied: z.array(z.string()),
+  /** The pull request that fixed it, once the fix verified. */
+  pullRequestNumber: z.optional(z.number()),
   triageRound: z.number(),
   findings: z.optional(triageFindingsSchema),
   outcome: z.optional(watchdogOutcomeSchema),
@@ -134,6 +136,13 @@ export const watchdogIssueSchema = z.strictObject({
   updatedAtMs: z.number(),
 })
 export type WatchdogIssue = z.infer<typeof watchdogIssueSchema>
+
+/** One repository's file: its policy and its watched issues. */
+export const watchdogRepoDataSchema = z.strictObject({
+  policy: watchdogPolicySchema,
+  issues: z.array(watchdogIssueSchema),
+})
+export type WatchdogRepoData = z.infer<typeof watchdogRepoDataSchema>
 
 export const watchdogEventSchema = z.enum([
   'polled',

@@ -1807,6 +1807,15 @@
       "replied": "답변됨",
       "closed": "종료됨"
     },
+    "waits": {
+      "seen": "접수 확인이 아직 게시되지 않았습니다",
+      "acknowledged": "분류를 기다리는 중",
+      "triaged": "사용자의 결정을 기다리는 중",
+      "awaitingInfo": "보고자의 답변을 기다리는 중",
+      "planned": "수정과 그 검증을 기다리는 중",
+      "replied": "없음: 답변함",
+      "closed": "없음: 닫힘"
+    },
     "cli": {
       "empty": "와치독이 아직 어떤 리포지토리도 감시하지 않습니다.",
       "notWatched": "이 리포지토리는 감시 대상이 아닙니다.",
@@ -2182,7 +2191,7 @@
     "other": "외 {count}개 문제"
   },
   "reportCliUsage": "모델을 호출하지 않고 명시된 출처에서 결정론적 보고서를 생성합니다.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "종류: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "종류: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "문제 보고…",
   "reportCrashOffer": "Muse Spark Code가 지난번에 예기치 않게 종료되었습니다 — 보고하시겠습니까?",
   "reportCrashAction": "문제 보고",

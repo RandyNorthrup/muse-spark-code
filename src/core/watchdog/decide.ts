@@ -268,7 +268,10 @@ export async function resolveWatchdogIssue(
       if (verified.resolution.close) await deps.client.closeIssue(deps.token, named, number)
       const state = nextWatchdogState(record.state, 'replied')
       return {
-        data: patchedWatchdogData(live, number, nowMs, { state }),
+        data: patchedWatchdogData(live, number, nowMs, {
+          state,
+          pullRequestNumber: verified.resolution.pullRequestNumber,
+        }),
         result: {
           number,
           state,

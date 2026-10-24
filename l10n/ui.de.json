@@ -1836,6 +1836,15 @@
       "replied": "Beantwortet",
       "closed": "Geschlossen"
     },
+    "waits": {
+      "seen": "Die Bestätigung wurde noch nicht gepostet",
+      "acknowledged": "Wartet auf die Sichtung",
+      "triaged": "Wartet auf Ihre Entscheidung",
+      "awaitingInfo": "Wartet auf die Antwort der meldenden Person",
+      "planned": "Wartet auf die Korrektur und ihre Überprüfung",
+      "replied": "Nichts: beantwortet",
+      "closed": "Nichts: geschlossen"
+    },
     "cli": {
       "empty": "Der Watchdog beobachtet noch kein Repository.",
       "notWatched": "Dieses Repository wird nicht beobachtet.",
@@ -2214,7 +2223,7 @@
     "other": "{count} weitere Probleme"
   },
   "reportCliUsage": "Einen deterministischen Bericht aus benannten Quellen ohne Modellaufruf erstellen.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Arten: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Arten: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Problem melden…",
   "reportCrashOffer": "Muse Spark Code wurde beim letzten Mal unerwartet beendet — Problem melden?",
   "reportCrashAction": "Problem melden",

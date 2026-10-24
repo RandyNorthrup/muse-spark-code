@@ -288,6 +288,9 @@ describe('watchdog resolve', () => {
     const resolution = await resolveWatchdogIssue(deps, WATCHDOG_REPOSITORY, 146, evidence)
     expect(resolution).toMatchObject({ state: 'replied', posted: true, closed: true })
     expect(postedReplyBody(calls)).toContain('0.19.1')
+    // The fixing pull request stays on the record, for the issues report.
+    const [stored] = await deps.store.list()
+    expect(stored?.issues[0]?.pullRequestNumber).toBe(12)
   })
 
   it('posts nothing on a failed verification', async () => {

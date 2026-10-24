@@ -497,7 +497,7 @@ const reportInputsOptions = {
   outfile: 'dist/reportInputs.js',
 }
 // C-M113-4: the playbook and schedules inputs (journal replay, schedule
-// store) load on the first playbook or schedules report. They ride their
+// store) load on the first playbook, schedules or issues report. They ride their
 // own chunk because the replay and store machinery would overflow the
 // session/usage chunk's budget, which stays unchanged.
 const playbookSchedulesInputsOptions = {
