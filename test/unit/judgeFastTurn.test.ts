@@ -2,9 +2,6 @@
 // the wire; the recorder merges a turn's observations into the event in
 // decision order; the reason helpers name real reflex verdicts (over the
 // recorded exchanges in test/fixtures/judgeFast, captured 2026-10-22).
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { triageRoute } from '../../src/core/judge/fast/apply'
 import {
@@ -20,14 +17,7 @@ import { ruleEffort } from '../../src/core/judge/fast/reflex/effort'
 import { detectLoop, type LoopSignal } from '../../src/core/judge/fast/reflex/loop'
 import { triageOutput } from '../../src/core/judge/fast/reflex/triage'
 import { judgeFastTurnSchema } from '../../src/shared/judgeFastTurn'
-
-const fixtureRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'fixtures',
-  'judgeFast',
-)
-const fixture = (name: string): string => readFileSync(path.join(fixtureRoot, name), 'utf8')
+import { judgeFastFixture } from './helpers/judgeFastFixtures'
 
 const signal = (): LoopSignal => ({ key: 'a', failed: false, outputDigest: '1' })
 
@@ -132,19 +122,19 @@ describe('fast turn record', () => {
     const pack = triageRoute(triageOutput({ exitCode: 0, output: '  \n' }), 'none', false)
     expect(triageTurnReason(pack, undefined)).toBe('pack')
     const recognised = triageRoute(
-      triageOutput({ exitCode: 2, output: fixture('ls-missing.txt') }),
+      triageOutput({ exitCode: 2, output: judgeFastFixture('ls-missing.txt') }),
       'none',
       false,
     )
     expect(triageTurnReason(recognised, undefined)).toBe('whole')
     const lone = triageRoute(
-      triageOutput({ exitCode: 0, output: fixture('git-log.txt') }),
+      triageOutput({ exitCode: 0, output: judgeFastFixture('git-log.txt') }),
       'none',
       false,
     )
     expect(triageTurnReason(lone, undefined)).toBe('no-window')
     const parallel = triageRoute(
-      triageOutput({ exitCode: 0, output: fixture('git-log.txt') }),
+      triageOutput({ exitCode: 0, output: judgeFastFixture('git-log.txt') }),
       'real',
       false,
     )
@@ -170,12 +160,12 @@ describe('fast turn record', () => {
     expect(keepTurnReason(false, false)).toBe('absent')
     const backed = judgeDoneClaim({
       replyText: 'Done, the rename is complete.',
-      toolOutputs: [{ exitCode: 0, output: fixture('git-log.txt') }],
+      toolOutputs: [{ exitCode: 0, output: judgeFastFixture('git-log.txt') }],
     })
     expect(doneTurnReason(backed.decision, undefined)).toBe('note')
     const unbacked = judgeDoneClaim({
       replyText: 'Done, all tests pass.',
-      toolOutputs: [{ exitCode: 1, output: fixture('vitest-failure.txt') }],
+      toolOutputs: [{ exitCode: 1, output: judgeFastFixture('vitest-failure.txt') }],
     })
     expect(doneTurnReason(unbacked.decision, undefined)).toBe('surface-note')
     const miss = judgeDoneClaim({ replyText: 'Done.', toolOutputs: [] })

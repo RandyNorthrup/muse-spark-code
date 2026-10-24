@@ -72,6 +72,28 @@ function scheduledPorts(schedule: Schedule): {
   }
 }
 
+/** The skip the race returns for B1's delivered OUTPUT, with any extra fields. */
+const expectedSkip = (extra: Record<string, unknown> = {}) => ({
+  kind: 'skip',
+  stdout: 'allowed\n',
+  stderr: '',
+  exitCode: 0,
+  excluded: 2,
+  vetoLatencyMs: expect.any(Number),
+  ...extra,
+})
+
+/** Races the schedule over the window onto today's path with the default verdict. */
+async function expectReviewerPath(
+  schedule: Schedule,
+  windowMs: number,
+): Promise<{ reviewer: AbortSignal; veto: AbortSignal; inspect: AbortSignal }> {
+  const { ports, signals } = scheduledPorts(schedule)
+  const outcome = await raceApproval(ports, windowMs)
+  expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+  return signals
+}
+
 describe("the hold's race", () => {
   it('skips on a non-veto and B1 output before the reviewer, and cancels it', async () => {
     const { ports, signals } = scheduledPorts({
@@ -80,14 +102,7 @@ describe("the hold's race", () => {
       reviewerAfterMs: 500,
     })
     const outcome = await raceApproval(ports, 100)
-    expect(outcome).toEqual({
-      kind: 'skip',
-      stdout: 'allowed\n',
-      stderr: '',
-      exitCode: 0,
-      excluded: 2,
-      vetoLatencyMs: expect.any(Number),
-    })
+    expect(outcome).toEqual(expectedSkip())
     if (outcome.kind === 'skip') {
       expect(outcome.vetoLatencyMs).toBeGreaterThanOrEqual(0)
       expect(outcome.vetoLatencyMs).toBeLessThan(100)
@@ -110,70 +125,48 @@ describe("the hold's race", () => {
   })
 
   it("runs today's path on a veto, discarding the run", async () => {
-    const { ports, signals } = scheduledPorts({
-      vetoAfterMs: 10,
-      veto: { veto: true },
-      inspectAfterMs: 200,
-      reviewerAfterMs: 50,
-    })
-    const outcome = await raceApproval(ports, 100)
-    expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    const signals = await expectReviewerPath(
+      { vetoAfterMs: 10, veto: { veto: true }, inspectAfterMs: 200, reviewerAfterMs: 50 },
+      100,
+    )
     expect(signals.inspect.aborted).toBe(true)
   })
 
   it('treats a closed window as a veto', async () => {
-    const { ports, signals } = scheduledPorts({
-      vetoAfterMs: 500,
-      inspectAfterMs: 500,
-      reviewerAfterMs: 80,
-    })
-    const outcome = await raceApproval(ports, 40)
-    expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    const signals = await expectReviewerPath(
+      { vetoAfterMs: 500, inspectAfterMs: 500, reviewerAfterMs: 80 },
+      40,
+    )
     expect(signals.veto.aborted).toBe(true)
     expect(signals.inspect.aborted).toBe(true)
   })
 
   it('does not let a late non-veto win even with B1 delivered', async () => {
-    const { ports } = scheduledPorts({
-      vetoAfterMs: 80,
-      veto: { veto: false },
-      inspectAfterMs: 10,
-      reviewerAfterMs: 150,
-    })
-    const outcome = await raceApproval(ports, 40)
-    expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    await expectReviewerPath(
+      { vetoAfterMs: 80, veto: { veto: false }, inspectAfterMs: 10, reviewerAfterMs: 150 },
+      40,
+    )
   })
 
   it("runs today's path when B1 cannot deliver", async () => {
-    const { ports } = scheduledPorts({
-      vetoAfterMs: 10,
-      inspectAfterMs: 20,
-      inspect: REFUSED,
-      reviewerAfterMs: 60,
-    })
-    const outcome = await raceApproval(ports, 100)
-    expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    await expectReviewerPath(
+      { vetoAfterMs: 10, inspectAfterMs: 20, inspect: REFUSED, reviewerAfterMs: 60 },
+      100,
+    )
   })
 
   it('treats a thrown veto ask as no answer', async () => {
-    const { ports } = scheduledPorts({
-      vetoAfterMs: 10,
-      vetoThrows: true,
-      inspectAfterMs: 200,
-      reviewerAfterMs: 50,
-    })
-    const outcome = await raceApproval(ports, 100)
-    expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    await expectReviewerPath(
+      { vetoAfterMs: 10, vetoThrows: true, inspectAfterMs: 200, reviewerAfterMs: 50 },
+      100,
+    )
   })
 
   it('lets a slow B1 lose to the reviewer', async () => {
-    const { ports, signals } = scheduledPorts({
-      vetoAfterMs: 10,
-      inspectAfterMs: 300,
-      reviewerAfterMs: 50,
-    })
-    const outcome = await raceApproval(ports, 100)
-    expect(outcome).toEqual({ kind: 'reviewer', verdict: 'reviewer-verdict' })
+    const signals = await expectReviewerPath(
+      { vetoAfterMs: 10, inspectAfterMs: 300, reviewerAfterMs: 50 },
+      100,
+    )
     expect(signals.inspect.aborted).toBe(true)
   })
 
@@ -198,15 +191,9 @@ describe("the hold's race", () => {
       reviewerAfterMs: 500,
     })
     const outcome = await raceApproval(ports, 100)
-    expect(outcome).toEqual({
-      kind: 'skip',
-      stdout: 'allowed\n',
-      stderr: '',
-      exitCode: 0,
-      excluded: 2,
-      vetoLatencyMs: expect.any(Number),
-      detail: { engine: 'tev1', pYesMilli: 30, thresholdMilli: 800 },
-    })
+    expect(outcome).toEqual(
+      expectedSkip({ detail: { engine: 'tev1', pYesMilli: 30, thresholdMilli: 800 } }),
+    )
   })
 
   it('omits the detail a fence-read veto never carries', async () => {

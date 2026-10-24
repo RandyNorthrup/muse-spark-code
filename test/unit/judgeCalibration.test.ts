@@ -20,37 +20,15 @@ import {
   parseCalibrationProfile,
   type CalibrationDataset,
   type CalibrationIdentity,
-  type CalibrationLimits,
   type CalibrationProfile,
 } from '../../src/core/judge/calibration/schema'
 import {
   JUDGE_CALIBRATION_FAMILIES,
   JUDGE_CALIBRATION_TECHNIQUES,
 } from '../../src/shared/judgeCalibration/fileSchema'
+import { groupedRiskDataset, limits } from './helpers/calibrationDataset'
 
-const limits: CalibrationLimits = {
-  maxSamples: 2000,
-  maxIdentifierLength: 256,
-  maxBins: 20,
-  isotonicMinimumLabels: 200,
-  probabilityEpsilon: 1e-6,
-  maxIterations: 100,
-  convergenceTolerance: 1e-8,
-  regularization: 1e-6,
-  weightFloor: 1e-6,
-}
-
-function dataset(): CalibrationDataset {
-  const raw: unknown = JSON.parse(
-    readFileSync(
-      new URL('../fixtures/judge/calibration/grouped-risk.json', import.meta.url),
-      'utf8',
-    ),
-  )
-  const parsed = parseCalibrationDataset(raw, limits)
-  if (parsed.status !== 'valid') throw new Error(parsed.reason)
-  return parsed.dataset
-}
+const dataset = groupedRiskDataset
 
 function fitted(input = dataset(), method: 'platt' | 'isotonic' = 'platt'): CalibrationProfile {
   const result = fitCalibration(input, method, limits)

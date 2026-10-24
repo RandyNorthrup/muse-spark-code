@@ -150,58 +150,11 @@
   margin: 8px 0;
 }
 
-.models-button {
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  border: 1px solid var(--ms-boundary);
-  border-radius: 4px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
-
-.models-button-primary {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
-
-.models-button:disabled,
-.models-button-primary:disabled {
-  opacity: 55%;
-  cursor: default;
-}
-
-.models-link {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--vscode-textLink-foreground);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
 .models-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
   margin: 8px 0;
-}
-
-.models-field input,
-.models-field select,
-.models-field textarea,
-.models-search input,
-.models-facet select,
-.models-range input,
-.models-select input {
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
-  padding: 4px 8px;
 }
 
 .models-check,

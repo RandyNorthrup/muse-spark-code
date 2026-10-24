@@ -18,6 +18,7 @@ import {
   type B1ConditionReason,
   type B1Conditions,
   type B1FloorContext,
+  type B1HoldOutcome,
 } from '../../src/core/judge/fast/approval'
 import {
   closeInspectSession,
@@ -83,6 +84,30 @@ const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => {
     setTimeout(resolve, ms)
   })
+
+/**
+Races `ls` over the live session on the drill's Linux claim against a
+reviewer that answers after `reviewerMs` and starts no fence: this rig
+has no judge backend, so the veto never settles.
+*/
+function raceLiveReviewer(
+  live: InspectSessionBinding,
+  verdict: DrillVerdict,
+  reviewerMs: number,
+): Promise<B1HoldOutcome<DrillVerdict>> {
+  return raceB1Hold<DrillVerdict>({
+    line: 'ls',
+    platform: process.platform,
+    floor: FLOOR,
+    conditions: conditions({ certifiedPlatforms: ['linux'] }),
+    startReviewer: async () => {
+      await sleep(reviewerMs)
+      return verdict
+    },
+    startJudgeFence: () => undefined,
+    runInspect: (canonical, raceSignal) => live.runner.run(canonical, live.workspace, raceSignal),
+  })
+}
 
 describe('B1 hold drill', () => {
   let workspace = ''
@@ -165,20 +190,8 @@ describe('B1 hold drill', () => {
     const live = binding
     const verdict: DrillVerdict = { approved: true }
     const started = Date.now()
-    const outcome = await raceB1Hold<DrillVerdict>({
-      line: 'ls',
-      platform: process.platform,
-      floor: FLOOR,
-      conditions: conditions({ certifiedPlatforms: ['linux'] }),
-      // A slow reviewer that starts no fence: this rig has no judge
-      // backend, so the veto never settles and the verdict wins.
-      startReviewer: async () => {
-        await sleep(150)
-        return verdict
-      },
-      startJudgeFence: () => undefined,
-      runInspect: (canonical, raceSignal) => live.runner.run(canonical, live.workspace, raceSignal),
-    })
+    // A slow reviewer: the veto never settles and the verdict wins.
+    const outcome = await raceLiveReviewer(live, verdict, 150)
     const elapsed = Date.now() - started
     expect(outcome).toEqual({ kind: 'reviewer', verdict })
     // The verdict won the race; a veto-window expiry would have taken
@@ -198,18 +211,7 @@ describe('B1 hold drill', () => {
     const live = binding
     const verdict: DrillVerdict = { approved: false }
     const started = Date.now()
-    const outcome = await raceB1Hold<DrillVerdict>({
-      line: 'ls',
-      platform: process.platform,
-      floor: FLOOR,
-      conditions: conditions({ certifiedPlatforms: ['linux'] }),
-      startReviewer: async () => {
-        await sleep(10)
-        return verdict
-      },
-      startJudgeFence: () => undefined,
-      runInspect: (canonical, raceSignal) => live.runner.run(canonical, live.workspace, raceSignal),
-    })
+    const outcome = await raceLiveReviewer(live, verdict, 10)
     expect(outcome).toEqual({ kind: 'reviewer', verdict })
     expect(Date.now() - started).toBeLessThan(JUDGE_FAST_VETO_WINDOW_MS)
   })

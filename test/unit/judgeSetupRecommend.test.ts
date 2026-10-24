@@ -4,8 +4,6 @@
 // room required, most accurate first with faster breaking ties, a
 // speed-only last resort, classes exactly eligible's, and reasons in
 // plain words.
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { JudgeGpuBackend } from '../../src/core/judge/hardware/types'
 import { recommendJudgeModel } from '../../src/core/judge/setup/recommend'
@@ -18,9 +16,7 @@ import type {
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { descriptorByName } from './helpers/judgeHardware/descriptors'
-
-const GIB = 1024 * 1024 * 1024
-const DIGEST = 'ab'.repeat(32)
+import { DIGEST, GIB, judgeRow, SHIPPED_TABLE } from './helpers/judgeSetupWorld'
 
 function latency(
   backend: JudgeGpuBackend,
@@ -32,36 +28,14 @@ function latency(
   return { backend, platform, p50Ms, p95Ms, path, source: 'test' }
 }
 
+/** A row with no timings unless the case gives its own. */
 function row(model: string, overrides: Partial<JudgeModelRow> = {}): JudgeModelRow {
-  return {
-    model,
-    technique: 'systemone',
-    quantization: 'Q8_0',
-    digest: DIGEST,
-    downloadBytes: 4_500_000_000,
-    residentBytesCpu: 5 * GIB,
-    residentBytesGpu: 5 * GIB,
-    accuracy: { correct: 39, total: 40, source: 'test' },
-    latency: [],
-    profiledFamilies: [],
-    source: 'test',
-    checkDate: '2026-10-22',
-    ...overrides,
-  }
+  return judgeRow(model, { latency: [], ...overrides })
 }
 
 function table(rows: JudgeModelRow[]): Pick<JudgeModelsTable, 'rows'> {
   return { rows }
 }
-
-const shipped = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  'src',
-  'shared',
-  'judgeModels.json',
-)
 
 describe('setup recommender', () => {
   beforeEach(() => {
@@ -69,7 +43,7 @@ describe('setup recommender', () => {
   })
 
   it('recommends nothing from the shipped table: no verified timings anywhere', () => {
-    const loaded = loadJudgeModelsTable(shipped, '2026-10-22')
+    const loaded = loadJudgeModelsTable(SHIPPED_TABLE, '2026-10-22')
     if (loaded.table === undefined) throw new Error('shipped table failed to load')
     for (const name of ['noGpu16GB', 'nvidia8GB', 'appleSilicon', 'tooSmall']) {
       const recommendation = recommendJudgeModel(descriptorByName(name), loaded.table)

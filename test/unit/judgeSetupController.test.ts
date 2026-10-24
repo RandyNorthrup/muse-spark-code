@@ -3,17 +3,13 @@
 // choices re-plan; Install streams progress and lands on Done with
 // class rows from `eligible` and check rows from the row's coverage;
 // illegal commands are ignored and closes abort the work.
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
-import type { JudgeSetupRecord } from '../../src/core/judge/setup/register'
 import {
   doneCheckRows,
   doneClassRows,
   JudgeSetupController,
 } from '../../src/core/judge/setup/controller'
-import type { JudgeSetupPaths, JudgeSetupPorts } from '../../src/core/judge/setup/ports'
+import type { JudgeSetupPorts } from '../../src/core/judge/setup/ports'
 import type {
   JudgeSetupCommandMessage,
   JudgeSetupSnapshot,
@@ -21,63 +17,10 @@ import type {
 import type { JudgeModelsTable } from '../../src/shared/judgeModels/schema'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import { descriptorByName } from './helpers/judgeHardware/descriptors'
-
-const GIB = 1024 * 1024 * 1024
-const DIGEST = 'ab'.repeat(32)
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures')
-const STORAGE_ROOT = path.join(path.sep, 'test', 'root')
-const PATHS: JudgeSetupPaths = {
-  storageRoot: STORAGE_ROOT,
-  tableFile: path.join(STORAGE_ROOT, 'table.json'),
-}
-
-function table(profiled: readonly string[] = []): JudgeModelsTable {
-  return {
-    version: 1,
-    checkedDate: '2026-10-22',
-    runtime: {
-      version: '0.35.1',
-      minimum: '0.35.1',
-      archives: [
-        {
-          platform: 'linux',
-          backend: 'cpu',
-          url: 'https://test.invalid/ollama.tgz',
-          sha256: '33'.repeat(32),
-        },
-      ],
-    },
-    rows: [
-      {
-        model: 'tev1:4b',
-        technique: 'systemone',
-        quantization: 'Q8_0',
-        digest: DIGEST,
-        downloadBytes: 4_500_000_000,
-        residentBytesCpu: 5 * GIB,
-        residentBytesGpu: 5 * GIB,
-        accuracy: { correct: 39, total: 40, source: 'test' },
-        latency: [
-          {
-            backend: 'cpu',
-            platform: 'linux',
-            p50Ms: 200,
-            p95Ms: 300,
-            path: 'verified',
-            source: 'test',
-          },
-        ],
-        profiledFamilies: [...profiled],
-        source: 'test',
-        checkDate: '2026-10-22',
-      },
-    ],
-  }
-}
+import { DIGEST, installTable, PATHS, setupPorts } from './helpers/judgeSetupWorld'
 
 function licensedTable(name: string): JudgeModelsTable {
-  const base = table()
+  const base = installTable()
   return {
     ...base,
     rows: base.rows.map((row, index) =>
@@ -91,51 +34,11 @@ function licensedTable(name: string): JudgeModelsTable {
   }
 }
 
-const MANIFEST = JSON.stringify({
-  schemaVersion: 2,
-  config: { digest: `sha256:${'11'.repeat(32)}`, size: 100 },
-  layers: [{ digest: `sha256:${'22'.repeat(32)}`, size: 200 }],
-})
-
 function ports(overrides: Partial<JudgeSetupPorts> = {}): JudgeSetupPorts {
-  const files = new Map<string, Uint8Array>([
-    [
-      path.join(STORAGE_ROOT, 'judge', 'runtime', '0.35.1', 'runtime.tgz'),
-      readFileSync(path.join(FIXTURES, 'judgeSetup', 'runtime.tgz')),
-    ],
-  ])
-  let registration: JudgeSetupRecord | undefined
-  return {
-    scan: () => Promise.resolve(descriptorByName('noGpu16GB')),
-    loadTable: () => ({ table: table(['loop.stuck', 'triage.needFull']), failures: {} }),
-    flow: {
-      fetchText: () => Promise.resolve(MANIFEST),
-      fetchBlob: () => Promise.resolve('ok' as const),
-      presentSizes: () => Promise.resolve(new Map()),
-      mkdir: () => Promise.resolve(),
-      writeFile: (file, bytes) => {
-        files.set(file, bytes)
-        return Promise.resolve()
-      },
-      readFile: (file) => Promise.resolve(files.get(file)),
-      findFreePort: () => Promise.resolve(11_434),
-      runtimeFree: () => Promise.resolve(true),
-      startRuntime: () =>
-        Promise.resolve({ pid: 4242, port: 11_434, stop: () => Promise.resolve() }),
-      waitForVersion: () => Promise.resolve(true),
-      readRegistration: () => registration,
-      writeRegistration: (_file, record) => {
-        registration = record
-      },
-      askSmoke: (questions) =>
-        Promise.resolve(questions.map(() => ({ correct: true, latencyMs: 100 }))),
-    },
-    readRegistration: () => registration,
-    removeInstall: () => Promise.resolve({ removed: [], missing: [] }),
-    today: () => '2026-10-22',
-    nowIso: () => '2026-10-23T00:00:00.000Z',
+  return setupPorts({
+    loadTable: () => ({ table: installTable(['loop.stuck', 'triage.needFull']), failures: {} }),
     ...overrides,
-  }
+  }).ports
 }
 
 const send = async (

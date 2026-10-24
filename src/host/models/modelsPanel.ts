@@ -38,7 +38,7 @@ import {
   type VaultHostMessage,
 } from '../../shared/hostApi/vaultMessages'
 import { unavailableVaultPanelState, vaultBindingFailureReason } from '../../shared/vaultRefusals'
-import { buildWebviewHtml, createNonce } from '../html'
+import { openPanelLink, showPanelDocument, showPanelFailure } from '../views/panelDocument'
 import type { WebviewBundleResolution } from '../views/webviewBundle'
 import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
@@ -237,8 +237,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
   const resolved = deps.resolveWebviewBundle()
   if (!resolved.ok) {
     deps.log.error(`Models webview bundle failed: ${resolved.detail}`)
-    panel.webview.options = { enableScripts: true, localResourceRoots: [] }
-    panel.webview.html = resolved.html
+    showPanelFailure(panel, resolved.html)
     // No verified bundle behind the panel: it shows the fixed sentence,
     // and revealing still brings the failure into view.
     return {
@@ -254,19 +253,12 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
       },
     }
   }
-  const root = vscode.Uri.file(resolved.dir)
-  panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
-  panel.webview.html = buildWebviewHtml({
-    scriptUri: panel.webview
-      .asWebviewUri(vscode.Uri.joinPath(root, MODELS_WEBVIEW_SCRIPT_FILE))
-      .toString(),
-    styleUri: panel.webview
-      .asWebviewUri(vscode.Uri.joinPath(root, MODELS_WEBVIEW_STYLE_FILE))
-      .toString(),
-    cspSource: panel.webview.cspSource,
-    nonce: createNonce(),
-    l10n: deps.l10n,
-  })
+  showPanelDocument(
+    panel,
+    resolved.dir,
+    { script: MODELS_WEBVIEW_SCRIPT_FILE, style: MODELS_WEBVIEW_STYLE_FILE },
+    deps.l10n,
+  )
   const state: ModelsPanelState = {
     presets: [],
     providers: [],
@@ -1047,15 +1039,7 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         break
       }
       case 'openExternal': {
-        const url = new URL(message.url)
-        if (
-          (url.protocol !== 'https:' && url.protocol !== 'http:') ||
-          url.username !== '' ||
-          url.password !== ''
-        ) {
-          throw new Error(UI_TEXT.actionFailed)
-        }
-        await vscode.env.openExternal(vscode.Uri.parse(url.href))
+        await openPanelLink(message.url)
         return
       }
       case 'providers/connectSubscription': {

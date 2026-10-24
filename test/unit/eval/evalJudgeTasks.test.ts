@@ -9,18 +9,14 @@ import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import {
-  evalTaskSchema,
-  isEvalPath,
-  JUDGE_EVAL_TASKS,
-  type EvalTask,
-} from '../../../src/core/eval/tasks'
+import { JUDGE_EVAL_TASKS, type EvalTask } from '../../../src/core/eval/tasks'
 import {
   createEvalWorkspace,
   removeEvalWorkspace,
   runEvalVerifier,
 } from '../../../src/core/eval/workspace'
 import { JUDGE_FAST_TURN_DECISIONS } from '../../../src/shared/judgeFastTurn'
+import { expectCompleteEvalTask } from '../helpers/evalTaskShape'
 import { removeFolder } from '../helpers/temporaryFolders'
 
 // Each case starts verifier processes; slow under coverage.
@@ -79,12 +75,8 @@ describe('judge task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
       'judge-skill-routing',
     ])
     for (const task of JUDGE_EVAL_TASKS) {
-      expect(evalTaskSchema.safeParse(task).success).toBe(true)
+      expectCompleteEvalTask(task)
       expect(task.split).toBe('accept')
-      expect(task.title).not.toBe('')
-      expect(task.prompt).not.toBe('')
-      expect(task.verify).not.toBe('')
-      expect(task.files.every((file) => isEvalPath(file.path))).toBe(true)
       expect(task.assertions).toBeGreaterThan(0)
       const conditions = task.judgeConditions ?? {}
       expect(Object.keys(conditions).length).toBeGreaterThan(0)

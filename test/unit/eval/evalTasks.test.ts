@@ -8,7 +8,6 @@ import {
 import { modelApiPaidTier } from '../../../src/shared/paid'
 import {
   EVAL_TASKS,
-  evalTaskSchema,
   evalTasksOfSplit,
   isEvalPath,
   type EvalTask,
@@ -23,6 +22,7 @@ import {
 import { noWorkspaceChildEnvironment } from '../../../src/core/execGuard'
 import { existsSync, mkdirSync, mkdtempSync, readdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { expectCompleteEvalTask } from '../helpers/evalTaskShape'
 import { removeFolder } from '../helpers/temporaryFolders'
 import { EVAL_CANONICAL_FIXES, EVAL_OTHER_FIXES, fixesFor, withFixes } from './evalFixes'
 
@@ -99,11 +99,7 @@ describe('eval task set', { timeout: VERIFIER_TESTS_TIMEOUT_MS }, () => {
     const ids = EVAL_TASKS.map((task) => task.id)
     expect(new Set(ids).size).toBe(ids.length)
     for (const task of EVAL_TASKS) {
-      expect(evalTaskSchema.safeParse(task).success).toBe(true)
-      expect(task.title).not.toBe('')
-      expect(task.prompt).not.toBe('')
-      expect(task.verify).not.toBe('')
-      expect(task.files.every((file) => isEvalPath(file.path))).toBe(true)
+      expectCompleteEvalTask(task)
     }
   })
 

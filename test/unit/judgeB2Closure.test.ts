@@ -14,6 +14,7 @@ import {
   pinB2Files,
   walkB2Scripts,
   type B2FileAnswers,
+  type B2PackageJson,
 } from '../../src/core/judge/fast/b2Closure'
 
 function answers(files: Readonly<Record<string, string>>): B2FileAnswers {
@@ -25,6 +26,21 @@ function answers(files: Readonly<Record<string, string>>): B2FileAnswers {
     },
     readEntryLink: () => undefined,
   }
+}
+
+/** No yarn or pnpm file beside the manifest. */
+const CLEAN_MANAGER_FILES = {
+  yarnLock: false,
+  yarnrc: false,
+  yarnrcYml: false,
+  pnpmfile: false,
+}
+
+/** The drill's smallest manifest, `{ scripts: { test: 'vitest' } }`, parsed. */
+function vitestManifest(): B2PackageJson {
+  const packageJson = parseB2PackageJson(JSON.stringify({ scripts: { test: 'vitest' } }))
+  if (!packageJson.ok) throw new Error('the drill manifest must parse')
+  return packageJson.packageJson
 }
 
 describe('B2 command grammar', () => {
@@ -255,12 +271,7 @@ describe('B2 closure assembly', () => {
     const collected = collectB2Closure(
       command.command,
       packageJson.packageJson,
-      {
-        yarnLock: false,
-        yarnrc: false,
-        yarnrcYml: false,
-        pnpmfile: false,
-      },
+      CLEAN_MANAGER_FILES,
       [
         {
           source: '.npmrc',
@@ -280,36 +291,18 @@ describe('B2 closure assembly', () => {
   it('refuses yarn, pnpmfiles, bad keys and bad shapes', () => {
     const command = parseB2Command('npm test')
     if (!command.ok) throw new Error('the drill command must parse')
-    const packageJson = parseB2PackageJson(JSON.stringify({ scripts: { test: 'vitest' } }))
-    if (!packageJson.ok) throw new Error('the drill manifest must parse')
-    const clean = {
-      yarnLock: false,
-      yarnrc: false,
-      yarnrcYml: false,
-      pnpmfile: false,
-    }
+    const manifest = vitestManifest()
+    const clean = CLEAN_MANAGER_FILES
     expect(
-      collectB2Closure(
-        command.command,
-        packageJson.packageJson,
-        { ...clean, yarnLock: true },
-        [],
-        answers({}),
-      ),
+      collectB2Closure(command.command, manifest, { ...clean, yarnLock: true }, [], answers({})),
+    ).toMatchObject({ ok: false, reason: 'managerFiles' })
+    expect(
+      collectB2Closure(command.command, manifest, { ...clean, pnpmfile: true }, [], answers({})),
     ).toMatchObject({ ok: false, reason: 'managerFiles' })
     expect(
       collectB2Closure(
         command.command,
-        packageJson.packageJson,
-        { ...clean, pnpmfile: true },
-        [],
-        answers({}),
-      ),
-    ).toMatchObject({ ok: false, reason: 'managerFiles' })
-    expect(
-      collectB2Closure(
-        command.command,
-        packageJson.packageJson,
+        manifest,
         clean,
         [{ source: '.npmrc', keys: ['node-options'], bytes: new Uint8Array() }],
         answers({}),
@@ -329,11 +322,10 @@ describe('B2 closure assembly', () => {
     if (!left.ok || !right.ok) throw new Error('the drill commands must parse')
     expect(digestB2Invocation(left.command)).toMatch(/^[0-9a-f]{64}$/u)
     expect(digestB2Invocation(left.command)).not.toBe(digestB2Invocation(right.command))
-    const packageJson = parseB2PackageJson(JSON.stringify({ scripts: { test: 'vitest' } }))
-    if (!packageJson.ok) throw new Error('the drill manifest must parse')
-    const clean = { yarnLock: false, yarnrc: false, yarnrcYml: false, pnpmfile: false }
-    const one = collectB2Closure(left.command, packageJson.packageJson, clean, [], answers({}))
-    const two = collectB2Closure(right.command, packageJson.packageJson, clean, [], answers({}))
+    const manifest = vitestManifest()
+    const clean = CLEAN_MANAGER_FILES
+    const one = collectB2Closure(left.command, manifest, clean, [], answers({}))
+    const two = collectB2Closure(right.command, manifest, clean, [], answers({}))
     if (!one.ok || !two.ok) throw new Error('the drill closures must collect')
     expect(digestB2Closure(one.closure)).toBe(digestB2Closure(two.closure))
   })

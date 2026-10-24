@@ -139,7 +139,6 @@ import {
   IDE_MCP_SERVER_NAME,
   JUDGE_FAST_B1_READY_PLATFORMS,
   JUDGE_FAST_KEEP_ENTRIES,
-  JUDGE_FAST_METHOD_DETERMINISTIC,
   JUDGE_FAST_VETO_WINDOW_MS,
   MCP_ELICITATION_TIMEOUT_MS,
   MILLISECONDS_PER_SECOND,
@@ -313,8 +312,6 @@ import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection, ModelApiSideResponse } from '../../judge/same/modelApiSource'
 import { raceB1Hold, resolveB1Executable } from '../../judge/fast/approval'
 import {
-  doneTailNote,
-  failureTailHint,
   loopTailNote,
   lowerEffortLevel,
   rankedKeepIds,
@@ -322,15 +319,16 @@ import {
   triageRoute,
 } from '../../judge/fast/apply'
 import { fastEffortScale } from '../../judge/fast/engines'
-import { judgeDoneClaim } from '../../judge/fast/reflex/done'
 import { ruleEffort } from '../../judge/fast/reflex/effort'
-import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
-import { detectLoop, type LoopSignal } from '../../judge/fast/reflex/loop'
+import { detectLoop } from '../../judge/fast/reflex/loop'
 import { triageOutput } from '../../judge/fast/reflex/triage'
 import {
-  doneTurnReason,
+  FastTurnBoundary,
+  type FinishedToolOutput,
+  type FinishedTurnTexts,
+} from '../../judge/fast/turnEnd'
+import {
   effortTurnReason,
-  FastTurnRecorder,
   keepTurnReason,
   loopTurnReason,
   triageTurnReason,
@@ -3180,15 +3178,19 @@ export class ModelApiSession implements ScheduledAgentSession {
   the tail queue drains into the next request; the triage tallies feed
   the Judge section's no-window share (lane U).
   */
-  private readonly fastLoop: LoopSignal[] = []
-  private readonly fastTail: string[] = []
-  private fastStuck = false
-  private fastLastTurn: string | undefined
   private fastLastRequest = ''
   private fastTriageMiss = 0
   private fastTriageNoWindow = 0
-  private readonly fastTurn = new FastTurnRecorder()
-  private fastEmittedTurn: string | undefined
+  /** The turn boundary: the next request's start closes the turn before it. */
+  private readonly fastTurns = new FastTurnBoundary({
+    backend: 'modelApi',
+    pin: (decision) => this.deps.fastDecisionPin?.(decision),
+    isOff: () => this.fastOff(),
+    read: (turnId) => this.fastTurnTexts(turnId),
+    emit: (event) => {
+      this.emit(event)
+    },
+  })
   /**
   The ledger total a resumed session brought (M73), kept so a save keeps
   it even where this session does not pack; a packing session's store
@@ -5627,22 +5629,22 @@ export class ModelApiSession implements ScheduledAgentSession {
     isParallel: boolean,
   ): void {
     if (this.fastOff()) return
-    this.fastLoop.push({
+    this.fastTurns.loop.push({
       key: toolRepeatKey(call),
       failed: hasFailed,
       outputDigest: fingerprint(output),
     })
-    const loop = detectLoop(this.fastLoop)
+    const loop = detectLoop(this.fastTurns.loop)
     const loopPin = this.deps.fastDecisionPin?.('loop.stuck')
     const isLoopRaised = loop.stuck || loopPin === true
-    const isLoopActed = isLoopRaised && !this.fastStuck && loopPin !== false
+    const isLoopActed = isLoopRaised && !this.fastTurns.stuck && loopPin !== false
     if (isLoopActed) {
-      this.fastTail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', call.name))
+      this.fastTurns.tail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', call.name))
       if (loop.stuck && loop.pattern === 'repeat') {
-        const last = this.fastLoop.at(-1)
+        const last = this.fastTurns.loop.at(-1)
         let run = 0
         if (last !== undefined) {
-          for (const signal of this.fastLoop.toReversed()) {
+          for (const signal of this.fastTurns.loop.toReversed()) {
             if (signal.key !== last.key || signal.outputDigest !== last.outputDigest) break
             run += 1
           }
@@ -5657,8 +5659,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         })
       }
     }
-    this.fastStuck = isLoopRaised
-    this.fastTurn.observeLoop(isLoopRaised, isLoopActed, loopTurnReason(loop, loopPin))
+    this.fastTurns.stuck = isLoopRaised
+    this.fastTurns.recorder.observeLoop(isLoopRaised, isLoopActed, loopTurnReason(loop, loopPin))
     // A parallel call settles while its round's other calls ran
     // alongside, so the decision may still land before the next
     // request; a lone result has no window.
@@ -5679,7 +5681,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.fastTriageMiss += 1
       if (route.unasked === 'no-window') this.fastTriageNoWindow += 1
     }
-    this.fastTurn.observeTriage(
+    this.fastTurns.recorder.observeTriage(
       isTriagePack || triagePin === true,
       isTriageActed,
       triageTurnReason(route, triagePin),
@@ -5687,41 +5689,14 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  D107 §6.4 and §7.3 (lane M): the turn boundary. The loop signals
-  cover one turn's episode; the finished turn's reply and outputs queue
-  the next turn's hints and close its turn record. A backed done queues
-  its note; an unbacked one is lane U's note under the reply, nothing
-  model-side. The replay keeps no exit code, so the verdicts read the
-  texts alone and miss more often without one — never a guess.
+  D107 §6.4 and §7.3 (lane M): what a finished turn left for the fast
+  verdicts (`FastTurnBoundary`): its reply and its string tool outputs,
+  each named by its call. A backed done queues its note; an unbacked one
+  is lane U's note under the reply, nothing model-side.
   */
-  private fastOnTurn(turnId: string | undefined): void {
-    if (turnId === this.fastLastTurn) return
-    this.fastEndTurn(this.fastLastTurn)
-    this.fastLastTurn = turnId
-    this.fastLoop.length = 0
-    this.fastStuck = false
-  }
-
-  /**
-  D107 (lane U): close one turn's fast record. The done and failure
-  verdicts run over the turn's reply and outputs, then the turn event
-  carries every evaluated decision — or nothing is emitted when none
-  was. The turn end calls this before `turnCompleted`; the next turn's
-  first request is the backstop, and the emitted mark keeps the two
-  from doubling.
-  */
-  private fastEndTurn(turnId: string | undefined): void {
-    if (turnId === undefined || turnId === this.fastEmittedTurn) return
-    this.fastEmittedTurn = turnId
-    if (this.fastOff()) {
-      this.fastTurn.reset()
-      return
-    }
-    const reply = this.transcript.findLast(
-      (entry) => entry.turnId === turnId && entry.item.kind === 'agentMessage',
-    )?.item.text
+  private fastTurnTexts(turnId: string): FinishedTurnTexts {
     const names = new Map<string, string>()
-    const outputs: { readonly tool: string; readonly output: string }[] = []
+    const outputs: FinishedToolOutput[] = []
     for (const entry of this.replay) {
       if (entry.turnId !== turnId) continue
       if (entry.item.type === 'function_call') names.set(entry.item.call_id, entry.item.name)
@@ -5732,59 +5707,12 @@ export class ModelApiSession implements ScheduledAgentSession {
         outputs.push({ tool: names.get(entry.item.call_id) ?? 'tool', output: entry.item.output })
       }
     }
-    if (reply !== undefined && outputs.length > 0) {
-      this.fastEndDone(reply, outputs)
-      this.fastEndFailure(reply, outputs)
+    return {
+      reply: this.transcript.findLast(
+        (entry) => entry.turnId === turnId && entry.item.kind === 'agentMessage',
+      )?.item.text,
+      outputs,
     }
-    const event = this.fastTurn.event(turnId, 'modelApi', JUDGE_FAST_METHOD_DETERMINISTIC)
-    this.fastTurn.reset()
-    if (event !== undefined) this.emit(event)
-  }
-
-  /** D107 §6.4 (lane M): the finished turn's done claim, with its record. */
-  private fastEndDone(
-    reply: string,
-    outputs: readonly { readonly tool: string; readonly output: string }[],
-  ): void {
-    const done = judgeDoneClaim({
-      replyText: reply,
-      toolOutputs: outputs.map((output) => ({ exitCode: undefined, output: output.output })),
-    })
-    const pin = this.deps.fastDecisionPin?.('done.unbacked')
-    const isClaimed = done.decision !== 'miss'
-    const isRaised = isClaimed || pin === true
-    const isActed = pin !== false && (isClaimed || pin === true)
-    if (pin !== false && done.decision === 'backed') this.fastTail.push(doneTailNote())
-    this.fastTurn.observeDone(isRaised, isActed, doneTurnReason(done.decision, pin))
-  }
-
-  /** D107 §7.3 (lane M): the finished turn's unmentioned failure, with its record. */
-  private fastEndFailure(
-    reply: string,
-    outputs: readonly { readonly tool: string; readonly output: string }[],
-  ): void {
-    const pin = this.deps.fastDecisionPin?.('failure.unmentioned')
-    let isMentioned = false
-    for (const output of outputs) {
-      const failure = findUnmentionedFailure({
-        toolOutput: output.output,
-        exitCode: undefined,
-        replyText: reply,
-      })
-      if (failure.decision === 'mentioned') isMentioned = true
-      if (pin !== false && failure.decision === 'unmentioned') {
-        this.fastTail.push(failureTailHint(output.tool))
-        this.fastTurn.observeFailure(true, true, 'hint')
-        return
-      }
-    }
-    if (pin === true) {
-      const first = outputs[0]
-      if (first !== undefined) this.fastTail.push(failureTailHint(first.tool))
-      this.fastTurn.observeFailure(true, true, 'pinned')
-      return
-    }
-    this.fastTurn.observeFailure(false, false, isMentioned ? 'mentioned' : 'absent')
   }
 
   /**
@@ -5814,7 +5742,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     )
     const isWant = pin ?? isLower
     const isActed = isWant && lowered !== this.effort
-    this.fastTurn.observeEffort(
+    this.fastTurns.recorder.observeEffort(
       isLower || pin === true,
       isActed,
       effortTurnReason(isLower, isActed, lowered !== this.effort),
@@ -5835,7 +5763,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const request = this.fastLastRequest
     const isRequestEmpty = request.trim().length === 0
     if (isRequestEmpty && pin !== true) {
-      this.fastTurn.observeKeep(false, false, 'empty')
+      this.fastTurns.recorder.observeKeep(false, false, 'empty')
       return []
     }
     const held = new Set(kept)
@@ -5846,7 +5774,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       if (text !== undefined && text.trim().length > 0) candidates.push({ id: String(index), text })
     }
     if (pin === false) {
-      this.fastTurn.observeKeep(candidates.length > 0, false, 'pinned')
+      this.fastTurns.recorder.observeKeep(candidates.length > 0, false, 'pinned')
       return []
     }
     const ids = new Set(rankedKeepIds(request, candidates).slice(0, JUDGE_FAST_KEEP_ENTRIES))
@@ -5854,7 +5782,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     for (const [index, entry] of this.replay.entries()) {
       if (ids.has(String(index))) keptEntries.push(entry)
     }
-    this.fastTurn.observeKeep(
+    this.fastTurns.recorder.observeKeep(
       candidates.length > 0 || pin === true,
       keptEntries.length > 0,
       keepTurnReason(keptEntries.length > 0, isRequestEmpty),
@@ -5867,7 +5795,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.drainChildResults()
     // D107 (lane M): first, so a new turn's first request already carries
     // the finished turn's hints at its tail.
-    this.fastOnTurn(this.active?.turnId)
+    this.fastTurns.start(this.active?.turnId)
     const original = this.requestReplay().map((entry) => entry.item)
     const recorded = RecordingScope.build(recordProjection, {
       inputs: original.map((item) => ({
@@ -5919,7 +5847,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     // developer message each, after everything already sent. Empty with
     // the switch off or every decision abstaining: the input then keeps
     // today's bytes.
-    const drained = tailNotes(this.fastTail.splice(0))
+    const drained = tailNotes(this.fastTurns.tail.splice(0))
     for (const note of drained) {
       input.push({
         type: 'message',
@@ -17373,7 +17301,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.releaseScheduledResource(turn.turnId)
     turn.resourceLease?.complete(true)
     turn.resourceLease = undefined
-    this.fastEndTurn(turn.turnId)
+    this.fastTurns.end(turn.turnId)
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,

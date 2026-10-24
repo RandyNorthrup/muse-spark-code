@@ -1,7 +1,11 @@
 // Judge wire shapes stay independent of host projection and lazy presentation.
 import * as z from 'zod/mini'
 import { nonnegativeUsdSchema } from './usdSchema'
-import { JUDGE_FAST_TURN_DECISIONS, JUDGE_FAST_TURN_REASONS } from './judgeFastTurn'
+import {
+  fastCountSchema,
+  JUDGE_FAST_TURN_DECISIONS,
+  JUDGE_FAST_TURN_REASONS,
+} from './judgeFastTurn'
 
 export const JUDGE_PANEL_ENGINES = ['auto', 'same', 'separate', 'both', 'off'] as const
 
@@ -16,22 +20,22 @@ export const judgePanelFastDecisionSchema = z.strictObject({
   acted: z.boolean(),
   reason: z.enum(JUDGE_FAST_TURN_REASONS),
   /** Turn records merged into this entry. */
-  evaluated: z.number().check(z.int(), z.minimum(0)),
+  evaluated: fastCountSchema,
   /** Turn records where the decision acted. */
-  appliedTurns: z.number().check(z.int(), z.minimum(0)),
+  appliedTurns: fastCountSchema,
   /** Triage only: results that rode whole for want of a real window. */
-  noWindow: z.optional(z.number().check(z.int(), z.minimum(0))),
+  noWindow: z.optional(fastCountSchema),
 })
 
 export const judgePanelFastTotalsSchema = z.strictObject({
   /** Turns with at least one evaluated decision. */
-  turns: z.number().check(z.int(), z.minimum(0)),
+  turns: fastCountSchema,
   /** Turns where any decision acted. */
-  appliedTurns: z.number().check(z.int(), z.minimum(0)),
-  raised: z.number().check(z.int(), z.minimum(0)),
-  acted: z.number().check(z.int(), z.minimum(0)),
-  judgeCalls: z.number().check(z.int(), z.minimum(0)),
-  judgeTokens: z.number().check(z.int(), z.minimum(0)),
+  appliedTurns: fastCountSchema,
+  raised: fastCountSchema,
+  acted: fastCountSchema,
+  judgeCalls: fastCountSchema,
+  judgeTokens: fastCountSchema,
 })
 
 export const judgePanelFastFactsSchema = z.strictObject({
@@ -56,9 +60,9 @@ export const judgePanelFastRowSchema = z.strictObject({
   decision: z.enum(JUDGE_FAST_TURN_DECISIONS),
   state: z.enum(['acted', 'raised', 'absent']),
   reason: z.enum(JUDGE_FAST_TURN_REASONS),
-  evaluated: z.number().check(z.int(), z.minimum(0)),
-  appliedTurns: z.number().check(z.int(), z.minimum(0)),
-  noWindow: z.optional(z.number().check(z.int(), z.minimum(0))),
+  evaluated: fastCountSchema,
+  appliedTurns: fastCountSchema,
+  noWindow: z.optional(fastCountSchema),
   /** The measured median saving per eligible turn, when measured. */
   savedMsPerTurn: z.optional(z.number()),
   /** Per-turn median times applied turns; unknown without the median. */

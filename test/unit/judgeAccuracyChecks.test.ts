@@ -4,19 +4,14 @@
 // and the recorded judgeFast exchanges (captured 2026-10-22) for the
 // failure-count parser. Below the bar or without a profile the verdict
 // is a log record with no judged content, never a shown hint or note.
-import { readFileSync } from 'node:fs'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { fitCalibration } from '../../src/core/judge/calibration/fit'
 import type { CommittedCalibrationProfile } from '../../src/core/judge/calibration/profiles'
 import { reportCalibration } from '../../src/core/judge/calibration/report'
 import {
   CALIBRATION_FAMILIES,
-  parseCalibrationDataset,
   parseCalibrationProfile,
   type CalibrationIdentity,
-  type CalibrationLimits,
   type CalibrationProfile,
 } from '../../src/core/judge/calibration/schema'
 import { consistencyState, decideConsistency } from '../../src/core/judge/fast/checks/consistency'
@@ -55,26 +50,8 @@ import {
   JUDGE_FAST_DESTRUCTIVE_MIN_PRECISION,
   JUDGE_FAST_HINT_MIN_PRECISION,
 } from '../../src/shared/constants'
-
-const fixtureRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'fixtures',
-  'judgeFast',
-)
-const fixture = (name: string): string => readFileSync(path.join(fixtureRoot, name), 'utf8')
-
-const limits: CalibrationLimits = {
-  maxSamples: 2000,
-  maxIdentifierLength: 256,
-  maxBins: 20,
-  isotonicMinimumLabels: 200,
-  probabilityEpsilon: 1e-6,
-  maxIterations: 100,
-  convergenceTolerance: 1e-8,
-  regularization: 1e-6,
-  weightFloor: 1e-6,
-}
+import { groupedRiskDataset, limits } from './helpers/calibrationDataset'
+import { judgeFastFixture } from './helpers/judgeFastFixtures'
 
 const engine: AccuracyEngine = {
   providerId: 'test-provider',
@@ -87,6 +64,10 @@ function compareStrings(left: string, right: string): number {
   if (left === right) return 0
   return left < right ? -1 : 1
 }
+
+/** The checks routed to one channel, sorted. */
+const routedTo = (channel: 'hint' | 'note' | 'caution'): readonly string[] =>
+  ACCURACY_CHECKS.filter((check) => ACCURACY_CHANNELS[check][channel]).toSorted(compareStrings)
 
 /**
 A valid independent profile with the identity platt mapping (slope 1,
@@ -157,19 +138,12 @@ function testProfile(
 
 /** The real synthetic fit Lane L's suite reports: the gate must refuse it. */
 function syntheticFitted(): { profile: CalibrationProfile; identity: CalibrationIdentity } {
-  const raw: unknown = JSON.parse(
-    readFileSync(
-      new URL('../fixtures/judge/calibration/grouped-risk.json', import.meta.url),
-      'utf8',
-    ),
-  )
-  const parsed = parseCalibrationDataset(raw, limits)
-  if (parsed.status !== 'valid') throw new Error(parsed.reason)
-  const fitted = fitCalibration(parsed.dataset, 'platt', limits)
+  const dataset = groupedRiskDataset()
+  const fitted = fitCalibration(dataset, 'platt', limits)
   if (fitted.status !== 'fitted') throw new Error(fitted.reason)
-  const reported = reportCalibration(fitted.profile, parsed.dataset, 5, limits)
+  const reported = reportCalibration(fitted.profile, dataset, 5, limits)
   if (reported.status !== 'reported') throw new Error(reported.reason)
-  return { profile: reported.profile, identity: parsed.dataset.identity }
+  return { profile: reported.profile, identity: dataset.identity }
 }
 
 interface CheckCase {
@@ -303,14 +277,18 @@ describe('fast judge accuracy checks', () => {
   })
 
   it('routes each check through its §7 channels, and caution is a latch bit only', () => {
-    expect(ACCURACY_CHANNELS).toEqual({
-      'risk.destructive': { hint: false, note: true, caution: true },
-      'edit.misfit': { hint: true, note: false, caution: false },
-      'failure.unmentioned': { hint: true, note: true, caution: false },
-      'done.unbacked': { hint: false, note: true, caution: false },
-      'scope.outside': { hint: true, note: true, caution: false },
-      'claim.inconsistent': { hint: false, note: true, caution: false },
-    })
+    // Which checks reach each channel (§7.1–§7.6): only the destructive
+    // check cautions, the edit check never notes, and done and claim
+    // never hint.
+    expect(routedTo('caution')).toEqual(['risk.destructive'])
+    expect(routedTo('hint')).toEqual(['edit.misfit', 'failure.unmentioned', 'scope.outside'])
+    expect(routedTo('note')).toEqual([
+      'claim.inconsistent',
+      'done.unbacked',
+      'failure.unmentioned',
+      'risk.destructive',
+      'scope.outside',
+    ])
     for (const channels of Object.values(ACCURACY_CHANNELS)) {
       // No allow, no hold text, no prose: the latch output is three bits.
       expect(Object.keys(channels).toSorted(compareStrings)).toEqual(['caution', 'hint', 'note'])
@@ -483,14 +461,14 @@ describe('fast judge accuracy checks', () => {
 
   it('parses failure counts from the recorded exchanges, never from codes', () => {
     // The vitest header names 17 failed tests (vitest-failure.txt line 1).
-    expect(parseFailureCount(fixture('vitest-failure.txt'))).toBe(17)
+    expect(parseFailureCount(judgeFastFixture('vitest-failure.txt'))).toBe(17)
     // The summary names 17 failed tests, not the 1 failed file.
-    expect(parseFailureCount(fixture('vitest-summary.txt'))).toBe(17)
+    expect(parseFailureCount(judgeFastFixture('vitest-summary.txt'))).toBe(17)
     // An error code is not a count.
-    expect(parseFailureCount(fixture('tsc-error.txt'))).toBeUndefined()
-    expect(parseFailureCount(fixture('node-traceback.txt'))).toBeUndefined()
-    expect(parseFailureCount(fixture('ls-missing.txt'))).toBeUndefined()
-    expect(parseFailureCount(fixture('grep-nomatch.txt'))).toBeUndefined()
+    expect(parseFailureCount(judgeFastFixture('tsc-error.txt'))).toBeUndefined()
+    expect(parseFailureCount(judgeFastFixture('node-traceback.txt'))).toBeUndefined()
+    expect(parseFailureCount(judgeFastFixture('ls-missing.txt'))).toBeUndefined()
+    expect(parseFailureCount(judgeFastFixture('grep-nomatch.txt'))).toBeUndefined()
   })
 
   it("assembles each check's question state from its inputs, bounded", () => {

@@ -79,39 +79,6 @@
   margin: 12px 0;
 }
 
-.js-button {
-  background: var(--vscode-button-secondaryBackground);
-  color: var(--vscode-button-secondaryForeground);
-  border: 1px solid var(--ms-boundary);
-  border-radius: 4px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
-
-.js-button-primary {
-  background: var(--vscode-button-background);
-  color: var(--vscode-button-foreground);
-  border: 1px solid transparent;
-  border-radius: 4px;
-  padding: 4px 12px;
-  cursor: pointer;
-}
-
-.js-button:disabled,
-.js-button-primary:disabled {
-  opacity: 55%;
-  cursor: default;
-}
-
-.js-link-button {
-  background: none;
-  border: none;
-  padding: 0;
-  color: var(--vscode-textLink-foreground);
-  cursor: pointer;
-  text-decoration: underline;
-}
-
 .js-advanced {
   margin: 12px 0;
   border: 1px solid var(--vscode-panel-border);
@@ -138,11 +105,6 @@
 }
 
 .js-field select {
-  background: var(--vscode-input-background);
-  color: var(--vscode-input-foreground);
-  border: 1px solid var(--vscode-input-border);
-  border-radius: 4px;
-  padding: 4px 8px;
   max-width: 320px;
 }
 
