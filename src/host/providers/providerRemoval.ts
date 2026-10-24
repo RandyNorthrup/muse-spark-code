@@ -4,7 +4,7 @@
 // the removed provider with its key, since the secret is kept until the
 // window passes.
 
-import { PROVIDER_UNDO_WINDOW_MS } from '../../shared/constants'
+import { PROVIDER_HEADERS_SECRET_PREFIX, PROVIDER_UNDO_WINDOW_MS } from '../../shared/constants'
 import {
   deleteProviderAdminCredential,
   deleteProviderCredential,
@@ -81,6 +81,8 @@ export function createProviderRemoval(deps: ProviderRemovalDeps): ProviderRemova
     await deleteProviderCredential(deps.secrets, id)
     // Removing the provider removes its admin report key too.
     await deleteProviderAdminCredential(deps.secrets, id)
+    // And its custom request headers (M95c part 6), which may hold a credential.
+    await deps.secrets.delete(`${PROVIDER_HEADERS_SECRET_PREFIX}${id}`)
   }
 
   const dropPending = async (id: string): Promise<readonly PendingRemoval[]> => {

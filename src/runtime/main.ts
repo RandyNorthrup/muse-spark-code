@@ -2482,6 +2482,10 @@ async function main(processResources: ProcessResources): Promise<number> {
       const { providersRefresh } = await import('./providersCommands')
       return await providersRefresh(await providersDeps(), command.provider)
     }
+    case 'providersHeaders': {
+      const { providersHeaders } = await import('./providersHeadersCommand')
+      return await providersHeaders(await providersDeps(), command.options)
+    }
     case 'providersRemove': {
       const { providersRemove } = await import('./providersCommands')
       return await providersRemove(await providersDeps(), command.provider)

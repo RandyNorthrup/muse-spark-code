@@ -23,6 +23,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     providersTest: [['providers', 'test']],
     providersRefresh: [['providers', 'refresh']],
     providersRemove: [['providers', 'remove']],
+    providersHeaders: [['providers', 'headers']],
     // The bare form's own row (RLTESTDRIVE2 14): its invocation is the
     // command a person types, never the route's name.
     providersUsageTargets: [['providers', 'usage']],
@@ -181,6 +182,12 @@ export function cliCommands(shouldIncludeHeld = false) {
     {
       route: 'providersRemove',
       name: 'providers remove <id>',
+      description: UI_TEXT.referenceProviders,
+      text: { ui: 'referenceProviders' },
+    },
+    {
+      route: 'providersHeaders',
+      name: 'providers headers <id> [set|unset <name>]',
       description: UI_TEXT.referenceProviders,
       text: { ui: 'referenceProviders' },
     },

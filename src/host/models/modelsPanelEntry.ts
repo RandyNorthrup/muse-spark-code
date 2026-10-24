@@ -400,11 +400,17 @@ export function createModelsPanelFeatures(
     loopbackFetch: fetchLoopback,
     now: () => Date.now(),
     setComposerModel: host.setComposerModel,
+    manageHeaders: seam.manageHeaders,
     ui: {
       onDiscardedKey: () => {
         void vscode.window.showWarningMessage(openRouterDiscardedKeyNotice())
       },
       showInputBox: vscode.window.showInputBox,
+      pickOne: async (items, placeholder) =>
+        await vscode.window.showQuickPick(items, {
+          placeHolder: placeholder,
+          ignoreFocusOut: true,
+        }),
       confirmPaidTest: async (message) =>
         (await vscode.window.showWarningMessage(
           message,

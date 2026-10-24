@@ -53,6 +53,8 @@ import type {
   KeyUsageReader,
   KeyUsageSnapshot,
   ModelFetcher,
+  ModelsPanelSeam,
+  ProviderHeadersPorts,
   ModelSuggestion,
   PkceSource,
   PresetCatalog,
@@ -65,6 +67,8 @@ import type {
 
 export interface ProvidersHostUi {
   readonly showInputBox: typeof vscode.window.showInputBox
+  /** One pick from `items` (M95c part 6's header list); undefined when dismissed. */
+  readonly pickOne: ProviderHeadersPorts['pickOne']
   /** States the one-token cost and asks before sending it (D74). */
   readonly confirmPaidTest: (message: string) => Promise<boolean>
   /** Asks once about a private-network address (D74). */
@@ -116,6 +120,8 @@ export interface ProvidersHostDeps {
   readonly loopbackFetch: typeof fetch
   readonly now: () => number
   readonly setComposerModel: (modelRef: string) => Promise<void>
+  /** M95c part 6: the seam's header manager (loaded with the seam). */
+  readonly manageHeaders?: ModelsPanelSeam['manageHeaders']
   readonly ui: ProvidersHostUi
 }
 
@@ -140,6 +146,11 @@ export interface ProvidersHost {
   /** The address verdict: refused stops, private asks once, else ok. */
   readonly confirmAddress: (address: string) => Promise<AddressCheck>
   readonly promptForKey: (preset: PresetInfo) => Promise<string | undefined>
+  /**
+  M95c part 6: add or remove the saved provider's custom request headers
+  in the editor's own pickers; values go straight to the credential store.
+  */
+  readonly manageHeaders: (entry: ProviderEntry) => Promise<void>
   readonly testCredential: (entry: ProviderEntry, credential: string) => Promise<KeyTestResult>
   /** Tests the stored credential; "needs a key" when none was entered. */
   readonly testStoredCredential: (entry: ProviderEntry) => Promise<KeyTestResult>
@@ -321,6 +332,14 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
           return key
         }
       }
+    },
+    manageHeaders: async (entry) => {
+      if (deps.manageHeaders === undefined) throw new Error(UI_TEXT.actionFailed)
+      await deps.manageHeaders(entry, {
+        pickOne: deps.ui.pickOne,
+        showInputBox: deps.ui.showInputBox,
+        secrets: deps.secrets,
+      })
     },
     testCredential: (entry, credential) => runTest(entry, credential),
     testStoredCredential: async (entry) => {

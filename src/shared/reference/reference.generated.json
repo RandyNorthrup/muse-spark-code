@@ -2063,7 +2063,11 @@
       "summary": { "setting": "modelApiPromptCacheRetention" },
       "description": { "setting": "modelApiPromptCacheRetention" },
       "commands": [],
-      "settings": ["museSpark.modelApiPromptCacheRetention", "museSpark.modelApiPromptCacheTtl"],
+      "settings": [
+        "museSpark.modelApiPromptCacheRetention",
+        "museSpark.modelApiPromptCacheTtl",
+        "museSpark.modelApiPromptCacheBreakpoints"
+      ],
       "docs": "https://github.com/RandyNorthrup/muse-spark-code#paid-features",
       "backends": ["modelApi"],
       "paid": false,
@@ -3430,6 +3434,17 @@
       "schema": { "type": "string", "enum": ["default", "12h"], "default": "default" }
     },
     {
+      "id": "museSpark.modelApiPromptCacheBreakpoints",
+      "name": "museSpark.modelApiPromptCacheBreakpoints",
+      "description": "Marks OpenAI's explicit prompt-cache breakpoints (prompt_cache_breakpoint) on GPT-5.6 and later: one after the conversation's stable start and one on its latest message, so later turns can reuse both. Sent only on direct Responses API requests with your own key. Cache writes bill at the rate the cache lifetime sets.",
+      "descriptionKey": "config.modelApiPromptCacheBreakpoints.description",
+      "type": "boolean",
+      "default": false,
+      "scope": "machine",
+      "refinements": [],
+      "schema": { "type": "boolean", "default": false }
+    },
+    {
       "id": "museSpark.modelApiScheduledPrompts",
       "name": "museSpark.modelApiScheduledPrompts",
       "description": "Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it. Shared daily budget setting: museSpark.paidDailyBudgetUsd.",
@@ -4177,25 +4192,24 @@
     {
       "id": "museSpark.tabModel",
       "name": "museSpark.tabModel",
-      "description": "The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent.",
+      "description": "The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent. Or one of your own models as its provider/model reference (for example mistral/codestral-latest), priced at its provider's card and billed to that provider's key.",
       "descriptionKey": "config.tabModel.description",
       "type": "string",
       "default": "muse-spark-1.3",
-      "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
-      "enumDescriptions": [
-        "muse-spark-1.3: Standard rates, no training on your code.",
-        "muse-spark-1.3-contributor: contributor rates, Meta trains on the code it is sent."
-      ],
-      "enumDescriptionKeys": [
-        "config.tabModel.enumDescriptions.standard",
-        "config.tabModel.enumDescriptions.contributor"
-      ],
-      "enumTexts": {},
       "scope": "machine",
       "refinements": [],
       "schema": {
         "type": "string",
-        "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
+        "anyOf": [
+          {
+            "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
+            "enumDescriptions": [
+              "%config.tabModel.enumDescriptions.standard%",
+              "%config.tabModel.enumDescriptions.contributor%"
+            ]
+          },
+          { "pattern": "^[^/\\s]+/\\S+$" }
+        ],
         "default": "muse-spark-1.3"
       }
     },
@@ -5298,6 +5312,13 @@
       "invocations": [["providers", "remove"]]
     },
     {
+      "route": "providersHeaders",
+      "name": "providers headers <id> [set|unset <name>]",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" },
+      "invocations": [["providers", "headers"]]
+    },
+    {
       "route": "providersModels",
       "name": "providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]",
       "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
@@ -5752,6 +5773,13 @@
     {
       "route": "providersModels",
       "name": "providersModels: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "providersHeaders",
+      "name": "providersHeaders: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

@@ -205,6 +205,13 @@ export const CLI_OPTION_REGISTRY = {
       help: { type: 'boolean', short: 'h' },
     },
   },
+  // M95c part 6: `providers headers <id> [set|unset <name>]` (positional,
+  // so no value can ride a flag; a value is read from standard input).
+  providersHeaders: {
+    options: {
+      help: { type: 'boolean', short: 'h' },
+    },
+  },
   providersUsage: {
     options: {
       days: { type: 'string' },

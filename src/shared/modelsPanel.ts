@@ -578,6 +578,9 @@ const providerPanelMessageSchema = z.discriminatedUnion('type', [
     providerId: z.optional(z.string()),
   }),
   z.strictObject({ type: z.literal('providers/remove'), providerId: z.string() }),
+  // M95c part 6: the saved provider's custom request headers, managed in
+  // the editor's own pickers so no value ever crosses postMessage.
+  z.strictObject({ type: z.literal('providers/headers'), providerId: z.string() }),
   z.strictObject({ type: z.literal('providers/undoRemove'), providerId: z.string() }),
   z.strictObject({ type: z.literal('providers/scanLocal') }),
   z.strictObject({ type: z.literal('providers/export'), providerId: z.optional(z.string()) }),

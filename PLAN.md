@@ -22315,6 +22315,13 @@ Gap rows OPENAI-G26, G27, G28 closed in code, capture-pending. Plan codex models
 
 **Status 2026-10-04: planned.**
 
+**Status 2026-10-23 (cc/rlm95c): building.** Parts 3, 6, 7 built; 1, 4
+open. Part 3 behind `museSpark.modelApiPromptCacheBreakpoints`, off until
+its paired run. Part 6 keeps headers in the credential store, origin-bound
+(`providers headers`). Part 7: Tab on `provider/model`, chat-shaped hole;
+FIM open. Part 1 needs its own chunk and a catalogue re-sync; part 4 its
+capture. Record: `docs/certification/cc-rlm95c.md`.
+
 Status detail retained: planned with M95; each part starts when M95 has merged
 and is its own pull request, with its own capture and certification
 (`docs/certification/m95c.md`).

@@ -55,6 +55,11 @@ export interface TabEngineRequest {
   (RVM94KR2 4): a cancelled trigger sends nothing.
   */
   readonly isCancelled: () => boolean
+  /**
+  The request's own stream, for a bring-your-own model (M95c part 7): its
+  provider's client and key. Absent, the Meta key client's stream sends.
+  */
+  readonly stream?: TabStream | undefined
 }
 
 export interface TabEngineAnswer {
@@ -225,7 +230,8 @@ export function createTabEngine(deps: TabEngineDeps): TabEngine {
         // One HTTP attempt: the reservation prices one, so the client's
         // retries are spent before the first try (RVM94LC).
         const budget: RetryBudget = noRetryBudget()
-        for await (const event of deps.stream(body, neverAborted, budget, admit)) {
+        const stream = request.stream ?? deps.stream
+        for await (const event of stream(body, neverAborted, budget, admit)) {
           if (shouldStopAt(event)) {
             break
           }
