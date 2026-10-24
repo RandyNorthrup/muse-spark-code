@@ -310,6 +310,15 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The ACP package's licence notices no longer refuse two packages that
+  publish no licence text (`@npmcli/agent`, `proxy-agent-negotiate`). They
+  came only from the signing half of `sigstore`, which the pack index
+  verifier never used: it now uses Sigstore's verification packages directly
+  (`@sigstore/tuf`, `@sigstore/verify`, `@sigstore/bundle`), with the same
+  checks and the same refusals, and `dist/packsVerify.js` shrinks from 1.1 MB
+  to 213 KB. The notices' header now names every bundle that carries
+  third-party code, read from the build, instead of a hand-kept list that had
+  fallen behind.
 - Development dependencies carry this week's security fixes: `markdown-it`
   14.3.3 (GHSA-gfr2-rv44-r23c; its dated audit exception is removed),
   `@azure/msal-node` 7.1.0 (GHSA-xcx6-jx8p-x3h5) and `undici` 8.12.2 and

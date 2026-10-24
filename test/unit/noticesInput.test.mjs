@@ -117,6 +117,8 @@ it('notices physically staged shared-chunk dependencies and excludes extension-o
   const text = await readFile(path.join(root, 'NOTICES.txt'), 'utf8')
   expect(text).toContain('micromark (MIT)')
   expect(text).not.toContain('extension-only (MIT)')
+  // The header names the staged bundles that carry listed code, and only them.
+  expect(text).toContain("The agent's bundles (dist/webview/shared.js) include code")
   expect(text).toContain('Fixture licence text')
   expect(text).toContain('(optional subset font pack)')
 })

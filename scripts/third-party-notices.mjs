@@ -25,7 +25,11 @@
 
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
-import { contributedPackageDirs, noticePackageDir } from './lib/noticesInput.mjs'
+import {
+  contributedPackageDirs,
+  contributingOutputs,
+  noticePackageDir,
+} from './lib/noticesInput.mjs'
 import { assertFontBundleSplit, fontNotices } from './notices-fonts.mjs'
 
 const METAFILE_DIR = path.join('dist', 'meta')
@@ -79,18 +83,26 @@ Generated from the production build by scripts/third-party-notices.mjs;
 "npm run notices" regenerates this file.
 `
 
-const ACP_HEADER = `THIRD-PARTY SOFTWARE NOTICES
+/**
+The ACP package's header. `bundles` are the staged files that carry a
+listed package's code, read from the same metafiles as the packages, so a
+new lazily loaded bundle is named without anyone editing this text.
+*/
+function acpHeader(bundles) {
+  if (bundles.length === 0) throw new Error('No staged ACP bundle carries third-party code')
+  const named = new Intl.ListFormat('en', { type: 'conjunction' }).format(bundles)
+  return `THIRD-PARTY SOFTWARE NOTICES
 muse-spark-code-acp, Muse Spark Code (Unofficial) for editors that speak the
 Agent Client Protocol
 
-The agent's bundles (dist/acp.js, dist/fontsInstall.js, dist/acpQuestions.js, dist/runtimeQuestions.js, dist/questionNotes.js, dist/approvalModes.js, dist/resourceGovernor.js, dist/resourceAdmission.js, dist/modelApi.js, dist/reviewer.js, dist/team.js, dist/teamScheduler.js, dist/teamRunners.js, dist/foreignHooks.js, dist/hookRuntime.js, dist/modelApiTools.js, dist/modelApiVerify.js, dist/modelApiImage.js, dist/modelApiB1.js, dist/modelApiToolRun.js, dist/modelApiFast.js, dist/modelEfforts.js, dist/recorder.js, dist/uiText.js, dist/uiTextRuntime.js, dist/uiTextHooks.js, dist/uiTextSurfaces.js, dist/validation.js, dist/wire.js, dist/searchWorker.js, dist/judgeP2.js, dist/judgeSources.js, dist/judgeLint.js, dist/judgeHook.js, dist/judgeLocal.js, dist/judgeUses.js, dist/judgeServe.js, dist/validationSchema.js and
-dist/pageWorker.js, dist/legalScan.js and dist/legalFix.js) include code from the packages below, each under its
+The agent's bundles (${named}) include code from the packages below, each under its
 own licence, reproduced here as the package ships it. The keyring binding (@napi-rs/keyring) is installed
 beside it as a dependency, with its own licence. The optional standalone font
 pack is described below; fonts install verifies its separately downloaded assets.
 
 Generated from the production build by scripts/third-party-notices.mjs.
 `
+}
 
 function shippedPackageDirs(metafiles) {
   const missing = metafiles.find((file) => !existsSync(file))
@@ -189,9 +201,14 @@ function describePackage(dir, problems) {
   }
 }
 
-/** One block per distinct licence text, naming every package that ships it. */
-function render(packages, isAcp) {
-  const header = isAcp ? ACP_HEADER : HEADER
+/**
+One block per distinct licence text, naming every package that ships it.
+`acpBundles` are the ACP package's bundles; without them, the extension's
+file.
+*/
+function render(packages, acpBundles) {
+  const isAcp = acpBundles !== undefined
+  const header = isAcp ? acpHeader(acpBundles) : HEADER
   const sorted = packages.toSorted((a, b) => a.name.localeCompare(b.name, 'en'))
   const groups = Map.groupBy(sorted, (entry) => entry.text)
   const blocks = [...groups].map(([text, group]) => {
@@ -233,14 +250,13 @@ const metafiles =
         ...extensionMeta,
         ...readdirSync(ACP_METAFILE_DIR).map((file) => path.join(ACP_METAFILE_DIR, file)),
       ]
+const isStaged = (file) => existsSync(path.join(ACP_STAGE, file))
 const directories =
   acpOutput === undefined
     ? shippedPackageDirs(extensionMeta)
-    : [
-        ...contributedPackageDirs(metafiles, readFileSync, (file) =>
-          existsSync(path.join(ACP_STAGE, file)),
-        ),
-      ].map((directory) => path.resolve(directory))
+    : [...contributedPackageDirs(metafiles, readFileSync, isStaged)].map((directory) =>
+        path.resolve(directory),
+      )
 const problems = []
 const packages = directories.map((dir) => describePackage(dir, problems))
 if (acpOutput === undefined) {
@@ -276,7 +292,10 @@ if (problems.length > 0) {
   process.exit(1)
 }
 const OUTPUT = 'THIRD_PARTY_NOTICES.txt'
-const expected = render(packages, acpOutput !== undefined)
+const expected = render(
+  packages,
+  acpOutput === undefined ? undefined : contributingOutputs(metafiles, readFileSync, isStaged),
+)
 
 if (acpOutput !== undefined) {
   writeFileSync(acpOutput, expected)
