@@ -413,7 +413,7 @@
   "referenceInstallSkills": "Скопировать project_setup, feature_delivery и quality_retrofit в конфигурацию Muse Code и подключить их как навыки.",
   "referenceExecContract": "Запуски без интерфейса запрещают доверие рабочей области и обход разрешений. Без интерфейса разрешены только plan и acceptEdits. Серверный веб-поиск не имеет гарантированного ограничения и запрещён. Генерация изображений требует acceptEdits. Выберите ровно один источник запроса. Запрос и ключ не могут одновременно использовать stdin. Model API требует --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Автоматическое сжатие работает только с --auto-compaction при --max-budget-usd.",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: Использование, параметры и примеры одной команды. help --all: Команды, настройки и возможности с описаниями и документацией.",
-  "referenceWatchdog": "Слежение за проблемами GitHub из терминала: показ, состояние, пауза, продолжение, опрос, свидетельства, применение, решение и завершение.",
+  "referenceWatchdog": "Слежение за проблемами GitHub из терминала: показ, состояние, пауза, продолжение, опрос, политика, свидетельства, применение, решение и завершение.",
   "referenceKeyStdin": "auth set: Считывает ваш ключ в терминале и хранит его в хранилище учетных данных этого компьютера. Разговоры оплачиваются по ключу. exec / scan-secrets --key-stdin: Читайте ключ из канала, а не из терминала. stdin → memory; prompt stdin + key stdin = Запрос и ключ не могут одновременно использовать stdin.",
   "referenceModalKeys": "Закрыть диалог или переместить фокус внутри него.",
   "referenceRenameKeys": "Подтвердить или отменить переименование беседы.",
@@ -1903,7 +1903,7 @@
       "notPaused": "Сторож для {repository} не приостановлен.",
       "invalidRepository": "Укажите репозиторий как владелец/имя.",
       "watching": "Отслеживается {repository}.",
-      "usage": "Используйте `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
+      "usage": "Используйте `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.",
       "notSignedIn": "Сначала войдите в GitHub, затем выполните `auth github`.",
       "invalidIssue": "Укажите номер проблемы.",
       "invalidEvidence": "Доказательство проверки имело неверную форму.",
@@ -1928,7 +1928,11 @@
       "closedNote": "Закрыто.",
       "notVerified": "Не проверено: {notes}.",
       "unknownIssue": "Эта проблема не отслеживается.",
-      "alreadyPosted": "Ответ уже опубликован."
+      "alreadyPosted": "Ответ уже опубликован.",
+      "policyHeading": "Политика для {repository}:",
+      "policySet": "Параметр {key} для {repository} задан.",
+      "policyInvalid": "Это значение недопустимо для {key}. Используйте {allowed}.",
+      "policyUnknownKey": "Неизвестный ключ политики. Используйте label, template, watch-labels, ignore-authors, posts или close."
     },
     "poll": {
       "skippedPullRequest": "запрос на слияние, а не проблема",

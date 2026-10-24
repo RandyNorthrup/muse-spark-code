@@ -537,7 +537,7 @@ export const EN = {
   referenceBriefHelp:
     'help / --help / -h: ACP / CLI. help <command> / <command> --help: Usage, options and examples for one command. help --all: Commands, settings and features, with descriptions and documentation.',
   referenceWatchdog:
-    'Watch GitHub issues from the terminal: list, status, pause, resume, poll, evidence, apply, decide and resolve.',
+    'Watch GitHub issues from the terminal: list, status, pause, resume, poll, policy, evidence, apply, decide and resolve.',
   referenceKeyStdin:
     'auth set: Reads your key in a terminal and keeps it in this computer’s credential store. The key is billed for the conversations. exec / scan-secrets --key-stdin: Read the key from a pipe, not a terminal. stdin → memory; prompt stdin + key stdin = Prompt and key cannot both use stdin.',
   referenceModalKeys: 'Close the dialog or move focus within it.',
@@ -2277,7 +2277,7 @@ export const EN = {
       invalidRepository: 'Give a repository as owner/name.',
       watching: 'Watching {repository}.',
       usage:
-        'Use `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.',
+        'Use `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`.',
       notSignedIn: 'Sign in to GitHub first, then run `auth github`.',
       invalidIssue: 'Give an issue number.',
       invalidEvidence: 'The verification evidence did not have the expected shape.',
@@ -2298,6 +2298,11 @@ export const EN = {
       notVerified: 'Not verified: {notes}.',
       unknownIssue: 'This issue is not being watched.',
       alreadyPosted: 'The reply is already posted.',
+      policyHeading: 'Policy for {repository}:',
+      policySet: 'Set {key} for {repository}.',
+      policyInvalid: 'That value is not allowed for {key}. Use {allowed}.',
+      policyUnknownKey:
+        'Unknown policy key. Use label, template, watch-labels, ignore-authors, posts or close.',
     },
     poll: {
       skippedPullRequest: 'a pull request, not an issue',

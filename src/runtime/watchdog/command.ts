@@ -20,11 +20,15 @@ import {
   type WatchdogVerifyEvidence,
 } from '../../core/watchdog/verify'
 import { UI_TEXT, fill, plural } from '../../shared/l10n/text'
-import type {
-  TriageFindings,
-  WatchdogIssue as WatchdogRecord,
-  WatchdogOutcome,
-  WatchdogVerdict,
+import {
+  defaultWatchdogPolicy,
+  watchdogApprovalSchema,
+  watchdogClosePolicySchema,
+  type TriageFindings,
+  type WatchdogIssue as WatchdogRecord,
+  type WatchdogOutcome,
+  type WatchdogPolicy,
+  type WatchdogVerdict,
 } from '../../shared/watchdog'
 
 /** A surface input the command refuses in fixed words, never a crash. */
@@ -39,6 +43,12 @@ export type WatchdogCommand =
   | { readonly verb: 'list' }
   | { readonly verb: 'status'; readonly repository?: string; readonly number?: string }
   | { readonly verb: 'pause' | 'resume' | 'poll'; readonly repository: string }
+  | {
+      readonly verb: 'policy'
+      readonly repository: string
+      readonly key?: string
+      readonly value?: string
+    }
   | { readonly verb: 'evidence'; readonly repository: string; readonly number: string }
   | {
       readonly verb: 'apply'
@@ -87,6 +97,12 @@ export function parseWatchdogCommand(argv: readonly string[]): WatchdogCommand |
     case 'poll': {
       const [repository, ...extra] = rest
       return repository !== undefined && extra.length === 0 ? { verb, repository } : undefined
+    }
+    case 'policy': {
+      const [repository, key, ...words] = rest
+      if (repository === undefined) return undefined
+      if (key === undefined) return { verb, repository }
+      return words.length === 0 ? undefined : { verb, repository, key, value: words.join(' ') }
     }
     case 'evidence': {
       const [repository, number, ...extra] = rest
@@ -273,6 +289,116 @@ async function pauseText(
   }
 }
 
+/** The policy keys a person sets by word, and the field each one is. */
+const POLICY_KEYS = new Set([
+  'label',
+  'template',
+  'watch-labels',
+  'ignore-authors',
+  'posts',
+  'close',
+])
+
+function listWord(values: readonly string[]): string {
+  return values.length === 0 ? 'none' : values.join(',')
+}
+
+function policyLines(policy: WatchdogPolicy): string[] {
+  return [
+    fill(UI_TEXT.watchdog.cli.policyHeading, { repository: policy.repository }),
+    `label: ${policy.ackLabel}`,
+    `template: ${policy.ackTemplate ?? 'default'}`,
+    `watch-labels: ${listWord(policy.watchLabels)}`,
+    `ignore-authors: ${listWord(policy.ignoreAuthors)}`,
+    `posts: ${policy.postsBeyondAck}`,
+    `close: ${policy.closePolicy}`,
+  ]
+}
+
+function listValue(value: string): string[] {
+  return value === 'none'
+    ? []
+    : value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item !== '')
+}
+
+/** The policy with `key` set to the person's `value`, or the sentence
+saying why not. The enum keys take only their own words. */
+function policyWith(
+  policy: WatchdogPolicy,
+  key: string,
+  value: string,
+): { readonly policy: WatchdogPolicy } | { readonly refusal: string } {
+  switch (key) {
+    case 'label': {
+      return { policy: { ...policy, ackLabel: value } }
+    }
+    case 'template': {
+      const { ackTemplate: _previous, ...rest } = policy
+      return { policy: value === 'default' ? rest : { ...rest, ackTemplate: value } }
+    }
+    case 'watch-labels': {
+      return { policy: { ...policy, watchLabels: listValue(value) } }
+    }
+    case 'ignore-authors': {
+      return { policy: { ...policy, ignoreAuthors: listValue(value) } }
+    }
+    case 'posts': {
+      const parsed = watchdogApprovalSchema.safeParse(value)
+      return parsed.success
+        ? { policy: { ...policy, postsBeyondAck: parsed.data } }
+        : {
+            refusal: fill(UI_TEXT.watchdog.cli.policyInvalid, {
+              key,
+              allowed: watchdogApprovalSchema.options.join(', '),
+            }),
+          }
+    }
+    case 'close': {
+      const parsed = watchdogClosePolicySchema.safeParse(value)
+      return parsed.success
+        ? { policy: { ...policy, closePolicy: parsed.data } }
+        : {
+            refusal: fill(UI_TEXT.watchdog.cli.policyInvalid, {
+              key,
+              allowed: watchdogClosePolicySchema.options.join(', '),
+            }),
+          }
+    }
+    default: {
+      return { refusal: UI_TEXT.watchdog.cli.policyUnknownKey }
+    }
+  }
+}
+
+async function policyText(
+  port: WatchdogSurfacePort,
+  repository: string,
+  key: string | undefined,
+  value: string | undefined,
+): Promise<{ ok: boolean; text: string }> {
+  namedRepository(repository)
+  if (key === undefined || value === undefined) {
+    const repos = await port.store.list()
+    const policy =
+      repos.find((item) => item.policy.repository === repository)?.policy ??
+      defaultWatchdogPolicy(repository)
+    return { ok: true, text: policyLines(policy).join('\n') }
+  }
+  if (!POLICY_KEYS.has(key)) return { ok: false, text: UI_TEXT.watchdog.cli.policyUnknownKey }
+  const refusal = await port.store.exclusive<string | undefined>(repository, (data) => {
+    const changed = policyWith(data.policy, key, value)
+    return 'refusal' in changed
+      ? { data, result: changed.refusal }
+      : { data: { policy: changed.policy, issues: data.issues }, result: undefined }
+  })
+  return refusal === undefined
+    ? { ok: true, text: fill(UI_TEXT.watchdog.cli.policySet, { key, repository }) }
+    : { ok: false, text: refusal }
+}
+
 async function pollText(
   port: WatchdogSurfacePort,
   repository: string,
@@ -450,6 +576,9 @@ export async function runWatchdogCommand(
       }
       case 'poll': {
         return await pollText(port, command.repository)
+      }
+      case 'policy': {
+        return await policyText(port, command.repository, command.key, command.value)
       }
       case 'evidence': {
         return { ok: true, text: await evidenceText(port, command.repository, command.number) }

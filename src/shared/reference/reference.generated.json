@@ -5104,8 +5104,8 @@
     },
     {
       "route": "watchdog",
-      "name": "watchdog [list|status|pause|resume|poll|evidence|apply|decide|resolve]",
-      "description": "Watch GitHub issues from the terminal: list, status, pause, resume, poll, evidence, apply, decide and resolve.",
+      "name": "watchdog [list|status|pause|resume|poll|policy|evidence|apply|decide|resolve]",
+      "description": "Watch GitHub issues from the terminal: list, status, pause, resume, poll, policy, evidence, apply, decide and resolve.",
       "text": { "ui": "referenceWatchdog" },
       "invocations": [
         ["watchdog", "list"],
@@ -5113,6 +5113,7 @@
         ["watchdog", "pause"],
         ["watchdog", "resume"],
         ["watchdog", "poll"],
+        ["watchdog", "policy"],
         ["watchdog", "evidence"],
         ["watchdog", "apply"],
         ["watchdog", "decide"],

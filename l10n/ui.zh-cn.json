@@ -410,7 +410,7 @@
   "referenceInstallSkills": "将 project_setup、feature_delivery 和 quality_retrofit 复制到 Muse Code 配置中，并链接为技能。",
   "referenceExecContract": "无界面运行不允许信任工作区或绕过权限。 无界面运行仅允许 plan 或 acceptEdits。 托管网页搜索没有可保证的费用上限，因此拒绝使用。 图像生成需要 acceptEdits。 请选择且仅选择一个提示来源。 提示和密钥不能同时使用 stdin。 Model API 需要 --max-budget-usd。 modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace.自动压缩仅在 --auto-compaction 和 --max-budget-usd 下运行。",
   "referenceBriefHelp": "help / --help / -h: ACP / CLI. help <command> / <command> --help: 单个命令的用法、选项和示例。help --all: 命令、设置和功能，附有说明和文档。",
-  "referenceWatchdog": "从终端监视 GitHub 问题:列出、状态、暂停、恢复、轮询、证据、应用、裁决和解决。",
+  "referenceWatchdog": "从终端监视 GitHub 问题:列出、状态、暂停、恢复、轮询、策略、证据、应用、裁决和解决。",
   "referenceKeyStdin": "auth set: 在终端中读取你的密钥，并将其保存在这台计算机的凭据存储中。对话费用计入该密钥。 exec / scan-secrets --key-stdin: 请从管道读取密钥，而非终端。 stdin → memory; prompt stdin + key stdin = 提示和密钥不能同时使用 stdin。",
   "referenceModalKeys": "关闭对话框或在其中移动焦点。",
   "referenceRenameKeys": "确认或取消重命名此对话。",
@@ -1816,7 +1816,7 @@
       "notPaused": "{repository} 的看护未处于暂停状态。",
       "invalidRepository": "请按 所有者/名称 的格式指定仓库。",
       "watching": "正在监视 {repository}。",
-      "usage": "请使用 `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`。",
+      "usage": "请使用 `watchdog list|status [repository] [number]|pause <repository>|resume <repository>|poll <repository>|policy <repository> [label|template|watch-labels|ignore-authors|posts|close <value>]|evidence <repository> <number>|apply <repository> <number> <findings>|decide <repository> <number>|resolve <repository> <number> <evidence>`。",
       "notSignedIn": "请先登录 GitHub，然后运行 `auth github`。",
       "invalidIssue": "请指定问题编号。",
       "invalidEvidence": "验证证据的格式不符合预期。",
@@ -1838,7 +1838,11 @@
       "closedNote": "已关闭。",
       "notVerified": "未验证:{notes}。",
       "unknownIssue": "此问题未被监视。",
-      "alreadyPosted": "回复已发布。"
+      "alreadyPosted": "回复已发布。",
+      "policyHeading": "{repository} 的策略:",
+      "policySet": "已设置 {repository} 的 {key}。",
+      "policyInvalid": "{key} 不允许此值。请使用 {allowed}。",
+      "policyUnknownKey": "未知的策略键。请使用 label、template、watch-labels、ignore-authors、posts 或 close。"
     },
     "poll": {
       "skippedPullRequest": "是拉取请求，而非问题",

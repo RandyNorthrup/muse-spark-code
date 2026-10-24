@@ -63,6 +63,7 @@ export function cliCommands(shouldIncludeHeld = false) {
       'pause',
       'resume',
       'poll',
+      'policy',
       'evidence',
       'apply',
       'decide',
@@ -293,7 +294,7 @@ export function cliCommands(shouldIncludeHeld = false) {
     },
     {
       route: 'watchdog',
-      name: 'watchdog [list|status|pause|resume|poll|evidence|apply|decide|resolve]',
+      name: 'watchdog [list|status|pause|resume|poll|policy|evidence|apply|decide|resolve]',
       description: UI_TEXT.referenceWatchdog,
       text: { ui: 'referenceWatchdog' },
     },

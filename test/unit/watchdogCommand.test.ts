@@ -140,7 +140,7 @@ function searchList(): unknown {
 }
 
 describe('watchdog command grammar', () => {
-  it('parses the nine verbs', () => {
+  it('parses the ten verbs', () => {
     expect(parseWatchdogCommand(['list'])).toEqual({ verb: 'list' })
     expect(parseWatchdogCommand(['status'])).toEqual({ verb: 'status' })
     expect(parseWatchdogCommand(['status', WATCHDOG_REPOSITORY])).toEqual({
@@ -159,6 +159,18 @@ describe('watchdog command grammar', () => {
     expect(parseWatchdogCommand(['poll', WATCHDOG_REPOSITORY])).toEqual({
       verb: 'poll',
       repository: WATCHDOG_REPOSITORY,
+    })
+    expect(parseWatchdogCommand(['policy', WATCHDOG_REPOSITORY])).toEqual({
+      verb: 'policy',
+      repository: WATCHDOG_REPOSITORY,
+    })
+    expect(
+      parseWatchdogCommand(['policy', WATCHDOG_REPOSITORY, 'template', 'We', 'see', 'it.']),
+    ).toEqual({
+      verb: 'policy',
+      repository: WATCHDOG_REPOSITORY,
+      key: 'template',
+      value: 'We see it.',
     })
     expect(parseWatchdogCommand(['evidence', WATCHDOG_REPOSITORY, '146'])).toEqual({
       verb: 'evidence',
@@ -200,6 +212,8 @@ describe('watchdog command grammar', () => {
     expect(parseWatchdogCommand(['list', WATCHDOG_REPOSITORY])).toBeUndefined()
     expect(parseWatchdogCommand(['status', WATCHDOG_REPOSITORY, '146', 'extra'])).toBeUndefined()
     expect(parseWatchdogCommand(['pause'])).toBeUndefined()
+    expect(parseWatchdogCommand(['policy'])).toBeUndefined()
+    expect(parseWatchdogCommand(['policy', WATCHDOG_REPOSITORY, 'posts'])).toBeUndefined()
     expect(parseWatchdogCommand(['evidence', WATCHDOG_REPOSITORY])).toBeUndefined()
     expect(parseWatchdogCommand(['apply', WATCHDOG_REPOSITORY, '146'])).toBeUndefined()
     expect(
@@ -269,6 +283,97 @@ describe('watchdog list, status, pause and resume', () => {
     expect(resumed.text).toContain(WATCHDOG_REPOSITORY)
     const listed = await runWatchdogCommand({ verb: 'list' }, port)
     expect(listed.text).toContain('0 issues')
+  })
+})
+
+async function runWords(port: WatchdogSurfacePort, argv: string[]) {
+  const parsed = parseWatchdogCommand(argv)
+  if (parsed === undefined) throw new TypeError('the command parses')
+  return await runWatchdogCommand(parsed, port)
+}
+
+function seedTriagedDuplicate(store: ReturnType<typeof createWatchdogStore>): Promise<void> {
+  return seedIssues(store, [recordFor(146, 'triaged', 'duplicate')])
+}
+
+describe('watchdog policy', () => {
+  it('shows the defaults, sets each key by word and refuses the rest', async () => {
+    const { port } = await surface({})
+    const shown = await runWords(port, ['policy', WATCHDOG_REPOSITORY])
+    expect(shown.ok).toBe(true)
+    expect(shown.text.split('\n')).toEqual([
+      `Policy for ${WATCHDOG_REPOSITORY}:`,
+      'label: triage',
+      'template: default',
+      'watch-labels: none',
+      'ignore-authors: none',
+      'posts: ask',
+      'close: never',
+    ])
+    // Showing a repository that is not yet watched writes nothing.
+    expect(await port.store.list()).toEqual([])
+
+    for (const argv of [
+      ['label', 'needs', 'triage'],
+      ['template', 'We', 'see', 'it.'],
+      ['watch-labels', 'bug,', 'ui'],
+      ['ignore-authors', 'dependabot[bot]'],
+      ['posts', 'always'],
+      ['close', 'onReply'],
+    ]) {
+      const set = await runWords(port, ['policy', WATCHDOG_REPOSITORY, ...argv])
+      expect(set).toEqual({
+        ok: true,
+        text: `Set ${argv[0] ?? ''} for ${WATCHDOG_REPOSITORY}.`,
+      })
+    }
+    const [stored] = await port.store.list()
+    expect(stored?.policy).toMatchObject({
+      ackLabel: 'needs triage',
+      ackTemplate: 'We see it.',
+      watchLabels: ['bug', 'ui'],
+      ignoreAuthors: ['dependabot[bot]'],
+      postsBeyondAck: 'always',
+      closePolicy: 'onReply',
+    })
+
+    // The template and the lists go back to their defaults by word.
+    await runWords(port, ['policy', WATCHDOG_REPOSITORY, 'template', 'default'])
+    await runWords(port, ['policy', WATCHDOG_REPOSITORY, 'watch-labels', 'none'])
+    const [reset] = await port.store.list()
+    expect(reset?.policy.ackTemplate).toBeUndefined()
+    expect(reset?.policy.watchLabels).toEqual([])
+
+    const badValue = await runWords(port, ['policy', WATCHDOG_REPOSITORY, 'posts', 'sometimes'])
+    expect(badValue).toEqual({
+      ok: false,
+      text: 'That value is not allowed for posts. Use ask, always, never.',
+    })
+    const badKey = await runWords(port, ['policy', WATCHDOG_REPOSITORY, 'colour', 'red'])
+    expect(badKey).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.policyUnknownKey })
+    const [kept] = await port.store.list()
+    expect(kept?.policy.postsBeyondAck).toBe('always')
+  })
+
+  it('is what the gate follows: Always posts unasked, Never refuses even an approval', async () => {
+    const comments = capturedObjects('github-issue-comments')
+    const [first] = comments
+    if (first === undefined) throw new TypeError('the capture holds comments')
+    const routes = {
+      [`GET ${WATCHDOG_BASE}/issues/146/comments`]: { status: 200, body: [] },
+      [`POST ${WATCHDOG_BASE}/issues/146/comments`]: { status: 201, body: first },
+    }
+    const always = await surface(routes, seedTriagedDuplicate)
+    await runWords(always.port, ['policy', WATCHDOG_REPOSITORY, 'posts', 'always'])
+    const posted = await runWords(always.port, ['decide', WATCHDOG_REPOSITORY, '146'])
+    expect(posted.text).toContain(UI_TEXT.watchdog.cli.posted)
+    expect(always.calls.some((call) => call.method === 'POST')).toBe(true)
+
+    const never = await surface(routes, seedTriagedDuplicate)
+    await runWords(never.port, ['policy', WATCHDOG_REPOSITORY, 'posts', 'never'])
+    const held = await runWords(never.port, ['decide', WATCHDOG_REPOSITORY, '146', '--approve'])
+    expect(held.text).toContain(UI_TEXT.watchdog.refusal.approvalRequired)
+    expect(never.calls.some((call) => call.method === 'POST')).toBe(false)
   })
 })
 
