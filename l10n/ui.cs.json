@@ -874,7 +874,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: Použít rychlou (Fast) úroveň katalogu plánu (2x rychlost, zvýšené využití). Ve výchozím nastavení vypnuto: spotřebovává více z kvóty vašeho plánu.",
     "exec-provider": "Spustit na tomto poskytovateli (backend Model API); --model je pak <provider>/<model>.",
-    "scan-timeout": "Nastavit limit skenování v sekundách; jinak skenování běží až do konce."
+    "scan-timeout": "Nastavit limit skenování v sekundách; jinak skenování běží až do konce.",
+    "lsp-trust-workspace": "Důvěřovat této složce: Tab čte její soubory, spouštějí se její hooky a nabízí se Vždy povolit v tomto pracovním prostoru.",
+    "tab": "Nabízet placené doplňování Tab účtované uloženému klíči Model API; editor se před prvním účtováním zeptá a uvede cenu.",
+    "tab-model": "Model, který doplňování Tab používá.",
+    "tab-daily-budget-usd": "Zastavit Tab na zbytek dne při této částce v amerických dolarech; 0, výchozí hodnota, žádný rozpočet nenastavuje.",
+    "tab-max-output-tokens": "Omezit každý požadavek Tab na tento počet výstupních tokenů; 0, výchozí hodnota, je vlastní maximum modelu.",
+    "tab-trigger": "Poskytovat Tab během psaní (automatic) nebo jen na vyžádání (onInvoke)."
   },
   "referenceScanSecrets": "Prohledejte soubor opravy v UTF-8 na tajné údaje; při nálezu skončí příkaz chybou. --key-stdin také hledá přesný klíč Model API držený v paměti; klíč se neukládá.",
   "referenceVault": "Pracujte s trezorem pověření pro jednotlivé uživatele z terminálu: nastavení, obnova, obnovení výchozího stavu, stav, odemknutí, uzamknutí, seznam, přidání, granty, audit, import a sledování. Hodnoty se nikdy netisknou; drží je zprostředkovatel. Reset může po výslovném potvrzení také nahradit neznámou vlastnickou blokaci zápisu.",
@@ -4498,6 +4504,10 @@
     "purposeLegal": "Spustit kontrolu licencí jen pro čtení.",
     "purposeFonts": "Nainstalovat volitelná písma pro samostatné povrchy.",
     "purposePlaybook": "Zobrazit nebo změnit playbook orchestrátoru pro tento pracovní prostor.",
+    "purposeLsp": "Poskytuje doplňování Tab editoru přes Language Server Protocol na stdin a stdout.",
+    "noteLsp": "Bez --tab se nic neúčtuje a úložiště přihlašovacích údajů se nikdy nečte. S ním se každá nová cena nejprve zeptá v editoru; Vždy povolit v tomto pracovním prostoru se nabízí jen s --trust-workspace.",
+    "purposeSupervise": "Spustí jiný příkaz tohoto agenta tak, aby ho stop mohl ukončit se všemi procesy, které spustil.",
+    "purposeStop": "Zastaví každý dohlížený běh spuštěný v této složce se všemi procesy, které spustil.",
     "purposeSetup": "Spustí hooky Setup a skončí.",
     "purposeUsage": "Zobrazit využití a náklady všech modelů.",
     "purposeResources": "Zobrazit zatížení počítače a nedávnou historii.",
@@ -7104,6 +7114,27 @@
   },
   "mcpConnectorTitle": "MCP konektor pro další agenty",
   "referenceMcpCommand": "Zpřístupní nástroje Muse Spark Code jiným agentům (Codex, Claude Code, Gemini CLI) přes MCP; každý zápis čeká na vaše schválení.",
+  "languageServer": {
+    "help": "Tab z Muse Spark Code (Unofficial), poskytovaný příkazem {command} lsp. Vložené doplňování si o návrh řekne samo; muse.tabInvoke vloží návrh tam, kde ho editor nezobrazuje; muse.usage ukáže dnešní útratu za Tab; muse.stop zastaví každý dohlížený běh v této složce.",
+    "budgetReached": "Dnešní útrata za Tab {spent} dosáhla denního rozpočtu {budget}, proto se doplňování pozastaví do zítřka. Chcete-li dnes pokračovat, spusťte jazykový server s vyšší hodnotou --tab-daily-budget-usd.",
+    "unavailable": "Jazykový server není v této instalaci k dispozici."
+  },
+  "supervision": {
+    "stopNone": "V této složce nebyl spuštěn žádný dohlížený běh.",
+    "stopped": {
+      "one": "Zastaven {count} dohlížený běh.",
+      "other": "Zastaveno {count} dohlížených běhů.",
+      "few": "Zastaveny {count} dohlížené běhy.",
+      "many": "Zastaveno {count} dohlíženého běhu."
+    },
+    "stopFailed": {
+      "one": "{count} dohlížený běh se nepodařilo zastavit celý.",
+      "other": "{count} dohlížených běhů se nepodařilo zastavit celé.",
+      "few": "{count} dohlížené běhy se nepodařilo zastavit celé.",
+      "many": "{count} dohlíženého běhu se nepodařilo zastavit celé."
+    },
+    "unavailable": "Dohled není v této instalaci k dispozici."
+  },
   "acpConnector": {
     "title": "Schválit požadavky konektoru",
     "intro": "Jiný agent požádal Muse Spark Code o následující. Nic se nestane, dokud to zde neschválíte; vlastní nastavení Allow, Auto nebo Bypass tohoto agenta to schválit nemohou.",

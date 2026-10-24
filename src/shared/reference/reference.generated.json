@@ -5425,6 +5425,24 @@
       "invocations": [["exec"]]
     },
     {
+      "route": "lsp",
+      "name": "lsp [--trust-workspace] [--tab] [options]",
+      "description": "Serve Tab completions to an editor over the Language Server Protocol on stdin and stdout.",
+      "invocations": [["lsp"]]
+    },
+    {
+      "route": "supervise",
+      "name": "supervise [<command> [options]]",
+      "description": "Run another command of this agent so that stop can end it, with every process it started.",
+      "invocations": [["supervise"]]
+    },
+    {
+      "route": "stop",
+      "name": "stop",
+      "description": "Stop every supervised run started in this folder, with every process it started.",
+      "invocations": [["stop"]]
+    },
+    {
       "route": "scan-secrets",
       "name": "scan-secrets",
       "description": "Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.",
@@ -8219,6 +8237,83 @@
     {
       "route": "fontsInstall",
       "name": "fontsInstall: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --workspace <value>",
+      "description": "Use this directory as the workspace.",
+      "text": { "cli": "cwd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab",
+      "description": "Offer paid Tab completions on the stored Model API key; the editor asks first, naming the price.",
+      "text": { "cli": "tab" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab-model <value>",
+      "description": "The model Tab completions use.",
+      "text": { "cli": "tab-model" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab-daily-budget-usd <value>",
+      "description": "Stop Tab for the day at this many US dollars; 0, the default, sets no budget.",
+      "text": { "cli": "tab-daily-budget-usd" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab-max-output-tokens <value>",
+      "description": "Cap each Tab request at this many output tokens; 0, the default, is the model’s own maximum.",
+      "text": { "cli": "tab-max-output-tokens" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --tab-trigger <value>",
+      "description": "Serve Tab as you type (automatic) or only on request (onInvoke).",
+      "text": { "cli": "tab-trigger" },
+      "contract": { "type": "string", "repeatable": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --trust-workspace",
+      "description": "Trust this folder: Tab reads its files, its hooks run, and Allow Always is offered.",
+      "text": { "cli": "lsp-trust-workspace" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --allow-contributor-models",
+      "description": "--allow-contributor-models       List contributor-tier models (Meta may train on their content)",
+      "text": { "cli": "allow-contributor-models" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --verbose",
+      "description": "--verbose                        Log every detail on stderr",
+      "text": { "cli": "verbose" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "lsp",
+      "name": "lsp: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "stop",
+      "name": "stop: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

@@ -579,6 +579,12 @@ const BUDGETS = [
   // TRAIN15E: headless preflight before the lazy engine; 77.9 KiB +15%.
   // TRAINFIX: train growth + plan-model preflight measures 100.2 KiB; +15%, rounded to 25 KiB.
   { path: 'dist/headless.js', budgetKiB: 125 },
+  // M104 lane H (cc-m104h): the language server, loaded only by `lsp`:
+  // 86.1 KiB measured +15% = 99.0 KiB, rounded up to 25 KiB.
+  { path: 'dist/lsp.js', budgetKiB: 100 },
+  // M104 lane H: `supervise`, `stop` and the server's `muse.stop`: 30.6 KiB
+  // measured +15% = 35.2 KiB, rounded up to 25 KiB.
+  { path: 'dist/supervise.js', budgetKiB: 50 },
   // M96b: run-owned team policy with its cleanup ledger, stale-run sweep,
   // denied-merge holds and marker gate, loaded only for --team. Measured
   // 46,823 bytes (45.73 KiB, production build on macbook, 2026-10-22)

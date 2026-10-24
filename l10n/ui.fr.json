@@ -870,7 +870,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: Utiliser le niveau Fast du catalogue du forfait (vitesse 2x, usage accru). Désactivé par défaut : cela utilise davantage votre quota de forfait.",
     "exec-provider": "Exécuter sur ce fournisseur (backend Model API); --model vaut alors <provider>/<model>.",
-    "scan-timeout": "Fixer le délai d’analyse en secondes; sinon, l’analyse s’exécute jusqu’à la fin."
+    "scan-timeout": "Fixer le délai d’analyse en secondes; sinon, l’analyse s’exécute jusqu’à la fin.",
+    "lsp-trust-workspace": "Faire confiance à ce dossier : Tab lit ses fichiers, ses hooks s’exécutent et Toujours autoriser dans cet espace de travail est proposé.",
+    "tab": "Proposer les complétions Tab payantes, facturées à la clé Model API enregistrée ; l’éditeur demande avant la première facturation, en indiquant le prix.",
+    "tab-model": "Le modèle utilisé par les complétions Tab.",
+    "tab-daily-budget-usd": "Arrêter Tab pour la journée à ce montant en dollars américains ; 0, la valeur par défaut, ne fixe aucun budget.",
+    "tab-max-output-tokens": "Limiter chaque requête Tab à ce nombre de jetons de sortie ; 0, la valeur par défaut, est le maximum propre au modèle.",
+    "tab-trigger": "Servir Tab pendant la frappe (automatic) ou seulement à la demande (onInvoke)."
   },
   "referenceScanSecrets": "Analyse un fichier de patch UTF-8 pour détecter des secrets et échoue en cas de détection. --key-stdin recherche aussi la clé Model API exacte conservée en mémoire ; aucune clé n’est stockée.",
   "referenceVault": "Utilisez le coffre d’identifiants par utilisateur depuis un terminal : configuration, récupération, réinitialisation, état, déverrouillage, verrouillage, liste, ajout, autorisations, audit, import et surveillance. Les valeurs ne s’impriment jamais ; le courtier les détient. Après confirmation explicite, la réinitialisation peut aussi remplacer un verrou d’écriture dont le propriétaire est inconnu.",
@@ -4417,6 +4423,10 @@
     "purposeLegal": "Exécuter l’analyse juridique en lecture seule.",
     "purposeFonts": "Installer les polices facultatives pour les surfaces autonomes.",
     "purposePlaybook": "Afficher ou modifier le guide de l’orchestrateur pour cet espace de travail.",
+    "purposeLsp": "Servir les complétions Tab à un éditeur via le Language Server Protocol sur stdin et stdout.",
+    "noteLsp": "Sans --tab, rien n’est facturé et le magasin d’identifiants n’est jamais lu. Avec, chaque nouveau prix est d’abord demandé dans l’éditeur ; Toujours autoriser dans cet espace de travail n’est proposé qu’avec --trust-workspace.",
+    "purposeSupervise": "Exécuter une autre commande de cet agent de sorte que stop puisse l’arrêter avec tous les processus qu’elle a lancés.",
+    "purposeStop": "Arrêter chaque exécution supervisée lancée dans ce dossier, avec tous les processus qu’elle a lancés.",
     "purposeSetup": "Exécuter les hooks Setup puis quitter.",
     "purposeUsage": "Afficher l’utilisation et le coût de tous les modèles.",
     "purposeResources": "Afficher la charge de la machine et l’historique récent.",
@@ -6930,6 +6940,25 @@
   },
   "mcpConnectorTitle": "Connecteur MCP pour d’autres agents",
   "referenceMcpCommand": "Proposer les outils de Muse Spark Code à d’autres agents (Codex, Claude Code, Gemini CLI) via MCP ; chaque écriture attend votre approbation.",
+  "languageServer": {
+    "help": "Tab de Muse Spark Code (Unofficial), servi par {command} lsp. Les complétions en ligne demandent une suggestion ; muse.tabInvoke en insère une là où votre éditeur n’en affiche pas ; muse.usage affiche la dépense Tab du jour ; muse.stop arrête chaque exécution supervisée de ce dossier.",
+    "budgetReached": "La dépense Tab du jour, {spent}, a atteint le budget quotidien de {budget} : les complétions sont suspendues jusqu’à demain. Pour continuer aujourd’hui, démarrez le serveur de langage avec un --tab-daily-budget-usd plus élevé.",
+    "unavailable": "Le serveur de langage n’est pas disponible dans cette installation."
+  },
+  "supervision": {
+    "stopNone": "Aucune exécution supervisée n’a été lancée dans ce dossier.",
+    "stopped": {
+      "one": "{count} exécution supervisée arrêtée.",
+      "other": "{count} exécutions supervisées arrêtées.",
+      "many": "{count} d’exécutions supervisées arrêtées."
+    },
+    "stopFailed": {
+      "one": "{count} exécution supervisée n’a pas pu être arrêtée entièrement.",
+      "other": "{count} exécutions supervisées n’ont pas pu être arrêtées entièrement.",
+      "many": "{count} d’exécutions supervisées n’ont pas pu être arrêtées entièrement."
+    },
+    "unavailable": "La supervision n’est pas disponible dans cette installation."
+  },
   "acpConnector": {
     "title": "Approuver les demandes du connecteur",
     "intro": "Un autre agent a demandé à Muse Spark Code d’effectuer les actions suivantes. Rien ne se passe tant que vous ne les approuvez pas ici ; les paramètres Allow, Auto ou Bypass de cet agent ne peuvent pas les approuver.",

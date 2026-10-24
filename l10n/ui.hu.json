@@ -866,7 +866,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: A csomagkatalógus Fast szintjének használata (2x sebesség, megnövelt használat). Alapértelmezés szerint kikapcsolva: többet fogyaszt a csomagkeretből.",
     "exec-provider": "Futtatás ezen a szolgáltatón (Model API backend); a --model ekkor <provider>/<model>.",
-    "scan-timeout": "A vizsgálat határidejének beállítása másodpercben; nélküle a vizsgálat a végéig fut."
+    "scan-timeout": "A vizsgálat határidejének beállítása másodpercben; nélküle a vizsgálat a végéig fut.",
+    "lsp-trust-workspace": "A mappa megbízhatónak jelölése: a Tab olvassa a fájljait, a hookjai futnak, és felkínálja az Engedélyezés mindig ezen a munkaterületen lehetőséget.",
+    "tab": "Fizetős Tab-kiegészítések felkínálása a tárolt Model API-kulcs terhére; a szerkesztő az első terhelés előtt rákérdez, és megnevezi az árat.",
+    "tab-model": "A Tab-kiegészítések által használt modell.",
+    "tab-daily-budget-usd": "A Tab leállítása a nap hátralevő részére ennyi amerikai dollárnál; a 0, az alapértelmezés, nem állít be keretet.",
+    "tab-max-output-tokens": "Minden Tab-kérés korlátozása ennyi kimeneti tokenre; a 0, az alapértelmezés, a modell saját maximuma.",
+    "tab-trigger": "Tab gépelés közben (automatic) vagy csak kérésre (onInvoke)."
   },
   "referenceScanSecrets": "Titkokat keres egy UTF-8 javításfájlban, és találat esetén hibával kilép. A --key-stdin a memóriában lévő pontos Model API-kulcsot is keresi; nem tárol kulcsot.",
   "referenceVault": "Dolgozzon a terminálból a felhasználónkénti hitelesítőadat-tárolóval: beállítás, helyreállítás, alaphelyzetbe állítás, állapot, feloldás, zárolás, lista, hozzáadás, engedélyek, naplózás, importálás és figyelés. Az értékek soha nem jelennek meg; a közvetítő őrzi őket. Kifejezett megerősítés után az alaphelyzetbe állítás az ismeretlen tulajdonosú írási zárolást is lecserélheti.",
@@ -4336,6 +4342,10 @@
     "purposeLegal": "Csak olvasható jogi vizsgálat futtatása.",
     "purposeFonts": "Választható betűtípusok telepítése az önálló felületekhez.",
     "purposePlaybook": "Az orchestrátor-útmutató megjelenítése vagy módosítása ehhez a munkaterülethez.",
+    "purposeLsp": "Tab-kiegészítések kiszolgálása egy szerkesztőnek a Language Server Protocolon keresztül, stdin és stdout felett.",
+    "noteLsp": "A --tab nélkül semmi sem kerül terhelésre, és a hitelesítőadat-tár soha nem kerül olvasásra. Vele minden új ár előbb a szerkesztőben kérdez; az Engedélyezés mindig ezen a munkaterületen csak a --trust-workspace mellett érhető el.",
+    "purposeSupervise": "Az ügynök egy másik parancsának futtatása úgy, hogy a stop leállíthassa az általa indított összes folyamattal együtt.",
+    "purposeStop": "Az ebben a mappában indított összes felügyelt futás leállítása az általa indított összes folyamattal együtt.",
     "purposeSetup": "A Setup hookok futtatása, majd kilépés.",
     "purposeUsage": "Az összes modell használatának és költségének megjelenítése.",
     "purposeResources": "A gép terhelésének és az előzményeknek a megjelenítése.",
@@ -6756,6 +6766,23 @@
   },
   "mcpConnectorTitle": "MCP-összekötő más ügynökök számára",
   "referenceMcpCommand": "A Muse Spark Code eszközeinek elérhetővé tétele más ügynökök (Codex, Claude Code, Gemini CLI) számára MCP-n keresztül; minden írás az Ön jóváhagyására vár.",
+  "languageServer": {
+    "help": "A Muse Spark Code (Unofficial) Tab funkciója, a {command} lsp szolgálja ki. A beágyazott kiegészítések maguk kérnek javaslatot; a muse.tabInvoke beszúr egyet ott, ahol a szerkesztő nem mutat; a muse.usage megmutatja a mai Tab-költést; a muse.stop leállít minden felügyelt futást ebben a mappában.",
+    "budgetReached": "A mai Tab-költés ({spent}) elérte a napi keretet ({budget}), ezért a kiegészítések holnapig szünetelnek. Ha ma folytatná, indítsa a nyelvi kiszolgálót magasabb --tab-daily-budget-usd értékkel.",
+    "unavailable": "A nyelvi kiszolgáló nem érhető el ebben a telepítésben."
+  },
+  "supervision": {
+    "stopNone": "Ebben a mappában nem indult felügyelt futás.",
+    "stopped": {
+      "one": "{count} felügyelt futás leállítva.",
+      "other": "{count} felügyelt futás leállítva."
+    },
+    "stopFailed": {
+      "one": "{count} felügyelt futást nem sikerült teljesen leállítani.",
+      "other": "{count} felügyelt futást nem sikerült teljesen leállítani."
+    },
+    "unavailable": "A felügyelet nem érhető el ebben a telepítésben."
+  },
   "acpConnector": {
     "title": "Összekötő-kérések jóváhagyása",
     "intro": "Egy másik ügynök a következőre kérte a Muse Spark Code-ot. Semmi sem történik, amíg itt jóvá nem hagyja; az adott ügynök saját Allow, Auto vagy Bypass beállításai nem hagyhatják jóvá.",
