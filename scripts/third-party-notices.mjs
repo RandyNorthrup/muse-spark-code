@@ -38,6 +38,10 @@ const NOTICE_FILE = /^notice(\.(md|txt))?$/i
 const ALLOWED_LICENCES = new Set([
   '0BSD',
   'Apache-2.0',
+  // Reviewed 2026-10-24 (docs/certification/cc-licence.md): its one
+  // condition is that every recipient gets the licence's text or its link,
+  // which the reproduced text meets; no copyleft, an express patent grant.
+  'BlueOak-1.0.0',
   'BSD-2-Clause',
   'BSD-3-Clause',
   'ISC',
@@ -140,6 +144,12 @@ const VENDORED_LICENCES = new Map([
   // copyright holder is also named in the shipped dist/qrcode.mjs); the
   // manifest's MIT declaration is still checked.
   ['qrcode-generator', { licence: 'MIT', file: 'vendor/qrcode-generator/LICENSE' }],
+  // cc-licence: @sigstore/verify@4.1.2 declares Apache-2.0, but its
+  // directory in sigstore/sigstore-js has no LICENSE, so its tarball ships
+  // none. The text below is the repository's root LICENSE at the release's
+  // gitHead (769a53d8), git blob e9e7c167, the same blob every sibling
+  // @sigstore package ships.
+  ['@sigstore/verify', { licence: 'Apache-2.0', file: 'vendor/@sigstore/verify/LICENSE' }],
 ])
 
 function describePackage(dir, problems) {
