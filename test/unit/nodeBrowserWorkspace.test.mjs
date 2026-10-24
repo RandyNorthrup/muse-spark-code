@@ -37,6 +37,10 @@ async function pageFor(scenario = 'node-editor', language, width = 690) {
   await page.locator('body[data-node-ready="true"]').waitFor()
   return page
 }
+// CodeMirror's history keymap binds redo per platform: Mod-Shift-z on macOS,
+// Ctrl-Shift-z on Linux and Ctrl-y on Windows, where Ctrl-Shift-z is unbound.
+// Chrome runs on the test's own machine, so its platform is this one.
+const REDO = process.platform === 'win32' ? 'Control+Y' : 'ControlOrMeta+Shift+Z'
 async function type(page, text) {
   await page.locator('.cm-content[contenteditable="true"]').click()
   await page.keyboard.press('ControlOrMeta+A')
@@ -48,7 +52,7 @@ describe('M110-U1 actual CodeMirror browser surface', () => {
     await type(page, 'first')
     await page.keyboard.type(' second π')
     await page.keyboard.press('ControlOrMeta+Z')
-    await page.keyboard.press('ControlOrMeta+Shift+Z')
+    await page.keyboard.press(REDO)
     await page.getByRole('button', { name: state.text.nodeWorkspace.save, exact: true }).click()
     await page.getByRole('status').filter({ hasText: state.text.nodeWorkspace.saved }).waitFor()
     const call = await page.evaluate(() =>
