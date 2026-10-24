@@ -16,7 +16,9 @@ export function isPlaybookBundle(value: unknown): value is Bundle {
     'runPlaybookCommand' in value &&
     typeof value.runPlaybookCommand === 'function' &&
     'runPlaybookCli' in value &&
-    typeof value.runPlaybookCli === 'function'
+    typeof value.runPlaybookCli === 'function' &&
+    'runPlaybookCheckCli' in value &&
+    typeof value.runPlaybookCheckCli === 'function'
   )
 }
 

@@ -28,6 +28,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Added
 
+- **`playbook run` headless check command** (M116, D219). The ACP agent
+  runs one of the workspace's `museSpark.checkCommands` through the same
+  admission, journal and record as the panel: a paused resource governor
+  refuses with its why-note and the check never spawns, and the record
+  follows the outcome line either way. The command exits with the check's
+  own exit code. `/playbook` stays read-only.
+
 - Classic Vim gets its own chat plugin. The agent package carries a
   pure-Vimscript ACP client (`editors/vim`, Vim 8.1+): `:MuseSpark` opens
   the chat, `:MuseSparkSend` sends the prompt, permission prompts answer

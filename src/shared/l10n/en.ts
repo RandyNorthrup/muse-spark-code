@@ -1279,7 +1279,17 @@ export const EN = {
   playbookCommandFailed: 'The playbook command could not be completed.',
   playbookHelpDescription:
     'Show review strikes, design decisions, safety refusals and rule settings.',
-  playbookCommandUsage: 'Use `playbook status|record|settings`.',
+  playbookCommandUsage: 'Use `playbook status|record|settings|run <name> [--heavy] [--full-gate]`.',
+  // `playbook run`: no check commands in the workspace settings.
+  playbookNoChecks:
+    'No check commands are configured; name them in the museSpark.checkCommands setting.',
+  // {name}: the check name as typed; {checks}: the configured names, comma-separated.
+  playbookUnknownCheck: 'Unknown check {name} (known checks: {checks}).',
+  // `playbook run`: the workspace settings file exists but does not parse.
+  playbookSettingsInvalid: 'The workspace .vscode/settings.json is not valid.',
+  // `playbook run`: the file parses but its check commands fail the setting's schema.
+  playbookChecksInvalid:
+    'The museSpark.checkCommands setting is invalid, so no check commands are available.',
   playbookSave: 'Save Settings',
   playbookSaved: 'Playbook settings saved.',
   // C-M116-6: the panel's answers to findings, and what a conversation is told.
@@ -5399,7 +5409,7 @@ export const EN = {
     purposeReport: 'Print a scrubbed problem report.',
     purposeLegal: 'Run the read-only legal scan.',
     purposeFonts: 'Install the optional fonts for standalone surfaces.',
-    purposePlaybook: 'Show or change the orchestrator playbook.',
+    purposePlaybook: 'Show or change the orchestrator playbook, or run one of its check commands.',
     purposeSetup: 'Run the Setup hooks and exit.',
     purposeUsage: 'Show usage and cost across models.',
     purposeResources: 'Show machine pressure and recent history.',
@@ -5835,6 +5845,9 @@ export const EN = {
   genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
   // share/prompts: a cancelled or refused share is EXEC_EXIT.denied (7).
   sharingExits: 'Exits 0 on success, 7 when cancelled or refused, 2 for misuse, 1 on failure.',
+  // The playbook's own exits (CLI_EXIT): `run` passes the check's exit code through.
+  playbookExits:
+    'Exits 0 on success, 1 on failure, 2 for misuse; run exits with the check’s own exit code.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
