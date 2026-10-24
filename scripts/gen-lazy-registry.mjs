@@ -13,10 +13,11 @@
 //
 // Both modes fail, with one sentence per problem, when the metafiles are
 // missing, empty or unreadable; when a source loads a file the build does
-// not emit; when a package lacks a bundle its side can load; and when a
-// load's file name is worked out at run time and is not listed with its
-// reason. --check also fails when the committed file differs from what the
-// build gives, and names each row that differs.
+// not emit; when a package lacks a bundle its side can load; when the VSIX
+// carries a bundle only the agent loads; and when a load's file name is
+// worked out at run time and is not listed with its reason. --check also
+// fails when the committed file differs from what the build gives, and
+// names each row that differs.
 //
 // This file is the command and nothing else: it has no exports and no
 // "am I the main module" test, so it cannot be reached and do nothing.
@@ -268,12 +269,20 @@ async function buildRegistry() {
     return row
   }
   for (const file of known) getRow(file.slice(DIST_PREFIX_LENGTH))
+  // A bundle only the agent provably loads is dead weight in the VSIX,
+  // whose size budget every target must meet (PLAN.md D6, D209): the
+  // agent's package carries it, the VSIX must not.
+  const agentOnly = []
   // Bundles no process provably loads (no import edge, no filename request)
   // keep the side of the packages carrying them: removing a package could
   // break an invisible loader (the computed catalog adapter, an OS launcher).
   // requestedBy stays empty so the fallback is visible.
   for (const file of rows.keys()) {
     const reached = sides.get(`dist/${file}`) ?? new Set()
+    if (reached.has('acp') && !reached.has('vscode') && vsix.has(`dist/${file}`))
+      agentOnly.push(
+        `the VSIX carries ${file}, which only the agent loads: drop it from .vscodeignore`,
+      )
     if (reached.size > 0) continue
     const carrying = new Set()
     if (vsix.has(`dist/${file}`)) carrying.add('vscode')
@@ -351,6 +360,7 @@ async function buildRegistry() {
       ...unknown.toSorted(byName),
       ...computedLoadFailures(scan.computed),
       ...new Set(gaps).values().toArray().toSorted(byName),
+      ...agentOnly.toSorted(byName),
     ],
     unread: unread.toSorted(byName),
   }
