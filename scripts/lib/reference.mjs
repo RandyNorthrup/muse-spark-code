@@ -469,6 +469,7 @@ export function buildReference(manifest, nls, source, runtimeSource, readme) {
     'src/extension.ts': [
       "isModelApi: () => paidBackend === 'modelApi'",
       "feature === 'tab' || paidBackend === 'modelApi' || !isDefaultPaidOn(feature)",
+      'inspect<boolean>(PAID_FEATURE_SETTINGS[feature])?.globalValue === undefined',
       "!paid.gate.isOn('voice')",
       "!usablePaidFeatures(auth.current.backend, isKeyStored).includes('voice')",
       "currentSettings().dictationEngine === 'system'",
