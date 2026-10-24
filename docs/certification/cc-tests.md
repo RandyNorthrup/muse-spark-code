@@ -301,3 +301,15 @@ the audited absence on Windows, where B1 is off.
 
 Red (before): `expected false to be true`, `expected undefined to be true`.
 Green: 15 passed.
+
+### nodeImageTools: --import takes a module URL
+
+Cause: the suite preloaded its port module with `node --import <absolute path>`.
+On Windows the drive letter reads as a URL scheme:
+`ERR_UNSUPPORTED_ESM_URL_SCHEME … On Windows, absolute paths must be valid file:// URLs. Received protocol 'c:'`,
+so the installer never ran (its Windows-host refusal included).
+
+Fix: the suite passes `pathToFileURL(file).href`, which every OS reads alike.
+
+Red (before): 2 failed (`expected 'node:internal/modules/esm/load:193…' to contain 'Linux amd64/arm64 tool host required'`).
+Green: 4 passed, the installer's refusal of a Windows tool host among them.
