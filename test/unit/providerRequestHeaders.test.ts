@@ -3,12 +3,12 @@
 // bills (`OpenAI-Organization: <id>`, `OpenAI-Project: <id>` beside
 // `Authorization: Bearer <key>`; developers.openai.com/api/reference/overview,
 // "Authentication", read 2026-10-23). The whole-request tests ride the
-// real configured request builder up to the socket
-// (helpers/providerWire.ts); the CLI tests run the real command over a
-// real providers file and a map-backed secret port, with
-// the value arriving on standard input.
-import { PassThrough } from 'node:stream'
-import { afterAll, describe, expect, it } from 'vitest'
+// real configured request builder and the real pinned transport to a real
+// local socket that records the request and closes unanswered
+// (helpers/providerWire.ts), with the key and headers held in the
+// product's memory store. The `providers headers` command runs on the
+// real OS credential store in providerHeadersStore.test.ts.
+import { describe, expect, it } from 'vitest'
 import { CustomHeadersAuthSource, NoAuthSource } from '../../src/core/backends/modelapi/authSource'
 import {
   formatStoredHeaders,
@@ -17,31 +17,24 @@ import {
   providerHeadersAccount,
   StoredHeadersError,
 } from '../../src/core/providers/requestHeaders'
-import type { ProviderEntry } from '../../src/core/providers/providersFile'
-import {
-  emptyProvidersFile,
-  writeProvidersFileAtomic,
-} from '../../src/core/providers/providersFile'
 import { parseCommandLine } from '../../src/runtime/cliArgs'
-import { readSecretLine } from '../../src/runtime/hiddenInput'
-import { providersRemove, type ProvidersDeps } from '../../src/runtime/providersCommands'
-import { providersHeaders } from '../../src/runtime/providersHeadersCommand'
+import { memorySecretStoreFor } from '../../src/runtime/exec/keyInput'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import type { CreateResponseBody } from '../../src/core/backends/modelapi/schemas'
 import { makeTurnBody } from './helpers/turnBodies'
-import { providersCommandHarness } from './helpers/providersCommandHarness'
-import { storedKey, turnRequest, wireServices, type WireRequest } from './helpers/providerWire'
+import {
+  responsesEntryAt,
+  storedKey,
+  suiteSocket,
+  turnRequest,
+  wireServices,
+} from './helpers/providerWire'
 
 const OPENAI = 'https://api.openai.com'
-const entry: ProviderEntry = {
-  id: 'openai',
-  preset: 'openai',
-  address: OPENAI,
-  auth: 'apiKey',
-  models: ['gpt-6.1-sol'],
-}
-const KEY = { 'museSpark.provider.openai': storedKey(OPENAI, 'test-openai-key') }
+
+const opened = suiteSocket()
+const entryAt = (origin: string) => responsesEntryAt(origin, ['gpt-6.1-sol'])
 
 function body(): CreateResponseBody {
   return makeTurnBody({
@@ -56,38 +49,45 @@ function body(): CreateResponseBody {
   })
 }
 
-async function send(secrets: Readonly<Record<string, string>>): Promise<WireRequest[]> {
-  const captured: WireRequest[] = []
-  const services = wireServices([entry], { ...KEY, ...secrets }, captured)
+/** The requests one turn put on the socket (none when it refused first). */
+async function send(secrets: Readonly<Record<string, string>>) {
+  const socket = await opened
+  const before = socket.requests.length
+  const services = wireServices([entryAt(socket.origin)], {
+    'museSpark.provider.openai': storedKey(socket.origin, 'test-openai-key'),
+    ...secrets,
+  })
   try {
-    await turnRequest(services, captured, 'openai/gpt-6.1-sol', body())
+    await turnRequest(services, socket, 'openai/gpt-6.1-sol', body())
   } catch (error: unknown) {
-    // A refusal before the socket leaves `captured` empty; the caller asserts it.
-    if (captured.length > 0) throw error
+    // A refusal before the socket leaves nothing recorded; the caller asserts it.
+    if (socket.requests.length > before) throw error
   }
-  return captured
+  return socket.requests.slice(before)
 }
 
 describe('custom request headers through the real request builder', () => {
   it('sends the stored headers beside the key, on the documented OpenAI shape', async () => {
+    const socket = await opened
     const [request] = await send({
-      [providerHeadersAccount('openai')]: formatStoredHeaders(OPENAI, {
+      [providerHeadersAccount('openai')]: formatStoredHeaders(socket.origin, {
         'OpenAI-Organization': 'org-test',
         'OpenAI-Project': 'proj_test',
       }),
     })
-    expect(request?.url).toBe(`${OPENAI}/v1/responses`)
+    expect(request?.path).toBe('/v1/responses')
+    // As the socket read them (HTTP header names are case-insensitive).
     expect(request?.headers).toMatchObject({
       authorization: 'Bearer test-openai-key',
-      'OpenAI-Organization': 'org-test',
-      'OpenAI-Project': 'proj_test',
+      'openai-organization': 'org-test',
+      'openai-project': 'proj_test',
     })
   })
 
   it('sends none when none are stored', async () => {
     const [request] = await send({})
     expect(
-      Object.keys(request?.headers ?? {}).filter((name) => name.startsWith('OpenAI-')),
+      Object.keys(request?.headers ?? {}).filter((name) => name.startsWith('openai-')),
     ).toEqual([])
   })
 
@@ -101,16 +101,16 @@ describe('custom request headers through the real request builder', () => {
   })
 
   it('refuses before the socket on a damaged record, never sending without it', async () => {
-    const captured: WireRequest[] = []
-    const services = wireServices(
-      [entry],
-      { ...KEY, [providerHeadersAccount('openai')]: '{"v":1,' },
-      captured,
-    )
-    await expect(turnRequest(services, captured, 'openai/gpt-6.1-sol', body())).rejects.toThrow(
+    const socket = await opened
+    const before = socket.requests.length
+    const services = wireServices([entryAt(socket.origin)], {
+      'museSpark.provider.openai': storedKey(socket.origin, 'test-openai-key'),
+      [providerHeadersAccount('openai')]: '{"v":1,',
+    })
+    await expect(turnRequest(services, socket, 'openai/gpt-6.1-sol', body())).rejects.toThrow(
       fill(UI_TEXT.providerHeaders.unreadable, { provider: 'openai' }),
     )
-    expect(captured).toEqual([])
+    expect(socket.requests.length).toBe(before)
   })
 })
 
@@ -138,11 +138,16 @@ describe('the header record', () => {
   })
 
   it('scrubs every value from error text and the streamed answer, as the key is', async () => {
-    const source = new CustomHeadersAuthSource(new NoAuthSource('http://127.0.0.1:8080'), () =>
-      Promise.resolve({
-        origin: 'http://127.0.0.1:8080',
-        headers: { 'X-Tenant': 'tenant-secret-1' },
+    // The same read the configured transport makes: the record from the
+    // product's memory store, parsed by the product's own reader.
+    const origin = 'http://127.0.0.1:8080'
+    const store = memorySecretStoreFor({
+      [providerHeadersAccount('local')]: formatStoredHeaders(origin, {
+        'X-Tenant': 'tenant-secret-1',
       }),
+    })
+    const source = new CustomHeadersAuthSource(new NoAuthSource(origin), async () =>
+      parseStoredHeaders('local', await store.get(providerHeadersAccount('local'))),
     )
     const headers = await source.headers('http://127.0.0.1:8080/v1/chat/completions')
     expect(headers.values).toEqual({ 'X-Tenant': 'tenant-secret-1' })
@@ -156,77 +161,7 @@ describe('the header record', () => {
   })
 })
 
-const harnesses = providersCommandHarness()
-afterAll(async () => {
-  await harnesses.cleanup()
-})
-
-/** The real command over a real providers file; the value arrives on stdin. */
-async function harness(stdin: string) {
-  const base = await harnesses.make('provider-headers-cli-')
-  const written = await writeProvidersFileAtomic(base.filePath, {
-    ...emptyProvidersFile(),
-    providers: [entry],
-  })
-  if (!written.ok) throw new Error(written.detail)
-  // The OS credential store cannot be opened on a test machine; the
-  // command's port is backed by a map, as the provider suites back it.
-  const held = new Map<string, string>()
-  const store: ProvidersDeps['secrets'] = {
-    get: (name) => Promise.resolve(held.get(name)),
-    store: (name, value) => {
-      held.set(name, value)
-      return Promise.resolve()
-    },
-    delete: (name) => {
-      held.delete(name)
-      return Promise.resolve()
-    },
-  }
-  const input = new PassThrough()
-  input.end(stdin)
-  const deps: ProvidersDeps = {
-    ...base.deps,
-    secrets: store,
-    readSecret: (prompt) => readSecretLine(prompt, input, new PassThrough()),
-  }
-  return { deps, store, printed: base.printed, errors: base.errors }
-}
-
-describe('providers headers (CLI)', () => {
-  it('sets a header whose value comes from stdin, lists names only, and unsets it', async () => {
-    const command = parseCommandLine(['providers', 'headers', 'openai', 'set', 'OpenAI-Project'])
-    if (command.command !== 'providersHeaders') throw new Error(`parsed ${command.command}`)
-    const h = await harness('proj_cli\n')
-    expect(await providersHeaders(h.deps, command.options)).toBe(0)
-    const stored = parseStoredHeaders('openai', await h.store.get(providerHeadersAccount('openai')))
-    expect(stored).toEqual({ v: 1, origin: OPENAI, headers: { 'OpenAI-Project': 'proj_cli' } })
-    expect(h.printed.join('\n')).not.toContain('proj_cli')
-    expect(h.printed.at(-1)).toBe(
-      fill(UI_TEXT.providerHeaders.list, { provider: 'openai', names: 'OpenAI-Project' }),
-    )
-    expect(await providersHeaders(h.deps, { provider: 'openai', unset: 'openai-project' })).toBe(0)
-    expect(await h.store.get(providerHeadersAccount('openai'))).toBeUndefined()
-    expect(h.printed.at(-1)).toBe(fill(UI_TEXT.providerHeaders.none, { provider: 'openai' }))
-  })
-
-  it('refuses a reserved name before reading any value', async () => {
-    const h = await harness('Bearer other\n')
-    expect(await providersHeaders(h.deps, { provider: 'openai', set: 'Authorization' })).toBe(1)
-    expect(h.errors).toEqual([
-      fill(UI_TEXT.providerHeaders.nameReserved, { name: 'Authorization' }),
-    ])
-    expect(await h.store.get(providerHeadersAccount('openai'))).toBeUndefined()
-  })
-
-  it('removing the provider removes its headers with it', async () => {
-    const h = await harness('proj_cli\n')
-    expect(await providersHeaders(h.deps, { provider: 'openai', set: 'OpenAI-Project' })).toBe(0)
-    expect(await h.store.get(providerHeadersAccount('openai'))).toBeDefined()
-    expect(await providersRemove(h.deps, 'openai')).toBe(0)
-    expect(await h.store.get(providerHeadersAccount('openai'))).toBeUndefined()
-  })
-
+describe('providers headers arguments', () => {
   it('never takes a value as an argument', () => {
     const command = parseCommandLine(['providers', 'headers', 'openai', 'set', 'A', 'value'])
     expect(command.command).toBe('invalid')

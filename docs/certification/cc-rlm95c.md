@@ -6,18 +6,25 @@ conflicted: it re-did RLM95B's editor chat, the Moonshot and Ollama Cloud
 presets and RLPROVSYNC's re-sync). Only what int lacked was ported, read
 from RLM95C's code and rebuilt on int's provider code; that branch was
 never merged. Model attempts: **0**. Provider calls: **0** (no keys on
-this lane). Every request below is captured at the socket of the real
-configured request builder (`test/unit/helpers/providerWire.ts`: a real
-providers file, the vendored models.dev snapshot as the catalogue, the
-real record resolution, codec, credential and header reads and the real
-pinned transport; the injected send records the request and fails, so
-nothing leaves the machine and no answer is invented; DNS answers with a
-public literal that is never dialled).
+this lane). Every request below is read off a real local socket
+(`test/unit/helpers/providerWire.ts`): a real providers file, the vendored
+models.dev snapshot as the catalogue, the real record resolution, codec,
+credential and header reads, the real pinned transport and Node's own
+HTTP client, all the way out of our code; the far end is Node's HTTP
+server on `127.0.0.1`, which records the request as it arrived and
+destroys the connection without a status line, so nothing leaves the
+machine and no answer is invented. Keys and headers sit in the product's
+own memory store (`memorySecretStoreFor`, the store headless provider runs
+use). OpenAI's and Mistral's presets are pinned to their public origins,
+so the requests go to a Responses-API server entry and to LM Studio at the
+socket; the codecs, gates and markers are the same.
 
 Commits: `153841f0a2` (part 3), `11fc78e6b6` (part 6), `0319e29137`
 (part 7), `1021deee2f` (bundle-budget follow-up), `7e18514f91` (this
 record), `949d115449` (the integration suite's resolver), `68b94ff06d`
-(clones back to base), and the commit adding the Gates section.
+(clones back to base), `8538938bfd` (Gates section), and the commit
+moving the three request suites onto the real socket and the CLI suite
+onto the real OS credential store (review of 2026-10-23).
 
 ## Part 3 — OpenAI explicit cache breakpoints (built)
 
@@ -39,13 +46,16 @@ person's machine-scoped `museSpark.modelApiPromptCacheBreakpoints` turns
 it on; off by default until the paired run PLAN.md requires.
 
 Proof `test/unit/responsesCacheBreakpoints.test.ts` (6 tests): the golden
-request for `gpt-6.1-sol` at `https://api.openai.com/v1/responses`; off,
+request for `gpt-6.1-sol` as the socket read it (`POST /v1/responses`,
+`Authorization: Bearer`); off,
 and on `gpt-5.5`, nothing is marked; every byte before the rolling marker
 stays stable as the turn grows; a lone item is marked once and history is
 never touched; the plan profile never carries one.
 
-Drills: trailing-suffix exclusion disabled → 1 failed, exit 1; model gate
-removed → 1 failed, exit 1; restored → 6 passed, exit 0. Manifest: with
+Drills (run on this PC, Windows 11, against the socket suite):
+trailing-suffix exclusion disabled → 1 failed, exit 1; model gate removed
+→ 1 failed, exit 1; restored → 6 passed, exit 0, source byte-identical.
+Manifest (this PC): with
 the setting's row taken out of package.json the two settings rows of
 `manifest.test.ts` fail (5 failed vs 3 on base), restored → 3 failed, the
 three base failures listed under Gates.
@@ -72,17 +82,29 @@ postMessage), loaded with the providers seam. Or
 `providers headers <id> [set|unset <name>]`, the value read from standard
 input only (a value after the name is a usage error).
 
-Proof `test/unit/providerRequestHeaders.test.ts` (10 tests): the headers
-on the documented OpenAI shape through the real builder; none when none
-stored; another origin and a damaged record refuse with zero sends; the
-reserved/invalid names; the scrub; the CLI set/list/unset round trip over
-a real providers file (map-backed secret port: the OS store cannot open
-on a test machine); a reserved name refused before stdin is read; removal
-deletes them; a value is never an argument.
+Proof `test/unit/providerRequestHeaders.test.ts` (7 tests, runs here):
+the headers on the documented OpenAI shape as the socket read them; none
+when none stored; another origin and a damaged record refuse with nothing
+on the socket; the reserved/invalid names; the scrub, over the record read
+from the memory store by the product's own reader; a value is never an
+argument. `test/unit/providerHeadersStore.test.ts` (3 tests): the CLI
+set/list/unset round trip, a reserved name refused before stdin is read,
+and `providers remove` deleting the headers, on the real OS credential
+store opened as `src/runtime/main.ts` opens it (`keyringSecretStore` over
+`@napi-rs/keyring`, a random `….test.<uuid>` service, removed afterwards)
+over a real providers file. It carries the vault's real-store
+availability guard (`skipIf(!hasStore())`: Linux needs a session bus).
+That guard runs it on Windows and macOS. The repo has no guard that skips
+the owner's PC: like keyringParts, keystoreOwner and credentialLease, it
+is kept off this PC by never being run here, and it was not run here.
 
-Drills: origin bind removed → 1 failed, exit 1; the wrapper unplugged from
-the transport → 3 failed, exit 1; `providers remove` cleanup removed → 1
-failed, exit 1; each restored → green, exit 0.
+Drills (this PC, Windows 11, against the socket suite): origin bind
+removed → 1 failed, exit 1; the wrapper unplugged from the transport → 3
+failed, exit 1; each restored → 7 passed, exit 0, source byte-identical.
+The `providers remove` cleanup drill ran earlier on this PC against the
+map-backed port that suite used then (1 failed, exit 1; restored green);
+on the real store it has not run anywhere yet: its first run is a real-store
+runner's (hosted CI or a rig).
 
 Local look (`npm run ui:look -- models-providers`), light and dark:
 [light](cc-rlm95c/models-providers.light.png),
@@ -90,8 +112,9 @@ Local look (`npm run ui:look -- models-providers`), light and dark:
 
 ## Part 7 — Tab on bring-your-own models (built: chat-shaped hole)
 
-Source: [Mistral chat completions](https://docs.mistral.ai/api/endpoint/chat),
-read 2026-10-23 (`model`, `messages`, `max_tokens`, `stream`).
+Source: [LM Studio chat completions](https://lmstudio.ai/docs/developer/openai-compat/chat-completions),
+read 2026-10-23 (`model`, `messages`, `max_tokens`, `stream` at
+`POST /v1/chat/completions`).
 `museSpark.tabModel` takes a `provider/model` reference beside the two
 Meta tiers (the manifest keeps the tiers' descriptions in an `anyOf`).
 The provider resolves it per request with the agent turn's tool-calling
@@ -105,19 +128,22 @@ without the person's cap: quiet with its reason. Meta's no-key state
 applies to Meta tiers only. Account & usage tallies a BYO request at its
 card.
 
-Proof `test/unit/tabByo.test.ts` (5 tests): Codestral (catalogue card,
-4,096 output maximum) through `https://api.mistral.ai/v1/chat/completions`
-with the system and user messages Tab builds, `max_tokens: 256`, stream on
-and no `tools`, the Meta key client never called; an LM Studio model
-without confirmed tool calling refuses an agent turn but resolves for Tab
-(quoted local); an unpriced model resolves to nothing; the ledger
-reserves 1,000/256 tokens at $0.30/$0.90 per million and settles 400
-uncached + 500 cached + 10 output at the card; the question quotes $0.300
-and $0.900 per million without the training note.
+Proof `test/unit/tabByo.test.ts` (5 tests): an LM Studio model without
+confirmed tool calling refuses an agent turn but resolves for Tab (quoted
+local, its own 2,048 output cap), and the real Tab engine's request reaches
+the socket as `POST /v1/chat/completions` with the system and user
+messages Tab builds, `max_tokens: 256`, stream on, no `tools` and no
+credential, the Meta key client never called; an unpriced model resolves
+to nothing and puts nothing on the socket; Codestral's catalogue card
+(4,096 output maximum) reserves 1,000/256 tokens at $0.30/$0.90 per
+million and settles 400 uncached + 500 cached + 10 output at the card in
+the real ledger (resolved, never sent); the question quotes $0.300 and
+$0.900 per million without the training note.
 
-Drills: ledger forced back to Meta's estimate → 1 failed, exit 1; engine
-forced to the Meta stream → 1 failed, exit 1; tool-gate opt-out removed →
-1 failed, exit 1; each restored → 5 passed, exit 0.
+Drills (this PC, Windows 11): ledger forced back to Meta's estimate → 1
+failed, exit 1; engine forced to the Meta stream → 1 failed, exit 1;
+tool-gate opt-out removed → 2 failed, exit 1; each restored → 5 passed,
+exit 0, source byte-identical.
 
 Not built: fill-in-the-middle routes (Codestral FIM, DeepSeek FIM,
 Ollama `/api/generate` with `suffix`). RLM95C did not build them either;
