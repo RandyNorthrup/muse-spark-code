@@ -21,15 +21,10 @@ import {
   MCP_TRANSPORTS,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
+import { type ModernTools, modernTools } from './changes'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
 import type { McpElicitationHandler } from './elicitation'
-import {
-  McpError,
-  type ModernTools,
-  modernTools,
-  newestMutualModern,
-  unsupportedVersions,
-} from './protocol'
+import { McpError, newestMutualModern, unsupportedVersions } from './protocol'
 
 export type EraVerdict =
   | { readonly era: 'modern'; readonly version: string; readonly tools: ModernTools }

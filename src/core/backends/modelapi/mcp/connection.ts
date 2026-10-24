@@ -36,10 +36,17 @@ import {
 import { clipForLog, type CoreLogger } from '../../../logging'
 import { failureForLog } from '../../musecode/logText'
 import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../../timeouts'
+import {
+  cancelledRequestOf,
+  type ModernTools,
+  modernTools,
+  pageFreshUntil,
+  subscriptionAckSchema,
+  subscriptionIdOf,
+} from './changes'
 import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
 import { type HeaderMirror, mirrorHeaders, scanHeaderMirrors } from './headers'
 import {
-  cancelledRequestOf,
   type CallToolResult,
   callToolResultSchema,
   type DiscoverResult,
@@ -54,15 +61,10 @@ import {
   logMessageSchema,
   McpError,
   type McpToolInfo,
-  type ModernTools,
-  modernTools,
   newestMutualModern,
   type OutgoingMessage,
-  pageFreshUntil,
   type RequestId,
   resultTypeOf,
-  subscriptionAckSchema,
-  subscriptionIdOf,
   toolInfoSchema,
   unsupportedVersions,
 } from './protocol'
