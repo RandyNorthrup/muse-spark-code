@@ -207,7 +207,7 @@ not lists of every file or every dependency's complete source: tree shaking
 can ship only part of a package. Build-only tools and omitted dependency
 references are removed. See [npm's SBOM documentation](https://docs.npmjs.com/cli/commands/npm-sbom/).
 
-Every VSIX size gate is measured in compressed bytes; the unchanged per-package budget is in
+Every VSIX size gate is measured in compressed bytes; the per-package budget (4800 KiB) is in
 `PLAN.md` D6 (one package per platform: D209) and `scripts/check-vsix-size.mjs`. ACP package checks cover every
 `l10n/ui.*.json` table. The ACP process compiles the shell job sources on
 Windows, but forwards MCP servers to Muse Code; it does not run the extension's

@@ -538,6 +538,25 @@ component tests, and the real-editor integration run.
 
 ### D6 — Bundle budgets (Phase 6)
 
+**VSIXBUDGET (2026-10-24, owner; lane CC-INT1).** The win32-x64 VSIX
+measured 4,273,804 bytes on `cc/vsixsize` against the 3,788,800-byte
+(3700 KiB) budget, 485,004 bytes over. Every grown byte is code, text or a
+helper source the extension loads; the one file that should not ship,
+`dist/runtimeMedia.js` (agent-only), left the package and the build now
+refuses an agent-only bundle in the VSIX (`docs/certification/cc-vsixsize.md`
+names where the 629,606 bytes since 0.19.0 went). The lead asked the owner
+whether to move the budget or take features or locales out of the package;
+the owner answered (2026-10-24): **"Move budget to measured +15%"**. D6's rule
+applies to the measured package: 4,273,804 × 1.15 = 4,914,874.6 bytes, rounded
+up to the next 25 KiB multiple = **4800 KiB (4,915,200 bytes)**. The number is
+set once, `MAX_VSIX_BYTES` in `scripts/check-vsix-size.mjs`, which
+`package-vsix.mjs` and CI's per-target step both read, and
+`test/unit/vsixBudget.test.mjs` holds its edge (a package of exactly 4,915,200
+bytes passes, one byte more is refused). D209's "never raised" held until this
+decision. Nothing else rises: every bundle cap, the startup and deferred
+budgets and the bundle-size gate keep their values. Record:
+`docs/certification/cc-int1.md`.
+
 **C-M109-1b (2026-10-10, Kubuntu).** The POSIX broker's new lazy child is
 103,730 bytes; its first cap is 119,290 bytes (ceiling of measured × 1.15),
 with gate-fire and source-hash receipts in `docs/certification/cm109-1b.md`.
@@ -9121,6 +9140,12 @@ VSIXFIT C (2026-10-20): the fallback stopped carrying every platform's helpers �
 
 VSIXWEB (2026-10-20): with no lever left inside "budget never raised, nothing cut", the two biggest loose crowds pack solid instead — `dist/webview/**` as one brotli-11 `dist/webview.json.br` (190 members, extracted and SHA-256-verified into global storage on first use) and the vendored skill as one brotli-11 beside its loose `LICENSE`+`VENDOR.json` — saving ~181 KB per target with no feature, locale, text or helper cut, bringing win32-x64 back inside the unchanged budget (see `docs/certification/vsix-platform.md` §2).
 Evidence: `docs/certification/vsix-platform.md`.
+
+Amended 2026-10-24 (CC-INT1, the owner: "Move budget to measured +15%"): the
+budget every one of the seven packages meets is now 4800 KiB (4,915,200
+bytes), measured win32-x64 4,273,804 bytes +15%, rounded up to 25 KiB (D6,
+VSIXBUDGET). The shape stays: one package per platform, each checked against
+the same budget.
 
 ### D210 — One package per platform target (lane RUTRUTHL2, 2026-10-18; numbered D123 until the 0.19.0 join, when that number was found shared)
 
@@ -36430,6 +36455,16 @@ Unresolved items remain delivery/security gaps, not accepted legal conclusions:
   on Linux, where anchoring is complete.
 
 ## 10. Definition of done and release records
+
+**VSIX budget for the next release (2026-10-24, owner; lane CC-INT1).** The
+0.19.0 packages met the 3700 KiB (3,788,800-byte) budget (win32-x64
+3,649,018 bytes, measured on main `f3941b8548` in
+`docs/certification/cc-vsixsize.md`). `int/recovery`'s win32-x64 package
+measures 4,273,804 bytes, which that budget refuses. The owner's decision, asked by the lead with those
+measurements: **"Move budget to measured +15%"**. The budget every package of
+the next release meets is **4800 KiB (4,915,200 bytes)**: 4,273,804 × 1.15,
+rounded up to the next 25 KiB multiple (D6, VSIXBUDGET; D209 amended). The
+release records that follow quote the measured size against this number.
 
 **0.19.0 released (2026-10-21, tag `v0.19.0` on main's release merge `4e09cab6ea`, PR #257, release run 39720213044).**
 PR #257 (`release/0.19.2`, head `915f409fe4`) merged after first-attempt
