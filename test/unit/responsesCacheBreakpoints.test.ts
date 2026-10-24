@@ -7,7 +7,10 @@
 // (developers.openai.com/api/docs/guides/prompt-caching and
 // developers.openai.com/api/reference/resources/responses/methods/create,
 // read 2026-10-23). The whole-request tests ride the real configured
-// request builder up to the socket (helpers/providerWire.ts).
+// request builder and the real pinned transport to a real local socket
+// that records the request and closes unanswered (helpers/providerWire.ts):
+// a Responses-API server entry, since OpenAI's own preset is pinned to its
+// public origin; the codec, its gate and the marker are the same.
 import { describe, expect, it } from 'vitest'
 import {
   createResponsesCodec,
@@ -15,21 +18,19 @@ import {
 } from '../../src/core/backends/modelapi/codecs/responses'
 import type { CreateResponseBody, InputItem } from '../../src/core/backends/modelapi/schemas'
 import { restoredToolText } from '../../src/core/backends/modelapi/schemas'
-import type { ProviderEntry } from '../../src/core/providers/providersFile'
 import { makeTurnBody } from './helpers/turnBodies'
-import { storedKey, turnRequest, wireServices, type WireRequest } from './helpers/providerWire'
+import {
+  responsesEntryAt,
+  storedKey,
+  suiteSocket,
+  turnRequest,
+  wireServices,
+  type WireRequest,
+} from './helpers/providerWire'
 
-const OPENAI = 'https://api.openai.com'
 const BREAKPOINT = { mode: 'explicit' }
-
-const entry: ProviderEntry = {
-  id: 'openai',
-  preset: 'openai',
-  address: OPENAI,
-  auth: 'apiKey',
-  models: ['gpt-6.1-sol', 'gpt-5.5'],
-}
-const secrets = { 'museSpark.provider.openai': storedKey(OPENAI, 'test-openai-key') }
+const opened = suiteSocket()
+const entryAt = (origin: string) => responsesEntryAt(origin, ['gpt-6.1-sol', 'gpt-5.5'])
 
 /** A tool loop: the first ask, a call, its array result, an answer, the next ask, goal progress. */
 function loopInput(): InputItem[] {
@@ -81,17 +82,20 @@ function inputOf(wire: unknown): readonly unknown[] {
 }
 
 async function sent(model: string, input: InputItem[], isOn: boolean): Promise<WireRequest> {
-  const captured: WireRequest[] = []
-  const services = wireServices([entry], secrets, captured, {
-    promptCacheBreakpoints: () => isOn,
-  })
-  return await turnRequest(services, captured, `openai/${model}`, body(`openai/${model}`, input))
+  const socket = await opened
+  const services = wireServices(
+    [entryAt(socket.origin)],
+    { 'museSpark.provider.openai': storedKey(socket.origin, 'test-openai-key') },
+    { promptCacheBreakpoints: () => isOn },
+  )
+  return await turnRequest(services, socket, `openai/${model}`, body(`openai/${model}`, input))
 }
 
 describe('OpenAI explicit cache breakpoints through the real request builder', () => {
   it('marks the stable prefix and the rolling end, never the goal suffix (GPT-6.1)', async () => {
     const request = await sent('gpt-6.1-sol', loopInput(), true)
-    expect(request.url).toBe(`${OPENAI}/v1/responses`)
+    expect(request.method).toBe('POST')
+    expect(request.path).toBe('/v1/responses')
     expect(request.headers['authorization']).toBe('Bearer test-openai-key')
     // The golden: the documented marker on the first ask (the stable
     // prefix: instructions, tools and that message) and on the latest
