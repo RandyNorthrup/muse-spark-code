@@ -575,6 +575,7 @@ async function runtimeFor(
   log: Logger,
   questions?: { remove(sessionId: string): Promise<void> },
   accounts?: RuntimeAccountServices,
+  unsavedFiles?: () => readonly string[],
 ) {
   const engine = await import('./runtimeEngineEntry')
   engine.setUiText(UI_TEXT, uiLocale())
@@ -592,6 +593,7 @@ async function runtimeFor(
     sleep,
     log,
     ...(questions !== undefined && { questions }),
+    ...(unsavedFiles !== undefined && { unsavedFiles }),
     ...(accounts !== undefined && {
       accountRequests: (client) => accounts.requests(client),
       accountBilling: accounts.billing,
@@ -2428,7 +2430,8 @@ async function main(processResources: ProcessResources): Promise<number> {
             homeDir: homedir(),
           }),
           distDir,
-          createRuntime: (serveOptions, questions) => runtimeFor(serveOptions, log, questions),
+          createRuntime: (serveOptions, questions, unsavedFiles) =>
+            runtimeFor(serveOptions, log, questions, undefined, unsavedFiles),
           runGit: processGitRunner(),
         },
       )

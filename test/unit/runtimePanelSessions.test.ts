@@ -8,6 +8,7 @@
 import { mkdirSync } from 'node:fs'
 import path from 'node:path'
 import { PassThrough } from 'node:stream'
+import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { runPanel } from '../../src/runtime/panel/panelEntry'
 import type { RuntimeBackend } from '../../src/runtime/backends'
@@ -49,6 +50,7 @@ async function connected(options: { readonly trusted?: boolean } = {}) {
   const { models } = createEditorChatServices(configFile, catalogFile).client
   const rig = modelApiRig(folder, undefined, undefined, { ...(models !== undefined && { models }) })
   const runtimes: RuntimeBackend[] = []
+  const unsaved: (() => readonly string[])[] = []
   const toRuntime = new PassThrough()
   const fromRuntime = new PassThrough()
   const exit = runPanel(
@@ -62,7 +64,8 @@ async function connected(options: { readonly trusted?: boolean } = {}) {
       dataFolder: run.dataFolder,
       distDir: path.join(ROOT, 'dist'),
       // The product's own runtime; only the backend is the rig's host, reported ready.
-      createRuntime: (options, questions) => {
+      createRuntime: (options, questions, unsavedFiles) => {
+        unsaved.push(unsavedFiles)
         const runtime = createRuntimeBackend({
           hostKind: 'acp',
           options,
@@ -81,6 +84,7 @@ async function connected(options: { readonly trusted?: boolean } = {}) {
           sleep: () => Promise.resolve(),
           log,
           questions,
+          unsavedFiles,
         })
         const ready = {
           ...runtime,
@@ -107,7 +111,7 @@ async function connected(options: { readonly trusted?: boolean } = {}) {
       }),
     ),
   )
-  return { host, editor, rig, exit, runtimes }
+  return { host, editor, rig, exit, runtimes, unsaved }
 }
 
 describe('conversations in the runtime panel', () => {
@@ -229,6 +233,33 @@ function confirmations(
           }),
   }
 }
+
+describe('what the editor holds unsaved', () => {
+  it('reaches the backend, so the model’s tools leave those files alone', async () => {
+    const { host, editor, unsaved, exit } = await connected()
+    await editor.nextSurface()
+    const [unsavedFiles] = unsaved
+    const file = path.join(run.workspace, 'open.ts')
+    const document = { uri: pathToFileURL(file).href, version: 1, languageId: 'typescript' }
+    host.send({
+      jsonrpc: '2.0',
+      method: 'documents/didChange',
+      params: { document: { ...document, dirty: true }, text: 'let x' },
+    })
+    // The answer to a request comes after the notification was handled.
+    await host.request('settings/get', { key: 'museSpark.autosave' })
+    expect(unsavedFiles?.()).toContain(file)
+    host.send({
+      jsonrpc: '2.0',
+      method: 'documents/didSave',
+      params: { ...document, version: 2, dirty: false },
+    })
+    await host.request('settings/get', { key: 'museSpark.autosave' })
+    expect(unsavedFiles?.()).toEqual([])
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+  })
+})
 
 describe('paid features in the runtime panel', () => {
   it('shows the features that are on, and names the price before one is turned back on', async () => {

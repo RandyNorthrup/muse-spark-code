@@ -84,6 +84,8 @@ export const ACP_BUNDLES = [
   'report.js',
   'sessionBoard.js',
   'scheduleSurfaces.js',
+  // M104 lane B: edit review and `/review` in the runtime panel (the patch engine, git's material, the Plan hold).
+  'review.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker

@@ -1139,9 +1139,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'review.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/shared/constants.ts', symbol: 'REVIEW_BUNDLE_FILE', side: ['vscode'] },
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'REVIEW_BUNDLE_FILE',
+        side: ['acp', 'vscode'],
+      },
     ],
   },
   {

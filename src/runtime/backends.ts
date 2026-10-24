@@ -174,6 +174,12 @@ export interface RuntimeBackendDeps {
   M108: the Meta account the Model API key reads through (the fixed
   account of a keyed headless run); the default account otherwise.
   */
+  /**
+  The files an editor holds with unsaved changes, absolute: the tools leave
+  them alone (D27). The ACP agent cannot see an editor's buffers; the runtime
+  panel is told of them by its editor (MHP `documents/didChange`).
+  */
+  readonly unsavedFiles?: () => readonly string[]
   readonly accountRequests?: (client: ProviderClient) => Promise<AccountRequestPort>
   readonly accountBilling?: () => PaidBilling | undefined
   readonly billingAccount?: string
@@ -465,8 +471,8 @@ function modelApiManager(
     env: () => withoutKeyringRoutes(withoutCredentials(deps.env)),
     searchWorkerPath: path.join(deps.distDir, SEARCH_WORKER_FILE),
     log: warn,
-    // The agent cannot see the editor's buffers (D62); the client's `fs/*` will (M63c).
-    unsavedFiles: () => [],
+    // The ACP agent cannot see the editor's buffers (D62); the runtime panel's editor tells it.
+    unsavedFiles: deps.unsavedFiles ?? (() => []),
     assertWorkspaceCurrent,
     shellJobAssembly:
       platform === 'win32' && systemRoot !== undefined

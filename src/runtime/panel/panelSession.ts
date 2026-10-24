@@ -5,11 +5,14 @@
 // surface, and what follows a change of settings, trust, selection or
 // documents. The transport (frames, the handshake, settings and storage) is
 // dist/runtimePanel.js.
+import { realpathSync } from 'node:fs'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { ConversationController } from '../../host/conversation/conversationController'
 import { conversationLoader } from '../../host/conversation/conversationBundle'
 import { EditorContextTracker } from '../../host/editor/editorContextTracker'
+import { isMissingPath } from '../../host/canonicalPath'
 import { logRejection, type Logger } from '../../host/logger'
 import { toSettingsSnapshot, type ExtensionSettings } from '../../host/settings'
 import {
@@ -51,6 +54,8 @@ export interface PanelSessionDeps {
   readonly createRuntime: (
     options: ServeOptions,
     questions: { remove(sessionId: string): Promise<void> },
+    /** The files the editor holds with unsaved changes. */
+    unsavedFiles: () => readonly string[],
   ) => Promise<RuntimeBackend>
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
   readonly log: Logger
@@ -140,6 +145,30 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     return [...held]
   }
   const ending = new AbortController()
+  /** The files the editor holds with unsaved changes, as the editor shows them and as the disk resolves them. */
+  const unsavedPaths = (): readonly string[] => {
+    const found: string[] = []
+    for (const document of openDocuments()) {
+      if (!document.dirty) continue
+      let display: string
+      try {
+        display = fileURLToPath(document.uri, { windows: process.platform === 'win32' })
+      } catch (error: unknown) {
+        // NARROW: a document that is not a file on this machine holds no file of ours.
+        if (error instanceof TypeError) continue
+        throw error
+      }
+      found.push(display)
+      try {
+        const resolved = realpathSync.native(display)
+        if (resolved !== display) found.push(resolved)
+      } catch (error: unknown) {
+        // NARROW: a file that does not exist yet has no other name.
+        if (!isMissingPath(error)) throw error
+      }
+    }
+    return found
+  }
   /** Conversations that took another session and have no surface for it yet. */
   const awaitingSurface = new WeakSet<RuntimeConversation>()
   let settings: ExtensionSettings | undefined
@@ -244,6 +273,8 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
             paid,
             controllers: () => controllersOf(registry.controllers()),
             runGit: deps.runGit,
+            distDir: deps.distDir,
+            dataFolder: deps.dataFolder,
             files,
             editorContext: () => editorContext.active,
             documents: openDocuments,
@@ -312,7 +343,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   async function createBackend(): Promise<void> {
     const flagged = paid.flagged()
     const options = serveOptions(currentSettings(), () => isTrusted, deps.isVerbose, flagged)
-    const created = await deps.createRuntime(options, questionStore)
+    const created = await deps.createRuntime(options, questionStore, unsavedPaths)
     runtime = created
     flaggedAtBuild = flagged
     // The backend asks the editor before every paid use; until it is attached every use is denied.

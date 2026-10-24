@@ -23,15 +23,15 @@ import {
 import { MHP_METHODS, type MhpRequestMethod } from '../../shared/hostApi/methods'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import type { RuntimeBackend } from '../backends'
-import type { PanelOptions, ServeOptions } from '../cliArgs'
+import type { PanelOptions } from '../cliArgs'
 import { RuntimeSettingsStore, RuntimeStateError } from '../settingsStore'
 import { MhpServiceError, PanelConnection } from './connection'
 import { streamWriter } from './delivery'
 import { panelSessionLoader } from './panelBundle'
-import type { PanelSession } from './panelSession'
+import type { PanelSession, PanelSessionDeps } from './panelSession'
 
-export interface PanelRuntimeDeps {
+/** What `panel` is given by the process: its streams, its folders and the backend it may build. */
+export interface PanelRuntimeDeps extends Pick<PanelSessionDeps, 'createRuntime' | 'runGit'> {
   readonly stdin: Readable
   readonly stdout: Writable
   readonly table: UiText
@@ -41,12 +41,6 @@ export interface PanelRuntimeDeps {
   readonly dataFolder: string
   /** The folder holding the shipped bundles (dist/). */
   readonly distDir: string
-  /** The runtime backend these options name; the engine bundle loads on first use. */
-  readonly createRuntime: (
-    options: ServeOptions,
-    questions: { remove(sessionId: string): Promise<void> },
-  ) => Promise<RuntimeBackend>
-  readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
 }
 
 /** A store refusal as the MHP failure the host gets: its contract code and the stable message. */
