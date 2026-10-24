@@ -1,6 +1,5 @@
 // Lazy input bundle owns its installed-language state, like every Node bundle.
 import {
-  createPlaybookReportOrder as playbookOrder,
   createPlaybookReportReader as playbookReader,
   createSchedulesReportReader as schedulesReader,
 } from './playbookSchedulesInputs'
@@ -14,14 +13,6 @@ export function createPlaybookReportReader(
 ) {
   setUiText(table, locale)
   return playbookReader(input)
-}
-export function createPlaybookReportOrder(
-  input: Parameters<typeof playbookOrder>[0],
-  table: UiText,
-  locale: string,
-) {
-  setUiText(table, locale)
-  return playbookOrder(input)
 }
 export function createSchedulesReportReader(
   input: Parameters<typeof schedulesReader>[0],

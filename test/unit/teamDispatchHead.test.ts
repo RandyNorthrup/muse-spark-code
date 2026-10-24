@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { describe, expect, it, onTestFinished } from 'vitest'
 import { dispatchHeadReader, readDispatchHead } from '../../src/core/team/teamWorkspaces'
-import { TEAM_MODEL_TEXT } from '../../src/shared/constants'
+import { TEAM_MODEL_TEXT, TEAM_PLAYBOOK_MODEL_TEXT } from '../../src/shared/constants'
 import { realTeamGit as realGitImpl } from './helpers/realTeamGit'
 
 const commitAs = (root: string, ...args: readonly string[]): void => {
@@ -73,7 +73,7 @@ describe('readDispatchHead', () => {
     })
   })
 
-  it('answers the port: the base, a git failure as a refusal in its words, no repository as no base', async () => {
+  it('answers the port: the base, a git failure as a fixed refusal, no repository as no base', async () => {
     const root = scratchRepo()
     await expect(dispatchHeadReader(realGitImpl, () => root)('in-place')).resolves.toEqual({
       ref: 'refs/heads/main',
@@ -84,8 +84,9 @@ describe('readDispatchHead', () => {
       rmSync(empty, { recursive: true, force: true })
     })
     execFileSync('git', ['init', '-b', 'main'], { cwd: empty })
-    const refused = await dispatchHeadReader(realGitImpl, () => empty)('own-branch')
-    expect(refused).toHaveProperty('refused')
+    await expect(dispatchHeadReader(realGitImpl, () => empty)('own-branch')).resolves.toEqual({
+      refused: TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookBaseUnreadable,
+    })
     await expect(dispatchHeadReader(realGitImpl, () => undefined)('own-branch')).resolves.toEqual({
       refused: TEAM_MODEL_TEXT.hostNoRepository,
     })

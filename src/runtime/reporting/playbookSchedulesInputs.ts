@@ -37,8 +37,10 @@ with no journal yet reads empty, never an error.
 export function createPlaybookReportReader(input: {
   readonly agentDataFolder: string
   readonly workspaceRoot: string
-}): PlaybookReportReader {
+}): PlaybookReportReader & PlaybookReportOrderer {
   return {
+    // D220: the reader orders the rows of the same journal it reads.
+    ...createPlaybookReportOrder(input),
     read: (context: SourceReadContext) => {
       let records: readonly unknown[]
       try {

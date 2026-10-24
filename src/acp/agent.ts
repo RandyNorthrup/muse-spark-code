@@ -2325,6 +2325,9 @@ class AcpSession {
         },
       ) ?? control())
     } catch (error: unknown) {
+      // The failed control's kind is recorded, redacted; the person reads
+      // the fixed words or the backend's own refusal below.
+      this.deps.log.warn(`/agents ${action} failed: ${failureForLog(error)}`)
       if (action === 'continue') return UI_TEXT.agentContinueUnavailable
       // Only the backend with no isolated worktree checkpoint says so (Muse
       // Code refuses every retry). Any other backend's refusal carries its

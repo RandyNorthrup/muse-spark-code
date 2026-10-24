@@ -96,7 +96,10 @@ export function createReportingWindow(
   table: UiText,
   locale: string,
 ): ReportPanel {
-  const workspaceKey = reportWorkspaceKey(deps.workspaceRoot ?? process.cwd(), process.platform)
+  // The workspace this window reports on, fixed at creation as its storage
+  // key is; the playbook journal and the schedules key read the same one.
+  const workspaceRoot = deps.workspaceRoot ?? process.cwd()
+  const workspaceKey = reportWorkspaceKey(workspaceRoot, process.platform)
   const loadEngine = reportEngineLoader({
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reporting.js').fsPath,
     log: deps.context.log,
@@ -154,11 +157,17 @@ export function createReportingWindow(
     readJournal,
   })
   // M113 C-M113-4: the playbook journal lives under the same agent data
-  // folder as the usage journal; the reader and the ordering read the same one.
-  const playbookJournal = () => ({
-    agentDataFolder: deps.reportUsageDataFolder,
-    workspaceRoot: deps.workspaceRoot ?? process.cwd(),
-  })
+  // folder as the usage journal. Its reader also orders that journal's rows
+  // for the playbook, milestone and fleet kinds (D220), loaded only when used.
+  const playbookReader = () =>
+    loadPlaybookSchedules().createPlaybookReportReader(
+      {
+        agentDataFolder: deps.reportUsageDataFolder,
+        workspaceRoot,
+      },
+      table,
+      locale,
+    )
   return createReportPanel(
     {
       ...deps,
@@ -230,25 +239,15 @@ export function createReportingWindow(
           },
           // M113 C-M113-4: the playbook journal and the schedules store
           // live under the same agent data folder as the usage journal.
-          playbook: {
-            read: (context) =>
-              loadPlaybookSchedules()
-                .createPlaybookReportReader(playbookJournal(), table, locale)
-                .read(context),
-          },
-          // D220: the playbook, milestone and fleet kinds order through the
-          // journal the reader reads, loaded only when one of them orders.
-          playbookOrder: () =>
-            loadPlaybookSchedules().createPlaybookReportOrder(playbookJournal(), table, locale),
+          playbook: { read: (context) => playbookReader().read(context) },
+          playbookOrder: playbookReader,
           schedules: {
             read: (context) =>
               loadPlaybookSchedules()
                 .createSchedulesReportReader(
                   {
                     storeRoot: path.join(deps.reportUsageDataFolder, SCHEDULE_STORE_SUBFOLDER),
-                    workspaceKey: scheduleWorkspaceKey(
-                      path.resolve(deps.workspaceRoot ?? process.cwd()),
-                    ),
+                    workspaceKey: scheduleWorkspaceKey(path.resolve(workspaceRoot)),
                   },
                   table,
                   locale,
