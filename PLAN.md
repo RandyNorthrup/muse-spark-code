@@ -36237,8 +36237,9 @@ application's client id or scope). Research:
 
 ### RLFSAFELIMITS — Safety limits the too-broad D121 reading removed, restored (2026-10-23)
 
-**Status 2026-10-23: building.** Lane `rec/rlf-safelimits` on rig
-`macmini`. The owner clarified D121 on 2026-10-23 ("no limits
+**Status 2026-10-23: built.** Lane `rec/rlf-safelimits` on rig
+`macmini`, all restores committed with drills and suites green (the two
+known rig-load flakes reproduce on clean HEAD). The owner clarified D121 on 2026-10-23 ("no limits
 mean the limits we set it does not mean dont put any limits obviously
 there needs to be limits for things like fail retries", recorded under
 D121 in §2): arbitrary caps of ours on the person's work stay removed,
