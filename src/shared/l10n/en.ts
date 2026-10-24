@@ -5644,6 +5644,24 @@ export const EN = {
   providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
   providerNotConfigured: '{provider} is not configured; add it with providers add first.',
   providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
+  // M95c part 6: a provider’s custom request headers (editor pickers and `providers headers`).
+  providerHeaders: {
+    button: 'Request Headers',
+    pick: 'Request headers for {provider}',
+    add: 'Add a header…',
+    name: 'Header name, for example OpenAI-Project',
+    value:
+      'Value for {name}, sent only to {origin}. It is kept in your credential store and never shown again.',
+    nameInvalid:
+      'A header name uses letters, digits and the symbols ! # $ % & * + - . ^ _ | ~ only.',
+    nameReserved: '{name} is sent by Muse Spark Code itself and cannot be set here.',
+    valueInvalid: 'A header value is one line of printable characters.',
+    unreadable: 'The stored request headers for {provider} cannot be read; set them again.',
+    none: 'No request headers are set for {provider}.',
+    list: '{provider} sends these request headers: {names}.',
+    usage:
+      'Usage: {command} providers headers <id> [set|unset <name>]; a value is read from standard input.',
+  },
   // {reason}: the technical detail (a file error or a refused write).
   providerSaveFailed: 'Could not save the providers file ({reason}).',
   // {stored}: the origin the credential was stored for; {current}: where the provider points now.
@@ -6064,6 +6082,18 @@ export const EN = {
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
   paidUseTabDetailNoBudget:
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  // M95c part 7: Tab on a bring-your-own model quotes its provider’s card ({billed} names who bills and at which rates).
+  tabByo: {
+    detail:
+      'Tab sends the code around your cursor to {model}, {billed}. Today’s budget is {budget}; Tab stops for the day if it is reached. Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+    detailNoBudget:
+      'Tab sends the code around your cursor to {model}, {billed}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+    billedKey: 'billed to your {provider} key at {price}',
+    billedPlan: 'covered by your {provider} plan',
+    billedLocal: 'which runs on your own server at no charge per token',
+    rates:
+      '{input} input, {cached} cached input and {output} output per million tokens, plus {request} per request',
+  },
   tabTrainingContributor:
     'The contributor model is cheaper, and Meta trains on the code it is sent.',
   // The status bar item while the feature is on; {spend} is today's spend.

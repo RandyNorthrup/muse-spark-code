@@ -1612,7 +1612,7 @@ Settings (modelApiPromptCacheRetention).
 
 Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`, `museSpark.modelApiPromptCacheTtl`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
+Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`, `museSpark.modelApiPromptCacheTtl`, `museSpark.modelApiPromptCacheBreakpoints`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
 
 ### museSpark.paidDailyBudgetUsd
 
@@ -2556,6 +2556,19 @@ Type: `"string"`. Default: `"default"`. Scope: `machine`.
 - `"default"`: OpenAI's default: a 30-minute minimum lifetime, billed at 1.25 times the input rate for cache writes.
 - `"12h"`: A 12-hour minimum lifetime for stable instructions reused across longer gaps, billed at 2.5 times the input rate for cache writes.
 
+### museSpark.modelApiPromptCacheBreakpoints
+
+Marks OpenAI's explicit prompt-cache breakpoints (prompt_cache_breakpoint) on GPT-5.6 and later: one after the conversation's stable start and one on its latest message, so later turns can reuse both. Sent only on direct Responses API requests with your own key. Cache writes bill at the rate the cache lifetime sets.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
+
 ### museSpark.modelApiScheduledPrompts
 
 Explicit scheduled Model API runs at the selected model’s token prices. Available by default on Model API. Before spending, asks Allow once / Allow always in this workspace / Deny with the price and shared daily budget. Explicit false disables it. Shared daily budget setting: museSpark.paidDailyBudgetUsd.
@@ -3342,20 +3355,28 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.tabModel
 
-The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent.
+The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent. Or one of your own models as its provider/model reference (for example mistral/codestral-latest), priced at its provider's card and billed to that provider's key.
 
 Type: `"string"`. Default: `"muse-spark-1.3"`. Scope: `machine`.
 
 ```json
 {
   "type": "string",
-  "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
+  "anyOf": [
+    {
+      "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
+      "enumDescriptions": [
+        "%config.tabModel.enumDescriptions.standard%",
+        "%config.tabModel.enumDescriptions.contributor%"
+      ]
+    },
+    {
+      "pattern": "^[^/\\s]+/\\S+$"
+    }
+  ],
   "default": "muse-spark-1.3"
 }
 ```
-
-- `"muse-spark-1.3"`: muse-spark-1.3: Standard rates, no training on your code.
-- `"muse-spark-1.3-contributor"`: muse-spark-1.3-contributor: contributor rates, Meta trains on the code it is sent.
 
 ### museSpark.tabDailyBudgetUsd
 
@@ -4007,6 +4028,7 @@ These are defaults; editor customizations take precedence.
 - `providers test <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers refresh <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers headers <id> [set|unset <name>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers usage <id> [--days <n>] [--output json]`: Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.
 - `providers usage`: Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.
@@ -4080,6 +4102,7 @@ These are defaults; editor customizations take precedence.
 - `providersModels: --remove <value>`: --remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models. `{"type":"string","repeatable":true}`
 - `providersModels: --force <value>`: --force &lt;reason&gt;: Add a model the provider does not list; the reason is stored on the entry. `{"type":"string","repeatable":false}`
 - `providersModels: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `providersHeaders: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `providersUsage: --days <value>`: --days &lt;n&gt;: Spend report period in days `{"type":"string","repeatable":false}`
 - `providersUsage: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text"}`
 - `providersUsage: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`

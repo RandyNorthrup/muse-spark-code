@@ -30,6 +30,33 @@ export interface ModelsPanelSeam {
   readonly usage: KeyUsageReader | undefined
   readonly pkce: PkceSource
   readonly suggest: SuggestionEngine
+  /**
+  M95c part 6: add or remove a saved provider's custom request headers.
+  It loads with the seam (dist/modelsSubscriptions.js), never with the
+  panel; a seam without it refuses the action in words.
+  */
+  readonly manageHeaders?:
+    ((entry: ProviderEntry, ports: ProviderHeadersPorts) => Promise<void>) | undefined
+}
+
+/** What the header manager asks the editor for: its own pickers and the credential store. */
+export interface ProviderHeadersPorts {
+  readonly pickOne: (
+    items: readonly { readonly label: string; readonly description?: string }[],
+    placeholder: string,
+  ) => Promise<{ readonly label: string; readonly description?: string } | undefined>
+  readonly showInputBox: (options: {
+    readonly title: string
+    readonly prompt: string
+    readonly password: boolean
+    readonly ignoreFocusOut: boolean
+    readonly validateInput: (typed: string) => string | undefined
+  }) => PromiseLike<string | undefined>
+  readonly secrets: {
+    get(key: string): PromiseLike<string | undefined>
+    store(key: string, value: string): PromiseLike<void>
+    delete(key: string): PromiseLike<void>
+  }
 }
 
 /**

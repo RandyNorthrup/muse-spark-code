@@ -738,6 +738,47 @@ Admin report keys live under their own name, `museSpark.providerAdmin.<id>`
 stored where an inference read looks, and removing the provider removes it.
 */
 export const PROVIDER_ADMIN_SECRET_PREFIX = 'museSpark.providerAdmin.'
+/**
+A provider's custom request headers (M95c part 6) live under their own
+name, `museSpark.providerHeaders.<id>`, origin-bound like the key: values
+may carry a gateway's credential, so they never sit in settings or the
+providers file.
+*/
+export const PROVIDER_HEADERS_SECRET_PREFIX = 'museSpark.providerHeaders.'
+/**
+Header names a person's custom headers may not take (lowercased, M95c
+part 6): the credentials every preset sends, the content and transport
+fields the transport and the pinned send own, and the protocol headers
+the codecs set (Anthropic's version and betas, OpenRouter's attribution).
+*/
+export const PROVIDER_RESERVED_HEADERS: readonly string[] = [
+  'authorization',
+  'proxy-authorization',
+  'x-api-key',
+  'x-goog-api-key',
+  'api-key',
+  'cookie',
+  'content-type',
+  'content-length',
+  'content-encoding',
+  'accept',
+  'accept-encoding',
+  'host',
+  'connection',
+  'keep-alive',
+  'transfer-encoding',
+  'upgrade',
+  'te',
+  'trailer',
+  'expect',
+  'anthropic-version',
+  'anthropic-beta',
+  'http-referer',
+  'x-openrouter-title',
+  'x-openrouter-categories',
+]
+/** Reserved name prefixes: AWS's signature fields (`x-amz-date`, `x-amz-security-token`, …). */
+export const PROVIDER_RESERVED_HEADER_PREFIXES: readonly string[] = ['x-amz-']
 /** `providers usage` reports this many days back unless `--days n` says otherwise. */
 export const PROVIDER_SPEND_DAYS_DEFAULT = 30
 /** A spend report never spans more than a year plus a day. */
@@ -1191,6 +1232,10 @@ export const SETTING_DEFAULTS = {
   // picks 12 hours; machine-scoped beside the retention choice, since a
   // repository must not raise what cache writes are billed.
   modelApiPromptCacheTtl: 'default' as PromptCacheTtl,
+  // M95c part 3: off until a paired run on OpenAI shows the breakpoints
+  // lower cost at equal capability (PLAN.md M95c); machine-scoped like the
+  // lifetime, since a repository must not choose what cache writes bill.
+  modelApiPromptCacheBreakpoints: false,
   modelApiScheduledPrompts: true,
   // M115 (PLAN.md D95): the v2 schedules surface and its defaults.
   schedules: ARE_SCHEDULES_ON_BY_DEFAULT,
@@ -1434,6 +1479,7 @@ export const MACHINE_SCOPED_SETTINGS = [
   'sandboxNetwork',
   'modelApiPromptCacheRetention',
   'modelApiPromptCacheTtl',
+  'modelApiPromptCacheBreakpoints',
   'modelApiScheduledPrompts',
   'modelApiSubagents',
   'modelApiBestOfN',
@@ -3722,7 +3768,10 @@ export const TAB_MODELS = [
   DEFAULT_MODEL_ID,
   `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
 ] as const
-export type TabModel = (typeof TAB_MODELS)[number]
+// M95c part 7: or one of the person's own models as its `provider/model`
+// reference (the manifest's pattern; the provider resolves it per request).
+export const TAB_BYO_MODEL_PATTERN = /^[^/\s]+\/\S+$/u
+export type TabModel = (typeof TAB_MODELS)[number] | `${string}/${string}`
 // `museSpark.tabMultiline`: when multi-line context is added.
 export const TAB_MULTILINE_MODES = ['auto', 'onInvoke', 'never'] as const
 export type TabMultiline = (typeof TAB_MULTILINE_MODES)[number]

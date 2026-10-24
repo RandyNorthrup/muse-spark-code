@@ -37,6 +37,7 @@ import {
   type TabUri,
 } from './tabBundle'
 import { createTabConsent, tabPriceFingerprint } from './tabConsent'
+import { isByoTabModel, type TabByoRequest } from './tabByo'
 import {
   chooseTabMode,
   inferTabPartialAccept,
@@ -139,7 +140,14 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
   // Lane L's once-per-window question, built here in the lazy bundle from
   // the deps activation handed over; the price fingerprint is the bundle's
   // own, so activation carries none of the question.
-  const consent = createTabConsent({ ...deps.consentDeps, priceOf: tabPriceFingerprint })
+  // A bring-your-own model is keyed and quoted by its provider's card, from
+  // the resolution its request made before asking (M95c part 7).
+  const consent = createTabConsent({
+    ...deps.consentDeps,
+    ask: (model) => deps.consentDeps.ask(model, deps.byo.current(model)?.quote),
+    priceOf: (model) =>
+      isByoTabModel(model) ? deps.byo.current(model)?.fingerprint : tabPriceFingerprint(model),
+  })
   let generation = 0
   let request = 0
   let tracked: TabTracked | undefined
@@ -172,8 +180,10 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (!deps.isPaidOn()) {
       return 'paid-off'
     }
-    // No key: no request, and never a prompt for one (Acceptance 2).
-    if (!deps.isKeyStored()) {
+    // No key: no request, and never a prompt for one (Acceptance 2). A
+    // bring-your-own model brings its provider's own key (M95c part 7),
+    // which its client reads at the send.
+    if (!deps.isKeyStored() && !isByoTabModel(settings.tabModel)) {
       return 'no-key'
     }
     if (!deps.isTrusted()) {
@@ -390,14 +400,31 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     if (!policy.isCurrent()) return quiet('policy-changed')
     // Everything the request reads, asks and sends names this one model.
     const model = settings.tabModel
+    // M95c part 7: a bring-your-own model resolves before anything is read,
+    // asked or priced; an unknown or unpriced one stays quiet with its
+    // reason, said in the log without the ref's provider words.
+    let byo: TabByoRequest | undefined
+    if (isByoTabModel(model)) {
+      try {
+        byo = await deps.byo.resolve(model)
+      } catch (error: unknown) {
+        deps.log.warn(`Tab model is not available: ${failureForLog(error)}`)
+        return quiet('unknown-model')
+      }
+      if (byo === undefined) return quiet('unpriced')
+      if (!policy.isCurrent()) return quiet('policy-changed')
+    }
     // M94 goal (D121): the mode's output cap is the person's setting when
     // they set one, else the provider's maximum for the model from its
     // capability record. The request and its worst-case reservation below
-    // both use this one number.
-    const maxOutputTokens = tabRequestMaxOutputTokens(
-      settings.tabMaxOutputTokens,
-      deps.recordMaxOutputTokens(model),
-    )
+    // both use this one number. A bring-your-own model whose maximum is
+    // unknown sends only under the person's own cap.
+    const recordMax = byo === undefined ? deps.recordMaxOutputTokens(model) : byo.maxOutputTokens
+    if (recordMax === undefined && settings.tabMaxOutputTokens <= 0) {
+      deps.log.warn('Tab model has no known output maximum; set museSpark.tabMaxOutputTokens')
+      return quiet('unknown-model')
+    }
+    const maxOutputTokens = tabRequestMaxOutputTokens(settings.tabMaxOutputTokens, recordMax ?? 0)
     request += 1
     const hookContext: TabHookContext = {
       workspaceRoots: deps.workspaceRoots(document.uri.fsPath),
@@ -520,6 +547,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
       model,
       inputBytes: Buffer.byteLength(sentText, 'utf8'),
       maxOutputTokens,
+      ...(byo !== undefined && { price: byo.price }),
     })
     if (reservation === undefined) {
       return quiet('budget')
@@ -546,6 +574,7 @@ export function createTabProvider(deps: TabProviderDeps): TabProviderHandle {
     const lines = text.split('\n')
     const snapshot: TabCompletionSnapshot = {
       model,
+      ...(byo !== undefined && { stream: byo.stream }),
       absolutePath: document.uri.fsPath,
       relativePath: redactedPath,
       languageId: document.languageId,

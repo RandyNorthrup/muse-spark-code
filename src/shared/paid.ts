@@ -344,6 +344,8 @@ export type PaidUseRequest =
       readonly feature: 'tab'
       readonly modelId: string
       readonly budgetUsd: UsdAmount
+      /** A bring-your-own model's provider card (M95c part 7), quoted instead of Meta's tiers. */
+      readonly byo?: TabByoQuote | undefined
     }
   | {
       /** M91 prompt/agent hook handlers (D70): one paid model call per hook run. */
@@ -355,6 +357,24 @@ export type PaidUseRequest =
       readonly modelId: string
       readonly dailyBudgetUsd?: UsdAmount | undefined
     }
+
+/**
+What D48's Tab question quotes for a bring-your-own model (M95c part 7):
+the provider, and its per-token rates (USD) on a priced card; a plan or
+local model bills nothing per token.
+*/
+export interface TabByoQuote {
+  readonly provider: string
+  readonly kind: 'priced' | 'plan' | 'local'
+  readonly rates?:
+    | {
+        readonly input: number
+        readonly cached: number
+        readonly output: number
+        readonly request: number
+      }
+    | undefined
+}
 
 export { paidFeatureName, usablePaidFeatures } from './paidBoundary'
 

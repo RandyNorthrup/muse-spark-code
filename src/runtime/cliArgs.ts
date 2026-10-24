@@ -218,6 +218,7 @@ export type RuntimeCommand =
   | { readonly command: 'providersTest'; readonly provider: string }
   | { readonly command: 'providersRefresh'; readonly provider: string }
   | { readonly command: 'providersRemove'; readonly provider: string }
+  | { readonly command: 'providersHeaders'; readonly options: ProvidersHeadersOptions }
   | { readonly command: 'openRouterConnect' }
   | { readonly command: 'providersUsageTargets' }
   | {
@@ -681,6 +682,7 @@ export function parseCommandLine<T>(
   // command instead of the subscription provider actions below (Codex on
   // PR #227).
   if (argv[0] === 'providers' && argv[1] === 'models') return parseProvidersModels(argv.slice(2))
+  if (argv[0] === 'providers' && argv[1] === 'headers') return parseProvidersHeaders(argv.slice(2))
   if (argv[0] === 'providers' && (argv[2] === 'chatgpt' || argv[2] === 'copilot')) {
     const action = parseChatGptProviderAction(argv)
     return action === undefined
@@ -1048,6 +1050,52 @@ function parseProviders(
     default: {
       return { ...invalid(`providers ${verb ?? ''}`.trim()), exitCode: 2 }
     }
+  }
+}
+
+/** `providers headers` (M95c part 6): the provider, and at most one name to set or unset. */
+export interface ProvidersHeadersOptions {
+  readonly provider: string
+  readonly set?: string | undefined
+  readonly unset?: string | undefined
+}
+
+/**
+`providers headers <id> [set|unset <name>]`: positional only, so a value
+can never ride the command line; `set` reads it from standard input.
+*/
+function parseProvidersHeaders(argv: readonly string[]): RuntimeCommand {
+  const usage: RuntimeCommand = {
+    command: 'invalid',
+    reason: fill(UI_TEXT.providerHeaders.usage, { command: ACP_AGENT_NAME }),
+    exitCode: 2,
+  }
+  try {
+    const strict = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.providersHeaders.options,
+    })
+    if (strict.values.help === true) return { command: 'helpTopic', topic: 'providers' }
+    const [provider, action, name, ...extra] = strict.positionals
+    if (provider === undefined || provider === '' || extra.length > 0) return usage
+    if (action === undefined) return { command: 'providersHeaders', options: { provider } }
+    // A name is printed back by later lists, so it never carries a
+    // control character; the header rules themselves are the command's.
+    if (name === undefined || name === '' || hasControlCharacter(name)) return usage
+    if (action === 'set') return { command: 'providersHeaders', options: { provider, set: name } }
+    return action === 'unset'
+      ? { command: 'providersHeaders', options: { provider, unset: name } }
+      : usage
+  } catch (error: unknown) {
+    // Only the strict parser's own refusals (an unknown option, a value
+    // where none goes) are usage errors; anything else is thrown on.
+    if (!(error instanceof TypeError && 'code' in error)) throw error
+    const topic = helpTopicNamed('providers')
+    return topic === undefined
+      ? refused(error.message)
+      : invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
   }
 }
 

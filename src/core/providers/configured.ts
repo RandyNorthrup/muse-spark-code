@@ -47,7 +47,12 @@ import type { ModelCapabilityRecord } from './capabilityRecord'
 import type { NativeModelMetadata } from './modelMetadata'
 import { parseNdjson } from '../backends/modelapi/ndjson'
 import { parseSse } from '../backends/modelapi/sse'
-import { ApiKeyAuthSource, NoAuthSource } from '../backends/modelapi/authSource'
+import {
+  ApiKeyAuthSource,
+  CustomHeadersAuthSource,
+  NoAuthSource,
+} from '../backends/modelapi/authSource'
+import * as requestHeaders from './requestHeaders'
 import {
   CodecClient,
   type WireCodec,
@@ -173,6 +178,13 @@ export interface ConfiguredProviderOptions {
   default applies.
   */
   readonly promptCacheTtl?: () => PromptCacheTtl
+  /**
+  M95c part 3: the person's `museSpark.modelApiPromptCacheBreakpoints`
+  setting, read live per request. On, the Responses codec marks OpenAI's
+  explicit cache breakpoints where the model takes them (GPT-5.6 and
+  later); off or unset, it marks none.
+  */
+  readonly promptCacheBreakpoints?: () => boolean
 }
 const secretSchema = z.object({
   v: z.literal(1),
@@ -740,7 +752,7 @@ export function createConfiguredProviderServices(
         (preset.keyTest.kind !== 'provider-key' || preset.keyTest.origin !== keyTestOrigin))
     )
       throw invalidEntry(entry, { kind: 'addressMismatch', address: configuredUrl.origin })
-    const auth =
+    const credentialAuth =
       entry.auth === 'none'
         ? new NoAuthSource(base.origin)
         : new ApiKeyAuthSource(
@@ -752,6 +764,25 @@ export function createConfiguredProviderServices(
               ? 'x-api-key'
               : (preset.authHeader ?? 'bearer'),
           )
+    // M95c part 6: the person's custom headers ride every request to this
+    // provider (turns, counts, lists, key tests), read per attempt and
+    // bound to the origin they were entered for.
+    const auth = new CustomHeadersAuthSource(credentialAuth, async () => {
+      const stored = await options.secrets.get(requestHeaders.providerHeadersAccount(entry.id))
+      try {
+        return requestHeaders.parseStoredHeaders(entry.id, stored)
+      } catch (error: unknown) {
+        // A damaged record is said, never read as "no headers": a request
+        // without them could reach the wrong tenant or project.
+        if (!(error instanceof requestHeaders.StoredHeadersError)) throw error
+        throw new ModelApiError(
+          fill(UI_TEXT.providerHeaders.unreadable, { provider: entry.id }),
+          0,
+          undefined,
+          undefined,
+        )
+      }
+    })
     let target: PinnedTarget | undefined
     const readLimits = pacingReaderFor(preset.id)
     return {
@@ -1486,6 +1517,8 @@ export function createConfiguredProviderServices(
                   // the wire only where the codec takes it (OpenAI GPT-5.6
                   // and later); the codec omits `default` itself.
                   cacheTtl: options.promptCacheTtl?.() ?? 'default',
+                  // M95c part 3: the codec gates the model and profile itself.
+                  cacheBreakpoints: options.promptCacheBreakpoints?.() === true,
                 },
               )
             if (isAzure) path = '/responses'
@@ -1762,10 +1795,10 @@ export function createConfiguredProviderServices(
         return file.defaultModel
       },
       list: registry.list,
-      resolve: async (ref) =>
+      resolve: async (ref, resolveOptions) =>
         modelRef.parseModelRef(ref)?.providerId === 'meta' || meta?.isPlanModel?.(ref) === true
           ? metaResolvedModel(ref, delegate(), await delegate().planModelFacts?.(ref))
-          : await registry.resolve(ref),
+          : await registry.resolve(ref, resolveOptions),
     },
     isPlanModel: (ref) =>
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||

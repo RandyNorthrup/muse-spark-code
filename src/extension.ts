@@ -1052,6 +1052,7 @@ async function activateWindow(
   const personCap = (): number | undefined => currentSettings().modelApiMaxRetries ?? undefined
   // RLPROVSYNC: the person's cache-lifetime choice, read live per request.
   const promptCacheTtl = (): PromptCacheTtl => currentSettings().modelApiPromptCacheTtl
+  const shouldMarkCacheBreakpoints = (): boolean => currentSettings().modelApiPromptCacheBreakpoints
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -1261,6 +1262,7 @@ async function activateWindow(
       configFile: providerConfigFile,
       personCap,
       promptCacheTtl,
+      promptCacheBreakpoints: shouldMarkCacheBreakpoints,
       isRemote: vscode.env.remoteName !== undefined,
       grokClientId: () => currentSettings().grokClientId,
       isConfidential: () => currentSettings().confidentialWorkspace,
@@ -1871,6 +1873,15 @@ async function activateWindow(
       // path (RVM94KR2 4).
       stream: (body, signal, budget, admit) =>
         keyClient().streamResponse(body, signal, undefined, budget, admit),
+      // M95c part 7: a `provider/model` Tab model resolves through the
+      // configured providers; a completion sends no tools, so the agent
+      // turn's tool-calling gate is opted out.
+      resolveByo: async (ref) => {
+        const client = await subscriptionFeatures().createClient(keyClient())
+        const models = client.models
+        if (models === undefined) throw new Error(fill(UI_TEXT.providerUnknown, { provider: ref }))
+        return await models.resolve(ref, { requireTools: false })
+      },
       // M94 goal (D121): the provider's maximum output for the model,
       // answered by the key client beside the stream (the policy and
       // record modules load with the backend, never at activation).
@@ -1913,11 +1924,12 @@ async function activateWindow(
     // The provider builds it inside the lazy bundle; activation only hands
     // these deps over, so the question costs activation nothing.
     consentDeps: {
-      ask: async (model) =>
+      ask: async (model, byo) =>
         await paid.consent.askScope({
           feature: 'tab',
           modelId: model,
           budgetUsd: currentSettings().tabDailyBudgetUsd,
+          ...(byo !== undefined && { byo }),
         }),
       isOn: () => paid.gate.isOn('tab'),
       isRemembered: () => paid.consent.isRemembered('tab'),

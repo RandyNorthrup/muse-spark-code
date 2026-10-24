@@ -16,6 +16,12 @@ export interface AuthHeaders {
 export interface AuthSource {
   /** Read and bind again for every attempt, including retries. */
   headers(requestUrl: string): Promise<AuthHeaders>
+  /**
+  Removes secret values beside the credential (a provider's custom request
+  headers, M95c part 6) from a streamed tool argument, as the key is.
+  Sources without such values omit it.
+  */
+  scrubContent?(text: string): string
 }
 
 const storedKeySchema = z.object({
@@ -101,6 +107,48 @@ export class ApiKeyAuthSource implements AuthSource {
       keyDigest: createHash('sha256').update(key).digest('hex'),
       redact: (text) => redactSecrets(text, [key]),
     }
+  }
+}
+
+/**
+A provider's custom request headers (M95c part 6) on top of its
+credential: read again for every attempt, bound to the origin they were
+entered for (a request elsewhere refuses as a moved key does), and
+scrubbed from every error, log line and streamed answer. The credential's
+own fields are written last, so a header can never stand in for the key.
+*/
+export class CustomHeadersAuthSource implements AuthSource {
+  /** The values the last read sent; a streamed tool argument is scrubbed of them. */
+  private sent: readonly string[] = []
+
+  public constructor(
+    private readonly inner: AuthSource,
+    private readonly read: () => Promise<
+      { readonly origin: string; readonly headers: Readonly<Record<string, string>> } | undefined
+    >,
+  ) {}
+
+  public async headers(requestUrl: string): Promise<AuthHeaders> {
+    const credential = await this.inner.headers(requestUrl)
+    const stored = await this.read()
+    if (stored === undefined) {
+      this.sent = []
+      return credential
+    }
+    const requestOrigin = origin(requestUrl)
+    const storedOrigin = origin(stored.origin)
+    if (storedOrigin !== requestOrigin) throw new CredentialOriginError(storedOrigin, requestOrigin)
+    const secrets = Object.values(stored.headers)
+    this.sent = secrets
+    return {
+      values: { ...stored.headers, ...credential.values },
+      keyDigest: credential.keyDigest,
+      redact: (text) => credential.redact(redactSecrets(text, secrets)),
+    }
+  }
+
+  public scrubContent(text: string): string {
+    return this.sent.length === 0 ? text : redactSecrets(text, [...this.sent])
   }
 }
 
