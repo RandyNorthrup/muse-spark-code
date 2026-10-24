@@ -16663,6 +16663,23 @@ cached: "0.15", currency: "USD" }`, `isDefault`, `isActive`, `releaseDate`.
 
 ## 6. Milestones
 
+### RLFA11Y — The accessibility gates that fail on main, plus the sandboxes' axe runs (2026-10-24)
+
+**Status 2026-10-24: built.** Both a11y gates exit 0 on int/recovery, on
+Windows (2026-10-22) and again on Linux (2026-10-24): `test:a11y` (1124
+pages, 0 violated, 0 undecided, 0 without a result; the untouched base,
+measured on Linux, fails with 2 rules on 752 elements and 12 pages without
+a result) and `test:legal-a11y` (96 checks, English and pseudo; it also
+passes on the untouched base there). Fixed the two failing axe rules
+(accessible names carry their visible words; active-row controls inherit
+the on-selection color), the no-result pages (sequences scenes, the
+Tab-badge deferred-English crash, git-held's composer state), and the
+models scenes the pill rename broke. Ran M88's four axe scenes, M77's axe
+gate and the companion look. `npm run build`, `check:plan` and
+`security:audit` stay red on the untouched base too, for causes outside
+this lane (three host bundles over budget, PLAN.md over its size budget,
+three high dependency advisories). Record: `docs/certification/rlf-a11y.md`.
+
 ### RLWINFIX — Windows defects found by using 0.19.0 for real (2026-10-22)
 
 **Status 2026-10-22: built.** All five items fixed, each with a real-code
