@@ -359,6 +359,7 @@ import { openMuseTerminal, type TerminalLaunchOptions } from './host/commands/op
 import { toggleInputFocus } from './host/commands/focusInput'
 import { toggleFocusView } from './host/commands/toggleFocusView'
 import { conversationLoader } from './host/conversation/conversationBundle'
+import { questionsDeferAfterSeconds } from './host/vscode/questions/questionStore'
 import { restartConversationBackends } from './host/conversation/conversationBackends'
 import { BackgroundNotifier } from './host/conversation/turnNotifications'
 import { vscodeBackgroundNoticeDeps } from './host/vscode/conversation/vscodeBackgroundNotices'
@@ -4973,7 +4974,7 @@ async function activateWindow(
             return await runner?.rewriteMessage(text)
           },
           surface,
-          questions: factory.questionsForHost(questionsStore),
+          questions: factory.questionsForHost(questionsStore, questionsDeferAfterSeconds),
           showDeterministicReport: (argumentsText) =>
             showDeterministicReport(surface, argumentsText),
           playbookSource: {

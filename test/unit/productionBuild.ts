@@ -28,6 +28,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimeLsp.test.ts',
   // M104 lane B: the runtime panel runs from dist/acp.js and dist/runtimePanel.js.
   'test/unit/runtimePanel.test.ts',
+  // M104 lane B: the bundles the runtime panel loads run without the vscode module.
+  'test/unit/runtimePortableBundles.test.ts',
 ])
 // A hung build fails the run with its output instead of holding it open.
 const PRODUCTION_BUILD_TIMEOUT_MS = 600_000
