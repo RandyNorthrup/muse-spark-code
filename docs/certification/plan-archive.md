@@ -1100,3 +1100,119 @@ docs/certification/msm116.md`: clean. `npm run check:plan`:
   RLF-TEAMWIRE (on its rig) merged `rec/rlm116`, so it carries
   `9244225a4e`'s D96.16/D96.17 too; once this branch lands that text is
   common history.
+
+## 2026-10-24: D75's design record and D73's kept blocks (branch cc/plan2)
+
+At int/recovery `de0c671a28` `PLAN.md` stood at 3,564,712 bytes, 446 bytes
+under the `check:plan` gate (85% of the 4 MiB bound, 3,565,158), so the next
+lane to add plan text would fail it. One `move --batch` (dry run first, same
+report) moved two §2 design records that no open branch touches to
+`docs/plan-archive/decisions.md`. No `--allow-fact-change`; gates.md and
+milestones.md are untouched.
+
+| Measure                                | Before    | After     |
+| -------------------------------------- | --------- | --------- |
+| `PLAN.md` bytes                        | 3,564,712 | 3,364,322 |
+| Share of the reader's bound            | 85.0%     | 80.2%     |
+| Room under the gate's line (3,565,158) | 446       | 200,836   |
+| Hashed blocks in `decisions.md`        | 136       | 141       |
+| Bytes moved (5 blocks)                 |           | 213,074   |
+
+| Decision | Block                      | Lines (at `de0c671a2`) |  Bytes | SHA-256     |
+| -------- | -------------------------- | ---------------------- | -----: | ----------- |
+| D75      | `decisions-de0c671a2-3379` | 3379–4013              | 40,776 | `8d90c2cf…` |
+| D75      | `decisions-de0c671a2-4023` | 4023–4804              | 45,564 | `1399c36d…` |
+| D75      | `decisions-de0c671a2-4806` | 4806–5962              | 70,096 | `fe198d55…` |
+| D75      | `decisions-de0c671a2-5964` | 5964–6616              | 41,806 | `8c2f7939…` |
+| D73      | `decisions-de0c671a2-6813` | 6813–7051              | 14,832 | `16052ce8…` |
+
+- **D75, the agent roles and team design (M96, M96b, M96c).** Its body had
+  no heading of its own: it stood under D82's heading after the rule, as the
+  2026-10-11 record says. Its 3,241 lines date from 2026-10-04 (3,150 lines),
+  2026-10-05 (53) and 2026-10-17 (38, the no-limits wording applied in
+  place), and no unmerged hub branch changes or stands next to them. The four
+  blocks now stand under `## D75 — Agent roles: a team the main agent leads
+(M96, 2026-10-04)` in the archive. `PLAN.md` keeps four paragraphs in
+  their place (roles, tools and workspaces; orchestrator, workers and ledger;
+  team panel and scheduler; integration pipeline, runners and decisions),
+  each stating the rule in force with its amendments and ending with
+  `Full record`. Each was drafted from its range by a reader that had to copy
+  exact supporting quotes with line numbers (66 quotes, checked mechanically
+  against the frozen file, 0 mismatches), then every unquoted claim was read
+  back against the text. Where the record contradicts its own 2026-10-17
+  amendments, the paragraph states the amended rule (no depth limit, no
+  command-slot count and no ceiling of ours), and the `delegate` count follows
+  D121 A28 (`TEAM_DELEGATE_MAX` removed).
+- **Kept in place:** the Team intensity table (a live table of budgets and
+  limits per level), between the first and second paragraphs; D75's opening
+  under D74's heading (the owner's pattern and the "Words" block), which
+  stands next to the D74 lines `rec/rlplan` touches; the `---` rule.
+- **One hand edit beside the move.** D82's paragraph said the D75 text "stays
+  here in place"; its last sentence now says the rule in force follows the
+  rule, beside the intensity table, and the record is archived under D75's
+  heading (99 bytes added).
+- **D73's kept blocks.** D73 already opened with its rule-in-force paragraph
+  and link (2026-10-11); the owner's quote and the three bullet blocks after
+  it stayed then because open branches touched them. None does now, so they
+  moved `--linked` under D73's existing archive heading, and the paragraph
+  stands alone.
+- **Not moved:** D86, D90, D91, D92 and D93 (the stale `rec/rlplan` touches
+  them); D3 and D6; D121 and the later §2 decisions (a live limits list, and
+  the limits and train heads append there).
+
+### Proofs
+
+- Reassembly: the command rebuilt the old `PLAN.md` before the write, SHA-256
+  `b24d93fd4a7f5232ef409c3dbd0c58fc5e1b1ad1ff911107f86ed96566841c2c`. With the
+  D82 sentence reverted, the final file plus the five blocks as written in
+  `decisions.md` rebuild the same bytes, and the command's output plus that
+  sentence is the final file byte for byte (`4f87f5f5…fab50f`).
+  `decisions.md` after: `f64e9b22…186035`.
+- Parsed facts: identical; format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/decisions.md`: clean
+  (exit 0).
+- `npm run check:plan`: `plan-format-v1; 240 milestones; 0 drift` (exit 0).
+- `npm run roadmap:generate`: `ROADMAP.md` unchanged; `npm run
+check:roadmap`: 240 entries, current (exit 0).
+- `npm run check:reference`: current (exit 0).
+- `npm run plan:archive -- status`: decisions 141 blocks (+5), gates 328,
+  milestones 186, all intact (exit 0).
+- `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure` +
+  `devices`: 5 files, 229 passed (exit 0). `estimatorPlanSnapshotRealPlan`:
+  8 failed, 35 passed, the same 8 test names failing on the pre-move file
+  (§6 lane data; pre-existing).
+- Merge proof (`git merge-file --diff-algorithm=histogram`, each unmerged
+  hub ref's `PLAN.md` onto the old file and onto the new, its merge base with
+  int/recovery as the base; a region counts new when no old region's branch
+  side holds its branch lines):
+
+  |                                        | Old file | New file |
+  | -------------------------------------- | -------: | -------: |
+  | Unmerged refs                          |       98 |       98 |
+  | Refs that change no `PLAN.md`          |       44 |       44 |
+  | Open heads merged (not RLM109 inputs)  |       47 |       47 |
+  | Open heads that merge with no region   |       12 |       12 |
+  | Conflict regions, open heads           |       76 |       76 |
+  | Branch lines in conflict, open heads   |    2,392 |    2,392 |
+  | Open heads with a new or larger region |          |        0 |
+
+  The seven `src/RLM109/*` refs are inputs of RLM109, which landed as
+  `rec/rlm109` (merged at `7dc8aaa085`); `02-c-m109-lease`,
+  `03-c-m109-lease` and `04-c-m109-join` gain three regions each (211 to 220
+  in all, branch lines 14,454 to 15,111): the D82 sentence and D73's moved
+  blocks, which their 2026-10-11 base carries as the train's copies. They
+  already hold 64 regions each against int/recovery, and 227, 226 and 224 of
+  their commits past the merge base are patch-equivalent in int/recovery
+  (`git cherry`). `chore/split-shared-files` deletes nearly all of `PLAN.md`
+  and conflicts in one region before and after.
+
+### Noted while summarising D75
+
+The record still states three bounds that its own 2026-10-17 amendments
+replaced, and the code still defines them: depth "1, or 2 through
+`delegates`, never more" (`TEAM_MAX_DEPTH = 2` in `src/shared/constants.ts`)
+against "no depth limit of ours"; `TEAM_MAX_CONCURRENT_COMMANDS` (`= 1`) as a
+per-window cap against "no command-slot count of ours"; and
+`TEAM_SHARED_RESOURCE_DEFAULT_LIMIT = 2` against a shared-server limit "that
+the user sets (none by default)". The archive keeps the record as it was; the
+paragraphs state the amended rule; the code is the M96 lanes' to reconcile.
