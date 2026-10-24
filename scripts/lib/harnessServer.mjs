@@ -331,6 +331,8 @@ export const SCENARIOS = [
   'models-table-filtered',
   'models-undo',
   'models-import',
+  // D217: the Vault section with one retired entry and its Undo.
+  'models-vault-retired',
   'models-narrow',
   'report',
   'report-narrow',
