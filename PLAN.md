@@ -25993,8 +25993,8 @@ agent's turns journal again, and a rejected record names its failing
 fields; the journal schemas ride the shared boundaries chunk, holding
 `dist/reportInputs.js` at 82.8 KiB against its unchanged 100 KiB while
 the service sits at 98.9 KiB. Proven by real-code suites, red/green
-drills and the production build chain. Headless BYO accounting, packed
-use and checklist reconciliation remain. Receipts:
+drills and the production build chain. Headless BYO accounting and checklist
+reconciliation remain; packed `usage` ran 2026-10-24 (empty journal). Receipts:
 `docs/certification/rlusage.md`.
 
 **M102INT3 (2026-10-06, Win11).** The rig brief authorizes the no-ff

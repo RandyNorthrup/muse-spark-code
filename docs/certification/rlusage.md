@@ -325,10 +325,40 @@ the merge is committed, and every gate above ran on the final tree.
 
 ## Remaining
 
-Source 05 (M113 S) is not in this repository (see the end of this record). Source 04 is landed. M102 still needs
-headless BYO accounting, packed use and checklist reconciliation; M113
-still needs the fleet kind's local-agents part, lane Q's reports port
-and schedule_report, and postReport to GitHub. The issues kind waits
-for M115w; Gmail and Outlook sending wait for the owner's OAuth clients.
-No push, tag, reset, rebase, stash, credential read or model call
-occurred in this lane.
+- **Source 05 (`src/RLUSAGE/05-m113-s`, from `rigs/win11/m113/s`) is not
+  in this repository.** `git ls-remote ~/gates/muse.git
+'refs/heads/src/RLUSAGE/*'` lists nothing, and no other bare repository,
+  worktree or `packed-refs` on this rig names it. Lane S's own work
+  (`docs/certification/m113-s-local-sources.md`, `src/core/reporting/sources/`
+  git, changelog, certification, session, usage and agent-usage sources) is
+  already on main through the C-M113-1 port, so what the branch would still
+  add is unknown and nothing was merged or invented. The lead supplies the
+  ref (`git fetch ~/gates/muse.git 'refs/heads/src/RLUSAGE/*:refs/remotes/src/*'`)
+  and the lane resumes with that one merge.
+- **M102 headless BYO accounting** (the ACP and `exec` provider runs
+  recorded in the usage journal under the paid-budget admission) is not
+  built: proving it needs a request to a configured provider, and no paid
+  provider call or Muse request may be made here. Source 02 already makes
+  the terminal agent's turns journal (whole-millisecond clock).
+- **M102 checklist reconciliation:** the items that need a browser (axe on
+  every usage state), another host (Kubuntu, Mac mini, Win11, VS Code forks,
+  Zed) or both VSIX builds are the lead's; none was ticked without its
+  evidence. Packed `usage` and `usage --json` ran on this rig's built
+  `dist/acp.js` over an empty journal (exit 0).
+- **M113:** the fleet kind's local-agents part, the issues kind (after
+  M115w) and Gmail and Outlook sending (the owner's OAuth clients) stay
+  open. Lane Q's reports port, `schedule_report` and `postReport` are
+  already in the code; their packed use needs the network or a model and was
+  not run.
+- **PLAN.md** is 111 bytes under its 85% gate (`check:plan`), so the next
+  change that adds plan text first archives closed history
+  (`npm run plan:archive`, CONTRIBUTING.md): that needs the list of what open
+  branches touch, which only the lead has.
+- Not run on this rig: browser suites (`test:a11y`, `ui:look`), the VS Code
+  integration tests, the OS credential-store and vault suites (the MacBook
+  rule), SAST (`semgrep is not installed`), and the Windows-only parts, which
+  hosted CI's Windows job proves: the report suites normalise nothing path-wise
+  beyond `path.join` and use no POSIX-only calls.
+
+No push, tag, reset, rebase, stash, credential read or model call occurred
+in this lane.
