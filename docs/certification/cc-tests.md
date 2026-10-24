@@ -233,3 +233,15 @@ new assertion checks on every OS that the archive carries the member
 Red (before): 57 of 57 failed. Green: 57 passed. Red drill: the image check's
 `tar -tf` handed the absolute path again → the CLI case failed
 (`tar: Cannot connect to C: resolve failed`); restored.
+
+### judgeB2Baseline: Git for Windows' null device is NUL
+
+Cause: the suite pointed `GIT_CONFIG_GLOBAL` and `GIT_CONFIG_SYSTEM` at
+`os.devNull`, which on Windows is the device-namespace spelling of NUL. Git
+for Windows 2.52 refuses it: `fatal: unable to access '//./nul': Invalid argument`
+on the first `git init`. The product already writes `NUL` there
+(`src/host/runners/sshRunner.ts`, `src/core/team/workers/workerEnv.ts`).
+
+Fix: the suite uses `NUL` on Windows and `os.devNull` elsewhere.
+
+Red (before): 6 of 7 failed with the message above. Green: 7 passed.
