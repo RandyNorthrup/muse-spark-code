@@ -3,7 +3,6 @@
 export {
   countSecretMatches,
   isSecretFieldName,
-  MAY_HOLD_SECRET,
   redactableSlices,
   redactSecrets,
   registerSecretValue,

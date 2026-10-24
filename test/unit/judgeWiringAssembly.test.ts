@@ -1,10 +1,11 @@
-import path from 'node:path'
 import { describe, expect, inject, it } from 'vitest'
-import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
-import { createLogger } from '../../src/host/logger'
 import { assertCurrentProductionBuild } from './productionBuild'
-import { collectingLogger } from './helpers/collectingLogger'
-import { embeddedBinding, phase2Binding, surfaceInput } from './helpers/judgePhase2Rig'
+import {
+  embeddedBinding,
+  phase2Binding,
+  shippedJudgeFeatures,
+  surfaceInput,
+} from './helpers/judgePhase2Rig'
 import { command, io, REQUEST } from './judgeCliFixtures'
 
 // The shipped lazy assembly, not a per-test build: these suites run
@@ -12,11 +13,7 @@ import { command, io, REQUEST } from './judgeCliFixtures'
 assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
 
 function features() {
-  const messages: string[] = []
-  return judgeFeaturesLoader({
-    bundlePath: path.join(process.cwd(), 'dist/judgeP2.js'),
-    log: createLogger(collectingLogger(messages)),
-  })()
+  return shippedJudgeFeatures()
 }
 function embedded(locality: 'same-provider' | 'verified-local' = 'same-provider') {
   return embeddedBinding(locality)
