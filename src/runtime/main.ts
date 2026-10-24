@@ -1161,7 +1161,7 @@ async function serve(
           UI_TEXT,
           uiLocale(),
         ),
-      watchdogFor: () =>
+      watchdogFor: (_cwd: string, _sessionId: string, isGitHubCalled: boolean) =>
         loadWatchdog().createWatchdogSurface(
           {
             log,
@@ -1171,7 +1171,7 @@ async function serve(
               homeDir: homedir(),
             }),
             userAgent: `muse-spark-code/${packageVersion()}`,
-            secrets,
+            secrets: isGitHubCalled ? secrets : undefined,
           },
           UI_TEXT,
           uiLocale(),
@@ -1253,6 +1253,8 @@ async function serve(
         const bundle = loadWatchdog()
         return {
           parseWatchdogCommand: (argv: readonly string[]) => bundle.parseWatchdogCommand(argv),
+          requiresWatchdogGitHub: (command: WatchdogCommand) =>
+            bundle.requiresWatchdogGitHub(command),
           runWatchdogCommand: (command: WatchdogCommand, port: WatchdogSurfacePort | undefined) =>
             bundle.runWatchdogCommand(command, port, UI_TEXT, uiLocale()),
         }
@@ -2236,8 +2238,7 @@ async function main(): Promise<number> {
       // GitHub; anything else never touches the credential store.
       const watchdog = watchdogLoader(path.join(distDir, WATCHDOG_BUNDLE_FILE), log)()
       const parsed = watchdog.parseWatchdogCommand(command.argv)
-      const isWithGitHub =
-        parsed !== undefined && ['poll', 'evidence', 'decide', 'resolve'].includes(parsed.verb)
+      const isWithGitHub = parsed !== undefined && watchdog.requiresWatchdogGitHub(parsed)
       let port: WatchdogSurfacePort
       try {
         port = await watchdog.createWatchdogSurface(

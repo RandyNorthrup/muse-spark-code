@@ -15,6 +15,7 @@ runtime's table. The runtime adapts the loaded bundle; tests hand in the
 entry. */
 export interface AcpWatchdogBundle {
   parseWatchdogCommand(argv: readonly string[]): WatchdogCommand | undefined
+  requiresWatchdogGitHub(command: WatchdogCommand): boolean
   runWatchdogCommand(
     command: WatchdogCommand,
     port: WatchdogSurfacePort | undefined,
@@ -25,7 +26,7 @@ export interface AcpWatchdogBundle {
 are rejected for /watchdog rather than silently dropping their contents. */
 export async function acpWatchdog(
   blocks: readonly ContentBlock[],
-  port: () => Promise<WatchdogSurfacePort | undefined>,
+  port: (isGitHubCalled: boolean) => Promise<WatchdogSurfacePort | undefined>,
   loadBundle: () => AcpWatchdogBundle,
   log: CoreLogger,
 ): Promise<{ readonly ok: boolean; readonly text: string } | undefined> {
@@ -45,7 +46,7 @@ export async function acpWatchdog(
     const text = first.text.trim().replace(/^\/watchdog\s*/u, '')
     const command = bundle.parseWatchdogCommand(text === '' ? [] : text.split(/\s+/u))
     if (command === undefined) return { ok: false, text: UI_TEXT.watchdog.cli.usage }
-    bound = { bundle, command, surfacePort: await port() }
+    bound = { bundle, command, surfacePort: await port(bundle.requiresWatchdogGitHub(command)) }
   } catch (error: unknown) {
     if (!(error instanceof Error)) throw error
     log.warn(`The watchdog surface is unavailable: ${wireWordForLog(error.name)}`)

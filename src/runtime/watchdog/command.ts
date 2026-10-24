@@ -136,6 +136,12 @@ export function parseWatchdogCommand(argv: readonly string[]): WatchdogCommand |
   }
 }
 
+/** Whether the command calls GitHub, and so reads the sign-in. Every other
+command works on the local records and never touches the credential store. */
+export function requiresWatchdogGitHub(command: WatchdogCommand): boolean {
+  return ['poll', 'evidence', 'decide', 'resolve'].includes(command.verb)
+}
+
 export interface WatchdogSurfacePort {
   readonly store: WatchdogStore
   /** The signed-in client and its bearer; both undefined before `auth github`. */

@@ -247,7 +247,11 @@ export interface AcpAgentDeps {
   /** I binds P's local /playbook parsing and rendering (the journal bundle). */
   readonly playbookBundle?: () => AcpPlaybookBundle
   /** WU binds the watchdog's store, signed-in client and clock. */
-  readonly watchdogFor?: (cwd: string, sessionId: string) => Promise<WatchdogSurfacePort>
+  readonly watchdogFor?: (
+    cwd: string,
+    sessionId: string,
+    isGitHubCalled: boolean,
+  ) => Promise<WatchdogSurfacePort>
   /** WU binds /watchdog's parsing and running (the watchdog bundle). */
   readonly watchdogBundle?: () => AcpWatchdogBundle
   /** H-W-SESSION: one profile-owned account service, bound to this backend. */
@@ -873,7 +877,7 @@ class AcpSession {
             {
               name: 'watchdog',
               description: UI_TEXT.watchdog.cli.description,
-              input: { hint: 'list|status|pause|resume|poll|evidence|apply|decide|resolve' },
+              input: { hint: 'list|status|pause|resume|poll|policy|evidence|apply|decide|resolve' },
             },
           ]),
       ...(this.deps.schedules === undefined || this.deps.schedules.isAvailable === false
@@ -2703,7 +2707,8 @@ class AcpSession {
       )
       local ??= await acpWatchdog(
         blocks,
-        async () => await this.deps.watchdogFor?.(this.cwd, this.sessionId),
+        async (isGitHubCalled) =>
+          await this.deps.watchdogFor?.(this.cwd, this.sessionId, isGitHubCalled),
         () => {
           const bundle = this.deps.watchdogBundle?.()
           if (bundle === undefined) throw new Error(UI_TEXT.watchdog.cli.unavailable)
