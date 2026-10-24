@@ -8,6 +8,7 @@
 // materialise a TLS pair from certificateDerBase64 in src) is a later lane.
 import { randomBytes } from 'node:crypto'
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import nodePath from 'node:path'
 import type { Server, TLSSocket } from 'node:tls'
 import {
   DeviceOwnerAudit,
@@ -404,8 +405,9 @@ async function runOwnerBind(
   // each side signs its own bond and publishes it for the peer.
   const confirmation = confirmDeviceFingerprint(own, peer, ownKey, peer.fingerprint, Date.now())
   writeFileSync(`${dir}/confirmation.json`, JSON.stringify(confirmation))
+  // The peer's folder by the platform's own separator (`\` on Windows).
   const peerConfirmation = await readPeerConfirmation(
-    `${peerPath.slice(0, peerPath.lastIndexOf('/'))}/confirmation.json`,
+    `${nodePath.dirname(peerPath)}/confirmation.json`,
   )
   const pair = { local: own, peer, localConfirmation: confirmation, peerConfirmation }
   const pairId = validateDevicePair(pair, Date.now())
