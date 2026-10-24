@@ -62,12 +62,17 @@ export const MODEL_API_OPTIONAL_ONLY = [
   'codeIntelEntry.ts',
   'codeIntelCalls.ts',
   'mcpPoolEntry.ts',
+  // D213: a modern server's tool changes, mirrored headers and era
+  // verdicts load with the connection that reads them (cc/mcp2).
+  'mcp/changes.ts',
   'mcp/connection.ts',
   'mcp/era.ts',
+  'mcp/headers.ts',
   'mcp/http.ts',
   'mcp/pool.ts',
   'mcp/servers.ts',
   'mcp/stdio.ts',
+  'mcp/verdicts.ts',
 ]
 export const SCHEDULES_ONLY = ['schedulesEntry.ts', 'schedules.ts']
 const RUNTIME_SCHEDULES_DIR = 'src/runtime/schedules'
@@ -164,9 +169,47 @@ export const MODEL_API_TOOLS_WEB = ['src/core/web/pageUrl.ts', 'src/core/web/fet
 export const MODEL_API_VERIFY_ONLY = ['modelApiVerifyEntry.ts', 'verifyLedger.ts', 'verifyLoop.ts']
 export const MODEL_API_VERIFY_CORE = ['src/core/verify/diagnosticsReport.ts']
 // The image run-path (M34, M44): the call checks, the purchase and the
-// paid-use naming, loaded on the first image call. imageToolDefinitions.ts
-// stays with the backend: the tool list names the tools on every turn.
+// paid-use naming, loaded on the first image call, with an attached image's
+// resize to the model's bounds (outside the backend's folder, so the record
+// below adds its path). imageToolDefinitions.ts stays with the backend: the
+// tool list names the tools on every turn.
 export const MODEL_API_IMAGE_ONLY = ['modelApiImageEntry.ts', 'imageGeneration.ts']
+const MODEL_API_IMAGE_RESIZE = 'src/core/imageResize.ts'
+// The B1 hold's session side (M125, D107 §9.3): the confined runner, the
+// floor, the veto race and the skip's audit, loaded on the first shell ask
+// that reaches the hold with a packaged helper. The judge modules it runs
+// live outside the backend's folder, so its record below adds their paths.
+export const MODEL_API_B1_ONLY = ['modelApiB1Entry.ts', 'b1Hold.ts']
+const MODEL_API_B1_JUDGE = [
+  'src/core/judge/fast/approval.ts',
+  'src/core/judge/fast/inspectExec.ts',
+  'src/core/judge/fast/inspectGrammar.ts',
+  'src/shared/fastPathAudit.ts',
+]
+// What a tool call or goal command runs: the file and shell tools'
+// execution, the memory tool's placing and running, the browser check's
+// placement and report, and the goal rules, loaded on the first of them.
+// tools.ts, memoryTools.ts and goals.ts stay with the backend too: the tool
+// list, the permission classes and the goal's prompt section read them on
+// every turn, so only the entry is pinned to this bundle.
+export const MODEL_API_TOOL_RUN_ONLY = ['modelApiToolRunEntry.ts']
+// The fast judge's session side (M125 lane M, D107): the loop detector, the
+// first-send triage, the effort and keep-list verdicts and the turn
+// boundary, loaded when each turn or compaction starts. The reflex and
+// application modules live outside the backend's folder; reflex/loop.ts
+// stays with the backend too (the repeat guard reads its call key).
+export const MODEL_API_FAST_ONLY = ['modelApiFastEntry.ts', 'fastJudge.ts']
+const MODEL_API_FAST_JUDGE = [
+  'src/core/judge/fast/apply.ts',
+  'src/core/judge/fast/engines.ts',
+  'src/core/judge/fast/turnEnd.ts',
+  'src/core/judge/fast/turnRecord.ts',
+  'src/core/judge/fast/reflex/done.ts',
+  'src/core/judge/fast/reflex/effort.ts',
+  'src/core/judge/fast/reflex/failures.ts',
+  'src/core/judge/fast/reflex/relevance.ts',
+  'src/core/judge/fast/reflex/triage.ts',
+]
 // INT0170: M107 W2's machine resource journal is shared through its own bundle;
 // the governor (recorder) and usage service (reader) load it instead of copies.
 const RESOURCE_JOURNAL_SOURCE = 'src/runtime/resources/history.ts'
@@ -299,6 +342,9 @@ export const DEFERRED = [
       'src/core/backends/modelapi/mcp/http.ts',
       'src/core/backends/modelapi/mcp/stdio.ts',
       'src/core/backends/modelapi/mcp/servers.ts',
+      'src/core/backends/modelapi/mcp/changes.ts',
+      'src/core/backends/modelapi/mcp/headers.ts',
+      'src/core/backends/modelapi/mcp/verdicts.ts',
     ],
   },
   {
@@ -344,7 +390,7 @@ export const DEFERRED = [
       'src/shared/usd.ts',
       'src/shared/legal.ts',
       'src/core/backends/modelapi/legalScanTool.ts',
-      'src/core/toolEdit.ts',
+      'src/core/workspacePath.ts',
     ],
   },
   {
@@ -1295,16 +1341,59 @@ export const ON_FIRST_USE = [
     ],
   },
   // The image run-path (M34, M44, PLAN.md D6): the call checks, the
-  // purchase and the paid-use naming, loaded on the first image call. The
+  // purchase and the paid-use naming, loaded on the first image call, and
+  // an attached image's resize, loaded on the first one that needs it. The
   // backend entry keeps the tool list and requires this entry for the run
   // itself; activation keeps its own copy for the `ide` image tools (M44),
   // whose MODEL_TEXT keys it reads, so only the backend entry is its parent.
   {
     output: 'dist/modelApiImage.js',
     metafile: 'dist/meta/modelApiImage.json',
-    use: 'the first image call',
+    use: 'the first image call or attached image resize',
     parents: [BUNDLES.modelApi],
-    files: MODEL_API_IMAGE_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+    files: [
+      ...MODEL_API_IMAGE_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      MODEL_API_IMAGE_RESIZE,
+    ],
+  },
+  // The B1 hold (M125, PLAN.md D107 §9.3, D6): the confined runner, the
+  // floor, the veto race and the skip's audit, loaded on the first shell ask
+  // that reaches the hold with a packaged helper. The backend keeps the ask,
+  // the card and the skip's delivery; the agent events and the flight
+  // recorder keep their own copy of the audit schema, so only the backend
+  // entry is its parent.
+  {
+    output: 'dist/modelApiB1.js',
+    metafile: 'dist/meta/modelApiB1.json',
+    use: 'the first shell ask through the B1 hold',
+    parents: [BUNDLES.modelApi],
+    files: [...MODEL_API_B1_ONLY.map((name) => `${MODEL_API_DIR}/${name}`), ...MODEL_API_B1_JUDGE],
+  },
+  // What a tool call or goal command runs (PLAN.md D6): the file and shell
+  // tools' execution, the memory tool's placing and running, the browser
+  // check's placement and report, and the goal rules, loaded on the first
+  // of them. The backend keeps the tool list, the permission classes and
+  // every check before a card.
+  {
+    output: 'dist/modelApiToolRun.js',
+    metafile: 'dist/meta/modelApiToolRun.json',
+    use: 'the first tool call or goal command it runs',
+    parents: [BUNDLES.modelApi],
+    files: MODEL_API_TOOL_RUN_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+  },
+  // The fast judge's session side (M125 lane M, PLAN.md D107, D6), loaded
+  // when each turn or compaction starts. The Muse Code backend and the
+  // runtime engine keep their own copies of the shared reflex modules, so
+  // only the backend entry is its parent.
+  {
+    output: 'dist/modelApiFast.js',
+    metafile: 'dist/meta/modelApiFast.json',
+    use: 'the first turn or compaction',
+    parents: [BUNDLES.modelApi],
+    files: [
+      ...MODEL_API_FAST_ONLY.map((name) => `${MODEL_API_DIR}/${name}`),
+      ...MODEL_API_FAST_JUDGE,
+    ],
   },
 ]
 /** The same parent exclusions and destination requirements used by the CLI. */
@@ -1769,6 +1858,9 @@ export const DEFERRED_OUTFILES = new Map([
   ],
   [path.resolve('src/core/backends/modelapi/modelApiVerifyEntry.ts'), 'dist/modelApiVerify.js'],
   [path.resolve('src/core/backends/modelapi/modelApiImageEntry.ts'), 'dist/modelApiImage.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiB1Entry.ts'), 'dist/modelApiB1.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiToolRunEntry.ts'), 'dist/modelApiToolRun.js'],
+  [path.resolve('src/core/backends/modelapi/modelApiFastEntry.ts'), 'dist/modelApiFast.js'],
   [path.resolve('src/core/legal/legalFixEntry.ts'), 'dist/legalFix.js'],
   [path.resolve('src/host/commands/commandsEntry.ts'), 'dist/commands.js'],
   [path.resolve('src/host/auth/authEntry.ts'), 'dist/auth.js'],
@@ -1852,22 +1944,26 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)
         // The backend's own modules import the assist entry statically, so
         // the moved paths stay plain calls; the build externalises those
         // imports to a require of the sibling bundle. Only the backend may
-        // do this: any other bundle keeps the entry's sources to itself and
-        // the split gate fails it loudly.
+        // do this, and the tool-run chunk it alone loads (the backend has
+        // required the assist bundle by then): any other bundle keeps the
+        // entry's sources to itself and the split gate fails it loudly.
         if (
           source === path.resolve('src/core/backends/modelapi/modelApiAcpEntry.ts') &&
           args.kind !== 'entry-point'
         ) {
           const output = DEFERRED_OUTFILES.get(source)
           return output !== undefined &&
-            path.resolve(build.initialOptions.outfile ?? '') === path.resolve('dist/modelApi.js')
+            ['dist/modelApi.js', 'dist/modelApiToolRun.js'].some(
+              (outfile) =>
+                path.resolve(build.initialOptions.outfile ?? '') === path.resolve(outfile),
+            )
             ? { path: `./${path.basename(output)}`, external: true }
             : undefined
         }
@@ -2010,11 +2106,18 @@ export const MODEL_API_BOUNDARY_SOURCES = [
   'src/core/paid/paidAuthority.ts',
   'src/shared/legal.ts',
   'src/core/backends/modelapi/legalScanTool.ts',
-  // RLINTFIX: file-tool execution, once per process; the backend and the
-  // byte-range, tools and verify chunks read it from here instead of each
-  // carrying a copy.
-  'src/core/toolEdit.ts',
+  // A path confined to the workspace (D24), once per process: activation,
+  // the backend and its chunks, the ACP agent and every other Node reader
+  // share it beside the Windows path rules and path identity it reads.
+  'src/core/workspacePath.ts',
 ]
+
+// The file tools' edit helpers (RLINTFIX) ride the chunk that runs the file
+// tools, dist/modelApiToolRun.js, never the boundary activation loads; the
+// byte-range execution, loaded only from that chunk, reads them there.
+export const TOOL_EDIT_SOURCE = 'src/core/toolEdit.ts'
+export const TOOL_EDIT_OWNER = 'dist/modelApiToolRun.js'
+export const TOOL_EDIT_READERS = ['dist/modelApiFileRange.js']
 
 // The guarded process-start layer (PLAN.md D24), once per process: every
 // Node bundle that starts a program or builds a child environment reads it
@@ -2050,10 +2153,18 @@ export const sharedModelApiBoundaries = {
     build.onResolve(
       {
         filter:
-          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidAuthority|paidBoundary|usd|legal|legalScanTool|toolEdit|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history|wire|openSshFile)(?:\.[jt]s)?$/,
+          /\/(?:schemas|sessionStore|usageJournal|teamConversation|paidAuthority|paidBoundary|usd|legal|legalScanTool|toolEdit|workspacePath|pathIdentity|windowsPathSpelling|usdSchema|vault|vaultProtocol|vaultStatus|vaultPanel|taint|schema|toolSchema|redact|estimate|estimatorProtocol|history|wire|openSshFile)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, args.path.replace(/(?:\.[jt]s)?$/, '.ts'))
+        // The file tools' edit helpers: the byte-range execution reads the
+        // tool-run chunk's; every other bundle carries the few it reads.
+        if (source === path.resolve(TOOL_EDIT_SOURCE))
+          return TOOL_EDIT_READERS.some(
+            (reader) => path.resolve(build.initialOptions.outfile ?? '') === path.resolve(reader),
+          )
+            ? { path: `./${path.basename(TOOL_EDIT_OWNER)}`, external: true }
+            : undefined
         // The store owner depends on wire; keep it outside the boundary wire loads.
         if (source === path.resolve('src/core/backends/modelapi/sessionStore.ts'))
           return path.resolve(build.initialOptions.outfile ?? '') ===

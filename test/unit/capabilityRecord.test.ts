@@ -26,12 +26,8 @@ import type { CreateResponseBody } from '../../src/core/backends/modelapi/schema
 import { AttachmentStore } from '../../src/core/attachments'
 import { MediaBudget } from '../../src/core/backends/modelapi/mediaBudget'
 import { pdfFixture } from './helpers/pdfFixture'
+import { identity, record, source, yes } from './helpers/userCapabilities'
 
-const identity = { provider: 'custom-id', nativeModel: 'native', format: 'chat' as const }
-const source = { kind: 'user' as const }
-const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })
-const record = (fields: CapabilityOverrides = {}) =>
-  resolveModelCapabilities(identity, [{ source, fields }])
 const body: CreateResponseBody = {
   model: 'muse-spark-1.3',
   input: [{ type: 'message', role: 'user', content: [{ type: 'input_text', text: 'fixture' }] }],

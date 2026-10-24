@@ -6,55 +6,24 @@
 // frame. `turn/start` answers with the harness's loud refusal (no
 // recorded result exists); the goldens pin the bytes the adapter sent.
 import { afterEach, describe, expect, it } from 'vitest'
-import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
 import type { MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
-import {
-  closeLiveHosts,
-  refuseUnscripted,
-  startLiveSession,
-  type LiveSession,
-} from './helpers/museReplay'
+import { drive, toolCall, type Driven } from './helpers/liveTurn'
+import { closeLiveHosts } from './helpers/museReplay'
 
 afterEach(async () => {
   await closeLiveHosts()
 })
 
-const toolCall = (itemId: string, turnId: string): ItemSnapshot => ({
-  itemId,
-  kind: 'toolCall',
-  status: 'completed',
-  turnId,
-  tool: 'shell',
-  args: '{"command":"ls"}',
-  visibleOutput: 'a.txt\n',
-})
-
-interface Driven {
-  readonly live: LiveSession
-  readonly inputs: unknown[]
-  readonly events: AgentEvent[]
+/** turn/start was sent once, with today's input bytes alone. */
+function expectTodaysInput(inputs: readonly unknown[]): void {
+  expect(inputs).toHaveLength(1)
+  expect(JSON.stringify(inputs[0])).toBe('[{"type":"text","text":"ping"}]')
 }
 
-async function drive(
-  feed?: (session: MuseSession, sessionId: string) => void,
-  features?: { isFastPathOff?: () => boolean },
-): Promise<Driven> {
-  const inputs: unknown[] = []
-  const live = await startLiveSession((method, params) => {
-    if (method === 'turn/start') {
-      inputs.push(params['input'])
-      return refuseUnscripted(method)
-    }
-    throw new Error(`unexpected ${method}`)
-  }, features)
-  const events: AgentEvent[] = []
-  live.session.onEvent((event) => {
-    events.push(event)
-  })
-  feed?.(live.session, live.session.sessionId)
-  // The harness refuses turn/start loudly; the golden pins what was sent.
-  await expect(live.session.sendTurn([{ type: 'text', text: 'ping' }])).rejects.toThrow()
-  return { live, inputs, events }
+/** No stuck chip was raised, and turn/start carried today's bytes. */
+function expectUnjudgedTurn({ inputs, events }: Driven): void {
+  expect(events.filter((event) => event.type === 'judgeStuck')).toHaveLength(0)
+  expectTodaysInput(inputs)
 }
 
 const completes = (session: MuseSession, sessionId: string, isReplay: boolean): void => {
@@ -72,8 +41,7 @@ const completes = (session: MuseSession, sessionId: string, isReplay: boolean): 
 describe('Muse Code turn goldens', () => {
   it('pins today’s turn/start input bytes', async () => {
     const { inputs } = await drive()
-    expect(inputs).toHaveLength(1)
-    expect(JSON.stringify(inputs[0])).toBe('[{"type":"text","text":"ping"}]')
+    expectTodaysInput(inputs)
   })
 
   it('red drill: a forced loop appends its hint and raises the chip, with no effort frame', async () => {
@@ -90,23 +58,19 @@ describe('Muse Code turn goldens', () => {
   })
 
   it('sends today’s bytes with the switch off, after the same loop', async () => {
-    const { inputs, events } = await drive(
+    const driven = await drive(
       (session, sessionId) => {
         completes(session, sessionId, false)
       },
       { isFastPathOff: () => true },
     )
-    expect(events.filter((event) => event.type === 'judgeStuck')).toHaveLength(0)
-    expect(inputs).toHaveLength(1)
-    expect(JSON.stringify(inputs[0])).toBe('[{"type":"text","text":"ping"}]')
+    expectUnjudgedTurn(driven)
   })
 
   it('queues nothing from a replayed turn', async () => {
-    const { inputs, events } = await drive((session, sessionId) => {
+    const driven = await drive((session, sessionId) => {
       completes(session, sessionId, true)
     })
-    expect(events.filter((event) => event.type === 'judgeStuck')).toHaveLength(0)
-    expect(inputs).toHaveLength(1)
-    expect(JSON.stringify(inputs[0])).toBe('[{"type":"text","text":"ping"}]')
+    expectUnjudgedTurn(driven)
   })
 })

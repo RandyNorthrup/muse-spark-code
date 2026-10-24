@@ -23,11 +23,11 @@ import {
   parseJudgeSetupPanelToHost,
   type JudgeSetupHostToPanel,
 } from '../../shared/judgeSetupPanel'
-import { buildWebviewHtml, createNonce } from '../html'
 import type { UiTable } from '../l10n'
 import { lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
 import type { WebviewBundleResolution } from '../views/webviewBundle'
+import { openPanelLink, showPanelDocument, showPanelFailure } from '../views/panelDocument'
 import type * as Driver from './judgeSetupDriver'
 import type { JudgeSetupPanelPaths, JudgeSetupState } from './judgeSetupState'
 
@@ -121,8 +121,7 @@ export function openJudgeSetupPanel(
   const resolved = deps.resolveWebviewBundle()
   if (!resolved.ok) {
     deps.log.error(`Judge setup webview bundle failed: ${resolved.detail}`)
-    panel.webview.options = { enableScripts: true, localResourceRoots: [] }
-    panel.webview.html = resolved.html
+    showPanelFailure(panel, resolved.html)
     return {
       reveal: () => {
         panel.reveal(vscode.ViewColumn.One)
@@ -133,18 +132,19 @@ export function openJudgeSetupPanel(
     }
   }
   const root = vscode.Uri.file(resolved.dir)
-  panel.webview.options = { enableScripts: true, localResourceRoots: [root] }
-  panel.webview.html = buildWebviewHtml({
-    scriptUri: panel.webview
-      .asWebviewUri(vscode.Uri.joinPath(root, JUDGE_SETUP_WEBVIEW_SCRIPT_FILE))
-      .toString(),
-    styleUri: panel.webview
-      .asWebviewUri(vscode.Uri.joinPath(root, JUDGE_SETUP_WEBVIEW_STYLE_FILE))
-      .toString(),
-    cspSource: panel.webview.cspSource,
-    nonce: createNonce(),
-    l10n: deps.l10n,
-  })
+  showPanelDocument(
+    panel,
+    root,
+    {
+      scriptUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(root, JUDGE_SETUP_WEBVIEW_SCRIPT_FILE))
+        .toString(),
+      styleUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(root, JUDGE_SETUP_WEBVIEW_STYLE_FILE))
+        .toString(),
+    },
+    deps.l10n,
+  )
   let isDisposed = false
   let operations = Promise.resolve()
   let closingCommand: JudgeSetupCommand | undefined
@@ -194,17 +194,7 @@ export function openJudgeSetupPanel(
     }
     const message = parsed.message
     if (message.type === 'judgeSetup/openExternal') {
-      enqueue(async () => {
-        const url = new URL(message.url)
-        if (
-          (url.protocol !== 'https:' && url.protocol !== 'http:') ||
-          url.username !== '' ||
-          url.password !== ''
-        ) {
-          throw new Error(UI_TEXT.actionFailed)
-        }
-        await vscode.env.openExternal(vscode.Uri.parse(url.href))
-      })
+      enqueue(() => openPanelLink(message.url))
       return
     }
     if (message.type === 'judgeSetup/ready') {

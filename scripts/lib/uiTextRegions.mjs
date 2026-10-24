@@ -30,7 +30,10 @@ export const UI_TEXT_REGIONS = [
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|providerHeaders)/,
+    // First-use surfaces: Tab, reports, What's New, the vault, the judge
+    // setup wizard and its CLI steps, the Judge section, the judge's paid
+    // asks, the device and desktop surfaces (M100), and the per-provider request headers editor.
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|providerHeaders)/,
   },
 ]
 
@@ -365,10 +368,18 @@ export const compactBrowserUiText = {
         EN,
         new Set(),
         // M107 U–C1: chat's deferred import of the chip still loads the chip's own English,
-        // and the usage page's lazy history root installs browser-resource-english itself.
+        // and the usage page's lazy history root installs browser-resource-history-english itself.
         new Set(resourceEntries.map((entry) => path.resolve(entry))),
       ).keys
-      const resourceKeys = browserTextKeys(Object.values(RESOURCE_WEBVIEW_ENTRIES), EN).keys
+      // Each independent resource root installs only the English it reads.
+      const resourceKeys = browserTextKeys(
+        [RESOURCE_WEBVIEW_ENTRIES['dist/webview/resourceSurface.js']],
+        EN,
+      ).keys
+      const resourceHistoryKeys = browserTextKeys(
+        [RESOURCE_WEBVIEW_ENTRIES['dist/webview/resourceHistory.js']],
+        EN,
+      ).keys
       const deferredKeys = [...keys].filter((key) => !eagerKeys.has(key))
       // Help-only CLI/reference prose travels with the existing Help closure.
       // Direct readers on other surfaces stay in their current fallback region.
@@ -559,6 +570,7 @@ export const compactBrowserUiText = {
         scheduleKeys,
         scheduleReaders,
         resourceKeys,
+        resourceHistoryKeys,
         contract,
         level: L10N_BROWSER_COMPRESSION_LEVEL,
         memoryLevel: L10N_BROWSER_COMPRESSION_MEMORY_LEVEL,
@@ -674,6 +686,7 @@ export const compactBrowserUiText = {
       'browser-runners-english',
       'browser-devices-english',
       'browser-resource-english',
+      'browser-resource-history-english',
       'browser-reference-english',
       'browser-account-english',
       'browser-schedule-english',
@@ -847,15 +860,21 @@ installSurfaceEnglish(EN);`,
         watchFiles: [args.path],
       }
     })
-    build.onResolve({ filter: /^browser-resource-english$/ }, () => ({
-      path: 'browser-resource-english',
-      namespace: 'browser-resource-english',
-    }))
-    build.onLoad({ filter: /.*/, namespace: 'browser-resource-english' }, () => ({
-      contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
+    // The resource controls and the resource history each install the
+    // deferred English their own root reads.
+    for (const [namespace, keys] of [
+      ['browser-resource-english', () => data.resourceKeys],
+      ['browser-resource-history-english', () => data.resourceHistoryKeys],
+    ]) {
+      build.onResolve({ filter: new RegExp(`^${namespace}$`) }, () => ({
+        path: namespace,
+        namespace,
+      }))
+      build.onLoad({ filter: /.*/, namespace }, () => ({
+        contents: `import { installSurfaceEnglish } from '${path.resolve(TABLE).replaceAll('\\', '/')}';
 ${inlineBrowserTable(
   Object.fromEntries(
-    [...data.resourceKeys]
+    [...keys()]
       .filter((key) => data.deferredKeys.includes(key))
       .toSorted((left, right) => (left < right ? -1 : Number(left > right)))
       .map((key) => [key, data.EN[key]]),
@@ -864,11 +883,15 @@ ${inlineBrowserTable(
   data.memoryLevel,
 )}
 installSurfaceEnglish(EN);`,
-      loader: 'js',
-    }))
+        loader: 'js',
+      }))
+    }
     // Independent resource roots install deferred English before their first render.
     build.onLoad({ filter: /[/\\](?:ResourceSurface|ResourcesSection)\.tsx$/ }, (args) => ({
-      contents: "import 'browser-resource-english';\n" + readCompiledSource(args.path),
+      contents:
+        (args.path.endsWith('ResourcesSection.tsx')
+          ? "import 'browser-resource-history-english';\n"
+          : "import 'browser-resource-english';\n") + readCompiledSource(args.path),
       loader: 'tsx',
       resolveDir: path.dirname(args.path),
       watchFiles: [args.path],

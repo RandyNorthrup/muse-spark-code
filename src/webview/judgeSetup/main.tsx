@@ -6,13 +6,13 @@
 // report; the display language's table goes in before the first
 // render (PLAN.md D33).
 import { createRoot } from 'react-dom/client'
-import { Component, lazy, Suspense, type ReactNode } from 'react'
+import { lazy, Suspense } from 'react'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
-import type { ErrorReporter } from '../errorReport'
-import { webviewErrorReport } from '../errorReport'
 import { type HostBridge, vsCodeHostBridge } from '../hostBridge'
-import { installEmbeddedTable } from '../installTable'
+import { reportPageFailures } from '../pageReport'
 import { DeferredSurface } from '../components/DeferredSurface'
+import { PageBoundary } from '../components/PageBoundary'
+import '../models/controls.css'
 import './judgeSetup.css'
 
 const JudgeSetupApp = lazy(async () => {
@@ -20,65 +20,15 @@ const JudgeSetupApp = lazy(async () => {
   return { default: module.JudgeSetupApp }
 })
 
-interface CrashState {
-  readonly crashed: boolean
-}
-
-class WizardBoundary extends Component<
-  { readonly children: ReactNode; readonly onError: (error: unknown) => void },
-  CrashState
-> {
-  static getDerivedStateFromError(): CrashState {
-    return { crashed: true }
-  }
-
-  constructor(props: { readonly children: ReactNode; readonly onError: (error: unknown) => void }) {
-    super(props)
-    this.state = { crashed: false }
-  }
-
-  override componentDidCatch(error: unknown): void {
-    this.props.onError(error)
-  }
-
-  override render(): ReactNode {
-    if (this.state.crashed) {
-      return (
-        <div className="js-panel">
-          <h2>{UI_TEXT.judgeSetupWizard.title}</h2>
-          <p role="alert">{UI_TEXT.judgeSetupWizard.unavailable}</p>
-          <button
-            type="button"
-            className="js-button"
-            onClick={() => {
-              window.location.reload()
-            }}
-          >
-            {UI_TEXT.crashReload}
-          </button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
 function startSetupWizard(root: Element, bridge: HostBridge): void {
-  const report: ErrorReporter = (source, error) => {
-    bridge.post(webviewErrorReport(source, error))
-  }
-  window.addEventListener('unhandledrejection', (event) => {
-    report('promise', event.reason)
-  })
-  window.addEventListener('error', (event) => {
-    report('window', event.error ?? event.message)
-  })
-  const tableError = installEmbeddedTable(document)
-  if (tableError !== undefined) {
-    report('hostMessage', tableError)
-  }
+  const report = reportPageFailures(bridge)
   createRoot(root).render(
-    <WizardBoundary
+    <PageBoundary
+      crashed={{
+        className: 'js-panel',
+        title: UI_TEXT.judgeSetupWizard.title,
+        message: UI_TEXT.judgeSetupWizard.unavailable,
+      }}
       onError={(error) => {
         report('render', error)
       }}
@@ -103,7 +53,7 @@ function startSetupWizard(root: Element, bridge: HostBridge): void {
           <JudgeSetupApp host={bridge} report={report} />
         </Suspense>
       </DeferredSurface>
-    </WizardBoundary>,
+    </PageBoundary>,
   )
 }
 

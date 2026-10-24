@@ -8,4 +8,9 @@
 export { spawnResourceProcess } from './process'
 // M105: Windows conversion uses the same owned process infrastructure.
 export { jobMemoryLimitedRun } from '../../host/backend/mediaJobRun'
-export { execResourceFile, execResourceFileBytes, handoffResourceFile } from './commands'
+export {
+  execResourceFile,
+  execResourceFileBytes,
+  handoffResourceFile,
+  spawnResourceFile,
+} from './commands'

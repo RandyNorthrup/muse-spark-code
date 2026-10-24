@@ -6,7 +6,14 @@
 // the provider's origin; values are never printed. A module of its own so
 // the other provider commands never carry it.
 import type { ProviderEntry } from '../core/providers/providersFile'
-import {
+import { requestHeaders } from '../host/backend/providersEntry'
+import { UI_TEXT } from '../shared/constants'
+import { fill } from '../shared/l10n/text'
+import type { ProvidersHeadersOptions } from './cliArgs'
+import { commandFile, failed, type ProvidersDeps } from './providersCommands'
+
+// The record's rules ride the providers bundle (dist/providers.js, D74).
+const {
   formatStoredHeaders,
   headerNameProblem,
   isHeaderValueValid,
@@ -15,11 +22,7 @@ import {
   StoredHeadersError,
   withHeader,
   withoutHeader,
-} from '../core/providers/requestHeaders'
-import { UI_TEXT } from '../shared/constants'
-import { fill } from '../shared/l10n/text'
-import type { ProvidersHeadersOptions } from './cliArgs'
-import { commandFile, failed, type ProvidersDeps } from './providersCommands'
+} = requestHeaders
 
 const EXIT_OK = 0
 const EXIT_FAILED = 1

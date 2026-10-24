@@ -76,6 +76,21 @@ async function scanAndRecommend(
     : { ok: false, summary, reason: settled.reason }
 }
 
+/**
+The step's flags, or undefined once the usage is printed: a line that
+does not parse, or a flag `isRefused` says this step takes no part in.
+*/
+function stepFlags(
+  io: JudgeSetupTextIo,
+  args: readonly string[],
+  isRefused: (flags: JudgeSetupFlags) => boolean,
+): JudgeSetupFlags | undefined {
+  const parsed = parseSetupFlags(args)
+  if (parsed.ok && !isRefused(parsed.flags)) return parsed.flags
+  io.stderr.write(`${UI_TEXT.judgeSetupCli.setupUsage}\n`)
+  return undefined
+}
+
 /** `judge scan`: the hardware and the recommendation, read-only. */
 export async function runJudgeScan(
   io: JudgeSetupTextIo,
@@ -83,13 +98,10 @@ export async function runJudgeScan(
   ports: JudgeSetupPorts,
   paths: JudgeSetupPaths,
 ): Promise<number> {
+  const flags = stepFlags(io, args, (given) => given.model !== undefined || given.yes)
+  if (flags === undefined) return EXEC_EXIT.usage
   const text = UI_TEXT.judgeSetupCli
-  const parsed = parseSetupFlags(args)
-  if (!parsed.ok || parsed.flags.model !== undefined || parsed.flags.yes) {
-    io.stderr.write(`${text.setupUsage}\n`)
-    return EXEC_EXIT.usage
-  }
-  const settled = await scanAndRecommend(parsed.flags, ports, paths)
+  const settled = await scanAndRecommend(flags, ports, paths)
   writeLines(io.stdout, scanSummaryLines(settled.summary))
   if (!settled.ok) {
     // Nothing fits is a scanned answer, not a failure; anything else refuses.
@@ -153,19 +165,16 @@ export async function runJudgeSetup(
   paths: JudgeSetupPaths,
   signal: AbortSignal,
 ): Promise<number> {
+  const flags = stepFlags(io, args, () => false)
+  if (flags === undefined) return EXEC_EXIT.usage
   const text = UI_TEXT.judgeSetupCli
-  const parsed = parseSetupFlags(args)
-  if (!parsed.ok) {
-    io.stderr.write(`${text.setupUsage}\n`)
-    return EXEC_EXIT.usage
-  }
-  const settled = await scanAndRecommend(parsed.flags, ports, paths)
+  const settled = await scanAndRecommend(flags, ports, paths)
   if (!settled.ok) {
     io.stderr.write(`${fill(text.cannotSetup, { reason: settled.reason })}\n`)
     return EXEC_EXIT.failed
   }
   writeLines(io.stdout, planLines(settled.plan, paths))
-  if (!parsed.flags.yes) {
+  if (!flags.yes) {
     io.stdout.write(`${text.needsYes}\n`)
     return EXEC_EXIT.failed
   }
@@ -203,19 +212,16 @@ export async function runJudgeRemove(
   ports: JudgeSetupPorts,
   paths: JudgeSetupPaths,
 ): Promise<number> {
+  const flags = stepFlags(io, args, (given) => given.model !== undefined || given.cpuOnly)
+  if (flags === undefined) return EXEC_EXIT.usage
   const text = UI_TEXT.judgeSetupCli
-  const parsed = parseSetupFlags(args)
-  if (!parsed.ok || parsed.flags.model !== undefined || parsed.flags.cpuOnly) {
-    io.stderr.write(`${text.setupUsage}\n`)
-    return EXEC_EXIT.usage
-  }
   const layout = runtimePaths(paths.storageRoot, 'current')
   const record = ports.readRegistration(layout.record)
   if (record === undefined) {
     io.stdout.write(`${text.removeNone}\n`)
     return EXEC_EXIT.ok
   }
-  if (!parsed.flags.yes) {
+  if (!flags.yes) {
     io.stdout.write(
       `${fill(text.removePlan, { model: record.model, path: path.dirname(record.runtimePath) })}\n`,
     )

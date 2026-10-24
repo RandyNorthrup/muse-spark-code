@@ -46,6 +46,23 @@ function delay(ms: number): Promise<void> {
 /** Identity marker for the deadline's win in the engine race. */
 const CASCADE_TIMEOUT = Symbol('cascade-timeout')
 
+/** The engine's answer: an abstention takes the fallback, a value is the hit. */
+function answered<T>(step: CascadeStep<T>, value: T | undefined): CascadeResult<T> {
+  return value === undefined
+    ? { value: step.fallback(), engine: 'abstained' }
+    : { value, engine: 'hit' }
+}
+
+/**
+An engine throw: an abort is our own cancellation; any other throw is a
+miss with infinite latency, never the fallback's fault.
+*/
+function thrown<T>(step: CascadeStep<T>, error: unknown): CascadeResult<T> {
+  return error instanceof Error && error.name === 'AbortError'
+    ? { value: step.fallback(), engine: 'cancelled' }
+    : { value: step.fallback(), engine: 'miss', cause: error }
+}
+
 /** Run one decision's cascade within its deadline. */
 export async function runCascade<T>(step: CascadeStep<T>): Promise<CascadeResult<T>> {
   // Read fresh at every check: the person may cancel while the engine runs.
@@ -57,16 +74,9 @@ export async function runCascade<T>(step: CascadeStep<T>): Promise<CascadeResult
   const deadlineMs = step.deadlineMs
   if (deadlineMs === undefined) {
     try {
-      const value = await pending
-      return value === undefined
-        ? { value: step.fallback(), engine: 'abstained' }
-        : { value, engine: 'hit' }
+      return answered(step, await pending)
     } catch (error: unknown) {
-      // An abort is our own cancellation; any other engine throw is a
-      // miss with infinite latency, never the fallback's fault.
-      return error instanceof Error && error.name === 'AbortError'
-        ? { value: step.fallback(), engine: 'cancelled' }
-        : { value: step.fallback(), engine: 'miss', cause: error }
+      return thrown(step, error)
     }
   }
   const timer = (async (): Promise<typeof CASCADE_TIMEOUT> => {
@@ -90,14 +100,8 @@ export async function runCascade<T>(step: CascadeStep<T>): Promise<CascadeResult
         ? { value: step.fallback(), engine: 'cancelled' }
         : { value: step.fallback(), engine: 'late' }
     }
-    return value === undefined
-      ? { value: step.fallback(), engine: 'abstained' }
-      : { value, engine: 'hit' }
+    return answered(step, value)
   } catch (error: unknown) {
-    // An abort is our own cancellation; any other engine throw is a
-    // miss with infinite latency, never the fallback's fault.
-    return error instanceof Error && error.name === 'AbortError'
-      ? { value: step.fallback(), engine: 'cancelled' }
-      : { value: step.fallback(), engine: 'miss', cause: error }
+    return thrown(step, error)
   }
 }

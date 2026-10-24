@@ -1,6 +1,7 @@
 // Lossless Node-only encoding of immutable model instructions. Keys remain
 // literal so the existing block/readership split guards keep their full scope.
 import { readCompiledSource } from './compiledSources.mjs'
+import { foldConstantSource } from './foldedConstants.mjs'
 import path from 'node:path'
 import { brotliCompressSync } from 'node:zlib'
 import ts from 'typescript'
@@ -15,7 +16,8 @@ export function compressedModelText(isProduction) {
     setup(build) {
       build.onLoad({ filter: /[/\\]shared[/\\]constants\.ts$/ }, (args) => {
         if (!isProduction || path.resolve(args.path) !== path.resolve(SOURCE)) return
-        const source = readCompiledSource(args.path)
+        // Folded first (foldedConstants.mjs): this plugin answers for the file.
+        const source = foldConstantSource(readCompiledSource(args.path), args.path)
         const tree = ts.createSourceFile(args.path, source, ts.ScriptTarget.Latest, true)
         const replacements = []
         for (const statement of tree.statements) {

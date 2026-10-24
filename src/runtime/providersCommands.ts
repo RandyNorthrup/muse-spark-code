@@ -18,6 +18,7 @@ import {
   presets,
   wizardFlow,
   providersFile,
+  requestHeaders,
   setUiText as setProvidersUiText,
 } from '../host/backend/providersEntry'
 import type { SecretStore } from '../host/auth/credentialStore'
@@ -77,7 +78,7 @@ import {
   type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
-import { providerHeadersAccount } from '../core/providers/requestHeaders'
+const { providerHeadersAccount } = requestHeaders
 // The panel's Refresh Models reads the live list through the commands.
 export { listProviderModels } from './exec/providerList'
 

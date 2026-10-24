@@ -8,7 +8,12 @@
 // with the providers seam (dist/modelsSubscriptions.js), not the panel.
 
 import type { ProviderEntry, ProviderHeadersPorts } from './providerPorts'
-import {
+import { requestHeaders } from '../backend/providersEntry'
+import { UI_TEXT } from '../../shared/constants'
+import { fill } from '../../shared/l10n/text'
+
+// The record's rules ride the providers bundle (dist/providers.js, D74).
+const {
   formatStoredHeaders,
   headerNameProblem,
   isHeaderValueValid,
@@ -17,9 +22,7 @@ import {
   StoredHeadersError,
   withHeader,
   withoutHeader,
-} from '../../core/providers/requestHeaders'
-import { UI_TEXT } from '../../shared/constants'
-import { fill } from '../../shared/l10n/text'
+} = requestHeaders
 
 /** The sentence that refuses a typed name, or undefined when the name can be kept. */
 function headerNameRefusal(name: string): string | undefined {

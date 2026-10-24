@@ -7,8 +7,10 @@
 import { describe, expect, it } from 'vitest'
 import {
   raceB1Hold,
+  type B1ConditionReason,
   type B1Conditions,
   type B1FloorContext,
+  type B1FloorReason,
   type B1HoldPorts,
 } from '../../src/core/judge/fast/approval'
 import type { InspectResult } from '../../src/core/judge/fast/inspectExec'
@@ -55,59 +57,46 @@ function settledFence(outcome: 'caution' | 'none'): JudgeFence {
   }
 }
 
+/** The hold refuses the line for the reason, and none of its three ports started. */
+async function expectStartsNothing(
+  line: string,
+  conditions: B1Conditions,
+  reason: B1FloorReason | B1ConditionReason,
+): Promise<void> {
+  const started: string[] = []
+  const ports: B1HoldPorts<string> = {
+    line,
+    platform: 'linux',
+    floor: FLOOR,
+    conditions,
+    startReviewer: () => {
+      started.push('reviewer')
+      return Promise.resolve('verdict')
+    },
+    startJudgeFence: () => {
+      started.push('fence')
+      return undefined
+    },
+    runInspect: () => {
+      started.push('inspect')
+      return Promise.resolve(OUTPUT)
+    },
+  }
+  await expect(raceB1Hold(ports)).resolves.toEqual({ kind: 'notApplicable', reason })
+  expect(started).toEqual([])
+}
+
 describe('B1 hold', () => {
   it('starts nothing when the floor fails', async () => {
-    const started: string[] = []
-    const ports: B1HoldPorts<string> = {
-      line: 'git status',
-      platform: 'linux',
-      floor: FLOOR,
-      conditions: CONDITIONS,
-      startReviewer: () => {
-        started.push('reviewer')
-        return Promise.resolve('verdict')
-      },
-      startJudgeFence: () => {
-        started.push('fence')
-        return undefined
-      },
-      runInspect: () => {
-        started.push('inspect')
-        return Promise.resolve(OUTPUT)
-      },
-    }
-    await expect(raceB1Hold(ports)).resolves.toEqual({
-      kind: 'notApplicable',
-      reason: 'gitCommand',
-    })
-    expect(started).toEqual([])
+    await expectStartsNothing('git status', CONDITIONS, 'gitCommand')
   })
 
   it('starts nothing when the conditions fail', async () => {
-    const started: string[] = []
-    const ports: B1HoldPorts<string> = {
-      line: 'cat allowed.txt',
-      platform: 'linux',
-      floor: FLOOR,
-      conditions: { ...CONDITIONS, certifiedPlatforms: [] },
-      startReviewer: () => {
-        started.push('reviewer')
-        return Promise.resolve('verdict')
-      },
-      startJudgeFence: () => {
-        started.push('fence')
-        return undefined
-      },
-      runInspect: () => {
-        started.push('inspect')
-        return Promise.resolve(OUTPUT)
-      },
-    }
-    await expect(raceB1Hold(ports)).resolves.toEqual({
-      kind: 'notApplicable',
-      reason: 'uncertifiedPlatform',
-    })
-    expect(started).toEqual([])
+    await expectStartsNothing(
+      'cat allowed.txt',
+      { ...CONDITIONS, certifiedPlatforms: [] },
+      'uncertifiedPlatform',
+    )
   })
 
   it('skips on the shared fence and the delivered run, with the parse', async () => {

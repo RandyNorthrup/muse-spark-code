@@ -48,6 +48,12 @@
     "src/core/backends/modelapi/modelApiVerifyEntry.ts",
     // The image run-path, built as dist/modelApiImage.js (D6), loaded on the first image call.
     "src/core/backends/modelapi/modelApiImageEntry.ts",
+    // The B1 hold, built as dist/modelApiB1.js (M125, D6), loaded on the first held shell ask.
+    "src/core/backends/modelapi/modelApiB1Entry.ts",
+    // What a tool call or goal command runs, built as dist/modelApiToolRun.js (D6).
+    "src/core/backends/modelapi/modelApiToolRunEntry.ts",
+    // The fast judge's session side, built as dist/modelApiFast.js (M125, D6).
+    "src/core/backends/modelapi/modelApiFastEntry.ts",
     // The pack index verifier, built as dist/packsVerify.js (M110t TP2),
     // loaded on the first pack fetch.
     "src/runtime/node/packs/verifyEntry.ts",

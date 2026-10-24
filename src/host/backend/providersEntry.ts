@@ -18,6 +18,9 @@ export * as priceCard from '../../core/providers/priceCard'
 export * as providerSpend from '../../core/providers/providerSpend'
 export * as providerSpendKeyUsage from '../../core/providers/providerSpendKeyUsage'
 export * as providersFile from '../../core/providers/providersFile'
+// M95c part 6: the custom request headers' record, read by the codec
+// client's per-attempt auth, the editor's header manager and the CLI.
+export * as requestHeaders from '../../core/providers/requestHeaders'
 export * as scanDiff from '../../core/providers/scanDiff'
 export * as suggest from '../../core/providers/suggest'
 export * as tokenCount from '../../core/providers/tokenCount'

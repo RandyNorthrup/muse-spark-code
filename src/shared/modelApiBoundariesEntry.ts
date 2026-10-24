@@ -5,10 +5,6 @@ export * from './teamConversation'
 export * from './paidBoundary'
 export * from './legal'
 export * from '../core/backends/modelapi/legalScanTool'
-// File-tool execution shared by the backend and its deferred helpers; the
-// callers' model words arrive as arguments (this boundary carries no
-// MODEL_API_MODEL_TEXT block).
-export * from '../core/toolEdit'
 
 export * from './usd'
 

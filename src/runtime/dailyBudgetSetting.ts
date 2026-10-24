@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { RUNTIME_SETTINGS_FILE, SETTING_DEFAULTS, UI_TEXT } from '../shared/constants'
-import { storeErrorCode } from '../host/backend/storeErrors'
+import { isStoreErrorCode } from '../host/backend/storeErrors'
 
 // One key of the shared machine file (runtimeConverterPath.ts reads
 // another): a plain object, so sibling keys never break the parse. Zero
@@ -25,7 +25,7 @@ export function runtimeDailyBudgetUsd(dataFolder: string): number {
       ).paidDailyBudgetUsd ?? SETTING_DEFAULTS.paidDailyBudgetUsd
     )
   } catch (error: unknown) {
-    if (storeErrorCode(error) === 'ENOENT') return SETTING_DEFAULTS.paidDailyBudgetUsd
+    if (isStoreErrorCode(error, 'ENOENT')) return SETTING_DEFAULTS.paidDailyBudgetUsd
     throw new Error(UI_TEXT.paidDailyLedgerUnavailable, { cause: error })
   }
 }

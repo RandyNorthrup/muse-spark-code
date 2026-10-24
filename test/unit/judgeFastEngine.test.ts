@@ -246,6 +246,19 @@ describe('slack scheduling', () => {
   })
 })
 
+/** On a deterministic miss the engine's answer wins, and an abstaining engine falls back. */
+async function expectEngineThenAbstention(deadlineMs: number | undefined): Promise<void> {
+  const miss = { deterministic: () => ({ hit: false }) as const, fallback: () => 'today' }
+  const hit = await runCascade({ ...miss, engine: () => Promise.resolve('engine'), deadlineMs })
+  expect(hit).toEqual({ value: 'engine', engine: 'hit' })
+  const abstained = await runCascade({
+    ...miss,
+    engine: () => Promise.resolve(undefined),
+    deadlineMs,
+  })
+  expect(abstained).toEqual({ value: 'today', engine: 'abstained' })
+}
+
 describe('deterministic-first cascade', () => {
   it('ends on a deterministic hit with no engine call', async () => {
     let called = 0
@@ -263,20 +276,7 @@ describe('deterministic-first cascade', () => {
   })
 
   it('uses the engine on a miss and falls back on abstention', async () => {
-    const hit = await runCascade({
-      deterministic: () => ({ hit: false }),
-      engine: () => Promise.resolve('engine'),
-      fallback: () => 'today',
-      deadlineMs: 500,
-    })
-    expect(hit).toEqual({ value: 'engine', engine: 'hit' })
-    const abstained = await runCascade({
-      deterministic: () => ({ hit: false }),
-      engine: () => Promise.resolve(undefined),
-      fallback: () => 'today',
-      deadlineMs: 500,
-    })
-    expect(abstained).toEqual({ value: 'today', engine: 'abstained' })
+    await expectEngineThenAbstention(500)
   })
 
   it('discards a late answer, falls back, and still reports the settlement', async () => {
@@ -322,20 +322,7 @@ describe('deterministic-first cascade', () => {
   })
 
   it('waits for the engine past no deadline, and still falls back on abstention', async () => {
-    const hit = await runCascade({
-      deterministic: () => ({ hit: false }),
-      engine: () => Promise.resolve('engine'),
-      fallback: () => 'today',
-      deadlineMs: undefined,
-    })
-    expect(hit).toEqual({ value: 'engine', engine: 'hit' })
-    const abstained = await runCascade({
-      deterministic: () => ({ hit: false }),
-      engine: () => Promise.resolve(undefined),
-      fallback: () => 'today',
-      deadlineMs: undefined,
-    })
-    expect(abstained).toEqual({ value: 'today', engine: 'abstained' })
+    await expectEngineThenAbstention(undefined)
   })
 })
 

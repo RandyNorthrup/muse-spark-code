@@ -63,6 +63,9 @@ export type JudgeFastTurnReason = (typeof JUDGE_FAST_TURN_REASONS)[number]
 
 const METHOD_PATTERN = /^[A-Za-z0-9][A-Za-z0-9.:/_-]{0,63}$/
 
+/** A count on the fast-judge wire: a whole number, zero or more. */
+export const fastCountSchema = z.number().check(z.int(), z.minimum(0))
+
 export const judgeFastTurnDecisionSchema = z.strictObject({
   decision: z.enum(JUDGE_FAST_TURN_DECISIONS),
   /** Evaluations this turn; the entry exists only above zero. */
@@ -73,7 +76,7 @@ export const judgeFastTurnDecisionSchema = z.strictObject({
   acted: z.boolean(),
   reason: z.enum(JUDGE_FAST_TURN_REASONS),
   /** Triage only: results that rode whole for want of a real window. */
-  noWindow: z.optional(z.number().check(z.int(), z.minimum(0))),
+  noWindow: z.optional(fastCountSchema),
 })
 export type JudgeFastTurnDecisionRecord = z.infer<typeof judgeFastTurnDecisionSchema>
 
@@ -85,8 +88,8 @@ export const judgeFastTurnSchema = z.strictObject({
   method: z.string().check(z.regex(METHOD_PATTERN)),
   decisions: z.array(judgeFastTurnDecisionSchema).check(z.minLength(1)),
   /** Judge engine calls spent this turn (observed; zero when none ran). */
-  judgeCalls: z.number().check(z.int(), z.minimum(0)),
+  judgeCalls: fastCountSchema,
   /** Judge engine tokens spent this turn (observed; zero when none ran). */
-  judgeTokens: z.number().check(z.int(), z.minimum(0)),
+  judgeTokens: fastCountSchema,
 })
 export type JudgeFastTurn = z.infer<typeof judgeFastTurnSchema>
