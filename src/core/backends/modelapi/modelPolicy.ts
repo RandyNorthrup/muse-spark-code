@@ -486,5 +486,12 @@ export interface ResolvedModel {
 export interface ModelResolver {
   readonly defaultModel?: () => Promise<string | undefined>
   readonly list?: (() => Promise<readonly ModelSummary[]>) | undefined
-  readonly resolve: (ref: string) => Promise<ResolvedModel>
+  /**
+  Agent turns require confirmed tool calling (F83); a use that sends no
+  tools (Tab completions, M95c part 7) passes `{ requireTools: false }`.
+  */
+  readonly resolve: (
+    ref: string,
+    options?: { readonly requireTools?: boolean },
+  ) => Promise<ResolvedModel>
 }

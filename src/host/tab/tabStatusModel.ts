@@ -9,6 +9,7 @@ import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { isPositiveUsd, type UsdAmount } from '../../shared/usd'
 import type { TabFailureKind, TabOutcome, TabQuietReason } from './tabBundle'
+import { isByoTabModel } from './tabByo'
 
 /** Every state the bar reads, resolved by the item before the model runs. */
 export interface TabStatusSnapshot {
@@ -130,8 +131,9 @@ export function tabStatusViewOf(snapshot: TabStatusSnapshot): TabStatusView {
       minuteTick: false,
     }
   }
-  if (!snapshot.isKeyStored) {
+  if (!snapshot.isKeyStored && !isByoTabModel(snapshot.model)) {
     // No key: the bar says so and Tab never prompts for one (Acceptance 2).
+    // A bring-your-own model brings its provider's own key (M95c part 7).
     return {
       shown: true,
       text: `$(circle-slash) ${table.tabStatusNoKey}`,

@@ -1,8 +1,13 @@
 // The paid popup's formatter loads with the existing imported-hook runtime on first use.
-import { EXEC_USD_DECIMALS, UI_TEXT } from '../../shared/constants'
+import {
+  EXEC_USD_DECIMALS,
+  MODEL_API_PRICE_DECIMALS,
+  TOKENS_PER_MILLION,
+  UI_TEXT,
+} from '../../shared/constants'
 import { fill, formatNumber, uiLocale } from '../../shared/l10n/text'
 import { formatDailyBudget, formatUsd } from '../../shared/l10n/exactUsd'
-import { Usd } from '../../shared/usd'
+import { Usd, type UsdAmount } from '../../shared/usd'
 import {
   paidFeaturePrice,
   paidFeatureName,
@@ -14,7 +19,53 @@ import {
   scheduledRunPrice,
   subagentTaskPrice,
   type PaidUseRequest,
+  type TabByoQuote,
 } from '../../shared/paid'
+
+/**
+Tab on a bring-your-own model (M95c part 7): the question quotes the
+provider's own card instead of Meta's tiers. A key-billed model names its
+provider and per-million rates, a plan or local model names its own
+billing; Meta's training note never applies, since nothing reaches Meta.
+*/
+function tabByoQuestion(
+  model: string,
+  budgetUsd: UsdAmount,
+  quote: TabByoQuote,
+): { readonly title: string; readonly detail: string } {
+  let billed: string
+  if (quote.kind === 'local') billed = UI_TEXT.tabByoBilledLocal
+  else if (quote.kind === 'plan')
+    billed = fill(UI_TEXT.tabByoBilledPlan, { provider: quote.provider })
+  else {
+    // A priced card always carries rates; one without cannot be quoted.
+    if (quote.rates === undefined) throw new Error(UI_TEXT.subagentTariffUnknown)
+    const perMillion = (rate: number) =>
+      formatUsd(rate * TOKENS_PER_MILLION, MODEL_API_PRICE_DECIMALS)
+    billed = fill(UI_TEXT.tabByoBilledKey, {
+      provider: quote.provider,
+      price: fill(UI_TEXT.tabByoRates, {
+        input: perMillion(quote.rates.input),
+        cached: perMillion(quote.rates.cached),
+        output: perMillion(quote.rates.output),
+        request: formatUsd(quote.rates.request, MODEL_API_PRICE_DECIMALS),
+      }),
+    })
+  }
+  return Usd.from(budgetUsd).compare(Usd.from(0)) === 0
+    ? {
+        title: UI_TEXT.paidUseTabTitle,
+        detail: fill(UI_TEXT.paidUseTabByoDetailNoBudget, { model, billed }),
+      }
+    : {
+        title: UI_TEXT.paidUseTabTitle,
+        detail: fill(UI_TEXT.paidUseTabByoDetail, {
+          model,
+          billed,
+          budget: formatUsd(budgetUsd, 2),
+        }),
+      }
+}
 
 /** The popup's question and what it says about the use, in the display language. */
 export async function paidUseQuestion(request: PaidUseRequest): Promise<{
@@ -203,6 +254,8 @@ export async function paidUseQuestion(request: PaidUseRequest): Promise<{
       }
     }
     case 'tab': {
+      if (request.byo !== undefined)
+        return tabByoQuestion(request.modelId, request.budgetUsd, request.byo)
       // Tab bills the request's model per token (M94, PLAN.md D73): the
       // popup names its rates, today's budget and the training note. With no
       // budget set it says so instead of naming one. An unpriced model has

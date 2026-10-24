@@ -40,6 +40,7 @@ import {
   type ShellSandboxMode,
   TAB_DAILY_BUDGET_MIN_USD,
   TAB_NO_BUDGET_USD,
+  TAB_BYO_MODEL_PATTERN,
   TAB_MODELS,
   TAB_MULTILINE_MODES,
   TAB_TRIGGER_MODES,
@@ -303,7 +304,12 @@ const settingSchemas = {
   modelApiRepositoryRules: z.unknown(),
   modelApiAutoReviewer: z.boolean(),
   modelApiTab: z.boolean(),
-  tabModel: z.enum(TAB_MODELS),
+  tabModel: z.union([
+    z.enum(TAB_MODELS),
+    z.custom<`${string}/${string}`>(
+      (value) => typeof value === 'string' && TAB_BYO_MODEL_PATTERN.test(value),
+    ),
+  ]),
   // 0 is no budget; a set budget starts at the dust floor, with no ceiling.
   tabDailyBudgetUsd: legacyUsdSchema.check(
     z.refine(

@@ -1407,13 +1407,20 @@
         },
         "museSpark.tabModel": {
           "type": "string",
-          "enum": [
-            "muse-spark-1.3",
-            "muse-spark-1.3-contributor"
-          ],
-          "enumDescriptions": [
-            "%config.tabModel.enumDescriptions.standard%",
-            "%config.tabModel.enumDescriptions.contributor%"
+          "anyOf": [
+            {
+              "enum": [
+                "muse-spark-1.3",
+                "muse-spark-1.3-contributor"
+              ],
+              "enumDescriptions": [
+                "%config.tabModel.enumDescriptions.standard%",
+                "%config.tabModel.enumDescriptions.contributor%"
+              ]
+            },
+            {
+              "pattern": "^[^/\\s]+/\\S+$"
+            }
           ],
           "default": "muse-spark-1.3",
           "description": "%config.tabModel.description%",

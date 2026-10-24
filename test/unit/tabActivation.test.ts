@@ -103,6 +103,7 @@ function depsOf(state: ShimState): TabActivationDeps {
       stream: () => {
         throw new Error('no request is ever sent')
       },
+      resolveByo: () => Promise.reject(new Error('no bring-your-own model is ever resolved')),
       recordMaxOutputTokens: () => 0,
       ledgerDirectory: base,
       windowId: 'activation-test',

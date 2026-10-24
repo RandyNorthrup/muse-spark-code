@@ -95,7 +95,7 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         }
       })
     },
-    async resolve(ref): Promise<ResolvedModel> {
+    async resolve(ref, options): Promise<ResolvedModel> {
       const parsed = parseModelRef(ref)
       const models = await deps.models()
       const model = models.find((model) => model.ref === ref)
@@ -112,7 +112,8 @@ export function createProviderRegistry(deps: ProviderRegistryDeps): ModelResolve
         )
       // Selecting a model without confirmed tool calling for an agent
       // turn is refused with the same sentence its list row states (F83).
-      {
+      // A use that sends no tools (Tab completions) opts out.
+      if (options?.requireTools !== false) {
         const policy = modelPolicyFor(ref, { ...model.evidence, pricing: model.pricing })
         if (policy.tools.calling.state !== 'yes') {
           throw new Error(fill(UI_TEXT.providerModelNoToolCalling, { model: ref }))
