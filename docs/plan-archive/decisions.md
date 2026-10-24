@@ -8420,3 +8420,2499 @@ The choices:
   Linux gets a microphone for the first time, on the paid engine only.
 
 <!-- plan-archive:end id="decisions-b49b4ecc2-2865" -->
+
+## D83 — Makers: boards, firmware and machines, with a human at every actuation (M103, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-d81327d36-6716" lines="6716-7022" at="d81327d36" bytes="29456" sha256="3f2119640057f4bc89d0ae6d01cb05e6a7d230be233bc7411db7a5d49232dea4" -->
+
+The owner asked (2026-10-05): "is there anything we can include that will
+make this harness have useful features for creators and tinkerers ie people
+who program raspberry pi or esp32 or like robotics and cncs and 3d printers
+etc?" The research, its sources and the ranked list are in
+`docs/research/makers-2026-10-05.md` (this draft, once landed).
+
+Physical machines can injure people and start fires. A model is wrong
+sometimes, and a prompt in a datasheet, a README or a fetched page can steer
+it. These decisions keep every physical effect behind a person who sees
+exactly what will be sent.
+
+1. **Help with the work; the user's hand moves the machine.** The extension
+   helps write, build, flash, simulate and read devices and machines. It is
+   not a print host or a G-code sender: OctoPrint, Mainsail/Fluidd, CNCjs,
+   UGS and FluidNC's WebUI stay the user's tools for running jobs.
+2. **Six action classes, and stop,** decided by our code, never by the
+   model or a server's own hint:
+   - _offline_: edit, build, simulate, render, ERC/DRC, G-code analysis —
+     ordinary tools and checks;
+   - _observe_: list ports (opens nothing), read a registered machine's
+     status over its HTTP API, ROS 2 introspection, `vcgencmd`, `gpioinfo`;
+   - _connect_: open a serial port (it may reset the board), mount a device
+     file system;
+   - _program_: flash, upload, erase, OTA update, write files to a
+     development board, reset a development board (a microcontroller, not a
+     printer's or CNC's controller, whose restarts and settings are
+     _refused_ below);
+   - _actuate_: anything else sent to a machine — motion, homing, probing,
+     jogging, heaters, spindle, laser, fans, pumps, relays, power, starting,
+     pausing or cancelling a job (Klipper's `PAUSE` and `CANCEL_PRINT` are
+     macros that move the toolhead), ROS motion topics, actions and
+     services, `gpioset`. A command or macro the classifier does not know is
+     _actuate_ (fail closed).
+   - _refused_: what the model may never send, even with approval. The user
+     does these in their own tools:
+     - firmware updates and factory resets (M997, M502);
+     - saved settings (M500, `SAVE_CONFIG`, GRBL `$` writes, `$RST`, `$N`);
+     - restarts and host shutdown (`FIRMWARE_RESTART`, `RESTART`,
+       Moonraker `/machine/shutdown|reboot`);
+     - power and pins (M80/M81, M42);
+     - autotune (M303);
+     - GRBL `$X` (alarm unlock);
+     - uploads into Moonraker's `root=config`;
+     - the irreversible chip operations of D83.4.
+   - _stop_ is not a class the model can compose: it is the machine's own
+     fixed stop sequence (D83.5).
+3. **Connect, program and actuate ask every time, in every mode.** The maker
+   engine asks from inside the tool, through its host's approval surface
+   (D83.16): in VS Code a native modal (the M69 pattern), in an ACP client
+   its permission prompt, in the companion page and the native plugins the
+   shared dialog. So it asks under any backend mode, Muse Code's Bypass
+   included. The approval names the target (port, VID:PID and USB serial, or
+   the machine's name and address and what it reports itself as), shows the
+   exact payload (bytes as hex where not printable; up to
+   `MACHINE_SEND_MAX_LINES` lines, more opens the payload read-only before
+   asking again), the analysis (bounds, maximum temperature and feed against
+   the limits, unknown commands), and warns that opening a port may reset the
+   board. It offers **Send once** and **Reject** only (closing it rejects).
+   No session rule, allow rule, "always", Auto reviewer or hook answers it.
+   **Approval comes only from the host's own UI:** a token, a `confirm`
+   flag or any value in a tool's arguments or results is never approval,
+   because the model can read it and set it (§2.11: ugs-mcp hands its token
+   to the model).
+   An unanswered modal expires as Reject after `MACHINE_APPROVAL_TTL_MS`;
+   the machine's state is read again just before sending, and any change
+   since the modal opened (a print started, a different board on the port)
+   asks again.
+4. **The shell and MCP cannot go around it.** A guard table
+   (`src/core/maker/guard/`, one table like M92e's secret table) recognises
+   flashing, uploading, device writes and machine API calls in shell
+   commands (§6 lane G lists them) and settles them `hardwareDetected`:
+   asked in every mode, Bypass included, with no session choice, never the
+   reviewer, never a hook's allow; Plan refuses them. Irreversible operations
+   (eFuse burns, secure-boot and flash-encryption key burns, AVR fuse and lock
+   writes, STM32 read-out protection level 2, RP2350 OTP writes) are refused
+   in every mode: the reply gives the user the command to run in their own
+   terminal. MCP servers the user marks physical
+   (`museSpark.physicalMcpServers`, machine scope; a workspace can add a name,
+   never remove one) and known hardware servers ask like D83.3. The table
+   cannot recognise every program that can reach a port, so in a workspace
+   with the hardware switch on: Bypass is unavailable on both backends (on
+   Muse Code the CLI emits no approval under Bypass, RVM92E-BYPASS-MUSE), the
+   Auto reviewer does not answer shell commands, and README says plainly that
+   a program the model wrote can reach a device once the user lets it run.
+5. **Stop is always one click away and never asks.** While a machine is
+   registered, **Stop machine** is in the panel, the status bar and the
+   command palette with a keybinding no OS or VS Code default uses. It sends
+   the machine's own stop, out of band:
+   - Moonraker: `POST /printer/emergency_stop`, never M112 through
+     `gcode/script`, which queues behind earlier G-code;
+   - OctoPrint: M112 through its emergency parser, which sends it out of
+     band;
+   - Marlin over serial: M112 or M410, immediate only where M115 reports
+     `EMERGENCY_PARSER`; otherwise the panel says the printer's own switch
+     is the immediate stop;
+   - GRBL: feed hold `!`, jog cancel 0x85, then soft reset 0x18 (grblHAL's
+     0x19 where present), with a warning when `$N` startup lines hold
+     motion.
+
+   It stops any stream the extension started and needs no approval. The turn's Stop also stops streams. The model may call
+   `machine_stop` without approval. README and the skill say a software stop
+   is not an emergency stop: a machine needs its own physical E-stop
+   (ISO 13850, IEC 60204-1).
+
+6. **Limits come from the machine and the user, never the model.** Travel,
+   temperature and feed limits are the smaller of what the machine reports
+   (Moonraker's parsed `configfile`, GRBL `$$`, FluidNC's config, Marlin's
+   `M503`) and the limits the user entered when registering it. A command
+   outside them is refused without asking. With no limits, only stop and
+   observe work. Travel limits count only on a homed machine (Klipper
+   `homed_axes`, GRBL not in alarm with `$20` and `$22` on, FluidNC
+   `soft_limits` true, which is off by default): an unhomed machine or one
+   without soft limits gets no model-proposed motion. Moonraker keys have no
+   roles, so these checks are ours. OctoPrint's wizard offers a key from its
+   "Read-only Access" group first, through the appkeys flow (the user
+   approves in OctoPrint's UI and never pastes a key).
+7. **Dry run first.** G-code is analysed locally before any modal; the
+   simulators (QEMU, Renode, Wokwi, a virtual Klipper, Gazebo) are the first
+   target for firmware and robot work, and the skill says so. CNC and laser
+   machines get no model-proposed motion or firing in this delivery
+   (status, settings read, alarms, stop only); printers get short approved
+   G-code. Widening that is a later owner decision after field use.
+8. **Never unattended.** Connect, program and actuate are refused, not
+   asked, in subagents, team workers, best-of-N candidates, M100 remote
+   lanes, headless `exec` and CI. Timed sends, loops and goals still meet the
+   approval, which expires. In the ACP agent device tools exist only with
+   `--hardware`, and each action is the editor's permission prompt with
+   allow-once and reject-once only (or the companion page's dialog when the
+   client has no prompt). Headless `exec` on a Raspberry Pi gets every
+   offline and observe tool (build, test, simulate, list ports, read a
+   registered machine's status over HTTP); opening a serial port is a
+   _connect_ action, so serial reads are not among them. A hard allowlist for headless
+   hardware-in-the-loop runs is a separate decision (Q-M103f).
+9. **Off until the user turns it on, per workspace, with a reason.** Device
+   tools, serial, machine status and sends need **Enable hardware for this
+   workspace** (in VS Code a command; in the runtime `hardware enable`, or
+   `/hardware` in an ACP client): a trusted workspace, a reason the user
+   types (kept in the device log), stored by the host outside the
+   repository (VS Code's `workspaceState`; the runtime's data folder, keyed
+   like its paid grants), revocable, and never set by a repository file.
+   Machines (kind, address, API key, limits) are added by a command into
+   machine-scoped storage, the key in the host's secret store (SecretStorage,
+   or the OS credential store for the runtime); a workspace may only name
+   which registered machines it uses. Plain HTTP to
+   a private address is allowed only for a registered machine, with a
+   warning that the key crosses the LAN unencrypted; public, link-local and
+   metadata addresses are refused, and every request checks the resolved
+   address again (D74's checks). The guard (D83.4), the skills, detection,
+   the analyser and the offline tools are on by default.
+10. **Flash the board that is meant.** Before a _program_ action the card
+    shows the port's identity next to the project's target (PlatformIO
+    `board`, `CONFIG_IDF_TARGET`, the FQBN); a known mismatch (a Pico's
+    2E8A on the port of an ESP32 project) is refused with the reason.
+11. **Everything sent is logged.** An append-only, size-capped JSONL device
+    log in the host's per-workspace storage (outside the repository): time,
+    machine, class, payload (redacted) and its SHA-256, the approval, the
+    outcome. **Open device log** shows it. It never reaches the model or an
+    export unless the user chooses.
+12. **Multi-vendor, by capability (D81.2).** Skills and the guard are on for
+    every provider; tools only on tool-calling models; photo review and
+    render feedback only where `capabilities.vision`; PDFs where the
+    provider takes them. Nothing is withheld because one vendor's model
+    lacks it.
+13. **No native modules, no startup growth.** Platform tools first
+    (`pio`, `arduino-cli`, `idf.py`, `mpremote`, `esptool`), then our
+    fallback: on Windows a C# helper compiled on first use by `jobBuild`
+    (`System.IO.Ports` in .NET Framework's `System.dll`), on Linux and macOS
+    pyserial where present, else `stty` with reads through a killable child
+    process (never `fs.read` on a device in the host), under the existing
+    process-tree kill. All maker code is in lazy bundles: the portable
+    engine `dist/maker.js` (the extension and the ACP package), the VS Code
+    adapter's few loaders, and the webview's lazy maker chunks and preview
+    page. Activation and the webview's startup bundle gain nothing (D6).
+    OpenSCAD, KiCad and the toolchains are the user's installs; nothing GPL
+    is bundled.
+14. **Privacy.** The device log, machine list and keys stay on the machine.
+    Wokwi runs in Wokwi's cloud with the user's own token (§2.5): the skill
+    and README say what leaves the machine; QEMU and Renode stay local.
+    Secrets:
+    - Wokwi CI tokens (`wok_`, 44 characters) join the one shared redaction
+      table, as M92a's `mgst_` did.
+    - Machine keys are redacted by value.
+    - The skills tell the model never to print or commit `secrets.h`,
+      `settings.toml`, ESPHome `secrets.yaml` or `sdkconfig` Wi-Fi values.
+15. **Amends D71.** The Muse Code bundled-skill installer also copies the
+    first-party skills (marked, removable, same setting), so `muse_gadgets`
+    and the maker skills reach Muse Code too.
+16. **One maker engine for every editor (owner, 2026-10-05: "all of the
+    editors should have equivalent functionality even if we need to develop
+    it ourselves").**
+    - **The engine is portable.** Every maker feature lives in
+      `src/core/maker/**`, which imports no `vscode` and is on M60's portable
+      list: the guard, detection, ports and serial, flash identity, machines,
+      the G-code analyser, CAD and EDA runners, the device log, the lease and
+      the approval rules. It is built as `dist/maker.js`, which the
+      extension loads lazily and the ACP agent's package ships (as
+      `dist/modelApi.js` is today, D6).
+    - **Hosts implement one port.** `MakerHost` is the only seam:
+      - `confirm(request)`;
+      - `notify`;
+      - `stopControls(machines)`;
+      - `openPreview`;
+      - `storage` (workspace and machine);
+      - `secrets`;
+      - `isTrusted`;
+      - an optional `serialProvider`, for a host that already owns the
+        device connection (Thonny's backend, D83.17), so the engine goes
+        through it and never opens the port a second time.
+
+      There are three implementations:
+      - VS Code (`src/host/maker/`): native modal, status bar, SecretStorage,
+        `workspaceState`;
+      - the runtime (`src/runtime/maker/`): the ACP permission prompt or the
+        companion page, its data folder, the OS credential store (D61);
+      - the native plugins (M64, M65): they run the runtime and supply only
+        the dialog and toolbar through the shared protocol.
+
+    - **The engine decides; surfaces only display.** It mints each approval
+      request:
+      - an id;
+      - the payload's SHA-256;
+      - the target's identity;
+      - an expiry.
+
+      It accepts only an answer that echoes the id and digest before the
+      expiry, so no surface can widen, reuse or extend an approval.
+
+    - **The UI is shared React.** These live in `src/webview/maker/**`,
+      lazily loaded chunks behind M61's `HostBridge`:
+      - the approval dialog (for surfaces without a native one);
+      - the Stop chip;
+      - the device panel, machine wizard and device log view;
+      - the STL viewer.
+
+      They render the same in a VS Code webview, JCEF, WebView2, SWT's
+      browser and the companion page.
+
+    - **Editors without a webview get the companion page.** It is the shared
+      React UI, served by our runtime on loopback (`127.0.0.1`, random port,
+      a per-launch token, Host and Origin checks, the panel's CSP), opened in
+      the user's browser. On a Raspberry Pi it is reached through `ssh -L`.
+      It never listens on a LAN address.
+    - **Muse Code in the runtime.** When the ACP agent runs Muse Code, the
+      runtime serves the maker tools to `muse serve` from its own loopback
+      MCP server, as the extension's `ide` server does. Without that, ACP on
+      Muse Code would have no device tools.
+    - **Stop in every editor:**
+      - the panel or companion page;
+      - the editor's toolbar or command where it has one;
+      - `/stop-machine` among the ACP agent's commands;
+      - `muse-spark-code-acp stop-machine [--all]` from any terminal.
+
+      The CLI stop reaches the port's holder over an owner-only local socket
+      (named pipe on Windows), and the machine's own API directly for HTTP
+      machines.
+
+      A stop never waits behind a running turn. ACP slash commands arrive
+      as ordinary prompts (https://agentclientprotocol.com/protocol/slash-commands),
+      so `/stop-machine` serves only between turns. During a turn:
+      - the client's cancel (`session/cancel`) ends every stream the agent
+        started;
+      - the companion page's button and the CLI command send the machine's
+        stop.
+
+    - **The approval through ACP.** It is `session/request_permission`
+      offering only `allow_once` and `reject_once` of the four kinds
+      (https://agentclientprotocol.com/protocol/tool-calls), with the exact
+      payload as the tool call's text content.
+    - **What cannot be equal is said, not hidden.** Ports are the machine's
+      the engine runs on. In a cloud workspace (Codespaces, code-server,
+      Che, Firebase Studio) there is no USB, so simulators and offline tools
+      only. The matrix below records each editor's surfaces, and README
+      carries it.
+
+**Editor matrix (maker features).** "Engine" is where `dist/maker.js` runs;
+"Approval" the surface that shows D83.3's request; "Preview" where the
+device panel, log and STL viewer render.
+
+| Editor                                                                                                   | Route                                                                                                                        | Engine                | Approval                                                         | Stop                                                              | Panel, log, preview                   | Ports and machines                                                                                                        | When                                               |
+| -------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | --------------------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| VS Code, VSCodium, Cursor, Devin Desktop (Windsurf), Kiro, Positron                                      | the extension                                                                                                                | extension host        | native modal                                                     | panel chip, status bar, palette, keybinding                       | shared React panel and preview tab    | this machine                                                                                                              | now (M103)                                         |
+| Remote-SSH, Dev Containers, WSL                                                                          | the extension on the remote                                                                                                  | remote extension host | native modal (UI side)                                           | as above                                                          | as above                              | the remote's (a Pi over Remote-SSH: its USB and GPIO)                                                                     | now; Pi rows need hardware                         |
+| code-server, Codespaces, Che, Firebase Studio                                                            | the extension in the cloud host                                                                                              | cloud host            | native modal                                                     | as above                                                          | as above                              | none (no USB): simulators, offline tools, registered machines only if the host can reach them                             | now, offline tools and simulators only             |
+| Eclipse Theia                                                                                            | the extension                                                                                                                | Theia's plugin host   | Theia's modal (qualified in M62b)                                | as above                                                          | as above                              | this machine                                                                                                              | now, after its M62b checks                         |
+| **Arduino IDE 2.3.x** (Theia 1.57, API 1.96, Node 20.14, Chromium 124)                                   | a second VSIX build, side-loaded into `~/.arduinoIDE/plugins/`                                                               | the IDE's plugin host | native modal                                                     | as VS Code                                                        | shared React panel                    | this machine; board, FQBN and port from the IDE's board API; the IDE's Serial Monitor holds the port (lease reports busy) | M103f                                              |
+| PlatformIO IDE (VS Code family)                                                                          | the extension beside it                                                                                                      | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine; `pio` found under `~/.platformio/penv`                                                                      | now (M103)                                         |
+| PlatformIO in CLion                                                                                      | ACP (bundled PlatformIO)                                                                                                     | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI                                | companion page (JCEF plugin with M64) | this machine                                                                                                              | now (M103)                                         |
+| **Thonny 5**                                                                                             | `thonnycontrib.muse_spark` plugin (Tk menu and status) + runtime + companion page                                            | runtime               | companion dialog (the plugin raises it)                          | plugin's Stop menu item and toolbar button; companion page; CLI   | companion page                        | through Thonny's own connection (the plugin is the host's serial provider), never a second open                           | M103f                                              |
+| **Espressif-IDE 4.x, STM32CubeIDE 2.x, MCUXpresso IDE**                                                  | our Eclipse plugin (M65), SWT Browser forced to Edge on Windows; until then the beta Eclipse ACP Connector for Espressif-IDE | runtime               | plugin dialog or shared dialog                                   | toolbar action, panel chip; CLI                                   | shared React in the SWT Browser       | this machine                                                                                                              | with M65 (connector route now, Espressif-IDE only) |
+| ST, NXP and Espressif VS Code extensions                                                                 | the extension beside them                                                                                                    | extension host        | native modal                                                     | as VS Code                                                        | as VS Code                            | this machine                                                                                                              | now (M103)                                         |
+| Mu (archived), code.circuitpython.org (web app)                                                          | the companion page beside it                                                                                                 | runtime               | companion dialog                                                 | companion page; CLI                                               | companion page                        | this machine; the web editor holds the port while connected                                                               | now (M103), lease only                             |
+| Arduino App Lab                                                                                          | not reachable (MCP-only Agentic Mode, closed provider list)                                                                  | —                     | —                                                                | —                                                                 | —                                     | —                                                                                                                         | —                                                  |
+| JetBrains IDEs through ACP (AI Assistant 2025.3+, CLion 2026.1)                                          | ACP agent via `~/.jetbrains/acp.json`; the registry once the agent offers Agent Auth or Terminal Auth (no WSL)               | agent process         | ACP permission prompt                                            | client cancel; companion page; CLI `stop-machine`                 | companion page                        | this machine                                                                                                              | now (M103), per product qualified                  |
+| JetBrains native plugin (JCEF)                                                                           | plugin + runtime                                                                                                             | runtime               | plugin dialog or shared dialog                                   | toolbar action and shortcut, panel chip                           | shared React in JCEF                  | this machine                                                                                                              | with M64                                           |
+| Visual Studio (WebView2)                                                                                 | plugin + runtime                                                                                                             | runtime               | plugin dialog or shared dialog                                   | toolbar command, panel chip                                       | shared React in WebView2              | this machine                                                                                                              | with M64                                           |
+| Zed, Neovim (CodeCompanion), Emacs (agent-shell), JupyterLab (Jupyter AI), Sublime, Xcode 27, Qt Creator | ACP agent                                                                                                                    | agent process         | the client's permission prompt (companion dialog if it has none) | client cancel; `/stop-machine` between turns; companion page; CLI | companion page                        | where the client runs the agent                                                                                           | now (M103)                                         |
+| Headless `exec` (CI, a Pi)                                                                               | CLI                                                                                                                          | agent process         | none: connect, program and actuate refused                       | CLI `stop-machine`                                                | —                                     | this machine; offline and observe only                                                                                    | now (M103); allowlist is Q-M103f                   |
+| A Pi over plain SSH                                                                                      | ACP agent in Neovim/Emacs on the Pi, or the companion page through `ssh -L`                                                  | the Pi                | prompt or companion dialog                                       | CLI on the Pi; companion page                                     | companion page in the PC's browser    | the Pi's USB and GPIO                                                                                                     | now (M103); 64-bit OS for Muse Code                |
+
+17. **One holder per port or machine.** A port or machine is leased to one
+    conversation at a time, across windows, editors and the ACP agent on the
+    same computer. The lease is a lock file in the per-user data folder that
+    names the holder's owner-only socket, so the CLI stop can reach the
+    holder. A second claimant is told who holds it. A port already held by
+    another program (an IDE's serial monitor, a slicer) is reported busy,
+    never taken. Embedder's "exclusive hardware lease" is the precedent
+    (https://embedder.com/).
+
+<!-- plan-archive:end id="decisions-d81327d36-6716" -->
+
+## D80 — Link devices on the LAN, with each device owning its work (M100, 2026-10-04)
+
+<!-- plan-archive:begin id="decisions-d81327d36-7356" lines="7356-7531" at="d81327d36" bytes="13095" sha256="9021df868e1756e0dea17b821ded2c638de9a17592bea363631b642692f76382" -->
+
+The owner, 2026-10-04: "we should plan out multi device orchistration ie we
+have the extension open on multiple devices on the same network and you can
+link and orchistrate". His Windows PC, Kubuntu VM, Mac mini and Windows 11 VM
+are the first qualification set. This is a plan, not a shipped capability.
+Sources, dependency revisions and the review lessons are recorded in
+`docs/certification/m100-research.md`.
+
+**Build on D74/M95 and D75/M96/M96c.** M95 owns provider clients, model
+identity, credentials, prices and sign-ins. M96 owns roles, worker policy,
+isolated working copies, the board, scheduler, process journal and merge
+queue. M100 adds authenticated device pools and a remote attempt adapter to
+those facilities. It does not build M96d's machine coordinator, election,
+cross-window locks or singleton sharing. The following ten decisions define
+the first delivery:
+
+1. **Explicit, mutual, revocable pairing.** Devices starts off, machine-scoped.
+   The user chooses **Pair device** on both machines. Each generates a
+   per-pair key locally in SecretStorage and exchanges a public invitation
+   (QR, or its copyable text) containing its public certificate, fingerprint,
+   address, protocol version and bounded invitation validity. Both users confirm the peer fingerprint
+   against the other screen before either side enables its listener. There
+   is no unauthenticated network bootstrap port and no trust on first contact.
+   The invitation is not a bearer credential; copying it cannot prove
+   possession of the private key. Short numeric-code pairing waits for a
+   reviewed standard PAKE implementation, not a home-made code-to-key scheme.
+   **Unlink** revokes this pair locally, closes its connections and removes
+   its private key; another pair is unaffected. A changed key needs pairing
+   again. Offline peer revocation cannot recall already admitted work.
+2. **Discovery supplies addresses, never trust.** Manual address entry bypasses
+   discovery only. Connectivity still needs a route to the chosen private
+   interface/address and explicitly authorized inbound access to the actual
+   listening application and TCP port, including on the owner's VM networks.
+   Setup identifies that application, interface/address and port, and explains
+   Windows Defender Firewall prompts/policy, macOS application firewall
+   approval and Linux host firewall rules. A standard user may need an
+   administrator's narrowly scoped allow rule; notifications, an OS prompt or
+   local approval may be unavailable or restricted by policy. No prompt-free
+   or administrator-free connectivity is promised. A failed connection shows
+   **Blocked or unreachable**, without claiming a timeout proves a firewall
+   denial: verify the selected interface, route, address/port and receiver
+   offer; inspect the OS permission/firewall policy, approve only the intended
+   listener or ask the administrator for scoped access, then retry the same
+   paired identity. Keep unresolved attempt ownership and spending uncertainty;
+   reconnect still reconciles before resume. Optional mDNS is
+   off by default and only advertises an opaque service id, port and protocol
+   version while a paired receiver is enabled. It broadcasts no account,
+   repository, model, task or stable device name. Spoofed discovery cannot
+   replace the saved peer pin. No global discovery, relay, UPnP, port scan,
+   automatic firewall change or internet rendezvous is added.
+3. **Pinned mutual TLS, on a chosen interface.** One bounded, versioned
+   protocol over TLS 1.3, using Node's TLS implementation, with client and
+   server certificates checked against the exact per-pair pins. Certificate
+   verification stays on; no application message before mutual authentication,
+   no early data or session resumption, and revocation is checked on every request, including an
+   existing connection. Bind only the chosen loopback or private LAN address,
+   never a wildcard; allow RFC 1918 and IPv6 ULA, refuse public and metadata
+   destinations, redirects and proxy routing. Resolve and check every address
+   again and connect to the checked address. Protocol mismatch refuses work
+   with an upgrade message. Time, byte, connection and queue caps apply before
+   parsing, then zod validates every message and artifact manifest. A new
+   service port exists only after local pairing and explicit **Offer lanes**.
+4. **A device offers scoped execution, with its own credentials.** Its user
+   maps an opaque repository id to a locally selected trusted repository and
+   chooses roles/models, worker and process caps, heavy-check slots, token
+   and spend caps, and whether it offers checks, lanes, or both. The offer
+   contains capability and availability summaries, not provider definitions,
+   endpoints, credentials, login labels or personal paths. Workers use M96's
+   `own-branch` isolated copies in that device's storage (shared clones, not
+   a network-shared `.git`), or read-only snapshots; remote `in-place` is
+   refused. Checks are that device's approved M68/M96c commands, not arbitrary
+   command strings sent by the peer. Muse Code and external CLIs sign in on
+   that device; M95 engine requests use only its locally stored keys.
+5. **The orchestrating window keeps the board.** A device is another lane
+   pool in M96's scheduler, with platform/toolchain labels, role/model entries
+   and advertised caps. One explicitly selected receiver window represents
+   each device in the first delivery. Caps bound that window's offered pool,
+   not every process or duplicate editor on the machine; other windows remain
+   M96's advisory hints. Receiver incarnations are distinct: no listener
+   takeover, election or automatic resubmission into another window. Selection
+   meets the board/role/entry caps with the target's admission and local load
+   guard. Routing names the pair, pool and entry as well as M95's canonical
+   model identity; equal provider ids on different devices never share an
+   auth owner. The target atomically owns its slots, write-set and resource leases;
+   those leases are never exported or reclaimed by the orchestrator. M96's
+   board still orders overlapping planned writes and dependencies across its
+   managed tasks. No cross-device MCP proxy or singleton lease is offered.
+6. **Git carries results; the orchestrator integrates.** Both users approve
+   the repository mapping and the exact base snapshot. The receiver must have
+   that base or explicitly import its bounded Git bundle; dirty tracked files
+   need a separate snapshot preview, and ignored files are excluded. At
+   retirement its host commits the lane's result in its own repository, then
+   returns a bounded base-to-head Git bundle over the paired transport. The
+   orchestrator imports it into a quarantine repository, validates objects,
+   ancestry, path/mode changes, size and expected base/head, then installs only
+   the task's namespaced branch. An optional user-configured pushed ref uses
+   the receiver host's own Git authentication and an exact remote/ref grant;
+   workers still cannot push. No peer can update the orchestrator's `HEAD`,
+   index, working tree, hooks or merge rules. M96c reviews, stages, checks and
+   lands the whole final snapshot under its existing approval. Remote checks
+   are attributed to their device and bound to tree, check and toolchain
+   identities; a peer's reported pass alone never authorizes a merge.
+7. **Disconnect pauses ownership, never duplicates it.** The source journals
+   a dispatch intent before sending; the receiver journals admission and
+   launch intent before starting. Pair, receiver incarnation, board, task and
+   attempt identify the dispatch; retries with the same identity return the
+   recorded outcome, never another launch. Lost acknowledgements, sleep,
+   partition or orchestrator reload pause the queue and keep the attempt's
+   occupancy and uncertain spend counted. After either side detects loss,
+   it admits no new work; a receiver pauses at the next controlled boundary.
+   An already admitted tool or request may finish and incur cost. On reconnect,
+   reconcile durable records first, then ask **Resume queue**; paid work asks
+   locally again. The authenticated envelope names the current receiver;
+   reconciliation, terminal tombstones and settlement acknowledgements bind
+   the saved pair and original attempt tuple, including its historical receiver
+   incarnation. A restart may report a durably proved old outcome without
+   rewriting that owner or relaunching/adopting its work. Unknown or unresolved
+   old records remain blocked with their occupancy and liabilities; absence
+   never proves retirement. Only the receiver's locally observed retirement can settle
+   its attempt, including all tool processes; an unproved descendant cannot
+   be retired by its direct parent's exit. A timer, RPC failure, missing endpoint, PID/start-time check
+   or user assertion never releases it. An unresolved launch stays blocked
+   and its copy quarantined, even after reboot or journal damage; retained
+   tombstones prevent replay after cleanup. M96's **Hand off anyway** is not
+   offered for distributed tasks. No reassignment while the old attempt is
+   uncertain, and no network-wide exactly-once or instant-stop claim.
+8. **Permissions and paid consent belong to the executing device.** Pairing
+   authenticates a peer, not its authority to run a task. Every admission meets
+   the sender's role/mode ceiling with the receiver's repository grant,
+   role/tools, workspace trust, protected paths and current approval policy.
+   A remote Bypass or ordinary approval does not widen any of these. Existing
+   user grants on the receiver can allow ordinary work; forwarding approvals
+   to the orchestrator is deferred until an explicit receiver-side grant and
+   per-action binding are designed. D48's paid gate, price acceptance and
+   per-use popup remain on the receiver, including Bypass; no pairing grant,
+   worker grant or subscription substitutes for them. A waiting prompt appears
+   as **Waiting for approval on <device>**. Trust loss, unlink or a narrowed
+   offer blocks new admissions and retires existing work through local rules.
+9. **Privacy and costs are per device.** Setup names exactly which repository
+   snapshot, task brief and result go to which device, and which model/vendor
+   receives its context. No full chat, memory, skills, auth files, environment
+   or log directory is synchronized. Needed role guidance is an approved
+   bounded task input; the receiver uses its own skills and MCP configuration.
+   Contributor/training and confidential-workspace refusals meet both sides'
+   policies. Reports and logs are bounded and scrubbed on both ends, rendered
+   as untrusted data, and never grant tools or open remote links automatically.
+   Each device bills its own subscriptions/keys and holds its own D78/M82
+   reservations and uncertain liabilities. The map labels device, model,
+   payer kind and known/estimated/uncertain usage. Each paid use keeps M96's
+   composer badge, paid transcript row and PaidUsage tally on the receiver,
+   with attributed usage on the source. Pairing/discovery cost no
+   model call; there is no fleet budget ledger or transfer of spending grants.
+   Shared vendor accounts can share upstream quotas: device caps do not create
+   independent subscription entitlements or a global hard spend guarantee.
+10. **Devices lives in the Agent map, and stays out of ordinary chat.** Reuse
+    M95's Models & Agents panel and M96's map, with a **Devices** section:
+    Pair, manual address, discovery switch, fingerprint, offered roles/models,
+    caps, local/connected/paused/offline/uncertain/incompatible status,
+    Blocked or unreachable setup with recovery instructions, last
+    observation, waiting approvals, task branches, Pause offers and Unlink.
+    Status is an observation, never a safety proof. Task rows show their device
+    and route; caps can only narrow already running work at its next boundary.
+    With Devices off or no paired/approved offer, nothing is discovered,
+    listened for, loaded or injected into a model request, and no extra section
+    appears. The explicit Pair command opens setup. Pairing does not turn the
+    team on: D75's distinct-loaded-model, Solo and conversation-boundary rules
+    still apply. Manually requested check-only use is separate from chat and
+    starts no model or hidden team. Requests and first-send timing for existing
+    single-device/single-model users stay unchanged.
+
+**Supported first:** local desktop extension hosts on Windows, Linux and
+macOS, with the extension open on each device. VS Code stores SecretStorage
+on the client even for a remote extension host; Remote SSH/Tunnels, WSL,
+containers, web editors and standalone/headless receivers therefore wait
+for separate host/key-location qualification. No daemon, cloud control plane,
+VPN installer, SSH credential manager or remote filesystem is added. M96d
+remains a separate prerequisite only for a future machine-wide guarantee.
+
+<!-- plan-archive:end id="decisions-d81327d36-7356" -->
+
+## D87 — Resource governor: CPU and memory thresholds that throttle or relocate work (M107, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-d81327d36-7766" lines="7766-8090" at="d81327d36" bytes="21074" sha256="4331b4a80500f1bb23a3dc02b75802da08eda535d76918057d83bd5d27b1fa65" -->
+
+What exists: M96 lane K's load guard holds back new team work when CPU stays
+above 85% for 30 seconds or free memory falls below 2 GiB, and team processes
+run below normal priority. M96c's check slots and SSH runners take heavy
+checks off the machine, and M100 plans paired devices as lane pools. Each
+covers part of the work, and none takes the user's own numbers. D87 makes
+one governor for everything the harness starts.
+
+1. **One governor per harness process, for everything it starts.**
+   - It lives in portable `src/core/resources/**` (no `vscode`, on M60's
+     portable list), built as `dist/resourceGovernor.js`.
+   - The extension, the ACP agent and headless `exec` load it at the first
+     governed spawn, never at activation.
+   - It replaces M96 lane K's `loadGuard.ts`: the team host reads the
+     governor, so there is one sampler and one set of thresholds.
+
+2. **The work it governs.** Every child the harness starts is registered at
+   launch with a kind and a class.
+   - **Kinds:**
+     - `toolShell`: Model API tool shells (M7);
+     - `backgroundTask` (M46);
+     - `check`: M68's check commands and M96c's heavy commands and check
+       slots;
+     - `mcpServer` (M50);
+     - `worker`: M96's team workers;
+     - `subagent` (M48);
+     - `bestOfN` (M77);
+     - `schedule` (M52);
+     - `browserCheck` (M81);
+     - `hook`: command hooks (M51, M91);
+     - `museServe`: the Muse Code CLI and its tree;
+     - `other`: the voice and recording helpers.
+   - **Classes.** `foreground` is what the user is waiting on now: the
+     active turn's own tool call, the `!` user shell, that turn's hooks,
+     checkpoints, and the panel's git calls. `background` is everything else.
+   - **Never governed:**
+     - the user's own processes and terminals;
+     - the editor, the extension host and the runtime themselves, and the
+       webview;
+     - in-process network calls (model requests, Tab);
+     - Stop, cancel and the process-tree kill;
+     - approvals and the paid popup.
+
+3. **The thresholds are the user's, per machine.** Machine-scoped settings
+   (D15); a workspace cannot change them. The ACP agent and the CLI read the
+   same values from the runtime's settings store, and headless takes flags.
+   - `museSpark.resourceGovernor`: off by default (owner 2026-10-17: the
+     person sets resource limits to prevent overconsumption; none is ours).
+   - `museSpark.resourceCpuMaxPercent`: set by the person, none by default;
+     it acts once held for `RESOURCE_CPU_WINDOW_MS` (30 seconds).
+   - `museSpark.resourceMemoryMaxPercent`: set by the person, none by
+     default, memory in use.
+   - `museSpark.resourceMemoryMinFreeGiB`: set by the person, none by
+     default, available memory.
+   - `museSpark.resourceGpuMaxPercent` and
+     `museSpark.resourceDiskBusyMaxPercent`: unset, and not sampled, until
+     the user sets them.
+   - `museSpark.resourceRelocate`: `paired` (default), `ask` or `off`.
+   - M96's `teamHeavyCommandSlots` and `teamWorkerPriority` stay; the
+     governor only ever narrows below them.
+   - The default is no limit (owner 2026-10-19: the governor's own 85% CPU
+     default is removed; every threshold defaults to null). With nothing set
+     by the person the governor measures and shows but pauses, holds or
+     relocates nothing: an unset metric contributes no reading, and the
+     critical, transport and service trips each need a limit the person set
+     behind them. A limit the person sets works exactly as before.
+
+4. **The sampler is cheap and honest.**
+   - **The machine,** every `RESOURCE_SAMPLE_MS` (5 seconds), with no child
+     process except the older-Darwin headroom helper below:
+     - CPU from `os.cpus()` deltas (`os.loadavg()` is all zeros on Windows),
+       plus Linux's pressure files (`/proc/pressure/cpu` and `memory`) where
+       present;
+     - memory from `os.freemem()` and `process.availableMemory()`, and inside
+       a container from cgroup v2's `memory.max` and `memory.current`;
+     - on macOS, `process.availableMemory()` only with libuv 1.52 or newer,
+       which counts free, inactive and purgeable pages. Older versions count
+       free pages alone. **C-M107-2 amendment (2026-10-10):** on those older
+       Darwin runtimes, the existing universal ad-hoc-signed helper reads
+       `host_statistics64(HOST_VM_INFO64)` free + inactive + purgeable pages,
+       multiplied by the host page size. One request-driven child per governor
+       stays idle between samples, inherits no credentials and exits on stdin
+       EOF or governor disposal. Construction starts nothing; each request
+       has a bounded deadline and strict bounded response validation. A missing,
+       failed or malformed helper returns unknown; it never substitutes free
+       pages. Newer runtimes still use the API; an absent API or unparseable
+       libuv version remains unknown. `kern.memorystatus_level` is not bytes.
+       ACPM118's Node 22/24 capture certifies the original API boundary.
+   - **The harness's own trees,** every `RESOURCE_TREE_SAMPLE_MS` (15
+     seconds), only while governed work runs: CPU time and resident memory
+     per tree.
+     - Windows: from the job object (a query mode of M27's helper).
+     - Linux: from M96 lane K's cgroup scope, or `/proc` for a process group.
+     - macOS: one `ps` call for every group.
+   - **The GPU,** only when a threshold is set:
+     - `nvidia-smi` where it is installed;
+     - Linux's `gpu_busy_percent`;
+     - Windows' GPU engine counters;
+     - on macOS it is stated as unavailable (it needs root).
+   - **Disk,** only when a threshold is set: Linux's `/proc/diskstats`, and
+     the platform counters on Windows and macOS, at 15 seconds.
+   - **D100 G12 signals:** Linux PSI service stalls and real paired/SSH probe
+     outcomes also feed admission while CPU/RAM are healthy. A 20% stall or
+     failure rate held for 30 seconds throttles with the existing hysteresis.
+     Transport rates use one minute, at least five outcomes and at most 100;
+     no endpoint or error text is retained. Missing/expired metrics never clear
+     pressure. Windows/macOS service adapters remain named qualifications.
+   - **Its own cost** stays under 0.5% of one core, measured on the rigs.
+   - **A failed reading is "unknown", never 0.** An unknown reading neither
+     trips nor clears a level.
+
+5. **Levels with hysteresis:** normal, throttle, relocate, pause.
+   - **Enter.** A threshold held for its window (CPU 30 seconds; memory two
+     samples in a row).
+   - **Escalate** after `RESOURCE_ESCALATE_MS` (60 seconds) without
+     recovery. Relocate is skipped when no target exists.
+   - **Critical** (CPU at least 97% for 60 seconds, or available memory below
+     half the floor) goes straight to pause.
+   - **Exit** one level at a time, once every enabled reading has stayed
+     inside its recovery band for `RESOURCE_EXIT_MS` (60 seconds). Percentage
+     recovery is strictly below the limit less `max(0.5, 0.1 × limit)` points.
+     Available memory is strictly above its floor plus
+     `min(0.5 GiB, max(1 byte, 0.1 × total RAM), 0.5 × total RAM)`.
+     These FIXM107G margins remain reachable at every valid setting and
+     machine size; entry thresholds and unknown-reading rules are unchanged.
+   - **Dwell.** Each level is held for at least `RESOURCE_MIN_DWELL_MS` (60
+     seconds), so a load near a threshold never flaps.
+
+6. **Throttle first: priority, concurrency, deferral.**
+   - **Priority of background trees.**
+     - Windows: the job's priority class goes to below normal (idle at
+       pause), and optionally the job's CPU rate cap (hard cap at
+       `RESOURCE_JOB_CPU_RATE_PERCENT`). Both are restored when the level
+       drops.
+     - Linux: cgroup v2 `cpu.weight`, `io.weight` and `memory.high` (which
+       slows a tree without killing it) on M96 lane K's scope where systemd
+       delegates them, restored on recovery. Otherwise `nice` and
+       `ionice -c3` per member. An unprivileged process cannot raise its nice
+       value back, so without a cgroup, renice happens only at pause, and the
+       record says that process stays lowered for its life.
+     - macOS: `taskpolicy -b` (background CPU and I/O), undone where lane 0
+       proves `-B` restores it; otherwise only at pause, as on Linux.
+   - **Concurrency.** The governor publishes a capacity per kind, read by
+     M96c's pick and slots, M77, M46, M52 and M48: one running background item
+     per kind at throttle, no new ones at pause. M96c's child-slot rule still
+     holds, so nothing waits on its own parent.
+   - **Deferral.** A new background launch waits in the governor's queue,
+     first in first out per kind under M96c's priorities, shown as "waiting:
+     machine busy". Running work keeps running.
+   - **Foreground** is never deferred at throttle. At pause, a new
+     foreground spawn waits behind a visible row with **Run now** until the
+     level drops or the person runs it; no wait limit of ours.
+
+7. **Relocate: only where M100 or M96c already allow it, never silently.**
+   - **Targets.**
+     - A paired device (M100) whose approved offer covers this repository
+       and the task's role or check, and whose own governor is at normal.
+     - An M96c SSH runner, for heavy checks.
+   - **What can move.**
+     - Queued team tasks that have not started, and queued checks.
+     - A running check only when the user chooses **Move to <device>**, after
+       M96c's retirement proves the local attempt stopped.
+     - Never: tool shells, background tasks (arbitrary command strings,
+       D80.4), subagents, best-of-N candidates, schedules, MCP servers or
+       Muse Code turns.
+   - **Seen every time.**
+     - The task row names the device and the reason.
+     - A notice appears once per conversation.
+     - The Traffic view (M96c) and the usage journal (M102) record it.
+     - **Keep here** works until the receiver admits the task.
+   - **Consent is M100's, unchanged:** pairing, the offer, the repository
+     mapping, the base-snapshot approval, and the receiver's own permissions
+     and paid popup. The dispatch is M100's own; the governor adds only a
+     reason code and its level.
+   - **Headroom.** M100's offer status gains
+     `resource: {level, headroom: 'ample' | 'some' | 'none'}`: a bucket,
+     never readings, processes or paths. The receiver's governor refuses
+     admission at throttle or above (D80.5's local load guard).
+
+8. **Pause, and tell the user.** At pause no background process starts and
+   queued work waits. The chip turns to a warning, and one notice per
+   conversation names the reading, the threshold and what is waiting, with:
+   - **Resume now**: an override for `RESOURCE_OVERRIDE_MS` (15 minutes);
+   - **Settings**;
+   - **Show resources**.
+
+9. **Never kill; never touch what is not ours.**
+   - The governor ends nothing: no kill, no suspend, and no hard memory cap
+     (one that fails allocations is a kill by another name).
+   - It acts only on a process proven to be in a tree it registered:
+     Windows job membership; on Linux the cgroup, or the process group plus
+     the start time; on macOS the process group plus the start time.
+   - It re-checks membership before each change, so a reused process id is
+     never touched.
+   - It never raises a priority above normal and never uses elevated
+     rights.
+   - Stop, cancel, approvals and the paid popup never wait on it.
+   - **D100 G13:** independent per-job fork protection uses the registered-tree
+     Stop authority for only the offending job, after more than 128 observed
+     members or 64 observed births in 15 seconds. It retains occupancy until
+     whole-tree exit proof. This is separate from pressure/priority actuation;
+     unobserved native births remain a named acceptance blocker in §9.
+
+10. **Every editor shows it** (D84):
+
+    | Surface                                     | Shows                                                                                                | Controls                                                                                     | History                            |
+    | ------------------------------------------- | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------- |
+    | VS Code family                              | a status bar item while not at normal; a chip beside the panel's heartbeat; its popover              | **Resume now**, **Settings**, **Show resources**; **Move to** and **Keep here** on task rows | the usage page's Resources section |
+    | JetBrains, Visual Studio, Eclipse (M104b–d) | the IDE's status widget through MHP's status item; the shared chip in the embedded panel             | the same, in the popover                                                                     | the usage tab                      |
+    | The companion page                          | the shared chip                                                                                      | the same                                                                                     | the companion usage page           |
+    | ACP clients                                 | `/resources`; one notice per change that affects the session's work; `_meta` on a deferred tool call | `/resources resume`                                                                          | `/usage resources`                 |
+    | Any terminal                                | `muse-spark-code-acp resources [status\|history] [--json]`                                           | `resources resume`                                                                           | `usage resources`                  |
+    | Headless `exec`                             | `resource` events in the exec event schema, and a stderr line                                        | `--resource-governor on\|off`, `--cpu-max`, `--memory-max`; relocation refused               | the run ledger                     |
+
+11. **History on the usage page.** M102's journal gains `type: "resource"`
+    records, under D82's retention and rollups:
+    - per-minute aggregates: machine CPU %, memory in use %, an
+      available-memory bucket, GPU and disk where set, and the level;
+    - events: level changes, deferred, relocated and paused counts by kind,
+      and overrides;
+    - per kind, the CPU-seconds and peak memory of the harness's own work.
+
+    Never in a record: process ids, command lines, paths, process names,
+    the environment, or anything about the user's own processes. The usage
+    page's Resources section draws CPU and memory against their thresholds as
+    step lines, with a level band, an events table and the harness's share;
+    `/usage resources` and `usage resources` give the same as text.
+
+12. **Several windows and editors.** Each process runs its own governor over
+    the same machine readings, so all of them back off together, as M96's
+    load guard argued. Each publishes its level in M96's hint file for the
+    Traffic view. A machine-wide total stays M96d's coordinator.
+
+13. **No dependency, nothing at startup.** Node built-ins, the existing C#
+    helper (`MuseSparkJob.cs` gains query and priority modes, compiled on
+    first use), and operating-system tools found by absolute path and run
+    with argument arrays. Activation gains nothing: the status item
+    registers when the governor first loads. Each spawning bundle gains only
+    its admission call, and no cap rises (D6).
+
+14. **Free disk space is governed too, when the person sets a floor**
+    (added 2026-10-06; off by default, owner 2026-10-17).
+    - **Why.** On 2026-10-06 the Mac mini's data volume filled while seven
+      agent lanes ran their tests. Every one of them died with "No space
+      left on device" in the middle of its work. Most of the space was the
+      lanes' own leftovers: browser code-sign clones from killed test
+      browsers, test temp folders, finished worktrees and old dependency
+      copies.
+    - **The owner, 2026-10-06:** "we ran into this storage issue that cause
+      failure right you add guardrails for this in our harness as part of
+      the thresholds?"
+    - **Volumes watched.** The sampler reads free space with `fs.statfs`,
+      a Node built-in that needs no child process.
+      - It watches every volume the harness writes to: the workspace and
+        its worktree root, the system temp folder, the harness's data and
+        log folders, and on a node its state folder.
+      - It samples every `RESOURCE_DISK_SAMPLE_MS` (30 seconds), and every
+        5 seconds once the volume is below twice the floor.
+      - A failed read is "unknown", as in item 4.
+    - **The thresholds,** machine-scoped like item 3:
+      - `museSpark.resourceDiskMinFreeGiB` is the floor, set by the
+        person; none by default.
+      - Throttle starts at the floor.
+      - Pause starts at half the floor.
+      - Critical: a level the person sets, none by default.
+      - The trend also counts: when the last five minutes' rate of filling
+        would reach the floor within `RESOURCE_DISK_ETA_MS` (10 minutes),
+        the level steps up early.
+      - Hysteresis and dwell work as in item 5, with 2 GiB above the floor
+        to exit.
+    - **What each level does:**
+      - **Throttle:** no new disk-heavy work starts. That means test runs,
+        builds, installs, new worktrees, downloads and `npm ci`. They wait,
+        or relocate to a device that has space (item 7, M100's pools).
+        Work already running continues.
+      - **Pause:** background lanes pause at their next safe point, and the
+        user is told once, naming the volume and its free space.
+      - **Critical:** agent tools that write to that volume refuse with a
+        named reason, so a full disk becomes an honest error instead of a
+        crash halfway through a file.
+      - **Never throttled:** Stop, cancel, the checkpoint that saves a
+        pause, and the user's own edits (item 8's list).
+    - **Leftovers: the harness cleans up after itself.**
+      - Every governed child runs with `TMPDIR`, `TEMP` and `TMP` pointed
+        at a temp root the harness owns for that tree. Browsers launched
+        for tests get their own profile and cache folders in that root.
+        **Narrowed by SPAWN017C (2026-10-08, lead decision):** only an
+        explicit launch profile is exempt, never bounded commands as a
+        class. A `probe` (bounded and read-only: Git ref reads, version
+        checks, status queries) keeps admission, its deadline, its output
+        cap, containment and tree retirement but owns no temp root; each
+        call site chooses it, and spawn-inventory.json records it with its
+        reason. `bootstrap` compilation also owns none. A bounded command
+        that might write files stays `contained`, temp root included.
+      - When the tree exits, its root is removed. A failed run's root is
+        kept for `RESOURCE_TEMP_KEEP_MS` (24 hours) for debugging and is
+        then removed.
+      - Some leftovers an operating system puts outside the temp root,
+        such as macOS's per-launch code-sign clones. Lane 0 measures them on
+        each platform. **Narrowed by G55 (2026-10-07, D100):** an item
+        outside the temp root is removed only when the harness recorded
+        that exact path and its identity (device and inode, or file ID)
+        when it created it, the identity still matches when re-checked just
+        before deletion (the G11 ledger rule), and its creating tree has
+        exited. Anything else outside the root is reported, never deleted,
+        and never selected by name shape. This supersedes the earlier rule
+        that removed such leftovers whenever their creating process had
+        belonged to one of our trees. Their reclaimable size comes from a
+        clone-aware estimate, never from `du` (G56).
+      - Worktrees and dependency copies the harness created are removed
+        once their work has merged or been archived, never while dirty.
+      - At throttle the cleaner runs at once and reports what it freed.
+    - **Never touch what is not ours** (item 9). Cleaning reaches only
+      paths recorded in the harness's own registry of what it created. The
+      person's files, other applications' data and anything not in that
+      registry are never removed. The pause notice names the biggest
+      folders on the volume, read-only, so the person can decide.
+    - **Every editor shows it** (item 10): the resource chip and the status
+      item show free space per watched volume, and the pause notice
+      appears in every host.
+    - **Devices and the fleet.**
+      - Each linked device and node reports its free space with its
+        headroom (M100, M110).
+      - The lane scheduler never places disk-heavy work on a device below
+        its floor.
+      - The capacity estimator (M117) counts disk per lane.
+
+<!-- plan-archive:end id="decisions-d81327d36-7766" -->
+
+## D88 — Several accounts per provider, with use thresholds (M108, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-d81327d36-8096" lines="8096-8410" at="d81327d36" bytes="19843" sha256="cb1ca3090f4d98d6ff84a21c8b4dc1d396b69fc2b172068e5d9645d68f54a94b" -->
+
+The owner, 2026-10-05: "i also want to plan out and impliment multi account
+and account use threshholds so we can have multiple accounts from the same
+vendor that get swapped out at a cap or runs them in parellel on different or
+maybe even the same machine if we have not already". Later the same day: "to
+be clear the rotating would not be to circumvent limits it will be to enhance
+and extend them".
+
+**Amended 2026-10-05: accounts of one provider are spread over devices, one
+per device by default; several on one device only through developer options
+(the amendment after decision 11).**
+
+So the feature adds capacity from accounts the user legitimately holds:
+automatic swapping and parallel use are on by default, each account's own
+limits are respected and shown, and the harness never misrepresents identity
+to a vendor. Each vendor's terms, read on 2026-10-05 with every source cited
+in `docs/research/account-terms-2026-10-05.md`, decide where it may act
+without asking.
+
+It builds on:
+
+- M95's provider registry, capability record and per-provider credentials,
+  and M95b's sign-ins;
+- M102's journal, which records usage per account;
+- M106's rate-limit bucket, for headroom;
+- M107's governor and relocation, and M100's paired devices.
+
+1. **An account is one credential for one provider.**
+   - **Kinds:**
+     - an API key: Meta's Model API keys and every API-key preset, including
+       organisation, project and team keys;
+     - an OAuth sign-in: OpenRouter's connect, Hugging Face's OAuth;
+     - a plan sign-in: the ChatGPT plan (M95b), and the Muse Code subscription
+       through its CLI (decision 8).
+   - **Not accounts here.** Copilot reaches us only through VS Code's own
+     `vscode.lm`, which chooses the GitHub account. Claude's plans, Google's
+     consumer tiers and the Z.ai Coding Plan are never held at all (D74).
+   - **Each account has:**
+     - an id (`^[a-z][a-z0-9-]{0,31}$`);
+     - a label the user chooses ("work", "personal", "team org");
+     - its place in its provider's pool;
+     - an optional **limit group** ("shares limits with"). The research found
+       limits attach to a Meta team, an OpenAI organisation or project, a
+       Gemini project or an account, not to a key, so two keys in one group
+       share one limit;
+     - its thresholds.
+   - **Storage.** `providers.json` gains `accounts` with those fields, and
+     never a credential. The credential a provider has today becomes its
+     `default` account, with nothing re-entered.
+   - **Models.** Scans run per account, since an organisation may lack a
+     model. Prices stay per provider and model.
+
+2. **Credentials per account, where they live today.**
+   - **Where.** In VS Code, SecretStorage
+     `museSpark.provider.<id>.account.<accountId>`; the existing
+     `museSpark.provider.<id>` entry stays as `default`. In the runtime, the
+     same names in the OS store (D61).
+   - **How they come in.** Only through the password box, or from standard
+     input (`auth set --provider <id> --account <id>`), each bound to its
+     origin (D74). Rule 8 is unchanged: a second Meta key comes in by the
+     same flow as the first.
+   - **Never** in `providers.json`, history, the journal (which holds an
+     opaque account id only), logs (every account's key is registered with
+     the redactor), exports, MHP frames, the companion page, or relocated
+     work (a device uses its own accounts, D80.4).
+   - **Removal.** Removing an account deletes its secret and revokes a
+     sign-in.
+
+3. **Per-account thresholds,** each optional, over D82's local day, week and
+   month:
+   - spend in USD per day, week or month: the journal's settled cost plus the
+     reservations in flight;
+   - input and output tokens per day or month;
+   - requests per day;
+   - a plan window's percentage: Muse Code's 5-hour and weekly bars from
+     `usage/changed`; the ChatGPT plan's windows once M95b captures them;
+     OpenRouter's key limit;
+   - rate-limit headroom: from M106's bucket, the remaining requests or
+     tokens below a percentage of the key's limit in the current minute.
+
+   They sit inside D78's shared daily budget and M82's conversation cap: a
+   swap never raises either.
+
+4. **Two kinds of trigger.**
+   - A **user cap** is a spend, token or request threshold the user set. It
+     may always move work to another account, except where the vendor allows
+     only one account per person (decision 6).
+   - A **vendor limit** is a plan window, rate-limit headroom, a 429, a quota
+     error or a plan's usage-limit error. The policy record (decision 6)
+     decides what it may do.
+
+5. **The actions.**
+   - **Swap** (on by default): at the next request boundary, to the next
+     account in the pool with room. It sticks until a threshold moves it
+     again.
+   - **Parallel** (on by default): background fan-out (team workers,
+     subagents, best-of-N candidates, scheduled runs) gets an account at
+     admission. Work is spread by headroom and sticks per worker, for its
+     cache and replay. The main conversation stays on its account unless a
+     swap moves it.
+   - **Route:** work goes to a paired device whose own account has room,
+     through M107's relocation under M100's consent.
+   - **Stop and tell:** when no account has room, or the record says so. The
+     notice names the reset time and links the vendor's usage page.
+   - **Never silent.**
+     - The model pill names the provider and the account ("OpenAI · work").
+     - A swap writes a transcript row: "Now on OpenAI · personal: work
+       reached its $20 daily cap".
+     - Account & usage and the usage page show every account.
+   - **Each account's own limits are respected.** No request goes to an
+     account past its own vendor limit, and each account's 429 and
+     `Retry-After` are honoured.
+
+6. **The vendor's terms decide what runs without asking.**
+   - **The record.** `src/core/providers/accountPolicy.ts` holds, per provider
+     and product:
+     - whether several accounts are allowed (yes, with conditions, one per
+       person, or unclear);
+     - where limits attach (team, organisation, project, account, tenant or
+       global);
+     - pooling against vendor limits: `on`, `confirm` or `notOffered`;
+     - the clause quoted, its URL, the date the page showed, and the date
+       checked.
+   - **`on`:** swaps and parallel use against vendor limits run by default.
+     From the research: Anthropic's API, Mistral's API, DeepSeek, Z.ai's API,
+     and Azure within one tenant.
+   - **`confirm`:** before the first swap or spread against a vendor limit on
+     that provider, one dialog does four things:
+     - it quotes the clause, with its source and date;
+     - it says plainly that the vendor's terms restrict or prohibit using
+       several accounts to get past its limits, and that the vendor may act
+       against the accounts;
+     - it asks the user to confirm that the accounts are legitimately theirs
+       to use this way;
+     - it offers **Confirm**, **Only at my own caps** and **Cancel**.
+
+     The answer is recorded per machine and provider, with the record's
+     version and date. It is revocable in the panel, and asked again when
+     that provider's row changes. This covers Meta (API and subscription),
+     OpenAI (API and ChatGPT plan), Google, GitHub, xAI, Groq, OpenRouter,
+     Mistral's consumer plans, Together, Fireworks, Hugging Face, and Azure
+     across tenants. Several of them prohibit pooling against their limits
+     whatever the purpose; the dialog says so rather than softening it.
+
+   - **One account per person.** Where the vendor allows only that (Mistral's
+     consumer plans, OpenRouter, GitHub's free accounts), the same
+     confirmation comes before any swap, even at a user cap.
+   - **`notOffered`:** never an account (D74's list).
+   - **A limit group adds no capacity.** Against a vendor limit the pool
+     skips another key of the same group, and says why.
+   - **The vendor's documented recovery comes first.**
+     - The ChatGPT plan: pause, link to Usage, and offer credits or the
+       user's own API key, as OpenAI's guidance says.
+     - Meta's subscription: upgrade, wait, or the user's own pay-as-you-go
+       key, which asks D48's question.
+   - **Identity is never misrepresented.**
+     - Each request carries only its own account's credential and headers.
+     - The harness never creates or signs up accounts.
+     - It never rotates network addresses, user agents or identifiers, and
+       never proxies to hide where a request came from.
+   - **Re-checked.** The record is re-read before each release, and whenever a
+     row is older than `ACCOUNT_POLICY_RECHECK_DAYS` (90). The panel shows each
+     row's check date.
+
+7. **Reasoning, cache and consent across accounts.**
+   - **Replay.** CAPAUDIT F1's producer identity gains the account. Native
+     reasoning items and encrypted content go back only to the account, or
+     the limit group if a capture shows that works, that produced them.
+     Otherwise they are dropped by the captured policy, and the text stays.
+   - **Cache.** A swap into another limit group starts cold. The swap row
+     names the estimated re-read cost, and the reservation includes it.
+   - **Paid consent** (D48) binds the provider, the account and the price: an
+     account's first paid use asks, since it may bill another organisation.
+   - **Liability.** Uncertain liability stays with the account that incurred
+     it (M82).
+
+8. **Muse Code accounts.**
+   - The CLI owns its sign-in. A second Muse Code account is a second
+     `muse serve` with its own `XDG_CONFIG_HOME`, which the CLI honours on
+     every platform (`launch.ts`).
+   - That home is an owner-only folder in the extension's storage, signed in
+     with `muse login` in a terminal the panel opens.
+   - This waits for a capture that shows sign-in and serve work there, and
+     that records what else moves with the config home: settings, hooks,
+     skills, MCP servers, memory. The panel copies only the non-secret
+     configuration the user picks.
+   - Plan-window thresholds come from `usage/changed`, and the subscription's
+     limits follow the record's Meta subscription row (`confirm`).
+
+9. **Every editor** (D84):
+
+   | Surface                                     | Accounts                                                                                                                                                                                                        |
+   | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | VS Code family                              | the Accounts section of Models & Agents (add, label, order, limit group, thresholds, the record's row and its check date); the account in the picker and pill; swap rows; the confirmation dialog               |
+   | JetBrains, Visual Studio, Eclipse (M104b–d) | the same panel through the bridges                                                                                                                                                                              |
+   | The companion page                          | the same panel                                                                                                                                                                                                  |
+   | ACP clients                                 | `/accounts` (list, current, thresholds, `use <id>`); an `account` session option; swap notices                                                                                                                  |
+   | Any terminal                                | `muse-spark-code-acp providers accounts list\|add\|remove\|order\|thresholds`; `auth set --provider <id> --account <id>`                                                                                        |
+   | Headless `exec`                             | `--account <id>`. `--account-pool` swaps at user caps, and at vendor limits only where the record is `on` or a confirmation was recorded on that machine. CI with `--key-stdin` has one account and never swaps |
+
+10. **Devices.** A paired device's offer status gains, per provider, an
+    account headroom bucket (`ample`, `some`, `none`), never labels, ids or
+    credentials. Routing follows M100's consent. The receiver applies its own
+    record and its own confirmations, which never travel between machines.
+
+    **Placement amendment (a), M108 D (2026-10-06):** each account is pinned
+    to exactly one device or node in local metadata. `onePerDevicePerProvider`
+    defaults on for placement; a second account of that provider on the same
+    device is refused with two ways forward: choose another device or turn
+    off the rule. Re-pinning replaces the previous placement. Swaps and
+    background routing follow the pinned device's provider headroom, with
+    **Send to {device}** as the manual choice. No account identifier or
+    confirmation is sent to select a receiver credential; the receiver
+    chooses from its own locally pinned accounts. The original pooling
+    trigger remains a reason to consult the receiver's own policy, never
+    permission to bypass it. Missing/unknown offers give no admission.
+    M100/M107 implementations are absent on lane D's `76c1231e8` base:
+    implement these regions through required injected placement, authenticated
+    offer, consent, relocation and receiver-admission ports. W binds their
+    real owners and lazy bundles; D's certification names every handoff.
+
+11. **The usage page.** Records gain `account`, an opaque id. The page groups
+    by account (labels resolved locally), shows each account's thresholds as
+    meters, and lists swaps, spreads and stops as events.
+
+**Amendment, 2026-10-05: accounts are placed on devices.** The owner, the
+same evening: "we need to make sure that we have them spread over multiple
+devices this is mandatory and there does need to be a debugging feature to
+overcome this for testing purposes that a user can enable in a secret menu
+that allows it and provides a way to facilitate".
+
+- **What the research says, and what this is not.** No provider in
+  `docs/research/account-terms-2026-10-05.md` forbids several accounts on one
+  device; the clauses are about using several accounts to get past limits,
+  wherever they run. Placement is therefore not a way around any vendor's
+  terms:
+  - every `confirm` row and every one-account-per-person rule in
+    `accountPolicy.ts` applies unchanged, on every device and in every mode,
+    developer mode included;
+  - decision 6's "identity is never misrepresented" holds in every mode: no
+    address, user-agent or identifier rotation, and no device spoofing
+    toward the vendor.
+- **a. Placement.**
+  - Each account is pinned to exactly one device: this machine, a paired
+    device (M100) or a node (M110). Its credential lives only there (D80.4,
+    unchanged).
+  - **The default policy, `onePerDevicePerProvider`**
+    (`ACCOUNT_PLACEMENT_DEFAULT`): a second account of a provider needs a
+    second device. Adding one on this machine is refused, naming the two
+    ways forward: pair a device or a node and add it there, or developer
+    options.
+  - **Parallel use spreads by device.** Background fan-out goes to the device
+    whose pinned account has headroom, through M107's relocation and M100's
+    consent (decisions 5 and 10, unchanged).
+  - **A swap of the main conversation** moves its next requests to the
+    device that holds the next account: through M110c's model-request relay
+    once it lands. Until then the swap stops and tells, naming the device
+    whose account has room, and **Send to {device}** moves the queued work
+    there. The other account's credential is never used here.
+  - The offer's per-provider headroom bucket (decision 10) is how the
+    orchestrator sees an account on another device; labels and ids still
+    never travel.
+- **b. Developer options, hidden until unlocked.**
+  - **Unlocked the Android way:** `DEVELOPER_UNLOCK_CLICKS` (7) clicks within
+    `DEVELOPER_UNLOCK_WINDOW_MS` (10 seconds) on the version number in
+    About (the `/help` reference's About header and What's New's version line
+    in the editors; Settings › About in Muse Desktop; the TUI's About), or
+    the palette's **Muse Spark: Developer options**; in a terminal,
+    `muse-spark-code-acp developer` with a typed confirmation. Headless
+    `exec` and CI refuse them.
+  - **Listed in `/help`,** with how to unlock them, because the reference
+    stays complete (the owner's rule).
+  - **Not settings.** They live in machine-local state (VS Code's global
+    state, the runtime's state folder), so no workspace, settings sync or
+    policy file can turn one on.
+  - **The first option:** "Several accounts of one provider on this device
+    (testing)". Each extra account then runs in its own isolated local
+    profile: its own credential slot (decision 2's name), its own state
+    folder (`<agentDataFolder>/profiles/<provider>-<account>/`) and its own
+    runtime process, started and stopped by the host. A profile is a local
+    device to the pool, so placement's code path is the one that runs.
+  - **Never quiet.** While any option is on: a persistent **Developer mode**
+    badge (VS Code's status bar and the panel's header, the companion page,
+    the native bridges' status item, ACP's notice, the CLI's stderr line, the
+    TUI's status line, Muse Desktop's bar); an audit entry for every change
+    (append-only, `<agentDataFolder>/developer/audit.jsonl`: the time, the
+    option, the action, the editor; never a label or credential), shown on
+    the Developer options page and in `/report security` (D93); **Reset**,
+    which turns every option off and stops the profiles; and expiry after
+    `DEVELOPER_OPTIONS_EXPIRY_DAYS` (7), with a notice.
+  - **Fakes and real accounts.** It works with the test fakes and with real
+    accounts; real accounts still go through decision 6's confirmation.
+- **c. Proved by tests:** the badge and the audit entry appear; the
+  confirmation is never skipped in developer mode; and no identifier changes
+  on the wire, by a golden comparison of the same request sent from two
+  profiles, which may differ only in the credential header and the
+  per-request ids the record names.
+- **The editors** (decision 9's table gains): the Developer options page in
+  the panel (VS Code family, the native bridges, the companion page); ACP's
+  `/accounts` shows each account's device; the terminal's
+  `providers accounts place <id> --device <device>` and `developer
+[status|enable <option>|disable|reset]`; `exec` refuses developer options
+  and never places.
+- **b2. Amended 2026-10-06 (Q-M108 item 2, the owner's yes): a visible
+  setting.** "Allow several accounts of one provider on this PC"
+  (`museSpark.accounts.severalOnThisDevice`, machine-scoped, off by default)
+  sits in Settings › Accounts, beside each provider. Turning it on shows
+  decision 6's vendor-terms confirmation for that provider (its clause, URL
+  and date; the policy record decides, as everywhere), and each extra account
+  then runs in its own isolated local profile exactly as developer options'
+  first option does: its own credential slot, state folder and process, and
+  the same golden proof that no identifier changes. It is not badged as
+  developer mode and does not expire; the accounts it allows are labelled
+  "on this PC" in the pill and the list. Developer options stay for the other
+  testing switches, and their first option becomes the same profile code
+  with the developer badge and expiry kept.
+
+<!-- plan-archive:end id="decisions-d81327d36-8096" -->
+
+## D89 — A credential vault and broker for agents (M109, 2026-10-05)
+
+<!-- plan-archive:begin id="decisions-d81327d36-8416" lines="8416-8997" at="d81327d36" bytes="50946" sha256="bb9727ce60bc5243be0a2625291cd35b76b760c5b2045fee383c15499741bb2d" -->
+
+The owner, 2026-10-05: "how do our agents handle auth? i would like ideally
+for there to be some sort of secure enclave that passwords and usernames and
+keys for like unattended access or ssh or sudo etc is stored safely and the
+agents can securely call on them if needed and the orchastrator can restrict
+the access as needed or maybe the agents need to ask the orchastrator for
+permission figure out a good secure plan for this". Then: "this could even be
+secure tokens for logins and website account logins etc", and "and they
+should be modes for this from the orchastrator as well like ask, always allow
+etc".
+
+**How the agents handle credentials today** (research §1). No agent gets a
+stored secret. The Model API key lives in SecretStorage, or the OS store
+outside VS Code (D61), and never reaches a child process (rule 8). Muse Code
+keeps its own sign-in. Hooks get a narrow environment, the ACP agent strips
+credential variables and agent sockets from its tools, and M96's workers run
+without git's credentials or `SSH_AUTH_SOCK`. But in the VS Code window the
+Model API backend's shell tool gets the user's environment as VS Code's
+terminal does (`shellEnvironmentOf` in `src/extension.ts`): `*_API_KEY`
+variables, `SSH_AUTH_SOCK`, token variables, and every credential file the
+user can read. sudo is whatever sudoers says. So the only way to give an
+agent a credential on purpose is to put it where every process can read it.
+
+So the harness gets one encrypted vault, and a broker that performs each use
+for the agent. Agents get handles and approved, scoped, logged uses, never
+values. Every platform fact below, with its source and date, is in
+`docs/research/credential-vault-2026-10-05.md`.
+
+It builds on:
+
+- D61 and rule 8: the OS store, values entered only by the password box or
+  standard input;
+- D74/M95: credentials bound to their origin, and each key registered with
+  the redactor per request; M95b's OAuth sign-ins and loopback helper; D88/M108's
+  accounts;
+- D75/M96: roles, the workers' credential fence and M96's MCP bridge; M96c's
+  scheduler and runners;
+- D80/M100: pinned mutual TLS between paired devices; D87/M107: relocation;
+- D83: approvals minted and bound by the engine, answered only from the host's
+  own UI; D84/M104: MHP, the companion page, every editor;
+- D48 and rule 12: money keeps its own question, which a vault grant never
+  answers; D64: control destinations, not content.
+
+1. **One vault per user, shared by every editor.**
+   - **Where.** The runtime's per-user data folder (`vault/` beside D83.17's
+     lease files): `vault.v1` (items), `slots.v1` (keyslots), `audit/` and
+     `run/` (the broker's socket and lock). Owner-only: mode 0700, or an
+     owner-only DACL. VS Code, its forks and the ACP agent open the same
+     vault.
+   - **An item** has an id, a handle `secret://<name>`
+     (`^[a-z][a-z0-9-]{0,47}$`), a label, a kind, its fields, its bindings
+     (the targets it may be used for), its protection (`requirePresence`),
+     its agent policy (D89.6) and its dates (created, rotated, expires, last
+     used). Names and labels are shown to agents, so the add dialog says to
+     keep secrets out of them, and an item can be hidden from agents.
+   - **Kinds:**
+     - `apiKey`: one value bound to an origin (D74's `{v, auth, origin}`
+       record, unchanged);
+     - `oauth`: access and refresh tokens, the issuer, the expiry, and the
+       resource it is bound to (RFC 8707);
+     - `sshKey`: generated in the vault (Ed25519 in software, or ECDSA P-256
+       resident in the Secure Enclave or the TPM where D89.2 allows) or
+       imported; its public key and fingerprint are shown and exportable;
+     - `password`: an optional username and a password for a named target,
+       such as sudo on this machine or a database;
+     - `webLogin`: origins, a username, a password and an optional TOTP seed;
+     - `totp`: a seed alone;
+     - `session`: one origin's cookies after the user signs in (D89.9);
+     - `secret`: any named value, for environment injection or disclosure;
+     - internal kinds agents never see: `devicePair` (M100's pair keys) and
+       the harness's own records (M95's local profile id).
+   - **Never in the vault:** Muse Code's sign-in and `muse mcp login` tokens
+     (the CLI's, D1, D42); VS Code's GitHub session (M71); another
+     application's stores (D74); passkeys (D89.9).
+
+2. **Encrypted at rest under a per-user key, hardware-protected where the
+   platform allows.**
+   - **Format.** A random 256-bit vault key encrypts each item with
+     AES-256-GCM (`node:crypto`). Each item has its own key from
+     HKDF-SHA-256 over its id, a random 96-bit nonce, and its id, kind and
+     format version as additional data, so blocks cannot be swapped. The
+     index (names, kinds, bindings, policies) is encrypted the same way. A
+     generation number rises with every write.
+   - **Keyslots.** The vault key is wrapped in one or more slots, like a LUKS
+     header. Any slot unlocks, and adding one needs an unlocked vault.
+
+     | Slot          | Windows                                                                                                                                                                                        | macOS                                                                                                                                                                                              | Linux                                                                                                                                             |
+     | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+     | Hardware      | A non-exportable RSA-2048 decrypt key on the TPM through CNG's Platform Crypto Provider; OAEP over the vault key; ECC only where probed                                                        | A Secure Enclave P-256 key-agreement key: ECDH with an ephemeral key, HKDF, AES-GCM over the vault key. Only where `SecureEnclave.isAvailable` (Touch ID or Apple silicon), after Q-M109's capture | A TPM2 sealed object (32 bytes of the 128 allowed) through `systemd-creds --user` (systemd 256 or later) or tpm2-tools, where `/dev/tpmrm0` opens |
+     | Presence      | A Platform Crypto Provider key made with forced high protection (OS prompt; per-use cache behavior must be captured), or a fresh Windows Hello signature over the broker's challenge as a gate | The Secure Enclave key with `userPresence`: Touch ID or the password at each unwrap, the prompt naming the use                                                                                     | A TPM2 PIN (with the TPM's dictionary-attack lockout) or the passphrase                                                                           |
+     | OS store      | DPAPI for the current user; Credential Manager holds at most 2,560 bytes, so only the wrapped key, and a DPAPI file in network logons (SSH)                                                    | The login Keychain (the file-based keychain), as D61 and VS Code use today                                                                                                                         | The Secret Service, which any process in the session can read: labelled so                                                                        |
+     | SecretStorage | Each VS Code-family install's own; refused where safeStorage reports `basic_text`                                                                                                              | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Passphrase    | Argon2id with RFC 9106's second option (t=3, p=4, 64 MiB) where the host's Node has `crypto.argon2`, else scrypt (N=2^17, r=8, p=1)                                                            | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+     | Recovery code | 160 random bits, shown once at setup, for a reset TPM or a new machine                                                                                                                         | as Windows                                                                                                                                                                                         | as Windows                                                                                                                                        |
+
+   - **Defaults** (`museSpark.vault.protection: auto`): the hardware slot
+     where it works, plus the OS-store slot, so a reset TPM or a replaced
+     board loses nothing, and the recovery code offered at setup.
+     `requirePresence` is per item and off by default: it prompts at every
+     use, which a key the extension reads per request (the Model API key)
+     cannot bear. The add dialog recommends it for sudo, SSH keys and web
+     logins.
+   - **Presence correction (lane 0, 2026-10-05).** The CNG research's
+     once-per-process cache quote is about `NCRYPT_PIN_PROPERTY`; it does not
+     prove forced-high-protection PCP cache behavior. `requirePresence` must
+     still obtain fresh per-use presence, using the captured mechanism or a
+     fresh Hello challenge, never assuming a cached prompt satisfies it.
+   - **What each tier stops** (research §5). Every slot stops other users;
+     hardware, passphrase and recovery slots stop a copied disk; only presence
+     and the passphrase stop a process running as the user, which can ask
+     DPAPI, the Keychain, the Secret Service or a silent TPM key exactly as
+     the broker does. The panel names the tier in force in those words, for
+     example "Protected by this PC's TPM. It unlocks silently when you sign in,
+     so programs running as you can unlock it too."
+   - **Rollback (FIXM109C, 2026-10-05).** The slot document MAC binds the
+     generation, canonical ciphertext document digest and previous committed
+     state's keyed digest. The independently protected anchor holds that exact
+     MAC as `stateDigest` with the generation and audit state, and advances
+     only after an atomic comparison of its complete prior state. Older files,
+     same-generation forks and reordered ciphertext entries are refused.
+     Restore requires the user's explicit confirmation, publishes a fresh
+     generation and admits only the exact existing anchor or a new device
+     without history; a different backup cannot revive revoked policies or
+     removed material. Its authenticated write-ahead intent binds the exact
+     prior anchor and source digest, so a prepared restore jump can recover
+     before advancement and retry without advancing twice.
+   - **Platform limits, said plainly:**
+     - This slot uses the documented P-256 signing/key-agreement API, which
+       imports no raw private key. Passwords and Ed25519 keys are vault items
+       under an SE-wrapped vault key, never imported SE keys. This does not
+       claim every modern CryptoKit SecureEnclave type is P-256.
+     - Apple's data-protection keychain sample needs provisioning and an
+       app-like arrangement (TN3137 permits a wrapped command-line tool).
+       A CryptoKit file-blob helper's actual creation, reload and presence
+       behavior remain Q-M109 captures; the sample is not proof for it.
+     - Windows Hello signs; the API reference says RSA-PSS while its guide
+       sample verifies PKCS#1. Capture the actual padding. It is a fresh
+       presence gate in the broker, never input for a deterministic wrap key.
+     - The Secret Service isolates nothing within a session.
+     - Windows elevation is UAC on the secure desktop, which no program can
+       answer.
+
+3. **The broker: one process holds the key and performs every use.**
+   - **Process.** `dist/vaultBroker.js` runs as its own Node process: the
+     runtime's Node, or VS Code's executable run as Node
+     (`ELECTRON_RUN_AS_NODE`). The first host that needs it starts it; the
+     next finds it through `run/broker.lock` (process id, start time,
+     protocol version, socket). There is one broker per user session and
+     protocol version. A host on another version starts its own, and every
+     broker honours the vault's lock epoch (D89.11).
+   - **Channel.** An owner-only Unix socket in `run/`, with the peer's uid
+     checked (`SO_PEERCRED`, `getpeereid`), or a named pipe with an
+     owner-only DACL that refuses remote clients. A per-boot token from an
+     owner-only file. zod on every frame (rule 7).
+   - **Unlock** comes at first use, silently for silent slots. The vault key
+     stays in an unpooled Buffer and is zeroed at lock. The vault locks after
+     `museSpark.vault.lockAfterIdleMinutes` (240), when the screen locks
+     where the platform helper reports it, at **Lock vault now**, and when
+     the broker exits.
+   - **First-party uses stay in the host.** The extension's own HTTPS clients
+     (the Model API backend, M95's providers, Muse Voice, Tab, the judge)
+     need VS Code's proxy and certificate handling (D43). So they read their
+     key from the broker per request, as they read SecretStorage today,
+     register it with the redactor for that request (D74), and keep it no
+     longer. No agent reaches these uses.
+   - **Who asks is known, never claimed.** A host (an extension window, the
+     ACP agent, the companion's runtime) speaks only for the requesters it
+     started. The broker knows a requester by the socket, ticket or session
+     its request came on, never by what the request says.
+   - **If the broker cannot start** (a policy that blocks the child process,
+     a broken install), the host loads the same code in its own process for
+     first-party reads only, so the Model API key keeps working. Every
+     agent use is then refused, since the separate process is what protects
+     them, and the panel says why and how to fix it.
+
+4. **Agents get handles and brokered uses, never values.**
+   - **What the model sees.**
+     - `secret_list` returns handles, kinds, labels and what each may be
+       used for (hosts, origins, commands). It never returns a value, and
+       never lists hidden or first-party items.
+     - `secret_request` asks the user for access to something the vault does
+       not hold. The card offers **Add to vault**; the model gets back a
+       handle, never the value.
+     - A handle in a command's arguments is refused with the reason: an
+       argument is visible to every process. Nothing substitutes a handle
+       into a command, a file or the model's text. The only references ever
+       resolved are MCP entries' `${secret:<name>}`, at server start (below).
+   - **Uses, by kind:**
+     - **SSH: signing in the broker.** The broker is an RFC 9987 agent on a
+       socket or pipe of its own for each requester, and `SSH_AUTH_SOCK` in
+       that requester's processes names it. Keys never leave the broker.
+       - Each signature is bound to the destination's host key from OpenSSH's
+         `session-bind@openssh.com`, matched to its `known_hosts` names, and
+         to the remote user parsed from the request. A client that sends no
+         `session-bind` is "destination not proven", which only an any-host
+         grant covers.
+       - Forwarded use (`is_forwarding`) is refused unless the grant allows
+         it. Commit signing (SSHSIG, namespace `git`) is a target of its own.
+       - The user's own agent (1Password, Bitwarden, OpenSSH) is fronted, not
+         hidden: its keys appear as external keys under the same grants.
+       - On Windows the broker serves its own pipes, never the system pipe,
+         and pins Windows' OpenSSH for git where Git for Windows' bundled ssh
+         cannot reach a pipe (lane S's capture).
+     - **sudo: standard input for one command.** The feeder (below) runs
+       `sudo -S -k -p '' -- <argv>` for exactly the approved argv and working
+       folder, writes the password to sudo's standard input, and leaves
+       nothing cached for a later command (`-k`).
+       - A script that calls sudo itself can be granted the askpass route:
+         `SUDO_ASKPASS` names a one-shot helper whose ticket is good for
+         `VAULT_ASKPASS_USES` (3) uses within `VAULT_ASKPASS_TTL_MS` (10
+         minutes). That hands the password to whatever runs the helper, so it
+         is a disclosure to the command's tree, labelled so, and the broker
+         runs `sudo -K` when the command ends.
+       - Where `sudo -n true` succeeds (`NOPASSWD`), the panel says the vault
+         adds nothing there and that any approved command can become root.
+       - Windows elevation is never brokered (UAC).
+     - **git over HTTPS: a scoped helper.** For the wrapped command the
+       feeder is the only credential helper (`GIT_CONFIG_COUNT`:
+       `credential.helper` reset, then the feeder; `credential.useHttpPath`
+       true). It answers `get` only for the granted protocol, host and path,
+       marks the answer `ephemeral` with `password_expiry_utc`, and ignores
+       `store`. The token is in git's memory for that command: a disclosure to
+       git's process tree, scoped and logged. SSH remotes through the
+       broker's agent are preferred, and the panel says why.
+     - **Environment: one process.** The feeder puts each granted value into
+       exactly that command's environment, under the granted name, and
+       scrubs its output (D89.8). The program and its children see the value,
+       and the card says so.
+     - **One-time codes.** A TOTP seed never leaves the broker. The current
+       code goes to one command's standard input, or into a fill.
+     - **Web logins: fill** (D89.9).
+     - **Headers.** For remote MCP servers and M95's custom headers, the
+       extension's own transport adds the item's header for its bound origin
+       only (D74's origin check), as it does for first-party keys.
+     - **Disclosure (owner correction, 2026-10-06).** A value never reaches
+       a model, provider or agent context. Disclosure is only to the person,
+       shown by the authenticated host UI after fresh presence. Destination
+       processes use the named command-bound routes above. The recipient
+       schema expresses only `person`; arbitrary recipients are refused.
+       `allowDisclosure` remains explicit, every use asks regardless of mode,
+       and the audit names disclosure. An already released value cannot be
+       recalled; the UI offers **Rotate**.
+   - **The feeder** (`dist/vaultExec.js`) is the one way a brokered value
+     reaches a child process.
+     - The host starts it in place of the command, inside the command's own
+       M27 job object, M96 cgroup scope and M107 admission, with a single-use
+       ticket on an inherited pipe: never an argument or an environment
+       variable.
+     - It proves the ticket, receives only what the ticket allows, starts the
+       command, relays and scrubs its output, and keeps its broker connection
+       open for its life. When that connection drops (revocation, lock), it
+       ends the command's tree.
+   - **Every backend gets every use:**
+     - **The Model API backend.** The shell tool gains a `secrets` parameter
+       (environment names to handles, `stdin`, `git`, `sudo`, `ssh`), and a
+       command that has one runs through the feeder.
+     - **Muse Code** runs its own tools, so it gets `vault_run` on the
+       extension's `ide` MCP server: a command run by the extension's feeder,
+       under the extension's own approval card, returning only scrubbed
+       output. When the vault holds SSH items, `muse serve` also gets
+       `SSH_AUTH_SOCK` naming its own broker socket. No value enters
+       `muse serve`'s environment, as rule 8 already says of the Model API
+       key.
+     - **External agents** (M96 over ACP) get a socket of their own, and
+       `vault_run` through M96's MCP bridge.
+     - **Hooks** get environment values only, under an Always grant bound to
+       the hook command's digest. A hook never asks and never discloses.
+     - **MCP servers.** A stdio entry may name `${secret:<name>}` in its
+       `env`, as the MCP specification tells stdio servers to take
+       credentials from the environment. The extension's pool (M50) and M96's
+       bridge start that server with the value, under a grant bound to its
+       command, arguments and working folder. A Muse Code session that loads
+       the same file itself sees an unresolved reference; the panel says that
+       server reaches Muse Code only through the bridge.
+
+5. **The agent credential fence: the harness hands out no ambient authority.**
+   - Every process an agent starts in VS Code gets what the ACP agent's tools
+     get today (`withoutCredentials`, `withoutKeyringRoutes`): no credential
+     variable, no D-Bus or keyring address, no CI token. `SSH_AUTH_SOCK` is
+     only ever the requester's own broker socket.
+   - Git's credential helpers are reset for agent processes
+     (`GIT_CONFIG_COUNT`), with `GIT_TERMINAL_PROMPT=0`. `GIT_ASKPASS`,
+     `SSH_ASKPASS` and `SUDO_ASKPASS` name the broker's refusing helper,
+     which tells the agent to ask for a grant instead.
+   - `muse serve` keeps the user's own credential variables, which are Muse
+     Code's (D1, rule 8). The fence changes only its `SSH_AUTH_SOCK` and its
+     git and askpass variables, which its tools inherit.
+   - `museSpark.vault.agentFence` is on by default. Off restores today's
+     environment for the main conversation only and says what that exposes.
+     Workers, schedules and headless runs stay fenced (M96, D65).
+   - **What a fence cannot do** (D64: control destinations, not content). A
+     file the user can read, an approved command can read. So:
+     - the panel lists the known plaintext credential files it finds, by
+       name and path only, never content: `~/.ssh/id_*`,
+       `~/.git-credentials`, `~/.netrc`, `~/.npmrc`, `~/.aws/credentials`,
+       `~/.docker/config.json`;
+     - each has **Import**, on the user's click, then **Keep** or **Delete
+       the file**, saying what stops working and how the vault serves it
+       instead;
+     - a CSV export of logins imports the same way, with a reminder to
+       delete the export;
+     - another application's private store (a browser's, a password
+       manager's, Muse Code's, gh's keyring entry) is never read (D74).
+
+6. **Modes per item, set by the orchestrator and applied to its whole
+   fleet.**
+   - **The orchestrator** here is the harness host (the extension window or
+     the ACP agent) acting for the user. The orchestrating model never
+     approves anything (D89.7).
+   - **Modes:** **Ask every time**, **Ask once per session**, **Always
+     allow** and **Never**, plus a separate **Unattended allowed** flag.
+     - New items start at Ask every time.
+     - Migrated first-party items (provider, account, machine and pair keys)
+       are first-party only: Never for agents, and hidden from them.
+     - **A session** is one conversation and the tasks it delegates, until it
+       ends or the window reloads. A session answer covers only the requester
+       role it was given to.
+   - **Grants** narrow a mode. Each names:
+     - roles: M96's roles, the orchestrator, subagents, hooks, MCP servers by
+       name, or any;
+     - workspaces: a trusted folder's id, or any;
+     - the target:
+       - SSH: the exact host, its host key fingerprint and the remote user;
+         or the key's fingerprint for signing;
+       - a web login, header or OAuth item: its origin;
+       - sudo: the argv digest;
+       - git: the protocol, host and path;
+       - environment: the variable names and the command's digest;
+     - a use count, an expiry, and a time window (days and hours, local time).
+   - **sudo is never open-ended.** An Always or session grant for sudo names
+     exact commands (argv digests, shown as the argv). Any other sudo use
+     asks.
+   - **Always is set in the vault, never from a prompt.** A card offers
+     **Allow once**, **Allow for this session** (where the item's mode
+     permits it) and **Deny**, and links **Manage in vault**. A standing
+     grant is made in the vault panel or with `vault grant`, every scope field
+     shown.
+   - **Role ceilings.** M96's role charter gains a `secrets` key: `none`,
+     `ask`, or a list of handles. A role's grants are never wider than its
+     ceiling. The built-in research, design and marketing roles start at
+     `none`.
+   - **Delegation with secrets** (the owner's "the agents need to ask the
+     orchastrator").
+     - The orchestrating model may list in `delegate` the handles a task
+       needs. The harness shows the user one card for the task: its role,
+       targets and use count, until the task ends.
+     - Once that is approved, the worker's uses inside it proceed, and
+       anything else asks.
+     - The model can narrow a task's access, but never widen it, answer a
+       card or mint a grant.
+   - **The fleet.** One policy, applied by the broker, governs the main
+     conversation, subagents (M48), best-of-N candidates (M77), team workers
+     of every kind (M96), schedules (M52), timed sends (M88), goals (M45),
+     relocated work (M107) and paired devices (M100).
+
+7. **An approval shows the exact use and binds to it** (D83.16).
+   - **The broker mints each request:**
+     - an id (128 random bits);
+     - the requester (host, conversation, task, role, device);
+     - the item and the use's kind;
+     - the canonical use (host key fingerprint and user; argv and working
+       folder; origin and frame; environment names; protocol, host and path)
+       and its SHA-256;
+     - a nonce and an expiry (`VAULT_APPROVAL_TTL_MS`, 120 seconds; an
+       unanswered card is Deny).
+   - **The card says the use in words.** For example:
+     - "Sign in to deploy@203.0.113.7 (ED25519 SHA256:…) with prod-deploy";
+     - "Run `sudo systemctl restart api` in ~/srv";
+     - "Fill the password for https://github.com into its sign-in form".
+   - **Bound.** The broker accepts only an answer that echoes the id and
+     digest before the expiry, and only once: a used or expired id is refused.
+     At use time it checks the actual use against the digest (the
+     signature's `session-bind` host key, the feeder's argv, the fill's frame
+     origin). Any difference refuses, and asks again.
+   - **Approval comes only from the host's own UI** (D83.3). These never
+     answer a vault card:
+     - a value in a tool's arguments or results;
+     - a hook's allow;
+     - the Auto reviewer (M78, M90);
+     - a tool's "Always allow in this session";
+     - Muse Code's own approvals.
+   - **Bypass never grants a secret.** Asks still ask, and only the user's own
+     grants apply.
+   - **Untrusted content always asks** (CaMeL's capability idea, research
+     §4). Each context item carries its provenance. A request is tainted when
+     the model request that produced it held untrusted content:
+     - a web page or search result (M69);
+     - a browser check page (M81);
+     - an MCP result from any server but `ide`;
+     - an issue or pull request body from another author (M71);
+     - an external agent's or a device's report;
+     - anything in a Restricted Mode workspace.
+
+     A tainted request asks, whatever its mode or grant, and the card names
+     the content it followed. On Muse Code the extension does not build the
+     requests, so taint lasts for the rest of the session once such an item
+     is seen.
+
+   - **Presence.** An item with `requirePresence` adds the OS prompt to each
+     use: Touch ID or the password; the Platform Crypto Provider prompt or
+     Windows Hello; a TPM PIN or the passphrase. The OS draws it from the
+     broker, naming the use. It is the one approval a compromised host cannot
+     forge.
+
+8. **Scrubbing, everywhere a value could surface.**
+   - **The feeder** scrubs its command's output with every form of the
+     values it released: as is, percent-encoded, JSON-escaped, base64 and
+     base64url at all three alignments, and hex in either case.
+   - **The scrub service.** The broker builds an Aho–Corasick automaton over
+     those forms of every value in the vault at unlock, and holds it only in
+     its own memory. The host passes text through it wherever text leaves or
+     is kept:
+     - each Model API request, before it is sent;
+     - transcript rows and history;
+     - logs;
+     - exports (M84) and the flight recorder (M93);
+     - the usage journal (M102), and M96's ledger and reports;
+     - relocated results (M100, M107).
+
+     There is no telemetry to scrub.
+
+   - **Scrubbing is a second line, not the boundary.** A process that holds a
+     value can encode it in a way no scrubber knows (D64). The boundary is
+     that values reach no agent, and the card says so for every route that
+     hands one to a process.
+   - On Muse Code the extension never sees what Muse Code sends to Meta. That
+     is why no value is injected into Muse Code's own processes (D89.4).
+
+9. **Web logins.**
+   - **Fill.** A fill types the username, password or current TOTP code into
+     the harness's own browser: M81's pinned Chrome for Testing, with the
+     item's origin added to that check's explicit hosts. It uses CDP
+     `Input.insertText` on the focused element, and only when:
+     - the top-level page and the element's frame are on the item's exact
+       origin, compared after IDNA, so a look-alike never matches;
+     - the page is HTTPS with no certificate error;
+     - the element is an input of the expected kind.
+
+     The browser check then never reads a password field's value, and the
+     scrub service covers its page reads.
+
+   - **Passkeys stay with the OS.** A passkey sign-in, or one behind a
+     CAPTCHA or a push prompt, is the user's.
+     - **Sign in yourself** opens a headed window of the same pinned build
+       (downloaded with consent and its SHA-256 through M81's store). The
+       user signs in and approves on the device.
+     - On close the vault keeps that origin's cookies as a `session` item,
+       with their own expiry and at most `VAULT_SESSION_MAX_DAYS` (30). A
+       later fill restores them into the check's browser, for that origin
+       only.
+     - The vault never creates, holds, imports or exports a passkey, and
+       never uses a virtual authenticator outside tests. CXF files are not
+       imported while CXP is a draft, since a CXF passkey carries its private
+       key.
+   - **Third-party browser automation** (an MCP server such as the user's
+     Chrome Control) never gets a fill. Only the named, command-bound MCP
+     environment or origin-bound header routes can supply a value; no value
+     returns to a model or agent context (owner correction, 2026-10-06).
+
+10. **Unattended work gets only what was granted for it.**
+    - **Unattended requesters:** headless `exec`, schedules (M52), timed
+      sends (M88), goal continuations (M45), relocated work on its receiver
+      (M107, M100), and any task the user marks unattended.
+    - Such a request is served only by a grant marked **Unattended allowed**
+      whose scope covers it. Anything else waits, or fails closed:
+      - in a window, it waits `VAULT_APPROVAL_TTL_MS` with the card shown;
+      - headless, it fails closed at once, with exit code `denied` and a
+        message naming the item, the use and how to grant it, for example
+        "prod-deploy needs an unattended grant for deploy@203.0.113.7: add
+        one in the vault, or run this interactively".
+    - Presence items are never unattended, and a tainted request (D89.7)
+      fails closed.
+    - **Headless** uses the vault only with the hard flag `--vault` and
+      unattended grants made beforehand for the `headless` requester and that
+      workspace. CI keeps D65's standard-input key and has no vault; rule
+      8's CI exception is unchanged.
+
+11. **Audit, revocation and the break glass.**
+    - **The log.** `audit/` holds append-only JSONL, owner-only, capped and
+      rotated at `VAULT_AUDIT_MAX_BYTES` (8 MiB). Each record is chained to
+      the last by SHA-256 and authenticated with a key derived from the
+      vault key, and the chain head's generation is kept with the slots, so
+      an edited or truncated log is detected. A record holds:
+      - the time and the requester;
+      - the item's handle and the use's kind;
+      - the target, with argv redacted and its digest;
+      - the decision and who made it (mode, grant id, the user's answer,
+        taint, fail-closed);
+      - the outcome.
+
+      Never a value.
+
+    - **Review.** The vault panel and `vault audit` filter by item,
+      requester, kind and outcome, and show each item's last use.
+    - **Revoke** a grant, or change an item's mode, and it applies at once:
+      - the next request is refused;
+      - the requester's agent sockets close and its tickets are cancelled;
+      - its feeders' connections drop, so they end their commands' trees;
+      - the SSH client processes the broker knows by their socket's peer are
+        ended.
+
+      An SSH session that already authenticated stays authenticated if its
+      process cannot be ended, and a disclosed value cannot be recalled. The
+      audit says which, and offers **Rotate**.
+
+    - **Lock vault now** is a command, a panel button, a status item while
+      the vault is unlocked, a keybinding no OS or VS Code default uses,
+      `vault lock`, and `/vault lock` in ACP. It does all of the above for
+      every requester, zeroes the key, and bumps the lock epoch file that
+      every broker watches, so every window and editor locks at once.
+
+12. **Every editor** (D84):
+
+    | Surface                                     | The vault                                                                                                                                                                                                               |
+    | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+    | VS Code family                              | the Vault section of Models & Agents (items, grants, the audit, the tier banner, Lock vault now); approval cards in the transcript and the Agent map; values entered only in VS Code's password box                     |
+    | JetBrains, Visual Studio, Eclipse (M104b–d) | the same panel and cards through the bridges; values entered in the IDE's terminal (`vault add`)                                                                                                                        |
+    | The companion page                          | the same panel and cards; no value crosses it (D84: no `secrets/*` in MHP)                                                                                                                                              |
+    | ACP clients                                 | `session/request_permission` with `allow_once`, **Allow for this session** (`allow_always`, labelled so) and `reject_once`; `/vault` (status, list, lock, audit)                                                        |
+    | Any terminal                                | `muse-spark-code-acp vault status\|unlock\|lock\|list\|add\|remove\|grant\|revoke\|audit\|import\|public-key`, values from standard input with echo off; `vault watch` answers pending requests, bound by id and digest |
+    | Headless `exec`                             | `--vault` and unattended grants only; it never prompts                                                                                                                                                                  |
+
+13. **Devices: secrets never travel** (D80.4, D80.9).
+    - A paired device uses its own vault, grants and approvals. No item,
+      grant or approval is ever sent.
+    - A task relocated to device B that needs a key living only on device A
+      may ask A's broker, over M100's pinned mutual-TLS channel, for a
+      signature (SSH) or a one-time code: the two uses whose value stays on
+      A. A's user approves each use on A, Ask every time whatever A's mode,
+      never unattended, bound as D89.7 says. Every other use is refused,
+      since it would send the value.
+    - This is the per-action binding D80.8 waited for, for secret uses only.
+      It forwards no other approval.
+    - Offers and status never name items (D88.10's rule).
+
+14. **Migration with no data loss.**
+    - **Copy, verify, then retain.** Each value is copied, decrypted back and
+      compared by SHA-256. The old entry stays in place, mirrored on every
+      vault write, for `VAULT_LEGACY_RETAIN_RELEASES` (two minor releases),
+      so a downgrade still finds its key. Then it is deleted, with a notice.
+      **Undo migration** restores every entry until then.
+    - **A store whose milestone has not merged** is born in the vault
+      instead: that milestone's credential lane writes through the vault
+      client once M109's lanes C and B have merged.
+
+    | Store                                                         | Today                                                                                                      | In the vault                                                                                                      | Lane                                      |
+    | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+    | The Model API key                                             | SecretStorage `museSpark.modelApiKey`                                                                      | `apiKey` `meta-model-api`, bound to `https://api.meta.ai`; first-party, hidden from agents                        | M, after C, P and B                       |
+    | The runtime's keyStore                                        | The OS store, `Muse Spark Code (Unofficial)` / `museSpark.modelApiKey` (`src/runtime/keyStore.ts`, D61)    | the same item; `keyStore.ts` becomes the OS-store keyslot (lane P)                                                | M                                         |
+    | M85's TypeSafe key                                            | SecretStorage                                                                                              | `apiKey` bound to `https://api.typesafe.ai`; first-party                                                          | M                                         |
+    | M95's provider credentials and local profile id               | `museSpark.provider.<id>`, a `{v, auth, origin}` record                                                    | `apiKey` or `oauth` items, the record's origin unchanged; the profile id an internal item                         | M once M95 lane K merges; else born there |
+    | M95b's plan sign-ins                                          | SecretStorage tokens; the refresh token bound to its issuer; a cross-window refresh lock in global storage | `oauth` items; the broker serialises refreshes, replacing the lock                                                | M with M95b                               |
+    | M95c's custom headers                                         | SecretStorage values bound to the origin                                                                   | a header field on the provider's item                                                                             | M with M95c                               |
+    | M108's accounts                                               | `museSpark.provider.<id>.account.<accountId>`                                                              | one item per account, with its account binding                                                                    | M with M108 lane K                        |
+    | M100's pair keys                                              | SecretStorage, one per pair                                                                                | `devicePair`, internal, never usable by an agent                                                                  | M with M100 lane P                        |
+    | M103's machine registry                                       | each machine's API key in SecretStorage or the OS store                                                    | `apiKey` bound to the machine's registered address, used by the maker engine; D83's actuation approvals unchanged | M with M103                               |
+    | MCP OAuth tokens                                              | none: M50 left OAuth for remote servers for later                                                          | born in the vault                                                                                                 | O                                         |
+    | MCP header and `env` values                                   | plain text in the user's MCP files                                                                         | `${secret:<name>}` on **Move to vault**, written as an edit the user reviews and saves (D64)                      | O                                         |
+    | Ambient credential files                                      | the user's own files                                                                                       | imported on the user's click (D89.5)                                                                              | M                                         |
+    | Muse Code's sign-in, its MCP logins, VS Code's GitHub session | the CLI's and VS Code's                                                                                    | never read or moved                                                                                               | —                                         |
+
+15. **Threat model.** The full model, each row with its tests, is lane 0's
+    `docs/certification/m109-threat-model.md`. PLAN §9 records the
+    residuals (lane W).
+
+    | #   | Threat                                                                                   | What stops it                                                                                                                                                                                           | Residual                                                                                                    |
+    | --- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+    | V1  | Prompt injection makes an agent ask for a secret, or tells it what to do with one        | No value ever enters the context; taint makes every request after untrusted content ask; the card shows the exact use; grants bind targets; disclosure is a separate, per-item, always-asked permission | A user who approves a use the injection chose                                                               |
+    | V2  | Exfiltration through a granted use (an injected variable sent to another host)           | Environment grants bind the command's digest; the card shows the argv; M69's and the sandbox's network rules still apply; output is scrubbed                                                            | A program that holds a value can send it anywhere it can reach; the card says the program sees the value    |
+    | V3  | A malicious MCP server                                                                   | A stdio server gets only values granted to its own command; remote tokens are audience-bound (RFC 8707) and never passed to another server; MCP results taint the context                               | A server holds what it was granted                                                                          |
+    | V4  | A compromised extension host (another extension in VS Code's one extension host process) | Brokered values never enter it (the broker and the feeder hold them); presence items need an OS prompt it cannot draw                                                                                   | It reads first-party keys per request, as today, and can forge answers for items without presence           |
+    | V5  | Another local user                                                                       | Owner-only files, sockets and pipes; every slot is per user                                                                                                                                             | Root and administrators                                                                                     |
+    | V6  | Malware running as the user, reading files                                               | The vault file is ciphertext; the hardware slot stops a copied disk; presence and passphrase slots stop a silent unlock                                                                                 | Silent slots unlock for any same-user process, exactly as SecretStorage does today; the tier banner says so |
+    | V7  | Memory dumps and debuggers                                                               | The key and values only in the broker and feeders, in unpooled Buffers zeroed after use; Linux's Yama at 1 or more blocks non-descendants                                                               | Node has no `mlock` or `MADV_DONTDUMP`; on Windows a same-user process can usually read the broker's memory |
+    | V8  | Clipboard leakage                                                                        | The vault never puts a value on the clipboard; only a public key can be copied                                                                                                                          | —                                                                                                           |
+    | V9  | Logs, crash dumps, exports                                                               | No value is logged; the scrub service runs at every boundary (D89.8); the audit holds no value; the broker writes no heap snapshot and its crash report (M93) carries no buffer                         | A value the feeder did not release and the service never saw                                                |
+    | V10 | Relocation to another device                                                             | Values never travel; remote signing and codes only with a per-use approval on the owning device (D89.13)                                                                                                | —                                                                                                           |
+    | V11 | Replay of an approval or a grant                                                         | Single-use ids, digests and expiries; use counters; generation rollback refusal; the audit chain                                                                                                        | —                                                                                                           |
+    | V12 | Unattended misuse (a schedule's prompt injected by a page)                               | Only unattended grants serve it; presence and tainted requests fail closed                                                                                                                              | What the user granted unattended                                                                            |
+    | V13 | One requester using another's access                                                     | Per-requester sockets; tickets on inherited pipes, single use, bound to one use; peer process ids logged                                                                                                | A same-user process that finds a socket in the owner-only folder                                            |
+    | V14 | Look-alike or downgraded origins in a fill                                               | The exact origin after IDNA, HTTPS with a valid certificate, the frame's origin checked                                                                                                                 | —                                                                                                           |
+    | V15 | sudo swapped between card and run                                                        | The feeder runs the exact approved argv through sudo's absolute path; `-k`; askpass labelled, capped and followed by `sudo -K`                                                                          | `NOPASSWD` sudoers, which the panel names                                                                   |
+    | V16 | The vault as one target holding everything                                               | Per-item keys, presence items, lock on idle and screen lock, the break glass, the recovery code                                                                                                         | A silently unlocked vault is as exposed to same-user code as today's stores                                 |
+
+<!-- plan-archive:end id="decisions-d81327d36-8416" -->
+
+## D100 — Orchestration gotchas become product rules (2026-10-06)
+
+<!-- plan-archive:begin id="decisions-d81327d36-13256" lines="13256-13473" at="d81327d36" bytes="15122" sha256="aa6dcb2aa1427e95aa323238cb0e9477773f58db9ecefb0b695c4f80124d08f7" -->
+
+The owner, 2026-10-06: "make sure that anything you find in your efforts to
+orchestrate these agents you document any gotchas and lets make sure that we
+will account for it in our app". The register is
+[`docs/orchestration-gotchas.md`](docs/orchestration-gotchas.md). It records
+what went wrong while a fleet of up to 30 agents built this project across
+three rigs, the rule that prevents it, and the owning decision. New gotchas are
+added there in the same session they are found. Plans and reviews of M96,
+M96c, M100, M107, M109, M110, M115, M116, M117 and M120 check it.
+
+Amendments (rows marked **amend**). Each lands in its milestone with a named
+test that fails without the rule:
+
+1. **M96c (scheduler and merge queue):** G1 input manifests, content-addressed
+   and verified before start; G2 base objects transferred and the base commit
+   verified on the worker; G4 base recorded per job, and the full gate re-run
+   after merging current main; G6 no duplication on unreachability
+   (re-dispatch only after lease expiry, under a new epoch); G21 a new verdict
+   re-runs the whole workflow; G26 the full suite after every merge into a
+   release candidate; G50 a handshake refusal or reset reports the device as
+   throttled (unknown since a time) with jittered backoff, never a duplicated
+   lane (test `handshakeRefusalIsThrottled`); G35 every launch confirmed by a
+   liveness probe (process alive, log growing within 30 s) or reported as
+   failed to start; G36 done means a clean tree, every brief step listed as
+   done, and a moved head, otherwise the lane is continued in place;
+   G130 result reducers preserve immutable raw events and
+   fold replay into a separate output, never back into retained inputs.
+2. **M96 (team and board):** G3 structural rendering of briefs (no text
+   substitution; the rendered brief is checked and hashed before dispatch);
+   G5 three job states (running, finished, unknown since a time); G7
+   continuous, event-driven completion delivery.
+3. **M100 (paired devices):** the M110 node rules of D90.25 (G5 unknown
+   state, G6 lease-epoch re-dispatch and quarantine, G27 the result channel)
+   also bind device lanes. Also G1 and G2 on dispatch, G12 transport-health
+   signals, G14 an explicit recorded environment and preflight of hook tools,
+   and G15 Windows per-process policy, closed stdin and structured results.
+   Also G49 key installs that add a missing final newline before appending and
+   verify each entry parses as its own line (test `keyInstallKeepsEntriesSeparate`);
+   G50 throttled-not-down handshake handling (test `handshakeRefusalIsThrottled`);
+   G51 Windows workers outside the transport session with a desktop-heap
+   diagnostic on `STATUS_DLL_INIT_FAILED` (test `windowsHeapDiagnostic`); G52 no
+   port probes, and one failed authentication stops and asks the user, never a
+   retry loop (tests `noPortProbes`, `authFailureStopsAfterOne`). G34 a working
+   smoke call per engine per machine in the capability record, with a failed
+   probe removing that engine from the machine until fixed. G37 fail-closed
+   safety checks before deletes, with per-run caches in the run's workspace.
+   G130 applies to result consolidation; its regression folds the same raw
+   report twice and verifies unchanged input hashes and event counts.
+4. **M107 (governor):** G10 a temp root per job, removed at its end; G11
+   ledger-only cleanup with an identity re-check, never by name pattern; G12
+   OS-service pressure and transport failure as signals; G13 spawn-rate and
+   process-count caps per job tree; G16 reparse points unlinked, never
+   recursed into; G30 independent tool installations outside the checked
+   workspace, since an ignored path can still incur discovery cost; G32 native
+   UI checks join complete scenario readiness before interacting with controls;
+   G51 transport resets and refusals lower a device's slot cap
+   automatically (test `transportHealthLowersCap`). G37 every safety check
+   before a delete fails closed, and per-run caches live in the run's own
+   workspace, removed at teardown. G131 result reduction has a bounded memory
+   budget and preserves every test, error and coverage counter, proved against
+   the tool's direct merge.
+5. **M110 (Muse Node):** G1, G2, G10, G11, G14 to G16 for the tool host and
+   sandboxes. Also the M100 rules above for G49 to G52 on its SSH route
+   (tests `keyInstallKeepsEntriesSeparate`, `handshakeRefusalIsThrottled`,
+   `windowsHeapDiagnostic`, `noPortProbes`, `authFailureStopsAfterOne`), plus
+   G34 smoke calls and G37 fail-closed teardown on its route,
+   plus G130 immutable inputs during result consolidation.
+6. **M115 (scheduled prompts):** G8 one serialized owner plus a lease, never
+   process-name matching; G22 every unattended delivery verified where it
+   landed.
+7. **M116 (playbook):** G3 together with M96; G17 a snapshot of shared
+   repository configuration before a job and drift reported after it; G20 an
+   optional, recorded fallback reviewer for classifier-blocked reviews, set by
+   the user in advance (never an automatic reroute; rule 9 stands); G24 a
+   residual register per milestone that must be empty or accepted before
+   release; G31 UI condition targets distinguish controls that share a style
+   class, with the harness's two-pill regression as the concrete example;
+   G36 an incomplete lane continued in place from its commits, never
+   restarted, and never marked done on exit code alone. G135 verification
+   derives the actual configured execution partition and checks complete,
+   disjoint membership before accepting shard-labelled results; G131 a report
+   transport limitation never removes result data or disables the final gate.
+8. **M117 (estimator):** G4 base age as a schedule risk; G34 the measured
+   per-engine profile (with a failed smoke probe removing that engine from
+   the machine) feeding placement.
+9. **M96c (scheduler and merge queue, 2026-10-07):** G39 a completion ledger
+   (running, done-unprocessed with its age, processed) with an alarm on any
+   done-unprocessed lane older than 15 minutes (test
+   `doneUnprocessedAlarmsAtFifteenMinutes`); G40 committed heads of
+   critical-path lanes integrated on at least an hourly cadence (test
+   `criticalPathPullsCommittedHeads`); G41 one owning lane per file before
+   launch, checked at merge (test `fileOwnershipCheckedAtMerge`); G46
+   reviewer inputs inside the workspace or inlined, and no verdict means
+   re-dispatch (tests `reviewerInputInsideWorkspace`, `noVerdictRedispatches`);
+   G47 a repair leg takes a failure class with its complete evidence (the
+   whole log, every caller and every workflow running the failing check),
+   never a single instance (test `repairLegCoversFailureClass`); G48 a
+   bulk-edit leg checks each sweep hit against the effective state before
+   editing and reports its false positives (test
+   `sweepHitsVerifiedBeforeBulkEdit`); G53 lane completion comes only from
+   the runner's own observation of the lane process's exit (the exit status
+   it gets from waiting on the process), recorded by the runner in a
+   runner-owned record, and nothing a lane can write to (stdout, stderr, its
+   log, its worktree) can mark it complete (test
+   `laneOutputCannotForgeCompletion`); G54 each review report attached to
+   its lane's ledger record when it lands, and the board checks "no report"
+   against the ledger (tests `reviewReportAttachedToLedger`,
+   `noReportCheckedAgainstLedger`); G57 lanes never run heavy gates in
+   parallel themselves, and dispatch routes every lane-started heavy gate
+   through the machine's slot (test `laneHeavyGatesTakeMachineSlot`); G58 the
+   lane runner re-reads the lane's own staged diff and the committed diff
+   after every hook run, and hook auto-fix is limited to formatting,
+   otherwise the hook fails instead of rewriting logic (tests
+   `stagedDiffRereadAfterHooks`, `hookAutofixFormattingOnly`). The matching
+   change to this repository's own pre-commit hook (which still runs
+   `eslint --fix` through lint-staged) is deferred to the owner's decision,
+   because hooks are owner-controlled; meanwhile AGENTS.md rule 15 has every
+   agent re-read its staged and committed diff after each commit. Also G59
+   the lane runner refuses stash commands, and lint-staged backups are
+   dropped or namespaced per worktree (tests
+   `runnerRefusesStash`, `hookBackupScopedToWorktree`). Also (2026-10-08)
+   G80 a lead-session handoff ends the old session's process and every
+   background job it started, or lists each job for the new lead to adopt
+   or stop, and the handoff is complete only when each one is ended or
+   adopted (test `handoffEndsOrAdoptsBackgroundJobs`); M120's role handoff
+   binds the same rule.
+10. **M107 (governor, 2026-10-07):** G38 stopping a run kills its whole
+    process tree, with a device-watcher sweep for orphans whose start time
+    matches no live run (test `orphanSweepKillsStaleTree`); M100 and M110
+    bind the same rule through process groups or job objects per run. Also
+    G53 the device watcher reads lane completion only from the runner-owned
+    record of the observed process exit, never from anything a lane can
+    write to (test `watcherIgnoresLaneExitText`); G55 test temp under one
+    harness-owned root, which cleanup removes; outside that root, cleanup
+    deletes only an exact path the harness recorded with its identity
+    (device and inode, or file ID) when it created it, re-checked before
+    deletion (the G11 ledger rule), and reports anything else, never
+    deleting it; cleanup never changes permissions and never selects by
+    name shape (tests `cleanupOnlyUnderHarnessRoot`,
+    `outsideRootDeletesOnlyRecordedIdentity`,
+    `cleanupNeverChangesPermissions`). This narrows D87.14's outside-root
+    leftovers rule, and M100 and M110 workers bind it as well. G56 deletion
+    candidates chosen by a clone-aware estimate of what deleting each would
+    free (on APFS, its unique or private allocation), with an item that has
+    no such estimate not counted as reclaimable, the result validated with
+    `df` before and after, and never a trial delete to find out (tests
+    `reclaimEstimateIsCloneAware`, `reclaimValidatedByFreeSpace`); G57 heavy
+    gates (the browser harness, full lint, the full suite) take a
+    per-machine slot sized from measured cores and memory, whoever starts
+    them (test `heavyGateTakesMachineSlot`); the slot is owned by the run's
+    process tree, so heavy gates nested in that tree (a quality script
+    running lint and the browser harness) inherit it, reentrant, and
+    separate runs queue (test `nestedHeavyGatesInheritSlot`). G65 every Git
+    command a job runs has automatic maintenance off (`maintenance.auto=false`,
+    `gc.auto=0`), and a local origin a job pushes to sets `receive.autoGc=false`
+    in its own configuration, because that maintenance detaches with `setsid`
+    and escapes G38's process-tree kill (test `jobGitStartsNoMaintenance`); the
+    M96c lane runner gives lanes the same Git environment. Also (2026-10-08)
+    G79 every test that starts a process reaps that process's whole tree in
+    `afterEach` or `afterAll`, including after a timeout, and asserts that
+    none of it survives; idle watchdogs and supervisors wait on events, never
+    in a hot polling loop; and when a lane ends, the governor checks for
+    processes it left behind and reports them as a leak (tests
+    `laneEndReportsLeftoverProcesses`, `idleWatchdogDoesNotPoll`). M109
+    binds the same reaping rule for every process it spawns. G81 the Windows
+    resource sampler measures a protected process with a source that can see
+    it (Task Manager's data or an elevated query) and otherwise reports the
+    reading as blind, never as 0 (test `blindSamplerNeverReportsZero`). G82
+    no tight polling of a security product's status: a wait for the user's
+    action uses an event or a long interval, in the governor and in setup
+    and wizard code (test `securityStatusWaitDoesNotPoll`).
+11. **M116 (playbook, 2026-10-07):** G42 pipelined, stacked release
+    integration with early draft PRs (test `releasesPipelineOnCandidate`);
+    G43 a worker green labelled worker-certified unless verified from a
+    clean tree with CI's environment on the slowest platform (test
+    `workerGreenIsNotCiEquivalent`); G44 a draft PR opened when integration
+    starts (test `draftPrAtIntegrationStart`); G45 hotfixes run the full
+    prep checks (test `hotfixRunsFullPrepChecks`); G46 and G47 with M96c,
+    the reviewer charter asking where else a failing check runs; G54 the
+    integration charter: an integration brief lists each lane's review
+    report path explicitly, and "no report" is certified only after checking
+    the ledger (test `integrationBriefListsReportPaths`).
+12. **M117 (estimator, 2026-10-07):** G39 a bottleneck card for
+    done-unprocessed lanes with their ages (test
+    `bottleneckCardShowsUnprocessedAges`).
+13. **M105 (multimodal integration):** G71 a producer→consumer delivery test
+    through the real port before a handoff closes (named test:
+    modelApiMedia 'delivers a read_file video through replay as its
+    file-id', which fails with the consumer stashed); G72 budget findings
+    quote the repository gate's command and numbers, re-measured on the
+    integration tree (the startup gate `node scripts/check-bundle-size.mjs`
+    itself is the enforcing test).
+
+Rows marked **covered** keep their existing decision as the owner: D87.14,
+D90.25, D96, D88 and D97.
+
+**Placement amendment — lane X (2026-10-06 brief / owner ruling).**
+One account per provider per device is the default. Developer options exist
+for testing, are clearly labelled and off by default. The visible option is
+“Allow several accounts of one provider on this PC”; enabling it requires
+its own confirmation. Seven clicks on the version, the palette command and
+`developer` in a terminal unlock the same machine-local Developer options
+page. A local profile has an isolated credential slot, state folder and
+runtime process, and registers with the account pool as a local device.
+Developer mode is badged on every surface. Expiry and Reset revoke authority
+immediately; an audit file holds fixed action words and opaque profile ids,
+never credentials, labels, origins or paths. None of this changes vendor
+policy, paid consent, budgets, replay, capability checks or Muse Code's
+capture requirement.
+
+The placement amendment itself is absent from this base; the lane brief is
+the supplied authority. Conservative lane defaults: a 24-hour unlock, seven
+version clicks within ten seconds per surface, at most eight local profiles.
+Expiry/disable stops and unregisters profiles but retains their local state
+and credential slots; Reset confirms before deleting only recorded profiles.
+Reset never deletes ordinary accounts. Restored grants bind this machine,
+reject future unlocks and invalid dates, and do not extend their expiry.
+These constants are named, not settings. All editors use the same core
+owner and validated bridge, with terminal/ACP adapters and shared React UI.
+
+<!-- plan-archive:end id="decisions-d81327d36-13256" -->
+
+## D104 — Git and pull requests in every editor (M123, 2026-10-08)
+
+<!-- plan-archive:begin id="decisions-d81327d36-13800" lines="13800-14005" at="d81327d36" bytes="12364" sha256="0925da372335b824d6a6540f8b70d54ecf258ab3cb11bd678623f707a9b9192d" -->
+
+The lead, 2026-10-08, under D84 (every registry row W in every editor, or a
+named, approved exception). M71's Git and pull request features (registry
+row F36) exist only in VS Code, because every piece they stand on is VS
+Code's:
+
+- the GitHub token: `vscode.authentication.getSession('github')`
+  (`src/host/git/githubSession.ts`);
+- commit and push: the Git extension API (`gitExtension.ts`);
+- the drafts' form wiring in the VS Code webview and controller;
+- the pull request links: workspace state (`pullRequestLinks.ts`);
+- the pull request checkout and the held/trust card
+  (`pullRequestCheckout.ts`, `heldCheckout.ts`).
+
+Nothing runs in `src/runtime` or `src/acp`, and `exec` strips `GH_TOKEN` and
+`GITHUB_TOKEN` (`EXEC_CHILD_ENV_DROP`). M104's registry names F36 with
+`auth/github`, `auth/githubLease` and `github/request` (the lease design on
+`m104/pd-fix`, with an unwired runtime client,
+`src/runtime/panel/nativeGitHub.ts`). The research matrix
+(`docs/research/editor-parity-2026-10-05.md`) marks F36 missing in every
+editor outside the VS Code family, and no M104 lane owns it. This decision
+owns it.
+
+1. **Git runs natively in the shared runtime.**
+   - Status, diff, commit, push (after the confirmation) and worktree
+     checkout run with the user's own `git` (`resolveExecutable`), through
+     the existing bounded Git runner (`createGitProcess`) under M107's spawn
+     admission (`admitResource`, whole-tree stop; D87, SPAWN017's
+     inventory): explicit argument arrays, output caps and deadlines.
+     Amended 2026-10-16 (the owner: no caps of ours on a job): the native
+     route's git has no deadline of ours; Cancel and the window's closing
+     stop it, as VS Code's own Git behaves.
+   - VS Code keeps the Git extension path (its credential helpers, sign-in
+     prompts and SCM view). A VS Code-family host without the `vscode.git`
+     extension (Arduino IDE 2, some forks) takes the native path in-process.
+   - M71's rules carry over unchanged:
+     - never force;
+     - push and pull request creation always ask, and show what goes out;
+     - the push plan's refusals (a detached HEAD, a branch behind its
+       upstream, names starting with `+` or `-` or holding `:` or
+       whitespace);
+     - a commit never pushes on its own;
+     - the consent names hooks, signers and credential helpers;
+     - project trust is checked after every await and before each Git
+       entry. Outside VS Code, project trust is the editor's trust (MHP
+       `workspace/trust`, or the runtime's own record where the editor has
+       none) and no hold.
+   - **The confirmed push and the pull request fetch use the user's Git
+     environment.** Every other Git call keeps `quietGitEnvironment` (no
+     credentials, no prompt). These two are the harness's own processes, not
+     model tools, so they keep the user's credential helpers, SSH agent and
+     Git token routes, as a terminal would, with `GIT_TERMINAL_PROMPT=0`.
+     The environment is an allow-list per operation (RVM123G2, 2026-10-09):
+     of credential variables, only `GIT_PUSH_CREDENTIAL_VARIABLES`
+     (`GH_TOKEN`, `GITHUB_TOKEN`, `GH_ENTERPRISE_TOKEN`,
+     `GITHUB_ENTERPRISE_TOKEN`) as captured at start; never a model or
+     provider key, whatever its name. They never gain anything of ours: no
+     `http.extraHeader`, no credential helper of ours, no token variable.
+     Model-run processes keep D89.5's fence. A push that needs typed
+     credentials fails with the remote named, and offers **Open in
+     terminal**: the same command in the editor's terminal (MHP
+     `terminal/create`, F23), for the user to finish, only in the same
+     repository with the confirmed plan revalidated, and in the same
+     allow-listed environment where the host honours it (VS Code's
+     `strictEnv`).
+   - **Threat boundary (the lead, 2026-10-09, RVM123G2).** In scope and
+     enforced: untrusted repository content (configuration, hooks,
+     attributes, filters, remotes, credential helpers, submodules, links
+     inside the tree); stale state (a plan, stamp or confirmation that no
+     longer matches what will run); cancellation and session or owner
+     changes; secrets (no credential, model key or provider key reaches
+     any Git child, terminal, log, error or the model unless that
+     operation needs that credential); confinement of every read made on
+     the model's behalf to the bound repository. Out of scope, a residual,
+     never claimed: a same-user process renaming, swapping or replacing
+     directories inside the user's own workspace between a check and the
+     operating system acting on a path. It already holds the user's
+     authority, and path-based APIs cannot close that race. Guards still
+     fail closed on every change they detect.
+   - **One bound pipeline per mutation:** plan → the user's confirmation →
+     admission (a per-repository transaction lock file in git's common
+     directory, shared by every editor and runtime process, then the
+     host's admission) → final revalidation (the state git reads sealed,
+     then the whole plan compared with what was confirmed: remote, every
+     push URL as git resolves it, refspec, target, the branch's commit,
+     the configuration files; or the commit stamp) → spawn (the runner's
+     last synchronous check after its own admission and the Windows job's
+     preparation, and again at the Windows helper's payload GO: arguments,
+     signal, owner, trust, the root a real directory with its bound
+     identity, the lock still held, the seal intact).
+
+2. **GitHub stays on M71's REST client; the token comes from layered
+   sources.** `src/core/git/github.ts` (`api.github.com`, API version
+   2022-11-28, schema-checked against captures) stays the only GitHub
+   client. A `GitHubTokenSource` port gives it a credential per call. The
+   first available source wins, in this order, and the panel says which one
+   is in use:
+   - **(a) The editor's own GitHub sign-in, by lease.** The token never
+     leaves the editor.
+     - The runtime asks `auth/githubLease` (`ask` or `silent`) and gets an
+       opaque lease id bound to its owner.
+     - Each call goes out as `github/request`: `api.github.com` only, `/user`
+       and `/repos/…` only, GET and POST, within the envelope cap. The editor
+       adds the token.
+     - Where: VS Code (`getSession('github', ['repo'])`); VS Code forks that
+       ship the GitHub provider; JetBrains (the bundled GitHub plugin's
+       account, as an optional plugin dependency); Visual Studio, where
+       lane L finds a supported API for its GitHub account.
+     - Leases expire (`GITHUB_LEASE_TTL_MS`). They also end with the window,
+       a change of owner, shutdown and sign-out.
+   - **(b) The runtime's own sign-in: GitHub's OAuth device flow** with the
+     project's OAuth App. Its client id is public and lives in
+     `src/shared/constants.ts`. The device flow needs no client secret
+     (GitHub's docs, 2026-10-08), and no secret exists in the repository or
+     the product.
+     - The panel shows the user code with Copy, and opens
+       `https://github.com/login/device` through `ui/openExternal`. No other
+       verification address from GitHub's reply is accepted.
+     - The runtime polls at GitHub's `interval`, adds the five seconds that
+       `slow_down` asks for, and stops at `expires_in` (900 s by default) or
+       at Cancel.
+     - Storage: the token goes only into the M109 vault, as an `oauth` item
+       bound to `https://api.github.com` and hidden from agents. While the
+       vault's broker is unavailable, it goes into the OS keychain through
+       `keyStore.ts`. It is never in settings, in files we write, in logs or
+       in MHP.
+     - If the OAuth App has expiring user tokens on (eight-hour access,
+       six-month refresh; GitHub's docs say a device-flow token refreshes
+       without a secret), the refresh token is stored the same way, and the
+       token is refreshed before it expires.
+   - **(c) Opt-in: the user's existing `gh` login.** This is behind
+     `museSpark.github.useGhLogin`: default off, user or machine scope only,
+     so a repository's settings cannot turn it on.
+     - The runtime runs `gh auth token --hostname github.com`: a governed
+       spawn, explicit arguments, capped output.
+     - It keeps the token in memory for that one request, and registers it
+       with the redactor.
+     - D93 used `gh api`, which keeps the token out of our process. Reading
+       it into our process widens that precedent, so this source is opt-in.
+   - **Scopes.**
+     - `repo` only: M71's scope, needed for pull requests on private
+       repositories.
+     - `read:org` is added only if a lane proves that a call needs it, and
+       it is asked for incrementally.
+     - `workflow`, `admin:*`, `delete_repo` and `gist` are never asked for.
+     - The client's method table bounds what any token is used for,
+       whatever scopes a lease or a `gh` token carries. Before a write, a
+       missing `repo` scope (from `X-OAuth-Scopes`) is named, rather than
+       surfacing GitHub's 404.
+   - **Sign-out and revocation.**
+     - Sign out deletes the stored item.
+     - GitHub's token-revocation endpoint authenticates the app itself,
+       which a public client cannot do (lane A confirms this against
+       GitHub's docs, dated). So Sign out also opens GitHub's authorized
+       applications page, where the user revokes the grant.
+     - A 401 drops the stored token and asks the user to sign in again.
+   - **Rejected.**
+     - A shipped client secret: it would be public.
+     - A GitHub App: it must be installed on each account or organization
+       before it can act there, which adds a setup step for every user.
+       Revisit if fine-grained permissions become necessary.
+     - Reading another application's token store (VS Code's or JetBrains'
+       files): D74 forbids it.
+     - A pasted personal access token: it is long-lived and often
+       over-scoped, and the device flow serves the same users.
+
+3. **Drafts, links and pull request checkout go through the shared panel.**
+   - **The Git port gets a runtime implementation.** The controller already
+     declares its Git port (`ConversationGitPort`, since M71's host-API
+     repair). The runtime implementation sits beside the VS Code adapter.
+     `GitPanel.tsx`, the commit and pull request forms, Write with Muse and
+     the held/trust card render through the three bridges (M104 lane D) in
+     every editor. The draft is still the user's own turn (D49), so there is
+     no paid-use popup.
+   - **Links and records.** Pull request links (session id to number,
+     address and title; newest 200) and worktree conversation records live
+     in the runtime's per-user store, keyed by the canonical repository
+     root. VS Code keeps its workspace and global state. Session export and
+     import carry the link.
+   - **Someone else's pull request** is materialized exactly as M71 does it
+     (RV71c):
+     - `worktree add --no-checkout --detach`, then `read-tree`;
+     - the files come from one `cat-file --batch`, through the exclusive
+       writer;
+     - the listing is refused whole on any bad name.
+
+     It goes under the runtime data folder's `pr-worktrees/`, and opens
+     with `workspace/openFolder` (F35).
+
+   - **The hold is by location, in every host.** Every host checks both
+     roots: VS Code's global storage and the runtime's. So a worktree made in
+     one editor is held when another editor opens it.
+   - **Held means the same everywhere:** Plan mode, no `!` commands, and
+     the project configuration untrusted, until the card confirms trust. The
+     card says that the editor's other extensions follow the editor's own
+     trust.
+
+4. **The network rule (D4) is amended** to name these sources.
+5. **One milestone, every editor.** M123 implements this decision. F36's
+   cells move to W, editor by editor, only on M123's receipts. M104's F36
+   fallback keeps its id, `gh-credential-store`, because renaming it would
+   be a breaking MHP change. It now means sources (b) and (c).
+6. **GitHub.com only**, as in M71. GitHub Enterprise Server needs a later
+   decision.
+7. **Owner item:** registering the OAuth App under the owner's GitHub
+   account (Q-M123). Everything builds and certifies against a fake
+   device-flow server without it.
+
+<!-- plan-archive:end id="decisions-d81327d36-13800" -->
+
+## D107 — The Judge: our own Jev, for speed and accuracy (M125, 2026-10-09)
+
+<!-- plan-archive:begin id="decisions-d81327d36-14137" lines="14137-14447" at="d81327d36" bytes="21036" sha256="874fd5a6e7fc79f42672272e68bd78413fdc72fb5f8f9ab78aa690b6e02e3653" -->
+
+**Owner (2026-10-09).** "the judge is currently enabled by default but it
+does not seem to work properly out of the box that needs to be designed in a
+meaningfully helpful way the purpose is to make the decision engine for the
+app faster not add an additional layer on top of the model this should
+complement and quicken the agent". On the first version of this decision:
+"the judge is supposed to be a jev like system that enhances our speed and
+accuracy you are telling me muse only and thinking level adjustments now
+and i am confused". And: "there needs to be an easy wizard to setup the
+local model for a user after a scan to see if the hardware will work".
+**Owner, Q-D107 (2026-10-10): B, with B1 and B2.** He was told the
+recommendation was A plus a deterministic read-only allow list, and that
+B2 runs repository code an agent may have edited; he chose the full fast
+path (§3). **Planned; docs only.** D106 belongs to the MCP connector draft;
+its absence here does not release the number. The design, catalogue,
+numbers, wizard and probe are in `docs/design/judge-fast-path.md`, revised
+2026-10-10 after the third review (`RVJUDGEFAST3`) and the owner's answer.
+**Engine decision (lead, 2026-10-10; `docs/certification/judge-bench.md`
+§8, lane JEVBENCH2).** Under the owner's rule (local only if faster AND
+as accurate AND free), Jev online stays the Judge engine: on the Win11
+GPU both local sizes fit the 5 s veto window (0.8b p95 311 ms, 4b p95
+2,989 ms) but score 0.376/0.375 accuracy against Jev's 0.794 on the
+full 170, and 4b approved 9 must-refuse cases. Local engines are not
+offered as the veto engine until a calibrated local engine shows ~0
+unsafe-approves and accuracy within 2 points of Jev on the full 170.
+Rows verified: lane JEVBENCH2 round 2 re-checked every §3 cell
+against the committed raw files (all matched, gaps filled).
+
+**Why phase 1 misses** (confirmed against `647f75dfb` and `m98/p2-r4` at
+`f131ffc88`). `auto` resolves to the user's own chat model, 8–14 s per
+judgment on Muse Spark. Its only effect is a caution latch that can turn a
+reviewer's ALLOW into a card. It never starts on immediate allows. On Muse
+Code it opens a hidden session per approval and usually loses the race to
+the reviewer's warm session, so the latch reads empty. The ready-rate
+switch-off never fires, because production supplies no ready rate. Phase
+2's fast engines exist but production never installs or reaches them. Net:
+cost and caution, never speed.
+
+**Decision.**
+
+- **The judge is our own Jev.** A SystemOne-style decision engine: given
+  the agent's current state and a batch of typed questions, it returns
+  calibrated answers (noul p(yes), choice with probabilities, score with
+  its expected level) in a fraction of a second, on the Jev wire D77
+  adopted (`judge({state, questions})`). One call per state carries every
+  question due, which keeps a CPU engine useful.
+- **Engines, best first by measured speed and calibration:** the local
+  decision model `tev1:4b` (raw inference GPU 0.30 s, quiet CPU 3.1 s,
+  0.975 on the 40-item set); local logprob models of at least 3B after calibration; Jev
+  1.13 through OpenRouter's SystemOne route; Cloudflare Clef; Together
+  Tev1; other fast logprob providers (M95 capability records). The user's
+  own chat model is the last fallback: batched, background, post-turn and
+  boundary only, never inline. Per machine and timing class, the resolver
+  keeps the first engine that one shared `eligible(class, p95, window)`
+  function admits, the same function the wizard's recommendation and Done
+  screen use. The p95 is the complete call, for a local engine 2j's
+  verified path with its peer check and disk proof, never raw inference:
+  2j's accepted receipts measure 6.5–18.4 s warm on the three rigs, mostly
+  its per-dispatch disk proof, so local engines are post-turn only until
+  lane J proves the model once and keeps the proven bytes unchanged by an
+  OS mechanism, never by metadata: on Windows handles held with read-only
+  sharing (writers and deleters refused), on Linux read leases (an open
+  for writing breaks the lease, and the proof is invalidated before the
+  writer proceeds); macOS has no such mechanism, so the full proof stays
+  before every dispatch there and its local engines stay post-turn. The
+  latency window counts every attempt, and a timeout, error or no-answer
+  as a miss with infinite latency, so three misses in 50 suspend an engine
+  at once. A suspended or skipped local engine requalifies only after three
+  consecutive in-budget synthetic background probes; a hosted one by
+  sample expiry and a consented warm-up; an unloaded one (2j refuses when
+  `/api/ps` lacks it) by a consented, bounded synthetic preload, after
+  which 2j's served-digest check applies unchanged.
+  Each decision is a cascade within one deadline: its deterministic check
+  first, the engine only on a miss, today's behaviour on abstention.
+- **Two jobs, both measured.** _Speed_: decisions the big model now spends
+  a slow turn or a tool round-trip on (what context to include; whether a
+  tool result needs full reading; loop, stall and done detection; which
+  skill or command fits; a lower effort only as one item among many).
+  _Accuracy_: calibrated checks on the agent's own work, as a hint to the
+  model, a note to the user or a deterministic rule's input that only adds
+  caution (is this command destructive; does this edit address the
+  request; do test or build results show a failure the reply does not
+  mention; is a claimed "done" backed by evidence; is a change outside the
+  requested scope; is the answer consistent with the files read). Each
+  class names its bar (precision ≥ 0.9; 7.1 recall ≥ 0.95 at precision ≥
+  0.8) and its measurement (labelled M75 replays and the big model's own
+  later corrections). Unchanged 2b fits only `risk.destructive` and
+  `skill.fit`, only logprob and stated engines, with binary labels, so
+  lane L adds the `systemone` technique and each new question as a binary
+  family, keeping 2b's guarantees. A model-backed family is used only
+  with a profile fitted on at least 400 independent labels for that
+  engine identity; without one it stays off (log only) for that engine.
+  The wizard's ten-question smoke is a health and latency check, never a
+  calibration.
+- **Timing classes:** I inline (≤ 300 ms; no engine measured so far
+  qualifies, so deterministic checks), S slack (≤ 5 s and within a real
+  window: the big model's generation for questions about the state it was
+  sent, a result that settles while other calls of its round still run,
+  hooks, verification or compaction; applied as a tail change at the next
+  boundary), B boundary (≤ 2 s; while the user types, compaction), P
+  post-turn. On a CPU the judge is an S and P engine. A lone tool result
+  has no S window, so first-send triage of it uses the deterministic
+  parser or an I engine, otherwise the output goes in whole as today.
+- **Out of the box: the Set Up Local Judge wizard,** in every editor,
+  reachable from first run, the judge's Status line, Settings › Judge and
+  the command palette and Help. **Scan** (RAM, GPU vendor, VRAM and usable
+  backend, CPU features, free disk, OS and architecture, an existing Ollama
+  and its models, a micro-benchmark within 5 s), in plain words;
+  **Recommendation** from the committed, dated table
+  (`src/shared/judgeModels.json`), the most accurate model that fits the
+  machine within the classes' budgets, with reasons, or a plain "too slow
+  for a local judge" and the hosted engines (Jev through OpenRouter, Clef)
+  asked once with price and daily budget (D78), with latency rows measured
+  through the complete verified path setup runs; **Install** with one
+  consent naming sizes, places, time and the memory the loaded model keeps
+  (a private per-user Ollama by
+  default, an existing one reused, a machine-wide install only by explicit
+  choice; the model by digest with resume and SHA-256; a bounded
+  synthetic preload and the loaded context window; 2j registration;
+  health check; a ten-question smoke of health and verified-path
+  latency); **Done** with the measured latency, each class's state from
+  the shared eligibility function and each check's from its profile. Progress, **Cancel** and **Set
+  Up Later** on every step; re-scan on hardware change; a remove path that
+  deletes only what the wizard added. D90.27's licence step and Advanced
+  choices (another size, CPU only, skip) carry over. An existing verified
+  local judge is used without asking. Until an engine is ready, the
+  deterministic checks run and the Status line says "Judge: Not Set Up —
+  Set Up" or "Installing (n %)".
+- **Backends as capabilities.** The Model API and M95 providers: every
+  class. Muse Code: hints in the next `turn/start` input, extension-owned
+  approval checks, post-turn accuracy notes, loop and done detection on
+  the observed stream; mid-turn hints, CLI-native tool output, native
+  approvals and effort routing need Meta (D49's upstream ask). Effort is
+  a 60 s-bounded mutation there, and an uncertain change cannot be undone
+  within the deadline or with today's frames, so 6.6 is off on Muse Code
+  until a per-turn field or a bounded setter is captured. `ide` tool-output triage stays off on Muse Code
+  until that server has a recall tool. All editors share the core and the
+  webview.
+- **Invariants.** Off, and on with every decision abstaining, are
+  byte-identical (Model API goldens, M91-G raw bodies, Muse Code
+  main-session frames). Nothing already sent is edited, reordered or
+  trimmed (SoL-Pi). Every decision has a deadline and today's behaviour as
+  its byte-identical fallback. The judge never answers the user, never
+  writes code and never alone grants an action. Confidential workspaces use
+  deterministic checks and verified local engines only.
+- **Measured before on.** A decision is on by default on a backend only
+  when M75 replays and live receipts show a positive win, its floors and
+  harm or precision bar hold, and turn wall time (p50, p95, counting
+  deadline misses, fallbacks, control round-trips and cache effects) does
+  not regress. Cache effects are gated only as misses on material the arm
+  already sent (`cacheMissTokens`' definition), relative to the paired
+  off arm; never as absolute cached tokens, which fall by design when
+  triage or context selection keeps noise out, and never as uncached
+  input per request, which a useful tail hint raises by its own few
+  tokens. New tail tokens count in the paired per-turn totals that feed
+  the decision's win. Account & usage shows time saved
+  (per turn, never per decision), tokens saved, calls avoided and checks
+  raised.
+- **The approval fast path (Q-D107 = B; lanes F1 and F2).** A held Auto action on
+  the Model API or an M95 provider skips the slow reviewer only when it
+  passes the deterministic floor nothing overrides, belongs to B1 or B2, no
+  process the agent's session started is alive (as the harness's process
+  registry and, on Linux, M107's delegated cgroup see them; a process that
+  detaches itself from the registry is a named residual, not something
+  either class depends on), the class's OS confinement is available and
+  passed its self-test, and the judge does not veto within its window: up
+  to 5 s from the hold for both classes (Q-D107-VETO, 2026-10-10), the
+  same for B2 whenever its contained run ends (a run that finishes first
+  waits for the answer until 5 s); no answer by 5 s is a veto. The reviewer
+  starts when the action is held, as today, beside the judge (the lead's
+  decision, 2026-10-10); the skip is decided when the fast path's result is
+  delivered, and the cancel is sent to the reviewer at that moment, so a
+  veto, a missing answer or a discarded run adds no wait to today's path.
+  A skip saves wall time, not the tokens the reviewer's already-started
+  request has used.
+  - **Two lanes (the lead's ruling, 2026-10-10, after the fifth review).**
+    Lane F1 builds B1 and ships when its own review is clean; lane F2
+    builds B2 as a default-deny redesign and never blocks F1. The owner's
+    B stands for both.
+  - **B1, inspect, lane F1** (`ls`, `cat`, `head`, `tail`, `wc`, `stat`,
+    `du`, `grep`, `find`; one argv, a verified root-owned system
+    executable, a fixed environment with `TZ=UTC0`, positive option
+    shapes). What the program reads is confined by the kernel at each
+    open, not by operand names: operands are opened from the workspace
+    root without following any link (Linux `openat2` beneath the root with
+    no symlinks; macOS `O_NOFOLLOW_ANY`), with one link per file and the
+    root's device; recursive forms get an allowed set that excludes
+    protected and private entries, links, hard links, mounts and special
+    files. On Linux the program runs under Landlock (ABI 3 or later) with
+    read-file granted on each allowed file by itself, never through a
+    folder, so a file that appears or is replaced after the walk cannot be
+    read; its own system files are granted only as exact files (the
+    program, its loader, the libraries it needs, the loader cache), never
+    a library folder or anything else under `/etc`, so a swapped operand
+    can reach no system file beyond those public ones (owners print as
+    numbers, times in UTC); no write, no other program, no process, no
+    socket. On macOS it runs under Seatbelt through `/usr/bin/sandbox-exec`
+    with data reads at the allowed files' literal paths and the captured
+    system part, protected and private patterns denied for data and
+    metadata, and no fork. The guarantee is file contents: on Linux the
+    names and metadata of protected entries inside an operand tree can be
+    listed (Landlock grants listing by hierarchy and does not restrict
+    `stat`). The residual is a process already running with the user's
+    rights, which can copy any bytes into an ordinary file (and on macOS
+    replace an allowed path with a hard link); B1 then reads them as
+    workspace content, as the agent's own read tool would without a card
+    today.
+  - **B2, check scripts, lane F2, Linux only, default-deny** (`npm` or
+    `pnpm` running `test`, `test:unit`, `lint`, `typecheck`, `type-check`,
+    `check` or `format:check`, with no option and only path operands after
+    `--`; not Yarn and not a repository with a `.pnpmfile.cjs`, and every
+    effective npm and pnpm configuration source, `.npmrc`,
+    `pnpm-workspace.yaml`, `package.json`'s `pnpm` field and the bound
+    install's npmrc, holds only keys that name no program, file or code,
+    so a YAML `nodeOptions` or `scriptShell` excludes the repository). The
+    definition closure (the scripts reached by a fail-closed walk, the
+    `packageManager`, `workspaces` and `pnpm` fields, those configuration
+    files and every file a reached script names) must be byte-identical to
+    the owner's baseline, validated against a **frozen snapshot** of the
+    workspace (reflink where the file system has it, a bounded copy
+    elsewhere; no `.git` and no special files) that is the run's overlay
+    lower layer, never the live workspace. The run is the child of **its
+    own init**, PID 1 of its namespace under the system's bubblewrap 0.11.0
+    or later, which the check cannot reach: the init is not dumpable, the
+    check runs in a nested PID and mount namespace with its own `/proc`
+    that does not show the init, and a bootstrap in a stated order (the
+    bounding set dropped while `CAP_SETPCAP` is still held, every set read
+    back empty, the listener handed over and acknowledged before every
+    descriptor above 2 is closed) leaves it no capability and no
+    descriptor but its standard streams; the evidence channel is the
+    init's alone. The
+    init joins a fresh session keyring, records and refuses every system
+    call outside a **derived allow-list** of 188 calls on x86_64 (160 on
+    arm64; no socket, key, `io_uring`, mount, `ptrace` or `bpf` call;
+    socket pairs only as connected `AF_UNIX` streams; no destination
+    address), records every path the run looks up, and drains every
+    process before it reports; the harness reads output, evidence and
+    control while the run lives, each bounded (an evidence overflow
+    discards the run), and trusts nothing until the namespace has ended. Only `/usr`, a few `/etc` files (each a regular
+    file) and the `node` and package-manager folders are bound, each
+    proven free of FIFOs, sockets and devices (root-owned folders once a
+    session, user-writable ones at every bind); `/tmp`, `/run` and home
+    are fresh; the environment keeps only `NODE_ENV`, `CI`, `TZ`, the
+    locale and colour variables the command would have had, and the home
+    folder holds exact copies of `~/.npmrc` and pnpm's user rc only when
+    they hold no secret. The result is delivered only when no call was
+    refused, no lookup (none is exempt) found a file that exists for the
+    user but not in the run, the exact invocation is known
+    to agree with an in-place run (its first runs are shadow runs compared
+    with the reviewer-allowed run), its lasting effect against the
+    snapshot (type, mode, bytes, link targets, hard links, new folders) is
+    nil outside the cache paths, the status is complete, and no marker or
+    secret appears; otherwise it is discarded and the reviewer, already
+    running, decides. The residual: an environment difference no record
+    shows that a changed check depends on and hides (an accepted, weaker
+    correctness contract, counted as harm); the workspace's own secrets in
+    the output; a process with the user's own rights outside the run; the
+    kernel.
+  - **Where.** B1 on Linux and macOS, B2 on Linux only, each where its
+    probe and self-test pass. B2 is off on macOS: nothing there owns the
+    lifetime of every descendant (no PID namespace, cgroup or job object
+    for an unprivileged process), so a detached grandchild can escape, and
+    a metadata comparison cannot find every write. Both are off on Windows
+    (no verified system executables for B1; no unprivileged confinement
+    for either without changing the user's files), on Muse Code (the CLI
+    runs commands itself) and when the extension runs as root. Never in
+    place as a fallback.
+  - **Envelope.** An audit row and flight-recorder entry per skip; undo:
+    B1 writes nothing and B2 nothing that survives, while the turn's
+    checkpoint covers the model's own edits as today (M86 does not undo
+    command writes, so B2 never relies on it); kill switches per class,
+    session and machine; on by default per class only after zero harm in
+    400 labelled actions per class and platform. The judge is one of two
+    gates, never the only one. An engine can veto where its complete-call
+    p95 is within 5 s and it has a fitted `risk.destructive` profile: on
+    latency, Jev through OpenRouter (about 2 s) on Linux and macOS, and on
+    Linux a local `tev1:4b` on a GPU or a quiet CPU (raw p95 0.36 s and
+    3.8 s) once lane J's shortcut lands; on macOS no local engine (the full
+    disk proof runs before every dispatch). No profile is fitted yet, so
+    lanes F1 and F2 skip nothing until lane V's labels and lane L's fit
+    land.
+
+**What it supersedes in D77, M98 and M110.**
+
+- D77 "Modes": `auto` no longer resolves to `same`; it becomes the best
+  ready engine per class plus the deterministic checks. `same` stays as the
+  chat model only, never inline; `separate`, `both` and `off` keep their
+  meaning.
+- D77 "Where phase 1 intervenes" and "Uses, phase 1": the caution latch is
+  fed by a fast engine that answers in time (7.1); under variant B, which
+  the owner chose, its question is also the approval fast path's veto.
+- D77 "Same-model speed" and "Muse Code isolation": the hidden session per
+  batch is not used for any I or S decision. The P-class chat-model
+  fallback keeps it unchanged, a fresh session per batch; no reused judge
+  session is introduced, so `museCodeSameJudge.ts` and its isolation tests
+  stay as they are.
+- D77 "Measured before charging by default" and `JUDGE_MIN_READY_RATE`:
+  replaced by the per-decision ship rule above, fed by an M75 runner that
+  records.
+- D77's phase-2f uses (context relevance, skill fit, destructive risk) move
+  into M125's catalogue. Everything else in phase 2 (contract, 2c, 2e,
+  2i, the CLI, lint, serve) is reused unchanged; 2j gains lane J's
+  proof-once disk proof (Windows and Linux only) and the preload, and 2b
+  lane L's technique and families, both with M98's owner and every
+  existing guarantee kept.
+- M110's lane TJ: the shared scan, recommendation and setup module is
+  pulled forward into M125's lane H; TJ reuses it for the node, the
+  installers and Muse Desktop.
+- D50's ruling and D77's "assist only": the owner chose variant B
+  (2026-10-10), so the judge becomes one of two gates for skipping the
+  reviewer on B1 and B2, never the only one and never an allow by itself.
+  Everywhere else both stand unchanged.
+
+<!-- plan-archive:end id="decisions-d81327d36-14137" -->
