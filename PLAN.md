@@ -15297,72 +15297,6 @@ they hold on Muse Code 1.4.7 and later. Record:
 
 <a id="q-0191-linux-vault"></a>
 
-- **Q-M110 — What M110 needs from the owner (2026-10-05).** Every lane builds
-  and certifies on fakes and the rigs meanwhile; nothing here blocks M110a0's
-  lane 0.
-  1. **Rule 8 on a node.** The runtime's Linux key store is the Secret
-     Service (D61), which a container or a server without a desktop session
-     does not have. **Default:** until M109 merges, M110a0's interim key
-     store (D90.23: a passphrase slot in D89.2's format, sealed at each
-     restart); after it, D89's vault (a passphrase or TPM slot, or D90.9's
-     paired slot). A key enters only through the node's web UI password field
-     on the pinned session after a step-up, or `auth set` on standard input;
-     never an environment variable, an argument or a file, Docker and
-     Kubernetes secret files included. Muse Code's own `META_API_KEY` path is
-     not offered on a node.
-  2. **The home PCs.** Which machines and operating systems M110a0 and Muse
-     Node OS are first installed on ("some pcs around my house"). **Default:**
-     the Windows PC with Docker Desktop, the Kubuntu VM, the Mac mini with
-     Docker Desktop and the Win11 VM, plus whatever he names.
-  3. **A test server and a domain.** Certifying M110d–f on the internet needs
-     a small rented server and a domain name (for ACME and passkeys); both
-     are payments and accounts, so they are his. **Default:** the rigs only (a
-     Kubuntu VM as the "server", the overlay and the relay on the LAN), and
-     internet reach stays Preview until a real server passes.
-  4. **Meta's terms, in writing.** Three readings need Meta's answer or the
-     owner's ruling: the CLI on servers and in containers the user builds; a
-     node relaying one person's own Model API requests (§10.1(i)'s "proxy");
-     and a team node (§3.1, §10.1(i)). **Default:** D90.17: no CLI in images,
-     the relay for one person only, team mode waits.
-  5. **Hardware for the OS matrix.** A Raspberry Pi 4 and a Pi 5 (8 GB, with
-     an SSD), an x86-64 mini PC, an old desktop and an ARM64 UEFI server (or
-     rented ARM64 metal), plus the GTX 1080 Ti VM for NVIDIA. **Default:**
-     QEMU for both architectures on every change, and each missing machine
-     named as waiting. The rig that changed address on 2026-10-05 is the
-     first network-resilience test host (D90.25).
-  6. **Signing keys for Muse Node OS** (D90.24). Two are credentials, so
-     they are his:
-     - **The update-bundle key.** An offline root, and a signing certificate
-       for the release job (an HSM, or the `marketplace` environment).
-       **Default:** until it exists, OS images are published for manual
-       install only, with cosign signatures and checksums, and no
-       over-the-air updates are offered.
-     - **The Secure Boot keys.** Platform keys made offline in a key ceremony
-       only he performs. **Default:** images boot with Secure Boot off; never
-       a platform key in CI.
-  7. **The captures** (no model call; the sign-in is a sign-in, not a turn):
-     bubblewrap inside a rootless container on the Kubuntu VM and on arm64;
-     how a Muse Code subscription signs in on a node with no browser (Meta
-     documents no device-code flow); TPM 2.0 on each rig and an OpenSSL TPM
-     provider under Node's TLS. One capture is a model call: the error frame
-     Muse Code sends when its connection drops mid-turn (D90.25), one short
-     turn on the contributor model in an empty workspace, about one model
-     attempt, counted from the trace log. **Default:** until captured, a
-     node's Muse Code backend is off and says why, and Muse Code turns are not
-     continued automatically.
-  8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
-     "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
-     the images.
-  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
-     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
-     an owner-only CLI sign-in home. Directory permissions do not isolate
-     processes with the same UID. N/A1 must qualify how the trusted CLI
-     engine and its own sign-in are isolated from every terminal, check and
-     repository tool (including memory/ptrace), without passing credentials
-     to tools or disabling the CLI sandbox. **Default:** the Muse Code
-     backend remains unavailable under Q-M110.7 until this boundary and the
-     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
-
 - **Q-0191-LINUX-VAULT — the vault in VS Code on Linux (2026-10-20).**
   **Resolved by the owner: ship with the limitation documented, fix in the
   next release** (0.19.1; the release itself is 0.19.0). The .vsix carries no `@napi-rs/keyring` binding (about
@@ -16117,6 +16051,15 @@ observe the named tests fail, restore byte-exact and record the evidence in
   8. **The name.** **Default:** "Muse Spark Code Node (Unofficial)" in public,
      "Muse Node" as shorthand in the docs, and "Muse Node OS (Unofficial)" for
      the images.
+  9. **CLI sign-in isolation on the home node (L0 review).** D90.23 runs
+     agent CLIs and repository tools as `muse-tools`, while D90.7 requires
+     an owner-only CLI sign-in home. Directory permissions do not isolate
+     processes with the same UID. N/A1 must qualify how the trusted CLI
+     engine and its own sign-in are isolated from every terminal, check and
+     repository tool (including memory/ptrace), without passing credentials
+     to tools or disabling the CLI sandbox. **Default:** the Muse Code
+     backend remains unavailable under Q-M110.7 until this boundary and the
+     sandbox/sign-in captures pass; no subscription-use claim meanwhile.
 
   **Owner answer (2026-10-06), items 1–8:** every default, accepted.
   The owner, 2026-10-06: "i accept your recommendations and yes i think to all of the questions." The credentials and purchases in items 3 and 6 stay his
@@ -29955,6 +29898,8 @@ or helper-only-access certification.
 
 ### M110 — Muse Node: headless worker and orchestrator host (D90)
 
+**Status 2026-10-23: building.** RLF-M110OS2 landed OS3–OS7 on OS1's recipe and OS2, built both images from the 0.19.0 runtime and booted x86-64 under TCG and aarch64 through container QEMU to the login prompt, with an SPDX SBOM per image; two x86-64 builds compared with every divergence root-caused (payload content identical). KVM boots, TPM/MOK/LUKS enrollment on hardware, image signing and OSJ wait, named. Threat-model acceptance stays with the lead. Evidence: `docs/certification/rlf-m110os2.md`.
+
 **Status 2026-10-09: building.** Lanes N, OS1, OS2 and A1 built, in review; hardware qualification open.
 
 **Lane T review fixes (FIXM110T, 2026-10-05).** Resolve RVM110T findings
@@ -36219,6 +36164,8 @@ removes it); the vault lane owns removing this row. Evidence:
 `docs/certification/m113-join.md` (Proof).
 
 **PR203FIX rig slow/blocked cases (2026-10-17, macmini, open).** Eight unit cases cannot pass on this lane's rig, all in files byte-identical to `main-now` and outside this lane's import closures. Seven need the process table through `/bin/ps`: `fileLease` process-owner births (3) and the reused-id takeover (1), `treesLifecycleNative` zombie/membership (2), `treesMacNative` zombie identity (1). Every `execFile('/bin/ps', …)` here fails `spawn EPERM` (`/bin/ps: Operation not permitted` in the lane shell; `/bin/ls`, node self-spawn, detached spawn, a freshly compiled helper and `/usr/bin/cc` all succeed), so `processStartTime` reads undefined and the tree readers see no members. The eighth is `nativeGitCore`'s fixture hook: some three dozen git invocations across eight fixture repositories run synchronously under a 10 s hook while one `git init` costs 1.4 s on this rig's disk, so the hook times out even file-alone. The product code is untouched and correct: absolute-path exec, no shell, a 10 s query timeout, and the documented "a birth that cannot be read proves nothing" fallback, which is exactly the semantic the failing assertions observe. Hosted CI runs `test:unit` on `macos-latest` without this sandbox and on fast disks, where these cases pass. Every other full-run failure on this rig (run 1: browserUiText, checkSlots ×4 plus one `ENOTEMPTY` cleanup race, vsixPackaging, two 60 s packaging hooks; run 2: a disjoint set — execStdio hook, checkSlots ×2, lintStagedBatching, teamSchedulerStalls, trafficView render, usagePackaging ×4) passes file-alone on the same tree: parallel-load flakes of this rig, not code. No timeout, threshold, gate or assertion was changed to get green. Disposition: open; the lead re-runs the eight cases outside the sandbox, or takes the CI macOS shard as the binding receipt. Detail: `docs/certification/msm82.md`.
+
+**RLF-M110OS2 plan-budget deferral (2026-10-23, linuxlt, open).** `npm run check:plan` fails: PLAN.md is 3,602,059 bytes, past 85% (3,565,158) of the 4 MiB plan-reader bound, so closed history must move to `docs/plan-archive/` before more is added. Measured pre-existing: pristine `5ae946464` is 3,601,912 bytes (also over; its run stops earlier at the Q-M110 duplicate this lane united). This lane is net +147 bytes on the file (nearly size-neutral: the duplicate removal offsets its own additions). Archiving is lead-coordinated (every recovery lane holds PLAN.md diffs; the procedure's open-branch proof needs them all), so this lane defers it: `check:roadmap` is green (the duplicate fix unblocked it) and `check:plan` stays red on the budget alone. Clearance: the lead archives per CONTRIBUTING.md; this row is removed then. Evidence: `docs/certification/rlf-m110os2.md`.
 
 ## 8. Escape hatches register
 

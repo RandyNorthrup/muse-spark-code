@@ -526,6 +526,7 @@ const config = tseslint.config(
   {
     ignores: [
       'dist/**',
+      'out/**',
       'coverage/**',
       'node_modules/**',
       '.vscode-test/**',
