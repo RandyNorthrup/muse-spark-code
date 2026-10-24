@@ -32491,13 +32491,22 @@ sources, self-trigger guard); lane RA with live authority and the
 `schedule_report` agent tool (reports refuse `destinationsPending` until
 M113 lane Q's backend binds); C-M115-6 OS wake re-arm with maintain
 reconciliation; M115w W0/WA/WS/WD/WV/WT/WU with recorded GitHub captures,
-report-only until M109's T (ack, triage, findings shown; posts beyond the
-ack need approval), the `watchdog` terminal command and ACP `/watchdog`.
+report-only until M109's T (ack, triage, findings shown; see 2026-10-24),
+the `watchdog` terminal command and ACP `/watchdog`.
 C-M115-8 role/team targets refuse `targetUnavailable` (waits on M96);
 C-M115-9 native rows wait on M104. The Windows VS Code leg ran real timers
 (`docs/certification/rlsched.md`): the one extension-suite failure is
 measured identical on the untouched base. The certification switch stays
 off; the lead's complete receipts are not all in.
+
+**Status 2026-10-24 (RLSCHED, Mac mini): building.** Added, with tests over
+recorded GitHub exchanges: the needs-info wait returns to triage on the
+reporter's answer or an edit; replies are marked by flow, round and kind;
+acknowledgements and replies post under the repository's lock;
+`watchdog policy`; `/report issues`; report only is structural
+(`WATCHDOG_TAINT_LANE`, flipped with M109's T). Not built: the Agent-map
+card and policy page, the `fixLane` outcome (M96), the live GitHub
+acknowledgement. The switch stays off. Detail: `docs/certification/rlsched.md`.
 
 - **Goal.** A user, or an orchestrating agent within the user's limits,
   schedules any number of prompts to fire once, repeatedly, on a cron

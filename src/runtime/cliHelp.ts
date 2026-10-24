@@ -459,7 +459,6 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
     examples: [
       (command) => `${command} watchdog list`,
       (command) => `${command} watchdog poll owner/name`,
-      (command) => `${command} watchdog policy owner/name`,
     ],
     ...GENERIC_EXITS,
   },

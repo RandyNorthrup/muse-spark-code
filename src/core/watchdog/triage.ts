@@ -48,14 +48,25 @@ function foldedTitle(title: string): string {
     .trim()
 }
 
+/** Whether `text` holds `token` as a whole word: the next character is
+not a word character, so `#146` is not `#1460`. No pattern is built from
+the number. */
+function hasWholeToken(text: string, token: string): boolean {
+  for (let at = text.indexOf(token); at !== -1; at = text.indexOf(token, at + 1)) {
+    const next = text[at + token.length]
+    if (next === undefined || !/\w/u.test(next)) return true
+  }
+  return false
+}
+
 /** Whether `text` cites `number` as an issue (`#146`, not `WB-146`). */
 function isIssueCited(text: string, number: number): boolean {
-  return new RegExp(String.raw`#${String(number)}\b`).test(text)
+  return hasWholeToken(text, `#${String(number)}`)
 }
 
 /** Whether `text` names the issue's page (`issues/146`, not `issues/1460`). */
 function isIssuePageCited(text: string, number: number): boolean {
-  return new RegExp(String.raw`issues/${String(number)}\b`).test(text)
+  return hasWholeToken(text, `issues/${String(number)}`)
 }
 
 /** The open list's duplicate candidates for `issue`: the same folded
