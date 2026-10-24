@@ -86,8 +86,56 @@ hand; the read rule stays, matching VS Code. The cross-process half of S1
 (the named lock with the in-process queue left in) is proven by slice 3's
 two-process case. Every file was restored and matched its blob hash.
 
+## Slice 2 — one controller registry, ACP's turns untouched
+
+`src/runtime/panel/controllerRegistry.ts` is the ACP agent's own session
+bookkeeping (AgentState's `sessions`, `adopting`, `claims`, `releasing`,
+watched and exited hosts), moved out unchanged: claim before backend I/O,
+adopt only a prepared view behind the release barrier of the one it
+replaces, close, release every session on sign-out, and retire every
+session of a backend that exits. RLM104's registry was the same
+extraction; on int it is the single copy, which the runtime panel's own
+conversations will use as well instead of a second one.
+
+AgentState now delegates to it and keeps only what is ACP's: the remembered
+model and effort, client modes, extra roots (cleared through the registry's
+`released` hook, as `releaseAll` cleared them before) and the log line a
+stopped backend writes. ACP's turn path is exactly int's: RLM104's
+`createConversation`, `AcpConversation`, `acpComposition.ts` and its
+`this.conversation.submit(...)` turn are not brought in, so RLACP's slash
+handling, resource sessions, outbound error allow-list and `acpAccounting`
+run as merged.
+
+Observing ACP sessions from a panel (cc-rlm104 item 2) needs the panel and
+the agent in one process (ACP's `/panel` or the companion route): the
+registry they would share is this one. `panel --stdio` runs as a process
+of its own, so it is remainder with lane C.
+
+Suite `test/unit/acpSessionRegistry.test.ts` (2 cases): a real ACP client
+drives the real agent over the product's own Model API host and real file
+session store, no key stored, with the editor-chat rig's real providers
+file for its models (local addresses; any send refuses). `session/new`
+adopts a session; `session/close` lets it go; a second close and a prompt
+answer the protocol's resource-not-found; `logout` lets every held session
+go. `modelApiRig` gained an optional model resolver for this. The Muse Code
+captures could not serve it: each one either lacks `museHome` in its
+initialize (the host refuses it) or lacks `session/setReasoningEffort`,
+and joining two captures would invent an exchange.
+
+| Drill | Break                                             | Result                                |
+| ----- | ------------------------------------------------- | ------------------------------------- |
+| R1    | `closeSession` reports a session found every time | exit 1: both cases (the second close) |
+| R2    | `releaseEvery` lets no session go                 | exit 1: "lets every held session go"  |
+
+Int's ACP suites over the extraction: 21 of 22 files, 228 of 230 cases
+pass. `acpServeHandshake` (2) fails the same way on an archive of
+int/recovery `acb48b7f35` on this PC: the staged agent answers its
+session list with the generic failure instead of the sign-in refusal, with
+or without this change.
+
 ## Commits
 
-| Commit | Slice                               |
-| ------ | ----------------------------------- |
-| (next) | slice 1: settings and storage store |
+| Commit       | Slice                                         |
+| ------------ | --------------------------------------------- |
+| `c17faa0c2a` | slice 1: settings and storage store           |
+| (next)       | slice 2: the controller registry, ACP over it |
