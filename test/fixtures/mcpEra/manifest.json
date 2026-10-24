@@ -18,5 +18,21 @@
     "tools-call-modern.json": "tools/call add(40,2) with the modern envelope to modern-stdio -> 42 + resultType complete",
     "tools-call-input-required.json": "tools/call greet with the modern envelope (elicitation declared) to modern-elicit-stdio -> input_required with one form elicitation and a requestState",
     "elicitation-create-legacy.json": "initialize (elicitation declared) + tools/call greet to legacy-elicit-stdio -> the server's elicitation/create request"
+  },
+  "cc-mcp2": {
+    "captured": "2026-10-23",
+    "lane": "cc/mcp2 (PLAN.md D213 follow-ups; docs/certification/cc-mcp2.md)",
+    "servers": {
+      "everything": "the reference server @modelcontextprotocol/server-everything 2.0.0 (on @modelcontextprotocol/server 2.4.0 and @modelcontextprotocol/node 2.1.2), `PORT=3311 node dist/index.js streamableHttp`",
+      "drill": "temp/rig/stale-server.mjs on @modelcontextprotocol/server 2.4.0 + @modelcontextprotocol/node 2.1.2, createMcpHandler with legacy 'reject', `node stale-server.mjs 3313`"
+    },
+    "harness": "The product's own pool (createMcpPool) driven by temp/rig/driver.ts through `node temp/rig/run.mjs <run> <server> <steps>`, its fetch recording every request and a passive copy of every reply; `node temp/rig/extract.mjs <run> <request> <file> [mode]` copied the reply out of the run's tap.",
+    "files": {
+      "tools-list-header-params.json": "run green-param, request 2: tools/list to everything (HTTP, 2026-07-28) -> 22 tools, get-header-params' region annotated `x-mcp-header: Region`, ttlMs 60000",
+      "tools-list-annotations.json": "run capture-annotations, request 2: tools/list to the drill server -> zone_echo, annotate and five annotated tools as the SDK serves them (one valid nested, four breaking the spec's constraints), ttlMs 0",
+      "header-mismatch-http.json": "run green-stale, request 6: tools/call zone_echo without its Mcp-Param-Zone to the drill server -> 400 with -32020",
+      "subscription-acknowledged.json": "run green-listen-modern-http, request 3 (subscriptions/listen), event 0 -> notifications/subscriptions/acknowledged honouring toolsListChanged, subscription id 2",
+      "tools-list-changed-subscribed.json": "run green-listen-modern-http, request 3 (subscriptions/listen), event 1 -> notifications/tools/list_changed under subscription id 2, after a trigger-list-changed call"
+    }
   }
 }

@@ -11,9 +11,15 @@
 // else as a method this client does not offer; on a modern server the
 // form is gathered through the multi-round-trip loop instead, the server
 // never sending requests of its own. Its log lines go to the extension's
-// log, and a changed tool list is announced. A transport that closes
-// rejects every request still waiting and stops every waiting
-// elicitation. Pure over the transport (stdio.ts, http.ts).
+// log, and a changed tool list is announced: a legacy server sends the
+// change unsolicited, a modern one on the `subscriptions/listen` stream
+// the connection holds when the server says its list changes. On modern
+// Streamable HTTP a tool's `x-mcp-header` arguments travel as
+// `Mcp-Param-{Name}` headers (a tool whose annotations break the spec is
+// left out of the listing), and a modern listing's `ttlMs` says how long
+// it stays fresh. A transport that closes rejects every request still
+// waiting and stops every waiting elicitation. Pure over the transport
+// (stdio.ts, http.ts) and the clock.
 
 import {
   JSON_RPC_ERRORS,
@@ -30,7 +36,16 @@ import {
 import { clipForLog, type CoreLogger } from '../../../logging'
 import { failureForLog } from '../../musecode/logText'
 import { setLongTimeout, startStillWaiting, stillWaitingText } from '../../../timeouts'
+import {
+  cancelledRequestOf,
+  type ModernTools,
+  modernTools,
+  pageFreshUntil,
+  subscriptionAckSchema,
+  subscriptionIdOf,
+} from './changes'
 import type { ElicitationOutcome, McpElicitationHandler } from './elicitation'
+import { type HeaderMirror, mirrorHeaders, scanHeaderMirrors } from './headers'
 import {
   type CallToolResult,
   callToolResultSchema,
@@ -60,8 +75,22 @@ export interface McpTransport {
   Sends one message. Over HTTP a request's answer comes back in the reply
   to this send, and reaches `onMessage` before the promise resolves.
   Rejects with `McpSessionExpiredError` when the server forgot the session.
+  `paramHeaders` are a modern tool call's `Mcp-Param-{Name}` headers,
+  which only HTTP carries.
   */
-  send(message: OutgoingMessage, signal: AbortSignal): Promise<void>
+  send(
+    message: OutgoingMessage,
+    signal: AbortSignal,
+    paramHeaders?: Readonly<Record<string, string>>,
+  ): Promise<void>
+  /**
+  Holds a `subscriptions/listen` request's own stream (HTTP), delivering
+  its messages to `onMessage`: resolves when the stream ends, by the
+  server or by the signal (the client's cancellation there), rejects
+  when the listen is refused. A transport whose messages share one
+  channel (stdio) has none: there the listen is sent like any request.
+  */
+  subscribe?(message: OutgoingMessage, signal: AbortSignal): Promise<void>
   /** The revision `initialize` agreed on (HTTP sends it with every request). */
   setProtocolVersion(version: string): void
   onMessage(listener: (message: unknown) => void): void
@@ -105,6 +134,23 @@ export interface RequestOptions {
   */
   readonly timeoutMs: number | undefined
   readonly signal?: AbortSignal | undefined
+  /** A modern HTTP tool call's `Mcp-Param-{Name}` headers. */
+  readonly paramHeaders?: Readonly<Record<string, string>> | undefined
+}
+
+/**
+The tool subscription a modern connection holds (spec
+`basic/patterns/subscriptions`), by the id of the `subscriptions/listen`
+request that opened it.
+*/
+interface ToolSubscription {
+  readonly id: RequestId
+  /** Ends it: the stream closed on HTTP, `notifications/cancelled` on stdio. */
+  readonly end: () => void
+  /** The server acknowledged it, honouring tool-list changes. */
+  isAcknowledged: boolean
+  /** The server ended it: an answer to the listen, or its own cancellation. */
+  isEndedByServer: boolean
 }
 
 interface Waiting {
@@ -131,6 +177,8 @@ const NOTIFICATION_INITIALIZED = 'notifications/initialized'
 const NOTIFICATION_CANCELLED = 'notifications/cancelled'
 const NOTIFICATION_TOOLS_CHANGED = 'notifications/tools/list_changed'
 const NOTIFICATION_LOG = 'notifications/message'
+const METHOD_LISTEN = 'subscriptions/listen'
+const NOTIFICATION_ACKNOWLEDGED = 'notifications/subscriptions/acknowledged'
 const CANCELLED_BY_USER = 'the user stopped the turn'
 
 function seconds(ms: number): string {
@@ -168,6 +216,19 @@ export class McpConnection {
   private readonly elicitationClosers = new Set<() => void>()
   /** The handshake's parameters, kept for a new session after an expired one. */
   private handshakeTimeoutMs: number | undefined = undefined
+  /** A modern server said its tool list changes (`tools.listChanged`). */
+  private toolsListChanged = false
+  /** The held tool subscription, while one is open. */
+  private subscription: ToolSubscription | undefined
+  /** Each listed tool's mirrored arguments (modern Streamable HTTP only). */
+  private mirrors = new Map<string, readonly HeaderMirror[]>()
+  /**
+  Until when the last listing is fresh (spec `server/utilities/caching`):
+  the earliest of its pages' `ttlMs` past their receipt, when every page
+  named a positive one; undefined otherwise (immediately stale, so the
+  list rests on change notifications, as a legacy one always does).
+  */
+  private toolsFreshUntil: number | undefined
 
   public constructor(
     private readonly transport: McpTransport,
@@ -389,6 +450,18 @@ export class McpConnection {
 
   private settle(message: IncomingMessage): void {
     const { id } = message
+    const subscription = this.subscription
+    if (subscription !== undefined && id === subscription.id) {
+      // The answer to a listen ends it: a result is the server's graceful
+      // close, an error its refusal (spec `subscriptions#graceful-closure`).
+      this.endedByServer(
+        subscription,
+        message.error === undefined
+          ? `MCP server ${this.options.name} ended its tool-change subscription`
+          : `MCP server ${this.options.name} refused the tool-change subscription (MCP error ${String(message.error.code)})`,
+      )
+      return
+    }
     const waiting = id === undefined || id === null ? undefined : this.waiting.get(id)
     if (waiting === undefined) {
       this.options.log.warn(
@@ -409,11 +482,67 @@ export class McpConnection {
     )
   }
 
+  /**
+  The server ended the subscription. On HTTP its stream ends next and the
+  listen loop sees the mark; on stdio nothing waits, so it is let go here.
+  */
+  private endedByServer(subscription: ToolSubscription, line: string): void {
+    subscription.isEndedByServer = true
+    this.options.log.info(line)
+    if (this.transport.subscribe === undefined && this.subscription === subscription) {
+      this.subscription = undefined
+    }
+  }
+
+  /**
+  A subscription's acknowledgment: the filter the server honours. One that
+  leaves out tool-list changes is ended at once, since it would carry
+  nothing this client asked for.
+  */
+  private acknowledged(params: unknown): void {
+    const subscription = this.subscription
+    if (subscription === undefined || subscriptionIdOf(params) !== subscription.id) {
+      return
+    }
+    const ack = subscriptionAckSchema.safeParse(params)
+    if (!ack.success || ack.data.notifications?.toolsListChanged !== true) {
+      this.options.log.info(
+        `MCP server ${this.options.name} does not send its tool-list changes; the subscription is closed`,
+      )
+      this.subscription = undefined
+      subscription.end()
+      return
+    }
+    subscription.isAcknowledged = true
+    this.options.log.info(`MCP server ${this.options.name} sends its tool-list changes`)
+  }
+
   private notice(method: string, params: unknown): void {
     if (method === NOTIFICATION_TOOLS_CHANGED) {
+      // A change makes the listing stale at once, whatever its `ttlMs`
+      // said (spec `caching#interaction-with-notifications`).
+      this.toolsFreshUntil = undefined
       for (const listener of this.toolListeners) {
         listener()
       }
+      return
+    }
+    if (method === NOTIFICATION_ACKNOWLEDGED) {
+      this.acknowledged(params)
+      return
+    }
+    // A server tears a subscription down with `notifications/cancelled`
+    // naming the listen (spec `basic/patterns/cancellation`).
+    const subscription = this.subscription
+    if (
+      method === NOTIFICATION_CANCELLED &&
+      subscription !== undefined &&
+      cancelledRequestOf(params) === subscription.id
+    ) {
+      this.endedByServer(
+        subscription,
+        `MCP server ${this.options.name} ended its tool-change subscription`,
+      )
       return
     }
     // Progress, cancellation and resource notifications need nothing here.
@@ -437,9 +566,13 @@ export class McpConnection {
   }
 
   /** `send`, starting a new session once when the server forgot the old one. */
-  private async sendRenewing(message: OutgoingMessage, signal: AbortSignal): Promise<void> {
+  private async sendRenewing(
+    message: OutgoingMessage,
+    signal: AbortSignal,
+    paramHeaders: Readonly<Record<string, string>> | undefined,
+  ): Promise<void> {
     try {
-      await this.transport.send(message, signal)
+      await this.transport.send(message, signal, paramHeaders)
     } catch (error: unknown) {
       if (!(error instanceof McpSessionExpiredError) || !('method' in message)) {
         throw error
@@ -448,7 +581,7 @@ export class McpConnection {
         `MCP server ${this.options.name} ended its session; starting a new one and sending ${message.method} again`,
       )
       await this.handshake(this.handshakeTimeoutMs)
-      await this.transport.send(message, signal)
+      await this.transport.send(message, signal, paramHeaders)
     }
   }
 
@@ -474,6 +607,13 @@ export class McpConnection {
           this.options.elicitation === undefined ? {} : { elicitation: {} },
       },
     }
+  }
+
+  /** Whether requests travel as modern Streamable HTTP, the only place headers are mirrored. */
+  private isModernHttp(): boolean {
+    return (
+      this.modernVersion !== undefined && this.options.transport === MCP_TRANSPORTS.streamableHttp
+    )
   }
 
   private async request(
@@ -568,6 +708,7 @@ export class McpConnection {
         this.sendRenewing(
           { jsonrpc: JSON_RPC_VERSION, id, method, params: this.envelope(params) },
           controller.signal,
+          options.paramHeaders,
         ),
         aborted,
       ])
@@ -704,14 +845,126 @@ export class McpConnection {
     }
   }
 
+  /** One `subscriptions/listen` asking for tool-list changes, enveloped, under a new id. */
+  private listenMessage(): OutgoingMessage & { readonly id: RequestId } {
+    this.nextId += 1
+    return {
+      jsonrpc: JSON_RPC_VERSION,
+      id: this.nextId,
+      method: METHOD_LISTEN,
+      params: this.envelope({ notifications: { toolsListChanged: true } }),
+    }
+  }
+
+  /**
+  The subscription on stdio, where every message shares one channel: the
+  listen is sent once and its notifications are told apart by their
+  subscription id; closing sends `notifications/cancelled` for it.
+  */
+  private async listenOnChannel(): Promise<void> {
+    const message = this.listenMessage()
+    const subscription: ToolSubscription = {
+      id: message.id,
+      end: () => {
+        void this.sendQuietly({
+          jsonrpc: JSON_RPC_VERSION,
+          method: NOTIFICATION_CANCELLED,
+          params: { requestId: message.id },
+        })
+      },
+      isAcknowledged: false,
+      isEndedByServer: false,
+    }
+    this.subscription = subscription
+    try {
+      await this.transport.send(message, new AbortController().signal)
+    } catch (error: unknown) {
+      // A listen that never went out is no subscription: the tools stand,
+      // and their changes are not heard.
+      if (this.subscription === subscription) this.subscription = undefined
+      this.options.log.warn(
+        `MCP server ${this.options.name} could not be asked for its tool-list changes: ${failureForLog(error)}`,
+      )
+    }
+  }
+
+  /**
+  The subscription on Streamable HTTP: the listen's own stream is held
+  until it ends. A stream the server ended (its answer, or its own
+  cancellation), the client closed, or the server never acknowledged is
+  over; an acknowledged stream that drops without an answer is an
+  unexpected disconnect, which the spec lets the client treat as a
+  trigger to reconnect, so the listen is sent again
+  (`subscriptions#graceful-closure`).
+  */
+  private async holdSubscription(
+    subscribe: (message: OutgoingMessage, signal: AbortSignal) => Promise<void>,
+  ): Promise<void> {
+    for (;;) {
+      const message = this.listenMessage()
+      const stop = new AbortController()
+      const subscription: ToolSubscription = {
+        id: message.id,
+        end: () => {
+          stop.abort()
+        },
+        isAcknowledged: false,
+        isEndedByServer: false,
+      }
+      this.subscription = subscription
+      let isRefused = false
+      try {
+        await subscribe(message, stop.signal)
+      } catch (error: unknown) {
+        // Before the acknowledgment the server refused the listen; after
+        // it the stream broke, which is a drop like any other.
+        isRefused = !subscription.isAcknowledged
+        this.options.log.warn(
+          isRefused
+            ? `MCP server ${this.options.name} refused the tool-change subscription: ${failureForLog(error)}`
+            : `MCP server ${this.options.name}'s tool-change stream broke: ${failureForLog(error)}`,
+        )
+      }
+      const isOurs = this.subscription === subscription
+      if (isOurs) this.subscription = undefined
+      if (
+        !isOurs ||
+        isRefused ||
+        stop.signal.aborted ||
+        subscription.isEndedByServer ||
+        this.closedReason !== undefined
+      ) {
+        return
+      }
+      if (!subscription.isAcknowledged) {
+        this.options.log.warn(
+          `MCP server ${this.options.name} ended the tool-change subscription before acknowledging it`,
+        )
+        return
+      }
+      this.options.log.info(
+        `MCP server ${this.options.name}'s tool-change stream dropped; listening again`,
+      )
+    }
+  }
+
   /**
   The modern era, adopted from a `server/discover` verdict: every request
-  from now on carries the version, and the tools capability is the
+  from now on carries the version, and the tools capability (whether the
+  server has tools, and whether it says their list changes) is the
   verdict's.
   */
-  public adoptModern(version: string, hasTools: boolean): void {
+  public adoptModern(version: string, tools: ModernTools): void {
     this.modernVersion = version
-    this.hasTools = hasTools
+    this.hasTools = tools.hasTools
+    this.toolsListChanged = tools.listChanged
+  }
+
+  /** The era this connection settled on, for the verdict kept across restarts. */
+  public get settledVersion(): { readonly era: 'modern'; readonly version: string } | undefined {
+    return this.modernVersion === undefined
+      ? undefined
+      : { era: 'modern', version: this.modernVersion }
   }
 
   /** One `server/discover` at the adopted version; the raw verdict, parsed. */
@@ -752,12 +1005,12 @@ export class McpConnection {
       )
       corrective = { mutual, failure: error }
     }
-    this.adoptModern(corrective.mutual, true)
+    this.adoptModern(corrective.mutual, { hasTools: true, listChanged: false })
     const discover = await this.discover(timeoutMs)
     if (newestMutualModern(discover.supportedVersions) === undefined) {
       throw corrective.failure
     }
-    this.hasTools = discover.capabilities.tools !== undefined
+    this.adoptModern(corrective.mutual, modernTools(discover))
     return corrective.mutual
   }
 
@@ -767,12 +1020,17 @@ export class McpConnection {
       return []
     }
     const tools: McpToolInfo[] = []
+    const mirrors = new Map<string, readonly HeaderMirror[]>()
     const seenCursors = new Set<string>()
+    // Only a modern listing names `ttlMs`; a legacy one rests on change
+    // notifications, exactly as before.
+    let freshUntil: number | undefined = this.modernVersion === undefined ? undefined : Infinity
     let cursor: string | undefined
     for (;;) {
       const raw = await this.request(METHOD_TOOLS_LIST, cursor === undefined ? {} : { cursor }, {
         timeoutMs,
       })
+      freshUntil = pageFreshUntil(raw, Date.now(), freshUntil)
       // A modern answer names its `resultType`; a legacy one names none
       // and reads as complete. `input_required` never answers a list.
       const resultType = resultTypeOf(raw)
@@ -789,28 +1047,53 @@ export class McpConnection {
       }
       for (const candidate of parsed.data.tools) {
         const tool = toolInfoSchema.safeParse(candidate)
-        if (tool.success) {
-          tools.push(tool.data)
-        } else {
+        if (!tool.success) {
           this.options.log.warn(
             `MCP server ${this.options.name} listed a tool without a name or with a malformed schema; skipped: ${clipForLog(JSON.stringify(candidate))}`,
           )
+          continue
         }
+        if (this.isModernHttp()) {
+          // Spec `streamable-http#schema-extension`: a tool whose
+          // `x-mcp-header` annotations break the constraints is excluded
+          // from the listing, with a warning naming it and the reason.
+          const scanned = scanHeaderMirrors(tool.data.inputSchema)
+          if (!scanned.ok) {
+            this.options.log.warn(
+              `MCP server ${this.options.name} listed ${tool.data.name}, whose headers break the MCP rules; it is not offered: ${scanned.reason}`,
+            )
+            continue
+          }
+          mirrors.set(tool.data.name, scanned.mirrors)
+        }
+        tools.push(tool.data)
       }
       cursor = parsed.data.nextCursor ?? undefined
-      if (cursor === undefined || cursor === '') {
-        return tools
-      }
-      // No page cap (B8), but a cursor the server already named would page
-      // forever: stop at the repeat and say so instead of hanging.
-      if (seenCursors.has(cursor)) {
-        this.options.log.warn(
-          `MCP server ${this.options.name} repeated a tools/list cursor; the tools read so far are offered`,
-        )
+      const isRepeated = cursor !== undefined && seenCursors.has(cursor)
+      if (cursor === undefined || cursor === '' || isRepeated) {
+        // No page cap (B8), but a cursor the server already named would
+        // page forever: stop at the repeat and say so instead of hanging.
+        if (isRepeated) {
+          this.options.log.warn(
+            `MCP server ${this.options.name} repeated a tools/list cursor; the tools read so far are offered`,
+          )
+        }
+        this.mirrors = mirrors
+        this.toolsFreshUntil = freshUntil
         return tools
       }
       seenCursors.add(cursor)
     }
+  }
+
+  /**
+  Whether the last modern listing named a freshness that has now lapsed:
+  then the client re-reads it on its next use (spec `caching#freshness-
+  calculation`), never before. A listing without one is never stale by
+  the clock: its changes arrive as notifications.
+  */
+  public get isToolListStale(): boolean {
+    return this.toolsFreshUntil !== undefined && Date.now() >= this.toolsFreshUntil
   }
 
   /** Calls one tool; rejects on a JSON-RPC error, the entry's own deadline when named, a Stop or a closed connection. */
@@ -824,8 +1107,16 @@ export class McpConnection {
     // once; it names no `resultType` and reads as complete.
     let params: Readonly<Record<string, unknown>> = { name, arguments: args }
     const seenStates = new Set<string>()
+    // On modern Streamable HTTP the tool's annotated arguments travel as
+    // `Mcp-Param-{Name}` headers too (spec `streamable-http#client-
+    // behavior`), on every round of the call: its arguments never change.
+    const mirrors = this.isModernHttp() ? this.mirrors.get(name) : undefined
+    const requestOptions: RequestOptions =
+      mirrors === undefined || mirrors.length === 0
+        ? options
+        : { ...options, paramHeaders: mirrorHeaders(mirrors, args) }
     for (;;) {
-      const raw = await this.request(METHOD_TOOLS_CALL, params, options)
+      const raw = await this.request(METHOD_TOOLS_CALL, params, requestOptions)
       const resultType = resultTypeOf(raw)
       if (
         resultType !== undefined &&
@@ -841,8 +1132,31 @@ export class McpConnection {
         }
         return parsed.data
       }
-      params = await this.fulfillInput(name, args, raw, options, seenStates)
+      params = await this.fulfillInput(name, args, raw, requestOptions, seenStates)
     }
+  }
+
+  /**
+  Listens for the tool list's changes on a modern server that says the
+  list changes (spec `server/tools#list-changed-notification`); a legacy
+  server sends them unsolicited, and one that never changes its list is
+  not asked. Never waits: the subscription runs beside the connection.
+  */
+  public listenForToolChanges(): void {
+    if (
+      this.modernVersion === undefined ||
+      !this.hasTools ||
+      !this.toolsListChanged ||
+      this.subscription !== undefined ||
+      this.closedReason !== undefined
+    ) {
+      return
+    }
+    if (this.transport.subscribe === undefined) {
+      void this.listenOnChannel()
+      return
+    }
+    void this.holdSubscription(this.transport.subscribe.bind(this.transport))
   }
 
   /** The server said its tool list changed (`notifications/tools/list_changed`). */
@@ -863,6 +1177,11 @@ export class McpConnection {
   public async close(): Promise<void> {
     this.closeListeners.clear()
     this.toolListeners.clear()
+    // The subscription is ended first, while the transport still carries
+    // the cancellation on stdio.
+    const { subscription } = this
+    this.subscription = undefined
+    subscription?.end()
     this.closed('the client closed it')
     await this.transport.close()
   }

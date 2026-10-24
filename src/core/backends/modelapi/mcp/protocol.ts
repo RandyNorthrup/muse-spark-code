@@ -15,7 +15,7 @@ import {
 
 export const JSON_RPC_VERSION = '2.0'
 
-const requestIdSchema = z.union([z.string(), z.number()])
+export const requestIdSchema = z.union([z.string(), z.number()])
 export type RequestId = z.infer<typeof requestIdSchema>
 
 const errorObjectSchema = z.object({
