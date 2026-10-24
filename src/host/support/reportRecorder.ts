@@ -19,6 +19,7 @@ import {
 import type { BackendKind, ReportEventRef, ReportWebviewError } from '../../shared/protocol'
 import type { PackageFrame } from '../../shared/stackFrames'
 import type { ReportJournalSource } from '../conversation/reportProblemHandler'
+import { withReportTimeout } from './reportTimeout'
 
 /** One failure on its way to the journal: facts, or a thrown error the journal reads for its class and frames. */
 export type PendingRecord =
@@ -55,6 +56,13 @@ export class ReportRecorder {
   private sequence = 0
   private recent: readonly number[] = []
   private journal: Promise<WindowJournal | undefined> | undefined
+  /** Writes queued but not yet landed: "Report This" waits for these, bounded. */
+  private readonly pending = new Set<Promise<unknown>>()
+  /**
+  Failures the minute's budget dropped (lane REPORTFLOW R2): counted in
+  the draft beside what the builder left out. Cumulative since activation.
+  */
+  private rateLimited = 0
 
   public constructor(private readonly options: ReportRecorderOptions) {}
 
@@ -63,6 +71,7 @@ export class ReportRecorder {
     const at = this.options.now()
     this.recent = this.recent.filter((recorded) => at - recorded < REPORT_RECORD_WINDOW_MS)
     if (this.recent.length >= REPORT_RECORD_LIMIT) {
+      this.rateLimited += 1
       return false
     }
     this.recent = [...this.recent, at]
@@ -89,10 +98,34 @@ export class ReportRecorder {
     if (!this.admit()) {
       return undefined
     }
-    void this.open().then((journal) => journal?.record(input))
+    const write = (async (): Promise<unknown> => {
+      const journal = await this.open()
+      return await journal?.record(input)
+    })()
+    this.pending.add(write)
+    // The journal owns a failed write (it disables itself and says so); the
+    // pending set only forgets a settled one, and a write that rejects
+    // anyway reaches the process's unhandled-rejection record, as before.
+    void write.finally(() => {
+      this.pending.delete(write)
+    })
     const ref: ReportEventRef = { kind: input.kind, entryIndex: this.sequence }
     this.sequence += 1
     return ref
+  }
+
+  /**
+  Waits for queued writes to land, up to `timeoutMs` (lane REPORTFLOW R2):
+  the reported event is in the journal before the draft is built. Past
+  the bound it rejects and the draft builds from whatever the journal
+  holds; a settled queue resolves at once.
+  */
+  public async flushWrites(timeoutMs: number): Promise<void> {
+    const queued = [...this.pending]
+    if (queued.length === 0) {
+      return
+    }
+    await withReportTimeout(settlePromises(queued), timeoutMs)
   }
 
   /** Loads the journal, sets this activation's marker and prunes; true when a crash should be offered. */
@@ -142,9 +175,18 @@ export class ReportRecorder {
 
   /** The retained records as the report dialog reads them. */
   public async readJournal(): Promise<ReportJournalSource> {
+    // The reason recording is unavailable is `unknown` until the capture
+    // side provides its code (lane REPORTFLOW R2); the minute's budget
+    // drops ride along for the draft's count.
+    const drops = this.rateLimited > 0 ? { rateLimitedDrops: this.rateLimited } : {}
     const journal = await this.open()
     return journal === undefined
-      ? { entries: [], recordingUnavailable: true }
-      : await journal.readJournal()
+      ? { entries: [], recordingUnavailable: true, unavailableReason: 'unknown', ...drops }
+      : { ...(await journal.readJournal()), ...drops }
   }
+}
+
+/** Everything queued settles, kept as one boundable wait (lane REPORTFLOW R2). */
+async function settlePromises(queued: readonly Promise<unknown>[]): Promise<void> {
+  await Promise.allSettled(queued)
 }

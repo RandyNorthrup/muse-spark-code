@@ -8,7 +8,11 @@
 // `markAuthRequired`. All VS Code interactions (terminals, input boxes) are
 // injected so the flow is unit-tested end to end.
 
-import { isCliSignInConsulted, selectBackend } from '../../core/backendSelection'
+import {
+  describeBackendResolution,
+  isCliSignInConsulted,
+  selectBackend,
+} from '../../core/backendSelection'
 import type { BackendKind } from '../../core/agent/agentBackend'
 import type { CliSignIn } from '../../core/backends/musecode/credentialFile'
 import { wireWordForLog } from '../../core/logging'
@@ -18,8 +22,10 @@ import {
   type BackendMode,
   MUSE_INSTALL_POLL_INTERVAL_MS,
   MUSE_INSTALL_TIMEOUT_MS,
+  MODEL_API_KEY_PATTERN,
   MUSE_LOGOUT_ARGS,
   UI_TEXT,
+  type ReportEventKind,
 } from '../../shared/constants'
 import { fill } from '../../shared/l10n/text'
 import type { AuthStatus, HostToWebviewMessage, SignInMethod } from '../../shared/protocol'
@@ -115,6 +121,13 @@ export interface AuthServiceDeps {
   readonly sleep: (ms: number) => Promise<void>
   readonly now: () => number
   readonly log: Logger
+  /**
+  The flight recorder's facts-only way in (lane REPORTFLOW, PLAN.md M93):
+  sign-in starts and ends, the CLI probe and the backend resolution, so a
+  signed-out person's report is not "Recent events (0)". Absent in tests
+  and where no recorder runs; recording never throws into the flow.
+  */
+  readonly report?: ((kind: ReportEventKind, code: string) => void) | undefined
 }
 
 /** `signOut` options (M95 acceptance 15). */
@@ -202,6 +215,38 @@ function endedSignInText(
   }
 }
 
+/** A device-flow ending in the report's fixed words (lane REPORTFLOW, PLAN.md M93). */
+function signInFailureCode(outcome: DeviceSignInOutcome): string {
+  switch (outcome) {
+    case 'cancelled': {
+      return 'cancelled'
+    }
+    case 'expired': {
+      return 'expired'
+    }
+    case 'denied': {
+      return 'denied'
+    }
+    case 'failed': {
+      return 'saveFailed'
+    }
+    case 'timedOut': {
+      return 'timedOut'
+    }
+    default: {
+      return 'unknown'
+    }
+  }
+}
+
+/** The CLI probe's answer in the report's fixed words (lane REPORTFLOW). */
+function cliProbeCode(hasCli: boolean, hasCliSession: boolean): string {
+  if (!hasCli) {
+    return 'cliMissing'
+  }
+  return hasCliSession ? 'cliSignedIn' : 'cliSignedOut'
+}
+
 /** One browser sign-in, as its steps see it. */
 interface CliSignInFlow {
   /** What the panel showed when the flow began. */
@@ -253,6 +298,12 @@ export class AuthService {
   private publishedTicket = 0
   /** The browser sign-in's code is on screen: a refresh leaves the panel to that flow. */
   private isDeviceFlowWaiting = false
+  /**
+  The last probe and resolution recorded (lane REPORTFLOW): `choose`
+  records only a change, so a refresh loop cannot crowd the journal out.
+  */
+  private lastProbeCode: string | undefined
+  private lastResolutionCode: string | undefined
   /**
   The backend conversations were last admitted on: the backend of the
   last signed-in state published, until a restart ends its conversations.
@@ -468,6 +519,29 @@ export class AuthService {
   }
 
   /**
+  The recorder's facts-only way in (lane REPORTFLOW): a fixed kind and a
+  catalogue code, never detail text. Absent where no recorder runs, and
+  never allowed to throw into the sign-in flow.
+  */
+  private recordReport(kind: ReportEventKind, code: string): void {
+    try {
+      this.deps.report?.(kind, code)
+    } catch (error: unknown) {
+      // Recording must not fail a sign-in; the log keeps that it did.
+      this.deps.log.warn(`report recording failed (${failureForLog(error)})`)
+    }
+  }
+
+  /** Records once per change: a refresh loop must not crowd the journal out. */
+  private recordReportOnce(kind: ReportEventKind, code: string, last: string | undefined): string {
+    if (last !== code) {
+      this.recordReport(kind, code)
+      return code
+    }
+    return last
+  }
+
+  /**
   The backend selection from the current facts. With the backend forced
   to the Model API the CLI is not asked at all (Codex on 328efb52).
   */
@@ -477,6 +551,29 @@ export class AuthService {
     const { hasCliSession, isUnsupportedFile } = isCliSignInConsulted(setting)
       ? await this.cliCredential(isUserAction)
       : { hasCliSession: false, isUnsupportedFile: false }
+    // A provider's secret counts as a Model API credential (M95, D74).
+    // Could-not-read counts as present (fail closed): the choice never
+    // offers sign-in as if no key existed.
+    const hasStoredKey = this.storedKeyMayExist(
+      await this.deps.credentials.readModelApiCredential(),
+      'authService.choose',
+    )
+    // The probe result and how the choice resolved (lane REPORTFLOW): facts
+    // about this window before any conversation exists. Recorded once per
+    // change, so a refresh loop cannot crowd the journal out.
+    const probeCode = cliProbeCode(cli.ok, hasCliSession)
+    this.lastProbeCode = this.recordReportOnce('cliProbe', probeCode, this.lastProbeCode)
+    const resolutionCode = describeBackendResolution({
+      setting,
+      hasCli: cli.ok,
+      hasCliSession,
+      hasStoredKey,
+    })
+    this.lastResolutionCode = this.recordReportOnce(
+      'backendResolved',
+      resolutionCode,
+      this.lastResolutionCode,
+    )
     return {
       cli,
       hasCliSession,
@@ -485,13 +582,7 @@ export class AuthService {
         setting,
         hasCli: cli.ok,
         hasCliSession,
-        // A provider's secret counts as a Model API credential (M95, D74).
-        // Could-not-read counts as present (fail closed): the choice never
-        // offers sign-in as if no key existed.
-        hasStoredKey: this.storedKeyMayExist(
-          await this.deps.credentials.readModelApiCredential(),
-          'authService.choose',
-        ),
+        hasStoredKey,
       }),
     }
   }
@@ -567,6 +658,7 @@ export class AuthService {
     const { abort } = flow
     const cli = this.deps.backend.resolveCli()
     if (!cli.ok) {
+      this.recordReport('signInFailed', 'cliMissing')
       return await this.finishFailedCliSignIn(flow, 'noCli', cli.reason, 'warning')
     }
     // Cancel and sign-out reach this flow from here on, before any await.
@@ -575,6 +667,7 @@ export class AuthService {
     try {
       const outcome = await this.awaitDeviceRunner(flow)
       if (outcome === UNSUPPORTED_FILE) {
+        this.recordReport('signInFailed', 'unsupportedFile')
         return await this.finishFailedCliSignIn(
           flow,
           'error',
@@ -583,9 +676,11 @@ export class AuthService {
         )
       }
       if (outcome === 'cancelled') {
+        this.recordReport('signInFailed', 'cancelled')
         return await this.finishCancelledCliSignIn(flow)
       }
       if (outcome === 'timedOut') {
+        this.recordReport('signInFailed', 'timedOut')
         return await this.finishFailedCliSignIn(
           flow,
           'signedOut',
@@ -594,6 +689,7 @@ export class AuthService {
         )
       }
       if (outcome !== 'signedIn') {
+        this.recordReport('signInFailed', signInFailureCode(outcome))
         return await this.finishFailedCliSignIn(
           flow,
           'signedOut',
@@ -607,9 +703,14 @@ export class AuthService {
       // What the CLI said before this sign-in no longer holds, even where
       // the file did not change (a Keychain sign-in; the review of PR #49).
       this.deps.backend.forgetCliAnswers()
-      return await this.confirmCliSignIn(flow)
+      const confirmed = await this.confirmCliSignIn(flow)
+      if (confirmed.status === 'signedIn') {
+        this.recordReport('signInSucceeded', 'browser')
+      }
+      return confirmed
     } catch (error: unknown) {
       this.deps.log.warn(`In-panel sign-in failed: ${failureForLog(error)}`)
+      this.recordReport('signInFailed', 'unknown')
       return await this.finishFailedCliSignIn(flow, 'error', UI_TEXT.signInFailed, 'warning')
     } finally {
       this.deviceAbort = undefined
@@ -934,7 +1035,16 @@ export class AuthService {
     if (epoch !== this.signOutEpoch) {
       return this.snapshot
     }
-    await this.deps.credentials.setApiKey(key)
+    try {
+      await this.deps.credentials.setApiKey(key)
+    } catch (error: unknown) {
+      // The key's shape or the store refused it: a code only, never the key.
+      this.recordReport(
+        'signInFailed',
+        MODEL_API_KEY_PATTERN.test(key.trim()) ? 'keyRefused' : 'keyInvalid',
+      )
+      throw error
+    }
     if (epoch !== this.signOutEpoch) {
       return this.snapshot
     }
@@ -946,9 +1056,14 @@ export class AuthService {
     }
     const selected = await this.selectedSnapshot(true)
     // A key can move conversations off Muse Code (a CLI no longer signed in).
-    return epoch === this.signOutEpoch
-      ? await this.publishSelection(selected, undefined, () => epoch === this.signOutEpoch)
-      : this.snapshot
+    const published =
+      epoch === this.signOutEpoch
+        ? await this.publishSelection(selected, undefined, () => epoch === this.signOutEpoch)
+        : this.snapshot
+    if (published.status === 'signedIn') {
+      this.recordReport('signInSucceeded', 'apiKey')
+    }
+    return published
   }
 
   /**
@@ -1384,6 +1499,9 @@ export class AuthService {
       if (epoch !== this.signOutEpoch) {
         return this.snapshot
       }
+      // A refused or invalid key records its code only (lane REPORTFLOW),
+      // never the key: the report then says what the person tried.
+      this.recordReport('signInStarted', 'apiKey')
       const activation = this.activateApiKey(key, epoch)
       this.keyActivations.add(activation)
       try {
@@ -1392,6 +1510,7 @@ export class AuthService {
         this.keyActivations.delete(activation)
       }
     }
+    this.recordReport('signInStarted', 'browser')
     return await this.joinDeviceSignIn()
   }
 

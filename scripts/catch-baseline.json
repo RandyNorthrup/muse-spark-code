@@ -19,11 +19,11 @@
     "root": {
       "SWALLOW": 1,
       "GENERIC": 0,
-      "CLEANUP": 2
+      "CLEANUP": 1
     },
     "runtime": {
-      "SWALLOW": 34,
-      "GENERIC": 188,
+      "SWALLOW": 32,
+      "GENERIC": 183,
       "CLEANUP": 124
     },
     "shared": {
@@ -2975,11 +2975,6 @@
     },
     {
       "file": "src/extension.ts",
-      "identity": "5b8068b2bfee194fb811c7f8d6ff548002ae8ab5a44812ff2f57553662ba5657",
-      "class": "CLEANUP"
-    },
-    {
-      "file": "src/extension.ts",
       "identity": "23343f10f541e86d130ca218f037879be902df8670fb0f786a69b180377f8280",
       "class": "CLEANUP"
     },
@@ -4595,26 +4590,6 @@
     },
     {
       "file": "src/runtime/main.ts",
-      "identity": "412fa9e88534493f4a87fa5d77003f740fea1f73b1dfe88783eec5e30316e09d",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "ce5d608bb048f78a8ab591108d1277d990be12db9caa14604cce2d07b37baca6",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "e83f8d229a89b7ad5d89bdf04774ab0a7482edf130fc657c8540c46ee1dee611",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
-      "identity": "7b7f00d58909b36e7393eac11a52600e49b74c9a71cf34d323bd858e53f9c8e9",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/main.ts",
       "identity": "637e4f0bee1e081b922ae288271eecf2437aeee4c5bdced3f56573423ded003d",
       "class": "GENERIC"
     },
@@ -4977,21 +4952,6 @@
       "file": "src/runtime/questions/acpRegistry.ts",
       "identity": "1d56c2bd9f739148497bc70bf647b6213fd71c5afc427448b278cd3a073fe7a7",
       "class": "CLEANUP"
-    },
-    {
-      "file": "src/runtime/reportCommand.ts",
-      "identity": "1bbe6c201386e63bf35542374e77141472b13b7f97250a2d0a34334ee70ef474",
-      "class": "SWALLOW"
-    },
-    {
-      "file": "src/runtime/reportCommand.ts",
-      "identity": "082a5b7df650e02ccc783b4e4acbaf39d7a78ce25cb40128b15733487acd53d4",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/runtime/reportCommand.ts",
-      "identity": "7a60e416e7930cbdc839e85a345a0288393b0a097bdef733f479fff165f6cede",
-      "class": "GENERIC"
     },
     {
       "file": "src/runtime/reporting/network.ts",

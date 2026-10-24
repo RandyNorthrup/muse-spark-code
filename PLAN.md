@@ -26366,7 +26366,7 @@ Acceptance and the exact composed gate receipts live in
 
 ### M93 — Report a problem after a crash or reload (D72, implemented 2026-10-05)
 
-**Status 2026-10-05: built.** Status evidence: `docs/certification/m93.md`.
+**Status 2026-10-24: built.** Report flow landed (RLUSAGE): it always builds, says where the person was, and falls back to the editor; `/report problem` works in ACP. Evidence: `docs/certification/m93.md`, `report-flow.md`.
 
 - **Goal.** A user can prepare and inspect a useful, scrubbed report without
   an active chat, backend or credential, then choose where it goes.

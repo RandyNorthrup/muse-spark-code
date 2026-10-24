@@ -35,6 +35,7 @@ import {
   PREFERRED_LOCATIONS,
   REPORT_DESCRIPTION_MAX_CHARS,
   REPORT_ERROR_CODE_MAX_CHARS,
+  REPORT_PANEL_STATES,
   REPORT_RECENT_EVENT_COUNT,
   REPORT_EVENT_KINDS,
   REPORT_FRAME_PATH_MAX_CHARS,
@@ -916,7 +917,13 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // the dialog's choices and bounded identifiers only. `ref` is the
   // sanitized handoff from an error row, a notice or the render fallback —
   // which recorded event the user means, never its text.
-  z.strictObject({ type: z.literal('openReport'), ref: z.optional(reportEventRefSchema) }),
+  z.strictObject({
+    type: z.literal('openReport'),
+    ref: z.optional(reportEventRefSchema),
+    // Where the person was when the dialog opened (lane REPORTFLOW): the
+    // panel's own state in fixed words, for the report's facts.
+    panelState: z.optional(z.enum(REPORT_PANEL_STATES)),
+  }),
   // A description edit, a section switch or an item removal: the host
   // rebuilds lane P's sealed draft and answers with a fresh `reportDraft`.
   z.strictObject({
@@ -1421,7 +1428,20 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     hash: z.string().check(z.minLength(REPORT_HASH_HEX_CHARS), z.maxLength(REPORT_HASH_HEX_CHARS)),
     canUseVscodeReporter: z.boolean(),
     recordingUnavailable: z.boolean(),
+    // Nothing can connect (lane REPORTFLOW): the dialog offers the landing
+    // screen's own two actions above the form.
+    connectHint: z.boolean(),
+    // A rebuild that refused re-posts the previous draft with the failed
+    // choice's revision and this mark (lane REPORTFLOW R2): the dialog's
+    // own status line says the preview could not be updated. Absent on a
+    // fresh draft.
+    rebuildFailed: z.optional(z.boolean()),
   }),
+  // The open found no draft to show (lane REPORTFLOW R2): the build refused
+  // after the snapshot, so the waiting dialog stops working and the
+  // transcript notice (already posted) says why. No session: no dialog owns
+  // this failure.
+  z.object({ type: z.literal('reportFailed') }),
   // What an export attempt answered (M93 lane W): lane P's outcome mapped
   // to fixed words, so the dialog states failures plainly with no raw
   // text. `issueFallback` (the over-long draft, copied with a paste note)

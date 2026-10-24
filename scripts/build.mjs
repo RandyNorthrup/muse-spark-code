@@ -322,6 +322,11 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
+// Lane REPORTFLOW R2: the editor-native fallback (the sealed draft behind a
+// quick pick), loaded when the report entry cannot be loaded or no
+// conversation surface becomes ready.
+const REPORT_FALLBACK_ENTRY = 'src/host/support/reportFallbackEntry.ts'
+const REPORT_FALLBACK_OUTFILE = 'dist/reportFallback.js'
 const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 // M117 C-M117-1: the shared core adapter over M113's plan reader with the
@@ -733,6 +738,29 @@ const reportOptions = {
   platform: 'node',
   format: 'cjs',
   target: HOST_NODE_TARGET,
+}
+
+// Lane REPORTFLOW R2: the editor-native fallback. It reads `vscode` (kept
+// external, provided by the host, as for the other host bundles), so a stray
+// import of anything activation-only fails the split gate instead.
+/** @type {import('esbuild').BuildOptions} */
+const reportFallbackOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
+  entryPoints: [REPORT_FALLBACK_ENTRY],
+  outfile: REPORT_FALLBACK_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+  external: ['vscode'],
 }
 
 // The capacity estimator's engine (M117, PLAN.md D97), loaded the first
@@ -1818,6 +1846,7 @@ if (isWatch) {
     esbuild.context(vaultActionsOptions),
     esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
+    esbuild.context(reportFallbackOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(planSnapshotOptions),
     esbuild.context(recorderOptions),
@@ -1973,6 +2002,7 @@ if (isWatch) {
     vaultActions: recorded('vaultActions', vaultActionsOptions),
     vaultMigration: recorded('vaultMigration', vaultMigrationOptions),
     report: recorded('report', reportOptions),
+    reportFallback: recorded('reportFallback', reportFallbackOptions),
     estimator: recorded('estimator', estimatorOptions),
     recorder: recorded('recorder', recorderOptions),
     whatsNew: recorded('whatsNew', whatsNewOptions),
@@ -2170,6 +2200,7 @@ if (isWatch) {
   reportSize('dist/vaultBrokerBindings.js')
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
+  reportSize(REPORT_FALLBACK_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(RECORDER_OUTFILE)
   reportSize(CREDENTIAL_LEASE_OUTFILE)

@@ -942,6 +942,20 @@ export const ON_FIRST_USE = [
       'src/core/support/report.ts',
     ],
   },
+  // The report fallback (lane REPORTFLOW R2): the same sealed draft behind
+  // the editor's own quick pick, when the dialog cannot open. Split out
+  // beside the dialog bundle it replaces, never into activation.
+  {
+    output: 'dist/reportFallback.js',
+    metafile: 'dist/meta/reportFallback.json',
+    use: 'the report fallback',
+    files: [
+      'src/host/support/reportFallbackEntry.ts',
+      'src/host/support/reportFallback.ts',
+      'src/host/support/reportProblem.ts',
+      'src/core/support/problemReport.ts',
+    ],
+  },
   // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
   // CLI and the ACP agent require it the first time an estimate runs.
   {
@@ -1361,6 +1375,7 @@ export const DEFERRED_OUTFILES = new Map([
     path.resolve('src/host/conversation/conversationTransferEntry.ts'),
     'dist/conversationTransfer.js',
   ],
+  [path.resolve('src/host/support/reportFallbackEntry.ts'), 'dist/reportFallback.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/core/credentialLeaseEntry.ts'), 'dist/credentialLease.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -1431,7 +1446,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiVerifyEntry|modelApiImageEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|configuredProvidersEntry|chatGptProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         if (

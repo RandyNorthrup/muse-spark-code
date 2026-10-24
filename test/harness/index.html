@@ -5968,8 +5968,10 @@
           )
         },
         // --- M93 lane W: report a problem — a recorded failure's row and
-        // the preview dialog over the host's sealed draft ---
-        report: () => {
+        // the preview dialog over the host's sealed draft. Lane REPORTFLOW:
+        // the hint list guides the description and no export is refused;
+        // `report-connect` adds the nothing-can-connect hint above the form. ---
+        report: (connectHint = false) => {
           send({
             type: 'notice',
             level: 'error',
@@ -5997,11 +5999,19 @@
               'vscode: 1.99.0',
               'node: 22.20.4',
               'platform: linux',
-              'backend: museCode',
-              'cli: found (version 1.4.2); signed in: yes',
+              'backend: auto',
+              connectHint
+                ? 'cli: found; signed in: no'
+                : 'cli: found (version 1.4.2); signed in: yes',
               'stored model api key: no; META_API_KEY in environment: no',
               'shell sandbox: sandboxed',
               'settings (names only): museSpark.backend',
+              connectHint ? 'panel: landingSignedOut' : 'panel: not recorded',
+              'last notice: none',
+              'last sign-in: none',
+              connectHint
+                ? 'backend resolution: noneCliSignedOut'
+                : 'backend resolution: museCodeAuto',
               '',
               'Recent events (2):',
               '- 45s ago toolCallFailed TypeError',
@@ -6011,6 +6021,7 @@
             hash: '0'.repeat(64),
             canUseVscodeReporter: true,
             recordingUnavailable: false,
+            connectHint,
           })
           whenFound('.report-check input', () => {
             const boxes = [...document.querySelectorAll('.report-check input')].map((input) =>
@@ -6022,6 +6033,12 @@
               throw new Error('Report section checkboxes need 24 px between their centers')
             }
           })
+        },
+        // Lane REPORTFLOW: the nothing-can-connect hint above the form
+        // (the sentence, the two landing actions), with every export
+        // available on the empty description.
+        'report-connect': () => {
+          steps['report'](true)
         },
         // The runners open this one in a real 320 px viewport (the dialog's
         // backdrop is fixed to the viewport, so a narrow body would not test it).

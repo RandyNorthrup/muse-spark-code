@@ -82,6 +82,59 @@ function reportFailureText(error: Error): string {
     : fill(UI_TEXT.reportUi.generationReason, { reason })
 }
 
+/**
+The M93 problem report behind `/report problem` (lane REPORTFLOW R2): the
+same scrubbed draft the dialog previews and the terminal prints, answered
+in the reply with the issue link. No backend, model call or network.
+*/
+export interface AcpProblemReportPort {
+  execute(
+    description: string,
+    context: {
+      readonly cwd: string
+      readonly sessionId: string
+      readonly signal: AbortSignal
+    },
+  ): Promise<string>
+}
+
+/**
+The description `/report problem` carries, or undefined for any other
+`/report` use (which stays with the deterministic engine). `problem`
+alone is an empty description, like the dialog's Save.
+*/
+export function problemReportDescription(args: string): string | undefined {
+  if (args === 'problem') {
+    return ''
+  }
+  return args.startsWith('problem ') ? args.slice('problem '.length).trim() : undefined
+}
+
+/** A failing problem report is local failure, never a prompt sent to the backend. */
+export async function runAcpProblemReport(
+  description: string,
+  port: AcpProblemReportPort | undefined,
+  context: { readonly cwd: string; readonly sessionId: string; readonly signal: AbortSignal },
+): Promise<string | undefined> {
+  if (port === undefined) {
+    return undefined
+  }
+  try {
+    context.signal.throwIfAborted()
+    const text = await port.execute(description, context)
+    context.signal.throwIfAborted()
+    if (typeof text !== 'string') {
+      throw new TypeError('the problem report answered something that is not text')
+    }
+    return text
+  } catch (error: unknown) {
+    // Like `/report`: a thrown failure names its reason, scrubbed; a
+    // cancelled turn stays the fixed sentence; a non-error keeps its kind.
+    if (!(error instanceof Error)) throw error
+    return context.signal.aborted ? UI_TEXT.reportUi.generationFailed : reportFailureText(error)
+  }
+}
+
 /** An absent or failing integration is local failure, never a prompt sent to the backend. */
 export async function runAcpReport(
   args: string,

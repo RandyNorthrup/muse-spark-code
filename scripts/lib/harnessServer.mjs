@@ -303,6 +303,9 @@ export const SCENARIOS = [
   'models-narrow',
   'report',
   'report-narrow',
+  // Lane REPORTFLOW: the nothing-can-connect hint (axe runs it; the visual
+  // manifest gains its baseline on review, never here).
+  'report-connect',
   'legal',
   'legal-narrow',
   'legal-preview',
