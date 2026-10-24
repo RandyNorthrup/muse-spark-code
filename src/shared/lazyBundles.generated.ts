@@ -592,6 +592,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       },
     ],
   },
+  {
+    file: 'modelApiB1.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
+        symbol: 'ModelApiSession.b1Hold',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
   { file: 'modelApiBoundaries.js', side: 'both', requestedBy: [] },
   {
     file: 'modelApiCodeIntel.js',
@@ -600,6 +611,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/core/backends/modelapi/ModelApiHost.ts',
         symbol: 'ModelApiSession.codeIntelligence',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'modelApiFast.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
+        symbol: 'ModelApiSession.ensureFast',
         side: ['acp', 'vscode'],
       },
     ],
@@ -671,6 +693,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         importer: 'src/shared/constants.ts',
         symbol: 'MODEL_API_SESSIONS_BUNDLE_FILE',
         side: ['vscode'],
+      },
+    ],
+  },
+  {
+    file: 'modelApiToolRun.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/core/backends/modelapi/ModelApiHost.ts',
+        symbol: 'ModelApiSession.toolRun',
+        side: ['acp', 'vscode'],
       },
     ],
   },

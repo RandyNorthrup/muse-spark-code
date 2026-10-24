@@ -110,7 +110,13 @@ import {
   MODEL_API_FILE_RANGE_ONLY,
   MODEL_API_VERIFY_ONLY,
   MODEL_API_IMAGE_ONLY,
+  MODEL_API_B1_ONLY,
+  MODEL_API_TOOL_RUN_ONLY,
+  MODEL_API_FAST_ONLY,
   MODEL_API_BOUNDARY_SOURCES,
+  TOOL_EDIT_SOURCE,
+  TOOL_EDIT_OWNER,
+  TOOL_EDIT_READERS,
   EXEC_GUARD_BUNDLE,
   checkDeferredBundles,
   checkResourceBundles,
@@ -439,6 +445,9 @@ for (const name of onDisk) {
     Number(MODEL_API_FILE_RANGE_ONLY.includes(name)) +
     Number(MODEL_API_VERIFY_ONLY.includes(name)) +
     Number(MODEL_API_IMAGE_ONLY.includes(name)) +
+    Number(MODEL_API_B1_ONLY.includes(name)) +
+    Number(MODEL_API_TOOL_RUN_ONLY.includes(name)) +
+    Number(MODEL_API_FAST_ONLY.includes(name)) +
     Number(TYPES_ONLY.has(name)) +
     Number(UNBUNDLED.has(name))
   if (lists !== 1) {
@@ -463,6 +472,9 @@ for (const name of [
   ...MODEL_API_FILE_RANGE_ONLY,
   ...MODEL_API_VERIFY_ONLY,
   ...MODEL_API_IMAGE_ONLY,
+  ...MODEL_API_B1_ONLY,
+  ...MODEL_API_TOOL_RUN_ONLY,
+  ...MODEL_API_FAST_ONLY,
   ...TYPES_ONLY,
   ...UNBUNDLED,
 ]) {
@@ -1612,8 +1624,13 @@ const TEXT_BLOCKS = [
     sentinels: ['toolchainsContextLine', 'noToolchains'],
     // The native toolchains tool (M110t TA) plugs into the backend's tool
     // registry, instructions and dispatch, which the backend, its code-intel
-    // sidecar and its verify sidecar each bundle.
-    readers: ['dist/modelApi.js', 'dist/modelApiCodeIntel.js', 'dist/modelApiVerify.js'],
+    // sidecar, its verify sidecar and its tool-run chunk each bundle.
+    readers: [
+      'dist/modelApi.js',
+      'dist/modelApiCodeIntel.js',
+      'dist/modelApiVerify.js',
+      'dist/modelApiToolRun.js',
+    ],
   },
   // M96 workers are not wired into a shipped bundle yet: forbid their text everywhere.
   // C-M96-3: the engine workers' prompt assembly loads with the team host.
@@ -1698,6 +1715,9 @@ const TEXT_BLOCKS = [
       // block, so it carries the block whole (one object is carried whole, D6).
       'dist/modelApiFileRange.js',
       'dist/modelApiAcp.js',
+      // The file and shell tools' execution reads its refusal keys, so the
+      // tool-run chunk carries the block whole too.
+      'dist/modelApiToolRun.js',
     ],
   },
   // The verify loop's own words (M68): the loop, its ledger and the
@@ -1832,12 +1852,13 @@ const TEXT_BLOCKS = [
     readers: ['dist/judgeSources.js'],
   },
   // M125 lanes M/C: the fast judge's harness notes. The backends read
-  // them through the shared application layer; the runtime engine embeds
-  // both backends, so it carries the block too.
+  // them through the shared application layer (the Model API backend
+  // through its lazy fast chunk); the runtime engine embeds both backends,
+  // so it carries the block too.
   {
     block: 'FAST_PATH_MODEL_TEXT',
     sentinels: ['fastLoopRepeat', 'fastDoneBacked'],
-    readers: ['dist/modelApi.js', 'dist/museCode.js', 'dist/runtimeEngine.js'],
+    readers: ['dist/modelApiFast.js', 'dist/museCode.js', 'dist/runtimeEngine.js'],
   },
   // M124: what another agent's model reads from the connector, `mcp` only.
   {
@@ -2265,6 +2286,35 @@ for (const { output, metafile } of SHIPPED) {
       problems.push(`${output} loads ${boundaryOutput} and still carries its own copy of ${source}`)
     }
   }
+}
+// The file tools' edit helpers ride the chunk that runs the file tools,
+// never the boundary activation loads: that chunk carries them, and the
+// byte-range execution, loaded only from it, reads them there with no copy
+// of its own.
+const metafileFor = (output) => `dist/meta/${path.basename(output, '.js')}.json`
+if (
+  !inputsOf({ output: TOOL_EDIT_OWNER, metafile: metafileFor(TOOL_EDIT_OWNER) }).has(
+    TOOL_EDIT_SOURCE,
+  )
+)
+  problems.push(`${TOOL_EDIT_OWNER} no longer carries ${TOOL_EDIT_SOURCE}`)
+if (boundaryInputs.has(TOOL_EDIT_SOURCE))
+  problems.push(`${boundaryOutput} carries ${TOOL_EDIT_SOURCE}, which activation never runs`)
+for (const reader of TOOL_EDIT_READERS) {
+  const bundle = { output: reader, metafile: metafileFor(reader) }
+  const details = Object.entries(metafileOf(bundle).outputs).find(
+    ([file]) => file.replaceAll('\\', '/') === reader,
+  )?.[1]
+  if (
+    !details?.imports.some(
+      ({ path: imported }) => imported === `./${path.basename(TOOL_EDIT_OWNER)}`,
+    )
+  )
+    problems.push(`${reader} no longer reads ${TOOL_EDIT_SOURCE} from ${TOOL_EDIT_OWNER}`)
+  if (inputsOf(bundle).has(TOOL_EDIT_SOURCE))
+    problems.push(
+      `${reader} carries its own copy of ${TOOL_EDIT_SOURCE}, read from ${TOOL_EDIT_OWNER}`,
+    )
 }
 
 if (

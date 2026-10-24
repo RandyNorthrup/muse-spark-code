@@ -164,6 +164,9 @@
 !dist/modelApiFileRange.js
 !dist/modelApiVerify.js
 !dist/modelApiImage.js
+!dist/modelApiB1.js
+!dist/modelApiToolRun.js
+!dist/modelApiFast.js
 !dist/modelApiAcp.js
 
 !dist/reporting.js

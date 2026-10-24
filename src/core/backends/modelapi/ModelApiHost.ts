@@ -85,7 +85,6 @@ import { declaredPreviewFields } from './previewFields'
 import { createHash, randomUUID } from 'node:crypto'
 import { prepareShellSidecar, removeShellSidecar } from '../../shellSidecar'
 import { homedir, tmpdir } from 'node:os'
-import process from 'node:process'
 import * as z from 'zod/mini'
 import type {
   AgentEvent,
@@ -137,9 +136,6 @@ import {
   HTTP_TOO_MANY_REQUESTS,
   HTTP_UNAUTHORIZED,
   IDE_MCP_SERVER_NAME,
-  JUDGE_FAST_B1_READY_PLATFORMS,
-  JUDGE_FAST_KEEP_ENTRIES,
-  JUDGE_FAST_VETO_WINDOW_MS,
   MCP_ELICITATION_TIMEOUT_MS,
   MILLISECONDS_PER_SECOND,
   MEMORY_INDEX_FILE,
@@ -298,50 +294,17 @@ import { WorkspaceEdits, type WorkspaceEditRecorder } from '../../verify/workspa
 import { fingerprint } from '../../verify/fingerprint'
 import type { McpTool } from '../../mcp'
 import type { WebFetcher, WebFetchResult } from '../../web/webFetch'
-import {
-  type BrowserCheckHost,
-  browserCheckScope,
-  browserScopeKey,
-  extraHostSet,
-  placeBrowserCall,
-} from '../../browser/browserTool'
+import type { BrowserCheckHost } from '../../browser/browserTool'
 import type { CheckAdmission } from '../../browser/browserRun'
-import { browserCheckOutcome, browserCheckRefused, browserCheckRestricted } from './browserCalls'
+import { browserCheckRestricted } from './browserCalls'
 import type { WebFetchFailure } from '../../web/fetchFailure'
 import type { JudgeAdvisory, JudgeFence } from '../../judge/use'
 import type { ModelApiJudgeConnection, ModelApiSideResponse } from '../../judge/same/modelApiSource'
-import { raceB1Hold, resolveB1Executable } from '../../judge/fast/approval'
-import {
-  loopTailNote,
-  lowerEffortLevel,
-  rankedKeepIds,
-  tailNotes,
-  triageRoute,
-} from '../../judge/fast/apply'
-import { fastEffortScale } from '../../judge/fast/engines'
-import { ruleEffort } from '../../judge/fast/reflex/effort'
-import { detectLoop } from '../../judge/fast/reflex/loop'
-import { triageOutput } from '../../judge/fast/reflex/triage'
-import {
-  FastTurnBoundary,
-  type FinishedToolOutput,
-  type FinishedTurnTexts,
-} from '../../judge/fast/turnEnd'
-import {
-  effortTurnReason,
-  keepTurnReason,
-  loopTurnReason,
-  triageTurnReason,
-  type FastDecisionPin,
-} from '../../judge/fast/turnRecord'
-import {
-  b1Realpath,
-  closeInspectSession,
-  openInspectSession,
-  type InspectSessionBinding,
-} from '../../judge/fast/inspectExec'
-import { spawnResourceFile } from '../../resources/launcher'
-import { fastPathAuditSchema } from '../../../shared/fastPathAudit'
+import type { FinishedToolOutput, FinishedTurnTexts } from '../../judge/fast/turnEnd'
+import type { FastDecisionPin } from '../../judge/fast/turnRecord'
+import type * as ModelApiFast from './modelApiFastEntry'
+import type { InspectSessionBinding } from '../../judge/fast/inspectExec'
+import type * as ModelApiB1 from './modelApiB1Entry'
 import { approvalHost } from '../../web/hostName'
 import type { PageUrlCheck } from '../../web/pageUrl'
 import {
@@ -385,13 +348,10 @@ import { scrubRefusalLeak } from './providerRefusal'
 import { isPersonRetryCap } from '../../../shared/retryPolicy'
 import { UNBOUNDED_RETRIES, noRetryBudget } from './transport'
 import {
-  applyGoalCommand,
   type GoalContext,
   goalInstructions,
   goalProgress,
-  goalObjectiveProblem,
   isGoalActive,
-  runGoalTool,
   toSessionGoal,
   withTokensUsed,
 } from './goals'
@@ -487,10 +447,10 @@ import {
 } from './extensionHooks'
 import type { ImagePlan } from './imageGeneration'
 import type * as ModelApiImage from './modelApiImageEntry'
+import type * as ModelApiToolRun from './modelApiToolRunEntry'
 import { cacheMissTokens, promptCacheKey } from './promptCache'
 
 import { readImageInfo } from '../../imageDimensions'
-import { resizeImage } from '../../imageResize'
 import type { ModelPricing } from '../../providers/priceCard'
 import type { ModelCapabilities } from '../../providers/capabilities'
 import type { FormatQuirks } from '../../providers/presets'
@@ -543,7 +503,7 @@ import type {
   McpToolRef,
   McpToolSource,
 } from './mcp/pool'
-import { isMemoryTool, placeMemoryCall, runMemoryCall, type PlacedMemoryCall } from './memoryTools'
+import { isMemoryTool, type PlacedMemoryCall } from './memoryTools'
 
 import {
   APPROVAL_CHOICE_IDS,
@@ -597,7 +557,6 @@ import {
   classifyTool,
   type EditFormatter,
   type FormatTarget,
-  executeTool,
   parseQuestions,
   type ReadMediaFile,
   readSkillArgs,
@@ -2681,20 +2640,6 @@ function typedText(parts: readonly TurnPart[]): string {
     .trim()
 }
 
-/** The text a replay input item carries, for the judge's keep-list ranking. */
-function inputItemText(item: InputItem): string | undefined {
-  if (item.type === 'message') {
-    const texts: string[] = []
-    for (const part of item.content) {
-      if (part.type === 'input_text') texts.push(part.text)
-    }
-    return texts.length === 0 ? undefined : texts.join('\n')
-  }
-  return item.type === 'function_call_output' && typeof item.output === 'string'
-    ? item.output
-    : undefined
-}
-
 /** A tool's argument JSON as an object; an empty one when it is not an object. */
 function parsedArguments(argsJson: string): Record<string, unknown> {
   try {
@@ -2979,6 +2924,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   session, so a failed self-test latches off until a new session.
   */
   private b1RunnerTask: Promise<InspectSessionBinding | undefined> | undefined
+  /** The hold's bundle (dist/modelApiB1.js), loaded with the first runner; a failed load is not kept. */
+  private b1Load: Promise<typeof ModelApiB1> | undefined
   /**
   D107 §9.4: a B1 skip's delivered output, held for perform keyed by the
   tool call's item. perform takes and deletes on read; a shell call's
@@ -3119,6 +3066,8 @@ export class ModelApiSession implements ScheduledAgentSession {
   /** The imported hooks' adapters, loaded on first use (M91 lane W). */
   private foreignAdapter: Promise<ForeignHookAdapter | undefined> | undefined
   private assistLoad: Promise<typeof ModelApiTools> | undefined
+  /** What a tool call or goal command runs (dist/modelApiToolRun.js), loaded on its first use. */
+  private toolRunLoad: Promise<typeof ModelApiToolRun> | undefined
   /** A SubagentStop hook's documented replacement of this child's reply, by turn (M91). */
   private readonly hookReplies = new Map<string, string>()
   /** FileChanged's per-path quiet window and per-minute cap (M91 lane E). */
@@ -3173,24 +3122,15 @@ export class ModelApiSession implements ScheduledAgentSession {
   private readonly explicitOutputCaps = new Map<string, number>()
   private readonly repeatGuard = new RepeatGuard()
   /**
-  D107 (M125 lane M): the fast judge's session state. The loop signals
-  cover the current turn only (a turn boundary starts a new episode);
-  the tail queue drains into the next request; the triage tallies feed
-  the Judge section's no-window share (lane U).
+  D107 (M125 lane M): the fast judge's session state: the last request's
+  text the keep-list ranks against, and the judge itself
+  (dist/modelApiFast.js, D6) with its loop episode, tail queue and turn
+  boundary, built when the session's first turn or compaction starts. A
+  load that failed is not kept, so the next one tries again.
   */
   private fastLastRequest = ''
-  private fastTriageMiss = 0
-  private fastTriageNoWindow = 0
-  /** The turn boundary: the next request's start closes the turn before it. */
-  private readonly fastTurns = new FastTurnBoundary({
-    backend: 'modelApi',
-    pin: (decision) => this.deps.fastDecisionPin?.(decision),
-    isOff: () => this.fastOff(),
-    read: (turnId) => this.fastTurnTexts(turnId),
-    emit: (event) => {
-      this.emit(event)
-    },
-  })
+  private fastLoad: Promise<void> | undefined
+  private fastLoaded: ModelApiFast.ModelApiFastJudge | undefined
   /**
   The ledger total a resumed session brought (M73), kept so a save keeps
   it even where this session does not pack; a packing session's store
@@ -4230,13 +4170,40 @@ export class ModelApiSession implements ScheduledAgentSession {
   /**
   The image run-path, loaded with the session side
   (dist/modelApiImage.js, D6) on the first image call: the call checks, the
-  purchase and the paid-use naming. Each caller binds the namespace locally
+  purchase and the paid-use naming, and an attached image's resize to the
+  model's documented bounds. Each caller binds the namespace locally
   so the bundle-split gate can follow every member read to the chunk's
   exports (the toolAssist shape). A bundle that cannot load fails the caller
   that needed it, never an unchecked image and never a default value.
   */
   private async imageFunctions(): Promise<typeof ModelApiImage> {
     return await import('./modelApiImageEntry.js')
+  }
+
+  /**
+  What a tool call or goal command runs (dist/modelApiToolRun.js, D6):
+  the file and shell tools' execution, the memory tool's placing and
+  running, the browser check's placement, scope and report, and the goal
+  tools' and commands' rules, loaded on the first of them. The tool list,
+  the permission classes and every check before a card stay in this
+  bundle. Each caller binds the namespace locally so the bundle-split gate
+  can follow every member read to the chunk's exports (the toolAssist
+  shape). A load that failed is not kept, so the next call tries again;
+  until then the call that needed it fails, never a default outcome.
+  */
+  private async toolRun(): Promise<typeof ModelApiToolRun> {
+    const loading = (this.toolRunLoad ??= import('./modelApiToolRunEntry.js'))
+    let run: typeof ModelApiToolRun
+    try {
+      run = await loading
+    } catch (error) {
+      if (this.toolRunLoad === loading) this.toolRunLoad = undefined
+      throw error
+    }
+    installLanguageOnce('modelApiToolRun', (table, locale) => {
+      run.setUiText(table, locale)
+    })
+    return run
   }
 
   /**
@@ -5613,79 +5580,52 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  D107 §6.3 and §6.2 (lane M): one settled tool result through the loop
-  detector and the first-send triage. A loop queues its note for the
-  next request's tail, once per episode — the turn is never stopped
-  (D121), and a repeat also carries the repeat guard's own notice. A
-  skipped output packs through M73's own placeholder; anything else
-  rides whole as today, and a miss tallies for the Judge section's
-  no-window share (lane U).
+  The fast judge (dist/modelApiFast.js, D6), built once for the session
+  when its first turn or compaction starts: every decision point runs
+  inside one of those, after this load, so each reads it loaded. A load
+  that failed is not kept, so the next turn tries again; until then the
+  turn or compaction that needed it fails, never one without its
+  decisions.
   */
-  private fastObserveResult(
-    call: { readonly name: string; readonly arguments: string; readonly call_id: string },
-    output: string,
-    exitCode: number | undefined,
-    hasFailed: boolean,
-    isParallel: boolean,
-  ): void {
-    if (this.fastOff()) return
-    this.fastTurns.loop.push({
-      key: toolRepeatKey(call),
-      failed: hasFailed,
-      outputDigest: fingerprint(output),
-    })
-    const loop = detectLoop(this.fastTurns.loop)
-    const loopPin = this.deps.fastDecisionPin?.('loop.stuck')
-    const isLoopRaised = loop.stuck || loopPin === true
-    const isLoopActed = isLoopRaised && !this.fastTurns.stuck && loopPin !== false
-    if (isLoopActed) {
-      this.fastTurns.tail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', call.name))
-      if (loop.stuck && loop.pattern === 'repeat') {
-        const last = this.fastTurns.loop.at(-1)
-        let run = 0
-        if (last !== undefined) {
-          for (const signal of this.fastTurns.loop.toReversed()) {
-            if (signal.key !== last.key || signal.outputDigest !== last.outputDigest) break
-            run += 1
-          }
-        }
-        this.emit({
-          type: 'backendNotice',
-          level: 'info',
-          text: fill(UI_TEXT.modelApiToolRepeating, {
-            tool: call.name,
-            count: formatNumber(run),
-          }),
-        })
-      }
+  private async ensureFast(): Promise<void> {
+    const loading = (this.fastLoad ??= (async () => {
+      const entry = await import('./modelApiFastEntry.js')
+      this.fastLoaded = new entry.ModelApiFastJudge({
+        isOff: () => this.fastOff(),
+        pin: (decision) => this.deps.fastDecisionPin?.(decision),
+        read: (turnId) => this.fastTurnTexts(turnId),
+        emit: (event) => {
+          this.emit(event)
+        },
+        noteRepeating: (tool, run) => {
+          this.emit({
+            type: 'backendNotice',
+            level: 'info',
+            text: fill(UI_TEXT.modelApiToolRepeating, { tool, count: formatNumber(run) }),
+          })
+        },
+        markEarly: (callId) => {
+          this.packing?.markEarly(callId)
+        },
+      })
+    })())
+    try {
+      await loading
+    } catch (error) {
+      if (this.fastLoad === loading) this.fastLoad = undefined
+      throw error
     }
-    this.fastTurns.stuck = isLoopRaised
-    this.fastTurns.recorder.observeLoop(isLoopRaised, isLoopActed, loopTurnReason(loop, loopPin))
-    // A parallel call settles while its round's other calls ran
-    // alongside, so the decision may still land before the next
-    // request; a lone result has no window.
-    const route = triageRoute(
-      triageOutput({ exitCode, output }),
-      isParallel ? 'real' : 'none',
-      false,
-    )
-    const triagePin = this.deps.fastDecisionPin?.('triage.needFull')
-    const isTriagePack = route.action === 'pack'
-    const isTriageActed = triagePin !== false && (isTriagePack || triagePin === true)
-    if (isTriageActed) this.packing?.markEarly(call.call_id)
-    else if (
-      triagePin === undefined &&
-      route.action === 'whole' &&
-      route.unasked !== 'recognised'
-    ) {
-      this.fastTriageMiss += 1
-      if (route.unasked === 'no-window') this.fastTriageNoWindow += 1
-    }
-    this.fastTurns.recorder.observeTriage(
-      isTriagePack || triagePin === true,
-      isTriageActed,
-      triageTurnReason(route, triagePin),
-    )
+  }
+
+  /**
+  The loaded fast judge. Throws when the chunk never loaded: every
+  decision point runs inside a turn or a compaction, which load it first,
+  so this is unreachable except on a bug. Never a skipped decision.
+  */
+  private fastJudge(): ModelApiFast.ModelApiFastJudge {
+    const loaded = this.fastLoaded
+    if (loaded === undefined) throw new Error('Model API fast-judge bundle is not loaded')
+    return loaded
   }
 
   /**
@@ -5716,86 +5656,30 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  D107 §6.6 (lane M): this request's effort. A narrowly mechanical
-  request on a few touched files runs one level below the configured
-  effort on the model's own scale; anything else sends the configured
-  level, byte for byte as today.
+  D107 §6.6 (lane M): this request's effort, the fast judge's verdict
+  inside a turn with the switch on; the configured level otherwise.
   */
   private fastEffort(resolved: ResolvedModel): string {
     const turn = this.active
     if (turn === undefined || this.fastOff()) return this.effort
-    const files = this.replay.filter(
-      (entry) =>
-        entry.turnId === turn.turnId &&
-        entry.item.type === 'function_call' &&
-        (entry.item.name === MODEL_API_TOOLS.writeFile ||
-          entry.item.name === MODEL_API_TOOLS.editFile),
-    ).length
-    const verdict = ruleEffort({ request: typedText(turn.inputParts), filesTouched: files })
-    const pin = this.deps.fastDecisionPin?.('effort.lower')
-    const isLower = verdict.decision === 'lower'
-    // D107 §4.1 (lane P): the model's own record wins when its lane
-    // carried one; without a record the policy keeps today's behaviour.
-    const lowered = lowerEffortLevel(
-      this.effort,
-      fastEffortScale(resolved.capabilityRecord, resolved.policy.reasoning.effortLevels),
-    )
-    const isWant = pin ?? isLower
-    const isActed = isWant && lowered !== this.effort
-    this.fastTurns.recorder.observeEffort(
-      isLower || pin === true,
-      isActed,
-      effortTurnReason(isLower, isActed, lowered !== this.effort),
-    )
-    return isActed ? lowered : this.effort
-  }
-
-  /**
-  D107 §6.1 (lane M): what this compaction keeps past its tail: the
-  replay entries the request's text ranks most relevant, most relevant
-  first, up to the keep bound. Empty with the switch off, with no
-  request yet, or on a miss — the tail then keeps exactly as today.
-  Nothing already sent is removed or reordered.
-  */
-  private fastKeepForCompaction(kept: readonly ReplayItem[]): ReplayItem[] {
-    if (this.fastOff()) return []
-    const pin = this.deps.fastDecisionPin?.('context.include')
-    const request = this.fastLastRequest
-    const isRequestEmpty = request.trim().length === 0
-    if (isRequestEmpty && pin !== true) {
-      this.fastTurns.recorder.observeKeep(false, false, 'empty')
-      return []
-    }
-    const held = new Set(kept)
-    const candidates: { readonly id: string; readonly text: string }[] = []
-    for (const [index, entry] of this.replay.entries()) {
-      if (held.has(entry)) continue
-      const text = inputItemText(entry.item)
-      if (text !== undefined && text.trim().length > 0) candidates.push({ id: String(index), text })
-    }
-    if (pin === false) {
-      this.fastTurns.recorder.observeKeep(candidates.length > 0, false, 'pinned')
-      return []
-    }
-    const ids = new Set(rankedKeepIds(request, candidates).slice(0, JUDGE_FAST_KEEP_ENTRIES))
-    const keptEntries: ReplayItem[] = []
-    for (const [index, entry] of this.replay.entries()) {
-      if (ids.has(String(index))) keptEntries.push(entry)
-    }
-    this.fastTurns.recorder.observeKeep(
-      candidates.length > 0 || pin === true,
-      keptEntries.length > 0,
-      keepTurnReason(keptEntries.length > 0, isRequestEmpty),
-    )
-    return keptEntries
+    return this.fastJudge().effort({
+      request: typedText(turn.inputParts),
+      turnId: turn.turnId,
+      replay: this.replay,
+      configured: this.effort,
+      record: resolved.capabilityRecord,
+      policyLevels: resolved.policy.reasoning.effortLevels,
+    })
   }
 
   private body(resolved: ResolvedModel, shouldFormatDraft = true): CreateResponseBody {
     this.active?.audioMessage?.assertCurrent()
     this.drainChildResults()
     // D107 (lane M): first, so a new turn's first request already carries
-    // the finished turn's hints at its tail.
-    this.fastTurns.start(this.active?.turnId)
+    // the finished turn's hints at its tail. Before the session's first
+    // turn or compaction loads the judge no turn has run, so there is
+    // nothing to close.
+    this.fastLoaded?.start(this.active?.turnId)
     const original = this.requestReplay().map((entry) => entry.item)
     const recorded = RecordingScope.build(recordProjection, {
       inputs: original.map((item) => ({
@@ -5845,9 +5729,9 @@ export class ModelApiSession implements ScheduledAgentSession {
     }
     // D107 (lane M): the fast judge's queued tail notes drain here, one
     // developer message each, after everything already sent. Empty with
-    // the switch off or every decision abstaining: the input then keeps
-    // today's bytes.
-    const drained = tailNotes(this.fastTurns.tail.splice(0))
+    // the switch off, every decision abstaining, or no judge loaded yet
+    // (nothing queued): the input then keeps today's bytes.
+    const drained = this.fastLoaded?.drainTail() ?? []
     for (const note of drained) {
       input.push({
         type: 'message',
@@ -6841,8 +6725,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.touch()
   }
 
-  /** A goal tool's call (M45): Muse Code's rules and result shape. */
-  private runGoal(call: FunctionCallItem): ToolOutcome {
+  /**
+  A goal tool's call (M45): Muse Code's rules and result shape, with the
+  rules the caller loaded (dist/modelApiToolRun.js) before its checks.
+  */
+  private runGoal(
+    call: FunctionCallItem,
+    runGoalTool: typeof ModelApiToolRun.runGoalTool,
+  ): ToolOutcome {
     const result = runGoalTool(call.name, call.arguments, this.goal, this.goalContext())
     if (result.goal !== this.goal) {
       // The goal moved (created, progressed, closed): the step probe starts over.
@@ -8844,11 +8734,14 @@ export class ModelApiSession implements ScheduledAgentSession {
         requiresUserApproval,
         judgement,
       )
-    const opened = await this.b1Runner()
+    const helper = this.deps.b1HelperPath
+    // No packaged helper: today's reviewer, and the hold's bundle never loads.
+    if (helper === undefined) return await reviewed()
+    const b1 = await this.b1Hold()
+    const opened = await (this.b1RunnerTask ??= b1.openB1Runner(helper, this.deps.workspaceRoot))
     if (opened === undefined) return await reviewed()
-    const outcome = await raceB1Hold<ApprovalOutcome>({
+    const skip = await b1.holdB1Ask(opened, {
       line: query.command ?? call.arguments,
-      platform: process.platform,
       floor: {
         settledBy: judgement.settledBy,
         tool: {
@@ -8867,18 +8760,13 @@ export class ModelApiSession implements ScheduledAgentSession {
         isUntrustedOrigin: this.isSubagent || this.isSideChat,
         isWorkspaceTrusted: this.deps.isWorkspaceTrusted(),
         sessionProcessAlive: this.hasLiveCommands(),
-        // The runner opened: its helper is there, its scratch is made,
-        // and the platform confines. The race's first run is the
-        // session's self-test; the runner latches a failure.
-        confinementReady: true,
-        platform: process.platform,
-        certifiedPlatforms: JUDGE_FAST_B1_READY_PLATFORMS,
       },
-      startReviewer: (raceSignal, shareFence) =>
+      signal,
+      startReviewer: (stop, shareFence) =>
         this.askApprovalReviewed(
           itemId,
           call,
-          AbortSignal.any([signal, raceSignal]),
+          stop,
           query,
           question,
           requiresUserApproval,
@@ -8887,36 +8775,13 @@ export class ModelApiSession implements ScheduledAgentSession {
           shareFence,
         ),
       startJudgeFence: () => this.startJudge(call),
-      runInspect: (canonical, raceSignal) =>
-        opened.runner.run(canonical, opened.workspace, AbortSignal.any([signal, raceSignal])),
-      vetoWindowMs: JUDGE_FAST_VETO_WINDOW_MS,
     })
-    if (outcome.kind !== 'skip') return await reviewed()
-    // The skip won and the reviewer is cancelled: only a well-formed
-    // audit sends it. A malformed one re-runs the reviewer fresh; the
-    // cancelled race's verdict is gone, so the card may ask again.
-    const executable = resolveB1Executable(outcome.parsed.program, b1Realpath)
-    const audit = fastPathAuditSchema.safeParse({
-      class: 'B1',
-      program: outcome.parsed.program,
-      ...(executable !== undefined && { executable }),
-      confinement: opened.confinement,
-      confinementVersion: opened.runner.probedAbi,
-      deadlineMs: JUDGE_FAST_VETO_WINDOW_MS,
-      excluded: outcome.excluded,
-      ...(outcome.detail !== undefined && {
-        engine: outcome.detail.engine,
-        pYesMilli: outcome.detail.pYesMilli,
-        thresholdMilli: outcome.detail.thresholdMilli,
-      }),
-    })
-    if (!audit.success) return await reviewed()
-    this.b1Skips.set(itemId, {
-      stdout: outcome.stdout,
-      stderr: outcome.stderr,
-      exitCode: outcome.exitCode,
-    })
-    this.emit({ type: 'judgeFastSkip', itemId, audit: audit.data })
+    // Not applicable, the reviewer first, or a malformed audit: the
+    // reviewer runs fresh; the cancelled race's verdict is gone, so the
+    // card may ask again.
+    if (skip === undefined) return await reviewed()
+    this.b1Skips.set(itemId, skip.output)
+    this.emit({ type: 'judgeFastSkip', itemId, audit: skip.audit })
     this.emit({
       type: 'approvalResolved',
       approvalId: this.deps.newId(),
@@ -8928,17 +8793,19 @@ export class ModelApiSession implements ScheduledAgentSession {
   }
 
   /**
-  The session's B1 runner, opened once. Undefined keeps today's
-  reviewer: no helper, no confinement, no race.
+  The B1 hold (dist/modelApiB1.js, D6), loaded on the first shell ask
+  that reaches it with a helper; the session's runner opens once through
+  it. A load that failed is not kept, so the next ask tries again; until
+  then the ask that needed it fails, never a skip without the hold.
   */
-  private b1Runner(): Promise<InspectSessionBinding | undefined> {
-    return (this.b1RunnerTask ??= openInspectSession(
-      this.deps.b1HelperPath,
-      this.deps.workspaceRoot,
-      // The packaged helper through the governed boundary: refused when it
-      // sits inside the workspace, the guarded child environment for it.
-      (file, args, options) => spawnResourceFile('bootstrap', file, args, options),
-    ))
+  private async b1Hold(): Promise<typeof ModelApiB1> {
+    const loading = (this.b1Load ??= import('./modelApiB1Entry.js'))
+    try {
+      return await loading
+    } catch (error) {
+      if (this.b1Load === loading) this.b1Load = undefined
+      throw error
+    }
   }
 
   /**
@@ -9804,6 +9671,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         prepared.push(part)
         continue
       }
+      // The resize loads with the image chunk (dist/modelApiImage.js, D6).
+      const { resizeImage } = await this.imageFunctions()
       const bytes = await resizeImage(
         Buffer.from(part.base64Data, 'base64'),
         capabilities.imageLimits,
@@ -10701,6 +10570,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     const limit = new ShellTimeLimit()
     let refusal: ToolOutcome | undefined
     const run = async (): Promise<ToolOutcome> => {
+      const { executeTool } = await this.toolRun()
       const tracking = await this.beginShellDirectory(call)
       const outcome = await executeTool(call.name, tracking.argsJson, {
         workspaceRoot: this.deps.workspaceRoot,
@@ -11115,6 +10985,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       )
       return outcome.output
     }
+    const { executeTool } = await this.toolRun()
     // A hook agent's private reads never authorize the conversation's writes.
     const provisionalSeen = new Map<string, string>()
     try {
@@ -12716,6 +12587,9 @@ export class ModelApiSession implements ScheduledAgentSession {
       case MODEL_API_TOOLS.createGoal:
       case MODEL_API_TOOLS.updateGoal:
       case MODEL_API_TOOLS.reportProgress: {
+        // The rules load first: the revision check and the goal's write
+        // then run with no wait between.
+        const { runGoalTool } = await this.toolRun()
         if (goalCommandRevision !== this.goalCommandRevision) {
           return {
             outcome: {
@@ -12725,10 +12599,11 @@ export class ModelApiSession implements ScheduledAgentSession {
             },
           }
         }
-        return { outcome: this.runGoal(call) }
+        return { outcome: this.runGoal(call, runGoalTool) }
       }
       case MODEL_API_TOOLS.getGoal: {
-        return { outcome: this.runGoal(call) }
+        const { runGoalTool } = await this.toolRun()
+        return { outcome: this.runGoal(call, runGoalTool) }
       }
       case shellToolFor(this.deps.platform).name: {
         // D107 §9.4: the hold already ran this line confined and won the
@@ -12769,6 +12644,7 @@ export class ModelApiSession implements ScheduledAgentSession {
         if (intelTool !== undefined && intelTool !== 'renameSymbol') {
           return { outcome: await this.readCode(intelTool, call, signal) }
         }
+        const { executeTool } = await this.toolRun()
         const assertCanWrite = this.editAdmission(call, isAllowed)
         const formatter = this.formatter(assertCanWrite)
         return {
@@ -13768,6 +13644,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (memory === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
     }
+    const { placeMemoryCall } = await this.toolRun()
     if (!this.deps.isWorkspaceTrusted()) {
       return { outcome: toolFailure(MODEL_API_MODEL_TEXT.memoryRestrictedMode), isRejected: true }
     }
@@ -13838,6 +13715,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     isAllowed: () => boolean,
     fence: MemoryFence,
   ): Promise<ToolOutcome> {
+    const { runMemoryCall } = await this.toolRun()
     const touched: TouchedFiles = { names: fence.noteNames, complete: true }
     const assertOwner = () => {
       if (!isAllowed() || !this.deps.isWorkspaceTrusted()) throw new AbortedError()
@@ -13881,6 +13759,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     assertCurrent: () => void,
     writes: TurnWrites['memory'] | undefined,
   ): Promise<ToolOutcome> {
+    const { runMemoryCall } = await this.toolRun()
     assertCurrent()
     const paths = [placed.place.absolute]
     if (placed.call.tool === 'add') {
@@ -14047,6 +13926,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (browser === undefined) {
       return { outcome: toolFailure(`unknown tool ${call.name}`), isRejected: false }
     }
+    const {
+      browserCheckOutcome,
+      browserCheckRefused,
+      browserCheckScope,
+      browserScopeKey,
+      extraHostSet,
+      placeBrowserCall,
+    } = await this.toolRun()
     if (!this.deps.isWorkspaceTrusted()) {
       return browserCheckRestrictedCall()
     }
@@ -15612,7 +15499,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       const value = post.replacement.value
       fastOutput = typeof value === 'string' ? value : JSON.stringify(value)
     }
-    this.fastObserveResult(
+    this.fastJudge().observeResult(
       effectiveCall,
       fastOutput,
       outcome.exitCode,
@@ -16818,6 +16705,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     // A session that packs builds its packing store through the lazy tools
     // chunk; every packing read below runs after this line.
     await this.ensurePacking()
+    // The turn's fast-judge decisions run through the lazy fast chunk.
+    await this.ensureFast()
     this.outcomeStopReason = undefined
     this.responseIncomplete = false
     this.mediaNoticeSent = false
@@ -17301,7 +17190,7 @@ export class ModelApiSession implements ScheduledAgentSession {
     this.releaseScheduledResource(turn.turnId)
     turn.resourceLease?.complete(true)
     turn.resourceLease = undefined
-    this.fastTurns.end(turn.turnId)
+    this.fastJudge().end(turn.turnId)
     this.emit({
       type: 'turnCompleted',
       turnId: turn.turnId,
@@ -18051,6 +17940,8 @@ export class ModelApiSession implements ScheduledAgentSession {
     if (!this.hasCompactableHistory(isSummaryFork)) {
       return { status: NOOP, reason: NO_COMPACTABLE_HISTORY }
     }
+    // What the compaction keeps past its tail is the fast judge's verdict.
+    await this.ensureFast()
     await unlessStopped(this.context.load(), signal)
     const wasBudgetLimited = this.goal?.status === GOAL_STATUS.budgetLimited
     let tail: readonly ReplayItem[] = []
@@ -18079,7 +17970,12 @@ export class ModelApiSession implements ScheduledAgentSession {
       tail = [...new Set([...tail, ...(this.media?.tail(this.replay) ?? [])])]
       // D107 §6.1 (lane M): the judge keeps relevance-ranked entries past
       // the tail; empty with the switch off or on a miss.
-      tail = [...new Set([...tail, ...this.fastKeepForCompaction(tail)])]
+      tail = [
+        ...new Set([
+          ...tail,
+          ...this.fastJudge().keepForCompaction(tail, this.replay, this.fastLastRequest),
+        ]),
+      ]
       const tailTurns = new Set(tail.map((entry) => entry.turnId)).size
       snapshot = `${MODEL_API_MODEL_TEXT.compactionFiles}\n${JSON.stringify({ ...this.compactionFiles(), keptEntries: tail.filter((entry) => entry.turnId !== COMPACTION_TURN_ID).length })}\n\n${MODEL_API_MODEL_TEXT.compactionTodos}\n${JSON.stringify(this.todos.filter((todo) => todo.status !== 'completed'))}`
       const isUpdate = this.replay[0]?.turnId === COMPACTION_TURN_ID
@@ -19804,25 +19700,24 @@ export class ModelApiSession implements ScheduledAgentSession {
   refusals: a set, edit or resume that leaves the goal active wakes a
   turn when nothing runs, as `goal/*` does; nothing else starts one.
   */
-  public controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+  public async controlGoal(command: GoalCommand): Promise<GoalCommandOutcome> {
+    // The rules load first (dist/modelApiToolRun.js): the checks, the
+    // goal's write and the wake then run with no wait between.
+    const { applyGoalCommand, goalObjectiveProblem } = await this.toolRun()
     const problem = goalObjectiveProblem(
       command,
       contextModelFor(this.deps, this.modelId)?.contextTokens,
     )
     if (problem !== undefined) {
-      return Promise.reject(
-        new Error(
-          `goal/${command.verb}: ${problem === 'empty' ? UI_TEXT.goalObjectiveMissing : UI_TEXT.goalObjectiveTooLarge}`,
-        ),
+      throw new Error(
+        `goal/${command.verb}: ${problem === 'empty' ? UI_TEXT.goalObjectiveMissing : UI_TEXT.goalObjectiveTooLarge}`,
       )
     }
     const applied = applyGoalCommand(this.goal, command, this.goalContext())
     if (typeof applied === 'string') {
-      return Promise.reject(
-        new GoalRefusedError(
-          applied,
-          `goal/${command.verb} rejected: ${GOAL_REFUSAL_REASONS[applied]}`,
-        ),
+      throw new GoalRefusedError(
+        applied,
+        `goal/${command.verb} rejected: ${GOAL_REFUSAL_REASONS[applied]}`,
       )
     }
     this.replaceGoal(applied.goal)
@@ -19831,7 +19726,7 @@ export class ModelApiSession implements ScheduledAgentSession {
       this.goalSteps = 0
     }
     this.touch()
-    return Promise.resolve({ turnId: this.wakeFor(command) })
+    return { turnId: this.wakeFor(command) }
   }
 
   public readOutput(request: OutputPageRequest): Promise<OutputPage> {
@@ -19950,19 +19845,19 @@ export class ModelApiSession implements ScheduledAgentSession {
         // Best effort: the operating system cleans its own temp dir.
       })
     }
-    // D107 §9.3: the session's B1 runner and its scratch go with it.
+    // D107 §9.3: the session's B1 runner and its scratch go with it. A
+    // runner opens only through the hold's loaded bundle, so it is there.
     const b1 = this.b1RunnerTask
     if (b1 !== undefined) {
       this.b1RunnerTask = undefined
-      void b1
-        .then(async (opened) => {
-          await closeInspectSession(opened)
-        })
-        .catch(() => {
-          this.deps.log.warn(
-            'B1 runner teardown failed; the operating system cleans its own temp dir',
-          )
-        })
+      void (async () => {
+        const hold = await this.b1Hold()
+        await hold.closeInspectSession(await b1)
+      })().catch(() => {
+        this.deps.log.warn(
+          'B1 runner teardown failed; the operating system cleans its own temp dir',
+        )
+      })
     }
     // The ledger registers on its first load; a session that never verified
     // has nothing to remove.

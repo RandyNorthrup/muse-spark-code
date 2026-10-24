@@ -1,11 +1,12 @@
-// File-tool execution shared by the Model API backend and its deferred
-// byte-range helpers: outcome builders, edit matching, and the text shapes
-// reads and edits agree on. Every Node bundle reads this module from
-// dist/modelApiBoundaries.js (its entry re-exports it; the build points the
-// import there), so the backend and the deferred chunks carry one copy;
+// File-tool execution shared by the Model API backend's file tools and its
+// deferred byte-range helpers: outcome builders, edit matching, and the text
+// shapes reads and edits agree on. It rides the chunk that runs the file
+// tools (dist/modelApiToolRun.js, whose entry re-exports it); the byte-range
+// execution, loaded only from that chunk, reads it there (the build points
+// the import there), so the two carry one copy, and the boundary activation
+// loads carries none. Every other reader keeps the few helpers it uses;
 // type-only imports back stay erased. The caller's own model words arrive
-// as arguments (overlap, policy denial): the boundary carries no
-// MODEL_API_MODEL_TEXT block of its own.
+// as arguments (overlap, policy denial).
 
 import { setImmediate as yieldToHost } from 'node:timers/promises'
 import { ADD_MARKER, type PatchFile, REMOVE_MARKER } from '../shared/patchDocument'
@@ -26,7 +27,7 @@ import type {
   TouchedFiles,
 } from './backends/modelapi/tools'
 
-/** Shared with the deferred byte-range execution through dist/modelApiBoundaries.js. */
+/** Shared with the deferred byte-range execution through dist/modelApiToolRun.js. */
 export function failure(reason: string, visibleReason = reason): ToolOutcome {
   return { output: `Error: ${reason}`, visibleOutput: visibleReason, failureReason: visibleReason }
 }
@@ -270,7 +271,8 @@ export function isDenied(
 How a confinement refusal reads. The default is the plain reason; the Model
 API backend passes the assist bundle's `pathRefusal`, so an outside-workspace
 path refuses in translated words with its refusal code (RLACP), which this
-shared module cannot import itself (only dist/modelApi.js may).
+shared module cannot import itself (only dist/modelApi.js and the tool-run
+chunk it loads may).
 */
 export type PathRefuser = (refusal: {
   readonly reason: string
