@@ -9,7 +9,6 @@ import { spawn, type ChildProcess } from 'node:child_process'
 import { createHash, createSign, randomBytes, X509Certificate } from 'node:crypto'
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { request as httpsRequest } from 'node:https'
-import { createServer } from 'node:net'
 import path from 'node:path'
 import process from 'node:process'
 import type { Duplex } from 'node:stream'
@@ -37,30 +36,14 @@ import { nodeActionDigest } from '../../src/runtime/node/listenerMethods'
 import { parseNodeArgs } from '../../src/runtime/node/args'
 import { runNodeCommand } from '../../src/runtime/node/main'
 import { NodeStateStore } from '../../src/runtime/node/state'
-import { stopNode } from '../../src/runtime/node/serve'
+import { stopNode } from '../../src/runtime/node/stop'
 import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import * as nodeAuthEntry from '../../src/runtime/node/auth/entry'
+import * as nodeServeEntry from '../../src/runtime/node/serveEntry'
 import { maskedFrame } from './helpers/node/listener'
 import { nodeSigningKey } from './helpers/node/authenticator'
 import { isMissingFile } from '../../src/runtime/node/privateFiles'
-import { nodeNativeTest, nodeTempRoot, testPackageVersion } from './helpers/nodeNative'
-
-async function vacantPort(): Promise<number> {
-  const server = createServer()
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', () => {
-      resolve()
-    })
-  })
-  const address = server.address()
-  const port = typeof address === 'object' && address !== null ? address.port : 0
-  await new Promise<void>((resolve) => {
-    server.close(() => {
-      resolve()
-    })
-  })
-  return port
-}
+import { nodeNativeTest, nodeTempRoot, testPackageVersion, vacantPort } from './helpers/nodeNative'
 
 /**
 The drill authenticator: an emulated CTAP2 key whose registration and
@@ -217,7 +200,8 @@ async function startServe(): Promise<LiveServe> {
     print: (line: string) => {
       lines.push(line)
     },
-    version: testPackageVersion(),
+    version: testPackageVersion,
+    loadServeBundle: () => nodeServeEntry,
     loadAuthBundle: () => nodeAuthEntry,
   })
   const serving = binding.serve(store, controller.signal)
@@ -702,7 +686,8 @@ nodeNativeTest('serve without a chosen interface refuses', async () => {
         print: (line: string) => {
           lines.push(line)
         },
-        version: testPackageVersion(),
+        version: testPackageVersion,
+        loadServeBundle: () => nodeServeEntry,
         loadAuthBundle: () => nodeAuthEntry,
       }),
     }
@@ -756,7 +741,8 @@ nodeNativeTest('a second serve reuses the committed pair and fingerprint', async
         print: (line: string) => {
           lines.push(line)
         },
-        version: testPackageVersion(),
+        version: testPackageVersion,
+        loadServeBundle: () => nodeServeEntry,
         loadAuthBundle: () => nodeAuthEntry,
       })
       const controller = new AbortController()
@@ -864,7 +850,8 @@ nodeNativeTest('serve without the auth bundle refuses after a fixed sentence', a
       print: (line: string) => {
         lines.push(line)
       },
-      version: testPackageVersion(),
+      version: testPackageVersion,
+      loadServeBundle: () => nodeServeEntry,
       loadAuthBundle: () => {
         throw new Error('missing bundle')
       },
@@ -877,7 +864,8 @@ nodeNativeTest('serve without the auth bundle refuses after a fixed sentence', a
       print: (line: string) => {
         lines.push(line)
       },
-      version: testPackageVersion(),
+      version: testPackageVersion,
+      loadServeBundle: () => nodeServeEntry,
       loadAuthBundle: () => ({}),
     })
     await expect(shaped.serve(store, new AbortController().signal)).rejects.toThrow(

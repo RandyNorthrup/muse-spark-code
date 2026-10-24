@@ -71,5 +71,5 @@ export async function nodeAuthNotices(metafiles) {
     })
   }
   notices.sort((a, b) => a.name.localeCompare(b.name, 'en'))
-  return `THIRD-PARTY SOFTWARE NOTICES\nMuse Spark Code (Unofficial)\nA1 nodeAuth.js and nodeAuthPage.js\n\n${notices.map((notice) => notice.text).join('\n\n')}\n`
+  return `THIRD-PARTY SOFTWARE NOTICES\nMuse Spark Code (Unofficial)\nA1 nodeAuthPage.js\n\n${notices.map((notice) => notice.text).join('\n\n')}\n`
 }

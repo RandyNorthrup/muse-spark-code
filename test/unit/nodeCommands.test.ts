@@ -143,7 +143,7 @@ describe('M110-N node commands and isolated dispatch', () => {
         ...deps,
         binding: productionNodeBinding({
           print: deps.print,
-          version: testPackageVersion(),
+          version: testPackageVersion,
         }),
       }
       // A stopped node answers status from its files, binding or not; stop

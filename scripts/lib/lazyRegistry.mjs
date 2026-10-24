@@ -70,6 +70,18 @@ export const COMPUTED_SOURCE_LOADS = Object.freeze([
       'The node bundle loader: its caller passes the path, built from the NODE_BUNDLE_FILE bundle-name constant the scan reads.',
   }),
   Object.freeze({
+    importer: 'src/runtime/node/binding.ts',
+    call: 'createRequire(file)(file)',
+    reason:
+      'The serve bundle loader: the path is path.join(__dirname, NODE_SERVE_BUNDLE_FILE) in the same function, a bundle-name constant the scan reads.',
+  }),
+  Object.freeze({
+    importer: 'src/runtime/node/serve.ts',
+    call: 'createRequire(file)(file)',
+    reason:
+      'The auth bundle loader: the path is path.join(__dirname, NODE_AUTH_BUNDLE_FILE) in the same file, a bundle-name constant the scan reads.',
+  }),
+  Object.freeze({
     importer: 'src/core/providers/configured.ts',
     call: String.raw`import(pathToFileURL(options.catalogFile.replace(/\.json$/,'.js')).href)`,
     reason:

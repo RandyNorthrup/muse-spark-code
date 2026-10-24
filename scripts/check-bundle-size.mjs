@@ -473,6 +473,14 @@ const BUDGETS = [
   { path: 'dist/vaultRuntime.js', budgetKiB: 25 },
   // M110-N: explicit node commands only; measured +15%, rounded to 25 KiB.
   { path: 'dist/node.js', budgetKiB: 75 },
+  // RLF-NODESERVE: `serve` (the serve composition, the listener's method port
+  // and the web pages' methods), loaded only when serve starts. Measured
+  // 61.8 KiB; plus 15%, rounded up to 25 KiB.
+  { path: 'dist/nodeServe.js', budgetKiB: 75 },
+  // RLF-NODESERVE: the lazy auth bundle (the A1 verifier, the ceremonies and
+  // S0 issuance), loaded only when serve starts. Measured 470.3 KiB; plus
+  // 15%, rounded up to 25 KiB.
+  { path: 'dist/nodeAuth.js', budgetKiB: 550 },
   // M110t TP2: the pack index verifier (sigstore), loaded on the first
   // pack fetch. Measured 1450.0 KiB; plus 15%, rounded up to 25 KiB.
   { path: 'dist/packsVerify.js', budgetKiB: 1675 },

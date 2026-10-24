@@ -359,6 +359,11 @@ const ACP_OUTFILE = 'dist/acp.js'
 // M110-N: isolated runtime mode, loaded only for explicit node commands.
 const NODE_ENTRY = 'src/runtime/node/main.ts'
 const NODE_OUTFILE = 'dist/node.js'
+// RLF-NODESERVE: `serve` loads these two beside node.js when it starts.
+const NODE_SERVE_ENTRY = 'src/runtime/node/serveEntry.ts'
+const NODE_SERVE_OUTFILE = 'dist/nodeServe.js'
+const NODE_AUTH_ENTRY = 'src/runtime/node/auth/entry.ts'
+const NODE_AUTH_OUTFILE = 'dist/nodeAuth.js'
 const SCHEDULE_BACKGROUND_ENTRY = 'src/runtime/schedules/backgroundEntry.ts'
 const SCHEDULE_BACKGROUND_OUTFILE = 'dist/scheduleBackground.js'
 const ACP_QUESTIONS_ENTRY = 'src/acp/questionDeferralEntry.ts'
@@ -1440,6 +1445,18 @@ const nodeOptions = {
   outfile: NODE_OUTFILE,
   banner: {},
 }
+const nodeServeOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_SERVE_ENTRY],
+  outfile: NODE_SERVE_OUTFILE,
+  banner: {},
+}
+const nodeAuthOptions = {
+  ...acpOptions,
+  entryPoints: [NODE_AUTH_ENTRY],
+  outfile: NODE_AUTH_OUTFILE,
+  banner: {},
+}
 
 /** @type {import('esbuild').BuildOptions} */
 const runtimePanelOptions = {
@@ -2021,6 +2038,8 @@ if (isWatch) {
     esbuild.context(webviewOptions),
     esbuild.context(fontInstallOptions),
     esbuild.context(nodeOptions),
+    esbuild.context(nodeServeOptions),
+    esbuild.context(nodeAuthOptions),
     esbuild.context(portableWatchOptions),
     esbuild.context(portableLoaderOptions),
   ])
@@ -2223,6 +2242,8 @@ if (isWatch) {
     ['packsVerify', () => esbuild.build(packsVerifyOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['node', () => esbuild.build(nodeOptions)],
+    ['nodeServe', () => esbuild.build(nodeServeOptions)],
+    ['nodeAuth', () => esbuild.build(nodeAuthOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2239,6 +2260,8 @@ if (isWatch) {
   let packsVerify
   let vaultRuntime
   let node
+  let nodeServe
+  let nodeAuth
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2253,6 +2276,8 @@ if (isWatch) {
       packsVerify,
       vaultRuntime,
       node,
+      nodeServe,
+      nodeAuth,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2313,6 +2338,10 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
     const { metafile: nodeMetafile } = await node
     writeFileSync(path.join(ACP_METAFILE_DIR, 'node.json'), JSON.stringify(nodeMetafile))
+    const { metafile: nodeServeMetafile } = await nodeServe
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeServe.json'), JSON.stringify(nodeServeMetafile))
+    const { metafile: nodeAuthMetafile } = await nodeAuth
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'nodeAuth.json'), JSON.stringify(nodeAuthMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
@@ -2408,5 +2437,7 @@ if (isWatch) {
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
   reportSize(NODE_OUTFILE)
+  reportSize(NODE_SERVE_OUTFILE)
+  reportSize(NODE_AUTH_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

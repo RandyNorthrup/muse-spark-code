@@ -1,8 +1,9 @@
-// A1's separate lazy artifacts; existing activation/node/webview caps stay unchanged.
+// A1's browser-pairing page, built separately; the main production build owns
+// the server bundle (dist/nodeAuth.js) with its own budget and split gates.
+// Existing activation/node/webview caps stay unchanged.
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
-import { sharedUiText } from './deferredBundles.mjs'
 import { loadL10n } from './l10nSource.mjs'
 import { checkNodeAuthArtifact, checkNodeAuthSplit, nodeAuthNotices } from './nodeAuthArtifacts.mjs'
 
@@ -24,14 +25,6 @@ const pageEnglish = {
 }
 const OUTPUTS = [
   {
-    entry: 'src/runtime/node/auth/entry.ts',
-    output: 'dist/nodeAuth.js',
-    platform: 'node',
-    format: 'cjs',
-    budgetKiB: 500,
-    plugins: [sharedUiText],
-  },
-  {
     entry: 'src/webview/node/auth/entry.tsx',
     output: 'dist/nodeAuthPage.js',
     platform: 'browser',
@@ -43,7 +36,8 @@ const OUTPUTS = [
 const normalize = (file) => file.replaceAll('\\', '/')
 const BYTES_PER_KIB = 1024
 
-export async function buildNodeAuth() {
+/** `outdir` is where the page and its records are written (the repository's dist/ unless a test owns one). */
+export async function buildNodeAuth(outdir = 'dist') {
   const sizes = []
   const metafiles = []
   for (const artifact of OUTPUTS) {
@@ -68,10 +62,12 @@ export async function buildNodeAuth() {
       result.outputFiles.reduce((total, file) => total + file.contents.length, 0) / BYTES_PER_KIB
     checkNodeAuthArtifact(artifact, sizeKiB, Object.keys(result.metafile.inputs))
     metafiles.push(result.metafile)
-    await mkdir('dist/meta-node-auth', { recursive: true })
-    for (const file of result.outputFiles) await writeFile(file.path, file.contents)
+    await mkdir(path.join(outdir, 'meta-node-auth'), { recursive: true })
+    for (const file of result.outputFiles) {
+      await writeFile(path.join(outdir, path.basename(file.path)), file.contents)
+    }
     await writeFile(
-      `dist/meta-node-auth/${path.basename(artifact.output, '.js')}.json`,
+      path.join(outdir, 'meta-node-auth', `${path.basename(artifact.output, '.js')}.json`),
       JSON.stringify(result.metafile, null, 2),
     )
     sizes.push({ file: artifact.output, sizeKiB, budgetKiB: artifact.budgetKiB })
@@ -80,6 +76,7 @@ export async function buildNodeAuth() {
     'dist/meta/extension.json',
     'dist/meta-acp/acp.json',
     'dist/meta-acp/node.json',
+    'dist/meta-acp/nodeServe.json',
     'dist/meta/webview.json',
   ]) {
     let text
@@ -92,6 +89,6 @@ export async function buildNodeAuth() {
     const parsed = JSON.parse(text)
     checkNodeAuthSplit(Object.keys(parsed.inputs), meta)
   }
-  await writeFile('dist/NODE_AUTH_NOTICES.txt', await nodeAuthNotices(metafiles))
+  await writeFile(path.join(outdir, 'NODE_AUTH_NOTICES.txt'), await nodeAuthNotices(metafiles))
   return sizes
 }

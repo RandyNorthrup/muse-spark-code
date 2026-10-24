@@ -23,7 +23,7 @@ async function setup() {
   const deps: NodeCommandDeps = {
     root,
     signal: new AbortController().signal,
-    binding: productionNodeBinding({ print, version: testPackageVersion() }),
+    binding: productionNodeBinding({ print, version: testPackageVersion }),
     now: () => 0,
     print,
     readSecret: () => Promise.reject(new Error('test forbids stdin use')),

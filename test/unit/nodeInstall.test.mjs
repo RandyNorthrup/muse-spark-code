@@ -20,6 +20,20 @@ afterEach(async () => {
 })
 const bash = testBash()
 const INSTALL = path.join('deploy', 'install', 'install.sh')
+// What dist/node.js needs beside itself to start and to serve; the closure is
+// derived from a real production build in packagedBundles.test.mjs.
+const SERVE_FILES = [
+  'dist/nodeServe.js',
+  'dist/nodeAuth.js',
+  'dist/uiText.js',
+  'dist/uiTextHooks.js',
+  'dist/uiTextMedia.js',
+  'dist/uiTextRuntime.js',
+  'dist/uiTextSurfaces.js',
+  'dist/validation.js',
+  'dist/modelApiBoundaries.js',
+  'package.json',
+]
 const LAYOUT = path.join('deploy', 'install', 'layout.sh')
 
 function release(options = {}) {
@@ -29,6 +43,8 @@ function release(options = {}) {
   mkdirSync(path.join(stage, 'dist'), { recursive: true })
   if (options.runtime !== false)
     writeFileSync(path.join(stage, 'dist', 'node.js'), "'use strict'\n")
+  for (const name of SERVE_FILES)
+    if (name !== options.without) writeFileSync(path.join(stage, name), "'use strict'\n")
   if (options.toolhost !== false)
     writeFileSync(path.join(stage, 'dist', 'nodeToolHost.js'), "'use strict'\n")
   if (options.licence !== false) writeFileSync(path.join(stage, 'LICENSE'), 'licence\n')
@@ -74,6 +90,8 @@ describe('M110-S0 native installer layout', () => {
     expect(readFileSync(path.join(prefix, 'opt', 'muse', 'dist', 'nodeToolHost.js'), 'utf8')).toBe(
       "'use strict'\n",
     )
+    for (const name of SERVE_FILES)
+      expect(readFileSync(path.join(prefix, 'opt', 'muse', name), 'utf8')).toBe("'use strict'\n")
     expect(readFileSync(path.join(prefix, 'opt', 'muse', 'LICENSE'), 'utf8')).toBe('licence\n')
     expect(readFileSync(path.join(prefix, 'opt', 'muse', 'THIRD_PARTY_NOTICES.txt'), 'utf8')).toBe(
       'notices\n',
@@ -129,6 +147,24 @@ describe('M110-S0 native installer layout', () => {
       expect(child.stderr.length).toBeGreaterThan(0)
     }
   })
+  it.each(SERVE_FILES)(
+    'refuses a tarball without %s, which the node cannot serve without',
+    (name) => {
+      const { tarball } = release({ without: name })
+      const prefix = path.join(path.dirname(tarball), 'prefix')
+      const child = run(LAYOUT, [
+        '--tarball',
+        tarball,
+        '--root',
+        prefix,
+        '--node-bin',
+        process.execPath,
+      ])
+      expect(child.status).not.toBe(0)
+      expect(child.stderr).toContain(`tarball has no ${name}`)
+      expect(() => statSync(path.join(prefix, 'opt'))).toThrow()
+    },
+  )
   it('refuses a missing tarball, a non-empty destination and a bad node', () => {
     const missing = run(LAYOUT, [
       '--tarball',

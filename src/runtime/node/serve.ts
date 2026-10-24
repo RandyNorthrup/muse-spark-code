@@ -14,13 +14,10 @@ import { cpus, freemem, totalmem } from 'node:os'
 import path from 'node:path'
 import { performance } from 'node:perf_hooks'
 import process from 'node:process'
-import * as z from 'zod/mini'
 import {
   NODE_AUTH_BUNDLE_FILE,
   NODE_EXECUTABLE_WRITE_MASK,
-  NODE_LOCK_FILE,
   NODE_MAX_AUTH_BYTES,
-  NODE_STOP_POLL_MS,
   NODE_TLS_CERT_FILE,
   NODE_TLS_DIRECTORY,
   NODE_TLS_KEY_FILE,
@@ -100,25 +97,20 @@ function isNodeAuthBundle(value: unknown): value is NodeAuthBundle {
   )
 }
 
-interface ServeAuthLoader {
-  /** dist/nodeAuth.js beside the running bundle; tests hand the module in instead. */
-  readonly bundlePath?: string | undefined
-  /** How the bundle is loaded: Node's `require`, unless a test hands in the module. */
-  readonly loadBundle?: (() => unknown) | undefined
-}
-
-/** Node's own `require` of an absolute bundle path (the lazyBundle pattern). */
-function requireAuthBundle(file: string): unknown {
+/** Node's own `require` of dist/nodeAuth.js beside the running bundle. */
+function requireAuthBundle(): unknown {
+  const file = path.join(__dirname, NODE_AUTH_BUNDLE_FILE)
   return createRequire(file)(file)
 }
 
-function loadAuthBundle(deps: ServeAuthLoader, print: (line: string) => void): NodeAuthBundle {
-  // The bundle path resolves only on the require path, so tests that hand
-  // the module in never touch `__dirname` (absent under the test runner).
+/** The auth bundle; tests hand the module in, so `__dirname` (absent under the test runner) is not read. */
+function loadAuthBundle(
+  load: (() => unknown) | undefined,
+  print: (line: string) => void,
+): NodeAuthBundle {
   let loaded: unknown
   try {
-    loaded =
-      deps.loadBundle === undefined ? requireAuthBundle(authBundlePath(deps)) : deps.loadBundle()
+    loaded = load === undefined ? requireAuthBundle() : load()
   } catch (error: unknown) {
     // The bundle's absence fails serve: the cause stays out of the console.
     print(UI_TEXT.nodeMessages.unexpectedFailure)
@@ -129,10 +121,6 @@ function loadAuthBundle(deps: ServeAuthLoader, print: (line: string) => void): N
     throw new Error(UI_TEXT.nodeErrors.unavailable)
   }
   return loaded
-}
-
-function authBundlePath(deps: ServeAuthLoader): string {
-  return deps.bundlePath ?? path.join(__dirname, NODE_AUTH_BUNDLE_FILE)
 }
 
 /**
@@ -243,99 +231,13 @@ function refusingToolHost(): NodeToolHostPort {
   }
 }
 
-const lockSchema = z.strictObject({ pid: z.number().check(z.int(), z.positive()) })
-
-function abortablePoll(signal: AbortSignal): Promise<void> {
-  return new Promise<void>((resolve) => {
-    if (signal.aborted) {
-      resolve()
-      return
-    }
-    const timer = setTimeout(() => {
-      signal.removeEventListener('abort', onAbort)
-      resolve()
-    }, NODE_STOP_POLL_MS)
-    const onAbort = (): void => {
-      clearTimeout(timer)
-      resolve()
-    }
-    signal.addEventListener('abort', onAbort, { once: true })
-  })
-}
-
-export interface StopNodeInput {
-  readonly files: NodePrivateFiles
-  readonly signal: AbortSignal
-}
-
-/**
-Stop the serving node: signal its recorded supervisor, then wait until the
-process is gone. `--all` is honored: the graceful shutdown ends every turn,
-sandbox, model request and stream, and no maker device can be registered
-until M103's runtime lands.
-*/
-export async function stopNode(input: StopNodeInput): Promise<{ done: true }> {
-  const raw = await input.files.read(NODE_LOCK_FILE, NODE_MAX_AUTH_BYTES)
-  let decoded: unknown
-  try {
-    decoded = JSON.parse(raw)
-  } catch (error: unknown) {
-    // The lock is ours; a corrupt one is a failed stop, never a guess.
-    throw new Error(UI_TEXT.nodeErrors.failed, { cause: error })
-  }
-  const parsed = lockSchema.safeParse(decoded)
-  if (!parsed.success) {
-    throw new Error(UI_TEXT.nodeErrors.failed, { cause: parsed.error })
-  }
-  const pid = parsed.data.pid
-  try {
-    process.kill(pid, 0)
-  } catch (error: unknown) {
-    // A stale lock is the operator's to remove (the home guide); a foreign
-    // user's node is not ours to signal.
-    if (isProcessGone(error)) throw new Error(UI_TEXT.nodeErrors.failed, { cause: error })
-    if (isPermissionDenied(error)) throw new Error(UI_TEXT.nodeErrors.forbidden, { cause: error })
-    throw error
-  }
-  try {
-    process.kill(pid, 'SIGTERM')
-  } catch (error: unknown) {
-    if (isProcessGone(error)) return { done: true }
-    if (isPermissionDenied(error)) throw new Error(UI_TEXT.nodeErrors.forbidden, { cause: error })
-    throw error
-  }
-  for (;;) {
-    try {
-      process.kill(pid, 0)
-    } catch (error: unknown) {
-      if (isProcessGone(error)) return { done: true }
-      if (!isPermissionDenied(error)) throw error
-    }
-    await abortablePoll(input.signal)
-    input.signal.throwIfAborted()
-  }
-}
-
-function isProcessGone(error: unknown): boolean {
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error.code === 'ESRCH' || error.code === 'ENOENT')
-  )
-}
-
-function isPermissionDenied(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EPERM'
-}
-
 export interface ServeNodeOptions {
   readonly store: NodeStateStore
   readonly signal: AbortSignal
   readonly print: (line: string) => void
-  readonly version: string
-  /** The auth bundle beside dist/node.js; tests hand the module in. */
-  readonly authBundlePath?: string | undefined
+  /** The product version the dashboard reports, read when serve starts. */
+  readonly version: () => string
+  /** How the auth bundle beside dist/nodeServe.js is loaded: `require`, unless a test hands in the module. */
   readonly loadAuthBundle?: (() => unknown) | undefined
 }
 
@@ -649,10 +551,8 @@ export async function serveNode(options: ServeNodeOptions): Promise<void> {
   const config = state.config
   const bound = config.listener
   if (bound === null) throw new Error(UI_TEXT.nodeErrors.unavailable)
-  const auth = loadAuthBundle(
-    { bundlePath: options.authBundlePath, loadBundle: options.loadAuthBundle },
-    print,
-  )
+  const version = options.version()
+  const auth = loadAuthBundle(options.loadAuthBundle, print)
   const clock: NodeClock = { now: () => Date.now(), monotonicMs: () => performance.now() }
   const report = (_error: unknown): void => {
     print(UI_TEXT.nodeMessages.unexpectedFailure)
@@ -681,16 +581,7 @@ export async function serveNode(options: ServeNodeOptions): Promise<void> {
   const rpId = config.browserNames[0]
   if (rpId === undefined) throw new Error(UI_TEXT.nodeErrors.unavailable)
   const origin = `https://${rpId}:${String(bound.port)}`
-  const ports = createServePorts(
-    service,
-    store,
-    state,
-    config,
-    clock,
-    print,
-    options.version,
-    clock.now(),
-  )
+  const ports = createServePorts(service, store, state, config, clock, print, version, clock.now())
   const lifecycle: NodeSessionLifecycle = {
     attached: (session) => {
       service.attach(session)
