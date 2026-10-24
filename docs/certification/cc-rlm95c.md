@@ -15,8 +15,9 @@ nothing leaves the machine and no answer is invented; DNS answers with a
 public literal that is never dialled).
 
 Commits: `153841f0a2` (part 3), `11fc78e6b6` (part 6), `0319e29137`
-(part 7), `1021deee2f` (bundle-budget follow-up), and the records commit
-carrying this file.
+(part 7), `1021deee2f` (bundle-budget follow-up), `7e18514f91` (this
+record), `949d115449` (the integration suite's resolver), `68b94ff06d`
+(clones back to base), and the commit adding the Gates section.
 
 ## Part 3 — OpenAI explicit cache breakpoints (built)
 
@@ -146,6 +147,27 @@ each is a new route per provider and needs its capture.
   covered other providers (Z.ai, OpenRouter's plugin without a tariff,
   Meta `tool_search` on the Meta request path, record-only Gemini and
   Groq leaves).
+
+## Gates (final tree, Windows 11)
+
+prettier --check (every touched file) 0 · eslint --max-warnings 0
+(touched) 0 · typecheck (all projects) 0 · check:plan 0 (240 milestones,
+0 drift) · check:l10n 0 (0 problems) · check:reference 0 · deadcode 0 ·
+check:roadmap 0. Not green on base either, with the same results here:
+check:catches 1 (the same per-area counts as base `9fc689af83`),
+duplication 1 (41 clones, base 41), `manifest.test.ts` 3 failures
+(walkthrough, notices, RELFAST), and `npm run build` 1: the base already
+runs 12 bundles over budget. Against base, this lane adds to four of them,
+each for a person-set setting or the new button: `modelApi.js` +34 B and
+`reportingPanel.js` +224 B (the new setting's default, scope and reader,
+and the widened Tab model), `modelsPanel.js` +552 B (the button's message,
+port and removal cleanup; the manager itself loads with
+`modelsSubscriptions.js`), `uiText.js` +27 B (two accessor keys; the
+strings ride `uiTextSurfaces.js`). Within budget: `providers.js` 198.6
+of 200 KiB (+1,092 B, the codec's marker), `configuredProviders.js` 71.7
+of 75 (+2,108 B), `tab.js` 63.6 of 75 (+1,528 B), `modelsSubscriptions.js`
+35.9 of 50, `foreignHooks.js` 87.8 of 100, `uiTextSurfaces.js` 12.8 of 25,
+`extension.js` 516.8 of 600. No budget was raised.
 
 ## Not claimed
 
