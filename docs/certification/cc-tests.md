@@ -604,3 +604,65 @@ entry. No deadline was changed.
 Red (before, the full run): 33 failed, 31 by the 60 s deadline. Green: 101
 passed; the file took 3,792 s here. The 2 cases left fail on the
 integration's bundle budgets (below).
+
+## Full runs on this PC
+
+Same command both times: `vitest run` over the whole unit and e2e include,
+excluding `**/vault/**`, `keyringParts`, `keystoreOwner` and
+`credentialLease`.
+
+| Run                                     | Failed tests | Failed files | Passed | Skipped |
+| --------------------------------------- | -----------: | -----------: | -----: | ------: |
+| Lead's run before this branch           |          159 |           43 |      — |       — |
+| This branch's first run (at d81327d360) |          144 |           43 | 28,189 |     351 |
+| After the fixes (full run)              |           54 |            8 | 28,395 |     360 |
+
+The first run picked up edits made while it ran (it started at d81327d360 and
+took 4,234 s): `acpServeHandshake` and `estimatorPricePackaging` ran after
+their fixes, and three production-build suites refused their build as stale
+once sources changed. The full run after the fixes took 6,445 s and failed in
+judgeP2Delivery (33), packagedBundles (5), estimatorPlanSnapshotRealPlan (8),
+manifest (3), pathGuardSpawns (2), billingRouteInventory, cx1r2Truth and
+reportProblem (1 each). Two later commits then fixed 34 of those
+(judgeP2Delivery's 31 timeouts, billingRouteInventory, reportProblem and
+manifest's walkthrough), each verified by running its suite; 20 remain in 6
+files, listed below.
+
+## Left failing, with the exact reason
+
+None of these is Windows-specific; each is a merge interaction in
+int/recovery whose fix is a review or a decision outside a test's reach.
+
+- **judgeP2Delivery** (2): `fires the new size and host-global guards without changing caps`
+  and `leaves every restored artifact green` run the real `check-bundle-size`
+  on the restored build, which is over twelve budgets the merges produced,
+  among them `dist/modelApi.js` 575.0 KiB (budget 525), `dist/uiText.js`
+  128.6 (125), `dist/modelsPanel.js` 159.5 (150), `dist/wire.js` 79.2 (75)
+  and `dist/reportingPanel.js` 51.4 (50). Bundle diet or a measured budget
+  move is the gates' work.
+- **manifest** (2): the notices case wants every runtime dependency in
+  `THIRD_PARTY_NOTICES.txt`; RLM110A0 added `@codemirror/merge`,
+  `codemirror` and the `@xterm/*` packages to `dependencies`, but the node
+  workspace that carries them is built apart (`test/harness/build-node.mjs`),
+  so no shipped bundle's metafile lists them and `npm run notices` cannot add
+  them. RELFAST counts 8 `actions: read` grants in `release.yml` against the
+  pinned 7; which job's grant is new is a CI permission review.
+- **packagedBundles** (5): the lazy registry check reads
+  `NODE_WORKSPACE_ASSET = './node/files/main.js'` by its basename as
+  `webview/main.js` (the same basename confusion the estimator walk had), and
+  `src/shared/lazyBundles.generated.ts` still has rows for `nodeAuth.js`,
+  `nodeAuthPage.js` and `webview/node/files/main.js`, which the build no
+  longer gives: the registry generator and its committed output need the
+  RLM110A0 merge's decision on what ships.
+- **pathGuardSpawns** (2): eight process starts and one governed launch that
+  the merges added are neither guarded nor reviewed into the record
+  (`src/core/judge/setup/runtime.ts`, `src/runtime/node/gitRunner.ts`,
+  `src/runtime/node/tls/certificate.ts`, `src/runtime/node/toolHost.ts`,
+  `src/runtime/node/workspaces/devcontainer.ts`, `…/git.ts`,
+  `…/snapshots.ts`, `src/runtime/tui/design/capabilities.ts`, and
+  `ModelApiHost.ts`'s `spawnResourceProcess`): a security review per site.
+- **cx1r2Truth** (1): the roadmap lists M96d under Planned while the case
+  expects it in progress (PLAN.md status and `docs/roadmap/entries.json`).
+- **estimatorPlanSnapshotRealPlan** (8): PLAN.md's lane tables after the
+  merges: duplicate lanes `M100:0` and `M100:U`, malformed Starts cells
+  (`M100:A` line 25734 and six more) and unknown rigs (`M100:A:linux-core-macos` …).
