@@ -1,17 +1,31 @@
 // Verify a pack index's cosign keyless bundle (M110t TP2, PLAN.md
 // D90.27): the pack CI signs each index with `cosign sign-blob`, and the
 // node verifies the bundle against the exact bytes before anything else,
-// pinning the workflow's Fulcio identity. sigstore (the same
-// infrastructure npm provenance uses) does the cryptography; nothing
-// here is hand-rolled. Loaded lazily: sigstore stays out of the ACP
-// agent's first bundle. Verification needs the network (Fulcio, Rekor);
+// pinning the workflow's Fulcio identity. Sigstore's own verification
+// packages (the same infrastructure npm provenance uses) do the
+// cryptography; nothing here is hand-rolled. They are composed exactly as
+// the `sigstore` package's `verify` composes them (its `createVerifier`):
+// the trusted root from Sigstore's TUF repository, the bundle parsed and
+// checked, then the signature, certificate, transparency-log and identity
+// checks. The node only verifies, so the signer's half of `sigstore` (its
+// HTTP stack) is never bundled (cc-sigstore). Loaded lazily: it stays out
+// of the ACP agent's first bundle. Verification needs the network (TUF);
 // offline, the node keeps its cached verified index and refuses new
 // fetches, saying so.
-import { PolicyError, VerificationError, verify, type Bundle } from 'sigstore'
+import { bundleFromJSON } from '@sigstore/bundle'
+import { getTrustedRoot } from '@sigstore/tuf'
+import {
+  PolicyError,
+  VerificationError,
+  Verifier,
+  toSignedEntity,
+  toTrustMaterial,
+  type VerificationPolicy,
+} from '@sigstore/verify'
 import { PACKS_SIGN_IDENTITY, PACKS_SIGN_ISSUER } from '../../../shared/constants'
 
-/** The bundle's discriminator: sigstore validates the rest on verify. */
-function isBundle(value: unknown): value is Bundle {
+/** The bundle's discriminator: the bundle parser validates the rest. */
+function hasMediaType(value: unknown): boolean {
   return (
     typeof value === 'object' &&
     value !== null &&
@@ -34,12 +48,17 @@ export async function verifyIndexBundle(
   bundle: unknown,
   bytes: Uint8Array,
 ): Promise<BundleVerdict> {
-  if (!isBundle(bundle)) return { verified: false, failure: 'malformed-bundle' }
+  if (!hasMediaType(bundle)) return { verified: false, failure: 'malformed-bundle' }
   try {
-    await verify(bundle, Buffer.from(bytes), {
-      certificateIssuer: PACKS_SIGN_ISSUER,
-      certificateIdentityURI: PACKS_SIGN_IDENTITY,
-    })
+    // Sigstore's public-good TUF repository at its own defaults (mirror,
+    // cache directory, retry and timeout), as `sigstore.verify` asks it.
+    const trustedRoot = await getTrustedRoot()
+    const verifier = new Verifier(toTrustMaterial(trustedRoot))
+    const policy: VerificationPolicy = {
+      subjectAlternativeName: PACKS_SIGN_IDENTITY,
+      extensions: { issuer: PACKS_SIGN_ISSUER },
+    }
+    verifier.verify(toSignedEntity(bundleFromJSON(bundle), Buffer.from(bytes)), policy)
     return { verified: true }
   } catch (error: unknown) {
     if (error instanceof VerificationError) return { verified: false, failure: error.code }
