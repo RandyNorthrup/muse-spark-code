@@ -1,6 +1,7 @@
-// The pack index verifier's entry (M110t TP2): sigstore lives in
-// dist/packsVerify.js and loads only on the first pack fetch, so the ACP
-// agent's startup and argument parsing never carry it (PLAN.md D6).
+// The pack index verifier's entry (M110t TP2): Sigstore's verification
+// packages live in dist/packsVerify.js and load only on the first pack
+// fetch, so the ACP agent's startup and argument parsing never carry them
+// (PLAN.md D6).
 import { verifyIndexBundle, type BundleVerdict } from './verify'
 
 export type { BundleVerdict } from './verify'
