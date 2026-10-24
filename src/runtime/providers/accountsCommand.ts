@@ -53,11 +53,12 @@ export function commandError(error: unknown): string {
     : UI_TEXT.accounts.unavailable
 }
 
-/** A causeless store outage against a missing entry is an unknown id,
-not a connection problem: the runtime is already on the account
-service, so the refusal names the id instead of the connection. An
-entry that exists keeps the generic sentence (a lane-M product, a shut
-vault): the id is not the problem there. */
+/** A metadata read that answered with no row for this id names the
+missing accounts entry (RLTESTDRIVE2 15). "Unknown provider" is false
+when the id is a configured provider that simply has no accounts row,
+and the connection sentence is false because the service answers for
+meta. List and auth set say this one sentence. An entry that exists,
+and a read that threw, keep their own cause. */
 function terminalAccountsFailure(
   provider: string,
   read: { readonly entry: AccountProvider | undefined } | undefined,
@@ -67,7 +68,9 @@ function terminalAccountsFailure(
     read.entry?.id !== provider &&
     error instanceof AccountStoreError &&
     error.code === 'unavailable'
-    ? fill(UI_TEXT.providerUnknown, { provider })
+    ? fill(UI_TEXT.accounts.unavailableReason, {
+        reason: fill(UI_TEXT.accounts.noAccountsEntry, { provider }),
+      })
     : commandError(error)
 }
 
