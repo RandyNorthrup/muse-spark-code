@@ -4166,6 +4166,7 @@
   "teamSecondaryDangling": "次要角色參照了此團隊已不再擁有的代理程式或角色。",
   "teamRoleUnknown": "角色 {role} 不在此團隊中。",
   "teamMoveTask": "移至…",
+  "teamMoveToRole": "移至 {role}",
   "teamMoveRunning": "請先停止工作：只有等候中的工作才能移到另一個角色。",
   "teamMoveSettled": "只有等候中的工作才能移到另一個角色。",
   "paidTabName": "Tab 補全",

@@ -4454,6 +4454,7 @@
   "teamSecondaryDangling": "Sekundární role uvádějí agenta nebo roli, které tento tým již nemá.",
   "teamRoleUnknown": "Role {role} není v tomto týmu.",
   "teamMoveTask": "Přesunout do…",
+  "teamMoveToRole": "Přesunout do {role}",
   "teamMoveRunning": "Nejprve úlohu zastavte: do jiné role lze přesunout jen čekající úlohu.",
   "teamMoveSettled": "Do jiné role lze přesunout jen čekající úlohu.",
   "paidTabName": "Doplňování Tab",

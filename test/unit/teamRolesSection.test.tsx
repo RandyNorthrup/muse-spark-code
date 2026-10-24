@@ -834,8 +834,15 @@ describe('M120 lane P preference editor UI', () => {
     }
     // The running worker offers no move: only the queued one does.
     expect(screen.getAllByRole('button', { name: UI_TEXT.teamMoveTask })).toHaveLength(1)
+    // Opening hands focus to the first role, and cancelling hands it back.
+    const moveToReview = fill(UI_TEXT.teamMoveToRole, { role: 'Code review' })
     fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamMoveTask }))
-    fireEvent.click(screen.getByRole('button', { name: 'Code review' }))
+    expect(screen.getByRole('button', { name: moveToReview })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.questionCancel }))
+    expect(screen.getByRole('button', { name: UI_TEXT.teamMoveTask })).toHaveFocus()
+    expect(posted).toEqual([])
+    fireEvent.click(screen.getByRole('button', { name: UI_TEXT.teamMoveTask }))
+    fireEvent.click(screen.getByRole('button', { name: moveToReview }))
     expect(posted).toContainEqual({
       type: 'agents/moveTask',
       taskId: 'task-2',

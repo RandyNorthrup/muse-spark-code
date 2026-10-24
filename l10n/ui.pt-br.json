@@ -4358,6 +4358,7 @@
   "teamSecondaryDangling": "As funções secundárias nomeiam um agente ou função que esta equipe não tem mais.",
   "teamRoleUnknown": "A função {role} não está nesta equipe.",
   "teamMoveTask": "Mover para…",
+  "teamMoveToRole": "Mover para {role}",
   "teamMoveRunning": "Pare a tarefa primeiro: apenas uma tarefa em espera pode passar para outra função.",
   "teamMoveSettled": "Apenas uma tarefa em espera pode passar para outra função.",
   "paidTabName": "Preenchimentos do Tab",

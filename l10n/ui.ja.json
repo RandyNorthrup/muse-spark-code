@@ -4166,6 +4166,7 @@
   "teamSecondaryDangling": "セカンダリロールに、このチームにもう存在しないエージェントまたはロールが含まれています。",
   "teamRoleUnknown": "ロール {role} はこのチームに含まれていません。",
   "teamMoveTask": "移動…",
+  "teamMoveToRole": "{role} に移動",
   "teamMoveRunning": "先にタスクを停止してください。別のロールに移動できるのは待機中のタスクのみです。",
   "teamMoveSettled": "別のロールに移動できるのは待機中のタスクのみです。",
   "paidTabName": "Tab 補完",

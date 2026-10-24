@@ -154,6 +154,21 @@ describe('M120 lane P: the preference editor', () => {
     const kept =
       dropped.document.assignments?.filter((assignment) => assignment.candidateId === entryId) ?? []
     expect(kept).toEqual([])
+    // A removed main role takes its entries' rows with it.
+    const reviewEntryId = roleOf(dropped.document, 'code-review').pool[0]?.id
+    if (reviewEntryId === undefined) throw new Error('No review entry')
+    await rig.controller.handle({
+      type: 'roles/secondaryRoles',
+      role: 'code-review',
+      entryId: reviewEntryId,
+      secondaryRoles: ['engineering'],
+    })
+    await rig.controller.handle({ type: 'roles/removeRole', role: 'code-review' })
+    const without = await rig.read()
+    expect(
+      without.document.assignments?.filter((assignment) => assignment.mainRole === 'code-review') ??
+        [],
+    ).toEqual([])
   })
 
   it('seeds template secondary roles and lets the editor clear them', async () => {

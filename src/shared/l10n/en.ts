@@ -5411,6 +5411,7 @@ export const EN = {
   teamSecondaryDangling: 'Secondary roles name an agent or role this team no longer has.',
   teamRoleUnknown: 'Role {role} is not on this team.',
   teamMoveTask: 'Move to…',
+  teamMoveToRole: 'Move to {role}',
   teamMoveRunning: 'Stop the task first: only a waiting task can move to another role.',
   teamMoveSettled: 'Only a waiting task can move to another role.',
   // Inline completions (M94, PLAN.md D73): the paid feature, the

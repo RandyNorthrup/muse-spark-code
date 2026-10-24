@@ -4262,6 +4262,7 @@
   "teamSecondaryDangling": "Sekundäre Rollen nennen einen Agenten oder eine Rolle, die dieses Team nicht mehr hat.",
   "teamRoleUnknown": "Die Rolle {role} gehört nicht zu diesem Team.",
   "teamMoveTask": "Verschieben nach…",
+  "teamMoveToRole": "Verschieben nach {role}",
   "teamMoveRunning": "Stoppen Sie die Aufgabe zuerst: Nur eine wartende Aufgabe kann in eine andere Rolle wechseln.",
   "teamMoveSettled": "Nur eine wartende Aufgabe kann in eine andere Rolle wechseln.",
   "paidTabName": "Tab-Vervollständigungen",
