@@ -500,8 +500,10 @@ describe('report determinism across processes, time zones and languages', () => 
     const german = await inZone(zone, ['--format', 'md', '--lang', 'de'])
     expect(german.code).toBe(0)
     expect(german.stdout).toEqual(expect.stringContaining('# Projekt'))
-    germanInUtc ??= german.stdout
-    expect(german.stdout).toBe(germanInUtc)
+    const text: unknown = german.stdout
+    if (typeof text !== 'string') throw new TypeError('the report command printed no text')
+    germanInUtc ??= text
+    expect(text).toBe(germanInUtc)
   })
 })
 
