@@ -285,3 +285,19 @@ Red (before): 2 failed as above. Green: 18 passed, 2 skipped (Linux-only DRM
 and cpuinfo readings, as before). Red drill: the Windows extension check
 disabled → the PATH case failed (`expected 'C:\Users\Randy\Coding\mx-cc-tests\tem…' to be undefined`);
 restored.
+
+### judgeApprovalFloor: B1 runs on Linux and macOS
+
+Cause: two cases leaned on the host's platform. The `--force` case's
+innocent line (`grep -e forceful allowed.txt`) took `b1Floor`'s default
+platform, and on Windows the floor refuses every line as `grammar` by design
+(the suite's own "refuses Windows at the floor" case), so `pass` was false.
+The realpath case resolved B1's fixed POSIX path for `cat`, which does not
+exist on Windows.
+
+Fix: the innocent line is judged for Linux, as the suite's other passing
+lines are; the realpath case expects the resolved `/cat` where B1 runs and
+the audited absence on Windows, where B1 is off.
+
+Red (before): `expected false to be true`, `expected undefined to be true`.
+Green: 15 passed.
