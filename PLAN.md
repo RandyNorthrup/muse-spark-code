@@ -16463,6 +16463,14 @@ MCP client probes `server/discover` and falls back to `initialize`, and
 carries the version on every request to a modern server, on stdio and
 streamable HTTP (D213). The connector stays legacy-only (D213). Record:
 `docs/certification/rlmcpera.md`.
+**Follow-ups ported 2026-10-23 (cc/mcp2, from RLF-MCP2).** Modern HTTP
+tool calls mirror `x-mcp-header` arguments as `Mcp-Param-*` (a tool
+breaking the rules is not offered; `-32020` relists and retries once);
+`subscriptions/listen` runs when the server says its tools change; a
+listing's `ttlMs` lapses into a re-read on its next offer; each server's
+era verdict is kept across restarts (no probe for a known server, probed
+again when it no longer answers so). Legacy bytes unchanged. Record:
+`docs/certification/cc-mcp2.md`.
 
 ### TOOLROUNDS — Preserve answers at the model-call turn limit (D109)
 
