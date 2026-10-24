@@ -1941,7 +1941,8 @@
       "policyHeading": "Zásady pro {repository}:",
       "policySet": "Nastaveno {key} pro {repository}.",
       "policyInvalid": "Tato hodnota není pro {key} povolena. Použijte {allowed}.",
-      "policyUnknownKey": "Neznámý klíč zásad. Použijte label, template, watch-labels, ignore-authors, posts nebo close."
+      "policyUnknownKey": "Neznámý klíč zásad. Použijte label, template, watch-labels, ignore-authors, posts nebo close.",
+      "proposedReply": "Odpověď, kterou by zveřejnil:"
     },
     "poll": {
       "skippedPullRequest": "žádost o stažení, nikoli problém",
@@ -1975,7 +1976,8 @@
     },
     "refusal": {
       "spamHeld": "Zadrženo jako podezřelý spam: nic nebylo zveřejněno.",
-      "approvalRequired": "Tento příspěvek nejprve potřebuje vaše schválení."
+      "approvalRequired": "Tento příspěvek nejprve potřebuje vaše schválení.",
+      "reportOnly": "Pouze hlášení: kromě potvrzení se nic nezveřejňuje, dokud nebude hotova bezpečnostní kontrola."
     }
   },
   "gitHubSignOut": "Odhlásit se",

@@ -30,17 +30,19 @@ interface CaptureReceipt {
   readonly body: { readonly file: string; readonly bytes: number; readonly sha256: string }
 }
 
-/** The body's bytes and SHA-256 match its receipt; the send named when given. */
+/** The body's bytes and SHA-256 match its receipt; the send named when given.
+The status is the recorded one, 200 unless the capture is a refusal. */
 export async function expectReceiptHash(
   root: string,
   capture: string,
   credentialsSent?: string,
+  httpStatus = 200,
 ): Promise<void> {
   const folder = path.join(root, capture)
   const receipt = JSON.parse(
     await readFile(path.join(folder, 'receipt.json'), 'utf8'),
   ) as CaptureReceipt
-  expect(receipt.httpStatus).toBe(200)
+  expect(receipt.httpStatus).toBe(httpStatus)
   if (credentialsSent !== undefined) expect(receipt.credentialsSent).toBe(credentialsSent)
   expect(receipt.body.file).toBe('response.body.json')
   const body = await readFile(path.join(folder, receipt.body.file))

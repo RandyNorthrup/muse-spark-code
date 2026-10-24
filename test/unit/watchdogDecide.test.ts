@@ -90,6 +90,7 @@ async function decideHarness(
     token: 'token',
     store,
     isPostApproved: () => Promise.resolve(isApproved),
+    isReportOnly: false,
     now: () => 1_700_000_000_000,
   }
   await store.exclusive(WATCHDOG_REPOSITORY, (data) => ({
@@ -248,6 +249,32 @@ describe('watchdog decide', () => {
     expect(calls.some((call) => call.method === 'PATCH')).toBe(true)
   })
 
+  it('holds every post while report only, and shows the reply it would make', async () => {
+    const { deps, calls } = await decideHarness(decisionRoutes(), true)
+    await seedTriaged(deps.store, 'duplicate')
+    // Even an approval, and an Always policy, post nothing while report only.
+    await deps.store.exclusive(WATCHDOG_REPOSITORY, (data) => ({
+      data: {
+        policy: { ...data.policy, postsBeyondAck: 'always', closePolicy: 'onReply' },
+        issues: data.issues,
+      },
+      result: undefined,
+    }))
+    const decision = await decideWatchdogIssue(
+      { ...deps, isReportOnly: true },
+      WATCHDOG_REPOSITORY,
+      ISSUE,
+    )
+    expect(decision).toMatchObject({ outcome: 'duplicate', state: 'triaged', posted: false })
+    expect(decision.closed).toBe(false)
+    expect(decision.reason).toBe(UI_TEXT.watchdog.refusal.reportOnly)
+    expect(decision.proposedReply).toContain('#3')
+    expect(decision.proposedReply).toContain('kind=duplicate')
+    expect(calls.some((call) => call.method !== 'GET')).toBe(false)
+    const [stored] = await deps.store.list()
+    expect(stored?.issues[0]?.state).toBe('triaged')
+  })
+
   it('fills every reply template and refuses spam and evidence-free fixes', () => {
     const run = { runId: 'run-1', triageRound: 1 }
     const said = 'The window crashes on open.'
@@ -291,6 +318,22 @@ describe('watchdog resolve', () => {
     // The fixing pull request stays on the record, for the issues report.
     const [stored] = await deps.store.list()
     expect(stored?.issues[0]?.pullRequestNumber).toBe(12)
+  })
+
+  it('holds the fixed-reply while report only, with the reply it would make', async () => {
+    const { deps, calls } = await decideHarness(decisionRoutes(), true, 'onFixRelease')
+    await seedTriaged(deps.store, 'valid', 'planned')
+    await seedPlanEntry(deps.store)
+    const resolution = await resolveWatchdogIssue(
+      { ...deps, isReportOnly: true },
+      WATCHDOG_REPOSITORY,
+      ISSUE,
+      evidence,
+    )
+    expect(resolution).toMatchObject({ state: 'planned', posted: false, closed: false })
+    expect(resolution.reason).toBe(UI_TEXT.watchdog.refusal.reportOnly)
+    expect(resolution.proposedReply).toContain('0.19.1')
+    expect(calls.some((call) => call.method !== 'GET')).toBe(false)
   })
 
   it('posts nothing on a failed verification', async () => {

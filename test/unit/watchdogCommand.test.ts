@@ -40,6 +40,7 @@ import {
   capturedSearchIssues,
   serveGithub,
   watchdogCaptured,
+  watchdogCapturedRoute,
 } from './helpers/watchdog/servedGithub'
 
 const roots = fileRoots()
@@ -49,6 +50,7 @@ async function surface(
   routes: Routes,
   seed?: (store: ReturnType<typeof createWatchdogStore>) => Promise<void>,
   isSigned = true,
+  isReportOnly = false,
 ) {
   const served = serveGithub(routes)
   const folder = await roots.fresh('watchdog-surface-')
@@ -70,6 +72,7 @@ async function surface(
       runs += 1
       return `run-${String(runs)}`
     },
+    isReportOnly,
   }
   return { port, calls: served.calls, folder }
 }
@@ -377,6 +380,43 @@ describe('watchdog policy', () => {
   })
 })
 
+describe('watchdog while report only', () => {
+  it('shows the reply it would post, posts nothing, and still acknowledges', async () => {
+    const comments = capturedObjects('github-issue-comments')
+    const [first] = comments
+    if (first === undefined) throw new TypeError('the capture holds comments')
+    const routes = {
+      [`GET ${WATCHDOG_BASE}/issues`]: { status: 200, body: searchList() },
+      [`GET ${WATCHDOG_BASE}/issues/146/comments`]: { status: 200, body: [] },
+      [`GET ${WATCHDOG_BASE}/issues/157/comments`]: { status: 200, body: [] },
+      [`POST ${WATCHDOG_BASE}/issues/146/labels`]: {
+        status: 200,
+        body: watchdogCaptured('github-labels'),
+      },
+      [`POST ${WATCHDOG_BASE}/issues/157/labels`]: {
+        status: 200,
+        body: watchdogCaptured('github-labels'),
+      },
+      [`POST ${WATCHDOG_BASE}/issues/146/comments`]: { status: 201, body: first },
+      [`POST ${WATCHDOG_BASE}/issues/157/comments`]: { status: 201, body: first },
+    }
+    const { port, calls } = await surface(routes, undefined, true, true)
+    // The acknowledgement is the one post report only allows.
+    const polled = await runWords(port, ['poll', WATCHDOG_REPOSITORY])
+    expect(polled.ok).toBe(true)
+    expect(
+      calls.filter((call) => call.method === 'POST' && call.url.endsWith('/comments')),
+    ).toHaveLength(2)
+    await seedTriagedDuplicate(port.store)
+    const before = calls.length
+    const held = await runWords(port, ['decide', WATCHDOG_REPOSITORY, '146', '--approve'])
+    expect(held.text).toContain(UI_TEXT.watchdog.refusal.reportOnly)
+    expect(held.text).toContain(UI_TEXT.watchdog.cli.proposedReply)
+    expect(held.text).toContain('#3')
+    expect(calls.slice(before).every((call) => call.method === 'GET')).toBe(true)
+  })
+})
+
 describe('watchdog poll and evidence', () => {
   it('polls the served captures and posts the signed acknowledgement', async () => {
     const comments = capturedObjects('github-issue-comments')
@@ -415,7 +455,7 @@ describe('watchdog poll and evidence', () => {
 
   it('says GitHub’s own refusal and the missing sign-in', async () => {
     const refused = await surface({
-      [`GET ${WATCHDOG_BASE}/issues`]: { status: 404, body: { message: 'Not Found' } },
+      [`GET ${WATCHDOG_BASE}/issues`]: watchdogCapturedRoute('github-issues-missing-repository'),
     })
     const parsed = parseWatchdogCommand(['poll', WATCHDOG_REPOSITORY])
     if (parsed === undefined) throw new TypeError('poll parses')
@@ -616,6 +656,7 @@ describe('watchdog CLI exits and ACP answers', () => {
         token: undefined,
         now: () => WATCHDOG_NOW,
         newRunId: () => 'run-1',
+        isReportOnly: false,
       },
       writeStdout: (text) => {
         stdout.push(text)
@@ -687,6 +728,7 @@ describe('watchdog CLI exits and ACP answers', () => {
           token: undefined,
           now: () => WATCHDOG_NOW,
           newRunId: () => 'run-1',
+          isReportOnly: false,
         }),
       () => entryBundle(),
       collectingLogger(logged),

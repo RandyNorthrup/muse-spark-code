@@ -11,6 +11,21 @@ export function watchdogCaptured(caseId: string): unknown {
   return JSON.parse(readFileSync(path.join(FIXTURES, caseId, 'response.body.json'), 'utf8'))
 }
 
+/** A recorded exchange as a served route: its status and its body, byte for byte. */
+export function watchdogCapturedRoute(caseId: string): { status: number; body: unknown } {
+  const receipt: unknown = JSON.parse(
+    readFileSync(path.join(FIXTURES, caseId, 'receipt.json'), 'utf8'),
+  )
+  if (
+    typeof receipt !== 'object' ||
+    receipt === null ||
+    !('httpStatus' in receipt) ||
+    typeof receipt.httpStatus !== 'number'
+  )
+    throw new TypeError('the receipt records a status')
+  return { status: receipt.httpStatus, body: watchdogCaptured(caseId) }
+}
+
 export interface CapturedObject {
   readonly number?: unknown
   readonly [key: string]: unknown

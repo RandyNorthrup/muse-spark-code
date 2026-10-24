@@ -1881,7 +1881,8 @@
       "policyHeading": "Richtlinie für {repository}:",
       "policySet": "{key} für {repository} festgelegt.",
       "policyInvalid": "Dieser Wert ist für {key} nicht erlaubt. Verwenden Sie {allowed}.",
-      "policyUnknownKey": "Unbekannter Richtlinienschlüssel. Verwenden Sie label, template, watch-labels, ignore-authors, posts oder close."
+      "policyUnknownKey": "Unbekannter Richtlinienschlüssel. Verwenden Sie label, template, watch-labels, ignore-authors, posts oder close.",
+      "proposedReply": "Die Antwort, die gepostet würde:"
     },
     "poll": {
       "skippedPullRequest": "ein Pull Request, kein Problem",
@@ -1915,7 +1916,8 @@
     },
     "refusal": {
       "spamHeld": "Als möglicher Spam zurückgehalten: nichts wurde veröffentlicht.",
-      "approvalRequired": "Dieser Beitrag braucht zuerst Ihre Freigabe."
+      "approvalRequired": "Dieser Beitrag braucht zuerst Ihre Freigabe.",
+      "reportOnly": "Nur Bericht: Bis die Sicherheitsprüfung abgeschlossen ist, wird nichts außer der Bestätigung gepostet."
     }
   },
   "gitHubSignOut": "Abmelden",

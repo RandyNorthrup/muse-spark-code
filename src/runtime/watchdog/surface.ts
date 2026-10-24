@@ -4,6 +4,7 @@
 // and only for the verbs that call GitHub. Anything else never touches
 // the credential store.
 import { randomUUID } from 'node:crypto'
+import { WATCHDOG_TAINT_LANE } from '../../shared/constants'
 import { GitHubClient } from '../../core/git/github'
 import { createWatchdogStore } from '../../core/watchdog/store'
 import type { SecretStore } from '../../host/auth/credentialStore'
@@ -49,5 +50,6 @@ export async function createWatchdogSurface(
     token: credential?.bearer,
     now: Date.now,
     newRunId: () => randomUUID(),
+    isReportOnly: !WATCHDOG_TAINT_LANE.isMerged,
   }
 }

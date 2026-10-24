@@ -1881,7 +1881,8 @@
       "policyHeading": "{repository} szabályzata:",
       "policySet": "{key} beállítva: {repository}.",
       "policyInvalid": "Ez az érték nem engedélyezett ehhez: {key}. Használja ezeket: {allowed}.",
-      "policyUnknownKey": "Ismeretlen szabályzatkulcs. Használja: label, template, watch-labels, ignore-authors, posts vagy close."
+      "policyUnknownKey": "Ismeretlen szabályzatkulcs. Használja: label, template, watch-labels, ignore-authors, posts vagy close.",
+      "proposedReply": "A válasz, amelyet közzétenne:"
     },
     "poll": {
       "skippedPullRequest": "nem probléma, hanem pull request",
@@ -1915,7 +1916,8 @@
     },
     "refusal": {
       "spamHeld": "Gyanított levélszemétként visszatartva: semmi sem lett közzétéve.",
-      "approvalRequired": "Ehhez a bejegyzéshez előbb az ön jóváhagyása kell."
+      "approvalRequired": "Ehhez a bejegyzéshez előbb az ön jóváhagyása kell.",
+      "reportOnly": "Csak jelentés: a visszaigazoláson kívül semmi sem kerül közzétételre a biztonsági felülvizsgálat megérkezéséig."
     }
   },
   "gitHubSignOut": "Kijelentkezés",

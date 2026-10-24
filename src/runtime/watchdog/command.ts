@@ -143,6 +143,8 @@ export interface WatchdogSurfacePort {
   readonly token: string | undefined
   readonly now: () => number
   readonly newRunId: () => string
+  /** Report only (PLAN M115w acceptance 8): the steps after the acknowledgement post nothing. */
+  readonly isReportOnly: boolean
 }
 
 function namedRepository(repository: string): GitHubRepository {
@@ -497,6 +499,7 @@ async function decideText(
       token,
       store: port.store,
       isPostApproved: () => Promise.resolve(isApproved),
+      isReportOnly: port.isReportOnly,
       now: port.now,
     },
     repository,
@@ -508,6 +511,8 @@ async function decideText(
     lines.push(UI_TEXT.watchdog.cli.alreadyPosted)
   if (decision.closed) lines.push(UI_TEXT.watchdog.cli.closedNote)
   if (decision.reason !== undefined) lines.push(decision.reason)
+  if (decision.proposedReply !== undefined)
+    lines.push(UI_TEXT.watchdog.cli.proposedReply, decision.proposedReply)
   if (decision.planDraft !== undefined) lines.push(decision.planDraft)
   return lines.join('\n')
 }
@@ -536,6 +541,7 @@ async function resolveText(
       token,
       store: port.store,
       isPostApproved: () => Promise.resolve(isApproved),
+      isReportOnly: port.isReportOnly,
       now: port.now,
     },
     repository,
@@ -550,6 +556,8 @@ async function resolveText(
     lines.push(UI_TEXT.watchdog.cli.alreadyPosted)
   if (resolution.closed) lines.push(UI_TEXT.watchdog.cli.closedNote)
   if (resolution.reason !== undefined) lines.push(resolution.reason)
+  if (resolution.proposedReply !== undefined)
+    lines.push(UI_TEXT.watchdog.cli.proposedReply, resolution.proposedReply)
   return lines.join('\n')
 }
 

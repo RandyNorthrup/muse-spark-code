@@ -2312,6 +2312,7 @@ export const EN = {
       policyInvalid: 'That value is not allowed for {key}. Use {allowed}.',
       policyUnknownKey:
         'Unknown policy key. Use label, template, watch-labels, ignore-authors, posts or close.',
+      proposedReply: 'The reply it would post:',
     },
     poll: {
       skippedPullRequest: 'a pull request, not an issue',
@@ -2346,6 +2347,8 @@ export const EN = {
     refusal: {
       spamHeld: 'Held as suspected spam: nothing was posted.',
       approvalRequired: 'This post needs your approval first.',
+      reportOnly:
+        'Report only: nothing beyond the acknowledgement is posted until the safety review lands.',
     },
   },
   gitHubSignOut: 'Sign Out',
