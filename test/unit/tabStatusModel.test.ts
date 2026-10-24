@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { UI_TEXT } from '../../src/shared/constants'
 import { Usd } from '../../src/shared/usd'
-import type { TabFailureKind, TabOutcome } from '../../src/host/tab/tabBundle'
+import type { TabFailureKind, TabOutcome } from '../../src/host/vscode/tab/tabBundle'
 import {
   nextTabFailureState,
   TAB_FAILURE_STATE_INIT,

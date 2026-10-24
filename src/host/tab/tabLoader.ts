@@ -20,7 +20,7 @@ import type {
   TabServices,
   TabServicesDeps,
   TabStatusDeps,
-} from './tabBundle'
+} from '../vscode/tab/tabBundle'
 import type { TabSnooze } from './tabSnooze'
 
 /** What tabEntry.ts exports: the services, the provider, the wiring, the status and the menu commands. */

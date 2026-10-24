@@ -471,6 +471,10 @@ src/host/**           VS Code adapters (views, conversation, backend managers,
                       extension and GitHub sign-in, and the verify loop's editor
                       side: settled diagnostics, format on edit and turn
                       checkpoints' shadow repository)
+src/host/vscode/**    the only modules beside extension.ts that import
+                      `vscode`, type-only imports included (D84, M104 lane A;
+                      `npm run check:host-api` refuses one anywhere else), so
+                      the rest of src/host stays loadable by other adapters
 src/core/**           backend-agnostic logic; must not import `vscode`
                       (media/inspectEntry.ts, the portable first-use inspector
                       shared by VS Code and ACP through dist/media.js;
@@ -556,7 +560,7 @@ src/webview/**        React 19 app (browser project, own tsconfig);
                       TasksApp is the tasks tab's read-only document (M87),
                       mounted by main.tsx for `data-surface="tasks"` and
                       speaking only shared/tasksProtocol; the tab itself is
-                      host/views/tasksPanel (a WebviewPanel behind the
+                      host/vscode/views/tasksPanel (a WebviewPanel behind the
                       controller's TasksTabPort, no serializer, no composer);
                       stepSummary.ts names a folded run of steps;
                       components/GooeyMenu.tsx is the one radial menu (and

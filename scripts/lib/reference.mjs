@@ -148,7 +148,7 @@ export async function referenceSources(root) {
     'src/shared/estimatorProtocol.ts',
     'src/runtime/backends.ts',
     'src/extension.ts',
-    'src/host/paid/paidHost.ts',
+    'src/host/vscode/paid/paidHost.ts',
     'src/acp/agent.ts',
     ...readdirSync(path.join(root, 'src/webview'), { recursive: true })
       .filter((name) => /\.tsx?$/.test(name))

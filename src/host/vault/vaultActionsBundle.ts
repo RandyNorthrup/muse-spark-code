@@ -7,7 +7,7 @@ import { UI_TEXT } from '../../shared/constants'
 import type { VaultItem } from '../../shared/vault'
 import { fixedMessageLog, lazyBundleLoader } from '../lazyBundle'
 import type { Logger } from '../logger'
-import type { VaultActionDialogDeps } from './vaultActionDialogs'
+import type { VaultActionDialogDeps } from '../vscode/vault/vaultActionDialogs'
 import type { VaultPanelHostDeps } from './vaultPanelHost'
 
 /**

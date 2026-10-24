@@ -8,7 +8,7 @@ import * as z from 'zod/mini'
 
 const index = z.number().check(z.int(), z.nonnegative())
 
-const whatsNewMessageSchema = z.union([
+export const whatsNewMessageSchema = z.union([
   z.object({ type: z.literal('openLink'), index }),
   z.object({ type: z.literal('tryIt'), index }),
   z.object({ type: z.literal('hideOnUpdate'), isHidden: z.boolean() }),

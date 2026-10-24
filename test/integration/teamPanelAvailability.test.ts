@@ -1,12 +1,12 @@
 // The panel half of the team availability latch (RVCM963JB P2-1), inside
 // the real Extension Development Host: `createTeamPanelHost` is the
-// production adapter out of `src/host/models/modelsPanelEntry.ts`, so the
+// production adapter out of `src/host/vscode/models/modelsPanelEntry.ts`, so the
 // `vscode` module it reads is the real one, and the team binding wired
 // into it is the real `TeamHostBinding`. With the release latch closed the
 // panel builds no Roles/Agents content for either setting: `load()`
 // resolves undefined without touching the workspace.
 import * as assert from 'node:assert/strict'
-import { createTeamPanelHost } from '../../src/host/models/modelsPanelEntry'
+import { createTeamPanelHost } from '../../src/host/vscode/models/modelsPanelEntry'
 import { UI_TEXT } from '../../src/shared/constants'
 import { availabilityBinding } from '../unit/helpers/teamAvailabilityRig'
 

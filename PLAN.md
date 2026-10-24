@@ -12671,6 +12671,14 @@ no backend; without the port the control runs as before. The admission is the
 host capacity of D219, refreshed on every resume; no journal is read or
 written. Record: `docs/certification/cc-rlm116.md`.
 
+### D226 — One MHP version in every native host (lead, lane RLM104, 2026-10-22; numbered D212 on its branch until the cc/rlm104 re-land of 2026-10-24)
+
+Every native host negotiates `MHP.version` (`mhp/1.5.0`, wire `1.5`, range
+to exclusive `mhp/1.6.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
+older route, tag, schema or test survives. Both legacy-named snapshots and
+locks advertise 1.5.0; a new revision regenerates every schema, lock and
+host together. Record: `docs/certification/cc-rlm104.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -33625,6 +33633,10 @@ logged.
 ### M104 — Every editor, every feature (D84)
 
 **Status 2026-10-07: waiting.** Certification metadata remains incomplete; retained requirements and receipts follow.
+
+On int (cc/rlm104, 2026-10-24): the MHP contract (D226) and lane A's
+`src/host/vscode/` boundary; every other lane, with its int-specific
+design, is listed in `docs/certification/cc-rlm104.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

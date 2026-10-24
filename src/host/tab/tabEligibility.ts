@@ -5,7 +5,6 @@
 // request reads (Acceptance 3–5, 8, 13). Pure: no `vscode` import.
 
 import path from 'node:path'
-import type { TextDocumentChangeEvent } from 'vscode'
 import { compileGlob } from '../../core/backends/modelapi/globLimits'
 import { isProtectedPath } from '../../core/protectedPaths'
 import { redactSecrets } from '../../core/redact'
@@ -17,8 +16,7 @@ import type {
   TabDocumentChange,
   TabFilesExclude,
   TabHookBridge,
-  TabTextChangeEvent,
-} from './tabBundle'
+} from '../vscode/tab/tabBundle'
 import type { TabHookContext } from '../../core/tab/tabHooks'
 
 // --- `files.exclude` (Acceptance 4) ---
@@ -278,18 +276,4 @@ export function tabAcceptArgsOf(value: unknown): TabAcceptArgs | undefined {
     typeof completion === 'string'
     ? { filePath, generationId, model, positionLine, positionCharacter, completion }
     : undefined
-}
-
-/** The document-change projection the provider watches for inferred partial accepts. */
-export function tabTextChangeEvent(event: TextDocumentChangeEvent): TabTextChangeEvent {
-  return {
-    changes: event.contentChanges.map((change) => ({
-      uriString: event.document.uri.toString(),
-      insertedText: change.text,
-      startLine: change.range.start.line,
-      startCharacter: change.range.start.character,
-      endLine: change.range.end.line,
-      endCharacter: change.range.end.character,
-    })),
-  }
 }

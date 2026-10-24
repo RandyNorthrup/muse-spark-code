@@ -535,10 +535,10 @@ for (const source of [
 }
 const promptInputs = inputsOf(PROMPTS)
 for (const source of [
-  'src/host/prompts/promptEntry.ts',
+  'src/host/vscode/prompts/promptEntry.ts',
   'src/core/prompts/promptStore.ts',
   'src/core/sharing/chatShare.ts',
-  'src/host/prompts/chatSharing.ts',
+  'src/host/vscode/prompts/chatSharing.ts',
 ]) {
   if (!promptInputs.has(source)) problems.push(`${PROMPTS.output} no longer carries ${source}`)
   for (const bundle of [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp]) {
@@ -921,7 +921,7 @@ for (const file of REVIEW_ONLY) {
 // loads on the first vault command. Only types and the loader
 // (vaultPanelBundle.ts) stay at activation.
 const VAULT = { output: 'dist/vault.js', metafile: 'dist/meta/vault.json' }
-const VAULT_ONLY = ['src/host/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPanelHost.ts']
+const VAULT_ONLY = ['src/host/vscode/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPanelHost.ts']
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action code (the native editor,
 // the write-only crypto, the action dialogs) loads on the first action that
 // needs it as dist/vaultActions.js. The fault class moved to its own small
@@ -929,7 +929,7 @@ const VAULT_ONLY = ['src/host/vault/vaultPanelEntry.ts', 'src/host/vault/vaultPa
 const VAULT_ACTIONS = { output: 'dist/vaultActions.js', metafile: 'dist/meta/vaultActions.json' }
 const VAULT_ACTIONS_ONLY = [
   'src/host/vault/vaultActionsEntry.ts',
-  'src/host/vault/vaultActionDialogs.ts',
+  'src/host/vscode/vault/vaultActionDialogs.ts',
   'src/host/vault/vaultNativeEditor.ts',
   'src/core/vault/crypto.ts',
 ]
@@ -1028,8 +1028,8 @@ if (vault.has('src/core/vault/migrate/ports.ts')) {
 // refusal is the marker) or the consent's question (its one reader).
 const MEDIA_HOST = { output: 'dist/mediaHost.js', metafile: 'dist/meta/mediaHost.json' }
 const mediaHost = inputsOf(MEDIA_HOST)
-if (activation.has('src/host/media/mediaHostEntry.ts'))
-  problems.push(`${BUNDLES.activation.output} carries src/host/media/mediaHostEntry.ts`)
+if (activation.has('src/host/vscode/media/mediaHostEntry.ts'))
+  problems.push(`${BUNDLES.activation.output} carries src/host/vscode/media/mediaHostEntry.ts`)
 for (const file of ['src/core/media/attachedMedia.ts', 'src/core/media/contributorConsent.ts'])
   if (!mediaHost.has(file)) problems.push(`${MEDIA_HOST.output} no longer carries ${file}`)
 const activationText = readFileSync(BUNDLES.activation.output, 'utf8')
@@ -1069,7 +1069,7 @@ for (const file of VAULT_MIGRATION_ONLY) {
 // M83: the import from other agents loads on the first import.
 const IMPORT_ONLY = [
   'src/host/agentImportEntry.ts',
-  'src/host/agentImportHost.ts',
+  'src/host/vscode/agentImportHost.ts',
   'src/host/commands/agentImportCommands.ts',
   'src/host/importIo.ts',
   'src/core/import/agentImport.ts',
@@ -1117,9 +1117,9 @@ for (const prefix of IMPORT_ONLY) {
 const GIT_ONLY = [
   'src/host/git/conversationGit.ts',
   'src/host/git/conversationGitEntry.ts',
-  'src/host/git/gitWindow.ts',
-  'src/host/git/gitExtension.ts',
-  'src/host/git/githubSession.ts',
+  'src/host/vscode/git/gitWindow.ts',
+  'src/host/vscode/git/gitExtension.ts',
+  'src/host/vscode/git/githubSession.ts',
   'src/host/git/nativeGitBundle.ts',
   'src/host/git/nativeRepository.ts',
   'src/core/git/githubSignIn.ts',
