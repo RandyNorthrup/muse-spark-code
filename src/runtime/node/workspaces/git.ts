@@ -11,9 +11,8 @@
 // clone never writes one, user and system config are nulled, and the
 // config verb is refused. Pure builders below; the runner at the
 // bottom is drill-proven against real git.
-import { execFile } from 'node:child_process'
 import { workerEnvironment } from '../../../core/team/workers/workerEnv'
-import { settleExecFile } from './spawn'
+import { runWorkspaceProcess } from './spawn'
 
 /** What the broker provisions for one workspace's git use. */
 export interface BrokerGitProvisions {
@@ -79,6 +78,19 @@ const READ_LOCAL_VERBS = new Set([
   'reset',
   'cherry-pick',
   'apply',
+])
+
+/**
+Verbs that only read the repository: a governed probe (no temporary root).
+Every other verb writes the work tree, the index or refs, so it runs
+contained.
+*/
+const READ_ONLY_VERBS: ReadonlySet<string> = new Set([
+  'log',
+  'diff',
+  'show',
+  'rev-parse',
+  'ls-files',
 ])
 
 /** Why a git invocation is refused: the audit reads the code, never the words. */
@@ -336,8 +348,11 @@ export class GitFailedError extends Error {
 Run one gated git invocation: the verb passes the gate, the effective
 remote (the invocation's, else the workspace's own) passes
 classification, the env is the brokered one, and pulls are
-fast-forward only (a workspace never integrates). Without `maxBytes`
-the platform's own stdio bound applies; the person's cap overrides it.
+fast-forward only (a workspace never integrates). git starts through
+the governed boundary: resolved outside the workspace, admitted and
+contained. Without `maxBytes` the boundary's own output bound applies
+(execFile's default size, both streams together); the person's cap
+overrides it.
 */
 export async function runWorkspaceGit(
   gitPath: string,
@@ -368,42 +383,22 @@ export async function runWorkspaceGit(
   const environ = brokeredGitEnv(options.baseEnv, options.platform, kind, options.provisions)
   if (!environ.ok) throw new GitRefusedError(environ.reason)
   const effective = verb === 'pull' && !argv.includes('--ff-only') ? [...argv, '--ff-only'] : argv
-  return await new Promise<GitResult>((resolve, reject) => {
-    const child = execFile(
-      gitPath,
-      [...effective],
-      {
-        cwd: options.cwd,
-        env: environ.env,
-        ...(options.maxBytes !== undefined && { maxBuffer: options.maxBytes }),
-      },
-      (error, stdout, stderr) => {
-        const settled = settleExecFile(error, stdout, stderr)
-        if ('spawnFailed' in settled) {
-          reject(
-            new Error(`git ${verb ?? ''} failed to run: ${settled.spawnFailed.message}`, {
-              cause: settled.spawnFailed,
-            }),
-          )
-          return
-        }
-        const code = settled.exited.exitCode
-        if (!okCodes.includes(code)) {
-          reject(
-            new GitFailedError(
-              code,
-              `git ${verb ?? ''} exited ${String(code)}: ${stderr.slice(0, GIT_ERROR_SNIPPET_CHARS)}`,
-            ),
-          )
-          return
-        }
-        resolve({ exitCode: code, stdout, stderr })
-      },
+  const { exitCode, stdout, stderr } = await runWorkspaceProcess(
+    verb !== undefined && READ_ONLY_VERBS.has(verb) ? 'probe' : 'contained',
+    gitPath,
+    effective,
+    { cwd: options.cwd, env: environ.env, maxBuffer: options.maxBytes },
+    (cause) =>
+      new Error(
+        `git ${verb ?? ''} failed to run: ${cause instanceof Error ? cause.message : 'no start'}`,
+        { cause },
+      ),
+  )
+  if (!okCodes.includes(exitCode)) {
+    throw new GitFailedError(
+      exitCode,
+      `git ${verb ?? ''} exited ${String(exitCode)}: ${stderr.slice(0, GIT_ERROR_SNIPPET_CHARS)}`,
     )
-    // The callback owns the outcome; this guard only stops a spawn
-    // failure's `error` event from throwing unhandled beside it.
-    child.on('error', () => {
-      /* the callback above already typed it */
-    })
-  })
+  }
+  return { exitCode, stdout, stderr }
 }

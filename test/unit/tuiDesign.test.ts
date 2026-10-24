@@ -23,6 +23,12 @@ import { UI_TEXT } from '../../src/shared/constants'
 import { clipSgr, paint, paintBold, sgrFor } from '../../src/runtime/tui/design/theme'
 import { harnessInk, renderTui } from '../harness/tui/renderer'
 import { TUI_SCENES, type TuiGoldenScene } from '../harness/tui/scenes'
+import { useRuntimeGovernor } from './helpers/resources/runtimeGovernor'
+
+// The capability probes start through the governed launch: admitted by
+// the governor the runtime's process configures. Windows has no tput, so
+// its probe stops at the boundary's lookup and admits nothing.
+useRuntimeGovernor('tui-probe-jobs-', process.platform !== 'win32')
 
 const GOLDENS = path.resolve('test/harness/tui/goldens')
 const ART = path.resolve('design/tui/art')
@@ -119,6 +125,23 @@ describe('TUI capability tiers', () => {
     })
     expect(silent).toEqual({ tier: 'sixteen', theme: 'dark', motion: true, nerdFont: false })
   })
+
+  // vt100 has no colours, so the real tput answers -1 and the tier is
+  // plain; a probe that never answered would fall back to sixteen for
+  // that TERM. Only the governed probe's own answer reads plain.
+  it.runIf(process.platform !== 'win32')(
+    'reads the real tput through the governed probe',
+    async () => {
+      const found = await detectCapabilities({
+        noColor: false,
+        reducedMotion: false,
+        nerdFont: false,
+        env: { PATH: process.env['PATH'], TERM: 'vt100' },
+        platform: process.platform,
+      })
+      expect(found.tier).toBe('plain')
+    },
+  )
 
   it('detects this machine without throwing', async () => {
     const found = await detectCapabilities({

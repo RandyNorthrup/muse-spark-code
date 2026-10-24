@@ -2,6 +2,8 @@ import type { ExecFileOptionsWithStringEncoding } from 'node:child_process'
 import { homedir } from 'node:os'
 import path from 'node:path'
 import {
+  GOVERNED_COMMAND_FAILED,
+  GOVERNED_COMMAND_UNAVAILABLE,
   ResourceCapRefusedError,
   ResourceMemoryLimitError,
   type ResourceHandoffUntil,
@@ -78,8 +80,8 @@ function resolveCommand(
         command,
       )
     )
-      throw new Error('Governed command unavailable')
-    if (!existsSync(command)) throw new Error('Governed command unavailable')
+      throw new Error(GOVERNED_COMMAND_UNAVAILABLE)
+    if (!existsSync(command)) throw new Error(GOVERNED_COMMAND_UNAVAILABLE)
     return command
   }
   const file = resolveExecutable(command, {
@@ -88,7 +90,7 @@ function resolveCommand(
     fileExists: existsSync,
     scope,
   })
-  if (file === undefined || !existsSync(file)) throw new Error('Governed command unavailable')
+  if (file === undefined || !existsSync(file)) throw new Error(GOVERNED_COMMAND_UNAVAILABLE)
   return file
 }
 
@@ -299,7 +301,7 @@ export async function execResourceFile(
         else {
           const failureCode = isFailed ? -1 : code
           reject(
-            Object.assign(new Error('Governed command failed'), {
+            Object.assign(new Error(GOVERNED_COMMAND_FAILED), {
               ...result,
               code: bytesRead > max ? 'ERR_CHILD_PROCESS_STDIO_MAXBUFFER' : failureCode,
             }),
@@ -380,7 +382,7 @@ export async function execResourceFileBytes(
           if (code === 0 && !isFailed) resolve(result)
           else
             reject(
-              Object.assign(new Error('Governed command failed'), {
+              Object.assign(new Error(GOVERNED_COMMAND_FAILED), {
                 ...result,
                 code,
               }),

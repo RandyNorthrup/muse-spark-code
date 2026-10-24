@@ -1,6 +1,6 @@
 import { nodeTempRoot, nodeNativeTest } from './helpers/nodeNative'
 import { recordCalls, scripted } from './helpers/recordCalls'
-import { mkdir, rm, symlink } from 'node:fs/promises'
+import { chmod, copyFile, mkdir, rm, symlink } from 'node:fs/promises'
 import path from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -10,6 +10,8 @@ import {
   type NodeToolHostOptions,
 } from '../../src/runtime/node/toolHost'
 import type { NodeTerminalHostEvent } from '../../src/shared/node'
+import { UI_TEXT } from '../../src/shared/constants'
+import { useRuntimeGovernor } from './helpers/resources/runtimeGovernor'
 
 class TestPty implements NodePty {
   private readonly queue: string[] = []
@@ -58,6 +60,9 @@ class TestPty implements NodePty {
     return Promise.resolve()
   }
 }
+// Tool runs start through the governed launch: admitted by the governor
+// the node command's process configures (POSIX; Windows refuses runs).
+useRuntimeGovernor('m110-tools-jobs-', process.platform !== 'win32')
 const directories: string[] = []
 async function setup() {
   const pty = new TestPty()
@@ -121,6 +126,20 @@ describe('M110-N tools process and terminal lifecycle', () => {
       }
     },
   )
+  nodeNativeTest('H10 never runs a program planted inside a workspace', async () => {
+    const { host, dir } = await setup()
+    // A real program the repository carries, named by its own path: the
+    // governed launch refuses it before anything starts.
+    const planted = path.join(dir, 'workspace', 'tool')
+    await copyFile('/bin/echo', planted)
+    await chmod(planted, 0o755)
+    await expect(
+      host.run(
+        { id: 'planted', workspaceId: 'workspace', cwd: null, argv: [planted, 'ran'] },
+        new AbortController().signal,
+      ),
+    ).rejects.toThrow(UI_TEXT.nodeErrors.unavailable)
+  })
   it('H10 refuses unknown, untrusted and symlink-escaping workspaces before spawn', async () => {
     const { host, options, dir, open, reported } = await setup()
     await expect(
