@@ -6689,7 +6689,10 @@ export const REPORT_ISSUE_NEW_URL = `${ISSUES_URL}/new`
 // A user-written description past this is cut with an ellipsis: it rides the
 // encoded URL, so an unbounded one always takes the fallback path.
 export const REPORT_DESCRIPTION_MAX_CHARS = 2000
-// The journal's fixed event kinds: host failures and webview failures alike.
+// The journal's fixed event kinds: host failures and webview failures alike,
+// plus the pre-conversation facts a signed-out report needs (a sign-in's
+// start and end, the CLI probe, how the backend choice resolved), so that
+// report is not "Recent events (0)".
 export const REPORT_EVENT_KINDS = [
   'activationFailed',
   'backendExit',
@@ -6698,8 +6701,46 @@ export const REPORT_EVENT_KINDS = [
   'unhandledRejection',
   'reactBoundary',
   'errorNotice',
+  'signInStarted',
+  'signInSucceeded',
+  'signInFailed',
+  'cliProbe',
+  'backendResolved',
 ] as const
 export type ReportEventKind = (typeof REPORT_EVENT_KINDS)[number]
+// Where the person was when the report dialog opened (lane REPORTFLOW):
+// the sign-in gate they stood at, or the conversation state past it. The
+// webview derives it from the panel it shows; the draft carries it in fixed
+// words only, never what the screen said.
+export const REPORT_PANEL_STATES = [
+  'starting',
+  'landingNoCli',
+  'landingInstalling',
+  'landingSignedOut',
+  'landingSigningIn',
+  'landingError',
+  'ready',
+  'turnRunning',
+  'turnFailed',
+  'questionWaiting',
+] as const
+export type ReportPanelState = (typeof REPORT_PANEL_STATES)[number]
+// The last sign-in attempt's end, as the report states it (lane REPORTFLOW).
+export const REPORT_SIGN_IN_OUTCOMES = ['none', 'started', 'succeeded', 'failed'] as const
+export type ReportSignInOutcome = (typeof REPORT_SIGN_IN_OUTCOMES)[number]
+// How the backend choice resolved and why (lane REPORTFLOW): the setting's
+// own backend when it could serve, what `auto` chose, or what nothing usable
+// meant (the CLI missing, the CLI not signed in, no key anywhere).
+export const REPORT_BACKEND_RESOLUTIONS = [
+  'museCodeSetting',
+  'museCodeAuto',
+  'modelApiSetting',
+  'modelApiAuto',
+  'noneCliMissing',
+  'noneCliSignedOut',
+  'noneNoKey',
+] as const
+export type ReportBackendResolution = (typeof REPORT_BACKEND_RESOLUTIONS)[number]
 // What the webview may post to the host: its own failures only, never host kinds.
 export const REPORT_WEBVIEW_ERROR_KINDS = [
   'windowError',
@@ -6819,6 +6860,31 @@ export const REPORT_ERROR_CODES: ReadonlySet<string> = new Set([
   'SIGSEGV',
   'SIGBUS',
   'SIGILL',
+  // Where a report's pre-conversation events came from (lane REPORTFLOW):
+  // the sign-in path for a started or succeeded sign-in; the fixed ending
+  // for a failed one; the CLI probe's answer; a key the sign-in would not
+  // take; how the backend choice resolved. Fixed words, one per site, like
+  // the ACP sites above.
+  'browser',
+  'apiKey',
+  'expired',
+  'denied',
+  'saveFailed',
+  'cancelled',
+  'timedOut',
+  'unsupportedFile',
+  'cliMissing',
+  'cliSignedIn',
+  'cliSignedOut',
+  'keyInvalid',
+  'keyRefused',
+  'museCodeSetting',
+  'museCodeAuto',
+  'modelApiSetting',
+  'modelApiAuto',
+  'noneCliMissing',
+  'noneCliSignedOut',
+  'noneNoKey',
 ])
 // Exact JavaScript files shipped in the VSIX (.vscodeignore), verified by the
 // owning test. Register new bundles before retaining their stack frames.
@@ -6936,6 +7002,40 @@ export const REPORT_PACKAGE_FRAME_PATHS: ReadonlySet<string> = new Set([
 // write. Past it, failures go unrecorded until the window moves on.
 export const REPORT_RECORD_LIMIT = 20
 export const REPORT_RECORD_WINDOW_MS = 60_000
+// The four bounds below are waits that exist to survive a hung read or a
+// surface that never loads (D121 and D208, owner 2026-10-23: a wait that
+// survives an error keeps a limit at an industry-standard value, and after
+// the last attempt it stops and says why). None caps the person's work: they
+// decide only how long the problem report waits before it shows a fact as
+// `unknown` or offers the editor's own way out, and each bound says so in the
+// report (the fixed reason `TimeoutError`) and in the log.
+// Every fact behind a problem report has its own bounded read (lane
+// REPORTFLOW R2): a source that throws or does not answer in this time
+// becomes the word `unknown` for that fact with a fixed reason code, and the
+// report still opens. The credential store may prompt; the CLI probe, the
+// settings read, the command list and the journal all answer inside this.
+// 2 s is twice the 1 s default `timeoutSeconds` of a Kubernetes probe
+// (kubernetes.io, "Configure Liveness, Readiness and Startup Probes"), the
+// industry's usual bound on a local health read.
+export const REPORT_FACT_TIMEOUT_MS = 2000
+// The whole dialog snapshot has a deadline of its own (lane REPORTFLOW R2):
+// past it, whatever answered builds the draft and the rest reads `unknown`.
+// 10 s is Nielsen's limit for keeping a person's attention on the dialogue
+// (nngroup.com, "Response Times: The 3 Important Limits"); the dialog shows
+// that it is working until then.
+export const REPORT_SNAPSHOT_TIMEOUT_MS = 10_000
+// "Report This" waits this long for its event's write to reach the journal
+// (lane REPORTFLOW R2): the event is in the journal before the draft is
+// built. Past it, the draft is built from whatever the journal holds. Same
+// 2 s as one fact's read: the write is a local append.
+export const REPORT_JOURNAL_FLUSH_TIMEOUT_MS = 2000
+// `Report a Problem` with no conversation open waits this long for its
+// surface to become ready (lane REPORTFLOW R2): past it, the editor itself
+// offers the report (copy, save, issue page) instead of waiting forever.
+// 30 s is Docker's default HEALTHCHECK `--timeout` (docs.docker.com,
+// Dockerfile reference), the industry's usual bound on a service that has
+// not reported healthy.
+export const REPORT_SURFACE_READY_TIMEOUT_MS = 30_000
 // dist/report.js (M93, PLAN.md D6): the report dialog's builder, scrub,
 // export paths and handler, loaded on the first open.
 /** @unwired M93 read only by tests deleted 2026-10-17 (no fakes) */

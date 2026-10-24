@@ -1,4 +1,3 @@
-import type { SecretScrubPort } from '../shared/redact'
 // `muse-spark-code-acp report` (M93, PLAN.md D72): the standalone problem
 // report. It starts no backend, signs in nowhere, opens no browser and makes
 // no network or model call: it reads only the agent's own flight-recorder
@@ -22,10 +21,15 @@ import { readContributorMode } from '../core/backends/musecode/museSettings'
 import { pathModule } from '../core/workspaceRoot'
 import {
   buildVaultProblemReportDraft,
+  enrichProblemReportFacts,
+  isReportPlatform,
   type ProblemReportFacts,
   ReportBuildError,
+  type SealedReportDraft,
 } from '../core/support/problemReport'
 import { EXEC_EXIT, UI_TEXT } from '../shared/constants'
+import type { SecretScrubPort } from '../shared/redact'
+import { reportReasonOf } from '../host/support/reportTimeout'
 import type { ReportOptions } from './cliArgs'
 
 /** What the journal read answers: the records for the builder, or that recording was unavailable. */
@@ -34,6 +38,11 @@ export interface ReportJournalRead {
   readonly entries: readonly unknown[]
   /** The journal could not be read, so the report says so instead of carrying events. */
   readonly recordingUnavailable: boolean
+  /**
+  Why recording is unavailable, in the recorder's vocabulary (lane
+  REPORTFLOW R2): `unknown` until the capture side provides its reason.
+  */
+  readonly unavailableReason?: string
 }
 
 /** The local facts the standalone report may gather; nothing here starts anything. */
@@ -78,7 +87,9 @@ ReportBuildError (from the builder) for off-allowlist input.
 */
 export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
   const { platform } = deps
-  if (platform !== 'win32' && platform !== 'darwin' && platform !== 'linux') {
+  // `android` is code-server on Termux (lane REPORTFLOW R2): a supported
+  // report platform, never refused.
+  if (!isReportPlatform(platform)) {
     throw new ReportBuildError('platform', 'not a named platform')
   }
   const nodeVersion = deps.nodeVersion.startsWith('v')
@@ -144,8 +155,15 @@ export function collectReportFacts(deps: ReportFactsDeps): ProblemReportFacts {
 
 /** Everything `runReportCommand` touches; every side effect is a parameter (the owning tests spy). */
 export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> {
+  /** The vault's scrub, when a vault is set up: it runs after the pattern scrub. */
   readonly vaultScrub?: SecretScrubPort
   readonly options: ReportOptions
+  /**
+  Hands the sealed draft to the caller beside writing it (lane REPORTFLOW
+  R2): the ACP reply links the issue page for it. Absent in the CLI,
+  which writes only.
+  */
+  readonly onSealedDraft?: (draft: SealedReportDraft) => void
   /**
   Whether the OS credential store holds a Model API key. Presence only;
   the value never leaves the caller's closure. A store that cannot be
@@ -161,6 +179,17 @@ export interface RunReportDeps extends Omit<ReportFactsDeps, 'hasStoredApiKey'> 
   /** Writes the draft's exact bytes in `--out` mode. */
   readonly writeOutFile: (filePath: string, text: string) => Promise<void>
   readonly printError: (line: string) => void
+  /**
+  Records failures beside stderr (lane REPORTFLOW R2): the terminal says
+  why a report could not be built, and the log keeps it. Absent in tests
+  that assert on stderr alone.
+  */
+  readonly logError?: (line: string) => void
+}
+
+/** Records one failed step in the log under its fixed reason code, never the message (it can quote a path). */
+function reportError(deps: Pick<RunReportDeps, 'logError'>, what: string, error: unknown): void {
+  deps.logError?.(`${what} (${reportReasonOf(error)})`)
 }
 
 /**
@@ -174,8 +203,9 @@ export async function runReportCommand(
   let journal: ReportJournalRead
   try {
     journal = await deps.readJournal()
-  } catch {
-    journal = { entries: [], recordingUnavailable: true }
+  } catch (error: unknown) {
+    reportError(deps, 'the journal could not be read', error)
+    journal = { entries: [], recordingUnavailable: true, unavailableReason: 'unknown' }
   }
   let text: string
   try {
@@ -188,17 +218,35 @@ export async function runReportCommand(
         description: deps.options.description,
         includeFacts: deps.options.includeFacts,
         includeEvents: deps.options.includeEvents,
-        facts,
+        // The same facts for the same state on every host (lane REPORTFLOW):
+        // the last notice and sign-in from the journal, and how the backend
+        // choice resolved. The panel state stays unrecorded outside a panel.
+        facts: enrichProblemReportFacts(facts, journal.entries),
         events: journal.entries,
         recordingUnavailable: journal.recordingUnavailable,
+        ...(journal.unavailableReason !== undefined && {
+          recordingReason: journal.unavailableReason,
+        }),
         nowMs: deps.nowMs,
         scrub: { workspaceRoots: [], homeDir: deps.homeDir, extraLiterals: [] },
       },
       deps.vaultScrub,
     )
     text = draft.text
-  } catch {
-    deps.printError(UI_TEXT.reportBuildFailed)
+    deps.onSealedDraft?.(draft)
+  } catch (error: unknown) {
+    // The terminal says why the report could not be built, and the log
+    // keeps it (lane REPORTFLOW R2): a refusal names its field and fixed
+    // reason, never the refused value; anything else reads as its fixed
+    // reason code.
+    if (!(error instanceof ReportBuildError)) {
+      reportError(deps, UI_TEXT.reportBuildFailed, error)
+      deps.printError(`${UI_TEXT.reportBuildFailed} (${reportReasonOf(error)})`)
+      return EXEC_EXIT.internal
+    }
+    const line = `${UI_TEXT.reportBuildFailed} (${error.message})`
+    deps.printError(line)
+    deps.logError?.(line)
     return EXEC_EXIT.internal
   }
   try {
@@ -207,7 +255,8 @@ export async function runReportCommand(
     } else {
       await deps.writeOutFile(deps.options.out, text)
     }
-  } catch {
+  } catch (error: unknown) {
+    reportError(deps, 'the report could not be written', error)
     deps.printError(UI_TEXT.reportSaveFailed)
     return EXEC_EXIT.internal
   }

@@ -15,20 +15,42 @@ import type { SecretScrubPort } from '../../shared/redact'
 // while it is open. Each session has its own number and each draft answers
 // one of the dialog's choices (its revision), so a late reply is told apart
 // from the current one on the webview's side.
+//
+// Every source read has its own bound (lane REPORTFLOW R2): a source that
+// throws or does not answer in REPORT_SNAPSHOT_TIMEOUT_MS becomes the word
+// `unknown` for its facts (or an empty journal with its reason), and the
+// report still opens. The whole snapshot shares that deadline.
 
 import {
   buildVaultProblemReportDraft,
+  enrichProblemReportFacts,
   isSealedDraftCurrent,
   sealReportDraft,
   ReportBuildError,
   problemReportEventSelection,
   reportAge,
+  type ReportEventDropCounts,
   type ReportScrubContext,
   type SealedReportDraft,
   type SelectedReportEvent,
 } from '../../core/support/problemReport'
 import { failureForLog } from '../../core/backends/musecode/logText'
-import { EXTENSION_QUALIFIED_ID, UI_TEXT } from '../../shared/constants'
+import { shouldShowConnectHint } from '../../core/support/reportContext'
+import {
+  EXTENSION_QUALIFIED_ID,
+  REPORT_JOURNAL_FLUSH_TIMEOUT_MS,
+  REPORT_SNAPSHOT_TIMEOUT_MS,
+  REPORT_UNKNOWN_ERROR_CODE,
+  UI_TEXT,
+  type ReportPanelState,
+} from '../../shared/constants'
+import type { ReportEventKind } from '../../shared/constants'
+import {
+  readBounded,
+  reportError,
+  ReportTimeoutError,
+  withReportTimeout,
+} from '../support/reportTimeout'
 import { fill, formatRelativeTime } from '../../shared/l10n/text'
 import type {
   HostToWebviewMessage,
@@ -53,6 +75,13 @@ export interface ReportJournalSource {
   readonly entries: readonly unknown[]
   /** The recorder could not run or read: the report says so instead of carrying events. */
   readonly recordingUnavailable: boolean
+  /**
+  Why recording is unavailable, in the recorder's vocabulary (lane
+  REPORTFLOW R2): `unknown` until the capture side provides its reason.
+  */
+  readonly unavailableReason?: string
+  /** Records the minute's budget dropped before the journal (lane REPORTFLOW R2). */
+  readonly rateLimitedDrops?: number
 }
 
 /** Where the dialog's facts, journal and scrub context come from (wired at activation). */
@@ -66,6 +95,12 @@ export interface ReportDataSource {
   nowMs(): number
   /** Whether the VS Code issue-reporter command exists for the reporter action. */
   canUseVscodeReporter(): Promise<boolean>
+  /**
+  Waits for queued journal writes to land, up to `timeoutMs` (lane
+  REPORTFLOW R2): "Report This" waits for its event before the snapshot.
+  Absent where the recorder has no queue; never throws for a slow journal.
+  */
+  flushJournal?: (timeoutMs: number) => Promise<void>
 }
 
 export interface ReportProblemHandlerDeps {
@@ -121,13 +156,17 @@ async function openVscodeReporter(
 /** The snapshot one dialog builds from: facts, the selected records, scrub and clock, frozen at open. */
 interface ReportData {
   readonly facts: unknown
-  /** Expired or invalid journal records, counted at selection: the draft names the count. */
-  readonly skippedStoredRecords: number
   /** The records the draft can carry: the builder's validated, capped selection. */
   readonly events: readonly SelectedReportEvent[]
+  /** What the journal left out: the draft counts it beside the carried events. */
+  readonly dropped: ReportEventDropCounts
   readonly scrub: ReportScrubContext
   readonly nowMs: number
   readonly isRecordingUnavailable: boolean
+  /** Why recording is unavailable, in the recorder's vocabulary. */
+  readonly recordingReason: string | undefined
+  /** Records the minute's budget dropped before the journal. */
+  readonly rateLimitedDrops: number
   readonly canUseVscodeReporter: boolean
 }
 
@@ -153,12 +192,13 @@ update, stale re-preview): the preview always matches the sealed draft.
 async function buildChoiceDraft(
   data: ReportData,
   choice: ReportChoice,
+  reportedKind: ReportEventKind | undefined,
   vaultScrub?: SecretScrubPort,
 ): Promise<SealedReportDraft> {
   // The builder sees exactly the listed records minus what the user removed,
-  // plus the skip count taken at selection: removing a listed record never
-  // pulls an older, unlisted one into the draft, and the preview matches the
-  // sealed draft byte for byte.
+  // plus the left-out counts taken at selection: removing a listed record
+  // never pulls an older, unlisted one into the draft, and the preview
+  // matches the sealed draft byte for byte.
   return await buildVaultProblemReportDraft(
     {
       description: choice.description,
@@ -166,8 +206,11 @@ async function buildChoiceDraft(
       includeEvents: choice.isEventsIncluded,
       facts: data.facts,
       events: keptEvents(data, choice).map((selected) => selected.event),
-      skippedStoredRecords: data.skippedStoredRecords,
       recordingUnavailable: data.isRecordingUnavailable,
+      ...(data.recordingReason !== undefined && { recordingReason: data.recordingReason }),
+      ...(reportedKind !== undefined && { reportedKind }),
+      rateLimitedDrops: data.rateLimitedDrops,
+      droppedEvents: data.dropped,
       nowMs: data.nowMs,
       scrub: data.scrub,
     },
@@ -212,9 +255,11 @@ interface ReportSession {
   readonly data: ReportData
   readonly choice: ReportChoice
   readonly draft: SealedReportDraft
+  /** Which recorded event the person meant (the open's handoff kind, if any). */
+  readonly reportedKind: ReportEventKind | undefined
 }
 
-function reportDraftMessage(current: ReportSession): HostToWebviewMessage {
+function reportDraftMessage(current: ReportSession, isRebuildFailed = false): HostToWebviewMessage {
   return {
     type: 'reportDraft',
     session: current.id,
@@ -228,6 +273,8 @@ function reportDraftMessage(current: ReportSession): HostToWebviewMessage {
     hash: current.draft.hash,
     canUseVscodeReporter: current.data.canUseVscodeReporter,
     recordingUnavailable: current.data.isRecordingUnavailable,
+    connectHint: shouldShowConnectHint(current.data.facts),
+    ...(isRebuildFailed && { rebuildFailed: true }),
   }
 }
 
@@ -247,19 +294,79 @@ function exportedMessage(
   }
 }
 
+/**
+The facts when the facts read itself threw or hung (lane REPORTFLOW R2):
+every fact unknown, so the report still opens. The failure is logged where
+it happened; the draft carries no reason for a read that never answered.
+*/
+const UNKNOWN_SNAPSHOT_FACTS = {
+  extensionVersion: REPORT_UNKNOWN_ERROR_CODE,
+  nodeVersion: REPORT_UNKNOWN_ERROR_CODE,
+} as const
+
+/** The scrub context when even the local reads fail: nothing to stand in for. */
+const EMPTY_SCRUB: ReportScrubContext = {
+  workspaceRoots: [],
+  homeDir: '',
+  extraLiterals: [],
+}
+
 /** One dialog's snapshot: the facts, the selected records, the scrub context and the clock. */
-async function snapshot(source: ReportDataSource): Promise<ReportData> {
-  const facts = await source.readFacts()
-  const journal = await source.readJournal()
-  const canUseVscodeReporter = await source.canUseVscodeReporter()
+async function snapshot(
+  source: ReportDataSource,
+  panelState: ReportPanelState | undefined,
+  log: Logger,
+): Promise<ReportData> {
+  // A read that threw or hung keeps the report: facts unknown, the journal
+  // unavailable, the reporter button hidden. The log keeps the fixed reason.
+  const [facts, journal, canUseVscodeReporter] = await Promise.all([
+    readBounded<unknown>(
+      log,
+      'facts',
+      () => source.readFacts(),
+      REPORT_SNAPSHOT_TIMEOUT_MS,
+      UNKNOWN_SNAPSHOT_FACTS,
+    ),
+    readBounded<ReportJournalSource>(
+      log,
+      'journal',
+      () => source.readJournal(),
+      REPORT_SNAPSHOT_TIMEOUT_MS,
+      { entries: [], recordingUnavailable: true, unavailableReason: 'unknown' },
+    ),
+    readBounded(
+      log,
+      'reporter check',
+      () => source.canUseVscodeReporter(),
+      REPORT_SNAPSHOT_TIMEOUT_MS,
+      false,
+    ),
+  ])
+  let scrub: ReportScrubContext
+  let nowMs: number
+  try {
+    scrub = source.readScrub()
+    nowMs = source.nowMs()
+  } catch (error: unknown) {
+    reportError(log, 'clock or scrub unavailable', error)
+    scrub = EMPTY_SCRUB
+    nowMs = Date.now()
+  }
+  // The selection once: the preview lists exactly these records while the
+  // draft counts what the journal left out (lane REPORTFLOW R2).
   const selection = problemReportEventSelection(journal.entries)
   return {
-    facts,
-    skippedStoredRecords: selection.skippedStoredRecords,
+    // Where the person was, the last notice and sign-in, and how the
+    // backend choice resolved (lane REPORTFLOW): the same facts for the
+    // same state on every host, validated again by the builder.
+    facts: enrichProblemReportFacts(facts, journal.entries, panelState),
     events: selection.events,
-    scrub: source.readScrub(),
-    nowMs: source.nowMs(),
+    dropped: selection.dropped,
+    scrub,
+    nowMs,
     isRecordingUnavailable: journal.recordingUnavailable,
+    recordingReason: journal.unavailableReason,
+    rateLimitedDrops: journal.rateLimitedDrops ?? 0,
     canUseVscodeReporter,
   }
 }
@@ -292,9 +399,10 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
   async function rebuild(
     data: ReportData,
     choice: ReportChoice,
+    reportedKind: ReportEventKind | undefined,
   ): Promise<SealedReportDraft | undefined> {
     try {
-      return await buildChoiceDraft(data, choice, deps.vaultScrub)
+      return await buildChoiceDraft(data, choice, reportedKind, deps.vaultScrub)
     } catch (error: unknown) {
       // The record keeps the failure's kind; buildFails below keeps its
       // detail and tells the dialog in fixed words.
@@ -304,16 +412,41 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     }
   }
 
-  async function open(ref: ReportEventRef | undefined): Promise<void> {
+  async function open(
+    ref: ReportEventRef | undefined,
+    panelState?: ReportPanelState,
+  ): Promise<void> {
     sessionCount += 1
     const id = sessionCount
     session = undefined
+    const reportedKind = ref?.kind
     if (ref !== undefined) {
       deps.log.info(`Report opened from a recorded ${ref.kind}`)
+      // The reported event is in the journal before the draft is built
+      // (lane REPORTFLOW R2, P3-7): recording is fire-and-forget, so an
+      // immediate "Report This" waits for the write first, bounded. Past
+      // the bound the draft builds from whatever the journal holds. The
+      // bound is enforced here, not by the journal: a hanging flush never
+      // hangs the dialog.
+      try {
+        await withReportTimeout(
+          deps.source.flushJournal?.(REPORT_JOURNAL_FLUSH_TIMEOUT_MS) ?? Promise.resolve(),
+          REPORT_JOURNAL_FLUSH_TIMEOUT_MS,
+        )
+      } catch (error: unknown) {
+        if (error instanceof ReportTimeoutError) {
+          // The bounded wait's own timeout is expected: the journal's
+          // state speaks, and unavailable reads as unavailable.
+        } else {
+          // A flush that failed for another reason is logged; the draft
+          // still builds from whatever the journal holds.
+          reportError(deps.log, 'journal flush failed', error)
+        }
+      }
     }
     let data: ReportData
     try {
-      data = await snapshot(deps.source)
+      data = await snapshot(deps.source, panelState, deps.log)
     } catch (error: unknown) {
       // The record keeps the failure's kind; buildFails below keeps its
       // detail and tells the dialog in fixed words.
@@ -332,11 +465,17 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
       isEventsIncluded: true,
       removed: new Set(),
     }
-    const draft = await rebuild(data, choice)
-    if (draft === undefined || id !== sessionCount) {
+    const draft = await rebuild(data, choice, reportedKind)
+    if (draft === undefined) {
+      // The build refused: the notice already fired. Tell the dialog its
+      // wait is over instead of leaving it working forever.
+      deps.post({ type: 'reportFailed' })
       return
     }
-    const current: ReportSession = { id, data, choice, draft }
+    if (id !== sessionCount) {
+      return
+    }
+    const current: ReportSession = { id, data, choice, draft, reportedKind }
     session = current
     deps.post(reportDraftMessage(current))
   }
@@ -358,21 +497,22 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
       removed: new Set(message.removedEventIndexes),
     }
     // The snapshot open built from, so this cannot refuse where open did not.
-    const draft = await rebuild(current.data, choice)
+    const draft = await rebuild(current.data, choice, current.reportedKind)
     if (session !== current || revision !== revisionCount) {
       return
     }
     if (draft === undefined) {
-      // The rebuild refused after open allowed it (Lock, a scrub failure):
-      // the notice already fired. Re-post the last good draft stamped with
-      // this revision, so the dialog stops showing an updating preview with
-      // disabled exports; what stays on screen is still that previous draft,
-      // and the next edit retries the build (RVM109T 5).
+      // The rebuild refused after open allowed it: the transcript notice
+      // already fired, behind the modal. Re-post the last good draft
+      // stamped with this revision and marked failed, so the dialog's own
+      // status line says the preview could not be updated; what stays on
+      // screen is still that previous draft, and the next edit retries the
+      // build (RVM109T 5, lane REPORTFLOW R2).
       const settled: ReportSession = {
         ...current,
         choice: { ...current.choice, revision: message.revision },
       }
-      deps.post(reportDraftMessage(settled))
+      deps.post(reportDraftMessage(settled, true))
       return
     }
     const next: ReportSession = { ...current, choice, draft }
@@ -447,6 +587,13 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
       }
     }
     const answer = await run(message.via, current.draft)
+    if (session !== current) {
+      // The dialog reopened while the export ran: the answer belongs to a
+      // draft no longer on screen, so the dialog drops it by session. Say
+      // so in the log instead of answering into silence (lane REPORTFLOW
+      // R2); the export itself already happened or failed as answered.
+      deps.log.warn(`Report export (${message.via}) finished after the dialog reopened`)
+    }
     deps.post(exportedMessage(current, message.via, answer))
   }
 
@@ -454,7 +601,7 @@ export function createReportProblemHandler(deps: ReportProblemHandlerDeps): {
     async handle(message: ReportProblemMessage): Promise<void> {
       switch (message.type) {
         case 'openReport': {
-          await open(message.ref)
+          await open(message.ref, message.panelState)
           break
         }
         case 'updateReport': {

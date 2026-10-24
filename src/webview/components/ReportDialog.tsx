@@ -42,15 +42,20 @@ function itemKey(item: ReportDraftItem): string {
 
 /**
 What the dialog's status line reads: the updating state while a rebuilt
-preview is on its way, otherwise the last export's answer in fixed words.
-Nothing to say (no answer yet, a quiet cancellation) reads as silence.
+preview is on its way, otherwise a refused rebuild (lane REPORTFLOW R2),
+otherwise the last export's answer in fixed words. Nothing to say (no
+answer yet, a quiet cancellation) reads as silence.
 */
 export function reportDialogStatusText(
   exportStatus: ReportExportStatus | undefined,
   isUpdating: boolean,
+  isRebuildFailed = false,
 ): string | undefined {
   if (isUpdating) {
     return UI_TEXT.reportUpdating
+  }
+  if (isRebuildFailed) {
+    return UI_TEXT.reportRebuildFailed
   }
   if (exportStatus === undefined) {
     return undefined
@@ -86,6 +91,8 @@ export interface ReportDialogProps {
   readonly draftText: string
   readonly canUseVscodeReporter: boolean
   readonly recordingUnavailable: boolean
+  /** Nothing can connect (lane REPORTFLOW): the landing screen's own two actions show above the form. */
+  readonly connectHint: boolean
   readonly statusText: string | undefined
   readonly isUpdating: boolean
   readonly onDescriptionChange: (description: string) => void
@@ -93,6 +100,8 @@ export interface ReportDialogProps {
   readonly onToggleEvents: (isIncluded: boolean) => void
   readonly onRemoveItem: (item: ReportDraftItem) => void
   readonly onExport: (via: ReportExportChannel) => void
+  /** The landing screen's own sign-in, for the nothing-can-connect hint. */
+  readonly onConnectAction: (method: 'browser' | 'apiKey') => void
   readonly onClose: () => void
 }
 
@@ -104,6 +113,7 @@ export function ReportDialog({
   draftText,
   canUseVscodeReporter,
   recordingUnavailable,
+  connectHint,
   statusText,
   isUpdating,
   onDescriptionChange,
@@ -111,26 +121,68 @@ export function ReportDialog({
   onToggleEvents,
   onRemoveItem,
   onExport,
+  onConnectAction,
   onClose,
 }: ReportDialogProps) {
+  const field = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    // The modal focuses its close button on open; the report opens on the
+    // field instead, past that effect, so the requirement is met where the
+    // person types. Once only: typing never steals focus back.
+    queueMicrotask(() => {
+      field.current?.focus()
+    })
+  }, [])
   const onDescriptionInput = (event: ChangeEvent<HTMLTextAreaElement>) => {
     onDescriptionChange(event.target.value)
   }
   return (
     <Modal title={UI_TEXT.reportTitle} titleId="report-title" isWide onClose={onClose}>
       <div>
+        {connectHint ? (
+          <div className="report-connect">
+            <p className="report-note">{UI_TEXT.reportConnectHint}</p>
+            <div className="report-actions">
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => {
+                  onConnectAction('browser')
+                }}
+              >
+                {UI_TEXT.reportSignInAction}
+              </button>
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => {
+                  onConnectAction('apiKey')
+                }}
+              >
+                {UI_TEXT.reportAddKeyAction}
+              </button>
+            </div>
+          </div>
+        ) : null}
         <label className="report-label" htmlFor="report-description">
           {UI_TEXT.reportDescriptionLabel}
         </label>
         <textarea
           id="report-description"
+          ref={field}
           className="question-input report-description"
           dir="auto"
           rows={DESCRIPTION_ROWS}
           maxLength={REPORT_DESCRIPTION_MAX_CHARS}
           value={description}
           onChange={onDescriptionInput}
+          aria-describedby="report-description-hint"
         />
+        <ul id="report-description-hint" className="report-prompts">
+          <li>{UI_TEXT.reportDescriptionHintDid}</li>
+          <li>{UI_TEXT.reportDescriptionHintExpected}</li>
+          <li>{UI_TEXT.reportDescriptionHintInstead}</li>
+        </ul>
         <p className="report-warning">{UI_TEXT.reportDescriptionWarning}</p>
         <div className="report-sections">
           <label className="report-check">
@@ -219,12 +271,58 @@ export function ReportDialog({
   )
 }
 
+/**
+The dialog while the draft is on its way (lane REPORTFLOW R2): the
+working state with nothing to export yet, so the button never reads as
+doing nothing. Closing returns focus to whatever opened it, like the
+dialog itself.
+*/
+export function ReportLoadingDialog({ onClose }: { readonly onClose: () => void }): ReactNode {
+  return (
+    <Modal title={UI_TEXT.reportTitle} titleId="report-title" onClose={onClose}>
+      <div>
+        <p className="report-status" role="status">
+          {UI_TEXT.reportUpdating}
+        </p>
+        <div className="report-actions">
+          <button type="button" className="button-secondary" onClick={onClose}>
+            {UI_TEXT.reportCancelAction}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 /** The update the host rebuilds the preview from: the dialog's whole choice. */
 interface ReportUpdate {
   readonly description: string
   readonly includeFacts: boolean
   readonly includeEvents: boolean
   readonly removed: readonly number[]
+}
+
+/**
+The dialog above the panel while its draft is on its way (M93 lane W,
+lane REPORTFLOW R2): the working state until the host's draft answers,
+then the preview itself. Mounted while the report is asked for (in the
+app, or over the crash screen); closing returns focus to whatever opened
+it.
+*/
+export function ReportDialogHostOrLoading({
+  report,
+  postMessage,
+  onClose,
+}: {
+  readonly report: ReportDialogState | undefined
+  readonly postMessage: (message: WebviewToHostMessage) => void
+  readonly onClose: () => void
+}): ReactNode {
+  return report === undefined ? (
+    <ReportLoadingDialog onClose={onClose} />
+  ) : (
+    <ReportDialogHost report={report} postMessage={postMessage} onClose={onClose} />
+  )
 }
 
 /**
@@ -297,7 +395,8 @@ export function ReportDialogHost({
       draftText={report.text}
       canUseVscodeReporter={report.canUseVscodeReporter}
       recordingUnavailable={report.recordingUnavailable}
-      statusText={reportDialogStatusText(report.exportStatus, isUpdating)}
+      connectHint={report.connectHint}
+      statusText={reportDialogStatusText(report.exportStatus, isUpdating, report.rebuildFailed)}
       isUpdating={isUpdating}
       onDescriptionChange={(description) => {
         sendUpdate({ ...updateRef.current, description })
@@ -324,6 +423,9 @@ export function ReportDialogHost({
       }}
       onExport={(via) => {
         postMessage({ type: 'exportReport', via, hash: report.hash })
+      }}
+      onConnectAction={(method) => {
+        postMessage({ type: 'signIn', method })
       }}
       onClose={onClose}
     />

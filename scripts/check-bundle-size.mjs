@@ -359,6 +359,10 @@ const BUDGETS = [
   // required on the first of those commands. 29,962 B when split out
   // (29.3 KiB); plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/commands.js', budgetKiB: 50 },
+  // The report fallback (lane REPORTFLOW R2): the same sealed draft behind
+  // the editor's own quick pick, when the dialog cannot open. Measured at
+  // merge time; budget holds measured plus headroom (PLAN.md D6).
+  { path: 'dist/reportFallback.js', budgetKiB: 50 },
   // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
   // first estimate: goal and DAG, calibration, schedule and simulation,
   // recommendations, dated prices and the first-wave starter with their

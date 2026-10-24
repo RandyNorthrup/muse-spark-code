@@ -309,8 +309,10 @@ import { type AttentionNotice, attentionNotice, notifyOpenQuestions } from './tu
 import type { SessionExport } from '../../core/export/sessionTransfer'
 import type { PickedTransferFile, SessionTransferFiles } from './sessionImport'
 import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
+import type { ReportFallbackWindow } from '../support/reportFallback'
 import type { ReportEditorIo } from '../support/reportProblem'
 import type * as ReportBundle from '../support/reportEntry'
+import type * as ReportFallbackBundle from '../support/reportFallbackEntry'
 
 /**
 Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
@@ -321,6 +323,8 @@ export interface ConversationReports {
   readonly source: ReportDataSource
   /** The editor's clipboard, browser, save picker and issue reporter for the exports. */
   readonly io: ReportEditorIo
+  /** The editor's pick and messages for the fallback (lane REPORTFLOW R2). */
+  readonly window: ReportFallbackWindow
   /** Journals the webview's scrubbed failure (the recorder bounds how many). */
   readonly recordWebviewError: (error: ReportWebviewError) => void
   /**
@@ -10452,9 +10456,12 @@ export class ConversationController {
     try {
       handler = await this.reportProblemHandler(reports)
     } catch (error: unknown) {
+      // The report bundle cannot load: the editor itself is the way out
+      // (lane REPORTFLOW R2). A failed import never circles back into the
+      // same bundle: the fallback needs neither the webview nor it.
       this.reportHandler = undefined
       this.deps.log.error(`The report bundle could not be loaded: ${failureForLog(error)}`)
-      this.notice('error', UI_TEXT.actionFailed)
+      await this.runReportFallback(reports, message)
       return
     }
     await handler.handle(message)
@@ -10500,6 +10507,34 @@ export class ConversationController {
       this.deps.log.error(`The transfer bundle could not be loaded: ${failureForLog(error)}`)
       this.notice('error', failure)
       return undefined
+    }
+  }
+
+  /**
+  The editor-native fallback for a report message the dialog cannot open
+  (lane REPORTFLOW R2): the sealed draft behind Copy, Save and the issue
+  page. A fallback that itself fails says so once, in fixed words.
+  */
+  private async runReportFallback(
+    reports: ConversationReports,
+    message: ReportProblemMessage,
+  ): Promise<void> {
+    const ref = message.type === 'openReport' ? message.ref : undefined
+    const panelState = message.type === 'openReport' ? message.panelState : undefined
+    try {
+      const bundle: typeof ReportFallbackBundle = await import('../support/reportFallbackEntry')
+      if (typeof bundle.createReportFallback !== 'function') {
+        throw new TypeError('The report fallback bundle does not export its factory')
+      }
+      const fallback = bundle.createReportFallback(
+        { source: reports.source, io: reports.io, window: reports.window, log: this.deps.log },
+        UI_TEXT,
+        uiLocale(),
+      )
+      await fallback.run(ref, panelState)
+    } catch (error: unknown) {
+      this.deps.log.error(`The report fallback failed: ${failureForLog(error)}`)
+      this.notice('error', UI_TEXT.actionFailed)
     }
   }
 

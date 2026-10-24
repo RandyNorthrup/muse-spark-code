@@ -51,6 +51,13 @@ describe('report tunables', () => {
       'unhandledRejection',
       'reactBoundary',
       'errorNotice',
+      // Lane REPORTFLOW: the pre-conversation facts a signed-out report
+      // needs, so it is not "Recent events (0)".
+      'signInStarted',
+      'signInSucceeded',
+      'signInFailed',
+      'cliProbe',
+      'backendResolved',
     ])
     expect([...REPORT_WEBVIEW_ERROR_KINDS]).toEqual([
       'windowError',

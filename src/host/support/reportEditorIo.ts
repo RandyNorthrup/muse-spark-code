@@ -6,6 +6,7 @@
 
 import * as vscode from 'vscode'
 import { VSCODE_COMMANDS } from '../../shared/constants'
+import type { ReportFallbackWindow } from './reportFallback'
 import type { ReportEditorIo } from './reportProblem'
 
 const MARKDOWN_FILTER = 'Markdown'
@@ -33,5 +34,25 @@ export const vscodeReportEditorIo: ReportEditorIo = {
     // only. `data` is deliberately never passed: it is absent from the
     // documented option schema.
     await vscode.commands.executeCommand(VSCODE_COMMANDS.openIssueReporter, prefill)
+  },
+}
+
+/**
+VS Code's side of the report fallback's pick and messages (lane REPORTFLOW
+R2): the conversation controller and the Report command hand it to the
+fallback bundle, which reaches no `vscode` itself. Unlike the export port
+above, saying the outcome IS this port's job: the dialog is not there to
+say it.
+*/
+export const vscodeReportFallbackWindow: ReportFallbackWindow = {
+  async showQuickPick(labels, title) {
+    const picked = await vscode.window.showQuickPick([...labels], { title })
+    return picked === undefined ? undefined : labels.indexOf(picked)
+  },
+  async showInformationMessage(text) {
+    await vscode.window.showInformationMessage(text)
+  },
+  async showErrorMessage(text) {
+    await vscode.window.showErrorMessage(text)
   },
 }

@@ -80,6 +80,7 @@
 !dist/imageResizeWorker.js
 !dist/report.js
 !dist/commands.js
+!dist/reportFallback.js
 !dist/recorder.js
 !dist/media.js
 !dist/mediaHost.js

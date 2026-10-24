@@ -65,20 +65,20 @@ describe('problem report price facts', () => {
     expect(draft.text).not.toMatch(/skipped/i)
   })
 
-  it('carries a stored-record skip count the caller counted before selection', () => {
+  it('carries drop counts the caller counted before selection', () => {
     const draft = buildProblemReportDraft({
       description: '',
       includeFacts: false,
       includeEvents: true,
       facts: facts(),
       events: [{ kind: 'backendExit', code: 'ECONNRESET', frames: [], ageMs: 1 }],
-      skippedStoredRecords: 2,
+      droppedEvents: { invalid: 2, tooOld: 0, overCap: 0 },
       recordingUnavailable: false,
       nowMs: Date.now(),
       scrub,
     })
     expect(draft.text).toContain('Recent events (1)')
-    expect(draft.text).toContain('2 stored records were skipped')
+    expect(draft.text).toContain('Dropped events: 2 invalid')
   })
 
   it('says when stored records could not be carried', () => {
@@ -96,6 +96,6 @@ describe('problem report price facts', () => {
       scrub,
     })
     expect(draft.text).toContain('Recent events (0)')
-    expect(draft.text).toMatch(/skipped/i)
+    expect(draft.text).toContain('Dropped events: 2 invalid')
   })
 })

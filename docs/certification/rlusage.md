@@ -241,6 +241,45 @@ the brief's carve-out, and 3 vault-broker suites pulled in by the
 related closure, not re-run per the vault prohibition; all left to
 hosted CI.
 
+## Landed: source 04, the report flow (rig: MacBook, 2026-10-24)
+
+`src/RLUSAGE/04-feat-report-flow` (REPORTFLOW round 1 and 2) was merged on
+the owner's PC and left uncommitted when Muse's quota ran out; this rig's
+tree carried the resolved result without the branch's ref, so it is
+committed as a plain commit of that resolution (no second parent).
+Everything the branch does is recorded in `docs/certification/report-flow.md`,
+which is the lane's record for it. What this rig reworked for current main:
+
+- the nineteen catch sites the catch gate could not classify, and the one
+  import cycle the merge closed (record: "Gate rework in this merge");
+- the four report bounds are documented as error-survival waits with cited
+  standard values (D121 and D208, owner 2026-10-23), and the surface-timeout
+  fallback now says why in its pick's title (`reportFallbackTitle`, all 14
+  tables);
+- the terminal command keeps the vault scrub port (`buildVaultProblemReportDraft`)
+  that the PC resolution had dropped there, pinned by a new `reportCommand` case;
+- `/report problem` in ACP names the reason like `/report` does, with a new
+  suite (`acpProblemReport`, 5);
+- two test-only seams in `ConversationReports` with no remaining test were
+  removed; scripted rejections in the new suites became real ENOENT
+  failures; the three suites share `test/unit/helpers/reportFixtures.ts`;
+- `lazyBundles.generated.ts` regenerated for `dist/reportFallback.js`
+  (`dist/reportFallback.js` 24.4 KiB of 50 KiB; `dist/report.js` 32.1 KiB of
+  75 KiB; `dist/extension.js` 429.0 KiB of 600 KiB; `dist/acp.js` 336.6 KiB of
+  850 KiB; no budget touched).
+
+Real use of the packed product (no Muse or model request; the agent's own
+`report` subcommand, run from the built `dist/acp.js` with a throwaway
+`HOME` under `temp/` so the owner's keychain was not read): `report
+--description "…"` printed the scrubbed draft with `Built:`, the four new
+fact lines and `Recent events (0)` and exited 0; `--out temp/real-report.md`
+wrote the same draft and exited 0; `--out /no/such/dir/report.md` printed
+`The report could not be saved.` and exited 1, with the fixed-reason line
+`the report could not be written (Error)` in the log channel. Not run here:
+the VS Code dialog and `/report problem` through an editor (no GUI, and no
+nested ACP session while Muse's allowance is used up until 2026-10-25
+17:00 Pacific).
+
 ## Prior checkpoint
 
 On 2026-10-21 this lane stopped blocked at the 733-byte overage with the
@@ -251,7 +290,7 @@ the merge is committed, and every gate above ran on the final tree.
 
 ## Remaining
 
-Sources 04 (report flow) and 05 (M113 S) are unmerged. M102 still needs
+Source 05 (M113 S) is not in this repository (see the end of this record). Source 04 is landed. M102 still needs
 headless BYO accounting, packed use and checklist reconciliation; M113
 still needs the fleet kind's local-agents part, lane Q's reports port
 and schedule_report, and postReport to GitHub. The issues kind waits

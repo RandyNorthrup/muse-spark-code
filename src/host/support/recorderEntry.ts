@@ -68,9 +68,13 @@ export function createWindowJournal(options: WindowJournalOptions): WindowJourna
       ),
     readJournal: async (): Promise<ReportJournalSource> => {
       const merged = await journal.readMerged()
+      const isAvailable = journal.isAvailable
       return {
         entries: reportEventsOf(merged.entries, options.now()),
-        recordingUnavailable: !journal.isAvailable,
+        recordingUnavailable: !isAvailable,
+        // The capture side owns the real reason code; until it provides
+        // one, unavailable reads `unknown` (lane REPORTFLOW R2).
+        ...(!isAvailable && { unavailableReason: 'unknown' }),
       }
     },
   }
