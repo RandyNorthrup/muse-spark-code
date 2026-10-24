@@ -1,9 +1,12 @@
-// Split an execFile callback (M110b W2): exits — even failing ones —
-// resolve with their code and output; only a spawn failure (no code
-// at all) rejects, typed by the caller. One shape for the git and
-// devcontainer runners, so the tool boundary stays visibly the same
-// everywhere a workspace runs a binary.
-import type { ExecFileException } from 'node:child_process'
+// A workspace binary through the governed boundary (M110b W2, PATHGUARD):
+// the command resolves outside the workspace it runs in, the child gets
+// the guarded environment, admission and containment as every governed
+// start. Exits — even failing ones — resolve with their code and output;
+// only a run that never exited rejects, typed by the caller. One shape
+// for the git and devcontainer runners, so the tool boundary stays
+// visibly the same everywhere a workspace runs a binary.
+import { isGovernedCommandExit, isGovernedCommandFailure } from '../../../core/resources/launch'
+import { execResourceFile } from '../../../core/resources/launcher'
 
 /** A finished run: its exit code with the output that came with it. */
 export interface ExecExit {
@@ -12,45 +15,38 @@ export interface ExecExit {
   readonly stderr: string
 }
 
-/** A settled callback: either the exit, or the raw failure of a child that never ran. */
-export type SettledExecFile =
-  { readonly exited: ExecExit } | { readonly spawnFailed: ExecFileException }
-
 /**
-Settle the callback: `exited` for every exit a code describes,
-`spawnFailed` (the raw failure, for the caller's typed error) for the
-rest — a binary that never started has no code to carry.
+Run `file` in `cwd` (the workspace it guards): every exit a code
+describes resolves with its code and output, as execFile's callback
+did; a run that never exited (no such command outside the workspace, a
+start failure, the governor's refusal, a stop, its output bound) rejects
+with the caller's typed error, built from the cause and whatever stderr
+came with it. Without `maxBuffer` the boundary's own bound applies, the
+size of execFile's default.
 */
-export function settleExecFile(
-  error: ExecFileException | null,
-  stdout: string,
-  stderr: string,
-): SettledExecFile {
-  if (error === null) return { exited: { exitCode: 0, stdout, stderr } }
-  const code: unknown = 'code' in error ? error.code : undefined
-  return typeof code === 'number'
-    ? { exited: { exitCode: code, stdout, stderr } }
-    : { spawnFailed: error }
-}
-
-/**
-Build the execFile callback: every exit resolves with its code and
-output; a spawn failure rejects with the caller's typed error, built
-from the raw failure and whatever output came with it. One settlement
-for every runner — the callback runs after the executor returns, so it
-resolves and rejects instead of throwing.
-*/
-export function execCallback(
-  resolve: (exit: ExecExit) => void,
-  reject: (error: Error) => void,
-  makeError: (cause: ExecFileException, stdout: string, stderr: string) => Error,
-): (error: ExecFileException | null, stdout: string, stderr: string) => void {
-  return (error, stdout, stderr) => {
-    const settled = settleExecFile(error, stdout, stderr)
-    if ('spawnFailed' in settled) {
-      reject(makeError(settled.spawnFailed, stdout, stderr))
-      return
-    }
-    resolve(settled.exited)
+export async function runWorkspaceProcess(
+  profile: 'contained' | 'probe',
+  file: string,
+  args: readonly string[],
+  options: {
+    readonly cwd: string
+    readonly env: NodeJS.ProcessEnv
+    readonly maxBuffer?: number | undefined
+  },
+  makeError: (cause: unknown, stderr: string) => Error,
+): Promise<ExecExit> {
+  try {
+    const { stdout, stderr } = await execResourceFile(profile, file, args, {
+      cwd: options.cwd,
+      env: options.env,
+      encoding: 'utf8',
+      ...(options.maxBuffer !== undefined && { maxBuffer: options.maxBuffer }),
+    })
+    return { exitCode: 0, stdout, stderr }
+  } catch (error: unknown) {
+    // NARROW: an exit with its code is a result, never a failure to run.
+    if (isGovernedCommandExit(error))
+      return { exitCode: error.code, stdout: error.stdout, stderr: error.stderr }
+    throw makeError(error, isGovernedCommandFailure(error) ? error.stderr : '')
   }
 }

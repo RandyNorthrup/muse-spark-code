@@ -28,7 +28,9 @@ argument: `runProgram` (`execFile` with a timeout), `runTreeSync`
 governed runner), `execResourceFile`, `handoffResourceFile` and
 `spawnResourceFile` (the governed command boundary in commands.ts: guarded
 lookup + child env for the run workspace; the last hands its caller the
-piped process). A bare call with a literal or a variable command alike
+piped process), and `runWorkspaceProcess` (the home node's workspace
+runners' one call into execResourceFile). A bare call with a literal or a
+variable command alike
 is a spawn the direct-start walk cannot see (round 5: the playbook's bare
 `git` variable and the team probes' bare names stayed green; round 6: the
 report's `gh` through an unscanned `execResourceFile`).
@@ -40,6 +42,7 @@ const WRAPPER_NAMES = new Set([
   'execResourceFile',
   'handoffResourceFile',
   'spawnResourceFile',
+  'runWorkspaceProcess',
 ])
 
 interface KnownSpawn {
@@ -277,6 +280,54 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     anchor: "spawnResourceFile('contained'",
     reason:
       'the pinned private Ollama server by absolute path through the governed boundary: admitted and contained, refused unless it exists outside its run folder, guarded child env, one stop for its tree (M125 lane H)',
+  },
+  'src/runtime/node/gitRunner.ts': {
+    kind: 'guarded',
+    anchor: 'workspaceRoot: snapshot.workTree',
+    reason:
+      "the trusted absolute service git through the governed boundary: refused inside the repository's work tree, guarded child env for it, admitted and contained, a read a probe (M110a0 N)",
+  },
+  'src/runtime/node/tls/certificate.ts': {
+    kind: 'guarded',
+    anchor: 'execResourceFile(',
+    reason:
+      'the trusted absolute OpenSSL through the governed boundary, contained: refused unless it exists outside its staging folder, an empty guarded env (M110a0 A1)',
+  },
+  'src/runtime/node/toolHost.ts': {
+    kind: 'guarded',
+    anchor: "spawnResourceFile('contained'",
+    reason:
+      'a tool request through the governed boundary, contained in its own group: resolved outside the workspace volume (a planted program is refused, never run), the tools allow-list env guarded (M110a0 N)',
+  },
+  'src/runtime/node/workspaces/spawn.ts': {
+    kind: 'guarded',
+    anchor: 'execResourceFile(profile, file, args',
+    reason:
+      "the workspace runners' one governed boundary (git, the devcontainer CLI): resolved outside the workspace each runs in, guarded child env, admitted and contained (M110b W2)",
+  },
+  'src/runtime/node/workspaces/git.ts': {
+    kind: 'guarded',
+    anchor: 'runWorkspaceProcess(',
+    reason:
+      "workspace git through the runners' governed boundary with the brokered env: a read verb a probe, the rest contained (M110b W2)",
+  },
+  'src/runtime/node/workspaces/devcontainer.ts': {
+    kind: 'guarded',
+    anchor: 'runWorkspaceProcess(',
+    reason:
+      "the pinned devcontainer CLI through the runners' governed boundary: version and read-configuration probes, up and exec contained (M110b W2)",
+  },
+  'src/runtime/node/workspaces/snapshots.ts': {
+    kind: 'guarded',
+    anchor: 'execResourceFile(profile, tool',
+    reason:
+      'tar, btrfs and zfs through the governed boundary: resolved outside the workspace, a listing a probe, a write contained, a refused tool still coded for the bundle fallback (M110b W2)',
+  },
+  'src/runtime/tui/design/capabilities.ts': {
+    kind: 'guarded',
+    anchor: "execResourceFile('probe'",
+    reason:
+      'tput and the macOS defaults probes as governed probes: resolved outside the folder they run in, guarded child env, no answer on any refusal (TD)',
   },
 }
 

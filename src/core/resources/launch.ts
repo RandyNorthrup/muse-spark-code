@@ -169,6 +169,50 @@ export function isGovernedRefusal(error: unknown): boolean {
       (error.code === 'admissionUnavailable' || error.code === 'launchUnavailable'))
   )
 }
+/**
+The governed command boundary's two failure words (commands.ts): no such
+command outside the folder the child runs in, and a command that ended
+without success. Callers read them through the guards below, never by text.
+*/
+export const GOVERNED_COMMAND_UNAVAILABLE = 'Governed command unavailable'
+export const GOVERNED_COMMAND_FAILED = 'Governed command failed'
+
+/** The boundary refused the command: missing, or inside the folder the child runs in. */
+export function isGovernedCommandUnavailable(error: unknown): error is Error {
+  return error instanceof Error && error.message === GOVERNED_COMMAND_UNAVAILABLE
+}
+
+/**
+A bounded governed command (`execResourceFile`) that ended without success,
+with what it printed. `code` is its own exit code when it exited, -1 when
+the runner stopped it (the caller's cancel or deadline, a start failure),
+null when a signal ended it, or Node's output-bound code.
+*/
+interface GovernedCommandFailure extends Error {
+  readonly code: unknown
+  readonly stdout: string
+  readonly stderr: string
+}
+
+export function isGovernedCommandFailure(error: unknown): error is GovernedCommandFailure {
+  return (
+    error instanceof Error &&
+    error.message === GOVERNED_COMMAND_FAILED &&
+    'code' in error &&
+    'stdout' in error &&
+    typeof error.stdout === 'string' &&
+    'stderr' in error &&
+    typeof error.stderr === 'string'
+  )
+}
+
+/** A governed command that ran to its own non-zero exit (execFile's numeric `code`). */
+export function isGovernedCommandExit(
+  error: unknown,
+): error is GovernedCommandFailure & { readonly code: number } {
+  return isGovernedCommandFailure(error) && typeof error.code === 'number' && error.code >= 0
+}
+
 export interface ResourcePipedProcess extends ResourceInteractiveProcess {
   /** Settles after exit; undefined where the platform attests nothing (POSIX, bootstrap). */
   outcome: () => Promise<ResourceTreeOutcome | undefined>

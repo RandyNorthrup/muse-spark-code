@@ -38,8 +38,12 @@ import {
   restoreWorkspaceSnapshot,
   type SnapshotTools,
 } from '../../src/runtime/node/workspaces/snapshots'
+import { useRuntimeGovernor } from '../unit/helpers/resources/runtimeGovernor'
 
 const IS_DRILL = process.env['MUSE_NODE_DRILL'] === '1'
+// git, tar and the devcontainer CLI start through the governed launch:
+// admitted by the governor the node command's process configures.
+useRuntimeGovernor('muse-ws-drill-jobs-', IS_DRILL)
 const NO_PROVISIONS: BrokerGitProvisions = {}
 const GRANTS: [] = []
 const DRILL_IMAGE = 'debian:trixie-slim'

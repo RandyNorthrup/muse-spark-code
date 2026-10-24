@@ -8,11 +8,10 @@
 // person trusts the workspace, under its egress policy. Pure builders
 // below; the live drill carries version/read/up/exec against the real
 // CLI, and digest recording follows on the drill's inspect evidence.
-import { execFile } from 'node:child_process'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { DEVCONTAINER_CLI_PIN } from '../../../shared/constants'
-import { execCallback } from './spawn'
+import { runWorkspaceProcess, type ExecExit } from './spawn'
 
 const lifecycleCommandSchema = z.union([
   z.string(),
@@ -349,39 +348,36 @@ export function mergeDevcontainerConfig(
 const DEVCONTAINER_ERROR_SNIPPET_CHARS = 200
 
 /**
-Run the CLI: spawn failures throw typed; exits (even failing ones)
-resolve, because `up` errors ride non-zero with JSON on stdout —
-the caller parses the output before judging the code.
+Run the CLI through the governed boundary, in this process's
+environment: spawn failures throw typed; exits (even failing ones)
+resolve, because `up` errors ride non-zero with JSON on stdout — the
+caller parses the output before judging the code. `--version` and
+`read-configuration` only read (a governed probe); `up` builds and
+starts the box (contained).
 */
 function runCli(
+  profile: 'contained' | 'probe',
   cliPath: string,
   argv: readonly string[],
   cwd: string,
-): Promise<{ readonly exitCode: number; readonly stdout: string; readonly stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = execFile(
-      cliPath,
-      [...argv],
-      { cwd },
-      execCallback(
-        resolve,
-        reject,
-        (_cause, _stdout, stderr) =>
-          new DevcontainerError(
-            'cli-failed',
-            `devcontainer ${argv[0] ?? ''} failed to spawn: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
-          ),
+): Promise<ExecExit> {
+  return runWorkspaceProcess(
+    profile,
+    cliPath,
+    argv,
+    { cwd, env: process.env },
+    (cause, stderr) =>
+      new DevcontainerError(
+        'cli-failed',
+        `devcontainer ${argv[0] ?? ''} failed to spawn: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
+        { cause },
       ),
-    )
-    child.on('error', () => {
-      /* the callback above already typed it */
-    })
-  })
+  )
 }
 
 /** The CLI on PATH must be exactly the pin — any other version is refused. */
 export async function checkDevcontainerVersion(cliPath: string, cwd: string): Promise<void> {
-  const { exitCode, stdout, stderr } = await runCli(cliPath, ['--version'], cwd)
+  const { exitCode, stdout, stderr } = await runCli('probe', cliPath, ['--version'], cwd)
   if (exitCode !== 0) {
     throw new DevcontainerError(
       'cli-failed',
@@ -400,6 +396,7 @@ export async function readDevcontainerConfig(
   workspaceDir: string,
 ): Promise<DevcontainerResolved> {
   const { stdout } = await runCli(
+    'probe',
     cliPath,
     ['read-configuration', '--workspace-folder', workspaceDir],
     workspaceDir,
@@ -463,6 +460,7 @@ export async function devcontainerUp(
   },
 ): Promise<DevcontainerUpResult> {
   const { exitCode, stdout, stderr } = await runCli(
+    'contained',
     cliPath,
     devcontainerUpArgv(options),
     options.workspaceDir,
@@ -484,7 +482,11 @@ export async function devcontainerUp(
   }
 }
 
-/** Run a command in the box; without `maxBytes` the platform bound applies. */
+/**
+Run a command in the box, contained through the governed boundary;
+without `maxBytes` the boundary's own output bound applies (execFile's
+default size, both streams together).
+*/
 export async function devcontainerExec(
   cliPath: string,
   cwd: string,
@@ -493,27 +495,17 @@ export async function devcontainerExec(
     readonly command: readonly [string, ...string[]]
     readonly maxBytes?: number
   },
-): Promise<{ readonly exitCode: number; readonly stdout: string; readonly stderr: string }> {
-  return await new Promise((resolve, reject) => {
-    const child = execFile(
-      cliPath,
-      [...devcontainerExecArgv(options)],
-      {
-        cwd,
-        ...(options.maxBytes !== undefined && { maxBuffer: options.maxBytes }),
-      },
-      execCallback(
-        resolve,
-        reject,
-        (_cause, _stdout, stderr) =>
-          new DevcontainerError(
-            'cli-failed',
-            `devcontainer exec failed to run: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
-          ),
+): Promise<ExecExit> {
+  return await runWorkspaceProcess(
+    'contained',
+    cliPath,
+    devcontainerExecArgv(options),
+    { cwd, env: process.env, maxBuffer: options.maxBytes },
+    (cause, stderr) =>
+      new DevcontainerError(
+        'cli-failed',
+        `devcontainer exec failed to run: ${stderr.slice(0, DEVCONTAINER_ERROR_SNIPPET_CHARS)}`,
+        { cause },
       ),
-    )
-    child.on('error', () => {
-      /* the callback above already typed it */
-    })
-  })
+  )
 }

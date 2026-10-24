@@ -1,9 +1,9 @@
 // Closed Git dispatch (RVM110L0-1). No arbitrary client argv, config or
 // inherited GIT_/SSH/credential environment reaches service Git.
-import { execFile } from 'node:child_process'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { lstatIdentity } from '../../core/fs/fileIdentity'
+import { execResourceFile } from '../../core/resources/launcher'
 import {
   NODE_BIGINT_ZERO,
   NODE_COMMAND_TIMEOUT_MS,
@@ -82,7 +82,15 @@ function sshUrl(destination: NetworkParams['destination']): string {
 export class NodeClosedGitRunner {
   constructor(private readonly options: NodeGitRunnerOptions) {}
 
+  /**
+  One service git run through the governed boundary: git (trusted,
+  absolute) resolves outside the repository's work tree, the child gets
+  the guarded environment for it, admitted and contained; a read is a
+  probe, anything that writes the snapshot or the network runs contained.
+  Every failure is unavailable to the caller, the cause kept.
+  */
   private async execute(
+    profile: 'contained' | 'probe',
     snapshot: NodeGitSnapshot,
     args: readonly string[],
     signal: AbortSignal,
@@ -102,8 +110,9 @@ export class NodeClosedGitRunner {
       env['SSH_AUTH_SOCK'] = ssh.socket
       env['GIT_SSH_COMMAND'] = ssh.wrapper
     }
-    return await new Promise<string>((resolve, reject) => {
-      execFile(
+    try {
+      const { stdout } = await execResourceFile(
+        profile,
         this.options.git,
         [
           ...NODE_GIT_OPTIONS,
@@ -118,16 +127,13 @@ export class NodeClosedGitRunner {
           timeout: NODE_COMMAND_TIMEOUT_MS,
           maxBuffer: NODE_TERMINAL_OUTPUT_BYTES,
           encoding: 'utf8',
-        },
-        (error, stdout) => {
-          if (error !== null) {
-            reject(new Error(UI_TEXT.nodeErrors.unavailable))
-            return
-          }
-          resolve(stdout)
+          workspaceRoot: snapshot.workTree,
         },
       )
-    })
+      return stdout
+    } catch (error: unknown) {
+      throw new Error(UI_TEXT.nodeErrors.unavailable, { cause: error })
+    }
   }
 
   async run<M extends GitMethod>(
@@ -154,16 +160,26 @@ export class NodeClosedGitRunner {
             JSON.stringify(networkParams.destination)
           )
             throw new Error(UI_TEXT.nodeErrors.conflict)
-          const headOutput = await this.execute(snapshot, ['rev-parse', '--verify', 'HEAD'], signal)
+          const headOutput = await this.execute(
+            'probe',
+            snapshot,
+            ['rev-parse', '--verify', 'HEAD'],
+            signal,
+          )
           const head = headOutput.trim()
           if (head !== networkParams.expectedHead) throw new Error(UI_TEXT.nodeErrors.conflict)
           const args =
             method === 'node/git/push'
               ? ['push', '--no-recurse-submodules', url, `${head}:${networkParams.ref}`]
               : ['fetch', '--no-tags', '--no-recurse-submodules', url, networkParams.ref]
-          const output = await this.execute(snapshot, args, signal, binding)
+          const output = await this.execute('contained', snapshot, args, signal, binding)
           if (method === 'node/git/pull')
-            await this.execute(snapshot, ['merge', '--ff-only', '--no-edit', 'FETCH_HEAD'], signal)
+            await this.execute(
+              'contained',
+              snapshot,
+              ['merge', '--ff-only', '--no-edit', 'FETCH_HEAD'],
+              signal,
+            )
           if (method !== 'node/git/push')
             await this.options.publish(snapshot, method, networkParams.expectedHead, signal)
           return output
@@ -225,10 +241,18 @@ export class NodeClosedGitRunner {
       }
       const expectedHead = 'expectedHead' in params ? params.expectedHead : null
       if (expectedHead !== null) {
-        const headOutput = await this.execute(snapshot, ['rev-parse', '--verify', 'HEAD'], signal)
+        const headOutput = await this.execute(
+          'probe',
+          snapshot,
+          ['rev-parse', '--verify', 'HEAD'],
+          signal,
+        )
         if (headOutput.trim() !== expectedHead) throw new Error(UI_TEXT.nodeErrors.conflict)
       }
-      const output = await this.execute(snapshot, args, signal)
+      // Branch listings and diffs only read: a probe. Status refreshes the
+      // snapshot's index and the rest write it, so they run contained.
+      const isRead = method === 'node/git/branches' || method === 'node/git/diff'
+      const output = await this.execute(isRead ? 'probe' : 'contained', snapshot, args, signal)
       if (['node/git/stage', 'node/git/commit', 'node/git/branch'].includes(method))
         await this.options.publish(snapshot, method, expectedHead, signal)
       return output

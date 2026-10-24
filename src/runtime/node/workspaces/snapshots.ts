@@ -11,12 +11,13 @@
 // builders below; the bundle path is drill-proven on real git, the
 // file-system path runs wherever its volume exists.
 import { Buffer } from 'node:buffer'
-import { execFile } from 'node:child_process'
 import { mkdtempSync, readFileSync, rmSync, statfsSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import * as z from 'zod/mini'
 import { isCodedFailure } from '../../../core/fs/errno'
+import { isGovernedCommandUnavailable } from '../../../core/resources/launch'
+import { execResourceFile } from '../../../core/resources/launcher'
 import { runWorkspaceGit } from './git'
 
 export const SNAPSHOT_VERSION = 1
@@ -182,25 +183,33 @@ export function zfsDatasetAt(tabular: string, dir: string): string | undefined {
 
 export class SnapshotError extends Error {}
 
-function runFile(
+/**
+One snapshot tool run through the governed boundary, in this process's
+environment: `probe` for a read (a listing, a subvolume check),
+`contained` for anything that writes. A non-zero exit rejects with its
+numeric `code`; a tool the boundary cannot run outside the workspace
+rejects coded `unavailable`, so the file-system paths still fall back to
+the bundle on a coded failure, as on execFile's ENOENT.
+*/
+async function runFile(
+  profile: 'contained' | 'probe',
   tool: string,
   argv: readonly string[],
   cwd: string,
 ): Promise<{ readonly stdout: string; readonly stderr: string }> {
-  return new Promise((resolve, reject) => {
-    const child = execFile(tool, [...argv], { cwd }, (error, stdout, stderr) => {
-      if (error !== null) {
-        reject(
-          error instanceof Error ? error : new SnapshotError(`${tool} failed without an error`),
-        )
-        return
-      }
-      resolve({ stdout, stderr })
-    })
-    child.on('error', () => {
-      /* the callback above already carries it */
-    })
-  })
+  try {
+    return await execResourceFile(profile, tool, argv, { cwd, env: process.env, encoding: 'utf8' })
+  } catch (error: unknown) {
+    // NARROW: only the boundary's refusal is recoded; every other failure keeps its own code.
+    if (isGovernedCommandUnavailable(error))
+      throw Object.assign(
+        new SnapshotError(`${path.basename(tool)} is unavailable`, { cause: error }),
+        {
+          code: 'unavailable',
+        },
+      )
+    throw error
+  }
 }
 
 export interface SnapshotTools {
@@ -242,8 +251,8 @@ export async function createWorkspaceSnapshot(
   if (fs === 'btrfs' && tools.btrfsPath !== undefined) {
     const snapPath = path.join(destDir, 'subvolume')
     try {
-      await runFile(tools.btrfsPath, btrfsIsSubvolumeArgv(dir), dir)
-      await runFile(tools.btrfsPath, btrfsSnapshotArgv(dir, snapPath), dir)
+      await runFile('probe', tools.btrfsPath, btrfsIsSubvolumeArgv(dir), dir)
+      await runFile('contained', tools.btrfsPath, btrfsSnapshotArgv(dir, snapPath), dir)
       return writeManifest(destDir, {
         version: SNAPSHOT_VERSION,
         takenAt,
@@ -258,7 +267,7 @@ export async function createWorkspaceSnapshot(
   }
   if (fs === 'zfs' && tools.zfsPath !== undefined) {
     try {
-      const listed = await runFile(tools.zfsPath, zfsListArgv(), dir)
+      const listed = await runFile('probe', tools.zfsPath, zfsListArgv(), dir)
       const dataset = zfsDatasetAt(listed.stdout, dir)
       if (dataset === undefined) {
         return await bundleSnapshot(
@@ -270,7 +279,12 @@ export async function createWorkspaceSnapshot(
           'zfs: no dataset at workspace',
         )
       }
-      await runFile(tools.zfsPath, zfsSnapshotArgv(dataset, snapshotName(takenAt)), dir)
+      await runFile(
+        'contained',
+        tools.zfsPath,
+        zfsSnapshotArgv(dataset, snapshotName(takenAt)),
+        dir,
+      )
       return writeManifest(destDir, {
         version: SNAPSHOT_VERSION,
         takenAt,
@@ -340,7 +354,12 @@ async function bundleSnapshot(
     try {
       const listFile = path.join(listDir, 'files')
       writeFileSync(listFile, `${untracked.join('\0')}\0`)
-      await runFile(tools.tarPath, tarCreateArgv(path.join(destDir, archive), dir, listFile), dir)
+      await runFile(
+        'contained',
+        tools.tarPath,
+        tarCreateArgv(path.join(destDir, archive), dir, listFile),
+        dir,
+      )
     } finally {
       rmSync(listDir, { recursive: true, force: true })
     }
@@ -425,20 +444,25 @@ export async function restoreWorkspaceSnapshot(
   })
   if (manifest.archive !== null) {
     const archivePath = path.join(snapshotDir, manifest.archive)
-    const listed = await runFile(tools.tarPath, tarListArgv(archivePath), dir)
+    const listed = await runFile('probe', tools.tarPath, tarListArgv(archivePath), dir)
     const members = listed.stdout.split('\n').filter((member) => member !== '')
     if (members.some((member) => !isSafeArchiveMember(member))) {
       throw new SnapshotError('snapshot archive escapes the workspace')
     }
-    await runFile(tools.tarPath, tarExtractArgv(archivePath, dir), dir)
+    await runFile('contained', tools.tarPath, tarExtractArgv(archivePath, dir), dir)
   }
   return { head: manifest.head, preSnapshotDir }
 }
 
 async function restoreBtrfs(tools: SnapshotTools, dir: string, snapshotDir: string): Promise<void> {
   if (tools.btrfsPath === undefined) throw new SnapshotError('btrfs restore without btrfs')
-  await runFile(tools.btrfsPath, btrfsDeleteArgv(dir), dir)
-  await runFile(tools.btrfsPath, btrfsRestoreArgv(path.join(snapshotDir, 'subvolume'), dir), dir)
+  await runFile('contained', tools.btrfsPath, btrfsDeleteArgv(dir), dir)
+  await runFile(
+    'contained',
+    tools.btrfsPath,
+    btrfsRestoreArgv(path.join(snapshotDir, 'subvolume'), dir),
+    dir,
+  )
 }
 
 async function restoreZfs(
@@ -447,8 +471,13 @@ async function restoreZfs(
   manifest: SnapshotManifest,
 ): Promise<void> {
   if (tools.zfsPath === undefined) throw new SnapshotError('zfs restore without zfs')
-  const listed = await runFile(tools.zfsPath, zfsListArgv(), dir)
+  const listed = await runFile('probe', tools.zfsPath, zfsListArgv(), dir)
   const dataset = zfsDatasetAt(listed.stdout, dir)
   if (dataset === undefined) throw new SnapshotError('zfs restore without its dataset')
-  await runFile(tools.zfsPath, zfsRollbackArgv(dataset, snapshotName(manifest.takenAt)), dir)
+  await runFile(
+    'contained',
+    tools.zfsPath,
+    zfsRollbackArgv(dataset, snapshotName(manifest.takenAt)),
+    dir,
+  )
 }
