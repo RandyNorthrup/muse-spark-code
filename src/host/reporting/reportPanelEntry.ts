@@ -153,6 +153,12 @@ export function createReportingWindow(
     },
     readJournal,
   })
+  // M113 C-M113-4: the playbook journal lives under the same agent data
+  // folder as the usage journal; the reader and the ordering read the same one.
+  const playbookJournal = () => ({
+    agentDataFolder: deps.reportUsageDataFolder,
+    workspaceRoot: deps.workspaceRoot ?? process.cwd(),
+  })
   return createReportPanel(
     {
       ...deps,
@@ -227,16 +233,13 @@ export function createReportingWindow(
           playbook: {
             read: (context) =>
               loadPlaybookSchedules()
-                .createPlaybookReportReader(
-                  {
-                    agentDataFolder: deps.reportUsageDataFolder,
-                    workspaceRoot: deps.workspaceRoot ?? process.cwd(),
-                  },
-                  table,
-                  locale,
-                )
+                .createPlaybookReportReader(playbookJournal(), table, locale)
                 .read(context),
           },
+          // D220: the playbook, milestone and fleet kinds order through the
+          // journal the reader reads, loaded only when one of them orders.
+          playbookOrder: () =>
+            loadPlaybookSchedules().createPlaybookReportOrder(playbookJournal(), table, locale),
           schedules: {
             read: (context) =>
               loadPlaybookSchedules()
