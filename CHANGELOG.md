@@ -303,6 +303,9 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- The usage page's installed font pack is read only from version folders
+  inside the fonts folder: a version folder that is a link (a junction on
+  Windows) to somewhere else is skipped, as a linked file already was.
 - An editor speaking to the ACP agent is told why a session cannot open
   again. Since the error boundary began allowing only listed sentences, a
   missing sign-in, a missing key, an unavailable credential store or a
