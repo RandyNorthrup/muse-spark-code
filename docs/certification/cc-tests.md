@@ -122,3 +122,31 @@ Green: 11 passed. Red drill: the store's Windows refusal disabled
 (`privateFiles.ts`) → 5 of 5 dashboard cases failed,
 `expected [Function] to throw error including 'not supported' but got 'process.getuid is not a function'`;
 restored.
+
+### nodeFilesPage, nodeOps: links a Windows test account can make
+
+Cause: `symlink()` without the symbolic-link privilege fails on Windows with
+`EPERM: operation not permitted, symlink …`. This PC's test account holds no
+such privilege (no Developer Mode, not elevated); hosted Windows runners are
+elevated, which hid it. Four cases made links: three in the node files runtime
+(H10), one in the node backup.
+
+Fix:
+
+- A directory link is a junction on Windows (no privilege; Node's `lstat`
+  reads it as a symbolic link, as the repository's other link tests already
+  use). The files runtime's root-alias case and the backup case now run for
+  real on Windows; the backup case keeps its file link on Linux and macOS
+  and adds the directory link everywhere.
+- Two files-runtime cases need a symlinked file leaf, which only the
+  privilege can make. The node serves files natively on Linux or WSL only,
+  so they run through `nodeNativeTest` (on Windows: the store's refusal in
+  words).
+
+Red (before): 4 failed with `EPERM: operation not permitted, symlink`.
+Green: nodeFilesPage 30 passed, nodeOps 7 passed. Red drills: the files
+runtime's root realpath check deleted → the root-alias case failed
+(`promise resolved "{ path: 'example.txt', …(2) }" instead of rejecting`)
+with the junction; the backup's link refusal disabled → the backup case
+failed (`promise resolved "{ version: 1, entries: [ { …(3) } ] }" instead of rejecting`);
+both restored.

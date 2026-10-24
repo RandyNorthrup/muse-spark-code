@@ -28,6 +28,7 @@ import {
 } from '../../src/shared/constants'
 import { nodeErrorCode } from './helpers/nodeErrorCode'
 import { scripted } from './helpers/recordCalls'
+import { nodeNativeTest } from './helpers/nodeNative'
 
 // Temporary interposition on real objects, never a module stand-in: the H10
 // race tests must land a filesystem mutation inside an exact window of a
@@ -200,7 +201,10 @@ describe('M110-U1 files runtime boundary', () => {
     expect(port.root.calls).toHaveLength(0)
     expect(port.replace.calls).toHaveLength(0)
   })
-  it('H10 refuses leaf/ancestor symlinks and hard-linked files', async () => {
+  // A symlinked file leaf needs the symbolic-link privilege on Windows, which
+  // a test account does not hold; the node serves files natively on Linux or
+  // WSL only, so on Windows the case proves the store's refusal instead.
+  nodeNativeTest('H10 refuses leaf/ancestor symlinks and hard-linked files', async () => {
     const { root, methods, file } = await fixture()
     await symlink(path.join(root, 'src'), path.join(root, 'linked'))
     await symlink(path.join(root, file.path), path.join(root, 'leaf.txt'))
@@ -220,7 +224,9 @@ describe('M110-U1 files runtime boundary', () => {
   })
   it('H10 refuses a workspace root reached through a symlink above that root', async () => {
     const { root, port, file } = await fixture()
-    await symlink(root, path.join(root, 'alias'))
+    // A junction is Windows's directory link (no privilege needed); the
+    // node's lstat reads it as a symbolic link, as it reads one elsewhere.
+    await symlink(root, path.join(root, 'alias'), process.platform === 'win32' ? 'junction' : 'dir')
     port.root.once(() => Promise.resolve(path.join(root, 'alias', 'src')))
     await expect(
       createNodeFileMethods(port).read({ ...file, path: 'example.txt' }, signal()),
@@ -415,38 +421,42 @@ describe('M110-U1 files runtime boundary', () => {
       methods.write({ ...file, expectedDigest: digest('hello\n'), text: 'new' }, signal()),
     ).rejects.toThrow()
   })
-  it('throws typed listener errors so refusals map to their catalog code, not unavailable', async () => {
-    const { root, methods, file, port } = await fixture()
-    // A publisher receipt that does not describe the uploaded bytes.
-    port.replace.once(() => Promise.resolve({ digest: digest('wrong') }))
-    expect(
-      await nodeErrorCode(
-        methods.write({ ...file, expectedDigest: digest('hello\n'), text: 'new' }, signal()),
-      ),
-    ).toBe('conflict')
-    // A file grown past the byte bound.
-    await truncate(path.join(root, file.path), NODE_MAX_FILE_BYTES + 1)
-    expect(await nodeErrorCode(methods.read(file, signal()))).toBe('tooLarge')
-    // An over-bound page cursor, refused before filesystem access.
-    // (A cursor outside the identifier shape is refused earlier by the
-    // catalog parse, which the listener already maps to invalidRequest.)
-    port.root.reset()
-    expect(
-      await nodeErrorCode(
-        methods.list({ workspaceId: 'repo', directory: null, cursor: 'page-10001' }, signal()),
-      ),
-    ).toBe('invalidRequest')
-    expect(port.root.calls).toHaveLength(0)
-    // A symlinked leaf, refused before opening.
-    await symlink(path.join(root, file.path), path.join(root, 'leaf.txt'))
-    expect(
-      await nodeErrorCode(methods.read({ workspaceId: 'repo', path: 'leaf.txt' }, signal())),
-    ).toBe('forbidden')
-    // The listener maps the typed code to its HTTP status; a plain
-    // Error would have become unavailable (503) instead.
-    expect(NODE_HTTP_STATUS.conflict).toBe(409)
-    expect(NODE_HTTP_STATUS.tooLarge).toBe(413)
-  })
+  // Its last refusal needs a symlinked file leaf (see the H10 leaf case).
+  nodeNativeTest(
+    'throws typed listener errors so refusals map to their catalog code, not unavailable',
+    async () => {
+      const { root, methods, file, port } = await fixture()
+      // A publisher receipt that does not describe the uploaded bytes.
+      port.replace.once(() => Promise.resolve({ digest: digest('wrong') }))
+      expect(
+        await nodeErrorCode(
+          methods.write({ ...file, expectedDigest: digest('hello\n'), text: 'new' }, signal()),
+        ),
+      ).toBe('conflict')
+      // A file grown past the byte bound.
+      await truncate(path.join(root, file.path), NODE_MAX_FILE_BYTES + 1)
+      expect(await nodeErrorCode(methods.read(file, signal()))).toBe('tooLarge')
+      // An over-bound page cursor, refused before filesystem access.
+      // (A cursor outside the identifier shape is refused earlier by the
+      // catalog parse, which the listener already maps to invalidRequest.)
+      port.root.reset()
+      expect(
+        await nodeErrorCode(
+          methods.list({ workspaceId: 'repo', directory: null, cursor: 'page-10001' }, signal()),
+        ),
+      ).toBe('invalidRequest')
+      expect(port.root.calls).toHaveLength(0)
+      // A symlinked leaf, refused before opening.
+      await symlink(path.join(root, file.path), path.join(root, 'leaf.txt'))
+      expect(
+        await nodeErrorCode(methods.read({ workspaceId: 'repo', path: 'leaf.txt' }, signal())),
+      ).toBe('forbidden')
+      // The listener maps the typed code to its HTTP status; a plain
+      // Error would have become unavailable (503) instead.
+      expect(NODE_HTTP_STATUS.conflict).toBe(409)
+      expect(NODE_HTTP_STATUS.tooLarge).toBe(413)
+    },
+  )
   it('H09 paginates a directory and refuses forged cursors', async () => {
     const { root, methods } = await fixture()
     await Promise.all(
