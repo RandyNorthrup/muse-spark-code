@@ -6,15 +6,12 @@
 // claim, and names the exact gap for every id it cannot build. The key is a
 // fixture string; the transport seams answer the recorded OpenRouter shape.
 // No live, paid or local-model call.
-import path from 'node:path'
 import { describe, expect, inject, it } from 'vitest'
 import { assertCurrentProductionBuild } from './productionBuild'
 import type { Phase2EvidenceStore } from '../../src/core/judge/evidencePaths'
-import { createLogger } from '../../src/host/logger'
 import { cliJudgeBinding } from '../../src/runtime/judge/cliBinding'
-import { judgeFeaturesLoader } from '../../src/runtime/judge/judgeBundle'
 import { Usd } from '../../src/shared/usd'
-import { collectingLogger } from './helpers/collectingLogger'
+import { shippedJudgeFeatures } from './helpers/judgePhase2Rig'
 import {
   SYSTEMONE_ADDRESS,
   SYSTEMONE_ROUTE,
@@ -31,11 +28,7 @@ import { command, io } from './judgeCliFixtures'
 assertCurrentProductionBuild(inject('productionBuildGeneration'), process.cwd())
 
 function features() {
-  const messages: string[] = []
-  return judgeFeaturesLoader({
-    bundlePath: path.join(process.cwd(), 'dist/judgeP2.js'),
-    log: createLogger(collectingLogger(messages)),
-  })()
+  return shippedJudgeFeatures()
 }
 
 /** B fits logprob and stated profiles only: no SystemOne profile can be recorded. */

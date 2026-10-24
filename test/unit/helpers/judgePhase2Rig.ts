@@ -1,7 +1,10 @@
 // Shared phase-2 rigs: the wiring assembly tests and the review-fix
 // regressions build the same verified bindings and embedding transports
 // from one helper instead of copying each other.
+import path from 'node:path'
 import { Usd, type UsdAmount } from '../../../src/shared/usd'
+import { createLogger } from '../../../src/host/logger'
+import { judgeFeaturesLoader } from '../../../src/runtime/judge/judgeBundle'
 import { PaidUseConsent, paidUseQuestion } from '../../../src/core/paid/paidConsent'
 import type { PaidUseRequest } from '../../../src/shared/paid'
 import type { JudgeDailyLedger } from '../../../src/core/judge/admission'
@@ -18,6 +21,15 @@ import {
 } from '../judgeEmbeddingFixtures'
 
 type JudgeUseRequest = Extract<PaidUseRequest, { feature: 'judge' }>
+
+/** The shipped lazy assembly (dist/judgeP2.js) with a collecting log. */
+export function shippedJudgeFeatures() {
+  const messages: string[] = []
+  return judgeFeaturesLoader({
+    bundlePath: path.join(process.cwd(), 'dist/judgeP2.js'),
+    log: createLogger(collectingLogger(messages)),
+  })()
+}
 
 /** The stdin body for an `ask` or MCP judge call over the same request. */
 export function surfaceInput(action: string): string {
