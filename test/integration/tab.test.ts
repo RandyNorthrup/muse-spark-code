@@ -28,6 +28,7 @@ import {
   type TabQuietReason,
 } from '../../src/host/tab/tabBundle'
 import type { TabConsentDeps, TabConsentScope } from '../../src/host/tab/tabConsent'
+import { createTabByoResolutions } from '../../src/host/tab/tabByo'
 import { createTabLedger } from '../../src/host/tab/tabLedger'
 import { createTabProvider } from '../../src/host/tab/tabProvider'
 import { createTabSpendGate } from '../../src/host/tab/tabSpendGate'
@@ -181,6 +182,10 @@ function providerFor(
       tabWithCopilot: 'yield',
     }),
     recordMaxOutputTokens,
+    // This suite drives Meta tiers only; a bring-your-own reference never resolves here.
+    byo: createTabByoResolutions(() =>
+      Promise.reject(new Error('no bring-your-own model in this suite')),
+    ),
     isPaidOn: () => state.isPaidOn,
     isKeyStored: () => state.isKeyStored,
     isTrusted: () => state.isTrusted,
@@ -606,6 +611,7 @@ suite('Tab activation in a real editor (M94)', () => {
       },
       services: {
         stream: throwingStream(),
+        resolveByo: () => Promise.reject(new Error('no bring-your-own model in this suite')),
         recordMaxOutputTokens,
         ledgerDirectory: spendRoot,
         windowId: 'int-tab-activation',
