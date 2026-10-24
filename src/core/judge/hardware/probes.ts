@@ -14,6 +14,7 @@ import {
   JUDGE_PROBE_MAX_OUTPUT_BYTES,
   JUDGE_PROBE_TIMEOUT_MS,
   OLLAMA_DEFAULT_PORT,
+  WINDOWS_PROGRAM_EXTENSIONS,
 } from '../../../shared/constants'
 import {
   parseCimVideo,
@@ -93,6 +94,13 @@ export function runProbe(
 }
 
 async function isExecutable(file: string): Promise<boolean> {
+  // Windows has no execute bit (X_OK there proves only that the file
+  // exists): a file starts when its extension is a program's.
+  if (
+    process.platform === 'win32' &&
+    !WINDOWS_PROGRAM_EXTENSIONS.includes(path.win32.extname(file).toLowerCase())
+  )
+    return false
   try {
     await access(file, constants.X_OK)
     return true
