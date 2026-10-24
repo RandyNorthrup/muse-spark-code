@@ -2180,6 +2180,8 @@
   "gitExtensionMissing": "이 창에서는 VS Code의 기본 제공 Git 확장을 사용할 수 없습니다.",
   "gitExtensionDisabled": "VS Code의 Git이 꺼져 있습니다(git.enabled).",
   "gitNoRepository": "이 작업 영역은 VS Code의 Git이 열어 둔 git 리포지토리에 있지 않습니다.",
+  "gitWorkspaceNotRepository": "이 작업 영역은 git 리포지토리에 있지 않습니다.",
+  "gitProgramMissing": "이 컴퓨터에 Git이 설치되어 있지 않거나 PATH에 없습니다.",
   "gitNothingToCommit": "커밋할 항목이 없습니다.",
   "gitNothingStaged": "스테이징된 항목이 없습니다. \"스테이징되지 않은 변경 내용 및 새 파일 포함\"을 선택하거나 먼저 일부를 스테이징하세요.",
   "gitCommitMessageEmpty": "먼저 커밋 메시지를 입력하세요.",

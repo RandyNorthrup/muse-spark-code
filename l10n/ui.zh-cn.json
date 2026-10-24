@@ -2180,6 +2180,8 @@
   "gitExtensionMissing": "此窗口中没有 VS Code 内置的 Git 扩展。",
   "gitExtensionDisabled": "VS Code 的 Git 已关闭（git.enabled）。",
   "gitNoRepository": "此工作区不在 VS Code 的 Git 已打开的 git 存储库中。",
+  "gitWorkspaceNotRepository": "此工作区不在 git 存储库中。",
+  "gitProgramMissing": "此计算机上未安装 Git，或它不在 PATH 中。",
   "gitNothingToCommit": "没有要提交的内容。",
   "gitNothingStaged": "没有已暂存的内容。请勾选“包含未暂存的更改和新文件”，或先暂存一些更改。",
   "gitCommitMessageEmpty": "请先编写提交消息。",

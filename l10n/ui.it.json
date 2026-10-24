@@ -2224,6 +2224,8 @@
   "gitExtensionMissing": "L’estensione Git integrata di VS Code non è disponibile in questa finestra.",
   "gitExtensionDisabled": "Git di VS Code è disattivato (git.enabled).",
   "gitNoRepository": "Questa area di lavoro non si trova in un repository git aperto da Git di VS Code.",
+  "gitWorkspaceNotRepository": "Questa area di lavoro non si trova in un repository git.",
+  "gitProgramMissing": "Git non è installato su questo computer oppure non è nel PATH.",
   "gitNothingToCommit": "Non c’è nulla di cui eseguire il commit.",
   "gitNothingStaged": "Nessuna modifica è preparata per il commit. Seleziona “Includi modifiche non preparate e nuovi file” oppure prepara prima alcune modifiche.",
   "gitCommitMessageEmpty": "Scrivi prima un messaggio di commit.",

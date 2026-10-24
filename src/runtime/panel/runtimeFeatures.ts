@@ -44,7 +44,9 @@ import { createRuntimeReview } from '../features/review'
 import { createRuntimeTransfer } from '../features/transfer'
 import type { RuntimePaid } from '../features/paid'
 import { unavailable } from '../features/unavailable'
+import { unavailableGit } from '../features/unavailableGit'
 import { readConfinedBytes, type RuntimeWorkspaceFiles } from '../features/workspaceFiles'
+import type { PanelGit } from './git/panelGit'
 import type { ConversationContext } from './runtimeConversation'
 import { stat } from 'node:fs/promises'
 
@@ -63,6 +65,8 @@ export interface RuntimeConversationPorts {
   readonly paid: RuntimePaid
   readonly controllers: () => Iterable<ConversationController>
   readonly runGit: ConversationDeps['runGit']
+  /** The connection's Git, once opened; none in a workspace with no repository. */
+  readonly git: () => PanelGit | undefined
   /** The folder holding the shipped bundles (dist/). */
   readonly distDir: string
   /** The agent's data folder. */
@@ -359,7 +363,9 @@ export async function runtimeConversationDeps(
     plans: undefined,
     isWorkspaceTrusted: isTrusted,
     isWorktreeHeld: () => false,
-    createGit: (gitSurface) => unavailableGit(gitSurface, log),
+    createGit: (gitSurface) =>
+      ports.git()?.createGit(gitSurface) ??
+      unavailableGit(gitSurface, UI_TEXT.hostService.notAvailable, log),
     onForegroundTasksChanged: () => {
       log.trace('MHP_FOREGROUND_TASKS_CHANGED')
     },
@@ -415,32 +421,4 @@ function hostActions(
     if (!HOST_ACTIONS.includes(action)) throw new Error('MHP_COMPOSITION_ACTION_UNKNOWN')
   }
   return known
-}
-
-/** Git is not served by this editor's connection: it shows no git state, and every action says so. */
-function unavailableGit(
-  surface: Parameters<ConversationDeps['createGit']>[0],
-  log: Logger,
-): ReturnType<ConversationDeps['createGit']> {
-  const showNothing = () => {
-    surface.post({ type: 'gitState', state: {} })
-  }
-  return {
-    postState: showNothing,
-    sessionChanged: showNothing,
-    handleAction: () => Promise.reject(new Error(UI_TEXT.gitUnavailable)),
-    commit: () => Promise.reject(new Error(UI_TEXT.gitUnavailable)),
-    createPullRequest: () => Promise.reject(new Error(UI_TEXT.gitUnavailable)),
-    promptFor: () => Promise.reject(new Error(UI_TEXT.gitUnavailable)),
-    generationStarting: () => unavailable(),
-    isGenerationCurrent: () => false,
-    generationSubmitted: showNothing,
-    generationFailed: showNothing,
-    onEvent: () => {
-      log.trace('MHP_GIT_UNAVAILABLE')
-    },
-    dispose: () => {
-      log.trace('MHP_GIT_RELEASED')
-    },
-  }
 }

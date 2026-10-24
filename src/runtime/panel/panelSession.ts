@@ -10,14 +10,18 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { failureForLog } from '../../core/backends/musecode/logText'
 import type { ConversationController } from '../../host/conversation/conversationController'
+import type { SecretStore } from '../../host/auth/credentialStore'
 import { conversationLoader } from '../../host/conversation/conversationBundle'
 import { EditorContextTracker } from '../../host/editor/editorContextTracker'
+import { panelGitLoader } from '../../host/git/nativeGitBundle'
 import { isMissingPath } from '../../host/canonicalPath'
 import { logRejection, type Logger } from '../../host/logger'
 import { toSettingsSnapshot, type ExtensionSettings } from '../../host/settings'
 import {
   ACP_DEFAULT_BACKEND,
   CONVERSATION_BUNDLE_FILE,
+  NATIVE_GIT_BUNDLE_FILE,
+  WORKSPACE_STATE_KEYS,
   type AcpBackendKind,
   type AcpPaidFeature,
   RUNTIME_PANEL_RECONFIGURE_SETTINGS,
@@ -25,6 +29,7 @@ import {
 } from '../../shared/constants'
 import type { MhpNotificationMethod, MhpParams } from '../../shared/hostApi/methods'
 import { MHP_METHODS } from '../../shared/hostApi/methods'
+import { jsonValueSchema } from '../../shared/hostApi/data'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
@@ -37,6 +42,7 @@ import { createRuntimeWorkspaceFiles } from '../features/workspaceFiles'
 import type { RuntimeSettingsStore } from '../settingsStore'
 import type { PanelConnection } from './connection'
 import { ControllerRegistry } from './controllerRegistry'
+import type { PanelGit } from './git/panelGit'
 import { RuntimeConversation } from './runtimeConversation'
 import { runtimeConversationDeps } from './runtimeFeatures'
 import type { PanelView } from './surfaces'
@@ -58,6 +64,13 @@ export interface PanelSessionDeps {
     unsavedFiles: () => readonly string[],
   ) => Promise<RuntimeBackend>
   readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
+  /** What the connection's GitHub sign-in is made of: its credential store, network and name. */
+  readonly github: {
+    readonly secrets: SecretStore
+    readonly fetch: typeof globalThis.fetch
+    /** `muse-spark-code/<version>`, as the REST client sends it. */
+    readonly userAgent: string
+  }
   readonly log: Logger
   readonly table: UiText
   readonly locale: string
@@ -176,6 +189,8 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   let flaggedAtBuild: readonly AcpPaidFeature[] = []
   let isKeyStored = false
   let isTrusted = false
+  let git: PanelGit | undefined
+  let isGhLoginAllowed = false
   let runtime: RuntimeBackend | undefined
   let selection: MhpParams<'editor/didChangeSelection'>['selection'] = null
   let replacing: Promise<void> = Promise.resolve()
@@ -195,6 +210,46 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       for (const held of registry.controllers()) held.publishEditorContext(context)
     },
   })
+
+  const openGit = panelGitLoader({
+    bundlePath: path.join(deps.distDir, NATIVE_GIT_BUNDLE_FILE),
+    log,
+  })
+  /** The connection's Git: made once the editor can be asked, and again for a conversation if the workspace has since become a repository. */
+  async function ensureGit(): Promise<void> {
+    if (git?.isAvailable === true || ending.signal.aborted) return
+    try {
+      git = await openGit().openPanelGit(
+        {
+          host: connection,
+          workspaceRoot: workspace,
+          runGit: deps.runGit,
+          isTrusted: () => isTrusted,
+          ...deps.github,
+          useGhLogin: () => isGhLoginAllowed,
+          links: {
+            read: async () =>
+              await store.getStorage(WORKSPACE_STATE_KEYS.pullRequestLinks, 'workspace'),
+            write: async (value) => {
+              await store.setStorage(
+                WORKSPACE_STATE_KEYS.pullRequestLinks,
+                jsonValueSchema.parse(value),
+                'workspace',
+              )
+            },
+          },
+          dataFolder: deps.dataFolder,
+          signal: ending.signal,
+          log,
+        },
+        deps.table,
+        deps.locale,
+      )
+    } catch (error: unknown) {
+      // REPORTED: a workspace whose Git could not be opened has none; the log has the cause.
+      log.warn(`The panel's Git could not be opened: ${failureForLog(error)}`)
+    }
+  }
 
   const currentSettings = (): ExtensionSettings => {
     if (settings === undefined) throw new Error('MHP_NOT_INITIALIZED')
@@ -273,6 +328,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
             paid,
             controllers: () => controllersOf(registry.controllers()),
             runGit: deps.runGit,
+            git: () => git,
             distDir: deps.distDir,
             dataFolder: deps.dataFolder,
             files,
@@ -309,6 +365,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   }
 
   async function startConversation(isSideChat = false): Promise<RuntimeConversation> {
+    await ensureGit()
     const conversation = newConversation(isSideChat)
     registry.hold(conversation.sessionId, conversation)
     try {
@@ -375,6 +432,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     const next = await store.readAll()
     settings = next
     configured = await store.configuredSettings()
+    isGhLoginAllowed = (await store.getSetting('museSpark.github.useGhLogin')) === true
     for (const held of registry.controllers()) {
       held.publishSettings(toSettingsSnapshot(next))
       if (!next.allowDangerouslySkipPermissions) await held.controller?.revokeBypass()
@@ -421,6 +479,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       isTrusted = params.trusted
       settings = await store.readAll()
       configured = await store.configuredSettings()
+      isGhLoginAllowed = (await store.getSetting('museSpark.github.useGhLogin')) === true
       await paid.load()
       stopSettings = store.onSettingsChanged((keys) => {
         applySettings(keys)
@@ -486,6 +545,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
         ending.abort()
         stopSettings?.()
         editorContext.dispose()
+        git?.dispose()
         await registry.releaseEvery()
         await runtime?.close()
       })()

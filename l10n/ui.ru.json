@@ -2246,6 +2246,8 @@
   "gitExtensionMissing": "Встроенное расширение Git в VS Code недоступно в этом окне.",
   "gitExtensionDisabled": "Git в VS Code отключен (git.enabled).",
   "gitNoRepository": "Эта рабочая область не находится в репозитории git, открытом расширением Git в VS Code.",
+  "gitWorkspaceNotRepository": "Эта рабочая область не находится в репозитории git.",
+  "gitProgramMissing": "Git не установлен на этом компьютере или отсутствует в PATH.",
   "gitNothingToCommit": "Нечего фиксировать.",
   "gitNothingStaged": "В индексе ничего нет. Установите флажок «Включить непроиндексированные изменения и новые файлы» или сначала проиндексируйте изменения.",
   "gitCommitMessageEmpty": "Сначала напишите сообщение фиксации.",

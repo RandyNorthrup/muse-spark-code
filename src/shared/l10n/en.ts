@@ -2761,6 +2761,8 @@ export const EN = {
   gitExtensionMissing: 'VS Code’s built-in Git extension is not available in this window.',
   gitExtensionDisabled: 'VS Code’s Git is turned off (git.enabled).',
   gitNoRepository: 'This workspace is not in a git repository that VS Code’s Git has open.',
+  gitWorkspaceNotRepository: 'This workspace is not in a git repository.',
+  gitProgramMissing: 'Git is not installed on this computer, or it is not on the PATH.',
   gitNothingToCommit: 'There is nothing to commit.',
   gitNothingStaged:
     'Nothing is staged. Tick “Include unstaged changes and new files”, or stage some first.',
