@@ -11027,6 +11027,54 @@ export const VAULT_MIGRATION_BUDGET_KIB = 45
 export const VAULT_ID_BYTES = 16
 export const VAULT_TOTP_PERIOD_SECONDS = 30
 
+// M104 lane H (cc-m104h): `muse-spark-code-acp lsp`, Tab served to LSP
+// editors over standard I/O, and the supervised runs `supervise` and `stop`.
+// These are the protocols' own values; nothing here bounds the person's
+// documents, requests or runs.
+export const LSP_BUNDLE_FILE = 'lsp.js'
+export const SUPERVISE_BUNDLE_FILE = 'supervise.js'
+/** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
+export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
+/** A header block past this is malformed input (the common 8 KiB HTTP header bound). */
+export const LSP_HEADER_MAX_BYTES = 8192
+/** LSP's ServerNotInitialized error code (the specification's ErrorCodes). */
+export const LSP_SERVER_NOT_INITIALIZED = -32_002
+/** LSP's MessageType values. */
+export const LSP_MESSAGE_TYPE = { error: 1, warning: 2, info: 3 } as const
+/** TextDocumentSyncKind.Full: every change carries the document's whole text. */
+export const LSP_TEXT_SYNC_FULL = 1
+/** InlineCompletionTriggerKind.Invoked (LSP 3.18); Automatic is 2. */
+export const LSP_INLINE_TRIGGER_INVOKED = 1
+/** CompletionItemKind.Text and InsertTextFormat.PlainText. */
+export const LSP_COMPLETION_ITEM_TEXT = 1
+export const LSP_INSERT_TEXT_PLAIN = 1
+/** What the server offers through `workspace/executeCommand`. */
+export const LSP_COMMANDS = {
+  usage: 'muse.usage',
+  help: 'muse.help',
+  stop: 'muse.stop',
+  tabInvoke: 'muse.tabInvoke',
+  tabAccepted: 'muse.tabAccepted',
+} as const
+/** The supervised runs' private folder in the agent's data folder. */
+export const SUPERVISED_FOLDER = 'supervised'
+/** The owner's id in its supervised child's environment, so `stop` stops its own run last. */
+export const SUPERVISED_OWNER_VARIABLE = 'MUSE_SPARK_SUPERVISED_OWNER'
+/** The stop endpoint's secret: a control request carries it. */
+export const SUPERVISE_TOKEN_BYTES = 32
+/** The random part of a POSIX stop endpoint's file name. */
+export const SUPERVISE_ENDPOINT_NAME_BYTES = 8
+/** A request is the token's hex and a newline, a reply one short word: more is refused. */
+export const SUPERVISE_MESSAGE_MAX_BYTES = 128
+/** A record names a process, its endpoint and its token: more is not a record. */
+export const SUPERVISE_RECORD_MAX_BYTES = 4096
+/** POSIX `sun_path`: 104 bytes on macOS with its terminating byte. */
+export const SUPERVISE_SOCKET_PATH_MAX_BYTES = 103
+/** The stop control's reply words. */
+export const SUPERVISE_REPLY = { stopped: 'STOPPED', failed: 'FAILED' } as const
+/** A child ended by a signal exits 128 plus the signal's number (the shell convention). */
+export const SIGNAL_EXIT_BASE = 128
+
 // M124 (D106): `muse-spark-code-acp mcp`, the local MCP connector for other
 // agents. The proposed policy limits of docs/design/mcp-connector.md §6;
 // they are ours, not any client's promise.

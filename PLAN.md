@@ -30340,6 +30340,9 @@ logged.
 On int (cc/rlm104, 2026-10-24): the MHP contract (D226) and lane A's
 `src/host/vscode/` boundary; every other lane, with its int-specific
 design, is listed in `docs/certification/cc-rlm104.md`.
+Lane H on int (cc/m104h): `lsp` (Tab over LSP through RLF-TAB's consent,
+cap, hooks, eligibility), `supervise`, `stop`; test client vscode-jsonrpc
+9.0.3 (dev); record and remainder: `docs/certification/cc-m104h.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real
 POSIX verifier that refuses a group-writable unit search directory would

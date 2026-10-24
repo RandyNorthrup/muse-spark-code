@@ -57,6 +57,10 @@ import {
   BOUNDED_FILE_READ_CHUNK_BYTES,
   SCHEDULE_STORE_SUBFOLDER,
   CONNECTOR_BUNDLE_FILE,
+  LSP_BUNDLE_FILE,
+  MODEL_API_BASE_URL,
+  MODEL_API_BUNDLE_FILE,
+  SUPERVISE_BUNDLE_FILE,
   USAGE_PAGE_OPEN_TIMEOUT_MS,
   CONNECTOR_FOLDER,
   CONNECTOR_STORE_GUARD_BUNDLE_FILE,
@@ -76,6 +80,7 @@ import { authGitHub } from './authCommands'
 import {
   authSetProviderId,
   isHeadlessCommand,
+  type LspOptions,
   parseCommandLine,
   type RuntimeCommand,
   type ServeOptions,
@@ -102,6 +107,7 @@ import { reportEventsOf } from '../core/support/journalEvents'
 import {
   agentDataFolder,
   nodeDataFolder,
+  paidGrantsFile,
   workspaceKey,
   workspaceSessionsFolder,
 } from './dataFolder'
@@ -155,6 +161,8 @@ import { isSetupAction } from './judge/args'
 import { judgeFeaturesLoader, setupFeaturesLoader } from './judge/judgeBundle'
 import { cliJudgeBinding } from './judge/cliBinding'
 import { extensionHooksBundle } from '../host/extensionHooksBundle'
+import type { ExtensionHookRunner, ExtensionHookRunnerDeps } from '../host/extensionHooksEntry'
+import { modelApiClientLoader } from '../host/backend/modelApiBundle'
 import { fileContextIo } from '../host/backend/contextIo'
 import { createToolIo } from '../host/backend/toolIo'
 import { museSettingsPath } from '../host/backend/museSettings'
@@ -168,6 +176,8 @@ import { playbookSchedulesInputsLoader } from './reporting/playbookSchedulesInpu
 import type { createRuntimeReports } from './reporting/reportsEntry'
 import { runtimeSchedulesBinding, type RuntimeSchedulesBinding } from './schedules/binding'
 import { connectorLoader } from './connector/connectorBundle'
+import { lspLoader } from './lsp/lspBundle'
+import { superviseLoader } from './supervise/superviseBundle'
 import { storageGuardLoader } from './connector/storageGuardBundle'
 import type { ScheduleWakeAuthorization } from './schedules/registration'
 import { runtimeScheduleSessionFactory } from './schedules/sessionFactory'
@@ -906,13 +916,17 @@ function runtimeReports(
   }
 }
 
-/** Explicit trusted Setup runs neither an account probe nor a model request. */
-async function setupHooks(
-  options: ServeOptions,
-  isMaintenance: boolean,
+/**
+The workspace's extension hook runner (M91): Setup's, and the language
+server's Tab hooks (M104 lane H). Hooks run only while the workspace is
+trusted; where a hook's own words go is the caller's.
+*/
+async function workspaceHookRunner(
+  workspaceRoot: string,
+  isTrusted: boolean,
   log: Logger,
-): Promise<number> {
-  const workspaceRoot = process.cwd()
+  output: Pick<ExtensionHookRunnerDeps, 'notice' | 'showOutput'>,
+): Promise<ExtensionHookRunner> {
   const systemRoot = process.env['SystemRoot']
   const io = createToolIo({
     platform: process.platform,
@@ -946,7 +960,7 @@ async function setupHooks(
     path.join(distDir, EXTENSION_HOOKS_BUNDLE_FILE),
     log,
   ).loadBundle()
-  const runner = bundle.createExtensionHookRunner(
+  return bundle.createExtensionHookRunner(
     {
       io: fileContextIo,
       runHook,
@@ -957,15 +971,10 @@ async function setupHooks(
         homeDir: homedir(),
         xdgConfigHome: process.env['XDG_CONFIG_HOME'],
       }),
-      isWorkspaceTrusted: () => options.trustWorkspace,
-      isHooksEnabled: () => options.trustWorkspace,
+      isWorkspaceTrusted: () => isTrusted,
+      isHooksEnabled: () => isTrusted,
       now: () => Date.now(),
-      notice: (_level, text) => {
-        writeLine(process.stderr, text)
-      },
-      showOutput: (_title, text) => {
-        writeLine(process.stdout, text)
-      },
+      ...output,
       warn: (message) => {
         log.warn(message)
       },
@@ -973,6 +982,107 @@ async function setupHooks(
     UI_TEXT,
     uiLocale(),
   )
+}
+
+/** What `supervise`, `stop` and `muse.stop` share: this folder, the data folder, the table. */
+async function superviseInput(log: Logger) {
+  return {
+    dataFolder: agentDataFolder({
+      platform: process.platform,
+      env: process.env,
+      homeDir: homedir(),
+    }),
+    cwd: await realpath(process.cwd()),
+    env: process.env,
+    table: UI_TEXT,
+    locale: uiLocale(),
+    log,
+  }
+}
+
+/**
+`lsp` (M104 lane H): dist/lsp.js serves one editor. The credential store is
+read, and the key client loaded, only through the two ports below, which
+the server calls only with `--tab`; the hook runner loads on the first
+request a hook may guard, and a failed load is tried again next time.
+*/
+async function runLanguageServer(options: LspOptions, log: Logger): Promise<number> {
+  const dataInput = { platform: process.platform, env: process.env, homeDir: homedir() }
+  const workspace = await realpath(options.workspace)
+  let hookRunner: Promise<ExtensionHookRunner> | undefined
+  const loadHookRunner = async (): Promise<ExtensionHookRunner> => {
+    const loading = (hookRunner ??= workspaceHookRunner(workspace, options.isTrusted, log, {
+      // The protocol owns stdout: a hook's own words go to the log.
+      notice: (_level, text) => {
+        log.info(text)
+      },
+      showOutput: (_title, text) => {
+        log.info(text)
+      },
+    }))
+    try {
+      return await loading
+    } catch (error: unknown) {
+      // A failed load refuses this request's reads; the next request loads again.
+      if (hookRunner === loading) hookRunner = undefined
+      throw error
+    }
+  }
+  return await lspLoader(path.join(distDir, LSP_BUNDLE_FILE), log)().runLsp(options, {
+    stdin: process.stdin,
+    stdout: process.stdout,
+    table: UI_TEXT,
+    locale: uiLocale(),
+    log,
+    dataFolder: agentDataFolder(dataInput),
+    grantsFile: paidGrantsFile(dataInput),
+    isKeyStored: async () => {
+      try {
+        return (await secrets.get(SECRET_KEYS.modelApiKey)) !== undefined
+      } catch (error: unknown) {
+        log.warn(
+          `The credential store could not be read, so Tab reads no key: ${failureForLog(error)}`,
+        )
+        return false
+      }
+    },
+    keyClient: modelApiClientLoader({
+      bundlePath: path.join(distDir, MODEL_API_BUNDLE_FILE),
+      log,
+      client: {
+        fetch: globalThis.fetch.bind(globalThis),
+        baseUrl: MODEL_API_BASE_URL,
+        apiKey: async () => await secrets.get(SECRET_KEYS.modelApiKey),
+        now: () => Date.now(),
+        random: () => Math.random(),
+        log,
+        networkAdvice: 'agent',
+      },
+    }),
+    hookRunner: loadHookRunner,
+    runGit: processGitRunner(),
+    stopWorkspace: async () => {
+      await superviseLoader(path.join(distDir, SUPERVISE_BUNDLE_FILE), log)().stopWorkspace(
+        await superviseInput(log),
+      )
+    },
+  })
+}
+
+/** Explicit trusted Setup runs neither an account probe nor a model request. */
+async function setupHooks(
+  options: ServeOptions,
+  isMaintenance: boolean,
+  log: Logger,
+): Promise<number> {
+  const runner = await workspaceHookRunner(process.cwd(), options.trustWorkspace, log, {
+    notice: (_level, text) => {
+      writeLine(process.stderr, text)
+    },
+    showOutput: (_title, text) => {
+      writeLine(process.stdout, text)
+    },
+  })
   const result = await runner.runSetup(isMaintenance ? 'maintenance' : 'init')
   if (result.failedReason !== undefined) {
     writeLine(process.stderr, fill(UI_TEXT.setupHooksFailed, { reason: result.failedReason }))
@@ -1532,6 +1642,7 @@ function runtimeDictation(
 }
 
 function logLevel(command: RuntimeCommand | SharingCommand): LogLevel {
+  if (command.command === 'lsp') return command.options.isVerbose ? 'trace' : 'warn'
   if (command.command !== 'serve') {
     return 'warn'
   }
@@ -2294,6 +2405,29 @@ async function main(processResources: ProcessResources): Promise<number> {
     }
     case 'setup': {
       return await setupHooks(command.options, command.maintenance, log)
+    }
+    case 'lsp': {
+      return await runLanguageServer(command.options, log)
+    }
+    case 'supervise': {
+      return await superviseLoader(path.join(distDir, SUPERVISE_BUNDLE_FILE), log)().runSupervise(
+        command.args,
+        {
+          ...(await superviseInput(log)),
+          entry: __filename,
+          stdin: process.stdin,
+          stdout: process.stdout,
+          stderr: process.stderr,
+        },
+      )
+    }
+    case 'stop': {
+      return await superviseLoader(path.join(distDir, SUPERVISE_BUNDLE_FILE), log)().runStop({
+        ...(await superviseInput(log)),
+        print: (line) => {
+          writeLine(process.stdout, line)
+        },
+      })
     }
     case 'chatGptProvider': {
       const providers = await chatGptDeps()

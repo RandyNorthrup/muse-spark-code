@@ -16,7 +16,7 @@ import type {
   TabDocumentChange,
   TabFilesExclude,
   TabHookBridge,
-} from '../vscode/tab/tabBundle'
+} from './tabContract'
 import type { TabHookContext } from '../../core/tab/tabHooks'
 
 // --- `files.exclude` (Acceptance 4) ---

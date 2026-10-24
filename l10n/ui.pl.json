@@ -874,7 +874,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: Użyj poziomu Fast z katalogu planu (2x szybkość, zwiększone użycie). Domyślnie wyłączone: zużywa więcej limitu Twojego planu.",
     "exec-provider": "Uruchom na tym dostawcy (backend Model API); --model to wtedy <provider>/<model>.",
-    "scan-timeout": "Ustaw limit skanowania w sekundach; bez niego skanowanie działa do zakończenia."
+    "scan-timeout": "Ustaw limit skanowania w sekundach; bez niego skanowanie działa do zakończenia.",
+    "lsp-trust-workspace": "Ufaj temu folderowi: Tab odczytuje jego pliki, jego hooki są uruchamiane i oferowane jest Zawsze zezwalaj w tym obszarze roboczym.",
+    "tab": "Oferuj płatne uzupełnienia Tab rozliczane z zapisanego klucza Model API; edytor pyta przed pierwszym obciążeniem, podając cenę.",
+    "tab-model": "Model, którego używają uzupełnienia Tab.",
+    "tab-daily-budget-usd": "Zatrzymaj Tab do końca dnia przy tej kwocie w dolarach amerykańskich; 0, wartość domyślna, nie ustala budżetu.",
+    "tab-max-output-tokens": "Ogranicz każde żądanie Tab do tylu tokenów wyjściowych; 0, wartość domyślna, to własne maksimum modelu.",
+    "tab-trigger": "Obsługuj Tab podczas pisania (automatic) lub tylko na żądanie (onInvoke)."
   },
   "referenceScanSecrets": "Skanuje plik poprawki UTF-8 w poszukiwaniu sekretów i kończy się błędem po wykryciu. --key-stdin sprawdza także dokładny klucz Model API w pamięci; żaden klucz nie jest zapisywany.",
   "referenceVault": "Pracuj z magazynem poświadczeń użytkownika z terminala: konfiguracja, odzyskiwanie, reset, stan, odblokowanie, blokowanie, lista, dodawanie, granty, audyt, import i obserwacja. Wartości nigdy nie są wypisywane; przechowuje je broker. Po wyraźnym potwierdzeniu reset może też zastąpić blokadę zapisu o nieznanym właścicielu.",
@@ -4498,6 +4504,10 @@
     "purposeLegal": "Uruchom skanowanie prawne tylko do odczytu.",
     "purposeFonts": "Zainstalować opcjonalne czcionki dla samodzielnych powierzchni.",
     "purposePlaybook": "Pokaż lub zmień playbook orkiestratora dla tego obszaru roboczego.",
+    "purposeLsp": "Obsługuj uzupełnienia Tab dla edytora przez Language Server Protocol na stdin i stdout.",
+    "noteLsp": "Bez --tab nic nie jest rozliczane, a magazyn danych logowania nigdy nie jest odczytywany. Z nią każda nowa cena najpierw pyta w edytorze; Zawsze zezwalaj w tym obszarze roboczym jest dostępne tylko z --trust-workspace.",
+    "purposeSupervise": "Uruchom inne polecenie tego agenta tak, aby stop mógł je zakończyć razem ze wszystkimi uruchomionymi przez nie procesami.",
+    "purposeStop": "Zatrzymaj każde nadzorowane uruchomienie rozpoczęte w tym folderze razem ze wszystkimi uruchomionymi przez nie procesami.",
     "purposeSetup": "Uruchom hooki Setup i zakończ.",
     "purposeUsage": "Pokaż użycie i koszty wszystkich modeli.",
     "purposeResources": "Pokaż obciążenie komputera i ostatnią historię.",
@@ -7104,6 +7114,27 @@
   },
   "mcpConnectorTitle": "Łącznik MCP dla innych agentów",
   "referenceMcpCommand": "Udostępnia narzędzia Muse Spark Code innym agentom (Codex, Claude Code, Gemini CLI) przez MCP; każdy zapis czeka na Twoje zatwierdzenie.",
+  "languageServer": {
+    "help": "Tab z Muse Spark Code (Unofficial), obsługiwany przez {command} lsp. Uzupełnienia w wierszu same proszą o podpowiedź; muse.tabInvoke wstawia ją tam, gdzie edytor żadnej nie pokazuje; muse.usage pokazuje dzisiejsze wydatki na Tab; muse.stop zatrzymuje każde nadzorowane uruchomienie w tym folderze.",
+    "budgetReached": "Dzisiejsze wydatki na Tab, {spent}, osiągnęły dzienny budżet {budget}, więc uzupełnienia są wstrzymane do jutra. Aby kontynuować dzisiaj, uruchom serwer języka z wyższym --tab-daily-budget-usd.",
+    "unavailable": "Serwer języka nie jest dostępny w tej instalacji."
+  },
+  "supervision": {
+    "stopNone": "W tym folderze nie rozpoczęto żadnego nadzorowanego uruchomienia.",
+    "stopped": {
+      "one": "Zatrzymano {count} nadzorowane uruchomienie.",
+      "other": "Zatrzymano {count} nadzorowanego uruchomienia.",
+      "few": "Zatrzymano {count} nadzorowane uruchomienia.",
+      "many": "Zatrzymano {count} nadzorowanych uruchomień."
+    },
+    "stopFailed": {
+      "one": "{count} nadzorowanego uruchomienia nie udało się zatrzymać w całości.",
+      "other": "{count} nadzorowanego uruchomienia nie udało się zatrzymać w całości.",
+      "few": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości.",
+      "many": "{count} nadzorowanych uruchomień nie udało się zatrzymać w całości."
+    },
+    "unavailable": "Nadzór nie jest dostępny w tej instalacji."
+  },
   "acpConnector": {
     "title": "Zatwierdź żądania konektora",
     "intro": "Inny agent poprosił Muse Spark Code o wykonanie poniższych działań. Nic się nie stanie, dopóki tego tutaj nie zatwierdzisz; własne ustawienia Allow, Auto lub Bypass tego agenta nie mogą tego zatwierdzić.",

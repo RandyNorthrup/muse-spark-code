@@ -278,6 +278,21 @@ export function cliCommands(shouldIncludeHeld = false) {
       text: { ui: 'referenceExecContract' },
     },
     {
+      route: 'lsp',
+      name: 'lsp [--trust-workspace] [--tab] [options]',
+      description: UI_TEXT.cliHelp.purposeLsp,
+    },
+    {
+      route: 'supervise',
+      name: 'supervise [<command> [options]]',
+      description: UI_TEXT.cliHelp.purposeSupervise,
+    },
+    {
+      route: 'stop',
+      name: 'stop',
+      description: UI_TEXT.cliHelp.purposeStop,
+    },
+    {
       route: 'scan-secrets',
       name: 'scan-secrets',
       description: UI_TEXT.referenceScanSecrets,

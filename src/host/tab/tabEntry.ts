@@ -6,8 +6,6 @@
 // installs the caller's display table before use (PLAN.md D33): the bundle
 // keeps its own installed-language state beside the activation's.
 
-import { createTabEngine } from '../../core/tab/tabEngine'
-import { createTabHooks, type TabHooksDeps } from '../../core/tab/tabHooks'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
 import {
@@ -17,14 +15,12 @@ import {
   type TabLoadedWiring,
   type TabProviderDeps,
   type TabProviderHandle,
-  type TabServices,
-  type TabServicesDeps,
   type TabStatusDeps,
 } from '../vscode/tab/tabBundle'
 import type { TabSnooze } from './tabSnooze'
-import { createTabLedger } from './tabLedger'
 import { createTabProvider as createProvider } from '../vscode/tab/tabProvider'
-import { createTabSpendGate } from './tabSpendGate'
+import { createTabServices } from './tabServices'
+import { createTabHookBridge } from './tabHookBridge'
 import { createTabByoResolutions } from './tabByo'
 import {
   showTabMenu as showMenu,
@@ -32,79 +28,27 @@ import {
   tabLanguagesCommand as runLanguagesCommand,
 } from '../vscode/tab/tabStatus'
 
-function now(): number {
-  return Date.now()
-}
+// The engine and the spend gate are portable (tabServices.ts): the language
+// server builds the same ones (M104 lane H).
+export { createTabServices } from './tabServices'
 
-/** The engine (lane C) over the key client, and the spend gate over this window's ledger (lane L). */
-export function createTabServices(deps: TabServicesDeps): TabServices {
-  const ledger = createTabLedger({
-    directory: deps.ledgerDirectory,
-    windowId: deps.windowId,
-    now,
-    sleep: (ms) =>
-      new Promise((resolve) => {
-        setTimeout(resolve, ms)
-      }),
-    log: deps.log,
-  })
-  return {
-    engine: createTabEngine({
-      stream: deps.stream,
-      onSent: deps.onSent,
-      onUsage: deps.onUsage,
-    }),
-    spend: createTabSpendGate({
-      ledger,
-      budgetUsd: deps.budgetUsd,
-      now,
-      onTotalChanged: deps.onTotalChanged,
-      ...(deps.onBudgetReached !== undefined && { onBudgetReached: deps.onBudgetReached }),
-      log: deps.log,
-    }),
-  }
+/** The injected bridge, else the one built over the hook runner; none without either. */
+function hooksOf(
+  hooks: TabProviderDeps['hooks'],
+  dispatch: TabProviderDeps['hookDispatch'],
+  isTrusted: () => boolean,
+  log: TabProviderDeps['log'],
+): TabProviderDeps['hooks'] {
+  return (
+    hooks ?? (dispatch === undefined ? undefined : createTabHookBridge(dispatch, isTrusted, log))
+  )
 }
 
 export function createTabProvider(deps: TabProviderDeps & TabBundleTable): TabProviderHandle {
   setUiText(deps.uiTable, deps.locale)
-  if (deps.hooks !== undefined || deps.hookDispatch === undefined) return createProvider(deps)
-  const dispatch = deps.hookDispatch
-  let runner: Awaited<ReturnType<Extract<typeof dispatch, { load: unknown }>['load']>>
-  const hookDispatch: Omit<TabHooksDeps, 'isWorkspaceTrusted' | 'log'> =
-    'load' in dispatch
-      ? {
-          isHooksEnabled: dispatch.isHooksEnabled,
-          configurationVersion: () => runner?.configurationVersion() ?? '',
-          isReloading: () => runner?.isReloading() ?? false,
-          hookState: async (event) => {
-            runner = await dispatch.load()
-            if (runner === undefined) throw new Error('Tab hook dispatch unavailable')
-            return await runner.tabHookState(event)
-          },
-          run: async (request) => {
-            runner = await dispatch.load()
-            return await runner?.runTab(request)
-          },
-        }
-      : dispatch
-  const hooks = createTabHooks({
-    ...hookDispatch,
-    isWorkspaceTrusted: deps.isTrusted,
-    log: (message) => {
-      deps.log.info(message)
-    },
-  })
   return createProvider({
     ...deps,
-    hooks: {
-      beforeRead: hooks.beforeRead,
-      afterEdit: (edit) => {
-        hooks.afterEdit({ ...edit, acceptance: edit.inferred ? 'partial' : 'full' }, edit)
-      },
-      bindPolicy: hooks.bindPolicy,
-      policyKey: hooks.policyKey,
-      dispose: hooks.dispose,
-    },
+    hooks: hooksOf(deps.hooks, deps.hookDispatch, deps.isTrusted, deps.log),
   })
 }
 
@@ -193,8 +137,10 @@ export function createTabLoaded(wiring: TabLoadedWiring): TabLoadedHandle {
     engine,
     spend,
     consentDeps: wiring.consentDeps,
-    hooks: wiring.hooks,
-    hookDispatch: wiring.hookDispatch,
+    // The hook bridge over the runner activation handed over: every read
+    // passes a configured beforeTabFileRead, every accept reaches
+    // afterTabFileEdit (M104 lane H found the lazy path built none).
+    hooks: hooksOf(wiring.hooks, wiring.hookDispatch, wiring.isTrusted, wiring.log),
     onOutcome: (outcome) => {
       // Deny snoozes the window (Q-M94a): set it before the status redraws.
       if (outcome.kind === 'quiet' && outcome.reason === 'consent-denied') {

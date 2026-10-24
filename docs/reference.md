@@ -4045,6 +4045,9 @@ These are defaults; editor customizations take precedence.
 - `auth github login|logout|status`: Sign in to GitHub for pull requests with GitHub’s device flow: enter the printed code at github.com/login/device; the token stays in this computer’s credential store. logout deletes it, status says whether one is stored.
 - `setup`: Run Setup hooks for init from spark-hooks.json in a trusted workspace.
 - `exec`: Headless runs refuse workspace trust and bypass permissions. Headless runs permit only plan or acceptEdits. Hosted web search has no bounded allowance and is refused. Image generation requires acceptEdits. Choose exactly one prompt source. Prompt and key cannot both use stdin. Model API requires --max-budget-usd. modelApi: --max-budget-usd / --max-requests / --max-output-tokens / --ephemeral / --key-stdin / --subscription / --image-generation / --auto-compaction; museCode: --muse-binary / --shell-sandbox; --untrusted-file: data; --fail-on-denial; --ephemeral: memory-only; --output: text/json/jsonl; --cwd: workspace. Automatic compaction runs only with --auto-compaction under --max-budget-usd.
+- `lsp [--trust-workspace] [--tab] [options]`: Serve Tab completions to an editor over the Language Server Protocol on stdin and stdout.
+- `supervise [<command> [options]]`: Run another command of this agent so that stop can end it, with every process it started.
+- `stop`: Stop every supervised run started in this folder, with every process it started.
 - `scan-secrets`: Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.
 - `providers accounts`: Manage the accounts of one provider: list, add, remove, order and thresholds. Credentials come only from standard input. Paid uses billed to the default account keep this workspace’s consent; another account’s first paid use asks for that account, naming its price and the shared daily budget.
 - `developer`: Show or unlock machine-local developer options. Profile operations require a connected resource owner.
@@ -4353,6 +4356,17 @@ These are defaults; editor customizations take precedence.
 - `resources: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `fontsInstall: --from <value>`: --from &lt;value&gt;: From `{"type":"string","repeatable":false,"format":"YYYY-MM-DD"}`
 - `fontsInstall: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --workspace <value>`: Use this directory as the workspace. `{"type":"string","repeatable":false}`
+- `lsp: --tab`: Offer paid Tab completions on the stored Model API key; the editor asks first, naming the price. `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --tab-model <value>`: The model Tab completions use. `{"type":"string","repeatable":false}`
+- `lsp: --tab-daily-budget-usd <value>`: Stop Tab for the day at this many US dollars; 0, the default, sets no budget. `{"type":"string","repeatable":false}`
+- `lsp: --tab-max-output-tokens <value>`: Cap each Tab request at this many output tokens; 0, the default, is the model’s own maximum. `{"type":"string","repeatable":false}`
+- `lsp: --tab-trigger <value>`: Serve Tab as you type (automatic) or only on request (onInvoke). `{"type":"string","repeatable":false}`
+- `lsp: --trust-workspace`: Trust this folder: Tab reads its files, its hooks run, and Allow Always is offered. `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --allow-contributor-models`: --allow-contributor-models List contributor-tier models (Meta may train on their content) `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --verbose`: --verbose Log every detail on stderr `{"type":"boolean","repeatable":false,"default":false}`
+- `lsp: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `stop: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `judge: --engine <value>`: Which judge answers: auto, same, separate or both. `{"type":"string","repeatable":false}`
 - `judge: --model <value>`: Choose the model for this run. `{"type":"string","repeatable":false}`
 - `judge: --separate <value>`: The separate source id, without a credential. `{"type":"string","repeatable":false}`
