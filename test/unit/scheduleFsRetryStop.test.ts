@@ -30,11 +30,15 @@ describe('schedule storage reads without an attempt count', () => {
 
   it('ends a transient wait at the call stop, with the abort reason', async () => {
     const root = await temporaryDir('muse-schedule-stop-')
+    const fs = createNodeScheduleFs(root)
+    // The read targets a file that exists: Windows grants every user
+    // traverse past a denied folder, so a missing name under it reads as
+    // missing there (ENOENT), never as the transient denial this case needs.
+    await fs.publish('probe/file.json', '{"held":true}')
     const allow = await denyAccess(root)
     try {
-      const fs = createNodeScheduleFs(root)
       const stop = new AbortController()
-      const reading = fs.read('probe/missing.json', { signal: stop.signal })
+      const reading = fs.read('probe/file.json', { signal: stop.signal })
       await delay(300)
       stop.abort()
       await expect(reading).rejects.toBe(stop.signal.reason)
