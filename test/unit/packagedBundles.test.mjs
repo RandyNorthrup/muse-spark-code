@@ -25,10 +25,10 @@ import { removeFolder } from './helpers/temporaryFolders'
 // 27–42 s. The copy still stands on the real packed product; only the
 // build moved out of the hook's deadline.
 const PRODUCTION_SETUP_TIMEOUT_MS = 60_000
-// Six runs of the registry command over that build, four of them complete:
-// each reads every source that can load a file and inventories the VSIX
-// (3.2 s a run on the Kubuntu rig).
-const REGISTRY_COMMAND_RUNS_TIMEOUT_MS = 180_000
+// Seven runs of the registry command over that build, five of them
+// complete: each reads every source that can load a file and inventories
+// the VSIX (3.2 s a run on the Kubuntu rig, 24 s on the Windows rig).
+const REGISTRY_COMMAND_RUNS_TIMEOUT_MS = 210_000
 // Removing the complete build copy after the run deletes thousands of
 // files; on a loaded machine that alone passes the 10 s hook default
 // with every case green, so the removal carries its own named budget.
@@ -196,6 +196,12 @@ beforeAll(() => {
   const committed = readFileSync(registry, 'utf8')
   command.committed = committed.replaceAll('\r\n', '\n')
   command.current = registryCommand(script, '--check')
+  // The VSIX carrying a bundle only the agent loads: the agent's media
+  // port allowlisted back into .vscodeignore (cc-vsixsize).
+  const ignore = path.join(folder, '.vscodeignore')
+  writeFileSync(ignore, `${readFileSync(ignore, 'utf8')}!dist/runtimeMedia.js\n`)
+  command.agentOnly = registryCommand(script, '--check')
+  cpSync(path.join(root, '.vscodeignore'), ignore)
   // A row edited by hand: the file no longer says what the build gives.
   writeFileSync(
     registry,
@@ -258,6 +264,13 @@ it('fails the registry command on a stale file and names the row', () => {
   expect(command.stale.output).toContain(`lazy registry: ${REGISTRY} row modelApiTools.js says`)
   expect(command.stale.output).toContain("symbol: 'ModelApiSession.elsewhere'")
   expect(command.stale.output).toContain("symbol: 'ModelApiSession.toolAssist'")
+})
+
+it('fails the registry command when the VSIX carries a bundle only the agent loads', () => {
+  expect(command.agentOnly.status, command.agentOnly.output).toBe(1)
+  expect(command.agentOnly.output).toContain(
+    'lazy registry: the VSIX carries runtimeMedia.js, which only the agent loads',
+  )
 })
 
 it('writes the registry the repository commits', () => {
