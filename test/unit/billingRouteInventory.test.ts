@@ -87,7 +87,8 @@ it('inventories every transport entry and requires the single route resolver', (
     'core/backends/modelapi/transport.ts:request',
     'core/providers/configured.ts:request',
     'core/providers/configured.ts:request',
-    'runtime/providerProbe.ts:request',
-    'runtime/providersCommands.ts:request',
+    // The probe's and the commands' reads share one request since the
+    // int/recovery merges (bf7fcb66a1).
+    'runtime/providerReads.ts:request',
   ])
 })
