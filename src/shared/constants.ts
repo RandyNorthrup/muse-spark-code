@@ -1457,6 +1457,22 @@ export const PAID_DAILY_BUDGET = {
   stopDirectory: 'stopped',
 } as const
 export const RUNTIME_SETTINGS_FILE = 'settings.json'
+// The resource governor's machine settings, beside settings.json (M107).
+export const RUNTIME_RESOURCE_SETTINGS_FILE = 'resources.json'
+// M104 lane B: the runtime panel's state. User settings stay in the two
+// files above; a workspace's own settings and both storage scopes are these
+// files, the workspace's in its folder of the agent data folder.
+export const RUNTIME_PANEL_STATE = {
+  workspaceSettingsFile: 'settings.json',
+  storageFile: 'panel-storage.json',
+  fileMode: 0o600,
+  // One writer per file across processes: the runtime's named lock (a pipe
+  // on Windows, a socket in this folder under /tmp elsewhere), one name per
+  // file from the start of its path's SHA-256.
+  lockPipe: 'muse-spark-panel-state',
+  lockFolder: 'muse-spark-panel-state',
+  lockIdChars: 16,
+} as const
 // D208: each process's running total for a day lives in this folder of the day's scope.
 export const DAILY_SPEND_FOLDER = 'spent'
 export const SPEND_LEDGER_ESTIMATE_MARGIN_PERCENT = 25

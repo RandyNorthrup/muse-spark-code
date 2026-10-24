@@ -454,6 +454,19 @@ function readSetting<K extends SettingKey>(
   return fallback
 }
 
+/** A setting's name under the section; the runtime's settings store keys by it (M104 lane B). */
+export type SettingName = SettingKey
+
+/** Whether `name` is one of the settings this product declares. */
+export function isSettingName(name: string): name is SettingName {
+  return Object.hasOwn(settingSchemas, name)
+}
+
+/** `value` as setting `name` accepts it; throws the schema's error when it is not one. */
+export function parseSettingValue(name: SettingName, value: unknown): unknown {
+  return settingSchemas[name].parse(value)
+}
+
 export function readSettings(config: SettingsSource, log: Logger): ExtensionSettings {
   // C-X-1: unbound settings retain their stored values, but have no runtime reader.
   // Typed contracts carry defaults until their actual owners bind.
