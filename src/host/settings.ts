@@ -95,6 +95,8 @@ export interface ExtensionSettings extends SettingsSnapshot {
   readonly modelApiPromptCacheRetention: PromptCacheRetention
   /** The minimum cache lifetime asked of OpenAI GPT-5.6 and later (RLPROVSYNC). */
   readonly modelApiPromptCacheTtl: PromptCacheTtl
+  /** OpenAI's explicit cache breakpoints on GPT-5.6 and later (M95c part 3). */
+  readonly modelApiPromptCacheBreakpoints: boolean
   readonly modelApiScheduledPrompts: boolean
   /** The v2 schedules surface (M115, PLAN.md D95): on by default. */
   readonly schedules: boolean
@@ -282,6 +284,7 @@ const settingSchemas = {
   sandboxNetwork: z.enum(SANDBOX_NETWORK_MODES),
   modelApiPromptCacheRetention: z.enum(PROMPT_CACHE_RETENTIONS),
   modelApiPromptCacheTtl: z.enum(PROMPT_CACHE_TTLS),
+  modelApiPromptCacheBreakpoints: z.boolean(),
   modelApiScheduledPrompts: z.boolean(),
   schedules: z.boolean(),
   scheduleDefaultDelivery: z.enum(SCHEDULE_DELIVERIES),
@@ -481,6 +484,7 @@ export function readSettings(config: SettingsSource, log: Logger): ExtensionSett
     sandboxNetwork: readSetting(config, 'sandboxNetwork', log),
     modelApiPromptCacheRetention: readSetting(config, 'modelApiPromptCacheRetention', log),
     modelApiPromptCacheTtl: readSetting(config, 'modelApiPromptCacheTtl', log),
+    modelApiPromptCacheBreakpoints: readSetting(config, 'modelApiPromptCacheBreakpoints', log),
     modelApiScheduledPrompts: readSetting(config, 'modelApiScheduledPrompts', log),
     schedules: readSetting(config, 'schedules', log),
     scheduleDefaultDelivery: readSetting(config, 'scheduleDefaultDelivery', log),

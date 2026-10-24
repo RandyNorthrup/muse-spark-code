@@ -1612,7 +1612,7 @@ Settings (modelApiPromptCacheRetention).
 
 Surfaces: vscode:modelApi. Paid: no extra feature charge; model usage still applies.
 
-Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`, `museSpark.modelApiPromptCacheTtl`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
+Commands: —. Settings: `museSpark.modelApiPromptCacheRetention`, `museSpark.modelApiPromptCacheTtl`, `museSpark.modelApiPromptCacheBreakpoints`. [Documentation](https://github.com/RandyNorthrup/muse-spark-code#paid-features)
 
 ### museSpark.paidDailyBudgetUsd
 
@@ -2555,6 +2555,19 @@ Type: `"string"`. Default: `"default"`. Scope: `machine`.
 
 - `"default"`: OpenAI's default: a 30-minute minimum lifetime, billed at 1.25 times the input rate for cache writes.
 - `"12h"`: A 12-hour minimum lifetime for stable instructions reused across longer gaps, billed at 2.5 times the input rate for cache writes.
+
+### museSpark.modelApiPromptCacheBreakpoints
+
+Marks OpenAI's explicit prompt-cache breakpoints (prompt_cache_breakpoint) on GPT-5.6 and later: one after the conversation's stable start and one on its latest message, so later turns can reuse both. Sent only on direct Responses API requests with your own key. Cache writes bill at the rate the cache lifetime sets.
+
+Type: `"boolean"`. Default: `false`. Scope: `machine`.
+
+```json
+{
+  "type": "boolean",
+  "default": false
+}
+```
 
 ### museSpark.modelApiScheduledPrompts
 

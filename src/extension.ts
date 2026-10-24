@@ -1052,6 +1052,7 @@ async function activateWindow(
   const personCap = (): number | undefined => currentSettings().modelApiMaxRetries ?? undefined
   // RLPROVSYNC: the person's cache-lifetime choice, read live per request.
   const promptCacheTtl = (): PromptCacheTtl => currentSettings().modelApiPromptCacheTtl
+  const shouldMarkCacheBreakpoints = (): boolean => currentSettings().modelApiPromptCacheBreakpoints
   const updateSetting = (key: string, value: unknown) =>
     vscode.workspace
       .getConfiguration(SETTINGS_SECTION)
@@ -1261,6 +1262,7 @@ async function activateWindow(
       configFile: providerConfigFile,
       personCap,
       promptCacheTtl,
+      promptCacheBreakpoints: shouldMarkCacheBreakpoints,
       isRemote: vscode.env.remoteName !== undefined,
       grokClientId: () => currentSettings().grokClientId,
       isConfidential: () => currentSettings().confidentialWorkspace,
