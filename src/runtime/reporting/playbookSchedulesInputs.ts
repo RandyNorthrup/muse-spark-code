@@ -1,7 +1,7 @@
-// Bound playbook and schedules report inputs (M113 lane C-M113-4,
+// Bound playbook, schedules and issues report inputs (M113 lane C-M113-4,
 // PLAN.md D93.4). Every engine construction (VS Code, ACP, CLI) builds
-// these from the same durable sources: M116's playbook journal and M115's
-// schedule store with its fire record. Ships in
+// these from the same durable sources: M116's playbook journal, M115's
+// schedule store with its fire record, and M115w's watchdog records. Ships in
 // dist/playbookSchedulesInputs.js, beside the session/usage inputs chunk:
 // the journal replay and the schedule store machinery would overflow that
 // chunk's 100 KiB budget, and no budget is raised to fit them. The hosts
@@ -14,7 +14,9 @@ import {
 import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
+import { readWatchdogRepositories } from '../../core/watchdog/storeRead'
 import { LocalSourceError } from '../../core/reporting/sources/local'
+import type { IssuesReportReader } from '../../core/reporting/sources/issues'
 import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
 import type { SchedulesReportReader } from '../../core/reporting/sources/schedules'
 import type { SourceReadContext } from '../../core/reporting/sources/types'
@@ -134,6 +136,31 @@ export function createSchedulesReportReader(input: {
         }
       }
       throw new LocalSourceError('busy')
+    },
+  }
+}
+
+/**
+The reporting `issues` source from M115w's watchdog records: the same
+files the watchdog writes, read-only. No watched repository reads empty,
+never an error; damaged JSON or a record the schema refuses is `invalid`,
+and a real I/O failure is `failed`.
+*/
+export function createIssuesReportReader(input: {
+  readonly agentDataFolder: string
+}): IssuesReportReader {
+  return {
+    read: async (context: SourceReadContext) => {
+      try {
+        const repositories = await readWatchdogRepositories(
+          createNodeScheduleFs(input.agentDataFolder),
+        )
+        return { repositories, observedAt: context.asOf }
+      } catch (error) {
+        const isContentFailure =
+          error instanceof SyntaxError || (error instanceof Error && error.name === '$ZodError')
+        throw new LocalSourceError(isContentFailure ? 'invalid' : 'failed')
+      }
     },
   }
 }

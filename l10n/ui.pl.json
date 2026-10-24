@@ -1894,6 +1894,15 @@
       "replied": "Z odpowiedzią",
       "closed": "Zamknięte"
     },
+    "waits": {
+      "seen": "Potwierdzenie nie zostało jeszcze opublikowane",
+      "acknowledged": "Czeka na segregację",
+      "triaged": "Czeka na Twoją decyzję",
+      "awaitingInfo": "Czeka na odpowiedź zgłaszającego",
+      "planned": "Czeka na poprawkę i jej weryfikację",
+      "replied": "Nic: odpowiedziano",
+      "closed": "Nic: zamknięto"
+    },
     "cli": {
       "empty": "Strażnik nie obserwuje jeszcze żadnego repozytorium.",
       "notWatched": "To repozytorium nie jest obserwowane.",
@@ -2278,7 +2287,7 @@
     "many": "{count} kolejnych problemów"
   },
   "reportCliUsage": "Wygeneruj deterministyczny raport z nazwanych źródeł, bez wywołania modelu.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n",
-  "reportCliKinds": "Rodzaje: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n",
+  "reportCliKinds": "Rodzaje: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n",
   "reportIssue": "Zgłoś problem…",
   "reportCrashOffer": "Muse Spark Code został ostatnio nieoczekiwanie zamknięty — zgłosić to?",
   "reportCrashAction": "Zgłoś problem",

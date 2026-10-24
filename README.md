@@ -127,6 +127,7 @@ visible as unavailable.
 | Estimate             | `/report estimate M113`; `--by <date>` sets the deadline, `--fleet minimum` picks the setup |
 | Engineering Playbook | `/report playbook`                                                                          |
 | Schedules            | `/report schedules`                                                                         |
+| Issues               | `/report issues`; `--repo owner/name` picks one watched repository                          |
 
 Each table shows at most ten rows with an omitted-row count; `--full` retains
 all available rows. Next steps follow the plan's declared delivery order and

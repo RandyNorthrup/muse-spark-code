@@ -5,6 +5,7 @@ import { certificationSource } from './certification'
 import { changelogSource } from './changelog'
 import { estimateSource, type ReportEstimateReader } from './estimate'
 import { gitSource, type ReportGitIo } from './git'
+import { issuesSource, type IssuesReportReader } from './issues'
 import { localSource, LocalSourceError, type LocalFileIo, type SourceScrub } from './local'
 import { packageSource } from './package'
 import { playbookSource, type PlaybookReportReader } from './playbook'
@@ -38,6 +39,8 @@ export interface LocalReportSourceDeps {
   readonly playbook?: PlaybookReportReader
   /** M115's store and fire record adapter; only the schedules kind binds it. */
   readonly schedules?: SchedulesReportReader
+  /** M115w's watchdog records adapter; only the issues kind binds it. */
+  readonly issues?: IssuesReportReader
   readonly enabledAgents: readonly AgentUsageAgent[]
   readonly agentFiles: AgentUsageFiles
 }
@@ -55,6 +58,7 @@ export type LocalReportSources = Pick<
   | 'security'
   | 'playbook'
   | 'schedules'
+  | 'issues'
   | 'estimate'
 >
 /** All editors, CLI and ACP bind the same readers in the lazy reporting bundle. */
@@ -99,5 +103,6 @@ export function createLocalReportSources(deps: LocalReportSourceDeps): LocalRepo
     security: securitySource(deps.security, deps.scrub),
     playbook: playbookSource(deps.playbook, deps.scrub),
     schedules: schedulesSource(deps.schedules, deps.scrub),
+    issues: issuesSource(deps.issues, deps.scrub),
   }
 }

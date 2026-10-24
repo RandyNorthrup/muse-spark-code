@@ -760,6 +760,18 @@ function runtimeReports(
             // M113 C-M113-4: the estimate report kind runs the headless
             // estimator for the report's workspace root. Only estimate
             // reports load it; networked reads stay off headless (D65).
+            // M115w WU: the issues kind reads the watchdog's records, which
+            // live under the same agent data folder.
+            issues: {
+              read: (context) =>
+                playbookSchedules()
+                  .createIssuesReportReader(
+                    { agentDataFolder: dataFolder },
+                    l10n.table,
+                    l10n.locale,
+                  )
+                  .read(context),
+            },
             estimate: {
               read: (request, context) =>
                 inputs()

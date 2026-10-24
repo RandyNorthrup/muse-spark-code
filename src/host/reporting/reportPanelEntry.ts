@@ -245,6 +245,18 @@ export function createReportingWindow(
                 )
                 .read(context),
           },
+          // M115w WU: the issues kind reads the watchdog's records under the
+          // same agent data folder.
+          issues: {
+            read: (context) =>
+              loadPlaybookSchedules()
+                .createIssuesReportReader(
+                  { agentDataFolder: deps.reportUsageDataFolder },
+                  table,
+                  locale,
+                )
+                .read(context),
+          },
           // M113 C-M113-4: the estimate kind runs M117's engine through the
           // extension's lazy estimator bundle. Only estimate reports load
           // it; every other kind leaves the reader untouched.

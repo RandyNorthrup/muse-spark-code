@@ -637,7 +637,7 @@ export const ON_FIRST_USE = [
   {
     output: 'dist/playbookSchedulesInputs.js',
     metafile: 'dist/meta/playbookSchedulesInputs.json',
-    use: 'the first playbook or schedules report read',
+    use: 'the first playbook, schedules or issues report read',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
     files: [
       'src/runtime/reporting/playbookSchedulesInputsEntry.ts',

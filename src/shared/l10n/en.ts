@@ -2267,6 +2267,15 @@ export const EN = {
       replied: 'Replied',
       closed: 'Closed',
     },
+    waits: {
+      seen: 'The acknowledgement has not been posted yet',
+      acknowledged: 'Waiting for its triage',
+      triaged: 'Waiting for your decision',
+      awaitingInfo: 'Waiting for the reporter’s answer',
+      planned: 'Waiting for the fix and its verification',
+      replied: 'Nothing: replied',
+      closed: 'Nothing: closed',
+    },
     cli: {
       empty: 'The watchdog is not watching any repository yet.',
       notWatched: 'This repository is not watched.',
@@ -2665,7 +2674,7 @@ export const EN = {
   reportCliUsage:
     'Generate a deterministic report from named sources, without a model call.\n  {command} report <kind> [args] [--format md|html|json|text] [--out <file>]\n  [--as-of <ISO>] [--lang <locale>] [--network] [--from <file.json>]\n  [--diff previous|<file.json>] [--full] [--strict] [--fail-on <conditions>]\n  {command} report history\n  {command} report problem\n',
   reportCliKinds:
-    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, schedules.\n',
+    'Kinds: project, milestone <id>, release <version|latest>, changes [since <ref>], quality, usage [period], session, keybindings, accounts, security, estimate <milestone>, playbook, issues [--repo <owner/name>], schedules.\n',
   reportIssue: 'Report an Issue…',
   // Report a problem (M93, PLAN.md D72): the crash offer, the report
   // dialog's labels and actions, and the export outcomes. The preview shows
