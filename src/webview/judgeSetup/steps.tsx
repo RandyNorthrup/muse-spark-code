@@ -87,7 +87,7 @@ function AdvancedBlock({
         <div className="js-row-actions">
           <button
             type="button"
-            className="js-button"
+            className="models-button"
             onClick={() => {
               post({ command: 'chooseHosted' })
             }}
@@ -96,7 +96,7 @@ function AdvancedBlock({
           </button>
           <button
             type="button"
-            className="js-button"
+            className="models-button"
             onClick={() => {
               post({ command: 'chooseSkip' })
             }}
@@ -175,7 +175,7 @@ export function LicenceStep({
         <p>
           <button
             type="button"
-            className="js-link-button"
+            className="models-link"
             onClick={() => {
               openExternal(url)
             }}

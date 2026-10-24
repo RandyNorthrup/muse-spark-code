@@ -34,6 +34,7 @@ import type { AccountsSessionPort } from '../../acp/accounts'
 import type { AccountsCommandDeps } from './accountsCommand'
 import type { ExecAccountsPort } from '../exec/execAccounts'
 import { fileAccountsMetadata } from './providersFileStore'
+import { errorNameForLog, type CoreLogger } from '../../core/logging'
 import {
   ACCOUNT_DEFAULT_ID,
   DEVELOPER_PROFILE_ID_BYTES,
@@ -54,6 +55,8 @@ export type RuntimeAccountServicesInput = {
   readonly settings?: (() => { isSwapOn: boolean; isParallelOn: boolean }) | undefined
   readonly askPolicy?: Parameters<typeof createAccountRequestOwner>[0]['askPolicy']
   readonly onNotice?: Parameters<typeof createAccountRequestOwner>[0]['publish']
+  /** Where an observer's failure is recorded, by kind only. */
+  readonly log: Pick<CoreLogger, 'warn'>
   readonly dataDir: string
   readonly registerSecret?: AccountSecretsDeps['registerSecret']
   readonly now?: () => number
@@ -107,6 +110,7 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     private readonly account: string,
     private readonly owner: () => ReturnType<typeof createAccountRequestOwner>,
     private readonly settings: () => { isSwapOn: boolean; isParallelOn: boolean },
+    private readonly log: Pick<CoreLogger, 'warn'>,
   ) {}
 
   private async snapshot(sessionId: string): ReturnType<AccountsSessionPort['read']> {
@@ -186,8 +190,10 @@ class RuntimeAccountSessions implements AccountsSessionPort {
     for (const listener of listeners) {
       try {
         listener(event)
-      } catch {
-        /* Publication already committed; observers cannot undo it. */
+      } catch (error: unknown) {
+        // Publication already committed; observers cannot undo it, and the
+        // others still hear it. The log keeps the failure's kind.
+        this.log.warn(`An account session observer failed (${errorNameForLog(error)})`)
       }
     }
   }
@@ -366,7 +372,7 @@ export function createRuntimeAccountServices(
   const owner = (provider: string) => {
     let created = owners.get(provider)
     if (created === undefined) {
-      created = createAccountRequestOwner({
+      const starting = createAccountRequestOwner({
         provider,
         store,
         metadata,
@@ -380,15 +386,20 @@ export function createRuntimeAccountServices(
             if (key.startsWith(`${provider} `)) port.notice(sessionId, event)
           try {
             input.onNotice?.(sessionId, event, accounts)
-          } catch {
-            /* Committed notices cannot roll back admission. */
+          } catch (error: unknown) {
+            // Committed notices cannot roll back admission: the log keeps the kind.
+            input.log.warn(`An account notice could not be delivered (${errorNameForLog(error)})`)
           }
         },
       })
-      owners.set(provider, created)
-      void created.catch(() => {
-        if (owners.get(provider) === created) owners.delete(provider)
+      owners.set(provider, starting)
+      void starting.catch((error: unknown) => {
+        // A failed start leaves the cache, so the next use starts again;
+        // every caller awaiting it receives the failure, the log its kind.
+        if (owners.get(provider) === starting) owners.delete(provider)
+        input.log.warn(`Account services could not start (${errorNameForLog(error)})`)
       })
+      created = starting
     }
     return created
   }
@@ -404,7 +415,14 @@ export function createRuntimeAccountServices(
     const key = `${provider} ${account}`
     let port = sessionsByProvider.get(key)
     if (port === undefined) {
-      port = new RuntimeAccountSessions(store, provider, account, () => owner(provider), settings)
+      port = new RuntimeAccountSessions(
+        store,
+        provider,
+        account,
+        () => owner(provider),
+        settings,
+        input.log,
+      )
       sessionsByProvider.set(key, port)
     }
     return port

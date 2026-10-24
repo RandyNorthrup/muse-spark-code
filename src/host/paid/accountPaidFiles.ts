@@ -37,7 +37,7 @@ import {
 } from '../../core/paid/accountPaidConsent'
 import { latestPaidGrant, paidAuthorityKey, type PaidGrant } from '../../core/paid/paidAuthority'
 import type { CoreLogger } from '../../core/logging'
-import { describeStoreError, storeErrorCode } from '../backend/storeErrors'
+import { describeStoreError, isStoreErrorCode } from '../backend/storeErrors'
 import { writeFileAtomically } from '../fsAtomic'
 
 export interface AccountPaidFilesDeps {
@@ -95,7 +95,7 @@ export function accountPaidFiles(deps: AccountPaidFilesDeps, bindingKey: string)
     try {
       return readdirSync(folder)
     } catch (error: unknown) {
-      if (storeErrorCode(error) === ENOENT) return []
+      if (isStoreErrorCode(error, ENOENT)) return []
       throw new Error(`${folder} could not be read: ${describeStoreError(error)}`, {
         cause: error,
       })
@@ -125,7 +125,7 @@ export function accountPaidFiles(deps: AccountPaidFilesDeps, bindingKey: string)
       if (parsed.success) return parsed.data
       deps.log.warn(`Account paid grant ${name} ignored: not a valid record`)
     } catch (error: unknown) {
-      if (storeErrorCode(error) !== ENOENT)
+      if (!isStoreErrorCode(error, ENOENT))
         deps.log.warn(`Account paid grant ${name} ignored: ${describeStoreError(error)}`)
     }
     return undefined
@@ -170,7 +170,7 @@ export function accountPaidFiles(deps: AccountPaidFilesDeps, bindingKey: string)
           mode: ACCOUNT_PAID_STORE.fileMode,
         })
       } catch (error: unknown) {
-        if (storeErrorCode(error) === EEXIST) throw new StaleEpochError(key)
+        if (isStoreErrorCode(error, EEXIST)) throw new StaleEpochError(key)
         throw error
       }
     },

@@ -169,6 +169,10 @@ export const ACP_BUNDLES = [
   'toolRange.js',
   'modelApiVerify.js',
   'modelApiImage.js',
+  // M125: the B1 hold, the tool calls' run and the fast judge, each loaded on first use.
+  'modelApiB1.js',
+  'modelApiToolRun.js',
+  'modelApiFast.js',
   'recorder.js',
   'reporting.js',
   'reportingNetwork.js',

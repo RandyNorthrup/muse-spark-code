@@ -8,15 +8,15 @@
 // before the first render (PLAN.md D33).
 
 import { createRoot } from 'react-dom/client'
-import { Component, lazy, type ReactNode } from 'react'
+import { lazy } from 'react'
 import { UI_TEXT, WEBVIEW_ROOT_ELEMENT_ID } from '../../shared/constants'
-import type { ErrorReporter } from '../errorReport'
-import { webviewErrorReport } from '../errorReport'
 import { type HostBridge, vsCodeHostBridge } from '../hostBridge'
-import { installEmbeddedTable } from '../installTable'
+import { reportPageFailures } from '../pageReport'
 import { DeferredSurface } from '../components/DeferredSurface'
+import { PageBoundary } from '../components/PageBoundary'
 import { rememberedSectionHeight, SectionLoading } from './DeferredSections'
 import { SectionNavigation } from './SectionNavigation'
+import './controls.css'
 import './models.css'
 
 void import('./ProvidersSection').catch(() => {
@@ -28,74 +28,19 @@ const ModelsApp = lazy(async () => {
   return { default: module.ModelsApp }
 })
 
-interface CrashState {
-  readonly crashed: boolean
-}
-
-class PanelBoundary extends Component<
-  { readonly children: ReactNode; readonly onError: (error: unknown) => void },
-  CrashState
-> {
-  static getDerivedStateFromError(): CrashState {
-    return { crashed: true }
-  }
-
-  constructor(props: { readonly children: ReactNode; readonly onError: (error: unknown) => void }) {
-    super(props)
-    this.state = { crashed: false }
-  }
-
-  override componentDidCatch(error: unknown): void {
-    this.props.onError(error)
-  }
-
-  override render(): ReactNode {
-    if (this.state.crashed) {
-      // An explicit error, never an empty panel. Reloading re-renders
-      // from the host's state; nothing typed lives only here.
-      return (
-        <div className="models-panel">
-          <h2>{UI_TEXT.modelsPanelTitle}</h2>
-          <p role="alert">{UI_TEXT.modelsPanelUnavailable}</p>
-          <button
-            type="button"
-            className="models-button"
-            onClick={() => {
-              window.location.reload()
-            }}
-          >
-            {UI_TEXT.crashReload}
-          </button>
-        </div>
-      )
-    }
-    return this.props.children
-  }
-}
-
 // The panel boots once and keeps no module state besides the bridge it
 // renders with. What throws on the way reaches the host's log (M39): a
 // render the boundary caught, an error or a rejected promise nothing
 // handled, a host message — all through the same bridge as the chat panel.
 function startModelsPanel(root: Element, bridge: HostBridge): void {
-  const report: ErrorReporter = (source, error) => {
-    bridge.post(webviewErrorReport(source, error))
-  }
-  window.addEventListener('unhandledrejection', (event) => {
-    const reason: unknown = event.reason
-    report('promise', reason)
-  })
-  window.addEventListener('error', (event) => {
-    const error: unknown = event.error ?? event.message
-    report('window', error)
-  })
-  // The table came from the host, so a refused one is logged as a host message's.
-  const tableError = installEmbeddedTable(document)
-  if (tableError !== undefined) {
-    report('hostMessage', tableError)
-  }
+  const report = reportPageFailures(bridge)
   createRoot(root).render(
-    <PanelBoundary
+    <PageBoundary
+      crashed={{
+        className: 'models-panel',
+        title: UI_TEXT.modelsPanelTitle,
+        message: UI_TEXT.modelsPanelUnavailable,
+      }}
       onError={(error) => {
         report('render', error)
       }}
@@ -126,7 +71,7 @@ function startModelsPanel(root: Element, bridge: HostBridge): void {
       >
         <ModelsApp host={bridge} report={report} />
       </DeferredSurface>
-    </PanelBoundary>,
+    </PageBoundary>,
   )
 }
 

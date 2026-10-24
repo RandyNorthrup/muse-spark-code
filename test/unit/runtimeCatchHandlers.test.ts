@@ -285,6 +285,7 @@ function seedMeta(dir: string): void {
 async function checkAccount(dir: string, provider: string, account: string): Promise<void> {
   const services = createRuntimeAccountServices({
     dataDir: dir,
+    log: logger().log,
     openEntry: () => {
       throw new Error('unused in this path')
     },

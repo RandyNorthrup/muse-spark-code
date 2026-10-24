@@ -243,12 +243,20 @@ describe('B2 baseline attribution', () => {
   })
 })
 
+/** A drill repository with a manifest and a config, and the closure at its HEAD. */
+async function repoWithHeadClosure(): Promise<{
+  readonly repo: string
+  readonly baseline: B2DefinitionClosure
+}> {
+  const repo = await initRepo({ 'package.json': MANIFEST, 'vitest.config.ts': 'config\n' })
+  const head = await reads.readHead(repo)
+  if (head === undefined) throw new Error('the drill repository must have a HEAD')
+  return { repo, baseline: await closureAt(repo, head) }
+}
+
 describe('B2 closure comparison', () => {
   it('matches the live tree to its own commit', async () => {
-    const repo = await initRepo({ 'package.json': MANIFEST, 'vitest.config.ts': 'config\n' })
-    const head = await reads.readHead(repo)
-    if (head === undefined) throw new Error('the drill repository must have a HEAD')
-    const baseline = await closureAt(repo, head)
+    const { repo, baseline } = await repoWithHeadClosure()
     const current = await closureAt(repo, 'live')
     expect(compareB2Closures(current, baseline)).toEqual({ equal: true })
   })
@@ -272,10 +280,7 @@ describe('B2 closure comparison', () => {
   })
 
   it('names a changed script, field and reached set', async () => {
-    const repo = await initRepo({ 'package.json': MANIFEST, 'vitest.config.ts': 'config\n' })
-    const head = await reads.readHead(repo)
-    if (head === undefined) throw new Error('the drill repository must have a HEAD')
-    const baseline = await closureAt(repo, head)
+    const { repo, baseline } = await repoWithHeadClosure()
     await writeFile(
       path.join(repo, 'package.json'),
       JSON.stringify({

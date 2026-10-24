@@ -74,6 +74,7 @@ import {
 
 import { lazyBrowserKeybindings } from './lib/browserKeybindings.mjs'
 import { compressedModelText } from './lib/compressedModelText.mjs'
+import { withFoldedConstants } from './lib/foldedConstants.mjs'
 import {
   compiledRecordFor,
   newBuildRecord,
@@ -865,7 +866,8 @@ const modelApiVerifyOptions = {
 }
 
 // The image run-path (M34, M44: the call checks, the purchase and the
-// paid-use naming), loaded on the first image call.
+// paid-use naming), loaded on the first image call, with an attached
+// image's resize to the model's bounds.
 const MODEL_API_IMAGE_ENTRY = 'src/core/backends/modelapi/modelApiImageEntry.ts'
 const MODEL_API_IMAGE_OUTFILE = 'dist/modelApiImage.js'
 
@@ -874,6 +876,45 @@ const modelApiImageOptions = {
   ...modelApiOptions,
   entryPoints: [MODEL_API_IMAGE_ENTRY],
   outfile: MODEL_API_IMAGE_OUTFILE,
+}
+
+// The B1 hold (M125, D107 §9.3: the confined runner, the floor, the veto
+// race and the skip's audit), loaded on the first shell ask that reaches
+// the hold with a packaged helper.
+const MODEL_API_B1_ENTRY = 'src/core/backends/modelapi/modelApiB1Entry.ts'
+const MODEL_API_B1_OUTFILE = 'dist/modelApiB1.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiB1Options = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_B1_ENTRY],
+  outfile: MODEL_API_B1_OUTFILE,
+}
+
+// What a tool call or goal command runs (the file and shell tools'
+// execution with their edit helpers, the memory tool, the browser check's
+// placement and report, the goal rules), loaded on the first of them.
+const MODEL_API_TOOL_RUN_ENTRY = 'src/core/backends/modelapi/modelApiToolRunEntry.ts'
+const MODEL_API_TOOL_RUN_OUTFILE = 'dist/modelApiToolRun.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiToolRunOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_TOOL_RUN_ENTRY],
+  outfile: MODEL_API_TOOL_RUN_OUTFILE,
+}
+
+// The fast judge's session side (M125 lane M, D107: the loop detector, the
+// first-send triage, the effort and keep-list verdicts, the turn boundary),
+// loaded when each turn or compaction starts.
+const MODEL_API_FAST_ENTRY = 'src/core/backends/modelapi/modelApiFastEntry.ts'
+const MODEL_API_FAST_OUTFILE = 'dist/modelApiFast.js'
+
+/** @type {import('esbuild').BuildOptions} */
+const modelApiFastOptions = {
+  ...modelApiOptions,
+  entryPoints: [MODEL_API_FAST_ENTRY],
+  outfile: MODEL_API_FAST_OUTFILE,
 }
 
 /** @type {import('esbuild').BuildOptions} */
@@ -1251,7 +1292,9 @@ const judgeOptions = {
 /** @type {import('esbuild').BuildOptions} */
 const modelsPanelOptions = {
   ...common,
-  plugins: [sharedUiText, sharedValidation, deferredCohort],
+  // The redaction, vault and money modules come from the shared boundary
+  // chunks every other Node consumer reads, not a copy of their own.
+  plugins: [sharedUiText, sharedValidation, deferredCohort, sharedModelApiBoundaries],
   entryPoints: [MODELS_PANEL_ENTRY],
   outfile: MODELS_PANEL_OUTFILE,
   platform: 'node',
@@ -2014,7 +2057,9 @@ if (process.argv.includes('--webview-only')) {
   if (!isProduction || isWatch) throw new Error('--webview-only requires --production')
   mkdirSync(METAFILE_DIR, { recursive: true })
   const buildRecord = newBuildRecord()
-  const { metafile } = await esbuild.build(withCompiledRecording(webviewOptions, buildRecord))
+  const { metafile } = await esbuild.build(
+    withCompiledRecording(withFoldedConstants(webviewOptions), buildRecord),
+  )
   writeWebviewMetafiles(metafile, buildRecord)
   process.exit(0)
 }
@@ -2112,6 +2157,9 @@ if (isWatch) {
     esbuild.context(modelApiFileRangeOptions),
     esbuild.context(modelApiVerifyOptions),
     esbuild.context(modelApiImageOptions),
+    esbuild.context(modelApiB1Options),
+    esbuild.context(modelApiToolRunOptions),
+    esbuild.context(modelApiFastOptions),
     esbuild.context({
       ...modelApiOptions,
       entryPoints: ['src/host/backend/providerPolicyEntry.ts'],
@@ -2227,7 +2275,9 @@ if (isWatch) {
   const recorded = (name, options) => () => {
     const buildRecord = newBuildRecord()
     buildRecords.set(name, buildRecord)
-    return esbuild.build(isProduction ? withCompiledRecording(options, buildRecord) : options)
+    return esbuild.build(
+      isProduction ? withCompiledRecording(withFoldedConstants(options), buildRecord) : options,
+    )
   }
   const shippedSpecs = {
     questionNotes: recorded('questionNotes', {
@@ -2319,6 +2369,9 @@ if (isWatch) {
     modelApiFileRange: recorded('modelApiFileRange', modelApiFileRangeOptions),
     modelApiVerify: recorded('modelApiVerify', modelApiVerifyOptions),
     modelApiImage: recorded('modelApiImage', modelApiImageOptions),
+    modelApiB1: recorded('modelApiB1', modelApiB1Options),
+    modelApiToolRun: recorded('modelApiToolRun', modelApiToolRunOptions),
+    modelApiFast: recorded('modelApiFast', modelApiFastOptions),
     planMarkdown: recorded('planMarkdown', planMarkdownOptions),
     checkpointStore: recorded('checkpointStore', checkpointStoreOptions),
     media: recorded('media', mediaOptions),

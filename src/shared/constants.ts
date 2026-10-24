@@ -359,7 +359,12 @@ export const NODE_AUTH_TERMINAL_STREAM = '/node/terminal/stream'
 export const NODE_FILE_TREE_ROW_PX = 32
 export const NODE_FILE_TREE_VISIBLE_ROWS = 12
 export const NODE_FILE_TREE_OVERSCAN_ROWS = 4
-export const NODE_WORKSPACE_ASSET = './node/files/main.js'
+/**
+The node workspace page's stylesheet beside the page script: the chat page
+links it for the node surface. The workspace's script comes from the node's
+binding (`loadWorkspace`), never by file name from the chat bundle.
+*/
+export const NODE_WORKSPACE_STYLESHEET = './node/files/main.css'
 export const NODE_WORKSPACE_BUDGET_KIB = 375
 export const NODE_EDITOR_BUDGET_KIB = 600
 /** U2: the lazy terminal chunk (xterm.js) is budgeted apart from the

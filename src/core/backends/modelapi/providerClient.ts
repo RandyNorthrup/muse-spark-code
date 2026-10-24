@@ -11,8 +11,8 @@ import {
   assertConfirmedAllowed,
   canRetryWithinBudget,
   ignoreClosingError,
+  isModelApiError,
   redactModelApiError,
-  rethrowStreamError,
   ModelApiError,
   parseJsonResponse,
   type TransportDeps,
@@ -23,6 +23,7 @@ import {
 } from './transport'
 import type { AuthSource } from './authSource'
 import { isRefusalRetryable, isRetryableStreamFailure } from './providerRefusal'
+import { isUserRefusal } from '../../refusal'
 import { PROVIDER_CONNECTION_LOST_CODE, UI_TEXT } from '../../../shared/constants'
 import { fill } from '../../../shared/l10n/text'
 import { streamEventSchema, usageSchema } from './schemas'
@@ -153,6 +154,21 @@ export interface CodecClientDeps {
   readonly streamIdleMs?: number
 }
 
+/** A failed stream attempt, as the resend decision reads it. */
+interface FailedStream {
+  /** The response's status: the failure's own when it carries none. */
+  readonly status: number
+  readonly redact: (text: string) => string
+  /** Whether content arrived before the failure; the turn then ends with it. */
+  readonly hasContent: boolean
+  readonly signal: AbortSignal
+  /** The HTTP and whole-stream retries share one budget (the review of PR #28). */
+  readonly retries: RetryBudget
+  readonly onRetry: ((notice: RetryNotice) => void) | undefined
+  /** A per-call-billed (media) request, which only the transport retries. */
+  readonly isMediaBilled: boolean
+}
+
 /** The only BYO HTTP adapter: no codec or provider implementation loads on activation. */
 export class CodecClient implements ProviderClient {
   private readonly transport: RequestTransport
@@ -196,6 +212,58 @@ export class CodecClient implements ProviderClient {
     this.currentKeyDigest = this.transport.currentKeyDigest.bind(this.transport)
     this.retryDelayMs = this.transport.backoffMs.bind(this.transport)
     this.waitBeforeRetry = this.transport.pause.bind(this.transport)
+  }
+  /**
+  Whether a failed stream attempt is sent again: true once the next attempt
+  may go (after its wait), false when the failure stands and the caller
+  throws it.
+  */
+  private async isStreamResent(error: unknown, failed: FailedStream): Promise<boolean> {
+    const { retries, signal } = failed
+    const failure = redactModelApiError(error, failed.redact, failed.status)
+    // A retryable error the provider ended its stream with before any
+    // content (Anthropic's `overloaded_error`, "which would normally
+    // correspond to an HTTP 529"; OpenRouter's mid-stream 429 or 503) is
+    // sent again under the same policy as that status (lane PROVERRORS,
+    // research anthropic.md AB3, openrouter.md "Mid-stream 429"); so is a
+    // connection lost before any content, as a transient send failure is.
+    // Once content has arrived the turn ends with it. A per-call-billed
+    // (media) request is never sent again here, as the transport retries it
+    // only on a 429.
+    const isResendable =
+      isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
+      (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
+    // Lane PR225FIX2: a connection lost before any content is an ambiguous
+    // send — the request may have arrived and executed — so it is sent
+    // again only within an explicit bound (the person's setting or the
+    // provider's documented maximum), never on the unbounded default. A
+    // retryable error the provider ended its stream with stays on the
+    // status policy above.
+    const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
+    const allowed = this.transport.maxRetries()
+    if (
+      !isResendable ||
+      failed.hasContent ||
+      signal.aborted ||
+      failed.isMediaBilled ||
+      !canRetryWithinBudget(retries, retries.retriesUsed) ||
+      (isAmbiguous && allowed === undefined) ||
+      retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+    )
+      return false
+    const attempt = retries.retriesUsed
+    retries.retriesUsed = attempt + 1
+    const delayMs = this.retryDelayMs(attempt)
+    failed.onRetry?.({
+      attempt: attempt + 1,
+      maxAttempts: allowed === undefined ? undefined : allowed + 1,
+      delayMs,
+      reason: `${failure.code ?? ''}: ${failure.message}`,
+    })
+    await this.waitBeforeRetry(delayMs, signal)
+    // Lane PR225W1: the person's limit is live — a change mid-wait refuses
+    // the resend the pre-wait check accepted.
+    return attempt < (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)
   }
   /** This client's effective retry limit (see `ProviderClient.maxRetries`). */
   public maxRetries(): number | undefined {
@@ -380,50 +448,26 @@ export class CodecClient implements ProviderClient {
           }
           return
         } catch (error: unknown) {
-          const failure = redactModelApiError(error, redact, response.status)
-          // A retryable error the provider ended its stream with before any
-          // content (Anthropic's `overloaded_error`, "which would normally
-          // correspond to an HTTP 529"; OpenRouter's mid-stream 429 or 503)
-          // is sent again under the same policy as that status (lane
-          // PROVERRORS, research anthropic.md AB3, openrouter.md "Mid-stream
-          // 429"); so is a connection lost before any content, as a transient
-          // send failure is. Once content has arrived the turn ends with it.
-          // A per-call-billed (media) request is never sent again here, as the
-          // transport retries it only on a 429.
-          const isResendable =
-            isRetryableStreamFailure(failure, this.deps.transport.retryTable) ||
-            (failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE)
-          // Lane PR225FIX2: a connection lost before any content is an
-          // ambiguous send — the request may have arrived and executed — so
-          // it is sent again only within an explicit bound (the person's
-          // setting or the provider's documented maximum), never on the
-          // unbounded default. A retryable error the provider ended its
-          // stream with stays on the status policy above.
-          const isAmbiguous = failure.status === 0 && failure.code === PROVIDER_CONNECTION_LOST_CODE
-          const allowed = this.transport.maxRetries()
+          // The attempt is sent again, or its failure stands: a local
+          // refusal (a cap, the person's Stop) keeps its own sentence, and
+          // anything else leaves redacted at the response's status.
+          const failed: FailedStream = {
+            status: response.status,
+            redact,
+            hasContent,
+            signal,
+            retries,
+            onRetry,
+            isMediaBilled: admitAttempt?.mediaAccounting !== undefined,
+          }
+          if (await this.isStreamResent(error, failed)) continue
           if (
-            !isResendable ||
-            hasContent ||
-            signal.aborted ||
-            admitAttempt?.mediaAccounting !== undefined ||
-            !canRetryWithinBudget(retries, retries.retriesUsed) ||
-            (isAmbiguous && allowed === undefined) ||
-            retries.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+            isUserRefusal(error) &&
+            !isModelApiError(error) &&
+            redact(error.message) === error.message
           )
-            await rethrowStreamError(error, redact, response.status)
-          const attempt = retries.retriesUsed
-          retries.retriesUsed = attempt + 1
-          const delayMs = this.retryDelayMs(attempt)
-          onRetry?.({
-            attempt: attempt + 1,
-            maxAttempts: allowed === undefined ? undefined : allowed + 1,
-            delayMs,
-            reason: `${failure.code ?? ''}: ${failure.message}`,
-          })
-          await this.waitBeforeRetry(delayMs, signal)
-          // Lane PR225W1: the person's limit is live — a change mid-wait
-          // refuses the resend the pre-wait check accepted.
-          if (attempt >= (this.transport.maxRetries() ?? UNBOUNDED_RETRIES)) throw failure
+            throw error
+          throw redactModelApiError(error, redact, response.status)
         } finally {
           if (response.body !== null && !response.body.locked) {
             void response.body.cancel().catch(ignoreClosingError)

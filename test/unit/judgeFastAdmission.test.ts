@@ -6,7 +6,6 @@ import { describe, expect, it } from 'vitest'
 import {
   capabilityEffortLevels,
   resolveModelCapabilities,
-  type CapabilityOverrides,
 } from '../../src/core/providers/capabilityRecord'
 import { presetById } from '../../src/core/providers/presets'
 import {
@@ -17,12 +16,7 @@ import {
   hasStatedWire,
 } from '../../src/core/judge/fast/engines'
 import { BYO_STATED_FORMATS } from '../../src/core/judge/providers/decide'
-
-const identity = { provider: 'custom-id', nativeModel: 'native', format: 'chat' as const }
-const source = { kind: 'user' as const }
-const yes = <T>(value: T) => ({ state: 'yes' as const, value, source })
-const record = (fields: CapabilityOverrides = {}) =>
-  resolveModelCapabilities(identity, [{ source, fields }])
+import { record, yes } from './helpers/userCapabilities'
 
 describe('fast engine admission', () => {
   it('admits the logprob wire only on affirmed top-5', () => {

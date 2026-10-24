@@ -24,6 +24,7 @@ import {
   pkce,
   priceCard,
   providersFile,
+  requestHeaders,
   responses,
   tokenCount,
   createProviderRegistry,
@@ -52,7 +53,6 @@ import {
   CustomHeadersAuthSource,
   NoAuthSource,
 } from '../backends/modelapi/authSource'
-import * as requestHeaders from './requestHeaders'
 import {
   CodecClient,
   type WireCodec,

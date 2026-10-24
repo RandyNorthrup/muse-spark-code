@@ -2,4 +2,5 @@
 export * from '../shared/modelApiBoundariesEntry'
 export * from './pathIdentity'
 export * from './windowsPathSpelling'
+export * from './workspacePath'
 export * from './paid/paidAuthority'

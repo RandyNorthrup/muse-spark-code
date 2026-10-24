@@ -110,15 +110,9 @@ export class JudgeSetupController {
   private async runInstall(
     onSnapshot: (snapshot: JudgeSetupSnapshot) => void,
   ): Promise<JudgeSetupDirective> {
-    const summary = this.summary
-    if (summary === undefined) return { to: 'snapshot', snapshot: this.snapshot }
-    const loaded = this.ports.loadTable(this.paths.tableFile, this.ports.today())
-    const settled = planJudgeSetup(summary, loaded.table, {
-      ...(this.chosen !== undefined && { model: this.chosen }),
-      ...(this.cpuOnly && { cpuOnly: true }),
-    })
-    if (!settled.ok) return { to: 'snapshot', snapshot: this.recommend() }
-    const plan = settled.plan
+    if (this.summary === undefined) return { to: 'snapshot', snapshot: this.snapshot }
+    const plan = this.plan()
+    if (plan === undefined) return { to: 'snapshot', snapshot: this.recommend() }
     const signal = this.track()
     try {
       const result = await runJudgeSetupFlow({

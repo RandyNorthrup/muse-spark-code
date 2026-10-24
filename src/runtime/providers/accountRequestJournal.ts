@@ -41,6 +41,7 @@ import {
   type AccountLimitBlock,
 } from '../../core/accounts/limitBlock'
 import { accountPeriodRange } from '../../core/accounts/thresholds'
+import { isStoreErrorCode } from '../../host/backend/storeErrors'
 import type {
   AccountPoolClaim,
   AccountPoolRequest,
@@ -131,8 +132,8 @@ export class AccountRequestJournal implements AccountJournalReader {
           .filter((name) => name.endsWith('.json'))
           .map((name) => path.join(bucket, name))
       })
-    } catch {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    } catch (error: unknown) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
     }
   }
 
@@ -152,8 +153,8 @@ export class AccountRequestJournal implements AccountJournalReader {
       if (!stat.isFile() || stat.nlink !== 1 || stat.size > ACCOUNT_REQUEST_STORE.maxRowBytes)
         throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
       return JSON.parse(readFileSync(name, 'utf8'))
-    } catch {
-      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
+    } catch (error: unknown) {
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
     }
   }
 
@@ -184,7 +185,11 @@ export class AccountRequestJournal implements AccountJournalReader {
       process.kill(pid, 0)
       return true
     } catch (error: unknown) {
-      return !z.looseObject({ code: z.literal('ESRCH') }).safeParse(error).success
+      // No such process: its claim is recoverable. A process of another
+      // user still lives. Signal 0 refuses nothing else.
+      if (isStoreErrorCode(error, 'ESRCH')) return false
+      if (isStoreErrorCode(error, 'EPERM')) return true
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
     }
   }
 
@@ -192,28 +197,26 @@ export class AccountRequestJournal implements AccountJournalReader {
     this.ensure()
     this.ensure(path.dirname(path.join(this.directory, file)))
     const temporary = path.join(this.directory, `${randomUUID()}.pending`)
-    let hasFailed = false
     try {
       writeFileSync(temporary, JSON.stringify(value), {
         flag: 'wx',
         mode: ACCOUNT_REQUEST_STORE.fileMode,
       })
       renameSync(temporary, path.join(this.directory, file))
-    } catch {
-      hasFailed = true
+    } catch (error: unknown) {
+      this.removePending(temporary)
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
     }
+  }
+
+  /** A failed write's temporary file goes with it; one never created is already gone. */
+  private removePending(temporary: string): void {
     try {
       unlinkSync(temporary)
     } catch (error: unknown) {
-      if (!(
-        typeof error === 'object' &&
-        error !== null &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ))
-        hasFailed = true
+      if (isStoreErrorCode(error, 'ENOENT')) return
+      throw new Error(UI_TEXT.sessionBudgetStoreUnavailable, { cause: error })
     }
-    if (hasFailed) throw new Error(UI_TEXT.sessionBudgetStoreUnavailable)
   }
 
   private project(query: AccountUsageQuery, exclude?: string): AccountUsageTotals {

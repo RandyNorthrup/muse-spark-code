@@ -8,7 +8,7 @@
     },
     "core": {
       "SWALLOW": 71,
-      "GENERIC": 249,
+      "GENERIC": 248,
       "CLEANUP": 238
     },
     "host": {
@@ -86,6 +86,11 @@
     {
       "file": "src/acp/agent.ts",
       "identity": "440978b7ea9021a10fce0cb202456f12119a356909ef9c217110dd0b4272afe8",
+      "class": "GENERIC"
+    },
+    {
+      "file": "src/acp/agent.ts",
+      "identity": "8a489b00963f6ad0bad4d3f0ab52d68a089da080d2cd7c261225f55c095f1ec8",
       "class": "GENERIC"
     },
     {
@@ -572,11 +577,6 @@
       "file": "src/core/backends/modelapi/pluginHost.ts",
       "identity": "fb6e5e8f14d1872574612d8052c73cb90c0b476473855f0ae31ab747762c7d5e",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/core/backends/modelapi/providerClient.ts",
-      "identity": "4e4d0d7a049e91ccb27d65daaf39d24093d7d3607cc953fdf93417c490f9829a",
-      "class": "GENERIC"
     },
     {
       "file": "src/core/backends/modelapi/reviewerEntry.ts",
@@ -6017,11 +6017,6 @@
       "file": "src/webview/voice/companion.ts",
       "identity": "c60ddd1eae80c58250b17cd3fffab634ce2e0c20305a56c910f5f02cdf93d8d9",
       "class": "SWALLOW"
-    },
-    {
-      "file": "src/acp/agent.ts",
-      "identity": "8a489b00963f6ad0bad4d3f0ab52d68a089da080d2cd7c261225f55c095f1ec8",
-      "class": "GENERIC"
     }
   ]
 }
