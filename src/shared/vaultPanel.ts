@@ -15,6 +15,13 @@ export const vaultPanelChangeSchema = z.union([
   z.strictObject({ kind: z.literal('changed') }),
 ])
 
+/** D217: one retired migration slot, value-free: its legacy key and its vault row's label. */
+export const vaultRetiredEntrySchema = z.strictObject({
+  key: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
+  label: z.string().check(z.minLength(1), z.maxLength(VAULT_LIMITS.text)),
+})
+export type VaultRetiredEntry = z.infer<typeof vaultRetiredEntrySchema>
+
 export const vaultPanelStateSchema = z.strictObject({
   status: vaultStatusSchema,
   // RVCM1091G P3: true while the host keeps this view with a bounded retry
@@ -28,6 +35,9 @@ export const vaultPanelStateSchema = z.strictObject({
       .check(z.maxLength(VAULT_LIMITS.reasons)),
   ),
   items: z.array(vaultItemMetadataSchema).check(z.maxLength(VAULT_LIMITS.items)),
+  // D217: retired migration slots, each with its own Undo. Absent on
+  // stripped frames and where no migration binds; locked frames list none.
+  retired: z.optional(z.array(vaultRetiredEntrySchema).check(z.maxLength(VAULT_LIMITS.items))),
   grants: z.array(vaultGrantSchema).check(z.maxLength(VAULT_LIMITS.grants)),
   audit: z.array(vaultAuditRecordSchema).check(z.maxLength(VAULT_LIMITS.items)),
   pending: z.array(vaultApprovalRequestSchema).check(z.maxLength(VAULT_LIMITS.items)),

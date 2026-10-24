@@ -20,7 +20,13 @@ import { vaultClientPlatform, type VaultClientPlatform } from '../../runtime/vau
 import type { Logger } from '../logger'
 import { errorDetail } from '../logger'
 import { VaultBrokerProcess } from './brokerProcess'
-import { VaultPanelHost, type VaultPanelHostDeps, type VaultPanelService } from './vaultPanelHost'
+import {
+  VaultPanelHost,
+  type VaultPanelHostDeps,
+  type VaultPanelService,
+  type VaultRetiredUndoPort,
+} from './vaultPanelHost'
+import type { CredentialMigrationController } from './migrateCredentials'
 import type { MigrationShell } from './migrationShell'
 import type { SecretStore } from '../auth/credentialStore'
 import { vaultMigrationLoader } from './vaultMigrationBundle'
@@ -97,6 +103,7 @@ function vaultConnection(distDir: string): {
 function brokerService(
   distDir: string,
   actions: () => VaultActionsBundle,
+  migration?: () => VaultRetiredUndoPort | undefined,
 ): {
   service: VaultPanelService
   probe: () => Promise<void>
@@ -113,6 +120,7 @@ function brokerService(
     dispose: connection.dispose,
     service: vaultPanelService(session, {
       ambientFiles: () => discoverAmbientFiles(homedir()),
+      ...(migration !== undefined && { migration }),
     }),
     probe: async () => {
       const client = await connection.connect()
@@ -211,6 +219,8 @@ function serviceAndStatus(deps: {
   readonly distDir: string
   readonly service?: VaultPanelService | undefined
   readonly actions: () => VaultActionsBundle
+  /** D217: the migration surface getter the broker-backed service lists retired entries with. */
+  readonly migration?: () => VaultRetiredUndoPort | undefined
 }): {
   service: VaultPanelService
   statusItem: vscode.StatusBarItem
@@ -226,7 +236,10 @@ function serviceAndStatus(deps: {
   session: VaultManageSession | undefined
   connect: (() => Promise<Awaited<ReturnType<VaultBrokerProcess['connect']>>>) | undefined
 } {
-  const broker = deps.service === undefined ? brokerService(deps.distDir, deps.actions) : undefined
+  const broker =
+    deps.service === undefined
+      ? brokerService(deps.distDir, deps.actions, deps.migration)
+      : undefined
   const service = deps.service ?? broker?.service
   if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
   const statusItem = lockStatusItem()
@@ -283,9 +296,13 @@ export function createModelsVaultBinding(
   locale: string,
 ): ModelsVaultBinding {
   const actions = switchedOnActions(deps, table, locale)
+  // D217: the migration controller once the first unlock edge binds it;
+  // the service lists retired entries through it from the next snapshot.
+  let migrationController: CredentialMigrationController | undefined
   const { service, statusItem, status, disposeBroker, session, connect } = serviceAndStatus({
     ...deps,
     actions,
+    migration: () => migrationController,
   })
   // The key-store migration (D89.14 lane M) loads its own chunk on the first
   // unlock edge only — never at activation, never with the panel — and runs
@@ -328,6 +345,7 @@ export function createModelsVaultBinding(
               log: deps.log,
               label: UI_TEXT.vault.secret,
             })
+            migrationController = controller
             void controller.ensureMigrated()
           } catch (error: unknown) {
             deps.log.warn(`Credential migration unavailable: ${errorDetail(error)}`)
@@ -357,14 +375,26 @@ export interface WindowVaultControlsDeps {
   readonly log: Logger
   /** A test's actions module; the window's own is required from dist. */
   readonly loadActionsBundle?: ((file: string) => unknown) | undefined
+  /**
+  D217: the one-shot undo's legacy sources — the raw store (never the
+  shell, which would deadlock the migration), the seam's provider ids
+  and the installed minor ordinal.
+  */
+  readonly migrationSources: {
+    readonly secrets: SecretStore
+    readonly listProviderIds: () => Promise<readonly string[]>
+    readonly minorRelease: () => number
+  }
+  /** A test's migration chunk; the window's own is required from dist. */
+  readonly loadMigrationBundle?: ((file: string) => unknown) | undefined
 }
 
 /**
 The window commands without a second host: open reveals the Models &
 Agents vault section, whose own binding owns the window's single host,
-subscription and lock item; lock works without the panel through one
-broker-backed service alone. A refusal keeps its fixed sentence; anything
-else stays the generic failure, never native text.
+subscription and lock item; lock and undo work without the panel through
+one broker-backed service alone. A refusal keeps its fixed sentence;
+anything else stays the generic failure, never native text.
 */
 export function createWindowVaultControls(
   deps: WindowVaultControlsDeps,
@@ -375,19 +405,58 @@ export function createWindowVaultControls(
   const broker = deps.service === undefined ? brokerService(deps.distDir, actions) : undefined
   const service = deps.service ?? broker?.service
   if (service === undefined) throw new Error(UI_TEXT.vault.brokerBlocked)
+  const report = async (error: unknown, what: string): Promise<void> => {
+    const named = vaultRefusalSentences()
+    deps.log.warn(what)
+    await vscode.window.showErrorMessage(
+      error instanceof Error && named.includes(error.message)
+        ? error.message
+        : UI_TEXT.vault.operationFailed,
+    )
+  }
   return {
     open: () => deps.openPanel(),
     lock: async () => {
       try {
         await service.lock()
       } catch (error: unknown) {
-        const named = vaultRefusalSentences()
-        deps.log.warn('Vault lock command failed')
-        await vscode.window.showErrorMessage(
-          error instanceof Error && named.includes(error.message)
-            ? error.message
-            : UI_TEXT.vault.operationFailed,
+        await report(error, 'Vault lock command failed')
+      }
+    },
+    // D217: the palette's undo — the retired entries to pick from, then
+    // the same restore the panel's per-item action runs. One-shot: the
+    // chunk loads here, binds no shell, and never steals the panel's.
+    undoRetired: async () => {
+      try {
+        if (broker === undefined) throw new Error(UI_TEXT.vault.operationFailed)
+        const migration = vaultMigrationLoader({
+          bundlePath: path.join(deps.distDir, VAULT_MIGRATION_BUNDLE_FILE),
+          log: deps.log,
+          loadBundle: deps.loadMigrationBundle,
+        })
+        const controller = migration().bindCredentialMigration({
+          session: broker.session,
+          connect: broker.connect,
+          secrets: deps.migrationSources.secrets,
+          listProviderIds: deps.migrationSources.listProviderIds,
+          minorRelease: deps.migrationSources.minorRelease,
+          now: Date.now,
+          log: deps.log,
+          label: UI_TEXT.vault.secret,
+        })
+        const entries = await controller.listRetired()
+        if (entries.length === 0) {
+          await vscode.window.showInformationMessage(UI_TEXT.vault.noRetiredEntries)
+          return
+        }
+        const picked = await vscode.window.showQuickPick(
+          entries.map((entry) => ({ label: entry.label, description: entry.key, key: entry.key })),
         )
+        if (picked === undefined) return
+        await controller.undoRetired(picked.key)
+        await vscode.window.showInformationMessage(UI_TEXT.vault.retiredUndoDone)
+      } catch (error: unknown) {
+        await report(error, 'Vault undo retired command failed')
       }
     },
     dispose: () => {

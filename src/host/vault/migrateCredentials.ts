@@ -33,6 +33,7 @@ import { validateMigrationItem } from '../../core/vault/migrate/material'
 import { type VaultItem, type VaultItemMetadata } from '../../shared/vault'
 import {
   ACCOUNT_DEFAULT_ID,
+  UI_TEXT,
   VAULT_KEY_BYTES,
   VAULT_PROTOCOL_VERSION,
   SECRET_KEYS,
@@ -174,6 +175,12 @@ export interface CredentialMigrationDeps {
   readonly now: () => number
   readonly log: Logger
   /** The journal rows' label, read from the installed table by the caller. */
+  readonly label: string
+}
+
+/** A retired slot for the panel, palette and terminal: value-free identity only. */
+export interface RetiredMigrationEntry {
+  readonly key: string
   readonly label: string
 }
 
@@ -562,5 +569,73 @@ export class CredentialMigrationController implements MigrationMirror {
     if (phase === null || phase === 'deleted') return false
     await migration.delete(key, { destroyLastCopyConfirmed: true, legacyDeletionConfirmed: true })
     return true
+  }
+
+  /**
+  D217: every retired slot, oldest migration key first. Locked, uncreated
+  and unavailable vaults refuse: an empty list there would pose as "none
+  retired". A retired row whose vault copy lost its metadata still lists,
+  under its key, so its undo can say why it refuses instead of hiding.
+  Only keys whose journal row the snapshot lists are read, one journal
+  read each; callers ask only while unlocked, so a locked panel never
+  pays it.
+  */
+  async listRetired(): Promise<readonly RetiredMigrationEntry[]> {
+    const snapshot = await this.deps.ports.snapshot()
+    if (snapshot.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
+    const { migration, credentials, providerIds, accounts } = await this.engine()
+    const itemIdOf = new Map(credentials.map((entry) => [entry.key, entry.itemId]))
+    const journaled = new Set(snapshot.items.map((entry) => entry.id))
+    const entries: RetiredMigrationEntry[] = []
+    for (const key of listMigrationKeys(providerIds, accounts)) {
+      if (!journaled.has(journalItemId(key)) || (await migration.journalPhase(key)) !== 'retired')
+        continue
+      const itemId = itemIdOf.get(key)
+      entries.push({
+        key,
+        label: snapshot.items.find((entry) => entry.id === itemId)?.label ?? key,
+      })
+    }
+    return entries
+  }
+
+  /**
+  D217: undo one retired slot — its vault bytes go back to the legacy
+  store byte-exact and the slot is active again. Every refusal is a
+  fixed sentence the panel, palette and terminal share (vaultRefusals):
+  a key that never migrated, a slot still current, one already gone, a
+  legacy copy that changed since, a damaged vault copy. Anything else
+  (a transient store or broker failure) keeps its own failure, and the
+  panel and terminal map it the way they map every unnamed one.
+  */
+  async undoRetired(key: string): Promise<void> {
+    const snapshot = await this.deps.ports.snapshot()
+    if (snapshot.status.state !== 'unlocked') throw new Error(UI_TEXT.vault.locked)
+    const { migration, credentials } = await this.engine()
+    // Only retired rows undo: a slot still being migrated or still current
+    // stays current (the active-slot abandon path stays untriggered), and a
+    // deleted or abandoned one is already gone. The engine re-checks inside
+    // its lease; a phase that moved under the call is refused there as an
+    // ordinary failure, and trying again then says the new truth.
+    const phase = credentials.some((entry) => entry.key === key)
+      ? await migration.journalPhase(key)
+      : null
+    if (phase === null) throw new Error(UI_TEXT.vault.retiredUndoUnknown)
+    if (phase !== 'retired')
+      throw new Error(
+        ['deleting', 'deleted', 'undone'].includes(phase)
+          ? UI_TEXT.vault.retiredUndoGone
+          : UI_TEXT.vault.retiredUndoCurrent,
+      )
+    try {
+      await migration.undoRetired(key)
+    } catch (error: unknown) {
+      if (!(error instanceof VaultMigrationFault)) throw error
+      if (error.code === 'conflict')
+        throw new Error(UI_TEXT.vault.retiredUndoChanged, { cause: error })
+      if (error.code === 'verification' || error.code === 'invalid')
+        throw new Error(UI_TEXT.vault.retiredUndoDamaged, { cause: error })
+      throw error
+    }
   }
 }

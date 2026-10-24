@@ -253,6 +253,7 @@
   "config.github.useGhLogin.description": "Umožní žádostem o přijetí změn použít stávající přihlášení GitHub CLI (`gh auth token`), zkoušené jako poslední, po přihlášení k GitHubu v editoru a přihlášení Muse Spark. Token se čte vždy jen pro jeden požadavek a nikdy se neukládá. Ve výchozím stavu vypnuto; pouze uživatelská nastavení, takže jej repozitář nemůže zapnout.",
   "command.vault.title": "Trezor",
   "command.lockVault.title": "Zamknout trezor nyní",
+  "command.vaultUndoRetired.title": "Vrátit zpět vyřazenou položku trezoru",
   "config.vault.enabled.description": "Zapne nebo vypne osobní úložiště přihlašovacích údajů. Uložená starší hodnota museSpark.vault platí, dokud se toto nastavení nenakonfiguruje.",
   "config.vault.protection.description": "Uloženo kvůli kompatibilitě; tato předvolba nemá v tomto sestavení žádný účinek.",
   "config.vault.agentFence.description": "Ovládá ochranu přihlašovacích údajů pro interaktivní příkazy shellu Model API. Ověřování, plány, pracovníci a háčky zůstávají chráněni.",

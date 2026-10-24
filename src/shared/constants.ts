@@ -388,6 +388,8 @@ export const COMMAND_IDS = {
   // M109 (PLAN.md D89): the per-user credential vault panel and its lock.
   vault: 'museSpark.vault',
   lockVault: 'museSpark.lockVault',
+  // D217: undo one retired migration slot, restoring its value as current.
+  vaultUndoRetired: 'museSpark.vaultUndoRetired',
   // M117 (PLAN.md D97): open the capacity estimator for a goal.
   estimate: 'museSpark.estimate',
   // M112 (PLAN.md D92): cycle the focused chat's open question cards.

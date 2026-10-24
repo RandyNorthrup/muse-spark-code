@@ -5,18 +5,24 @@
 
 import type { VaultPanelState } from '../../shared/vaultPanel'
 import type { VaultBrokerEvent } from '../../shared/vaultProtocol'
-import { VAULT_WATCH_RETRY_MAX_MS, VAULT_WATCH_RETRY_MS } from '../../shared/constants'
+import { UI_TEXT, VAULT_WATCH_RETRY_MAX_MS, VAULT_WATCH_RETRY_MS } from '../../shared/constants'
 import {
   isCancelled,
   vaultAbortableDelay,
   type VaultManageSession,
 } from '../../core/vault/broker/manageClient'
 import type { AmbientFile } from '../../core/vault/migrate/ambient'
-import type { VaultPanelService } from './vaultPanelHost'
+import type { VaultPanelService, VaultRetiredUndoPort } from './vaultPanelHost'
 
 export interface VaultPanelServiceDeps {
   /** Files the user may pick for Import (M's ambient discovery); never read here. */
   readonly ambientFiles: () => Promise<readonly AmbientFile[]>
+  /**
+  D217: the key-store migration's retired-slot surface, once the binding
+  binds it on the first unlock edge. Absent in tests and lock-only hosts,
+  where no retired entry lists and every undo is refused as stale.
+  */
+  readonly migration?: () => VaultRetiredUndoPort | undefined
 }
 
 export function vaultPanelService(
@@ -40,12 +46,18 @@ export function vaultPanelService(
           ambientFiles = []
         }
       }
+      // D217: retired slots list only while unlocked; a lock landing
+      // between the status read and this list refuses like the audit's
+      // own race, and the broker's locked event settles the true view.
+      const migration = isUnlocked ? deps.migration?.() : undefined
+      const retired = migration === undefined ? [] : [...(await migration.listRetired())]
       return {
         status: snapshot.status,
         items: snapshot.items,
         grants: snapshot.grants,
         audit: [...audit],
         pending: snapshot.pending,
+        retired,
         pendingReceipts: snapshot.pendingReceipts.map((entry) => ({
           receipt: entry.receipt,
           path: entry.path,
@@ -53,6 +65,11 @@ export function vaultPanelService(
         })),
         ambientFiles: [...ambientFiles],
       }
+    },
+    undoRetired: async (key) => {
+      const migration = deps.migration?.()
+      if (migration === undefined) throw new Error(UI_TEXT.vault.useChanged)
+      await migration.undoRetired(key)
     },
     subscribe: (changed: (event: VaultBrokerEvent) => void, failed: () => void) => {
       const controller = new AbortController()

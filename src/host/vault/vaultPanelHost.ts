@@ -1,4 +1,8 @@
-import { type VaultPanelState, vaultPanelChangeSchema } from '../../shared/vaultPanel'
+import {
+  type VaultPanelState,
+  type VaultRetiredEntry,
+  vaultPanelChangeSchema,
+} from '../../shared/vaultPanel'
 import {
   vaultClientMessageSchema,
   vaultHostMessageSchema,
@@ -27,9 +31,17 @@ import {
 import type { VaultResetChallenge } from '../../shared/vaultProtocol'
 import { vaultWriterRecoveryMessage } from '../../core/vault/broker/manageClient'
 
+/** D217: the key-store migration's retired-slot surface, bound on the first unlock edge. */
+export interface VaultRetiredUndoPort {
+  listRetired(): Promise<readonly VaultRetiredEntry[]>
+  undoRetired(key: string): Promise<void>
+}
+
 /** C/B/P/M bind these operations to the real broker and single writer. No values cross the panel. */
 export interface VaultPanelService {
   snapshot(): Promise<unknown>
+  /** D217: undo one retired migration slot; the service owns the migration binding. */
+  undoRetired(key: string): Promise<void>
   /** `failed` reports a watch that cannot be (re)opened, once per outage. */
   subscribe(changed: (event: unknown) => void, failed: () => void): () => void
   unlock(authorize: () => void): Promise<void>
@@ -675,6 +687,15 @@ export class VaultPanelHost {
           if (item === undefined || !(await this.deps.confirmRemove(item))) return
           authorize()
           await this.deps.service.remove(item.id, authorize)
+          break
+        }
+        case 'vaultUndoRetired': {
+          // D217: only a key the fresh snapshot lists as retired undoes; a
+          // stale or foreign key is the guard refusal, said, never silent.
+          const entry = state.retired?.find((candidate) => candidate.key === message.key)
+          if (entry === undefined) throw new Error(UI_TEXT.vault.useChanged)
+          authorize()
+          await this.deps.service.undoRetired(entry.key)
           break
         }
         case 'vaultGrant': {
