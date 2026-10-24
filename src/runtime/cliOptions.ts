@@ -195,6 +195,21 @@ const FONTS_OPTIONS = {
   help: { type: 'boolean', short: 'h' },
 } as const satisfies CliParserOptions
 
+// M104 lane H: the language server's own flags, none shared with serve, so
+// no paid feature turns on through another command's flag.
+const LSP_OPTIONS = {
+  workspace: { type: 'string' },
+  tab: { type: 'boolean' },
+  'tab-model': { type: 'string' },
+  'tab-daily-budget-usd': { type: 'string' },
+  'tab-max-output-tokens': { type: 'string' },
+  'tab-trigger': { type: 'string' },
+  'trust-workspace': { type: 'boolean' },
+  'allow-contributor-models': { type: 'boolean' },
+  verbose: { type: 'boolean' },
+  help: { type: 'boolean', short: 'h' },
+} as const satisfies CliParserOptions
+
 export const CLI_OPTION_REGISTRY = {
   providersAdd: { options: PROVIDER_OPTIONS },
   providersModels: {
@@ -252,6 +267,12 @@ export const CLI_OPTION_REGISTRY = {
   report: { options: REPORT_OPTIONS },
   resources: { options: { json: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } },
   fontsInstall: { options: FONTS_OPTIONS },
+  // M104 lane H: the workspace as exec names it; trust as the server applies it.
+  lsp: {
+    options: LSP_OPTIONS,
+    text: { workspace: 'cwd', 'trust-workspace': 'lsp-trust-workspace' },
+  },
+  stop: { options: { help: { type: 'boolean', short: 'h' } } },
   estimate: { options: ESTIMATE_OPTIONS, text: { by: 'estimate-by', format: 'estimate-format' } },
   // The judge's one help screen: the ask-family flags its strict parser
   // accepts (serve and lint take their own surface flags instead).
@@ -381,6 +402,13 @@ export const CLI_OPTION_TEXT = {
   'attachment-content': 'attachment-content',
   'exported-at': 'exported-at',
   'check-plan': 'estimate-check-plan',
+  // `lsp --workspace` names the workspace as exec's `--cwd` does.
+  workspace: 'cwd',
+  tab: 'tab',
+  'tab-model': 'tab-model',
+  'tab-daily-budget-usd': 'tab-daily-budget-usd',
+  'tab-max-output-tokens': 'tab-max-output-tokens',
+  'tab-trigger': 'tab-trigger',
 } as const satisfies Readonly<
   Record<
     | keyof typeof COMMON_OPTIONS
@@ -392,6 +420,7 @@ export const CLI_OPTION_TEXT = {
     | keyof typeof CLI_OPTION_REGISTRY.legal.options
     | keyof typeof CLI_OPTION_REGISTRY.providersModels.options
     | keyof typeof FONTS_OPTIONS
+    | keyof typeof LSP_OPTIONS
     | keyof typeof ESTIMATE_OPTIONS
     | keyof typeof CLI_OPTION_REGISTRY.judge.options
     | keyof typeof CLI_OPTION_REGISTRY.share.options

@@ -24,6 +24,8 @@ import {
   REPORT_EXIT_CODES,
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
+  TAB_MODELS,
+  TAB_TRIGGER_MODES,
   THINKING_OFF_EFFORT,
   TIMER_MAX_DELAY_MS,
 } from '../shared/constants'
@@ -440,6 +442,60 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
       (command) => `${command} fonts install`,
       (command) => `${command} fonts install --from ~/fonts`,
     ],
+    ...GENERIC_EXITS,
+  },
+  {
+    name: 'lsp',
+    purpose: (table) => table.cliHelp.purposeLsp,
+    note: (table) => table.cliHelp.noteLsp,
+    usage: [(command) => `${command} lsp [--trust-workspace] [--tab] [options]`],
+    routes: ['lsp'],
+    options: [
+      { name: 'workspace', shape: '<directory>' },
+      { name: 'trust-workspace', shape: '' },
+      { name: 'tab', shape: '' },
+      {
+        name: 'tab-model',
+        shape: '<model>',
+        fact: { kind: 'enum', values: TAB_MODELS, default: SETTING_DEFAULTS.tabModel },
+      },
+      { name: 'allow-contributor-models', shape: '' },
+      { name: 'tab-daily-budget-usd', shape: '<usd>' },
+      { name: 'tab-max-output-tokens', shape: '<tokens>' },
+      {
+        name: 'tab-trigger',
+        shape: '',
+        fact: { kind: 'enum', values: TAB_TRIGGER_MODES, default: SETTING_DEFAULTS.tabTrigger },
+      },
+      { name: 'verbose', shape: '' },
+      { name: 'help', shape: '' },
+    ],
+    examples: [
+      (command) => `${command} lsp --trust-workspace --tab`,
+      (command) => `${command} supervise lsp --trust-workspace --tab --tab-daily-budget-usd 2`,
+    ],
+    ...GENERIC_EXITS,
+  },
+  {
+    name: 'supervise',
+    purpose: (table) => table.cliHelp.purposeSupervise,
+    usage: [(command) => `${command} supervise [<command> [options]]`],
+    routes: [],
+    // Everything after the word is the supervised command's own.
+    options: [],
+    examples: [
+      (command) => `${command} supervise lsp --trust-workspace --tab`,
+      (command) => `${command} supervise --backend modelApi`,
+    ],
+    ...GENERIC_EXITS,
+  },
+  {
+    name: 'stop',
+    purpose: (table) => table.cliHelp.purposeStop,
+    usage: [(command) => `${command} stop`],
+    routes: ['stop'],
+    options: [{ name: 'help', shape: '' }],
+    examples: [(command) => `${command} stop`, (command) => `${command} stop --help`],
     ...GENERIC_EXITS,
   },
   {
@@ -962,4 +1018,6 @@ export const CLI_NON_TOPIC_OPTIONS: Readonly<Record<string, readonly string[]>> 
   resources: [],
   fontsInstall: [],
   'scan-secrets': [],
+  lsp: [],
+  stop: [],
 }

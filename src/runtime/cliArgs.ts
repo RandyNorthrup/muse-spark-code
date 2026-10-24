@@ -1,4 +1,4 @@
-import type { UsdAmount } from '../shared/usdSchema'
+import { compareUsdAmounts, nonnegativeUsdSchema, type UsdAmount } from '../shared/usdSchema'
 // The agent's command line (PLAN.md D62): serve ACP on stdio, or one of the
 // sign-in commands the editors' terminal sign-ins run (D61). Pure: the
 // arguments in, what to do out, with the reason when they make no sense.
@@ -26,6 +26,11 @@ import {
   SETTING_DEFAULTS,
   SHELL_SANDBOX_MODES,
   type ShellSandboxMode,
+  TAB_DAILY_BUDGET_MIN_USD,
+  TAB_MODELS,
+  TAB_NO_BUDGET_USD,
+  TAB_TRIGGER_MODES,
+  type TabTrigger,
   TIMER_MAX_DELAY_MS,
   UI_TEXT,
   REPORT_KINDS,
@@ -117,6 +122,28 @@ export interface ServeOptions {
   readonly maxToolOutputBytes?: number | undefined
 }
 
+/**
+`lsp` (M104 lane H, PLAN.md D84): Tab served to an LSP editor. Paid use
+waits for `--tab` and, in every request, D48's question; Tab reads files
+only with `--trust-workspace`.
+*/
+export interface LspOptions {
+  /** The workspace root; the folder the server starts in unless named. */
+  readonly workspace: string
+  /** `--tab`: the paid feature on. Without it the credential store is never read. */
+  readonly isTabOn: boolean
+  /** `--trust-workspace`: Tab reads files, the workspace's hooks run, Always is kept. */
+  readonly isTrusted: boolean
+  readonly tabModel: string
+  /** 0 is no daily budget (D208). */
+  readonly tabBudgetUsd: UsdAmount
+  /** 0 is the model's record maximum (D121). */
+  readonly tabMaxOutputTokens: number
+  readonly tabTrigger: TabTrigger
+  /** `--verbose`: every detail on stderr, the editor's language-server log. */
+  readonly isVerbose: boolean
+}
+
 /** What `report` prints: the scrubbed draft as text, or its exact bytes in a file. */
 export interface ReportOptions {
   /** Write the report to this file instead of stdout; undefined prints it. */
@@ -175,6 +202,9 @@ export type RuntimeCommand =
     }
   | { readonly command: 'node'; readonly argv: readonly string[] }
   | { readonly command: 'setup'; readonly options: ServeOptions; readonly maintenance: boolean }
+  | { readonly command: 'lsp'; readonly options: LspOptions }
+  | { readonly command: 'supervise'; readonly args: readonly string[] }
+  | { readonly command: 'stop' }
   | {
       readonly command: 'exec'
       readonly options: ExecAttachmentOptions
@@ -556,6 +586,11 @@ export function parseCommandLine<T>(
   if (argv[0] === 'judge') return parseJudgeArgs(argv)
   // The node command answers its own --help through its dispatcher (A3).
   if (argv[0] === 'node') return { command: 'node', argv: argv.slice(1) }
+  // M104 lane H: each answers its own --help with its help topic; the
+  // supervised command's words are its own, its --help included.
+  if (argv[0] === 'supervise') return parseSupervise(argv.slice(1))
+  if (argv[0] === 'lsp') return parseLsp(argv.slice(1))
+  if (argv[0] === 'stop') return parseStop(argv.slice(1))
   if (flags.includes('--help') || flags.includes('-h')) {
     if (argv[0] === 'vault') return { command: 'vaultHelp' }
     // Bare `report --help` is the report command's own help, not the help
@@ -1650,5 +1685,101 @@ function parseFonts(argv: readonly string[]): RuntimeCommand {
     get reason() {
       return fill(UI_TEXT.acpFontsUsage, { command: ACP_AGENT_NAME })
     },
+  }
+}
+
+/** A strict-parser throw for a topic: the topic's own options named, exit 2. */
+function invalidTopicOption(name: string, error: unknown): RuntimeCommand {
+  const topic = helpTopicNamed(name)
+  return topic === undefined
+    ? { ...invalid(name), exitCode: 2 }
+    : invalidStrictOption(topic.name, topicShownOptionNames(topic), error)
+}
+
+/**
+`lsp` (M104 lane H): every flag checked here, none read from the serve
+grammar, so no paid feature turns on by a shared flag. The Tab model is
+one of Meta's two (a contributor model only with
+`--allow-contributor-models`); a budget is 0 (none) or at least the dust
+floor; an output cap is a whole count, 0 for the model's maximum.
+*/
+function parseLsp(argv: readonly string[]): RuntimeCommand {
+  let values: ReturnType<typeof parseLspArgs>['values']
+  try {
+    ;({ values } = parseLspArgs(argv))
+  } catch (error: unknown) {
+    return invalidTopicOption('lsp', error)
+  }
+  if (values.help === true) return { command: 'helpTopic', topic: 'lsp' }
+  const tabModel = values['tab-model'] ?? SETTING_DEFAULTS.tabModel
+  if (!isOneOf(TAB_MODELS, tabModel)) return refused(valueInvalidReason('lsp', '--tab-model'))
+  if (tabModel !== SETTING_DEFAULTS.tabModel && values['allow-contributor-models'] !== true)
+    return invalid('--allow-contributor-models')
+  const budget = nonnegativeUsdSchema.safeParse(
+    values['tab-daily-budget-usd'] ?? String(SETTING_DEFAULTS.tabDailyBudgetUsd),
+  )
+  if (
+    !budget.success ||
+    (compareUsdAmounts(budget.data, nonnegativeUsdSchema.parse(String(TAB_NO_BUDGET_USD))) !== 0 &&
+      compareUsdAmounts(budget.data, nonnegativeUsdSchema.parse(String(TAB_DAILY_BUDGET_MIN_USD))) <
+        0)
+  )
+    return refused(valueInvalidReason('lsp', '--tab-daily-budget-usd'))
+  const rawCap = values['tab-max-output-tokens'] ?? String(SETTING_DEFAULTS.tabMaxOutputTokens)
+  const cap = /^\d+$/u.test(rawCap) ? Number(rawCap) : NaN
+  if (!Number.isSafeInteger(cap))
+    return refused(valueInvalidReason('lsp', '--tab-max-output-tokens'))
+  const tabTrigger = values['tab-trigger'] ?? SETTING_DEFAULTS.tabTrigger
+  if (!isOneOf(TAB_TRIGGER_MODES, tabTrigger))
+    return refused(valueInvalidReason('lsp', '--tab-trigger'))
+  return {
+    command: 'lsp',
+    options: {
+      workspace: values.workspace ?? '.',
+      isTabOn: values.tab === true,
+      isTrusted: values['trust-workspace'] === true,
+      tabModel,
+      tabBudgetUsd: budget.data,
+      tabMaxOutputTokens: cap,
+      tabTrigger,
+      isVerbose: values.verbose === true,
+    },
+  }
+}
+
+function parseLspArgs(argv: readonly string[]) {
+  return parseArgs({
+    args: [...argv],
+    allowPositionals: false,
+    strict: true,
+    options: CLI_OPTION_REGISTRY.lsp.options,
+  })
+}
+
+/**
+`supervise <command>` (M104 lane H): everything after the word is the
+supervised command's own, parsed by the child as typed. A supervisor never
+supervises another supervisor or a stop.
+*/
+function parseSupervise(argv: readonly string[]): RuntimeCommand {
+  if (argv.length === 1 && (argv[0] === '--help' || argv[0] === '-h'))
+    return { command: 'helpTopic', topic: 'supervise' }
+  return argv[0] === 'supervise' || argv[0] === 'stop'
+    ? invalid(argv[0])
+    : { command: 'supervise', args: argv }
+}
+
+/** `stop` (M104 lane H): no option but help; the folder it runs in names the runs. */
+function parseStop(argv: readonly string[]): RuntimeCommand {
+  try {
+    const { values } = parseArgs({
+      args: [...argv],
+      allowPositionals: false,
+      strict: true,
+      options: CLI_OPTION_REGISTRY.stop.options,
+    })
+    return values.help === true ? { command: 'helpTopic', topic: 'stop' } : { command: 'stop' }
+  } catch (error: unknown) {
+    return invalidTopicOption('stop', error)
   }
 }

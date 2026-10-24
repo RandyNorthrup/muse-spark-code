@@ -866,7 +866,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: Plan kataloğunun Fast katmanını kullan (2 kat hız, artırılmış kullanım). Varsayılan olarak kapalı: plan kotanızdan daha fazla kullanır.",
     "exec-provider": "Bu sağlayıcıda çalıştırın (Model API arka ucu); --model o zaman <provider>/<model> olur.",
-    "scan-timeout": "Tarama süresini saniye olarak belirleyin; aksi takdirde tarama bitene kadar çalışır."
+    "scan-timeout": "Tarama süresini saniye olarak belirleyin; aksi takdirde tarama bitene kadar çalışır.",
+    "lsp-trust-workspace": "Bu klasöre güven: Tab dosyalarını okur, kancaları çalışır ve Bu çalışma alanında her zaman izin ver sunulur.",
+    "tab": "Kayıtlı Model API anahtarına faturalanan ücretli Tab tamamlamaları sunar; düzenleyici ilk faturalamadan önce fiyatı belirterek sorar.",
+    "tab-model": "Tab tamamlamalarının kullandığı model.",
+    "tab-daily-budget-usd": "Bu kadar ABD dolarına ulaşınca Tab o gün için durur; varsayılan 0 bütçe belirlemez.",
+    "tab-max-output-tokens": "Her Tab isteğini bu kadar çıktı token’ıyla sınırlar; varsayılan 0 modelin kendi üst sınırıdır.",
+    "tab-trigger": "Tab yazarken (automatic) ya da yalnızca istediğinizde (onInvoke) sunulur."
   },
   "referenceScanSecrets": "UTF-8 yama dosyasında gizli bilgileri arar ve bulursa başarısız olur. --key-stdin bellekteki Model API anahtarının tam değerini de arar; anahtar saklanmaz.",
   "referenceVault": "Kullanıcı başına kimlik bilgisi kasasıyla bir terminalden çalışın: kurulum, kurtarma, sıfırlama, durum, kilit açma, kilitleme, liste, ekleme, izinler, denetim, içe aktarma ve izleme. Değerler asla yazdırılmaz; aracı tutar. Açık onaydan sonra sıfırlama, sahibi bilinmeyen yazma kilidini de değiştirebilir.",
@@ -4336,6 +4342,10 @@
     "purposeLegal": "Salt okunur yasal taramayı çalıştır.",
     "purposeFonts": "Bağımsız yüzeyler için isteğe bağlı yazı tiplerini yükler.",
     "purposePlaybook": "Bu çalışma alanı için düzenleyici kılavuzunu göster veya değiştir.",
+    "purposeLsp": "Tab tamamlamalarını bir düzenleyiciye stdin ve stdout üzerinden Language Server Protocol ile sunar.",
+    "noteLsp": "--tab olmadan hiçbir şey faturalanmaz ve kimlik bilgisi deposu hiç okunmaz. Onunla her yeni fiyat önce düzenleyicide sorar; Bu çalışma alanında her zaman izin ver yalnızca --trust-workspace ile sunulur.",
+    "purposeSupervise": "Bu ajanın başka bir komutunu, stop onu başlattığı tüm süreçlerle birlikte sonlandırabilecek şekilde çalıştırır.",
+    "purposeStop": "Bu klasörde başlatılan her denetimli çalıştırmayı, başlattığı tüm süreçlerle birlikte durdurur.",
     "purposeSetup": "Setup kancalarını çalıştırır ve çıkar.",
     "purposeUsage": "Tüm modellerin kullanımını ve maliyetini gösterir.",
     "purposeResources": "Makine yükünü ve son geçmişi gösterir.",
@@ -6756,6 +6766,23 @@
   },
   "mcpConnectorTitle": "Diğer ajanlar için MCP bağlayıcısı",
   "referenceMcpCommand": "Muse Spark Code araçlarını MCP üzerinden diğer aracılara (Codex, Claude Code, Gemini CLI) sunar; her yazma işlemi onayınızı bekler.",
+  "languageServer": {
+    "help": "Muse Spark Code (Unofficial) Tab, {command} lsp tarafından sunulur. Satır içi tamamlamalar öneri ister; düzenleyicinizin öneri göstermediği yerde muse.tabInvoke bir öneri ekler; muse.usage bugünkü Tab harcamasını gösterir; muse.stop bu klasördeki her denetimli çalıştırmayı durdurur.",
+    "budgetReached": "Bugünkü {spent} tutarındaki Tab harcaması {budget} günlük bütçesine ulaştı, bu yüzden tamamlamalar yarına kadar duraklatıldı. Bugün devam etmek için dil sunucusunu daha yüksek bir --tab-daily-budget-usd ile başlatın.",
+    "unavailable": "Dil sunucusu bu kurulumda kullanılamıyor."
+  },
+  "supervision": {
+    "stopNone": "Bu klasörde başlatılmış denetimli çalıştırma yok.",
+    "stopped": {
+      "one": "{count} denetimli çalıştırma durduruldu.",
+      "other": "{count} denetimli çalıştırma durduruldu."
+    },
+    "stopFailed": {
+      "one": "{count} denetimli çalıştırma bütünüyle durdurulamadı.",
+      "other": "{count} denetimli çalıştırma bütünüyle durdurulamadı."
+    },
+    "unavailable": "Denetim bu kurulumda kullanılamıyor."
+  },
   "acpConnector": {
     "title": "Bağlayıcı isteklerini onayla",
     "intro": "Başka bir aracı, Muse Spark Code’dan aşağıdakileri yapmasını istedi. Burada onaylayana kadar hiçbir şey olmaz; o aracının kendi Allow, Auto veya Bypass ayarları bunu onaylayamaz.",

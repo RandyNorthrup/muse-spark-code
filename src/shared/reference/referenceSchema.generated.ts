@@ -407,6 +407,12 @@ export const textKeys = [
   'fast',
   'exec-provider',
   'scan-timeout',
+  'lsp-trust-workspace',
+  'tab',
+  'tab-model',
+  'tab-daily-budget-usd',
+  'tab-max-output-tokens',
+  'tab-trigger',
 ] as const
 
 const plainTextSchema = z.union([
@@ -513,6 +519,12 @@ const plainTextSchema = z.union([
       textKeys[402],
       textKeys[403],
       textKeys[404],
+      textKeys[405],
+      textKeys[406],
+      textKeys[407],
+      textKeys[408],
+      textKeys[409],
+      textKeys[410],
     ]),
   }),
   z.object({
