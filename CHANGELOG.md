@@ -79,15 +79,18 @@ happened, not what was planned; superseded entries are kept.
   engineering tasks route by area hints with split or cross-review, handoff
   capture/resume/chain and preference writers with Move to… run on the real
   board, and pool wiring reads live host facts with M95 provider order and
-  M116 dispatch records. Installed host/panel bindings and the panel editor
-  UI remain pending; existing unconfigured selection and requests stay
-  unchanged.
+  M116 dispatch records. The Roles section edits borrow timers, ordered
+  secondary roles and per-role auto-order, and the Agent map moves a
+  waiting task to another role with its handoff chain; installed host
+  bindings remain pending. Existing unconfigured selection and requests
+  stay unchanged.
 - M120 outcome stats (D103): per-role, per-candidate records of reviewed
   tasks (first-review acceptance, findings by severity, rounds, time,
   redesigns), reorder suggestions with their figures once both candidates
   have five tasks and the acceptance-rate gap is clear, and opt-in
-  per-role auto-order that applies the suggestion. Panel display arrives with
-  the editor UI; nothing reorders unless the role opts in.
+  per-role auto-order that applies the suggestion. The editor UI carries
+  the per-role toggle; suggestion display arrives with the installed
+  bindings. Nothing reorders unless the role opts in.
 - **Prompt sequences (M88).** **Prompt Sequences…** in the palette (or
   `/sequences`) keeps ordered lists of prompts on both backends. Starting
   one sends the first step as your own message and each later step after
