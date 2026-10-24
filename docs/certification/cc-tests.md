@@ -558,3 +558,28 @@ the Windows worker suite (`deviceWorkerHostNative`, 7 real Windows cases)
 still passes. Its workers are node processes, so no case here drives a 5.1
 worker through the host; the rule itself is the one the gate's real-process
 case proves.
+
+### billingRouteInventory, reportProblem, manifest (walkthrough): pins follow the merged lanes
+
+Cause: not Windows. Three pinned inventories missed deliberate changes the
+merges brought, each made on a branch that did not carry the pinning test:
+
+- `billingRouteInventory`: the int/recovery merge fix `bf7fcb66a1` moved the
+  provider probe's and the providers commands' reads into one
+  `runtime/providerReads.ts` request; the pin still named the two old sites
+  (`expected [ …(11) ] to deeply equal [ …(12) ]`). The case still requires
+  `billingRoute: await resolveAttemptBillingRoute(…)` at every site, the new
+  one included.
+- `reportProblem`: M125 added the `judgeFastSkip` journal kind, which
+  `src/host/support/reportRecorder.ts` records for the fast path's skip
+  audit; the pin listed seven kinds.
+- `manifest` (D15 walkthrough): M125 lane W (`01bb890bc5`) added the
+  `judgeSetup` step, completed by `onCommand:museSpark.setUpLocalJudge`; the
+  pin listed five steps.
+
+Fix: each pin names the merged state, and the walkthrough case also requires
+the new step's completion event.
+
+Red (before): the three messages above. Green: billingRouteInventory 2,
+reportProblem 55 passed; manifest's walkthrough case passes (two other
+manifest cases are left, below).
