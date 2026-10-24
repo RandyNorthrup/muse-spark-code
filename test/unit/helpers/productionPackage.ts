@@ -27,6 +27,7 @@ export const PRODUCTION_BUILD_SUITES = [
   '/packagedBundles.test.mjs',
   '/webviewBundleRoot.test.ts',
   '/devicesPhase2Harness.test.mjs',
+  '/estimatorPricePackaging.test.mjs',
 ]
 
 export function buildProductionPackage(root: string, folder: string, shared?: unknown): void {

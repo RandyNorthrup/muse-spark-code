@@ -45,3 +45,21 @@ stdio with an empty config and data folder:
 {"code":-32000,"message":"Authentication required: Muse Code is not signed in; sign in and try again.","data":{"kind":"authRequired"}}
 {"code":-32600,"message":"Invalid request: Muse Code is not installed in any known location.","data":{"kind":"invalid_request"}}
 ```
+
+### estimatorPricePackaging: the packaging walk skips webview resources
+
+Cause: RLM117's walk follows every string an emitted call can be handed and
+maps it to a Node bundle by basename. RLM125 added `dist/judgeSetup.js` (the
+agent-only `judge setup` command, not in the VSIX), and the judge setup
+wizard's page is `dist/webview/judgeSetup.js`, handed to the webview by
+`asWebviewUri(joinPath(dir, "judgeSetup.js"))`. The walk read that name as
+the Node bundle and reported it missing from the VSIX.
+
+Fix: nothing under an `asWebviewUri(…)` call is followed (the browser loads
+it from the webview bundle root; Node never requires it). The suite also
+copies the run's shared production build (global setup) instead of building
+its own inside the 60 s hook, which on this PC ran past the deadline with
+other work running (`Hook timed out in 60000ms`).
+
+Red drill: `isWebviewResource` forced to `false` →
+`expected [ 'dist/judgeSetup.js' ] to deeply equal []`; restored → 1 passed.
