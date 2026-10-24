@@ -5096,6 +5096,10 @@ export const RUNTIME_QUESTIONS_BUNDLE_FILE = 'runtimeQuestions.js'
 // /playbook's journal-backed surface (M116): the ACP agent and the CLI load
 // it on first use, so the engine bundle carries none of the policy.
 export const PLAYBOOK_BUNDLE_FILE = 'acpPlaybook.js'
+// /watchdog's issue surface (M115w WU): the ACP agent and the CLI load it
+// on first use, so the engine bundle carries neither the GitHub client nor
+// the schedule store.
+export const WATCHDOG_BUNDLE_FILE = 'acpWatchdog.js'
 export const RUNTIME_ACCOUNTS_BUNDLE_FILE = 'runtimeAccounts.js'
 export const QUESTION_DEFER_SETTING = 'questions.deferAfterSeconds'
 export const QUESTION_REMINDERS_MAX = 2

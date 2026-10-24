@@ -31,6 +31,7 @@ import {
   WATCHDOG_BASE,
   WATCHDOG_NOW,
   WATCHDOG_REPOSITORY,
+  entryBundle,
   findingsFor,
   releaseRoutes,
 } from './helpers/watchdog/fixtures'
@@ -532,6 +533,7 @@ describe('watchdog CLI exits and ACP answers', () => {
       await acpWatchdog(
         [{ type: 'text' as const, text: 'hello there' }],
         () => Promise.resolve(port),
+        () => entryBundle(),
         quiet,
       ),
     ).toBeUndefined()
@@ -542,12 +544,14 @@ describe('watchdog CLI exits and ACP answers', () => {
           { type: 'text' as const, text: 'extra' },
         ],
         () => Promise.resolve(port),
+        () => entryBundle(),
         quiet,
       ),
     ).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.usage })
     const listed = await acpWatchdog(
       [{ type: 'text' as const, text: '/watchdog list' }],
       () => Promise.resolve(port),
+      () => entryBundle(),
       quiet,
     )
     expect(listed?.ok).toBe(true)
@@ -555,6 +559,7 @@ describe('watchdog CLI exits and ACP answers', () => {
     const missing = await acpWatchdog(
       [{ type: 'text' as const, text: '/watchdog list' }],
       () => Promise.resolve(undefined),
+      () => entryBundle(),
       quiet,
     )
     expect(missing).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.unavailable })
@@ -576,6 +581,7 @@ describe('watchdog CLI exits and ACP answers', () => {
           now: () => WATCHDOG_NOW,
           newRunId: () => 'run-1',
         }),
+      () => entryBundle(),
       collectingLogger(logged),
     )
     expect(answer).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.commandFailed })

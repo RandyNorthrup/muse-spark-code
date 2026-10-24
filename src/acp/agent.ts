@@ -27,7 +27,7 @@ import { compactReference } from '../shared/cliCommands'
 import type { AcpSchedulePort } from './schedules'
 import path from 'node:path'
 import { type AcpPlaybookBundle, acpPlaybook } from './playbook'
-import { acpWatchdog } from './watchdog'
+import { acpWatchdog, type AcpWatchdogBundle } from './watchdog'
 import { signInLossFailure } from './signInLoss'
 import type { PlaybookSurfacePort } from '../runtime/playbook/command'
 import type { WatchdogSurfacePort } from '../runtime/watchdog/command'
@@ -248,6 +248,8 @@ export interface AcpAgentDeps {
   readonly playbookBundle?: () => AcpPlaybookBundle
   /** WU binds the watchdog's store, signed-in client and clock. */
   readonly watchdogFor?: (cwd: string, sessionId: string) => Promise<WatchdogSurfacePort>
+  /** WU binds /watchdog's parsing and running (the watchdog bundle). */
+  readonly watchdogBundle?: () => AcpWatchdogBundle
   /** H-W-SESSION: one profile-owned account service, bound to this backend. */
   readonly accounts?: AccountsSessionPort
   readonly vault?: AcpVault
@@ -2702,6 +2704,11 @@ class AcpSession {
       local ??= await acpWatchdog(
         blocks,
         async () => await this.deps.watchdogFor?.(this.cwd, this.sessionId),
+        () => {
+          const bundle = this.deps.watchdogBundle?.()
+          if (bundle === undefined) throw new Error(UI_TEXT.watchdog.cli.unavailable)
+          return bundle
+        },
         this.deps.log,
       )
       if (local === undefined) await this.announceCommands()

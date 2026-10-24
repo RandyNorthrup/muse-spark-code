@@ -58,6 +58,7 @@ export const ACP_BUNDLES = [
   'connector.js',
   'acpQuestions.js',
   'acpPlaybook.js',
+  'acpWatchdog.js',
   'runtimeQuestions.js',
   'runtimeAccounts.js',
   'vaultRuntime.js',
