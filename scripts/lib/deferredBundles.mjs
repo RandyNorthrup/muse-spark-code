@@ -503,9 +503,9 @@ export const DEFERRED = [
     output: 'dist/usagePanel.js',
     metafile: 'dist/meta/usagePanel.json',
     files: [
-      'src/host/usage/usagePanelEntry.ts',
-      'src/host/usage/usagePanel.ts',
-      'src/host/paid/paidDailyBudget.ts',
+      'src/host/vscode/usage/usagePanelEntry.ts',
+      'src/host/vscode/usage/usagePanel.ts',
+      'src/host/vscode/paid/paidDailyBudget.ts',
     ],
   },
   {
@@ -669,7 +669,7 @@ export const ON_FIRST_USE = [
     output: 'dist/editorChat.js',
     metafile: 'dist/meta/editorChat.json',
     use: 'the first editor-chat opt-in action or model call',
-    files: ['src/host/models/lmProvider.ts', 'src/host/models/lmProviderEntry.ts'],
+    files: ['src/host/vscode/models/lmProvider.ts', 'src/host/models/lmProviderEntry.ts'],
   },
   {
     output: 'dist/resourceGovernor.js',
@@ -891,7 +891,10 @@ export const ON_FIRST_USE = [
     metafile: 'dist/meta/reportingPanel.json',
     use: 'the first report tab',
     parents: [BUNDLES.activation, BUNDLES.modelApi, BUNDLES.acp],
-    files: ['src/host/reporting/reportPanelEntry.ts', 'src/host/reporting/reportPanel.ts'],
+    files: [
+      'src/host/vscode/reporting/reportPanelEntry.ts',
+      'src/host/vscode/reporting/reportPanel.ts',
+    ],
   },
   {
     output: 'dist/reportInputs.js',
@@ -1056,10 +1059,10 @@ export const ON_FIRST_USE = [
     use: 'the first Tab request or menu',
     files: [
       'src/host/tab/tabEntry.ts',
-      'src/host/tab/tabProvider.ts',
+      'src/host/vscode/tab/tabProvider.ts',
       'src/host/tab/tabConsent.ts',
       'src/host/tab/tabEligibility.ts',
-      'src/host/tab/tabStatus.ts',
+      'src/host/vscode/tab/tabStatus.ts',
       'src/host/tab/tabLedger.ts',
       'src/host/tab/tabSpendGate.ts',
       'src/core/tab/tabCache.ts',
@@ -1166,9 +1169,9 @@ export const ON_FIRST_USE = [
     ],
     files: [
       'src/host/models/modelsSubscriptionsEntry.ts',
-      'src/host/providers/subscriptionFeatures.ts',
-      'src/host/providers/chatgptSignIn.ts',
-      'src/host/providers/copilotClient.ts',
+      'src/host/vscode/providers/subscriptionFeatures.ts',
+      'src/host/vscode/providers/chatgptSignIn.ts',
+      'src/host/vscode/providers/copilotClient.ts',
     ],
   },
   // RLGROKAUTH: subscription dispatch and terminal commands (the registry
@@ -1330,7 +1333,7 @@ export const ON_FIRST_USE = [
     use: 'the first What’s New page or notice',
     files: [
       'src/host/whatsNew/whatsNewEntry.ts',
-      'src/host/whatsNew/whatsNewPanel.ts',
+      'src/host/vscode/whatsNew/whatsNewPanel.ts',
       'src/host/whatsNew/whatsNewHtml.ts',
       'src/core/whatsNew/whatsNewContent.ts',
       'src/shared/whatsNewMessages.ts',
@@ -1359,7 +1362,7 @@ export const ON_FIRST_USE = [
     use: 'the first paid consent, gate or usage read',
     files: [
       'src/host/paid/paidEntry.ts',
-      'src/host/paid/paidHost.ts',
+      'src/host/vscode/paid/paidHost.ts',
       'src/core/paid/paidConsent.ts',
       'src/core/paid/paidFeatures.ts',
       'src/core/paid/paidAuthority.ts',

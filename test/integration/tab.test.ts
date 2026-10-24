@@ -26,13 +26,13 @@ import {
   type TabOutcome,
   type TabProviderDeps,
   type TabQuietReason,
-} from '../../src/host/tab/tabBundle'
+} from '../../src/host/vscode/tab/tabBundle'
 import type { TabConsentDeps, TabConsentScope } from '../../src/host/tab/tabConsent'
 import { createTabByoResolutions } from '../../src/host/tab/tabByo'
 import { createTabLedger } from '../../src/host/tab/tabLedger'
-import { createTabProvider } from '../../src/host/tab/tabProvider'
+import { createTabProvider } from '../../src/host/vscode/tab/tabProvider'
 import { createTabSpendGate } from '../../src/host/tab/tabSpendGate'
-import { createTabStatusItem } from '../../src/host/tab/tabStatusItem'
+import { createTabStatusItem } from '../../src/host/vscode/tab/tabStatusItem'
 import {
   EXTENSION_QUALIFIED_ID,
   MODEL_API_RECOMMENDED_MAX_OUTPUT_TOKENS,

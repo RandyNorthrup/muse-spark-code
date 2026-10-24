@@ -12,7 +12,7 @@ import type { CodeIntelDeps } from '../../src/core/codeIntel/codeIntelQuery'
 import { answerCodeIntel, type CodeIntelReadTool } from '../../src/core/codeIntel/codeIntelTools'
 import { planRename, renameDiff } from '../../src/core/codeIntel/rename'
 import { canonicalPath, isMissingPath } from '../../src/host/canonicalPath'
-import { vscodeLanguageServices } from '../../src/host/codeIntel/languageServices'
+import { vscodeLanguageServices } from '../../src/host/vscode/codeIntel/languageServices'
 
 const FIXTURE = 'code-intel'
 // TypeScript answers once it has loaded the fixture's project.

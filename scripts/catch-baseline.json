@@ -3269,17 +3269,17 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/editor/verifyEditor.ts",
+      "file": "src/host/vscode/editor/verifyEditor.ts",
       "identity": "9bfd8b15646fcc9a91c99bcc6ba71c2fa91589e079db5ee65efbcee5958e2608",
       "class": "GENERIC"
     },
     {
-      "file": "src/host/editor/verifyEditor.ts",
+      "file": "src/host/vscode/editor/verifyEditor.ts",
       "identity": "c7ded03efa810ecf1db2406b47bbf80c142fbb9247578f9c54a5b4663c565f14",
       "class": "GENERIC"
     },
     {
-      "file": "src/host/editor/verifyEditor.ts",
+      "file": "src/host/vscode/editor/verifyEditor.ts",
       "identity": "3b4c7c989a3cd36bb39e41525a326dee67d8a451534ded62a69185a21a40121b",
       "class": "CLEANUP"
     },
@@ -3334,7 +3334,7 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/git/gitWindow.ts",
+      "file": "src/host/vscode/git/gitWindow.ts",
       "identity": "37120fa008e4b88d29ce9bf1b2251ad0283ff313d4ee5bd7298119a6791931b2",
       "class": "GENERIC"
     },
@@ -3414,12 +3414,12 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/models/modelsPanel.ts",
+      "file": "src/host/vscode/models/modelsPanel.ts",
       "identity": "ef977d882dc3d1961b7af278d96d4607b5e00deda726e07fb0b4e317313c1e7b",
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/models/modelsPanel.ts",
+      "file": "src/host/vscode/models/modelsPanel.ts",
       "identity": "5f88f02a5d457dfc176293b2e3136d50bd46fa9565e9eccb484e7d6d91cf74f5",
       "class": "CLEANUP"
     },
@@ -3459,17 +3459,17 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/paid/paidDailyBudget.ts",
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
       "identity": "66e0d228b1037f29ed61be7dd1246f06407e29481273df857759aecaa83ef866",
       "class": "GENERIC"
     },
     {
-      "file": "src/host/paid/paidDailyBudget.ts",
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
       "identity": "ca4f8191bf9095ab2a9c4a8f51be39d12053f9e6db52ae327d9b23bc8407f6e5",
       "class": "GENERIC"
     },
     {
-      "file": "src/host/paid/paidDailyBudget.ts",
+      "file": "src/host/vscode/paid/paidDailyBudget.ts",
       "identity": "5ab008e98ac4feb23327499ee73e7be4787fde1904898b5d982957cd474b5386",
       "class": "GENERIC"
     },
@@ -3479,12 +3479,12 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/providers/chatgptSignIn.ts",
+      "file": "src/host/vscode/providers/chatgptSignIn.ts",
       "identity": "34b38da4748c26821b2c02611590e55ce5d7f6468fd4ab384a68d5832f10f876",
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/providers/copilotClient.ts",
+      "file": "src/host/vscode/providers/copilotClient.ts",
       "identity": "c26395cb02c58dd27955d037aff98773d54340267b048bfaeab8e3f3f16dc590",
       "class": "CLEANUP"
     },
@@ -3559,12 +3559,12 @@
       "class": "SWALLOW"
     },
     {
-      "file": "src/host/providers/providersHost.ts",
+      "file": "src/host/vscode/providers/providersHost.ts",
       "identity": "9d2e0470782e33fe6d437a03dfe9632994e1fa7acfea7365977deee8035c20ad",
       "class": "GENERIC"
     },
     {
-      "file": "src/host/providers/subscriptionFeatures.ts",
+      "file": "src/host/vscode/providers/subscriptionFeatures.ts",
       "identity": "ea054d27c830241e40e2ed21bae2da6c282c5f97ac5127ab1897ce1b6dbec8c5",
       "class": "SWALLOW"
     },
@@ -3729,7 +3729,7 @@
       "class": "GENERIC"
     },
     {
-      "file": "src/host/tab/tabBundle.ts",
+      "file": "src/host/vscode/tab/tabBundle.ts",
       "identity": "57dcae9fd14a336d144a832ac9ff1420945ba4dcc9f03dc1aa9690be0ab7930b",
       "class": "GENERIC"
     },
@@ -3744,17 +3744,17 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/tab/tabProvider.ts",
+      "file": "src/host/vscode/tab/tabProvider.ts",
       "identity": "48c29e3535dd63f4631ac0c17b792071a1a2545ca5f20357d6cfa0fb0b5c75ee",
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/tab/tabProvider.ts",
+      "file": "src/host/vscode/tab/tabProvider.ts",
       "identity": "a1b1fd9387aa4e91becbd8823b3975ca01af33fa0e093ec8a28153e81ec9c38b",
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/tab/tabProvider.ts",
+      "file": "src/host/vscode/tab/tabProvider.ts",
       "identity": "f9152c2869a9a7063858a6c4f412f32c891aa4e6235f296808510709f3287bca",
       "class": "CLEANUP"
     },
@@ -3929,7 +3929,7 @@
       "class": "CLEANUP"
     },
     {
-      "file": "src/host/vault/vaultPanelEntry.ts",
+      "file": "src/host/vscode/vault/vaultPanelEntry.ts",
       "identity": "9ffa1a923f3c8fffe2301b35e3b551e16c7ad2880ee1acf3620e3a7e30f46b63",
       "class": "GENERIC"
     },

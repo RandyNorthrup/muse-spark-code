@@ -3,4 +3,4 @@
 // activation requires on the first subscription action, so the ChatGPT and
 // Copilot sign-in flows stay out of the bundle the first Models & Agents
 // action loads (dist/modelsPanel.js).
-export { createSubscriptionFeatures } from '../providers/subscriptionFeatures'
+export { createSubscriptionFeatures } from '../vscode/providers/subscriptionFeatures'

@@ -497,7 +497,7 @@ export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
 /** The playbook's own channel (M116), one envelope each way: its lazy bundles parse what is inside. */
 const playbookEnvelopeSchema = z.object({ type: z.literal('playbook'), message: z.unknown() })
 
-const webviewToHostMessageSchema = z.discriminatedUnion('type', [
+export const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // M118: the lazy implementation validates the action-specific payload.
   z.strictObject({
     type: z.literal('sharingAction'),
@@ -1067,7 +1067,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
 export type WebviewToHostMessage =
   z.infer<typeof webviewToHostMessageSchema> | TeamTreeAction | EstimatorToHostMessage
 
-const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
+export const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({
     type: z.literal('sharingResult'),
     id: z.string(),

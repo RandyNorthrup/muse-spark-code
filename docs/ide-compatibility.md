@@ -56,7 +56,7 @@ The code has useful separation already. This is a portability project built on e
 
 Repository evidence: [backend interfaces](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/core/agent/agentBackend.ts), [webview entry](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/webview/main.tsx), [message protocol](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/shared/protocol.ts), [manifest](https://github.com/RandyNorthrup/muse-spark-code/blob/main/package.json), [build configuration](https://github.com/RandyNorthrup/muse-spark-code/blob/main/scripts/build.mjs).
 
-The remaining host work includes active documents and selections, diagnostics, file dialogs, editor diffs, dirty buffers, terminal environments, secrets, settings, persistence, notifications, resource URLs, localization, and native voice helpers. The activation entry point currently wires these services through VS Code. [Extension wiring](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/extension.ts), [webview setup](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/host/views/webviewSetup.ts)
+The remaining host work includes active documents and selections, diagnostics, file dialogs, editor diffs, dirty buffers, terminal environments, secrets, settings, persistence, notifications, resource URLs, localization, and native voice helpers. The activation entry point currently wires these services through VS Code. [Extension wiring](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/extension.ts), [webview setup](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/host/vscode/views/webviewSetup.ts)
 
 ## 3. Compatibility matrix
 
@@ -145,7 +145,7 @@ The following names are proposed boundaries, not files already created in the re
 | `adapters/acp`                                           | ACP protocol translation, client capability negotiation, client I/O where available.          | New boundary around `AgentHost`/`AgentSession`.                    |
 | `adapters/jetbrains`, `visualstudio`, and later adapters | Native UI container and editor integration, connecting shared packages/runtime.               | New host code in each platform's supported language.               |
 
-Preserve the existing VS Code implementation as the reference client while extracting each boundary. Some host files are already structurally portable. For example, the credential store accepts a small injected interface, while `ChatSurface` currently inherits a VS Code type. Remove these incidental type dependencies rather than duplicating the underlying behavior. [Credential store](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/host/auth/credentialStore.ts), [ChatSurface definition](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/host/views/webviewSetup.ts)
+Preserve the existing VS Code implementation as the reference client while extracting each boundary. Some host files are already structurally portable. For example, the credential store accepts a small injected interface, while `ChatSurface` currently inherits a VS Code type. Remove these incidental type dependencies rather than duplicating the underlying behavior. [Credential store](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/host/auth/credentialStore.ts), [ChatSurface definition](https://github.com/RandyNorthrup/muse-spark-code/blob/main/src/host/vscode/views/webviewSetup.ts)
 
 ### 4.2 Reuse the interface through a host bridge
 

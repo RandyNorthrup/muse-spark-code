@@ -1,4 +1,4 @@
-import type { TabActivationDeps } from '../../../src/host/tab/tabBundle'
+import type { TabActivationDeps } from '../../../src/host/vscode/tab/tabBundle'
 import type { TabConsentScope } from '../../../src/host/tab/tabConsent'
 import { UI_TEXT } from '../../../src/shared/constants'
 

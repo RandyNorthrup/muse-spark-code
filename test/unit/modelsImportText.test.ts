@@ -1,4 +1,4 @@
-// The provider import/export text (src/host/models/modelsPanelEntry.ts) and
+// The provider import/export text (src/host/vscode/models/modelsPanelEntry.ts) and
 // the quick-pick origin (src/host/models/modelsQuickPick.ts): undecodable
 // files fail with the panel's fixed words keeping the decoder's real
 // failure as the cause, and an address the URL parser rejects shows raw.
