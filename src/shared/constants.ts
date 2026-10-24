@@ -11071,6 +11071,8 @@ export const SUPERVISE_BUNDLE_FILE = 'supervise.js'
 export const RUNTIME_PANEL_BUNDLE_FILE = 'runtimePanel.js'
 // Its conversations (the controller's host, the backend and the editor's ports), loaded when the handshake is done.
 export const RUNTIME_PANEL_SESSION_BUNDLE_FILE = 'runtimePanelSession.js'
+// Its heavier ports (saved plans), required the first time one is used.
+export const RUNTIME_PANEL_PORTS_BUNDLE_FILE = 'runtimePanelPorts.js'
 /** Each workspace's keyed Tab Always record (RVM94KR2), in the agent's data folder. */
 export const LSP_TAB_CONSENT_FOLDER = 'tab-consent'
 /** A header block past this is malformed input (the common 8 KiB HTTP header bound). */

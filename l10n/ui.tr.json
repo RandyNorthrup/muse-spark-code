@@ -2204,6 +2204,7 @@
   "gitNoRepository": "Bu çalışma alanı, VS Code'un Git'inin açtığı bir git deposunda değil.",
   "gitWorkspaceNotRepository": "Bu çalışma alanı bir git deposunda değil.",
   "gitProgramMissing": "Git bu bilgisayarda kurulu değil veya PATH içinde yok.",
+  "signOutInTerminal": "Oturumu kapatmak için bir terminalde “muse-spark-code-acp auth clear” (Model API) veya “muse logout” (Muse Code) komutunu çalıştırın, ardından yeniden denetleyin.",
   "gitNothingToCommit": "İşlenecek bir şey yok.",
   "gitNothingStaged": "Hazırlanmış bir şey yok. “Hazırlanmamış değişiklikleri ve yeni dosyaları dahil et” seçeneğini işaretleyin veya önce bazı değişiklikleri hazırlayın.",
   "gitCommitMessageEmpty": "Önce bir işleme iletisi yazın.",

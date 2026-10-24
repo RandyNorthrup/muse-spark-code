@@ -2248,6 +2248,7 @@
   "gitNoRepository": "Ten obszar roboczy nie znajduje się w repozytorium git otwartym przez Git w VS Code.",
   "gitWorkspaceNotRepository": "Ten obszar roboczy nie znajduje się w repozytorium git.",
   "gitProgramMissing": "Git nie jest zainstalowany na tym komputerze lub nie ma go w zmiennej PATH.",
+  "signOutInTerminal": "Aby się wylogować, uruchom w terminalu „muse-spark-code-acp auth clear” (Model API) lub „muse logout” (Muse Code), a potem sprawdź ponownie.",
   "gitNothingToCommit": "Nie ma nic do zatwierdzenia.",
   "gitNothingStaged": "Nic nie zostało przygotowane. Zaznacz „Uwzględnij nieprzygotowane zmiany i nowe pliki” albo najpierw przygotuj część zmian.",
   "gitCommitMessageEmpty": "Najpierw napisz komunikat zatwierdzenia.",

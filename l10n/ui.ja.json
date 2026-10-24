@@ -2182,6 +2182,7 @@
   "gitNoRepository": "このワークスペースは、VS Code の Git が開いている git リポジトリ内にありません。",
   "gitWorkspaceNotRepository": "このワークスペースは git リポジトリ内にありません。",
   "gitProgramMissing": "このコンピューターに Git がインストールされていないか、PATH に含まれていません。",
+  "signOutInTerminal": "サインアウトするには、ターミナルで「muse-spark-code-acp auth clear」(Model API)または「muse logout」(Muse Code)を実行してから、もう一度確認してください。",
   "gitNothingToCommit": "コミットするものはありません。",
   "gitNothingStaged": "ステージされている変更はありません。「ステージされていない変更と新しいファイルを含める」をオンにするか、先に変更をステージしてください。",
   "gitCommitMessageEmpty": "先にコミット メッセージを入力してください。",

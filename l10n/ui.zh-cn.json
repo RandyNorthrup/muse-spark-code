@@ -2182,6 +2182,7 @@
   "gitNoRepository": "此工作区不在 VS Code 的 Git 已打开的 git 存储库中。",
   "gitWorkspaceNotRepository": "此工作区不在 git 存储库中。",
   "gitProgramMissing": "此计算机上未安装 Git，或它不在 PATH 中。",
+  "signOutInTerminal": "要退出登录，请在终端中运行“muse-spark-code-acp auth clear”（Model API）或“muse logout”（Muse Code），然后重新检查。",
   "gitNothingToCommit": "没有要提交的内容。",
   "gitNothingStaged": "没有已暂存的内容。请勾选“包含未暂存的更改和新文件”，或先暂存一些更改。",
   "gitCommitMessageEmpty": "请先编写提交消息。",

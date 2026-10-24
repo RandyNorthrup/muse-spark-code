@@ -2226,6 +2226,7 @@
   "gitNoRepository": "Este espaço de trabalho não está em um repositório git aberto pelo Git do VS Code.",
   "gitWorkspaceNotRepository": "Este espaço de trabalho não está em um repositório git.",
   "gitProgramMissing": "O Git não está instalado neste computador ou não está no PATH.",
+  "signOutInTerminal": "Para sair, execute “muse-spark-code-acp auth clear” (Model API) ou “muse logout” (Muse Code) em um terminal e verifique novamente.",
   "gitNothingToCommit": "Não há nada para fazer commit.",
   "gitNothingStaged": "Nada foi preparado. Marque “Incluir alterações não preparadas e arquivos novos” ou prepare algumas alterações primeiro.",
   "gitCommitMessageEmpty": "Escreva uma mensagem de commit primeiro.",

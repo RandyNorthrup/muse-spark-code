@@ -3,18 +3,27 @@
 // session a ready backend starts, the surface bound to it, a replacement when
 // the conversation moves, settings and trust that rebuild it, unsaved files,
 // and the paid features. No prompt is sent and no network is touched.
+import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import { PLAN_MARKDOWN } from '../../src/core/plans/planMarkdown'
+import { PlanStore } from '../../src/core/plans/planStore'
+import { createPlanIo } from '../../src/host/planFeatures'
 import { paidGrantsFile } from '../../src/runtime/dataFolder'
 import { paidGrantFile } from '../../src/runtime/paidGrants'
 import { stderrLogger } from '../../src/runtime/stderrLog'
-import { ACP_PAID_OPTIONS, UI_TEXT } from '../../src/shared/constants'
+import { ACP_PAID_OPTIONS, OUTPUT_TAB_ID_LENGTH, UI_TEXT } from '../../src/shared/constants'
 import { formatDailyBudget } from '../../src/shared/l10n/exactUsd'
 import { fill } from '../../src/shared/l10n/text'
 import { paidFeatureName, paidFeaturePrice } from '../../src/shared/paid'
 import { parseMhpResult } from '../../src/shared/hostApi/protocol'
-import { confirmations, connectedPanel } from './helpers/panelConversation'
+import {
+  confirmations,
+  connectedPanel,
+  type ConnectedPanelOptions,
+} from './helpers/panelConversation'
+import type { MhpWire } from './helpers/mhpHost'
 import { createPanelRun } from './helpers/panelRun'
 import { assertCurrentProductionBuild } from './productionBuild'
 
@@ -31,8 +40,7 @@ afterAll(async () => {
   await run.dispose()
 })
 
-const connected = async (options: { readonly trusted?: boolean } = {}) =>
-  await connectedPanel(run, options)
+const connected = async (options: ConnectedPanelOptions = {}) => await connectedPanel(run, options)
 
 describe('conversations in the runtime panel', () => {
   it('starts a session on a ready backend, shows it, and ends with the host', async () => {
@@ -240,6 +248,41 @@ describe('paid features in the runtime panel', () => {
     expect(await exit).toBe(0)
   })
 
+  it('asks again for every feature when the person says so', async () => {
+    const { host, editor, runtimes, exit } = await connected()
+    const { asked } = confirmations(host, [
+      ACP_PAID_OPTIONS.allowAlways,
+      ACP_PAID_OPTIONS.allowOnce,
+    ])
+    const chat = await editor.nextSurface()
+    // The state the surface was first shown, set aside so the next one is the answer to Ask again.
+    await chat.shown('paidState')
+    const [runtime] = runtimes
+    const use = () =>
+      runtime?.paid.allows(
+        run.workspace,
+        chat.sessionId,
+        {
+          feature: 'imageGeneration',
+          kind: 'generate',
+          path: 'out.png',
+          sources: [],
+          prompt: 'a cat',
+        },
+        false,
+      )
+    // Always is kept after the first answer: the second use asks nothing.
+    expect(await use()).toBe(true)
+    expect(await use()).toBe(true)
+    expect(asked).toHaveLength(1)
+    chat.say({ type: 'forgetPaidUse' })
+    expect(await chat.shown('paidState')).toMatchObject({ state: { alwaysAllowed: [] } })
+    expect(await use()).toBe(true)
+    expect(asked).toHaveLength(2)
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+  })
+
   it('names the limit the person set, and offers no Always where nothing can be kept', async () => {
     const { host, editor, runtimes, exit } = await connected({ trusted: false })
     const { asked } = confirmations(host, [ACP_PAID_OPTIONS.allowOnce, ACP_PAID_OPTIONS.allowOnce])
@@ -262,6 +305,87 @@ describe('paid features in the runtime panel', () => {
       ACP_PAID_OPTIONS.allowOnce,
       ACP_PAID_OPTIONS.deny,
     ])
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+  })
+})
+
+/** The first file the runtime asks the editor to open, as a URI. */
+function firstOpened(host: MhpWire): Promise<string> {
+  const opened = Promise.withResolvers<string>()
+  host.serve('editor/open', (params) => {
+    opened.resolve((params as { uri: string }).uri)
+    return null
+  })
+  return opened.promise
+}
+
+describe('what the person opens from the chat', () => {
+  it('shows a tool row’s full output in a tab of the editor, and removes the file with the connection', async () => {
+    const { host, editor, exit } = await connected({ offers: ['editor'] })
+    const opened = firstOpened(host)
+    const chat = await editor.nextSurface()
+    await chat.shown('sessionInfo')
+    const text = 'first line\nsecond line\n'
+    const itemId = 'item-0123456789ab'
+    chat.say({ type: 'openOutput', itemId, label: 'bash', text })
+    // The editor is asked to open a file of the data folder holding exactly the text.
+    const file = fileURLToPath(await opened)
+    const title = fill(UI_TEXT.toolOutputTitle, {
+      tool: 'bash',
+      id: itemId.slice(-OUTPUT_TAB_ID_LENGTH),
+    })
+    expect(path.basename(file)).toBe(`${title}.txt`)
+    expect(file.startsWith(run.dataFolder)).toBe(true)
+    expect(readFileSync(file, 'utf8')).toBe(text)
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+    expect(existsSync(file)).toBe(false)
+  })
+
+  it('lists the saved plans in the editor’s pick and opens the one chosen', async () => {
+    const store = new PlanStore({
+      workspaceRoot: run.workspace,
+      platform: process.platform,
+      io: createPlanIo({ log, now: () => Date.now() }),
+      markdown: () => PLAN_MARKDOWN,
+    })
+    const saved = await store.save({
+      title: 'Tidy the parser',
+      savedAt: new Date(0),
+      text: '# Tidy the parser\n\n1. Read it\n2. Simplify it\n',
+    })
+    const { host, editor, exit } = await connected({ offers: ['editor'] })
+    const picks: { title: string; items: { id: string; title: string }[] }[] = []
+    host.serve('ui/pick', (params) => {
+      const asked = params as (typeof picks)[number]
+      picks.push(asked)
+      // The plan first, then what to do with it: open.
+      const row =
+        picks.length === 1
+          ? asked.items[0]
+          : asked.items.find((item) => item.title === UI_TEXT.planOpen)
+      return row === undefined ? null : [row.id]
+    })
+    const opened = firstOpened(host)
+    const chat = await editor.nextSurface()
+    await chat.shown('sessionInfo')
+    chat.say({ type: 'showPlans' })
+    expect(fileURLToPath(await opened)).toBe(path.join(run.workspace, saved.relativePath))
+    expect(picks[0]?.items.map((item) => item.title)).toContain('Tidy the parser')
+    expect(picks).toHaveLength(2)
+    parseMhpResult('shutdown', await host.request('shutdown', {}))
+    expect(await exit).toBe(0)
+  })
+
+  it('says how to sign out, which only the person can do where the sign-in is kept', async () => {
+    const { host, editor, exit } = await connected()
+    const chat = await editor.nextSurface()
+    await chat.shown('sessionInfo')
+    chat.say({ type: 'signOut' })
+    expect(await chat.shown('notice', (payload) => payload['level'] === 'error')).toMatchObject({
+      text: expect.stringContaining(UI_TEXT.signOutInTerminal),
+    })
     parseMhpResult('shutdown', await host.request('shutdown', {}))
     expect(await exit).toBe(0)
   })

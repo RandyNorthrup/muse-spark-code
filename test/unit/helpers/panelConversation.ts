@@ -15,6 +15,7 @@ import type { RuntimeBackend } from '../../../src/runtime/backends'
 import { createRuntimeBackend } from '../../../src/runtime/runtimeEngineEntry'
 import { stderrLogger } from '../../../src/runtime/stderrLog'
 import { UI_TEXT } from '../../../src/shared/constants'
+import type { MhpCapability } from '../../../src/shared/hostApi/capabilities'
 import { panelInitializeResultSchema } from '../../../src/shared/hostApi/panel'
 import type { PanelRuntimeDeps } from '../../../src/runtime/panel/panelEntry'
 import { modelApiRig } from './conversationPanel'
@@ -37,6 +38,8 @@ export interface ConnectedPanelOptions {
   readonly trusted?: boolean
   /** The user's git; none unless the suite proves git. */
   readonly runGit?: PanelRuntimeDeps['runGit']
+  /** What the editor offers besides the chat itself (its services the suite answers). */
+  readonly offers?: readonly MhpCapability[]
 }
 
 /** The runtime panel in this process, and the editor's end of its streams. */
@@ -105,7 +108,7 @@ export async function connectedPanel(run: PanelRun, options: ConnectedPanelOptio
     await host.request(
       'initialize',
       run.initializeParams({
-        capabilities: ['lifecycle', 'ui', 'surfaces', 'terminal'],
+        capabilities: ['lifecycle', 'ui', 'surfaces', 'terminal', ...(options.offers ?? [])],
         trusted: options.trusted ?? true,
       }),
     ),

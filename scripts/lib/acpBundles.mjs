@@ -88,6 +88,10 @@ export const ACP_BUNDLES = [
   'review.js',
   // M104 lane B: the panel's Git and pull requests (the native route, over the editor's services).
   'nativeGit.js',
+  // M104 lane B: saved plans in the runtime panel (their port, the Markdown reader, and the Plans… list in the commands chunk).
+  'runtimePanelPorts.js',
+  'planMarkdown.js',
+  'commands.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker

@@ -154,9 +154,9 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'commands.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
-      { importer: 'src/host/planFeatures.ts', symbol: 'createPlanFiles', side: ['vscode'] },
+      { importer: 'src/host/planFeatures.ts', symbol: 'createPlanFiles', side: ['acp', 'vscode'] },
       { importer: 'src/host/vscode/cliFeatures.ts', symbol: 'createCliFeatures', side: ['vscode'] },
       {
         importer: 'src/host/vscode/memoryFeatures.ts',
@@ -845,12 +845,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
   },
   {
     file: 'planMarkdown.js',
-    side: 'vscode',
+    side: 'both',
     requestedBy: [
       {
         importer: 'src/shared/constants.ts',
         symbol: 'PLAN_MARKDOWN_BUNDLE_FILE',
-        side: ['vscode'],
+        side: ['acp', 'vscode'],
       },
     ],
   },
@@ -1229,6 +1229,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'acp',
     requestedBy: [
       { importer: 'src/shared/constants.ts', symbol: 'RUNTIME_PANEL_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'runtimePanelPorts.js',
+    side: 'acp',
+    requestedBy: [
+      {
+        importer: 'src/shared/constants.ts',
+        symbol: 'RUNTIME_PANEL_PORTS_BUNDLE_FILE',
+        side: ['acp'],
+      },
     ],
   },
   {

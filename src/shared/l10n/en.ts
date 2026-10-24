@@ -2763,6 +2763,8 @@ export const EN = {
   gitNoRepository: 'This workspace is not in a git repository that VS Code’s Git has open.',
   gitWorkspaceNotRepository: 'This workspace is not in a git repository.',
   gitProgramMissing: 'Git is not installed on this computer, or it is not on the PATH.',
+  signOutInTerminal:
+    'To sign out, run “muse-spark-code-acp auth clear” (Model API) or “muse logout” (Muse Code) in a terminal, then check again.',
   gitNothingToCommit: 'There is nothing to commit.',
   gitNothingStaged:
     'Nothing is staged. Tick “Include unstaged changes and new files”, or stage some first.',

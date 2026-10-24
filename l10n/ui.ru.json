@@ -2248,6 +2248,7 @@
   "gitNoRepository": "Эта рабочая область не находится в репозитории git, открытом расширением Git в VS Code.",
   "gitWorkspaceNotRepository": "Эта рабочая область не находится в репозитории git.",
   "gitProgramMissing": "Git не установлен на этом компьютере или отсутствует в PATH.",
+  "signOutInTerminal": "Чтобы выйти, выполните в терминале «muse-spark-code-acp auth clear» (Model API) или «muse logout» (Muse Code), затем проверьте ещё раз.",
   "gitNothingToCommit": "Нечего фиксировать.",
   "gitNothingStaged": "В индексе ничего нет. Установите флажок «Включить непроиндексированные изменения и новые файлы» или сначала проиндексируйте изменения.",
   "gitCommitMessageEmpty": "Сначала напишите сообщение фиксации.",

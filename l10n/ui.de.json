@@ -2204,6 +2204,7 @@
   "gitNoRepository": "Dieser Arbeitsbereich liegt in keinem Git-Repository, das die Git-Integration von VS Code geöffnet hat.",
   "gitWorkspaceNotRepository": "Dieser Arbeitsbereich liegt in keinem Git-Repository.",
   "gitProgramMissing": "Git ist auf diesem Computer nicht installiert oder nicht im PATH.",
+  "signOutInTerminal": "Zum Abmelden führen Sie in einem Terminal „muse-spark-code-acp auth clear“ (Model API) oder „muse logout“ (Muse Code) aus und prüfen dann erneut.",
   "gitNothingToCommit": "Es gibt nichts zu committen.",
   "gitNothingStaged": "Nichts ist bereitgestellt. Aktivieren Sie „Nicht bereitgestellte Änderungen und neue Dateien einbeziehen“ oder stellen Sie zuerst Änderungen bereit.",
   "gitCommitMessageEmpty": "Schreiben Sie zuerst eine Commit-Nachricht.",
