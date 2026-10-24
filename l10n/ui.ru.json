@@ -1941,7 +1941,8 @@
       "policyHeading": "Политика для {repository}:",
       "policySet": "Параметр {key} для {repository} задан.",
       "policyInvalid": "Это значение недопустимо для {key}. Используйте {allowed}.",
-      "policyUnknownKey": "Неизвестный ключ политики. Используйте label, template, watch-labels, ignore-authors, posts или close."
+      "policyUnknownKey": "Неизвестный ключ политики. Используйте label, template, watch-labels, ignore-authors, posts или close.",
+      "proposedReply": "Ответ, который был бы опубликован:"
     },
     "poll": {
       "skippedPullRequest": "запрос на слияние, а не проблема",
@@ -1975,7 +1976,8 @@
     },
     "refusal": {
       "spamHeld": "Задержано как возможный спам: ничего не опубликовано.",
-      "approvalRequired": "Для этой публикации сначала нужно ваше одобрение."
+      "approvalRequired": "Для этой публикации сначала нужно ваше одобрение.",
+      "reportOnly": "Только отчёт: пока не появится проверка безопасности, публикуется только подтверждение."
     }
   },
   "gitHubSignOut": "Выйти",

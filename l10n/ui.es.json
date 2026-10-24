@@ -1911,7 +1911,8 @@
       "policyHeading": "Política de {repository}:",
       "policySet": "{key} establecido para {repository}.",
       "policyInvalid": "Ese valor no está permitido para {key}. Use {allowed}.",
-      "policyUnknownKey": "Clave de política desconocida. Use label, template, watch-labels, ignore-authors, posts o close."
+      "policyUnknownKey": "Clave de política desconocida. Use label, template, watch-labels, ignore-authors, posts o close.",
+      "proposedReply": "La respuesta que publicaría:"
     },
     "poll": {
       "skippedPullRequest": "una solicitud de cambios, no un problema",
@@ -1945,7 +1946,8 @@
     },
     "refusal": {
       "spamHeld": "Retenido como posible spam: no se publicó nada.",
-      "approvalRequired": "Esta publicación necesita primero su aprobación."
+      "approvalRequired": "Esta publicación necesita primero su aprobación.",
+      "reportOnly": "Solo informe: no se publica nada más que el acuse hasta que llegue la revisión de seguridad."
     }
   },
   "gitHubSignOut": "Cerrar sesión",

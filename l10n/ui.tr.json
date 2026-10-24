@@ -1881,7 +1881,8 @@
       "policyHeading": "{repository} için ilke:",
       "policySet": "{repository} için {key} ayarlandı.",
       "policyInvalid": "Bu değer {key} için izin verilmiyor. Şunları kullanın: {allowed}.",
-      "policyUnknownKey": "Bilinmeyen ilke anahtarı. label, template, watch-labels, ignore-authors, posts veya close kullanın."
+      "policyUnknownKey": "Bilinmeyen ilke anahtarı. label, template, watch-labels, ignore-authors, posts veya close kullanın.",
+      "proposedReply": "Göndereceği yanıt:"
     },
     "poll": {
       "skippedPullRequest": "sorun değil, çekme isteği",
@@ -1915,7 +1916,8 @@
     },
     "refusal": {
       "spamHeld": "Olası istenmeyen ileti olarak tutuldu: hiçbir şey yayımlanmadı.",
-      "approvalRequired": "Bu gönderi önce onayınızı gerektirir."
+      "approvalRequired": "Bu gönderi önce onayınızı gerektirir.",
+      "reportOnly": "Yalnızca rapor: güvenlik incelemesi gelene kadar alındı onayı dışında hiçbir şey gönderilmez."
     }
   },
   "gitHubSignOut": "Oturumu kapat",

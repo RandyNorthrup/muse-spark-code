@@ -4993,6 +4993,12 @@ export const SCHEDULE_PREVIEW_COUNT = 5
 // (PLAN acceptance 1). Measured, never enforced: nothing stops, refuses or
 // retries on it; the status names an overdue acknowledgement out loud.
 export const WATCHDOG_ACK_TARGET_MS = 5 * MILLISECONDS_PER_MINUTE
+// PLAN M115w acceptance 8: until M109's taint lane (T) merges the watchdog
+// is report only. It acknowledges, triages and shows its findings, the plan
+// and the reply it would post, and posts nothing else. This is the one
+// switch the lead flips with T; the decide and resolve steps read it
+// through the surface, never a setting of the person's.
+export const WATCHDOG_TAINT_LANE: Readonly<{ isMerged: boolean }> = { isMerged: false }
 export const WATCHDOG_STORE_SUBFOLDER = 'watchdog'
 // The label the acknowledgement applies when the repository's policy names
 // none. Repository data, not UI text: the person's policy overrides it.

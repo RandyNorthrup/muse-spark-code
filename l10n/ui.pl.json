@@ -1941,7 +1941,8 @@
       "policyHeading": "Zasady dla {repository}:",
       "policySet": "Ustawiono {key} dla {repository}.",
       "policyInvalid": "Ta wartość nie jest dozwolona dla {key}. Użyj: {allowed}.",
-      "policyUnknownKey": "Nieznany klucz zasad. Użyj label, template, watch-labels, ignore-authors, posts lub close."
+      "policyUnknownKey": "Nieznany klucz zasad. Użyj label, template, watch-labels, ignore-authors, posts lub close.",
+      "proposedReply": "Odpowiedź, którą by opublikował:"
     },
     "poll": {
       "skippedPullRequest": "żądanie ściągnięcia, nie zgłoszenie",
@@ -1975,7 +1976,8 @@
     },
     "refusal": {
       "spamHeld": "Wstrzymano jako podejrzany spam: nic nie opublikowano.",
-      "approvalRequired": "Ten wpis wymaga najpierw Twojej zgody."
+      "approvalRequired": "Ten wpis wymaga najpierw Twojej zgody.",
+      "reportOnly": "Tylko raport: do czasu przeglądu bezpieczeństwa nie publikuje się nic poza potwierdzeniem."
     }
   },
   "gitHubSignOut": "Wyloguj",

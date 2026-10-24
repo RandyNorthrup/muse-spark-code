@@ -1851,7 +1851,8 @@
       "policyHeading": "{repository} のポリシー:",
       "policySet": "{repository} の {key} を設定しました。",
       "policyInvalid": "{key} にはこの値を使えません。{allowed} を使用してください。",
-      "policyUnknownKey": "不明なポリシーキーです。label、template、watch-labels、ignore-authors、posts、close のいずれかを使用してください。"
+      "policyUnknownKey": "不明なポリシーキーです。label、template、watch-labels、ignore-authors、posts、close のいずれかを使用してください。",
+      "proposedReply": "投稿する予定の返信:"
     },
     "poll": {
       "skippedPullRequest": "issue ではなくプルリクエスト",
@@ -1885,7 +1886,8 @@
     },
     "refusal": {
       "spamHeld": "スパムの疑いで保留されました: 何も投稿されていません。",
-      "approvalRequired": "この投稿には事前の承認が必要です。"
+      "approvalRequired": "この投稿には事前の承認が必要です。",
+      "reportOnly": "レポートのみ:セキュリティレビューが入るまで、受領の返信以外は何も投稿されません。"
     }
   },
   "gitHubSignOut": "サインアウト",

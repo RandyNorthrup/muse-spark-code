@@ -10,6 +10,7 @@ import {
   runWatchdogCli as entryRunWatchdogCli,
 } from '../../src/runtime/watchdog/watchdogEntry'
 import type { WatchdogSurfacePort } from '../../src/runtime/watchdog/command'
+import { WATCHDOG_TAINT_LANE } from '../../src/shared/constants'
 import { UI_TEXT } from '../../src/shared/l10n/text'
 import { collectingLogger } from './helpers/collectingLogger'
 import { fileRoots } from './helpers/tempDirs'
@@ -38,6 +39,9 @@ describe('watchdog surface and bundle entry', () => {
     expect(port.client).toBeUndefined()
     expect(port.token).toBeUndefined()
     expect(typeof port.now()).toBe('number')
+    // Report only holds until the lead flips the one switch with M109's T.
+    expect(port.isReportOnly).toBe(!WATCHDOG_TAINT_LANE.isMerged)
+    expect(port.isReportOnly).toBe(true)
     expect(port.newRunId()).not.toBe(port.newRunId())
     // The store round-trips through the real journal.
     await port.store.exclusive(WATCHDOG_REPOSITORY, (data) => ({ data, result: undefined }))

@@ -31,6 +31,7 @@ import {
   capturedSearchIssues,
   serveGithub,
   watchdogCaptured,
+  watchdogCapturedRoute,
 } from './helpers/watchdog/servedGithub'
 
 const roots = fileRoots()
@@ -293,30 +294,35 @@ describe('watchdog poll', () => {
   })
 
   it('stops on GitHub refusals out loud and keeps polling past one bad post', async () => {
+    // Both refusals are GitHub's recorded answers (2026-10-24): a missing
+    // repository on the list, an unauthenticated comment on the post.
     const rig = harness({
-      [`GET ${WATCHDOG_BASE}/issues`]: {
-        status: 429,
-        body: { message: 'API rate limit exceeded' },
-      },
+      [`GET ${WATCHDOG_BASE}/issues`]: watchdogCapturedRoute('github-issues-missing-repository'),
     })
     const result = await pollWatchdogRepository(await rig.deps(), WATCHDOG_REPOSITORY)
-    expect(result.stopped).toContain('API rate limit exceeded')
+    expect(result.stopped).toContain('Not Found')
     const rig2 = harness({
       ...listRoutes(searchItems()),
-      [`POST ${WATCHDOG_BASE}/issues/157/comments`]: { status: 403, body: { message: 'Locked' } },
+      [`POST ${WATCHDOG_BASE}/issues/157/comments`]: watchdogCapturedRoute(
+        'github-post-comment-unauthenticated',
+      ),
     })
     const deps2 = await rig2.deps()
     const result2 = await pollWatchdogRepository(deps2, WATCHDOG_REPOSITORY)
     expect(result2.errors).toHaveLength(1)
-    expect(result2.errors[0]).toMatchObject({ number: 157, message: 'Locked' })
+    expect(result2.errors[0]).toMatchObject({ number: 157, message: 'Requires authentication' })
     expect(result2.issues.find((row) => row.number === 146)?.posted).toBe(true)
   })
 
   it('names an overdue acknowledgement without ever hurrying one', async () => {
     const rig = harness({
       ...listRoutes(searchItems()),
-      [`POST ${WATCHDOG_BASE}/issues/157/comments`]: { status: 403, body: { message: 'Locked' } },
-      [`POST ${WATCHDOG_BASE}/issues/146/comments`]: { status: 403, body: { message: 'Locked' } },
+      [`POST ${WATCHDOG_BASE}/issues/157/comments`]: watchdogCapturedRoute(
+        'github-post-comment-unauthenticated',
+      ),
+      [`POST ${WATCHDOG_BASE}/issues/146/comments`]: watchdogCapturedRoute(
+        'github-post-comment-unauthenticated',
+      ),
     })
     const deps = await rig.deps()
     const first = await pollWatchdogRepository(deps, WATCHDOG_REPOSITORY)
@@ -419,6 +425,7 @@ describe('watchdog needs-info wait', () => {
       ...(await asking.deps()),
       store: deps.store,
       isPostApproved: () => Promise.resolve(true),
+      isReportOnly: false,
     }
     const asked = await decideWatchdogIssue(decideDeps, WATCHDOG_REPOSITORY, 3)
     expect(asked).toMatchObject({ outcome: 'needsInfo', state: 'awaitingInfo', posted: true })
@@ -475,6 +482,7 @@ describe('watchdog needs-info wait', () => {
         ...(await replying.deps()),
         store: deps.store,
         isPostApproved: () => Promise.resolve(true),
+        isReportOnly: false,
       },
       WATCHDOG_REPOSITORY,
       3,

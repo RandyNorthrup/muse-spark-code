@@ -1140,6 +1140,17 @@ are checked before dispatch; validated decoded cache entries use ETags. No repor
 makes a model call. Posting and email are not offered by the integrated report UI;
 those adapters require explicit target permission and their missing owning hosts.
 
+## Issue watchdog (M115w)
+
+The watchdog reads a watched repository's issues, comments, labels, releases
+and commit search results from GitHub with your own sign-in, and posts the
+acknowledgement there as you. The watchdog makes no model call itself;
+`evidence` prints the issue and its evidence for the agent session you run,
+so the text goes where that session's model sends it. On this machine it
+keeps one file per repository beside the schedules: the policy you set, and
+for each issue its stage, the triage findings, the fixing pull request and a
+hash of the title and body. Nothing is sent to us.
+
 ## Multimodal integration boundary (M105)
 
 **What leaves the machine today.** On the Muse Spark 1.2 and 1.3 contributor

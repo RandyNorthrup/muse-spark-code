@@ -14,7 +14,11 @@ import {
   capturedComments,
   releaseRoutes,
 } from './helpers/watchdog/fixtures'
-import { serveGithub, watchdogCaptured } from './helpers/watchdog/servedGithub'
+import {
+  serveGithub,
+  watchdogCaptured,
+  watchdogCapturedRoute,
+} from './helpers/watchdog/servedGithub'
 
 const logged: string[] = []
 const quiet = collectingLogger(logged)
@@ -120,8 +124,15 @@ describe('watchdog GitHub client', () => {
 
   it('refuses a missing issue and a misshapen answer out loud', async () => {
     const { fetch } = serveGithub({
-      [`GET ${WATCHDOG_BASE}/issues/999999`]: { status: 404, body: { message: 'Not Found' } },
-      [`GET ${WATCHDOG_BASE}/issues/147`]: { status: 200, body: { number: 'not-a-number' } },
+      // GitHub's recorded 404 (2026-10-24), and a recorded body of the
+      // wrong shape: a comment list where an issue was asked for.
+      [`GET ${WATCHDOG_BASE}/issues/999999`]: watchdogCapturedRoute(
+        'github-issues-missing-repository',
+      ),
+      [`GET ${WATCHDOG_BASE}/issues/147`]: {
+        status: 200,
+        body: watchdogCaptured('github-issue-comments'),
+      },
     })
     const client = new GitHubClient({ fetch, userAgent: 'muse-spark-code/test', log: quiet })
     logged.length = 0

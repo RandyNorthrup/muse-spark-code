@@ -1851,7 +1851,8 @@
       "policyHeading": "{repository}의 정책:",
       "policySet": "{repository}의 {key}을(를) 설정했습니다.",
       "policyInvalid": "{key}에는 이 값을 사용할 수 없습니다. {allowed}을(를) 사용하세요.",
-      "policyUnknownKey": "알 수 없는 정책 키입니다. label, template, watch-labels, ignore-authors, posts, close 중 하나를 사용하세요."
+      "policyUnknownKey": "알 수 없는 정책 키입니다. label, template, watch-labels, ignore-authors, posts, close 중 하나를 사용하세요.",
+      "proposedReply": "게시하려는 답변:"
     },
     "poll": {
       "skippedPullRequest": "이슈가 아닌 풀 리퀘스트",
@@ -1885,7 +1886,8 @@
     },
     "refusal": {
       "spamHeld": "스팸 의심으로 보류되었습니다. 게시된 내용이 없습니다.",
-      "approvalRequired": "이 게시물은 먼저 승인이 필요합니다."
+      "approvalRequired": "이 게시물은 먼저 승인이 필요합니다.",
+      "reportOnly": "보고 전용: 보안 검토가 적용될 때까지 접수 확인 외에는 아무것도 게시하지 않습니다."
     }
   },
   "gitHubSignOut": "로그아웃",

@@ -32,6 +32,8 @@ export interface WatchdogDecideDeps {
   readonly token: string
   readonly store: WatchdogStore
   readonly isPostApproved: () => Promise<boolean>
+  /** Report only (PLAN M115w acceptance 8): no post beyond the acknowledgement. */
+  readonly isReportOnly: boolean
   now(): number
 }
 
@@ -43,6 +45,8 @@ export interface WatchdogDecision {
   readonly closed: boolean
   readonly reason?: string
   readonly planDraft?: string
+  /** The reply a held post would have made, shown so an approval is informed. */
+  readonly proposedReply?: string
 }
 
 export interface WatchdogResolution {
@@ -52,6 +56,7 @@ export interface WatchdogResolution {
   readonly closed: boolean
   readonly notes?: string
   readonly reason?: string
+  readonly proposedReply?: string
 }
 
 function outcomeFor(verdict: WatchdogVerdict): WatchdogOutcome {
@@ -105,6 +110,9 @@ async function admittedWatchdogPost(
   )
   const kind = replyKindFor(outcome)
   const existing = comments.find((comment) => isWatchdogReply(comment.body, record, kind))
+  // Report only holds every post, an adopted reply's close included.
+  if (deps.isReportOnly)
+    return { existing, approval: { allowed: false, reason: UI_TEXT.watchdog.refusal.reportOnly } }
   const approval =
     existing === undefined
       ? await resolvePostApproval(policy, deps.isPostApproved)
@@ -175,6 +183,7 @@ export async function decideWatchdogIssue(
             posted: false,
             closed: false,
             reason: approval.reason,
+            proposedReply: composeReplyBody(outcome, findings, record),
           },
         }
       const reply =
@@ -236,6 +245,11 @@ export async function resolveWatchdogIssue(
           },
         }
 
+      const fixedReply = composeReplyBody(outcome, record.findings, record, {
+        pullRequestNumber: verified.resolution.pullRequestNumber,
+        pullRequestUrl: verified.resolution.pullRequestUrl,
+        version: verified.resolution.version,
+      })
       const { existing, approval } = await admittedWatchdogPost(
         deps,
         live.policy,
@@ -252,19 +266,11 @@ export async function resolveWatchdogIssue(
             posted: false,
             closed: false,
             reason: approval.reason,
+            proposedReply: fixedReply,
           },
         }
       if (existing === undefined)
-        await deps.client.postIssueComment(
-          deps.token,
-          named,
-          number,
-          composeReplyBody(outcome, record.findings, record, {
-            pullRequestNumber: verified.resolution.pullRequestNumber,
-            pullRequestUrl: verified.resolution.pullRequestUrl,
-            version: verified.resolution.version,
-          }),
-        )
+        await deps.client.postIssueComment(deps.token, named, number, fixedReply)
       if (verified.resolution.close) await deps.client.closeIssue(deps.token, named, number)
       const state = nextWatchdogState(record.state, 'replied')
       return {

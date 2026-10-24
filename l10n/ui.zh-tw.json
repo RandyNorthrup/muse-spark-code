@@ -1851,7 +1851,8 @@
       "policyHeading": "{repository} 的策略:",
       "policySet": "已設定 {repository} 的 {key}。",
       "policyInvalid": "{key} 不允許此值。請使用 {allowed}。",
-      "policyUnknownKey": "未知的策略鍵。請使用 label、template、watch-labels、ignore-authors、posts 或 close。"
+      "policyUnknownKey": "未知的策略鍵。請使用 label、template、watch-labels、ignore-authors、posts 或 close。",
+      "proposedReply": "將發布的回覆:"
     },
     "poll": {
       "skippedPullRequest": "是提取請求，而非問題",
@@ -1885,7 +1886,8 @@
     },
     "refusal": {
       "spamHeld": "因疑似垃圾訊息已被扣留：未發佈任何內容。",
-      "approvalRequired": "此貼文需要先獲得您的批准。"
+      "approvalRequired": "此貼文需要先獲得您的批准。",
+      "reportOnly": "僅回報:在安全審查就緒之前,除確認回覆外不會發布任何內容。"
     }
   },
   "gitHubSignOut": "登出",

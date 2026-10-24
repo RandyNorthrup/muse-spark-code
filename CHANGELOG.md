@@ -10,18 +10,24 @@ happened, not what was planned; superseded entries are kept.
 ### Added
 
 - **The issue watchdog keeps an eye on your GitHub issues.** On a watched
-  repository it acknowledges each new issue once, in the issue's own
-  language or English, then triages it — duplicates, already-fixed,
-  in-hand and needs-information cases each get their own reply — and
-  shows its findings and plan to you. Until its safety review lands it
-  is report-only: it posts the acknowledgement and nothing else, and
-  anything beyond that asks for your approval first.
+  repository it acknowledges each new issue once, in English, with your
+  label and an automated note, and never twice, even from two windows at
+  once. For the triage it prints the issue and the evidence (possible
+  duplicates, releases, tags, commits naming it, plans tracking it) for your
+  agent, fenced as data, and names any instruction-like phrase in the issue
+  text; it never runs or follows it. A reporter's answer, or an edit of the
+  title or body, sends the issue back to be triaged again. Until its safety
+  review lands it is report-only: it posts the acknowledgement and nothing
+  else, and shows the reply and the plan it would have made.
 - **In a terminal: `muse-spark-code-acp watchdog
-  list|status|pause|resume|poll|evidence|apply|decide|resolve`, and
-  `/watchdog` in ACP editors.** List and check the watched issues, pause
-  and resume watching, and re-run the poll, evidence, triage, decision
-  and resolve steps by hand. Anything that would post beyond the
-  acknowledgement needs `--approve`.
+  list|status|pause|resume|poll|policy|evidence|apply|decide|resolve`, and
+  `/watchdog` in ACP editors.** List and check the watched issues, pause and
+  resume watching, record the triage, and see each decision. `policy` shows
+  or sets a repository's acknowledgement label and template, watched labels,
+  ignored authors, whether posts ask, always or never, and when issues close.
+- **`/report issues`** lists the watched issues with what waits on you first,
+  each one's stage and verdict, its fixing pull request and each
+  repository's own settings; `--repo owner/name` picks one repository.
 
 ### Release infrastructure
 
