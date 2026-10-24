@@ -5313,6 +5313,13 @@
       "invocations": [["providers", "remove"]]
     },
     {
+      "route": "providersHeaders",
+      "name": "providers headers <id> [set|unset <name>]",
+      "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
+      "text": { "ui": "referenceProviders" },
+      "invocations": [["providers", "headers"]]
+    },
+    {
       "route": "providersModels",
       "name": "providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]",
       "description": "List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.",
@@ -5767,6 +5774,13 @@
     {
       "route": "providersModels",
       "name": "providersModels: --help / -h",
+      "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
+      "text": { "cli": "help" },
+      "contract": { "type": "boolean", "repeatable": false, "default": false }
+    },
+    {
+      "route": "providersHeaders",
+      "name": "providersHeaders: --help / -h",
       "description": "help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation.",
       "text": { "cli": "help" },
       "contract": { "type": "boolean", "repeatable": false, "default": false }

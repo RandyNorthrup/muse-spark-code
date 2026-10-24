@@ -5644,6 +5644,23 @@ export const EN = {
   providerKeyNeeded: '{provider} needs its key from stdin (--key-stdin).',
   providerNotConfigured: '{provider} is not configured; add it with providers add first.',
   providerSecretUnreadable: 'The stored {provider} credential cannot be read; enter the key again.',
+  providerHeadersButton: 'Request Headers',
+  providerHeadersPick: 'Request headers for {provider}',
+  providerHeadersAdd: 'Add a header…',
+  providerHeadersRemove: 'Remove',
+  providerHeadersName: 'Header name, for example OpenAI-Project',
+  providerHeadersValue:
+    'Value for {name}, sent only to {origin}. It is kept in your credential store and never shown again.',
+  providerHeadersNameInvalid:
+    'A header name uses letters, digits and the symbols ! # $ % & * + - . ^ _ | ~ only.',
+  providerHeadersNameReserved: '{name} is sent by Muse Spark Code itself and cannot be set here.',
+  providerHeadersValueInvalid: 'A header value is one line of printable characters.',
+  providerHeadersUnreadable:
+    'The stored request headers for {provider} cannot be read; set them again.',
+  providerHeadersNone: 'No request headers are set for {provider}.',
+  providerHeadersList: '{provider} sends these request headers: {names}.',
+  providerHeadersUsage:
+    'Usage: {command} providers headers <id> [set|unset <name>]; a value is read from standard input.',
   // {reason}: the technical detail (a file error or a refused write).
   providerSaveFailed: 'Could not save the providers file ({reason}).',
   // {stored}: the origin the credential was stored for; {current}: where the provider points now.

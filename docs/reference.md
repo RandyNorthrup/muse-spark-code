@@ -4020,6 +4020,7 @@ These are defaults; editor customizations take precedence.
 - `providers test <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers refresh <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers remove <id>`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
+- `providers headers <id> [set|unset <name>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers models <entry> [--add <model>] [--remove <model>] [--force <reason>]`: List, add, test, refresh or remove model providers. Keys use the credential store. Paid token probes require the editor; the CLI refuses them.
 - `providers usage <id> [--days <n>] [--output json]`: Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.
 - `providers usage`: Show what the provider itself reports was spent, next to our own estimate. Admin report keys use the credential store and never pay for model requests.
@@ -4093,6 +4094,7 @@ These are defaults; editor customizations take precedence.
 - `providersModels: --remove <value>`: --remove &lt;model&gt;: Stop offering this model on the entry; repeat the option for more models. `{"type":"string","repeatable":true}`
 - `providersModels: --force <value>`: --force &lt;reason&gt;: Add a model the provider does not list; the reason is stored on the entry. `{"type":"string","repeatable":false}`
 - `providersModels: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
+- `providersHeaders: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`
 - `providersUsage: --days <value>`: --days &lt;n&gt;: Spend report period in days `{"type":"string","repeatable":false}`
 - `providersUsage: --output <value>`: Choose the result format: text, json or jsonl. `{"type":"string","repeatable":false,"enum":["text","json","jsonl"],"default":"text"}`
 - `providersUsage: --help / -h`: help / --help / -h: ACP / CLI. help --all: Commands, settings and features, with descriptions and documentation. `{"type":"boolean","repeatable":false,"default":false}`

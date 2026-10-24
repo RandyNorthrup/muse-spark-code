@@ -26,10 +26,11 @@ export const UI_TEXT_REGIONS = [
     output: 'dist/uiTextHooks.js',
     keys: /^(?:hook|paid\w*Hook|usagePaidHook|setupHook|manualHook|plugin|extensionHook|foreignHook|agentImport)/,
   },
+  // M95c part 6's request-header strings ride the optional surfaces too.
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$)/,
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|providerHeaders)/,
   },
 ]
 
