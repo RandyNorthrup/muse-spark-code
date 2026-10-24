@@ -1059,3 +1059,44 @@ check:roadmap`: 240 entries, current.
   int/recovery's, D104 without its 2026-10-16 amendment), so any archive
   of D104 or D107 conflicts there. Each already has 64 or 65 conflict
   regions against int/recovery.
+
+## 2026-10-23: room for RLM116's re-land (branch cc/rlm116)
+
+Merging RLM116's MSM116 landing (`9244225a4e`) brought 35,798 bytes into
+`PLAN.md` (3,563,600 to 3,599,398, 34,240 over the gate). Moved:
+
+- **decisions.md**, under "D96 — The orchestrator playbook": D96's whole
+  design record, lines 11276-11690 at `bf0015ba2` (the owner's quote, what
+  existed, rules 1 to 12, the amendments 13 to 15 and the lane's 16 and 17),
+  one block of 28,443 bytes. The summary paragraph (2,881 bytes) states the
+  rule in force, D121's `patchRoundsMax` included.
+- Not to the archive, at the lead's direction (summaries in PLAN.md, details
+  in the certification record): the lane's §6 series (9,113 bytes), its §6
+  bundle measurements (1,174) and its §9 FIXM116P3 closure (8,346), each
+  replaced by a short paragraph and kept verbatim in
+  `docs/certification/msm116.md`, "PLAN record", with its §7 timing receipt.
+  The merge's re-indent of int's Q-VIS0171/Q-CMICCOMP paragraph is undone;
+  the lane's open question stays as its own §3 item.
+
+After: 3,557,449 bytes, 7,709 under the gate, before the lane's D218-D221.
+
+### Proofs
+
+- Reassembly: the command rebuilt the pre-move `PLAN.md`, SHA-256
+  `5d51f696…`. Parsed facts identical; format drift after: 0.
+- `npx prettier --check PLAN.md docs/plan-archive/decisions.md
+docs/certification/msm116.md`: clean. `npm run check:plan`:
+  `plan-format-v1; 240 milestones; 0 drift`. `npm run roadmap:generate`:
+  `ROADMAP.md` unchanged. `npm run check:reference`: current.
+- `plan-archive status`: decisions 136 blocks (+1), gates 328, milestones
+  186, all intact.
+- `planReader` + `planCitation` + `autoCompact` + `paidMoneyStructure`:
+  135 passed.
+- Open work: none of the 19 unmerged hub branches (`cc/gates`, `cc/tests`,
+  `cc/rlm95c`, `rec/rlf-a11y`, `rec/rlf-m120ui`, `rec/rlf-recording`,
+  `rec/rlm95c`, `rec/rlplan`, `rec/rlsched`, `rec/rlusage`, `rec/rvint4`,
+  the RLM104/RLF-M104 heads, `rec/rlf-mcp2`, `rec/rlm96c`) changes D96, the
+  M116 section, FIXM116P3 or the §3 paragraph against its merge base.
+  RLF-TEAMWIRE (on its rig) merged `rec/rlm116`, so it carries
+  `9244225a4e`'s D96.16/D96.17 too; once this branch lands that text is
+  common history.

@@ -29,6 +29,7 @@ import { tmpdir } from 'node:os'
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { redactSecrets } from '../../../shared/redact'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { withoutHostVariables } from '../../hostVariables'
 
 /** Tagged effects go through the harness's ordinary tool policy. Hooks receive
 their real arguments/stdin, never an altered script or a substitute command. */
@@ -106,10 +107,13 @@ export class PlaybookOutcomes {
 
   private bytes(effect: PlaybookHookEffect, isMissingAllowed = false): Buffer {
     if (!this.admission.admit(effect)) throw new Error(UI_TEXT.playbookUnavailable)
-    const scrubbed = Object.fromEntries(
-      Object.entries(withoutCredentials(process.env)).filter(
-        ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
+    const scrubbed = withoutHostVariables(
+      Object.fromEntries(
+        Object.entries(withoutCredentials(process.env)).filter(
+          ([name]) => !/^(?:GIT_.*|HUSKY|HUSKY_SKIP_HOOKS)$/iu.test(name),
+        ),
       ),
+      process.platform,
     )
     const options = {
       cwd: effect.cwd,
@@ -165,6 +169,23 @@ export class PlaybookOutcomes {
 
   private git(args: readonly string[], cwd = this.workspace): string {
     return this.run(this.effect('git', cwd, args)).trimEnd()
+  }
+
+  /** The checked-out branch, when there is one, and its commit: what a dispatch brief records. */
+  head(): { readonly ref: string | undefined; readonly commit: string } {
+    const ref = this.run(
+      {
+        kind: 'git',
+        cwd: this.workspace,
+        command: 'git',
+        args: ['symbolic-ref', '--quiet', 'HEAD'],
+      },
+      true,
+    ).trimEnd()
+    return {
+      ref: ref === '' ? undefined : ref,
+      commit: this.git(['rev-parse', '--verify', 'HEAD^{commit}']),
+    }
   }
 
   reachable(refs: readonly string[]): string[] {

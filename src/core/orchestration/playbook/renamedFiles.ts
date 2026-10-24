@@ -4,6 +4,7 @@ import { processGitPath } from '../../../host/git'
 import { runTreeSync } from '../../../host/processTree'
 import { workspaceChildEnvironment } from '../../execGuard'
 import { withoutCredentials } from '../../credentialEnvironment'
+import { withoutHostVariables } from '../../hostVariables'
 import {
   GIT_OUTPUT_MAX_BYTES,
   GIT_TIMEOUT_MS,
@@ -46,11 +47,16 @@ export function renamedFiles(
     const options = {
       cwd: workspace,
       // The guarded child PATH for the workspace, so git's own bare-name
-      // helpers never run a planting.
-      env: workspaceChildEnvironment(process.platform, withoutCredentials(process.env), {
-        workspaceRoot: workspace,
-        realpath: realpathSync,
-      }),
+      // helpers never run a planting. No editor host variable reaches it
+      // either (`core/hostVariables`, the list the shell tools use).
+      env: workspaceChildEnvironment(
+        process.platform,
+        withoutHostVariables(withoutCredentials(process.env), process.platform),
+        {
+          workspaceRoot: workspace,
+          realpath: realpathSync,
+        },
+      ),
       encoding: 'buffer' as const,
       timeout: GIT_TIMEOUT_MS,
       maxBuffer: GIT_OUTPUT_MAX_BYTES,

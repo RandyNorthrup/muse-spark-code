@@ -8,6 +8,7 @@
 import path from 'node:path'
 import { realpathSync } from 'node:fs'
 import { isCredentialVariable, withoutCredentials } from './credentialEnvironment'
+import { isHostOnlyVariable } from './hostVariables'
 import { vaultFenceEnvironment, type VaultFenceOptions } from './vault/exec/fence'
 import {
   HOOK_FORBIDDEN_ENV_NAMES,
@@ -699,18 +700,6 @@ const WINDOWS_HOOK_ENV_NAMES = [
   'ProgramData',
 ] as const
 
-// The variables VS Code's terminal strips from the extension host's
-// environment before a shell sees it (`sanitizeProcessEnvironment`,
-// microsoft/vscode src/vs/base/common/processes.ts): Electron's switches
-// (`ELECTRON_RUN_AS_NODE` turns a `code` command into plain Node), the
-// window's IPC handles, and the Snap and GDK loader paths.
-const HOST_ONLY_VARIABLES: readonly RegExp[] = [
-  /^ELECTRON_.+$/,
-  /^VSCODE_(?!(?:PORTABLE|SHELL_LOGIN|ENV_REPLACE|ENV_APPEND|ENV_PREPEND)$).+$/,
-  /^SNAP(?:|_.*)$/,
-  /^GDK_PIXBUF_.+$/,
-]
-
 /** The shell tool's environment, without host plumbing or unapproved credentials. */
 export function shellEnvironment(
   env: NodeJS.ProcessEnv,
@@ -724,7 +713,10 @@ export function shellEnvironment(
   const kept: NodeJS.ProcessEnv = {}
   const entries = Object.entries(withoutCredentials(env, passNames, platform))
   for (const [key, value] of entries) {
-    if (HOST_ONLY_VARIABLES.every((pattern) => !pattern.test(key))) {
+    // One list for every child's environment (`core/hostVariables`, the names
+    // VS Code's own terminal strips): matched without regard to case on
+    // Windows, where a mixed-case spelling names the same variable.
+    if (!isHostOnlyVariable(key, platform)) {
       kept[key] = value
     }
   }

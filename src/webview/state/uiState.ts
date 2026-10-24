@@ -3714,6 +3714,10 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
       // surface's props below.
       return state
     }
+    case 'playbook': {
+      // The Agent map's lazy playbook chunk owns this channel.
+      return state
+    }
     case 'schedulesSurface': {
       return { ...state, schedulesSurface: message }
     }

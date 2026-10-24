@@ -184,11 +184,23 @@ usage.
 
 ## Orchestrator playbook policy (M116)
 
-The CLI `playbook <status|record|settings ...>` and ACP
-`/playbook <status|record|settings ...>` read journal records and settings
-locally without starting a backend or a model turn. Settings changes need a
-reason and record the owner. The reviewer charter ships as the
-`orchestrator-playbook` skill.
+The CLI `playbook <status|record|settings ...>` and
+`/playbook <status|record|settings ...>` in the ACP agent and in the VS Code
+panel's composer read journal records and settings locally without starting
+a backend or a model turn. In VS Code the Agent map also opens the same
+journal's status, record and settings (**Playbook Settings**). Settings
+changes need a reason and record the owner. The CLI also runs one of the
+workspace's check commands (`playbook run <name>`) through the same
+admission, journal and record as the panel, and exits with the check's own
+exit code. The reviewer charter ships as the `orchestrator-playbook` skill.
+
+Muse Code starts subagents without asking; the panel counts their observed
+rounds and reviews their work, and cannot stop a start. A child's first row
+opens its round before the CLI supplies its session id, and each round is
+matched to one of its children by subagent id and item id. Its own ended row,
+the next review or the conversation closing ends it; a history repost ends
+nothing. A window with no playbook folder loads no playbook code for child
+work, including when the optional bundle is absent.
 
 ## Highlights
 

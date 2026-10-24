@@ -130,6 +130,12 @@ const ALLOW_LIST = new Map([
     'src/core/orchestration/panelPlaybook.ts:observe',
     'collects per-item review texts; settle consumes them only through usableReply',
   ],
+  // The window forwards the same per-item observations to its worker, whose
+  // panelPlaybook settles the review only through usableReply.
+  [
+    'src/host/playbook/playbookWindow.ts:reviewEvent',
+    'forwards per-item review observations; settle consumes the review only through usableReply',
+  ],
   // The handoff trigger starts the brief read on completion; the brief
   // itself is taken only through usableReply in finishHandoff. The message
   // display hold reads an ITEM status for a display-only rewrite.

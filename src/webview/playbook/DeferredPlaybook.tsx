@@ -5,12 +5,23 @@
 import type { ReactNode } from 'react'
 import type { PlaybookRecord, PlaybookWhyNote } from '../../shared/playbook'
 import { deferred } from '../components/DeferredSurface'
+import type { PlaybookLinkProps } from './PlaybookMap'
 import type { PlaybookPanelProps } from './PlaybookPanel'
 
 const PlaybookMapSurface = deferred(async () => {
   const { PlaybookMap } = await import('./PlaybookMap')
   return { default: PlaybookMap }
 }, false)
+
+// The link shows nothing, so it has nothing to show while it loads.
+const PlaybookLinkSurface = deferred<PlaybookLinkProps>(
+  async () => {
+    const { PlaybookLink } = await import('./PlaybookMap')
+    return { default: PlaybookLink }
+  },
+  false,
+  () => null,
+)
 
 const PlaybookPanelSurface = deferred(async () => {
   const { PlaybookPanel } = await import('./PlaybookPanel')
@@ -34,6 +45,10 @@ const PlaybookDetailsSurface = deferred(async () => {
 
 export function DeferredPlaybookMap(props: PlaybookPanelProps & { readonly children: ReactNode }) {
   return <PlaybookMapSurface {...props} />
+}
+
+export function DeferredPlaybookLink(props: PlaybookLinkProps) {
+  return <PlaybookLinkSurface {...props} />
 }
 
 export function DeferredPlaybookPanel(props: PlaybookPanelProps) {

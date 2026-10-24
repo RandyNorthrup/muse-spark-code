@@ -517,20 +517,20 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | ------------------------ | ----- |
 | `node:async_hooks`       | 7     |
 | `node:buffer`            | 85    |
-| `node:child_process`     | 46    |
-| `node:crypto`            | 307   |
+| `node:child_process`     | 47    |
+| `node:crypto`            | 312   |
 | `node:dgram`             | 2     |
 | `node:dns`               | 1     |
 | `node:dns/promises`      | 11    |
 | `node:events`            | 6     |
-| `node:fs`                | 168   |
-| `node:fs/promises`       | 199   |
+| `node:fs`                | 171   |
+| `node:fs/promises`       | 200   |
 | `node:http`              | 25    |
 | `node:https`             | 4     |
 | `node:module`            | 7     |
 | `node:net`               | 44    |
 | `node:os`                | 64    |
-| `node:path`              | 339   |
+| `node:path`              | 342   |
 | `node:perf_hooks`        | 4     |
 | `node:process`           | 32    |
 | `node:readline`          | 3     |
@@ -543,7 +543,7 @@ Functions, variables, classes, enums and members declared in `@types/vscode`; th
 | `node:url`               | 9     |
 | `node:util`              | 18    |
 | `node:vm`                | 1     |
-| `node:worker_threads`    | 6     |
+| `node:worker_threads`    | 7     |
 | `node:zlib`              | 11    |
 
 ## The webview's host

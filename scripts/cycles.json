@@ -125,6 +125,7 @@
     "src/host/support/reportEntry.ts",
     "src/host/auth/authEntry.ts",
     "src/host/paid/paidEntry.ts",
+    "src/host/playbook/playbookEntry.ts",
     "src/host/web/pageWorker.ts",
     "src/runtime/chatGptProviderCommands.ts",
     "src/runtime/grokProviderCommands.ts",

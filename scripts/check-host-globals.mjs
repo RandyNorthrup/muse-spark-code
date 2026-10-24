@@ -117,6 +117,7 @@ const HOST_BUNDLES = [
   'dist/judge.js',
   'dist/searchWorker.js',
   'dist/pageWorker.js',
+  'dist/playbook.js',
   'dist/imageResizeWorker.js',
   'dist/scheduleBackground.js',
   'dist/scheduleDelivery.js',

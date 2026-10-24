@@ -1182,7 +1182,7 @@ export const EN = {
   referencePaidContexts:
     'Interactive Model API extras ask before spending and share the daily budget. Muse Code images need a stored Model API key and explicit opt-in; their spending is outside that daily ledger. Muse Voice reserves the shared daily budget on both backends. ACP paid features default off and require Model API flags and editor permission. ACP and headless Model API requests reserve against the runtime daily budget; headless also requires a hard run budget. Headless images require acceptEdits and the image flag. Account & usage can forget workspace paid-use grants.',
   referenceAcp:
-    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew and /agents plus installed skills; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
+    'Installed skills add dynamic slash commands. This static reference does not list them. ACP handles local /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew and /agents plus installed skills; /playbook answers locally in every editor; panel slash commands, settings and editor dialogs in the linked reference are extension workflows.',
   referenceCiOtherTitle: 'Other CI systems',
   referenceCiOther:
     'Digest-pinned headless review/fix templates for GitLab, Azure, Jenkins and Bitbucket. Node reads the key and publishes outside the checkout; every template uploads those files. GitLab/Bitbucket external-temp copies and Bitbucket process isolation remain unqualified. Declare extra key binding names in MUSE_CI_KEY_ALIASES. Fake tests only; see docs/ci-other-systems.md.',
@@ -1279,9 +1279,30 @@ export const EN = {
   playbookCommandFailed: 'The playbook command could not be completed.',
   playbookHelpDescription:
     'Show review strikes, design decisions, safety refusals and rule settings.',
-  playbookCommandUsage: 'Use `playbook status|record|settings`.',
+  playbookCommandUsage: 'Use `playbook status|record|settings|run <name> [--heavy] [--full-gate]`.',
+  // `playbook run`: no check commands in the workspace settings.
+  playbookNoChecks:
+    'No check commands are configured; name them in the museSpark.checkCommands setting.',
+  // {name}: the check name as typed; {checks}: the configured names, comma-separated.
+  playbookUnknownCheck: 'Unknown check {name} (known checks: {checks}).',
+  // `playbook run`: the workspace settings file exists but does not parse.
+  playbookSettingsInvalid: 'The workspace .vscode/settings.json is not valid.',
+  // `playbook run`: the file parses but its check commands fail the setting's schema.
+  playbookChecksInvalid:
+    'The museSpark.checkCommands setting is invalid, so no check commands are available.',
   playbookSave: 'Save Settings',
   playbookSaved: 'Playbook settings saved.',
+  // C-M116-6: the panel's answers to findings, and what a conversation is told.
+  playbookAnswerReason: 'Reason',
+  playbookAnswerWhySafe: 'Why It Is Safe for Now',
+  playbookAnswerFollowUp: 'Follow-up',
+  playbookNotCertified:
+    'Playbook: this round could not be certified, so it does not count as passed.',
+  playbookEvidenceUnreadable:
+    'Playbook: a reviewed file, or what a subagent changed, could not be read, so the playbook cannot tell whether this review is its own. The review was not sent.',
+  playbookRecordStale: 'The playbook record could not be read. What is shown may be out of date.',
+  playbookMuseCodeStarts:
+    'Muse Code starts subagents without asking. The playbook counts their rounds and reviews their work, and cannot stop a start.',
   playbookStrikeBadge: forms({ one: '{count} review round', other: '{count} review rounds' }),
   playbookRules: {
     threeStrikes: 'Redesign After Fix Rounds',
@@ -1363,7 +1384,16 @@ export const EN = {
     fallbackReviewer:
       'Playbook: {actor} reviews {module} as the recorded fallback reviewer ({reason}).',
     residualOpen: 'Needs you: {lane} has open residuals: {missing}.',
+    contributionBlocked: '{reason}',
   },
+  playbookBlockedName:
+    'Playbook finding for {child}: a file whose name is withheld reads as a secret. This child’s round was counted.',
+  playbookBlockedLarge:
+    'Playbook finding for {child}: the patch is {size}, above the {bound} bound. This child’s round was counted.',
+  playbookBlockedUnreadable:
+    'Playbook finding for {child}: the contribution could not be read. This child’s round was counted.',
+  playbookBlockedMany:
+    'Playbook finding for {child}: changed-file count: {count}; bound: {bound}. This child’s round was counted.',
   // STARTUP017: a restored settlement row's words paint with chat startup;
   // the rest of the schedule English loads with the schedule surfaces.
   scheduleSettlement: {
@@ -4243,6 +4273,8 @@ export const EN = {
   agentRetryNoCheckpoint:
     'Retry is unavailable for this agent: it has no isolated checkpoint. Shared workspace changes are kept.',
   agentContinueUnavailable: 'Continue is unavailable for this agent or its current state.',
+  playbookResumePaused:
+    'The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.',
   agentGone: 'That agent is no longer in this conversation.',
   referenceAgentOutcomes:
     'Agents show activity and evidence-backed outcomes. Select an ended agent for its bounded receipt and attempt history. Continue keeps its session and changes after confirmation; Retry requires an isolated checkpoint. Missing evidence is shown as unverified. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.',
@@ -5379,7 +5411,7 @@ export const EN = {
     purposeReport: 'Print a scrubbed problem report.',
     purposeLegal: 'Run the read-only legal scan.',
     purposeFonts: 'Install the optional fonts for standalone surfaces.',
-    purposePlaybook: 'Show or change the orchestrator playbook.',
+    purposePlaybook: 'Show or change the orchestrator playbook, or run one of its check commands.',
     purposeSetup: 'Run the Setup hooks and exit.',
     purposeUsage: 'Show usage and cost across models.',
     purposeResources: 'Show machine pressure and recent history.',
@@ -5833,6 +5865,9 @@ export const EN = {
   genericExits: 'Exits 0 on success, 1 on failure, 2 for misuse.',
   // share/prompts: a cancelled or refused share is EXEC_EXIT.denied (7).
   sharingExits: 'Exits 0 on success, 7 when cancelled or refused, 2 for misuse, 1 on failure.',
+  // The playbook's own exits (CLI_EXIT): `run` passes the check's exit code through.
+  playbookExits:
+    'Exits 0 on success, 1 on failure, 2 for misuse; run exits with the check’s own exit code.',
   execSummary:
     '{status}; requests {requests}; settled {settled}; uncertain {uncertain}; image attempts {imageAttempts}; returned {imagesReturned}; uncertain images {imagesUncertain}',
   execSummaryUpperBound:
@@ -6533,6 +6568,9 @@ export const EN = {
     'This command contains a detected secret, shown redacted. It always asks: no allow rule approves it on its own.',
   // Who answered a call no card was shown for (the row's "Decided" line).
   autoReviewerResolver: 'Auto Reviewer',
+  // The CLI's own reviewer deciding for one child (M116, PLAN.md D96.17):
+  // the row's "Decided" line names it and the child, never a waiting card.
+  cliReviewerDecision: 'Muse Code reviewer for {child}',
   commandRuleResolver: 'Command Rule',
   // The Auto reviewer's row and the card it leaves; {reason}: the reviewer's own words.
   autoReviewAllowed: 'Allowed: {reason}',

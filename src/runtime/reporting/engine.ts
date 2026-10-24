@@ -29,6 +29,7 @@ import type { LocalReportSourceDeps } from '../../core/reporting/sources'
 import { emptyPlanFacts, readPlan } from '../../core/reporting/plan/reader'
 import { createReportCollector } from '../../core/reporting/collect'
 import { ReportScopeNotFound } from '../../core/reporting/collect/plan'
+import type { PlaybookReportOrderer } from '../../core/reporting/collect/playbookOrder'
 import { createReportRenderers } from '../../core/reporting/render'
 import {
   canonicalReportJson,
@@ -75,12 +76,28 @@ export interface ReportingContext {
   /** Normalized source ports shared by embedded hosts and engine certification. */
   readonly sources?: Partial<ReportSourcePorts>
   readonly playbook?: LocalReportSourceDeps['playbook']
+  /**
+  D220: the playbook ordering for the playbook, milestone and fleet kinds,
+  over the journal the report reads, bound by the facades. Asked for only
+  when one of those kinds orders, so no other report loads the inputs
+  bundle it lives in. Absent, those kinds keep their own order; the note
+  goes to this context's log.
+  */
+  readonly playbookOrder?: (() => PlaybookReportOrderer) | undefined
   readonly schedules?: LocalReportSourceDeps['schedules']
   readonly estimate?: LocalReportSourceDeps['estimate']
   readonly networkSources?: Pick<ReportSourcePorts, 'github' | 'stores'>
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
     | (() => Promise<Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>>)
+  /**
+  Told the observed CI check runs after a generation that attempted the
+  github read (M116, PLAN.md D218): how many ran, or that the read failed.
+  A generation that never attempted the read calls nothing, so a holder
+  fed here stays unknown until CI is really observed, never guessed.
+  */
+  readonly noteGithubCi?:
+    ((outcome: { readonly runs: number } | { readonly failed: true }) => void) | undefined
 }
 
 const unavailable = <K extends ReportSourceKind>(kind: K) =>
@@ -296,6 +313,13 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               readReportSource('github', network.github, readContext),
               readReportSource('stores', network.stores, readContext),
             ])
+      // D218: only a generation that really attempted the github read feeds
+      // the CI holder: the bound network, or an owner-supplied github port.
+      // Anything else leaves unknown alone.
+      if (network !== undefined || context.networkSources?.github !== undefined)
+        context.noteGithubCi?.(
+          github.data === null ? { failed: true } : { runs: github.data.runs.length },
+        )
       const plan =
         planText === undefined || initialPlan.data === null
           ? initialPlan
@@ -365,9 +389,19 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               signal,
               reportText,
             )
+      const { playbookOrder } = context
       const collector = createReportCollector({
         nextStepLimit: REPORT_NEXT_STEP_LIMIT,
         selections,
+        ...(playbookOrder !== undefined && {
+          playbookOrder: {
+            orderReport: (items) => playbookOrder().orderReport(items),
+            getRecord: () => playbookOrder().getRecord(),
+          },
+          playbookNote: (note) => {
+            context.log?.info(`playbook report order: ${note.rule}/${note.code}`)
+          },
+        }),
         finalize: (draft) =>
           finalizeReport(
             { ...draft, header: { ...draft.header, contentHash: REPORT_EMPTY_HASH } },

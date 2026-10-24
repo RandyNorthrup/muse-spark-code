@@ -12,7 +12,7 @@ import { abortableSleep } from '../core/backends/modelapi/transport'
 import { spawnResourceProcess, handoffResourceFile } from '../core/resources/launcher'
 import { isResourcePaused } from '../core/resources/launch'
 import { createHash, randomBytes, randomUUID } from 'node:crypto'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { open, writeFile, realpath, lstat } from 'node:fs/promises'
 import { createInterface } from 'node:readline'
 import { createInterface as createPromisedInterface } from 'node:readline/promises'
@@ -108,6 +108,10 @@ import {
 import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { nodeModule } from './node/bundle'
+import { spawnCheckLine } from './playbook/spawnCheck'
+import { createSubagentAdmission } from './playbook/admission'
+import { createReadingHolder } from '../core/orchestration/playbook/readingHolder'
+import type { ResourceStatus } from '../shared/resources'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import {
@@ -692,6 +696,13 @@ function runtimeReports(
           env: process.env,
           homeDir: homedir(),
         })
+        // The playbook journal's reader, which also orders that journal's rows.
+        const playbookReader = () =>
+          playbookSchedules().createPlaybookReportReader(
+            { agentDataFolder: dataFolder, workspaceRoot: cwd },
+            l10n.table,
+            l10n.locale,
+          )
         let journalReader:
           ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
         const readJournal = (context: SourceReadContext) => {
@@ -812,16 +823,10 @@ function runtimeReports(
             // live under the same agent data folder as the usage journal.
             // The schedules key matches the delivery engine's own workspace
             // key (schedulesBridge keyFor), not the report storage key.
-            playbook: {
-              read: (context) =>
-                playbookSchedules()
-                  .createPlaybookReportReader(
-                    { agentDataFolder: dataFolder, workspaceRoot: cwd },
-                    l10n.table,
-                    l10n.locale,
-                  )
-                  .read(context),
-            },
+            playbook: { read: (context) => playbookReader().read(context) },
+            // D220: the reader orders the playbook, milestone and fleet rows
+            // of the journal it reads, loaded only when one of them orders.
+            playbookOrder: playbookReader,
             schedules: {
               read: (context) =>
                 playbookSchedules()
@@ -1272,6 +1277,13 @@ async function serve(
           UI_TEXT,
           uiLocale(),
         ),
+      // `/agents continue|retry` through the playbook's child-work
+      // admission (M116, D221): the process governor's latest reading,
+      // refreshed on every resume. Unknown reads as unknown, never as paused.
+      subagentAdmission: createSubagentAdmission({
+        holder: createReadingHolder<ResourceStatus>(),
+        readResourceStatus: () => resources.status(),
+      }),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       // The account picker serves Model API sessions (list, current,
       // thresholds). Switching stays refused (no adoption transaction).
@@ -2645,17 +2657,67 @@ async function main(processResources: ProcessResources): Promise<number> {
       // No backend, no model startup: the journal-backed settings/record
       // surface for the current workspace (M116), loaded on first use.
       const homeDir = homedir()
+      const playbookDataFolder = agentDataFolder({
+        platform: process.platform,
+        env: process.env,
+        homeDir,
+      })
       const playbook = playbookLoader(path.join(distDir, PLAYBOOK_BUNDLE_FILE), log)()
+      if (command.argv[0] === 'run') {
+        // Headless `playbook run <name>` (M116, D219): one check command
+        // through the same admission, journal and report as the panel. It
+        // is not part of the shared read-only grammar, so ACP's /playbook
+        // keeps its surface.
+        const workspaceFolder = process.cwd()
+        return await playbook.runPlaybookCheckCli(
+          command.argv.slice(1),
+          {
+            agentDataFolder: playbookDataFolder,
+            workspaceFolder,
+            teamId: 'panel',
+            laneId: 'surface',
+            platform: process.platform,
+            readSettingsFile: () => {
+              const file = path.join(workspaceFolder, '.vscode', 'settings.json')
+              return existsSync(file) ? readFileSync(file, 'utf8') : undefined
+            },
+            // The process's own governor facade (M107): its latest reading; a
+            // governor that cannot answer reads as unknown, never as paused.
+            readResourceStatus: () => processResources.status(),
+            spawn: {
+              run: (line, timeoutMs) =>
+                spawnCheckLine(line, timeoutMs, {
+                  platform: process.platform,
+                  systemRoot: process.env['SystemRoot'],
+                  workspaceRoot: workspaceFolder,
+                  env: process.env,
+                  fileExists: existsSync,
+                  realpath: realpathSync,
+                  log: (message) => {
+                    log.warn(message)
+                  },
+                }),
+            },
+            writeStdout: (text) => {
+              writeLine(process.stdout, text)
+            },
+            printError: (line) => {
+              writeLine(process.stderr, line)
+            },
+            log: (message) => {
+              log.warn(message)
+            },
+          },
+          UI_TEXT,
+          uiLocale(),
+        )
+      }
       return await playbook.runPlaybookCli(
         command.argv,
         {
           port: playbook.createPlaybookSurface(
             {
-              agentDataFolder: agentDataFolder({
-                platform: process.platform,
-                env: process.env,
-                homeDir,
-              }),
+              agentDataFolder: playbookDataFolder,
               workspaceFolder: process.cwd(),
               teamId: 'panel',
               laneId: 'surface',

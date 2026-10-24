@@ -163,6 +163,32 @@ export function row(
   }
 }
 
+/** D220: a built row as a report item. Label cells read from the closed enum
+(a failed cell fails the row; needs-you, open or blocked calls it the
+person's); every other label — waiting, stale, skipped, and every absence
+(unavailable, unknown, partial) — flags nothing, so unknown never reads as
+failure. The playbook kind renders its closed status enums as text, so the
+two status columns read exactly: a failed drill result fails the row, and an
+unresolved design outcome calls it the person's. */
+export function playbookRowReportFlags(reportRow: ReportRow): {
+  readonly needsUser: boolean
+  readonly failing: boolean
+} {
+  let hasNeedsUser = false
+  let isFailing = false
+  for (const [column, cell] of Object.entries(reportRow.cells)) {
+    if (cell.type === 'label') {
+      if (cell.value === 'failed') isFailing = true
+      else if (['needsYou', 'open', 'blocked'].includes(cell.value)) hasNeedsUser = true
+      continue
+    }
+    if (cell.type !== 'text') continue
+    if (column === 'result' && cell.value === 'fail') isFailing = true
+    else if (column === 'outcome' && cell.value !== 'impossible') hasNeedsUser = true
+  }
+  return { needsUser: hasNeedsUser, failing: isFailing }
+}
+
 export function section(
   id: string,
   heading: ReportLabelKey,

@@ -82,6 +82,12 @@ export interface ReportingWindowDeps extends Pick<
   readonly reportVaultSnapshot?: (
     context: SourceReadContext,
   ) => Promise<SecurityVaultSnapshot | null>
+  /**
+  M116 (D218): told the observed CI check runs after a generation that
+  attempted the github read. Feeds the team runner's CI holder; absent,
+  nothing observes and the board reads CI as unknown.
+  */
+  readonly noteGithubCi?: ReportingContext['noteGithubCi']
 }
 
 /** Window adapters and engine acquisition live entirely inside the lazy panel bundle. */
@@ -90,7 +96,10 @@ export function createReportingWindow(
   table: UiText,
   locale: string,
 ): ReportPanel {
-  const workspaceKey = reportWorkspaceKey(deps.workspaceRoot ?? process.cwd(), process.platform)
+  // The workspace this window reports on, fixed at creation as its storage
+  // key is; the playbook journal and the schedules key read the same one.
+  const workspaceRoot = deps.workspaceRoot ?? process.cwd()
+  const workspaceKey = reportWorkspaceKey(workspaceRoot, process.platform)
   const loadEngine = reportEngineLoader({
     bundlePath: vscode.Uri.joinPath(deps.context.extensionUri, 'dist', 'reporting.js').fsPath,
     log: deps.context.log,
@@ -147,6 +156,18 @@ export function createReportingWindow(
     },
     readJournal,
   })
+  // M113 C-M113-4: the playbook journal lives under the same agent data
+  // folder as the usage journal. Its reader also orders that journal's rows
+  // for the playbook, milestone and fleet kinds (D220), loaded only when used.
+  const playbookReader = () =>
+    loadPlaybookSchedules().createPlaybookReportReader(
+      {
+        agentDataFolder: deps.reportUsageDataFolder,
+        workspaceRoot,
+      },
+      table,
+      locale,
+    )
   return createReportPanel(
     {
       ...deps,
@@ -218,28 +239,15 @@ export function createReportingWindow(
           },
           // M113 C-M113-4: the playbook journal and the schedules store
           // live under the same agent data folder as the usage journal.
-          playbook: {
-            read: (context) =>
-              loadPlaybookSchedules()
-                .createPlaybookReportReader(
-                  {
-                    agentDataFolder: deps.reportUsageDataFolder,
-                    workspaceRoot: deps.workspaceRoot ?? process.cwd(),
-                  },
-                  table,
-                  locale,
-                )
-                .read(context),
-          },
+          playbook: { read: (context) => playbookReader().read(context) },
+          playbookOrder: playbookReader,
           schedules: {
             read: (context) =>
               loadPlaybookSchedules()
                 .createSchedulesReportReader(
                   {
                     storeRoot: path.join(deps.reportUsageDataFolder, SCHEDULE_STORE_SUBFOLDER),
-                    workspaceKey: scheduleWorkspaceKey(
-                      path.resolve(deps.workspaceRoot ?? process.cwd()),
-                    ),
+                    workspaceKey: scheduleWorkspaceKey(path.resolve(workspaceRoot)),
                   },
                   table,
                   locale,

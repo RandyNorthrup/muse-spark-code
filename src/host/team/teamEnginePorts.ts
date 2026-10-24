@@ -49,6 +49,7 @@ import type { WorkerReportOutcome } from '../../core/team/workers/report'
 import type {
   TeamHostServiceDeps,
   TeamMergePort,
+  TeamPlaybookPort,
   TeamTaskSpec,
   TeamWorkerOutcome,
   TeamWorkerPort,
@@ -104,8 +105,13 @@ export interface EngineTeamPortsDeps {
 }
 
 /** What dist/team.js takes from an editor: the service's ports and the engine's. */
-export interface TeamHostBundleDeps extends Omit<TeamHostServiceDeps, 'workers' | 'merges'> {
+export interface TeamHostBundleDeps extends Omit<
+  TeamHostServiceDeps,
+  'workers' | 'merges' | 'playbook'
+> {
   readonly engine: EngineTeamPortsDeps
+  /** The team runner's playbook rounds (D218); the bundle adds the dispatch-base read. */
+  readonly playbook?: Omit<TeamPlaybookPort, 'head'> | undefined
 }
 
 /**
@@ -201,6 +207,8 @@ const EMPTY_USAGE: TeamUsage = {
 export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
   readonly workers: TeamWorkerPort
   readonly merges: TeamMergePort
+  /** The engine's governed git, lent for the playbook's dispatch-base read (D218). */
+  readonly git: TeamGit
 } {
   let defaultGit: Promise<TeamGit> | undefined
   const runGit: TeamGit =
@@ -685,5 +693,5 @@ export function createEngineTeamPorts(deps: EngineTeamPortsDeps): {
       )
     },
   }
-  return { workers, merges }
+  return { workers, merges, git: runGit }
 }

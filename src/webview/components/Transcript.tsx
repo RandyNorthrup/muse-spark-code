@@ -1168,6 +1168,9 @@ function noticeActionLabel(action: NoticeAction): string {
     case 'updateBundledSkills': {
       return UI_TEXT.bundledSkillsUpdate
     }
+    case 'openPlaybook': {
+      return UI_TEXT.playbookTitle
+    }
     case 'declineBundledSkills': {
       return UI_TEXT.bundledSkillsNotNow
     }
