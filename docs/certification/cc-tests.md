@@ -333,3 +333,13 @@ refusals (`checksum mismatch`, `not listed`, `checksum checker missing`,
 
 Red (before): 7 failed. Green on Windows: 3 passed, 5 skipped (the layout
 suite).
+
+### osImageBuildUpdateSlots: the ESP is 260M
+
+Cause: not Windows. OS1's fix `88911bdef7` (2026-10-08 20:20) moved the ESP
+to 260M in `os/repart/00-esp.conf`, and `os/check.py` locks it there (the
+OS1 suite refuses a 256M weakening). OS2's slot-map suite (`bcc68f19b8`,
+20:29, another branch) still expected the old 256M: `expected '260M' to be '256M'`.
+
+Fix: the slot-map suite expects 260M for `muse-efi`, with that reason.
+Green: 15 passed.

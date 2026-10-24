@@ -175,7 +175,8 @@ describe('M110-OS2 RAUC slot configuration', () => {
 
   it('keeps the shipped partition sizes each slot maps onto', () => {
     const expectedSizes = {
-      'muse-efi': ['256M', '256M'],
+      // OS1 moved the ESP to 260M (88911bdef7) and check.py locks it there.
+      'muse-efi': ['260M', '260M'],
       'muse-usr-a': ['1536M', '1536M'],
       'muse-usr-b': ['1536M', '1536M'],
       'muse-usr-a-verity': ['64M', '64M'],
