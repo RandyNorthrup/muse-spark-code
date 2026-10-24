@@ -63,3 +63,19 @@ other work running (`Hook timed out in 60000ms`).
 
 Red drill: `isWebviewResource` forced to `false` →
 `expected [ 'dist/judgeSetup.js' ] to deeply equal []`; restored → 1 passed.
+
+### teamModelsFirstPaint: the Grok sign-in's English leaves the shared surface chunk
+
+Cause: RLGROKAUTH (`0ee7808ef9`) made the models page's provider sections read
+`UI_TEXT.acpGrok` (4,394 bytes of JSON). The browser English plugin put it in
+the shared surface chunk, which grew to 25,840 B against its 25,600 B budget
+(the same 25 KiB as `npm run build`'s surface English cap).
+
+Fix: the Grok sign-in's English rides the deferred plan sign-in chunk with
+ChatGPT's (`scripts/lib/uiTextRegions.mjs`); its one reader,
+`ProvidersSection.tsx`, already installs that chunk before its body runs.
+Budget unchanged.
+
+Red (before): `expected 25840 to be less than or equal to 25600`.
+Green: 9 passed; the browser English build measures the surface chunk at
+24,240 B and the plan sign-in chunk at 2,559 B (it holds `acpGrok`).
