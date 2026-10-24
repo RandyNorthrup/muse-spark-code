@@ -1,6 +1,7 @@
-// Lane RLSCHED M115w issue captures (2026-10-22, unauthenticated GETs
-// against the public RandyNorthrup/muse-spark-code repository, API version
-// 2022-11-28; temp/m115w-capture.cjs): every fixture body in
+// Lane RLSCHED M115w issue captures (2026-10-22 and, for issue 3 and the
+// comments of issues 3 and 4, 2026-10-24; unauthenticated GETs against the
+// public RandyNorthrup/muse-spark-code repository, API version 2022-11-28;
+// temp/m115w-capture.cjs and temp/m115w-capture2.cjs): every fixture body in
 // test/fixtures/m115w/github-issues/ must match its receipt's SHA-256 and
 // byte count, proving the copy is byte-exact. `.prettierignore` keeps
 // formatters from rewriting the bodies.
@@ -21,10 +22,13 @@ const CAPTURES = [
   'github-tags',
   'github-search-commits',
   'github-repository',
+  'github-issue-3',
+  'github-issue-3-comments',
+  'github-issue-4-comments',
 ]
 
 describe('watchdog issue capture fixtures', () => {
-  it('holds exactly the nine captured folders', async () => {
+  it('holds exactly the twelve captured folders', async () => {
     await expectCaptureFolders(ISSUES, CAPTURES)
   })
 

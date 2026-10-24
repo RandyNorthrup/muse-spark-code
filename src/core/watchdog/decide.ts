@@ -2,8 +2,10 @@
 // triaged findings into the outcome: spam holds without a post, valid
 // and in-hand plan without a post, and the rest reply through the
 // repository's gate and close by its policy. A reply already carrying
-// the marker is adopted, so a crash between the post and the record
-// never posts twice and a failed close is retried. Resolve posts the
+// this flow's marker for this round and kind is adopted, so a crash
+// between the post and the record never posts twice and a failed close is
+// retried. Each step reads, posts and records under the repository's
+// lock: a second writer waits, then finds the record. Resolve posts the
 // fixed-reply once the host's verification passes, and only then. The
 // fix-lane outcome waits on M96's execution binding: valid issues plan
 // until the board can run them.
@@ -21,8 +23,8 @@ import { type GitHubClient, type GitHubIssueComment } from '../git/github'
 import type { GitHubRepository } from '../git/githubRemote'
 import { isWatchdogReply } from './ack'
 import { resolvePostApproval, type PostApproval } from './guard'
-import { composePlanDraft, composeReplyBody } from './reply'
-import { snapshotWatchdogRepository, type WatchdogStore } from './store'
+import { composePlanDraft, composeReplyBody, replyKindFor } from './reply'
+import { patchedWatchdogData, withWatchdogRepository, type WatchdogStore } from './store'
 import { applyVerification } from './verify'
 
 export interface WatchdogDecideDeps {
@@ -86,42 +88,28 @@ function triagedRecord(
   return { record, findings: record.findings }
 }
 
-async function updateRecord(
-  store: WatchdogStore,
-  repository: string,
-  number: number,
-  nowMs: number,
-  patch: Partial<WatchdogRecord> & { state: WatchdogState },
-): Promise<void> {
-  await store.exclusive(repository, (data) => ({
-    data: {
-      policy: data.policy,
-      issues: data.issues.map((record) =>
-        record.issueNumber === number ? { ...record, ...patch, updatedAtMs: nowMs } : record,
-      ),
-    },
-    result: undefined,
-  }))
-}
-
-/** The comments read and the gate resolved: an adopted reply posts
-nothing, and a held gate stops the step with its reason. */
+/** The comments read and the gate resolved: a reply already out there
+(this flow, this round, this kind) is adopted and posts nothing, and a
+held gate stops the step with its reason. */
 async function admittedWatchdogPost(
   deps: WatchdogDecideDeps,
   policy: WatchdogPolicy,
   named: GitHubRepository,
-  number: number,
-): Promise<{ isReplied: boolean; approval: PostApproval }> {
+  record: WatchdogRecord,
+  outcome: WatchdogOutcome,
+): Promise<{ existing: GitHubIssueComment | undefined; approval: PostApproval }> {
   const comments: readonly GitHubIssueComment[] = await deps.client.issueComments(
     deps.token,
     named,
-    number,
+    record.issueNumber,
   )
-  const isReplied = comments.some((comment) => isWatchdogReply(comment.body))
-  const approval = isReplied
-    ? { allowed: true as const }
-    : await resolvePostApproval(policy, deps.isPostApproved)
-  return { isReplied, approval }
+  const kind = replyKindFor(outcome)
+  const existing = comments.find((comment) => isWatchdogReply(comment.body, record, kind))
+  const approval =
+    existing === undefined
+      ? await resolvePostApproval(policy, deps.isPostApproved)
+      : { allowed: true as const }
+  return { existing, approval }
 }
 
 export async function decideWatchdogIssue(
@@ -129,66 +117,91 @@ export async function decideWatchdogIssue(
   repository: string,
   number: number,
 ): Promise<WatchdogDecision> {
-  const { named, nowMs, snapshot } = await snapshotWatchdogRepository(deps, repository)
-  const { record, findings } = triagedRecord(snapshot, number)
-  const outcome = outcomeFor(findings.verdict)
+  return await withWatchdogRepository<WatchdogDecision>(
+    deps,
+    repository,
+    async (live, { named, nowMs }) => {
+      const { record, findings } = triagedRecord(live, number)
+      const outcome = outcomeFor(findings.verdict)
 
-  // Spam holds structurally: no gate overrides the hold.
-  if (outcome === 'spam') {
-    const state = nextWatchdogState(record.state, 'closed')
-    await updateRecord(deps.store, repository, number, nowMs, { state, outcome })
-    return {
-      number,
-      outcome,
-      state,
-      posted: false,
-      closed: true,
-      reason: UI_TEXT.watchdog.refusal.spamHeld,
-    }
-  }
+      // Spam holds structurally: no gate overrides the hold.
+      if (outcome === 'spam') {
+        const state = nextWatchdogState(record.state, 'closed')
+        return {
+          data: patchedWatchdogData(live, number, nowMs, { state, outcome }),
+          result: {
+            number,
+            outcome,
+            state,
+            posted: false,
+            closed: true,
+            reason: UI_TEXT.watchdog.refusal.spamHeld,
+          },
+        }
+      }
 
-  // Valid and in-hand plan; the draft goes to the host with the decision.
-  if (outcome === 'planEntry') {
-    const issue = await deps.client.issue(deps.token, named, number)
-    const state = nextWatchdogState(record.state, 'planned')
-    await updateRecord(deps.store, repository, number, nowMs, { state, outcome })
-    return {
-      number,
-      outcome,
-      state,
-      posted: false,
-      closed: false,
-      planDraft: composePlanDraft(repository, number, issue.title, issue.body, findings),
-    }
-  }
+      // Valid and in-hand plan; the draft goes to the host with the decision.
+      if (outcome === 'planEntry') {
+        const issue = await deps.client.issue(deps.token, named, number)
+        const state = nextWatchdogState(record.state, 'planned')
+        return {
+          data: patchedWatchdogData(live, number, nowMs, { state, outcome }),
+          result: {
+            number,
+            outcome,
+            state,
+            posted: false,
+            closed: false,
+            planDraft: composePlanDraft(repository, number, issue.title, issue.body, findings),
+          },
+        }
+      }
 
-  // A reply already out there is adopted; its close is (re)applied.
-  const { isReplied, approval } = await admittedWatchdogPost(deps, snapshot.policy, named, number)
-  if (!approval.allowed)
-    return {
-      number,
-      outcome,
-      state: record.state,
-      posted: false,
-      closed: false,
-      reason: approval.reason,
-    }
-  if (!isReplied)
-    await deps.client.postIssueComment(
-      deps.token,
-      named,
-      number,
-      composeReplyBody(outcome, findings),
-    )
-  // The wait stays open: a needs-info reply never closes its issue.
-  const shouldClose = outcome !== 'needsInfo' && snapshot.policy.closePolicy === 'onReply'
-  if (shouldClose) await deps.client.closeIssue(deps.token, named, number)
-  const state = nextWatchdogState(
-    record.state,
-    outcome === 'needsInfo' ? 'infoRequested' : 'replied',
+      // A reply already out there is adopted; its close is (re)applied.
+      const { existing, approval } = await admittedWatchdogPost(
+        deps,
+        live.policy,
+        named,
+        record,
+        outcome,
+      )
+      if (!approval.allowed)
+        return {
+          data: live,
+          result: {
+            number,
+            outcome,
+            state: record.state,
+            posted: false,
+            closed: false,
+            reason: approval.reason,
+          },
+        }
+      const reply =
+        existing ??
+        (await deps.client.postIssueComment(
+          deps.token,
+          named,
+          number,
+          composeReplyBody(outcome, findings, record),
+        ))
+      // The wait stays open: a needs-info reply never closes its issue.
+      const shouldClose = outcome !== 'needsInfo' && live.policy.closePolicy === 'onReply'
+      if (shouldClose) await deps.client.closeIssue(deps.token, named, number)
+      const state = nextWatchdogState(
+        record.state,
+        outcome === 'needsInfo' ? 'infoRequested' : 'replied',
+      )
+      return {
+        data: patchedWatchdogData(live, number, nowMs, {
+          state,
+          outcome,
+          ...(outcome === 'needsInfo' && { replyCommentId: reply.id }),
+        }),
+        result: { number, outcome, state, posted: existing === undefined, closed: shouldClose },
+      }
+    },
   )
-  await updateRecord(deps.store, repository, number, nowMs, { state, outcome })
-  return { number, outcome, state, posted: !isReplied, closed: shouldClose }
 }
 
 export async function resolveWatchdogIssue(
@@ -197,42 +210,72 @@ export async function resolveWatchdogIssue(
   number: number,
   evidence: unknown,
 ): Promise<WatchdogResolution> {
-  const { named, nowMs, snapshot } = await snapshotWatchdogRepository(deps, repository)
-  const record = snapshot.issues.find((item) => item.issueNumber === number)
-  if (
-    record?.state !== 'planned' ||
-    record.findings === undefined ||
-    (record.findings.verdict !== 'valid' && record.findings.verdict !== 'inHand') ||
-    (record.outcome !== 'planEntry' && record.outcome !== 'fixLane')
-  )
-    throw new Error(`watchdog cannot resolve issue ${String(number)} before its plan`)
-  const outcome = record.outcome
-  const verified = applyVerification(evidence, snapshot.policy.closePolicy)
-  if (!verified.verified)
-    return { number, state: record.state, posted: false, closed: false, notes: verified.notes }
+  return await withWatchdogRepository<WatchdogResolution>(
+    deps,
+    repository,
+    async (live, { named, nowMs }) => {
+      const record = live.issues.find((item) => item.issueNumber === number)
+      if (
+        record?.state !== 'planned' ||
+        record.findings === undefined ||
+        (record.findings.verdict !== 'valid' && record.findings.verdict !== 'inHand') ||
+        (record.outcome !== 'planEntry' && record.outcome !== 'fixLane')
+      )
+        throw new Error(`watchdog cannot resolve issue ${String(number)} before its plan`)
+      const outcome = record.outcome
+      const verified = applyVerification(evidence, live.policy.closePolicy)
+      if (!verified.verified)
+        return {
+          data: live,
+          result: {
+            number,
+            state: record.state,
+            posted: false,
+            closed: false,
+            notes: verified.notes,
+          },
+        }
 
-  const { isReplied, approval } = await admittedWatchdogPost(deps, snapshot.policy, named, number)
-  if (!approval.allowed)
-    return {
-      number,
-      state: record.state,
-      posted: false,
-      closed: false,
-      reason: approval.reason,
-    }
-  if (!isReplied)
-    await deps.client.postIssueComment(
-      deps.token,
-      named,
-      number,
-      composeReplyBody(outcome, record.findings, {
-        pullRequestNumber: verified.resolution.pullRequestNumber,
-        pullRequestUrl: verified.resolution.pullRequestUrl,
-        version: verified.resolution.version,
-      }),
-    )
-  if (verified.resolution.close) await deps.client.closeIssue(deps.token, named, number)
-  const state = nextWatchdogState(record.state, 'replied')
-  await updateRecord(deps.store, repository, number, nowMs, { state })
-  return { number, state, posted: !isReplied, closed: verified.resolution.close }
+      const { existing, approval } = await admittedWatchdogPost(
+        deps,
+        live.policy,
+        named,
+        record,
+        outcome,
+      )
+      if (!approval.allowed)
+        return {
+          data: live,
+          result: {
+            number,
+            state: record.state,
+            posted: false,
+            closed: false,
+            reason: approval.reason,
+          },
+        }
+      if (existing === undefined)
+        await deps.client.postIssueComment(
+          deps.token,
+          named,
+          number,
+          composeReplyBody(outcome, record.findings, record, {
+            pullRequestNumber: verified.resolution.pullRequestNumber,
+            pullRequestUrl: verified.resolution.pullRequestUrl,
+            version: verified.resolution.version,
+          }),
+        )
+      if (verified.resolution.close) await deps.client.closeIssue(deps.token, named, number)
+      const state = nextWatchdogState(record.state, 'replied')
+      return {
+        data: patchedWatchdogData(live, number, nowMs, { state }),
+        result: {
+          number,
+          state,
+          posted: existing === undefined,
+          closed: verified.resolution.close,
+        },
+      }
+    },
+  )
 }

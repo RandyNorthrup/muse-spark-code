@@ -9,6 +9,7 @@ import {
   defaultWatchdogPolicy,
   watchdogIssueSchema,
   watchdogPolicySchema,
+  type WatchdogIssue,
 } from '../../shared/watchdog'
 import { repositoryFromFullName } from '../git/github'
 import type { GitHubRepository } from '../git/githubRemote'
@@ -35,17 +36,38 @@ export interface WatchdogStore {
   list(): Promise<readonly WatchdogRepoData[]>
 }
 
-/** Every step's opening: the named repository, the clock, and the
-live snapshot, with a bad name refused before anything is read. */
-export async function snapshotWatchdogRepository(
+/** A record replaced by its patch, the clock stamped. */
+export function patchedWatchdogData(
+  data: WatchdogRepoData,
+  number: number,
+  nowMs: number,
+  patch: Partial<WatchdogIssue>,
+): WatchdogRepoData {
+  return {
+    policy: data.policy,
+    issues: data.issues.map((record) =>
+      record.issueNumber === number ? { ...record, ...patch, updatedAtMs: nowMs } : record,
+    ),
+  }
+}
+
+/** Every step's opening: the named repository (a bad name is refused
+before anything is read) and the clock, then `work` on the live data under
+the repository's lock. A step that reads GitHub, posts and records does
+all three here, so a second writer waits and then sees the record: nothing
+is ever posted twice. */
+export async function withWatchdogRepository<T>(
   deps: { store: WatchdogStore; now(): number },
   repository: string,
-): Promise<{ named: GitHubRepository; nowMs: number; snapshot: WatchdogRepoData }> {
+  work: (
+    live: WatchdogRepoData,
+    opening: { named: GitHubRepository; nowMs: number },
+  ) => Promise<WatchdogExclusiveOutcome<T>> | WatchdogExclusiveOutcome<T>,
+): Promise<T> {
   const named = repositoryFromFullName(repository)
   if (named === undefined) throw new Error(UI_TEXT.watchdog.cli.invalidRepository)
   const nowMs = deps.now()
-  const snapshot = await deps.store.exclusive(repository, (data) => ({ data, result: data }))
-  return { named, nowMs, snapshot }
+  return await deps.store.exclusive(repository, (live) => work(live, { named, nowMs }))
 }
 
 function repoFile(repository: string): string {

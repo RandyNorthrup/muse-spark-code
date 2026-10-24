@@ -22,7 +22,8 @@ import {
 } from '../git/github'
 import type { GitHubRepository } from '../git/githubRemote'
 import { fenced } from '../export/transcriptMarkdown'
-import { snapshotWatchdogRepository, type WatchdogStore } from './store'
+import { findEmbeddedInstructions } from './guard'
+import { patchedWatchdogData, withWatchdogRepository, type WatchdogStore } from './store'
 
 /** The triage charter, v1: the role's whole instruction, evidence aside. */
 export function triageCharter(): string {
@@ -130,6 +131,8 @@ export interface TriageEvidence {
   readonly commits: readonly GitHubCommitMatch[]
   readonly commitsIncomplete: boolean
   readonly planRefs: readonly string[]
+  /** Instruction-like phrases the issue's title and body trip, by name. */
+  readonly embeddedInstructions: readonly string[]
 }
 
 export interface WatchdogEvidenceDeps {
@@ -163,6 +166,7 @@ export async function collectTriageEvidence(
     commits: issueCommits(commits.commits, issue.number),
     commitsIncomplete: commits.incompleteResults,
     planRefs: plansTrackingIssue(plans, issue.number),
+    embeddedInstructions: findEmbeddedInstructions(`${issue.title}\n${issue.body}`),
   }
 }
 
@@ -216,6 +220,11 @@ export function formatTriageEvidence(evidence: TriageEvidence): string {
       evidence.planRefs.map((ref) => `- ${ref}`),
       false,
     ),
+    `## ${text.triageEvidenceInstructions}`,
+    ...evidenceRows(
+      evidence.embeddedInstructions.map((name) => `- ${name}`),
+      false,
+    ),
   ]
   return sections.join('\n\n')
 }
@@ -247,30 +256,29 @@ export interface WatchdogTriageResult {
 }
 
 /** Applies the triage turn's answer to an acknowledged issue. The
-findings the schema proved go to the record with the `triaged` move;
-anything else leaves the record untouched. */
+findings the schema proved go to the record with the `triaged` move and a
+new triage round; anything else leaves the record untouched. */
 export async function triageWatchdogIssue(
   deps: WatchdogTriageDeps,
   repository: string,
   number: number,
   answer: string,
 ): Promise<WatchdogTriageResult> {
-  const { nowMs, snapshot } = await snapshotWatchdogRepository(deps, repository)
-  const record: WatchdogRecord | undefined = snapshot.issues.find(
-    (item) => item.issueNumber === number,
-  )
-  if (record?.state !== 'acknowledged')
-    throw new Error(`watchdog cannot triage issue ${String(number)} before its acknowledgement`)
-  const findings = parseTriageFindings(answer)
-  const state = nextWatchdogState(record.state, 'triaged')
-  await deps.store.exclusive(repository, (data) => ({
-    data: {
-      policy: data.policy,
-      issues: data.issues.map((item) =>
-        item.issueNumber === number ? { ...item, state, findings, updatedAtMs: nowMs } : item,
-      ),
-    },
-    result: undefined,
-  }))
-  return { number, state, findings }
+  return await withWatchdogRepository(deps, repository, (live, { nowMs }) => {
+    const record: WatchdogRecord | undefined = live.issues.find(
+      (item) => item.issueNumber === number,
+    )
+    if (record?.state !== 'acknowledged')
+      throw new Error(`watchdog cannot triage issue ${String(number)} before its acknowledgement`)
+    const findings = parseTriageFindings(answer)
+    const state = nextWatchdogState(record.state, 'triaged')
+    return {
+      data: patchedWatchdogData(live, number, nowMs, {
+        state,
+        findings,
+        triageRound: record.triageRound + 1,
+      }),
+      result: { number, state, findings },
+    }
+  })
 }

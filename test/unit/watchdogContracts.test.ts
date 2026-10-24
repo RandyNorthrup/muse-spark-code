@@ -5,7 +5,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   defaultWatchdogPolicy,
-  detectWatchdogLanguage,
   nextWatchdogState,
   triageFindingsSchema,
   watchdogIssueSchema,
@@ -18,7 +17,7 @@ const FLOW: { from: WatchdogState; on: WatchdogEvent; to: WatchdogState }[] = [
   { from: 'seen', on: 'acknowledged', to: 'acknowledged' },
   { from: 'acknowledged', on: 'triaged', to: 'triaged' },
   { from: 'triaged', on: 'infoRequested', to: 'awaitingInfo' },
-  { from: 'awaitingInfo', on: 'infoReceived', to: 'triaged' },
+  { from: 'awaitingInfo', on: 'infoReceived', to: 'acknowledged' },
   { from: 'triaged', on: 'planned', to: 'planned' },
   { from: 'planned', on: 'replied', to: 'replied' },
   { from: 'replied', on: 'closed', to: 'closed' },
@@ -40,6 +39,10 @@ describe('watchdog state machine', () => {
     expect(nextWatchdogState('acknowledged', 'edited')).toBe('acknowledged')
     expect(nextWatchdogState('triaged', 'edited')).toBe('acknowledged')
     expect(nextWatchdogState('replied', 'edited')).toBe('acknowledged')
+    // A reporter's edit while the watchdog waits is an answer: triage again.
+    expect(nextWatchdogState('awaitingInfo', 'edited')).toBe('acknowledged')
+    // A planned fix is not restarted by an edit.
+    expect(nextWatchdogState('planned', 'edited')).toBe('planned')
     const states: WatchdogState[] = [
       'seen',
       'acknowledged',
@@ -56,6 +59,7 @@ describe('watchdog state machine', () => {
     expect(() => nextWatchdogState('seen', 'triaged')).toThrow('seen')
     expect(() => nextWatchdogState('closed', 'acknowledged')).toThrow('closed')
     expect(() => nextWatchdogState('acknowledged', 'replied')).toThrow('acknowledged')
+    expect(() => nextWatchdogState('awaitingInfo', 'planned')).toThrow('awaitingInfo')
   })
 })
 
@@ -95,7 +99,9 @@ describe('watchdog records and policy', () => {
       runId: 'run-1',
       seenAtMs: 1,
       labelsApplied: [],
+      triageRound: 0,
       lastTitle: 't',
+      lastTextHash: 'h',
       lastCommentCount: 0,
       lastIssueUpdatedAt: '2026-10-22T00:00:00Z',
       updatedAtMs: 1,
@@ -103,6 +109,8 @@ describe('watchdog records and policy', () => {
     expect(watchdogIssueSchema.parse(record).runId).toBe('run-1')
     const { runId: _dropped, ...without } = record
     expect(() => watchdogIssueSchema.parse(without)).toThrow()
+    // The run id is written into an HTML comment: nothing may close it.
+    expect(() => watchdogIssueSchema.parse({ ...record, runId: 'x --> <b>' })).toThrow()
   })
 
   it('watches openly by default: everything unpaused, nothing auto-closed', () => {
@@ -112,10 +120,5 @@ describe('watchdog records and policy', () => {
     expect(policy.postsBeyondAck).toBe('ask')
     expect(policy.closePolicy).toBe('never')
     expect(policy.watchLabels).toEqual([])
-  })
-
-  it('detects English, the documented fallback', () => {
-    expect(detectWatchdogLanguage('The window crashes on open.')).toBe('en')
-    expect(detectWatchdogLanguage('La fenêtre se bloque à l’ouverture.')).toBe('en')
   })
 })

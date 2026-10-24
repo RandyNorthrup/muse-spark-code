@@ -1,10 +1,12 @@
 // M115w WA: one poll cycle over a repository. Lists the issues, creates
 // records for new ones, posts the acknowledgement where it is due and
-// re-drives open flows from what changed. One writer per repository at a
-// time: the store lock serializes writes, and a next poll adopts any
-// acknowledgement the marker finds, so a crash between the post and the
-// record never posts twice. GitHub's own rate limit stops the poll out
-// loud; nothing retries on its own.
+// re-drives open flows from what changed. An acknowledgement is read,
+// posted and recorded in one step under the repository's lock, so a second
+// poller waits and then finds the record; a marker already on the issue is
+// adopted, so a crash between the post and the record never posts twice.
+// GitHub's own rate limit stops the poll out loud; nothing retries on its
+// own.
+import { createHash } from 'node:crypto'
 import { UI_TEXT, WATCHDOG_ACK_TARGET_MS } from '../../shared/constants'
 import {
   nextWatchdogState,
@@ -19,7 +21,8 @@ import {
   type GitHubIssue,
   type GitHubIssueComment,
 } from '../git/github'
-import { decideAck, postAck, type AckSkipNote } from './ack'
+import type { GitHubRepository } from '../git/githubRemote'
+import { decideAck, isWatchdogPost, postAck, type AckSkipNote } from './ack'
 import type { WatchdogStore } from './store'
 
 export interface WatchdogPollDeps {
@@ -52,6 +55,14 @@ export interface WatchdogPollResult {
   readonly errors: readonly WatchdogPollError[]
 }
 
+/** What the findings were judged on: the title and the body. An edit
+changes it; a label, a comment or a lock does not. */
+function issueTextHash(issue: GitHubIssue): string {
+  return createHash('sha256')
+    .update(JSON.stringify([issue.title, issue.body]))
+    .digest('hex')
+}
+
 function freshRecord(
   issue: GitHubIssue,
   repository: string,
@@ -66,25 +77,40 @@ function freshRecord(
     runId,
     seenAtMs: nowMs,
     labelsApplied: [],
+    triageRound: 0,
     lastTitle: issue.title,
+    lastTextHash: issueTextHash(issue),
     lastCommentCount: issue.commentCount,
     lastIssueUpdatedAt: issue.updatedAt,
     updatedAtMs: nowMs,
   }
 }
 
-function driveEvent(record: WatchdogRecord, issue: GitHubIssue, isAcked: boolean): WatchdogEvent {
+/** The record this issue's flow lives in: none for a new issue, a
+recreated one (same number, another id) or a reopened one that was never
+acknowledged, which are each owed a fresh flow. */
+function flowRecord(
+  records: readonly WatchdogRecord[],
+  issue: GitHubIssue,
+): WatchdogRecord | undefined {
+  const record = records.find((item) => item.issueNumber === issue.number)
+  const isOwed =
+    record?.issueId !== issue.id || (record.state === 'closed' && record.ackCommentId === undefined)
+  return isOwed ? undefined : record
+}
+
+function driveEvent(
+  record: WatchdogRecord,
+  issue: GitHubIssue,
+  isAcked: boolean,
+  isAnswered: boolean,
+): WatchdogEvent {
   if (issue.state === 'closed') return record.state === 'closed' ? 'polled' : 'closed'
   if (record.state === 'closed') return 'reopened'
   if (isAcked && record.state === 'seen') return 'acknowledged'
-  if (
-    issue.title !== record.lastTitle &&
-    ['acknowledged', 'triaged', 'replied'].includes(record.state)
-  )
-    return 'edited'
-  return issue.commentCount > record.lastCommentCount && record.state === 'awaitingInfo'
-    ? 'infoReceived'
-    : 'polled'
+  if (isAnswered && record.state === 'awaitingInfo') return 'infoReceived'
+  const isEditable = ['acknowledged', 'triaged', 'awaitingInfo', 'replied'].includes(record.state)
+  return isEditable && issueTextHash(issue) !== record.lastTextHash ? 'edited' : 'polled'
 }
 
 function refusal(error: unknown): string {
@@ -92,6 +118,56 @@ function refusal(error: unknown): string {
   // error and fails the poll instead of recording a mystery.
   if (!(error instanceof GitHubError)) throw error
   return error.message
+}
+
+/** Whether the reporter answered the needs-info reply: one of their
+comments, newer than the reply and not one of ours. */
+export function isReporterAnswer(
+  record: Pick<WatchdogRecord, 'replyCommentId'>,
+  issue: GitHubIssue,
+  comments: readonly GitHubIssueComment[],
+): boolean {
+  return comments.some(
+    (comment) =>
+      comment.id > (record.replyCommentId ?? 0) &&
+      comment.author.login === issue.author.login &&
+      !isWatchdogPost(comment.body),
+  )
+}
+
+/** The acknowledgement step for one issue: read the live comments, post
+or adopt, and record it, all under the repository's lock. */
+async function acknowledgeIssue(
+  deps: WatchdogPollDeps,
+  repository: string,
+  named: GitHubRepository,
+  issue: GitHubIssue,
+  nowMs: number,
+): Promise<{ commentId: number; labels: readonly string[] } | undefined> {
+  return await deps.store.exclusive(repository, async (live) => {
+    const record = flowRecord(live.issues, issue)
+    const comments = await deps.client.issueComments(deps.token, named, issue.number)
+    const decision = decideAck(record, issue, comments, live.policy)
+    if (decision.action === 'skip') return { data: live, result: undefined }
+    const ack =
+      decision.action === 'adopt'
+        ? { commentId: decision.comment.id, labels: [] }
+        : await postAck(deps.client, deps.token, named, issue, live.policy)
+    const base = record ?? freshRecord(issue, repository, deps.newRunId(), nowMs)
+    const recorded: WatchdogRecord = {
+      ...base,
+      ackCommentId: ack.commentId,
+      labelsApplied: ack.labels.length > 0 ? [...ack.labels] : base.labelsApplied,
+      updatedAtMs: nowMs,
+    }
+    return {
+      data: {
+        policy: live.policy,
+        issues: [...live.issues.filter((item) => item.issueNumber !== issue.number), recorded],
+      },
+      result: decision.action === 'post' ? ack : undefined,
+    }
+  })
 }
 
 export async function pollWatchdogRepository(
@@ -125,30 +201,28 @@ export async function pollWatchdogRepository(
     }
   }
 
-  // The acknowledgement decision needs the live comments only where the
-  // record has none: already-acked and skipped issues cost no extra call.
-  const comments = new Map<number, readonly GitHubIssueComment[]>()
-  for (const issue of listed) {
-    if (issue.isPullRequest || issue.state === 'closed') continue
-    const record = snapshot.issues.find((item) => item.issueNumber === issue.number)
-    if (decideAck(record, issue, [], policy).action !== 'post') continue
-    try {
-      comments.set(issue.number, await deps.client.issueComments(deps.token, named, issue.number))
-    } catch (error: unknown) {
-      if (!(error instanceof GitHubError)) throw error
-      errors.push({ number: issue.number, message: refusal(error) })
-    }
-  }
-
+  // An acknowledgement is owed where the open issue has none; the step
+  // itself re-reads the live record and comments under the lock.
   const posted = new Map<number, { commentId: number; labels: readonly string[] }>()
+  const answered = new Set<number>()
   for (const issue of listed) {
     if (issue.isPullRequest || issue.state === 'closed') continue
-    const record = snapshot.issues.find((item) => item.issueNumber === issue.number)
-    if (decideAck(record, issue, comments.get(issue.number) ?? [], policy).action !== 'post')
-      continue
+    const record = flowRecord(snapshot.issues, issue)
     try {
-      const ack = await postAck(deps.client, deps.token, named, issue, policy)
-      posted.set(issue.number, { commentId: ack.commentId, labels: ack.labels })
+      if (decideAck(record, issue, [], policy).action === 'post') {
+        const ack = await acknowledgeIssue(deps, repository, named, issue, nowMs)
+        if (ack !== undefined) posted.set(issue.number, ack)
+      } else if (
+        record?.state === 'awaitingInfo' &&
+        issue.commentCount > record.lastCommentCount &&
+        isReporterAnswer(
+          record,
+          issue,
+          await deps.client.issueComments(deps.token, named, issue.number),
+        )
+      ) {
+        answered.add(issue.number)
+      }
     } catch (error: unknown) {
       if (!(error instanceof GitHubError)) throw error
       errors.push({ number: issue.number, message: refusal(error) })
@@ -170,14 +244,15 @@ export async function pollWatchdogRepository(
         continue
       }
       const at = records.findIndex((item) => item.issueNumber === issue.number)
-      const previous = records[at]
+      const previous = flowRecord(records, issue)
       // A closed issue needs no acknowledgement: record it closed, silently.
       if (previous === undefined && issue.state === 'closed') {
         const closed: WatchdogRecord = {
           ...freshRecord(issue, repository, deps.newRunId(), nowMs),
           state: 'closed',
         }
-        records.push(closed)
+        if (at === -1) records.push(closed)
+        else records[at] = closed
         rows.push({ number: issue.number, state: 'closed', posted: false, overdue: false })
         continue
       }
@@ -185,6 +260,7 @@ export async function pollWatchdogRepository(
         const stayed: WatchdogRecord = {
           ...previous,
           lastTitle: issue.title,
+          lastTextHash: issueTextHash(issue),
           lastCommentCount: issue.commentCount,
           lastIssueUpdatedAt: issue.updatedAt,
           updatedAtMs: nowMs,
@@ -195,39 +271,33 @@ export async function pollWatchdogRepository(
       }
       // A recreated issue (same number, another id) starts over honestly,
       // as does a reopen that was never acknowledged: both are owed an ack.
-      const isNew = previous === undefined
-      const isRecreated = !isNew && previous.issueId !== issue.id
-      const isUnackedReopen =
-        previous?.state === 'closed' &&
-        issue.state !== 'closed' &&
-        previous.ackCommentId === undefined
-      const base =
-        isNew || isRecreated || isUnackedReopen
-          ? {
-              ...freshRecord(issue, repository, deps.newRunId(), nowMs),
-              seenAtMs: previous?.seenAtMs ?? nowMs,
-            }
-          : previous
-      const decision = decideAck(base, issue, comments.get(issue.number) ?? [], policy)
+      const base = previous ?? {
+        ...freshRecord(issue, repository, deps.newRunId(), nowMs),
+        seenAtMs: records[at]?.seenAtMs ?? nowMs,
+      }
+      const decision = decideAck(base, issue, [], policy)
       const ack = posted.get(issue.number)
       const isAcked =
-        ack !== undefined ||
-        decision.action === 'adopt' ||
+        base.ackCommentId !== undefined ||
         (decision.action === 'skip' && decision.note === 'alreadyAcked')
-      const event = driveEvent(base, issue, isAcked)
+      const event = driveEvent(base, issue, isAcked, answered.has(issue.number))
       const next = nextWatchdogState(base.state, event)
       let note: WatchdogPollIssue['note']
-      if (decision.action === 'skip') note = decision.note
-      else if (ack !== undefined) note = 'ackPosted'
-      else if (decision.action === 'adopt') note = 'alreadyAcked'
+      if (ack !== undefined) note = 'ackPosted'
+      else if (decision.action === 'skip') note = decision.note
+      // A reporter's answer or an edit stale-dates the findings: the flow
+      // triages again.
+      const isRestart = next === 'acknowledged' && base.state !== 'seen'
       const updated: WatchdogRecord = {
         ...base,
         state: next,
-        ...(ack !== undefined && { ackCommentId: ack.commentId, labelsApplied: [...ack.labels] }),
-        ...(decision.action === 'adopt' && { ackCommentId: decision.comment.id }),
-        // An edit stale-dates the findings: the flow triages again.
-        ...(event === 'edited' && { findings: undefined, outcome: undefined }),
+        ...(isRestart && {
+          findings: undefined,
+          outcome: undefined,
+          replyCommentId: undefined,
+        }),
         lastTitle: issue.title,
+        lastTextHash: issueTextHash(issue),
         lastCommentCount: issue.commentCount,
         lastIssueUpdatedAt: issue.updatedAt,
         updatedAtMs: nowMs,
