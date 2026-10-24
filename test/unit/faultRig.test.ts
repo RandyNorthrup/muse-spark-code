@@ -44,11 +44,12 @@ describe('fault-rig.mjs', () => {
     expect(run.status).toBe(0)
   })
   it('runs through a symlinked checkout', () => {
-    if (process.platform === 'win32') return
     const dir = mkdtempSync(path.join(tmpdir(), 'fault-link-'))
     dirs.push(dir)
     const link = path.join(dir, 'repo')
-    symlinkSync(REPO, link)
+    // Windows's directory link is a junction (a symlink needs the
+    // symbolic-link privilege, which a test account does not hold).
+    symlinkSync(REPO, link, process.platform === 'win32' ? 'junction' : 'dir')
     const run = runRig(['list'], link)
     expect(run.status).toBe(0)
     expect(run.stdout).toContain('s1-stream-cut\n')
