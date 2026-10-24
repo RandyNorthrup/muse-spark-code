@@ -1,4 +1,5 @@
 import { REPORT_KIND_REGISTRY } from '../../src/core/reporting/registry'
+import { execFileSync } from 'node:child_process'
 import { readFile, readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { createRequire } from 'node:module'
@@ -26,6 +27,12 @@ import { estimateReportSections } from '../../src/core/reporting/collect/estimat
 import { schedulesSections } from '../../src/core/reporting/collect/schedules'
 import { sectionVector } from './helpers/estimator/sectionVectors'
 import { playbookProbeView, schedulesProbeView } from './helpers/reporting/reportKindFixtures'
+import { scratchFolders } from './helpers/playbook/scratchFolders'
+import {
+  orderModuleRecord,
+  orderRoundWithResiduals,
+  writeOrderJournal,
+} from './helpers/playbook/journalRecords'
 
 const root = path.resolve(import.meta.dirname, '../..')
 const folder = path.join(root, 'src/core/reporting/collect')
@@ -35,7 +42,7 @@ const casesByKind: Record<ReportKind, string> = {
   project:
     'common.ts:sourcedSection:0 needsYou.ts:needsYou:1 needsYou.ts:needsYou:3 needsYou.ts:needsYou:4 plan.ts:planFormat:1 plan.ts:laneRows:0 plan.ts:deliveryRows:0 plan.ts:planRiskRows:0 plan.ts:planResidualRows:0 repository.ts:projectReleaseRows:0 repository.ts:channelRows:0 repository.ts:channelRows:1 repository.ts:ciSection:0 repository.ts:pullRequests:0 repository.ts:collectProject:0 usage.ts:usageSections:0 usage.ts:usageSections:1 usage.ts:usageSections:2',
   milestone:
-    'plan.ts:collectMilestone:0 plan.ts:collectMilestone:1 plan.ts:collectMilestone:2 plan.ts:collectMilestone:3 plan.ts:collectMilestone:4 plan.ts:collectMilestone:5 plan.ts:laneRows:0 plan.ts:planRiskRows:0 plan.ts:planResidualRows:0 plan.ts:planQuestionRows:0 common.ts:certificationRows:0',
+    'plan.ts:collectMilestone:0 plan.ts:collectMilestone:1 plan.ts:collectMilestone:2 plan.ts:collectMilestone:3 plan.ts:collectMilestone:4 plan.ts:collectMilestone:5 plan.ts:laneRows:0 plan.ts:planRiskRows:0 plan.ts:planResidualRows:0 plan.ts:planQuestionRows:0 common.ts:certificationRows:0 playbookOrder.ts:residualRow:0',
   release:
     'repository.ts:collectRelease:0 repository.ts:collectRelease:1 repository.ts:collectRelease:2 repository.ts:collectRelease:3 repository.ts:collectRelease:4 repository.ts:channelRows:0 repository.ts:channelRows:1 repository.ts:ciSection:0',
   changes:
@@ -82,6 +89,17 @@ const forwardedRegistry: Record<string, string[]> = {}
 const coveredSections = new Map<string, Set<string>>()
 interface Probe {
   collect: typeof collectFixture
+  /**
+  D220's milestone residual register: the collector with the report
+  ordering bound to the real journal orderer over a real journal in
+  `journalFolders`, which holds residual entries.
+  */
+  collectOrdered: (
+    kind: ReportKind,
+    options: Parameters<typeof collectFixture>[1],
+    snapshot: Parameters<typeof collectFixture>[2],
+    journalFolders: { readonly agentDataFolder: string; readonly workspaceFolder: string },
+  ) => ReturnType<typeof collectFixture>
   target: (source: string) => void
   keys: () => string[]
 }
@@ -175,7 +193,9 @@ beforeAll(async () => {
   const result = await build({
     stdin: {
       contents: `
-        import { collectFixture, availableSource, reportOptions } from './test/unit/helpers/reporting/kindFixtures';
+        import { collectFixture, availableSource, reportOptions, fixtureFinalize, changeSelections } from './test/unit/helpers/reporting/kindFixtures';
+        import { createReportCollector } from './src/core/reporting/collect';
+        import { createPlaybookReportOrder } from './src/runtime/reporting/playbookSchedulesInputs';
         import { collectKeybindingSections } from './src/core/reporting/collect/keybindings';
         import { playbookSections } from './src/core/reporting/collect/playbook';
         import { estimateReportSections } from './src/core/reporting/collect/estimate';
@@ -184,6 +204,16 @@ beforeAll(async () => {
         import { playbookProbeView, schedulesProbeView } from './test/unit/helpers/reporting/reportKindFixtures';
         export { target, keys } from 'row-probe';
         import { suspend } from 'row-probe';
+        export function collectOrdered(kind, options, snapshot, folders) {
+          const playbookOrder = createPlaybookReportOrder({
+            agentDataFolder: folders.agentDataFolder,
+            workspaceRoot: folders.workspaceFolder,
+          });
+          const collector = createReportCollector({
+            finalize: fixtureFinalize, nextStepLimit: 3, selections: changeSelections(), playbookOrder,
+          });
+          return collector(snapshot, reportOptions(kind, { scope: 'M12', ...options }));
+        }
         export function collect(kind, options, snapshot) {
           // The forwarded kinds run their real section builders here (as the
           // live sources do), so the probe sees their row calls; the
@@ -264,6 +294,8 @@ beforeAll(async () => {
     Buffer,
     TextEncoder,
     TextDecoder,
+    // The journal orderer copies what it hands out (D220).
+    structuredClone,
   })
   const value = container.exports
   if (!isProbe(value)) throw new Error('Invalid row probe exports')
@@ -276,6 +308,8 @@ function isProbe(value: unknown): value is Probe {
     value !== null &&
     'collect' in value &&
     typeof value.collect === 'function' &&
+    'collectOrdered' in value &&
+    typeof value.collectOrdered === 'function' &&
     'target' in value &&
     typeof value.target === 'function' &&
     'keys' in value &&
@@ -365,21 +399,54 @@ function snapshotFor(source: string, kind: ReportKind) {
   return { ...snapshot, sources }
 }
 
+const RESIDUAL_REGISTER_SOURCE = 'playbookOrder.ts:residualRow:0'
+
+/** A real journal with an open residual for M12, written once for the probe. */
+const residual: { folders?: { agentDataFolder: string; workspaceFolder: string } } = {}
+function residualJournal(): { agentDataFolder: string; workspaceFolder: string } {
+  if (residual.folders !== undefined) return residual.folders
+  const folders = scratchFolders('m116w-row-sources-residuals-')
+  // A repository, as a workspace with a journal is: the probe runs in its own
+  // realm, where a host fs error is no `Error` and a missing `.git` would
+  // not read as missing.
+  execFileSync('git', ['init', '-q'], { cwd: folders.workspaceFolder })
+  writeOrderJournal(folders, [
+    orderModuleRecord(),
+    orderRoundWithResiduals(
+      [{ name: 'open-risk', whySafe: 'Safe enough.', followUp: 'Revisit.' }],
+      8,
+    ),
+  ])
+  residual.folders = folders
+  return folders
+}
+
 describe('collector duplicate source coverage', () => {
   it.each(table)('$kind duplicates the actual row source $source', ({ kind, source }) => {
     const probe = state.probe
     if (probe === undefined) throw new Error('Row probe was not built')
     const snapshot = snapshotFor(source, kind)
+    // The residual register's rows exist only with the ordering bound to a
+    // journal that holds residual entries (D220).
+    const collect =
+      source === RESIDUAL_REGISTER_SOURCE
+        ? (options: Parameters<typeof collectFixture>[1]) =>
+            probe.collectOrdered(kind, options, snapshot, residualJournal())
+        : (options: Parameters<typeof collectFixture>[1]) => probe.collect(kind, options, snapshot)
     probe.target('')
-    const before = probe.collect(kind, { full: true }, snapshot)
+    const before = collect({ full: true })
     probe.target(source)
-    const document = reportDocumentSchema.parse(probe.collect(kind, { full: true }, snapshot))
+    const document = reportDocumentSchema.parse(collect({ full: true }))
     const keys = new Set(probe.keys())
     expect(keys.size, `${source} must actually construct a row`).toBeGreaterThan(0)
+    // The ordering wrap prefixes each ordered row's key with its severity
+    // bucket (D220); the row is still the one the source constructed.
+    const sourceKey = (key: string) =>
+      source === RESIDUAL_REGISTER_SOURCE ? key.replace(/^\d\//u, '') : key
     const seen = coveredSections.get(kind) ?? new Set<string>()
     let duplicatedSections = 0
     for (const section of [before.needsYou, ...before.sections]) {
-      const duplicated = section.rows.filter((row) => keys.has(row.key)).length
+      const duplicated = section.rows.filter((row) => keys.has(sourceKey(row.key))).length
       if (duplicated === 0) continue
       const result = [document.needsYou, ...document.sections].find(
         (entry) => entry.id === section.id,

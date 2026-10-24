@@ -1926,6 +1926,7 @@ Reports share the existing 50 KiB mini-parser; every runtime API read is guarded
 
 **`dist/museCodeReviewer.js` budget rationale.** (M90: the Auto reviewer on Muse Code, its side session and approvals with M78's reviewer core, loaded on the first review; measured 45.4 KiB plus 15%, rounded up to 25 KiB)
 
+**`dist/playbook.js` budget rationale.** (M116 lane C-M116-6, 2026-10-11: the VS Code window's playbook, its client and, as its worker thread, the governor, loaded on the first playbook request; measured 111.5 KiB plus 15%, rounded up to 25 KiB = 150 KiB)
 **`dist/modelsSubscriptions.js` budget rationale.** (PANELBUDGET: the subscriptions half of the Models panel host, the ChatGPT and Copilot sign-in flows, loaded on the first subscription action; measured 22,917 B plus 15%, rounded up to the next 25 KiB multiple = 50 KiB)
 
 **`dist/packsVerify.js` budget rationale.** (M110t TP2: the pack index verifier with sigstore, loaded on the first pack fetch; measured 1,484,756 B plus 15%, rounded up to the next 25 KiB multiple = 1675 KiB)
@@ -11272,200 +11273,46 @@ every line of ours it cites, is `docs/research/pi-solpi-2026-10-05.md`.
 
 ### D96 — The orchestrator playbook (M116, 2026-10-06)
 
-The owner, 2026-10-06: "and the orchestrator will be trained to use our three
-strikes method? this is working very good for us and i think it is pretty
-foundational".
-
-The method is the one this repository has been built with: the owner's
-rulings of 2026-09-27 to 2026-10-05 (redesign at the third round, review in
-one pass, contracts first, small things first, offload to the rigs, one
-integration trunk, break every gate on purpose, loud failures with owner
-items first, never route around a safety check). D96 makes it the
-orchestrator's own, **built in, on by default, and enforced by code**, not
-only written into a prompt. It applies to every orchestrator: M96's team
-host (the lead, team leads and roles), M110's orchestrator hosts, M115w's
-watchdog, and the panel's main conversation whenever it orchestrates
-(subagents, `delegate`, best-of-N, its review loop). It is also this
-repository's own working rule (AGENTS.md rule 14).
-
-**What exists** (read on main):
-
-- Reviews end in a `muse-review` block of findings (`src/shared/reviewFindings.ts`:
-  file, lines, severity, title, detail), with no class and no notion of a
-  round.
-- The verify loop counts failing check rounds per session and stops at
-  `CHECK_FIX_MAX_ROUNDS` (`verifyLedger.ts`), but nothing counts review rounds
-  per module or changes the kind of fix that follows.
-- First-party skills live in `first-party-skills/` beside the vendored
-  package (M92's `muse_gadgets`), loaded and installed by M89's bundled-skills
-  path (D68).
-- M96's charters, board and scheduler, M96c's merge queue and check slots,
-  and M113's plan reader with its lanes tables and delivery-order list are
-  the planner's inputs, as each merges.
-
-1. **Three strikes.**
-   - **What is counted.** Review rounds per **module** (a file set: the
-     lane's declared files, or a team's module globs, or else the file's
-     directory two levels under the workspace's source root) and per
-     **finding class** (decision 2's classes).
-   - **The rule.** The original build and two fix rounds may be patches. When
-     the review after the second fix round still has findings in the same
-     module, the next round is **not another patch**: the policy refuses a
-     fourth patch round on that module (`PLAYBOOK_PATCH_ROUNDS_MAX`, 2 fix
-     rounds after the build).
-   - **A design decision instead.** The orchestrator writes one: the class of
-     failure, why the patches did not end it, and the structural change that
-     removes it (one atomic claim instead of a multi-step one; no allow-list
-     instead of a better allow-list). It goes in the project's plan where
-     there is one (a `D<n>` amendment in this repository's format, or the
-     skill's `quality-ledger`), and in the playbook's record.
-   - **A redesign lane** builds it. The next review is given the old findings
-     and must mark each one `impossible` (with the structural reason),
-     `caught` (a check now catches it) or `remains`. Only `impossible` closes
-     a finding; `caught` alone does not close a strike. A redesign that still
-     leaves findings goes to the user, first in every report.
-   - **Recorded and shown:** the counts per module and class, each decision
-     and its outcome, in the Agent map (a strike badge on the lane) and in
-     `/report` (D93's `playbook` kind, and the milestone and fleet kinds).
-2. **Review in one pass.**
-   - **Every class at once:** validation and security; failure paths and
-     honesty (no empty success, no silent fallback); concurrency and
-     lifecycle; tests and gates; docs. A review states the classes it
-     covered (`coverage`); one that leaves a class out is incomplete, asked
-     again, and not counted as a round.
-   - **Findings carry their class.** The `muse-review` block gains an
-     optional `class`; the playbook's reviewer charter asks for it. M70's
-     `/review` prompt is unchanged, and a finding without a class counts
-     under the module alone.
-   - **Fixes land together.** The next review does not start until every
-     finding of the last one is answered: fixed, or disputed with a reason.
-     There is no one-finding-per-round loop.
-3. **Contracts first.**
-   - **Lane 0** (contracts, strings, fakes, the handoffs) lands and is
-     reviewed before any wave lane of its milestone is dispatched.
-   - **A prerequisite audit runs before each wave:** a lane whose `Starts`
-     names a lane or milestone that has not merged is not started, and the
-     note names what is missing.
-4. **Small first, in a logical order.** The queue is ordered by dependency
-   first (a topological order), then by estimate (smaller first), then by id;
-   M113's reader supplies the plan's lanes tables and the delivery-order list,
-   and M96c's pick uses the order.
-5. **Offload.** Heavy builds and tests go to worker nodes (M100's devices,
-   M96c's runners, M110's nodes) when one is offered, under M107's governor;
-   the user's own machine stays light. One full gate per change, in CI where
-   the project has CI; locally, scoped checks.
-6. **Integrate continuously.** A rolling integration trunk per milestone
-   (`feature/m<id>-…`), into which each lane merges as it certifies; every
-   lane's brief lists the merges already in the trunk.
-7. **Break on purpose.** A lane that adds a gate or a test (a new test file,
-   a new gate script, a new lint rule) certifies only with a drill record:
-   the break, the observed failure, and the byte-exact restore (AGENTS.md
-   rule 3).
-8. **Loud failures, owner items first.** Every report and status message the
-   orchestrator writes starts with what needs the user and whatever is
-   failing (M113's **Needs you**), never buried below progress.
-9. **Never route around a safety check.**
-   - **Hook bypass is detected by outcome; the command guard is advisory.**
-     At work start the harness snapshots reachable commits. Before any
-     harness-managed push or completion, every commit newly reachable from
-     the work's refs runs the repository's own pre-commit and commit-msg on
-     its tree/message in an isolated temporary worktree under ordinary tool
-     admission. Pre-push runs once for the exact range with a clean index.
-     Push admission also checks commits introduced since the workspace's first
-     recorded work, so opening later work cannot hide an unverified ancestor. Hooks are never
-     rewritten. A passing commit has a durable commit id / hook-set digest /
-     result receipt. Failure or inability to run is a strike, blocks push
-     and completion, and shows scrubbed hook output. No receipt means no push.
-     Obvious bypass commands still receive an early warning and refusal;
-     shell wrappers, aliases and generated arguments are not parsed as a
-     security boundary.
-   - **No permission laundering:** an action refused to one agent is not
-     asked again through another (a delegate, a role, a tool with the same
-     effect) for `PLAYBOOK_LAUNDER_WINDOW_MS` (one hour) on the same subject;
-     it is reported to the user instead.
-   - **A safety classifier's block** is never retried or rerouted; the user
-     decides (the owner's 2026-10-02 ruling).
-10. **Configurable, with a reason.** Each of rules 1 to 8 is a team setting
-    (`playbook.<rule>`, on by default) that can be turned off only with a
-    stated reason, recorded with who turned it off and when, and shown
-    beside the rule. **Rule 9 has no off switch:** turning it off would itself
-    route around a safety check. `PLAYBOOK_PATCH_ROUNDS_MAX` may be lowered,
-    not raised.
-11. **Enforced, and explained.**
-    - **A policy module** (`src/core/orchestration/playbook/**`, no `vscode`)
-      that every planner calls before it dispatches, reviews, merges or
-      reports: the round counter that refuses a fourth patch round, the
-      coverage and fix-together checks, the contract-first gate, the
-      prerequisite audit, the queue order, the offload preference, the drill
-      requirement, the route-around guard.
-    - **A first-party skill,** `orchestrator-playbook`
-      (`first-party-skills/orchestrator_playbook/`), bundled by D68's path on
-      both backends, which teaches the method and the design-decision
-      template; the module enforces it whether or not the model reads it.
-    - **A "why it did this" note** on every enforced decision, in the
-      transcript, the Agent map and the record: "Playbook: round 3 on
-      `src/core/schedules/store` — a redesign is required (two fix rounds
-      left concurrency findings)".
-    - **No model call of its own,** and no change to any request's prefix: the
-      skill loads as skills do, and the notes are host rows.
-12. **Every editor** shows the same: the notes and badges in the panel, the
-    companion page and the native hosts; ACP's `/playbook` (status, record,
-    settings); the CLI's `playbook status|record|settings`; the TUI's and
-    the desktop's Agent map.
-13. **Lane-0 review amendment (RVM116L0, 2026-10-06).**
-    - A module has a trusted stable `id`, assigned once and persisted with
-      its key/file-set snapshots in the journal. A changed key or file set
-      for existing code carries typed lineage: `renamedFrom`, `splitFrom`
-      or `mergedFrom`, naming module ids. A rename keeps its id; splits and
-      merges inherit the maximum predecessor round, per class and aggregate.
-      P refuses a declaration whose files overlap a struck module's last
-      file set without lineage unless a recorded lead/owner override exists.
-      No counter resets on a new lane, branch, key or file set.
-    - `beforeReview` and `afterReview` receive `implementerId`, `reviewerId`
-      and both session ids from the harness's trusted lane registry, never
-      self-declared model metadata. Every round persists these identities.
-      P refuses equal agent ids or shared sessions before consuming a review.
-    - Journal findings retain normalized severity (`P1`–`P3`); their answers
-      are finding-scoped dispositions: fixed, disputed(reason),
-      residual(name, why safe for now, follow-up), or override(lead/owner,
-      reason, time). P fixes every P1; only an explicit lead/owner override
-      can except it. P2 residuals require redesign and a named follow-up;
-      an ordinary dispute grants no exception. The trusted adapter maps
-      critical/high/medium-or-lower to P1/P2/P3 and treats missing or unknown
-      severity as P1 until clarified. P validates prior ids, scrubs free text
-      and reconstructs this policy from the journal after restart.
-    - Acceptance fakes take the prior finding id as a fixture parameter,
-      detach every lane's module data, and test board dependencies and
-      estimates independently of the plan's delivery-order literal.
-
-14. **Lane-P redesign (REDM116P, 2026-10-06).** One synchronous journal
-    reducer owns publication and emits tagged tool effects. Leases exclude
-    all members of a module family and name the lane and generation; every
-    review must present its admitted generation. Expired member leases do
-    not block another member's current work. File identities retain bounded
-    content fingerprints; edited moves inherit through Git history/rename
-    evidence and content similarity at `PLAYBOOK_CONTENT_SIMILARITY_PERCENT`.
-    Claimed lineage is published before admission. Merges reconcile maximum
-    strikes and lifetime counts throughout the family; only a complete
-    independent redesign can close an existing strike epoch.
-
-15. **RVM116P3 repair (FIXM116P3, 2026-10-06).** Keep the synchronous
-    outcome/journal architecture. Resolve the source hook directory once and
-    run native Git hooks with that absolute hooksPath and a credential/Git/
-    hook-disable scrubbed environment. Configured hook sets fail closed on
-    missing/non-executable hooks and missing Husky dispatch/body files; Husky
-    startup scripts cannot silently suppress a body. Snapshot all refs and
-    every worktree HEAD before/after work, including new branches/tags/notes.
-    Peel annotated tags; deletion-only pushes require no hook receipt. Scrub
-    outer errors, require explicit renewal/cancellation generations, contain
-    hook descendants, clean partial worktree registration, and connect hook
-    strikes to patch refusal and independent redesign even without findings.
-    Hook-digest epoch v2 invalidates earlier potentially skipped-body receipts;
-    startup presence is checked on receipt reuse. POSIX executions end their
-    process group; every Windows Git child requires the trusted harness
-    job/tree runner and refuse without it.
-    Each review finding receives a named regression and byte-exact red drill
-    in `docs/certification/m116-p.md`. No new dependency or relaxed gate.
+The orchestrator playbook is built in, on by default and enforced in code: one
+policy module (`src/core/orchestration/playbook/**`, no `vscode`) that every
+orchestrator (M96's team host, M110's hosts, M115w, and the panel's
+conversation whenever it orchestrates) calls before it dispatches, reviews,
+merges or reports, with a why-note on every enforced decision, no model call
+of its own, and the same record in every editor (the panel and its Agent map,
+ACP's `/playbook`, the CLI's `playbook status|record|settings`, the TUI and
+the desktop). Its rules: (1) review rounds are counted per module (a stable
+journal id; renames, splits and merges carry typed lineage and keep their
+strikes; leases cover the module family) and per finding class, and after the
+person's number of fix rounds (`patchRoundsMax`, 0 = until the work converges,
+D121) the next round is a written design decision and a redesign lane whose
+review marks each old finding `impossible`, `caught` or `remains`, only
+`impossible` closing it; (2) a review covers every class in one pass or is not
+counted, findings carry class and P1–P3 severity, and the next review waits
+until each finding is fixed, disputed, a named residual or overridden by the
+lead or owner (a P1 only by override); (3) contracts first, with a
+prerequisite audit before each wave; (4) dependency, then estimate, then id
+order; (5) heavy checks offload to workers or CI under M107; (6) one rolling
+integration trunk; (7) a new gate or test certifies only with its drill; (8)
+owner items and failures first; (9) never route around a safety check: hook
+bypass is detected by outcome (per-commit hook receipts before any push or
+completion, contained and scrubbed), a refused action is never asked again
+through another agent within the hour, and a classifier block is never
+retried. Rules 1–8 turn off only with a recorded reason; rule 9 never. In VS
+Code (C-M116-6) the window runs the same policy, journal and outcomes on a
+worker thread of `dist/playbook.js`: a panel `/review` is a round only when a
+child of the conversation changed a reviewed file; a dispatch from a
+conversation with an open module is admitted before it starts, held until the
+child ends and its hook receipts verified, and with nothing open or no journal
+it runs as before; a lost or silent worker refuses as unavailable, never
+allows; Windows git and hook calls run in one named kill-on-close job per
+decision. Model API child work (`subagent_spawn`, a new task by message, and
+the Agent map's Continue, Retry, Resume and Reopen on both backends) is
+admitted before dispatch; Muse Code starts subagents without asking, so their
+rounds are counted from the first live row and their work reviewed, and the
+playbook cannot stop that start. An unreviewable contribution is a finding
+about that child, and a finding whose file cannot be placed counts under no
+module. Full record:
+[docs/plan-archive/decisions.md](docs/plan-archive/decisions.md).
 
 ---
 
@@ -12780,6 +12627,50 @@ produced with `node scripts/inspect-capture.mjs` and lands by the lead's
 commit. No user-facing strings: F1a refusals stay typed internal
 protocol words.
 
+### D218 — The team runner's playbook board reads live team facts (lead, 2026-10-22; lane RLM116 Q1; numbered D212 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with secondary roles)
+
+`readBoard` comes from the team's real facts: `workers` are its entry worker
+states (available when idle and admitted) under the entry ids the offloading
+caller uses; `mergedPrerequisites` are task branches merged into the
+integration target, no other; `hasCi` is the CI the report engine really
+observed (M113's check runs), unknown never true. The team runner starts each
+file-bearing task's round at its real effect site, after every admission and
+before launch, and releases it when the task ends, on the window's playbook
+worker (never the extension host; on Windows inside its contained job).
+`pick`/`merge` wait for the merge planner binding. Record:
+`docs/certification/cc-rlm116.md`.
+
+### D219 — Check admission reads host capacity; headless `playbook run` (lead, 2026-10-22; lane RLM116 Q2; numbered D213 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with the MCP protocol eras)
+
+Real capacity comes from the hosts that offload work (the ACP agent and the
+team runner), never the panel, whose fail-closed port stays: a sync holder
+serves the latest M107 reading, refreshed asynchronously, and admission pauses
+a local check only at the governor's paused level; unknown never pauses work.
+`muse-spark-code-acp playbook run <name> [--heavy] [--full-gate]` runs one
+workspace check through the same admission, journal and record, with no
+limits of ours (D121), and exits with the check's own code; `/playbook`
+stays read-only. Record: `docs/certification/cc-rlm116.md`.
+
+### D220 — One report ordering through `collectPlaybookReport` (lead, 2026-10-22; lane RLM116 Q3; numbered D214 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with the stabilized ACP surface)
+
+Playbook, milestone and fleet rows reach the M113 engine ordered by
+`collectPlaybookReport` over the journal the report reads, asked for only
+when one of those kinds orders; the playbook CLI text uses the same
+comparator, so `orderedPlaybookRecords` and `orderReport` are one. Ordering is
+presentation: `orderReport` returns its why-note and stores nothing; severity
+survives the engine's key sort as a bucket prefix; milestone residuals merge
+the journal's residual register through the one section builder. Record:
+`docs/certification/cc-rlm116.md`.
+
+### D221 — ACP child resumes admitted through `SubagentAdmission` (lead, 2026-10-22; lane RLM116's ACP admission follow-up; numbered D215 on its branch until the int/recovery re-land of 2026-10-23, when that number was found shared with physical device safety)
+
+The ACP agent's only child-work effects, `/agents continue|retry`, go through
+the same `SubagentAdmission` port as the Model API host, as `delegate` rounds
+asked last around the control call: a refusal answers the person and reaches
+no backend; without the port the control runs as before. The admission is the
+host capacity of D219, refreshed on every resume; no journal is read or
+written. Record: `docs/certification/cc-rlm116.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
@@ -13033,6 +12924,10 @@ reviews in the browser and submits only on explicit Send through its owning
 ACP session. CLI emits reviewed text on stdout. Native MHP editor-owner binding
 and real editor receipts remain C-M104-1 / C-M63-1; no new host row is claimed
 complete. See `docs/certification/m35-companion.md`.
+
+- **M116 Muse Code admission experiment (2026-10-11):** can denyUnmatched
+  plus a host-controlled allow rule gate subagent starts? The capture shows
+  a policy denial there. Not implemented in C-M116-6; requires a new capture.
 
 - **Q-CM1013B-MODULE-VISIBILITY (2026-10-11):** the first live receipt
   records CommonJS writes in the ESM packing fixture but no request evidence.
@@ -32252,6 +32147,19 @@ Total: about 100 lane-hours.
 
 ### M116 — The orchestrator playbook (D96)
 
+**Lane C-M116-6: the playbook in the VS Code panel (2026-10-11; landed on int/recovery by cc/rlm116).**
+D96's VS Code part: the window's governor and worker
+(`src/runtime/playbook/governor.ts`, `src/host/playbook/`, the lazy
+`dist/playbook.js`), the record in the panel (the Agent map's Playbook
+Settings and `/playbook` from the same journal), enforcement (review turns,
+`delegate` follow-ups, best-of-N, Muse Code's child rows, why-note buttons and
+the person's own child actions), one host-variable list
+(`src/core/hostVariables.ts`), and reviews RVCM1166A to D, each closed as a
+class with regressions and red drills. The series, its bundle measurements and
+what it leaves unbuilt (why-notes on tool rows, a standalone playbook page, a
+P1 `override` answer in the panel): `docs/certification/msm116.md`, "PLAN
+record".
+
 **Round-four delivery repair (FIXM116I4, 2026-10-07, implemented and certified locally).**
 Commit an ACP queued-answer lease only when its carrying turn reaches the
 model. A `queued` submission keeps ownership bound to its turn id until
@@ -32314,15 +32222,23 @@ control's focus (or the saved rule heading), and announce successful saves
 through a polite live region. Add regressions and byte-exact red drills in
 `docs/certification/m116-u.md`. Existing P/I/W integration handoffs remain.
 
-**Status 2026-10-10 (CLI/ACP journal commands work; VS Code panel journal/settings and planner binding remain): building.**
+**Status 2026-10-17 (MSM116: the VS Code panel playbook is connected end to end; cross-milestone bindings remain): building.**
 
 Status detail retained: lane W integrated All five lanes merged (`m116/w`;
 `docs/certification/m116.md`); every P1/P2 finding verified fixed; the D100
 M116 amendments (G3, G17, G20, G24) implemented with tests and red drills;
 ACP `/playbook` and CLI `playbook` bound to the journal-backed surface;
-help/reference catalogued; full gate recorded in `m116.md`. Open: panel
-enforcement install (needs M96's planner/board), M107 governor, M110/M115w
-callers, M113 report rows, headless exec surface, installed-editor checks.
+help/reference catalogued; full gate recorded in `m116.md`. Lane C-M116-6
+added the window's playbook governor, the record in the panel (Agent map
+Playbook Settings, `/playbook` from the same journal), the enforcement
+(review turns, `delegate` follow-ups, best-of-N, Muse Code spawn requests,
+why-note buttons), the person's own child actions as dispatches, and three
+review rounds (RVCM1166A/B/C) each fixed as a class with regressions and red
+drills (`docs/certification/msm116.md`). cc/rlm116 (2026-10-23) bound the team
+board and rounds (D218), host capacity admission and `playbook run` (D219),
+the report rows (D220) and ACP child resumes (D221). Open: `pick`/`merge`
+with the merge planner binding (RLF-TEAMWIRE), M110/M115w callers,
+installed-editor checks.
 
 **Status 2026-10-06: planned.** Small: about 60 lane-hours in lane 0 and four
 lanes. No model call is needed; every test runs on a fake review loop and a
@@ -32467,7 +32383,10 @@ core.hooksPath`, an edit under `.husky/`, a delegate re-asking a refused
 - **Performance and bundles.** The policy is pure and loads with the planner
   that calls it (`dist/team.js` once M96 merges; before that a lazy
   `dist/playbook.js` with the panel's orchestration); `dist/extension.js`
-  gains at most 1 KiB, and no cap rises.
+  gains at most 1 KiB, and no cap rises. C-M116-6 (2026-10-11):
+  `dist/playbook.js` carries the window's client, its panel channel and, as
+  its worker thread, the governor, under its own 150 KiB budget; the
+  measurements are in `docs/certification/msm116.md`, "PLAN record".
 - **Size.** S–M: about 60 lane-hours.
 - **Certification checklist** (§6.0, plus):
   - [ ] The fake review loop's round-3 switch and its drill
@@ -34172,8 +34091,8 @@ remains. Receipts: `docs/certification/rlm108.md`.
 
 **C-M108-2 build overage resolved (2026-10-11, continuation).** Deferring the optional provider import editor reduces the original Models body from 77,698 to 76,274 B under its unchanged 76,800 B cap. Its new lazy closure measures 2,128 B under an independent 25 KiB cap; loading, failure, retry and dismissal retain the section label. Account chunk failures now use the same section boundary. Production build passes without adding Model API bytes. Availability stays false pending complete dependents and external visual/editor/review receipts. See `docs/certification/cm1082.md`.
 
-**RLM108 modelApi.js build overage (2026-10-22, macmini, open, justified
-deferral).** `dist/modelApi.js` measures 543,965 B (531.2 KiB) against its
+**RLM108 modelApi.js build overage (2026-10-22, macmini; closed
+2026-10-24).** `dist/modelApi.js` measures 543,965 B (531.2 KiB) against its
 unchanged 525 KiB cap: 6,365 B over. Main at 0.19.0 builds 533,481 B
 (521.0 KiB), so the recovery stack adds 10,444 B, all per-turn hot path by
 esbuild metafile: `ModelApiHost.ts` +12,682 B (request leases, attempt
@@ -34187,6 +34106,19 @@ would only move hot bytes to a new budget. No cap, threshold or assertion
 changed. Owner decision pending: raise the 525 KiB cap or schedule a
 VERIFYCHUNK-style split of a lead-chosen conditional bundle part.
 Receipts: `docs/certification/rlm108.md`, `dist/meta/modelApi.json`.
+Closed: cc/gates moved the B1 hold, tool runs and fast judge into lazy
+chunks; on int/recovery after its merge and cc/rlm116's the bundle is
+534,824 B under the unchanged cap (`docs/certification/cc-gates.md`).
+
+**cc/rlm116 MSM116 bytes in over-budget bundles (2026-10-24, closed).** The
+panel playbook's own code adds 423 B to `dist/modelApi.js`
+(the host's `SubagentAdmission` call, D96.17) and 98 B to `dist/wire.js`
+(`openPlaybook` and the one playbook envelope), both over their caps at the
+base. Every other over-budget bundle the branch touches is the same size or
+smaller (`dist/uiText.js` -910 B, `dist/reportingPanel.js` -22 B). No cap
+changed; the modelApi decision above covers the first. Receipts:
+`docs/certification/cc-rlm116.md`. Closed: merged after cc/gates, both fit
+their unchanged caps (`dist/modelApi.js` 534,824 B, `dist/wire.js` 76,080 B).
 
 - **Archived.** The record that stood here is in [docs/plan-archive/gates.md](docs/plan-archive/gates.md).
 
@@ -35350,11 +35282,12 @@ memory fixtures, and real ACP delivery uses a three-call caller allowance.
 | `test/unit/transcribeBatch.test.ts`: `'NaN' as UsdAmount`                                 | Intentional malformed canonical port; constructors refuse it, so the existing runtime refusal probe bypasses the brand without a credential or paid call.                                                                       |
 | `test/unit/paidMoneyStructure.test.ts` `trackedDebt` allow-list (41 numeric money fields) | Numeric current money the 0.17 ports did not convert; each entry names milestone M121, which converts it to `UsdAmount` and empties the category. The guard fails on any unlisted money leaf, so the list cannot grow silently. |
 
-| Location                                                     | Escape hatch                                 | Reason                                                                                                                                                                                                                                                                                                                                                                                                                            |
-| ------------------------------------------------------------ | -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)        | `'NaN' as UsdAmount`                         | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                                                            |
-| `test/unit/vault/vaultPanelBinding.test.ts` (`pressedTitle`) | `value as never` for a dialog's pressed item | The vscode mock keeps the overloaded dialog type (its last overload resolves `MessageItem`), while `VaultPanelHost` compares the pressed title as a plain string. The cast carries only the literal titles the test itself passes (`Keep File`, `Delete the File`, `Continue`); the host still compares them against `UI_TEXT` before acting, so no foreign value can cross. Test-only.                                           |
-| `test/unit/acpTeamContracts.test.ts` (`atRuntime`)           | `as T`                                       | Defense-in-depth and seeded property probes inject malformed caller values and SDK-schema-derived strings through typed builder ports. The SDK types cannot spell invalid inputs; this test-only helper exercises production refusal without validating the input first. Every returned value is checked against its frozen schema; valid option and content expectations come independently from the SDK's exported JSON schema. |
+| Location                                                            | Escape hatch                                                | Reason                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/host/conversation/conversationController.ts` (`childDecision`) | `event as AgentEvent & { subagentOrigin?: SubagentOrigin }` | The Muse Code mapper keeps the captured, zod-validated origin on the mapped event, but the shared event schemas leave it off so no bundle carries it (M116, D96.17). The read names the wider wire shape at the one place that consumes it; every other event field is read from the same validated shape. Each use carries its inline reason.                                                                                    |
+| `test/unit/schedulePaid.test.ts:74` (`MALFORMED_USD`)               | `'NaN' as UsdAmount`                                        | Defense-in-depth probes inject malformed money into the estimate and durable reservation ports. `Usd.from` and the schema both reject NaN, so no valid constructor can produce this branded value; constructing it inside the probe would bypass the production refusal being tested. Test-only; both refusal assertions are retained.                                                                                            |
+| `test/unit/vault/vaultPanelBinding.test.ts` (`pressedTitle`)        | `value as never` for a dialog's pressed item                | The vscode mock keeps the overloaded dialog type (its last overload resolves `MessageItem`), while `VaultPanelHost` compares the pressed title as a plain string. The cast carries only the literal titles the test itself passes (`Keep File`, `Delete the File`, `Continue`); the host still compares them against `UI_TEXT` before acting, so no foreign value can cross. Test-only.                                           |
+| `test/unit/acpTeamContracts.test.ts` (`atRuntime`)                  | `as T`                                                      | Defense-in-depth and seeded property probes inject malformed caller values and SDK-schema-derived strings through typed builder ports. The SDK types cannot spell invalid inputs; this test-only helper exercises production refusal without validating the input first. Every returned value is checked against its frozen schema; valid option and content expectations come independently from the SDK's exported JSON schema. |
 
 | SPAWN017B location          | Escape hatch                               | Reason                                                                                                                                                                                                                                    | Removal                                                                            |
 | --------------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
@@ -35620,16 +35553,18 @@ does), loads it with Node require, and proves the activation table is the one
 it reads, the single load, and the refusal of a missing or malformed module
 before a repaired one loads (2026-09-30).
 
-| File                                            | Construct                                                                  | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
-| ----------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                     | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
-| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                           | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
-| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                    | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
-| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                              | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
-| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)     | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
-| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate) | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
-| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                    | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
-| `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                           | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
+| File                                            | Construct                                                                                                                          | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
+| ----------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `test/unit/conversationController.test.ts`      | `as typeof ConversationController` in `controllerFrom`                                                                             | Checks the callable constructor export of the real CommonJS controller built from the same typed source and production target; signatures are trusted only in this test fixture. Real actions exercise bundle failures and disposal during import.                                                                                                                                                                                                                                                | 2026-10-02 |
+| `src/host/checkpoints/checkpointStoreBundle.ts` | `value is CheckpointStoreBundle`                                                                                                   | Checks both factory/reader functions from the same build and package; signatures are trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                           | 2026-09-30 |
+| `src/core/bestOfN/bestOfNError.ts`              | `value is BestOfNError`                                                                                                            | Checks the native Error name, a known refusal and optional detail across eager/lazy bundle copies; both runner catches and controller notices preserve the original refusal.                                                                                                                                                                                                                                                                                                                      | 2026-10-02 |
+| `src/host/conversation/conversationBundle.ts`   | `value is ConversationBundle`                                                                                                      | Checks the same-build factory export; the packaged implementation receives the installed table before construction. The controller suite loads the real CommonJS build and refuses malformed exports.                                                                                                                                                                                                                                                                                             | 2026-09-30 |
+| `src/host/agentImportBundle.ts`                 | `value is AgentImportBundle` (`isAgentImportBundle`, a type predicate)                                                             | M83: `require` of `dist/agentImport.js` returns `unknown`; the guard checks that `importFromAgents` and `runAgentImport` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `agentImportBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it, runs a real import through it, and refuses missing and malformed modules.                                                | 2026-09-30 |
+| `src/host/skills/bundledSkills.ts`              | `value is BundledSkillsBundle` (`isBundledSkillsBundle`, a type predicate)                                                         | M89: `require` of `dist/bundledSkills.js` returns `unknown`; the guard checks that `bundledSkillsStatus`, `installBundledSkills` and `removeBundledSkills` are functions, not their parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `bundledSkillsInstall.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, installs and removes through it, and refuses a malformed module. | 2026-10-03 |
+| `src/host/playbook/playbookBundle.ts`           | `value is typeof PlaybookEntry` (`isPlaybookWindowBundle`, type predicate)                                                         | M116 C-M116-6: `require` of `dist/playbook.js` returns `unknown`; the guard checks that `createPlaybookWindow` is a function, not its parameter and result types, which are trusted because entry, loader and package come from one source tree and one build. `playbookWindowBundle.test.ts` builds the actual entry as `scripts/build.mjs` does, requires it through the loader, reads and changes a journal through it, and refuses a malformed module.                                        | 2026-10-11 |
+| `src/runtime/playbook/playbookBundle.ts`        | `value is PlaybookAnswerSlice` (`isPlaybookAnswerSlice`) and `value is typeof PlaybookEntry` (`isPlaybookBundle`), type predicates | D219: `require` of `dist/acpPlaybook.js` (or the window's answer slice) returns `unknown`; the guards check each function the slice or the whole bundle exports, trusted across one source tree and build. `playbookBundle.test.ts` and `playbookWindowBundle.test.ts` load the real builds and refuse a missing export.                                                                                                                                                                          | 2026-10-23 |
+| `src/host/review/reviewBundle.ts`               | `value is ReviewBundle`                                                                                                            | Checks the factory function from the same build and package; its signature is trusted as described above and the real built module is exercised.                                                                                                                                                                                                                                                                                                                                                  | 2026-09-30 |
+| `src/host/git/conversationGitBundle.ts`         | `value is ConversationGitBundle`                                                                                                   | MG78: checks the packaged factory is a function; its signature is trusted only across one source/build/package. The shipped-bundle test verifies installed language, trust refusal, loader repair and activation's error identities.                                                                                                                                                                                                                                                              | 2026-10-02 |
 
 | File                                      | Construct                                                                     | Reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Added      |
 | ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -35798,10 +35733,10 @@ No new escape hatch is introduced.
 | `src/core/backends/modelapi/hookModelEntry.ts` (`requestHookStep` body) | inner body `as Omit<CreateResponseBody, 'prompt_cache_key' \| 'prompt_cache_retention'>` | D121 sends no output cap of ours: the spread holds the record's maximum or is absent, so the key is missing at runtime exactly then. The shared body type still requires the key (widening it would force dead fallbacks at every reader), so the cast states the one shape the compiler cannot verify.                                                                        | 2026-10-19 |
 | `src/core/backends/modelapi/modelPolicy.ts` (`estimatedStreamTokens`)   | `body as { readonly max_output_tokens?: number \| undefined }`                           | The pacing estimate reads the same absent key: it counts the input side alone then. Same reason as above; the next line's `?? 0` is necessary only on this view.                                                                                                                                                                                                               | 2026-10-19 |
 
-| JOIN0190 location                                                                                                                                                            | Escape hatch                                                  | Reason                                                                                                                                                                                             | Date       |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 5 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
-| `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                     | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
+| JOIN0190 location                                                                                                                                                                                                                  | Escape hatch                                                  | Reason                                                                                                                                                                                             | Date       |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| `src/shared/constants.ts` (filter regex, `WINDOWS_FRAMEWORK_RELATIVE_PATH`, `SHELL_JOB_NAME_PREFIX`, `WINDOWS_POWERSHELL_RELATIVE_PATH`, `WINDOWS_POWERSHELL_TERMINAL_PATH`, `PLAYBOOK_JOB_NAME_PREFIX`, `PLAYBOOK_JOB_PIPE_ROOT`) | `eslint-disable-next-line unicorn/prefer-string-raw`, 7 sites | A plain string drops out of bundles that never use it; `String.raw` is a call and pins it. Droppability beats readability; `test/unit/bundleDiet` pins the sizes. Inline-reasoned; no rule change. | 2026-10-20 |
+| `src/shared/browserCheckConstants.ts` (`WINDOWS_TASKKILL_RELATIVE_PATH`)                                                                                                                                                           | `eslint-disable-next-line unicorn/prefer-string-raw`, 1 site  | Same reason: bundles that never kill a tree drop it. Inline-reasoned; no rule change.                                                                                                              | 2026-10-20 |
 
 | RLWINFIX location                                         | Escape hatch                                               | Reason                                                                                                                                                                                                               | Date       |
 | --------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
@@ -36511,18 +36446,19 @@ FIXM107DK4 qualification below supersedes that earlier claim.
   their named owners. RVM114P2's header, pressed-state and History-claim findings
   are fixed; none is accepted as a residual.
 
-- **FIXM116P3-Windows-job-binding (M116 I/W handoff).** The synchronous
-  policy cannot call the existing asynchronous job registry directly. Its
-  trusted `PlaybookHookAdmission.runContained` port requires the prepared
-  job/tree runner, the original effect and scrubbed spawn options, and returns
-  only after the entire tree has ended. No Git child (including ref/index plumbing and worktree cleanup)
-  dispatches on Windows without that port. Safe for now: missing containment
-  refuses verification before dispatch; the policy remains unshipped pending
-  I/U/W binding. Follow-up: bind the real Windows job registry in I/W and run
-  the native parent/grandchild timeout fixture. macmini proves native POSIX
-  group cleanup and the Windows admission/options branches with fixture doubles;
-  it does not certify a native Windows job run.
-
+- **FIXM116P3-Windows-job-binding (M116 I/W handoff; closed by C-M116-6,
+  2026-10-11).** The VS Code window's playbook worker binds
+  `PlaybookHookAdmission.runContained` to `src/host/playbook/containedJob.ts`
+  over the shipped MuseSparkJob type: one named kill-on-close job per decision,
+  whose helper ends every other member after each call, so the call's whole
+  tree has ended before `runContained` returns; what cannot be contained
+  fails closed and never runs uncontained. On macOS and Linux `runTreeSync`'s
+  supervisor leads a fresh process group that the caller ends after every
+  call. Residuals, safe for now: a job the window could not end before it
+  closed is left to kill-on-close; a descendant that left the POSIX group waits
+  for FIXM116P4's cgroup binding; the helper's pipe keeps the default access
+  list (a local denial only, never an allow). Record:
+  `docs/certification/msm116.md`, "PLAN record".
 - **FIXM116P4-M107-governed-tree-binding (M116 I/W handoff).** The shared
   synchronous runner prefers `PlaybookHookAdmission.runContained` on Linux
   when a prepared cgroup/scope is available. I/W must bind M107's governed

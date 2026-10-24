@@ -26,14 +26,17 @@ export const UI_TEXT_REGIONS = [
     output: 'dist/uiTextHooks.js',
     keys: /^(?:hook|paid\w*Hook|usagePaidHook|setupHook|manualHook|plugin|extensionHook|foreignHook|agentImport)/,
   },
-  // M95c part 6's request-header strings ride the optional surfaces too.
+  // M95c part 6's request-header strings ride the optional surfaces too,
+  // and so do the playbook's words (M116): read only once a playbook
+  // answer, note or record is shown, never at a bundle's start.
   {
     name: 'surfaces',
     output: 'dist/uiTextSurfaces.js',
     // First-use surfaces: Tab, reports, What's New, the vault, the judge
     // setup wizard and its CLI steps, the Judge section, the judge's paid
-    // asks, the device and desktop surfaces (M100), and the per-provider request headers editor.
-    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|providerHeaders)/,
+    // asks, the device and desktop surfaces (M100), the per-provider request
+    // headers editor and the playbook.
+    keys: /^(?:tab|paid\w*Tab|usagePaidTab|report(?!Usage$)|whatsNew|vault$|judgeSetupWizard$|judgeSetupCli$|judgeRecommend$|judgePanel$|paidConfirmJudge\w*|devices$|desktop$|providerHeaders|playbook)/,
   },
 ]
 

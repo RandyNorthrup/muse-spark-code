@@ -297,6 +297,11 @@ export const HOST_ACTIONS = [
   'manageModels',
   /** The palette's "What's New" (M99, PLAN.md D79): this version's release notes in an editor tab. */
   'showWhatsNew',
+  /**
+  A why-note's button (M116): what the conversation owes its playbook, asked
+  in VS Code's own pickers. The conversation controller answers it itself.
+  */
+  'openPlaybook',
 ] as const
 export type HostAction = (typeof HOST_ACTIONS)[number]
 
@@ -317,6 +322,7 @@ export const NOTICE_ACTIONS = [
   // Stop cancels the running turn, Steer focuses the composer.
   'stopTurn',
   'steerTurn',
+  'openPlaybook',
 ] as const
 export type NoticeAction = (typeof NOTICE_ACTIONS)[number]
 
@@ -487,6 +493,9 @@ const reportDraftItemSchema = z.object({
   label: z.string().check(z.minLength(1)),
 })
 export type ReportDraftItem = z.infer<typeof reportDraftItemSchema>
+
+/** The playbook's own channel (M116), one envelope each way: its lazy bundles parse what is inside. */
+const playbookEnvelopeSchema = z.object({ type: z.literal('playbook'), message: z.unknown() })
 
 const webviewToHostMessageSchema = z.discriminatedUnion('type', [
   // M118: the lazy implementation validates the action-specific payload.
@@ -1052,6 +1061,7 @@ const webviewToHostMessageSchema = z.discriminatedUnion('type', [
     type: z.literal('reportWebviewError'),
     ...reportWebviewErrorSchema.shape,
   }),
+  playbookEnvelopeSchema,
 ])
 
 export type WebviewToHostMessage =
@@ -1600,6 +1610,7 @@ const hostToWebviewMessageSchema = z.discriminatedUnion('type', [
     workflowRunId: stringSchema,
     paused: booleanSchema,
   }),
+  playbookEnvelopeSchema,
 ])
 
 export type HostToWebviewMessage =

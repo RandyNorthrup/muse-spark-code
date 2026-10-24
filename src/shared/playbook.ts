@@ -5,6 +5,7 @@ import {
   PLAYBOOK_CONFIGURABLE_RULES,
   PLAYBOOK_FINDING_CLASSES,
   PLAYBOOK_ID_MAX_CHARS,
+  PLAYBOOK_INFORMATIONAL_NOTE_CODES,
   PLAYBOOK_RECORD_FOLDER,
   PLAYBOOK_SAFETY_RULE,
   REVIEW_FINDING_PATH_MAX_CHARS,
@@ -15,7 +16,7 @@ import { reviewResolutionSchema, type ReviewBlock, type ReviewResolution } from 
 
 export type PlaybookFindingClass = (typeof PLAYBOOK_FINDING_CLASSES)[number]
 export type PlaybookConfigurableRule = (typeof PLAYBOOK_CONFIGURABLE_RULES)[number]
-/** @unwired M116 playbook rule type */
+/** A playbook rule, configurable or the safety rule (M116). */
 export type PlaybookRule = PlaybookConfigurableRule | typeof PLAYBOOK_SAFETY_RULE
 
 const id = z.string().check(z.trim(), z.minLength(1), z.maxLength(PLAYBOOK_ID_MAX_CHARS))
@@ -66,6 +67,34 @@ export function defaultPlaybookSettings(teamId: string): PlaybookSettings {
     teamId,
     rules: Object.fromEntries(PLAYBOOK_CONFIGURABLE_RULES.map((rule) => [rule, { enabled: true }])),
     patchRoundsMax: 0,
+  })
+}
+
+/** D220: the journal's settings for a team: defaults, then the last settings
+record that team wrote. The policy's refresh and the report orderer share
+this replay, so reports gate on the settings the policy enforces. */
+export function replayPlaybookSettings(
+  records: readonly PlaybookRecord[],
+  teamId: string,
+): PlaybookSettings {
+  let settings = defaultPlaybookSettings(teamId)
+  for (const record of records)
+    if (record.kind === 'settings' && record.value.teamId === teamId) settings = record.value
+  return settings
+}
+
+/** D220: the note an ordering carries: owner-first while loudFailures is on,
+the recorded opt-out (actor and reason) once it is off. The policy's
+orderReport and the report orderer share this builder; the note is returned
+for the caller to show, never stored. */
+export function playbookOrderReportNote(settings: PlaybookSettings, at: number): PlaybookWhyNote {
+  const setting = settings.rules.loudFailures
+  return playbookWhyNoteSchema.parse({
+    ...(!setting.enabled && { actor: setting.actor, reason: setting.reason }),
+    rule: 'loudFailures',
+    code: setting.enabled ? 'ownerFirst' : 'ruleDisabled',
+    at,
+    needsUser: false,
   })
 }
 
@@ -132,7 +161,7 @@ const leaseToken = z.strictObject({ moduleId: id, laneId: id, ownerId: id, gener
 export type PlaybookLease = z.infer<typeof leaseToken>
 
 /** No review text or file contents in the journal: only host-assigned references. */
-const findingRef = z.strictObject({
+export const playbookFindingRefSchema = z.strictObject({
   id,
   file,
   severity: z.enum(['P1', 'P2', 'P3']),
@@ -156,6 +185,15 @@ const answer = z.discriminatedUnion('status', [
 needed; residuals must be named. A dispute grants no exception; an override
 names lead/owner, reason and time. The adapter maps critical/high/other known
 severities to P1/P2/P3; absent/unknown severity stays P1 until clarified. */
+/**
+Why a child's contribution cannot be reviewed: the closed list (M116,
+D96.17). An unreviewable contribution is a finding about that child,
+journaled with one of these reasons, counted and named, while every other
+child's review proceeds normally.
+*/
+export type BlockedContributionCode =
+  'nameWithheld' | 'patchTooLarge' | 'patchUnreadable' | 'identityUnreadable' | 'tooManyFiles'
+
 export const playbookRoundSchema = z.strictObject({
   module: playbookModuleSchema,
   ...reviewAgents.shape,
@@ -164,7 +202,7 @@ export const playbookRoundSchema = z.strictObject({
   class: z.optional(z.enum(PLAYBOOK_FINDING_CLASSES)),
   round: z.int().check(z.gte(1)),
   phase: z.enum(['build', 'fix', 'redesign']),
-  findings: z.array(findingRef).check(z.maxLength(REVIEW_FINDINGS_MAX)),
+  findings: z.array(playbookFindingRefSchema).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   answers: z.array(answer).check(z.maxLength(REVIEW_FINDINGS_MAX)),
   // Redesign answers retain each prior id/outcome/reason, not only an aggregate.
   resolution: z.optional(z.array(reviewResolutionSchema).check(z.maxLength(REVIEW_FINDINGS_MAX))),
@@ -216,6 +254,7 @@ export const playbookWhyNoteSchema = z.strictObject({
     'gateSkipped',
     'permissionLaundering',
     'classifierBlocked',
+    'contributionBlocked',
     'ruleDisabled',
     'briefRecorded',
     'configDrift',
@@ -397,6 +436,57 @@ export interface PlaybookReportItem {
   readonly id: string
   readonly needsUser: boolean
   readonly failing: boolean
+}
+
+/** D220: the one report ordering. Owner rows first, then failures, then the
+rest; ties keep their input order under a stable sort. The policy's
+orderReport and every record/text presentation share this comparator, so no
+parallel copy of the order can drift. */
+export function comparePlaybookReportItems(
+  left: Pick<PlaybookReportItem, 'needsUser' | 'failing'>,
+  right: Pick<PlaybookReportItem, 'needsUser' | 'failing'>,
+): number {
+  return (
+    Number(right.needsUser) - Number(left.needsUser) || Number(right.failing) - Number(left.failing)
+  )
+}
+
+/** D220: flags as a severity bucket for key order: owner rows 0, failures 1,
+the rest 2. The report wrap prefixes keys with this bucket so the canonical
+key sort keeps the severity order. */
+function failingBucket(isFailing: boolean): 1 | 2 {
+  return isFailing ? 1 : 2
+}
+
+export function playbookReportBucket(
+  flags: Pick<PlaybookReportItem, 'needsUser' | 'failing'>,
+): 0 | 1 | 2 {
+  return flags.needsUser ? 0 : failingBucket(flags.failing)
+}
+
+/** D220: journal records as report items. Unresolved designs and notes that
+need the person sort first; rounds with findings, failed verifications and
+refusal/failure notes next; everything else keeps journal order. This
+reproduces the CLI's buckets exactly (note codes outside
+PLAYBOOK_INFORMATIONAL_NOTE_CODES fail), except that a failed verification
+now surfaces as a failure instead of sitting with the informational notes. */
+export function playbookRecordReportFlags(
+  record: PlaybookRecord,
+): Pick<PlaybookReportItem, 'needsUser' | 'failing'> {
+  if (record.kind === 'note')
+    return {
+      needsUser: record.value.needsUser,
+      failing:
+        !record.value.needsUser && !PLAYBOOK_INFORMATIONAL_NOTE_CODES.includes(record.value.code),
+    }
+  if (record.kind === 'design' && record.value.outcome !== 'impossible')
+    return { needsUser: true, failing: false }
+  return {
+    needsUser: false,
+    failing:
+      (record.kind === 'round' && record.value.findings.length > 0) ||
+      (record.kind === 'verification' && record.value.result === 'fail'),
+  }
 }
 
 /** Synchronous admission: adapters must check immediately before the effect.

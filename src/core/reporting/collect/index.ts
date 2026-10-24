@@ -1,5 +1,6 @@
 import { REPORT_KIND_REGISTRY } from '../registry'
 import { REPORT_FORMAT_VERSION } from '../../../shared/constants'
+import type { PlaybookWhyNote } from '../../../shared/playbook'
 import {
   reportDocumentSchema,
   reportSectionSchema,
@@ -21,6 +22,13 @@ import {
 import { needsYou } from './needsYou'
 import { collectMilestone, planFormat } from './plan'
 import {
+  isPlaybookReportKind,
+  mergeMilestoneResidualRows,
+  wrapPlaybookSection,
+  wrapPlaybookSections,
+  type PlaybookReportOrderer,
+} from './playbookOrder'
+import {
   collectChanges,
   collectProject,
   collectRelease,
@@ -41,6 +49,12 @@ export interface ReportCollectorDependencies {
   finalize(draft: ReportDraft): ReportDocument
   readonly nextStepLimit: number
   readonly selections: ReportSelectionPorts
+  /** D220: the playbook ordering, bound by the facades from the journal the
+  report read. Absent, the three playbook kinds keep their own order. */
+  readonly playbookOrder?: PlaybookReportOrderer
+  /** D220: where the ordering note goes (the host log in production). Absent,
+  the order still applies; the note has nowhere to surface. */
+  readonly playbookNote?: (note: PlaybookWhyNote) => void
 }
 
 const forwardedKinds = {
@@ -142,6 +156,14 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
     if (snapshot.asOf !== options.asOf) throw new Error('report/asOfMismatch')
     let sections: ReportSection[]
     let extraSources: ReportSourceRecord[] = []
+    // D220: every section carries the same ordering note (one policy, one
+    // settings replay); the sink sees it once per report.
+    let hasShownPlaybookNote = false
+    const showPlaybookNote = (note: PlaybookWhyNote) => {
+      if (hasShownPlaybookNote) return
+      hasShownPlaybookNote = true
+      dependencies.playbookNote?.(note)
+    }
     switch (options.kind) {
       case 'project': {
         ;({ sections, sources: extraSources } = collectProject(
@@ -154,6 +176,21 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
       }
       case 'milestone': {
         sections = collectMilestone(snapshot, options)
+        if (dependencies.playbookOrder !== undefined) {
+          const merged = mergeMilestoneResidualRows(
+            sections,
+            dependencies.playbookOrder,
+            options,
+            snapshot.sources.playbook.record.id,
+          )
+          sections = wrapPlaybookSections(
+            dependencies.playbookOrder,
+            'milestone',
+            merged.sections,
+            showPlaybookNote,
+            merged.flags,
+          )
+        }
         break
       }
       case 'release': {
@@ -195,6 +232,13 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
       default: {
         if (!isForwarded(options.kind)) throw new Error('report/unsupportedKind')
         ;({ sections, sources: extraSources } = forward(snapshot, options, options.kind))
+        if (dependencies.playbookOrder !== undefined && isPlaybookReportKind(options.kind))
+          sections = wrapPlaybookSections(
+            dependencies.playbookOrder,
+            options.kind,
+            sections,
+            showPlaybookNote,
+          )
       }
     }
     if (options.kind === 'usage' || options.kind === 'project') {
@@ -205,6 +249,16 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
       if (cache !== undefined) extraSources.push(cache)
     }
     sections.push(planFormat(snapshot, options))
+    const needsYouSection = needsYou(snapshot, options)
+    const orderedNeedsYou =
+      dependencies.playbookOrder !== undefined && isPlaybookReportKind(options.kind)
+        ? wrapPlaybookSection(
+            dependencies.playbookOrder,
+            options.kind,
+            needsYouSection,
+            showPlaybookNote,
+          )
+        : needsYouSection
     const sources = new Map<string, ReportSourceRecord>()
     for (const record of [
       ...Object.values(snapshot.sources).map((source) => source.record),
@@ -225,7 +279,7 @@ export function createReportCollector(dependencies: ReportCollectorDependencies)
           asOf: options.asOf,
           generatorVersion: snapshot.generatorVersion,
         },
-        needsYou: needsYou(snapshot, options),
+        needsYou: orderedNeedsYou,
         sections,
         sources: Array.from(sources, ([, record]) => record).toSorted((left, right) =>
           compare(left.id, right.id),

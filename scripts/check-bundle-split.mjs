@@ -1609,6 +1609,13 @@ const TEXT_BLOCKS = [
     // M120CAP: the scheduler reads team.js's teamTools, so it no longer carries the block.
     readers: ['dist/team.js', 'dist/teamHost.js', 'dist/teamPanel.js', 'dist/teamEngine.js'],
   },
+  // M116 (D218): the team runner's playbook refusals, worded by the team
+  // service alone.
+  {
+    block: 'TEAM_PLAYBOOK_MODEL_TEXT',
+    sentinels: ['hostPlaybookBriefInvalid'],
+    readers: ['dist/teamHost.js'],
+  },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
     sentinels: ['undeclaredTool'],
@@ -1802,6 +1809,14 @@ const TEXT_BLOCKS = [
     block: 'PLAYBOOK_MODEL_TEXT',
     sentinels: ['playbookReviewInstructions'],
     readers: ['dist/bundledSkills.js'],
+  },
+  // C-M116-6: what a model reads when the playbook does not admit the
+  // subagent work it asked for. The window's lazy bundle words it for both
+  // backends; neither the conversation nor the Model API bundle carries it.
+  {
+    block: 'PLAYBOOK_REFUSAL_MODEL_TEXT',
+    sentinels: ['playbookWorkRefused', 'playbookWorkUnavailable'],
+    readers: ['dist/playbook.js'],
   },
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',

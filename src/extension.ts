@@ -127,6 +127,7 @@ import {
   SANDBOX_NETWORK_DENIED,
   SANDBOX_NETWORK_SETTING,
   PAGE_WORKER_FILE,
+  PLAYBOOK_WINDOW_BUNDLE_FILE,
   SEARCH_WORKER_FILE,
   SETTINGS_SECTION,
   SHELL_SANDBOX_SETTING,
@@ -154,6 +155,13 @@ import {
   type UsageRecording,
 } from './core/usage/recording'
 import { isCodedError } from './core/workspaceRoot'
+import type { PlaybookSource } from './host/playbook/playbookAnswer'
+import {
+  hasWindowPlaybook,
+  playbookPanelChannel,
+  playbookWindowLoader,
+} from './host/playbook/playbookBundle'
+import type { PlaybookWindowBundle } from './host/playbook/playbookEntry'
 import type { createPromptHost } from './host/prompts/promptEntry'
 
 import type { ReportPanel } from './host/reporting/reportPanel'
@@ -231,6 +239,10 @@ import {
   loadResourceWindow,
   onResourceWindow,
 } from './core/resources/admission'
+import { createReadingHolder } from './core/orchestration/playbook/readingHolder'
+import type { TeamPlaybookCiState } from './core/team/teamPlaybookBoard'
+import type { TeamPlaybookPort } from './core/team/teamHostService'
+import type { ResourceStatus } from './shared/resources'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
@@ -3355,8 +3367,20 @@ async function activateWindow(
       metaRecord,
     })
   }
+  // M116 (D218/D219): the team runner's playbook readings. Capacity serves
+  // the latest M107 governor reading (unknown until the governor reports);
+  // CI serves the latest report-engine observation (unknown until a
+  // generation attempts the github read). Unknown never pauses work and
+  // never routes to CI.
+  const teamCapacity = createReadingHolder<ResourceStatus>()
+  const teamCi = createReadingHolder<TeamPlaybookCiState>()
+  let isTeamCapacityWired = false
   const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
+      playbook: {
+        start: (start) => teamPlaybook().start(start),
+        release: (taskId) => teamPlaybook().release(taskId),
+      },
       hooks: {
         relativePath: (folder) =>
           workspaceRoot === undefined
@@ -3667,6 +3691,9 @@ async function activateWindow(
       prepareCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, log, top),
     afterTurnRuns: (sessionId, turnId, end) =>
       finishCheckpointTurn(checkpoints, turnRecorder, sessionId, turnId, end),
+    // A conversation's new child work starts through the window's playbook (M116).
+    playbook: (...work) =>
+      hasWindowPlaybook(playbookDataFolder, log) ? playbook().admit(...work) : undefined,
     getApiKey: () => subscription.getApiKey(),
     // Paid extras bill the stored key even while chat bills the plan.
     getPaidApiKey: () => credentials.getApiKey(),
@@ -4437,6 +4464,69 @@ async function activateWindow(
     bundlePath: vscode.Uri.joinPath(context.extensionUri, 'dist', 'reportingPanel.js').fsPath,
     log,
   })
+  // M116 (C-M116-6): the window's playbook. Activation holds this loader and
+  // the data it needs; dist/playbook.js loads on the first playbook request
+  // and runs the policy on a worker thread of its own. `/playbook` in the
+  // composer (M126 F9) answers from the same window's journal.
+  const playbookBundlePath = vscode.Uri.joinPath(
+    context.extensionUri,
+    'dist',
+    PLAYBOOK_WINDOW_BUNDLE_FILE,
+  ).fsPath
+  const loadPlaybook = playbookWindowLoader(playbookBundlePath, log)
+  const playbookDataFolder = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
+  let playbookWindow: PlaybookWindowBundle | undefined
+  const playbook = (): PlaybookWindowBundle => {
+    playbookWindow ??= loadPlaybook().createPlaybookWindow(
+      {
+        bundlePath: playbookBundlePath,
+        agentDataFolder: playbookDataFolder,
+        workspaceRoot,
+        isWorkspaceTrusted: () => vscode.workspace.isTrusted,
+        platform: process.platform,
+        systemRoot: process.env['SystemRoot'],
+        shellJobAssembly: windowsJobAssembly,
+        reviewCharter: (targets) => bundledSkillsBundle().playbookReviewerCharter(targets),
+        ui: vscode.window,
+        log,
+      },
+      UI_TEXT,
+      uiLocale(),
+    )
+    return playbookWindow
+  }
+  context.subscriptions.push({
+    dispose: () => {
+      playbookWindow?.dispose()
+    },
+  })
+  /**
+  M116 (D218): the team runner's rounds run on the window's playbook worker.
+  The capacity holder starts refreshing on the governor's readings the first
+  time a team starts a round; until then admission reads unknown and pauses
+  nothing (D219). A redesign the policy offers is journaled and told to the
+  orchestrator's conversation; the team has no redesign surface of its own.
+  */
+  const teamPlaybook = (): Omit<TeamPlaybookPort, 'head'> => {
+    if (!isTeamCapacityWired) {
+      isTeamCapacityWired = true
+      onResourceWindow((resource) => {
+        const pull = (): void => {
+          void teamCapacity.refresh(() => resource.port.status())
+        }
+        pull()
+        resource.port.subscribe(pull)
+      })
+    }
+    return playbook().team(() => ({
+      ci: teamCi.get() ?? { known: false },
+      capacity: teamCapacity.get(),
+    }))
+  }
   const reportingPanels = new Map<string, ReportPanel>()
   const showDeterministicReport = async (
     surface: ChatSurface | undefined,
@@ -4490,6 +4580,14 @@ async function activateWindow(
             env: process.env,
             homeDir: homedir(),
           }),
+          // M116 (D218): report generations that attempt the github read
+          // feed the team runner's CI holder; idle CI reads absent until
+          // its first run lands in a report.
+          noteGithubCi: (outcome) => {
+            teamCi.set(
+              'failed' in outcome ? { known: false } : { known: true, hasCi: outcome.runs > 0 },
+            )
+          },
           workspaceRoot,
           storageRoot,
           attachMarkdown: (text) => {
@@ -4878,6 +4976,17 @@ async function activateWindow(
           questions: factory.questionsForHost(questionsStore),
           showDeterministicReport: (argumentsText) =>
             showDeterministicReport(surface, argumentsText),
+          playbookSource: {
+            loadBundle: () => playbook().answerBundle(),
+            agentDataFolder: playbookDataFolder,
+            workspaceRoot,
+            table: l10n.table,
+            locale: l10n.locale,
+            log,
+          } satisfies PlaybookSource,
+          playbook: (host) =>
+            hasWindowPlaybook(playbookDataFolder, log) ? playbook().conversation(host) : undefined,
+          playbookPanel: playbookPanelChannel(playbook, log),
           tasksTab,
           auth,
           ensureHost: ensureSelectedHost,

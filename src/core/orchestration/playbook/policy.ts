@@ -6,13 +6,17 @@ import {
   REVIEW_FINDING_TEXT_MAX_CHARS,
 } from '../../../shared/constants'
 import {
+  comparePlaybookReportItems,
   defaultPlaybookSettings,
   playbookDesignDecisionSchema,
   isPatchRoundsExceeded,
+  playbookOrderReportNote,
+  replayPlaybookSettings,
   playbookRecordSchema,
   playbookRoundSchema,
   playbookSettingsSchema,
   playbookWhyNoteSchema,
+  type BlockedContributionCode,
   type PlaybookAction,
   type PlaybookBoard,
   type PlaybookBrief,
@@ -33,6 +37,7 @@ import {
   type PlaybookRequester,
   type PlaybookReviewAgents,
   type PlaybookRound,
+  type PlaybookRule,
   type PlaybookSettings,
   type PlaybookWhyNote,
 } from '../../../shared/playbook'
@@ -43,12 +48,17 @@ import {
 } from '../../../shared/reviewFindings'
 import { UI_TEXT } from '../../../shared/l10n/text'
 import { actionIdentity, commandBlock } from './guard'
-import { retainRecords, validatedRecords, type PlaybookJournal } from './journal'
+import {
+  FilePlaybookJournal,
+  retainRecords,
+  validatedRecords,
+  type PlaybookJournal,
+} from './journal'
 import { renamedFiles } from './renamedFiles'
 import {
   hasOverlappingFiles,
   fileIdentities,
-  hasSimilarContent,
+  hasRecordedContent,
   PLAYBOOK_BRIEF_NOTE,
   PLAYBOOK_IDENTITY_NOTE,
   PLAYBOOK_USER_NOTE,
@@ -123,10 +133,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     this.expected = this.options.journal.read()
     this.records = validatedRecords(this.expected)
     this.states = moduleStates(this.records)
-    this.settings = defaultPlaybookSettings(this.options.teamId)
-    for (const record of this.records)
-      if (record.kind === 'settings' && record.value.teamId === this.options.teamId)
-        this.settings = record.value
+    this.settings = replayPlaybookSettings(this.records, this.options.teamId)
   }
 
   private publish(records: readonly PlaybookRecord[]): void {
@@ -138,8 +145,15 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
     this.states = states
   }
 
+  /** The latest state declared under a module key, if the journal has one. */
+  private stateForKey(key: string): ModuleState | undefined {
+    let found: ModuleState | undefined
+    for (const state of this.states.values()) if (state.module.key === key) found = state
+    return found
+  }
+
   private note(
-    rule: PlaybookWhyNote['rule'],
+    rule: PlaybookRule,
     code: PlaybookWhyNote['code'],
     fields: Partial<PlaybookWhyNote> = {},
   ): PlaybookWhyNote {
@@ -154,7 +168,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
 
   private decide(
     kind: PlaybookDecision['kind'],
-    rule: PlaybookWhyNote['rule'],
+    rule: PlaybookRule,
     code: PlaybookWhyNote['code'] = 'checksPassed',
     fields: Partial<PlaybookWhyNote> = {},
   ): PlaybookDecision {
@@ -307,15 +321,7 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
                   { ...module, files: [rename.from] },
                 ),
             ) ||
-            this.records.some(
-              (record) =>
-                record.kind === 'note' &&
-                record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
-                record.value.workerId === state.module.id &&
-                identities.some((identity) =>
-                  hasSimilarContent(identity.hash, record.value.reason ?? ''),
-                ),
-            )),
+            hasRecordedContent(this.records, state.module.id, identities)),
       )
     const isUnlinked =
       (existing !== undefined && !isUnchanged && predecessors.length === 0) ||
@@ -603,6 +609,73 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
       this.declare(input, override) ??
       this.decide('allow', 'threeStrikes', 'checksPassed', { module: input.key })
     )
+  }
+
+  /**
+  Journals a host-evidenced, unreviewable child contribution (M116,
+  D96.17) as a finding about that child: one why-note per module key its
+  readable changes touch, each counting its module's next round, or one
+  note under no module when none is readable. Once per child round: an id
+  seen before records nothing and returns false. Never refuses: a model
+  must not be able to stop the playbook with an awkward file, nor to make
+  its own round disappear.
+  */
+  recordContribution(
+    input: {
+      readonly id: string
+      readonly actor: string
+      readonly finding: { readonly code: BlockedContributionCode; readonly text: string }
+    },
+    moduleKeys: readonly string[],
+  ): boolean {
+    this.refresh()
+    if (
+      this.records.some(
+        (record) =>
+          record.kind === 'note' &&
+          record.value.code === 'contributionBlocked' &&
+          record.value.workerId === input.id,
+      )
+    )
+      return false
+    const notes: Extract<PlaybookRecord, { kind: 'note' }>[] = []
+    if (moduleKeys.length === 0) {
+      notes.push({
+        kind: 'note',
+        value: this.note('onePassReview', 'contributionBlocked', {
+          workerId: input.id,
+          actor: input.actor,
+          round:
+            this.records.filter(
+              (record) =>
+                record.kind === 'note' &&
+                record.value.code === 'contributionBlocked' &&
+                record.value.actor === input.actor,
+            ).length + 1,
+          missing: [input.finding.code],
+          reason: input.finding.text,
+          needsUser: true,
+        }),
+      })
+    } else {
+      const keys = new Set(moduleKeys)
+      for (const module of keys) {
+        notes.push({
+          kind: 'note',
+          value: this.note('onePassReview', 'contributionBlocked', {
+            workerId: input.id,
+            actor: input.actor,
+            module,
+            round: (this.stateForKey(module)?.counts.get(undefined) ?? 0) + 1,
+            missing: [input.finding.code],
+            reason: input.finding.text,
+            needsUser: true,
+          }),
+        })
+      }
+    }
+    this.publish(notes)
+    return true
   }
 
   beforeFixRound(module: PlaybookModule, laneId = this.options.laneId): PlaybookDecision {
@@ -1154,14 +1227,52 @@ export class OrchestratorPlaybook implements PlaybookPolicy {
   } {
     this.refresh()
     const ordered = [...items]
-    if (this.on('loudFailures'))
-      ordered.sort(
-        (a, b) =>
-          Number(b.needsUser) - Number(a.needsUser) || Number(b.failing) - Number(a.failing),
-      )
-    const decision = this.on('loudFailures')
-      ? this.decide('allow', 'loudFailures', 'ownerFirst')
-      : this.passed('loudFailures')
-    return { items: structuredClone(ordered), note: decision.note }
+    // D220: the sort is the one shared ordering, never a local copy of it.
+    if (this.on('loudFailures')) ordered.sort((a, b) => comparePlaybookReportItems(a, b))
+    // D220: ordering is presentation, not an effect: the note is returned
+    // for the caller to show, never stored. Storing it would rewrite the
+    // shared journal on every report and view, and a CAS conflict there
+    // would fail a read; the retention already evicts these notes first.
+    return {
+      items: structuredClone(ordered),
+      note: playbookOrderReportNote(this.settings, this.options.now()),
+    }
   }
+}
+
+/** The trusted wiring a file-journal policy is bound to. */
+export interface FileJournalWiring {
+  /** Trusted agent data folder; the journal file lives under it. */
+  readonly agentDataFolder: string
+  /** Trusted canonical workspace; never a model-supplied path. */
+  readonly workspaceFolder: string
+  readonly teamId: string
+  readonly laneId: string
+  readonly now?: () => number
+}
+
+/** The policy's ports, bound by the integration that owns the effect. */
+export type FileJournalPorts = Pick<
+  PlaybookPolicyOptions,
+  'authorizeOverride' | 'drillRequirements' | 'checkAdmission' | 'hookAdmission'
+>
+
+// One policy over the workspace's file journal: the integrations' shared
+// wiring, so the team runner, the surface and the headless run cannot
+// drift apart on folders, identity or clock.
+export function createFileJournalPolicy(
+  wiring: FileJournalWiring,
+  ports: FileJournalPorts,
+): OrchestratorPlaybook {
+  return new OrchestratorPlaybook({
+    journal: new FilePlaybookJournal(wiring.agentDataFolder, wiring.workspaceFolder),
+    teamId: wiring.teamId,
+    laneId: wiring.laneId,
+    workspaceFolder: wiring.workspaceFolder,
+    now: wiring.now ?? Date.now,
+    authorizeOverride: ports.authorizeOverride,
+    drillRequirements: ports.drillRequirements,
+    checkAdmission: ports.checkAdmission,
+    hookAdmission: ports.hookAdmission,
+  })
 }
