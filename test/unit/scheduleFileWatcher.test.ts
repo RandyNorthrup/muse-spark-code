@@ -1,17 +1,14 @@
 // C-M115-4's workspace file watcher over the real fs watcher: root and
 // nested changes arrive with posix relative paths and stat-derived
-// identities, and platforms without recursive watch fall back to one
-// watcher per directory. The files source turns both into filesChanged.
-import { mkdir, writeFile } from 'node:fs/promises'
+// identities, a deleted file arrives as a change with nothing to stat, and
+// the files source turns them into filesChanged.
+import { mkdir, unlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { describe, expect, it } from 'vitest'
 import type { ScheduleEvent } from '../../src/shared/scheduleEvents'
 import { ScheduleFilesSource } from '../../src/core/schedules/events/files'
-import {
-  createNodeFileWatcher,
-  type NodeWatchPrimitive,
-} from '../../src/runtime/schedules/fileWatcher'
+import { createNodeFileWatcher } from '../../src/runtime/schedules/fileWatcher'
 import { usingTempDir } from './helpers/temporaryFolders'
 
 interface Notification {
@@ -124,32 +121,23 @@ describe('workspace file watcher', () => {
     })
   })
 
-  it('falls back to per-directory watches without recursive support', async () => {
-    await usingTempDir('schedule-watch-fallback-', async (folder) => {
-      await mkdir(path.join(folder, 'sub'), { recursive: true })
+  it('delivers a deleted file as a change, and reports nothing', async () => {
+    await usingTempDir('schedule-watch-delete-', async (folder) => {
       const reported: unknown[] = []
-      const { watch } = await import('node:fs')
-      const refusing: NodeWatchPrimitive = (directory, options, listener) => {
-        if (options.recursive) {
-          throw Object.assign(new Error('recursive watch unavailable on this platform'), {
-            code: 'ERR_FEATURE_UNAVAILABLE_ON_PLATFORM',
-          })
-        }
-        return watch(directory, { persistent: options.persistent }, listener)
-      }
+      await writeFile(path.join(folder, 'gone.txt'), 'soon')
       const watcher = createNodeFileWatcher({
         root: folder,
         now: Date.now,
         report: (error) => {
           reported.push(error)
         },
-        watch: refusing,
       })
       const { collected, subscription } = watchAll(watcher)
       try {
-        await writeFile(path.join(folder, 'sub', 'deep.txt'), 'deep')
+        await unlink(path.join(folder, 'gone.txt'))
         const seen = await collectUntil(collected, 1)
-        expect(seen.map((item) => item.relativePath)).toContain('sub/deep.txt')
+        expect(seen.map((item) => item.relativePath)).toContain('gone.txt')
+        expect(seen.find((item) => item.relativePath === 'gone.txt')?.identity).toBe('missing')
         expect(reported).toEqual([])
       } finally {
         subscription.dispose()
