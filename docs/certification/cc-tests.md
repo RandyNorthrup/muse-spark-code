@@ -186,3 +186,24 @@ Fix: the keyring is copied into the throwaway home and gpg runs there with
 Red (before): 3 failed (`expected 2 to be +0`, `expected 2 to be 1`).
 Green: 23 passed; the check run by hand with `--gpg` naming each build
 answers `the keyring carries all 1 pinned fingerprints` for both.
+
+### nodeWorkspaceDevcontainer: the node's path rules, not the reader's
+
+Cause: `src/runtime/node/workspaces/devcontainer.ts` takes the node's
+`platform` for case folding but resolved, normalized and compared paths with
+the host's `node:path`, and `mergeDevcontainerConfig` gated mounts with
+`process.platform`. Read on Windows, the recorded Linux configurations came
+out drive-qualified (`C:\home\randy\lanes\…`), `/ws/data` normalized to
+`\ws\data` (so an inside bind was "absolutized"), and `path.win32.relative`
+case-folded a Linux root.
+
+Fix: every function uses the path rules of the platform it is given
+(`path.win32` for Windows, `path.posix` otherwise); `mergeDevcontainerConfig`
+takes the node's platform like the gates do (the live drill passes
+`process.platform`). The suite reads the Linux captures with `path.posix`.
+
+Red (before): 4 failed (`expected true to be false`,
+`expected { ok: true, …(1) } to deeply equal { ok: true }`,
+`expected 'C:\home\randy\lanes\RLM110B.app\home\…' to be '\home\randy\…'`).
+Green: 28 passed. Red drill: `pathsOf` forced to the host's `path` → the same
+4 failed; restored.
