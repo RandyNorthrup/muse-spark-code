@@ -1543,14 +1543,16 @@ async function main(processResources: ProcessResources): Promise<number> {
       }, 'warn'),
     })
   const command = parseCommandLine(process.argv.slice(2), parseSharingArgs)
-  const servicesInput: RuntimeAccountServicesInput = {
-    dataDir: agentDataFolder({
-      platform: process.platform,
-      env: process.env,
-      homeDir: homedir(),
-    }),
+  const accountsDataDir = agentDataFolder({
+    platform: process.platform,
+    env: process.env,
+    homeDir: homedir(),
+  })
+  const servicesInput = (log: Logger): RuntimeAccountServicesInput => ({
+    dataDir: accountsDataDir,
     openEntry: openKeyringEntry,
-  }
+    log,
+  })
   let cachedBundle: RuntimeAccountsBundle | undefined
   const loadAccountsBundle = (log: Logger): RuntimeAccountsBundle => {
     cachedBundle ??= runtimeAccountsLoader({
@@ -1564,7 +1566,7 @@ async function main(processResources: ProcessResources): Promise<number> {
     cachedAccounts ??= loadAccountsBundle(log).createRuntimeAccountServicesForLocale(
       UI_TEXT,
       uiLocale(),
-      servicesInput,
+      servicesInput(log),
     )
     return cachedAccounts
   }
@@ -2363,7 +2365,7 @@ async function main(processResources: ProcessResources): Promise<number> {
       const result = await loadAccountsBundle(log).runTerminalDeveloperCommand(
         UI_TEXT,
         uiLocale(),
-        servicesInput,
+        servicesInput(log),
         {
           readLine: (prompt) => readSecretLine(prompt, process.stdin, process.stderr),
           print: (line) => {
@@ -2532,7 +2534,7 @@ async function main(processResources: ProcessResources): Promise<number> {
         // The same owners as the ACP agent: the agent data folder the
         // headless governor reads resources.json from, and the runtime's
         // account registry (identity only, read lazily).
-        machineDir: servicesInput.dataDir,
+        machineDir: accountsDataDir,
         accounts: {
           list: async (provider: string) => {
             const owner = loadAccounts(log)

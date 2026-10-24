@@ -1773,7 +1773,9 @@ export function createModelsPanel(deps: ModelsPanelDeps): ModelsPanel {
         let value: unknown
         try {
           value = await deps.accounts?.request(request.request)
-        } catch {
+        } catch (error: unknown) {
+          // The section shows its typed refusal; the log keeps the cause's kind.
+          log.warn(`Model accounts request failed: ${failureForLog(error)}`)
           value = { type: 'accounts/error', code: 'unavailable' }
         }
         const reply = modelAccountsMessageSchema.safeParse({
