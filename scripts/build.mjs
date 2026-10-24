@@ -355,6 +355,8 @@ const APPROVAL_MODES_ENTRY = 'src/core/backends/musecode/approvalModesEntry.ts'
 const APPROVAL_MODES_OUTFILE = 'dist/approvalModes.js'
 const PLAYBOOK_ENTRY = 'src/runtime/playbook/playbookEntry.ts'
 const PLAYBOOK_OUTFILE = 'dist/acpPlaybook.js'
+const WATCHDOG_ENTRY = 'src/runtime/watchdog/watchdogEntry.ts'
+const WATCHDOG_OUTFILE = 'dist/acpWatchdog.js'
 const RUNTIME_ACCOUNTS_ENTRY = 'src/runtime/providers/accountsEntry.ts'
 const RUNTIME_ACCOUNTS_OUTFILE = 'dist/runtimeAccounts.js'
 // C-M109-1 (lead decision 5): the vault for the CLI, the ACP agent and
@@ -1388,6 +1390,11 @@ const playbookOptions = {
   entryPoints: [PLAYBOOK_ENTRY],
   outfile: PLAYBOOK_OUTFILE,
 }
+const watchdogOptions = {
+  ...acpQuestionsOptions,
+  entryPoints: [WATCHDOG_ENTRY],
+  outfile: WATCHDOG_OUTFILE,
+}
 const runtimeAccountsOptions = {
   ...acpQuestionsOptions,
   entryPoints: [RUNTIME_ACCOUNTS_ENTRY],
@@ -2008,6 +2015,7 @@ if (isWatch) {
     ['runtimeQuestions', () => esbuild.build(runtimeQuestionsOptions)],
     ['fontInstall', () => esbuild.build(fontInstallOptions)],
     ['playbook', () => esbuild.build(playbookOptions)],
+    ['watchdog', () => esbuild.build(watchdogOptions)],
     ['runtimeAccounts', () => esbuild.build(runtimeAccountsOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
   ]
@@ -2022,6 +2030,7 @@ if (isWatch) {
   let runtimeQuestions
   let fontInstall
   let playbook
+  let watchdog
   let runtimeAccounts
   let vaultRuntime
   try {
@@ -2034,6 +2043,7 @@ if (isWatch) {
       runtimeQuestions,
       fontInstall,
       playbook,
+      watchdog,
       runtimeAccounts,
       vaultRuntime,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
@@ -2068,6 +2078,7 @@ if (isWatch) {
     const { metafile: questionsMetafile } = await acpQuestions
     const { metafile: runtimeQuestionsMetafile } = await runtimeQuestions
     const { metafile: playbookMetafile } = await playbook
+    const { metafile: watchdogMetafile } = await watchdog
     const { metafile: runtimeAccountsMetafile } = await runtimeAccounts
     const { metafile: vaultRuntimeMetafile } = await vaultRuntime
     writeFileSync(
@@ -2089,10 +2100,12 @@ if (isWatch) {
     const execBuild = await exec
     writeFileSync(path.join(ACP_METAFILE_DIR, 'exec.json'), JSON.stringify(execBuild.metafile))
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'acpWatchdog.json'), JSON.stringify(watchdogMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
   reportSize(PLAYBOOK_OUTFILE)
+  reportSize(WATCHDOG_OUTFILE)
   reportSize(HOST_OUTFILE)
   reportSize(CONVERSATION_OUTFILE)
   reportSize(CONVERSATION_TRANSFER_OUTFILE)

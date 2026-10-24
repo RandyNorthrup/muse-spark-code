@@ -45,6 +45,9 @@ const BUDGETS = [
   // FIXM116I: /playbook's journal-backed surface (70.9 KiB when split out;
   // +15% rounded up to 100 KiB), loaded by the agent and the CLI on first use.
   { path: 'dist/acpPlaybook.js', budgetKiB: 100 },
+  // RLSCHED: /watchdog's issue surface (63.8 KiB when split out; +15%
+  // rounded up to 75 KiB), loaded by the agent and the CLI on first use.
+  { path: 'dist/acpWatchdog.js', budgetKiB: 75 },
   // Exact media money no longer enters the registry through locale helpers.
   // Keep M112's original cap; M105's inherited temporary increase is removed.
   { path: 'dist/runtimeQuestions.js', budgetKiB: 25 },

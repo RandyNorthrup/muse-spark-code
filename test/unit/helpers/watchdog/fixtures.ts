@@ -1,6 +1,12 @@
 // Shared watchdog-test data: the watched repository, its API base and
 // the fixed clock, with findings builders and the served routes several
 // suites read, so no test repeats the literal.
+import type { AcpWatchdogBundle } from '../../../../src/acp/watchdog'
+import {
+  parseWatchdogCommand as entryParse,
+  runWatchdogCommand as entryRun,
+} from '../../../../src/runtime/watchdog/watchdogEntry'
+import { UI_TEXT } from '../../../../src/shared/l10n/text'
 import { triageFindingsSchema, type TriageFindings } from '../../../../src/shared/watchdog'
 import { watchdogCaptured } from './servedGithub'
 
@@ -32,6 +38,16 @@ export function releaseRoutes(): WatchdogTestRoutes {
       status: 200,
       body: watchdogCaptured('github-search-commits'),
     },
+  }
+}
+
+/** The shipped bundle entry with production's adapter shape
+(`watchdogBundle` in `src/runtime/main.ts`): the entry's own parse, locale
+installation and command wiring all run, not a hand-built double. */
+export function entryBundle(): AcpWatchdogBundle {
+  return {
+    parseWatchdogCommand: (argv) => entryParse(argv),
+    runWatchdogCommand: (command, surfacePort) => entryRun(command, surfacePort, UI_TEXT, 'en'),
   }
 }
 

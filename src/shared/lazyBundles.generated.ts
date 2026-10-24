@@ -45,6 +45,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'acpWatchdog.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'WATCHDOG_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
     file: 'agentImport.js',
     side: 'vscode',
     requestedBy: [
