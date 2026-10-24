@@ -515,3 +515,25 @@ Red (before): `Error: No access` from `invokeWindowsVault`. Green: 1 passed.
 The pipe-start suite (under `vault/`) is not run on this PC by instruction;
 its builder is unchanged apart from the shared setup, and the unit typecheck
 covers it.
+
+### companionFontPack: linked version folders stay out; the file-link case needs the privilege
+
+Cause: the escape case plants a file symlink (`fonts.css` → outside), which
+Windows grants only with the symbolic-link privilege (`EPERM … symlink`).
+Looking for a link Windows grants without it (a junction) showed a gap on
+every OS: `findCompanionFontPack` checked each file against its version
+folder's real path but never checked that the version folder itself is in
+the fonts root, so a version folder linked elsewhere was served from there.
+
+Fix: the version folder's real path must sit directly in the fonts root's
+real path (`src/runtime/usage/usageCompanionEntry.ts`). A new case links a
+complete pack folder from outside into the root (a junction on Windows, a
+directory symlink elsewhere) and expects no pack; it runs on every OS. The
+file-link case runs where the account may make a file link (Linux, macOS,
+elevated or Developer Mode Windows), probed once by making one, with that
+reason in its name.
+
+Red (before): `EPERM: operation not permitted, symlink`. Green on Windows:
+6 passed, 1 skipped (the file-link case). Red drill: the new root check
+disabled → the linked-folder case failed (`expected { …(2) } to be undefined`);
+restored.
