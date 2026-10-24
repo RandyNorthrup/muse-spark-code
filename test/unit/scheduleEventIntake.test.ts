@@ -32,6 +32,11 @@ import { fileRoots } from './helpers/tempDirs'
 
 const roots = fileRoots()
 
+// Each case creates schedules and claims events through the real store, a
+// journal commit with an fsync apiece: slow disks need more than the
+// repository's five-second default.
+const DURABLE_COMMITS_TIMEOUT_MS = 30_000
+
 interface IntakeHarness {
   readonly intake: ScheduleEventIntake
   readonly fired: { schedule: ScheduleV2; event: ScheduleEvent; occurrenceMs: number }[]
@@ -174,7 +179,7 @@ class DirectoryPollSource implements SchedulePollingEventSource {
   }
 }
 
-describe('production event intake', () => {
+describe('production event intake', { timeout: DURABLE_COMMITS_TIMEOUT_MS }, () => {
   it('polls a polling source and fires what it finds', async () => {
     const root = await roots.fresh('schedule-event-intake-')
     const watched = path.join(root, 'watched')
