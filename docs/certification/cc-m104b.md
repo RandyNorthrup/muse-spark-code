@@ -1,5 +1,196 @@
 # cc/m104b — M104 lane B on int/recovery: the runtime panel
 
+## Handoff (2026-10-24, to the rig continuing on this branch)
+
+The owner freed this PC; lane B continues on a rig on branch `cc/m104b`.
+Everything is committed (last commit before this record: `097aba7b42`);
+the worktree is clean apart from ignored `temp/`.
+
+### The brief (as given)
+
+Build the largest remaining area of M104 on int: remainder item 1 of
+`docs/certification/cc-rlm104.md` ("Runtime panel (lane B)"), with item 2
+(ACP on the controller) and the int-specific design that record gives.
+Already on int: area 1 (MHP 1.5 contract, `check:mhp`), area 2
+(`src/host/vscode/` and its host-API rule), lane H (`lsp`, `supervise`,
+`stop`, `docs/certification/cc-m104h.md`). RLM104's code is on
+`refs/rigs/linuxlt/rec/rlm104` in the hub repo (read with `git show`; never
+merge it). Build: `panel --stdio|--companion`, the controller registry, the
+settings and storage store, `src/runtime/features/**`,
+`src/runtime/panel/**`, `host/compose`, `host/vscode/hostServices.ts`,
+reconciling RLM104's 16 conflicting files (paidConsent, paidFeatures,
+resourceGovernorEntry, mcpJobLaunch, modelApiBackendManager,
+conversationController, judgeBundle/judgeEntry/judgeUsage, runtime/backends,
+cliHelp, cliOptions, companion/page, exec/runExec, runtime/main,
+cliCommands). Paid use composes int's `PaidUseConsent` (D48; D208: no
+spending check without a limit the person set) the way `src/acp/paid.ts`'s
+`AcpPaidUse` does, not RLM104's pre-D208 path. ACP keeps int's turn path
+exactly (RLACP's slash handling, resource sessions, outbound error
+allow-list, `acpAccounting`); the panel's registry observes ACP sessions and
+their events rather than taking over their turns. Own the exports area 1
+removed (`panelEventId`, the presentation types) and
+`fallbackUi.ts`/`portableAssets.ts`. Never a second copy of anything int
+has. Suites on the real composition (no stand-in store, runtime,
+transport, editor API or provider). Vertical slices, each committed when
+its real-code suites are green; keep this record and a short PLAN status
+line current. Rules: hooks on, explicit paths, never push, no provider
+calls, no vault/credential-store suites on this PC, no bundle budget
+raised, new code in lazy chunks with measured budgets (D6).
+
+### Slices done
+
+| Slice | Commit       | What                                                                                                       | Proof                                                                                                                                                |
+| ----- | ------------ | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1     | `c17faa0c2a` | `src/runtime/settingsStore.ts` over the runtime's own settings files                                       | `runtimeSettingsStore` 12/12; drills S1–S3 fire, S4 not caught (why below)                                                                           |
+| 2     | `f432fac54d` | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                      | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                               |
+| 3     | `097aba7b42` | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas | **Not proven.** First run of `runtimePanel` timed out (6 of 8): the bundle crashed at load (below). Fixed; not re-run. `wireEntry` 2/2 after the fix |
+
+### Next step, exactly
+
+1. `npm run build` (production; also measures `dist/runtimePanel.js` against
+   its new 100 KiB row and checks `dist/wire.js`, expected about 76,200 of
+   76,800 bytes) — then run `test/unit/runtimePanel.test.ts` (8 cases, in
+   the shared production build list). Fix what fails; the suite's
+   two-process case is also the proof of slice 1's cross-process lock
+   (drill: remove `withNamedLock` from `RuntimeSettingsStore.change`, keep
+   the queue, expect that case to fail).
+2. Drills for slice 3 (break, exit 1, restore by blob hash): the version
+   refusal in `connection.ts` `initialize`; the workspace binding in
+   `panelEntry.ts` `boundWorkspace`; `stateFailure`'s permission code;
+   shutdown's exit 0 (`closed(isFatal)`); the oversized-line close.
+3. Full gates (below), then the slice 3 rows of this record turned from
+   "not proven" to proven, the commit table updated.
+4. Slice 4 onward, in this order (designs below).
+
+### Slices left, in order, with the intended design
+
+4. **The runtime conversation (`RuntimeConversation`, RLM104
+   `runtimeController.ts`).** `ConversationController` runs in the panel
+   process through `conversationLoader(...).createConversation(deps)`, one
+   per session, held by slice 2's `ControllerRegistry` (the same class ACP
+   uses). Prerequisite found on int: `conversationEntry.ts` imports
+   `../vscode/questions/questionStore` at runtime (it imports `vscode`), so
+   the conversation bundle cannot load outside VS Code until
+   `questionClock`/`questionsDeferAfterSeconds` come from a portable module
+   (RLM104 moved `questionClock` to `questions/questionStorage` and passed
+   `deferAfterSeconds` in). The controller additions RLM104 needed
+   (`modelAllowsFeature`, `onSessionAttached`, `replayHistory`,
+   `startFreshSession`, `selectedModelId`) must be re-applied to int's
+   13,960-line controller by hand; `arePermissionsExternal`,
+   `submitParts`, `useExternalPermissionMode` were for ACP-on-controller and
+   are **not** wanted (item 2 keeps ACP's own turns).
+5. **Shared composition (`src/host/compose/conversationDeps.ts`) and
+   `src/host/vscode/hostServices.ts`.** int's `ConversationDeps` has about
+   120 members (RLM104's base had fewer: int added playbook, judge uses,
+   team MCP, orchestrator slot, bookmarks, sequences, legal fixes, estimator
+   generation and more). extension.ts composes them inline at about lines
+   4967–5470. The design: move that mapping into `composeConversationDeps`
+   (editor-agnostic, `HostServices` for async editor actions) so VS Code
+   and the runtime share one copy; VS Code's behaviour must not change
+   (typecheck, the unit suites, and the integration suite inside VS Code,
+   which was never run on this PC). Then `src/runtime/features/**` supply
+   the runtime's ports (RLM104 had 24 modules, about 3,100 lines: auth,
+   checkpoints, codeIntel, editReview, git, hooks, judge, mcp, paidUse,
+   review, tab, verify, voice, webFetch, worktrees...), each against int's
+   current interfaces, each an honest refusal where the host lacks the
+   capability (MHP `unsupportedCapability`), never an empty success.
+6. **Paid use in the panel (D48, D208).** Compose int's `PaidUseConsent`
+   exactly as `src/acp/paid.ts`'s `AcpPaidUse` does: the question asked
+   through MHP `ui/confirm` with D48's three answers, keyed grants in the
+   runtime's own grants store (`runtime/paidGrants.ts`, shared with ACP),
+   and **no spending check, reservation or ledger read unless the person set
+   a limit** (session budget, `paidDailyBudgetUsd`, an agent budget). The
+   daily budget is the one in the data folder's `settings.json`, which is
+   exactly the file slice 1's store writes, so the panel and ACP state the
+   same budget. RLM104's `features/paidBudget.ts`/`paidRequest.ts`/
+   `paidUse.ts` and its `paidConsent.ts`/`paidFeatures.ts` diffs are the
+   pre-D208 path: do not port them; drop RLM104's `paidGrants.ts`
+   revocation lane (int's `isAnswerCurrent` already refuses a revoked
+   question, cc-rlm104 "Dropped as duplicates").
+7. **Chat surfaces over MHP** (RLM104 `surfaces.ts`, `uiRequests.ts`,
+   `delivery.ts`'s per-surface readiness and drop): `surfaces/open`, panel
+   envelopes admitted with `parseMhpPanelEnvelope` (sequence, readiness,
+   binding), the runtime-to-host request path with correlation and
+   `$/cancelRequest` (no deadline of ours: a consent question waits for the
+   person). Slice 3's connection refuses every panel envelope with
+   `MHP_PANEL_UNKNOWN_SURFACE` and asks the host nothing; both grow here.
+   `panelEventId` and the presentation types return with their readers.
+8. **`--companion`** over int's companion server (`src/runtime/companion/`,
+   its launch code and bearer, cc-rlm104 item 4 `/panel/*` routes), with
+   `fallbackUi.ts` and `portableAssets.ts` moving in with their first
+   readers (lane D's portable page).
+9. **ACP sessions seen in the panel (item 2).** The panel and the agent
+   must share a process for this (ACP's `/panel`, or the companion started
+   from the ACP process); then the panel's registry is ACP's
+   `ControllerRegistry` instance (pass it in through `AcpAgentDeps`) and a
+   panel view observes the ACP session's `AgentSession.onEvent` (both
+   backends keep a listener set) read-only. No turn goes through the panel.
+10. **Reconciling the 16 conflicting files** happens inside 4–8 as each is
+    reached, against int's code, never by applying RLM104's diffs:
+    `runtime/backends` (RLM104 +439, the panel's backend profile),
+    `exec/runExec` (+625), `runtime/main`, `cliHelp`/`cliOptions`/
+    `cliCommands` (slice 3 already added `panel` the int way),
+    `companion/page`, `judgeBundle`/`judgeEntry`/`judgeUsage`,
+    `mcpJobLaunch`, `resourceGovernorEntry`, `modelApiBackendManager`,
+    `conversationController`, `paidConsent`/`paidFeatures` (see 6).
+
+### Gotchas found here
+
+- **`dist/wire.js` hides names.** Every lazy Node bundle resolves
+  `protocol.ts` to `dist/wire.js`; a name it does not re-export reads as
+  `undefined` and a module that builds a zod schema from it throws at load
+  ("Cannot read properties of undefined (reading 'def')"). Area 1 left the
+  two MHP panel message schemas out; slice 3 shares them
+  (`src/shared/wireEntry.ts`, `wireEntry.test.ts` now demands every export).
+- **Python on Windows writes CRLF.** Edits made through Python's text mode
+  turned files into CRLF, which broke `gen-reference`'s account-restore
+  anchors ("Account restore anchor missing: WB-165 README.md"). Write with
+  `newline='\n'`; everything committed here is LF.
+- **Settings already live in two runtime files.** `<data>/settings.json`
+  (unprefixed keys, `reports.planMaxBytes` documented as
+  `reportsPlanMaxBytes`) and `<data>/resources.json` (`museSpark.`-prefixed
+  governor keys, not in the settings table at all). The store routes each
+  setting to where the runtime reads it; resource settings validate through
+  `resourceSettingsSchema`.
+- **Whole-file compare-and-swap is not atomic in one process.**
+  `writeFileIfUnchanged` lost a key under 24 concurrent writers (two passed
+  the final comparison before either renamed); the store uses an in-process
+  queue plus the runtime's `withNamedLock`.
+- **Muse Code captures cannot serve an ACP `session/new`.** Each capture
+  lacks either `museHome` in initialize or `session/setReasoningEffort`;
+  the registry suite uses the real Model API host rig with the editor-chat
+  providers file instead (a provider run also needs `initialModelId`).
+- **`acpServeHandshake` fails on int itself on this PC** (generic failure
+  instead of the sign-in refusal), checked on an archive of `acb48b7f35`.
+- **The lint is strict** (`unicorn/consistent-boolean-name` flags a
+  parameter typed as a function returning boolean; class member order puts
+  private methods first; `Promise.withResolvers` is preferred by lint but
+  absent from the host's ES2023 lib, so wrap the work in one `new Promise`).
+- **`check:catches`** counts a handler that hands the error to a helper as
+  GENERIC; record it in the handler through `failureForLog`.
+- **Text groups** must not be named after a CLI route (the reference pulls
+  them into the panel's English): the panel's group is `hostService`.
+
+### Gates last run (on the slice 3 tree unless noted)
+
+| Gate                                                                               | Exit | When / note                                                      |
+| ---------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------- |
+| `check:catches`                                                                    | 0    | after the last connection.ts change                              |
+| `check:l10n`                                                                       | 0    | 14 tables, 0 problems                                            |
+| `check:host-api`                                                                   | 0    | after `-- --write` (Node built-in counts only)                   |
+| `cycles`                                                                           | 0    |                                                                  |
+| `check:plan`                                                                       | 0    | with the PLAN status line                                        |
+| `reference:generate`                                                               | 0    | `check:reference` not re-run after                               |
+| `gen-lazy-registry` (write)                                                        | 0    | from the pre-fix build's metafiles                               |
+| `typecheck:host`                                                                   | 0    | before the `failureForLog` and wireEntry edits; not re-run after |
+| eslint (changed files)                                                             | 0    | pre-commit hook, `--max-warnings=0`, at `097aba7b42`             |
+| `typecheck:unit`, `deadcode` (knip)                                                | 0    | slice 2 / slice 1 trees; not re-run on slice 3                   |
+| `runtimePanel.test.ts`                                                             | 1    | 6 of 8 timed out: the load crash above; fix in, not re-run       |
+| `wireEntry.test.ts`                                                                | 0    | 2/2 after the fix                                                |
+| `npm run build`, `duplication`, `format:check`, `check:mhp`, `typecheck` (all six) | —    | not run on slice 3                                               |
+
+---
+
 Claude Code lane. Base: int/recovery `acb48b7f35` (after cc/m104h's join).
 Branch `cc/m104b`, worktree `C:\Users\Randy\Coding\mx-cc-m104b`. Source
 read, never merged: RLM104's branch `refs/rigs/linuxlt/rec/rlm104`
@@ -138,4 +329,6 @@ or without this change.
 | Commit       | Slice                                         |
 | ------------ | --------------------------------------------- |
 | `c17faa0c2a` | slice 1: settings and storage store           |
-| (next)       | slice 2: the controller registry, ACP over it |
+| `f432fac54d` | slice 2: the controller registry, ACP over it |
+| `097aba7b42` | slice 3 (work in progress): `panel --stdio`   |
+| (this)       | the handoff above                             |
