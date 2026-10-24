@@ -362,3 +362,18 @@ gpgv case keeps its existing gate where gpgv is absent).
 Red (before): 2 failed (`expected 1 to be +0`; the captured stderr shows the
 mismatch above). After on Windows: 127 passed, 3 skipped (these two and the
 apt-cache case, as before).
+
+### judgeB1HoldDrill: on Windows the drill proves the hold does not race
+
+Cause: the drill's `beforeAll` built the B1 confinement helper on every OS.
+`scripts/build-confine.mjs` refuses on Windows by design ("B1 is confined on
+Linux (Landlock) and macOS (Seatbelt) only"), so the hook failed and all 4
+cases were skipped, which counted as a failed file. The cases already handle
+a missing session; on Windows the hold refuses at the floor (`grammar`)
+before it reads any condition.
+
+Fix: on Windows the hook asserts the helper build's refusal in those words
+and opens no session; each case then expects `notApplicable` with `grammar`
+there (its own reason elsewhere).
+
+Red (before): the file failed in its hook, 4 skipped. Green: 4 passed.

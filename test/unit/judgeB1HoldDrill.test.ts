@@ -76,7 +76,12 @@ async function expectNotApplicable(
       throw new Error('the run must not start')
     },
   })
-  expect(outcome).toEqual({ kind: 'notApplicable', reason })
+  // On Windows the floor refuses every line before any condition is read
+  // (`grammar`, as the floor suite's own Windows case shows).
+  expect(outcome).toEqual({
+    kind: 'notApplicable',
+    reason: process.platform === 'win32' ? 'grammar' : reason,
+  })
 }
 
 const sleep = (ms: number): Promise<void> =>
@@ -103,6 +108,19 @@ describe('B1 hold drill', () => {
     workspace = path.join(root, 'workspace')
     await mkdir(workspace)
     await writeFile(path.join(workspace, 'allowed.txt'), 'ALLOWED_CANARY\n')
+    // B1 is confined on Linux and macOS only: on Windows the helper's build
+    // refuses in words and no session opens, so each case below proves the
+    // hold does not race there.
+    if (process.platform === 'win32') {
+      expect(() =>
+        execFileSync(process.execPath, ['scripts/build-confine.mjs'], {
+          env: { PATH: '/usr/bin:/bin' },
+          stdio: 'pipe',
+          timeout: 100_000,
+        }),
+      ).toThrow('B1 is confined on Linux (Landlock) and macOS (Seatbelt) only')
+      return
+    }
     try {
       execFileSync(process.execPath, ['scripts/build-confine.mjs'], {
         env: { PATH: '/usr/bin:/bin' },
