@@ -537,3 +537,24 @@ Red (before): `EPERM: operation not permitted, symlink`. Green on Windows:
 6 passed, 1 skipped (the file-link case). Red drill: the new root check
 disabled → the linked-folder case failed (`expected { …(2) } to be undefined`);
 restored.
+
+### windowsPowerShellModules: the device worker host applies the 5.1 module-path rule
+
+Cause: not Windows-run, but about Windows. RLM100's device worker host
+(`src/host/devices/deviceWorkerHost.ts`) starts a worker command that may be
+`powershell.exe` (Windows PowerShell 5.1) without `windowsPowerShellEnvironment`,
+the rule that gives every 5.1 child its own `PSModulePath` (WINPSMOD: a
+PowerShell 7 parent's module path breaks 5.1's core modules). The gate that
+enumerates every file naming 5.1 flagged it:
+`src/host/devices/deviceWorkerHost.ts: line 423`.
+
+Fix: when the resolved worker executable is `powershell.exe`, the launch and
+the recorded environment are the worker environment with the rule applied
+(from that environment's `SystemRoot`; a missing or relative one refuses as
+`preflight`). `pwsh.exe` (PowerShell 7) is unchanged.
+
+Red (before): the gate failed with the line above. Green: the gate passes;
+the Windows worker suite (`deviceWorkerHostNative`, 7 real Windows cases)
+still passes. Its workers are node processes, so no case here drives a 5.1
+worker through the host; the rule itself is the one the gate's real-process
+case proves.
