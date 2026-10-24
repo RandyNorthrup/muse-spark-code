@@ -54,6 +54,19 @@ function searchIssuesRoute(): Record<string, { status: number; body: unknown }> 
   }
 }
 
+/** The served captures and recorded issue 4, which has a same-title pair. */
+async function servedIssueFour() {
+  const served = triageClient({
+    [`GET ${WATCHDOG_BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
+    ...releaseRoutes(),
+    ...searchIssuesRoute(),
+  })
+  const search = await served.client.searchIssues('token', `repo:${WATCHDOG_REPOSITORY} type:issue`)
+  const four = search.issues.find((item) => item.number === 4)
+  if (four === undefined) throw new TypeError('the capture holds issue 4')
+  return { ...served, search, four }
+}
+
 describe('watchdog triage', () => {
   it('composes the charter with every fill resolved', () => {
     const charter = triageCharter()
@@ -123,14 +136,7 @@ describe('watchdog triage', () => {
   })
 
   it('collects and formats the evidence from the served captures', async () => {
-    const { client, calls } = triageClient({
-      [`GET ${WATCHDOG_BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
-      ...releaseRoutes(),
-      ...searchIssuesRoute(),
-    })
-    const search = await client.searchIssues('token', `repo:${WATCHDOG_REPOSITORY} type:issue`)
-    const four = search.issues.find((item) => item.number === 4)
-    if (four === undefined) throw new TypeError('the capture holds issue 4')
+    const { client, calls, search, four } = await servedIssueFour()
     const evidence = await collectTriageEvidence(
       { client, token: 'token' },
       WATCHDOG_NAMED,
@@ -158,14 +164,7 @@ describe('watchdog triage', () => {
   })
 
   it('names the instruction-like phrases in an issue and obeys none', async () => {
-    const { client, calls } = triageClient({
-      [`GET ${WATCHDOG_BASE}`]: { status: 200, body: watchdogCaptured('github-repository') },
-      ...releaseRoutes(),
-      ...searchIssuesRoute(),
-    })
-    const search = await client.searchIssues('token', `repo:${WATCHDOG_REPOSITORY} type:issue`)
-    const four = search.issues.find((item) => item.number === 4)
-    if (four === undefined) throw new TypeError('the capture holds issue 4')
+    const { client, calls, search, four } = await servedIssueFour()
     // Synthetic: the recorded issue with a body written to hijack the run.
     const hostile = {
       ...four,

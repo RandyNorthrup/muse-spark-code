@@ -22,22 +22,17 @@ import { stderrLogger } from '../../src/runtime/stderrLog'
 import { installGerman } from './helpers/kindGermanTable'
 import { REPORT_FIXTURE_AS_OF } from './helpers/reporting/kindFixtures'
 import { sectionById } from './helpers/reporting/reportKindFixtures'
-import { removeFolder, temporaryDir } from './helpers/temporaryFolders'
+import { fileRoots } from './helpers/tempDirs'
 import { findingsFor } from './helpers/watchdog/fixtures'
 
 const OWNER_REPOSITORY = 'RandyNorthrup/muse-spark-code'
 const OTHER_REPOSITORY = 'someone/else'
 
-const roots: string[] = []
-afterEach(async () => {
+const roots = fileRoots()
+afterEach(() => {
   setUiText(EN, 'en')
-  for (const root of roots.splice(0)) await removeFolder(root)
 })
-async function dir(prefix: string): Promise<string> {
-  const root = await temporaryDir(prefix)
-  roots.push(root)
-  return root
-}
+const dir = (prefix: string): Promise<string> => roots.fresh(prefix)
 
 function record(
   repository: string,

@@ -6,7 +6,13 @@
 import * as z from 'zod/mini'
 import { watchdogRepoDataSchema, type WatchdogState } from '../../../shared/watchdog'
 import { issuesSections, type IssuesIssueView, type IssuesPolicyView } from '../collect/issues'
-import { localSource, LocalSourceError, scrubSourceValue, type SourceScrub } from './local'
+import {
+  isParseFailure,
+  localSource,
+  LocalSourceError,
+  scrubSourceValue,
+  type SourceScrub,
+} from './local'
 import type { SourceReadContext } from './types'
 
 /** The watchdog's repository records; no watched repository is an empty report. */
@@ -75,7 +81,10 @@ export function issuesSource(reader: IssuesReportReader | undefined, scrub: Sour
           })
         }
       }
-    } catch {
+    } catch (error: unknown) {
+      // Only a record that fails its schema is invalid data; anything else
+      // is a fault in this code and surfaces.
+      if (!isParseFailure(error)) throw error
       throw new LocalSourceError('invalid')
     }
     return {

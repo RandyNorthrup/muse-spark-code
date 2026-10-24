@@ -15,7 +15,7 @@ import { SCHEDULE_FS_RETRY_ATTEMPTS } from '../../shared/constants'
 import type { ScheduleFsPort } from '../../core/schedules/journal'
 import { createScheduleStore } from '../../core/schedules/store'
 import { readWatchdogRepositories } from '../../core/watchdog/storeRead'
-import { LocalSourceError } from '../../core/reporting/sources/local'
+import { isParseFailure, LocalSourceError } from '../../core/reporting/sources/local'
 import type { IssuesReportReader } from '../../core/reporting/sources/issues'
 import type { PlaybookReportReader } from '../../core/reporting/sources/playbook'
 import type { SchedulesReportReader } from '../../core/reporting/sources/schedules'
@@ -156,10 +156,11 @@ export function createIssuesReportReader(input: {
           createNodeScheduleFs(input.agentDataFolder),
         )
         return { repositories, observedAt: context.asOf }
-      } catch (error) {
-        const isContentFailure =
-          error instanceof SyntaxError || (error instanceof Error && error.name === '$ZodError')
-        throw new LocalSourceError(isContentFailure ? 'invalid' : 'failed')
+      } catch (error: unknown) {
+        // Damaged JSON or a record the schema refuses is invalid data. A
+        // read failure surfaces as it is: the source records it as failed.
+        if (!isParseFailure(error)) throw error
+        throw new LocalSourceError('invalid')
       }
     },
   }

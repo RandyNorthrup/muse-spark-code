@@ -32,31 +32,27 @@ export async function acpWatchdog(
   const first = blocks[0]
   if (first?.type !== 'text' || !/^\s*\/watchdog(?:\s|$)/u.test(first.text)) return undefined
   if (blocks.length !== 1) return { ok: false, text: UI_TEXT.watchdog.cli.usage }
-  // Only a bundle that cannot be loaded is unavailable. A watchdog that
-  // loaded but whose command fails carries the command's own failure.
-  let bundle: AcpWatchdogBundle
+  // Only a bundle or a store that cannot be bound is unavailable (binding
+  // the surface reads the store). A watchdog that loaded but whose command
+  // fails carries the command's own failure.
+  let bound: {
+    readonly bundle: AcpWatchdogBundle
+    readonly command: WatchdogCommand
+    readonly surfacePort: WatchdogSurfacePort | undefined
+  }
   try {
-    bundle = loadBundle()
+    const bundle = loadBundle()
+    const text = first.text.trim().replace(/^\/watchdog\s*/u, '')
+    const command = bundle.parseWatchdogCommand(text === '' ? [] : text.split(/\s+/u))
+    if (command === undefined) return { ok: false, text: UI_TEXT.watchdog.cli.usage }
+    bound = { bundle, command, surfacePort: await port() }
   } catch (error: unknown) {
     if (!(error instanceof Error)) throw error
     log.warn(`The watchdog surface is unavailable: ${wireWordForLog(error.name)}`)
     return { ok: false, text: UI_TEXT.watchdog.cli.unavailable }
   }
-  const text = first.text.trim().replace(/^\/watchdog\s*/u, '')
-  const command = bundle.parseWatchdogCommand(text === '' ? [] : text.split(/\s+/u))
-  if (command === undefined) return { ok: false, text: UI_TEXT.watchdog.cli.usage }
-  // Binding the surface reads the store: a store that cannot be bound
-  // is a missing surface, not a command failing.
-  let surfacePort: WatchdogSurfacePort | undefined
   try {
-    surfacePort = await port()
-  } catch (error: unknown) {
-    if (!(error instanceof Error)) throw error
-    log.warn(`The watchdog surface is unavailable: ${wireWordForLog(error.name)}`)
-    return { ok: false, text: UI_TEXT.watchdog.cli.unavailable }
-  }
-  try {
-    return await bundle.runWatchdogCommand(command, surfacePort)
+    return await bound.bundle.runWatchdogCommand(bound.command, bound.surfacePort)
   } catch (error: unknown) {
     if (!(error instanceof Error)) throw error
     log.warn(`The watchdog command failed: ${wireWordForLog(error.name)}`)
