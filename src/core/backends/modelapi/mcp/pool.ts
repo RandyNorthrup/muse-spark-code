@@ -7,10 +7,16 @@
 // stopped, and trusting the workspace starts them with the next message.
 // A server that cannot start, or stops later, keeps its reason for the
 // notices and the MCP servers view; its tools are withdrawn. A server whose
-// tool list changes is listed again. Pure over the spawner and `fetch`.
+// tool list changes is listed again, and so is a modern one whose listing's
+// `ttlMs` lapsed, when its tools are next offered. Each server's protocol
+// era is kept across restarts when the host names a folder for it: a known
+// server opens in its kept era without a probe, and is probed again only
+// when it no longer answers as that era. Pure over the spawner, `fetch`
+// and the verdict folder.
 
 import path from 'node:path'
 import {
+  MCP_ERROR_HEADER_MISMATCH,
   MCP_START_CONCURRENCY,
   MCP_TRANSPORTS,
   MILLISECONDS_PER_SECOND,
@@ -26,6 +32,7 @@ import {
 } from '../../../timeouts'
 import type { McpVaultPoolPort } from '../../../vault/mcpSecrets'
 import { mcpSecretReferences } from '../../../vault/mcpReferences'
+import { failureForLog } from '../../musecode/logText'
 import type { McpSettingsEntries } from '../../musecode/museConfigView'
 import type { FunctionToolDefinition } from '../schemas'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
@@ -33,7 +40,7 @@ import type {
   ElicitationOutcome,
   McpElicitationHandler as ConnectionElicitationHandler,
 } from './elicitation'
-import { probeEra } from './era'
+import { confirmModern, type EraVerdict, probeEra } from './era'
 import {
   type McpCallOutcome,
   mcpCallOutcome,
@@ -51,6 +58,7 @@ import {
   planMcpServers,
 } from './servers'
 import { type McpChildProcess, McpStdioTransport } from './stdio'
+import { isSameVerdict, type KeptVerdict, McpVerdictStore, verdictKey } from './verdicts'
 
 /**
 The listed tools the server's entry keeps: its enabled/disabled filter
@@ -178,6 +186,11 @@ export interface McpPoolDeps {
   readonly fetch: typeof fetch
   readonly clientVersion: string
   readonly log: CoreLogger
+  /**
+  Where each server's era verdict is kept across restarts (the extension's
+  global storage); absent, every start probes every server.
+  */
+  readonly verdictsDir?: string | undefined
 }
 
 interface OfferedTool {
@@ -194,6 +207,8 @@ interface LiveServer {
   state: McpServerState
   connection: McpConnection | undefined
   tools: readonly OfferedTool[]
+  /** A listing re-read because its `ttlMs` lapsed, while one runs. */
+  refreshing?: Promise<void> | undefined
 }
 
 function describe(error: unknown): string {
@@ -236,6 +251,22 @@ function unheard(): void {
 
 const SILENT_LOG: CoreLogger = { trace: unheard, info: unheard, warn: unheard, error: unheard }
 
+/** What the log says when a server's tools are listed again, by cause. */
+const RELIST_LINES = {
+  changed: {
+    done: 'changed its tools',
+    failed: 'changed its tools, and they could not be listed again',
+  },
+  stale: {
+    done: 'listed its tools again after their listing went stale',
+    failed: 'had a stale tool listing, and its tools could not be listed again',
+  },
+  mismatch: {
+    done: 'listed its tools again after a header mismatch',
+    failed: 'refused a call for its headers, and its tools could not be listed again',
+  },
+} as const
+
 export class McpServerPool implements McpToolSource {
   private servers: LiveServer[] = []
   private fault: McpSettingsFault | undefined
@@ -255,8 +286,13 @@ export class McpServerPool implements McpToolSource {
     string,
     { readonly server: LiveServer; readonly offered: OfferedTool }
   >()
+  /** The kept era verdicts, when the host names their folder. */
+  private readonly verdicts: McpVerdictStore | undefined
 
-  public constructor(private readonly deps: McpPoolDeps) {}
+  public constructor(private readonly deps: McpPoolDeps) {
+    this.verdicts =
+      deps.verdictsDir === undefined ? undefined : new McpVerdictStore(deps.verdictsDir, deps.log)
+  }
 
   private plan(): McpServerPlan {
     try {
@@ -383,7 +419,12 @@ export class McpServerPool implements McpToolSource {
     }
   }
 
-  /** Starts the server and lists its tools; the state says connected only if nothing ended it meanwhile. */
+  /**
+  Starts the server and lists its tools; the state says connected only if
+  nothing ended it meanwhile. A verdict kept from an earlier start opens
+  the session in that era with no probe; when the server no longer
+  answers as that era, the session is closed and the server probed again.
+  */
   private async open(server: LiveServer, launch: McpLaunch): Promise<void> {
     const { spec } = server
     const isCancelled = () => this.isClosed || server.state.status !== 'starting'
@@ -395,6 +436,25 @@ export class McpServerPool implements McpToolSource {
       this.elicitationHandler === undefined
         ? undefined
         : (request) => this.answerElicitation(spec.name, request)
+    const key = verdictKey(spec.identity)
+    const kept = await this.verdicts?.read(key)
+    if (kept !== undefined) {
+      try {
+        await this.session(server, launch, { elicitation, signal, verdict: kept, key, kept })
+        return
+      } catch (error: unknown) {
+        // A Stop or a closed pool ends the start; any other failure means
+        // the kept assumption failed (spec `basic/versioning`), so the
+        // server is probed afresh.
+        if (signal.aborted || isCancelled()) throw error
+        const { connection } = server
+        server.connection = undefined
+        await connection?.close()
+        this.deps.log.info(
+          `MCP server ${spec.name} did not answer as its kept ${kept.era} verdict said (${failureForLog(error)}); probing it again`,
+        )
+      }
+    }
     // The era first, on a disposable probe: a sibling process on stdio,
     // its own transport instance on HTTP. The session opens in the
     // verdict's era.
@@ -412,6 +472,33 @@ export class McpServerPool implements McpToolSource {
     if (isCancelled()) {
       throw new McpError('the servers were closed while it started')
     }
+    await this.session(server, launch, { elicitation, signal, verdict, key, kept })
+  }
+
+  /**
+  One session in the given era: a fresh verdict's (the probe's), or a kept
+  one, whose modern era is confirmed by one `server/discover` on the
+  session's own transport and whose legacy era is the plain handshake. The
+  era it settles on is kept for the next start when it differs from the
+  one kept before.
+  */
+  private async session(
+    server: LiveServer,
+    launch: McpLaunch,
+    start: {
+      readonly elicitation: ConnectionElicitationHandler | undefined
+      /** The servers' stop for this start. */
+      readonly signal: AbortSignal
+      /** The probe's fresh verdict (it names the tools capability), or a kept one. */
+      readonly verdict: EraVerdict | KeptVerdict
+      readonly key: string
+      /** The verdict kept before this start, if any. */
+      readonly kept: KeptVerdict | undefined
+    },
+  ): Promise<void> {
+    const { spec } = server
+    const { elicitation, signal, verdict, key, kept } = start
+    const isCancelled = () => this.isClosed || server.state.status !== 'starting'
     const transport = await this.transportFor(spec, launch, isCancelled, signal)
     if (isCancelled()) {
       await transport.close()
@@ -432,11 +519,17 @@ export class McpServerPool implements McpToolSource {
       void this.relist(server, connection)
     })
     let version: string
-    if (verdict.era === 'modern') {
-      connection.adoptModern(verdict.version, verdict.hasTools)
+    if (verdict.era === 'legacy') {
+      version = await connection.initialize(spec.startupTimeoutMs)
+    } else if ('tools' in verdict) {
+      connection.adoptModern(verdict.version, verdict.tools)
       version = verdict.version
     } else {
-      version = await connection.initialize(spec.startupTimeoutMs)
+      version = await confirmModern(connection, verdict.version, {
+        transport: launch.transport,
+        startupTimeoutMs: spec.startupTimeoutMs,
+        signal,
+      })
     }
     const tools = await connection.listTools(spec.startupTimeoutMs)
     if (this.isClosed || server.connection !== connection) {
@@ -446,6 +539,11 @@ export class McpServerPool implements McpToolSource {
     this.deps.log.info(
       `MCP server ${spec.name} connected (${launch.transport}, MCP ${version}): ${String(server.tools.length)} tools offered`,
     )
+    connection.listenForToolChanges()
+    const settled: KeptVerdict = connection.settledVersion ?? { era: 'legacy' }
+    if (this.verdicts !== undefined && (kept === undefined || !isSameVerdict(kept, settled))) {
+      await this.verdicts.keep(key, settled)
+    }
   }
 
   private fail(server: LiveServer, reason: string): void {
@@ -518,8 +616,17 @@ export class McpServerPool implements McpToolSource {
     }
   }
 
-  /** `notifications/tools/list_changed`: the list read again; a failure is logged. */
-  private async relist(server: LiveServer, connection: McpConnection): Promise<void> {
+  /**
+  The list read again, for `cause`: `notifications/tools/list_changed`, a
+  listing whose `ttlMs` lapsed, or a call refused for its headers. A
+  failure is logged.
+  */
+  private async relist(
+    server: LiveServer,
+    connection: McpConnection,
+    cause: keyof typeof RELIST_LINES = 'changed',
+  ): Promise<void> {
+    const lines = RELIST_LINES[cause]
     try {
       // Waited on until the server answers or the connection closes (a
       // close rejects whatever still waits); a failure is logged below.
@@ -527,15 +634,35 @@ export class McpServerPool implements McpToolSource {
       if (!this.isClosed && server.connection === connection) {
         this.offer(server, tools)
         this.deps.log.info(
-          `MCP server ${server.spec.name} changed its tools: ${String(server.tools.length)} offered`,
+          `MCP server ${server.spec.name} ${lines.done}: ${String(server.tools.length)} offered`,
         )
       }
     } catch {
       // The record names the server, never the relist failure's text.
-      this.deps.log.warn(
-        `MCP server ${server.spec.name} changed its tools, and they could not be listed again`,
-      )
+      this.deps.log.warn(`MCP server ${server.spec.name} ${lines.failed}`)
     }
+  }
+
+  /**
+  A modern listing whose `ttlMs` lapsed is read again now that its tools
+  are offered (spec `server/utilities/caching`: re-fetch on the next
+  access, never as a polling interval). The read runs beside the request
+  that noticed it; the next request offers what it found.
+  */
+  private refreshIfStale(server: LiveServer): void {
+    const { connection } = server
+    if (
+      connection === undefined ||
+      server.refreshing !== undefined ||
+      !connection.isToolListStale
+    ) {
+      return
+    }
+    const refreshing = this.relist(server, connection, 'stale')
+    server.refreshing = refreshing
+    void refreshing.then(() => {
+      if (server.refreshing === refreshing) server.refreshing = undefined
+    })
   }
 
   private parseCallArgs(argsJson: string): Record<string, unknown> {
@@ -600,6 +727,9 @@ export class McpServerPool implements McpToolSource {
   }
 
   public definitions(): readonly FunctionToolDefinition[] {
+    for (const server of this.servers) {
+      this.refreshIfStale(server)
+    }
     return this.servers.flatMap((server) => server.tools.map((offered) => offered.definition))
   }
 
@@ -646,13 +776,30 @@ export class McpServerPool implements McpToolSource {
       routes.push(onElicitation)
       this.elicitationRoutes.set(found.server.spec.name, routes)
     }
+    const call = () =>
+      connection.callTool(found.offered.tool.name, Object.fromEntries(Object.entries(args)), {
+        timeoutMs: found.server.spec.toolTimeoutMs,
+        signal,
+      })
     try {
-      const result = await connection.callTool(
-        found.offered.tool.name,
-        Object.fromEntries(Object.entries(args)),
-        { timeoutMs: found.server.spec.toolTimeoutMs, signal },
-      )
-      return result
+      try {
+        return await call()
+      } catch (error: unknown) {
+        // A HeaderMismatch says the tool's schema may have changed since
+        // it was listed: the tools are listed again and the call retried
+        // once with the fresh headers (spec `streamable-http#client-
+        // behavior`). A tool the new listing no longer offers is not
+        // called again.
+        if (!(error instanceof McpError) || error.code !== MCP_ERROR_HEADER_MISMATCH) throw error
+        this.deps.log.info(
+          `MCP server ${found.server.spec.name} refused the headers of a call to ${found.offered.tool.name}; listing its tools again and retrying once`,
+        )
+        await this.relist(found.server, connection, 'mismatch')
+        if (this.byFunction.get(functionName)?.server.connection !== connection) {
+          throw new McpError(`${functionName} ${MCP_POOL_MODEL_TEXT.mcpToolUnavailable}`)
+        }
+        return await call()
+      }
     } finally {
       if (onElicitation !== undefined) {
         const routes = this.elicitationRoutes.get(found.server.spec.name)

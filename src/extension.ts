@@ -94,6 +94,7 @@ import {
   MODEL_API_SCHEDULES_DIR,
   MODEL_API_UPLOADS_DIR,
   MEDIA_PRIVATE_ROOT_DIR,
+  MCP_ERA_VERDICTS_DIR,
   CHECKPOINTS_DIR,
   TURN_CHECKPOINTS_SETTING,
   MODEL_API_SESSIONS_DIR,
@@ -3847,6 +3848,8 @@ async function activateWindow(
           shellJobAssembly: windowsJobAssembly,
           env: () => process.env,
           fetch: globalThis.fetch.bind(globalThis),
+          // Each server's era verdict, kept across restarts (D213).
+          verdictsDir: path.join(storageRoot, MCP_ERA_VERDICTS_DIR),
           log,
         }),
       ),
