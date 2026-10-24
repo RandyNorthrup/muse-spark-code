@@ -303,6 +303,13 @@ happened, not what was planned; superseded entries are kept.
 
 ### Fixed
 
+- Development dependencies carry this week's security fixes: `markdown-it`
+  14.3.3 (GHSA-gfr2-rv44-r23c; its dated audit exception is removed),
+  `@azure/msal-node` 7.1.0 (GHSA-xcx6-jx8p-x3h5) and `undici` 8.12.2 and
+  7.30.1 (GHSA-xjj6-f33q-929c and two moderate advisories), pinned through
+  overrides. All three reach the repository only through packaging and test
+  tooling (`@vscode/vsce`, `ovsx`, `jsdom`); none ships in the VSIX or the ACP
+  package.
 - Judge failures that used to vanish now leave a word in the output
   channel: when a review use cannot start or be read, the Models panel
   cannot read the judge's status, or a stored judge record cannot be
