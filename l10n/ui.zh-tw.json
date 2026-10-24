@@ -862,7 +862,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: 使用方案目錄的 Fast 層級（2 倍速度，用量增加）。預設為關閉：會消耗更多的方案額度。",
     "exec-provider": "在此供應商上執行（Model API 後端）；--model 則為 <provider>/<model>。",
-    "scan-timeout": "以秒設定掃描期限；未設定時掃描將持續執行直到完成。"
+    "scan-timeout": "以秒設定掃描期限；未設定時掃描將持續執行直到完成。",
+    "lsp-trust-workspace": "信任此資料夾：Tab 讀取其中的檔案、執行其中的 hook，並提供「在此工作區中一律允許」。",
+    "tab": "提供付費的 Tab 補全，費用計入已儲存的 Model API 金鑰；首次計費前編輯器會說明價格並詢問。",
+    "tab-model": "Tab 補全使用的模型。",
+    "tab-daily-budget-usd": "當天花費達到此美元金額時停止 Tab；預設值 0 表示不設預算。",
+    "tab-max-output-tokens": "將每個 Tab 要求的輸出權杖限制為此數量；預設值 0 表示模型本身的上限。",
+    "tab-trigger": "在輸入時提供 Tab（automatic），或僅在要求時提供（onInvoke）。"
   },
   "referenceScanSecrets": "掃描 UTF-8 修補檔案中的秘密資訊，偵測到時以失敗結束。--key-stdin 也會檢查記憶體中的 Model API 金鑰原值；不儲存金鑰。",
   "referenceVault": "從終端機使用按使用者 credential 保管庫：設定、復原、重設、狀態、解鎖、鎖定、清單、新增、授權、稽核、匯入和監視。值永遠不會列印；由代理持有。 明確確認後，重設也可替換擁有者未知的寫入鎖。",
@@ -4255,6 +4261,10 @@
     "purposeLegal": "執行唯讀法律掃描。",
     "purposeFonts": "為獨立介面安裝選用字型。",
     "purposePlaybook": "顯示或修改此工作區的 orchestrator playbook。",
+    "purposeLsp": "透過 stdin 與 stdout 上的 Language Server Protocol 為編輯器提供 Tab 補全。",
+    "noteLsp": "不使用 --tab 時不會計費，也絕不讀取認證存放區。使用它時，每個新價格都會先在編輯器中詢問；僅在使用 --trust-workspace 時才提供「在此工作區中一律允許」。",
+    "purposeSupervise": "執行此代理程式的另一個命令，讓 stop 能連同其啟動的所有程序一起結束它。",
+    "purposeStop": "停止在此資料夾中啟動的每個受監督執行，連同其啟動的所有程序。",
     "purposeSetup": "執行 Setup 鉤子並結束。",
     "purposeUsage": "顯示各模型的用量與費用。",
     "purposeResources": "顯示電腦負載與最近歷程紀錄。",
@@ -6582,6 +6592,21 @@
   },
   "mcpConnectorTitle": "供其他代理使用的 MCP 連接器",
   "referenceMcpCommand": "透過 MCP 將 Muse Spark Code 的工具提供給其他代理（Codex、Claude Code、Gemini CLI）；每次寫入都會等待您的核准。",
+  "languageServer": {
+    "help": "Muse Spark Code (Unofficial) 的 Tab，由 {command} lsp 提供。內嵌補全會自行要求建議；在編輯器不顯示建議的地方，執行 muse.tabInvoke 插入一則；muse.usage 顯示今天的 Tab 花費；muse.stop 停止此資料夾中的每個受監督執行。",
+    "budgetReached": "今天的 Tab 花費 {spent} 已達到每日預算 {budget}，因此補全將暫停到明天。若要今天繼續，請以更高的 --tab-daily-budget-usd 啟動語言伺服器。",
+    "unavailable": "此安裝中沒有語言伺服器。"
+  },
+  "supervision": {
+    "stopNone": "此資料夾中沒有啟動過受監督執行。",
+    "stopped": {
+      "other": "已停止 {count} 個受監督執行。"
+    },
+    "stopFailed": {
+      "other": "有 {count} 個受監督執行未能完整停止。"
+    },
+    "unavailable": "此安裝中沒有監督功能。"
+  },
   "acpConnector": {
     "title": "核准連接器要求",
     "intro": "另一個代理請求 Muse Spark Code 執行下列操作。在您於此處核准之前，不會執行任何操作；該代理本身的 Allow、Auto 或 Bypass 設定無法核准此要求。",

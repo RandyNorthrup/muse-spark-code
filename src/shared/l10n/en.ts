@@ -1057,6 +1057,15 @@ export const EN = {
     'exec-provider':
       'Run on this provider (Model API backend); --model is then <provider>/<model>.',
     'scan-timeout': 'Set the scan deadline in seconds; without it the scan runs until it finishes.',
+    'lsp-trust-workspace':
+      'Trust this folder: Tab reads its files, its hooks run, and Allow Always is offered.',
+    tab: 'Offer paid Tab completions on the stored Model API key; the editor asks first, naming the price.',
+    'tab-model': 'The model Tab completions use.',
+    'tab-daily-budget-usd':
+      'Stop Tab for the day at this many US dollars; 0, the default, sets no budget.',
+    'tab-max-output-tokens':
+      'Cap each Tab request at this many output tokens; 0, the default, is the model’s own maximum.',
+    'tab-trigger': 'Serve Tab as you type (automatic) or only on request (onInvoke).',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -5412,6 +5421,13 @@ export const EN = {
     purposeLegal: 'Run the read-only legal scan.',
     purposeFonts: 'Install the optional fonts for standalone surfaces.',
     purposePlaybook: 'Show or change the orchestrator playbook, or run one of its check commands.',
+    purposeLsp:
+      'Serve Tab completions to an editor over the Language Server Protocol on stdin and stdout.',
+    noteLsp:
+      'Without --tab nothing is billed and the credential store is never read. With it, each new price asks in the editor first; Allow Always is offered only with --trust-workspace.',
+    purposeSupervise:
+      'Run another command of this agent so that stop can end it, with every process it started.',
+    purposeStop: 'Stop every supervised run started in this folder, with every process it started.',
     purposeSetup: 'Run the Setup hooks and exit.',
     purposeUsage: 'Show usage and cost across models.',
     purposeResources: 'Show machine pressure and recent history.',
@@ -8580,6 +8596,29 @@ export const EN = {
     'Serve Muse Spark Code’s tools to other agents (Codex, Claude Code, Gemini CLI) over MCP; every write waits for your approval.',
   // M124 (D106): the MCP connector’s approval page and its `mcp` terminal commands
   // (the runtime region, dist/uiTextRuntime.js: activation never reads them).
+  // M104 lane H: the language server (`lsp`). Not named after a command: the
+  // reference's route names would carry the group into the panel's English.
+  languageServer: {
+    // {command}: the executable's name. Shown by the muse.help command.
+    help: 'Muse Spark Code (Unofficial) Tab, served by {command} lsp. Inline completions ask for a suggestion; run muse.tabInvoke to insert one where your editor shows none; muse.usage shows today’s Tab spend; muse.stop stops every supervised run in this folder.',
+    // {spent}, {budget}: amounts of US dollars.
+    budgetReached:
+      'Today’s Tab spend of {spent} has reached the daily budget of {budget}, so completions pause until tomorrow. To continue today, start the language server with a higher --tab-daily-budget-usd.',
+    unavailable: 'The language server is not available in this installation.',
+  },
+  // M104 lane H: `supervise` and `stop`.
+  supervision: {
+    stopNone: 'No supervised run was started in this folder.',
+    stopped: forms({
+      one: 'Stopped {count} supervised run.',
+      other: 'Stopped {count} supervised runs.',
+    }),
+    stopFailed: forms({
+      one: '{count} supervised run could not be stopped whole.',
+      other: '{count} supervised runs could not be stopped whole.',
+    }),
+    unavailable: 'Supervision is not available in this installation.',
+  },
   acpConnector: {
     title: 'Approve connector requests',
     intro:

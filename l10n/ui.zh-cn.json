@@ -862,7 +862,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: 使用套餐目录的 Fast 档（2 倍速度，用量增加）。默认关闭：它会消耗更多的套餐额度。",
     "exec-provider": "在此供应商上运行（Model API 后端）；--model 则为 <provider>/<model>。",
-    "scan-timeout": "以秒设置扫描期限；未设置时扫描将持续运行直到完成。"
+    "scan-timeout": "以秒设置扫描期限；未设置时扫描将持续运行直到完成。",
+    "lsp-trust-workspace": "信任此文件夹：Tab 读取其中的文件，运行其中的钩子，并提供“在此工作区中始终允许”。",
+    "tab": "提供付费的 Tab 补全，费用计入已存储的 Model API 密钥；首次计费前编辑器会说明价格并询问。",
+    "tab-model": "Tab 补全使用的模型。",
+    "tab-daily-budget-usd": "当天花费达到此美元金额时停止 Tab；默认值 0 表示不设预算。",
+    "tab-max-output-tokens": "将每个 Tab 请求的输出令牌限制为此数量；默认值 0 表示模型自身的上限。",
+    "tab-trigger": "在输入时提供 Tab（automatic），或仅在请求时提供（onInvoke）。"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "从终端使用按用户 credential 保管库：设置、恢复、重置、状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。 明确确认后，重置也可替换所有者未知的写入锁。",
@@ -4255,6 +4261,10 @@
     "purposeLegal": "运行只读法律扫描。",
     "purposeFonts": "为独立界面安装可选字体。",
     "purposePlaybook": "显示或修改此工作区的 orchestrator playbook。",
+    "purposeLsp": "通过 stdin 和 stdout 上的 Language Server Protocol 向编辑器提供 Tab 补全。",
+    "noteLsp": "不使用 --tab 时不会计费，也从不读取凭据存储。使用它时，每个新价格都会先在编辑器中询问；仅在使用 --trust-workspace 时才提供“在此工作区中始终允许”。",
+    "purposeSupervise": "运行此代理的另一个命令，使 stop 能够连同其启动的所有进程一起结束它。",
+    "purposeStop": "停止在此文件夹中启动的每个受监督运行，连同其启动的所有进程。",
     "purposeSetup": "运行 Setup 钩子并退出。",
     "purposeUsage": "显示各模型的用量与费用。",
     "purposeResources": "显示计算机负载与最近历史记录。",
@@ -6582,6 +6592,21 @@
   },
   "mcpConnectorTitle": "面向其他智能体的 MCP 连接器",
   "referenceMcpCommand": "通过 MCP 向其他智能体（Codex、Claude Code、Gemini CLI）提供 Muse Spark Code 的工具；每次写入都需等待您的批准。",
+  "languageServer": {
+    "help": "Muse Spark Code (Unofficial) 的 Tab，由 {command} lsp 提供。内联补全会自行请求建议；在编辑器不显示建议的地方，运行 muse.tabInvoke 插入一条；muse.usage 显示今天的 Tab 花费；muse.stop 停止此文件夹中的每个受监督运行。",
+    "budgetReached": "今天的 Tab 花费 {spent} 已达到每日预算 {budget}，因此补全将暂停到明天。要在今天继续，请使用更高的 --tab-daily-budget-usd 启动语言服务器。",
+    "unavailable": "此安装中没有语言服务器。"
+  },
+  "supervision": {
+    "stopNone": "此文件夹中没有启动过受监督运行。",
+    "stopped": {
+      "other": "已停止 {count} 个受监督运行。"
+    },
+    "stopFailed": {
+      "other": "有 {count} 个受监督运行未能完整停止。"
+    },
+    "unavailable": "此安装中没有监督功能。"
+  },
   "acpConnector": {
     "title": "批准连接器请求",
     "intro": "另一个智能体请求 Muse Spark Code 执行以下操作。在您于此处批准之前，不会执行任何操作；该智能体自身的 Allow、Auto 或 Bypass 设置无法批准它。",

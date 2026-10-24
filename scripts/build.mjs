@@ -1780,6 +1780,24 @@ const nodeOptions = {
   banner: {},
 }
 
+// M104 lane H: the language server (`lsp`), and the supervised runs
+// (`supervise`, `stop`, the server's `muse.stop`), each loaded only by its
+// own commands; dist/acp.js keeps their loaders alone.
+const LSP_OUTFILE = 'dist/lsp.js'
+const lspOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/lsp/lspEntry.ts'],
+  outfile: LSP_OUTFILE,
+  banner: {},
+}
+const SUPERVISE_OUTFILE = 'dist/supervise.js'
+const superviseOptions = {
+  ...acpOptions,
+  entryPoints: ['src/runtime/supervise/superviseEntry.ts'],
+  outfile: SUPERVISE_OUTFILE,
+  banner: {},
+}
+
 // Keep the production Node fallback under its existing cap; runtime values
 // are the same table. Browser and development outputs retain their inline text.
 const { L10N_COMPRESSION_QUALITY } = await loadL10n(process.cwd())
@@ -2278,6 +2296,8 @@ if (isWatch) {
     esbuild.context(webviewOptions),
     esbuild.context(fontInstallOptions),
     esbuild.context(nodeOptions),
+    esbuild.context(lspOptions),
+    esbuild.context(superviseOptions),
   ])
   await Promise.all(contexts.map((ctx) => ctx.watch()))
   console.log('watching for changes…')
@@ -2506,6 +2526,8 @@ if (isWatch) {
     ['packsVerify', () => esbuild.build(packsVerifyOptions)],
     ['vaultRuntime', () => esbuild.build(vaultRuntimeOptions)],
     ['node', () => esbuild.build(nodeOptions)],
+    ['lsp', () => esbuild.build(lspOptions)],
+    ['supervise', () => esbuild.build(superviseOptions)],
   ]
   if (!isProduction) {
     extraSpecs.push(['integrationTests', () => esbuild.build(integrationTestOptions)])
@@ -2523,6 +2545,8 @@ if (isWatch) {
   let packsVerify
   let vaultRuntime
   let node
+  let lsp
+  let supervise
   try {
     shipped = await runBuildPool(Object.entries(shippedSpecs), BUILD_POOL_SIZE)
     ;({
@@ -2538,6 +2562,8 @@ if (isWatch) {
       packsVerify,
       vaultRuntime,
       node,
+      lsp,
+      supervise,
     } = await runBuildPool(extraSpecs, BUILD_POOL_SIZE))
   } catch (error) {
     await esbuild.stop()
@@ -2603,6 +2629,10 @@ if (isWatch) {
     writeFileSync(path.join(ACP_METAFILE_DIR, 'acpPlaybook.json'), JSON.stringify(playbookMetafile))
     const { metafile: nodeMetafile } = await node
     writeFileSync(path.join(ACP_METAFILE_DIR, 'node.json'), JSON.stringify(nodeMetafile))
+    const { metafile: lspMetafile } = await lsp
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'lsp.json'), JSON.stringify(lspMetafile))
+    const { metafile: superviseMetafile } = await supervise
+    writeFileSync(path.join(ACP_METAFILE_DIR, 'supervise.json'), JSON.stringify(superviseMetafile))
   }
   console.log('bundle sizes:')
   reportSize(ACP_QUESTIONS_OUTFILE)
@@ -2712,5 +2742,7 @@ if (isWatch) {
   reportSize('dist/headless.js')
   reportSize(SCHEDULE_BACKGROUND_OUTFILE)
   reportSize(NODE_OUTFILE)
+  reportSize(LSP_OUTFILE)
+  reportSize(SUPERVISE_OUTFILE)
   reportSize(PACKS_VERIFY_OUTFILE)
 }

@@ -548,6 +548,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'lsp.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'LSP_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
     file: 'maker.js',
     side: 'both',
     requestedBy: [
@@ -1336,6 +1343,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       { importer: 'src/runtime/authCommands.ts', symbol: 'authStatusAll', side: ['acp'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authStatusProvider', side: ['acp'] },
+    ],
+  },
+  {
+    file: 'supervise.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'SUPERVISE_BUNDLE_FILE', side: ['acp'] },
     ],
   },
   {

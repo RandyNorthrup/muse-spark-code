@@ -862,7 +862,13 @@
     "sharing-json": "--json: Print the machine-readable result instead of the human preview.",
     "fast": "--fast: プランカタログのFastティアを使用します（2倍の速度、使用量増）。デフォルトではオフです。プランの使用量を多く消費します。",
     "exec-provider": "このプロバイダーで実行します (Model API バックエンド)。--model は <provider>/<model> になります。",
-    "scan-timeout": "スキャンの期限を秒で設定します。設定しない場合、スキャンは終了するまで実行されます。"
+    "scan-timeout": "スキャンの期限を秒で設定します。設定しない場合、スキャンは終了するまで実行されます。",
+    "lsp-trust-workspace": "このフォルダーを信頼します。Tab がファイルを読み取り、フックが実行され、「このワークスペースでは常に許可」が表示されます。",
+    "tab": "保存済みの Model API キーに請求される有料の Tab 補完を提供します。最初の請求の前に、エディターが価格を示して確認します。",
+    "tab-model": "Tab 補完が使用するモデルです。",
+    "tab-daily-budget-usd": "この金額 (米ドル) に達したらその日の Tab を停止します。既定の 0 は予算を設定しません。",
+    "tab-max-output-tokens": "各 Tab リクエストの出力トークン数をこの値に制限します。既定の 0 はモデル自身の上限です。",
+    "tab-trigger": "入力中に Tab を提供する (automatic) か、要求したときだけ提供する (onInvoke) かを選びます。"
   },
   "referenceScanSecrets": "UTF-8 のパッチファイルから秘密情報を検出し、見つかった場合は失敗終了します。--key-stdin はメモリ内の Model API キーそのものも検索します。キーは保存されません。",
   "referenceVault": "ターミナルからユーザーごとの資格情報 Vault を操作します: 設定、復旧、リセット、状態、ロック解除、ロック、一覧、追加、付与、監査、インポート、監視。値は決して表示されません。ブローカーが保持します。 明示的に確認すると、リセットで所有者不明の書き込みロックも置き換えられます。",
@@ -4255,6 +4261,10 @@
     "purposeLegal": "読み取り専用のリーガルスキャンを実行する。",
     "purposeFonts": "スタンドアロン画面用のオプションのフォントをインストールします。",
     "purposePlaybook": "このワークスペースのオーケストレーター手引きを表示・変更する。",
+    "purposeLsp": "stdin と stdout 上の Language Server Protocol で、エディターに Tab 補完を提供します。",
+    "noteLsp": "--tab がない場合は何も請求されず、資格情報ストアも読み取りません。指定した場合、新しい価格ごとに最初にエディターで確認します。「このワークスペースでは常に許可」は --trust-workspace を指定したときだけ表示されます。",
+    "purposeSupervise": "このエージェントの別のコマンドを、stop で起動したすべてのプロセスごと終了できるように実行します。",
+    "purposeStop": "このフォルダーで開始した監督付きの実行を、起動したすべてのプロセスごと停止します。",
     "purposeSetup": "Setup フックを実行して終了します。",
     "purposeUsage": "モデル全体の使用量と費用を表示します。",
     "purposeResources": "マシンの負荷と最近の履歴を表示します。",
@@ -6582,6 +6592,21 @@
   },
   "mcpConnectorTitle": "他のエージェント向け MCP コネクタ",
   "referenceMcpCommand": "Muse Spark Code のツールを MCP 経由で他のエージェント (Codex、Claude Code、Gemini CLI) に提供します。書き込みはすべてあなたの承認を待ちます。",
+  "languageServer": {
+    "help": "Muse Spark Code (Unofficial) の Tab を {command} lsp が提供しています。インライン補完は自動で候補を要求します。エディターに候補が表示されない場合は muse.tabInvoke で挿入できます。muse.usage は今日の Tab の支出を表示し、muse.stop はこのフォルダーの監督付きの実行をすべて停止します。",
+    "budgetReached": "今日の Tab の支出 {spent} が 1 日の予算 {budget} に達したため、補完は明日まで一時停止します。今日続けるには、より大きい --tab-daily-budget-usd を指定して言語サーバーを起動してください。",
+    "unavailable": "このインストールでは言語サーバーを利用できません。"
+  },
+  "supervision": {
+    "stopNone": "このフォルダーで開始した監督付きの実行はありません。",
+    "stopped": {
+      "other": "監督付きの実行を {count} 件停止しました。"
+    },
+    "stopFailed": {
+      "other": "監督付きの実行 {count} 件を完全には停止できませんでした。"
+    },
+    "unavailable": "このインストールでは監督機能を利用できません。"
+  },
   "acpConnector": {
     "title": "コネクターの要求を承認",
     "intro": "別のエージェントが Muse Spark Code に次の操作を依頼しました。ここで承認するまで何も実行されません。そのエージェント自身の Allow、Auto、Bypass の設定では承認できません。",

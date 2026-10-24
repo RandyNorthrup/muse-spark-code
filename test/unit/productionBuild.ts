@@ -24,6 +24,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/judgeWiringAssembly.test.ts',
   // RLM98P2: the SystemOne side suite serves the shipped bundle itself.
   'test/unit/judgeP2RedesignSides.test.ts',
+  // M104 lane H: the language server and supervision run from dist/acp.js.
+  'test/unit/runtimeLsp.test.ts',
 ])
 // A hung build fails the run with its output instead of holding it open.
 const PRODUCTION_BUILD_TIMEOUT_MS = 600_000

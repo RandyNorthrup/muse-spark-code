@@ -68,6 +68,10 @@ export const ACP_BUNDLES = [
   'connector.js',
   // M124 (D106, RVM124 finding 15): the connector's storage guard, loaded by `mcp` beside it.
   'connectorStoreGuard.js',
+  // M104 lane H: the language server, loaded by `lsp`; supervision, by
+  // `supervise`, `stop` and the server's `muse.stop`.
+  'lsp.js',
+  'supervise.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker
