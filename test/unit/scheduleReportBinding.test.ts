@@ -41,6 +41,10 @@ import { fileRoots } from './helpers/tempDirs'
 
 const roots = fileRoots()
 
+// These tests commit several journal entries to the real store, each one
+// fsynced: slow disks need more than the repository's five-second default.
+const DURABLE_COMMITS_TIMEOUT_MS = 30_000
+
 const OCCURRENCE = '2026-10-22T12:00:00.000Z'
 
 function reportAction(): ScheduleReportAction {
@@ -232,30 +236,34 @@ describe('live report authority', () => {
     expect(verdict.creator).toBe('user')
   })
 
-  it('denies paused, revoked, uncovered and unknown schedules', async () => {
-    const { root, store, authorityStore, editor } = await grantedStore('schedule-report-deny-')
-    const authority = createScheduleReportAuthority({
-      authority: authorityStore,
-      workspaceKey: 'workspace-1',
-      workspaceRoot: root,
-    })
-    async function isAllowed(scheduleId: string, ids: readonly string[]): Promise<boolean> {
-      const verdict = await authority.authorize(scheduleId, runnerAction(ids))
-      return verdict.allowed
-    }
-    expect(await isAllowed('schedule-1', ['dest-1'])).toBe(true)
-    expect(await isAllowed('schedule-1', ['dest-9'])).toBe(false)
-    expect(await isAllowed('schedule-9', ['dest-1'])).toBe(false)
-    const stored = await authorityStore.read('workspace-1', 'schedule-1')
-    if (stored === undefined) throw new Error('schedule must exist')
-    expect(await store.update(scheduleV2Schema.parse({ ...stored, paused: true }))).toBe(true)
-    expect(await isAllowed('schedule-1', ['dest-1'])).toBe(false)
-    const paused = await authorityStore.read('workspace-1', 'schedule-1')
-    if (paused === undefined) throw new Error('schedule must exist')
-    expect(await store.update(scheduleV2Schema.parse({ ...paused, paused: false }))).toBe(true)
-    expect(await editor.revoke('workspace-1', 'schedule-1')).toBe(true)
-    expect(await isAllowed('schedule-1', ['dest-1'])).toBe(false)
-  })
+  it(
+    'denies paused, revoked, uncovered and unknown schedules',
+    { timeout: DURABLE_COMMITS_TIMEOUT_MS },
+    async () => {
+      const { root, store, authorityStore, editor } = await grantedStore('schedule-report-deny-')
+      const authority = createScheduleReportAuthority({
+        authority: authorityStore,
+        workspaceKey: 'workspace-1',
+        workspaceRoot: root,
+      })
+      async function isAllowed(scheduleId: string, ids: readonly string[]): Promise<boolean> {
+        const verdict = await authority.authorize(scheduleId, runnerAction(ids))
+        return verdict.allowed
+      }
+      expect(await isAllowed('schedule-1', ['dest-1'])).toBe(true)
+      expect(await isAllowed('schedule-1', ['dest-9'])).toBe(false)
+      expect(await isAllowed('schedule-9', ['dest-1'])).toBe(false)
+      const stored = await authorityStore.read('workspace-1', 'schedule-1')
+      if (stored === undefined) throw new Error('schedule must exist')
+      expect(await store.update(scheduleV2Schema.parse({ ...stored, paused: true }))).toBe(true)
+      expect(await isAllowed('schedule-1', ['dest-1'])).toBe(false)
+      const paused = await authorityStore.read('workspace-1', 'schedule-1')
+      if (paused === undefined) throw new Error('schedule must exist')
+      expect(await store.update(scheduleV2Schema.parse({ ...paused, paused: false }))).toBe(true)
+      expect(await editor.revoke('workspace-1', 'schedule-1')).toBe(true)
+      expect(await isAllowed('schedule-1', ['dest-1'])).toBe(false)
+    },
+  )
 })
 
 describe('report adapter without a backend', () => {
@@ -327,79 +335,84 @@ describe('report adapter without a backend', () => {
 })
 
 describe('report adapter with a bound backend', () => {
-  it('translates the live action and honors a revoked grant without generating', async () => {
-    const { root, fs, store, authorityStore, editor } = await grantedStore('schedule-report-bound-')
-    const translated: { action: ScheduleReportAction; locale: string }[] = []
-    const unreachable = () => Promise.reject(new Error('must not run while revoked'))
-    const port = createScheduleReportPort({
-      store,
-      authorityStore,
-      occurrences: createReportOccurrencePort(fs),
-      backend: {
-        translate: (action, context) => {
-          translated.push({ action, locale: context.locale })
-          return Promise.resolve(runnerAction(action.destinations.map((item) => item.id)))
-        },
-        runner: {
-          generation: { generate: unreachable },
-          locale: { textForLocale: () => UI_TEXT },
-          redaction: { workspaceRoot: root, localRoots: [] },
-          email: new ReportEmailDelivery(
-            {
-              isRecipientAllowed: unreachable,
-              connectionPolicy: unreachable,
-              send: unreachable,
-              confirmFirstSend: unreachable,
-            },
-            { update: unreachable },
-            Date.now,
-          ),
-          post: new ReportPostDelivery({
-            isEnabled: unreachable,
-            isConfirmed: unreachable,
-            previewAndConfirm: unreachable,
-            rememberConfirmation: unreachable,
-            publish: unreachable,
-          }),
-          browser: {
-            publishHtml: unreachable,
-            hasActiveSession: unreachable,
-            isAuthenticatedReportUrl: unreachable,
-            open: unreachable,
+  it(
+    'translates the live action and honors a revoked grant without generating',
+    { timeout: DURABLE_COMMITS_TIMEOUT_MS },
+    async () => {
+      const { root, fs, store, authorityStore, editor } =
+        await grantedStore('schedule-report-bound-')
+      const translated: { action: ScheduleReportAction; locale: string }[] = []
+      const unreachable = () => Promise.reject(new Error('must not run while revoked'))
+      const port = createScheduleReportPort({
+        store,
+        authorityStore,
+        occurrences: createReportOccurrencePort(fs),
+        backend: {
+          translate: (action, context) => {
+            translated.push({ action, locale: context.locale })
+            return Promise.resolve(runnerAction(action.destinations.map((item) => item.id)))
           },
-          saveExclusive: unreachable,
-          nodeSave: unreachable,
-          sleep: () => Promise.resolve(),
+          runner: {
+            generation: { generate: unreachable },
+            locale: { textForLocale: () => UI_TEXT },
+            redaction: { workspaceRoot: root, localRoots: [] },
+            email: new ReportEmailDelivery(
+              {
+                isRecipientAllowed: unreachable,
+                connectionPolicy: unreachable,
+                send: unreachable,
+                confirmFirstSend: unreachable,
+              },
+              { update: unreachable },
+              Date.now,
+            ),
+            post: new ReportPostDelivery({
+              isEnabled: unreachable,
+              isConfirmed: unreachable,
+              previewAndConfirm: unreachable,
+              rememberConfirmation: unreachable,
+              publish: unreachable,
+            }),
+            browser: {
+              publishHtml: unreachable,
+              hasActiveSession: unreachable,
+              isAuthenticatedReportUrl: unreachable,
+              open: unreachable,
+            },
+            saveExclusive: unreachable,
+            nodeSave: unreachable,
+            sleep: () => Promise.resolve(),
+          },
         },
-      },
-      locale: 'en',
-      roots: () => Promise.resolve(root),
-    })
-    // Edit the live action, then revoke: the backend sees the live edit,
-    // and the revoked grant refuses every destination before generation.
-    const stored = await authorityStore.read('workspace-1', 'schedule-1')
-    if (stored?.action.kind !== 'report') throw new Error('schedule must exist')
-    await store.update(
-      scheduleV2Schema.parse({
-        ...stored,
-        action: {
-          ...stored.action,
-          args: { module: 'edited-live' },
-        },
-      }),
-    )
-    expect(await editor.revoke('workspace-1', 'schedule-1')).toBe(true)
-    const [live] = await store.list('workspace-1')
-    if (live?.action.kind !== 'report') throw new Error('schedule must run a report')
-    const narrowed = { ...live, action: live.action }
-    const receipts = scheduleReportResultsSchema.parse(
-      await port.run(narrowed, runContextFixture(narrowed), OCCURRENCE),
-    )
-    expect(translated).toHaveLength(1)
-    expect(translated[0]?.action.args).toEqual({ module: 'edited-live' })
-    expect(translated[0]?.locale).toBe('en')
-    expect(receipts).toEqual({ 'dest-1': { status: 'refused', attempts: 0 } })
-  })
+        locale: 'en',
+        roots: () => Promise.resolve(root),
+      })
+      // Edit the live action, then revoke: the backend sees the live edit,
+      // and the revoked grant refuses every destination before generation.
+      const stored = await authorityStore.read('workspace-1', 'schedule-1')
+      if (stored?.action.kind !== 'report') throw new Error('schedule must exist')
+      await store.update(
+        scheduleV2Schema.parse({
+          ...stored,
+          action: {
+            ...stored.action,
+            args: { module: 'edited-live' },
+          },
+        }),
+      )
+      expect(await editor.revoke('workspace-1', 'schedule-1')).toBe(true)
+      const [live] = await store.list('workspace-1')
+      if (live?.action.kind !== 'report') throw new Error('schedule must run a report')
+      const narrowed = { ...live, action: live.action }
+      const receipts = scheduleReportResultsSchema.parse(
+        await port.run(narrowed, runContextFixture(narrowed), OCCURRENCE),
+      )
+      expect(translated).toHaveLength(1)
+      expect(translated[0]?.action.args).toEqual({ module: 'edited-live' })
+      expect(translated[0]?.locale).toBe('en')
+      expect(receipts).toEqual({ 'dest-1': { status: 'refused', attempts: 0 } })
+    },
+  )
 })
 
 function verdictFor(destination: ScheduleReportAction['destinations'][number]) {
