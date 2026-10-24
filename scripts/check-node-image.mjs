@@ -38,10 +38,29 @@ const Statement = z.object({
   predicate: z.record(z.string(), z.unknown()),
 })
 
+// Windows names its interpreter `python` (its `python3` is the Store's alias).
+const PYTHON = process.platform === 'win32' ? 'python' : 'python3'
+
 function unpack(archive, destination) {
-  execFileSync('python3', [path.join(ROOT, 'deploy/container/unpack.py'), archive, destination], {
+  execFileSync(PYTHON, [path.join(ROOT, 'deploy/container/unpack.py'), archive, destination], {
     stdio: 'pipe',
   })
+}
+
+/**
+The member names of a tar archive. tar runs beside the archive and is
+handed its bare name: GNU tar (Git for Windows ships one) reads a drive
+path such as `C:\…` as `host:path` on another machine, while every tar
+reads a bare name the same way. Windows' own tar ends its lines with CRLF.
+*/
+function tarNames(file) {
+  return execFileSync('tar', ['-tf', path.basename(file)], {
+    cwd: path.dirname(file),
+    encoding: 'utf8',
+    maxBuffer: POLICY.maxExtractedBytes,
+  })
+    .trim()
+    .split(/\r?\n/u)
 }
 function scan(directory) {
   try {
@@ -247,13 +266,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.ar
         if (extractedLayers.has(digest)) return extractedLayers.get(digest)
         const extracted = path.join(scratch, digest.slice('sha256:'.length))
         unpack(file, extracted)
-        const names = execFileSync('tar', ['-tf', file], {
-          encoding: 'utf8',
-          maxBuffer: POLICY.maxExtractedBytes,
-        })
-          .trim()
-          .split('\n')
-        const result = { directory: extracted, names }
+        const result = { directory: extracted, names: tarNames(file) }
         extractedLayers.set(digest, result)
         return result
       },

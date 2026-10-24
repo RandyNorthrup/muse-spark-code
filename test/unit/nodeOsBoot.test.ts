@@ -371,7 +371,9 @@ describe('os-boot-test composition', () => {
   it('starts through a symlinked directory', () => {
     const dir = scratch('node-os-boot-link-')
     const link = path.join(dir, 'scripts')
-    symlinkSync(path.dirname(BOOT_TEST), link, 'dir')
+    // Windows's directory link is a junction (no privilege needed; a symlink
+    // needs the symbolic-link privilege, which a test account does not hold).
+    symlinkSync(path.dirname(BOOT_TEST), link, process.platform === 'win32' ? 'junction' : 'dir')
     const result = run(
       [
         '--arch',

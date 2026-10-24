@@ -61,8 +61,14 @@ function compareNames(left: string, right: string): number {
 }
 
 /** The servable files of one version directory, or undefined when unusable. */
-async function probePackVersion(directory: string): Promise<readonly string[] | undefined> {
+async function probePackVersion(
+  fontsRoot: string,
+  directory: string,
+): Promise<readonly string[] | undefined> {
   const contained = await realpath(directory)
+  // The version folder itself stays in the fonts root: a linked one (a
+  // junction on Windows) would serve files from anywhere it points.
+  if (path.dirname(contained) !== fontsRoot) return undefined
   const entries = await readdir(directory)
   const files = entries.filter((file) => FONT_PACK_FILE_PATTERN.test(file)).toSorted(compareNames)
   if (!files.includes('fonts.css')) return undefined
@@ -73,16 +79,19 @@ async function probePackVersion(directory: string): Promise<readonly string[] | 
 
 /**
 Locate the installed local-font pack without trusting names: version
-directories match the installer's publication shape and every served file
-is realpath-contained and allowlisted. Returns undefined when no pack is
-installed; the page then uses the system font stack.
+directories match the installer's publication shape and stay in the fonts
+root, and every served file is realpath-contained and allowlisted. Returns
+undefined when no pack is installed; the page then uses the system font
+stack.
 */
 export async function findCompanionFontPack(
   fontsRoot: string,
 ): Promise<CompanionFontPack | undefined> {
   let entries: string[]
+  let root: string
   try {
-    entries = await readdir(fontsRoot)
+    root = await realpath(fontsRoot)
+    entries = await readdir(root)
   } catch (error: unknown) {
     // An unreadable fonts root has no pack; the page uses the system stack.
     if (!isErrno(error)) throw error
@@ -93,7 +102,7 @@ export async function findCompanionFontPack(
     .toSorted(compareNames)
   for (const version of versions.toReversed()) {
     try {
-      const files = await probePackVersion(path.join(fontsRoot, version))
+      const files = await probePackVersion(root, path.join(fontsRoot, version))
       if (files !== undefined) return { directory: path.join(fontsRoot, version), files }
     } catch (error: unknown) {
       // An unreadable version is skipped for the next older one.

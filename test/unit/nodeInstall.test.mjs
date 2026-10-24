@@ -36,7 +36,11 @@ function release(options = {}) {
     writeFileSync(path.join(stage, 'THIRD_PARTY_NOTICES.txt'), 'notices\n')
   const name = options.name === undefined ? 'muse-spark-code-acp-0.0.0-test.tgz' : options.name
   const tarball = path.join(root, name)
-  const tar = spawnSync('tar', ['-czf', tarball, '-C', path.join(root, 'stage'), 'package'], {
+  // tar runs in the release folder and is handed relative names: GNU tar (Git
+  // for Windows ships one) reads a drive path such as `C:/…` as `host:path`
+  // on another machine, while every tar reads a relative name the same way.
+  const tar = spawnSync('tar', ['-czf', name, '-C', 'stage', 'package'], {
+    cwd: root,
     encoding: 'utf8',
     windowsHide: true,
   })
@@ -55,7 +59,11 @@ function modeOf(file) {
   return (statSync(file).mode & 0o777).toString(8)
 }
 
-describe('M110-S0 native installer layout', () => {
+// The layout is the native Linux installer's: it runs on Linux hosts only,
+// never on Windows. Under Git for Windows its GNU tar cannot read a drive
+// path ("tarball unreadable: C:\…", so its refusal cases would pass for the
+// wrong reason) and NTFS keeps no POSIX modes for it to set.
+describe.skipIf(process.platform === 'win32')('M110-S0 native installer layout', () => {
   it('lays the runtime, legal files, units and state out with exact modes', () => {
     const { tarball } = release()
     const prefix = path.join(path.dirname(tarball), 'prefix')

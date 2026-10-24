@@ -63,6 +63,21 @@ export interface ModelApiRig {
 }
 
 /**
+The few variables a hook's shell needs from a real host, and nothing else
+(no credential reaches the rig's hooks). On Windows PowerShell starts
+cmd.exe by PATHEXT: without it PowerShell hands the file to the shell's
+file association instead, which starts it detached and without the hook's
+standard input.
+*/
+function hookShellEnvironment(): NodeJS.ProcessEnv {
+  if (process.platform !== 'win32') return { SHELL: '/bin/sh' }
+  const names: ReadonlySet<string> = new Set(['SYSTEMROOT', 'WINDIR', 'COMSPEC', 'PATHEXT'])
+  return Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => names.has(name.toUpperCase())),
+  )
+}
+
+/**
 The product's own host against the real file store in `directory`. The
 provider client is the product's own, constructed with no key: no Meta key
 is stored, which the host is told as the extension tells it
@@ -120,8 +135,7 @@ export function modelApiRig(
         hasHookShell === true && process.platform === 'win32'
           ? process.env['SystemRoot']
           : undefined,
-      env: () =>
-        hasHookShell === true && process.platform !== 'win32' ? { SHELL: '/bin/sh' } : {},
+      env: () => (hasHookShell === true ? hookShellEnvironment() : {}),
       searchWorkerPath: path.join(directory, 'searchWorker.js'),
       log: () => undefined,
       unsavedFiles: () => [],

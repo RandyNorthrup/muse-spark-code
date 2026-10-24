@@ -1,3 +1,4 @@
+import { mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -10,6 +11,24 @@ import { createUsageAccess } from '../../src/runtime/usage/usageServiceEntry'
 import { EN } from '../../src/shared/l10n/en'
 import { recordingLogger } from './helpers/recordingLogger'
 import { removeFolder } from './helpers/temporaryFolders'
+
+// Whether this account may make a file symbolic link: Linux and macOS
+// always, Windows only with the symbolic-link privilege (an elevated or
+// Developer Mode account). Probed once by making one.
+function canLinkFiles(): boolean {
+  const folder = mkdtempSync(path.join(tmpdir(), 'companion-link-probe-'))
+  try {
+    writeFileSync(path.join(folder, 'target'), '')
+    symlinkSync(path.join(folder, 'target'), path.join(folder, 'link'), 'file')
+    return true
+  } catch (error: unknown) {
+    if (error instanceof Error && 'code' in error && error.code === 'EPERM') return false
+    throw error
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+}
+const CAN_LINK_FILES = canLinkFiles()
 
 const roots: string[] = []
 afterEach(async () => {
@@ -67,13 +86,28 @@ describe('companion installed-font discovery', () => {
     const current = await makePack(root, `zzz-${'f'.repeat(64)}`)
     await expect(findCompanionFontPack(root)).resolves.toMatchObject({ directory: current })
   })
-  it('skips a version whose files escape its directory', async () => {
+  it.runIf(CAN_LINK_FILES)(
+    'skips a version whose files escape its directory [skips where this account may not link files]',
+    async () => {
+      const root = await makeRoot()
+      const outside = path.join(root, 'outside.css')
+      await writeFile(outside, '/* escaped */')
+      const version = path.join(root, `evil-${'c'.repeat(64)}`)
+      await mkdir(version, { recursive: true })
+      await symlink(outside, path.join(version, 'fonts.css'))
+      await expect(findCompanionFontPack(root)).resolves.toBeUndefined()
+    },
+  )
+  it('skips a version folder that leads outside the fonts root', async () => {
     const root = await makeRoot()
-    const outside = path.join(root, 'outside.css')
-    await writeFile(outside, '/* escaped */')
-    const version = path.join(root, `evil-${'c'.repeat(64)}`)
-    await mkdir(version, { recursive: true })
-    await symlink(outside, path.join(version, 'fonts.css'))
+    const outside = await makePack(await makeRoot(), `evil-${'d'.repeat(64)}`)
+    // A directory link: a junction on Windows (no privilege needed), which
+    // realpath follows there as it follows a symlink elsewhere.
+    await symlink(
+      outside,
+      path.join(root, `evil-${'d'.repeat(64)}`),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
     await expect(findCompanionFontPack(root)).resolves.toBeUndefined()
   })
   it('refuses a broken install missing the theme sheets before listening', async () => {

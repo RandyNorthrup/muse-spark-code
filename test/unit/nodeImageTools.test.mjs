@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const fixture = { scratch: '' }
@@ -12,9 +13,15 @@ afterEach(() => rmSync(fixture.scratch, { recursive: true, force: true }))
 const install = (preload) => {
   const file = path.join(fixture.scratch, 'preload.mjs')
   writeFileSync(file, preload)
+  // --import takes a module URL: a Windows drive path reads as a `c:` scheme.
   return spawnSync(
     process.execPath,
-    ['--import', file, 'deploy/container/install-tools.mjs', path.join(fixture.scratch, 'tools')],
+    [
+      '--import',
+      pathToFileURL(file).href,
+      'deploy/container/install-tools.mjs',
+      path.join(fixture.scratch, 'tools'),
+    ],
     { encoding: 'utf8' },
   )
 }

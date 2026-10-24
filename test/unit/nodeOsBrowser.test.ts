@@ -167,7 +167,9 @@ describe('check-key', () => {
       writeFileSync(empty, '# only a comment\n')
       expect(checkKey(['--transcript', TRANSCRIPT, '--fingerprints', empty]).status).toBe(2)
       const linked = path.join(dir, 'linked')
-      symlinkSync(dir, linked)
+      // Windows's directory link is a junction (no privilege needed; a symlink
+      // needs the symbolic-link privilege, which a test account does not hold).
+      symlinkSync(dir, linked, process.platform === 'win32' ? 'junction' : 'dir')
       expect(checkKey(['--transcript', linked, '--fingerprints', PINS]).status).toBe(2)
       expect(
         checkKey(['--transcript', path.join(dir, 'absent.txt'), '--fingerprints', PINS]).status,

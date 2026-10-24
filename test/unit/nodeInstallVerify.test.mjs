@@ -39,7 +39,9 @@ describe('node install verifier', () => {
     expect(ok.status).toBe(0)
     expect(ok.stdout).toContain('verified 2 files')
     const link = path.join(root, 'linked-artifact')
-    symlinkSync(dir, link)
+    // Windows's directory link is a junction (no privilege needed; a symlink
+    // needs the symbolic-link privilege, which a test account does not hold).
+    symlinkSync(dir, link, process.platform === 'win32' ? 'junction' : 'dir')
     expect(verify(link).status).toBe(0)
   })
 

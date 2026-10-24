@@ -3,7 +3,7 @@
 // installs back, retention and the disk floor obey only the person's own
 // settings, the clock judges skew, a wipe destroys the key first, and the
 // metrics page prints live readings.
-import { mkdir, readFile, stat, symlink, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
@@ -49,7 +49,23 @@ describe('node backup', () => {
   it('refuses to follow links on the way in', async () => {
     const root = await roots.fresh('m110f-backup-link-')
     await writeFile(path.join(root, 'real.txt'), 'real')
-    await symlink(path.join(root, 'real.txt'), path.join(root, 'link.txt'))
+    // A file link and a directory link are both refused. Windows grants a
+    // file link only with the symbolic-link privilege, which a test account
+    // does not hold; its directory link is a junction (no privilege needed),
+    // which lstat reads as a link there as it reads a symlink elsewhere.
+    if (process.platform !== 'win32') {
+      await symlink(path.join(root, 'real.txt'), path.join(root, 'link.txt'))
+      await expect(createNodeBackup(root, path.join(root, 'backup'))).rejects.toThrow(
+        'a backup never follows links',
+      )
+      await rm(path.join(root, 'link.txt'))
+    }
+    await mkdir(path.join(root, 'real'))
+    await symlink(
+      path.join(root, 'real'),
+      path.join(root, 'linked'),
+      process.platform === 'win32' ? 'junction' : 'dir',
+    )
     await expect(createNodeBackup(root, path.join(root, 'backup'))).rejects.toThrow(
       'a backup never follows links',
     )

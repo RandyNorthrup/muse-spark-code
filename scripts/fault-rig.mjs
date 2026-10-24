@@ -92,7 +92,9 @@ async function main(argv, repoRoot) {
   return FAULT_EXIT.fail
 }
 
-const repoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
+// The module's own folder as a path: a URL's pathname keeps a leading slash
+// before a Windows drive (`/C:/…`), which path.resolve doubles to `C:\C:\…`.
+const repoRoot = path.resolve(import.meta.dirname, '..')
 try {
   process.exitCode = await main(process.argv.slice(2), repoRoot)
 } catch (error) {

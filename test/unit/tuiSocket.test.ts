@@ -485,11 +485,17 @@ describe.runIf(isWindows)('M110 T named pipe transport', () => {
     expect(servers.at(-1)?.address()).toBe(f.endpoint)
     const received: TuiEvent[] = []
     let buffer = ''
+    const before = accepted.length
     const client = createConnection({ path: f.endpoint })
     sockets.push(client)
     await new Promise<void>((resolve, reject) => {
       client.once('connect', resolve)
       client.once('error', reject)
+    })
+    // A pipe client's connect can land before the server's connection
+    // event has run: wait for the server's own accept, as `open` does.
+    await waitForTui('peer accepted', () => {
+      expect(accepted.length).toBeGreaterThan(before)
     })
     client.on('data', (chunk: Buffer) => {
       buffer += chunk.toString('utf8')

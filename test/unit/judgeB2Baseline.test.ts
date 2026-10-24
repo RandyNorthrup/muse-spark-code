@@ -24,8 +24,12 @@ import {
   type B2FileAnswers,
 } from '../../src/core/judge/fast/b2Closure'
 
+// Git for Windows opens its null device by the name NUL and refuses
+// os.devNull's device-namespace spelling ("unable to access '//./nul'").
+const NO_CONFIG = process.platform === 'win32' ? 'NUL' : os.devNull
+
 function gitEnv(): Record<string, string | undefined> {
-  return { ...process.env, GIT_CONFIG_GLOBAL: os.devNull, GIT_CONFIG_SYSTEM: os.devNull }
+  return { ...process.env, GIT_CONFIG_GLOBAL: NO_CONFIG, GIT_CONFIG_SYSTEM: NO_CONFIG }
 }
 
 function git(repo: string, args: readonly string[]): string {
