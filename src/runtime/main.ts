@@ -696,6 +696,13 @@ function runtimeReports(
           env: process.env,
           homeDir: homedir(),
         })
+        // The playbook journal's reader, which also orders that journal's rows.
+        const playbookReader = () =>
+          playbookSchedules().createPlaybookReportReader(
+            { agentDataFolder: dataFolder, workspaceRoot: cwd },
+            l10n.table,
+            l10n.locale,
+          )
         let journalReader:
           ReturnType<ReturnType<typeof inputs>['createReportJournalReader']> | undefined
         const readJournal = (context: SourceReadContext) => {
@@ -816,24 +823,10 @@ function runtimeReports(
             // live under the same agent data folder as the usage journal.
             // The schedules key matches the delivery engine's own workspace
             // key (schedulesBridge keyFor), not the report storage key.
-            playbook: {
-              read: (context) =>
-                playbookSchedules()
-                  .createPlaybookReportReader(
-                    { agentDataFolder: dataFolder, workspaceRoot: cwd },
-                    l10n.table,
-                    l10n.locale,
-                  )
-                  .read(context),
-            },
-            // D220: the playbook, milestone and fleet kinds order through the
-            // journal the reader reads, loaded only when one of them orders.
-            playbookOrder: () =>
-              playbookSchedules().createPlaybookReportOrder(
-                { agentDataFolder: dataFolder, workspaceRoot: cwd },
-                l10n.table,
-                l10n.locale,
-              ),
+            playbook: { read: (context) => playbookReader().read(context) },
+            // D220: the reader orders the playbook, milestone and fleet rows
+            // of the journal it reads, loaded only when one of them orders.
+            playbookOrder: playbookReader,
             schedules: {
               read: (context) =>
                 playbookSchedules()

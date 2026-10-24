@@ -9,11 +9,7 @@ export function playbookSchedulesInputsLoader(
 ): () => Bundle {
   return namedBundleLoader({
     ...deps,
-    names: [
-      'createPlaybookReportReader',
-      'createPlaybookReportOrder',
-      'createSchedulesReportReader',
-    ],
+    names: ['createPlaybookReportReader', 'createSchedulesReportReader'],
     label: 'report playbook and schedules inputs',
     unavailable: () => UI_TEXT.reportUi.generationFailed,
   })

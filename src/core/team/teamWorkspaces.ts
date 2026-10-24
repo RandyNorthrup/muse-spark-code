@@ -8,9 +8,9 @@ import {
   GIT_FILTER_NAME_MAX_CHARS,
   GIT_FILTER_NAMES_MAX,
   TEAM_MODEL_TEXT,
+  TEAM_PLAYBOOK_MODEL_TEXT,
   UI_TEXT,
 } from '../../shared/constants'
-import { redactSecrets } from '../redact'
 import { pathModule } from '../workspaceRoot'
 import { teamAgentsRef, teamBranchName, workerEnvironment } from './refFence'
 import { isTeamGitError, type TeamGit } from './teamGit'
@@ -337,9 +337,9 @@ export async function readDispatchHead(
 
 /**
 The playbook's dispatch-base port over the team's governed git (D218): no
-repository, no base. A git or workspace failure refuses with its words;
-anything else is the caller's to survive. Built beside the team service, so
-the engine chunk lends only its git.
+repository, no base. A git or workspace failure refuses the task in fixed
+words (no error text reaches the model); anything else is the caller's to
+survive. Built beside the team service, so the engine chunk lends only its git.
 */
 export function dispatchHeadReader(
   runGit: TeamGit,
@@ -355,8 +355,10 @@ export function dispatchHeadReader(
     try {
       return await readDispatchHead(runGit, root, mode)
     } catch (error: unknown) {
-      if (isTeamGitError(error) || isTeamWorkspaceError(error))
-        return { refused: redactSecrets(error.message) }
+      if (isTeamGitError(error))
+        return { refused: TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookBaseUnreadable }
+      if (isTeamWorkspaceError(error))
+        return { refused: TEAM_PLAYBOOK_MODEL_TEXT.hostPlaybookBaseUnreadable }
       throw error
     }
   }

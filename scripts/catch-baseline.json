@@ -3,7 +3,7 @@
   "counts": {
     "acp": {
       "SWALLOW": 0,
-      "GENERIC": 18,
+      "GENERIC": 17,
       "CLEANUP": 8
     },
     "core": {
@@ -81,11 +81,6 @@
     {
       "file": "src/acp/agent.ts",
       "identity": "8049ab3b80a7bf828421e8582be8f079ffe0f674b94811e47bab47d2c0ae5be2",
-      "class": "GENERIC"
-    },
-    {
-      "file": "src/acp/agent.ts",
-      "identity": "440978b7ea9021a10fce0cb202456f12119a356909ef9c217110dd0b4272afe8",
       "class": "GENERIC"
     },
     {

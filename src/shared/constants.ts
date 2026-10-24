@@ -9543,6 +9543,8 @@ export const TEAM_PLAYBOOK_MODEL_TEXT = {
     'the orchestrator playbook did not admit this task (rule: {rule}; reason: {code}; module: {module}); do not start the same work another way',
   hostPlaybookBriefInvalid:
     'the task brief carries an unfilled template marker, so the playbook cannot record it; restate the brief without markers',
+  hostPlaybookBaseUnreadable:
+    'the playbook could not read the commit this task starts from in the repository, so the task does not start',
 } as const
 
 export const PLAYBOOK_REFUSAL_MODEL_TEXT = {
