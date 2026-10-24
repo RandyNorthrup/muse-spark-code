@@ -51,7 +51,7 @@ import {
   securityAuditRowSchema,
   securityDeveloperAuditRowSchema,
 } from '../../core/reporting/sources/security'
-import { stripJsonc } from '../sharing/confidential'
+import { stripJsonc } from '../../core/jsonc'
 import type { ReportEstimateReader } from '../../core/reporting/sources/estimate'
 import type { ReportSessionReader } from '../../core/reporting/sources/session'
 import type { ReportAccountsReader } from '../../core/reporting/sources/accounts'

@@ -444,14 +444,20 @@ export const CLI_HELP_TOPICS: readonly CliHelpTopic[] = [
   {
     name: 'playbook',
     purpose: (table) => table.cliHelp.purposePlaybook,
-    usage: [(command) => `${command} playbook <status|record|settings ...>`],
+    usage: [
+      (command) => `${command} playbook <status|record|settings ...>`,
+      (command) => `${command} playbook run <name> [--heavy] [--full-gate]`,
+    ],
     routes: [],
+    // The run flags parse downstream with the rest of the playbook
+    // grammar, so the usage line carries them, not the option rows.
     options: [],
     examples: [
       (command) => `${command} playbook status`,
-      (command) => `${command} playbook settings`,
+      (command) => `${command} playbook run checks`,
     ],
-    ...GENERIC_EXITS,
+    exits: (table) => table.playbookExits,
+    exitCodes: [CLI_EXIT.ok, CLI_EXIT.failure, CLI_EXIT.usage],
   },
   {
     name: 'setup',
