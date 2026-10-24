@@ -187,13 +187,16 @@ describe('M96d discovery endpoint', () => {
         epoch: 'epoch-A',
       })
       const held = connect(address.path)
+      let closing: Promise<void> | undefined
       try {
         expect(await readLine(held)).toBe(JSON.stringify({ storeId: 'store-A', epoch: 'epoch-A' }))
         // The design's F1 removal case on Windows: closing the listener
         // refuses new opens (ERROR_PIPE_BUSY through a direct open, since
         // net.connect would retry while the peer stays open) while the
-        // live owner's connection still echoes.
-        await endpoint.close()
+        // live owner's connection still echoes. The close stops listening at
+        // once and settles only when that last connection ends, so it is
+        // awaited after the owner's connection goes.
+        closing = endpoint.close()
         await expect(open(address.path, 'r+')).rejects.toThrow(
           expect.objectContaining({ code: 'EBUSY' }),
         )
@@ -202,6 +205,7 @@ describe('M96d discovery endpoint', () => {
       } finally {
         held.destroy()
       }
+      await closing
     },
   )
 

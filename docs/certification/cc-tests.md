@@ -444,3 +444,18 @@ the suite's retry case does; the read is a transient denial on every OS, and
 the stop ends it with its reason.
 
 Red (before): 1 failed as above. Green: 2 passed.
+
+### m96dCoordinatorEndpoint: the close settles after the last connection
+
+Cause: the Windows-only F1 case awaited `endpoint.close()` while its own
+owner connection was still open. The endpoint's close is Node's
+`server.close`, which stops listening at once but calls back only when every
+connection has ended, so the await could never settle and the case ran into
+the 15 s deadline (`Test timed out in 15000ms`). The case only ever ran on
+Windows, which the lane's rig was not.
+
+Fix: the case starts the close, checks that a new open is refused (`EBUSY`)
+and that the owner's connection still echoes, ends that connection, and then
+awaits the close. The endpoint is unchanged.
+
+Red (before): timed out at 15 s. Green: 6 passed, 2 skipped, twice.
