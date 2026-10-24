@@ -81,6 +81,14 @@ export interface ReportingContext {
   readonly network?:
     | Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>
     | (() => Promise<Omit<ReportingNetworkContext, 'workspaceRoot' | 'storageRoot' | 'l10n'>>)
+  /**
+  Told the observed CI check runs after a generation that attempted the
+  github read (M116, PLAN.md D218): how many ran, or that the read failed.
+  A generation that never attempted the read calls nothing, so a holder
+  fed here stays unknown until CI is really observed, never guessed.
+  */
+  readonly noteGithubCi?:
+    ((outcome: { readonly runs: number } | { readonly failed: true }) => void) | undefined
 }
 
 const unavailable = <K extends ReportSourceKind>(kind: K) =>
@@ -296,6 +304,13 @@ export function createReportingServices(context: ReportingContext): ReportsServi
               readReportSource('github', network.github, readContext),
               readReportSource('stores', network.stores, readContext),
             ])
+      // D218: only a generation that really attempted the github read feeds
+      // the CI holder: the bound network, or an owner-supplied github port.
+      // Anything else leaves unknown alone.
+      if (network !== undefined || context.networkSources?.github !== undefined)
+        context.noteGithubCi?.(
+          github.data === null ? { failed: true } : { runs: github.data.runs.length },
+        )
       const plan =
         planText === undefined || initialPlan.data === null
           ? initialPlan

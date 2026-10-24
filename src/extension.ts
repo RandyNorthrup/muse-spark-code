@@ -239,6 +239,10 @@ import {
   loadResourceWindow,
   onResourceWindow,
 } from './core/resources/admission'
+import { createReadingHolder } from './core/orchestration/playbook/readingHolder'
+import type { TeamPlaybookCiState } from './core/team/teamPlaybookBoard'
+import type { TeamPlaybookPort } from './core/team/teamHostService'
+import type { ResourceStatus } from './shared/resources'
 import {
   createCheckpointPort,
   finishCheckpointTurn,
@@ -3350,8 +3354,20 @@ async function activateWindow(
       metaRecord,
     })
   }
+  // M116 (D218/D219): the team runner's playbook readings. Capacity serves
+  // the latest M107 governor reading (unknown until the governor reports);
+  // CI serves the latest report-engine observation (unknown until a
+  // generation attempts the github read). Unknown never pauses work and
+  // never routes to CI.
+  const teamCapacity = createReadingHolder<ResourceStatus>()
+  const teamCi = createReadingHolder<TeamPlaybookCiState>()
+  let isTeamCapacityWired = false
   const teamHost: TeamHostBinding = new TeamHostBinding({
     ports: {
+      playbook: {
+        start: (start) => teamPlaybook().start(start),
+        release: (taskId) => teamPlaybook().release(taskId),
+      },
       hooks: {
         relativePath: (folder) =>
           workspaceRoot === undefined
@@ -4475,6 +4491,29 @@ async function activateWindow(
       playbookWindow?.dispose()
     },
   })
+  /**
+  M116 (D218): the team runner's rounds run on the window's playbook worker.
+  The capacity holder starts refreshing on the governor's readings the first
+  time a team starts a round; until then admission reads unknown and pauses
+  nothing (D219). A redesign the policy offers is journaled and told to the
+  orchestrator's conversation; the team has no redesign surface of its own.
+  */
+  const teamPlaybook = (): Omit<TeamPlaybookPort, 'head'> => {
+    if (!isTeamCapacityWired) {
+      isTeamCapacityWired = true
+      onResourceWindow((resource) => {
+        const pull = (): void => {
+          void teamCapacity.refresh(() => resource.port.status())
+        }
+        pull()
+        resource.port.subscribe(pull)
+      })
+    }
+    return playbook().team(() => ({
+      ci: teamCi.get() ?? { known: false },
+      capacity: teamCapacity.get(),
+    }))
+  }
   const reportingPanels = new Map<string, ReportPanel>()
   const showDeterministicReport = async (
     surface: ChatSurface | undefined,
@@ -4528,6 +4567,14 @@ async function activateWindow(
             env: process.env,
             homeDir: homedir(),
           }),
+          // M116 (D218): report generations that attempt the github read
+          // feed the team runner's CI holder; idle CI reads absent until
+          // its first run lands in a report.
+          noteGithubCi: (outcome) => {
+            teamCi.set(
+              'failed' in outcome ? { known: false } : { known: true, hasCi: outcome.runs > 0 },
+            )
+          },
           workspaceRoot,
           storageRoot,
           attachMarkdown: (text) => {

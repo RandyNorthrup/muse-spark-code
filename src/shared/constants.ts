@@ -3004,6 +3004,9 @@ export const PLAYBOOK_PANEL_TIMEOUT_MS = 75_000
 export const PLAYBOOK_PANEL_TEAM = 'panel'
 export const PLAYBOOK_PANEL_LANE = 'panel'
 export const PLAYBOOK_SURFACE_LANE = 'surface'
+// The team runner's orchestration (M116, PLAN.md D218): one team id and one
+// lane label per workspace journal, beside the panel's.
+export const PLAYBOOK_TEAM_RUNNER = 'team'
 // D96.1's default module: the file's directory two levels under the source root.
 export const PLAYBOOK_MODULE_DIRECTORY_DEPTH = 3
 // Windows containment (PLAN.md §9, FIXM116P3-Windows-job-binding): one named
@@ -9518,6 +9521,16 @@ export const REVIEW_MODEL_TEXT = {
 // M116, C-M116-6: what a model is told when the playbook does not admit the
 // subagent work it asked for (English, as all model text is). Only
 // dist/playbook.js reads it. The rule and reason are the journal's own codes.
+// The team runner's playbook refusals (M116, PLAN.md D218), read only by the
+// team service's bundle, so the engine, panel and tools bundles that carry
+// TEAM_MODEL_TEXT whole do not carry them.
+export const TEAM_PLAYBOOK_MODEL_TEXT = {
+  hostPlaybookRefused:
+    'the orchestrator playbook did not admit this task (rule: {rule}; reason: {code}; module: {module}); do not start the same work another way',
+  hostPlaybookBriefInvalid:
+    'the task brief carries an unfilled template marker, so the playbook cannot record it; restate the brief without markers',
+} as const
+
 export const PLAYBOOK_REFUSAL_MODEL_TEXT = {
   playbookWorkRefused:
     'The orchestrator playbook did not admit this subagent work (rule: {rule}; reason: {code}; module: {module}). The person has been told why and decides what happens next. Do not start the same work another way.',

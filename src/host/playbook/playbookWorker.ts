@@ -11,8 +11,23 @@ import { tableProblems } from '../../shared/l10n/check'
 import { setUiText, UI_TEXT } from '../../shared/l10n/text'
 import { playbookWhyNoteSchema, type PlaybookWhyNote } from '../../shared/playbook'
 import type { PlaybookHookAdmission } from '../../core/orchestration/playbook/outcomes'
+import {
+  createCapacityAdmission,
+  createReadingHolder,
+} from '../../core/orchestration/playbook/readingHolder'
+import type { ManagedPlaybookWork } from '../../core/orchestration/playbookIntegration'
+import { isRecordablePlaybookBrief } from '../../core/orchestration/playbookBrief'
+import {
+  teamPlaybookWork,
+  type TeamPlaybookFacts,
+  type TeamPlaybookHeadFacts,
+  type TeamPlaybookTask,
+} from '../../core/team/teamPlaybookBoard'
+import { PLAYBOOK_TEAM_RUNNER } from '../../shared/constants'
+import type { ResourceStatus } from '../../shared/resources'
 import { PanelGovernor } from '../../runtime/playbook/governor'
 import { ContainedJob } from './containedJob'
+import { createTeamPlaybookIntegration } from './teamPlaybook'
 import {
   toPlaybookWorkerSchema,
   type FromPlaybookWorker,
@@ -77,6 +92,18 @@ function requestId(raw: unknown): number | undefined {
     : undefined
 }
 
+/** The team runner's rounds on this worker (D218): started per task, released when it ends. */
+interface TeamRounds {
+  /** A brief the policy cannot record refuses this task alone, before any round. */
+  readonly start: (
+    task: TeamPlaybookTask,
+    head: TeamPlaybookHeadFacts,
+    facts: TeamPlaybookFacts,
+    capacity: ResourceStatus | undefined,
+  ) => 'started' | 'briefInvalid'
+  readonly release: (taskId: string) => void
+}
+
 /** Serves one window until its thread ends. */
 export function servePlaybook(port: PlaybookWorkerPort, data: PlaybookWorkerData): void {
   if (isUiText(data.table, data.locale)) setUiText(data.table, data.locale)
@@ -133,6 +160,66 @@ export function servePlaybook(port: PlaybookWorkerPort, data: PlaybookWorkerData
       },
     })
     return governor
+  }
+  /**
+  The team runner's rounds (M116, PLAN.md D218), built on its first start: one
+  integration over the same journal, whose board reads the facts the team
+  host sent with the latest start, and whose check admission reads the
+  latest resource reading it sent (unknown never pauses work, D219).
+  */
+  let team: TeamRounds | undefined
+  const teamRounds = (): TeamRounds => {
+    if (team !== undefined) return team
+    let facts: TeamPlaybookFacts = { lanes: [], entries: [], branches: [], ci: { known: false } }
+    let sessionId = ''
+    const capacity = createReadingHolder<ResourceStatus>()
+    const open = new Map<string, ManagedPlaybookWork>()
+    const integration = createTeamPlaybookIntegration({
+      agentDataFolder: data.agentDataFolder,
+      workspaceFolder: data.workspaceFolder,
+      teamId: PLAYBOOK_TEAM_RUNNER,
+      laneId: PLAYBOOK_TEAM_RUNNER,
+      checkAdmission: createCapacityAdmission(capacity),
+      hookAdmission,
+      facts: () => facts,
+      // The orchestrator's conversation is told, as for its other child work.
+      events: {
+        note: (note) => {
+          send({
+            type: 'note',
+            sessionId,
+            ...(current !== undefined && { request: current }),
+            note,
+          })
+        },
+        offerRedesign: (module) => {
+          send({ type: 'offer', sessionId, moduleId: module.id, moduleKey: module.key })
+        },
+        hookOutput: (output) => {
+          send({ type: 'hookOutput', sessionId, output })
+        },
+        failure: () => {
+          send({ type: 'failure', sessionId })
+        },
+      },
+    })
+    team = {
+      start: (task, head, next, reading) => {
+        const work = teamPlaybookWork(task, head)
+        if (work === undefined || !isRecordablePlaybookBrief(work.brief)) return 'briefInvalid'
+        facts = next
+        sessionId = task.sessionId
+        capacity.set(reading)
+        open.set(task.taskId, integration.start(work))
+        return 'started'
+      },
+      release: (taskId) => {
+        const managed = open.get(taskId)
+        open.delete(taskId)
+        managed?.cancel()
+      },
+    }
+    return team
   }
   const failed = (id: number, error: unknown): void => {
     const note = refusalNote(error)
@@ -266,6 +353,25 @@ export function servePlaybook(port: PlaybookWorkerPort, data: PlaybookWorkerData
         answer(message.id, () => ({
           ok: governed().recordDesign(message.sessionId, message.moduleId, message.fields),
         }))
+        break
+      }
+      case 'teamStart': {
+        const { task, head, entries, branches, ci, capacity } = message
+        answer(message.id, () =>
+          teamRounds().start(
+            { ...task, teamId: PLAYBOOK_TEAM_RUNNER },
+            { ref: head.ref, commit: head.commit },
+            { lanes: [], entries, branches, ci },
+            capacity,
+          ),
+        )
+        break
+      }
+      case 'teamRelease': {
+        answer(message.id, () => {
+          teamRounds().release(message.taskId)
+          return { ok: true }
+        })
         break
       }
     }

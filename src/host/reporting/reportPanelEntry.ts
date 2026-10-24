@@ -82,6 +82,12 @@ export interface ReportingWindowDeps extends Pick<
   readonly reportVaultSnapshot?: (
     context: SourceReadContext,
   ) => Promise<SecurityVaultSnapshot | null>
+  /**
+  M116 (D218): told the observed CI check runs after a generation that
+  attempted the github read. Feeds the team runner's CI holder; absent,
+  nothing observes and the board reads CI as unknown.
+  */
+  readonly noteGithubCi?: ReportingContext['noteGithubCi']
 }
 
 /** Window adapters and engine acquisition live entirely inside the lazy panel bundle. */

@@ -55,6 +55,7 @@ import {
   type FromPlaybookWorker,
   type PlaybookDispatchKind,
   type PlaybookReviewEvent,
+  type PlaybookTeamStart,
   type PlaybookWorkerData,
   type ToPlaybookWorker,
 } from './workerProtocol'
@@ -164,6 +165,14 @@ export interface PlaybookWindow {
   dispose(): void
 }
 
+/** The team runner's half of a window (M116, PLAN.md D218): its rounds, on the worker. */
+export interface PlaybookTeamWindow {
+  /** Whether the task's round started; rejects with the policy's refusal or as unavailable. */
+  teamStart(start: PlaybookTeamStart): Promise<'started' | 'briefInvalid'>
+  /** The task ended: its round is released, never completed. */
+  teamRelease(taskId: string): Promise<void>
+}
+
 interface Pending {
   readonly resolve: (value: unknown) => void
   readonly reject: (error: Error) => void
@@ -217,7 +226,9 @@ function reviewEvent(event: AgentEvent): PlaybookReviewEvent | undefined {
   }
 }
 
-export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
+export function createPlaybookWindow(
+  deps: PlaybookWindowDeps,
+): PlaybookWindow & PlaybookTeamWindow {
   const silenceMs = deps.silenceMs ?? PLAYBOOK_WORKER_SILENCE_MS
   const pending = new Map<number, Pending>()
   const dispatches = new Map<number, DispatchHandlers>()
@@ -734,6 +745,20 @@ export function createPlaybookWindow(deps: PlaybookWindowDeps): PlaybookWindow {
         fields,
       }))
       return done.ok
+    },
+    teamStart: async (start) => {
+      open()
+      // Restricted Mode runs no git: a governed round refuses there (the team
+      // itself starts no worker in an untrusted workspace).
+      if (!deps.isWorkspaceTrusted()) throw unavailable()
+      return await ask(playbookResultSchemas.teamStart, (id) => ({
+        type: 'teamStart',
+        id,
+        ...start,
+      }))
+    },
+    teamRelease: async (taskId) => {
+      await ask(playbookResultSchemas.done, (id) => ({ type: 'teamRelease', id, taskId }))
     },
     subscribe: (sessionId, events) => {
       const set = subscribers.get(sessionId) ?? new Set()

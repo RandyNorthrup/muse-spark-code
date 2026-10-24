@@ -1597,6 +1597,13 @@ const TEXT_BLOCKS = [
     // M120CAP: the scheduler reads team.js's teamTools, so it no longer carries the block.
     readers: ['dist/team.js', 'dist/teamHost.js', 'dist/teamPanel.js', 'dist/teamEngine.js'],
   },
+  // M116 (D218): the team runner's playbook refusals, worded by the team
+  // service alone.
+  {
+    block: 'TEAM_PLAYBOOK_MODEL_TEXT',
+    sentinels: ['hostPlaybookBriefInvalid'],
+    readers: ['dist/teamHost.js'],
+  },
   {
     block: 'TEAM_BOOTSTRAP_MODEL_TEXT',
     sentinels: ['undeclaredTool'],
