@@ -45,8 +45,9 @@ raised, new code in lazy chunks with measured budgets (D6).
 | 2         | `f432fac54d`  | `src/runtime/panel/controllerRegistry.ts`, AgentState delegating; ACP turns untouched                                                                                                                                              | `acpSessionRegistry` 2/2; drills R1, R2 fire; int's ACP suites 228/230 (2 = int's own)                                                      |
 | 3         | `a26bb6a23`   | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas                                                                                                                         | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
 | 4a        | `9d44d6774`   | the conversation bundle loads without the `vscode` module (portable question clock; `questionsForHost(store, deferAfterSeconds)`)                                                                                                  | `runtimePortableBundles` 1/1; drill B1 fires                                                                                                |
-| 4b–5a, 7a | (this commit) | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C11 fire (below)                                                      |
-| 6         | (this commit) | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
+| 4b–5a, 7a | `3c61b9a1a`   | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C8 fire (below)                                                       |
+| 6         | `1081aca0e`   | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
+| 5b        | (this commit) | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
 
 ### Next step, exactly
 
@@ -82,13 +83,19 @@ rig-specific facts are in "Rig notes".
    `src/runtime/features/**` holds the runtime's ports. Done: auth
    (`RuntimeAuth`, over the backend's readiness; keys only in the editor's
    terminal), workspace files and mentions (confined, race-checked reads),
-   editor context. Still refused in words (`unavailable()`), each to be built
-   against int's interfaces: git (the M123 native route exists in
-   `src/runtime/panel/git/**`), checkpoints (`store: undefined`), edit
-   review, review, plans, exports, transfer files, `openDocument`, the IDE
-   tool server (`ideMcpEndpoint`), usage insights, dictation and Muse Voice,
-   the Model API manager port (best-of-N, voice budget), sign-out,
-   Muse Code install, and most host actions.
+   editor context, paid use (6), edit review and `/review` (`review.ts`: int's
+   `dist/review.js` with the editor's diff, picker and the data folder's
+   trash), export and import (`transfer.ts`: the editor's save and open
+   dialogs, a preview file the editor opens before the person decides), and
+   the unsaved editor files, which reach the backend's tools
+   (`RuntimeBackendDeps.unsavedFiles`). Still refused in words
+   (`unavailable()`), each to be built against int's interfaces: git (the M123
+   native route is in `src/runtime/panel/git/**`; it needs a GitHub sign-in,
+   a link store and the data folder), checkpoints (`store: undefined`),
+   plans, `openDocument`, the IDE tool server (`ideMcpEndpoint`), usage
+   insights, dictation and Muse Voice, the Model API manager port
+   (best-of-N, voice budget), sign-out, Muse Code install, the session log
+   export, "Ask again" for paid use, and most host actions.
 6. **Paid use in the panel (D48, D208). Done.** `src/runtime/features/paid.ts`
    builds int's own `PaidFeatureGate` and `PaidUsage` over the runtime's
    settings (a setting the person never set is on by default on the Model API,
@@ -486,6 +493,40 @@ yes, and nothing is checked against a limit they did not set.
 `dist/runtimePanelSession.js` is 98.7 KiB of its 120 KiB row; the gate and the
 tally are int's own `paidFeatures.ts` (11.8 KB of it).
 
+## Slice 5b — review, export and import, unsaved files
+
+What a person gets: `/review` reads git's material through the editor's
+picker and a Revert or the diff of an edit works through the editor's diff
+(the original side is a file of the data folder, removed with the
+conversation); Revert refuses a file the editor holds unsaved, and a file it
+removes is kept in the data folder's `trash/`; exporting a conversation goes
+through the editor's save dialog, a portable export's redacted preview opens
+in the editor before the person chooses what to save, and importing reads the
+file the person picks, whole. The files the editor holds unsaved reach the
+backend's tools, which leave them alone (D27).
+
+Suites: `runtimeReview` (6) over a real git repository and a real connection;
+`runtimeTransfer` (4); `runtimePanelSessions` gains the unsaved-files case.
+That `backends.ts` hands the function to the tool IO is by typecheck: a
+file-writing tool call needs a model turn, which no suite here makes.
+
+| Drill | Break                                                   | Result                                                                      |
+| ----- | ------------------------------------------------------- | --------------------------------------------------------------------------- |
+| V1    | the editor's unsaved text is ignored by a Revert        | exit 1: "puts the file back only while … never over unsaved text"           |
+| V2    | a removed file is deleted instead of moved to the trash | exit 1: "keeps a file a Revert removes in the data folder's trash"          |
+| V3    | the diff's original side is the file as it is now       | exit 1: "shows the editor the file before the edit …"                       |
+| V4    | `/review` goes on after the conversation is let go      | exit 1: "answers nothing once the conversation is let go"                   |
+| V5    | the editor's pick of a commit is ignored                | exit 1: "asks the editor which commit …"                                    |
+| X1    | the export preview file is not removed                  | exit 1: "opens the redacted file in the editor before asking …"             |
+| X2    | a closed preview dialog saves the redacted file         | exit 1: same case                                                           |
+| X3    | invalid UTF-8 read lossily                              | exit 1: "reads the file the person picked …"                                |
+| X4    | any answer imports                                      | exit 1: "imports only on an explicit yes"                                   |
+| U1    | the dirty flag is ignored                               | exit 1: "reaches the backend, so the model's tools leave those files alone" |
+| U2    | the backend is given no function                        | exit 1: same case                                                           |
+
+`dist/runtimePanelSession.js` is 110.6 KiB of its 120 KiB row: git and
+checkpoints do not fit in it and go in a lazy chunk of their own.
+
 ## Commits
 
 | Commit       | Slice                                                    |
@@ -495,5 +536,6 @@ tally are int's own `paidFeatures.ts` (11.8 KB of it).
 | `097aba7b42` | slice 3 (work in progress): `panel --stdio`              |
 | `a26bb6a23`  | slice 3 proven, with the drills                          |
 | `9d44d6774`  | slice 4a: the conversation bundle loads without `vscode` |
-| (this)       | slices 4b–5a, 7a: the chat in `panel --stdio`            |
-| (this)       | the handoff above                                        |
+| `3c61b9a1a`  | slices 4b–5a, 7a: the chat in `panel --stdio`            |
+| `1081aca0e`  | slice 6: paid use in the panel                           |
+| (this)       | slice 5b: review, export and import, unsaved files       |

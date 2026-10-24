@@ -32,6 +32,8 @@ const PRODUCTION_BUILD_SUITES: ReadonlySet<string> = new Set([
   'test/unit/runtimePanelConversation.test.ts',
   // M104 lane B: conversations in the runtime panel load the controller and the session bundle from dist/.
   'test/unit/runtimePanelSessions.test.ts',
+  // M104 lane B: edit review and `/review` load dist/review.js.
+  'test/unit/runtimeReview.test.ts',
   // M104 lane B: the bundles the runtime panel loads run without the vscode module.
   'test/unit/runtimePortableBundles.test.ts',
 ])

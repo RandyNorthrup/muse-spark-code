@@ -40,6 +40,8 @@ import * as z from 'zod/mini'
 import type { RuntimeBackend } from '../backends'
 import type { RuntimeSettingsStore } from '../settingsStore'
 import { RuntimeAuth } from '../features/auth'
+import { createRuntimeReview } from '../features/review'
+import { createRuntimeTransfer } from '../features/transfer'
 import type { RuntimePaid } from '../features/paid'
 import { unavailable } from '../features/unavailable'
 import { readConfinedBytes, type RuntimeWorkspaceFiles } from '../features/workspaceFiles'
@@ -61,6 +63,10 @@ export interface RuntimeConversationPorts {
   readonly paid: RuntimePaid
   readonly controllers: () => Iterable<ConversationController>
   readonly runGit: ConversationDeps['runGit']
+  /** The folder holding the shipped bundles (dist/). */
+  readonly distDir: string
+  /** The agent's data folder. */
+  readonly dataFolder: string
   /** The workspace's files, indexed once for every conversation of the process. */
   readonly files: RuntimeWorkspaceFiles
   /** The active editor as the next message would carry it. */
@@ -158,6 +164,28 @@ export async function runtimeConversationDeps(
   }
   const workspaceRelative = (uri: string) => files.files.toRelativePath(uri)
   const paid = runtime.paid
+  // Edit review and `/review`: int's review bundle, with the editor's diff and picker over MHP.
+  const reviewing = createRuntimeReview({
+    host,
+    distDir: ports.distDir,
+    workspaceRoot,
+    dataFolder: ports.dataFolder,
+    platform,
+    runGit: ports.runGit,
+    documents: ports.documents,
+    isTrusted,
+    signal: context.signal,
+    log,
+  })
+  context.own(() => reviewing.dispose())
+  const transfer = createRuntimeTransfer({
+    host,
+    workspaceRoot,
+    dataFolder: ports.dataFolder,
+    signal: context.signal,
+    log,
+  })
+  context.own(() => transfer.dispose())
   await auth.refresh()
   const composition: ConversationCompositionPorts = {
     editor: {
@@ -261,19 +289,8 @@ export async function runtimeConversationDeps(
         .documents()
         .filter((document) => document.dirty)
         .map((document) => fileURLToPath(document.uri)),
-    editReview: {
-      openDiff: () => unavailable(),
-      revert: () => unavailable(),
-      describe: () => unavailable(),
-      revertHunk: () => unavailable(),
-    },
-    review: {
-      collect: () => unavailable(),
-      turnText: () => unavailable(),
-      newMarker: () => unavailable(),
-      createHold: () => unavailable(),
-      playbackText: () => unavailable(),
-    },
+    editReview: reviewing.editReview,
+    review: reviewing.review,
     openDocument: () => unavailable(),
     openFile: async (file, range) => {
       const confined = await confineWorkspacePath(
@@ -337,17 +354,8 @@ export async function runtimeConversationDeps(
     usageInsights: () => Promise.resolve(undefined),
     isRestorable: false,
     dictation: { isAvailable: false, reason: UI_TEXT.dictationUnavailable },
-    exports: {
-      saveMarkdown: () => unavailable(),
-      saveSessionLog: () => unavailable(),
-      saveJson: () => unavailable(),
-      previewExport: () => unavailable(),
-      localRoots: () => [workspaceRoot],
-    },
-    transferFiles: {
-      pickTransferFile: () => unavailable(),
-      confirmImport: () => unavailable(),
-    },
+    exports: transfer.exports,
+    transferFiles: transfer.transferFiles,
     plans: undefined,
     isWorkspaceTrusted: isTrusted,
     isWorktreeHeld: () => false,
