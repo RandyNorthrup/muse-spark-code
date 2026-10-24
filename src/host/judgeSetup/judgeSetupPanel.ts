@@ -131,10 +131,18 @@ export function openJudgeSetupPanel(
       },
     }
   }
+  const root = vscode.Uri.file(resolved.dir)
   showPanelDocument(
     panel,
-    resolved.dir,
-    { script: JUDGE_SETUP_WEBVIEW_SCRIPT_FILE, style: JUDGE_SETUP_WEBVIEW_STYLE_FILE },
+    root,
+    {
+      scriptUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(root, JUDGE_SETUP_WEBVIEW_SCRIPT_FILE))
+        .toString(),
+      styleUri: panel.webview
+        .asWebviewUri(vscode.Uri.joinPath(root, JUDGE_SETUP_WEBVIEW_STYLE_FILE))
+        .toString(),
+    },
     deps.l10n,
   )
   let isDisposed = false
