@@ -30346,7 +30346,8 @@ cap, hooks, eligibility), `supervise`, `stop`; test client vscode-jsonrpc
 Lane B on int (cc/m104b, in progress, 2026-10-24): the settings and storage
 store over the runtime's own files, one controller registry (ACP's
 bookkeeping, turns untouched), `panel --stdio` (MHP handshake, settings,
-storage; real-process suite green); handoff and remainder:
+storage, and the chat: int's conversation controller behind surfaces; its
+suites green on the production build); handoff and remainder:
 `docs/certification/cc-m104b.md`.
 
 **Warning for the POSIX trusted-path verifier (INT0180, 2026-10-11).** A real

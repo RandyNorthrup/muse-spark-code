@@ -5,15 +5,11 @@
 // the runtime reads points into the suite's own folder; no provider, key or
 // network is touched. What the host writes through the runtime lands in the
 // files the runtime itself reads (runtimeDailyBudgetUsd).
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { runtimeDailyBudgetUsd } from '../../src/runtime/dailyBudgetSetting'
-import { agentDataFolder } from '../../src/runtime/dataFolder'
 import {
   MHP,
   MHP_ERROR_CODES,
@@ -22,159 +18,42 @@ import {
   SETTING_DEFAULTS,
 } from '../../src/shared/constants'
 import { EN } from '../../src/shared/l10n/en'
-import type { MhpParams } from '../../src/shared/hostApi/methods'
 import { panelInitializeResultSchema } from '../../src/shared/hostApi/panel'
 import { failureFrameSchema, parseMhpResult } from '../../src/shared/hostApi/protocol'
 import { assertCurrentProductionBuild } from './productionBuild'
-import { removeFolder } from './helpers/temporaryFolders'
-import { isolatedRuntimeEnvironment } from './helpers/isolatedRuntimeEnvironment'
+import type { MhpHost } from './helpers/mhpHost'
+import { createPanelRun } from './helpers/panelRun'
 
 const ROOT = process.cwd()
-const AGENT = path.join(ROOT, 'dist', 'acp.js')
-const FOLDER = realpathSync(mkdtempSync(path.join(tmpdir(), 'muse-panel-')))
-const HOME = path.join(FOLDER, 'home')
-const WORKSPACE = path.join(FOLDER, 'workspace')
-const OTHER_FOLDER = path.join(FOLDER, 'other')
-const MISSING_FOLDER = path.join(FOLDER, 'missing')
-const STARTED = new Set<ChildProcessWithoutNullStreams>()
-
-/** The runtime's per-user folders, all inside this suite's own folder. */
-function environment(): NodeJS.ProcessEnv {
-  return isolatedRuntimeEnvironment(HOME, FOLDER)
-}
-
-const DATA_FOLDER = agentDataFolder({
-  platform: process.platform,
-  env: environment(),
-  homeDir: HOME,
-})
-
-/** The editor's side of one connection: frames out, frames in by id. */
-interface Host {
-  readonly child: ChildProcessWithoutNullStreams
-  readonly exited: Promise<number | null>
-  send(frame: unknown): void
-  /** Sends a request and resolves with the frame answering its id. */
-  request(method: string, params: unknown): Promise<unknown>
-  /** The next frame without an id the host is waiting on (a panel error, an id-less failure). */
-  nextUnsolicited(): Promise<unknown>
-  stderr(): string
-}
-
-function serve(args: readonly string[]): Host {
-  const child = spawn(process.execPath, [AGENT, ...args], {
-    cwd: WORKSPACE,
-    env: environment(),
-    stdio: 'pipe',
-  })
-  STARTED.add(child)
-  const exited = new Promise<number | null>((resolve) => {
-    child.once('close', (code) => {
-      STARTED.delete(child)
-      resolve(code)
-    })
-  })
-  let errors = ''
-  child.stderr.setEncoding('utf8')
-  child.stderr.on('data', (chunk: string) => {
-    errors += chunk
-  })
-  const waiting = new Map<string, (frame: unknown) => void>()
-  const unsolicited: unknown[] = []
-  const unsolicitedWaiters: ((frame: unknown) => void)[] = []
-  let buffered = ''
-  child.stdout.setEncoding('utf8')
-  child.stdout.on('data', (chunk: string) => {
-    buffered += chunk
-    for (let end = buffered.indexOf('\n'); end !== -1; end = buffered.indexOf('\n')) {
-      const frame: unknown = JSON.parse(buffered.slice(0, end))
-      buffered = buffered.slice(end + 1)
-      const id =
-        typeof frame === 'object' &&
-        frame !== null &&
-        'id' in frame &&
-        (typeof frame.id === 'string' || typeof frame.id === 'number')
-          ? String(frame.id)
-          : undefined
-      const resolve = id === undefined ? undefined : waiting.get(id)
-      if (id !== undefined && resolve !== undefined) {
-        waiting.delete(id)
-        resolve(frame)
-      } else {
-        const next = unsolicitedWaiters.shift()
-        if (next === undefined) unsolicited.push(frame)
-        else next(frame)
-      }
-    }
-  })
-  let nextId = 1
-  const send = (frame: unknown) => {
-    child.stdin.write(`${JSON.stringify(frame)}\n`)
-  }
-  return {
-    child,
-    exited,
-    send,
-    request: (method, params) => {
-      const id = `host-${String(nextId++)}`
-      const answered = new Promise<unknown>((resolve) => {
-        waiting.set(id, resolve)
-      })
-      send({ jsonrpc: MHP.jsonRpcVersion, id, method, params })
-      return answered
-    },
-    nextUnsolicited: () => {
-      const head = unsolicited.shift()
-      if (head !== undefined) return Promise.resolve(head)
-      return new Promise((resolve) => {
-        unsolicitedWaiters.push(resolve)
-      })
-    },
-    stderr: () => errors,
-  }
-}
-
-function initializeParams(
-  overrides: Partial<MhpParams<'initialize'>> = {},
-): MhpParams<'initialize'> {
-  return {
-    host: { id: 'runtime-panel-suite', version: '1.0.0' },
-    protocolRange: { minimum: MHP.minimumVersion, maximumExclusive: MHP.maximumVersionExclusive },
-    capabilities: ['lifecycle', 'ui'],
-    locale: 'en',
-    theme: { kind: 'dark', tokens: {} },
-    folders: [{ uri: pathToFileURL(WORKSPACE).href, name: 'workspace' }],
-    trusted: true,
-    ...overrides,
-  }
-}
+const run = createPanelRun('muse-panel-')
+const OTHER_FOLDER = path.join(run.folder, 'other')
+const MISSING_FOLDER = path.join(run.folder, 'missing')
+const { serve, initializeParams } = run
 
 /** The failure a frame carries: its code and message. */
 function failureOf(frame: unknown): { code: number; message: string } {
   return failureFrameSchema.parse(frame).error
 }
 
-async function initialized(): Promise<Host> {
+async function initialized(): Promise<MhpHost> {
   const host = serve(['panel', '--stdio'])
   panelInitializeResultSchema.parse(await host.request('initialize', initializeParams()))
   return host
 }
 
 /** Shutdown, then the exit code: the host keeps its end of the pipe open, as a running editor does. */
-async function shutDown(host: Host): Promise<number | null> {
+async function shutDown(host: MhpHost): Promise<number | null> {
   parseMhpResult('shutdown', await host.request('shutdown', {}))
   return await host.exited
 }
 
 beforeAll(() => {
   assertCurrentProductionBuild(inject('productionBuildGeneration'), ROOT)
-  mkdirSync(WORKSPACE, { recursive: true })
-  mkdirSync(OTHER_FOLDER, { recursive: true })
+  run.prepare(OTHER_FOLDER)
 })
 
 afterAll(async () => {
-  for (const child of STARTED) child.kill()
-  await removeFolder(FOLDER)
+  await run.dispose()
 })
 
 describe('panel --stdio', () => {
@@ -242,7 +121,7 @@ describe('panel --stdio', () => {
         }),
       ).result,
     ).toBeNull()
-    expect(runtimeDailyBudgetUsd(DATA_FOLDER)).toBe(4.5)
+    expect(runtimeDailyBudgetUsd(run.dataFolder)).toBe(4.5)
     expect(
       parseMhpResult(
         'settings/get',
@@ -314,7 +193,7 @@ describe('panel --stdio', () => {
       ),
     )
     const stored: unknown = JSON.parse(
-      await readFile(path.join(DATA_FOLDER, RUNTIME_PANEL_STATE.storageFile), 'utf8'),
+      await readFile(path.join(run.dataFolder, RUNTIME_PANEL_STATE.storageFile), 'utf8'),
     )
     for (const [index, { key }] of writes.entries())
       expect(stored, key).toHaveProperty([key], { index })
@@ -325,7 +204,7 @@ describe('panel --stdio', () => {
   it('answers a malformed line and an unknown method, and survives them', async () => {
     const host = await initialized()
     host.child.stdin.write('{not json\n')
-    expect(failureOf(await host.nextUnsolicited())).toMatchObject({
+    expect(failureOf(await host.next())).toMatchObject({
       code: MHP_ERROR_CODES.parseError,
     })
     expect(failureOf(await host.request('no/suchMethod', {}))).toMatchObject({

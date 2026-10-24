@@ -7140,7 +7140,8 @@
   },
   "hostService": {
     "unavailable": "Běhový panel není v této instalaci k dispozici.",
-    "needsStdio": "panel potřebuje --stdio: hostitel editoru s ním mluví na standardním vstupu a výstupu."
+    "needsStdio": "panel potřebuje --stdio: hostitel editoru s ním mluví na standardním vstupu a výstupu.",
+    "notAvailable": "Tato funkce zatím není v tomto editoru dostupná."
   },
   "acpConnector": {
     "title": "Schválit požadavky konektoru",

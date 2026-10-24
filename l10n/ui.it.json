@@ -6964,7 +6964,8 @@
   },
   "hostService": {
     "unavailable": "Il pannello di runtime non è disponibile in questa installazione.",
-    "needsStdio": "panel richiede --stdio: l’host dell’editor gli parla su standard input e output."
+    "needsStdio": "panel richiede --stdio: l’host dell’editor gli parla su standard input e output.",
+    "notAvailable": "Questo non è ancora disponibile in questo editor."
   },
   "acpConnector": {
     "title": "Approva le richieste del connettore",

@@ -1,23 +1,35 @@
 // dist/runtimePanel.js (M104 lane B, PLAN.md D84): `muse-spark-code-acp panel
 // --stdio`, the runtime's side of an editor's Muse panel over MHP 1.5 on
 // standard I/O, one newline-delimited JSON frame per line. Loaded only by
-// `panel`. It serves the handshake and this agent's settings and storage
-// (the same files the runtime itself reads, src/runtime/settingsStore.ts),
-// bound to the one workspace the process was started in.
+// `panel`. It serves the handshake and this agent's settings and storage (the
+// same files the runtime itself reads, src/runtime/settingsStore.ts), and
+// runs the conversation the editor's webview shows: the same
+// `ConversationController` VS Code runs, on the backend the person's settings
+// name, bound to the one workspace the process was started in.
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import type { Readable, Writable } from 'node:stream'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import { failureForLog } from '../../core/backends/musecode/logText'
 import { isSamePath } from '../../core/paths'
 import type { Logger } from '../../host/logger'
-import { MHP_ERROR_CODES, MHP_PANEL } from '../../shared/constants'
+import {
+  MHP_ERROR_CODES,
+  MHP_PANEL,
+  RESOURCE_MUSE_CLOSE_GRACE_MS,
+  RUNTIME_PANEL_SESSION_BUNDLE_FILE,
+} from '../../shared/constants'
 import { MHP_METHODS, type MhpRequestMethod } from '../../shared/hostApi/methods'
 import type { UiText } from '../../shared/l10n/en'
 import { setUiText } from '../../shared/l10n/text'
-import type { PanelOptions } from '../cliArgs'
+import type { RuntimeBackend } from '../backends'
+import type { PanelOptions, ServeOptions } from '../cliArgs'
 import { RuntimeSettingsStore, RuntimeStateError } from '../settingsStore'
 import { MhpServiceError, PanelConnection } from './connection'
+import { streamWriter } from './delivery'
+import { panelSessionLoader } from './panelBundle'
+import type { PanelSession } from './panelSession'
 
 export interface PanelRuntimeDeps {
   readonly stdin: Readable
@@ -27,6 +39,14 @@ export interface PanelRuntimeDeps {
   readonly log: Logger
   /** The agent's data folder: its settings files and the panel's storage. */
   readonly dataFolder: string
+  /** The folder holding the shipped bundles (dist/). */
+  readonly distDir: string
+  /** The runtime backend these options name; the engine bundle loads on first use. */
+  readonly createRuntime: (
+    options: ServeOptions,
+    questions: { remove(sessionId: string): Promise<void> },
+  ) => Promise<RuntimeBackend>
+  readonly runGit: (args: readonly string[], cwd: string) => Promise<string>
 }
 
 /** A store refusal as the MHP failure the host gets: its contract code and the stable message. */
@@ -148,14 +168,41 @@ export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): P
     log,
     sleep: (ms) => delay(ms),
   })
+  const loadSession = panelSessionLoader(
+    path.join(deps.distDir, RUNTIME_PANEL_SESSION_BUNDLE_FILE),
+    log,
+  )
+  let session: PanelSession | undefined
   return await new Promise<number>((resolve) => {
-    const connection = new PanelConnection(
+    const connection: PanelConnection = new PanelConnection(
       {
         // The runtime answers the host's handshake and its settings and storage.
         capabilities: ['lifecycle', 'settings', 'storage'],
         initialize: async (params, signal) => {
           await boundWorkspace(params.folders, workspace)
           signal.throwIfAborted()
+          // The conversations load once the handshake has named the workspace.
+          const created = loadSession().createPanelSession({
+            connection,
+            store,
+            workspace,
+            dataFolder: deps.dataFolder,
+            distDir: deps.distDir,
+            isVerbose: options.isVerbose,
+            createRuntime: deps.createRuntime,
+            runGit: deps.runGit,
+            log,
+            table: deps.table,
+            locale: deps.locale,
+            stopped: () => {
+              connection.close(true)
+            },
+          })
+          session = created
+          await created.initialize(params, signal)
+        },
+        initialized: () => {
+          session?.initialized()
         },
         request: async (method, value) => {
           try {
@@ -166,22 +213,32 @@ export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): P
             throw error
           }
         },
-        notify: (method) => {
-          // The store reads the files at every request, so a host's own
-          // settings change needs nothing here; other capabilities are not served.
-          if (method === 'settings/didChange') log.trace('MHP settings/didChange')
-          else log.warn(`MHP_NOTIFICATION_UNSUPPORTED ${method}`)
+        notify: (method, value) => {
+          if (session === undefined) log.warn(`MHP_NOTIFICATION_UNSUPPORTED ${method}`)
+          else session.notify(method, value)
         },
+        view: (binding) => session?.view(binding),
         closed: (isFatal) => {
           // The connection is over, whatever the host still sends: stop
           // reading, or an open pipe would keep the process alive.
           deps.stdin.destroy()
-          resolve(isFatal ? 1 : 0)
+          const code = isFatal ? 1 : 0
+          // The conversations stop first, within the grace Muse Code is given to close (10 s, five times
+          // vscode-languageclient's 2 s for a language server): a backend that hangs must not keep the process alive.
+          const grace = delay(RESOURCE_MUSE_CLOSE_GRACE_MS, undefined, { ref: false })
+          void Promise.race([session?.close(), grace])
+            .catch((error: unknown) => {
+              // REPORTED: a conversation that did not stop cleanly is logged; the process ends anyway.
+              log.warn(`The panel did not stop cleanly: ${failureForLog(error)}`)
+            })
+            .finally(() => {
+              resolve(code)
+            })
         },
       },
       log,
     )
-    connection.delivery.connect(deps.stdout)
+    connection.delivery.connect(streamWriter(connection.delivery, deps.stdout))
     readLines(
       deps.stdin,
       (line) => {

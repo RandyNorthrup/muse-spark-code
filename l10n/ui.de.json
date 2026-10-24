@@ -6788,7 +6788,8 @@
   },
   "hostService": {
     "unavailable": "Das Laufzeit-Panel ist in dieser Installation nicht verfügbar.",
-    "needsStdio": "panel braucht --stdio: der Host des Editors spricht über Standardein- und -ausgabe mit ihm."
+    "needsStdio": "panel braucht --stdio: der Host des Editors spricht über Standardein- und -ausgabe mit ihm.",
+    "notAvailable": "Das ist über diesen Editor noch nicht verfügbar."
   },
   "acpConnector": {
     "title": "Konnektor-Anfragen genehmigen",

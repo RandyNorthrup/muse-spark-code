@@ -6964,7 +6964,8 @@
   },
   "hostService": {
     "unavailable": "Le panneau d’exécution n’est pas disponible dans cette installation.",
-    "needsStdio": "panel nécessite --stdio : l’hôte de l’éditeur lui parle sur l’entrée et la sortie standard."
+    "needsStdio": "panel nécessite --stdio : l’hôte de l’éditeur lui parle sur l’entrée et la sortie standard.",
+    "notAvailable": "Cela n’est pas encore disponible dans cet éditeur."
   },
   "acpConnector": {
     "title": "Approuver les demandes du connecteur",

@@ -6612,7 +6612,8 @@
   },
   "hostService": {
     "unavailable": "このインストールではランタイム パネルを使用できません。",
-    "needsStdio": "panel には --stdio が必要です。エディターのホストは標準入力と標準出力で通信します。"
+    "needsStdio": "panel には --stdio が必要です。エディターのホストは標準入力と標準出力で通信します。",
+    "notAvailable": "この機能は、このエディターではまだ利用できません。"
   },
   "acpConnector": {
     "title": "コネクターの要求を承認",

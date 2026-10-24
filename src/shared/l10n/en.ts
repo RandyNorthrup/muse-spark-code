@@ -8629,6 +8629,7 @@ export const EN = {
   hostService: {
     unavailable: 'The runtime panel is not available in this installation.',
     needsStdio: 'panel needs --stdio: the editor’s host speaks to it on standard input and output.',
+    notAvailable: 'This is not available through this editor yet.',
   },
   acpConnector: {
     title: 'Approve connector requests',

@@ -473,6 +473,12 @@ export interface ConversationDeps {
   readonly usageRecording?: UsageRecording | undefined
   /** Local reports: native hosts inject the same operation; absent means unavailable. */
   readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
+  /**
+  A portable carrier binds one immutable surface to one session: it learns of
+  every session this conversation takes before anything of it is shown, and
+  retires the previous binding first. A refusal ends the attach.
+  */
+  readonly onSessionAttached?: (session: AgentSession) => Promise<void>
   /** M98 FU: optional until the independent use's B/M75 evidence is certified. */
   readonly judgeUses?: JudgeReviewUses
   /**
@@ -4922,6 +4928,18 @@ export class ConversationController implements DeferredSend {
       throw error
     }
     const generation = this.attachmentGeneration
+    if (this.deps.onSessionAttached !== undefined) {
+      try {
+        await this.deps.onSessionAttached(session)
+      } catch (error: unknown) {
+        session.dispose()
+        throw error
+      }
+      if (generation !== this.attachmentGeneration) {
+        session.dispose()
+        return
+      }
+    }
     if (origin === 'started' && this.deps.surface.isSideChat === true) {
       this.sideSessionIds.add(session.sessionId)
     }
@@ -6090,6 +6108,18 @@ export class ConversationController implements DeferredSend {
     // The panel shows this conversation from here on: a session an earlier
     // restart left to resume is not the one a message typed here goes to.
     this.resumeTarget = undefined
+    if (this.deps.onSessionAttached !== undefined) {
+      try {
+        await this.deps.onSessionAttached(loaded.session)
+      } catch (error: unknown) {
+        loaded.session.dispose()
+        throw error
+      }
+      if (generation !== this.sendInvalidationEpoch) {
+        loaded.session.dispose()
+        return false
+      }
+    }
     this.postHistory(loaded.session.sessionId, loaded.history, loaded.activeTurnId)
     this.setTitle(loaded.history.name)
     this.notice('info', `${notice} ${loaded.history.name ?? toSessionRow(loaded.record).title}`)
@@ -13068,6 +13098,23 @@ export class ConversationController implements DeferredSend {
 
   public checkpointAvailabilityChanged(): void {
     this.checkpoints.postState()
+  }
+
+  /** A new portable view shows what a live gap reload would: the history, replayed. */
+  public replayHistory(history: SessionHistoryOutcome): void {
+    if (this.isDisposed || this.session === undefined) return
+    this.postHistory(this.session.sessionId, history, this.activeTurnId)
+  }
+
+  /** The model this conversation is on. */
+  public get selectedModelId(): string {
+    return this.modelId
+  }
+
+  /** Clear opens a new opaque session before a replacement portable surface is published. */
+  public async startFreshSession(): Promise<void> {
+    if (this.isDisposed || this.deps.workspaceRoot === undefined) return
+    await this.ensureSession(this.deps.workspaceRoot)
   }
 
   public surfaceReady(attachmentEpoch?: number): void {

@@ -13,7 +13,8 @@ export interface ControllerClaim {
 
 /** What the registry needs of a view: its host, and a way to let it go. */
 export interface SessionController {
-  readonly host: AgentHost
+  /** The backend its session runs on; none while the conversation has no session. */
+  readonly host: AgentHost | undefined
   readonly isReleased: boolean
   release(): Promise<unknown>
   /** The backend went away: the view ends what it runs with the reason. */
@@ -107,6 +108,27 @@ export class ControllerRegistry<C extends SessionController> {
     }
     this.sessions.set(sessionId, controller)
     return controller
+  }
+
+  /**
+  A controller took another session. Any other holder of that session lets
+  go first (one owner per session, as in `adopt`); the controller is then
+  held under the new id and no longer under the old one.
+  */
+  public async rebind(previousId: string, sessionId: string, controller: C): Promise<void> {
+    if (previousId === sessionId) return
+    const other = this.sessions.get(sessionId) ?? this.adopting.get(sessionId)
+    if (other !== undefined && other !== controller) await this.releaseAll(sessionId)
+    if (this.sessions.get(previousId) === controller) this.sessions.delete(previousId)
+    if (this.adopting.get(previousId) === controller) this.adopting.delete(previousId)
+    this.claims.delete(previousId)
+    this.options.released?.(previousId)
+    this.sessions.set(sessionId, controller)
+  }
+
+  /** A controller held under an id of its own (it has no session yet). */
+  public hold(sessionId: string, controller: C): void {
+    this.sessions.set(sessionId, controller)
   }
 
   /** Whether `controller` is the one held, or being set up, under its id. */

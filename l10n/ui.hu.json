@@ -6788,7 +6788,8 @@
   },
   "hostService": {
     "unavailable": "A futtatókörnyezeti panel ebben a telepítésben nem érhető el.",
-    "needsStdio": "a panelnek --stdio kell: a szerkesztő gazdája a szabványos bemeneten és kimeneten beszél vele."
+    "needsStdio": "a panelnek --stdio kell: a szerkesztő gazdája a szabványos bemeneten és kimeneten beszél vele.",
+    "notAvailable": "Ez még nem érhető el ebben a szerkesztőben."
   },
   "acpConnector": {
     "title": "Összekötő-kérések jóváhagyása",
