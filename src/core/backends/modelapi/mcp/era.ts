@@ -8,7 +8,10 @@
 // always carries: on stdio a silent server is a legacy server, while on
 // HTTP silence is an outage and rejects. Transport outages, credential
 // refusals and failed servers are never era evidence and keep their own
-// error. Pure over the injected probe transport, except the verdict log.
+// error. A verdict kept across restarts skips the probe: a kept modern one
+// is confirmed by one `server/discover` on the session's own transport,
+// which also reads the tools capability afresh. Pure over the injected
+// probe transport, except the verdict log.
 
 import {
   MCP_DISCOVER_PROBE_TIMEOUT_MS,
@@ -18,12 +21,13 @@ import {
   MCP_TRANSPORTS,
 } from '../../../../shared/constants'
 import type { CoreLogger } from '../../../logging'
+import { type ModernTools, modernTools } from './changes'
 import { McpConnection, McpTimeoutError, type McpTransport } from './connection'
 import type { McpElicitationHandler } from './elicitation'
 import { McpError, newestMutualModern, unsupportedVersions } from './protocol'
 
 export type EraVerdict =
-  | { readonly era: 'modern'; readonly version: string; readonly hasTools: boolean }
+  | { readonly era: 'modern'; readonly version: string; readonly tools: ModernTools }
   | { readonly era: 'legacy' }
 
 export interface EraProbeDeps {
@@ -50,7 +54,7 @@ the entry's own start-up budget, so a silent legacy server falls back
 promptly; on HTTP the entry's budget when set, since silence there is
 an outage to fail, not a legacy server to find.
 */
-function probeTimeoutMs(
+export function probeTimeoutMs(
   transport: EraProbeDeps['transport'],
   startupTimeoutMs: number | undefined,
 ): number {
@@ -73,7 +77,7 @@ export async function probeEra(deps: EraProbeDeps): Promise<EraVerdict> {
     ...(deps.elicitation !== undefined && { elicitation: deps.elicitation }),
   })
   try {
-    connection.adoptModern(MCP_MODERN_PROTOCOL_VERSION, false)
+    connection.adoptModern(MCP_MODERN_PROTOCOL_VERSION, { hasTools: false, listChanged: false })
     const discover = await connection.discover(
       probeTimeoutMs(deps.transport, deps.startupTimeoutMs),
       deps.signal,
@@ -86,7 +90,7 @@ export async function probeEra(deps: EraProbeDeps): Promise<EraVerdict> {
       return { era: 'legacy' }
     }
     deps.log.info(`MCP server ${deps.name} speaks modern MCP ${mutual}`)
-    return { era: 'modern', version: mutual, hasTools: discover.capabilities.tools !== undefined }
+    return { era: 'modern', version: mutual, tools: modernTools(discover) }
   } catch (error: unknown) {
     if (deps.signal.aborted) {
       throw error
@@ -105,9 +109,10 @@ export async function probeEra(deps: EraProbeDeps): Promise<EraVerdict> {
         if (mutual !== undefined) {
           // Positive modern evidence at a mutual version: the session
           // goes modern, and its first tools/list confirms (or fails
-          // loudly with the same evidence).
+          // loudly with the same evidence). No discovery result named
+          // whether the list changes, so none is listened for.
           deps.log.info(`MCP server ${deps.name} speaks modern MCP ${mutual}`)
-          return { era: 'modern', version: mutual, hasTools: true }
+          return { era: 'modern', version: mutual, tools: { hasTools: true, listChanged: false } }
         }
         if (versions.supported.some((version) => MCP_SUPPORTED_PROTOCOL_VERSIONS.has(version))) {
           deps.log.info(`MCP server ${deps.name} speaks legacy MCP; the handshake follows`)
@@ -126,4 +131,29 @@ export async function probeEra(deps: EraProbeDeps): Promise<EraVerdict> {
   } finally {
     await connection.close()
   }
+}
+
+/**
+A kept modern verdict confirmed on the session's own connection, with no
+probe of its own: one `server/discover` at the kept revision, bounded as
+the probe is, adopting the newest revision both sides speak and the tools
+capability the answer names. Rejects when the server no longer answers as
+a modern one: the kept assumption failed, and the caller probes again.
+*/
+export async function confirmModern(
+  connection: McpConnection,
+  version: string,
+  bound: Pick<EraProbeDeps, 'transport' | 'startupTimeoutMs' | 'signal'>,
+): Promise<string> {
+  connection.adoptModern(version, { hasTools: false, listChanged: false })
+  const discover = await connection.discover(
+    probeTimeoutMs(bound.transport, bound.startupTimeoutMs),
+    bound.signal,
+  )
+  const mutual = newestMutualModern(discover.supportedVersions)
+  if (mutual === undefined) {
+    throw new McpError('the server no longer names a modern MCP revision')
+  }
+  connection.adoptModern(mutual, modernTools(discover))
+  return mutual
 }

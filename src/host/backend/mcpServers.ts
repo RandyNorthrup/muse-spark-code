@@ -74,6 +74,8 @@ export interface ModelApiMcpDeps {
   readonly shellJobAssembly?: (() => Promise<string | undefined>) | undefined
   readonly env: () => NodeJS.ProcessEnv
   readonly fetch: typeof fetch
+  /** The folder in global storage where each server's era verdict is kept. */
+  readonly verdictsDir: string
   readonly log: Logger
 }
 
@@ -156,5 +158,6 @@ export function modelApiMcpPoolDeps(deps: ModelApiMcpDeps): McpPoolDeps {
     fetch: deps.fetch,
     clientVersion: deps.clientVersion,
     log: deps.log,
+    verdictsDir: deps.verdictsDir,
   }
 }

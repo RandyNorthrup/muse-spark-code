@@ -6831,6 +6831,16 @@ export const MCP_MODERN_PROTOCOL_VERSIONS: ReadonlySet<string> = new Set([
 export const MCP_META_PROTOCOL_VERSION = 'io.modelcontextprotocol/protocolVersion'
 export const MCP_META_CLIENT_INFO = 'io.modelcontextprotocol/clientInfo'
 export const MCP_META_CLIENT_CAPABILITIES = 'io.modelcontextprotocol/clientCapabilities'
+// The `_meta` key naming the `subscriptions/listen` a notification belongs to
+// (spec `basic/patterns/subscriptions`).
+export const MCP_META_SUBSCRIPTION_ID = 'io.modelcontextprotocol/subscriptionId'
+// Each server's era verdict, kept across restarts (spec `basic/versioning`:
+// clients "MAY persist it across restarts of the same server configuration,
+// re-probing if the cached assumption later fails"): one JSON file, in this
+// folder of the extension's global storage, in this format.
+export const MCP_ERA_VERDICTS_DIR = 'mcp-era-verdicts'
+export const MCP_ERA_VERDICTS_FILE = 'verdicts.json'
+export const MCP_ERA_VERDICTS_FORMAT = 1
 // The spec's own JSON-RPC error codes (`basic/index#error-codes`): a server
 // answering with one of these is modern, whatever the transport said.
 export const MCP_ERROR_HEADER_MISMATCH = -32_020
