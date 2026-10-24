@@ -43,7 +43,6 @@ import {
   type ImportPreview,
 } from './importExport'
 import { saveWizardDraft, type WizardDraft, type WizardSaveOutcome } from './wizardSave'
-import { manageProviderHeaders } from './providerHeaders'
 import { workspaceSuggestedPreset } from './workspaceSuggestion'
 import type {
   AddressCheck,
@@ -54,6 +53,8 @@ import type {
   KeyUsageReader,
   KeyUsageSnapshot,
   ModelFetcher,
+  ModelsPanelSeam,
+  ProviderHeadersPorts,
   ModelSuggestion,
   PkceSource,
   PresetCatalog,
@@ -67,10 +68,7 @@ import type {
 export interface ProvidersHostUi {
   readonly showInputBox: typeof vscode.window.showInputBox
   /** One pick from `items` (M95c part 6's header list); undefined when dismissed. */
-  readonly pickOne: (
-    items: readonly vscode.QuickPickItem[],
-    placeholder: string,
-  ) => Promise<vscode.QuickPickItem | undefined>
+  readonly pickOne: ProviderHeadersPorts['pickOne']
   /** States the one-token cost and asks before sending it (D74). */
   readonly confirmPaidTest: (message: string) => Promise<boolean>
   /** Asks once about a private-network address (D74). */
@@ -122,6 +120,8 @@ export interface ProvidersHostDeps {
   readonly loopbackFetch: typeof fetch
   readonly now: () => number
   readonly setComposerModel: (modelRef: string) => Promise<void>
+  /** M95c part 6: the seam's header manager (loaded with the seam). */
+  readonly manageHeaders?: ModelsPanelSeam['manageHeaders']
   readonly ui: ProvidersHostUi
 }
 
@@ -333,7 +333,14 @@ export function createProvidersHost(deps: ProvidersHostDeps): ProvidersHost {
         }
       }
     },
-    manageHeaders: (entry) => manageProviderHeaders(entry, deps),
+    manageHeaders: async (entry) => {
+      if (deps.manageHeaders === undefined) throw new Error(UI_TEXT.actionFailed)
+      await deps.manageHeaders(entry, {
+        pickOne: deps.ui.pickOne,
+        showInputBox: deps.ui.showInputBox,
+        secrets: deps.secrets,
+      })
+    },
     testCredential: (entry, credential) => runTest(entry, credential),
     testStoredCredential: async (entry) => {
       const credential = await credentialFor(deps.credentials, entry)

@@ -1067,7 +1067,7 @@ can never ride the command line; `set` reads it from standard input.
 function parseProvidersHeaders(argv: readonly string[]): RuntimeCommand {
   const usage: RuntimeCommand = {
     command: 'invalid',
-    reason: fill(UI_TEXT.providerHeadersUsage, { command: ACP_AGENT_NAME }),
+    reason: fill(UI_TEXT.providerHeaders.usage, { command: ACP_AGENT_NAME }),
     exitCode: 2,
   }
   try {

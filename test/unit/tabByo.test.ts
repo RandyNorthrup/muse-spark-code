@@ -239,6 +239,6 @@ describe('Tab on a bring-your-own model', () => {
       budgetUsd: Usd.from(1).toAmount(),
       byo: { provider: 'lmstudio', kind: 'local' },
     })
-    expect(local.detail).toContain(UI_TEXT.tabByoBilledLocal)
+    expect(local.detail).toContain(UI_TEXT.tabByo.billedLocal)
   })
 })

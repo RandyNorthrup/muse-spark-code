@@ -4,11 +4,10 @@
 // credential store, bound to the provider's origin; it never crosses
 // postMessage, never reaches settings or the providers file, and is never
 // shown again. Headers kept for another origin (the address moved) are
-// never carried to the new one: the first save replaces them.
+// never carried to the new one: the first save replaces them. It loads
+// with the providers seam (dist/modelsSubscriptions.js), not the panel.
 
-import type { SecretStore } from '../auth/credentialStore'
-import type { ProvidersHostUi } from './providersHost'
-import type { ProviderEntry } from './providerPorts'
+import type { ProviderEntry, ProviderHeadersPorts } from './providerPorts'
 import {
   formatStoredHeaders,
   headerNameProblem,
@@ -25,9 +24,9 @@ import { fill } from '../../shared/l10n/text'
 /** The sentence that refuses a typed name, or undefined when the name can be kept. */
 function headerNameRefusal(name: string): string | undefined {
   const problem = headerNameProblem(name.trim())
-  if (problem === 'invalid') return UI_TEXT.providerHeadersNameInvalid
+  if (problem === 'invalid') return UI_TEXT.providerHeaders.nameInvalid
   return problem === 'reserved'
-    ? fill(UI_TEXT.providerHeadersNameReserved, { name: name.trim() })
+    ? fill(UI_TEXT.providerHeaders.nameReserved, { name: name.trim() })
     : undefined
 }
 
@@ -52,39 +51,37 @@ function keptHeaders(
 
 export async function manageProviderHeaders(
   entry: ProviderEntry,
-  deps: { readonly ui: ProvidersHostUi; readonly secrets: SecretStore },
+  ports: ProviderHeadersPorts,
 ): Promise<void> {
   const origin = new URL(entry.address).origin
   const account = providerHeadersAccount(entry.id)
-  const headers = keptHeaders(entry.id, origin, await deps.secrets.get(account))
-  const add = { label: UI_TEXT.providerHeadersAdd, alwaysShow: true }
-  const picked = await deps.ui.pickOne(
+  const headers = keptHeaders(entry.id, origin, await ports.secrets.get(account))
+  const title = fill(UI_TEXT.providerHeaders.pick, { provider: entry.id })
+  const picked = await ports.pickOne(
     [
-      ...Object.keys(headers).map((name) => ({
-        label: name,
-        description: UI_TEXT.providerHeadersRemove,
-      })),
-      add,
+      ...Object.keys(headers).map((name) => ({ label: name, description: UI_TEXT.providerRemove })),
+      { label: UI_TEXT.providerHeaders.add },
     ],
-    fill(UI_TEXT.providerHeadersPick, { provider: entry.id }),
+    title,
   )
   if (picked === undefined) return
   let next: Readonly<Record<string, string>>
-  if (picked.label === add.label && picked.description === undefined) {
-    const name = await deps.ui.showInputBox({
-      title: fill(UI_TEXT.providerHeadersPick, { provider: entry.id }),
-      prompt: UI_TEXT.providerHeadersName,
+  if (picked.description === undefined) {
+    const name = await ports.showInputBox({
+      title,
+      prompt: UI_TEXT.providerHeaders.name,
+      password: false,
       ignoreFocusOut: true,
       validateInput: headerNameRefusal,
     })
     if (name === undefined) return
-    const value = await deps.ui.showInputBox({
-      title: fill(UI_TEXT.providerHeadersPick, { provider: entry.id }),
-      prompt: fill(UI_TEXT.providerHeadersValue, { name: name.trim(), origin }),
+    const value = await ports.showInputBox({
+      title,
+      prompt: fill(UI_TEXT.providerHeaders.value, { name: name.trim(), origin }),
       password: true,
       ignoreFocusOut: true,
       validateInput: (typed) =>
-        isHeaderValueValid(typed.trim()) ? undefined : UI_TEXT.providerHeadersValueInvalid,
+        isHeaderValueValid(typed.trim()) ? undefined : UI_TEXT.providerHeaders.valueInvalid,
     })
     if (value === undefined) return
     next = withHeader(headers, name.trim(), value.trim())
@@ -92,6 +89,6 @@ export async function manageProviderHeaders(
     next = withoutHeader(headers, picked.label)
   }
   await (Object.keys(next).length === 0
-    ? deps.secrets.delete(account)
-    : deps.secrets.store(account, formatStoredHeaders(origin, next)))
+    ? ports.secrets.delete(account)
+    : ports.secrets.store(account, formatStoredHeaders(origin, next)))
 }

@@ -28,7 +28,11 @@ import {
 import { parseCommandLine } from '../../src/runtime/cliArgs'
 import { readSecretLine } from '../../src/runtime/hiddenInput'
 import { resolveEndpointHost } from '../../src/runtime/providerPaths'
-import { userFileIo, type ProvidersDeps } from '../../src/runtime/providersCommands'
+import {
+  providersRemove,
+  userFileIo,
+  type ProvidersDeps,
+} from '../../src/runtime/providersCommands'
 import { providersHeaders } from '../../src/runtime/providersHeadersCommand'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
@@ -111,7 +115,7 @@ describe('custom request headers through the real request builder', () => {
       captured,
     )
     await expect(turnRequest(services, captured, 'openai/gpt-6.1-sol', body())).rejects.toThrow(
-      fill(UI_TEXT.providerHeadersUnreadable, { provider: 'openai' }),
+      fill(UI_TEXT.providerHeaders.unreadable, { provider: 'openai' }),
     )
     expect(captured).toEqual([])
   })
@@ -152,7 +156,10 @@ describe('the header record', () => {
     expect(headers.redact('gateway said tenant-secret-1 is unknown')).not.toContain(
       'tenant-secret-1',
     )
-    expect(headers.secretValues).toEqual(['tenant-secret-1'])
+    // A tool argument the provider streams back is scrubbed of them too.
+    expect(source.scrubContent('curl -H "X-Tenant: tenant-secret-1"')).not.toContain(
+      'tenant-secret-1',
+    )
   })
 })
 
@@ -209,17 +216,27 @@ describe('providers headers (CLI)', () => {
     expect(stored).toEqual({ v: 1, origin: OPENAI, headers: { 'OpenAI-Project': 'proj_cli' } })
     expect(h.printed.join('\n')).not.toContain('proj_cli')
     expect(h.printed.at(-1)).toBe(
-      fill(UI_TEXT.providerHeadersList, { provider: 'openai', names: 'OpenAI-Project' }),
+      fill(UI_TEXT.providerHeaders.list, { provider: 'openai', names: 'OpenAI-Project' }),
     )
     expect(await providersHeaders(h.deps, { provider: 'openai', unset: 'openai-project' })).toBe(0)
     expect(await h.store.get(providerHeadersAccount('openai'))).toBeUndefined()
-    expect(h.printed.at(-1)).toBe(fill(UI_TEXT.providerHeadersNone, { provider: 'openai' }))
+    expect(h.printed.at(-1)).toBe(fill(UI_TEXT.providerHeaders.none, { provider: 'openai' }))
   })
 
   it('refuses a reserved name before reading any value', async () => {
     const h = await harness('Bearer other\n')
     expect(await providersHeaders(h.deps, { provider: 'openai', set: 'Authorization' })).toBe(1)
-    expect(h.errors).toEqual([fill(UI_TEXT.providerHeadersNameReserved, { name: 'Authorization' })])
+    expect(h.errors).toEqual([
+      fill(UI_TEXT.providerHeaders.nameReserved, { name: 'Authorization' }),
+    ])
+    expect(await h.store.get(providerHeadersAccount('openai'))).toBeUndefined()
+  })
+
+  it('removing the provider removes its headers with it', async () => {
+    const h = await harness('proj_cli\n')
+    expect(await providersHeaders(h.deps, { provider: 'openai', set: 'OpenAI-Project' })).toBe(0)
+    expect(await h.store.get(providerHeadersAccount('openai'))).toBeDefined()
+    expect(await providersRemove(h.deps, 'openai')).toBe(0)
     expect(await h.store.get(providerHeadersAccount('openai'))).toBeUndefined()
   })
 

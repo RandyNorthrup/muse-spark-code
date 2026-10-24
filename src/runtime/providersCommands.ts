@@ -77,6 +77,7 @@ import {
   type CatalogPresence,
   type ResolvedProvider,
 } from './exec/providerExec'
+import { providerHeadersAccount } from '../core/providers/requestHeaders'
 // The panel's Refresh Models reads the live list through the commands.
 export { listProviderModels } from './exec/providerList'
 
@@ -204,9 +205,11 @@ export async function commitProviderChange(
       isRemoving || secret !== undefined || expectedSecret !== undefined
         ? providerSecretAccount(id)
         : undefined
-    // Removing the provider removes its admin report key too (PROVSPEND).
+    // Removing the provider removes its admin report key too (PROVSPEND),
+    // and its custom request headers (M95c part 6), which may hold a credential.
     const adminAccount = isRemoving ? providerAdminSecretAccount(id) : undefined
-    const touched = [account, adminAccount].filter((entry) => entry !== undefined)
+    const headersAccount = isRemoving ? providerHeadersAccount(id) : undefined
+    const touched = [account, adminAccount, headersAccount].filter((entry) => entry !== undefined)
     const previous = new Map<string, string | undefined>()
     try {
       for (const entry of touched) previous.set(entry, await deps.secrets.get(entry))
@@ -245,6 +248,7 @@ export async function commitProviderChange(
         if (isRemoving) {
           await deps.secrets.delete(account)
           if (adminAccount !== undefined) await deps.secrets.delete(adminAccount)
+          if (headersAccount !== undefined) await deps.secrets.delete(headersAccount)
         } else if (secret !== undefined) await deps.secrets.store(account, secret)
       }
     } catch (error: unknown) {
