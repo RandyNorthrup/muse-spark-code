@@ -278,3 +278,42 @@ visualstudio,eclipse,xcode,zed,neovim,emacs,sublime,qtcreator}`, about
    (`runtimePanel.js`, `runtimePanelPorts.js`, `lsp.js`,
    `runtimeWatchdog.js`, `runtimeProcessAuthority.js`, `hostProtocol.js`,
    the portable graph) need a `plan:archive` pass first.
+
+No CHANGELOG entry: nothing here changes what a person sees (a contract
+with no carrier yet, a gate, and a file move with every bundle unchanged).
+
+## Commits
+
+| Commit       | Area                                                                 |
+| ------------ | -------------------------------------------------------------------- |
+| `304c6b6e0a` | int's own host-API record drift, regenerated before any port         |
+| `c08ed1b8da` | area 1: the MHP 1.5 contract, D226, `check:mhp`                      |
+| `3281752fe6` | area 1 follow-up: `dist/wire.js` unchanged, no export without reader |
+| `235e0c0116` | area 2: lane A's `src/host/vscode/` boundary and rule                |
+
+Every commit ran the repository hooks (lint-staged's eslint and prettier,
+gitleaks); none was skipped.
+
+## Final gates on this lane's tree
+
+| Gate                                                             | Exit | Against int's base                                                                                          |
+| ---------------------------------------------------------------- | ---- | ----------------------------------------------------------------------------------------------------------- |
+| `format:check` (prettier)                                        | 0    | 0                                                                                                           |
+| `lint` (eslint, stylelint, PS)                                   | 0    | 0                                                                                                           |
+| `typecheck` (all six)                                            | 0    | 0                                                                                                           |
+| `check:plan`                                                     | 0    | 0 (434 bytes of headroom left)                                                                              |
+| `check:mhp`                                                      | 0    | new                                                                                                         |
+| `check:host-api`                                                 | 0    | 1 on int (`304c6b6e0a` fixed its drift)                                                                     |
+| `deadcode` (knip)                                                | 0    | 0                                                                                                           |
+| `cycles`                                                         | 0    | 0                                                                                                           |
+| `check:reference`, `check:l10n`, `check:roadmap`, `check:tokens` | 0    | 0                                                                                                           |
+| `check:catches`                                                  | 1    | 1, per-area counts identical: this lane adds no SWALLOW, GENERIC or CLEANUP site (two new sites are NARROW) |
+| `duplication` (jscpd)                                            | 1    | 1, 41 clones on both, none in a file this lane touched                                                      |
+| `build`                                                          | 1    | 1: every size line identical, the same 12 over-budget bundles (int's own)                                   |
+
+Size lines for the bundles this lane touched, identical to int's base:
+`dist/wire.js` 79.2 KiB (81,096 bytes; over its 75 KiB budget on int
+already), `dist/extension.js` 516.8 KiB, `dist/tab.js` 63.6 KiB,
+`dist/prompts.js` 165.6 KiB, `dist/usagePanel.js` 60.4 KiB,
+`dist/mediaHost.js` 14.2 KiB, `dist/vault.js` 44.9 KiB, `dist/modelsPanel.js`
+160.0 KiB (over its 150 KiB budget on int already). No budget was raised.
