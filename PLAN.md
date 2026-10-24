@@ -350,7 +350,7 @@ temp/planfix0190/d2-summary.txt Full record:
 
 **`ink` / `ink-testing-library`** — M110a0 TD: the TUI components render through real Ink 6 (Vadim Demedes, MIT; peers `react>=19` and `@types/react>=19` satisfied by the direct 19.3.0 pins, `react-devtools-core` satisfied through the tree; `npm audit` clean), and the golden harness renders through Ink's own testing library, so the goldens pin the same bytes — and the same Yoga layout — production draws. A hand-rolled tree-walking renderer (the first draft) was deleted: it reimplemented Yoga and Chalk, a stand-in the no-fakes rule forbids. `ink` ships with the agent; `ink-testing-library` is dev-only.
 
-**`sigstore`** — Pack index signatures (M110t TP1/TP2, D90.27): verifies the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). No peer dependencies; `npm audit` clean 2026-10-22; 5.0.0 released 2026-06-01, past the seven-day window.
+**`sigstore`** — Pack index signatures (M110t TP1/TP2, D90.27): verifies the cosign keyless bundles the pack CI signs over each index, the same infrastructure npm provenance uses; a hand-rolled verifier would be the half-cocked plan. Apache-2.0, bundled only in the lazily loaded `dist/packsVerify.js` (the ACP agent loads it on the first pack fetch). No peer dependencies; `npm audit` clean 2026-10-22; 5.0.0 released 2026-06-01, past the seven-day window. Licence review (cc-licence, 2026-10-24, `docs/certification/cc-licence.md`): the bundled tree is not Apache-2.0 alone. Six entries are BlueOak-1.0.0 (minipass, minipass-flush, lru-cache twice, glob, minimatch), which the notices gate now allow-lists; `@sigstore/verify` ships no licence file, so upstream's root LICENSE travels from `vendor/@sigstore/verify/`. `@npmcli/agent` (ISC) and `proxy-agent-negotiate` (MIT), reached only through `@sigstore/sign`'s make-fetch-happen, publish no licence text anywhere, so the ACP package refuses them ([Q-CC-LICENCE](#q-cc-licence)).
 
 **`@types/jsdom`** — PR #227 lane (2026-10-18): the approval-page double-decision suite drives the real shipped page script in a real jsdom DOM; the pinned jsdom 30.1.1 ships no types, so the suite imports untyped without it. MIT; no peers; a dev dependency, never bundled.
 **`@napi-rs/keyring`** — The vault's OS store (D61, D89): Secret Service on Linux and login Keychain on macOS, loaded at runtime by the broker child, the ACP agent and headless runs alike. MIT; no peer dependencies (its per-OS/arch binaries are same-version optional dependencies); `npm audit` clean. Moved from devDependencies to dependencies (PR216FIX T1): a runtime load declared dev-only hid the VSIX gap. Staging its platform binaries in the universal VSIX stays a lead follow-up: the six VS Code platforms measure 4,716,310 bytes compressed (`npm pack` tarballs, 2026-10-17) against ~0.9 MB of size-budget headroom, so shipping them needs per-platform packaging or a re-set cap, never a raised one here.
@@ -9383,6 +9383,22 @@ locks advertise 1.5.0; a new revision regenerates every schema, lock and
 host together. Record: `docs/certification/cc-rlm104.md`.
 
 ## 3. Open questions (need the owner)
+
+<a id="q-cc-licence"></a>
+
+- **Q-CC-LICENCE — two bundled packages without a licence text
+  (2026-10-24).** `npm run package:acp` refuses `@npmcli/agent@5.0.2` (ISC)
+  and `proxy-agent-negotiate@1.1.0` (MIT) in `dist/packsVerify.js`: neither
+  package, its source revision nor its default branch carries a copyright or
+  permission notice (npm/agent#123, #176; TooTallNate/proxy-agents#479 are
+  open), and the notices gate takes only upstream's own text. Both arrive
+  only through `@sigstore/sign`, which the verifier never runs. **Lead's
+  option:** compose the verifier from `@sigstore/tuf`, `@sigstore/verify`
+  and `@sigstore/bundle` as `sigstore.verify` does; measured 1,121,069 →
+  207,082 bytes and 53 → 15 packages, both refused packages gone.
+  **Owner's option (legal terms):** accept the standard SPDX ISC and MIT
+  texts, with no invented holder or year, as their notices. Record:
+  `docs/certification/cc-licence.md`.
 
 <a id="q-0191-linux-vault"></a>
 
