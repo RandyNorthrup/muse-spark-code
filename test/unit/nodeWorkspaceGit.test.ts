@@ -1,14 +1,23 @@
 // M110b W2: workspace git classifies remotes, gates verbs, and builds
 // the brokered env — SSH pinned, HTTPS helpered, pushes granted
-// exactly, merges never, submodules and config smuggling refused.
-import { describe, expect, it } from 'vitest'
+// exactly, merges never, submodules and config smuggling refused. The
+// runner itself starts the real git through the governed launch.
+import { execFileSync } from 'node:child_process'
+import { chmod, copyFile, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import path from 'node:path'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { isGovernedCommandUnavailable } from '../../src/core/resources/launch'
 import {
+  GitFailedError,
   hasNoCredentialMaterial,
   brokeredGitEnv,
   classifyRemote,
   gateVerb,
+  runWorkspaceGit,
   splitNetworkArgs,
 } from '../../src/runtime/node/workspaces/git'
+import { useRuntimeGovernor } from './helpers/resources/runtimeGovernor'
 
 const PROVISIONS = {
   sshEnv: { SSH_AUTH_SOCK: '/run/broker/agent.sock' },
@@ -128,5 +137,99 @@ describe('workspace git', () => {
         knownHostsPath: '/run/known-hosts',
       }),
     ).toEqual({ ok: false, reason: 'credential-material' })
+  })
+})
+
+// A real program a repository could carry: it runs, prints, and is no git.
+const PLANTABLE =
+  process.platform === 'win32'
+    ? path.join(process.env['SystemRoot'] ?? '', 'System32', 'whoami.exe')
+    : '/bin/echo'
+
+/** This process's environment with `first` ahead of every PATH entry, in its own spelling. */
+function pathFirst(first: string): NodeJS.ProcessEnv {
+  const key = Object.keys(process.env).find((name) => name.toUpperCase() === 'PATH') ?? 'PATH'
+  return { ...process.env, [key]: `${first}${path.delimiter}${process.env[key] ?? ''}` }
+}
+
+/** What a run settled to: its result, or the error it rejected with. */
+async function settled<T>(running: Promise<T>): Promise<T | Error> {
+  try {
+    return await running
+  } catch (error: unknown) {
+    if (error instanceof Error) return error
+    throw error
+  }
+}
+
+describe('workspace git through the governed launch', () => {
+  // The runner's git is a governed start: admitted by the governor the
+  // node command's process configures, on every platform it runs on.
+  useRuntimeGovernor('ws-git-jobs-', true)
+  const scratch = { root: '', repo: '', head: '' }
+  const run = (
+    gitPath: string,
+    argv: readonly string[],
+    extra: { baseEnv?: NodeJS.ProcessEnv; okCodes?: readonly number[] } = {},
+  ) =>
+    runWorkspaceGit(gitPath, argv, {
+      cwd: scratch.repo,
+      platform: process.platform,
+      baseEnv: extra.baseEnv ?? process.env,
+      remote: scratch.repo,
+      provisions: {},
+      ...(extra.okCodes !== undefined && { okCodes: extra.okCodes }),
+    })
+
+  beforeAll(async () => {
+    scratch.root = await realpath(await mkdtemp(path.join(tmpdir(), 'ws-git-governed-')))
+    scratch.repo = path.join(scratch.root, 'repo')
+    await mkdir(scratch.repo)
+    const git = (...argv: string[]) =>
+      execFileSync('git', argv, { cwd: scratch.repo, encoding: 'utf8' })
+    git('init', '-q', '.')
+    await writeFile(path.join(scratch.repo, 'tracked.txt'), 'v1\n')
+    git('add', 'tracked.txt')
+    git('-c', 'user.name=t', '-c', 'user.email=t@example.test', 'commit', '-qm', 'seed')
+    scratch.head = git('rev-parse', 'HEAD').trim()
+  })
+  afterAll(async () => {
+    await rm(scratch.root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+  })
+
+  it('runs the real git and keeps its exit codes as results', async () => {
+    const head = await run('git', ['rev-parse', 'HEAD'])
+    expect(head.stdout.trim()).toBe(scratch.head)
+    await writeFile(path.join(scratch.repo, 'tracked.txt'), 'v2\n')
+    try {
+      // `diff --quiet` answers 1 for differences: an exit the caller accepts.
+      const diff = await run('git', ['diff', '--quiet'], { okCodes: [0, 1] })
+      expect(diff.exitCode).toBe(1)
+    } finally {
+      await writeFile(path.join(scratch.repo, 'tracked.txt'), 'v1\n')
+    }
+    const failed = await settled(run('git', ['rev-parse', '--verify', 'refs/heads/none']))
+    expect(failed).toBeInstanceOf(GitFailedError)
+    expect(failed).toMatchObject({ exitCode: 128 })
+  })
+
+  it('never runs a program the repository plants as git', async () => {
+    const planted = path.join(scratch.repo, process.platform === 'win32' ? 'git.exe' : 'git')
+    await copyFile(PLANTABLE, planted)
+    await chmod(planted, 0o755)
+    try {
+      // Named by its path inside the workspace: refused before anything
+      // starts. Run, the plant would answer an exit (a GitFailedError).
+      const refused = await settled(run(planted, ['rev-parse', 'HEAD']))
+      if (!(refused instanceof Error)) throw new Error('the planted program was run')
+      expect(refused).not.toBeInstanceOf(GitFailedError)
+      expect(isGovernedCommandUnavailable(refused.cause)).toBe(true)
+      // A bare git with the workspace first on PATH (and as the working
+      // folder) resolves past the plant to the real git.
+      const bare = await run('git', ['rev-parse', 'HEAD'], { baseEnv: pathFirst(scratch.repo) })
+      expect(bare.stdout.trim()).toBe(scratch.head)
+    } finally {
+      await rm(planted, { force: true })
+    }
   })
 })

@@ -1,4 +1,3 @@
-import { execFile } from 'node:child_process'
 import {
   generateKeyPairSync,
   randomBytes,
@@ -11,7 +10,7 @@ import { lookup } from 'node:dns/promises'
 import { constants } from 'node:fs'
 import { lstat, open, readFile, rename, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { promisify } from 'node:util'
+import { execResourceFile } from '../../../core/resources/launcher'
 import {
   NODE_MAX_AUTH_BYTES,
   NODE_CHALLENGE_KEY_BYTES,
@@ -174,7 +173,11 @@ export async function issueNodeCertificate(
   })
   try {
     await staging.write(temporaryKey, privateKey)
-    await promisify(execFile)(
+    // The trusted OpenSSL through the governed boundary: admitted,
+    // contained, refused unless it exists outside the staging folder it
+    // runs in, with nothing of this process's environment.
+    await execResourceFile(
+      'contained',
       opensslPath,
       [
         'req',
@@ -205,6 +208,7 @@ export async function issueNodeCertificate(
         timeout: NODE_TLS_ISSUE_TIMEOUT_MS,
         maxBuffer: NODE_MAX_AUTH_BYTES,
         signal,
+        encoding: 'utf8',
       },
     )
     // OpenSSL creates output according to umask. Copy only after the child exits;

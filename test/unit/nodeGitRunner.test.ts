@@ -18,6 +18,7 @@ import { NodePrivateFiles } from '../../src/runtime/node/privateFiles'
 import { createNodeGitSnapshot } from '../../src/runtime/node/gitSnapshot'
 import { NodeClosedGitRunner, type NodeGitRunnerOptions } from '../../src/runtime/node/gitRunner'
 import { scripted } from './helpers/recordCalls'
+import { useRuntimeGovernor } from './helpers/resources/runtimeGovernor'
 
 const runFile = promisify(execFile)
 const directories: string[] = []
@@ -62,6 +63,9 @@ async function setup() {
 afterEach(async () => {
   for (const dir of directories.splice(0)) await rm(dir, { recursive: true, force: true })
 })
+// The runner starts git through the governed launch: admitted by the
+// governor the node command's process configures (its cases run on Linux).
+useRuntimeGovernor('m110-git-jobs-', process.platform === 'linux')
 
 describe('M110-N closed Git runner (native Linux receipt)', () => {
   it('H14 ignores repository programs, inherited GIT settings and credential sockets on reads', async () => {

@@ -1,4 +1,9 @@
-import { execFile } from 'node:child_process'
+import {
+  isGovernedCommandFailure,
+  isGovernedCommandUnavailable,
+  isGovernedRefusal,
+} from '../../../core/resources/launch'
+import { execResourceFile } from '../../../core/resources/launcher'
 import {
   TUI_LIMITS,
   TUI_TIER_C256_COLORS,
@@ -85,20 +90,38 @@ export type TuiProbeExec = (
   options: { timeout: number; maxBuffer: number; env: Record<string, string | undefined> },
 ) => Promise<{ stdout: string } | null>
 
-/** A probe answers stdout or nothing: a missing tool, a timeout kill and
-the tool's own refusal all mean "no answer", and the decision table's
-fallbacks cover every null. */
-function defaultExec(
+/** A probe answers stdout or nothing: a missing tool, a timeout kill, the
+tool's own refusal and the governor's refusal all mean "no answer", and
+the decision table's fallbacks cover every null. The probe is a governed
+start: resolved outside the folder it runs in, never a program planted
+there. */
+async function defaultExec(
   file: string,
   args: readonly string[],
   options: { timeout: number; maxBuffer: number; env: Record<string, string | undefined> },
 ): Promise<{ stdout: string } | null> {
-  return new Promise((resolve) => {
-    execFile(file, [...args], options, (error, stdout) => {
-      if (error === null) resolve({ stdout })
-      else resolve(null)
+  try {
+    const { stdout } = await execResourceFile('probe', file, args, {
+      ...options,
+      encoding: 'utf8',
     })
-  })
+    return { stdout }
+  } catch (error: unknown) {
+    // NARROW: a probe that could not answer is no answer; anything else surfaces.
+    if (isProbeSilence(error)) return null
+    throw error
+  }
+}
+
+/** The governed boundary's ways a probe ends without an answer: no such
+tool outside the folder, the tool's own failure or deadline, the
+governor's refusal. */
+function isProbeSilence(error: unknown): boolean {
+  return (
+    isGovernedCommandUnavailable(error) ||
+    isGovernedCommandFailure(error) ||
+    isGovernedRefusal(error)
+  )
 }
 
 async function probe(

@@ -20,7 +20,11 @@ import {
   NODE_TLS_ISSUE_TIMEOUT_MS,
 } from '../../src/shared/constants'
 import { nodeNativeTest, nodeTempRoot } from './helpers/nodeNative'
+import { useRuntimeGovernor } from './helpers/resources/runtimeGovernor'
 
+// Issuance starts OpenSSL through the governed launch: admitted by the
+// governor the node command's process configures (POSIX; Windows refuses).
+useRuntimeGovernor('m110-a1-certificate-jobs-', process.platform !== 'win32')
 const fixture = { root: '', certificateRoot: '', pem: '', key: '', fingerprint: '', ca: '' }
 beforeAll(async () => {
   if (process.platform === 'win32') return

@@ -1,9 +1,10 @@
 // This runs in the tools process, never the service process. C supplies the
 // socket's kernel peer check and node-pty adapter (M110-N-tools / A0-PTY).
-import { spawn } from 'node:child_process'
 import { realpath } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import type { ResourcePipedProcess } from '../../core/resources/launch'
+import { spawnResourceFile } from '../../core/resources/launcher'
 import {
   NODE_FORCE_KILL_MS,
   NODE_TERMINAL_INPUT_BYTES,
@@ -240,6 +241,43 @@ export class NodeProcessToolHost implements NodeToolHostPort {
     return { id, user: NODE_TOOLS_USER }
   }
 
+  /**
+  The request's program through the governed launch, as every process we
+  start: admitted and contained in its own process group, the program
+  resolved outside the workspace volume (a bare name through the tools
+  PATH; a program inside a workspace is refused, never run), the guarded
+  child environment. A cancel while admission waits ends the run as
+  cancelled; once started, the run's own SIGTERM-then-SIGKILL stop owns it.
+  */
+  private async launch(
+    argv: readonly string[],
+    cwd: string,
+    cancel: AbortSignal,
+  ): Promise<ResourcePipedProcess> {
+    const admission = new AbortController()
+    const forward = (): void => {
+      admission.abort()
+    }
+    cancel.addEventListener('abort', forward, { once: true })
+    if (cancel.aborted) forward()
+    try {
+      return await spawnResourceFile('contained', argv[0] ?? '', argv.slice(1), {
+        cwd,
+        env: this.environment(),
+        signal: admission.signal,
+        workspaceRoot: await realpath(this.options.workspaceRoot),
+      })
+    } catch (error: unknown) {
+      // NARROW: a cancel while admission waited is the run's cancel; any
+      // other refusal (no such program outside the workspaces, the
+      // governor's) leaves the tool unavailable, its cause kept.
+      if (cancel.aborted) throw new Error(UI_TEXT.nodeErrors.cancelled, { cause: error })
+      throw new Error(UI_TEXT.nodeErrors.unavailable, { cause: error })
+    } finally {
+      cancel.removeEventListener('abort', forward)
+    }
+  }
+
   async run(input: NodeToolRequest, signal: AbortSignal) {
     if (process.platform === 'win32') throw new Error(UI_TEXT.nodeErrors.unsupported)
     const request = nodeToolRequestSchema.parse(input)
@@ -260,13 +298,10 @@ export class NodeProcessToolHost implements NodeToolHostPort {
     signal.addEventListener('abort', abort, { once: true })
     let timer: ReturnType<typeof setTimeout> | undefined
     try {
+      const { child } = await this.launch(request.argv, cwd, controller.signal)
+      // Nothing reaches the tool's input: it reads end of file at once.
+      child.stdin.end()
       return await new Promise<ReturnType<typeof nodeToolResultSchema.parse>>((resolve, reject) => {
-        const child = spawn(request.argv[0] ?? '', request.argv.slice(1), {
-          cwd,
-          env: this.environment(),
-          detached: true,
-          stdio: ['ignore', 'pipe', 'pipe'],
-        })
         const stdout: Buffer[] = []
         const stderr: Buffer[] = []
         let total = 0

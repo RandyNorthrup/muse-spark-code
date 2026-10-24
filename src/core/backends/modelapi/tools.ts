@@ -1961,11 +1961,15 @@ command ended:
   back as "no report".
 - Windows PowerShell reports a `-Command`'s last statement, so a bare
   trailer would turn a failure into a success (probed: a failing cmdlet
-  exits 1, a succeeding trailer after it exits 0). The trailer reads
-  `$?` and `$LASTEXITCODE` first and exits with the same outcome: a
-  success stays 0, a native failure keeps its code, anything else fails
-  as 1. The 5.1-safe statements (no ternary) write through .NET, so a
-  directory with spaces, quotes or `$` needs no quoting at all.
+  exits 1, a succeeding trailer after it exits 0). The trailer's first
+  statement reads `$?`: any statement before it, an assignment included,
+  sets `$?` to true in Windows PowerShell 5.1 and PowerShell 7 (probed,
+  CCFIX1: saving `$LASTEXITCODE` first reported every failure as 0).
+  `$LASTEXITCODE` comes next (no assignment changes it), and the trailer
+  exits with the same outcome: a success stays 0, a native failure keeps
+  its code, anything else fails as 1. The 5.1-safe statements (no
+  ternary) write through .NET, so a directory with spaces, quotes or `$`
+  needs no quoting at all.
 The host reads the file back (never the output, which can be truncated)
 and keeps a directory inside the workspace, else resets to the root with
 a note. Approval cards, session rules and hook payloads see the user's
@@ -1977,7 +1981,7 @@ export function shellDirectoryTrailer(
   sequence: number,
 ): string {
   return platform === 'win32'
-    ? `; $__m91code=$LASTEXITCODE; $__m91ok=$?; try { [System.IO.File]::WriteAllText(${powerShellQuoted(sideFile)}, '${String(sequence)}' + "\`n" + (Get-Location).Path) } catch {}; $__m91exit=1; if ($__m91code) { $__m91exit=$__m91code }; if ($__m91ok) { exit 0 } else { exit $__m91exit }`
+    ? `; $__m91ok=$?; $__m91code=$LASTEXITCODE; try { [System.IO.File]::WriteAllText(${powerShellQuoted(sideFile)}, '${String(sequence)}' + "\`n" + (Get-Location).Path) } catch {}; $__m91exit=1; if ($__m91code) { $__m91exit=$__m91code }; if ($__m91ok) { exit 0 } else { exit $__m91exit }`
     : String.raw`; __m91status=$?; { printf '%s\n' '${String(sequence)}'; pwd; } > ${posixQuoted(sideFile)} || true; exit $__m91status`
 }
 
