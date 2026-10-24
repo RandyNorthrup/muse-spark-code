@@ -67,7 +67,6 @@ export const presentationStateSchema = z.discriminatedUnion('kind', [
       .check(z.maxLength(MHP_PRESENTATION.maximumRecords)),
   }),
 ])
-export type PresentationState = z.infer<typeof presentationStateSchema>
 export const presentationRequestSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('presentationReady') }),
   z.strictObject({ type: z.literal('presentationReload') }),
@@ -97,7 +96,6 @@ export const presentationRequestSchema = z.discriminatedUnion('type', [
   }),
   z.strictObject({ type: z.literal('walkthroughAction'), requestId: id, stepId: id }),
 ])
-export type PresentationRequest = z.infer<typeof presentationRequestSchema>
 export const presentationMessageSchema = z.discriminatedUnion('type', [
   z.strictObject({ type: z.literal('presentationState'), state: presentationStateSchema }),
   z.strictObject({
@@ -112,4 +110,3 @@ export const presentationMessageSchema = z.discriminatedUnion('type', [
     ]),
   }),
 ])
-export type PresentationMessage = z.infer<typeof presentationMessageSchema>

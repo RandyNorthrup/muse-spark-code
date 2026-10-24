@@ -107,14 +107,6 @@ export const panelErrorSchema = z.strictObject({
 })
 export { MhpPanelError } from './panelError'
 
-/** SSE id of a panel envelope: surface, direction and sequence. */
-export function panelEventId(message: unknown): string | undefined {
-  const panel = panelEnvelopeSchema.safeParse(message)
-  return panel.success
-    ? `${encodeURIComponent(panel.data.surface)}:${panel.data.direction}:${String(panel.data.seq)}`
-    : undefined
-}
-
 // Pure admission guard: callers supply registry/sequence state and advance it
 // only after acceptance. Rejected messages never reach a listener or queue.
 export function parseMhpPanelEnvelope(
