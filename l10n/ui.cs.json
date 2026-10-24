@@ -948,7 +948,7 @@
   "referenceCustomAgents": "Definujte agenty v projektových či osobních souborech AGENT.md. Vyberte agenta nebo požádejte o explore či second-opinion; seznamy nástrojů omezují schopnosti. Podúlohy Model API vyžadují souhlas s placenými podagenty.",
   "referenceCodeOutput": "Kopírovat kopíruje kód; Vložit píše u kurzoru; Použít nahradí výběr editoru. Otevřete úplný výstup nástroje; zkrácený výstup lze stránkovat. Vyberte text přepisu a citujte jej v editoru zprávy, položte k němu otázku, přidejte komentář nebo jej zkopírujte.",
   "referencePaidContexts": "Interaktivní doplňky Model API se ptají před útratou a sdílejí denní rozpočet. Obrázky Muse Code vyžadují uložený klíč Model API a výslovné zapnutí; jejich výdaje jsou mimo tento denní registr. Muse Voice rezervuje sdílený denní rozpočet na obou backendech. Placené funkce ACP jsou ve výchozím stavu vypnuté a vyžadují příznaky Model API a souhlas editoru. Požadavky Model API přes ACP a bez rozhraní rezervují denní rozpočet runtime; bez rozhraní je navíc nutný pevný rozpočet běhu. Obrázky bez rozhraní vyžadují acceptEdits a příznak obrázků. Účet a využití umožňuje zapomenout placené souhlasy pracovního prostoru.",
-  "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents a dovednosti; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
+  "referenceAcp": "Nainstalované dovednosti přidávají dynamické příkazy, které statická příručka neuvádí. ACP zpracovává jen místní /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents a dovednosti; /playbook odpovídá lokálně v každém editoru; příkazy panelu, nastavení a dialogy propojené příručky patří rozšíření.",
   "referenceCiOtherTitle": "Ostatní CI systémy",
   "referenceCiOther": "Šablony bezobslužné kontroly a oprav pro GitLab, Azure, Jenkins a Bitbucket s ověřeným otiskem balíčku. Klíč čte Node a výsledky ukládá mimo pracovní kopii; soubory nahrává každá šablona. Kopie mimo pracovní kopii na GitLabu/Bitbucketu a izolace procesů Bitbucketu zatím nejsou ověřeny. Další názvy proměnných s klíčem uveďte v MUSE_CI_KEY_ALIASES. Pouze testy s náhradami; viz docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Načítání webu",
@@ -1030,6 +1030,13 @@
   "playbookCommandUsage": "Použijte `playbook status|record|settings`.",
   "playbookSave": "Uložit nastavení",
   "playbookSaved": "Nastavení příručky byla uložena.",
+  "playbookAnswerReason": "Důvod",
+  "playbookAnswerWhySafe": "Proč je to zatím bezpečné",
+  "playbookAnswerFollowUp": "Navazující krok",
+  "playbookNotCertified": "Příručka: toto kolo se nepodařilo ověřit, proto se nepočítá jako úspěšné.",
+  "playbookEvidenceUnreadable": "Příručka: kontrolovaný soubor nebo záznam o změnách podagenta se nepodařilo přečíst, takže příručka nedokáže určit, zda je tato kontrola její. Kontrola nebyla odeslána.",
+  "playbookRecordStale": "Záznam příručky se nepodařilo přečíst. Zobrazené údaje mohou být zastaralé.",
+  "playbookMuseCodeStarts": "Muse Code spouští podagenty bez dotazu. Playbook počítá jejich kola a kontroluje jejich práci, ale nemůže zabránit spuštění.",
   "playbookStrikeBadge": {
     "one": "{count} kolo kontroly",
     "other": "{count} kol kontroly",
@@ -1104,8 +1111,13 @@
     "briefRecorded": "Playbook: stručný popis pro {module} zaznamenán ({reason}).",
     "configDrift": "Je třeba vás: sdílená konfigurace úložiště se pro {module} změnila ({reason}).",
     "fallbackReviewer": "Playbook: {actor} kontroluje {module} jako zaznamenaný náhradní kontrolor ({reason}).",
-    "residualOpen": "Je třeba vás: {lane} má otevřené zbytkové problémy: {missing}."
+    "residualOpen": "Je třeba vás: {lane} má otevřené zbytkové problémy: {missing}.",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "Zjištění playbooku pro {child}: soubor se zatajeným názvem vypadá jako tajný údaj. Kolo tohoto podagenta bylo započítáno.",
+  "playbookBlockedLarge": "Zjištění playbooku pro {child}: patch má {size}, nad limitem {bound}. Kolo tohoto podagenta bylo započítáno.",
+  "playbookBlockedUnreadable": "Zjištění playbooku pro {child}: příspěvek nelze přečíst. Kolo tohoto podagenta bylo započítáno.",
+  "playbookBlockedMany": "Zjištění playbooku pro {child}: počet změněných souborů: {count}; limit: {bound}. Kolo tohoto podagenta bylo započítáno.",
   "scheduleSettlement": {
     "sent": "Odesláno podle plánu",
     "outcomes": {
@@ -5335,6 +5347,7 @@
   "approvalAskRuleWhy": "Vaše pravidlo příkazů se u tohoto příkazu ptá pokaždé: {why}",
   "approvalSecretNote": "Tento příkaz obsahuje nalezené tajemství, zobrazené začerněné. Vždy se ptá: žádné pravidlo jej samo neschválí.",
   "autoReviewerResolver": "Automatický kontrolor",
+  "cliReviewerDecision": "Kontrolor Muse Code pro {child}",
   "commandRuleResolver": "Pravidlo příkazů",
   "autoReviewAllowed": "Povoleno: {reason}",
   "autoReviewAsked": "Ptá se vás: {reason}",

@@ -270,6 +270,8 @@ export interface ModelApiBackendManagerDeps extends ModelApiPaidHooks {
   /** A turn starts: its checkpoint admission, and its own recorded writes (M86). */
   readonly beforeTurnRuns?: ModelApiHostDeps['beforeTurnRuns']
   readonly afterTurnRuns?: ModelApiHostDeps['afterTurnRuns']
+  /** The window's playbook, for a conversation's new child work (M116, D96.16). */
+  readonly playbook?: ModelApiHostDeps['playbook']
 }
 
 const MANAGER_DISPOSED = 'The Model API backend was stopped while it was starting'
@@ -309,6 +311,8 @@ interface HostVariant {
   /** The window's checkpoint turn marks (M72); an attempt works in a worktree, not the workspace. */
   readonly beforeTurnRuns: ModelApiBackendManagerDeps['beforeTurnRuns']
   readonly afterTurnRuns: ModelApiBackendManagerDeps['afterTurnRuns']
+  /** The window's playbook (M116); an attempt's children are not the conversation's. */
+  readonly playbook: ModelApiBackendManagerDeps['playbook']
   readonly createMcpServers: ModelApiBundleDeps['createMcpServers']
   readonly team?: TeamHostSeams | undefined
   readonly readyMessage: string
@@ -630,6 +634,7 @@ export class ModelApiBackendManager {
         memory: variant.memory,
         beforeTurnRuns: variant.beforeTurnRuns,
         afterTurnRuns: variant.afterTurnRuns,
+        playbook: variant.playbook,
         noteReviewerUsage: this.deps.noteReviewerUsage,
         noteHookModelUsage: this.deps.noteHookModelUsage,
         hookModelDailyBudget: this.deps.hookModelDailyBudget,
@@ -681,6 +686,7 @@ export class ModelApiBackendManager {
       memory: this.deps.memory,
       beforeTurnRuns: this.deps.beforeTurnRuns,
       afterTurnRuns: this.deps.afterTurnRuns,
+      playbook: this.deps.playbook,
       createMcpServers:
         createMcpServers === undefined
           ? undefined
@@ -798,6 +804,7 @@ export class ModelApiBackendManager {
         memory: undefined,
         beforeTurnRuns: undefined,
         afterTurnRuns: undefined,
+        playbook: undefined,
         createMcpServers: undefined,
         readyMessage: kind.readyMessage,
       })

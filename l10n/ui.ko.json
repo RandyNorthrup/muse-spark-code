@@ -936,7 +936,7 @@
   "referenceCustomAgents": "프로젝트 또는 개인 AGENT.md 파일에서 에이전트를 정의하세요. 에이전트를 선택하거나 explore 또는 second-opinion을 요청하세요. 도구 허용 목록이 기능을 제한합니다. Model API 하위 작업은 유료 하위 에이전트 동의가 필요합니다.",
   "referenceCodeOutput": "복사는 코드를 복사하고 삽입은 커서에 쓰며 적용은 편집기 선택 영역을 바꿉니다. 도구 출력을 열어 전체 결과를 읽으세요. 잘린 출력은 페이지로 볼 수 있습니다. 대화 내용을 선택하면 입력창에 인용하거나 질문, 댓글 추가, 복사를 할 수 있습니다.",
   "referencePaidContexts": "대화형 Model API 추가 기능은 지출 전에 묻고 일일 예산을 공유합니다. Muse Code 이미지는 저장된 Model API 키와 명시적 활성화가 필요하며 지출은 이 일일 원장에 포함되지 않습니다. Muse Voice는 두 백엔드에서 공통 일일 예산을 예약합니다. ACP 유료 기능은 기본으로 꺼져 있고 Model API 플래그와 편집기 권한이 필요합니다. ACP와 헤드리스 Model API 요청은 런타임 일일 예산을 예약하며 헤드리스에는 실행별 엄격한 예산도 필요합니다. 헤드리스 이미지에는 acceptEdits와 이미지 플래그가 필요합니다. 계정 및 사용량에서 작업 공간의 유료 사용 동의를 잊을 수 있습니다.",
-  "referenceAcp": "설치된 스킬은 동적 슬래시 명령을 추가하며 이 정적 참고 자료에는 목록이 없습니다. ACP는 로컬 /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents와 설치된 스킬만 처리합니다. 링크의 패널 명령, 설정 및 대화 상자는 확장 기능의 작업입니다.",
+  "referenceAcp": "설치된 스킬은 동적 슬래시 명령을 추가하며 이 정적 참고 자료에는 목록이 없습니다. ACP는 로컬 /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents와 설치된 스킬만 처리합니다. /playbook은 모든 편집기에서 로컬로 응답합니다. 링크의 패널 명령, 설정 및 대화 상자는 확장 기능의 작업입니다.",
   "referenceCiOtherTitle": "기타 CI 시스템",
   "referenceCiOther": "패키지 해시를 고정한 GitLab, Azure, Jenkins, Bitbucket용 헤드리스 검토/수정 템플릿입니다. Node가 키를 읽고 체크아웃 외부에 결과를 게시하며 모든 템플릿이 해당 파일을 업로드합니다. GitLab/Bitbucket의 외부 임시 복사본과 Bitbucket의 프로세스 격리는 아직 검증되지 않았습니다. 추가 키 변수 이름은 MUSE_CI_KEY_ALIASES에 선언하세요. 모의 테스트만 수행했습니다. docs/ci-other-systems.md를 참조하세요.",
   "referenceWebFetchTitle": "웹 가져오기",
@@ -1018,6 +1018,13 @@
   "playbookCommandUsage": "`playbook status|record|settings`를 사용하세요.",
   "playbookSave": "설정 저장",
   "playbookSaved": "플레이북 설정이 저장되었습니다.",
+  "playbookAnswerReason": "사유",
+  "playbookAnswerWhySafe": "지금은 안전한 이유",
+  "playbookAnswerFollowUp": "후속 조치",
+  "playbookNotCertified": "지침서: 이 라운드는 인증할 수 없어 통과로 계산되지 않습니다.",
+  "playbookEvidenceUnreadable": "지침서: 검토 대상 파일 또는 하위 에이전트의 변경 내용을 읽을 수 없어 이 검토가 지침서의 대상인지 판단할 수 없습니다. 검토를 보내지 않았습니다.",
+  "playbookRecordStale": "지침서 기록을 읽을 수 없습니다. 표시된 내용이 최신이 아닐 수 있습니다.",
+  "playbookMuseCodeStarts": "Muse Code는 묻지 않고 하위 에이전트를 시작합니다. 플레이북은 라운드를 집계하고 작업을 검토하지만 시작을 막을 수는 없습니다.",
   "playbookStrikeBadge": {
     "other": "검토 {count}라운드"
   },
@@ -1089,8 +1096,13 @@
     "briefRecorded": "플레이북: {module}에 대한 작업 지시가 기록됨 ({reason}).",
     "configDrift": "결정이 필요: {module}의 공유 리포지토리 설정이 변경됨 ({reason}).",
     "fallbackReviewer": "플레이북: {actor}가 기록된 대체 검토자로 {module}를 검토함 ({reason}).",
-    "residualOpen": "결정이 필요: {lane}에 미해결 잔여 항목이 있음: {missing}."
+    "residualOpen": "결정이 필요: {lane}에 미해결 잔여 항목이 있음: {missing}.",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "{child}에 대한 플레이북 지적: 이름을 숨긴 파일이 비밀 정보로 보입니다. 이 하위 에이전트의 라운드를 집계했습니다.",
+  "playbookBlockedLarge": "{child}에 대한 플레이북 지적: 패치 크기는 {size}이며 한도 {bound}를 초과합니다. 이 하위 에이전트의 라운드를 집계했습니다.",
+  "playbookBlockedUnreadable": "{child}에 대한 플레이북 지적: 기여 내용을 읽을 수 없습니다. 이 하위 에이전트의 라운드를 집계했습니다.",
+  "playbookBlockedMany": "{child}에 대한 플레이북 지적: 변경된 파일 수: {count}; 한도: {bound}. 이 하위 에이전트의 라운드를 집계했습니다.",
   "scheduleSettlement": {
     "sent": "일정에 따라 전송됨",
     "outcomes": {
@@ -4984,6 +4996,7 @@
   "approvalAskRuleWhy": "명령 규칙에 따라 이 명령은 매번 확인합니다: {why}",
   "approvalSecretNote": "이 명령에는 감지된 비밀이 포함되어 있으며, 가려진 상태로 표시됩니다. 항상 확인하며, 어떤 규칙도 자동으로 승인하지 않습니다.",
   "autoReviewerResolver": "자동 검토자",
+  "cliReviewerDecision": "{child}에 대한 Muse Code 검토자",
   "commandRuleResolver": "명령 규칙",
   "autoReviewAllowed": "허용됨: {reason}",
   "autoReviewAsked": "확인 요청: {reason}",

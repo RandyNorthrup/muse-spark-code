@@ -940,7 +940,7 @@
   "referenceCustomAgents": "Ajanları proje veya kişisel AGENT.md dosyalarında tanımlayın. Bir ajan seçin ya da explore veya second-opinion isteyin; araç izin listeleri yetenekleri sınırlar. Model API alt görevleri ücretli alt ajan onayı gerektirir.",
   "referenceCodeOutput": "Kopyala kodu kopyalar; Ekle imleçte yazar; Uygula editör seçimini değiştirir. Tam araç çıktısını açın; kırpılmış çıktı sayfalanabilir. Görüşme metnini seçerek giriş alanında alıntılayın, hakkında soru sorun, yorum ekleyin veya kopyalayın.",
   "referencePaidContexts": "Etkileşimli Model API ekleri harcamadan önce sorar ve ortak günlük bütçeyi kullanır. Muse Code görselleri kayıtlı Model API anahtarı ve açık etkinleştirme gerektirir; harcamaları bu günlük defterin dışındadır. Muse Voice her iki arka uçta ortak günlük bütçeyi ayırır. Ücretli ACP özellikleri varsayılan kapalıdır ve Model API bayrakları ile editör izni gerektirir. ACP ve arayüzsüz Model API istekleri çalışma zamanının günlük bütçesini ayırır; arayüzsüz kullanım ayrıca kesin bir çalıştırma bütçesi gerektirir. Arayüzsüz görseller acceptEdits ve görsel bayrağını gerektirir. Hesap ve kullanım, çalışma alanının ücretli kullanım izinlerini unutabilir.",
-  "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents ve kurulu becerileri işler; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
+  "referenceAcp": "Kurulu beceriler bu statik başvuruda listelenmeyen dinamik komutlar ekler. ACP yalnızca yerel /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents ve kurulu becerileri işler; /playbook her düzenleyicide yerel olarak yanıt verir; bağlantıdaki panel komutları, ayarlar ve editör iletişimleri uzantı akışlarıdır.",
   "referenceCiOtherTitle": "Diğer CI sistemleri",
   "referenceCiOther": "Paket özeti sabitlenmiş GitLab, Azure, Jenkins ve Bitbucket için arayüzsüz inceleme/düzeltme şablonları. Node anahtarı okur ve çalışma kopyası dışında yayımlar; her şablon bu dosyaları yükler. GitLab/Bitbucket harici geçici kopyaları ve Bitbucket süreç yalıtımı henüz doğrulanmamıştır. Ek anahtar değişkenlerinin adlarını MUSE_CI_KEY_ALIASES içinde bildirin. Yalnızca sahte testler; bkz. docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Web sayfası alma",
@@ -1022,6 +1022,13 @@
   "playbookCommandUsage": "`playbook status|record|settings` kullanın.",
   "playbookSave": "Ayarları kaydet",
   "playbookSaved": "İşleyiş kılavuzu ayarları kaydedildi.",
+  "playbookAnswerReason": "Gerekçe",
+  "playbookAnswerWhySafe": "Şimdilik neden güvenli",
+  "playbookAnswerFollowUp": "Takip adımı",
+  "playbookNotCertified": "Kılavuz: bu tur doğrulanamadı, bu yüzden geçmiş sayılmaz.",
+  "playbookEvidenceUnreadable": "Kılavuz: incelenen bir dosya veya bir alt aracının yaptığı değişiklikler okunamadı; bu yüzden kılavuz bu incelemenin kendisine ait olup olmadığını belirleyemiyor. İnceleme gönderilmedi.",
+  "playbookRecordStale": "Kılavuz kaydı okunamadı. Gösterilenler güncel olmayabilir.",
+  "playbookMuseCodeStarts": "Muse Code sormadan alt ajanları başlatır. Playbook turlarını sayar ve çalışmalarını inceler, ancak başlatmayı engelleyemez.",
   "playbookStrikeBadge": {
     "one": "{count} inceleme turu",
     "other": "{count} inceleme turu"
@@ -1094,8 +1101,13 @@
     "briefRecorded": "Kılavuz: {module} için görev özeti kaydedildi ({reason}).",
     "configDrift": "Kararınız gerekli: {module} için paylaşılan depo yapılandırması değişti ({reason}).",
     "fallbackReviewer": "Kılavuz: {actor}, kaydedilmiş yedek inceleyici olarak {module} öğesini inceliyor ({reason}).",
-    "residualOpen": "Kararınız gerekli: {lane} içinde açık kalan artık maddeler var: {missing}."
+    "residualOpen": "Kararınız gerekli: {lane} içinde açık kalan artık maddeler var: {missing}.",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "{child} için playbook bulgusu: adı gizlenen bir dosya gizli bilgi gibi görünüyor. Bu alt ajanın turu sayıldı.",
+  "playbookBlockedLarge": "{child} için playbook bulgusu: yama boyutu {size}, {bound} sınırının üzerinde. Bu alt ajanın turu sayıldı.",
+  "playbookBlockedUnreadable": "{child} için playbook bulgusu: katkı okunamadı. Bu alt ajanın turu sayıldı.",
+  "playbookBlockedMany": "{child} için playbook bulgusu: değiştirilen dosya sayısı: {count}; sınır: {bound}. Bu alt ajanın turu sayıldı.",
   "scheduleSettlement": {
     "sent": "Zamanlamaya göre gönderildi",
     "outcomes": {
@@ -5101,6 +5113,7 @@
   "approvalAskRuleWhy": "Komut kuralınız bu komut için her seferinde onay ister: {why}",
   "approvalSecretNote": "Bu komut algılanan bir gizli bilgi içeriyor, gizlenmiş olarak gösterilir. Her zaman sorar: hiçbir kural onu kendi başına onaylamaz.",
   "autoReviewerResolver": "Otomatik inceleyici",
+  "cliReviewerDecision": "{child} için Muse Code inceleyicisi",
   "commandRuleResolver": "Komut kuralı",
   "autoReviewAllowed": "İzin verildi: {reason}",
   "autoReviewAsked": "Size soruyor: {reason}",

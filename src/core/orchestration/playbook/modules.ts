@@ -31,17 +31,43 @@ export interface ModuleState {
   design?: PlaybookDesignDecision
 }
 
+/**
+A path the journal cannot place: unreadable, unresolvable, or a name the
+journal cannot hold. The message is fixed words; a name that reads as a
+secret is never in it.
+*/
+export class UnresolvableWorkspaceFile extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = 'UnresolvableWorkspaceFile'
+  }
+}
+
 /** Only workspace-relative selectors enter the registry. Segment-wise
 normalization also makes Windows spelling and ./ aliases equivalent. */
 export function modulePath(value: string): string {
+  if (screenModulePath(value) !== undefined)
+    throw new UnresolvableWorkspaceFile(UI_TEXT.playbookUnavailable)
+  return value.replaceAll('\\', '/').replace(/^\.\//u, '')
+}
+
+/**
+Whether a recorded path can name a journal file as spelled, before the
+worker resolves it: `withheld` when the name reads as a secret (the
+journal cannot hold it, so the host reports the file without naming it),
+`external` when no journal file is spelled at all (absolute, a parent
+skip or a scheme: the worker reads it as outside or resolves it), and
+undefined when its spelling is journal-shaped. The worker's `modulePath`
+stays the authority; this only screens what the host saw a child change.
+*/
+export function screenModulePath(value: string): 'withheld' | 'external' | undefined {
   const path = value.replaceAll('\\', '/').replace(/^\.\//u, '')
   if (
     /^(?:\/|[A-Za-z]:|\w+:)/u.test(path) ||
-    path.split('/').some((part) => ['..', '', '.'].includes(part)) ||
-    redactSecrets(path) !== path
+    path.split('/').some((part) => ['..', '', '.'].includes(part))
   )
-    throw new Error(UI_TEXT.playbookUnavailable)
-  return path
+    return 'external'
+  return redactSecrets(path) === path ? undefined : 'withheld'
 }
 
 export function normalizedModule(module: PlaybookModule): PlaybookModule {
@@ -168,13 +194,29 @@ function contentIdentity(content: string): string {
   return `${createHash('sha256').update(content).digest('hex')}:${fingerprints.join(',')}`
 }
 
-export function hasSimilarContent(left: string, right: string): boolean {
+function hasSimilarContent(left: string, right: string): boolean {
   if (left.split(':', 1)[0] === right.split(':', 1)[0]) return true
   const a = left.split(':', 2)[1]?.split(',').filter(Boolean) ?? []
   const b = new Set(right.split(':', 2)[1]?.split(',').filter(Boolean))
   const common = a.filter((line) => b.has(line)).length
   return (
     common > 0 && common * 100 >= Math.max(a.length, b.size) * PLAYBOOK_CONTENT_SIMILARITY_PERCENT
+  )
+}
+
+/** Whether any of these files holds content a module's journal fingerprints
+already record as that module's own. */
+export function hasRecordedContent(
+  records: readonly PlaybookRecord[],
+  moduleId: string,
+  identities: readonly { readonly hash: string }[],
+): boolean {
+  return records.some(
+    (record) =>
+      record.kind === 'note' &&
+      record.value.laneId === PLAYBOOK_IDENTITY_NOTE &&
+      record.value.workerId === moduleId &&
+      identities.some((identity) => hasSimilarContent(identity.hash, record.value.reason ?? '')),
   )
 }
 
@@ -348,6 +390,26 @@ function applyRecord(record: PlaybookRecord, states: Map<string, ModuleState>): 
         const state = states.get(record.value.module ?? '')
         if (!state) throw new Error(UI_TEXT.playbookUnavailable)
         for (const linked of linkedStates(state, states)) linked.escalated = false
+      }
+      // A counted contribution: the blocked child's round against its
+      // module, one strike like any round with a finding. A module the
+      // journal never declared counts nothing: the finding is kept as the
+      // child's, under no module.
+      const note = record.value
+      if (
+        note.code === 'contributionBlocked' &&
+        note.module !== undefined &&
+        note.round !== undefined
+      ) {
+        let state: ModuleState | undefined
+        for (const candidate of states.values())
+          if (candidate.module.key === note.module) state = candidate
+        if (state === undefined) return
+        state.strikes += 1
+        for (const linked of linkedStates(state, states)) {
+          linked.counts.set(undefined, Math.max(linked.counts.get(undefined) ?? 0, note.round))
+          linked.strikes = state.strikes
+        }
       }
       return
     }

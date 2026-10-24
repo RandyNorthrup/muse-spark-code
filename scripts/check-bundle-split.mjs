@@ -1783,6 +1783,14 @@ const TEXT_BLOCKS = [
     sentinels: ['playbookReviewInstructions'],
     readers: ['dist/bundledSkills.js'],
   },
+  // C-M116-6: what a model reads when the playbook does not admit the
+  // subagent work it asked for. The window's lazy bundle words it for both
+  // backends; neither the conversation nor the Model API bundle carries it.
+  {
+    block: 'PLAYBOOK_REFUSAL_MODEL_TEXT',
+    sentinels: ['playbookWorkRefused', 'playbookWorkUnavailable'],
+    readers: ['dist/playbook.js'],
+  },
   {
     block: 'REVIEW_COMMENT_MODEL_TEXT',
     sentinels: ['reviewRemovedLine'],
