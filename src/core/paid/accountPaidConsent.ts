@@ -203,8 +203,10 @@ export function quoteGrantEpoch(generation: string): number | undefined {
     const parsed: unknown = JSON.parse(generation)
     const result = durableQuoteGenerationSchema.safeParse(parsed)
     return result.success ? result.data.epoch : undefined
-  } catch {
-    return undefined
+  } catch (error: unknown) {
+    // Text that is not JSON is no durable epoch; JSON.parse throws nothing else on a string.
+    if (error instanceof SyntaxError) return undefined
+    throw error
   }
 }
 
@@ -265,11 +267,8 @@ export class AccountPaidUseConsent {
   private async write(use: () => Promise<void>): Promise<void> {
     const previous = this.writes
     const operation = (async () => {
-      try {
-        await previous
-      } catch {
-        // A failed prior owner must not block this mutation; its caller received the error.
-      }
+      // A failed prior owner must not block this mutation; its caller received the error.
+      await Promise.allSettled([previous])
       await use()
     })()
     this.writes = operation

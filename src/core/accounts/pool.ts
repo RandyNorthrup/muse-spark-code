@@ -438,12 +438,10 @@ export class AccountPool {
         throw error
       }
     })()
+    // The next admission waits for this one to settle; its caller receives
+    // the refusal from `operation` itself.
     this.admission = (async () => {
-      try {
-        await operation
-      } catch {
-        /* Caller receives the refusal. */
-      }
+      await Promise.allSettled([operation])
     })()
     const admitted = await operation
     return admitted ?? (await this.admit(request, isEligible, hasSent))

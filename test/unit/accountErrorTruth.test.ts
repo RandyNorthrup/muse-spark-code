@@ -22,6 +22,7 @@ import {
 } from '../../src/runtime/providers/runtimeServices'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
+import { captureLog } from './helpers/captureLog'
 
 const CONNECTION = UI_TEXT.accounts.unavailable
 
@@ -55,6 +56,7 @@ touches it. */
 function offlineServices(folder: string): RuntimeAccountServices {
   return createRuntimeAccountServices({
     dataDir: folder,
+    log: captureLog().logger,
     openEntry: () => {
       throw new Error('the account read path never touches the credential store')
     },

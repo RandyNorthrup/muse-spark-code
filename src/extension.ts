@@ -1333,6 +1333,7 @@ async function activateWindow(
     if (create === undefined) throw new Error(UI_TEXT.accounts.unavailable)
     editorAccounts = create(l10n.table, l10n.locale, {
       dataDir: path.join(context.globalStorageUri.fsPath, 'accounts'),
+      log,
       secrets: context.secrets,
       session: () => {
         const active = registry.active

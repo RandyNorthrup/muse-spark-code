@@ -1672,6 +1672,18 @@ type OpenItem = OpenItemFields &
       }
   )
 
+/** One model call's whole-stream retries: what every attempt of it shares. */
+interface StreamRetry {
+  readonly turnId: string
+  readonly signal: AbortSignal
+  /** The account an attempt was billed to; a failover drops it. */
+  readonly payer: { account?: string }
+  /** The HTTP and whole-stream retries share one budget (the review of PR #28). */
+  readonly budget: RetryBudget
+  /** A media recovery is tried once per call. */
+  hasRecoveredMedia: boolean
+}
+
 /** What a search row shows: the query (or page) as its arguments, the results as its output. */
 function searchPresentation(item: WebSearchCallItem): {
   readonly args: string
@@ -7726,10 +7738,14 @@ export class ModelApiSession implements ScheduledAgentSession {
     step: number,
     confirmedRequest?: ConfirmedModelRequest,
   ): Promise<StreamedCall> {
-    const payer: { account?: string } = {}
     const modelRevision = this.modelRevision
-    const budget: RetryBudget = { retriesUsed: 0 }
-    let hasRecoveredMedia = false
+    const retry: StreamRetry = {
+      turnId,
+      signal,
+      payer: {},
+      budget: { retriesUsed: 0 },
+      hasRecoveredMedia: false,
+    }
     await this.media?.beginRequest(this.replay.map((entry) => entry.item))
     for (;;) {
       if (this.modelRevision !== modelRevision) throw new AbortedError()
@@ -7739,111 +7755,129 @@ export class ModelApiSession implements ScheduledAgentSession {
           turnId,
           signal,
           open,
-          budget,
+          retry.budget,
           step,
           confirmedRequest,
           undefined,
-          payer,
+          retry.payer,
         )
       } catch (error: unknown) {
-        if (
-          typeof error === 'object' &&
-          error !== null &&
-          !signal.aborted &&
-          budget.retriesUsed <=
-            (this.selectedModel().client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES) &&
-          this.deps.accountRequests !== undefined &&
-          'code' in error &&
-          error.code === 'accountRequestBoundary'
-        )
-          continue
-        // What a failed attempt showed stays in the history, the last one's
-        // too (the review of PR #28); a Stop is the turn's own business.
-        if (signal.aborted) {
-          for (const entry of open.values()) {
-            if (entry.kind !== 'argumentPreview') continue
-            this.interruptArgumentPreview(entry.call.call_id)
-            entry.isCompleted = true
-          }
-        } else {
-          this.settleCutShort(open, turnId)
-        }
-        if (error instanceof WrapUpRequiredError && !signal.aborted) continue
-        if (error instanceof PaidQuoteChangedError && !signal.aborted) {
-          await this.refreshSearchConsent(signal)
-          continue
-        }
-        const canFailOverAccount = shouldFailOverAccount(
-          error,
-          this.deps.accountRequests !== undefined,
-          payer,
-        )
-        // Lane RETRYLIMITS: the selected model's own retry limit (the
-        // provider's documented maximum, or the person's setting when set;
-        // unbounded when neither sets one, so the provider governs). A
-        // failure to resolve the model here (it can be the very failure
-        // being handled, before any send) must never mask the original
-        // error, so it rethrows that error instead (review RVRETRYLIMITS).
-        let client: ResolvedModel['client']
-        let allowed: number | undefined
-        try {
-          client = this.selectedModel().client
-          // Lane PR225W1: an aggregate client answers for the model that
-          // handled the request (a subscription route, not Meta).
-          allowed = client.maxRetries(this.modelId)
-        } catch {
-          throw error
-        }
-        if (
-          !hasRecoveredMedia &&
-          !signal.aborted &&
-          this.media !== undefined &&
-          canRetryWithinBudget(budget, budget.retriesUsed) &&
-          budget.retriesUsed < (allowed ?? UNBOUNDED_RETRIES) &&
-          (await this.media.recover(
-            error,
-            this.replay.map((entry) => entry.item),
-            this.modelId,
-            signal,
-          ))
-        ) {
-          hasRecoveredMedia = true
-          budget.retriesUsed += 1
-          continue
-        }
-        if (
-          (!canFailOverAccount && !(error instanceof RetryableStreamError)) ||
-          signal.aborted ||
-          !canRetryWithinBudget(budget, budget.retriesUsed) ||
-          budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
-        ) {
-          this.notifyRetryCap(error, signal, client.personCap(), allowed)
-          throw error
-        }
-        const attempt = budget.retriesUsed
-        budget.retriesUsed += 1
-        const delayMs = client.retryDelayMs(attempt)
-        const failureCode = retryFailureName(error)
-        this.emit({
-          type: 'turnRetry',
-          turnId,
-          attempt: attempt + 1,
-          maxAttempts: allowed === undefined ? undefined : allowed + 1,
-          retryDelayMs: delayMs,
-          reason: `${failureCode}: ${error.message}`,
-        })
-        this.deps.log.warn(
-          `Model API stream ended with ${failureCode}; sending the request again in ${String(delayMs)} ms`,
-        )
-        await client.waitBeforeRetry(delayMs, signal)
-        // Lane PR225W1: the person's limit is live — a change mid-wait (to
-        // 0 during a long wait) refuses the dispatch the check above had
-        // accepted, instead of sending one request past the new ceiling.
-        if (budget.retriesUsed > (client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES)) {
-          throw error
-        }
+        // Every failed attempt is sent again or stands unchanged.
+        if (await this.isStreamRetried(error, open, retry)) continue
+        throw error
       }
     }
+  }
+
+  /**
+  Whether a failed stream attempt is sent again: true once the attempt may
+  go (after any wait its retry needs), false when its failure stands and
+  the caller rethrows it unchanged.
+  */
+  private async isStreamRetried(
+    error: unknown,
+    open: Map<string, OpenItem>,
+    retry: StreamRetry,
+  ): Promise<boolean> {
+    const { turnId, signal, budget, payer } = retry
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      !signal.aborted &&
+      budget.retriesUsed <=
+        (this.selectedModel().client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES) &&
+      this.deps.accountRequests !== undefined &&
+      'code' in error &&
+      error.code === 'accountRequestBoundary'
+    )
+      return true
+    // What a failed attempt showed stays in the history, the last one's
+    // too (the review of PR #28); a Stop is the turn's own business.
+    if (signal.aborted) {
+      for (const entry of open.values()) {
+        if (entry.kind !== 'argumentPreview') continue
+        this.interruptArgumentPreview(entry.call.call_id)
+        entry.isCompleted = true
+      }
+    } else {
+      this.settleCutShort(open, turnId)
+    }
+    if (error instanceof WrapUpRequiredError && !signal.aborted) return true
+    if (error instanceof PaidQuoteChangedError && !signal.aborted) {
+      await this.refreshSearchConsent(signal)
+      return true
+    }
+    const canFailOverAccount = shouldFailOverAccount(
+      error,
+      this.deps.accountRequests !== undefined,
+      payer,
+    )
+    // Lane RETRYLIMITS: the selected model's own retry limit (the
+    // provider's documented maximum, or the person's setting when set;
+    // unbounded when neither sets one, so the provider governs). A
+    // failure to resolve the model here (it can be the very failure
+    // being handled, before any send) must never mask the original
+    // error, so that error stands, and the log names this one's kind
+    // (review RVRETRYLIMITS).
+    let client: ResolvedModel['client']
+    let allowed: number | undefined
+    try {
+      client = this.selectedModel().client
+      // Lane PR225W1: an aggregate client answers for the model that
+      // handled the request (a subscription route, not Meta).
+      allowed = client.maxRetries(this.modelId)
+    } catch (error_: unknown) {
+      this.deps.log.warn(
+        `Model API retry limit could not be read (${failureForLog(error_)}); the attempt's failure stands`,
+      )
+      return false
+    }
+    if (
+      !retry.hasRecoveredMedia &&
+      !signal.aborted &&
+      this.media !== undefined &&
+      canRetryWithinBudget(budget, budget.retriesUsed) &&
+      budget.retriesUsed < (allowed ?? UNBOUNDED_RETRIES) &&
+      (await this.media.recover(
+        error,
+        this.replay.map((entry) => entry.item),
+        this.modelId,
+        signal,
+      ))
+    ) {
+      retry.hasRecoveredMedia = true
+      budget.retriesUsed += 1
+      return true
+    }
+    if (
+      (!canFailOverAccount && !(error instanceof RetryableStreamError)) ||
+      signal.aborted ||
+      !canRetryWithinBudget(budget, budget.retriesUsed) ||
+      budget.retriesUsed >= (allowed ?? UNBOUNDED_RETRIES)
+    ) {
+      this.notifyRetryCap(error, signal, client.personCap(), allowed)
+      return false
+    }
+    const attempt = budget.retriesUsed
+    budget.retriesUsed += 1
+    const delayMs = client.retryDelayMs(attempt)
+    const failureCode = retryFailureName(error)
+    this.emit({
+      type: 'turnRetry',
+      turnId,
+      attempt: attempt + 1,
+      maxAttempts: allowed === undefined ? undefined : allowed + 1,
+      retryDelayMs: delayMs,
+      reason: `${failureCode}: ${error.message}`,
+    })
+    this.deps.log.warn(
+      `Model API stream ended with ${failureCode}; sending the request again in ${String(delayMs)} ms`,
+    )
+    await client.waitBeforeRetry(delayMs, signal)
+    // Lane PR225W1: the person's limit is live — a change mid-wait (to
+    // 0 during a long wait) refuses the dispatch the check above had
+    // accepted, instead of sending one request past the new ceiling.
+    return budget.retriesUsed <= (client.maxRetries(this.modelId) ?? UNBOUNDED_RETRIES)
   }
 
   private recordContent(
@@ -10474,7 +10508,8 @@ export class ModelApiSession implements ScheduledAgentSession {
         hasReturned = true
         return { ...outcome, touched }
       } catch (error: unknown) {
-        if (egressRefusal !== undefined) {
+        // The egress fence's own stop: the attempt guard refused the send.
+        if (egressRefusal !== undefined && error instanceof AbortedError) {
           return egressRefusal
         }
         // D208: a refused request books nothing; a local refusal that never
@@ -17168,14 +17203,15 @@ export class ModelApiSession implements ScheduledAgentSession {
       const pendingRun = turn.scheduleRun === undefined ? this.owner.run(turn.turnId) : undefined
       const released = pendingRun === undefined ? undefined : this.owner.withdraw(pendingRun)
       if (released !== undefined) this.owner.modeApplied(released, true)
-      if (turn.abort.signal.aborted || error instanceof HookCancelledError) {
+      if (error instanceof HookCancelledError) {
         terminal = CANCELLED
-        if (error instanceof HookCancelledError) {
-          reason = error.reason
-          // Fixed words only: the reason carries the hook's stderr, which the
-          // redactor would not catch (AGENTS.md rule 8).
-          this.deps.log.warn(`Model API turn ${turn.turnId} cancelled by a hook`)
-        }
+        reason = error.reason
+        // Fixed words only: the reason carries the hook's stderr, which the
+        // redactor would not catch (AGENTS.md rule 8).
+        this.deps.log.warn(`Model API turn ${turn.turnId} cancelled by a hook`)
+      } else if (turn.abort.signal.aborted) {
+        // The person's Stop: the turn ends cancelled, its failure is the stop.
+        terminal = CANCELLED
       } else {
         terminal = FAILED
         if (
@@ -17242,12 +17278,10 @@ export class ModelApiSession implements ScheduledAgentSession {
         // log. The detailed sentence still reaches the user with the turn.
         if (error instanceof ModelCallLimitError) {
           this.deps.log.warn(`Model API turn ${turn.turnId} reached its model-call limit`)
+        } else if (error instanceof HookStoppedError) {
+          this.deps.log.warn(`Model API turn ${turn.turnId} stopped by a hook`)
         } else {
-          this.deps.log.warn(
-            error instanceof HookStoppedError
-              ? `Model API turn ${turn.turnId} stopped by a hook`
-              : `Model API turn ${turn.turnId} failed: ${errorKind}`,
-          )
+          this.deps.log.warn(`Model API turn ${turn.turnId} failed: ${errorKind}`)
         }
         // A failed playback runs no StopFailure dispatch either (D203): a
         // hook handler must not run for a turn that answers from working

@@ -6,7 +6,11 @@ import { modelAccountsMessageSchema } from '../../../../shared/modelAccountsProt
 import type { AccountsRequest } from '../../../../shared/hostApi/accounts'
 import { ACCOUNT_PANEL_REQUEST_TIMEOUT_MS, UI_TEXT } from '../../../../shared/constants'
 import type { HostBridge } from '../../../hostBridge'
+import { webviewErrorReport } from '../../../errorReport'
 import './accounts.css'
+
+/** A request the surface withdrew as it closed: nothing failed, nothing to show. */
+class AccountsRequestWithdrawn extends Error {}
 
 export function AccountsSurface({
   host,
@@ -21,7 +25,7 @@ export function AccountsSurface({
   const waiting = useRef(
     new Map<
       number,
-      { resolve(value: unknown): void; reject(): void; timer: ReturnType<typeof setTimeout> }
+      { resolve(value: unknown): void; withdraw(): void; timer: ReturnType<typeof setTimeout> }
     >(),
   )
   const port = useMemo(
@@ -34,13 +38,19 @@ export function AccountsSurface({
             waiting.current.delete(requestId)
             reject(new Error(UI_TEXT.accounts.unavailable))
           }
+          const withdraw = () => {
+            waiting.current.delete(requestId)
+            reject(new AccountsRequestWithdrawn())
+          }
           const timer = setTimeout(refuse, ACCOUNT_PANEL_REQUEST_TIMEOUT_MS)
-          waiting.current.set(requestId, { resolve, reject: refuse, timer })
+          waiting.current.set(requestId, { resolve, withdraw, timer })
           try {
             host.post({ type: 'modelAccounts/request', requestId, request })
-          } catch {
+          } catch (error: unknown) {
+            // The request reads unavailable; the host's log gets the cause.
             clearTimeout(timer)
             refuse()
+            host.post(webviewErrorReport('promise', error))
           }
         }),
       accept: (value: ModelsAccountsSlice) => {
@@ -68,7 +78,7 @@ export function AccountsSurface({
       host.messages.removeEventListener('message', receive)
       for (const owned of pending.values()) {
         clearTimeout(owned.timer)
-        owned.reject()
+        owned.withdraw()
       }
     }
   }, [host])
@@ -86,13 +96,16 @@ export function AccountsSurface({
         setFailedRevision(null)
         setSlice(parsed.data)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        // Withdrawn as the surface closed: no failure happened.
+        if (error instanceof AccountsRequestWithdrawn) return
+        host.post(webviewErrorReport('promise', error))
         if (isCurrent) setFailedRevision(revision)
       })
     return () => {
       isCurrent = false
     }
-  }, [port, revision])
+  }, [host, port, revision])
   if (failedRevision === revision)
     return (
       <div role="alert">

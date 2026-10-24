@@ -7,6 +7,7 @@ import { AccountsPanelHandler } from '../models/accountsHandler'
 import type { AccountPolicy } from '../../core/providers/accountPolicy'
 import { accountEventText } from '../../acp/accountText'
 import { ACCOUNT_REQUEST_CERTIFICATION, UI_TEXT } from '../../shared/constants'
+import type { CoreLogger } from '../../core/logging'
 
 export function createEditorAccountServices(deps: {
   readonly dataDir: string
@@ -16,9 +17,11 @@ export function createEditorAccountServices(deps: {
   readonly promptForApiKey: () => Promise<string | undefined>
   readonly askPolicy: (row: AccountPolicy) => Promise<unknown>
   readonly notice: (session: string, text: string) => void
+  readonly log: Pick<CoreLogger, 'warn'>
 }) {
   const services = createRuntimeAccountServices({
     dataDir: deps.dataDir,
+    log: deps.log,
     secrets: deps.secrets,
     settings: deps.settings,
     askPolicy: deps.askPolicy,

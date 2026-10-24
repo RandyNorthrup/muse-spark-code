@@ -71,6 +71,17 @@ function terminalAccountsFailure(
     : commandError(error)
 }
 
+/** Prints a failed accounts command as its cause names it; the exit code for it. */
+function accountsFailed(
+  deps: Pick<AccountsCommandDeps, 'printError'>,
+  provider: string,
+  read: { readonly entry: AccountProvider | undefined } | undefined,
+  error: unknown,
+): number {
+  deps.printError(terminalAccountsFailure(provider, read, error))
+  return 1
+}
+
 export async function runAccountsCommand(
   command: AccountsCommand,
   deps: AccountsCommandDeps,
@@ -109,8 +120,7 @@ export async function runAccountsCommand(
     }
     return 0
   } catch (error: unknown) {
-    deps.printError(terminalAccountsFailure(command.provider, read, error))
-    return 1
+    return accountsFailed(deps, command.provider, read, error)
   }
 }
 
@@ -181,8 +191,7 @@ export async function runAccountAuthSet(
     deps.print(fill(UI_TEXT.acpKeyStored, { store: deps.storeName }))
     return 0
   } catch (error: unknown) {
-    deps.printError(terminalAccountsFailure(target.provider, read, error))
-    return 1
+    return accountsFailed(deps, target.provider, read, error)
   } finally {
     pending.value = ''
   }
