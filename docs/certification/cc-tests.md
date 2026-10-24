@@ -150,3 +150,22 @@ runtime's root realpath check deleted → the root-alias case failed
 with the junction; the backup's link refusal disabled → the backup case
 failed (`promise resolved "{ version: 1, entries: [ { …(3) } ] }" instead of rejecting`);
 both restored.
+
+### nodeOsBoot, nodeOsRepro, nodeInstallVerify, nodeOsBrowser, nodeImagePackaging: directory links as junctions
+
+Cause: the same `EPERM … symlink` as above, in five suites over Node tooling
+that does run on Windows (the OS boot and reproducibility checks, the install
+verifier, the Chrome add-on's key check, the node image packager): each made a
+directory symlink, and the packager case also a file symlink.
+
+Fix: each directory link is a junction on Windows (`'dir'` elsewhere). The
+packager case keeps its file link on Linux and macOS and adds a directory
+link inside the runtime everywhere.
+
+Red (before): 5 failed with `EPERM: operation not permitted, symlink`.
+Green: nodeOsBoot 7 passed (2 skipped as before: no QEMU), nodeOsRepro 5,
+nodeInstallVerify 3, nodeImagePackaging 16; nodeOsBrowser's link case passes
+(its two gpg cases are below). Red drill: the packager's link refusal removed
+(`scripts/package-node-image.mjs`) → the junction case failed
+(`expected [Function] to throw error including 'symlink' but got 'Runtime package contains a special fi…'`);
+restored.
