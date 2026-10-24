@@ -6315,6 +6315,21 @@ skips only requests, for example:
 BADGE_CHECK_SKIP_NETWORK='offline local verification' npm run check:badges
 ```
 
+The replacement MHP 1.5.0 contract for native and companion editor hosts
+(PLAN.md D84, D226) is frozen in the generated
+[service schema](src/shared/hostApi/mhp-v1.schema.json) and
+[panel schema](src/shared/hostApi/mhp-v1.1.schema.json); the
+[panel guide](docs/ide-compatibility/host-api-panel-1.1.md) describes the closed
+input-shape policy. The editor initiates `initialize` with its metadata,
+locale, theme and capabilities; the runtime answers with its capabilities.
+Only 1.5 is supported: MHP 1.5 replaces 1.1 and 1.2, and supersedes 1.3 and
+1.4; both legacy-named snapshots carry the current 1.5 schemas and reuse the
+shared panel payload validators, and older peers are refused by the version
+handshake. Repeating `--adopt-version=mhp/1.5.0` refuses. The native JVM hosts
+share schema-generated MHP error tables.
+Regenerate with `node scripts/mhp-schema.mjs`; `npm run check:mhp` verifies
+both version locks, both snapshots and the error tables.
+
 ```bash
 git clone https://github.com/RandyNorthrup/muse-spark-code.git
 cd muse-spark-code

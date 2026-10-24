@@ -12780,6 +12780,14 @@ produced with `node scripts/inspect-capture.mjs` and lands by the lead's
 commit. No user-facing strings: F1a refusals stay typed internal
 protocol words.
 
+### D226 — One MHP version in every native host (lead, lane RLM104, 2026-10-22; numbered D212 on its branch until the cc/rlm104 re-land of 2026-10-24)
+
+Every native host negotiates `MHP.version` (`mhp/1.5.0`, wire `1.5`, range
+to exclusive `mhp/1.6.0`) or refuses with `MHP_INCOMPATIBLE_VERSION`; no
+older route, tag, schema or test survives. Both legacy-named snapshots and
+locks advertise 1.5.0; a new revision regenerates every schema, lock and
+host together. Record: `docs/certification/cc-rlm104.md`.
+
 ## 3. Open questions (need the owner)
 
 <a id="q-0191-linux-vault"></a>
