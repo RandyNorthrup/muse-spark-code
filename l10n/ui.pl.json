@@ -4454,6 +4454,7 @@
   "teamSecondaryDangling": "Role pomocnicze wskazują agenta lub rolę, których ten zespół już nie ma.",
   "teamRoleUnknown": "Roli {role} nie ma w tym zespole.",
   "teamMoveTask": "Przenieś do…",
+  "teamMoveToRole": "Przenieś do: {role}",
   "teamMoveRunning": "Najpierw zatrzymaj zadanie: do innej roli można przenieść tylko oczekujące zadanie.",
   "teamMoveSettled": "Do innej roli można przenieść tylko oczekujące zadanie.",
   "paidTabName": "Uzupełnienia Tab",

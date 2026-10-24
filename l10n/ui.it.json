@@ -4358,6 +4358,7 @@
   "teamSecondaryDangling": "I ruoli secondari nominano un agente o un ruolo che questo team non ha più.",
   "teamRoleUnknown": "Il ruolo {role} non fa parte di questo team.",
   "teamMoveTask": "Sposta in…",
+  "teamMoveToRole": "Sposta in {role}",
   "teamMoveRunning": "Interrompi prima l’attività: solo un’attività in attesa può passare a un altro ruolo.",
   "teamMoveSettled": "Solo un’attività in attesa può passare a un altro ruolo.",
   "paidTabName": "Completamenti Tab",

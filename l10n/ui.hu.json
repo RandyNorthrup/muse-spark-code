@@ -4262,6 +4262,7 @@
   "teamSecondaryDangling": "A másodlagos szerepek olyan ügynököt vagy szerepet neveznek meg, amellyel a csapat már nem rendelkezik.",
   "teamRoleUnknown": "A(z) {role} szerep nem tagja ennek a csapatnak.",
   "teamMoveTask": "Áthelyezés…",
+  "teamMoveToRole": "Áthelyezés ide: {role}",
   "teamMoveRunning": "Először állítsa le a feladatot: csak várakozó feladat helyezhető át másik szerepbe.",
   "teamMoveSettled": "Csak várakozó feladat helyezhető át másik szerepbe.",
   "paidTabName": "Tab-kiegészítések",

@@ -4166,6 +4166,7 @@
   "teamSecondaryDangling": "보조 역할에 이 팀에 더 이상 없는 에이전트나 역할이 있습니다.",
   "teamRoleUnknown": "역할 {role}이(가) 이 팀에 없습니다.",
   "teamMoveTask": "이동…",
+  "teamMoveToRole": "{role}(으)로 이동",
   "teamMoveRunning": "먼저 작업을 중지하세요. 대기 중인 작업만 다른 역할로 이동할 수 있습니다.",
   "teamMoveSettled": "대기 중인 작업만 다른 역할로 이동할 수 있습니다.",
   "paidTabName": "Tab 완성",

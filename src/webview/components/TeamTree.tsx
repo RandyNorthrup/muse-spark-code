@@ -80,7 +80,11 @@ function WorkerMeta({ worker }: { readonly worker: TeamWorker }) {
   )
 }
 
-/** Move to… on a queued worker: one button per other role, then Cancel. */
+/**
+Move to… on a queued worker: one "Move to <role>" button per other role,
+then Cancel. The buttons replace the opener, so focus follows the person:
+to the first role when it opens, back to Move to… when it closes.
+*/
 function MoveToTask({
   worker,
   roles,
@@ -91,14 +95,25 @@ function MoveToTask({
   readonly onMove: (taskId: string, roleId: string) => void
 }) {
   const [isOpen, setOpen] = useState(false)
+  const opener = useRef<HTMLButtonElement>(null)
+  const first = useRef<HTMLButtonElement>(null)
+  const toggled = useRef(false)
+  useEffect(() => {
+    if (toggled.current) (isOpen ? first : opener).current?.focus()
+  }, [isOpen])
+  const toggle = (shouldOpen: boolean) => {
+    toggled.current = true
+    setOpen(shouldOpen)
+  }
   if (!isOpen) {
     return (
       <button
+        ref={opener}
         tabIndex={-1}
         type="button"
         className="tool-more"
         onClick={() => {
-          setOpen(true)
+          toggle(true)
         }}
       >
         {UI_TEXT.teamMoveTask}
@@ -107,18 +122,19 @@ function MoveToTask({
   }
   return (
     <>
-      {roles.map((role) => (
+      {roles.map((role, index) => (
         <button
           key={role.id}
+          ref={index === 0 ? first : undefined}
           tabIndex={-1}
           type="button"
           className="tool-more"
           onClick={() => {
             onMove(worker.taskId, role.id)
-            setOpen(false)
+            toggle(false)
           }}
         >
-          {role.name}
+          {fill(UI_TEXT.teamMoveToRole, { role: role.name })}
         </button>
       ))}
       <button
@@ -126,7 +142,7 @@ function MoveToTask({
         type="button"
         className="tool-more"
         onClick={() => {
-          setOpen(false)
+          toggle(false)
         }}
       >
         {UI_TEXT.questionCancel}

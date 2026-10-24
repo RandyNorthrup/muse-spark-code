@@ -4262,6 +4262,7 @@
   "teamSecondaryDangling": "İkincil roller bu takımda artık bulunmayan bir aracıyı veya rolü adlandırıyor.",
   "teamRoleUnknown": "{role} rolü bu takımda yok.",
   "teamMoveTask": "Taşı…",
+  "teamMoveToRole": "{role} rolüne taşı",
   "teamMoveRunning": "Önce görevi durdurun: başka bir role yalnızca bekleyen görev taşınabilir.",
   "teamMoveSettled": "Başka bir role yalnızca bekleyen görev taşınabilir.",
   "paidTabName": "Tab tamamlamaları",
