@@ -46,6 +46,7 @@ import {
   SEARCH_WORKER_FILE,
   SECRET_KEYS,
   EXEC_STOP_GRACE_MS,
+  EXTENSION_NAME,
   USAGE_ERROR_LOCALE_MS,
   LEGAL_EXIT,
   LEGAL_SCAN_BUNDLE_FILE,
@@ -2433,6 +2434,11 @@ async function main(processResources: ProcessResources): Promise<number> {
           createRuntime: (serveOptions, questions, unsavedFiles) =>
             runtimeFor(serveOptions, log, questions, undefined, unsavedFiles),
           runGit: processGitRunner(),
+          github: {
+            secrets,
+            fetch: globalThis.fetch.bind(globalThis),
+            userAgent: `${EXTENSION_NAME}/${packageVersion()}`,
+          },
         },
       )
     }

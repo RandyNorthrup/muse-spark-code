@@ -47,12 +47,15 @@ raised, new code in lazy chunks with measured budgets (D6).
 | 4a        | `9d44d6774`   | the conversation bundle loads without the `vscode` module (portable question clock; `questionsForHost(store, deferAfterSeconds)`)                                                                                                  | `runtimePortableBundles` 1/1; drill B1 fires                                                                                                |
 | 4b–5a, 7a | `3c61b9a1a`   | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C8 fire (below)                                                       |
 | 6         | `1081aca0e`   | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
-| 5b        | (this commit) | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
+| 5b        | `728a52409`   | edit review and `/review` over int's review bundle, export and import through the editor's dialogs, unsaved editor files told to the backend                                                                                       | `runtimeReview` 6/6, `runtimeTransfer` 4/4, `runtimePanelSessions` 10/10; drills V1–V5, X1–X4, U1–U2 fire                                   |
+| 5c        | (this commit) | git and pull requests in the panel: the native route over the editor's services, in `dist/nativeGit.js`; the GitHub sign-in (device flow, `gh`) shared with VS Code                                                                | `runtimePanelGit` 6/6, `runtimeSettingsStore` 13/13, `pathGuardSpawns` record moved; drills G1–G7 fire                                      |
 
 ### Next step, exactly
 
-Continue slice 5 with the runtime's remaining ports (below, "Ports still
-refused in words"), then 6 (paid use), 7b (the other surfaces), 8, 9. The
+Continue slice 5 with the runtime's remaining ports (below, "Shared
+composition": checkpoints, plans, `openDocument`, the IDE tool server, usage
+insights, dictation, the Model API manager port, sign-out, the session log
+export, "Ask again", host actions), then 7b (the other surfaces), 8, 9. The
 rig-specific facts are in "Rig notes".
 
 ### Slices left, in order, with the intended design
@@ -88,11 +91,11 @@ rig-specific facts are in "Rig notes".
    trash), export and import (`transfer.ts`: the editor's save and open
    dialogs, a preview file the editor opens before the person decides), and
    the unsaved editor files, which reach the backend's tools
-   (`RuntimeBackendDeps.unsavedFiles`). Still refused in words
-   (`unavailable()`), each to be built against int's interfaces: git (the M123
-   native route is in `src/runtime/panel/git/**`; it needs a GitHub sign-in,
-   a link store and the data folder), checkpoints (`store: undefined`),
-   plans, `openDocument`, the IDE tool server (`ideMcpEndpoint`), usage
+   (`RuntimeBackendDeps.unsavedFiles`), and git with pull requests (5c,
+   `src/runtime/panel/git/panelGit.ts`). Still refused in words
+   (`unavailable()`), each to be built against int's interfaces: checkpoints
+   (`store: undefined`; they need the admission git's commit and push run
+   through), plans, `openDocument`, the IDE tool server (`ideMcpEndpoint`), usage
    insights, dictation and Muse Voice, the Model API manager port
    (best-of-N, voice budget), sign-out, Muse Code install, the session log
    export, "Ask again" for paid use, and most host actions.
@@ -527,6 +530,60 @@ file-writing tool call needs a model turn, which no suite here makes.
 `dist/runtimePanelSession.js` is 110.6 KiB of its 120 KiB row: git and
 checkpoints do not fit in it and go in a lazy chunk of their own.
 
+## Slice 5c — git and pull requests
+
+What a person gets: the git buttons of the chat (commit form, commit, push,
+pull requests) work in the workspace's repository, which is git's toplevel
+of the workspace folder (a workspace that is one folder of a repository works
+on the whole repository, its files named from the root). A push asks in the
+editor first (`ui/confirm`: the remote and its masked URL, the branch and
+its target, the commit count, never a force, that hooks and credential
+helpers run), and a closed question is a no. A push git itself could not
+finish opens the same command in the editor's terminal (`terminal/create`,
+`terminal/show`). A workspace the editor does not trust runs no git (the
+service's own refusal, in words). A workspace in no repository, or a machine
+with no git program on the PATH, says which in the panel (two new strings in
+all fifteen tables) instead of showing VS Code's wording.
+
+How: `openPanelGit` (`src/runtime/panel/git/panelGit.ts`) lives in the
+existing `dist/nativeGit.js` (97.7 of 125 KiB), loaded by the session through
+`panelGitLoader`; it builds int's `RuntimeGitDeps` over MHP and calls
+`createRuntimeGit`. The session builds it once per connection, before the first
+conversation (and again for a conversation if the workspace has since become a
+repository). The connection has one `GitHubSignIn` over the device flow and the
+opt-in `gh` login (`src/runtime/github/githubSources.ts`, now shared with VS
+Code's window, which adds its editor session in front); `useGhLogin` is read
+from the machine-scoped setting, so a workspace cannot switch it on. Pull
+request links are the workspace storage, through the same `PullRequestLinks`
+VS Code uses (`pullRequestLinkStoreOf`). The push question's words are one
+function (`pushConfirmationText`) for VS Code's modal and the panel.
+
+Not in the panel: a pull request's held worktree (`worktreeState` is empty,
+`confirmWorktreeTrust` does nothing, no card shows a hold) and the checkpoints'
+admission of commit and push hooks (no checkpoint store exists in the panel
+yet). Not proved here: the GitHub half (the device flow and `gh` need the
+network and the machine's credential store, which a suite cannot answer for;
+the adapter's own suite `nativeGitPullRequests` covers the flow) and
+`workspace/openFolder`. VS Code's `gitWindow.ts` and `githubSession.ts` were
+refactored onto the shared pieces (pure moves; the VS Code integration suite
+was not run here).
+
+Suites: `runtimePanelGit` (6) on real repositories, a bare remote of the
+suite's own and the real `dist/nativeGit.js`; `runtimeSettingsStore` gains the
+`gh` setting's scope; `pathGuardSpawns`' record names `githubSources.ts` where
+the `gh` start now lives (that suite has one failure that is the same on the
+base: unreviewed starts under `src/runtime/node/`, not this lane's).
+
+| Drill | Break                                                      | Result                                                          |
+| ----- | ---------------------------------------------------------- | --------------------------------------------------------------- |
+| G1    | any answer to the push question pushes                     | exit 1: "asks before it pushes … only on a yes"                 |
+| G2    | the editor's trust is ignored                              | exit 1: "does nothing in a workspace the editor does not trust" |
+| G3    | the repository is the workspace folder, not git's toplevel | exit 1: "works on the repository around a workspace …"          |
+| G4    | git's "not a repository" is not told apart from a failure  | exit 1: "says why there is no Git …"                            |
+| G5    | the terminal is given an environment                       | exit 1: "opens a push git itself could not finish …"            |
+| G6    | the `gh` setting can be set by a workspace                 | exit 1: "keeps a machine-scoped setting the person's alone"     |
+| G7    | the push question leaves out that a force is never made    | exit 1: "asks before it pushes, names every part of the push …" |
+
 ## Commits
 
 | Commit       | Slice                                                    |
@@ -538,4 +595,5 @@ checkpoints do not fit in it and go in a lazy chunk of their own.
 | `9d44d6774`  | slice 4a: the conversation bundle loads without `vscode` |
 | `3c61b9a1a`  | slices 4b–5a, 7a: the chat in `panel --stdio`            |
 | `1081aca0e`  | slice 6: paid use in the panel                           |
-| (this)       | slice 5b: review, export and import, unsaved files       |
+| `728a52409`  | slice 5b: review, export and import, unsaved files       |
+| (this)       | slice 5c: git and pull requests in the panel             |

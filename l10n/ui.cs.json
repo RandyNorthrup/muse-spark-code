@@ -2246,6 +2246,8 @@
   "gitExtensionMissing": "Vestavěné rozšíření Git ve VS Code není v tomto okně k dispozici.",
   "gitExtensionDisabled": "Git ve VS Code je vypnutý (git.enabled).",
   "gitNoRepository": "Tento pracovní prostor není v úložišti git, které má Git ve VS Code otevřené.",
+  "gitWorkspaceNotRepository": "Tento pracovní prostor není v úložišti git.",
+  "gitProgramMissing": "Git není v tomto počítači nainstalován nebo není v proměnné PATH.",
   "gitNothingToCommit": "Není co potvrdit.",
   "gitNothingStaged": "Nic není připravené. Zaškrtněte „Zahrnout nepřipravené změny a nové soubory“, nebo nejdříve nějaké změny připravte.",
   "gitCommitMessageEmpty": "Nejdříve napište zprávu potvrzení.",

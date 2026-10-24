@@ -2180,6 +2180,8 @@
   "gitExtensionMissing": "このウィンドウでは VS Code の組み込み Git 拡張機能を使用できません。",
   "gitExtensionDisabled": "VS Code の Git はオフになっています (git.enabled)。",
   "gitNoRepository": "このワークスペースは、VS Code の Git が開いている git リポジトリ内にありません。",
+  "gitWorkspaceNotRepository": "このワークスペースは git リポジトリ内にありません。",
+  "gitProgramMissing": "このコンピューターに Git がインストールされていないか、PATH に含まれていません。",
   "gitNothingToCommit": "コミットするものはありません。",
   "gitNothingStaged": "ステージされている変更はありません。「ステージされていない変更と新しいファイルを含める」をオンにするか、先に変更をステージしてください。",
   "gitCommitMessageEmpty": "先にコミット メッセージを入力してください。",

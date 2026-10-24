@@ -2246,6 +2246,8 @@
   "gitExtensionMissing": "Wbudowane rozszerzenie Git w VS Code nie jest dostępne w tym oknie.",
   "gitExtensionDisabled": "Git w VS Code jest wyłączony (git.enabled).",
   "gitNoRepository": "Ten obszar roboczy nie znajduje się w repozytorium git otwartym przez Git w VS Code.",
+  "gitWorkspaceNotRepository": "Ten obszar roboczy nie znajduje się w repozytorium git.",
+  "gitProgramMissing": "Git nie jest zainstalowany na tym komputerze lub nie ma go w zmiennej PATH.",
   "gitNothingToCommit": "Nie ma nic do zatwierdzenia.",
   "gitNothingStaged": "Nic nie zostało przygotowane. Zaznacz „Uwzględnij nieprzygotowane zmiany i nowe pliki” albo najpierw przygotuj część zmian.",
   "gitCommitMessageEmpty": "Najpierw napisz komunikat zatwierdzenia.",

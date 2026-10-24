@@ -31,7 +31,10 @@ import { panelSessionLoader } from './panelBundle'
 import type { PanelSession, PanelSessionDeps } from './panelSession'
 
 /** What `panel` is given by the process: its streams, its folders and the backend it may build. */
-export interface PanelRuntimeDeps extends Pick<PanelSessionDeps, 'createRuntime' | 'runGit'> {
+export interface PanelRuntimeDeps extends Pick<
+  PanelSessionDeps,
+  'createRuntime' | 'runGit' | 'github'
+> {
   readonly stdin: Readable
   readonly stdout: Writable
   readonly table: UiText
@@ -185,6 +188,7 @@ export async function runPanel(options: PanelOptions, deps: PanelRuntimeDeps): P
             isVerbose: options.isVerbose,
             createRuntime: deps.createRuntime,
             runGit: deps.runGit,
+            github: deps.github,
             log,
             table: deps.table,
             locale: deps.locale,

@@ -131,6 +131,14 @@ describe('RuntimeSettingsStore', () => {
     expect(await store.getSetting('museSpark.paidDailyBudgetUsd')).toBe(
       SETTING_DEFAULTS.paidDailyBudgetUsd,
     )
+    // Reading the person's `gh` login is theirs to allow (D104): a workspace cannot switch it on.
+    expect(MACHINE_SCOPED_SETTINGS).toContain('github.useGhLogin')
+    expect(
+      await refusal(store.updateSetting('museSpark.github.useGhLogin', true, 'workspace')),
+    ).toBe('MHP_STATE_MACHINE_SETTING')
+    expect(await store.getSetting('museSpark.github.useGhLogin')).toBe(false)
+    await store.updateSetting('museSpark.github.useGhLogin', true, 'user')
+    expect(await store.getSetting('museSpark.github.useGhLogin')).toBe(true)
   })
 
   it('tells which settings the person has set, and never counts a default', async () => {
