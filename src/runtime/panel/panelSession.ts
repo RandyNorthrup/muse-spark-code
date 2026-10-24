@@ -15,6 +15,8 @@ import { toSettingsSnapshot, type ExtensionSettings } from '../../host/settings'
 import {
   ACP_DEFAULT_BACKEND,
   CONVERSATION_BUNDLE_FILE,
+  type AcpBackendKind,
+  type AcpPaidFeature,
   RUNTIME_PANEL_RECONFIGURE_SETTINGS,
   UI_TEXT,
 } from '../../shared/constants'
@@ -26,6 +28,8 @@ import { setUiText } from '../../shared/l10n/text'
 import type { RuntimeBackend } from '../backends'
 import type { ServeOptions } from '../cliArgs'
 import { runtimeEditorContext } from '../features/editorContext'
+import { createRuntimePaid } from '../features/paid'
+import { runtimeDailyBudgetUsd } from '../dailyBudgetSetting'
 import { createRuntimeWorkspaceFiles } from '../features/workspaceFiles'
 import type { RuntimeSettingsStore } from '../settingsStore'
 import type { PanelConnection } from './connection'
@@ -72,13 +76,18 @@ interface OpenDocument {
 }
 
 /** The options the runtime backend is built from, from the person's settings and the editor's trust. */
+function backendKind(settings: ExtensionSettings): AcpBackendKind {
+  return settings.backend === 'auto' ? ACP_DEFAULT_BACKEND : settings.backend
+}
+
 function serveOptions(
   settings: ExtensionSettings,
   isTrusted: () => boolean,
   isVerbose: boolean,
+  paidFeatures: readonly AcpPaidFeature[],
 ): ServeOptions {
   return {
-    backend: settings.backend === 'auto' ? ACP_DEFAULT_BACKEND : settings.backend,
+    backend: backendKind(settings),
     get trustWorkspace() {
       return isTrusted()
     },
@@ -87,10 +96,10 @@ function serveOptions(
     canBypass: settings.allowDangerouslySkipPermissions,
     // The person confirms a contributor-tier model in the panel before it is used.
     allowsContributorModels: true,
-    paidFeatures: [],
+    paidFeatures,
     isVerbose,
     questionsDeferAfterSeconds: settings['questions.deferAfterSeconds'],
-    autoCompaction: true,
+    autoCompaction: paidFeatures.includes('autoCompaction'),
   }
 }
 
@@ -134,6 +143,9 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   /** Conversations that took another session and have no surface for it yet. */
   const awaitingSurface = new WeakSet<RuntimeConversation>()
   let settings: ExtensionSettings | undefined
+  let configured: ReadonlySet<string> = new Set()
+  let flaggedAtBuild: readonly AcpPaidFeature[] = []
+  let isKeyStored = false
   let isTrusted = false
   let runtime: RuntimeBackend | undefined
   let selection: MhpParams<'editor/didChangeSelection'>['selection'] = null
@@ -159,6 +171,33 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     if (settings === undefined) throw new Error('MHP_NOT_INITIALIZED')
     return settings
   }
+
+  const paid = createRuntimePaid(
+    {
+      host: connection,
+      store,
+      settings: currentSettings,
+      configured: () => configured,
+      backend: () => runtime?.backend.kind ?? backendKind(currentSettings()),
+      paidUse: () => runtime?.paid,
+      workspaceRoot: workspace,
+      dailyBudgetUsd: () => runtimeDailyBudgetUsd(deps.dataFolder),
+      isKeyStored: () => isKeyStored,
+      log,
+    },
+    {
+      isCurrent: (sessionId) => {
+        const held = registry.heldOrAdopting(sessionId)
+        return held !== undefined && !held.isReleased
+      },
+      signalFor: (sessionId) => registry.heldOrAdopting(sessionId)?.signal,
+    },
+  )
+  const publishPaid = () => {
+    for (const held of registry.controllers()) held.publishPaidState()
+  }
+  paid.gate.onDidChange(publishPaid)
+  paid.usage.onDidChange(publishPaid)
 
   async function openSurface(sessionId: string): Promise<void> {
     if (!connection.offers('surfaces')) {
@@ -191,6 +230,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       deferAfterSeconds: () => currentSettings()['questions.deferAfterSeconds'],
       isSideChat,
       settings: () => toSettingsSnapshot(currentSettings()),
+      paidState: () => paid.state(),
       compose: (context) =>
         runtimeConversationDeps(
           {
@@ -201,6 +241,7 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
             settings: currentSettings,
             isTrusted: () => isTrusted,
             canBypass: currentSettings().allowDangerouslySkipPermissions,
+            paid,
             controllers: () => controllersOf(registry.controllers()),
             runGit: deps.runGit,
             files,
@@ -269,10 +310,16 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
   }
 
   async function createBackend(): Promise<void> {
-    const options = serveOptions(currentSettings(), () => isTrusted, deps.isVerbose)
+    const flagged = paid.flagged()
+    const options = serveOptions(currentSettings(), () => isTrusted, deps.isVerbose, flagged)
     const created = await deps.createRuntime(options, questionStore)
     runtime = created
+    flaggedAtBuild = flagged
+    // The backend asks the editor before every paid use; until it is attached every use is denied.
+    created.paid.attach(paid.ask)
     await created.forgetUnflaggedGrants()
+    const readiness = await created.backend.readiness(false)
+    isKeyStored = created.backend.kind === 'modelApi' && readiness.state === 'ready'
   }
 
   /** The backend is built from settings and trust: a change ends its conversations and starts afresh. */
@@ -296,13 +343,21 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     const previous = settings
     const next = await store.readAll()
     settings = next
+    configured = await store.configuredSettings()
     for (const held of registry.controllers()) {
       held.publishSettings(toSettingsSnapshot(next))
       if (!next.allowDangerouslySkipPermissions) await held.controller?.revokeBypass()
     }
     if (keys.length > 0 && connection.offers('settings'))
       connection.notify('settings/didChange', { keys: [...keys] })
-    if (previous !== undefined && isReconfiguring(previous, next)) await replaceBackend()
+    // A setting found on without an accepted price asks for it (D30); the features now on are the backend's flags.
+    await paid.gate.review()
+    const flagged = paid.flagged()
+    if (
+      (previous !== undefined && isReconfiguring(previous, next)) ||
+      flagged.join(',') !== flaggedAtBuild.join(',')
+    )
+      await replaceBackend()
   }
 
   function applySettings(keys: readonly string[]): void {
@@ -334,6 +389,8 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
     initialize: async (params, signal) => {
       isTrusted = params.trusted
       settings = await store.readAll()
+      configured = await store.configuredSettings()
+      await paid.load()
       stopSettings = store.onSettingsChanged((keys) => {
         applySettings(keys)
       })
@@ -342,6 +399,11 @@ export function createPanelSession(deps: PanelSessionDeps): PanelSession {
       signal.throwIfAborted()
     },
     initialized: () => {
+      // A paid setting found on without its price accepted asks for it once, in the editor (D30).
+      void paid.gate.review().catch((error: unknown) => {
+        // REPORTED: a price that could not be asked is logged; the feature stays as it was.
+        log.warn(`Paid features could not be reviewed: ${failureForLog(error)}`)
+      })
       void openInitialSurface().catch((error: unknown) => {
         // REPORTED: the host is told the conversation could not start.
         log.error(`The panel could not start: ${failureForLog(error)}`)

@@ -17,6 +17,7 @@ export interface MhpWire {
   request(method: string, params: unknown): Promise<unknown>
   /** The service the host gives the runtime for `method`; its return is the request's result. */
   serve(method: string, handler: (params: unknown) => unknown): void
+  // A handler may return a promise: the answer is sent once it settles.
   /** The next frame that answers no request (a notification, a panel frame, an id-less failure). */
   next(isWanted?: (frame: Frame) => boolean): Promise<Frame>
   /** Requests the runtime made of the host so far, with their params. */
@@ -78,15 +79,16 @@ export function connectMhpHost(input: Writable, output: Readable): MhpWire {
         // The runtime asks the host for a service.
         asked.push({ method, params: frame['params'] })
         const service = services.get(method)
-        send(
-          service === undefined
-            ? {
-                jsonrpc: MHP.jsonRpcVersion,
-                id: frame['id'],
-                error: { code: MHP_ERROR_CODES.methodNotFound, message: 'MHP_METHOD_NOT_FOUND' },
-              }
-            : { jsonrpc: MHP.jsonRpcVersion, id: frame['id'], result: service(frame['params']) },
-        )
+        if (service === undefined)
+          send({
+            jsonrpc: MHP.jsonRpcVersion,
+            id: frame['id'],
+            error: { code: MHP_ERROR_CODES.methodNotFound, message: 'MHP_METHOD_NOT_FOUND' },
+          })
+        else
+          void Promise.resolve(service(frame['params'])).then((result) => {
+            send({ jsonrpc: MHP.jsonRpcVersion, id: frame['id'], result })
+          })
       } else {
         if (method !== undefined) asked.push({ method, params: frame['params'] })
         deliver(frame)
