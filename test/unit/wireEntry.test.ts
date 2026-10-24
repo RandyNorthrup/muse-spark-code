@@ -4,20 +4,14 @@ import * as wire from '../../src/shared/wireEntry'
 
 // Every lazy Node bundle that imports protocol.ts resolves it to dist/wire.js
 // (scripts/lib/deferredBundles.mjs, sharedWire), so a protocol export that
-// wire.js leaves out reads as undefined there. Only the MHP panel's raw
-// message schemas are left out on purpose (D226): no Node bundle reads them
-// yet, and dist/wire.js is over its budget already.
-const PANEL_ONLY = ['hostToWebviewMessageSchema', 'webviewToHostMessageSchema']
-
+// wire.js leaves out reads as undefined there: the runtime panel's bundle
+// (M104 lane B) failed to load that way, at the MHP panel's raw message
+// schemas, until they joined.
 describe('dist/wire.js shares protocol.ts by name', () => {
-  it('re-exports every protocol export as the same value, except the panel-only schemas', () => {
+  it('re-exports every protocol export as the same value', () => {
     const shared = new Map<string, unknown>(Object.entries(wire))
-    const missing = Object.keys(protocol).filter((name) => !shared.has(name))
-    expect(missing.toSorted((a, b) => a.localeCompare(b))).toEqual(PANEL_ONLY)
-    for (const [name, value] of Object.entries(protocol)) {
-      if (PANEL_ONLY.includes(name)) continue
-      expect(shared.get(name), name).toBe(value)
-    }
+    expect(Object.keys(protocol).filter((name) => !shared.has(name))).toEqual([])
+    for (const [name, value] of Object.entries(protocol)) expect(shared.get(name), name).toBe(value)
   })
 
   it('still parses a real webview message through the shared parser', () => {

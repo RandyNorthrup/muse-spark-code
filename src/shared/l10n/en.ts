@@ -1066,6 +1066,7 @@ export const EN = {
     'tab-max-output-tokens':
       'Cap each Tab request at this many output tokens; 0, the default, is the model’s own maximum.',
     'tab-trigger': 'Serve Tab as you type (automatic) or only on request (onInvoke).',
+    'panel-stdio': 'Speak MHP on standard input and output, one JSON message per line.',
   },
   referenceScanSecrets:
     'Scan a UTF-8 patch file for secrets and fail on detection. --key-stdin also checks for the exact in-memory Model API key; no key is stored.',
@@ -5428,6 +5429,10 @@ export const EN = {
     purposeSupervise:
       'Run another command of this agent so that stop can end it, with every process it started.',
     purposeStop: 'Stop every supervised run started in this folder, with every process it started.',
+    purposePanel:
+      'Serve an editor’s Muse panel host over MHP: this agent’s settings and storage, for the folder it starts in.',
+    notePanel:
+      'A setting written here is the one this agent itself reads: user settings stay in the data folder’s settings.json and resources.json. Settings that choose what runs or what is billed are yours alone and refuse the workspace scope. No key or token is ever stored.',
     purposeSetup: 'Run the Setup hooks and exit.',
     purposeUsage: 'Show usage and cost across models.',
     purposeResources: 'Show machine pressure and recent history.',
@@ -8618,6 +8623,12 @@ export const EN = {
       other: '{count} supervised runs could not be stopped whole.',
     }),
     unavailable: 'Supervision is not available in this installation.',
+  },
+  // M104 lane B: the runtime panel (`panel`). Not named after the command:
+  // the reference's route names would carry the group into the panel's English.
+  hostService: {
+    unavailable: 'The runtime panel is not available in this installation.',
+    needsStdio: 'panel needs --stdio: the editor’s host speaks to it on standard input and output.',
   },
   acpConnector: {
     title: 'Approve connector requests',

@@ -72,6 +72,8 @@ export const ACP_BUNDLES = [
   // `supervise`, `stop` and the server's `muse.stop`.
   'lsp.js',
   'supervise.js',
+  // M104 lane B: the runtime panel, loaded by `panel`.
+  'runtimePanel.js',
   // Lazy shared method factory; receiver qualification still refuses headless hosts.
   'devices.js',
   // RLF-DEVICES: beside devices.js, which the agent never loads; the maker

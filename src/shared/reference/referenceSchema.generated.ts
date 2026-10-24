@@ -413,6 +413,7 @@ export const textKeys = [
   'tab-daily-budget-usd',
   'tab-max-output-tokens',
   'tab-trigger',
+  'panel-stdio',
 ] as const
 
 const plainTextSchema = z.union([
@@ -525,6 +526,7 @@ const plainTextSchema = z.union([
       textKeys[408],
       textKeys[409],
       textKeys[410],
+      textKeys[411],
     ]),
   }),
   z.object({

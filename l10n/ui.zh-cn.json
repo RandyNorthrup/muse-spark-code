@@ -868,7 +868,8 @@
     "tab-model": "Tab 补全使用的模型。",
     "tab-daily-budget-usd": "当天花费达到此美元金额时停止 Tab；默认值 0 表示不设预算。",
     "tab-max-output-tokens": "将每个 Tab 请求的输出令牌限制为此数量；默认值 0 表示模型自身的上限。",
-    "tab-trigger": "在输入时提供 Tab（automatic），或仅在请求时提供（onInvoke）。"
+    "tab-trigger": "在输入时提供 Tab（automatic），或仅在请求时提供（onInvoke）。",
+    "panel-stdio": "通过标准输入和输出使用 MHP 通信，每行一条 JSON 消息。"
   },
   "referenceScanSecrets": "扫描 UTF-8 补丁文件中的秘密信息，检测到时以失败退出。--key-stdin 还会检查内存中的 Model API 密钥原值；不保存密钥。",
   "referenceVault": "从终端使用按用户 credential 保管库：设置、恢复、重置、状态、解锁、锁定、列表、添加、授权、审计、导入和监视。值永远不会打印；由代理持有。 明确确认后，重置也可替换所有者未知的写入锁。",
@@ -4265,6 +4266,8 @@
     "noteLsp": "不使用 --tab 时不会计费，也从不读取凭据存储。使用它时，每个新价格都会先在编辑器中询问；仅在使用 --trust-workspace 时才提供“在此工作区中始终允许”。",
     "purposeSupervise": "运行此代理的另一个命令，使 stop 能够连同其启动的所有进程一起结束它。",
     "purposeStop": "停止在此文件夹中启动的每个受监督运行，连同其启动的所有进程。",
+    "purposePanel": "通过 MHP 为编辑器的 Muse 面板宿主提供服务：此代理在其启动文件夹中的设置和存储。",
+    "notePanel": "在这里写入的设置就是此代理自己读取的设置：用户设置保存在数据文件夹的 settings.json 和 resources.json 中。决定运行什么或计费什么的设置只属于你，并拒绝工作区范围。从不存储任何密钥或令牌。",
     "purposeSetup": "运行 Setup 钩子并退出。",
     "purposeUsage": "显示各模型的用量与费用。",
     "purposeResources": "显示计算机负载与最近历史记录。",
@@ -6606,6 +6609,10 @@
       "other": "有 {count} 个受监督运行未能完整停止。"
     },
     "unavailable": "此安装中没有监督功能。"
+  },
+  "hostService": {
+    "unavailable": "此安装中无法使用运行时面板。",
+    "needsStdio": "panel 需要 --stdio：编辑器的宿主通过标准输入和输出与它通信。"
   },
   "acpConnector": {
     "title": "批准连接器请求",

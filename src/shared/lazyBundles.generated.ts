@@ -1213,6 +1213,13 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'runtimePanel.js',
+    side: 'acp',
+    requestedBy: [
+      { importer: 'src/shared/constants.ts', symbol: 'RUNTIME_PANEL_BUNDLE_FILE', side: ['acp'] },
+    ],
+  },
+  {
     file: 'runtimeQuestions.js',
     side: 'acp',
     requestedBy: [

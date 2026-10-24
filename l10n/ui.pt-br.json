@@ -876,7 +876,8 @@
     "tab-model": "O modelo que os preenchimentos do Tab usam.",
     "tab-daily-budget-usd": "Parar o Tab pelo resto do dia ao atingir este valor em dólares americanos; 0, o padrão, não define orçamento.",
     "tab-max-output-tokens": "Limitar cada solicitação do Tab a este número de tokens de saída; 0, o padrão, é o máximo do próprio modelo.",
-    "tab-trigger": "Servir o Tab enquanto você digita (automatic) ou só quando você pedir (onInvoke)."
+    "tab-trigger": "Servir o Tab enquanto você digita (automatic) ou só quando você pedir (onInvoke).",
+    "panel-stdio": "Falar MHP pela entrada e saída padrão, uma mensagem JSON por linha."
   },
   "referenceScanSecrets": "Verifica um arquivo de patch UTF-8 em busca de segredos e falha ao detectá-los. --key-stdin também procura a chave exata da Model API mantida em memória; nenhuma chave é armazenada.",
   "referenceVault": "Trabalhe com o cofre de credenciais por usuário em um terminal: configuração, recuperação, redefinição, estado, desbloqueio, bloqueio, lista, adição, concessões, auditoria, importação e observação. Os valores nunca são impressos; o intermediário os mantém. Após confirmação explícita, a redefinição também pode substituir um bloqueio de gravação com proprietário desconhecido.",
@@ -4427,6 +4428,8 @@
     "noteLsp": "Sem --tab nada é cobrado e o armazenamento de credenciais nunca é lido. Com ele, cada preço novo pergunta primeiro no editor; Sempre permitir neste espaço de trabalho só é oferecido com --trust-workspace.",
     "purposeSupervise": "Executar outro comando deste agente de modo que stop possa encerrá-lo junto com todos os processos que ele iniciou.",
     "purposeStop": "Parar cada execução supervisionada iniciada nesta pasta, junto com todos os processos que ela iniciou.",
+    "purposePanel": "Atender o host do painel do Muse de um editor via MHP: as configurações e o armazenamento deste agente, para a pasta em que ele inicia.",
+    "notePanel": "Uma configuração gravada aqui é a mesma que este agente lê: as configurações do usuário ficam em settings.json e resources.json na pasta de dados. Configurações que escolhem o que é executado ou o que é cobrado são só suas e recusam o escopo do espaço de trabalho. Nenhuma chave ou token é armazenado.",
     "purposeSetup": "Executar os ganchos Setup e sair.",
     "purposeUsage": "Mostrar o uso e o custo de todos os modelos.",
     "purposeResources": "Mostrar a carga da máquina e o histórico recente.",
@@ -6958,6 +6961,10 @@
       "many": "{count} execuções supervisionadas não puderam ser paradas por inteiro."
     },
     "unavailable": "A supervisão não está disponível nesta instalação."
+  },
+  "hostService": {
+    "unavailable": "O painel do runtime não está disponível nesta instalação.",
+    "needsStdio": "panel precisa de --stdio: o host do editor fala com ele pela entrada e saída padrão."
   },
   "acpConnector": {
     "title": "Aprovar solicitações do conector",

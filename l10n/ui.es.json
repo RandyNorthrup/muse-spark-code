@@ -876,7 +876,8 @@
     "tab-model": "El modelo que usan los completados de Tab.",
     "tab-daily-budget-usd": "Detener Tab durante el resto del día al llegar a esta cantidad de dólares estadounidenses; 0, el valor predeterminado, no fija presupuesto.",
     "tab-max-output-tokens": "Limitar cada solicitud de Tab a esta cantidad de tokens de salida; 0, el valor predeterminado, es el máximo propio del modelo.",
-    "tab-trigger": "Servir Tab mientras escribe (automatic) o solo cuando lo pida (onInvoke)."
+    "tab-trigger": "Servir Tab mientras escribe (automatic) o solo cuando lo pida (onInvoke).",
+    "panel-stdio": "Hablar MHP por la entrada y la salida estándar, un mensaje JSON por línea."
   },
   "referenceScanSecrets": "Busca secretos en un archivo de parche UTF-8 y falla si los detecta. --key-stdin también busca la clave exacta de Model API mantenida en memoria; no se almacena ninguna clave.",
   "referenceVault": "Trabaja con el almacén de credenciales por usuario desde un terminal: configuración, recuperación, restablecimiento, estado, desbloqueo, bloqueo, lista, adición, concesiones, auditoría, importación y observación. Los valores nunca se imprimen; los guarda el intermediario. Restablecer también puede sustituir un bloqueo de escritura de propietario desconocido tras una confirmación explícita.",
@@ -4427,6 +4428,8 @@
     "noteLsp": "Sin --tab no se factura nada y nunca se lee el almacén de credenciales. Con él, cada precio nuevo pregunta primero en el editor; Permitir siempre en esta área de trabajo solo se ofrece con --trust-workspace.",
     "purposeSupervise": "Ejecutar otro comando de este agente de forma que stop pueda terminarlo junto con todos los procesos que inició.",
     "purposeStop": "Detener cada ejecución supervisada iniciada en esta carpeta, junto con todos los procesos que inició.",
+    "purposePanel": "Atender al host del panel de Muse de un editor por MHP: la configuración y el almacenamiento de este agente, para la carpeta en la que se inicia.",
+    "notePanel": "Una configuración escrita aquí es la que lee el propio agente: la configuración de usuario permanece en settings.json y resources.json de la carpeta de datos. La configuración que elige qué se ejecuta o qué se factura es solo suya y rechaza el ámbito del área de trabajo. Nunca se guarda ninguna clave ni token.",
     "purposeSetup": "Ejecutar los hooks Setup y salir.",
     "purposeUsage": "Mostrar el uso y coste de todos los modelos.",
     "purposeResources": "Mostrar la carga de la máquina y el historial reciente.",
@@ -6958,6 +6961,10 @@
       "many": "{count} ejecuciones supervisadas no pudieron detenerse por completo."
     },
     "unavailable": "La supervisión no está disponible en esta instalación."
+  },
+  "hostService": {
+    "unavailable": "El panel del entorno de ejecución no está disponible en esta instalación.",
+    "needsStdio": "panel necesita --stdio: el host del editor le habla por la entrada y la salida estándar."
   },
   "acpConnector": {
     "title": "Aprobar solicitudes del conector",

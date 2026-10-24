@@ -872,7 +872,8 @@
     "tab-model": "Das Modell, das Tab-Vervollständigungen verwenden.",
     "tab-daily-budget-usd": "Tab für den Rest des Tages bei diesem Betrag in US-Dollar anhalten; 0, der Standard, setzt kein Budget.",
     "tab-max-output-tokens": "Jede Tab-Anfrage auf so viele Ausgabe-Token begrenzen; 0, der Standard, ist das eigene Maximum des Modells.",
-    "tab-trigger": "Tab beim Tippen (automatic) oder nur auf Anforderung (onInvoke) bereitstellen."
+    "tab-trigger": "Tab beim Tippen (automatic) oder nur auf Anforderung (onInvoke) bereitstellen.",
+    "panel-stdio": "MHP über Standardein- und -ausgabe sprechen, eine JSON-Nachricht pro Zeile."
   },
   "referenceScanSecrets": "Prüft eine UTF-8-Patchdatei auf Geheimnisse und schlägt bei einem Fund fehl. --key-stdin prüft auch auf den exakten Model-API-Schlüssel im Speicher; kein Schlüssel wird gespeichert.",
   "referenceVault": "Arbeite im Terminal mit dem benutzereigenen Anmeldeinformations-Tresor: Einrichtung, Wiederherstellung, Zurücksetzen, Status, Entsperren, Sperren, Auflisten, Hinzufügen, Freigaben, Prüfung, Import und Beobachtung. Werte werden nie ausgegeben; der Broker hält sie. Nach ausdrücklicher Bestätigung kann Zurücksetzen auch eine unbekannte Schreibersperre ersetzen.",
@@ -4346,6 +4347,8 @@
     "noteLsp": "Ohne --tab wird nichts abgerechnet und der Anmeldedatenspeicher nie gelesen. Mit --tab fragt jeder neue Preis zuerst im Editor; In diesem Arbeitsbereich immer zulassen wird nur mit --trust-workspace angeboten.",
     "purposeSupervise": "Einen anderen Befehl dieses Agenten so ausführen, dass stop ihn mit allen gestarteten Prozessen beenden kann.",
     "purposeStop": "Jeden überwachten Lauf, der in diesem Ordner gestartet wurde, mit allen gestarteten Prozessen beenden.",
+    "purposePanel": "Den Muse-Panel-Host eines Editors über MHP bedienen: die Einstellungen und den Speicher dieses Agenten für den Ordner, in dem er startet.",
+    "notePanel": "Eine hier geschriebene Einstellung ist die, die dieser Agent selbst liest: Benutzereinstellungen bleiben in settings.json und resources.json im Datenordner. Einstellungen, die bestimmen, was läuft oder was abgerechnet wird, gehören nur Ihnen und lehnen den Arbeitsbereichs-Bereich ab. Kein Schlüssel und kein Token wird je gespeichert.",
     "purposeSetup": "Die Setup-Hooks ausführen und beenden.",
     "purposeUsage": "Nutzung und Kosten aller Modelle anzeigen.",
     "purposeResources": "Rechnerauslastung und Verlauf anzeigen.",
@@ -6782,6 +6785,10 @@
       "other": "{count} überwachte Läufe konnten nicht vollständig beendet werden."
     },
     "unavailable": "Die Überwachung ist in dieser Installation nicht verfügbar."
+  },
+  "hostService": {
+    "unavailable": "Das Laufzeit-Panel ist in dieser Installation nicht verfügbar.",
+    "needsStdio": "panel braucht --stdio: der Host des Editors spricht über Standardein- und -ausgabe mit ihm."
   },
   "acpConnector": {
     "title": "Konnektor-Anfragen genehmigen",
