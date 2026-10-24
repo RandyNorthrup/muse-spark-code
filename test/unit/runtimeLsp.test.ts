@@ -205,17 +205,61 @@ async function recordFiles(): Promise<string[]> {
 }
 
 /**
-A cold runtime's first hook can miss Tab's own hook bound (TAB_HOOK_TIMEOUT_MS)
-while the resource governor takes its first reading: that read is refused, as
-designed. Ask until the workspace's hook has answered once, then start clean.
+A hook can miss Tab's own hook bound (TAB_HOOK_TIMEOUT_MS, 1.5 s) while the
+machine is busy or the resource governor takes its first reading: that read
+is refused, as designed, before the hook saw anything. Ask until the
+workspace's hook has run and recorded its input; every answer is nothing.
 */
-async function warmHook(served: Served, uri: string, capture: string): Promise<void> {
+async function untilHookRan(served: Served, uri: string, capture: string): Promise<void> {
   const deadline = Date.now() + SUITE_MS / 2
   while (!existsSync(capture)) {
     if (Date.now() > deadline) throw new Error(`the hook never ran: ${served.stderr()}`)
     expect(await inlineAtEnd(served, uri)).toEqual({ items: [] })
   }
-  await rm(capture)
+}
+
+/** A request's answer, or the error it was answered with. */
+async function outcomeOf(
+  request: Promise<unknown>,
+): Promise<{ readonly error?: ResponseError<unknown>; readonly result?: unknown }> {
+  try {
+    return { result: await request }
+  } catch (error: unknown) {
+    if (error instanceof ResponseError) return { error }
+    throw error
+  }
+}
+
+/**
+A request cancelled while its hook runs. One whose hook missed Tab's bound
+(above) answered nothing before the hook started: it is asked again.
+*/
+async function cancelledWhileHookRuns(
+  served: Served,
+  uri: string,
+  capture: string,
+): Promise<ResponseError<unknown> | undefined> {
+  const deadline = Date.now() + SUITE_MS / 2
+  while (Date.now() < deadline) {
+    const source = new CancellationTokenSource()
+    const state = { isSettled: false }
+    const pending = (async () => {
+      try {
+        return await outcomeOf(inlineAtEnd(served, uri, source))
+      } finally {
+        state.isSettled = true
+      }
+    })()
+    await waitFor(() => existsSync(capture) || state.isSettled, SUITE_MS / 2)
+    if (!state.isSettled) {
+      source.cancel()
+      const outcome = await pending
+      return outcome.error
+    }
+    await pending
+    await rm(capture, { force: true })
+  }
+  throw new Error(`the hook never ran: ${served.stderr()}`)
 }
 
 async function waitFor(isDone: () => boolean, ms: number): Promise<void> {
@@ -332,9 +376,7 @@ describe('lsp over real stdio, under the official client', () => {
       )
       await initialize(served, root)
       await openSample(served, uri)
-      await warmHook(served, uri, capture)
-      expect(await inlineAtEnd(served, uri)).toEqual({ items: [] })
-      expect(existsSync(capture), served.stderr()).toBe(true)
+      await untilHookRan(served, uri, capture)
       const text = await readFile(capture, 'utf8')
       const lines = text.split('\n').filter((line) => line !== '')
       expect(lines).toHaveLength(1)
@@ -380,13 +422,8 @@ describe('lsp over real stdio, under the official client', () => {
       const served = serve(['lsp', '--workspace', root, '--trust-workspace', '--tab'], root)
       await initialize(served, root)
       await openSample(served, uri)
-      await warmHook(served, uri, capture)
-      const source = new CancellationTokenSource()
-      const pending = refusalOf(inlineAtEnd(served, uri, source))
-      await waitFor(() => existsSync(capture), SUITE_MS / 2)
-      source.cancel()
-      const refusal = await pending
-      expect(refusal.code).toBe(MHP_ERROR_CODES.cancelled)
+      const refusal = await cancelledWhileHookRuns(served, uri, capture)
+      expect(refusal?.code).toBe(MHP_ERROR_CODES.cancelled)
       expect(await shutDown(served)).toBe(0)
     },
     SUITE_MS,
