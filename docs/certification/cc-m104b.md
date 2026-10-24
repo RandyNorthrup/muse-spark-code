@@ -46,6 +46,7 @@ raised, new code in lazy chunks with measured budgets (D6).
 | 3         | `a26bb6a23`   | `panel --stdio` (dist/runtimePanel.js): handshake, settings, storage; wire.js shares the two panel schemas                                                                                                                         | `runtimePanel` 9/9 on the production build; drills P1–P6 fire (below); `wireEntry` 2/2; fixed: a fatal close left the process alive (below) |
 | 4a        | `9d44d6774`   | the conversation bundle loads without the `vscode` module (portable question clock; `questionsForHost(store, deferAfterSeconds)`)                                                                                                  | `runtimePortableBundles` 1/1; drill B1 fires                                                                                                |
 | 4b–5a, 7a | (this commit) | the chat in `panel --stdio`: runtime-to-host requests, surfaces and delivery, `RuntimeConversation`, the shared mapping `composeConversationDeps`, the runtime's ports (auth, files, mentions, editor context), the session bundle | `runtimePanelConversation` 2/2, `runtimePanelSessions` 6/6; drills C1–C11 fire (below)                                                      |
+| 6         | (this commit) | paid use in the panel: the gate over the runtime's settings, the question through MHP `ui/confirm`, Always in the grants file ACP shares                                                                                           | `runtimePanelSessions` 9/9, `runtimeSettingsStore` 13/13; drills M1–M5 fire                                                                 |
 
 ### Next step, exactly
 
@@ -88,19 +89,22 @@ rig-specific facts are in "Rig notes".
    tool server (`ideMcpEndpoint`), usage insights, dictation and Muse Voice,
    the Model API manager port (best-of-N, voice budget), sign-out,
    Muse Code install, and most host actions.
-6. **Paid use in the panel (D48, D208).** Compose int's `PaidUseConsent`
-   exactly as `src/acp/paid.ts`'s `AcpPaidUse` does: the question asked
-   through MHP `ui/confirm` with D48's three answers, keyed grants in the
-   runtime's own grants store (`runtime/paidGrants.ts`, shared with ACP),
-   and **no spending check, reservation or ledger read unless the person set
-   a limit** (session budget, `paidDailyBudgetUsd`, an agent budget). The
-   daily budget is the one in the data folder's `settings.json`, which is
-   exactly the file slice 1's store writes, so the panel and ACP state the
-   same budget. RLM104's `features/paidBudget.ts`/`paidRequest.ts`/
-   `paidUse.ts` and its `paidConsent.ts`/`paidFeatures.ts` diffs are the
-   pre-D208 path: do not port them; drop RLM104's `paidGrants.ts`
-   revocation lane (int's `isAnswerCurrent` already refuses a revoked
-   question, cc-rlm104 "Dropped as duplicates").
+6. **Paid use in the panel (D48, D208). Done.** `src/runtime/features/paid.ts`
+   builds int's own `PaidFeatureGate` and `PaidUsage` over the runtime's
+   settings (a setting the person never set is on by default on the Model API,
+   D78, and unavailable on Muse Code; turning one on names its price in
+   `ui/confirm`) and the `AcpPaidUse` of the runtime backend is composed as
+   the ACP agent composes it: its flags are the features the gate says are
+   on, it asks through `ui/confirm` with D48's three answers (no Always
+   where nothing can be kept), "Always" is kept in `runtime/paidGrants.ts`,
+   the file ACP reads, and a conversation let go while the editor is asked is
+   billed for nothing. A change of the features on replaces the backend, so a
+   feature turned off loses its Always (`forgetUnflaggedGrants`). **No spending
+   check, reservation or ledger read exists in this path:** the daily budget
+   line names the limit the person set, or says there is none. Not in the
+   panel yet: sign-out of paid consent (`forgetPaidUse`, "Ask again"), the
+   features outside ACP's four (subagents, scheduled prompts, best-of-N,
+   team workers, Tab, hook models, judge, legal explanations).
 7. **Chat surfaces over MHP. Chat done (7a).** `connection.ts` asks the
    host (correlated ids, `$/cancelRequest`, no deadline of ours),
    `surfaces.ts` admits lifecycle and envelopes with the frozen contract,
@@ -461,6 +465,26 @@ Every file was restored and matched its hash.
 Not run: the integration suite inside VS Code (`npm run test:integration`);
 VS Code builds its controller from the shared mapping now, and its behaviour
 is unchanged by construction, but only hosted CI starts VS Code.
+
+## Slice 6 — paid use in the panel
+
+What a person gets: the panel shows which paid features are on, the palette's
+toggles turn one off at once and turn it on again after naming its price,
+and every paid use asks first in the editor (Allow once, Allow always in this
+workspace where the workspace is trusted, Deny), naming the price and the
+daily limit they set (or that none is set). Nothing is spent without their
+yes, and nothing is checked against a limit they did not set.
+
+| Drill | Break                                                          | Result                                                                                                                                                 |
+| ----- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| M1    | Allow always offered where nothing can be kept                 | exit 1: "names the limit the person set, and offers no Always …"                                                                                       |
+| M2    | the turn-on confirmation accepts whatever the editor answers   | first run exit 0 (the declined case raced the settings read); after the test waits for the second question, exit 1: "shows the features that are on …" |
+| M3    | the question is not attached to the backend (every use denied) | exit 1: both use cases                                                                                                                                 |
+| M4    | the daily limit line states a limit the person did not set     | exit 1: both use cases                                                                                                                                 |
+| M5    | a change of the features on does not replace the backend       | exit 1: "shows the features that are on …" (no new surface)                                                                                            |
+
+`dist/runtimePanelSession.js` is 98.7 KiB of its 120 KiB row; the gate and the
+tally are int's own `paidFeatures.ts` (11.8 KB of it).
 
 ## Commits
 

@@ -32,7 +32,6 @@ import {
   META_IMAGE_MAX_BYTES,
   MODEL_API_BASE_URL,
   UI_TEXT,
-  type PaidFeature,
 } from '../../shared/constants'
 import type { HostServices } from '../../shared/hostApi/methods'
 import type { EditorContext } from '../../core/editorContext'
@@ -41,6 +40,7 @@ import * as z from 'zod/mini'
 import type { RuntimeBackend } from '../backends'
 import type { RuntimeSettingsStore } from '../settingsStore'
 import { RuntimeAuth } from '../features/auth'
+import type { RuntimePaid } from '../features/paid'
 import { unavailable } from '../features/unavailable'
 import { readConfinedBytes, type RuntimeWorkspaceFiles } from '../features/workspaceFiles'
 import type { ConversationContext } from './runtimeConversation'
@@ -57,6 +57,8 @@ export interface RuntimeConversationPorts {
   readonly isTrusted: () => boolean
   /** Whether Bypass is offered at all (`allowDangerouslySkipPermissions` and the runtime's own say). */
   readonly canBypass: boolean
+  /** The paid features' gate and tally, shared by every conversation of the process. */
+  readonly paid: RuntimePaid
   readonly controllers: () => Iterable<ConversationController>
   readonly runGit: ConversationDeps['runGit']
   /** The workspace's files, indexed once for every conversation of the process. */
@@ -186,18 +188,15 @@ export async function runtimeConversationDeps(
     platform,
     realPath: realpath,
     paid: {
-      gate: {
-        isOn: (feature: PaidFeature) => paid.isOn(feature),
-        turnOn: () => unavailable(),
-        turnOff: () => unavailable(),
-      },
+      gate: ports.paid.gate,
       consent: {
-        allows: (request) => paid.allows(workspaceRoot, context.surface.id, request, true),
+        // D48: every use asks first, in the editor; nothing is checked against a limit the person did not set.
+        allows: (request) => paid.allows(workspaceRoot, context.sessionId(), request, false),
         forget: () => unavailable(),
       },
       usage: {
-        add: (feature, units) => {
-          paid.noteUse(feature, units)
+        add: (feature, units, searchPriceUsd) => {
+          ports.paid.usage.add(feature, units, searchPriceUsd)
         },
         addBestOfNRequest: () => unavailable(),
         addBestOfNUsage: () => unavailable(),

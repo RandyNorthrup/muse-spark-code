@@ -133,6 +133,19 @@ describe('RuntimeSettingsStore', () => {
     )
   })
 
+  it('tells which settings the person has set, and never counts a default', async () => {
+    const { store } = await storeIn('settings-configured-')
+    expect(await store.configuredSettings()).toEqual(new Set())
+    await store.updateSetting(
+      'museSpark.modelApiWebSearch',
+      SETTING_DEFAULTS.modelApiWebSearch,
+      'user',
+    )
+    await store.updateSetting('museSpark.autosave', false, 'workspace')
+    // Written at its default value is still the person's own setting (D78 reads "set", not "differs").
+    expect(await store.configuredSettings()).toEqual(new Set(['modelApiWebSearch', 'autosave']))
+  })
+
   it('refuses an unknown setting and a value its schema refuses, writing nothing', async () => {
     const { dataFolder, store } = await storeIn('settings-invalid-')
     expect(await refusal(store.updateSetting('museSpark.noSuchSetting', true, 'user'))).toBe(

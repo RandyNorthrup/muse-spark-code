@@ -23,6 +23,7 @@ import { MHP_PANEL, UI_TEXT } from '../../shared/constants'
 import type { MhpPanelBinding } from '../../shared/hostApi/panel'
 import { MhpPanelError } from '../../shared/hostApi/panelError'
 import { uiLocale } from '../../shared/l10n/text'
+import type { PaidState } from '../../shared/paid'
 import {
   hostToWebviewMessageSchema,
   webviewToHostMessageSchema,
@@ -43,6 +44,8 @@ export interface ConversationContext {
   readonly surface: ChatSurface
   /** Aborted when the conversation is released. */
   readonly signal: AbortSignal
+  /** The id of the session the conversation is on now (an id of its own before it has one). */
+  readonly sessionId: () => string
   /** The controller, once built (the composition's ports may need it later). */
   readonly controller: () => ConversationController | undefined
   /** The host this conversation's sessions run on (the registry watches it for exit). */
@@ -62,6 +65,8 @@ export interface RuntimeConversationOptions {
   readonly isSideChat: boolean
   /** The settings the webview is shown at `ready`. */
   readonly settings: () => SettingsSnapshot
+  /** The paid features' state the webview is shown at `ready`. */
+  readonly paidState: () => PaidState
   /** The controller's dependencies, composed for this conversation's surface. */
   readonly compose: (context: ConversationContext) => Promise<ConversationDeps>
   /** The conversation took another session: the registry follows, the host's surfaces are replaced. */
@@ -159,6 +164,7 @@ export class RuntimeConversation implements SessionController, PanelView {
     const deps = await this.options.compose({
       surface: this.surface(),
       signal: this.ending.signal,
+      sessionId: () => this.currentId,
       controller: () => this.conversation,
       noteHost: (host) => {
         this.currentHost = host
@@ -206,6 +212,10 @@ export class RuntimeConversation implements SessionController, PanelView {
     throw unknownSurface()
   }
 
+  private paidMessage(): HostToWebviewMessage {
+    return { type: 'paidState', state: this.options.paidState() }
+  }
+
   private initMessage(settings: SettingsSnapshot): HostToWebviewMessage {
     return {
       type: 'init',
@@ -238,6 +248,7 @@ export class RuntimeConversation implements SessionController, PanelView {
         for (const listener of this.listeners) {
           listener(hostToWebviewMessageSchema.parse(this.initMessage(this.options.settings())))
           if (this.authMessage !== undefined) listener(this.authMessage)
+          listener(hostToWebviewMessageSchema.parse(this.paidMessage()))
         }
         await this.replay(controller)
         controller.surfaceReady(message.attachmentEpoch)
@@ -374,6 +385,11 @@ export class RuntimeConversation implements SessionController, PanelView {
     return () => {
       this.listeners.delete(listener)
     }
+  }
+
+  /** A paid feature turned on or off, or was used: every surface shows the state. */
+  public publishPaidState(): void {
+    this.publish(this.paidMessage())
   }
 
   /** The active editor's label changed: every surface shows it. */

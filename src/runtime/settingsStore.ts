@@ -277,6 +277,23 @@ export class RuntimeSettingsStore {
   }
 
   /**
+  The settings the person has set, by name, in the user's file or this
+  workspace's: a setting at its default is not among them (the paid features'
+  D78 rule is "on by default unless the person set it").
+  */
+  public async configuredSettings(): Promise<ReadonlySet<string>> {
+    const user = await readTable(this.userSettingsFile)
+    const workspace = await readTable(this.workspaceSettingsFile)
+    const configured = new Set<string>()
+    for (const name of Object.keys(SETTING_DEFAULTS)) {
+      const key = runtimeSettingFileKey(name)
+      if (user[key] !== undefined || (!machineNames.has(name) && workspace[key] !== undefined))
+        configured.add(name)
+    }
+    return configured
+  }
+
+  /**
   `settings/get`: the stored value as the person set it, or the default when
   none is stored or the stored one is not valid for the setting.
   */
