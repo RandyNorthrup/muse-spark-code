@@ -84,5 +84,197 @@ Drills (break, exit non-zero, restore byte-exact by blob hash, green):
 
 Suites: `mhpContract` + `mhpPanelContract` 60/60. `check:mhp` 0,
 `check:plan` 0, host and unit typecheck 0, eslint and prettier on the
-area's files 0. knip at this commit lists `panelEventId` and three
-presentation types, which areas 2 and 3 read.
+area's files 0. knip at this commit listed `panelEventId` and three
+presentation types, read only by lanes this record leaves as remainder;
+the follow-up below removes them.
+
+### Area 1 follow-up — no growth in `dist/wire.js`, no dead export
+
+Measured against a production build of int's base (`git archive` of
+`fcbd0e3f1f` into the worktree's `temp/base`, `node_modules` joined):
+exporting the two raw message schemas from `protocol.ts` grew
+`dist/wire.js` from 81,096 to 81,218 bytes. That bundle is already over its
+75 KiB budget on int (79.2 KiB); RLM104 raised the budget to 87 KiB, which
+this lane may not do. Every lazy Node bundle that imports `protocol.ts`
+resolves it to `dist/wire.js` (`sharedWire`), so leaving a name out of
+`wire.js` would read as `undefined` there. `wireEntry.ts` now shares
+`protocol.ts` by name, everything but the two schemas no Node bundle reads
+yet, and `test/unit/wireEntry.test.ts` pins that list against
+`protocol.ts`'s real exports (every shared name is the same value; only the
+two panel schemas are absent), so the lane that first reads them in Node
+meets the budget decision instead of a silent `undefined`. `dist/wire.js`
+is byte-identical to int's again (81,096). `panelEventId` and the three
+presentation type aliases are removed until their readers land; knip is
+green as on int.
+
+| Gate / suite        | Break                                | Result                                             |
+| ------------------- | ------------------------------------ | -------------------------------------------------- |
+| `wireEntry.test.ts` | `HOST_ACTIONS` dropped from the list | 1 failed (`HOST_ACTIONS` reported missing), exit 1 |
+
+## Area 2 — the VS Code boundary (lane A's move and rule)
+
+Ported: RLM104's move of every module that imports `vscode` into
+`src/host/vscode/`, and its `check:host-api` rule that refuses a `vscode`
+import (type-only included) anywhere else but `src/extension.ts`. Done on
+int's tree, not RLM104's list: int has 56 such modules. RLM104 moved 49;
+`voice/dictationHost.ts` no longer imports `vscode` on int and stays; the
+seven int modules RLM104 never saw move too (`judgeSetup/judgeSetupPanel`,
+`models/lmProvider`, `models/lmProviderBundle`, `tab/tabStatusItem`,
+`views/auxWebviewPanel`, `views/devicesPanelTab`, `codeIntel/languageServices`).
+RLF-TAB's `tab/tabEligibility.ts` does not move: its one `vscode`-typed
+helper (`tabTextChangeEvent`, a projection only the provider calls) moves
+into `vscode/tab/tabProvider.ts`, so RLF-TAB's eligibility, ignore and
+consent modules stay outside the VS Code tree, as their own header
+("Pure: no `vscode` import") already said, for the runtime's Tab later.
+
+55 files moved with `git mv`; every relative import in `src`, `test` and
+`scripts` was resolved against the old layout and rewritten for the new
+one; live path strings (build entries, `check-bundle-split`, deferred
+bundles, cycles roots, knip, the catch baseline's file keys, tests and two
+harness builds) follow; the generated host-API record is regenerated; the
+lazy registry's 11 rows whose importers moved are set to exactly what the
+build gives (the generator refuses to write while int's own
+`NODE_WORKSPACE_ASSET` packaging problem stands, so only those rows were
+touched). Historical records (`docs/certification`, `docs/plan-archive`)
+keep their old paths byte for byte. AGENTS.md's layout names the boundary.
+
+Not ported from lane A: `src/host/vscode/hostServices.ts` and
+`src/host/compose/conversationDeps.ts`. They rewrite about 800 lines of
+`extension.ts` so the conversation controller's editor services go
+through MHP `HostServices`; that is the in-process half of the runtime
+panel lane (remainder below), not a move.
+
+| Gate / suite     | Break                                                                                                | Result                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `check:host-api` | `import type { TextDocumentChangeEvent } from 'vscode'` put back in `src/host/tab/tabEligibility.ts` | `vscode imports belong in src/host/vscode/ or src/extension.ts`, exit 1 |
+
+Proof on the moved tree (compared with a production build and the same
+gates on int's base, `fcbd0e3f1f`):
+
+- All six typecheck projects 0; eslint 0 on the 113 changed files;
+  `format:check` 0 on the whole repository; knip 0; cycles 0;
+  `check:host-api` 0 (56 files import `vscode`, all under the boundary).
+- `npm run build`: every bundle-size line identical to int's base,
+  `dist/wire.js` byte-identical (81,096). Int's own 12 over-budget bundles
+  (`modelApi.js`, `modelsPanel.js`, `uiText.js`, `wire.js` and eight more)
+  stop it at the size gate on both trees; the later stages, run directly,
+  match the base: bundle split shows only int's 11 problems (cc/mcp2's
+  three MCP files, cc/rlm95c's `requestHeaders.ts`), the lazy registry only
+  int's 7, host globals and notices 0.
+- `check:catches` per-area counts identical to the base; jscpd 41 clones on
+  both, none in a moved file.
+- Unit suites over the moved modules and paths, each in its own process:
+  `estimatorSurfaces` 738/738, `tabEligibility` 25, `tabStatusModel` 15,
+  `tabActivation` 6, `lazyBundleFiles` 16, `vaultPanelBuild` 4,
+  `conversationGitBundle` 3, `modelsImportText` 4, `usageTableFallback` 2,
+  `subscriptionCopilot` 2, `nodeBundle` 5, `teamChunkPackaging` 5,
+  `teamStartup` 5, `teamWorkerCreateBundle` 1, `acpTeamPackage` 2,
+  `ciReference` 1, `cliReference` 2, `paidConsentBundle` 1, `wireEntry` 2,
+  `mhpContract` 34, `mhpPanelContract` 26: all green. `manifest` (3) and
+  `pathGuardSpawns` (2) fail identically on int's base (walkthrough steps,
+  notices without a packaged build, release pins; the M110 spawn sites).
+  `judgeP2Delivery` reruns the real split gate in every case (about 29 s
+  each here) and needs longer than this lane's 900 s per-file deadline;
+  in a 400 s verbose run 42 cases passed and its one failure is int's own
+  split drift above.
+- Integration suites (`test/integration`, run inside VS Code) typecheck;
+  they were not run on this PC.
+
+## Dropped as duplicates of int
+
+- RLM104's Tab extraction (`src/core/tab/tabEligibility.ts`, its rewrite of
+  `tabProvider.ts`/`tabBundle.ts`, the deletion of `tabIgnore.ts`):
+  RLF-TAB's `host/tab/{tabEligibility,tabIgnore,tabConsent,tabYield,…}.ts`
+  is int's single copy. Area 2 made it reachable from portable code
+  instead of adding a second one.
+- `src/webview/portableTokens.css` (M104D's hand-written `--ms-*` palettes
+  and `--vscode-*` aliases for native pages): int's M114 tokens
+  (`design/tokens/**`, generated `tokens.css`/`host-roles.css`) and the
+  companion/native theme consumer (`src/webview/bridges/theme/**`,
+  `loadThemeBridge`) already own exactly this, under the rule that raw
+  paint lives only in generated token files.
+- `paidGrants.ts`'s per-workspace revocation lane and
+  `PaidOwnerReplacedError`: int's `PaidUseConsent` already refuses an
+  answer whose question was revoked (`isAnswerCurrent`, revocation
+  counters); the panel lane binds to that instead.
+
+## Remaining, with the int-specific design each lane needs
+
+Every lane below was read against int's code, not only RLM104's; each
+needs design against what int already has, which is why none is a port.
+
+1. **Runtime panel (lane B: `panel --stdio|--companion`, controller
+   registry, settings and storage store, `src/runtime/features/**`,
+   `src/runtime/panel/**`, `host/compose`, `host/vscode/hostServices.ts`).**
+   About 110 new files; three-way application of its 60 modified files
+   conflicts in 16 (`paidConsent`, `paidFeatures`, `resourceGovernorEntry`,
+   `mcpJobLaunch`, `modelApiBackendManager`, `conversationController`,
+   `judgeBundle`/`judgeEntry`/`judgeUsage`, `runtime/backends`, `cliHelp`,
+   `cliOptions`, `companion/page`, `exec/runExec`, `runtime/main`,
+   `cliCommands`). Paid use must compose int's `PaidUseConsent` (D48,
+   D208: no spending check without a limit the person set) the way
+   `src/acp/paid.ts`'s `AcpPaidUse` does, not RLM104's pre-D208 path.
+   Its suites must use the real composition: no stand-in store, runtime
+   or transport. Owns the four exports area 1 removed (`panelEventId`,
+   the presentation types) and `fallbackUi.ts`/`portableAssets.ts`.
+2. **ACP on the controller.** Kept int's turn path: RLACP's slash
+   handling, resource sessions, outbound error allow-list and
+   `acpAccounting` stay exactly as merged; RLM104's
+   `createConversation`/`AcpConversation`/`acpComposition.ts` and its
+   `this.conversation.submit(...)` turn are not brought in. M104's need
+   (the same session visible in every editor's panel) binds when lane B
+   lands: the panel's registry observes ACP sessions and their events
+   rather than taking over their turns.
+3. **Portable webview (lane D).** Bridges, fallbacks, presentation pages
+   and `chat.tsx`/`selectionQuote.ts` extractions are reviewed and ready
+   to port, with two changes: theme through M114's `loadThemeBridge`
+   (a `ThemePort` fed by MHP `theme` frames, mapping the hosts' `--muse-*`
+   tokens onto `consumers.json` host roles) instead of
+   `portableTokens.css`; and the startup measurement, which RLM104 runs in
+   headless Chrome over hand-written native and companion transports
+   (`portableStartup.mjs`, `portableBridgeSetup.mjs`), measured instead
+   through the real carrier serving the page (or the static closure
+   accounting int uses for VS Code). `HOST_ACTIONS`' three new actions need
+   VS Code handlers and re-freeze the panel lock.
+4. **Companion MHP routes (lane C):** `/panel/message`, `/panel/events`,
+   `/host/events`, `/host/message` over int's companion server (whose page
+   gained 112 lines on int); depends on lane B's delivery and surfaces.
+5. **`lsp`, `supervise`, `stop` (lane H, TypeScript side).** Tab in the
+   language server must compose int's keyed consent (`createTabConsent`
+   over `PaidUseConsent.askScope`, one key per model and price, D73), the
+   person's `tabMaxOutputTokens` or the record maximum
+   (`tabRequestMaxOutputTokens` with `recordMaxOutputTokens`; RLM104 used
+   the removed `TAB_FAST_MAX_OUTPUT_TOKENS` constants) and the workspace's
+   Tab hooks: RLM104's `tabServe.ts` ran none, so a configured
+   `beforeTabFileRead` would be bypassed in every LSP editor. Eligibility
+   and ignore come from RLF-TAB's modules (portable after area 2). The
+   process authority and supervisor need `privateDirectory.ts` (+311),
+   `mcpJobLaunch`'s registered/independent launches with the Windows
+   helpers (`MuseSparkJob.cs` +177, `MuseSparkMcpJob.cs`,
+   `MuseSparkMcpLauncher.cs`) and `Dictation.swift`'s StrictModes walk
+   (+152); all applied here (one `mcpJobLaunch` hunk, beside int's
+   stale-helper retirement, merged by hand) and were backed out with the
+   lane.
+   Its suites use `fakeLsp.ts` and a stand-in credential store
+   (`runtimeLspParent.ts`): rebuild on the real composition, with no store
+   read unless `--tab` is given.
+6. **Native hosts (lanes E, F, G, H native code):** `hosts/{jetbrains,
+visualstudio,eclipse,xcode,zed,neovim,emacs,sublime,qtcreator}`, about
+   25,000 lines; only the two generated error tables landed (area 1).
+   Their suites drive hand-written runtimes (`test/fixtures/*runtime*.py`,
+   `Test/fake-runtime.mjs`, `test/hosts/xcode/fake-runtime.ts`); under
+   int's no-fakes rule they run against the real `panel --stdio` once
+   lane B lands. This PC has JDK 21 and .NET 10 for the JetBrains and
+   Visual Studio builds; no Maven, Neovim or Emacs.
+7. **Distribution (lane I):** `scripts/package-hosts/**`,
+   `.github/workflows/hosts-native.yml`, the release workflow's native
+   jobs and pins; after the hosts.
+8. **Docs (lane J) and text:** README "Every editor", `docs/acp.md`,
+   `docs/ide-compatibility/**`, CHANGELOG, and the `xcode*`, `lsp*`,
+   `fallback*`, `presentation*` and `panel` CLI keys in all 15 tables:
+   each lands with the code it describes and after real use.
+9. **PLAN.md:** 434 bytes remain under `check:plan`'s bound. RLM104's M104
+   §6/§7/§8 additions and D6 budget rows for the new bundles
+   (`runtimePanel.js`, `runtimePanelPorts.js`, `lsp.js`,
+   `runtimeWatchdog.js`, `runtimeProcessAuthority.js`, `hostProtocol.js`,
+   the portable graph) need a `plan:archive` pass first.

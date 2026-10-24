@@ -172,7 +172,7 @@ const CONNECTOR_OUTFILE = 'dist/connector.js'
 // the `mcp` command beside the connector bundle.
 const CONNECTOR_STORE_GUARD_ENTRY = 'src/runtime/connector/storageGuard.ts'
 const CONNECTOR_STORE_GUARD_OUTFILE = 'dist/connectorStoreGuard.js'
-const PROMPTS_ENTRY = 'src/host/prompts/promptEntry.ts'
+const PROMPTS_ENTRY = 'src/host/vscode/prompts/promptEntry.ts'
 const PROMPTS_OUTFILE = 'dist/prompts.js'
 const TAB_ENTRY = 'src/host/tab/tabEntry.ts'
 const TAB_OUTFILE = 'dist/tab.js'
@@ -294,7 +294,7 @@ const MEDIA_OUTFILE = 'dist/media.js'
 // loaded the first time a recording command runs.
 // RVMEDIAV 8: the window's attached-media registry, contributor consent and
 // attach binding, required on the first attach beside dist/media.js.
-const MEDIA_HOST_ENTRY = 'src/host/media/mediaHostEntry.ts'
+const MEDIA_HOST_ENTRY = 'src/host/vscode/media/mediaHostEntry.ts'
 const MEDIA_HOST_OUTFILE = 'dist/mediaHost.js'
 // The host side of byte-range file reads and edits, loaded on the first
 // range addressed call.
@@ -322,7 +322,7 @@ const MUSE_CODE_REVIEWER_ENTRY = 'src/host/review/museCodeReviewerEntry.ts'
 const MUSE_CODE_REVIEWER_OUTFILE = 'dist/museCodeReviewer.js'
 const EDITOR_CHAT_ENTRY = 'src/host/models/lmProviderEntry.ts'
 const EDITOR_CHAT_OUTFILE = 'dist/editorChat.js'
-const MODELS_PANEL_ENTRY = 'src/host/models/modelsPanelEntry.ts'
+const MODELS_PANEL_ENTRY = 'src/host/vscode/models/modelsPanelEntry.ts'
 const MODELS_PANEL_OUTFILE = 'dist/modelsPanel.js'
 // CIFIX161B: the sign-in gate and the three-valued credential read, loaded
 // the first time a credential, money or consent path needs them.
@@ -340,7 +340,7 @@ const COMMANDS_ENTRY = 'src/host/commands/commandsEntry.ts'
 const COMMANDS_OUTFILE = 'dist/commands.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
-const USAGE_PANEL_ENTRY = 'src/host/usage/usagePanelEntry.ts'
+const USAGE_PANEL_ENTRY = 'src/host/vscode/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
 const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 // M109 lane W: the vault's window (the panel host and the broker client),
@@ -349,7 +349,7 @@ const EXTENSION_HOOKS_OUTFILE = 'dist/extensionHooks.js'
 // broker-backed service lands (docs/certification/m109.md). The native
 // editor, the write-only crypto and the action dialogs load later from
 // dist/vaultActions.js (RVAPP-CM1091D5 BYTES).
-const VAULT_ENTRY = 'src/host/vault/vaultPanelEntry.ts'
+const VAULT_ENTRY = 'src/host/vscode/vault/vaultPanelEntry.ts'
 const VAULT_OUTFILE = 'dist/vault.js'
 // RVAPP-CM1091D5 BYTES: the vault's explicit-action code (dist/vaultActions.js),
 // loaded on the first action that needs it instead of when the panel opens.
@@ -600,7 +600,7 @@ const playbookSchedulesInputsOptions = {
 const reportingPanelOptions = {
   ...hostOptions,
   plugins: [sharedUiText, sharedValidation, sharedWire, sharedRedaction],
-  entryPoints: ['src/host/reporting/reportPanelEntry.ts'],
+  entryPoints: ['src/host/vscode/reporting/reportPanelEntry.ts'],
   outfile: 'dist/reportingPanel.js',
 }
 

@@ -23,7 +23,7 @@ import { createUsageRecording } from '../../src/core/usage/recording'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { createLogger } from '../../src/host/logger'
-import { createEditorChat } from '../../src/host/models/lmProvider'
+import { createEditorChat } from '../../src/host/vscode/models/lmProvider'
 import { readSettings } from '../../src/host/settings'
 import { EDITOR_CHAT_VENDOR, SETTINGS_SECTION, UI_TEXT } from '../../src/shared/constants'
 

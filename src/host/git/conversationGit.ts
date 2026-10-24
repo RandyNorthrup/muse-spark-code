@@ -80,7 +80,7 @@ import {
   type CaptureGitOwner,
   type GitChange,
   type GitRepository,
-} from './gitExtension'
+} from '../vscode/git/gitExtension'
 import type { NativeGitBundle } from './nativeGitBundle'
 import type { PullRequestLink, PullRequestLinks } from './pullRequestLinks'
 

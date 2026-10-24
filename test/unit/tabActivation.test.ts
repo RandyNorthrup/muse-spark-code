@@ -9,7 +9,7 @@ import {
   type TabActivationDeps,
   type TabStatusDeps,
   type TabStatusHandle,
-} from '../../src/host/tab/tabBundle'
+} from '../../src/host/vscode/tab/tabBundle'
 import { UI_TEXT } from '../../src/shared/constants'
 import { fill } from '../../src/shared/l10n/text'
 import { Usd } from '../../src/shared/usd'

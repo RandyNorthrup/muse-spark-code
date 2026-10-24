@@ -1,7 +1,7 @@
 // Activation imports only this loader and type-only surface/engine contracts.
 import { UI_TEXT } from '../../shared/constants'
 import { lazyBundleLoader, type LazyBundleLoaderOptions } from '../lazyBundle'
-import type * as ReportingPanelBundle from './reportPanelEntry'
+import type * as ReportingPanelBundle from '../vscode/reporting/reportPanelEntry'
 
 type Bundle = typeof ReportingPanelBundle
 function isBundle(value: unknown): value is Bundle {

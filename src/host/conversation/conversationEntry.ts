@@ -5,7 +5,7 @@ import { ConversationController, type ConversationDeps } from './conversationCon
 export { questionAnswerText } from '../../core/questions/lateAnswer'
 export { createHostQuestionStore } from '../questions/questionStorage'
 import { questionAnswerText } from '../../core/questions/lateAnswer'
-import { questionClock, questionsDeferAfterSeconds } from '../questions/questionStore'
+import { questionClock, questionsDeferAfterSeconds } from '../vscode/questions/questionStore'
 import type { QuestionStore } from '../../shared/questions'
 
 export function questionsForHost(store: QuestionStore): NonNullable<ConversationDeps['questions']> {

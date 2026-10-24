@@ -8,7 +8,7 @@ import { fill } from '../../shared/l10n/text'
 import { formatUsd } from '../../shared/l10n/exactUsd'
 import type { UiText } from '../../shared/l10n/en'
 import { isPositiveUsd, type UsdAmount } from '../../shared/usd'
-import type { TabFailureKind, TabOutcome, TabQuietReason } from './tabBundle'
+import type { TabFailureKind, TabOutcome, TabQuietReason } from '../vscode/tab/tabBundle'
 import { isByoTabModel } from './tabByo'
 
 /** Every state the bar reads, resolved by the item before the model runs. */

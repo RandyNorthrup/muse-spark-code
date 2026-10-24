@@ -42,7 +42,7 @@ export async function buildVaultSurfaces(outdir, hasHarness = false) {
     logLevel: 'silent',
   })
   const host = await build({
-    entryPoints: ['src/host/vault/vaultPanelEntry.ts'],
+    entryPoints: ['src/host/vscode/vault/vaultPanelEntry.ts'],
     outfile: path.join(outdir, 'vault.js'),
     bundle: true,
     minify: true,

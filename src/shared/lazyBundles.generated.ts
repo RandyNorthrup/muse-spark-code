@@ -34,7 +34,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       { importer: 'src/acp/paid.ts', symbol: 'AcpPaidUse.loadAccountService', side: ['acp'] },
-      { importer: 'src/host/paid/paidHost.ts', symbol: 'createPaidFeatures', side: ['vscode'] },
+      {
+        importer: 'src/host/vscode/paid/paidHost.ts',
+        symbol: 'createPaidFeatures',
+        side: ['vscode'],
+      },
     ],
   },
   { file: 'acp.js', side: 'acp', requestedBy: [] },
@@ -152,11 +156,15 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'commands.js',
     side: 'vscode',
     requestedBy: [
-      { importer: 'src/host/cliFeatures.ts', symbol: 'createCliFeatures', side: ['vscode'] },
-      { importer: 'src/host/memoryFeatures.ts', symbol: 'createMemoryFeatures', side: ['vscode'] },
       { importer: 'src/host/planFeatures.ts', symbol: 'createPlanFiles', side: ['vscode'] },
+      { importer: 'src/host/vscode/cliFeatures.ts', symbol: 'createCliFeatures', side: ['vscode'] },
       {
-        importer: 'src/host/worktreeFeatures.ts',
+        importer: 'src/host/vscode/memoryFeatures.ts',
+        symbol: 'createMemoryFeatures',
+        side: ['vscode'],
+      },
+      {
+        importer: 'src/host/vscode/worktreeFeatures.ts',
         symbol: 'createWorktreeFeatures',
         side: ['vscode'],
       },
@@ -167,7 +175,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/providers/subscriptionFeatures.ts',
+        importer: 'src/host/vscode/providers/subscriptionFeatures.ts',
         symbol: 'configured',
         side: ['vscode'],
       },
@@ -816,7 +824,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/reporting/reportPanelEntry.ts',
+        importer: 'src/host/vscode/reporting/reportPanelEntry.ts',
         symbol: 'createReportingWindow',
         side: ['vscode'],
       },
@@ -897,12 +905,12 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
         symbol: 'autoCompactionAdmission',
         side: ['acp', 'vscode'],
       },
+      { importer: 'src/host/schedules/paidBinding.ts', symbol: 'quote', side: ['acp', 'vscode'] },
       {
-        importer: 'src/host/providers/providersHost.ts',
+        importer: 'src/host/vscode/providers/providersHost.ts',
         symbol: 'createProvidersHost',
         side: ['vscode'],
       },
-      { importer: 'src/host/schedules/paidBinding.ts', symbol: 'quote', side: ['acp', 'vscode'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'authSetProvider', side: ['acp'] },
       { importer: 'src/runtime/authCommands.ts', symbol: 'providerLabel', side: ['acp'] },
       { importer: 'src/runtime/exec/runExec.ts', symbol: 'providerModelRefusal', side: ['acp'] },
@@ -964,7 +972,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     requestedBy: [
       { importer: 'src/extension.ts', symbol: 'reportChecksFor', side: ['vscode'] },
       {
-        importer: 'src/host/reporting/reportPanelEntry.ts',
+        importer: 'src/host/vscode/reporting/reportPanelEntry.ts',
         symbol: 'createReportingWindow',
         side: ['vscode'],
       },
@@ -993,7 +1001,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'both',
     requestedBy: [
       {
-        importer: 'src/host/reporting/reportPanelEntry.ts',
+        importer: 'src/host/vscode/reporting/reportPanelEntry.ts',
         symbol: 'createReportingWindow',
         side: ['vscode'],
       },
@@ -1287,7 +1295,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'tab.js',
     side: 'vscode',
     requestedBy: [
-      { importer: 'src/host/tab/tabBundle.ts', symbol: 'TAB_BUNDLE_FILE', side: ['vscode'] },
+      { importer: 'src/host/vscode/tab/tabBundle.ts', symbol: 'TAB_BUNDLE_FILE', side: ['vscode'] },
     ],
   },
   {
@@ -1374,7 +1382,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       { importer: 'src/extension.ts', symbol: 'ensureModelsFeatures', side: ['vscode'] },
       { importer: 'src/extension.ts', symbol: 'teamCapabilitiesForModel', side: ['vscode'] },
       {
-        importer: 'src/host/models/modelsPanelEntry.ts',
+        importer: 'src/host/vscode/models/modelsPanelEntry.ts',
         symbol: 'createTeamPanelHost',
         side: ['vscode'],
       },
@@ -1626,7 +1634,7 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     side: 'vscode',
     requestedBy: [
       {
-        importer: 'src/host/reporting/reportPanel.ts',
+        importer: 'src/host/vscode/reporting/reportPanel.ts',
         symbol: 'ReportPanel.show',
         side: ['vscode'],
       },
@@ -1638,7 +1646,11 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     file: 'webview/usage.js',
     side: 'both',
     requestedBy: [
-      { importer: 'src/host/usage/usagePanel.ts', symbol: 'UsagePanel.open', side: ['vscode'] },
+      {
+        importer: 'src/host/vscode/usage/usagePanel.ts',
+        symbol: 'UsagePanel.open',
+        side: ['vscode'],
+      },
       {
         importer: 'src/runtime/usage/usageCompanionEntry.ts',
         symbol: 'openUsageCompanion',

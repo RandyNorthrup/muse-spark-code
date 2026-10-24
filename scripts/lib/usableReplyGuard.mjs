@@ -309,7 +309,7 @@ const ALLOW_LIST = new Map([
   // already streamed to the editor progressively through the vscode.lm
   // progress callback, and no reply text is taken as a result here.
   [
-    'src/host/models/lmProvider.ts:provideLanguageModelChatResponse',
+    'src/host/vscode/models/lmProvider.ts:provideLanguageModelChatResponse',
     'the editor-chat provider refuses failed/cancelled streams; the streamed reply is progressive, never taken as a result',
   ],
   // The judge hook preflights its own synthesized caution/neutral outputs

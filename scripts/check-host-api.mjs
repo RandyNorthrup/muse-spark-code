@@ -640,6 +640,20 @@ const graph = importGraph(sourceFiles)
 const hostFiles = sourceFiles.filter((file) => !file.startsWith(`${WEBVIEW_ROOT}/`))
 
 const problems = []
+// The whole VS Code API boundary lives in src/host/vscode/ and extension.ts
+// (D84, M104 lane A). Type-only imports count too: a module elsewhere in
+// src/host stays loadable by another adapter, and regeneration never
+// excuses a misplaced one.
+for (const [file, node] of graph) {
+  if (
+    file !== 'src/extension.ts' &&
+    node.external.has(VSCODE_MODULE) &&
+    !file.startsWith('src/host/vscode/')
+  ) {
+    problems.push(`${file}: vscode imports belong in src/host/vscode/ or src/extension.ts`)
+  }
+}
+
 const portable = [
   ...sourceFiles.filter((file) => PORTABLE_ROOTS.some((root) => file.startsWith(`${root}/`))),
   ...PORTABLE_HOST,

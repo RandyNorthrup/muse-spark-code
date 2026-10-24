@@ -1,4 +1,4 @@
-// The usage table fallback (src/host/usage/usagePanelEntry.ts): when the
+// The usage table fallback (src/host/vscode/usage/usagePanelEntry.ts): when the
 // workspace read fails, the installed disk copy stands in and the log
 // names only the failure's kind. A working primary never touches the disk.
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises'
