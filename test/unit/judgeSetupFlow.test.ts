@@ -2,9 +2,7 @@
 // (the shipped table fits nothing: no verified timings, no pinned
 // archives); the run proves every phase and failure against fake
 // ports, and the extractor proves against real tar output.
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { gzipSync } from 'node:zlib'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { CALIBRATION_FAMILIES } from '../../src/core/judge/calibration/schema'
@@ -21,131 +19,49 @@ import {
 } from '../../src/core/judge/setup/flow'
 import type { JudgeSetupRecord } from '../../src/core/judge/setup/register'
 import { loadJudgeModelsTable } from '../../src/core/judge/setup/table'
-import type { JudgeModelRow, JudgeModelsTable } from '../../src/shared/judgeModels/schema'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
 import { descriptorByName } from './helpers/judgeHardware/descriptors'
+import {
+  ARCHIVE,
+  BLOB_A,
+  DIGEST,
+  GIB,
+  judgeRow as row,
+  judgeTable as table,
+  PATHS,
+  runtimeArchive,
+  seedArchive,
+  setupWorld,
+  SHIPPED_TABLE,
+  STORAGE_ROOT,
+  TODAY,
+  type SetupWorld,
+} from './helpers/judgeSetupWorld'
 
-const GIB = 1024 * 1024 * 1024
-const DIGEST = 'ab'.repeat(32)
-const BLOB_A = '11'.repeat(32)
-const BLOB_B = '22'.repeat(32)
-const TODAY = '2026-10-22'
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures')
-const SHIPPED = path.join(FIXTURES, '..', '..', 'src', 'shared', 'judgeModels.json')
-
-function row(model: string, overrides: Partial<JudgeModelRow> = {}): JudgeModelRow {
-  return {
-    model,
-    technique: 'systemone',
-    quantization: 'Q8_0',
-    digest: DIGEST,
-    downloadBytes: 4_500_000_000,
-    residentBytesCpu: 5 * GIB,
-    residentBytesGpu: 5 * GIB,
-    accuracy: { correct: 39, total: 40, source: 'test' },
-    latency: [
-      {
-        backend: 'cpu',
-        platform: 'linux',
-        p50Ms: 200,
-        p95Ms: 300,
-        path: 'verified',
-        source: 'test',
-      },
-    ],
-    profiledFamilies: [],
-    source: 'test',
-    checkDate: '2026-10-22',
-    ...overrides,
-  }
-}
-
-function table(
-  rows: JudgeModelRow[],
-  archives: JudgeModelsTable['runtime']['archives'] = [],
-): JudgeModelsTable {
-  return {
-    version: 1,
-    checkedDate: TODAY,
-    runtime: { version: '0.35.1', minimum: '0.35.1', archives },
-    rows,
-  }
-}
-
-const ARCHIVE = {
-  platform: 'linux' as const,
-  backend: 'cpu' as const,
-  url: 'https://test.invalid/ollama.tgz',
-  sha256: '33'.repeat(32),
-}
-
-const MANIFEST = JSON.stringify({
-  schemaVersion: 2,
-  config: { digest: `sha256:${BLOB_A}`, size: 100 },
-  layers: [{ digest: `sha256:${BLOB_B}`, size: 200 }],
-})
-
-interface FakeWorld {
-  readonly ports: JudgeSetupFlowPorts
-  readonly files: Map<string, Uint8Array>
+interface FakeWorld extends SetupWorld {
   readonly phases: JudgeSetupProgress[]
-  readonly fetched: string[]
-  stopped: boolean
 }
 
+/** The setup world over the flow's own store: the registration file it wrote. */
 function fakeWorld(overrides: Partial<JudgeSetupFlowPorts> = {}): FakeWorld {
-  const files = new Map<string, Uint8Array>()
   const phases: JudgeSetupProgress[] = []
-  const fetched: string[] = []
-  const world: FakeWorld = {
-    files,
-    phases,
-    fetched,
-    stopped: false,
-    ports: {
-      fetchText: (url) => {
-        fetched.push(url)
-        return Promise.resolve(MANIFEST)
-      },
-      fetchBlob: (url) => {
-        fetched.push(url)
-        return Promise.resolve('ok' as const)
-      },
-      presentSizes: () => Promise.resolve(new Map()),
-      mkdir: () => Promise.resolve(),
-      writeFile: (file, bytes) => {
-        files.set(file, bytes)
-        return Promise.resolve()
-      },
-      readFile: (file) => Promise.resolve(files.get(file)),
-      findFreePort: () => Promise.resolve(11_434),
-      runtimeFree: () => Promise.resolve(true),
-      startRuntime: () =>
-        Promise.resolve({
-          pid: 4242,
-          port: 11_434,
-          stop: () => {
-            world.stopped = true
-            return Promise.resolve()
-          },
-        }),
-      waitForVersion: () => Promise.resolve(true),
+  const world: FakeWorld = Object.assign(
+    setupWorld({
       readRegistration: (file) => {
-        const bytes = files.get(file)
+        const bytes = world.files.get(file)
         // The fake store reads back the registration the flow wrote.
         return bytes === undefined
           ? undefined
           : (JSON.parse(Buffer.from(bytes).toString('utf8')) as JudgeSetupRecord)
       },
       writeRegistration: (file, record) => {
-        files.set(file, Buffer.from(JSON.stringify(record), 'utf8'))
+        world.files.set(file, Buffer.from(JSON.stringify(record), 'utf8'))
       },
-      askSmoke: (questions) =>
-        Promise.resolve(questions.map(() => ({ correct: true, latencyMs: 100 }))),
       ...overrides,
-    },
-  }
+    }),
+    { phases },
+  )
   return world
 }
 
@@ -157,12 +73,10 @@ function planned(): JudgeSetupPlan {
   return settled.plan
 }
 
-const STORAGE_ROOT = path.join(path.sep, 'test', 'root')
-
 const runOptions = (world: FakeWorld, plan: JudgeSetupPlan) => ({
   plan,
-  paths: { storageRoot: STORAGE_ROOT, tableFile: path.join(STORAGE_ROOT, 'table.json') },
-  ports: world.ports,
+  paths: PATHS,
+  ports: world.flow,
   join: (...parts: string[]) => path.join(...parts),
   onProgress: (progress: JudgeSetupProgress) => {
     world.phases.push(progress)
@@ -170,12 +84,6 @@ const runOptions = (world: FakeWorld, plan: JudgeSetupPlan) => ({
   signal: new AbortController().signal,
   nowIso: () => '2026-10-23T00:00:00.000Z',
 })
-
-/** The archive the fetch port never wrote: every run past fetch needs it. */
-function seedArchive(world: FakeWorld): void {
-  const tgz = readFileSync(path.join(FIXTURES, 'judgeSetup', 'runtime.tgz'))
-  world.files.set(path.join(STORAGE_ROOT, 'judge', 'runtime', '0.35.1', 'runtime.tgz'), tgz)
-}
 
 const hostileTar = (name: string): Uint8Array => {
   const header = Buffer.alloc(512)
@@ -193,7 +101,7 @@ describe('setup flow', () => {
   })
 
   it('fits nothing from the shipped table: no verified timings, no archives', () => {
-    const loaded = loadJudgeModelsTable(SHIPPED, TODAY)
+    const loaded = loadJudgeModelsTable(SHIPPED_TABLE, TODAY)
     expect(loaded.table?.runtime.archives).toEqual([])
     const settled = planJudgeSetup(summary(), loaded.table, {})
     expect(settled).toEqual({ ok: false, reason: 'fits-nothing' })
@@ -390,7 +298,7 @@ describe('setup flow', () => {
       },
     }
     const out = path.join(STORAGE_ROOT, 'out')
-    const tgz = readFileSync(path.join(FIXTURES, 'judgeSetup', 'runtime.tgz'))
+    const tgz = runtimeArchive()
     const result = await extractTarGzip(tgz, out, 1024 * 1024, ports, (...parts: string[]) =>
       path.join(...parts),
     )
@@ -414,7 +322,7 @@ describe('setup flow', () => {
     expect(
       await extractTarGzip(new TextEncoder().encode('plain text'), out, 1024 * 1024, ports, join),
     ).toBe('invalid')
-    const tgz = readFileSync(path.join(FIXTURES, 'judgeSetup', 'runtime.tgz'))
+    const tgz = runtimeArchive()
     expect(await extractTarGzip(tgz, out, 8, ports, join)).toBe('too-large')
   })
 

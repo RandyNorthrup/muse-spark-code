@@ -115,3 +115,67 @@ changed files exit 0; `check:catches` exit 0; vitest judgeSetupRuntime,
 judgeSetupFlow, judgeSetupCli, judgeSetupController, pathGuard,
 pathGuardRound4/6/7, resourceHandoffDeadline all pass; pathGuardSpawns
 6 of 7 pass (the seventh is the RLM110A0/RLM110B list above).
+
+## Item 2 — `npm run -s duplication`: RLM125's 41 clones
+
+Measured on `d81327d360`: 41 clones (jscpd, 50 tokens / 5 lines,
+threshold 0), every one in RLM125's fast judge and setup wizard code or
+its tests. Now 0, with `.jscpd.json` unchanged. Every block exists once:
+
+- Both hosts' fast-turn boundary (turn start, turn end, the done and
+  failure verdicts, the loop episode, the event) is one
+  `FastTurnBoundary` (`src/core/judge/fast/turnEnd.ts`); ModelApiHost
+  and MuseCodeHost supply only what differs (their backend name, pin,
+  switch, the finished turn's texts, the emit).
+- `cascade.ts`: the engine's answer and throw outcomes are two helpers
+  both deadline paths call.
+- `controller.ts`: the install step reuses `plan()`.
+- `setupCli.ts`: the three steps parse and refuse flags through
+  `stepFlags`.
+- `judgeFastTurn.ts`/`judgePanelSchema.ts`: one `fastCountSchema`.
+- The Models & Agents panel and the setup wizard share the panel
+  document, failure page and link opener
+  (`src/host/views/panelDocument.ts`), the page failure record
+  (`src/webview/pageReport.ts`), the crash boundary and its view
+  (`src/webview/components/PageBoundary.tsx`) and one control stylesheet
+  (`src/webview/models/controls.css`); the wizard's buttons take the
+  identical models classes, so nothing renders differently.
+- The integration suites share `waitForTab` (`test/integration/tabs.ts`).
+- The unit suites share six helpers under `test/unit/helpers/`
+  (`judgeSetupWorld`, `userCapabilities`, `evalTaskShape`,
+  `judgeFastFixtures`, `calibrationDataset`, `liveTurn`) and in-file
+  helpers for the self-clones; every assertion checks what it checked.
+  `judgeAccuracyChecks`'s channel-routing test now states which checks
+  reach each §7 channel instead of mirroring the table literal.
+
+Drills (2026-10-23):
+
+- The link opener inlined back into `modelsPanel.ts`: `npx jscpd` exit
+  1, `host\models\modelsPanel.ts [1042:40 - 1050:66] (9 lines, 57
+tokens)` against `host\views\panelDocument.ts`; restored, `Found 0
+clones.`, exit 0.
+- `judgeSetupWorld.ts`'s table row `downloadBytes` changed from
+  4_500_000_000 to 4_400_000_000: vitest exit 1 ("judge setup CLI >
+  prints the setup plan and installs nothing without --yes", "setup
+  controller > opens on an idle scan and scans onto the
+  recommendation", "setup recommender > picks the most accurate
+  verified row that fits, faster on ties"); restored, the four setup
+  suites 45/45, exit 0.
+
+Local look (production build, `npm run ui:look`):
+`judge-setup-recommend-advanced` in light and dark
+(`cc-gates-judge-setup-light.png`, `cc-gates-judge-setup-dark.png`) and
+`models-configure`: the buttons, link and select render as before; the
+built `dist/webview/judgeSetup.css` carries the shared rules.
+
+Checks: host, webview, unit and integration typecheck exit 0; eslint and
+prettier on every changed file exit 0; stylelint on the three sheets
+exit 0; `check:tokens` 0 problems; `check:catches` exit 0; vitest over
+the 40 judge, setup, panel and eval suites: 499 passed, 1 skipped, 7
+failed in two suites this change does not touch and that fail the same
+way on this PC without it (`judgeB2Snapshot`: Windows `symlink` EPERM
+without the privilege; `judgeApprovalFloor`: two POSIX-path floor
+cases). `judgeB2Baseline` (Windows git refuses its
+`GIT_CONFIG_GLOBAL=//./nul`) and `judgeB1HoldDrill` (Linux/macOS helper)
+fail or skip on this PC before and after; their edited helpers
+typecheck and lint and run on Linux CI.

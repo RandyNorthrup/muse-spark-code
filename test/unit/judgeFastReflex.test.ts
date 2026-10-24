@@ -2,10 +2,7 @@
 // exchanges (test/fixtures/judgeFast, captured 2026-10-22). A miss on
 // unrecognised input, never a guess; microsecond-to-millisecond cost,
 // measured below, proves no model, no network and no file writes.
-import { readFileSync } from 'node:fs'
 import { performance } from 'node:perf_hooks'
-import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import { judgeDoneClaim } from '../../src/core/judge/fast/reflex/done'
 import { ruleEffort } from '../../src/core/judge/fast/reflex/effort'
@@ -14,14 +11,7 @@ import { detectLoop, type LoopSignal } from '../../src/core/judge/fast/reflex/lo
 import { rankRelevance } from '../../src/core/judge/fast/reflex/relevance'
 import { matchSkill } from '../../src/core/judge/fast/reflex/skills'
 import { triageOutput } from '../../src/core/judge/fast/reflex/triage'
-
-const fixtureRoot = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'fixtures',
-  'judgeFast',
-)
-const fixture = (name: string): string => readFileSync(path.join(fixtureRoot, name), 'utf8')
+import { judgeFastFixture } from './helpers/judgeFastFixtures'
 
 const signal = (key: string, hasFailed: boolean, outputDigest: string): LoopSignal => ({
   key,
@@ -54,40 +44,52 @@ describe('fast judge reflex checks', () => {
   })
 
   it('triages recorded failures to full reading and blank success to skip', () => {
-    expect(triageOutput({ exitCode: 2, output: fixture('ls-missing.txt') })).toMatchObject({
+    expect(triageOutput({ exitCode: 2, output: judgeFastFixture('ls-missing.txt') })).toMatchObject(
+      {
+        decision: 'needs-full',
+      },
+    )
+    expect(
+      triageOutput({ exitCode: 1, output: judgeFastFixture('node-traceback.txt') }),
+    ).toMatchObject({
       decision: 'needs-full',
     })
-    expect(triageOutput({ exitCode: 1, output: fixture('node-traceback.txt') })).toMatchObject({
+    expect(triageOutput({ exitCode: 2, output: judgeFastFixture('tsc-error.txt') })).toMatchObject({
       decision: 'needs-full',
     })
-    expect(triageOutput({ exitCode: 2, output: fixture('tsc-error.txt') })).toMatchObject({
-      decision: 'needs-full',
-    })
-    expect(triageOutput({ exitCode: 1, output: fixture('vitest-failure.txt') })).toMatchObject({
+    expect(
+      triageOutput({ exitCode: 1, output: judgeFastFixture('vitest-failure.txt') }),
+    ).toMatchObject({
       decision: 'needs-full',
     })
     expect(triageOutput({ exitCode: 0, output: '  \n' })).toMatchObject({ decision: 'skip' })
     // A benign success misses to the engine; nothing here proves skippable.
-    expect(triageOutput({ exitCode: 0, output: fixture('git-log.txt') })).toEqual({
+    expect(triageOutput({ exitCode: 0, output: judgeFastFixture('git-log.txt') })).toEqual({
       decision: 'miss',
     })
   })
 
   it('skips recorded passing summaries, and nothing like them', () => {
-    expect(triageOutput({ exitCode: 0, output: fixture('vitest-pass.txt') })).toEqual({
+    expect(triageOutput({ exitCode: 0, output: judgeFastFixture('vitest-pass.txt') })).toEqual({
       decision: 'skip',
       reason: 'pass-summary',
     })
-    expect(triageOutput({ exitCode: 0, output: fixture('git-status-clean.txt') })).toEqual({
-      decision: 'skip',
-      reason: 'pass-summary',
-    })
+    expect(triageOutput({ exitCode: 0, output: judgeFastFixture('git-status-clean.txt') })).toEqual(
+      {
+        decision: 'skip',
+        reason: 'pass-summary',
+      },
+    )
     // A failing count beside the passing one still needs the full output.
-    expect(triageOutput({ exitCode: 1, output: fixture('vitest-summary.txt') })).toMatchObject({
+    expect(
+      triageOutput({ exitCode: 1, output: judgeFastFixture('vitest-summary.txt') }),
+    ).toMatchObject({
       decision: 'needs-full',
     })
     // No exit code, no skip: an unrecognised tool's summary is a guess.
-    expect(triageOutput({ exitCode: undefined, output: fixture('vitest-pass.txt') })).toEqual({
+    expect(
+      triageOutput({ exitCode: undefined, output: judgeFastFixture('vitest-pass.txt') }),
+    ).toEqual({
       decision: 'miss',
     })
   })
@@ -143,7 +145,7 @@ describe('fast judge reflex checks', () => {
   })
 
   it('finds a recorded failure the reply leaves unmentioned', () => {
-    const toolOutput = fixture('vitest-failure.txt')
+    const toolOutput = judgeFastFixture('vitest-failure.txt')
     expect(
       findUnmentionedFailure({ toolOutput, exitCode: 1, replyText: 'All green, done.' }),
     ).toMatchObject({
@@ -159,7 +161,7 @@ describe('fast judge reflex checks', () => {
     // No recognised failure, no finding.
     expect(
       findUnmentionedFailure({
-        toolOutput: fixture('git-log.txt'),
+        toolOutput: judgeFastFixture('git-log.txt'),
         exitCode: 0,
         replyText: 'Done.',
       }),
@@ -170,13 +172,13 @@ describe('fast judge reflex checks', () => {
     expect(
       judgeDoneClaim({
         replyText: 'Done, all tests pass.',
-        toolOutputs: [{ exitCode: 1, output: fixture('vitest-failure.txt') }],
+        toolOutputs: [{ exitCode: 1, output: judgeFastFixture('vitest-failure.txt') }],
       }),
     ).toEqual({ decision: 'unbacked' })
     expect(
       judgeDoneClaim({
         replyText: 'Done, the rename is complete.',
-        toolOutputs: [{ exitCode: 0, output: fixture('git-log.txt') }],
+        toolOutputs: [{ exitCode: 0, output: judgeFastFixture('git-log.txt') }],
       }),
     ).toEqual({ decision: 'backed' })
     expect(judgeDoneClaim({ replyText: 'Still working on it.', toolOutputs: [] })).toEqual({
@@ -187,11 +189,11 @@ describe('fast judge reflex checks', () => {
 
   it('runs every check in milliseconds with no model, network or writes', () => {
     const outputs = [
-      fixture('ls-missing.txt'),
-      fixture('node-traceback.txt'),
-      fixture('tsc-error.txt'),
-      fixture('vitest-failure.txt'),
-      fixture('git-log.txt'),
+      judgeFastFixture('ls-missing.txt'),
+      judgeFastFixture('node-traceback.txt'),
+      judgeFastFixture('tsc-error.txt'),
+      judgeFastFixture('vitest-failure.txt'),
+      judgeFastFixture('git-log.txt'),
     ]
     const skills = [{ name: 'estimator', description: 'cost and speed' }]
     const candidates = [{ id: 'a', text: 'loop stall repeat oscillation' }]

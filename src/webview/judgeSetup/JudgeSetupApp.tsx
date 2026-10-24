@@ -42,7 +42,7 @@ function ChromeButton({
       return (
         <button
           type="button"
-          className="js-button-primary"
+          className="models-button-primary"
           onClick={() => {
             post({ command: 'startScan' })
           }}
@@ -58,7 +58,7 @@ function ChromeButton({
         return (
           <button
             type="button"
-            className="js-button-primary"
+            className="models-button-primary"
             onClick={() => {
               post({ command: 'startInstall' })
             }}
@@ -71,7 +71,7 @@ function ChromeButton({
         return (
           <button
             type="button"
-            className="js-button-primary"
+            className="models-button-primary"
             onClick={() => {
               post({ command: 'startInstall' })
             }}
@@ -86,7 +86,7 @@ function ChromeButton({
       return (
         <button
           type="button"
-          className="js-button-primary"
+          className="models-button-primary"
           onClick={() => {
             post({ command: 'acceptLicence' })
           }}
@@ -99,7 +99,7 @@ function ChromeButton({
       return (
         <button
           type="button"
-          className="js-button"
+          className="models-button"
           onClick={() => {
             post({ command: 'back' })
           }}
@@ -112,7 +112,7 @@ function ChromeButton({
       return (
         <button
           type="button"
-          className="js-button"
+          className="models-button"
           onClick={() => {
             post({ command: 'cancel' })
           }}
@@ -125,7 +125,7 @@ function ChromeButton({
       return (
         <button
           type="button"
-          className="js-button"
+          className="models-button"
           onClick={() => {
             post({ command: 'setUpLater' })
           }}

@@ -5,27 +5,12 @@
 // `pinned`; with the switch off no record is emitted.
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AgentEvent, ItemSnapshot } from '../../src/shared/agentEvents'
-import type { FastDecisionPin } from '../../src/core/judge/fast/turnRecord'
 import type { MuseSession } from '../../src/core/backends/musecode/MuseCodeHost'
-import {
-  closeLiveHosts,
-  refuseUnscripted,
-  startLiveSession,
-  type LiveSession,
-} from './helpers/museReplay'
+import { drive, toolCall } from './helpers/liveTurn'
+import { closeLiveHosts } from './helpers/museReplay'
 
 afterEach(async () => {
   await closeLiveHosts()
-})
-
-const toolCall = (itemId: string, turnId: string): ItemSnapshot => ({
-  itemId,
-  kind: 'toolCall',
-  status: 'completed',
-  turnId,
-  tool: 'shell',
-  args: '{"command":"ls"}',
-  visibleOutput: 'a.txt\n',
 })
 
 const reply = (turnId: string, text: string): ItemSnapshot => ({
@@ -35,33 +20,6 @@ const reply = (turnId: string, text: string): ItemSnapshot => ({
   turnId,
   text,
 })
-
-interface Driven {
-  readonly live: LiveSession
-  readonly inputs: unknown[]
-  readonly events: AgentEvent[]
-}
-
-async function drive(
-  feed: (session: MuseSession, sessionId: string) => void,
-  features?: { isFastPathOff?: () => boolean; fastDecisionPin?: FastDecisionPin },
-): Promise<Driven> {
-  const inputs: unknown[] = []
-  const live = await startLiveSession((method, params) => {
-    if (method === 'turn/start') {
-      inputs.push(params['input'])
-      return refuseUnscripted(method)
-    }
-    throw new Error(`unexpected ${method}`)
-  }, features)
-  const events: AgentEvent[] = []
-  live.session.onEvent((event) => {
-    events.push(event)
-  })
-  feed(live.session, live.session.sessionId)
-  await expect(live.session.sendTurn([{ type: 'text', text: 'ping' }])).rejects.toThrow()
-  return { live, inputs, events }
-}
 
 const complete = (session: MuseSession, sessionId: string, calls: number): void => {
   for (let index = 0; index < calls; index += 1) {

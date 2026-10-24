@@ -3,21 +3,13 @@
 // prints its plan and installs only with --yes; remove deletes only
 // what setup added, only with --yes. Progress runs on stderr, results
 // on stdout; failures name their codes.
-import { readFileSync } from 'node:fs'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { EXEC_EXIT } from '../../src/shared/constants'
-import type { JudgeSetupRecord } from '../../src/core/judge/setup/register'
 import { loadJudgeModelsTable } from '../../src/core/judge/setup/table'
-import type { JudgeModelsTable } from '../../src/shared/judgeModels/schema'
 import { EN } from '../../src/shared/l10n/en'
 import { setUiText } from '../../src/shared/l10n/text'
-import {
-  formatSetupBytes,
-  type JudgeSetupPaths,
-  type JudgeSetupPorts,
-} from '../../src/core/judge/setup/ports'
+import { formatSetupBytes, type JudgeSetupPorts } from '../../src/core/judge/setup/ports'
 import {
   parseSetupFlags,
   runJudgeRemove,
@@ -25,128 +17,26 @@ import {
   runJudgeSetup,
   type JudgeSetupTextIo,
 } from '../../src/runtime/judge/setupCli'
-import { descriptorByName } from './helpers/judgeHardware/descriptors'
-
-const GIB = 1024 * 1024 * 1024
-const DIGEST = 'ab'.repeat(32)
-const FIXTURES = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'fixtures')
-const STORAGE_ROOT = path.join(path.sep, 'test', 'root')
-const SHIPPED_TABLE = path.join(FIXTURES, '..', '..', 'src', 'shared', 'judgeModels.json')
-const PATHS: JudgeSetupPaths = {
-  storageRoot: STORAGE_ROOT,
-  tableFile: path.join(STORAGE_ROOT, 'table.json'),
-}
-
-function table(): JudgeModelsTable {
-  return {
-    version: 1,
-    checkedDate: '2026-10-22',
-    runtime: {
-      version: '0.35.1',
-      minimum: '0.35.1',
-      archives: [
-        {
-          platform: 'linux',
-          backend: 'cpu',
-          url: 'https://test.invalid/ollama.tgz',
-          sha256: '33'.repeat(32),
-        },
-      ],
-    },
-    rows: [
-      {
-        model: 'tev1:4b',
-        technique: 'systemone',
-        quantization: 'Q8_0',
-        digest: DIGEST,
-        downloadBytes: 4_500_000_000,
-        residentBytesCpu: 5 * GIB,
-        residentBytesGpu: 5 * GIB,
-        accuracy: { correct: 39, total: 40, source: 'test' },
-        latency: [
-          {
-            backend: 'cpu',
-            platform: 'linux',
-            p50Ms: 200,
-            p95Ms: 300,
-            path: 'verified',
-            source: 'test',
-          },
-        ],
-        profiledFamilies: [],
-        source: 'test',
-        checkDate: '2026-10-22',
-      },
-    ],
-  }
-}
-
-const MANIFEST = JSON.stringify({
-  schemaVersion: 2,
-  config: { digest: `sha256:${'11'.repeat(32)}`, size: 100 },
-  layers: [{ digest: `sha256:${'22'.repeat(32)}`, size: 200 }],
-})
+import {
+  DIGEST,
+  GIB,
+  PATHS,
+  SHIPPED_TABLE,
+  STORAGE_ROOT,
+  setupPorts,
+  type SetupWorld,
+} from './helpers/judgeSetupWorld'
 
 interface FakeCli {
+  readonly world: SetupWorld
   readonly ports: JudgeSetupPorts
   readonly out: string[]
   readonly err: string[]
-  readonly removed: string[]
-  registration: JudgeSetupRecord | undefined
 }
 
 function fakeCli(overrides: Partial<JudgeSetupPorts> = {}): FakeCli {
-  const out: string[] = []
-  const err: string[] = []
-  const removed: string[] = []
-  const files = new Map<string, Uint8Array>([
-    [
-      path.join(STORAGE_ROOT, 'judge', 'runtime', '0.35.1', 'runtime.tgz'),
-      readFileSync(path.join(FIXTURES, 'judgeSetup', 'runtime.tgz')),
-    ],
-  ])
-  const cli: FakeCli = {
-    out,
-    err,
-    removed,
-    registration: undefined,
-    ports: {
-      scan: () => Promise.resolve(descriptorByName('noGpu16GB')),
-      loadTable: () => ({ table: table(), failures: {} }),
-      flow: {
-        fetchText: () => Promise.resolve(MANIFEST),
-        fetchBlob: () => Promise.resolve('ok' as const),
-        presentSizes: () => Promise.resolve(new Map()),
-        mkdir: () => Promise.resolve(),
-        writeFile: (file, bytes) => {
-          files.set(file, bytes)
-          return Promise.resolve()
-        },
-        readFile: (file) => Promise.resolve(files.get(file)),
-        findFreePort: () => Promise.resolve(11_434),
-        runtimeFree: () => Promise.resolve(true),
-        startRuntime: () =>
-          Promise.resolve({ pid: 4242, port: 11_434, stop: () => Promise.resolve() }),
-        waitForVersion: () => Promise.resolve(true),
-        readRegistration: () => cli.registration,
-        writeRegistration: (_file, record) => {
-          cli.registration = record
-        },
-        askSmoke: (questions) =>
-          Promise.resolve(questions.map(() => ({ correct: true, latencyMs: 100 }))),
-      },
-      readRegistration: () => cli.registration,
-      removeInstall: (paths) => {
-        removed.push(paths.runtimeRoot, paths.modelsDir, paths.lock, paths.record)
-        cli.registration = undefined
-        return Promise.resolve({ removed: [...removed], missing: [] })
-      },
-      today: () => '2026-10-22',
-      nowIso: () => '2026-10-23T00:00:00.000Z',
-      ...overrides,
-    },
-  }
-  return cli
+  const { world, ports } = setupPorts(overrides)
+  return { world, ports, out: [], err: [] }
 }
 
 const ioOf = (cli: FakeCli): JudgeSetupTextIo => ({
@@ -239,7 +129,7 @@ describe('judge setup CLI', () => {
     expect(text).toContain('Runtime: 0.35.1 (https://test.invalid/ollama.tgz)')
     expect(text).toContain('Installs to: ')
     expect(text).toContain('Re-run with --yes to download and install.')
-    expect(cli.registration).toBeUndefined()
+    expect(cli.world.registration).toBeUndefined()
   })
 
   it('installs with --yes: progress on stderr, the verdict on stdout', async () => {
@@ -249,7 +139,7 @@ describe('judge setup CLI', () => {
     expect(cli.out.join('')).toContain('Installed tev1:4b: smoke 10/10 correct.')
     expect(cli.err.join('')).toContain('fetch ')
     expect(cli.err.join('')).toContain('smoke ?/?')
-    expect(cli.registration?.model).toBe('tev1:4b')
+    expect(cli.world.registration?.model).toBe('tev1:4b')
   })
 
   it('names a failed install with its phase and reason', async () => {
@@ -287,7 +177,7 @@ describe('judge setup CLI', () => {
 
   it('removes only what setup added, only with --yes', async () => {
     const cli = fakeCli()
-    cli.registration = {
+    cli.world.registration = {
       version: 1,
       endpoint: 'http://127.0.0.1:11434',
       model: 'tev1:4b',
@@ -302,12 +192,12 @@ describe('judge setup CLI', () => {
     const planned = await runJudgeRemove(ioOf(cli), [], cli.ports, PATHS)
     expect(planned).toBe(EXEC_EXIT.failed)
     expect(cli.out.join('')).toContain('Installed: tev1:4b at ')
-    expect(cli.removed).toEqual([])
+    expect(cli.world.removed).toEqual([])
     const code = await runJudgeRemove(ioOf(cli), ['--yes'], cli.ports, PATHS)
     expect(code).toBe(EXEC_EXIT.ok)
     expect(cli.out.join('')).toContain('Removed: ')
-    expect(cli.removed).toHaveLength(4)
-    expect(cli.registration).toBeUndefined()
+    expect(cli.world.removed).toHaveLength(4)
+    expect(cli.world.registration).toBeUndefined()
   })
 
   it('refuses remove flags it does not take', async () => {

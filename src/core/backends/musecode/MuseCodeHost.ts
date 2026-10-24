@@ -54,7 +54,6 @@ import {
   GOAL_RECOVERY_MAX_PAGES,
   GOAL_RECOVERY_PAGE_LIMIT,
   JSON_RPC_ERRORS,
-  JUDGE_FAST_METHOD_DETERMINISTIC,
   MILLISECONDS_PER_SECOND,
   MSP_ATTACHMENT_FRAME_BUDGET_BYTES,
   MSP_COMMAND_ATTEMPTS,
@@ -82,16 +81,14 @@ import {
 } from '../../../shared/constants'
 import { isEffortLevel } from '../../../shared/effort'
 import { fill } from '../../../shared/l10n/text'
-import { doneTailNote, failureTailHint, loopTailNote } from '../../judge/fast/apply'
-import { judgeDoneClaim } from '../../judge/fast/reflex/done'
-import { findUnmentionedFailure } from '../../judge/fast/reflex/failures'
-import { detectLoop, toolRepeatKey, type LoopSignal } from '../../judge/fast/reflex/loop'
+import { loopTailNote } from '../../judge/fast/apply'
+import { detectLoop, toolRepeatKey } from '../../judge/fast/reflex/loop'
+import { loopTurnReason, type FastDecisionPin } from '../../judge/fast/turnRecord'
 import {
-  doneTurnReason,
-  FastTurnRecorder,
-  loopTurnReason,
-  type FastDecisionPin,
-} from '../../judge/fast/turnRecord'
+  FastTurnBoundary,
+  type FinishedToolOutput,
+  type FinishedTurnTexts,
+} from '../../judge/fast/turnEnd'
 import { fingerprint } from '../../verify/fingerprint'
 import { DeadlineError, startStillWaiting, stillWaitingText, withDeadline } from '../../timeouts'
 import { textFileInput } from '../../textAttachment'
@@ -1529,14 +1526,18 @@ export class MuseSession implements ScheduledAgentSession {
   and the turn's outputs cover one turn's episode; the tail queue drains
   into the next `turn/start`.
   */
-  private readonly fastLoop: LoopSignal[] = []
-  private readonly fastTail: string[] = []
-  private fastStuck = false
-  private fastLastTurn: string | undefined
   private fastReply: string | undefined
-  private readonly fastTurnOutputs: { readonly tool: string; readonly output: string }[] = []
-  private readonly fastTurn = new FastTurnRecorder()
-  private fastEmittedTurn: string | undefined
+  private readonly fastTurnOutputs: FinishedToolOutput[] = []
+  /** The turn boundary: `turnStarted` closes the turn before it, `turnCompleted` its own. */
+  private readonly fastTurns = new FastTurnBoundary({
+    backend: 'museCode',
+    pin: (decision) => this.fastDecisionPin?.(decision),
+    isOff: () => this.fastOff(),
+    read: () => this.fastDrainTurn(),
+    emit: (event) => {
+      this.emit(event)
+    },
+  })
 
   /** The host's feedback disclosure ports, bound by `track` (absent in tests). */
   public readonly previewFeedbackNote?: (note: string) => string
@@ -2045,11 +2046,11 @@ export class MuseSession implements ScheduledAgentSession {
   private fastOnEvent(event: AgentEvent): void {
     if (this.fastOff()) return
     if (event.type === 'turnStarted') {
-      this.fastOnTurn(event.turnId)
+      this.fastTurns.start(event.turnId)
       return
     }
     if (event.type === 'turnCompleted' || event.type === 'turnWithdrawn') {
-      this.fastEndTurn(event.turnId)
+      this.fastTurns.end(event.turnId)
       return
     }
     if (event.type !== 'itemCompleted') return
@@ -2071,113 +2072,34 @@ export class MuseSession implements ScheduledAgentSession {
     if (this.fastOff() || item.kind !== 'toolCall') return
     const tool = item.tool ?? ''
     this.fastTurnOutputs.push({ tool, output: item.visibleOutput ?? '' })
-    this.fastLoop.push({
+    this.fastTurns.loop.push({
       key: toolRepeatKey({ name: tool, arguments: item.args ?? '' }),
       failed: item.status === 'failed',
       outputDigest: fingerprint(`${item.visibleOutput ?? ''}\n${item.failureReason ?? ''}`),
     })
-    const loop = detectLoop(this.fastLoop)
+    const loop = detectLoop(this.fastTurns.loop)
     const pin = this.fastDecisionPin?.('loop.stuck')
     const isRaised = loop.stuck || pin === true
-    const isActed = isRaised && !this.fastStuck && pin !== false
+    const isActed = isRaised && !this.fastTurns.stuck && pin !== false
     if (isActed) {
-      this.fastTail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', tool))
+      this.fastTurns.tail.push(loopTailNote(loop.stuck ? loop.pattern : 'repeat', tool))
       if (loop.stuck) this.emit({ type: 'judgeStuck', pattern: loop.pattern })
     }
-    this.fastStuck = isRaised
-    this.fastTurn.observeLoop(isRaised, isActed, loopTurnReason(loop, pin))
+    this.fastTurns.stuck = isRaised
+    this.fastTurns.recorder.observeLoop(isRaised, isActed, loopTurnReason(loop, pin))
   }
 
   /**
-  D107 §6.4 and §7.3 (lane C): the turn boundary. The finished turn's
-  reply and outputs queue the next turn's hints and close its turn
-  record; a backed done queues its note. An unbacked done is a surface
-  note (lane U), nothing model-side. The snapshots keep no exit code,
-  so the verdicts read the texts alone and miss more often without
-  one — never a guess.
+  D107 §6.4 and §7.3 (lane C): what a finished turn left for the fast
+  verdicts (`FastTurnBoundary`), drained so the next turn starts empty: the
+  last reply and the outputs since the turn began. A backed done queues its
+  note; an unbacked done is a surface note (lane U), nothing model-side.
   */
-  private fastOnTurn(turnId: string): void {
-    this.fastEndTurn(this.fastLastTurn)
-    this.fastLastTurn = turnId
-    this.fastLoop.length = 0
-    this.fastStuck = false
-  }
-
-  /**
-  D107 (lane U): close one turn's fast record. The done and failure
-  verdicts run over the drained reply and outputs, then the turn event
-  carries every evaluated decision — or nothing is emitted when none
-  was. The turn end calls this before the surface sees `turnCompleted`;
-  the next turn's start is the backstop, and the emitted mark keeps the
-  two from doubling.
-  */
-  private fastEndTurn(turnId: string | undefined): void {
-    if (turnId === undefined || turnId === this.fastEmittedTurn) return
-    this.fastEmittedTurn = turnId
-    const reply = this.fastReply
-    const outputs = this.fastTurnOutputs.splice(0)
+  private fastDrainTurn(): FinishedTurnTexts {
+    const texts = { reply: this.fastReply, outputs: this.fastTurnOutputs.splice(0) }
     this.fastReply = undefined
-    this.fastLoop.length = 0
-    this.fastStuck = false
-    if (this.fastOff()) {
-      this.fastTurn.reset()
-      return
-    }
-    if (reply !== undefined && outputs.length > 0) {
-      this.fastEndDone(reply, outputs)
-      this.fastEndFailure(reply, outputs)
-    }
-    const event = this.fastTurn.event(turnId, 'museCode', JUDGE_FAST_METHOD_DETERMINISTIC)
-    this.fastTurn.reset()
-    if (event !== undefined) this.emit(event)
-  }
-
-  /** D107 §6.4 (lane C): the finished turn's done claim, with its record. */
-  private fastEndDone(
-    reply: string,
-    outputs: readonly { readonly tool: string; readonly output: string }[],
-  ): void {
-    const done = judgeDoneClaim({
-      replyText: reply,
-      toolOutputs: outputs.map((output) => ({ exitCode: undefined, output: output.output })),
-    })
-    const pin = this.fastDecisionPin?.('done.unbacked')
-    const isClaimed = done.decision !== 'miss'
-    if (pin !== false && done.decision === 'backed') this.fastTail.push(doneTailNote())
-    this.fastTurn.observeDone(
-      isClaimed || pin === true,
-      pin !== false && (isClaimed || pin === true),
-      doneTurnReason(done.decision, pin),
-    )
-  }
-
-  /** D107 §7.3 (lane C): the finished turn's unmentioned failure, with its record. */
-  private fastEndFailure(
-    reply: string,
-    outputs: readonly { readonly tool: string; readonly output: string }[],
-  ): void {
-    const pin = this.fastDecisionPin?.('failure.unmentioned')
-    let isMentioned = false
-    for (const output of outputs) {
-      const failure = findUnmentionedFailure({
-        toolOutput: output.output,
-        exitCode: undefined,
-        replyText: reply,
-      })
-      if (failure.decision === 'mentioned') isMentioned = true
-      if (pin !== false && failure.decision === 'unmentioned') {
-        this.fastTail.push(failureTailHint(output.tool))
-        this.fastTurn.observeFailure(true, true, 'hint')
-        return
-      }
-    }
-    if (pin === true) {
-      const first = outputs[0]
-      if (first !== undefined) this.fastTail.push(failureTailHint(first.tool))
-      this.fastTurn.observeFailure(true, true, 'pinned')
-      return
-    }
-    this.fastTurn.observeFailure(false, false, isMentioned ? 'mentioned' : 'absent')
+    this.fastTurns.newEpisode()
+    return texts
   }
 
   /** Merge captured native attempt history for both live updates and local inspection. */
@@ -2472,7 +2394,7 @@ export class MuseSession implements ScheduledAgentSession {
           // today's bytes.
           input: [
             ...mspInput(parts),
-            ...this.fastTail.splice(0).map((text): TurnPart => ({ type: 'text', text })),
+            ...this.fastTurns.tail.splice(0).map((text): TurnPart => ({ type: 'text', text })),
           ],
           ...(displayText !== undefined && { displayText }),
         },

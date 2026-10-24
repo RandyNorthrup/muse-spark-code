@@ -16,61 +16,23 @@ import {
   SETTINGS_SECTION,
 } from '../../src/shared/constants'
 import { removeFolder } from '../unit/helpers/temporaryFolders'
+import {
+  activeTextEditorFsPath,
+  TAB_POLL_INTERVAL_MS,
+  TAB_WAIT_TIMEOUT_MS,
+  waitForTab,
+} from './tabs'
 
-const TAB_WAIT_TIMEOUT_MS = 5000
 // test/fixtures/workspace/.vscode/settings.json sets this window-scoped key
 // and two machine-scoped ones (PLAN.md D15).
 const FIXTURE_OVERRIDE = 'hideOnboarding'
 const RULES_HEADER = 'Muse Code reads this file as project rules when it runs in this directory.'
-const TAB_POLL_INTERVAL_MS = 50
 // The measured panel-focus steal landed 0.4 to 0.8 s late; the watch outlasts it.
 const FOCUS_WATCH_MS = 3000
 
-// Tab groups update asynchronously after a webview panel is created, so a
-// direct read right after executeCommand races the UI.
-function describeTab(tab: vscode.Tab): string {
-  // A label alone cannot name the F74 thief: every chat panel is labelled
-  // 'Untitled', same as an untitled document. The kind tells them apart.
-  const { input, label } = tab
-  if (input instanceof vscode.TabInputWebview) {
-    const kind = `webview:${input.viewType}`
-    return `${label}(${kind})`
-  }
-  if (input instanceof vscode.TabInputText) {
-    const kind = `text:${input.uri.fsPath}`
-    return `${label}(${kind})`
-  }
-  return `${label}(other)`
-}
-
-async function waitForTab(isMatch: (tab: vscode.Tab) => boolean): Promise<vscode.Tab> {
-  const deadline = Date.now() + TAB_WAIT_TIMEOUT_MS
-  while (Date.now() < deadline) {
-    const tab = vscode.window.tabGroups.all
-      .flatMap((group) => group.tabs)
-      .find((candidate) => isMatch(candidate))
-    if (tab !== undefined) {
-      return tab
-    }
-    await new Promise((resolve) => setTimeout(resolve, TAB_POLL_INTERVAL_MS))
-  }
-  const open = vscode.window.tabGroups.all.flatMap((group) =>
-    group.tabs.map((tab) => describeTab(tab)),
-  )
-  throw new Error(
-    `no matching tab appeared within ${String(TAB_WAIT_TIMEOUT_MS)} ms; open: ${open.join(', ')}; active editor: ${activeTextEditorFsPath() ?? 'none'}`,
-  )
-}
-
-// Read fresh on every poll: an earlier assert's narrowing of the editor
-// chain does not survive the awaits between polls, so the read lives in its
-// own function where the optional chain is genuinely needed.
-function activeTextEditorFsPath(): string | undefined {
-  return vscode.window.activeTextEditor?.document.uri.fsPath
-}
-
-// The active tab's file, when the active tab is a text file: same fresh-read
-// reason as above, for the tab group instead of the editor.
+// The active tab's file, when the active tab is a text file: the same
+// fresh-read reason as `activeTextEditorFsPath` (./tabs), for the tab group
+// instead of the editor.
 function activeTextTabFsPath(): string | undefined {
   const activeTab = vscode.window.tabGroups.activeTabGroup.activeTab
   return activeTab?.input instanceof vscode.TabInputText ? activeTab.input.uri.fsPath : undefined
