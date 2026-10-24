@@ -7,20 +7,10 @@ import {
   createCapacityAdmission,
   createReadingHolder,
 } from '../../src/core/orchestration/playbook/readingHolder'
-import {
-  resourceStatusSchema,
-  type ResourceLevel,
-  type ResourceStatus,
-} from '../../src/shared/resources'
+import type { ResourceStatus } from '../../src/shared/resources'
+import { resourceStatus } from './helpers/playbook/resourceStatus'
 
-const status = (level: ResourceLevel): ResourceStatus =>
-  resourceStatusSchema.parse({
-    level,
-    sample: null,
-    settings: {},
-    queued: [],
-    overrideUntilMs: null,
-  })
+const status = resourceStatus
 
 describe('createReadingHolder', () => {
   it('serves unknown until the first reading lands', () => {

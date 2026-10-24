@@ -109,6 +109,9 @@ import { fontsBundle } from './fonts/bundle'
 import { playbookLoader } from './playbook/playbookBundle'
 import { nodeModule } from './node/bundle'
 import { spawnCheckLine } from './playbook/spawnCheck'
+import { createSubagentAdmission } from './playbook/admission'
+import { createReadingHolder } from '../core/orchestration/playbook/readingHolder'
+import type { ResourceStatus } from '../shared/resources'
 import { runReportCommand } from './reportCommand'
 import { readSecretLine } from './hiddenInput'
 import {
@@ -1281,6 +1284,13 @@ async function serve(
           UI_TEXT,
           uiLocale(),
         ),
+      // `/agents continue|retry` through the playbook's child-work
+      // admission (M116, D221): the process governor's latest reading,
+      // refreshed on every resume. Unknown reads as unknown, never as paused.
+      subagentAdmission: createSubagentAdmission({
+        holder: createReadingHolder<ResourceStatus>(),
+        readResourceStatus: () => resources.status(),
+      }),
       reports: { format: 'md', execute: (args, context) => reports().acp.execute(args, context) },
       // The account picker serves Model API sessions (list, current,
       // thresholds). Switching stays refused (no adoption transaction).

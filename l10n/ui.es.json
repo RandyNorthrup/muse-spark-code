@@ -3518,6 +3518,7 @@
   "agentRetryNoSubagent": "El reintento no está disponible para este agente: no tiene ningún subagente que reintentar.",
   "agentRetryNoCheckpoint": "El reintento no está disponible para este agente: no tiene un punto de control aislado. Se conservan los cambios del espacio compartido.",
   "agentContinueUnavailable": "Continuar no está disponible para este agente o su estado actual.",
+  "playbookResumePaused": "The machine has paused new work, so this agent cannot be resumed now. Try again when the machine is idle.",
   "agentGone": "Ese agente ya no está en esta conversación.",
   "referenceAgentOutcomes": "Los agentes muestran actividad y resultados basados en evidencia. Seleccione un agente finalizado para ver su registro limitado y su historial de intentos. Continuar conserva la sesión y los cambios tras confirmar; reintentar requiere un punto de control aislado. La evidencia ausente figura como no verificada. ACP: /agents, /agents receipt ID, /agents continue ID, /agents retry ID.",
   "agentMapHint": "haga clic en un agente para ver los detalles",

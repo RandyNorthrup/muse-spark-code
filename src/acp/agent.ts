@@ -69,6 +69,7 @@ import {
   type TurnSubmission,
 } from '../core/agent/agentBackend'
 import { editAutomaticallyChoice } from '../core/agent/approvalRules'
+import type { SubagentAdmission } from '../core/backends/modelapi/subagentTools'
 import {
   causeForLog,
   failureForLog,
@@ -296,6 +297,12 @@ export interface AcpAgentDeps {
   readonly schedules?: AcpSchedulePort
   /** I binds P's local /playbook parsing and rendering (the journal bundle). */
   readonly playbookBundle?: () => AcpPlaybookBundle
+  /**
+  The admission `/agents continue|retry` asks before resuming a child
+  (M116, PLAN.md D221): the same `SubagentAdmission` port the Model API
+  host asks, as a `delegate` round. Absent, the control runs as before.
+  */
+  readonly subagentAdmission?: SubagentAdmission
   /** H-W-SESSION: one profile-owned account service, bound to this backend. */
   readonly accounts?: AccountsSessionPort
   readonly vault?: AcpVault
@@ -2297,8 +2304,26 @@ class AcpSession {
     // workflow child) is not a missing backend checkpoint: it has nothing to retry.
     if (agent.subagentId === undefined)
       return action === 'retry' ? UI_TEXT.agentRetryNoSubagent : UI_TEXT.agentContinueUnavailable
+    const control = (): Promise<void> =>
+      this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
+    let refusal: string | undefined
     try {
-      await this.session.controlSubagent(id, action === 'continue' ? 'continue' : 'retry')
+      // The person's own resume of a child, through the playbook's
+      // admission as a `delegate` round (M116, D221): the same port the
+      // Model API host asks, asked last, around the effect. A refusal
+      // reaches no backend; the round covers the control call, which is
+      // over when it returns.
+      await (this.deps.subagentAdmission?.(
+        'delegate',
+        this.sessionId,
+        agent.subagentId,
+        control,
+        () => true,
+        (reason, shown) => {
+          this.deps.log.info(`A child resume was refused: ${reason}`)
+          refusal = shown
+        },
+      ) ?? control())
     } catch (error: unknown) {
       if (action === 'continue') return UI_TEXT.agentContinueUnavailable
       // Only the backend with no isolated worktree checkpoint says so (Muse
@@ -2308,6 +2333,8 @@ class AcpSession {
         ? error.message
         : UI_TEXT.agentRetryUnavailable
     }
+    // Refused, the backend was never called: nothing changed to re-read.
+    if (refusal !== undefined) return refusal
     const latest = await this.host.readSession(this.sessionId)
     return agentListingText(latest.items, Date.now())
   }
