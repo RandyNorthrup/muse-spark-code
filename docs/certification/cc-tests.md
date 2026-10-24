@@ -207,3 +207,29 @@ Red (before): 4 failed (`expected true to be false`,
 `expected 'C:\home\randy\lanes\RLM110B.app\home\…' to be '\home\randy\…'`).
 Green: 28 passed. Red drill: `pathsOf` forced to the host's `path` → the same
 4 failed; restored.
+
+### nodeImageArchive: tar beside its files, Windows' Python by name
+
+Cause: three things, all of the same kind.
+
+1. GNU tar reads `C:\…` as `host:path` on a remote machine
+   (`tar (child): Cannot connect to C: resolve failed`). Git for Windows puts
+   its GNU tar first on the PATH; the suite and `scripts/check-node-image.mjs`
+   handed tar absolute paths.
+2. `python3` on Windows is the Microsoft Store alias, which prints "Python was
+   not found" and fails; the interpreter is `python` (the OS image suites
+   already choose it this way).
+3. One case packs a symlink member from a real symlink, which a Windows test
+   account cannot create (`EPERM … symlink`).
+
+Fix: the image check lists layer members with tar run beside the archive and
+handed its bare name, splits on CRLF too (Windows' own tar ends lines with
+it), and picks `python` on Windows. The suite runs tar in its fixture root
+with relative paths and picks the same interpreter. On Windows the symlink
+member is written by Python's `tarfile` without a filesystem symlink, and a
+new assertion checks on every OS that the archive carries the member
+(`tar -tvf`: `link -> ../outside/LICENSE`).
+
+Red (before): 57 of 57 failed. Green: 57 passed. Red drill: the image check's
+`tar -tf` handed the absolute path again → the CLI case failed
+(`tar: Cannot connect to C: resolve failed`); restored.
