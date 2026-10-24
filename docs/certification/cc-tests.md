@@ -343,3 +343,22 @@ OS1 suite refuses a 256M weakening). OS2's slot-map suite (`bcc68f19b8`,
 
 Fix: the slot-map suite expects 260M for `muse-efi`, with that reason.
 Green: 15 passed.
+
+### osImageBuild: two cases need the Linux build host
+
+Cause: the OS image is built with mkosi on a Linux host, never on Windows.
+Of the suite's 130 cases, 128 run its pure Python on any OS; two touch the
+host:
+
+- the real-gpgv case found Git's MSYS `gpgv`, which reads the `C:\…` keyring
+  path as a relative one, so the good signature failed as `OS1 Pi index
+signature mismatch` (and the wrong-keyring refusal passed for that reason);
+- the link-refusal case calls Python's `os.symlink`, which needs the
+  symbolic-link privilege on Windows.
+
+Fix: both are skipped on Windows, each with its reason beside the gate (the
+gpgv case keeps its existing gate where gpgv is absent).
+
+Red (before): 2 failed (`expected 1 to be +0`; the captured stderr shows the
+mismatch above). After on Windows: 127 passed, 3 skipped (these two and the
+apt-cache case, as before).
