@@ -313,3 +313,23 @@ Fix: the suite passes `pathToFileURL(file).href`, which every OS reads alike.
 
 Red (before): 2 failed (`expected 'node:internal/modules/esm/load:193…' to contain 'Linux amd64/arm64 tool host required'`).
 Green: 4 passed, the installer's refusal of a Windows tool host among them.
+
+### nodeInstall: tar beside its files; the Linux layout runs on Linux
+
+Cause: the suite built its release tarball with `tar -czf C:\… -C C:\…`,
+which GNU tar (first on Git for Windows' PATH) reads as `host:path`, so all
+7 cases failed in the fixture (`expected 2 to be +0`). With that fixed, the
+three layout cases still failed: `deploy/install/layout.sh` runs its own
+`tar -tzf "$TARBALL"` (`tarball unreadable: C:\…`), and its subject is the
+POSIX modes of a systemd layout, which NTFS does not keep. Its refusal case
+passed on Windows only because of that tar error, i.e. for the wrong reason.
+
+Fix: the release tarball is made with tar run in the release folder on
+relative names. The layout suite is the native Linux installer's, which
+the product never runs on Windows; it is skipped there with that reason.
+The verification suite (`install.sh`) runs on Windows and asserts its exact
+refusals (`checksum mismatch`, `not listed`, `checksum checker missing`,
+`gh not found`).
+
+Red (before): 7 failed. Green on Windows: 3 passed, 5 skipped (the layout
+suite).
