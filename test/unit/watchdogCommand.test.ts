@@ -713,6 +713,35 @@ describe('watchdog CLI exits and ACP answers', () => {
     expect(missing).toEqual({ ok: false, text: UI_TEXT.watchdog.cli.unavailable })
   })
 
+  it('reads the GitHub sign-in only for the commands that call GitHub', async () => {
+    const { port } = await surface({}, (store) =>
+      seedIssues(store, [recordFor(146, 'acknowledged')]),
+    )
+    const asked: boolean[] = []
+    for (const text of [
+      '/watchdog list',
+      '/watchdog status',
+      '/watchdog pause RandyNorthrup/muse-spark-code',
+      '/watchdog policy RandyNorthrup/muse-spark-code',
+      '/watchdog apply RandyNorthrup/muse-spark-code 146 {}',
+      '/watchdog poll RandyNorthrup/muse-spark-code',
+      '/watchdog evidence RandyNorthrup/muse-spark-code 146',
+      '/watchdog decide RandyNorthrup/muse-spark-code 146',
+      '/watchdog resolve RandyNorthrup/muse-spark-code 146 {}',
+    ]) {
+      await acpWatchdog(
+        [{ type: 'text' as const, text }],
+        (isGitHubCalled) => {
+          asked.push(isGitHubCalled)
+          return Promise.resolve(port)
+        },
+        () => entryBundle(),
+        collectingLogger([]),
+      )
+    }
+    expect(asked).toEqual([false, false, false, false, false, true, true, true, true])
+  })
+
   it('fails a bound store out loud at the ACP layer too', async () => {
     const folder = await roots.fresh('watchdog-acp-broken-')
     const file = path.join(folder, 'file.json')

@@ -5,6 +5,7 @@ import type { AcpWatchdogBundle } from '../../../../src/acp/watchdog'
 import {
   parseWatchdogCommand as entryParse,
   runWatchdogCommand as entryRun,
+  requiresWatchdogGitHub as entryRequiresGitHub,
 } from '../../../../src/runtime/watchdog/watchdogEntry'
 import { UI_TEXT } from '../../../../src/shared/l10n/text'
 import { triageFindingsSchema, type TriageFindings } from '../../../../src/shared/watchdog'
@@ -47,6 +48,7 @@ installation and command wiring all run, not a hand-built double. */
 export function entryBundle(): AcpWatchdogBundle {
   return {
     parseWatchdogCommand: (argv) => entryParse(argv),
+    requiresWatchdogGitHub: (command) => entryRequiresGitHub(command),
     runWatchdogCommand: (command, surfacePort) => entryRun(command, surfacePort, UI_TEXT, 'en'),
   }
 }

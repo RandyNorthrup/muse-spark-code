@@ -16,7 +16,9 @@ export function isWatchdogBundle(value: unknown): value is Bundle {
     'runWatchdogCommand' in value &&
     typeof value.runWatchdogCommand === 'function' &&
     'runWatchdogCli' in value &&
-    typeof value.runWatchdogCli === 'function'
+    typeof value.runWatchdogCli === 'function' &&
+    'requiresWatchdogGitHub' in value &&
+    typeof value.requiresWatchdogGitHub === 'function'
   )
 }
 

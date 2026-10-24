@@ -11,6 +11,7 @@ import {
   parseWatchdogCommand as parse,
   runWatchdogCli as runCli,
   runWatchdogCommand as runCommand,
+  requiresWatchdogGitHub as requiresGitHub,
   type WatchdogCommand,
   type WatchdogSurfacePort,
 } from './command'
@@ -18,6 +19,10 @@ import { createWatchdogSurface as createSurface, type WatchdogSurfaceDeps } from
 
 export function parseWatchdogCommand(argv: readonly string[]): WatchdogCommand | undefined {
   return parse(argv)
+}
+
+export function requiresWatchdogGitHub(command: WatchdogCommand): boolean {
+  return requiresGitHub(command)
 }
 
 export function createWatchdogSurface(
