@@ -944,7 +944,7 @@
   "referenceCustomAgents": "Defina agentes em arquivos AGENT.md pessoais ou do projeto. Selecione um agente ou peça explore ou second-opinion; listas de ferramentas limitam suas capacidades. Tarefas filhas Model API exigem consentimento para subagentes pagos.",
   "referenceCodeOutput": "Copiar copia o código; Inserir escreve no cursor; Aplicar substitui a seleção do editor. Abra a saída completa; saídas cortadas podem ser paginadas. Selecionar texto da conversa para citá-lo no campo de entrada, perguntar sobre ele, comentar ou copiar.",
   "referencePaidContexts": "Os extras interativos da Model API perguntam antes de gastar e compartilham o orçamento diário. Imagens Muse Code exigem chave Model API salva e ativação explícita; seus gastos ficam fora desse registro diário. O Muse Voice reserva o orçamento diário compartilhado nos dois backends. Os recursos ACP pagos ficam desativados por padrão e exigem opções da Model API e permissão do editor. As solicitações Model API de ACP e sem interface reservam o orçamento diário do runtime; sem interface também é necessário um orçamento rígido por execução. Imagens sem interface exigem acceptEdits e a opção de imagem. Conta e uso permite esquecer as permissões de pagamento do espaço de trabalho.",
-  "referenceAcp": "Habilidades instaladas adicionam comandos dinâmicos não listados nesta referência estática. ACP trata apenas /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents locais e habilidades instaladas; comandos do painel, configurações e diálogos da referência vinculada são fluxos da extensão.",
+  "referenceAcp": "Habilidades instaladas adicionam comandos dinâmicos não listados nesta referência estática. ACP trata apenas /help, /report, /playbook, /compact, /legal, /playback, /usage, /resources, /resources resume, /usage resources, /questions, /answer, /prompt, /share, /whatsnew, /agents locais e habilidades instaladas; /playbook responde localmente em todos os editores; comandos do painel, configurações e diálogos da referência vinculada são fluxos da extensão.",
   "referenceCiOtherTitle": "Outros sistemas de CI",
   "referenceCiOther": "Modelos de revisão/correção sem interface para GitLab, Azure, Jenkins e Bitbucket com hash do pacote fixado. O Node lê a chave e publica fora da cópia de trabalho; todos os modelos enviam esses arquivos. As cópias temporárias externas do GitLab/Bitbucket e o isolamento de processos do Bitbucket continuam sem validação. Declare os nomes adicionais de variáveis com a chave em MUSE_CI_KEY_ALIASES. Apenas testes simulados; consulte docs/ci-other-systems.md.",
   "referenceWebFetchTitle": "Leitura da web",
@@ -1026,6 +1026,13 @@
   "playbookCommandUsage": "Use o comando `playbook status|record|settings`.",
   "playbookSave": "Salvar configurações",
   "playbookSaved": "As configurações do manual foram salvas.",
+  "playbookAnswerReason": "Motivo",
+  "playbookAnswerWhySafe": "Por que é seguro por enquanto",
+  "playbookAnswerFollowUp": "Acompanhamento",
+  "playbookNotCertified": "Manual: não foi possível certificar esta rodada, então ela não conta como aprovada.",
+  "playbookEvidenceUnreadable": "Manual: não foi possível ler um arquivo em revisão ou o que um subagente alterou, então o manual não consegue saber se esta revisão é dele. A revisão não foi enviada.",
+  "playbookRecordStale": "Não foi possível ler o registro do manual. O que é mostrado pode estar desatualizado.",
+  "playbookMuseCodeStarts": "O Muse Code inicia subagentes sem perguntar. O playbook conta suas rodadas e revisa seu trabalho, mas não pode impedir um início.",
   "playbookStrikeBadge": {
     "one": "{count} rodada de revisão",
     "other": "{count} rodadas de revisão",
@@ -1099,8 +1106,13 @@
     "briefRecorded": "Guia: resumo para {module} registrado ({reason}).",
     "configDrift": "Sua decisão é necessária: a configuração compartilhada do repositório mudou para {module} ({reason}).",
     "fallbackReviewer": "Guia: {actor} revisa {module} como revisor suplente registrado ({reason}).",
-    "residualOpen": "Sua decisão é necessária: {lane} tem itens residuais abertos: {missing}."
+    "residualOpen": "Sua decisão é necessária: {lane} tem itens residuais abertos: {missing}.",
+    "contributionBlocked": "{reason}"
   },
+  "playbookBlockedName": "Achado do playbook para {child}: um arquivo cujo nome foi ocultado parece conter um segredo. A rodada deste subagente foi contada.",
+  "playbookBlockedLarge": "Achado do playbook para {child}: o patch tem {size}, acima do limite de {bound}. A rodada deste subagente foi contada.",
+  "playbookBlockedUnreadable": "Achado do playbook para {child}: não foi possível ler a contribuição. A rodada deste subagente foi contada.",
+  "playbookBlockedMany": "Achado do playbook para {child}: quantidade de arquivos alterados: {count}; limite: {bound}. A rodada deste subagente foi contada.",
   "scheduleSettlement": {
     "sent": "Enviado conforme o agendamento",
     "outcomes": {
@@ -5218,6 +5230,7 @@
   "approvalAskRuleWhy": "Sua regra de comandos pede confirmação para este comando todas as vezes: {why}",
   "approvalSecretNote": "Este comando contém um segredo detectado, mostrado expurgado. Ele sempre pede confirmação: nenhuma regra o aprova sozinha.",
   "autoReviewerResolver": "Revisor automático",
+  "cliReviewerDecision": "Revisor do Muse Code para {child}",
   "commandRuleResolver": "Regra de comandos",
   "autoReviewAllowed": "Permitido: {reason}",
   "autoReviewAsked": "Pergunta a você: {reason}",

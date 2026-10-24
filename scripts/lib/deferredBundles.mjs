@@ -1226,6 +1226,30 @@ export const ON_FIRST_USE = [
       'src/core/estimator/calibration/journal.ts',
     ],
   },
+  // The VS Code window's playbook (M116 lane C-M116-6, PLAN.md D6, D96): the
+  // window requires it on the first playbook request and starts the same
+  // file as its worker thread; the policy never loads at activation.
+  {
+    output: 'dist/playbook.js',
+    metafile: 'dist/meta/playbook.json',
+    use: 'the first playbook request',
+    files: [
+      'src/host/playbook/playbookEntry.ts',
+      'src/host/playbook/playbookWindow.ts',
+      'src/host/playbook/playbookPanel.ts',
+      'src/host/playbook/playbookWorker.ts',
+      'src/host/playbook/workerProtocol.ts',
+      'src/host/playbook/containedJob.ts',
+      'src/runtime/playbook/governor.ts',
+      'src/runtime/playbook/surface.ts',
+      'src/core/orchestration/panelLanes.ts',
+      'src/core/orchestration/panelPlaybook.ts',
+      'src/core/orchestration/playbookIntegration.ts',
+      'src/core/orchestration/playbook/policy.ts',
+      'src/core/orchestration/playbook/journal.ts',
+      'src/core/orchestration/playbook/outcomes.ts',
+    ],
+  },
   // The flight recorder's journal (M93, PLAN.md D6, D72): activation keeps
   // only the front that answers and queues; the journal, its policy and the
   // frame mapping load just after activation or at the first failure.

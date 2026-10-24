@@ -33,6 +33,7 @@ import type {
 
 import { startApprovalJudge, type JudgeAdvisory, type JudgeFence } from '../../core/judge/use'
 import { reportCommandArguments } from '../reporting/reportCommand'
+import { answerPlaybookCommand, type PlaybookSource } from '../playbook/playbookAnswer'
 // One conversation per surface: owns the MSP session for that surface, turns
 // webview requests into backend calls, and streams AgentEvents back. Also the
 // source of truth for the composer settings that outlive a webview reload
@@ -122,7 +123,7 @@ import type {
   PlanModeRestore,
 } from '../../core/review/planModeHold'
 import type { ReviewMaterial } from '../../core/review/reviewMaterial'
-import type { PanelPlaybookPort, PanelPlaybookReview } from '../../core/orchestration/panelPlaybook'
+import type { PlaybookConversation, PlaybookConversationHost } from '../playbook/playbookEntry'
 import { isPrivateFileName } from '../../shared/privateFiles'
 import { isGitReview, type ReviewRequest } from '../../shared/reviewCommand'
 import type {
@@ -187,6 +188,7 @@ import {
   CHOICE_STEERING_NOTE,
   SESSION_RESTORE_WINDOW_MS,
   SHELL_TOOLS,
+  SUBAGENT_RUNNING_STATUSES,
   type SubagentAction,
   TEXT_ATTACHMENT_EXTENSIONS,
   WORKFLOW_CHILD_RUNNING_STATUSES,
@@ -213,6 +215,7 @@ import {
   type AgentEvent,
   type ApprovalChoice,
   type ItemSnapshot,
+  type SubagentOrigin,
   type TodoItem,
 } from '../../shared/agentEvents'
 import { fill, plural, uiLocale } from '../../shared/l10n/text'
@@ -472,6 +475,25 @@ export interface ConversationDeps {
   readonly showDeterministicReport?: (argumentsText: string) => Promise<void>
   /** M98 FU: optional until the independent use's B/M75 evidence is certified. */
   readonly judgeUses?: JudgeReviewUses
+  /**
+  `/playbook` (M116, M126 F9): the workspace journal source the composer
+  answers from without a model turn; absent keeps the previous model-bound
+  behaviour (other hosts).
+  */
+  readonly playbookSource?: PlaybookSource | undefined
+  /**
+  The playbook's own channel (M116): the Agent map's page and rows, parsed
+  and answered in the window's lazy playbook bundle; absent on a host
+  without one, whose map then shows no playbook.
+  */
+  readonly playbookPanel?:
+    | ((
+        message: unknown,
+        reply: (answer: unknown) => void,
+        /** Whether this conversation is owed the line about unasked subagents (D96.17). */
+        hasSpawnGap: () => Promise<boolean> | undefined,
+      ) => void)
+    | undefined
   readonly surface: ChatSurface
   readonly auth: AuthPort
   readonly ensureHost: () => Promise<AgentHost>
@@ -557,7 +579,8 @@ export interface ConversationDeps {
   readonly createLegalHold?: ((holdDeps: PlanModeHoldDeps) => PlanModeHold) | undefined
   /** M116 I/W binding: lazy shared-core policy plus the trusted host registry.
   Absent until the host installs the integration; a configured factory fails closed. */
-  readonly playbook?: (() => PanelPlaybookPort) | undefined
+  readonly playbook?:
+    ((host: PlaybookConversationHost) => PlaybookConversation | undefined) | undefined
   /** `/estimate` (M117, PLAN.md D97): the run, from the estimator's own bundle. */
   readonly estimator?: EstimatorRun
   /**
@@ -912,6 +935,17 @@ const COMPLETED_STATUS = 'completed'
 const TOOL_CALL_KIND = 'toolCall'
 const SUBAGENT_ITEM_KIND = 'subagent'
 const IN_PROGRESS_STATUS = 'inProgress'
+/**
+The Agent map's actions that start or resume a child's work. Each is a
+dispatch, admitted by the window's playbook before the backend is asked
+(M116, PLAN.md D96.17); Interrupt, Stop, Close and Read result start nothing.
+*/
+const CHILD_WORK_ACTIONS: ReadonlySet<SubagentAction> = new Set([
+  'continue',
+  'retry',
+  'resume',
+  'reopen',
+])
 // The unsaved files a warning names before it counts the rest (D27).
 const UNSAVED_FILES_NAMED = 3
 // How a notice the user saw reads in the log (M39).
@@ -1176,6 +1210,24 @@ export function toModelOption(model: ModelSummary): ModelOption {
       defaultReasoningEffort: model.defaultReasoningEffort,
     }),
   }
+}
+
+/**
+The child the CLI's own reviewer decided for, when the frame says so. The
+mapper keeps the captured origin on the event; the shared schema leaves it
+off so no bundle carries it, so this reads the wider wire shape the mapper
+validated (PLAN.md §8: the origin lives on the mapped event only).
+*/
+function childDecision(
+  event: Extract<AgentEvent, { type: 'approvalResolved' }>,
+): SubagentOrigin | undefined {
+  const origin = (event as AgentEvent & { subagentOrigin?: SubagentOrigin }).subagentOrigin
+  if (origin === undefined) return undefined
+  return origin.subagentId === undefined &&
+    origin.childSessionId === undefined &&
+    origin.childRunId === undefined
+    ? undefined
+    : origin
 }
 
 /**
@@ -1718,8 +1770,17 @@ export class ConversationController implements DeferredSend {
   private legalScanStop: AbortController | undefined
   private legalScanSequence = 0
   /** Preparation and acknowledgement still belong to a model send before activeTurnId is set. */
-  private playbookPort: PanelPlaybookPort | undefined
-  private readonly playbookReviews = new Map<PanelPlaybookReview, () => void>()
+  private playbookPort: PlaybookConversation | undefined
+  /** Child sessions, each with the subagent the host recorded it under (M116). */
+  private readonly childAgents = new Map<string, string>()
+  /**
+  The subagents whose own row, as the host last saw it, says they are at
+  work (M116, D96.17): in progress, and running or about to. A message to
+  one of these is a note; to any other child it would be new work.
+  */
+  private readonly childrenAtWork = new Set<string>()
+  /** Every subagent row's last seen status, by row: terminal states are final. */
+  private readonly childRowStates = new Map<string, string>()
   /** Mode choices and revocation wait for the outstanding owned request; the newest wins. */
   private reviewModeSettling: Promise<void> | undefined
   private permissionModeSelection = 0
@@ -2544,7 +2605,11 @@ export class ConversationController implements DeferredSend {
     this.attachmentGeneration += 1
     this.mediaAttachments?.clear()
     this.sessionOpening = undefined
-    for (const stop of this.playbookReviews.values()) stop()
+    this.playbookPort?.dispose()
+    this.playbookPort = undefined
+    this.childAgents.clear()
+    this.childrenAtWork.clear()
+    this.childRowStates.clear()
     // A review's Plan mode goes with its session (M70): the next session
     // starts, resumes or is adopted in the mode the user had.
     this.releasePlanHold(true)
@@ -3183,6 +3248,20 @@ export class ConversationController implements DeferredSend {
         break
       }
       case 'approvalResolved': {
+        // The CLI's own reviewer decided for its child without asking the
+        // person (M116, PLAN.md D96.17): its decision for that child, never
+        // a waiting card. The wire's own word for who decided stays out of
+        // the transcript.
+        const origin = childDecision(event)
+        if (origin !== undefined && !this.questionApprovals.has(event.approvalId)) {
+          this.forward({
+            ...event,
+            resolvedBy: fill(UI_TEXT.cliReviewerDecision, {
+              child: origin.subagentId ?? origin.childSessionId ?? event.approvalId,
+            }),
+          })
+          return
+        }
         this.questionApprovals.delete(event.approvalId)
         if (this.judgeCards.get(event.approvalId)?.dropped() === true) {
           this.notice('warning', UI_TEXT.judgeAdvisoryMissing)
@@ -3346,11 +3425,52 @@ export class ConversationController implements DeferredSend {
     return isChildTurn(turnId, this.childSessionIds)
   }
 
-  /** Remember a subagent row's child session, live or from a loaded history. */
-  private noteSubagentRow(item: ItemSnapshot): void {
-    if (item.kind === SUBAGENT_ITEM_KIND && item.childSessionId !== undefined) {
-      this.childSessionIds.add(item.childSessionId)
+  /**
+  Remember a subagent row's child session, live or from a loaded history.
+  Live rows reach the binding even before childSessionId arrives;
+  a history repost updates identity only and ends no round (D96.17).
+  Rows are ordered and a terminal state is final: an arrival older than
+  what was seen (a running row for a row already ended) is ignored, so
+  replayed rows never classify new work as an ungated note.
+  */
+  private noteSubagentRow(item: ItemSnapshot, isLive = false): void {
+    if (item.kind !== SUBAGENT_ITEM_KIND) {
+      return
     }
+    if (item.subagentId !== undefined) {
+      const key = `${item.subagentId}:${item.itemId}`
+      const prior = this.childRowStates.get(key)
+      if (
+        prior !== undefined &&
+        prior !== IN_PROGRESS_STATUS &&
+        item.status === IN_PROGRESS_STATUS
+      ) {
+        return
+      }
+      this.childRowStates.set(key, item.status)
+      const isAtWork =
+        item.status === IN_PROGRESS_STATUS &&
+        (item.controlStatus === undefined || SUBAGENT_RUNNING_STATUSES.has(item.controlStatus))
+      this.childrenAtWork[isAtWork ? 'add' : 'delete'](item.subagentId)
+    }
+    if (isLive && this.sessionKind === 'museCode') {
+      try {
+        void this.playbook()?.observed(this.session?.sessionId, item)
+      } catch (error: unknown) {
+        this.deps.log.error(
+          `A playbook observation was lost (shown already): ${failureForLog(error)}`,
+        )
+        this.say('error', UI_TEXT.playbookUnavailable)
+      }
+    }
+    if (item.childSessionId === undefined) {
+      return
+    }
+    this.childSessionIds.add(item.childSessionId)
+    if (item.subagentId === undefined) {
+      return
+    }
+    this.childAgents.set(item.childSessionId, item.subagentId)
   }
 
   private track(event: AgentEvent): void {
@@ -3548,7 +3668,7 @@ export class ConversationController implements DeferredSend {
       case 'itemStarted': {
         this.noteFileCard(event.item)
         this.noteForegroundShell(event.item)
-        this.noteSubagentRow(event.item)
+        this.noteSubagentRow(event.item, true)
         break
       }
       case 'itemUpdated':
@@ -3562,7 +3682,7 @@ export class ConversationController implements DeferredSend {
           this.noteReviewCall(event.item)
         }
         this.noteForegroundShell(event.item)
-        this.noteSubagentRow(event.item)
+        this.noteSubagentRow(event.item, true)
         this.noteSandboxFailure(event.item.failureReason)
         // A `!` command says it in its output (captured 2026-09-25, M46).
         if (event.item.kind === USER_SHELL_ITEM_KIND) {
@@ -5582,6 +5702,9 @@ export class ConversationController implements DeferredSend {
         onUpdate: (run) => {
           this.lastBestOfNRun = run
           this.post({ type: 'bestOfNUpdate', run })
+          if (run.status !== 'running') {
+            this.playbookPort?.ended(this.session?.sessionId, undefined)
+          }
         },
         log: this.deps.log,
       },
@@ -5717,13 +5840,8 @@ export class ConversationController implements DeferredSend {
       const manager = await this.bestOfN()
       const start = async () =>
         await manager.start({ prompt, attempts, requestCeilingPerAttempt }, host.info.kind)
-      const playbook = this.playbook()
-      if (playbook) {
-        await playbook.dispatch('bestOfN', this.session?.sessionId, undefined, async (signal) => {
-          signal.throwIfAborted()
-          return await start()
-        })
-      } else await start()
+      await (this.playbook()?.dispatch('bestOfN', this.session?.sessionId, undefined, start) ??
+        start())
     } catch (error: unknown) {
       this.deps.log.warn(`A best-of-N run could not be started: ${failureForLog(error)}`)
       if (generation !== this.sendInvalidationEpoch || this.isDisposed) {
@@ -8792,60 +8910,51 @@ export class ConversationController implements DeferredSend {
     }
   }
 
-  /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
-  private playbook(): PanelPlaybookPort | undefined {
-    this.playbookPort ??= this.deps.playbook?.()
+  /**
+  This conversation's playbook (M116), from the window's lazy bundle on
+  first use. What it does lives there; the conversation lends it a notice,
+  its backend and who admits a subagent in that backend's mode now.
+  */
+  private playbook(): PlaybookConversation | undefined {
+    this.playbookPort ??= this.deps.playbook?.({
+      notice: (level, text, hasAction) => {
+        this.deps.log.info(`${NOTICE_PREFIX}${text}`)
+        this.post({ type: 'notice', level, text, ...(hasAction && { actions: ['openPlaybook'] }) })
+      },
+      backend: this.deps.ensureHost,
+      log: this.deps.log,
+    })
     return this.playbookPort
   }
 
+  /**
+  A review of files no child agent of this conversation changed is sent
+  exactly as it is, and the playbook's bundle is not even loaded for it.
+  Otherwise the review turn goes through the playbook (M116, D96.16).
+  */
   private async withPlaybookReview(
     session: AgentSession,
     parts: readonly TurnPart[],
     files: readonly string[],
     submit: (parts: readonly TurnPart[]) => Promise<TurnSubmission>,
   ): Promise<TurnSubmission> {
-    const ticket = this.playbook()?.review(session.sessionId, files)
-    if (!ticket) return await submit(parts)
-    let unsubscribe: (() => void) | undefined
-    const stop = () => {
-      unsubscribe?.()
-      this.playbookReviews.delete(ticket)
-      try {
-        ticket.cancel()
-      } catch (error) {
-        this.deps.log.warn(`Cancelling a playbook review failed: ${failureForLog(error)}`)
-        this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
-      }
+    const bestOfN = this.lastBestOfNRun
+    const playbook =
+      files.length === 0 || (this.childAgents.size === 0 && bestOfN?.takenBranch === undefined)
+        ? undefined
+        : this.playbook()
+    if (playbook === undefined) {
+      return await submit(parts)
     }
-    const failed = (error: unknown) => {
-      stop()
-      this.notice('error', UI_TEXT.playbookUnavailable, undefined, error)
-    }
-    this.playbookReviews.set(ticket, stop)
-    try {
-      unsubscribe = session.onEvent((event) => {
-        try {
-          ticket.observe(event)
-          if (ticket.isClosed) stop()
-        } catch (error) {
-          this.deps.log.warn(`A playbook review event could not be read: ${failureForLog(error)}`)
-          failed(error)
-        }
-      })
-      const submission = await submit(ticket.parts(parts))
-      // An accepted turn still belongs in the transcript even if its result cannot certify.
-      try {
-        ticket.bind(submission.turnId)
-        if (ticket.isClosed) stop()
-      } catch (error) {
-        this.deps.log.warn(`A playbook review turn could not be bound: ${failureForLog(error)}`)
-        failed(error)
-      }
-      return submission
-    } catch (error) {
-      stop()
-      throw error
-    }
+    return await playbook.review({
+      sessionId: session.sessionId,
+      files,
+      agents: Array.from(this.childAgents, ([sessionId, agentId]) => ({ agentId, sessionId })),
+      bestOfN,
+      parts,
+      listen: (listener) => session.onEvent(listener),
+      submit,
+    })
   }
 
   /** The review turn on the session: the Reviewer's where the backend has one, else in Plan mode. */
@@ -10851,6 +10960,16 @@ export class ConversationController implements DeferredSend {
       this.openTasksTab()
       return
     }
+    if (action === 'openPlaybook') {
+      // A why-note's button (M116): asked and answered in the lazy bundle.
+      try {
+        await this.playbook()?.act(this.session?.sessionId)
+      } catch (error: unknown) {
+        this.deps.log.error(`A playbook action failed (shown already): ${failureForLog(error)}`)
+        this.say('error', UI_TEXT.playbookUnavailable)
+      }
+      return
+    }
     // A restart asked for from a fault's notice: the session it names is
     // said again should the fault outlive the restart.
     const restartedFault =
@@ -11048,13 +11167,42 @@ export class ConversationController implements DeferredSend {
         const refusal = panelRecoveryRefusal(agent, current)
         if (refusal !== undefined) throw new Error(refusal)
       }
-      await session.controlSubagent(subagentId, action)
+      const isChildWork = CHILD_WORK_ACTIONS.has(action)
+      if (!isChildWork) {
+        // The child's state is about to change in the backend, and its row
+        // says so only afterwards: until then nothing says it is at work.
+        this.childrenAtWork.delete(subagentId)
+      }
+      await this.onChild(isChildWork, session, subagentId, () =>
+        session.controlSubagent(subagentId, action),
+      )
     } catch (error: unknown) {
       this.deps.log.warn(`A subagent could not be controlled: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
         this.notice('error', `${UI_TEXT.agentControlFailed}: ${describe(error)}`, undefined, error)
       }
     }
+  }
+
+  /**
+  The person's own action on a child. One that starts or resumes the
+  child's work is a dispatch: the window's playbook admits it first, as a
+  `delegate` round, and a refusal sends the backend nothing (M116, PLAN.md
+  D96.17). Anything else, and every action in a window with no playbook,
+  goes to the backend as it is.
+  */
+  private async onChild(
+    isChildWork: boolean,
+    session: AgentSession,
+    subagentId: string,
+    act: () => Promise<void>,
+  ): Promise<void> {
+    await ((isChildWork ? this.playbook() : undefined)?.dispatch(
+      'delegate',
+      session.sessionId,
+      subagentId,
+      act,
+    ) ?? act())
   }
 
   private async messageSubagent(
@@ -11068,16 +11216,16 @@ export class ConversationController implements DeferredSend {
       return
     }
     try {
-      const send = async () => {
-        await session.messageSubagent(subagentId, body.trim(), isFollowup)
-      }
-      const playbook = isFollowup ? this.playbook() : undefined
-      if (playbook) {
-        await playbook.dispatch('delegate', session.sessionId, subagentId, async (signal) => {
-          signal.throwIfAborted()
-          await send()
-        })
-      } else await send()
+      // Whether the message would be new work is the host's to say, from the
+      // child's own row: a note only to a child that row says is at work.
+      // What the webview believed when it drew the row can add to that, and
+      // never take from it.
+      await this.onChild(
+        isFollowup || !this.childrenAtWork.has(subagentId),
+        session,
+        subagentId,
+        () => session.messageSubagent(subagentId, body.trim(), isFollowup),
+      )
     } catch (error: unknown) {
       this.deps.log.warn(`A subagent message could not be sent: ${failureForLog(error)}`)
       if (this.isCurrentSessionAction(session, generation)) {
@@ -12073,6 +12221,25 @@ export class ConversationController implements DeferredSend {
         await this.showDeterministicReport(argumentsText)
         return
       }
+      // `/playbook` is answered from the journal, even while signed out or
+      // while a model turn is running: it never starts a turn (M126 F9).
+      // Attachments stay in the composer, so nothing the answer did not read
+      // is lost.
+      const playbook = await answerPlaybookCommand(this.deps.playbookSource, message.text)
+      if (playbook !== undefined) {
+        // A governed conversation in a mode that starts subagents unasked is told so (D96.17).
+        const gap =
+          playbook.ok && (this.sessionKind ?? this.deps.auth.backend) === 'museCode'
+            ? UI_TEXT.playbookMuseCodeStarts
+            : undefined
+        this.post({
+          type: 'sendFailed',
+          localId: message.localId,
+          reason: gap === undefined ? playbook.text : `${playbook.text}\n\n${gap}`,
+          attachmentsKept: true,
+        })
+        return
+      }
     }
     if (!this.isAuthAdmitted() && AUTH_REQUIRED_SESSION_ACTIONS.has(message.type)) {
       this.notice('warning', UI_TEXT.notSignedInReason)
@@ -12492,6 +12659,16 @@ export class ConversationController implements DeferredSend {
       }
       case 'schedulesRequest': {
         await this.answerSchedules(message.message)
+        break
+      }
+      case 'playbook': {
+        this.deps.playbookPanel?.(
+          message.message,
+          (answer) => {
+            this.post({ type: 'playbook', message: answer })
+          },
+          () => Promise.resolve((this.sessionKind ?? this.deps.auth.backend) === 'museCode'),
+        )
         break
       }
       case 'openSchedules': {

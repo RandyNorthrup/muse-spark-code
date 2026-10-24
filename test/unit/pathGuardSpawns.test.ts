@@ -102,6 +102,12 @@ const KNOWN: Record<string, KnownSpawn> = {
     reason:
       "absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path), no shell, hidden window",
   },
+  'src/host/playbook/containedJob.ts': {
+    kind: 'reviewed',
+    anchor: 'windowsPowerShell',
+    reason:
+      "the C# helper starts and jobs end by name through the absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path), no shell, hidden window, ignored stdio",
+  },
   'src/runtime/converterTrust.ts': {
     kind: 'reviewed',
     anchor: 'systemPowerShell',
@@ -217,6 +223,12 @@ const KNOWN_WRAPPER: Record<string, KnownSpawn> = {
     kind: 'reviewed',
     anchor: '/usr/bin/python3',
     reason: 'fixed /usr/bin/python3 on darwin (Linux reads /proc, no spawn)',
+  },
+  'src/host/playbook/playbookWindow.ts': {
+    kind: 'reviewed',
+    anchor: 'windowsPowerShell',
+    reason:
+      "a job left by a stopped worker ends by name through the absolute System32 powershell only (windowsPowerShell: guarded, credential-free, 5.1's own module path) with the branded child env, no shell",
   },
   'src/runtime/tokenFile.ts': {
     kind: 'reviewed',
