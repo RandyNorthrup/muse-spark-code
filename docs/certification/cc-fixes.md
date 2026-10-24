@@ -61,3 +61,125 @@ Red and green (this PC):
 - Drill on `de0c671a28`: the two statements swapped back → the same 4
   failed (`expected +0 to be 3`, `expected +0 to be 1`), exit 1; restored
   → 8 passed, exit 0, the source line byte-identical to the fix.
+
+## Item 2 — seven process starts routed through the governed launch
+
+`pathGuardSpawns` (`every direct process start is guarded or reviewed`)
+listed seven direct `node:child_process` starts from RLM110A0/RLM110B on
+`de0c671a28`, failing 1 of 7 cases:
+`src/runtime/node/gitRunner.ts` (execFile:106),
+`src/runtime/node/tls/certificate.ts` (execFile:177),
+`src/runtime/node/toolHost.ts` (spawn:264),
+`src/runtime/node/workspaces/devcontainer.ts` (execFile:347, 483),
+`src/runtime/node/workspaces/git.ts` (execFile:372),
+`src/runtime/node/workspaces/snapshots.ts` (execFile:191),
+`src/runtime/tui/design/capabilities.ts` (execFile:97).
+
+Each now starts through the governed command boundary
+(`src/core/resources/commands.ts`, through the lazy `launcher.ts`), as
+cc/gates routed RLM125's two starts (`d5cc1f71ac`): the command resolves
+outside the folder the child runs in (a program inside it is refused),
+the child gets the guarded environment, admitted and contained. A read
+is a `probe`; anything that writes runs `contained`.
+
+- `gitRunner.ts`: `execResourceFile` with the service's own env,
+  deadline and output bound; `workspaceRoot` is the repository's work
+  tree (git runs in the private snapshot). Branch listings, diffs and
+  `rev-parse` are probes; status, stage, commit, branch, push, fetch
+  and merge are contained. Every failure stays `unavailable`, now with
+  its cause.
+- `tls/certificate.ts`: OpenSSL `contained`, `env: {}`, same deadline
+  and bound. `scripts/lib/buildNodeAuth.mjs` gains the
+  `sharedResourceAdmission` plugin, so `dist/nodeAuth.js` uses the
+  process's one admission (`./resourceAdmission.js`) instead of an
+  inlined copy. Drill: without the plugin the build refuses
+  `dist/nodeAuth.js exceeds 500 KiB: 690.5 KiB` (the governed launcher
+  inlined, with its own unconfigured admission); with it, 498.8 KiB, the
+  same as base.
+- `toolHost.ts`: `spawnResourceFile('contained', …)`, guarded against
+  the workspace volume; stdin ends at once (it was `ignore`). A cancel
+  while admission waits ends the run as cancelled; once started, the
+  run's own SIGTERM-then-SIGKILL group stop is unchanged.
+- `workspaces/spawn.ts`: `runWorkspaceProcess`, the git and devcontainer
+  runners' one call into `execResourceFile`; exits still resolve with
+  their code and output, a run that never exited rejects with the
+  caller's typed error and its cause. `git.ts` (log, diff, show,
+  rev-parse, ls-files probes; the rest contained) and `devcontainer.ts`
+  (`--version` and `read-configuration` probes, `up` and `exec`
+  contained) use it.
+- `snapshots.ts`: tar, btrfs and zfs (listings and the subvolume check
+  probes, writes contained); a tool the boundary refuses rejects coded
+  `unavailable`, so the btrfs/zfs paths still fall back to the bundle on
+  a coded failure.
+- `tui/design/capabilities.ts`: tput and `defaults` as governed probes;
+  a missing tool, its failure or deadline, or the governor's refusal is
+  still "no answer".
+- `launch.ts` names the boundary's two failure words
+  (`GOVERNED_COMMAND_UNAVAILABLE`, `GOVERNED_COMMAND_FAILED`, now used by
+  commands.ts) with guards (`isGovernedCommandUnavailable`,
+  `isGovernedCommandFailure`, `isGovernedCommandExit`), so callers read
+  them by guard, not text.
+- `pathGuardSpawns` records the eight guarded callers with anchors, and
+  tracks `runWorkspaceProcess` as a wrapper so its callers are
+  inventoried too.
+
+What changed beyond the start itself, by design of the governed launch:
+admission and containment (a contained root's exit stops the rest of
+its tree; a contained run's TMPDIR/TEMP/TMP point at its governed
+temporary root); a caller's deadline now also covers admission; the
+default output bound is the boundary's (1 MiB, execFile's default size)
+counted over both streams together; and a program named by a path
+inside the workspace is refused instead of run. These callers run
+inside the runtime process (`main.ts` configures admission before the
+`node` command), or are not yet wired (the workspace runners, the TUI
+probe).
+
+Tests: the suites that start these processes are admitted by the real
+governor, configured as the runtime configures it
+(`test/unit/helpers/resources/runtimeGovernor.ts`, extracted from
+`execTeamSweep.test.ts`, which now uses it): `nodeGitRunner`,
+`nodeToolHost`, `nodeCertificate`, `tuiDesign`,
+`nodeWorkspaceDevcontainer`'s red paths, the new governed cases in
+`nodeWorkspaceGit`, and the opt-in live drill. New cases:
+
+- `nodeWorkspaceGit` (every OS): the real git through the governed
+  launch keeps its exit codes (rev-parse 0, `diff --quiet` 1 accepted,
+  a missing ref 128 as `GitFailedError`); a program planted in the
+  workspace as git (a copy of `whoami.exe` / `/bin/echo`) is refused by
+  path, and a bare `git` with the workspace first on PATH and as the
+  working folder resolves past it to the real git.
+- `nodeToolHost` (POSIX): a program planted inside a workspace is
+  refused, never run.
+- `tuiDesign` (POSIX): `TERM=vt100` reads `plain`, which only the real
+  tput's answer (-1) gives; a silent probe falls back to `sixteen`.
+
+Red and green (this PC):
+
+- Base `de0c671a28`: `pathGuardSpawns` 1 failed (the seven sites),
+  exit 1. Final tree: 7 passed, exit 0.
+- Drill: `capabilities.ts` back to its direct `execFile` → 3 failed
+  (`capabilities.ts: execFile:97` unguarded; its wrapper entry with no
+  start left; its anchor gone), exit 1; restored → 7 passed, exit 0.
+- Drill: `workspaces/git.ts` and `spawn.ts` back to base → the planted
+  program case failed ("git rev-parse exited 1": the plant ran, a
+  `GitFailedError`), exit 1, while the exit-code case passed on base
+  too (identical results). With only the bare-name half kept, base
+  failed the same way (the plant ran from the working folder). Restored
+  → both pass, exit 0.
+- `nodeWorkspaceDevcontainer` red paths (node as a wrong CLI: version
+  skew, no JSON, a failing exec exit) pass through the governed launch.
+  The same file's 4 path-semantics cases and `nodeTerminalPage`'s 6
+  cases fail on this Windows PC on base and on the final tree alike
+  (10 failed, 24 passed both times).
+- The live drill (`MUSE_NODE_DRILL=1`, git and snapshots) cannot pass on
+  this PC on base or after: Git for Windows' GNU `tar` reads `C:` as a
+  remote host, and `core.autocrlf` adds `\r`. Both runs stop at the same
+  `tar -czf` step with the same message; the clone, bundle, diff and
+  status before it ran through the governed launch.
+
+Not run on this PC: the POSIX and Linux receipts (`nodeGitRunner`'s
+Linux cases, `nodeToolHost`'s and `nodeCertificate`'s native cases,
+the vt100 probe). They need a POSIX filesystem with owner-only modes;
+this worktree is on NTFS, and WSL's `/mnt/c` (9p, no metadata) cannot
+hold them, while temp files stay in the worktree. Hosted CI's Linux and
+macOS jobs run them.

@@ -2,7 +2,7 @@
 import { mkdir, writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import * as esbuild from 'esbuild'
-import { sharedUiText } from './deferredBundles.mjs'
+import { sharedResourceAdmission, sharedUiText } from './deferredBundles.mjs'
 import { loadL10n } from './l10nSource.mjs'
 import { checkNodeAuthArtifact, checkNodeAuthSplit, nodeAuthNotices } from './nodeAuthArtifacts.mjs'
 
@@ -29,7 +29,9 @@ const OUTPUTS = [
     platform: 'node',
     format: 'cjs',
     budgetKiB: 500,
-    plugins: [sharedUiText],
+    // Certificate issuance starts OpenSSL through the governed launch: the
+    // process's one admission (dist/resourceAdmission.js), never a copy.
+    plugins: [sharedUiText, sharedResourceAdmission],
   },
   {
     entry: 'src/webview/node/auth/entry.tsx',

@@ -27,6 +27,7 @@ import {
   readDevcontainerConfig,
   type DevcontainerResolved,
 } from '../../src/runtime/node/workspaces/devcontainer'
+import { useRuntimeGovernor } from './helpers/resources/runtimeGovernor'
 
 const FIXTURES = path.join(__dirname, '..', 'fixtures', 'workspaces')
 
@@ -326,6 +327,9 @@ describe('devcontainer argv', () => {
 })
 
 describe('devcontainer runners, red paths', () => {
+  // The runners start the CLI through the governed launch: admitted by the
+  // governor the node command's process configures.
+  useRuntimeGovernor('dc-runner-jobs-', true)
   // The runners shell to a wrong binary on purpose: node itself, which
   // answers --version with its own (skew), runs no read-configuration
   // (no JSON), and runs no up (no JSON) — every failure typed.
