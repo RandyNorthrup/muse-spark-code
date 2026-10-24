@@ -162,6 +162,36 @@ sequences` → exit 1 (`never became ready within 10 s`, 4 pages);
 message (type composerState)`, 4 pages); the same scene in English → exit
   0, which is why only the pseudo pages fail. Restored → both exit 0.
 
+- Drill E (the scripted host's stale paid state): `usage-install` sent a
+  `paidState` whose tally had no `scheduledRuns`, which `paidTallySchema`
+  requires, so the webview dropped it. The English gate never showed it
+  (the harness records webview errors only when `?lang=` is set); the pseudo
+  pages did. Pre-fix `a11y.mjs usage-install usage-install-narrow
+--lang=pseudo` → exit 1, 8 pages without a result (`Dropped malformed host
+message (type paidState)`); with `scheduledRuns: 0` in the scene's tally →
+  exit 0, 8 pages, 0/0/0, and the English run → exit 0.
+
+### Found beyond the gates (not fixed)
+
+`node scripts/a11y.mjs --lang=pseudo`, every scene, is not a gate; run before
+Drill E's fix it gave exit 1: 1124 pages, 36 pages without a result, 1 rule
+violated on 24 elements. Of the nine scenes without a result, `usage-install`
+(two) is fixed above. The other seven, with what was measured:
+
+- `sequences`, `sequences-narrow`: never became ready; the scene types the
+  English word `sequences` into the palette filter, which the pseudo row
+  label does not contain (measured by reading the scene).
+- `models-table`, `models-edit`, `models-table-filtered`, `models-narrow`:
+  `no table key for the label "Models"` / `"Edit"` (the harness's own error).
+- `session-lists`: never became ready; the cause is not measured.
+
+The one violated rule is `label-content-name-mismatch` on the `report` and
+`report-narrow` scenes (a Remove button and two `.notice-action` buttons);
+its cause is not measured. Both scenes pass `test:a11y`'s English run; the 14
+real tables were not run. Making every scene pseudo-clean is a
+separate piece of work; the gates the brief names, `test:a11y` and
+`test:legal-a11y`, are green.
+
 ## Gate exit codes (final tree, randy-lt, 2026-10-24)
 
 | Gate                                                     | Exit | Note                                                                                                                                                                                                                                                                                  |
