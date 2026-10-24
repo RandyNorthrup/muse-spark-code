@@ -169,3 +169,20 @@ nodeInstallVerify 3, nodeImagePackaging 16; nodeOsBrowser's link case passes
 (`scripts/package-node-image.mjs`) → the junction case failed
 (`expected [Function] to throw error including 'symlink' but got 'Runtime package contains a special fi…'`);
 restored.
+
+### nodeOsBrowser, nodeOsAddons: the add-on key check hands gpg relative names
+
+Cause: `os/addons/chrome/lib/checkKey.mjs` gave gpg absolute paths for its
+throwaway home and the keyring. The gpg first on Git for Windows' PATH is the
+MSYS build (`C:\Program Files\Git\usr\bin\gpg.exe`), which reads
+`C:\Users\…` as a relative path and failed:
+`keyring listing failed: gpg: keyblock resource '/c/Users/Randy/Coding/mx-cc-tests/C:\Users\…\pubring.kbx': No such file or directory`.
+Gpg4win's native gpg read the same paths correctly, so the result depended
+on which gpg the PATH found first.
+
+Fix: the keyring is copied into the throwaway home and gpg runs there with
+`--homedir .` and the copy's relative name, which every build reads alike.
+
+Red (before): 3 failed (`expected 2 to be +0`, `expected 2 to be 1`).
+Green: 23 passed; the check run by hand with `--gpg` naming each build
+answers `the keyring carries all 1 pinned fingerprints` for both.
