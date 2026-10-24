@@ -1306,7 +1306,10 @@ else:
       reason === null ? 'selected regular files admitted' : 'refused wanted link',
     )
   })
-  it.skipIf(!isGpgvAvailable)(
+  // The image is built on a Linux host (mkosi), never on Windows, where the
+  // gpgv found is Git's MSYS build: it reads the `C:\…` keyring path as a
+  // relative one, so a good signature fails as a mismatch.
+  it.skipIf(!isGpgvAvailable || process.platform === 'win32')(
     'stages Pi firmware through a minted-key signed index and real gpgv [skips where gpgv is absent]',
     () => {
       const dir = directory()
@@ -1472,9 +1475,14 @@ print('real rig index parses: %d entries, %d Packages.gz' % (len(entries), len(i
       expect(result.stdout).toMatch(/real rig index parses: \d+ entries, \d+ Packages\.gz/)
     },
   )
-  it('refuses symlink roots, planted ancestors, redirected writes and missing sources', () => {
-    const dir = directory()
-    const result = python(`
+  // The image is built on a Linux host (mkosi), never on Windows, where
+  // Python's os.symlink needs the symbolic-link privilege a test account
+  // does not hold.
+  it.skipIf(process.platform === 'win32')(
+    'refuses symlink roots, planted ancestors, redirected writes and missing sources',
+    () => {
+      const dir = directory()
+      const result = python(`
 import os, sys
 from pathlib import Path
 sys.path.insert(0, ${JSON.stringify(root)})
@@ -1550,14 +1558,15 @@ except ValueError as error:
 else:
     raise AssertionError('admitted an absolute link target')
 `)
-    expect(result.status).toBe(0)
-    expect(result.stdout).toContain('planted ancestor refused')
-    expect(result.stdout).toContain('symlink root refused')
-    expect(result.stdout).toContain('redirected destination refused')
-    expect(result.stdout).toContain('symlink-ancestor read refused')
-    expect(result.stdout).toContain('missing source refused')
-    expect(result.stdout).toContain('absolute link target refused')
-  })
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('planted ancestor refused')
+      expect(result.stdout).toContain('symlink root refused')
+      expect(result.stdout).toContain('redirected destination refused')
+      expect(result.stdout).toContain('symlink-ancestor read refused')
+      expect(result.stdout).toContain('missing source refused')
+      expect(result.stdout).toContain('absolute link target refused')
+    },
+  )
   it('bounds .deb members while streaming instead of after a full listing', () => {
     const result = python(`
 import io, sys, tarfile
