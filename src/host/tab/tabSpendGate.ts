@@ -52,10 +52,16 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
 
   return {
     reserve: async (facts: TabSpendFacts): Promise<TabReservation | undefined> => {
-      const worstCaseUsd = estimateCostUsd(
-        { inputTokens: facts.inputBytes, outputTokens: facts.maxOutputTokens, cachedTokens: 0 },
-        facts.model,
-      )
+      const usage = {
+        inputTokens: facts.inputBytes,
+        outputTokens: facts.maxOutputTokens,
+        cachedTokens: 0,
+      }
+      // A bring-your-own model prices at its provider's card (M95c part 7);
+      // a card that prices nothing reserves nothing, so nothing is sent.
+      const worstCaseUsd =
+        facts.price === undefined ? estimateCostUsd(usage, facts.model) : facts.price.reserve(usage)
+      if (worstCaseUsd === undefined) return undefined
       const admission = await deps.ledger.admit(worstCaseUsd, deps.budgetUsd())
       if (!admission.admitted) {
         if (admission.totalUsd !== undefined) {
@@ -76,10 +82,20 @@ export function createTabSpendGate(deps: TabSpendGateDeps): TabSpendGate {
       totalUsd = admission.totalUsd
       countRequest()
       deps.onTotalChanged()
-      return { model: facts.model, worstCaseUsd, date: admission.reservation.date }
+      return {
+        model: facts.model,
+        worstCaseUsd,
+        date: admission.reservation.date,
+        ...(facts.price !== undefined && { price: facts.price }),
+      }
     },
     settle: (reservation: TabReservation, usage: TabReportedUsage): void => {
-      const actualUsd = tabSettleUsd(usage, reservation.model)
+      // A bring-your-own request settles at the card it reserved with; a
+      // card that cannot price the reported usage keeps the reservation.
+      const actualUsd =
+        reservation.price === undefined
+          ? tabSettleUsd(usage, reservation.model)
+          : (reservation.price.settle(usage) ?? reservation.worstCaseUsd)
       void deps.ledger
         .settle({ date: reservation.date, worstCaseUsd: reservation.worstCaseUsd }, actualUsd)
         .then(refreshTotal)

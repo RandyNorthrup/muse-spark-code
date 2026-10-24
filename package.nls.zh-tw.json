@@ -146,7 +146,7 @@
   "config.paidDailyBudgetUsd.description": "你為 Model API 互動式付費附加功能設定的每日美元上限，跨視窗與金鑰生效；0（預設）表示無上限，此時不做任何檢查。設定上限後，每個要求回報的費用會在結束後計入當天總額，估算會超出剩餘額度的要求會詢問是提高上限還是停止到明天。設定上限時，儲存空間無法讀取會拒絕付費要求。不含 Tab 的獨立預算。",
   "config.dictationEngine.description": "Model API 的聽寫引擎。預設使用免費聽寫；Muse Voice 需要付費使用同意及經過驗證的預算核准。Muse Code 的明確語音啟用保持不變。",
   "config.modelApiTab.description": "Tab 在兩種聊天後端上都使用已儲存的 Model API 金鑰。預設觸發方式是 Invoke；輸入時自動建議需要 Automatic。\n本機所有視窗中 Tab 補全請求的每日固定預算（美元）；最壞情況會超出預算的請求不會傳送。$0.05 到 $50。\n允許一次 / 在此工作區中一律允許.",
-  "config.tabModel.description": "Tab 補全請求使用的模型。Standard 按權杖收費較高；Meta 不會使用傳送的內容訓練。貢獻者模型按權杖收費較低，Meta 會使用傳送的程式碼訓練。",
+  "config.tabModel.description": "Tab 補全請求使用的模型。Standard 按權杖收費較高；Meta 不會使用傳送的內容訓練。貢獻者模型按權杖收費較低，Meta 會使用傳送的程式碼訓練。也可以用 provider/model 參照指定你自己的模型（例如 mistral/codestral-latest），依其供應商的價目計價，並計費到該供應商的金鑰。",
   "config.tabModel.enumDescriptions.standard": "muse-spark-1.3：Standard 費率，不使用您的程式碼訓練。",
   "config.tabModel.enumDescriptions.contributor": "muse-spark-1.3-contributor：貢獻者費率，Meta 會使用傳送的程式碼訓練。",
   "config.tabDailyBudgetUsd.description": "本機所有視窗中 Tab 補全請求的每日固定預算（美元）；最壞情況會超出預算的請求不會傳送。$0.05 到 $50。",

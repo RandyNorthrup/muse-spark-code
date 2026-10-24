@@ -25,6 +25,7 @@ import type { TabSnooze } from './tabSnooze'
 import { createTabLedger } from './tabLedger'
 import { createTabProvider as createProvider } from './tabProvider'
 import { createTabSpendGate } from './tabSpendGate'
+import { createTabByoResolutions } from './tabByo'
 import {
   showTabMenu as showMenu,
   snoozeTabCommand as runSnoozeCommand,
@@ -137,8 +138,16 @@ its deps through on the first request.
 export function createTabLoaded(wiring: TabLoadedWiring): TabLoadedHandle {
   // The engine (lane C) and the ledger's spend gate (lane L) live in the
   // bundle; the status bar redraws when today's total moves.
+  // M95c part 7: bring-your-own Tab models resolve per request; a BYO
+  // request's usage reaches Account & usage at its provider's card.
+  const byo = createTabByoResolutions(wiring.services.resolveByo)
   const { engine, spend } = createTabServices({
     ...wiring.services,
+    onUsage: (model, usage) => {
+      const price = byo.current(model)?.price
+      const costUsd = price?.settle(usage)
+      wiring.services.onUsage(model, costUsd === undefined ? usage : { ...usage, costUsd })
+    },
     budgetUsd: () => wiring.tabSettings().tabDailyBudgetUsd,
     onTotalChanged: () => {
       wiring.status.refresh()
@@ -166,6 +175,7 @@ export function createTabLoaded(wiring: TabLoadedWiring): TabLoadedHandle {
   const provider = createProvider({
     settings: settingsOf,
     recordMaxOutputTokens: wiring.services.recordMaxOutputTokens,
+    byo,
     isPaidOn: wiring.isPaidOn,
     isKeyStored: wiring.isKeyStored,
     isTrusted: wiring.isTrusted,

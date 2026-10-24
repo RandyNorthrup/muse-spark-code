@@ -6081,6 +6081,15 @@ export const EN = {
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. Today’s budget is {budget}; Tab stops for the day if it is reached. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
   paidUseTabDetailNoBudget:
     'Tab sends the code around your cursor to Meta’s {model} model, billed to your Model API key at {price}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. {training} Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  paidUseTabByoDetail:
+    'Tab sends the code around your cursor to {model}, {billed}. Today’s budget is {budget}; Tab stops for the day if it is reached. Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  paidUseTabByoDetailNoBudget:
+    'Tab sends the code around your cursor to {model}, {billed}. No daily budget is set, so Tab keeps suggesting until you turn it off or snooze it. Allow once covers this window until it closes; Allow always in this workspace never asks again here; Deny snoozes Tab in this window.',
+  tabByoBilledKey: 'billed to your {provider} key at {price}',
+  tabByoBilledPlan: 'covered by your {provider} plan',
+  tabByoBilledLocal: 'which runs on your own server at no charge per token',
+  tabByoRates:
+    '{input} input, {cached} cached input and {output} output per million tokens, plus {request} per request',
   tabTrainingContributor:
     'The contributor model is cheaper, and Meta trains on the code it is sent.',
   // The status bar item while the feature is on; {spend} is today's spend.

@@ -23,7 +23,10 @@ import type {
 import { COMMAND_IDS } from '../../shared/constants'
 import type { UiText } from '../../shared/l10n/en'
 import type { Logger } from '../logger'
-import type { TabConsentDeps } from './tabConsent'
+import type { TabConsentDeps, TabConsentScope } from './tabConsent'
+import type { ModelPricePolicy, ResolvedModel } from '../../core/backends/modelapi/modelPolicy'
+import type { TabByoQuote } from '../../shared/paid'
+import type { TabByoResolutions } from './tabByo'
 import { tabLoader } from './tabLoader'
 import { createTabSnooze, type TabSnooze, type TabSnoozeStore } from './tabSnooze'
 
@@ -43,6 +46,15 @@ export const TAB_COMMAND_IDS = {
   afterAccept: 'museSpark.tabAfterAccept',
 } as const
 
+/**
+Consent's deps as activation hands them over (the price fingerprint is
+the bundle's own): D48's question takes the request's model and, for a
+bring-your-own model, its provider's card to quote (M95c part 7).
+*/
+export type TabConsentQuestionDeps = Omit<TabConsentDeps, 'priceOf' | 'ask'> & {
+  readonly ask: (model: string, byo?: TabByoQuote) => Promise<TabConsentScope | undefined>
+}
+
 /** A request the completion engine (lane C) may bill: facts only, no prices. */
 export interface TabSpendFacts {
   /** The request's model, for the tier's rates. */
@@ -51,10 +63,18 @@ export interface TabSpendFacts {
   readonly inputBytes: number
   /** The mode's output cap, reasoning included. */
   readonly maxOutputTokens: number
+  /**
+  A bring-your-own model's own price (M95c part 7): the provider resolved
+  it before the reserve. Absent, the Meta tier's rates price the request.
+  */
+  readonly price?: ModelPricePolicy | undefined
 }
 
-/** Usage a finished request reported (the engine reads the stream's usage). */
-export type TabReportedUsage = TabEngineUsage
+/**
+Usage a finished request reported (the engine reads the stream's usage);
+a bring-your-own request carries its cost at its provider's card.
+*/
+export type TabReportedUsage = TabEngineUsage & { readonly costUsd?: UsdAmount | undefined }
 
 /**
 One admitted request's reservation, settled with its own worst case into
@@ -65,6 +85,8 @@ export interface TabReservation {
   readonly worstCaseUsd: UsdAmount
   /** The admission's local day (`YYYY-MM-DD`), as the ledger named it. */
   readonly date: string
+  /** The bring-your-own price the reserve admitted with, for the settlement. */
+  readonly price?: ModelPricePolicy | undefined
 }
 
 /**
@@ -161,6 +183,8 @@ export interface TabProviderDeps {
   out of the lazy bundle).
   */
   readonly recordMaxOutputTokens: (model: string) => number
+  /** Bring-your-own Tab models (M95c part 7): resolved per request through the configured providers. */
+  readonly byo: TabByoResolutions
   /** The paid gate's answer for `tab` (M33): the setting on and the price accepted. */
   readonly isPaidOn: () => boolean
   /** A Model API key is stored, as last read (M44): never read here, never asked for. */
@@ -212,7 +236,7 @@ export interface TabProviderDeps {
   (the price fingerprint is the bundle's own). Activation hands them over;
   nothing is asked before the first request.
   */
-  readonly consentDeps: Omit<TabConsentDeps, 'priceOf'>
+  readonly consentDeps: TabConsentQuestionDeps
   /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
   readonly hookDispatch?:
@@ -290,6 +314,10 @@ export const TAB_QUIET_REASONS = [
   'hooks-invalid',
   // Trust, a Tab setting, files.exclude or the hooks changed under the request (RVM94KR 2–3).
   'policy-changed',
+  // M95c part 7: the `provider/model` Tab model names nothing configured, or no output cap is known.
+  'unknown-model',
+  // M95c part 7: the bring-your-own model has no price card, so nothing can be reserved.
+  'unpriced',
 ] as const
 export type TabQuietReason = (typeof TAB_QUIET_REASONS)[number]
 
@@ -398,6 +426,12 @@ export interface TabLanguagesCommandDeps {
 export interface TabServicesDeps {
   /** The activation bundle's key client stream (M57 keeps it there for M44). */
   readonly stream: TabStream
+  /**
+  Resolves a bring-your-own `provider/model` Tab model through the
+  person's configured providers (M95c part 7), with the agent turn's
+  tool-calling gate opted out: a completion sends no tools.
+  */
+  readonly resolveByo: (ref: string) => Promise<ResolvedModel>
   /**
   The provider's maximum output tokens for a Tab model, from its
   capability record (M94 goal, D121). The provider sends this unless the
@@ -547,7 +581,7 @@ export interface TabActivationDeps {
   with the price and the daily budget; nothing is sent before the answer.
   The provider builds it from these deps inside the lazy bundle.
   */
-  readonly consentDeps: Omit<TabConsentDeps, 'priceOf'>
+  readonly consentDeps: TabConsentQuestionDeps
   /** An injected bridge; production constructs it in the lazy Tab bundle. */
   readonly hooks?: TabHookBridge | undefined
   readonly hookDispatch?: TabProviderDeps['hookDispatch']

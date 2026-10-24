@@ -1795,10 +1795,10 @@ export function createConfiguredProviderServices(
         return file.defaultModel
       },
       list: registry.list,
-      resolve: async (ref) =>
+      resolve: async (ref, resolveOptions) =>
         modelRef.parseModelRef(ref)?.providerId === 'meta' || meta?.isPlanModel?.(ref) === true
           ? metaResolvedModel(ref, delegate(), await delegate().planModelFacts?.(ref))
-          : await registry.resolve(ref),
+          : await registry.resolve(ref, resolveOptions),
     },
     isPlanModel: (ref) =>
       presets.planKeyPresetById(records.get(ref)?.entry.preset ?? '') !== undefined ||

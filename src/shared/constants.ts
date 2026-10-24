@@ -3768,7 +3768,10 @@ export const TAB_MODELS = [
   DEFAULT_MODEL_ID,
   `${DEFAULT_MODEL_ID}${CONTRIBUTOR_MODEL_SUFFIX}`,
 ] as const
-export type TabModel = (typeof TAB_MODELS)[number]
+// M95c part 7: or one of the person's own models as its `provider/model`
+// reference (the manifest's pattern; the provider resolves it per request).
+export const TAB_BYO_MODEL_PATTERN = /^[^/\s]+\/\S+$/u
+export type TabModel = (typeof TAB_MODELS)[number] | `${string}/${string}`
 // `museSpark.tabMultiline`: when multi-line context is added.
 export const TAB_MULTILINE_MODES = ['auto', 'onInvoke', 'never'] as const
 export type TabMultiline = (typeof TAB_MULTILINE_MODES)[number]

@@ -3355,20 +3355,28 @@ Type: `"boolean"`. Default: `true`. Scope: `machine`.
 
 ### museSpark.tabModel
 
-The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent.
+The model Tab completion requests use. Standard costs more per token; Meta does not train on what it is sent. The contributor model is cheaper per token, and Meta trains on the code it is sent. Or one of your own models as its provider/model reference (for example mistral/codestral-latest), priced at its provider's card and billed to that provider's key.
 
 Type: `"string"`. Default: `"muse-spark-1.3"`. Scope: `machine`.
 
 ```json
 {
   "type": "string",
-  "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
+  "anyOf": [
+    {
+      "enum": ["muse-spark-1.3", "muse-spark-1.3-contributor"],
+      "enumDescriptions": [
+        "%config.tabModel.enumDescriptions.standard%",
+        "%config.tabModel.enumDescriptions.contributor%"
+      ]
+    },
+    {
+      "pattern": "^[^/\\s]+/\\S+$"
+    }
+  ],
   "default": "muse-spark-1.3"
 }
 ```
-
-- `"muse-spark-1.3"`: muse-spark-1.3: Standard rates, no training on your code.
-- `"muse-spark-1.3-contributor"`: muse-spark-1.3-contributor: contributor rates, Meta trains on the code it is sent.
 
 ### museSpark.tabDailyBudgetUsd
 
