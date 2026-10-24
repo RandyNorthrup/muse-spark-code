@@ -365,22 +365,21 @@ export function VaultSection({
         <>
           <h3>{UI_TEXT.vault.retiredEntries}</h3>
           {(state.retired ?? []).map((entry) => (
-            <details key={entry.key}>
-              <summary>
+            <div className="vault-actions" key={entry.key}>
+              <span id={`vault-retired-${entry.key}`}>
                 {entry.label} ({entry.key})
-              </summary>
-              <div className="vault-actions">
-                <button
-                  type="button"
-                  disabled={!isUnlocked}
-                  onClick={() => {
-                    post({ type: 'vaultUndoRetired', key: entry.key })
-                  }}
-                >
-                  {UI_TEXT.undoAction}
-                </button>
-              </div>
-            </details>
+              </span>
+              <button
+                type="button"
+                aria-describedby={`vault-retired-${entry.key}`}
+                disabled={!isUnlocked}
+                onClick={() => {
+                  post({ type: 'vaultUndoRetired', key: entry.key })
+                }}
+              >
+                {UI_TEXT.undoAction}
+              </button>
+            </div>
           ))}
         </>
       )}

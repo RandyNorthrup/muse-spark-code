@@ -1033,7 +1033,8 @@
             case 'models/numCtx':
             case 'models/filter':
             case 'suggestions/accept':
-            case 'suggestions/change': {
+            case 'suggestions/change':
+            case 'vaultReady': {
               // Answered by the panel's fake host further down (M95 lane M);
               // `modelsAnswer` is defined by the time any page posts.
               modelsAnswer(message)
@@ -2453,6 +2454,9 @@
           case 'models-undo': {
             return { ...base, pendingRemovals: [{ providerId: 'openrouter', label: 'OpenRouter' }] }
           }
+          case 'models-vault-retired': {
+            return { ...base, vaultOffered: true }
+          }
           case 'models-import': {
             return {
               ...base,
@@ -2477,6 +2481,26 @@
           }
         }
       }
+      // D217: the unlocked vault snapshot the host serves for the retired
+      // scene (a vault panel state, shaped as the management snapshot is):
+      // one migrated slot retired, listed with its own Undo.
+      const vaultRetiredState = () => ({
+        status: {
+          state: 'unlocked',
+          lockEpoch: 1,
+          tier: 'osStore',
+          provider: 'loginKeychain',
+          silentUnlock: true,
+          itemCount: 0,
+          reason: null,
+        },
+        items: [],
+        retired: [{ key: 'museSpark.provider.openrouter', label: 'Secret' }],
+        grants: [],
+        audit: [],
+        pending: [],
+        ambientFiles: [],
+      })
       // The live dataset a page load starts from; the answers below mutate
       // it, so ticking, pinning and filtering round-trip like the host.
       // (Ticking from a filtered table re-sends only the rows in view, a
@@ -2555,6 +2579,12 @@
           case 'modelsPanel/ready': {
             modelsLive = modelsDataset()
             send({ type: 'modelsPanel/state', state: modelsStateFor(scenarioName) })
+            break
+          }
+          case 'vaultReady': {
+            if (scenarioName === 'models-vault-retired') {
+              send({ type: 'vaultState', state: vaultRetiredState() })
+            }
             break
           }
           case 'providers/select': {
@@ -6772,6 +6802,10 @@
           whenFound('.models-nav', () => clickText('Models'))
         },
         'models-undo': () => {},
+        'models-vault-retired': () => {
+          send({ type: 'modelsPanel/navigate', section: 'vault' })
+          whenFound('.vault-actions button', () => {})
+        },
         'models-import': () => {
           clickText('Import')
         },
