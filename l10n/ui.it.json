@@ -4431,7 +4431,7 @@
     "noteLsp": "Senza --tab non viene addebitato nulla e l’archivio delle credenziali non viene mai letto. Con esso, ogni nuovo prezzo chiede prima nell’editor; Consenti sempre in questa area di lavoro è offerto solo con --trust-workspace.",
     "purposeSupervise": "Esegue un altro comando di questo agente in modo che stop possa terminarlo con tutti i processi che ha avviato.",
     "purposeStop": "Ferma ogni esecuzione supervisionata avviata in questa cartella, con tutti i processi che ha avviato.",
-    "purposePanel": "Servire l’host del pannello Muse di un editor tramite MHP: le impostazioni e l’archiviazione di questo agente, per la cartella in cui viene avviato.",
+    "purposePanel": "Servire l’host del pannello Muse di un editor tramite MHP: le sue conversazioni, nonché le impostazioni e l’archiviazione di questo agente, per la cartella in cui viene avviato.",
     "notePanel": "Un’impostazione scritta qui è quella che questo agente legge da sé: le impostazioni utente restano in settings.json e resources.json della cartella dati. Le impostazioni che scelgono cosa viene eseguito o cosa viene addebitato sono solo tue e rifiutano l’ambito dell’area di lavoro. Nessuna chiave né token viene mai salvato.",
     "purposeSetup": "Esegui gli hook Setup ed esci.",
     "purposeUsage": "Mostra l’utilizzo e il costo di tutti i modelli.",

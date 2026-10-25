@@ -4350,7 +4350,7 @@
     "noteLsp": "A --tab nélkül semmi sem kerül terhelésre, és a hitelesítőadat-tár soha nem kerül olvasásra. Vele minden új ár előbb a szerkesztőben kérdez; az Engedélyezés mindig ezen a munkaterületen csak a --trust-workspace mellett érhető el.",
     "purposeSupervise": "Az ügynök egy másik parancsának futtatása úgy, hogy a stop leállíthassa az általa indított összes folyamattal együtt.",
     "purposeStop": "Az ebben a mappában indított összes felügyelt futás leállítása az általa indított összes folyamattal együtt.",
-    "purposePanel": "Egy szerkesztő Muse-paneljének gazdáját szolgálja ki MHP-n: ennek az ügynöknek a beállításait és tárolóját, abban a mappában, ahol elindul.",
+    "purposePanel": "Egy szerkesztő Muse-paneljének gazdáját szolgálja ki MHP-n: annak beszélgetéseit, valamint ennek az ügynöknek a beállításait és tárolóját, abban a mappában, ahol elindul.",
     "notePanel": "Az itt írt beállítás ugyanaz, amelyet maga az ügynök is olvas: a felhasználói beállítások az adatmappa settings.json és resources.json fájljában maradnak. Azok a beállítások, amelyek eldöntik, mi fut vagy mit számláznak, csak az önéi, és elutasítják a munkaterület hatókörét. Kulcsot vagy tokent soha nem tárol.",
     "purposeSetup": "A Setup hookok futtatása, majd kilépés.",
     "purposeUsage": "Az összes modell használatának és költségének megjelenítése.",

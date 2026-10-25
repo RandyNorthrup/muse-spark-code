@@ -4350,7 +4350,7 @@
     "noteLsp": "Ohne --tab wird nichts abgerechnet und der Anmeldedatenspeicher nie gelesen. Mit --tab fragt jeder neue Preis zuerst im Editor; In diesem Arbeitsbereich immer zulassen wird nur mit --trust-workspace angeboten.",
     "purposeSupervise": "Einen anderen Befehl dieses Agenten so ausführen, dass stop ihn mit allen gestarteten Prozessen beenden kann.",
     "purposeStop": "Jeden überwachten Lauf, der in diesem Ordner gestartet wurde, mit allen gestarteten Prozessen beenden.",
-    "purposePanel": "Den Muse-Panel-Host eines Editors über MHP bedienen: die Einstellungen und den Speicher dieses Agenten für den Ordner, in dem er startet.",
+    "purposePanel": "Den Muse-Panel-Host eines Editors über MHP bedienen: seine Unterhaltungen sowie die Einstellungen und den Speicher dieses Agenten für den Ordner, in dem er startet.",
     "notePanel": "Eine hier geschriebene Einstellung ist die, die dieser Agent selbst liest: Benutzereinstellungen bleiben in settings.json und resources.json im Datenordner. Einstellungen, die bestimmen, was läuft oder was abgerechnet wird, gehören nur Ihnen und lehnen den Arbeitsbereichs-Bereich ab. Kein Schlüssel und kein Token wird je gespeichert.",
     "purposeSetup": "Die Setup-Hooks ausführen und beenden.",
     "purposeUsage": "Nutzung und Kosten aller Modelle anzeigen.",

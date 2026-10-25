@@ -4512,7 +4512,7 @@
     "noteLsp": "Bez --tab se nic neúčtuje a úložiště přihlašovacích údajů se nikdy nečte. S ním se každá nová cena nejprve zeptá v editoru; Vždy povolit v tomto pracovním prostoru se nabízí jen s --trust-workspace.",
     "purposeSupervise": "Spustí jiný příkaz tohoto agenta tak, aby ho stop mohl ukončit se všemi procesy, které spustil.",
     "purposeStop": "Zastaví každý dohlížený běh spuštěný v této složce se všemi procesy, které spustil.",
-    "purposePanel": "Obsluhovat hostitele panelu Muse v editoru přes MHP: nastavení a úložiště tohoto agenta pro složku, ve které se spustí.",
+    "purposePanel": "Obsluhovat hostitele panelu Muse v editoru přes MHP: jeho konverzace a také nastavení a úložiště tohoto agenta pro složku, ve které se spustí.",
     "notePanel": "Nastavení zapsané zde je to, které čte sám tento agent: uživatelská nastavení zůstávají v souborech settings.json a resources.json v datové složce. Nastavení, která určují, co se spouští nebo co se účtuje, patří jen vám a rozsah pracovního prostoru odmítají. Žádný klíč ani token se nikdy neukládá.",
     "purposeSetup": "Spustí hooky Setup a skončí.",
     "purposeUsage": "Zobrazit využití a náklady všech modelů.",
