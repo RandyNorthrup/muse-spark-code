@@ -250,6 +250,8 @@
     "src/runtime/questions/questionRegistryEntry.ts",
     // FIXM116I: /playbook's journal bundle, loaded by path on first use.
     "src/runtime/playbook/playbookEntry.ts",
+    // M115w: /watchdog's issue bundle (dist/acpWatchdog.js), loaded by path on first use.
+    "src/runtime/watchdog/watchdogEntry.ts",
     "src/core/questions/deferralEntry.ts",
     "src/runtime/fonts/fontsEntry.ts",
     "src/runtime/judge/judgeEntry.ts",
