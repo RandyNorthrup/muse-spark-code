@@ -78,6 +78,160 @@ function isFreeOrLocalOffer(offer: TeamPanelOffer): boolean {
   return offer.agent.pays === 'local' || (offer.inputRate === 0 && offer.outputRate === 0)
 }
 
+/** A draggable row's props: pool entries and secondary roles reorder alike. */
+function dragReorderProps(
+  id: string,
+  index: number,
+  dragged: string | undefined,
+  setDragged: (id: string | undefined) => void,
+  move: (id: string, to: number) => void,
+) {
+  return {
+    draggable: true,
+    onDragStart: () => {
+      setDragged(id)
+    },
+    onDragOver: (event: { preventDefault: () => void }) => {
+      event.preventDefault()
+    },
+    onDrop: (event: { preventDefault: () => void }) => {
+      event.preventDefault()
+      if (dragged !== undefined) move(dragged, index)
+      setDragged(undefined)
+    },
+  }
+}
+
+/** The row's order button: its position and label, Alt+Arrow to reorder. */
+function OrderButton({
+  id,
+  index,
+  count,
+  label,
+  name,
+  onMove,
+}: {
+  readonly id: string
+  readonly index: number
+  readonly count: number
+  readonly label: string
+  readonly name?: string | undefined
+  readonly onMove: (id: string, to: number) => void
+}) {
+  return (
+    <button
+      type="button"
+      className="team-editor-order"
+      aria-label={name}
+      onKeyDown={(event) => {
+        const action = webviewKey('team.pool', event)
+        if (action === undefined) return
+        event.preventDefault()
+        const next = index + (action === 'previous' ? -1 : 1)
+        if (next >= 0 && next < count) onMove(id, next)
+      }}
+    >
+      {formatNumber(index + 1)} · {label}
+    </button>
+  )
+}
+
+/** An entry's secondary roles (M120 lane P, D212): ordered, dragged to order. */
+function SecondaryRoles({
+  role,
+  entryId,
+  slice,
+  post,
+  announce,
+  onChip,
+}: {
+  readonly role: TeamEditorRole
+  readonly entryId: string
+  readonly slice: TeamPanelSlice
+  readonly post: (message: TeamPanelMessage) => void
+  readonly announce: (text: string) => void
+  readonly onChip: (chip: string | undefined) => void
+}) {
+  const [dragged, setDragged] = useState<string | undefined>()
+  const secondary =
+    slice.document.assignments?.find((assignment) => assignment.candidateId === entryId)
+      ?.secondaryRoles ?? []
+  const roleName = (id: string) => slice.roleViews.find((item) => item.role === id)?.name ?? id
+  const write = (next: readonly string[]) => {
+    post({ type: 'roles/secondaryRoles', role: role.role, entryId, secondaryRoles: [...next] })
+  }
+  const move = (target: string, to: number) => {
+    const next = secondary.filter((item) => item !== target)
+    next.splice(to, 0, target)
+    write(next)
+    announce(
+      fill(UI_TEXT.teamEditor.moveLabel, {
+        entry: roleName(target),
+        position: formatNumber(to + 1),
+      }),
+    )
+  }
+  const available = slice.document.roles
+    .map((item) => item.role)
+    .filter((id) => id !== role.role && !secondary.includes(id))
+  return (
+    <>
+      <p className="models-hint">
+        {fill(UI_TEXT.teamSecondaryMain, { role: roleName(role.role) })}
+      </p>
+      <fieldset className="team-editor-caps">
+        <legend>{UI_TEXT.teamSecondaryTitle}</legend>
+        <p className="models-hint">{UI_TEXT.teamSecondaryKeys}</p>
+        <ul className="team-editor-secondary">
+          {secondary.map((target, index) => (
+            <li
+              key={target}
+              className="team-editor-actions"
+              {...dragReorderProps(target, index, dragged, setDragged, move)}
+            >
+              <OrderButton
+                id={target}
+                index={index}
+                count={secondary.length}
+                label={roleName(target)}
+                onMove={move}
+              />
+              <button
+                type="button"
+                className="models-button"
+                aria-label={fill(UI_TEXT.teamSecondaryRemove, { role: roleName(target) })}
+                onClick={() => {
+                  write(secondary.filter((item) => item !== target))
+                }}
+              >
+                {UI_TEXT.providerRemove}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {available.length === 0 ? null : (
+          <SearchableSelect
+            label={UI_TEXT.teamSecondaryTitle}
+            placeholder={UI_TEXT.teamSecondaryAdd}
+            options={available.map((id) => ({
+              value: id,
+              label: roleName(id),
+              description: id,
+              category: 'role',
+            }))}
+            chips={[]}
+            activeChip={undefined}
+            onChip={onChip}
+            onSelect={(id) => {
+              write([...secondary, id])
+            }}
+          />
+        )}
+      </fieldset>
+    </>
+  )
+}
+
 /** The option line: provider and model with context and price to compare. */
 export function offerDescription(offer: TeamPanelOffer, money?: MoneyDisplay): string {
   const parts = [`${offer.agent.provider ?? offer.agent.agentId} · ${offer.agent.model}`]
@@ -208,34 +362,17 @@ export function PoolEditor({
             <li
               key={entry.id}
               className="team-editor-entry"
-              draggable
-              onDragStart={() => {
-                setDragged(entry.id)
-              }}
-              onDragOver={(event) => {
-                event.preventDefault()
-              }}
-              onDrop={(event) => {
-                event.preventDefault()
-                if (dragged !== undefined) move(dragged, index)
-                setDragged(undefined)
-              }}
+              {...dragReorderProps(entry.id, index, dragged, setDragged, move)}
             >
               <div className="team-editor-actions">
-                <button
-                  type="button"
-                  className="team-editor-order"
-                  aria-label={label}
-                  onKeyDown={(event) => {
-                    const action = webviewKey('team.pool', event)
-                    if (action === undefined) return
-                    event.preventDefault()
-                    const next = index + (action === 'previous' ? -1 : 1)
-                    if (next >= 0 && next < role.pool.length) move(entry.id, next)
-                  }}
-                >
-                  {formatNumber(index + 1)} · {label}
-                </button>
+                <OrderButton
+                  id={entry.id}
+                  index={index}
+                  count={role.pool.length}
+                  label={label}
+                  name={label}
+                  onMove={move}
+                />
                 <button
                   type="button"
                   className="models-button"
@@ -265,6 +402,14 @@ export function PoolEditor({
                 }}
               />
               <p className="models-hint">{view?.reasons[entry.id]}</p>
+              <SecondaryRoles
+                role={role}
+                entryId={entry.id}
+                slice={slice}
+                post={post}
+                announce={announce}
+                onChip={setChip}
+              />
               <fieldset className="team-editor-caps">
                 <legend>{UI_TEXT.teamEditor.caps}</legend>
                 {caps.map((cap, capIndex) => (

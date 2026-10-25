@@ -6118,6 +6118,29 @@ export const EN = {
   teamCodingRoleFrontend: 'Build what the person sees: panels, pages, styles and interactions.',
   teamCodingRoleBackend: 'Build what serves it: APIs, storage, workers and their contracts.',
   teamCodingRoleEngineering: 'Build the shared core both sides run on: logic, tools and wiring.',
+  // M120 lane P: the preference editor (each role's borrow timers, each
+  // agent's secondary roles, per-role auto-order) and Move to… on a waiting
+  // task. {role} is a role name; timers are whole seconds.
+  teamBorrowTimersTitle: 'Borrow timers',
+  teamBorrowDemandWait: 'Demand wait (seconds)',
+  teamBorrowLookahead: 'Lookahead (seconds)',
+  teamBorrowFinishGrace: 'Finish grace (seconds)',
+  teamBorrowRecallWait: 'Recall wait (seconds)',
+  teamBorrowCooldown: 'Cooldown (seconds)',
+  teamBorrowDemandWaitFloor: 'The demand wait cannot go below 60 seconds.',
+  teamAutoOrder: 'Reorder this pool automatically from recorded outcomes',
+  teamSecondaryMain: 'Main role: {role}',
+  teamSecondaryTitle: 'Also helps with',
+  teamSecondaryAdd: 'Add a secondary role',
+  teamSecondaryRemove: 'Remove {role} from secondary roles',
+  teamSecondaryKeys: 'Alt+Up / Alt+Down move this role.',
+  teamSecondaryInvalid: 'Secondary roles must be other roles of this team, each once.',
+  teamSecondaryDangling: 'Secondary roles name an agent or role this team no longer has.',
+  teamRoleUnknown: 'Role {role} is not on this team.',
+  teamMoveTask: 'Move to…',
+  teamMoveToRole: 'Move to {role}',
+  teamMoveRunning: 'Stop the task first: only a waiting task can move to another role.',
+  teamMoveSettled: 'Only a waiting task can move to another role.',
   // Inline completions (M94, PLAN.md D73): the paid feature, the
   // once-per-window popup (Q-M94a), the status bar with its menu, the snooze
   // and the Account & usage row. {price} is a dollar amount in the display

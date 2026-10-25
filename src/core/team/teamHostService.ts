@@ -66,6 +66,12 @@ export interface TeamHostService extends TeamHostSeams {
   readonly onTreeChange: (listener: (tree: TeamTreeData | undefined) => void) => () => void
   /** Stops one task and its process tree (acceptance 13's `cancel`, from the tree). */
   readonly stopTask: (taskId: string) => Promise<void>
+  /**
+  Moves a waiting task to another role (M120 lane P's Move to…, from the
+  tree). A running task refuses: stop and capture it first. The handoff
+  chain links the move with the `user` trigger.
+  */
+  readonly moveTask: (taskId: string, roleId: string) => Promise<void>
   /** Stops every running and queued task; returns how many stopped. */
   readonly stopAllTasks: () => Promise<number>
   /** Answers a "waiting for you" card. */

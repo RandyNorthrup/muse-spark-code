@@ -1893,6 +1893,9 @@ export function App({
       onStopTask: (taskId) => {
         postMessage({ type: 'stopTeamTask', taskId })
       },
+      onMoveTask: (taskId, roleId) => {
+        postMessage({ type: 'moveTeamTask', taskId, role: roleId })
+      },
       onReviewDiff: (taskId) => {
         postMessage({ type: 'reviewTeamDiff', taskId })
       },

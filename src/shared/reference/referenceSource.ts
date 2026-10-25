@@ -233,6 +233,7 @@ export const REFERENCE_ACTION_FEATURES = {
   openTeamRoles: 'team-workers',
   resetTeamEntry: 'team-workers',
   stopAllTeamTasks: 'team-workers',
+  moveTeamTask: 'team-workers',
   requestLegalExplanation: 'legal-explanation',
   exportLegalReport: 'legal',
   sharingAction: 'prompt-library',

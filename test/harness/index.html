@@ -2493,6 +2493,175 @@
               },
             }
           }
+          case 'models-roles': {
+            // The preference editor (M120 lane P): timers, auto-order and
+            // secondary roles over two staffed roles.
+            return {
+              ...base,
+              roles: {
+                document: {
+                  intensity: 'balanced',
+                  template: 'pair',
+                  roles: [
+                    {
+                      role: 'engineering',
+                      workspace: 'own-branch',
+                      tools: ['read', 'write'],
+                      report: 'summary',
+                      purpose: 'Build the shared core both sides run on.',
+                      done: 'The feature works and its tests pass.',
+                      pool: [
+                        {
+                          id: 'engineering/main',
+                          agent: {
+                            kind: 'engine',
+                            agentId: 'main',
+                            model: 'main',
+                            provider: 'meta',
+                            pays: 'key',
+                          },
+                          concurrent: 2,
+                          caps: [],
+                        },
+                        {
+                          id: 'engineering/reviewer',
+                          agent: {
+                            kind: 'engine',
+                            agentId: 'reviewer',
+                            model: 'reviewer',
+                            provider: 'meta',
+                            pays: 'key',
+                          },
+                          concurrent: 1,
+                          caps: [],
+                        },
+                      ],
+                      borrow: {
+                        demandWaitMs: 90000,
+                        lookaheadMs: 600000,
+                        finishGraceMs: 300000,
+                        recallWaitMs: 120000,
+                        cooldownMs: 180000,
+                      },
+                      autoOrder: true,
+                    },
+                    {
+                      role: 'code-review',
+                      workspace: 'read-only',
+                      tools: ['read'],
+                      report: 'review',
+                      pool: [
+                        {
+                          id: 'code-review/main',
+                          agent: {
+                            kind: 'engine',
+                            agentId: 'main',
+                            model: 'main',
+                            provider: 'meta',
+                            pays: 'key',
+                          },
+                          concurrent: 1,
+                          caps: [],
+                        },
+                      ],
+                    },
+                  ],
+                  assignments: [
+                    {
+                      candidateId: 'code-review/main',
+                      mainRole: 'code-review',
+                      secondaryRoles: ['engineering'],
+                    },
+                  ],
+                },
+                offers: [
+                  {
+                    ref: 'main/main',
+                    label: 'main',
+                    agent: {
+                      kind: 'engine',
+                      agentId: 'main',
+                      model: 'main',
+                      provider: 'meta',
+                      pays: 'key',
+                    },
+                    toolCalling: true,
+                    contextWindow: 131072,
+                    imageInput: true,
+                    reasoning: true,
+                    inputRate: 1,
+                    outputRate: 2,
+                    cachedRate: 0.1,
+                    ceiling: 8,
+                    controls: [],
+                  },
+                ],
+                roleViews: [
+                  {
+                    role: 'engineering',
+                    name: 'Engineering',
+                    generated: '',
+                    allowedTools: ['read', 'write'],
+                    issues: [],
+                    warnings: [],
+                    reasons: {},
+                  },
+                  {
+                    role: 'code-review',
+                    name: 'Code Review',
+                    generated: '',
+                    allowedTools: ['read'],
+                    issues: [],
+                    warnings: [],
+                    reasons: {},
+                  },
+                ],
+                suggestions: [],
+                levelCosts: { minimal: '', light: '', balanced: '', heavy: '', max: '' },
+                sample: 'feature-tests',
+                preview: { cost: '', switches: '', steps: [], unstaffed: [] },
+                dirty: true,
+                hasSavedConfiguration: true,
+                issues: [],
+                defaultRef: 'main/main',
+                maxWorkers: 8,
+              },
+            }
+          }
+          case 'models-agents': {
+            // Move to… (M120 lane P) over the same pair team: one queued
+            // worker and an empty review role to move it to.
+            return {
+              ...modelsStateFor('models-roles'),
+              agents: {
+                tree: {
+                  orchestrator: { model: 'main', backend: 'modelApi', slot: 'default' },
+                  roles: [
+                    {
+                      id: 'engineering',
+                      name: 'Engineering',
+                      mode: 'own-branch',
+                      toolGroups: [],
+                      entries: [],
+                      queued: [{ taskId: 't2', brief: 'Docs pass', status: 'queued' }],
+                      unmerged: [],
+                      interrupted: [],
+                    },
+                    {
+                      id: 'code-review',
+                      name: 'Code Review',
+                      mode: 'read-only',
+                      toolGroups: [],
+                      entries: [],
+                      queued: [],
+                      unmerged: [],
+                      interrupted: [],
+                    },
+                  ],
+                },
+              },
+            }
+          }
           case 'models-undo': {
             return { ...base, pendingRemovals: [{ providerId: 'openrouter', label: 'OpenRouter' }] }
           }
@@ -6927,6 +7096,28 @@
           clickText('Pick a Provider')
         },
         'models-providers': () => {},
+        'models-roles': () => {
+          clickText('Roles')
+          // The look centers the new borrow-timers block; the secondary
+          // roles ride the pool below it.
+          whenFound('.team-editor-card legend', () => {
+            const legends = [...document.querySelectorAll('.team-editor-card legend')]
+            const timers = legends.find((legend) => legend.textContent === 'Borrow timers')
+            if (timers === undefined) throw new Error('never rendered: Borrow timers')
+            timers.closest('fieldset')?.scrollIntoView()
+          })
+        },
+        'models-agents': () => {
+          clickText('Agents')
+          // The look opens Move to… on the queued worker.
+          whenFound('.team-tree', () => {
+            const move = [...document.querySelectorAll('.team-tree button')].find(
+              (candidate) => candidate.textContent.trim() === 'Move to…',
+            )
+            if (move === undefined) throw new Error('never rendered: Move to…')
+            move.click()
+          })
+        },
         'models-edit': () => {
           whenFound('.models-provider', () => clickText('Edit'))
         },

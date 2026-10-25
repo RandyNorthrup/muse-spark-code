@@ -29798,7 +29798,8 @@ Final evidence is recorded in `docs/certification/macslow.md`.
 
 ### M120 — Preferred agents, availability routing and lane handoff (D103, D212)
 
-**Status 2026-10-22: core built.** Status evidence: `docs/certification/m120.md`.
+**Status 2026-10-24: panel editor built; installed host bindings open.** Status
+evidence: `docs/certification/m120.md`, `docs/certification/rlf-m120ui.md`.
 Lane 0, S and 5 receipts: `docs/certification/m120-0.md`, `docs/certification/m120-s.md`,
 `docs/certification/m120-5.md`.
 
@@ -30032,6 +30033,20 @@ the single-model golden in `test/unit/team/teamKillDrill.test.ts`. The
 panel editor UI surface and installed host bindings remain open; every
 other lane-0 "pending" line (installed bindings, handoff execution, pool
 wiring) is now built at the core. Receipt: `docs/certification/m120.md`.
+
+**M120 lane P (RLF-M120UI, 2026-10-24, Windows and linuxlt).** The panel editor
+surface over that core: the Roles section edits each role's borrow timers
+(the 60 s demand-wait floor refuses with its sentence), each agent's
+ordered secondary roles by drag and keyboard, and per-role auto-order,
+with template seeding from the coding-role defaults; the Agent map moves
+a waiting task to another role (one "Move to <role>" button per role,
+keyboard focus kept) and links the handoff chain. Proof: real-code
+controller, service and UI suites, the `models-roles` and `models-agents`
+looks, and `cx1r2Truth` green. The editor writes the saved team document;
+nothing in an installed host reads its timers, secondary roles or
+auto-order yet, and the feature stays behind the release latch. Installed
+host bindings stay open for RLM104. Receipt:
+`docs/certification/rlf-m120ui.md`.
 
 ### REL0143M — Integrate the webview diet into 0.14.3 (2026-10-06)
 

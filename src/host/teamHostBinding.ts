@@ -38,6 +38,7 @@ export type TeamSurfaceMessage = Extract<
       | 'openTeamRoles'
       | 'resetTeamEntry'
       | 'stopAllTeamTasks'
+      | 'moveTeamTask'
   }
 >
 
@@ -181,6 +182,10 @@ export class TeamHostBinding implements TeamSurfacePort {
     switch (message.type) {
       case 'stopTeamTask': {
         await service.stopTask(message.taskId)
+        return
+      }
+      case 'moveTeamTask': {
+        await service.moveTask(message.taskId, message.role)
         return
       }
       case 'stopAllTeamTasks': {
