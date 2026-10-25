@@ -12,11 +12,12 @@ import type { CoreLogger } from '../../src/core/logging'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { USAGE_ROLLUP_LOCK, USAGE_ROLLUP_LOCK_STALE_MS } from '../../src/shared/constants'
+import { epochNow } from '../../src/shared/epochMs'
 
 const LOCK = `${USAGE_JOURNAL_ROOT}/${USAGE_ROLLUP_LOCK}`
 
 describe('usage warning cause', () => {
-  it('names the lock failure in the record warning and the restore rejection', async () => {
+  it('names the lock failure in the read warning and the restore rejection', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'muse-journal-cause-'))
     try {
       const peer = new NodeUsageFs(dir)
@@ -35,7 +36,7 @@ describe('usage warning cause', () => {
         const recording = createUsageRecording({
           client: 'test',
           isEnabled: () => true,
-          now: () => Date.now(),
+          now: epochNow,
           newId: () => 'test-id',
           log,
           writer: (onWriteError) =>
@@ -43,7 +44,7 @@ describe('usage warning cause', () => {
               new UsageJournalStore(new NodeUsageFs(dir), {
                 writerId: 'test-writer',
                 isEnabled: () => true,
-                now: () => Date.now(),
+                now: epochNow,
                 sleep: () => {
                   return Promise.resolve()
                 },
@@ -60,8 +61,9 @@ describe('usage warning cause', () => {
           failure = error
         }
         expect(failure).toBeInstanceOf(Error)
-        // The record warning names it...
-        expect(warns).toEqual(['Usage history could not be recorded (usageLocked)'])
+        // The read warning names it (a failed read never says "not
+        // recorded", and never spends the write warning)...
+        expect(warns).toEqual(['Usage history could not be read (usageLocked).'])
         // ...and the restore path's rejection unwraps to it (the paid
         // host logs usageFailureForLog of exactly this rejection).
         expect(usageFailureForLog(failure)).toBe('usageLocked')

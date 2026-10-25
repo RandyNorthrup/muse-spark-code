@@ -26,6 +26,7 @@ import {
   MILLISECONDS_PER_DAY,
   MINUTES_PER_HOUR,
   REDACTED_MARK,
+  REPORT_BACKEND_RESOLUTIONS,
   REPORT_DESCRIPTION_MAX_CHARS,
   REPORT_ERROR_CODE_MAX_CHARS,
   REPORT_ERROR_CODES,
@@ -34,13 +35,19 @@ import {
   REPORT_ISSUE_URL_MAX_CHARS,
   REPORT_JOURNAL_MAX_AGE_MS,
   REPORT_PACKAGE_FRAME_PATHS,
+  REPORT_PANEL_STATES,
   REPORT_RECENT_EVENT_COUNT,
+  REPORT_SIGN_IN_OUTCOMES,
   REPORT_UNKNOWN_ERROR_CODE,
   REPORT_VERSION_MAX_CHARS,
   SECONDS_PER_HOUR,
   SHELL_SANDBOX_MODES,
+  type ReportBackendResolution,
+  type ReportPanelState,
+  type ReportSignInOutcome,
 } from '../../shared/constants'
-import { reportWebviewErrorSchema } from '../../shared/protocol'
+import { describeBackendResolution } from '../backendSelection'
+import { BACKEND_KINDS, reportWebviewErrorSchema } from '../../shared/protocol'
 import { redactSecrets } from '../redact'
 import type { SecretScrubPort } from '../../shared/redact'
 import { scrubRefusalLeak } from '../backends/modelapi/providerRefusal'
@@ -55,8 +62,17 @@ const HOME_ABBREVIATION = '~'
 const INDENT = '  '
 const TRUNCATED = '…'
 
-/** The platforms the report names; anything else is refused, not guessed. */
-const REPORT_PLATFORMS = ['win32', 'darwin', 'linux'] as const
+/**
+The platforms the report names; anything else is refused, not guessed.
+`android` is code-server on Termux (lane REPORTFLOW R2): a supported
+report platform, never refused.
+*/
+export const REPORT_PLATFORMS = ['win32', 'darwin', 'linux', 'android'] as const
+
+/** Whether the report names this platform instead of refusing it. */
+export function isReportPlatform(platform: string): platform is (typeof REPORT_PLATFORMS)[number] {
+  return (REPORT_PLATFORMS as readonly string[]).includes(platform)
+}
 
 /** A dotted version with an optional short suffix (`1.4.2-R4684.1`); never a sentence. */
 const VERSION_PATTERN = /^\d{1,4}\.\d{1,4}\.\d{1,4}(?:-[0-9A-Za-z.-]{1,32})?$/
@@ -97,18 +113,83 @@ const problemReportFactsSchema = z.strictObject({
     z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
   ),
   nodeVersion: z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS)),
-  platform: z.enum(REPORT_PLATFORMS),
-  backend: z.enum(BACKEND_MODES),
-  sandbox: z.enum(SHELL_SANDBOX_MODES),
-  cliFound: z.boolean(),
+  /**
+  Absent when the read that owns the fact threw or timed out (lane
+  REPORTFLOW R2): the draft says `unknown` for that fact instead of
+  losing the whole report. Every absent fact below reads the same way.
+  */
+  platform: z.optional(z.enum(REPORT_PLATFORMS)),
+  backend: z.optional(z.enum(BACKEND_MODES)),
+  sandbox: z.optional(z.enum(SHELL_SANDBOX_MODES)),
+  cliFound: z.optional(z.boolean()),
   /** The CLI's own version text: dropped, not trusted, when it is not a version. */
   cliVersion: z.optional(z.string().check(z.minLength(1), z.maxLength(REPORT_VERSION_MAX_CHARS))),
-  cliSignIn: z.boolean(),
-  hasStoredApiKey: z.boolean(),
-  hasEnvironmentApiKey: z.boolean(),
-  settingNames: z
-    .array(z.string().check(z.minLength(1), z.maxLength(SETTING_NAME_MAX_CHARS)))
-    .check(z.maxLength(SETTING_NAMES_MAX)),
+  /**
+  The CLI's contributor mode (its price tier): true or false when observed,
+  absent when the reporter's setup could not say. Unknown prints as unknown,
+  never guessed.
+  */
+  contributorMode: z.optional(z.boolean()),
+  cliSignIn: z.optional(z.boolean()),
+  hasStoredApiKey: z.optional(z.boolean()),
+  hasEnvironmentApiKey: z.optional(z.boolean()),
+  settingNames: z.optional(
+    z
+      .array(z.string().check(z.minLength(1), z.maxLength(SETTING_NAME_MAX_CHARS)))
+      .check(z.maxLength(SETTING_NAMES_MAX)),
+  ),
+  /**
+  Why an unknown fact is unknown (lane REPORTFLOW R2): one fixed reason
+  code per fact, from the recorder's vocabulary (`timedOut` for a read
+  past its bound, the error's class for a throw, `unknown` otherwise).
+  A code outside the vocabulary, or a fact this draft never renders as
+  unknown, is dropped, never rendered.
+  */
+  factReasons: z.optional(
+    z.record(
+      z.string(),
+      z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
+    ),
+  ),
+  /**
+  The backend actually running conversations when the dialog opened
+  (lane REPORTFLOW R2): what `auto` chose, not what the setting names.
+  Absent outside a host that read the choice.
+  */
+  activeBackend: z.optional(z.enum(BACKEND_KINDS)),
+  /**
+  Where the person was when the dialog opened (lane REPORTFLOW): one of
+  the panel's own states, in fixed words. Absent outside the panel (the
+  terminal names that instead of guessing).
+  */
+  panelState: z.optional(z.enum(REPORT_PANEL_STATES)),
+  /**
+  The last error or warning notice shown: its catalogue code (never the
+  sentence) with its age. Absent when none was recorded.
+  */
+  lastNotice: z.optional(
+    z.strictObject({
+      code: z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS)),
+      ageMs: z.int().check(z.gte(0)),
+    }),
+  ),
+  /**
+  The last sign-in attempt: none, started, succeeded, or failed with its
+  fixed reason code. Absent reads as none.
+  */
+  lastSignIn: z.optional(
+    z.strictObject({
+      outcome: z.enum(REPORT_SIGN_IN_OUTCOMES),
+      code: z.optional(z.string().check(z.minLength(1), z.maxLength(REPORT_ERROR_CODE_MAX_CHARS))),
+      ageMs: z.optional(z.int().check(z.gte(0))),
+    }),
+  ),
+  /**
+  How the backend choice resolved and why (lane REPORTFLOW): what `auto`
+  chose, or what nothing usable meant. Absent outside a host that read
+  the choice.
+  */
+  backendResolution: z.optional(z.enum(REPORT_BACKEND_RESOLUTIONS)),
 })
 
 /** The allowlisted support facts a problem report may carry. */
@@ -163,26 +244,85 @@ The allowlisted facts, or the refusal that names the offending field. The
 CLI's version is the CLI's own text (D72: not inherently safe): a value
 that is not a version is left out rather than trusted or fatal.
 */
+/**
+The facts the draft can render as `unknown (reason)`: every other reason
+key is dropped, never rendered (lane REPORTFLOW R2).
+*/
+const UNKNOWNABLE_FACTS: ReadonlySet<string> = new Set([
+  'extensionVersion',
+  'vscodeVersion',
+  'nodeVersion',
+  'platform',
+  'backend',
+  'sandbox',
+  'cli',
+  'cliSignIn',
+  'hasStoredApiKey',
+  'hasEnvironmentApiKey',
+  'settingNames',
+])
+
+/** The allowlisted reason codes for unknown facts, each with its fixed code. */
+function normalizedFactReasons(
+  reasons: Record<string, string> | undefined,
+): Record<string, string> {
+  const normalized: Record<string, string> = {}
+  const entries = Object.entries(reasons ?? {})
+  for (const [fact, code] of entries) {
+    if (!UNKNOWNABLE_FACTS.has(fact)) {
+      continue
+    }
+    normalized[fact] = REPORT_ERROR_CODES.has(code) ? code : REPORT_UNKNOWN_ERROR_CODE
+  }
+  return normalized
+}
+
 function validatedFacts(input: unknown): ProblemReportFacts {
   const parsed = problemReportFactsSchema.safeParse(input)
   if (!parsed.success) {
     throw new ReportBuildError('facts', 'not allowlisted support facts')
   }
-  const { cliVersion, ...facts } = parsed.data
+  const { cliVersion, factReasons, ...facts } = parsed.data
   const versions: Readonly<Record<string, string | undefined>> = {
     extensionVersion: facts.extensionVersion,
     vscodeVersion: facts.vscodeVersion,
     nodeVersion: facts.nodeVersion,
   }
   for (const [field, value] of Object.entries(versions)) {
-    if (value !== undefined && !isReportVersion(value)) {
+    // `unknown` is the bounded read's word for a version it could not read
+    // (lane REPORTFLOW R2): rendered as is, never mistaken for a version.
+    if (value !== undefined && value !== REPORT_UNKNOWN_ERROR_CODE && !isReportVersion(value)) {
       throw new ReportBuildError(field, 'not a version')
     }
   }
-  if (facts.settingNames.some((name) => !SETTING_NAME_PATTERN.test(name))) {
+  if ((facts.settingNames ?? []).some((name) => !SETTING_NAME_PATTERN.test(name))) {
     throw new ReportBuildError('settingNames', 'not a setting name')
   }
-  return cliVersion !== undefined && isReportVersion(cliVersion) ? { ...facts, cliVersion } : facts
+  // The new facts name catalogue words only (lane REPORTFLOW): a code
+  // outside the recorder's vocabulary is refused, not filed.
+  if (facts.lastNotice !== undefined && !REPORT_ERROR_CODES.has(facts.lastNotice.code)) {
+    throw new ReportBuildError('lastNotice', 'not a known notice code')
+  }
+  if (facts.lastSignIn !== undefined) {
+    const signIn = facts.lastSignIn
+    if (signIn.code !== undefined && !REPORT_ERROR_CODES.has(signIn.code)) {
+      throw new ReportBuildError('lastSignIn', 'not a known sign-in reason')
+    }
+    if (signIn.outcome === 'failed' && signIn.code === undefined) {
+      throw new ReportBuildError('lastSignIn', 'a failed sign-in names its reason')
+    }
+    if (signIn.outcome !== 'none' && signIn.ageMs === undefined) {
+      throw new ReportBuildError('lastSignIn', 'a sign-in attempt names its age')
+    }
+  }
+  const reasons = normalizedFactReasons(factReasons)
+  const cleaned = {
+    ...facts,
+    ...(Object.keys(reasons).length > 0 && { factReasons: reasons }),
+  }
+  return cliVersion !== undefined && isReportVersion(cliVersion)
+    ? { ...cleaned, cliVersion }
+    : cleaned
 }
 
 /**
@@ -206,28 +346,59 @@ export interface SelectedReportEvent {
   readonly event: ProblemReportEvent
 }
 
+/** How many records the selection left out, and why (lane REPORTFLOW R2). */
+export interface ReportEventDropCounts {
+  /** Failed validation or named a frame outside the shipped package. */
+  readonly invalid: number
+  /** Older than the journal keeps. */
+  readonly tooOld: number
+  /** Valid but past the recent-events cap (the oldest go first). */
+  readonly overCap: number
+}
+
 /**
 The stored records, validated again: a tampered journal cannot become an
 arbitrary text attachment. Codes outside the recorder's vocabulary
 (REPORT_ERROR_CODES) become the fixed word (D72); a record with any other
-off-allowlist field is skipped. Keeps the last REPORT_RECENT_EVENT_COUNT
+off-allowlist field is counted invalid and skipped; records older than the
+journal keeps are counted too old. Keeps the last REPORT_RECENT_EVENT_COUNT
 valid records, each with its input index, so a preview lists exactly the
-records the draft carries.
+records the draft carries; the rest are counted over the cap, oldest first.
 */
 export function selectProblemReportEvents(
   input: readonly unknown[],
 ): readonly SelectedReportEvent[] {
+  return problemReportEventSelection(input).events
+}
+
+/**
+The selection above, with the records it left out counted by cause. Only
+expired or invalid records count as unusable: a valid record older than the
+recent-events cap is left out by the cap, counted but never reported as
+unusable. A caller that pre-selects (the dialog) passes these counts to the
+builder, so removing a listed record cannot pull an unlisted older one into
+the draft.
+*/
+export function problemReportEventSelection(input: readonly unknown[]): {
+  readonly events: readonly SelectedReportEvent[]
+  readonly dropped: ReportEventDropCounts
+} {
   const valid: SelectedReportEvent[] = []
+  let invalid = 0
+  let tooOld = 0
   for (const [index, candidate] of input.entries()) {
     const parsed = problemReportEventSchema.safeParse(candidate)
     if (!parsed.success) {
+      invalid += 1
       continue
     }
     const event = parsed.data
-    if (
-      event.ageMs > REPORT_JOURNAL_MAX_AGE_MS ||
-      event.frames.some((frame) => !isReportFramePath(frame.path))
-    ) {
+    if (event.ageMs > REPORT_JOURNAL_MAX_AGE_MS) {
+      tooOld += 1
+      continue
+    }
+    if (event.frames.some((frame) => !isReportFramePath(frame.path))) {
+      invalid += 1
       continue
     }
     valid.push({
@@ -238,11 +409,110 @@ export function selectProblemReportEvents(
       },
     })
   }
-  return valid.slice(-REPORT_RECENT_EVENT_COUNT)
+  const overCap = Math.max(0, valid.length - REPORT_RECENT_EVENT_COUNT)
+  return {
+    events: valid.slice(-REPORT_RECENT_EVENT_COUNT),
+    dropped: { invalid, tooOld, overCap },
+  }
 }
 
-function validatedEvents(input: readonly unknown[]): readonly ProblemReportEvent[] {
-  return selectProblemReportEvents(input).map((selected) => selected.event)
+/** The pre-conversation sign-in events, oldest first among themselves. */
+const SIGN_IN_EVENT_OUTCOMES: Readonly<Record<string, ReportSignInOutcome>> = {
+  signInStarted: 'started',
+  signInSucceeded: 'succeeded',
+  signInFailed: 'failed',
+}
+
+/** The last error or warning notice shown: its catalogue code with its age. */
+export function lastNoticeOf(
+  events: readonly ProblemReportEvent[],
+): { readonly code: string; readonly ageMs: number } | undefined {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event?.kind === 'errorNotice') {
+      return { code: event.code, ageMs: event.ageMs }
+    }
+  }
+  return undefined
+}
+
+/** The last sign-in attempt, in the fact's shape; undefined when none was recorded. */
+export function lastSignInOf(
+  events: readonly ProblemReportEvent[],
+): NonNullable<ProblemReportFacts['lastSignIn']> | undefined {
+  for (let index = events.length - 1; index >= 0; index -= 1) {
+    const event = events[index]
+    if (event === undefined) {
+      continue
+    }
+    const outcome = SIGN_IN_EVENT_OUTCOMES[event.kind]
+    if (outcome !== undefined) {
+      return { outcome, code: event.code, ageMs: event.ageMs }
+    }
+  }
+  return undefined
+}
+
+/** The base facts the resolution is read from, as the builder takes them. */
+interface ResolutionBaseFacts {
+  readonly backend: string
+  readonly cliFound: boolean
+  readonly cliSignIn: boolean
+  readonly hasStoredApiKey: boolean
+}
+
+function isResolutionBaseFacts(value: unknown): value is ResolutionBaseFacts {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+  const facts = value as Record<string, unknown>
+  return (
+    typeof facts['backend'] === 'string' &&
+    (BACKEND_MODES as readonly string[]).includes(facts['backend']) &&
+    typeof facts['cliFound'] === 'boolean' &&
+    typeof facts['cliSignIn'] === 'boolean' &&
+    typeof facts['hasStoredApiKey'] === 'boolean'
+  )
+}
+
+/**
+The base facts plus what the journal says (lane REPORTFLOW): the last
+notice and sign-in from the selected records, the backend resolution from
+the base booleans, and the panel state the dialog named. Every host builds
+the same facts for the same state through this one function; the builder
+validates the result again.
+*/
+export function enrichProblemReportFacts(
+  facts: unknown,
+  events: readonly unknown[],
+  panelState?: ReportPanelState,
+): unknown {
+  if (typeof facts !== 'object' || facts === null) {
+    return facts
+  }
+  const selected = selectProblemReportEvents(events).map((item) => item.event)
+  const notice = lastNoticeOf(selected)
+  const signIn = lastSignInOf(selected)
+  const base: Record<string, unknown> = { ...(facts as Record<string, unknown>) }
+  if (panelState !== undefined) {
+    base['panelState'] = panelState
+  }
+  if (notice !== undefined) {
+    base['lastNotice'] = notice
+  }
+  if (signIn !== undefined) {
+    base['lastSignIn'] = signIn
+  }
+  if (isResolutionBaseFacts(facts)) {
+    const resolution: ReportBackendResolution = describeBackendResolution({
+      setting: facts.backend as (typeof BACKEND_MODES)[number],
+      hasCli: facts.cliFound,
+      hasCliSession: facts.cliSignIn,
+      hasStoredKey: facts.hasStoredApiKey,
+    })
+    base['backendResolution'] = resolution
+  }
+  return base
 }
 
 /** What the second scrub needs: the roots to stand in for, and names to forget. */
@@ -411,28 +681,122 @@ export function formatReportAge(ageMs: number): string {
 
 /** The issue title: the product, its version and the platform, all allowlisted. */
 export function problemReportTitle(facts: ProblemReportFacts): string {
-  return `Problem report: Muse Spark ${facts.extensionVersion} on ${facts.platform}`
+  return `Problem report: Muse Spark ${facts.extensionVersion} on ${facts.platform ?? REPORT_UNKNOWN_ERROR_CODE}`
+}
+
+/** A yes/no fact the bounded read could not answer (lane REPORTFLOW R2). */
+function triState(value: boolean | undefined): string {
+  if (value === undefined) {
+    return REPORT_UNKNOWN_ERROR_CODE
+  }
+  return value ? YES : NO
+}
+
+/**
+A fact value the bounded read could not answer (lane REPORTFLOW R2): the
+word `unknown` with its fixed reason code (`unknown (TimeoutError)`), or
+the rendered value when the read answered.
+*/
+function unknownValue(facts: ProblemReportFacts, fact: string, rendered: string): string {
+  const reason = facts.factReasons?.[fact]
+  return reason === undefined ? rendered : `${REPORT_UNKNOWN_ERROR_CODE} (${reason})`
+}
+
+/** One `label: value` fact line, unknown with its reason when the read never answered. */
+function unknownLine(
+  facts: ProblemReportFacts,
+  fact: string,
+  label: string,
+  value: string,
+): string {
+  return `${label}: ${unknownValue(facts, fact, value)}`
 }
 
 function factLines(facts: ProblemReportFacts): readonly string[] {
-  const found = facts.cliFound ? 'found' : 'not found'
-  const cli = facts.cliVersion === undefined ? found : `found (version ${facts.cliVersion})`
+  let cli: string
+  if (facts.cliFound === undefined) {
+    cli = unknownValue(facts, 'cli', REPORT_UNKNOWN_ERROR_CODE)
+  } else if (!facts.cliFound) {
+    cli = 'not found'
+  } else if (facts.cliVersion === undefined) {
+    cli = 'found'
+  } else {
+    cli = `found (version ${facts.cliVersion})`
+  }
+  let contributor = 'unknown'
+  if (facts.contributorMode === true) contributor = 'on'
+  else if (facts.contributorMode === false) contributor = 'off'
+  const settingNames = facts.settingNames ?? []
   return [
-    `extension: ${facts.extensionVersion}`,
-    `vscode: ${facts.vscodeVersion ?? STANDALONE_AGENT}`,
-    `node: ${facts.nodeVersion}`,
-    `platform: ${facts.platform}`,
-    `backend: ${facts.backend}`,
+    unknownLine(facts, 'extensionVersion', 'extension', facts.extensionVersion),
+    unknownLine(facts, 'vscodeVersion', 'vscode', facts.vscodeVersion ?? STANDALONE_AGENT),
+    unknownLine(facts, 'nodeVersion', 'node', facts.nodeVersion),
+    unknownLine(facts, 'platform', 'platform', facts.platform ?? REPORT_UNKNOWN_ERROR_CODE),
+    unknownLine(facts, 'backend', 'backend', facts.backend ?? REPORT_UNKNOWN_ERROR_CODE),
+    `contributor mode: ${contributor}`,
+    `active backend: ${facts.activeBackend ?? 'not recorded'}`,
     ...(facts.modelApiStatus === undefined
       ? []
       : [
           `model api service: ${facts.modelApiStatus.status}; alive: ${facts.modelApiStatus.isAlive ? YES : NO}`,
         ]),
-    `cli: ${cli}; signed in: ${facts.cliSignIn ? YES : NO}`,
-    `stored model api key: ${facts.hasStoredApiKey ? YES : NO}; META_API_KEY in environment: ${facts.hasEnvironmentApiKey ? YES : NO}`,
-    `shell sandbox: ${facts.sandbox}`,
-    `settings (names only): ${facts.settingNames.length === 0 ? NONE : facts.settingNames.join(', ')}`,
+    `cli: ${cli}; signed in: ${unknownValue(facts, 'cliSignIn', triState(facts.cliSignIn))}`,
+    `stored model api key: ${unknownValue(facts, 'hasStoredApiKey', triState(facts.hasStoredApiKey))}; META_API_KEY in environment: ${unknownValue(facts, 'hasEnvironmentApiKey', triState(facts.hasEnvironmentApiKey))}`,
+    modelApiSignInLine(facts),
+    unknownLine(facts, 'sandbox', 'shell sandbox', facts.sandbox ?? REPORT_UNKNOWN_ERROR_CODE),
+    unknownLine(
+      facts,
+      'settingNames',
+      'settings (names only)',
+      settingNames.length === 0 ? NONE : settingNames.join(', '),
+    ),
+    `panel: ${facts.panelState ?? 'not recorded'}`,
+    lastNoticeLine(facts),
+    lastSignInLine(facts),
+    `backend resolution: ${facts.backendResolution ?? 'not recorded'}`,
   ]
+}
+
+/**
+The Model API backend's sign-in state in fixed words (lane REPORTFLOW
+R2): a key anywhere signs it in; one unreadable read leaves it unknown
+rather than signed out.
+*/
+function modelApiSignInLine(facts: ProblemReportFacts): string {
+  const stored = facts.hasStoredApiKey
+  const environment = facts.hasEnvironmentApiKey
+  if (stored === true || environment === true) {
+    const sources = [
+      ...(stored === true ? ['stored key'] : []),
+      ...(environment === true ? ['environment'] : []),
+    ]
+    return `model api sign-in: signed in (${sources.join(' and ')})`
+  }
+  return stored === undefined || environment === undefined
+    ? `model api sign-in: ${REPORT_UNKNOWN_ERROR_CODE}`
+    : 'model api sign-in: signed out'
+}
+
+/** The last notice the person was shown, as a catalogue code with its age (lane REPORTFLOW). */
+function lastNoticeLine(facts: ProblemReportFacts): string {
+  const notice = facts.lastNotice
+  return notice === undefined
+    ? 'last notice: none'
+    : `last notice: ${notice.code} (${formatReportAge(notice.ageMs)})`
+}
+
+/** The last sign-in attempt, in fixed words (lane REPORTFLOW): absent reads as none. */
+function lastSignInLine(facts: ProblemReportFacts): string {
+  const signIn = facts.lastSignIn
+  if (signIn === undefined || signIn.outcome === 'none') {
+    return 'last sign-in: none'
+  }
+  if (signIn.outcome === 'failed') {
+    const age = signIn.ageMs === undefined ? '' : ` (${formatReportAge(signIn.ageMs)})`
+    return `last sign-in: failed ${signIn.code ?? REPORT_UNKNOWN_ERROR_CODE}${age}`
+  }
+  const age = signIn.ageMs === undefined ? '' : ` (${formatReportAge(signIn.ageMs)})`
+  return `last sign-in: ${signIn.outcome}${age}`
 }
 
 function eventLines(events: readonly ProblemReportEvent[]): readonly string[] {
@@ -459,6 +823,31 @@ export interface ProblemReportInput {
   readonly events: readonly unknown[]
   /** The recorder never ran: the report says so instead of carrying events. */
   readonly recordingUnavailable: boolean
+  /**
+  Why recording is unavailable, in the recorder's vocabulary (lane
+  REPORTFLOW R2): a code outside it reads as `unknown`, which is also the
+  word until the capture side provides its reason.
+  */
+  readonly recordingReason?: string
+  /**
+  Which recorded event the person meant (lane REPORTFLOW R2): the
+  "Report This" handoff's kind. The draft marks that event's kind, code
+  and age; a kind outside the vocabulary is ignored, never rendered.
+  */
+  readonly reportedKind?: unknown
+  /**
+  Records the minute's budget dropped before the journal (lane REPORTFLOW
+  R2): counted in the draft beside what the builder left out. A
+  non-count reads as none dropped.
+  */
+  readonly rateLimitedDrops?: number
+  /**
+  What a snapshot already counted as left out (lane REPORTFLOW R2): the
+  dialog passes its selection's counts beside the carried events, so the
+  draft counts the records the preview never lists. Added to what the
+  builder itself leaves out of `events`.
+  */
+  readonly droppedEvents?: ReportEventDropCounts
   /** Renders the relative ages; must be a finite epoch. */
   readonly nowMs: number
   readonly scrub: ReportScrubContext
@@ -511,6 +900,63 @@ function cappedDescription(description: string): string {
 }
 
 /**
+The "Report This" handoff's mark in the draft (lane REPORTFLOW R2): the
+newest carried event of that kind, with its code and age. A kind outside
+the vocabulary is ignored; a kind with no carried event says so instead
+of marking another event.
+*/
+function reportedEventLine(
+  selected: readonly SelectedReportEvent[],
+  reportedKind: unknown,
+): string | undefined {
+  if (typeof reportedKind !== 'string') {
+    return undefined
+  }
+  if (!(REPORT_EVENT_KINDS as readonly string[]).includes(reportedKind)) {
+    return undefined
+  }
+  for (let index = selected.length - 1; index >= 0; index -= 1) {
+    const event = selected[index]?.event
+    if (event?.kind === reportedKind) {
+      return `Reported event: ${reportedKind} ${event.code} (${formatReportAge(event.ageMs)})`
+    }
+  }
+  return `Reported event: ${reportedKind} (not in recent events)`
+}
+
+/** A non-count reads as none dropped; a negative one reads as none dropped. */
+function countedDrops(value: number | undefined): number {
+  return typeof value !== 'number' || !Number.isFinite(value) ? 0 : Math.max(0, Math.floor(value))
+}
+
+/**
+What the builder left out, in fixed words (lane REPORTFLOW R2): invalid
+records, records too old to keep, records past the recent-events cap, and
+records the minute's budget dropped. Undefined when nothing was dropped:
+the heading's count already says that.
+*/
+function droppedEventsLine(
+  dropped: ReportEventDropCounts,
+  rateLimitedDrops: number | undefined,
+): string | undefined {
+  const parts: string[] = []
+  if (dropped.invalid > 0) {
+    parts.push(`${String(dropped.invalid)} invalid`)
+  }
+  if (dropped.tooOld > 0) {
+    parts.push(`${String(dropped.tooOld)} too old`)
+  }
+  if (dropped.overCap > 0) {
+    parts.push(`${String(dropped.overCap)} over the cap`)
+  }
+  const rateLimited = countedDrops(rateLimitedDrops)
+  if (rateLimited > 0) {
+    parts.push(`${String(rateLimited)} rate-limited`)
+  }
+  return parts.length === 0 ? undefined : `Dropped events: ${parts.join(', ')}`
+}
+
+/**
 Builds, scrubs and seals the report draft. Throws ReportBuildError for
 off-allowlist facts; skips off-allowlist records. The returned text is the
 final draft: the preview shows it byte-identical, and exports carry it unchanged.
@@ -520,8 +966,24 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
     throw new ReportBuildError('nowMs', 'not a finite time')
   }
   const facts = draftFacts(input)
-  const events = validatedEvents(input.events)
-  const sections: string[] = ['Muse Spark problem report']
+  const selection = problemReportEventSelection(input.events)
+  const events = selection.events.map((selected) => selected.event)
+  // The snapshot's counts join what this build left out (lane REPORTFLOW
+  // R2): the dialog carries its selection while the journal's drops still
+  // count. A caller passing raw events with no counts gets the recount
+  // alone; counts never go negative.
+  const leftOut = input.droppedEvents
+  const dropped: ReportEventDropCounts = {
+    invalid: selection.dropped.invalid + countedDrops(leftOut?.invalid),
+    tooOld: selection.dropped.tooOld + countedDrops(leftOut?.tooOld),
+    overCap: selection.dropped.overCap + countedDrops(leftOut?.overCap),
+  }
+  // Every age's anchor (lane REPORTFLOW R2): the epoch the relative ages
+  // render against, so the ages still mean something when the issue is read
+  // later. An ISO instant carries no secret and needs no scrub.
+  const sections: string[] = [
+    `Muse Spark problem report\nBuilt: ${new Date(input.nowMs).toISOString()}`,
+  ]
   const description = cappedDescription(input.description)
   if (description !== '') {
     sections.push(`What was happening:\n${description}`)
@@ -530,11 +992,29 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
     sections.push(`Support facts:\n${factLines(facts).join('\n')}`)
   }
   if (input.includeEvents) {
-    sections.push(
-      input.recordingUnavailable
-        ? 'Recent events:\nevent recording was unavailable, so this report has no recent events.'
-        : `Recent events (${String(events.length)}):\n${events.length === 0 ? NONE : eventLines(events).join('\n')}`,
-    )
+    if (input.recordingUnavailable) {
+      // Why recording was unavailable (lane REPORTFLOW R2): the capture
+      // side's reason code, or `unknown` until it provides one.
+      const reason =
+        typeof input.recordingReason === 'string' && REPORT_ERROR_CODES.has(input.recordingReason)
+          ? input.recordingReason
+          : REPORT_UNKNOWN_ERROR_CODE
+      sections.push(
+        `Recent events:\nevent recording was unavailable (${reason}), so this report has no recent events.`,
+      )
+    } else {
+      const body: string[] = []
+      const reported = reportedEventLine(selection.events, input.reportedKind)
+      if (reported !== undefined) {
+        body.push(reported)
+      }
+      body.push(events.length === 0 ? NONE : eventLines(events).join('\n'))
+      const leftOut = droppedEventsLine(dropped, input.rateLimitedDrops)
+      if (leftOut !== undefined) {
+        body.push(leftOut)
+      }
+      sections.push(`Recent events (${String(events.length)}):\n${body.join('\n')}`)
+    }
   }
   return {
     title: facts === undefined ? TITLE_WITHOUT_FACTS : problemReportTitle(facts),
@@ -542,8 +1022,7 @@ function reportParts(input: ProblemReportInput): { title: string; text: string }
   }
 }
 
-/** Existing synchronous builder for callers with no vault.
-@unwired M93 report-a-problem draft without vault */
+/** The report builder: builds, scrubs and seals the draft. */
 export function buildProblemReportDraft(input: ProblemReportInput): SealedReportDraft {
   const parts = reportParts(input)
   return sealReportDraft(
@@ -552,7 +1031,13 @@ export function buildProblemReportDraft(input: ProblemReportInput): SealedReport
   )
 }
 
-/** M109: scrub raw final text before privacy edits and seal only the resulting preview. */
+/**
+M109's vault-aware builder (lane REPORTFLOW R2): the vault lane's seam,
+exercised by its own suite (`test/unit/vault/boundaryScrub.test.ts`).
+The report flow calls the sync builder above while the vault is switched
+off for users (no producer exists); M109 wires this one when its service
+lands. Not dead: the vault suite fails without it.
+*/
 export async function buildVaultProblemReportDraft(
   input: ProblemReportInput,
   vaultScrub?: SecretScrubPort,

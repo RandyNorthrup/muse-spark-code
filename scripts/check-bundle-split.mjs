@@ -1441,6 +1441,9 @@ for (const directory of ['dist/meta', 'dist/meta-acp']) {
             // through its store, whose static record import carries the card.
             // Reporting never prices; the bytes ride the journal machinery.
             !(input === 'src/core/providers/priceCard.ts' && output === 'dist/reportInputs.js') &&
+            // RLUSAGE: the usage export encoders read the same journal
+            // store schemas; the export never prices either.
+            !(input === 'src/core/providers/priceCard.ts' && output === 'dist/usageExport.js') &&
             !(
               input === 'src/core/providers/keyInspection.ts' &&
               (output === 'dist/modelsPanel.js' || output === 'dist/runtimeAccounts.js')

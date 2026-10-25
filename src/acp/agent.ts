@@ -192,7 +192,14 @@ import {
 } from './translate'
 import { adoptedMode, answerChoice, ApprovalAnswers } from './permissionAsk'
 import { isAcpSharingFailure, SHARING_FAILURE_CODES, type AcpSharingPort } from './sharing'
-import { acpReportArguments, runAcpReport, type AcpReportsPort } from './reports'
+import {
+  acpReportArguments,
+  problemReportDescription,
+  runAcpProblemReport,
+  runAcpReport,
+  type AcpProblemReportPort,
+  type AcpReportsPort,
+} from './reports'
 import { type AcpVault, vaultPermissionAnswer, vaultPermissionOptions, vaultSlash } from './vault'
 import {
   makerPermissionAnswer,
@@ -350,6 +357,13 @@ export interface AcpAgentDeps {
   readonly reportError?: (fact: AcpErrorFact) => void
   /** M113's lazy deterministic engine, scoped to this session's workspace. */
   readonly reports?: AcpReportsPort
+  /**
+  The M93 problem report behind `/report problem` (lane REPORTFLOW R2):
+  the same scrubbed draft the dialog previews, answered in the reply with
+  the issue link, in every editor. Absent, `/report problem` stays with
+  the deterministic engine as before.
+  */
+  readonly problemReport?: AcpProblemReportPort
   /** M117: supplied by the lazy estimator loader; absence is reported locally. */
   readonly estimate?: AcpEstimatePort
 }
@@ -1177,7 +1191,7 @@ class AcpSession {
       {
         name: SLASH_COMMAND_NAMES.report,
         description: UI_TEXT.reportSlashDescription,
-        input: { hint: '<kind> [args] | history' },
+        input: { hint: '<kind> [args] | history | problem <what happened>' },
       },
       ...(this.deps.legalScan === undefined
         ? []
@@ -3175,11 +3189,25 @@ class AcpSession {
       try {
         await this.announceCommands()
         if (!this.isCurrentReport(preparing)) return 'cancelled'
-        const text = await runAcpReport(reportArgs, this.deps.reports, {
-          cwd: this.cwd,
-          sessionId: this.sessionId,
-          signal: reportAbort.signal,
-        })
+        // `/report problem` in every editor (lane REPORTFLOW R2): the M93
+        // problem report's draft with the issue link, not a deterministic
+        // report. Any other `/report` use stays with that engine.
+        const problemDescription = problemReportDescription(reportArgs)
+        const problemText =
+          problemDescription === undefined
+            ? undefined
+            : await runAcpProblemReport(problemDescription, this.deps.problemReport, {
+                cwd: this.cwd,
+                sessionId: this.sessionId,
+                signal: reportAbort.signal,
+              })
+        const text =
+          problemText ??
+          (await runAcpReport(reportArgs, this.deps.reports, {
+            cwd: this.cwd,
+            sessionId: this.sessionId,
+            signal: reportAbort.signal,
+          }))
         if ('error' in preparing) throw preparing.error
         if (!this.isCurrentReport(preparing)) return 'cancelled'
         this.send({ sessionUpdate: 'agent_message_chunk', content: { type: 'text', text } })

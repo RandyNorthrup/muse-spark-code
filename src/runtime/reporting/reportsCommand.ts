@@ -19,7 +19,13 @@ import { verifyReport } from '../../core/reporting/render/canonical'
 import { createReportRenderers } from '../../core/reporting/render'
 import { printable, type ReportLocalePort } from '../../core/reporting/render/display'
 import { reportScrubber, type ReportRedaction } from '../../core/reporting/render/redaction'
-import { parseReportsArguments, reportsUsage, type ReportsRequest } from './reportsArgs'
+import {
+  parseReportsArguments,
+  reportsHelp,
+  reportsUsage,
+  ReportUsageError,
+  type ReportsRequest,
+} from './reportsArgs'
 
 type Format = (typeof REPORT_FORMATS)[number]
 type Condition = (typeof REPORT_FAIL_ON)[number]
@@ -34,14 +40,13 @@ function newestFirst(a: HistoryEntry, b: HistoryEntry): number {
 async function historyEntries(
   history: NonNullable<ReportsServices['history']>,
   kind: ReportOptions['kind'],
-  deps: ReportsCommandDeps,
 ) {
   const result = reportsMethods['reports/history'].result.parse({
     status: 'listed',
     entries: await history.list(kind),
   })
   if (result.status !== 'listed' || result.entries.some((entry) => entry.header.kind !== kind))
-    throw new Error(deps.text.reportUi.generationFailed)
+    throw new Error('report history entries do not match the requested kind')
   return result.entries
 }
 
@@ -73,7 +78,7 @@ export interface ReportsServices {
 }
 
 export interface ReportsCommandDeps {
-  readonly text: Pick<UiText, 'reportUi' | 'reportCliUsage' | 'reportCliKinds'>
+  readonly text: Pick<UiText, 'reportUi' | 'reportCliUsage' | 'reportCliKinds' | 'reportKinds'>
   readonly services: ReportsServices
   readonly now: () => string
   readonly locale: string
@@ -95,21 +100,52 @@ function checkCancelled(deps: ReportsCommandDeps): void {
 function checkedSaved(value: unknown, request: ReportsRequest, deps: ReportsCommandDeps) {
   const document = verifyReport(value, deps.redaction)
   if (request.kind !== undefined && document.header.kind !== request.kind)
-    throw new Error(deps.text.reportUi.generationFailed)
+    throw new Error('the saved report is not the requested kind')
   return document
+}
+
+/** A parse failure answers usage, naming the missing piece when the parser said which. */
+function usageExit(deps: ReportsCommandDeps, error: unknown): number {
+  const usage = reportsUsage(deps.text)
+  deps.stderr(
+    error instanceof ReportUsageError ? `${deps.text.reportUi[error.code]}\n${usage}` : usage,
+  )
+  return REPORT_EXIT_CODES.usage
+}
+
+/** The failure the surface shows: the real reason, scrubbed, or the plain sentence when aborted. */
+function failureText(deps: ReportsCommandDeps, error: unknown): string {
+  if (deps.signal?.aborted) return deps.text.reportUi.generationFailed
+  // A syntax failure quotes its input: never shown, so a damaged saved
+  // file cannot echo its bytes back (the --from contract).
+  if (error instanceof SyntaxError) return deps.text.reportUi.generationFailed
+  const reason =
+    error instanceof Error && error.message !== ''
+      ? reportScrubber(deps.redaction)(error.message)
+      : deps.text.reportUi.generationFailed
+  return reason === deps.text.reportUi.generationFailed
+    ? reason
+    : fill(deps.text.reportUi.generationReason, { reason })
+}
+
+/** A run failure prints its scrubbed reason and answers the failure exit. */
+function failureExit(deps: ReportsCommandDeps, error: unknown): number {
+  deps.stderr(failureText(deps, error))
+  return REPORT_EXIT_CODES.failed
 }
 
 async function listHistory(request: ReportsRequest, deps: ReportsCommandDeps): Promise<string> {
   const history = deps.services.history
-  if (history === undefined) throw new Error(deps.text.reportUi.generationFailed)
+  if (history === undefined) throw new Error('report history is unavailable')
   const entries: HistoryEntry[] = []
   const kinds = request.kind === undefined ? REPORT_KINDS : [request.kind]
   for (const kind of kinds) {
     checkCancelled(deps)
-    const listed = await historyEntries(history, kind, deps)
+    const listed = await historyEntries(history, kind)
     for (const value of listed) {
       const entry = reportHistoryEntrySchema.parse(value)
-      if (entry.header.kind !== kind) throw new Error(deps.text.reportUi.generationFailed)
+      if (entry.header.kind !== kind)
+        throw new Error('report history entries do not match the requested kind')
       entries.push(entry)
     }
   }
@@ -137,11 +173,11 @@ async function comparison(
 ): Promise<string> {
   const { history, compare, renderDiff } = deps.services
   if (compare === undefined || renderDiff === undefined)
-    throw new Error(deps.text.reportUi.generationFailed)
+    throw new Error('report comparison is unavailable')
   let before: ReportDocument
   if (request.diff === 'previous') {
-    if (history === undefined) throw new Error(deps.text.reportUi.generationFailed)
-    const listed = await historyEntries(history, document.header.kind, deps)
+    if (history === undefined) throw new Error('report history is unavailable')
+    const listed = await historyEntries(history, document.header.kind)
     const entries = listed
       .filter(
         (entry) =>
@@ -154,17 +190,17 @@ async function comparison(
     if (entry === undefined) throw new Error(deps.text.reportUi.noHistory)
     before = checkedSaved(await history.get(document.header.kind, entry.id), request, deps)
   } else {
-    if (request.diff === undefined) throw new Error(deps.text.reportUi.generationFailed)
+    if (request.diff === undefined) throw new Error('a report diff needs its source')
     before = checkedSaved(await deps.readSaved(request.diff), request, deps)
   }
   if (before.header.kind !== document.header.kind || before.header.scope !== document.header.scope)
-    throw new Error(deps.text.reportUi.generationFailed)
+    throw new Error('the compared reports are from different scopes')
   const diff = reportDiffSchema.parse(compare(before, document))
   if (
     diff.from.contentHash !== before.header.contentHash ||
     diff.to.contentHash !== document.header.contentHash
   )
-    throw new Error(deps.text.reportUi.generationFailed)
+    throw new Error('the compared report changed during the comparison')
   return renderDiff(diff, document, request.format, locale, deps.theme)
 }
 
@@ -176,13 +212,12 @@ export async function runReportsCommand(
   let request: ReportsRequest
   try {
     if (argv.includes('--help') || argv.includes('-h')) {
-      deps.stdout(reportsUsage(deps.text))
+      deps.stdout(reportsHelp(deps.text))
       return REPORT_EXIT_CODES.generated
     }
     request = parseReportsArguments(argv)
-  } catch {
-    deps.stderr(reportsUsage(deps.text))
-    return REPORT_EXIT_CODES.usage
+  } catch (error) {
+    return usageExit(deps, error)
   }
   let output: string
   let code: number = REPORT_EXIT_CODES.generated
@@ -224,7 +259,7 @@ export async function runReportsCommand(
         }
         document = checkedSaved(result.document, request, deps)
         if (document.header.scope !== options.scope || document.header.asOf !== options.asOf)
-          throw new Error(deps.text.reportUi.generationFailed)
+          throw new Error('the generated report does not match the request')
       } else {
         document = checkedSaved(await deps.readSaved(request.from), request, deps)
       }
@@ -241,7 +276,7 @@ export async function runReportsCommand(
       if (failOn.length > 0) {
         const conditions = deps.services.conditions
         if (conditions === undefined && failOn.some((condition) => condition !== 'unavailable'))
-          throw new Error(deps.text.reportUi.generationFailed)
+          throw new Error('report conditions are unavailable')
         const held = new Set(conditions?.(document))
         if (document.sources.some((source) => source.status === 'unavailable'))
           held.add('unavailable')
@@ -254,9 +289,8 @@ export async function runReportsCommand(
       }
     }
     checkCancelled(deps)
-  } catch {
-    deps.stderr(deps.text.reportUi.generationFailed)
-    return REPORT_EXIT_CODES.failed
+  } catch (error) {
+    return failureExit(deps, error)
   }
   try {
     if (request.out === undefined) deps.stdout(output)

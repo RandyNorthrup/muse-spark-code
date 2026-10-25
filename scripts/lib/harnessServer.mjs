@@ -343,6 +343,9 @@ export const SCENARIOS = [
   'judge-setup-done',
   'report',
   'report-narrow',
+  // Lane REPORTFLOW: the nothing-can-connect hint (axe runs it; the visual
+  // manifest gains its baseline on review, never here).
+  'report-connect',
   'legal',
   'legal-narrow',
   'legal-preview',

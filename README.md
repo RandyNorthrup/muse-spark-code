@@ -5628,24 +5628,50 @@ without recording your conversation. The panel opens the same dialog from
 the palette's **Support** item **Report an Issue…**, from **Report This** on
 a recorded error notice or failed turn, and from **Report a Problem** on the
 panel's crash screen. With no conversation open, the command opens one and
-shows the dialog there.
+shows the dialog there; if the panel never becomes ready, the editor itself
+offers the same report as **Copy Report**, **Save to a File** and **Open
+Issue Page**, and **Report This** on a recorded row falls back to the same
+editor-native way out when the dialog cannot open.
 
 - **What goes in:** your description, support facts (versions, platform,
   backend and sandbox settings, whether the CLI was found and is signed in,
-  whether a key is stored or `META_API_KEY` is set, the names of Muse Spark
-  settings you changed) and up to the last 50 recorded failures with their
-  ages. Each item has **Remove**. The preview shows the exact, scrubbed text
-  every export uses.
+  whether a key is stored or `META_API_KEY` is set, what the Model API
+  sign-in reads from that, the backend actually running conversations, the
+  names of Muse Spark settings you changed, where you were when the dialog
+  opened, the last notice you were shown, your last sign-in attempt and how
+  the backend
+  choice resolved — all in fixed words, never your text) and up to the last
+  50 recorded failures with their ages, including sign-in, CLI probe and
+  backend-choice events recorded before any conversation exists. The draft
+  carries its build time (the ages' anchor), marks the event a **Report
+  This** meant, and counts the records it left out; a fact its read could
+  not answer reads `unknown` with a fixed reason instead of losing the
+  report. Each item has **Remove**. The preview shows the exact, scrubbed
+  text every export uses.
 - **Where it goes:** **Copy Report**, **Open Issue Page** (this repository's
   new-issue form in your browser, filled in), **Save to a File**, or, where
-  VS Code has it, **Use the VS Code Issue Reporter**. The extension posts
-  nothing itself, makes no network or model call and has no GitHub access.
+  VS Code has it, **Use the VS Code Issue Reporter**. No description is
+  refused: the field asks what you did, what you expected and what happened
+  instead, and every export stays available with an empty one. The extension
+  posts nothing itself, makes no network or model call and has no GitHub
+  access.
+- **When nothing can connect:** the dialog says so above the form and offers
+  the landing screen's own two actions (sign in to Muse Code, add a Model
+  API key). It never blocks the report.
+- **When the draft cannot be rebuilt:** the dialog says so in its own status
+  line and keeps your last draft; your next edit retries.
 - **After a crash:** at its next start the extension offers once, "Muse
   Spark Code stopped unexpectedly last time — report it?". It cannot tell a
   crash from a killed process or a power loss, and it cannot see a crash in
   the moment after the extension starts, before its recorder has loaded.
-- **Other editors:** `muse-spark-code-acp report` prints the same kind of
-  report in a terminal ([docs/acp.md](docs/acp.md#report-a-problem-m93)).
+- **Other editors:** `/report problem <what happened>` in any ACP editor
+  (Zed, JetBrains, Neovim, Emacs) answers the same scrubbed draft in the
+  reply with the issue link, and `muse-spark-code-acp report` prints the
+  same kind of report in a terminal
+  ([docs/acp.md](docs/acp.md#report-a-problem-m93)). The printed report
+  takes an optional `--description` and says why it could not be built
+  (field and fixed reason) on stderr and in the log; `--out <file>` writes
+  the file. A report also builds on `android` (code-server on Termux).
 
 What the recorder keeps, where, for how long, and what each export does:
 [PRIVACY.md](docs/PRIVACY.md#reporting-a-problem).

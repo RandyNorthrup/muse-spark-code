@@ -18,6 +18,7 @@ import { sharedResourceAdmission } from '../../scripts/lib/deferredBundles.mjs'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { FIXTURE_HOOK_TIMEOUT_MS } from '../unit/helpers/fixtureBudget'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { writeDeveloperAudit } from '../unit/helpers/reporting/tempDir'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { FilePlaybookJournal } from '../../src/core/orchestration/playbook/journal'
@@ -209,7 +210,7 @@ beforeAll(async () => {
   )
   const journal = new UsageJournalStore(new NodeUsageFs(agentDataFolder(input)), {
     writerId: 'e2e-writer',
-    now: () => Date.parse(LIVE_AS_OF),
+    now: () => toEpochMs(Date.parse(LIVE_AS_OF)),
     isEnabled: () => true,
     onWriteError: () => {
       throw new Error('e2e journal write failed')
@@ -475,6 +476,43 @@ describe('reports CLI subprocess', () => {
     expect(result.code).toBe(0)
     expect(result.stdout).toEqual(expect.stringContaining('# Projekt'))
     expect(result.stderr).not.toEqual(expect.stringContaining('backend'))
+  })
+})
+
+/** The saved fixture through a fresh report process whose clock is in `zone`. */
+async function inZone(zone: string, args: readonly string[]) {
+  return await runCli(state.command, ['--from', 'fixture.json', ...args], state.root, {
+    PATH: process.env['PATH'],
+    SystemRoot: process.env['SystemRoot'],
+    LC_ALL: 'en_US.UTF-8',
+    TZ: zone,
+  })
+}
+
+describe('report determinism across processes, time zones and languages', () => {
+  // A saved report names its own instants, so no machine-local day enters
+  // its bytes: every zone, a fresh process each time, prints the same text,
+  // and a language changes the words, never from one zone to the next.
+  const zones = ['UTC', 'Asia/Kolkata', 'Pacific/Kiritimati', 'America/Los_Angeles'] as const
+  let germanInUtc: string | undefined
+
+  it.each(zones)('prints the same saved report in %s, in English and in German', async (zone) => {
+    const english = await inZone(zone, ['--format', 'md'])
+    expect(english).toEqual({
+      code: 0,
+      stdout: await readFile(
+        path.join(sourceRoot, 'test/fixtures/reports/project.md.golden'),
+        'utf8',
+      ),
+      stderr: '',
+    })
+    const german = await inZone(zone, ['--format', 'md', '--lang', 'de'])
+    expect(german.code).toBe(0)
+    expect(german.stdout).toEqual(expect.stringContaining('# Projekt'))
+    const text: unknown = german.stdout
+    if (typeof text !== 'string') throw new TypeError('the report command printed no text')
+    germanInUtc ??= text
+    expect(text).toBe(germanInUtc)
   })
 })
 

@@ -198,15 +198,15 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     const previous = this.snapshot
     try {
       if (this.status() === previous?.status) return
-    } catch {
-      this.options.onError()
+    } catch (error) {
+      this.options.onError(error)
       return
     }
     for (const listener of this.statusListeners) {
       try {
         listener()
-      } catch {
-        this.options.onError()
+      } catch (error) {
+        this.options.onError(error)
       }
     }
   }
@@ -366,7 +366,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
             // A policy stop the kernel refused is a sampler failure of its
             // own: stamp its cause so a stale race cause cannot stand in.
             work.samplerCause = 'sampler-error'
-            this.options.onError()
+            this.options.onError(new Error('the stopped job was not observed done'))
           }
         }
       }
@@ -379,7 +379,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
       work.ticket = undefined
       work.usage = undefined
       work.samplerCause = samplerCauseOf(error)
-      this.options.onError()
+      this.options.onError(error)
     }
   }
 
@@ -440,7 +440,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     if (launched.attested === true) {
       if (this.work.has(work)) {
         work.known = false
-        this.options.onError()
+        this.options.onError(new Error('an attested stop was never observed'))
       }
       return
     }
@@ -457,7 +457,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
     }
     // Never observed: kept as uncertain, its temp root left for recovery, and said so.
     work.known = false
-    this.options.onError()
+    this.options.onError(new Error('a stopped tree was never observed gone'))
   }
 
   private async awaitGone(work: Work, launched: ResourceProcessLaunch): Promise<boolean> {
@@ -683,7 +683,7 @@ export class ResourceLaunchHost implements ResourceAdmissionPort {
         // Exit never observed: release admission, keep the temp root, report it.
         work.failed = true
         this.retire(work, false)
-        this.options.onError()
+        this.options.onError(new Error('a process exit was never observed'))
       },
       register: (process) => {
         if (!this.work.has(work)) return

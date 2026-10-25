@@ -5,7 +5,7 @@ output for each of the 15 `report-v1` kinds. The `.golden` suffix preserves
 the renderer's exact bytes; the general formatter does not rewrite them.
 All have LF and exactly one trailing newline.
 
-The normalized documents come from `test/unit/reportRenderFixtures.ts`,
+The normalized documents come from `test/unit/reportKindRenderFixtures.ts`,
 using lane 0's document builder, fixed time, versions, locale and themes.
 The real fixed-date Git fixture is built once in `determinism.test.ts`; its
 two commit subjects are checked against the normalized golden facts.

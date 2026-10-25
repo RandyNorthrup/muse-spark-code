@@ -1016,6 +1016,18 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
     ],
   },
   {
+    file: 'reportFallback.js',
+    side: 'vscode',
+    requestedBy: [
+      { importer: 'src/extension.ts', symbol: 'runReportFallbackNow', side: ['vscode'] },
+      {
+        importer: 'src/host/conversation/conversationController.ts',
+        symbol: 'ConversationController.runReportFallback',
+        side: ['vscode'],
+      },
+    ],
+  },
+  {
     file: 'reporting.js',
     side: 'both',
     requestedBy: [
@@ -1507,6 +1519,17 @@ export const LAZY_BUNDLES: readonly LazyBundleRow[] = [
       {
         importer: 'src/runtime/usage/usageAdapter.ts',
         symbol: 'lazyUsageAdapter',
+        side: ['acp', 'vscode'],
+      },
+    ],
+  },
+  {
+    file: 'usageExport.js',
+    side: 'both',
+    requestedBy: [
+      {
+        importer: 'src/runtime/usage/usageServiceEntry.ts',
+        symbol: 'service',
         side: ['acp', 'vscode'],
       },
     ],

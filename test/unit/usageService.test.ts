@@ -58,7 +58,7 @@ function deps(
     readBudgets: () => Promise.resolve([]),
     readLiveLimits: () => Promise.resolve([]),
     ...(currentCredentialId !== undefined && { currentCredentialId }),
-    readAttempts: () => Promise.resolve([]),
+    readAttempts: () => Promise.resolve({ attempts: [], stale: false }),
     providerConsoles: () => [],
     exportFile: () =>
       Promise.resolve({ name: 'usage.json', mimeType: 'application/json', content: '{}' }),

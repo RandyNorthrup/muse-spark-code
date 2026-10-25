@@ -15,6 +15,7 @@ import { mapNotification } from '../../src/core/backends/musecode/mapNotificatio
 import { MuseUsageDeltas } from '../../src/core/backends/musecode/usageDeltas'
 import { createUsageRecording } from '../../src/core/usage/recording'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
+import { toEpochMs } from '../../src/shared/epochMs'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 
 const NOW = 1_790_000_000_000
@@ -39,12 +40,12 @@ async function journaled(model: string, prefix: string) {
   const store = new UsageJournalStore(new NodeUsageFs(dataFolder, () => NOW), {
     writerId: 'deltas-test',
     isEnabled: () => true,
-    now: () => NOW,
+    now: () => toEpochMs(NOW),
     onWriteError: () => undefined,
   })
   const recording = createUsageRecording({
     client: 'test',
-    now: () => NOW,
+    now: () => toEpochMs(NOW),
     newId: () => `note-${String((ids += 1))}`,
     isEnabled: () => true,
     writer: () => Promise.resolve(store),

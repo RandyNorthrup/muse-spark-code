@@ -485,6 +485,20 @@ export const DEFERRED = [
     ],
   },
   {
+    // RLUSAGE: the usage export encoders, required by dist/usageService.js
+    // on the first export (D6). The service must not carry them statically.
+    output: 'dist/usageExport.js',
+    metafile: 'dist/meta/usageExport.json',
+    use: 'the first usage export',
+    parents: [
+      BUNDLES.activation,
+      BUNDLES.modelApi,
+      BUNDLES.acp,
+      { output: 'dist/usageService.js', metafile: 'dist/meta/usageService.json' },
+    ],
+    files: ['src/core/usage/usageExportEntry.ts', 'src/core/usage/usageExport.ts'],
+  },
+  {
     output: 'dist/usageCompanion.js',
     metafile: 'dist/meta/usageCompanion.json',
     files: ['src/runtime/usage/usageCompanionEntry.ts', 'src/runtime/companion/server.ts'],
@@ -1215,6 +1229,20 @@ export const ON_FIRST_USE = [
       'src/core/support/report.ts',
     ],
   },
+  // The report fallback (lane REPORTFLOW R2): the same sealed draft behind
+  // the editor's own quick pick, when the dialog cannot open. Split out
+  // beside the dialog bundle it replaces, never into activation.
+  {
+    output: 'dist/reportFallback.js',
+    metafile: 'dist/meta/reportFallback.json',
+    use: 'the report fallback',
+    files: [
+      'src/host/support/reportFallbackEntry.ts',
+      'src/host/support/reportFallback.ts',
+      'src/host/support/reportProblem.ts',
+      'src/core/support/problemReport.ts',
+    ],
+  },
   // The capacity estimator's engine (M117, PLAN.md D6, D97): the host, the
   // CLI and the ACP agent require it the first time an estimate runs.
   {
@@ -1682,6 +1710,11 @@ export function checkDeferredBundles(inputsOf, metafileOf) {
         !(
           source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/reportInputs.js'
         ) &&
+        // RLUSAGE: the usage export encoders read the same journal store
+        // schemas; the export never prices either.
+        !(
+          source === 'src/core/providers/priceCard.ts' && bundle.output === 'dist/usageExport.js'
+        ) &&
         !(
           source === 'src/core/providers/keyInspection.ts' &&
           (bundle.output === 'dist/modelsPanel.js' || bundle.output === 'dist/runtimeAccounts.js')
@@ -1833,6 +1866,7 @@ export const DEFERRED_OUTFILES = new Map([
   [path.resolve('src/runtime/exec/runExec.ts'), 'dist/headless.js'],
   [path.resolve('src/runtime/exec/execTeamEntry.ts'), 'dist/execTeam.js'],
   [path.resolve('src/runtime/usage/usageAcp.ts'), 'dist/usageService.js'],
+  [path.resolve('src/core/usage/usageExportEntry.ts'), 'dist/usageExport.js'],
   [path.resolve('src/host/backend/providersEntry.ts'), 'dist/providers.js'],
   [path.resolve('src/host/backend/subscriptionsEntry.ts'), 'dist/subscriptions.js'],
   [path.resolve('src/host/backend/subscriptionCommandsEntry.ts'), 'dist/subscriptionCommands.js'],
@@ -1854,6 +1888,7 @@ export const DEFERRED_OUTFILES = new Map([
     path.resolve('src/host/conversation/conversationTransferEntry.ts'),
     'dist/conversationTransfer.js',
   ],
+  [path.resolve('src/host/support/reportFallbackEntry.ts'), 'dist/reportFallback.js'],
   [path.resolve('src/host/support/recorderEntry.ts'), 'dist/recorder.js'],
   [path.resolve('src/core/credentialLeaseEntry.ts'), 'dist/credentialLease.js'],
   [path.resolve('src/host/sessionBoardEntry.ts'), 'dist/sessionBoard.js'],
@@ -1972,7 +2007,7 @@ export const deferredCohort = {
     build.onResolve(
       {
         filter:
-          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
+          /\/(?:mcpPoolEntry|execEntry|providerListEntry|codeIntelEntry|resourceGovernorEntry|resourceProcessEntry|mcpVaultEntry|accountPaidEntry|modelEffortsEntry|sessionBoardEntry|reviewerEntry|foreignHooksEntry|hookRuntimeEntry|pluginHooksEntry|modelApiToolsEntry|modelApiFileRangeEntry|modelApiVerifyEntry|modelApiImageEntry|modelApiB1Entry|modelApiToolRunEntry|modelApiFastEntry|legalFixEntry|approvalModesEntry|scheduleDeliveryEntry|scheduleSurfacesEntry|webFetchEntry|commandsEntry|conversationTransferEntry|reportEntry|reportFallbackEntry|recorderEntry|credentialLeaseEntry|deferralEntry|runtimeEngineEntry|runtimeAccountingEntry|modelApiHooksEntry|modelApiMcpEntry|modelApiAcpEntry|teamEntry|teamSchedulerEntry|teamRunnersEntry|teamPanelEntry|teamHostEntry|teamEngineEntry|teamMergeFlow|workerToolIoEntry|execTeamEntry|workerCreateEntry|workerOpsEntry|usageAcp|usageExportEntry|runExec|providerPolicyEntry|providersEntry|subscriptionsEntry|subscriptionCommandsEntry|configuredProvidersEntry|chatGptProviderCommands|grokProviderCommands|schedulesEntry|backgroundEntry|inspectEntry|authEntry|paidEntry|productionMediaEntry|productionAudioEntry|runtimeMediaEntry|toolRangeEntry|estimateActionsEntry|windowsEntry)(?:\.[jt]s)?$/,
       },
       (args) => {
         const source = path.resolve(args.resolveDir, `${args.path.replace(/\.[jt]s$/, '')}.ts`)

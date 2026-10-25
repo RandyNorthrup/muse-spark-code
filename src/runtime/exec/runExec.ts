@@ -1,4 +1,5 @@
 import { Usd, sumUsd, type UsdAmount } from '../../shared/usd'
+import { toEpochMs, type EpochMs } from '../../shared/epochMs'
 import type * as acp from '@agentclientprotocol/sdk/unstable'
 import { constants as fileFlags, stat, realpath, open, type FileHandle } from 'node:fs/promises'
 import {
@@ -385,11 +386,14 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
       if (!isFinished) rawLog.error(message)
     },
   }
+  // The exec clock measures spans; the journal keeps whole epoch
+  // milliseconds, so the boundary rounds once, here, and never downstream.
+  const epochClock = (): EpochMs => toEpochMs(deps.now())
   const usageRecording =
     deps.usageRecording ??
     createUsageRecording({
       client: 'cli',
-      now: deps.now,
+      now: epochClock,
       newId: () => randomUUID(),
       isEnabled: () => !options.ephemeral && (deps.isUsageHistoryEnabled?.() ?? true),
       log,
@@ -399,7 +403,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
         return await bundle.createUsageWriter({
           dataFolder: agentDataFolder(deps),
           writerId: randomUUID(),
-          now: deps.now,
+          now: epochClock,
           isEnabled: () => !options.ephemeral && (deps.isUsageHistoryEnabled?.() ?? true),
           onWriteError,
           onInvalidSettings: () => {
@@ -998,7 +1002,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
                     provider: 'meta',
                     model: MODEL_API_IMAGE_MODEL,
                     kind: 'image',
-                    startedAt,
+                    startedAt: toEpochMs(startedAt),
                     session: setup.sessionId ?? undefined,
                     durationMs: Math.max(0, deps.now() - startedAt),
                     units: { images: event.phase === 'refunded' ? 0 : event.units },
@@ -1804,7 +1808,7 @@ export async function runExec(lifecycle: Lifecycle, deps: ExecDeps): Promise<num
           },
         }),
       limits,
-      durationMs: Math.max(0, deps.now() - lifecycle.startMs),
+      durationMs: Math.round(Math.max(0, deps.now() - lifecycle.startMs)),
       error:
         status === 'completed'
           ? null

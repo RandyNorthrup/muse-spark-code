@@ -566,6 +566,8 @@ export function featureCatalog(): readonly Feature[] {
     ),
     // M121: exact costs and period changes; unproved historical months are
     // withheld with a translated notice in editor and portable usage views.
+    // M102 recovery: trace and journal failures are disclosed independently;
+    // trace snapshots retain every file and byte without an app-owned ceiling.
     feature(
       'usage',
       { ui: 'usagePageTitle' },

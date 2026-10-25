@@ -260,7 +260,7 @@ import type {
   WebviewToHostMessage,
 } from '../../shared/protocol'
 
-import type { UsageInsightsReport } from '../../runtime/usage/traceLogs'
+import type { TraceInsights } from '../../runtime/usage/traceLogs'
 import type { EstimateInputs } from '../../shared/estimate'
 import type { EstimatorRun } from '../estimator/estimatorBundle'
 import { uploadedFilesReportSchema } from '../../shared/media'
@@ -334,8 +334,10 @@ import { type AttentionNotice, attentionNotice, notifyOpenQuestions } from './tu
 import type { SessionExport } from '../../core/export/sessionTransfer'
 import type { PickedTransferFile, SessionTransferFiles } from './sessionImport'
 import type { ReportDataSource, ReportProblemMessage } from './reportProblemHandler'
+import type { ReportFallbackWindow } from '../support/reportFallback'
 import type { ReportEditorIo } from '../support/reportProblem'
 import type * as ReportBundle from '../support/reportEntry'
+import type * as ReportFallbackBundle from '../support/reportFallbackEntry'
 
 /**
 Report a problem (M93, PLAN.md D72) as a surface sees it: the dialog's
@@ -346,6 +348,8 @@ export interface ConversationReports {
   readonly source: ReportDataSource
   /** The editor's clipboard, browser, save picker and issue reporter for the exports. */
   readonly io: ReportEditorIo
+  /** The editor's pick and messages for the fallback (lane REPORTFLOW R2). */
+  readonly window: ReportFallbackWindow
   /** Journals the webview's scrubbed failure (the recorder bounds how many). */
   readonly recordWebviewError: (error: ReportWebviewError) => void
   /**
@@ -663,7 +667,7 @@ export interface ConversationDeps {
   /** Lazy media account bridge, also bound by the runtime/companion integration. */
   readonly uploadedFiles?: ConversationUploadedFilesPort
   /** The usage modal's insights from the CLI's trace logs (M14); undefined without logs. */
-  readonly usageInsights: () => Promise<UsageInsightsReport | undefined>
+  readonly usageInsights: () => Promise<TraceInsights>
   readonly readProviderKeyUsage?: () => Promise<readonly ProviderUsageRow[]>
   /** Whether this surface resumes its last session when it reopens (the sidebar). */
   readonly isRestorable: boolean
@@ -11014,7 +11018,11 @@ export class ConversationController implements DeferredSend {
           if (this.usageHost === watched) {
             this.usageEventRevision += 1
           }
-          void this.postUsage(watched, usage)
+          // Owned: a refresh failure goes to the log, never an unhandled
+          // rejection in the extension host.
+          void this.postUsage(watched, usage).catch(() => {
+            this.deps.log.warn('Usage refresh could not be read')
+          })
         }),
       )
       const subscription = await host.readUsage()
@@ -11094,7 +11102,6 @@ export class ConversationController implements DeferredSend {
         // The recording port logs its fixed diagnostic once; live sources still render.
       }
     }
-    const insights = host.info.kind === 'museCode' ? await this.deps.usageInsights() : undefined
     if (this.deps.readProviderKeyUsage !== undefined) {
       try {
         const observations = await this.deps.readProviderKeyUsage()
@@ -11113,10 +11120,29 @@ export class ConversationController implements DeferredSend {
         this.deps.log.warn('Provider key usage could not be read')
       }
     }
+    // Trace failure is disclosed without hiding subscription or provider usage.
+    let chatInsights: TraceInsights | undefined
+    if (host.info.kind === 'museCode') {
+      try {
+        chatInsights = await this.deps.usageInsights()
+      } catch {
+        this.deps.log.warn('Usage insights could not be read')
+      }
+    }
     // An older read or a stopped host must not replace a newer observation.
     if (!this.canPostUsage(host) || this.latestUsage !== shown) {
       return
     }
+    // The "no trace logs" sentence is reachable only through `empty` (the
+    // listing succeeded and found no file): never from an error, which
+    // reads `unavailable`, and never from a stale stand-in.
+    const insightsState =
+      chatInsights === undefined
+        ? ('unavailable' as const)
+        : (chatInsights.notice ??
+          (chatInsights.report === undefined && chatInsights.empty
+            ? ('empty' as const)
+            : undefined))
     this.post({
       type: 'usageReport',
       ...(serviceStatus !== undefined && { serviceStatus }),
@@ -11124,7 +11150,8 @@ export class ConversationController implements DeferredSend {
       account,
       ...(providers.length > 0 && { providers }),
       ...(shown !== undefined && { subscription: shown }),
-      ...(insights !== undefined && { insights }),
+      ...(chatInsights?.report !== undefined && { insights: chatInsights.report }),
+      ...(host.info.kind === 'museCode' && insightsState !== undefined && { insightsState }),
       ...(host.readPlanUsage !== undefined && { plans: [...host.readPlanUsage()] }),
     })
   }
@@ -11579,9 +11606,12 @@ export class ConversationController implements DeferredSend {
     try {
       handler = await this.reportProblemHandler(reports)
     } catch (error: unknown) {
+      // The report bundle cannot load: the editor itself is the way out
+      // (lane REPORTFLOW R2). A failed import never circles back into the
+      // same bundle: the fallback needs neither the webview nor it.
       this.reportHandler = undefined
       this.deps.log.error(`The report bundle could not be loaded: ${failureForLog(error)}`)
-      this.notice('error', UI_TEXT.actionFailed)
+      await this.runReportFallback(reports, message)
       return
     }
     await handler.handle(message)
@@ -11627,6 +11657,34 @@ export class ConversationController implements DeferredSend {
       this.deps.log.error(`The transfer bundle could not be loaded: ${failureForLog(error)}`)
       this.notice('error', failure)
       return undefined
+    }
+  }
+
+  /**
+  The editor-native fallback for a report message the dialog cannot open
+  (lane REPORTFLOW R2): the sealed draft behind Copy, Save and the issue
+  page. A fallback that itself fails says so once, in fixed words.
+  */
+  private async runReportFallback(
+    reports: ConversationReports,
+    message: ReportProblemMessage,
+  ): Promise<void> {
+    const ref = message.type === 'openReport' ? message.ref : undefined
+    const panelState = message.type === 'openReport' ? message.panelState : undefined
+    try {
+      const bundle: typeof ReportFallbackBundle = await import('../support/reportFallbackEntry')
+      if (typeof bundle.createReportFallback !== 'function') {
+        throw new TypeError('The report fallback bundle does not export its factory')
+      }
+      const fallback = bundle.createReportFallback(
+        { source: reports.source, io: reports.io, window: reports.window, log: this.deps.log },
+        UI_TEXT,
+        uiLocale(),
+      )
+      await fallback.run(ref, panelState)
+    } catch (error: unknown) {
+      this.deps.log.error(`The report fallback failed: ${failureForLog(error)}`)
+      this.notice('error', UI_TEXT.actionFailed)
     }
   }
 

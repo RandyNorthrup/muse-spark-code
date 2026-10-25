@@ -144,6 +144,8 @@ export interface UsageReport {
   readonly subscription: SubscriptionUsage | undefined
   readonly account: AccountFacts | undefined
   readonly insights: { readonly day: UsageInsights; readonly week: UsageInsights } | undefined
+  /** The trace read's state: `empty` alone allows the "no logs" sentence. */
+  readonly insightsState?: 'empty' | 'behind' | 'unavailable' | undefined
   /** This window's tallies per BYO provider (M95); undefined until one is used. */
   readonly providers: readonly ProviderUsageRow[] | undefined
   /** The Team section (M96 lane U2); absent where the team cannot run. */
@@ -213,8 +215,16 @@ export interface ReportDialogState {
   /** The VS Code reporter action shows only while its command exists. */
   readonly canUseVscodeReporter: boolean
   readonly recordingUnavailable: boolean
+  /** Nothing can connect (lane REPORTFLOW): the dialog offers the landing screen's own two actions. */
+  readonly connectHint: boolean
   /** The last export attempt's answer; cleared by the next draft. */
   readonly exportStatus: ReportExportStatus | undefined
+  /**
+  The last rebuild refused (lane REPORTFLOW R2): the dialog shows the
+  previous draft with the failure in its status line. Cleared by the next
+  fresh draft.
+  */
+  readonly rebuildFailed: boolean
 }
 
 export interface OutputPage {
@@ -596,6 +606,12 @@ export interface UiState {
   */
   readonly report: ReportDialogState | undefined
   /**
+  The report's draft is on its way (lane REPORTFLOW R2): set when the
+  report is asked for, cleared by the draft, its failure, or closing.
+  The dialog opens working while this is set with no draft yet.
+  */
+  readonly reportLoading: boolean
+  /**
   The newest report session the user closed (0 for none): a draft still on
   its way for it, or for an older one, never reopens the dialog.
   */
@@ -734,6 +750,11 @@ export type UiAction =
   | { readonly type: 'setupCompleteDismissed' }
   /** Cancel (or Escape, the × or the backdrop) on the report dialog (M93 lane W). */
   | { readonly type: 'reportClosed' }
+  /**
+  The report was asked for and its draft is on its way (lane REPORTFLOW
+  R2): the dialog opens working instead of the button doing nothing.
+  */
+  | { readonly type: 'reportOpening' }
   /** The × (or Escape, or the backdrop) on the legal report (M97 lane W). */
   | { readonly type: 'legalReportClosed' }
   | { readonly type: 'legalFixRequested'; readonly requestId: string }
@@ -852,6 +873,7 @@ export const initialUiState: UiState = {
   share: undefined,
   setupComplete: undefined,
   report: undefined,
+  reportLoading: false,
   closedReportSession: 0,
   isImported: false,
 }
@@ -3271,6 +3293,7 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           ...(message.serviceStatus !== undefined && { serviceStatus: message.serviceStatus }),
           account: message.account,
           insights: message.insights,
+          insightsState: message.insightsState,
           team: message.team,
           providers: message.providers === undefined ? undefined : [...message.providers],
           plans: message.plans,
@@ -3819,7 +3842,15 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
         return state
       }
       const { type: _draft, ...draft } = message
-      return { ...state, report: { ...draft, exportStatus: undefined } }
+      return {
+        ...state,
+        reportLoading: false,
+        report: {
+          ...draft,
+          rebuildFailed: message.rebuildFailed ?? false,
+          exportStatus: undefined,
+        },
+      }
     }
     case 'reportExported': {
       // An export attempt's answer in fixed words (M93 lane W): shown on
@@ -3841,6 +3872,12 @@ function applyHostMessage(state: UiState, message: HostToWebviewMessage, at: num
           },
         },
       }
+    }
+    case 'reportFailed': {
+      // The open found no draft (lane REPORTFLOW R2): the wait is over and
+      // no dialog owns this failure. The transcript notice already said
+      // why, so this only stops the working dialog.
+      return { ...state, reportLoading: false }
     }
     case 'outputPage': {
       const key = outputPageKey(message.itemId, message.outputRef)
@@ -4335,8 +4372,14 @@ export function uiReducer(state: UiState, action: UiAction): UiState {
       return {
         ...state,
         report: undefined,
+        reportLoading: false,
         closedReportSession: Math.max(state.closedReportSession, state.report?.session ?? 0),
       }
+    }
+    case 'reportOpening': {
+      // The dialog opens working while the host gathers: bounded by the
+      // snapshot's deadline, cleared by the draft or its failure.
+      return { ...state, reportLoading: true }
     }
     case 'legalFixRequested': {
       return {

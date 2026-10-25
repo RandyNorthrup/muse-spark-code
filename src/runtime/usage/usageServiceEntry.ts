@@ -9,7 +9,7 @@ import {
 import { usageText, type UsageTextFormat } from '../../core/usage/usageText'
 import { usageFailureForLog } from '../../core/usage/failures'
 import type { UiText } from '../../shared/l10n/en'
-import { setUiText } from '../../shared/l10n/text'
+import { fill, setUiText, UI_TEXT } from '../../shared/l10n/text'
 import { setUsageText } from '../../shared/l10n/usageTable'
 import {
   usageServiceToPageMessageSchema,
@@ -36,15 +36,12 @@ import { readUsageTableFile } from './usageTableFile'
 import { isInvalidUsageSettings, readUsageHistorySettings } from './usageSettingsFile'
 import { resourceHistoryReader } from '../resources/history'
 import { CHECKPOINT_STORAGE_MODE } from '../../shared/constants'
-import {
-  exportUsageCallsCsv,
-  exportUsageJson,
-  exportUsageSummaryCsv,
-} from '../../core/usage/usageExport'
+import type * as UsageExportBundle from '../../core/usage/usageExportEntry'
 import { usageRange, type UsageAggregateRow } from '../../core/usage/aggregate'
 import type { UsageAccess, UsageAccessDeps, UsagePagePorts } from './usageAdapter'
 import type { UsageWriterBundle } from '../../core/usage/recording'
-import { readTraceAttempts } from './traceLogs'
+import { epochNow } from '../../shared/epochMs'
+import { readTraceAttemptSummary } from './traceLogs'
 import { writeFileAtomically } from '../../host/fsAtomic'
 import { setTimeout as delay } from 'node:timers/promises'
 
@@ -106,10 +103,10 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
   }
   const store = new UsageJournalStore(new NodeUsageFs(deps.dataFolder), {
     writerId: randomUUID(),
-    now: Date.now,
+    now: epochNow,
     isEnabled: () => settings().enabled,
     onWriteError: (_code, error) => {
-      deps.log.warn(`Usage history could not be recorded (${usageFailureForLog(error)})`)
+      deps.log.warn(fill(UI_TEXT.usageNotRecorded, { reason: usageFailureForLog(error) }))
     },
   })
   // M107 J: the same machine journal the governors record; read-only here.
@@ -185,7 +182,8 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
       ...(deps.live?.currentCredentialId !== undefined && {
         currentCredentialId: deps.live.currentCredentialId,
       }),
-      readAttempts: deps.live?.readAttempts ?? (() => readTraceAttempts({ homeDir: homedir() })),
+      readAttempts:
+        deps.live?.readAttempts ?? (() => readTraceAttemptSummary({ homeDir: homedir() })),
       providerConsoles: () => {
         const consoles = deps.live?.providerConsoles() ?? []
         return [
@@ -220,21 +218,25 @@ export function createUsageAccess(deps: UsageAccessDeps): UsageAccess {
         openModels: ports.openModels,
         openExternal: ports.openExternal,
       }),
-      exportFile: (format, _journal, state) => {
+      exportFile: async (format, _journal, state) => {
         const journal = snapshots.get(_journal)
         if (journal === undefined) throw new Error('missingUsageSnapshot')
+        // The encoders ride dist/usageExport.js (D6), required on the
+        // first export; a failed load refuses the export, never an
+        // empty file.
+        const encoders: typeof UsageExportBundle = await import('../../core/usage/usageExportEntry')
         const { from, to } = usageRange(state.query, state.generatedAt)
         const range = { from, to }
         let content: string
-        if (format === 'json') content = exportUsageJson(journal, range, state)
+        if (format === 'json') content = encoders.exportUsageJson(journal, range, state)
         else if (format === 'callsCsv')
-          content = exportUsageCallsCsv(journal, range, state.generatedAt)
-        else content = exportUsageSummaryCsv(state)
-        return Promise.resolve({
+          content = encoders.exportUsageCallsCsv(journal, range, state.generatedAt)
+        else content = encoders.exportUsageSummaryCsv(state)
+        return {
           name: `usage.${format === 'json' ? 'json' : 'csv'}`,
           mimeType: format === 'json' ? 'application/json' : 'text/csv',
           content,
-        })
+        }
       },
     })
   return {

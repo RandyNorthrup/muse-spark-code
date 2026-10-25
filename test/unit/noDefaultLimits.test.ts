@@ -26,7 +26,9 @@ import { uploadExpirySeconds } from '../../src/core/backends/modelapi/files'
 import { readUsageHistorySettings } from '../../src/runtime/usage/usageSettingsFile'
 import { usageLocalDay } from '../../src/core/usage/aggregate'
 import { UsageJournalStore } from '../../src/core/usage/journalStore'
-import { createUsageRecord, type UsageRecordContext } from '../../src/core/usage/journalRecord'
+import { toEpochMs } from '../../src/shared/epochMs'
+import { createUsageRecord } from '../../src/core/usage/journalRecord'
+import { usageRecordContextAt } from './helpers/usageRecordContext'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import { resourceSettingsSchema } from '../../src/shared/resources'
 import { checkMediaLimits } from '../../src/core/media/limits'
@@ -64,18 +66,7 @@ function silentLog(warnings: string[]): Logger {
 }
 
 function recordAt(at: number): unknown {
-  const context: UsageRecordContext = {
-    id: `call-${String(at)}`,
-    at,
-    startedAt: at - 1000,
-    client: 'Zed',
-    backend: 'modelApi',
-    provider: 'custom',
-    model: 'test-model',
-    kind: 'turn',
-    outcome: 'completed',
-  }
-  return createUsageRecord(undefined, context)
+  return createUsageRecord(undefined, usageRecordContextAt(at))
 }
 
 // NOLIMITSALL (PLAN.md D121): every limit setting defaults to no limit; the
@@ -603,7 +594,7 @@ describe('no default limits: usage history days', () => {
     const store = new UsageJournalStore(new NodeUsageFs(root), {
       writerId: 'test-writer',
       isEnabled: () => true,
-      now: () => now,
+      now: () => toEpochMs(now),
       onWriteError: () => undefined,
     })
     const dayMs = 24 * 60 * 60 * 1000

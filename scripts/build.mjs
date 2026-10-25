@@ -340,6 +340,7 @@ const MODELS_SUBSCRIPTIONS_OUTFILE = 'dist/modelsSubscriptions.js'
 const COMMANDS_ENTRY = 'src/host/commands/commandsEntry.ts'
 const COMMANDS_OUTFILE = 'dist/commands.js'
 const USAGE_SERVICE_ENTRY = 'src/runtime/usage/usageServiceEntry.ts'
+const USAGE_EXPORT_ENTRY = 'src/core/usage/usageExportEntry.ts'
 const USAGE_COMPANION_ENTRY = 'src/runtime/usage/usageCompanionEntry.ts'
 const USAGE_PANEL_ENTRY = 'src/host/vscode/usage/usagePanelEntry.ts'
 const EXTENSION_HOOKS_ENTRY = 'src/host/extensionHooksEntry.ts'
@@ -370,6 +371,11 @@ const SEARCH_WORKER_ENTRY = 'src/host/backend/searchWorker.ts'
 const SEARCH_WORKER_OUTFILE = 'dist/searchWorker.js'
 const REPORT_ENTRY = 'src/host/support/reportEntry.ts'
 const REPORT_OUTFILE = 'dist/report.js'
+// Lane REPORTFLOW R2: the editor-native fallback (the sealed draft behind a
+// quick pick), loaded when the report entry cannot be loaded or no
+// conversation surface becomes ready.
+const REPORT_FALLBACK_ENTRY = 'src/host/support/reportFallbackEntry.ts'
+const REPORT_FALLBACK_OUTFILE = 'dist/reportFallback.js'
 const ESTIMATOR_ENTRY = 'src/host/estimator/estimatorEntry.ts'
 const ESTIMATOR_OUTFILE = 'dist/estimator.js'
 // M117 C-M117-1: the shared core adapter over M113's plan reader with the
@@ -587,8 +593,18 @@ const reportingDestinationsOptions = {
 }
 // C-M113-2: the session and usage inputs (usage journal machinery) load on
 // the first session or usage report, off the reporting engine's budget.
+// RLUSAGE: the journal schemas ride the shared boundaries chunk instead of
+// a second inline copy, off this chunk's unchanged 100 KiB budget.
 const reportInputsOptions = {
   ...reportingOptions,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedRedaction,
+    sharedModelApiBoundaries,
+  ],
   entryPoints: ['src/runtime/reporting/reportInputsEntry.ts'],
   outfile: 'dist/reportInputs.js',
 }
@@ -963,6 +979,29 @@ const reportOptions = {
   target: HOST_NODE_TARGET,
 }
 
+// Lane REPORTFLOW R2: the editor-native fallback. It reads `vscode` (kept
+// external, provided by the host, as for the other host bundles), so a stray
+// import of anything activation-only fails the split gate instead.
+/** @type {import('esbuild').BuildOptions} */
+const reportFallbackOptions = {
+  ...common,
+  plugins: [
+    sharedUiText,
+    sharedValidation,
+    deferredCohort,
+    sharedWire,
+    sharedResourceAdmission,
+    sharedStructuredSchema,
+    sharedModelApiBoundaries,
+  ],
+  entryPoints: [REPORT_FALLBACK_ENTRY],
+  outfile: REPORT_FALLBACK_OUTFILE,
+  platform: 'node',
+  format: 'cjs',
+  target: HOST_NODE_TARGET,
+  external: ['vscode'],
+}
+
 // The capacity estimator's engine (M117, PLAN.md D97), loaded the first
 // time an estimate runs; it reads no `vscode` and no backend, so a stray
 // import fails this build.
@@ -1204,6 +1243,13 @@ const usageServiceOptions = {
   ...modelApiOptions,
   entryPoints: [USAGE_SERVICE_ENTRY],
   outfile: 'dist/usageService.js',
+}
+// RLUSAGE: the usage export encoders (CSV, JSON), required by the service
+// on the first export, off its 100 KiB budget (PLAN.md D6).
+const usageExportOptions = {
+  ...modelApiOptions,
+  entryPoints: [USAGE_EXPORT_ENTRY],
+  outfile: 'dist/usageExport.js',
 }
 const usageCompanionOptions = {
   ...modelApiOptions,
@@ -2239,6 +2285,7 @@ if (isWatch) {
     esbuild.context(commandsOptions),
     esbuild.context(editorChatOptions),
     esbuild.context(usageServiceOptions),
+    esbuild.context(usageExportOptions),
     esbuild.context(headlessOptions),
     esbuild.context(usageCompanionOptions),
     esbuild.context(voiceCompanionOptions),
@@ -2254,6 +2301,7 @@ if (isWatch) {
     esbuild.context(vaultActionsOptions),
     esbuild.context(vaultMigrationOptions),
     esbuild.context(reportOptions),
+    esbuild.context(reportFallbackOptions),
     esbuild.context(estimatorOptions),
     esbuild.context(estimateActionsOptions),
     esbuild.context(planSnapshotOptions),
@@ -2441,6 +2489,7 @@ if (isWatch) {
     modelsSubscriptions: recorded('modelsSubscriptions', modelsSubscriptionsOptions),
     commands: recorded('commands', commandsOptions),
     usageService: recorded('usageService', usageServiceOptions),
+    usageExport: recorded('usageExport', usageExportOptions),
     usageCompanion: recorded('usageCompanion', usageCompanionOptions),
     usagePanel: recorded('usagePanel', usagePanelOptions),
     extensionHooks: recorded('extensionHooks', extensionHooksOptions),
@@ -2453,6 +2502,7 @@ if (isWatch) {
     vaultActions: recorded('vaultActions', vaultActionsOptions),
     vaultMigration: recorded('vaultMigration', vaultMigrationOptions),
     report: recorded('report', reportOptions),
+    reportFallback: recorded('reportFallback', reportFallbackOptions),
     estimator: recorded('estimator', estimatorOptions),
     recorder: recorded('recorder', recorderOptions),
     whatsNew: recorded('whatsNew', whatsNewOptions),
@@ -2692,6 +2742,7 @@ if (isWatch) {
   reportSize(AUTH_OUTFILE)
   reportSize(PAID_OUTFILE)
   reportSize('dist/usageService.js')
+  reportSize('dist/usageExport.js')
   reportSize('dist/usageCompanion.js')
   reportSize('dist/usagePanel.js')
   reportSize(EXTENSION_HOOKS_OUTFILE)
@@ -2700,6 +2751,7 @@ if (isWatch) {
   reportSize('dist/vaultBrokerBindings.js')
   reportSize(VAULT_ACTIONS_OUTFILE)
   reportSize(REPORT_OUTFILE)
+  reportSize(REPORT_FALLBACK_OUTFILE)
   reportSize(ESTIMATOR_OUTFILE)
   reportSize(ESTIMATE_ACTIONS_OUTFILE)
   reportSize(ESTIMATE_PRICES_OUTFILE)

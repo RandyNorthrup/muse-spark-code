@@ -24,6 +24,7 @@ import {
   USAGE_JOURNAL_ROOT,
   type UsageFs,
 } from '../../src/core/usage/journalStore'
+import { epochNow, toEpochMs } from '../../src/shared/epochMs'
 import { createUsageRecord, usageLocalDay } from '../../src/core/usage/journalRecord'
 import { NodeUsageFs } from '../../src/runtime/usage/nodeUsageFs'
 import {
@@ -45,8 +46,8 @@ const GATED = 'm.jsonl'
 function record(id: string) {
   return createUsageRecord(undefined, {
     id,
-    at: AT,
-    startedAt: AT - 1000,
+    at: toEpochMs(AT),
+    startedAt: toEpochMs(AT - 1000),
     client: 'Zed',
     backend: 'modelApi',
     provider: 'custom',
@@ -137,7 +138,7 @@ function storeIn(fs: UsageFs): UsageJournalStore {
   return new UsageJournalStore(fs, {
     writerId: 'test-writer',
     isEnabled: () => true,
-    now: () => Date.now(),
+    now: epochNow,
     onWriteError: () => {
       throw new Error('the race tests never write')
     },

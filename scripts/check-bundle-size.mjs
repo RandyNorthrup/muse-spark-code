@@ -184,6 +184,9 @@ const BUDGETS = [
   { path: 'dist/editorChat.js', budgetKiB: 30 },
   // M102: independent lazy entries; measured + 15%, rounded up to 25 KiB.
   { path: 'dist/usageService.js', budgetKiB: 100 },
+  // RLUSAGE: the service's export encoders, required on the first export;
+  // 31,720 B measured +15%, rounded up to the next whole KiB (PLAN.md D6).
+  { path: 'dist/usageExport.js', budgetKiB: 36 },
   { path: 'dist/usageCompanion.js', budgetKiB: 50 },
   // CMICCOMP: independent first-use voice page, no chat startup imports.
   { path: 'dist/voiceCompanion.js', budgetKiB: 125 },
@@ -463,6 +466,10 @@ const BUDGETS = [
   // required on the first of those commands. 29,962 B when split out
   // (29.3 KiB); plus 15%, rounded up to 25 KiB (PLAN.md D6).
   { path: 'dist/commands.js', budgetKiB: 50 },
+  // The report fallback (lane REPORTFLOW R2): the same sealed draft behind
+  // the editor's own quick pick, when the dialog cannot open. Measured at
+  // merge time; budget holds measured plus headroom (PLAN.md D6).
+  { path: 'dist/reportFallback.js', budgetKiB: 50 },
   // The capacity estimator's engine (M117, PLAN.md D6, D97), loaded on the
   // first estimate: goal and DAG, calibration, schedule and simulation,
   // recommendations, dated prices and the first-wave starter with their
